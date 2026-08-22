@@ -225,10 +225,12 @@ thing" inverse, so `undo()` bypasses the command layer entirely and restores the
 snapshot directly through the repository:
 
 ```text
-execute(): result := deleteZoneCommand.execute({ zoneId })   // slice 3's plain command
-           if result.isErr(): return result
-           snapshot := full copy of the Zone entity + its sidecar geometry entry,
-                       captured BEFORE calling execute() above
+execute(): snapshot := read the full Zone entity + its sidecar geometry entry via
+                       zoneRepository, BEFORE dispatching the delete below — once
+                       deleteZoneCommand.execute() succeeds, that data is gone and
+                       cannot be recovered from the Zone/sidecar itself
+           result := deleteZoneCommand.execute({ zoneId })   // slice 3's plain command
+           if result.isErr(): return result   // snapshot is discarded, unused
            clear selection if it pointed at this zone
            return result
 
@@ -357,13 +359,16 @@ class MoveSpatialObjectVertexCommand implements UndoableCommand {
 }
 
 // application/commands/zone/ReversibleDeleteZoneCommand.ts (new) — wraps slice 3's
-// plain DeleteZoneCommand for execute(); undo() bypasses the command layer (see Design)
+// plain DeleteZoneCommand for the delete itself; undo() bypasses the command layer
+// (see Design). zoneRepository is used on BOTH paths: execute() reads the
+// pre-delete snapshot through it before dispatching deleteCommand, and undo()
+// writes that snapshot back through it directly.
 class ReversibleDeleteZoneCommand implements UndoableCommand {
   constructor(
     private readonly deleteCommand: Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>>,
-    private readonly zoneRepository: ZoneRepository, // undo()'s direct restore path only
+    private readonly zoneRepository: ZoneRepository,
   );
-  execute(): Promise<Result<void, ReferenceError | PersistenceError>>; // snapshots, then delegates to deleteCommand
+  execute(): Promise<Result<void, ReferenceError | PersistenceError>>; // reads snapshot, then delegates to deleteCommand
   undo(): Promise<Result<void, PersistenceError>>; // re-inserts snapshot verbatim, same ID
 }
 ```

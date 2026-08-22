@@ -210,11 +210,21 @@ This slice maps SDD §50's Quantity Engine pipeline onto real data, for the
 Zone.geometry (Polygon)              ← slice 8
         ↓ Polygon.area()             ← slice 2
 Measured Quantity (mm² → Asset.unit) ← slice 9 unit conversion
-        ↓ Requirement Rule = area (identity for area/length/volume-based assets)
+        ↓ Requirement Rule = area (identity, `m2`-unit Assets only)
 Required Quantity
         ↓ applyWaste(required, Requirement.wasteFactor × 100)   ← slice 9
 Purchase Quantity  ==  Requirement.quantity.calculated
 ```
+
+**The area rule is dimensionally valid only for an `m2`-unit Asset.** A Zone's
+`Polygon.area()` is an area; treating it as an identity input for an `m` (length) or
+`m3` (volume) Asset would silently divide/multiply nothing and just relabel an area
+figure as a length or a volume — a real quantity would need the Zone's perimeter (for
+`m`) or area × a height/depth this slice has no input for (for `m3`), neither of which
+this slice derives. `AssignAssetCommand` therefore rejects assigning a non-`m2` Asset
+to a Zone with a `ValidationError`, rather than silently computing a dimensionally
+meaningless quantity; the picker (`ListAssets`, below) still lists every project Asset
+unfiltered; the command is what actually enforces this rule.
 
 **Unit conversion at this boundary, not a shared convention.** `Requirement.wasteFactor`
 is a fraction in `[0, 1)` (`0.10` meaning "10% waste") because that is the natural
@@ -236,10 +246,14 @@ Requirement.quantity effective (override ?? calculated)
 Estimated Cost  ==  Requirement.estimatedCost.calculated
 ```
 
-Piece/hour/day/fixed-unit assets structurally pass through the same engine
+Piece/hour/day/fixed/`m`/`m3`-unit assets structurally pass through the same engine
 (slice 9 already supports all seven units) but have no geometry-derived
-Requirement Rule wired in this slice — a piece-count Requirement would need a
-manual quantity, which is future work, not this slice's success criterion.
+Requirement Rule wired in this slice: piece/hour/day/fixed would need a manual
+quantity (future work), and `m`/`m3` would need a perimeter or a height/depth input
+this slice's `Zone` does not carry (also future work) — `AssignAssetCommand` rejects
+all six of them for now, not just piece/hour/day/fixed, since accepting an `m`/`m3`
+Asset without a real derivation rule would be exactly the silent-mislabeling bug
+this rule exists to prevent.
 
 ### Event cascade
 
@@ -453,8 +467,9 @@ type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationErro
 // Slice 3's corrected pattern that Result must be inspected and returned, not
 // discarded, before publishing any event or reporting success.
 interface AssignAssetInput { zoneId: ZoneId; assetId: AssetId; }
-type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
-// idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one
+type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, ValidationError | DomainError | ReferenceError | PersistenceError>>;
+// idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one;
+// ValidationError if the Asset's unit is not "m2" — see "The derivation pipeline" above
 
 interface RecalculateRequirementInput { requirementId: RequirementId; }
 type RecalculateRequirementCommand = Command<RecalculateRequirementInput, Result<Requirement, CalculationError | ReferenceError | PersistenceError>>;
@@ -586,7 +601,10 @@ are additive, not breaking.
   deterministic, no Obsidian/Vue/Konva involved (§92 #1–3, #12).
 - **Application (in-memory repositories, §71).** `AssignAssetCommand` creates
   exactly one Requirement and is idempotent on a repeated call for the same
-  (zone, asset) pair. A test publishes `ZoneGeometryChanged` directly on an
+  (zone, asset) pair. `AssignAssetCommand` against an Asset whose `unit` is
+  `m`, `m3`, `piece`, `hour`, `day`, or `fixed` resolves `Result.err(ValidationError)`
+  and creates no Requirement — table-driven over all six rejected units, not just
+  one. A test publishes `ZoneGeometryChanged` directly on an
   in-memory Event Bus and asserts the full cascade fires in order —
   `RequirementInvalidated` → `RequirementRecalculated` → `CostEstimateChanged`
   — exactly once each, with the Requirement's persisted `calculated` values
@@ -635,6 +653,9 @@ are additive, not breaking.
 - [ ] `AssignAssetCommand` creates a `Requirement` whose `quantity.calculated`
       and `estimatedCost.calculated` are correct on first creation, without
       requiring a subsequent Zone edit.
+- [ ] `AssignAssetCommand` rejects an Asset whose `unit` is not `m2` with
+      `ValidationError` and creates no Requirement — a Zone's area is not a valid
+      identity input for a length, volume, piece, hour, day, or fixed-unit Asset.
 - [ ] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).

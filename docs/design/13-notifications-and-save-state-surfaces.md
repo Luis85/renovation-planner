@@ -263,10 +263,10 @@ defines, not by changing `CommandHistory` itself:
 
 ```text
 withSaveStateTracking(dispatcher, saveStateStore).run(command)
-  → saveStateStore.beginSaving()      state := 'saving'
+  → saveStateStore.beginSaving()      pendingCount++; state := 'saving'
   → result = await dispatcher.run(command)
-  → result.ok  → saveStateStore.resolveOk()    state := 'saved'
-  → !result.ok → saveStateStore.resolveErr()   state := 'save-error'
+  → result.ok  → saveStateStore.resolveOk()    pendingCount--
+  → !result.ok → saveStateStore.resolveErr()   pendingCount--; hasErrorInBatch := true
   → return result unchanged to the caller
 ```
 
@@ -275,6 +275,46 @@ This wraps the same `commandDispatcher` object slice 6 hands to `EditorContext` 
 one dispatcher instance per Plan Editor (slice 6's own "one choke point" rule), so
 wrapping it once at the composition root covers every command source without either
 `ToolManager` or `InspectorStore` needing to know a save-state store exists.
+
+**Overlapping dispatches are a real case, not a simplification this slice can skip.**
+Slice 6's "one choke point" rule serializes commands *per gesture* (one `pointerUp`,
+one command), not globally — an Inspector field commit and a canvas gesture can each
+independently call `dispatcher.run()` around the same time, so two or more commands
+can be in flight against the same Plan Editor simultaneously. Naively setting `state`
+directly inside `resolveOk`/`resolveErr` breaks the moment that happens: the faster of
+two in-flight writes resolving `ok` would flip the indicator to `Saved` while the
+slower one is still pending, misreporting data as safely written before it is.
+`SaveStateStore` therefore tracks a `pendingCount` (how many dispatches are currently
+in flight) and a `hasErrorInBatch` flag, internal to the store, alongside the publicly
+visible `state`:
+
+```text
+beginSaving()  → pendingCount += 1
+                 state := 'saving'                          (a new dispatch always
+                                                               shows 'saving' — including
+                                                               to supersede a stale
+                                                               'save-error' from a prior
+                                                               batch that already drained)
+resolveOk()    → pendingCount -= 1
+                 if pendingCount === 0:
+                   state := hasErrorInBatch ? 'save-error' : 'saved'
+                   hasErrorInBatch := false                  (batch settled; reset)
+                 // else: at least one sibling dispatch is still in flight —
+                 //       state stays 'saving', not yet settled either way
+resolveErr()   → pendingCount -= 1
+                 hasErrorInBatch := true
+                 if pendingCount === 0:
+                   state := 'save-error'
+                   hasErrorInBatch := false
+                 // else: state stays 'saving' until the last sibling settles
+```
+
+The visible `state` only ever transitions to `'saved'` or `'save-error'` when
+`pendingCount` reaches zero — i.e. once every command dispatched since the last time
+it was zero has resolved — and a single failure anywhere in that batch makes the
+whole batch report `'save-error'`, even if every other concurrent write in it
+succeeded. A batch is never reported `'saved'` while any part of it is still
+unresolved or failed.
 
 `commandDispatcher.run` resolves `Promise<Result<void, AppError>>` (slice 6's
 `CommandHistory.run`, `AppError` from slice 2) — a save-state indicator could not
@@ -426,16 +466,20 @@ export const SAVE_STATE_LABELS: Readonly<Record<SaveState, string>> = {
 ```typescript
 // presentation/editor/save-state/save-state-store.ts — one per Plan Editor
 // ItemView's own Pinia instance (see Design §6), NOT the global Pinia
-// instance NotificationStore lives in.
+// instance NotificationStore lives in. pendingCount/hasErrorInBatch are
+// internal bookkeeping for overlapping dispatches (see Design §7); only
+// `state` is part of this store's public surface.
 export interface SaveStateStoreState {
   readonly state: SaveState;
+  readonly pendingCount: number;      // internal; not rendered directly
+  readonly hasErrorInBatch: boolean;  // internal; not rendered directly
 }
 
 export const useSaveStateStore: () => {
   readonly state: SaveState;
-  beginSaving(): void;  // → 'saving'
-  resolveOk(): void;    // → 'saved'
-  resolveErr(): void;   // → 'save-error'
+  beginSaving(): void;  // pendingCount += 1; state := 'saving'
+  resolveOk(): void;    // pendingCount -= 1; settles to 'saved'/'save-error' at 0
+  resolveErr(): void;   // pendingCount -= 1; hasErrorInBatch := true; settles at 0
   // deliberately no action sets 'unsaved-changes' — see Design §8
 };
 ```
@@ -522,6 +566,13 @@ split slice 5 already established for that layer's own stores:
   `'saving'`; `resolveOk()` → `'saved'`; `resolveErr()` → `'save-error'`; a subsequent
   `beginSaving()` after `'save-error'` moves on to `'saving'` again (a stale error does
   not get stuck).
+- **Overlapping-dispatch test** (the concurrency case Design §7 exists for): call
+  `beginSaving()` twice (two dispatches in flight) before either resolves; assert
+  `state` is still `'saving'` after the first `resolveOk()` (one sibling remains
+  pending); assert it becomes `'saved'` only after the second also `resolveOk()`s.
+  Repeat with the first resolving `resolveErr()` and the second `resolveOk()`;
+  assert the batch settles to `'save-error'`, not `'saved'` — one failure in a
+  batch of concurrent dispatches must not be masked by a sibling's success.
 - **Unreachability test for `Unsaved Changes`** (backs Design §8's claim directly,
   rather than leaving it as an assertion in prose): drive `SaveStateStore` through
   every reachable sequence of its three actions from its initial state and assert
@@ -566,6 +617,11 @@ split slice 5 already established for that layer's own stores:
    `saved → saving → save-error` on a failed one, driven through
    `withSaveStateTracking` wrapping slice 6's `commandDispatcher` — with no change to
    `CommandHistory` itself.
+7a. Two overlapping dispatches against the same Plan Editor never show `'saved'`
+    while either is still unresolved, and a batch containing at least one failure
+    settles to `'save-error'` even if a sibling in that same batch succeeded —
+    proven by the overlapping-dispatch test (Testing Strategy), not just by the
+    single-dispatch case in item 7.
 8. `SaveStateIndicator.vue` renders the sentence-cased label for all four `SaveState`
    values, into the "Save State" third of SDD §60's status bar row.
 9. `'unsaved-changes'` is proven unreachable through `SaveStateStore`'s own action

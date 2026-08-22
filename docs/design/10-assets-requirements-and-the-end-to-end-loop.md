@@ -488,7 +488,10 @@ restores the prior geometry and — by re-emitting `ZoneGeometryChanged` through
 the same handler on `undo()` — deterministically re-derives the prior
 Requirement values as a side effect. Overrides are unaffected by an unrelated
 Zone's undo/redo, since they live on the Requirement and are only touched by
-their own commands.
+their own commands. Those commands do get their own entries: setting or
+clearing an override is a user intent like any other, dispatched through the
+adapters below, so it is one entry and it is reversible — §31 says one intent
+is one entry, not that only geometry earns one.
 
 ### Inspector integration
 
@@ -543,14 +546,54 @@ effective quantity (with a visible "overridden" badge and the calculated
 figure still shown when `override !== null`), and effective cost (same
 treatment). A missing target renders from `assetId` with the reason shown rather than a
 name (see `delete-anyway` above). An "Assign Asset" control dispatches
-`ReversibleAssignAssetCommand`; a cost field with a "reset to calculated" affordance
-dispatches `SetRequirementCostOverrideCommand`. Edits become commands, per §59 — the
-Inspector never writes to a Requirement directly.
+`ReversibleAssignAssetCommand`; a quantity field and a cost field, each with a "reset to
+calculated" affordance, dispatch `ReversibleSetRequirementQuantityOverrideCommand` and
+`ReversibleSetRequirementCostOverrideCommand`. Both fields are editable because §52 makes
+the two independently overridable and this panel is the only surface either has — a
+`SetRequirementQuantityOverrideCommand` that no control dispatches would be a command
+with no caller, which is the same defect as a query with no reader. Edits become commands,
+per §59 — the Inspector never writes to a Requirement directly.
 
-**Assignment goes through an adapter, like every other edit reaching command history.**
-PRD §68 names `AssignAssetCommand` undoable, and slice 6's Inspector commit path is
-`CommandHistory.run()`, which accepts an `UndoableCommand` and nothing else — so the
-plain command could not be dispatched from this panel even if undo were not wanted.
+**Every edit from this panel goes through an adapter, without exception.** Slice 6's
+Inspector commit path is `CommandHistory.run()`, which accepts an `UndoableCommand` and
+nothing else, so a plain `Command` cannot be dispatched from here at all — a control wired
+to one either bypasses command history or cannot be wired. That applies to the overrides
+exactly as it does to assignment: a negotiated price a user typed in is an edit like any
+other, and PRD §68's list is examples ("ChangePropertyCommand" among them), not an
+enumeration that excludes what it does not name.
+
+`ReversibleSetRequirementQuantityOverrideCommand` and
+`ReversibleSetRequirementCostOverrideCommand` are the same shape over their two plain
+commands, and what each captures is **the whole Requirement as it was before the edit**,
+restored through the repository on undo — the same snapshot-and-restore the delete
+resolutions already use, not a saved copy of the one field being set.
+
+Capturing only the field would be the obvious version and it is wrong for the quantity
+adapter specifically: `SetRequirementQuantityOverrideCommand` re-runs the Cost Pipeline
+against the new *effective* quantity, so an override edit writes `estimatedCost.calculated`
+as well as the field it is named after. An undo that put back only `quantity.override`
+would leave a calculated cost derived from a quantity that no longer exists — a figure
+nothing in the pipeline could have produced, and one no badge would flag, since
+`calculatedFrom` records the Zone area and unit price rather than the override. Restoring
+the entity puts both back at once and makes the pair a true inverse, which is what slice 8
+requires of every `execute()`/`undo()`.
+
+The snapshot is taken on the first `execute()` only; redo re-applies the recorded new value
+rather than re-reading what undo just wrote — the same rule the assignment adapter follows,
+for the same reason. And `null` is a value in it, not an absence: "reset to calculated" *is*
+`override = null`, so undoing a reset restores the number the user had typed, and undoing a
+first-ever override restores `null` rather than leaving the new figure in place. An adapter
+that read a captured `null` as "there was nothing here" would make the reset affordance the
+one edit in this panel that cannot be taken back.
+
+Neither override touches `calculated` or `calculatedFrom`, so neither marks the
+Requirement stale: an override is a user's answer sitting beside a derived figure, not a
+claim about the derivation. `CostEstimateChanged` still fires, because the effective cost
+did change.
+
+**Assignment's adapter carries something the override adapters do not** — PRD §68 names
+`AssignAssetCommand` undoable, and the funnel above already forces the wrapper, but what
+it has to remember is not a previous value.
 `ReversibleAssignAssetCommand` wraps it with one piece of state the plain command's
 payload cannot supply: whether this call created the Requirement or found an existing
 one. `AssignAssetCommand` is idempotent by design, so both return a Requirement, and an
@@ -561,7 +604,8 @@ created, and is a no-op otherwise.
 Redo restores that Requirement under its original ID rather than re-running assignment,
 for the reason slice 8 spells out for creation: `CommandHistory.redo()` calls `execute()`
 again, and a fresh identity would strand every later command that captured the old one.
-The two adapters are the same shape, over different plain commands.
+This adapter and slice 8's `ReversibleCreateZoneCommand` are the same shape over
+different plain commands.
 
 ### Deletion & reference integrity
 
@@ -611,8 +655,46 @@ outcomes rather than three synonyms for "delete":
 | --- | --- |
 | *(absent)* | Refuse with a `ReferenceError` naming the referents, if any exist. This is the path a script or a migration takes. |
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
-| `reassign` | Repoint every referencing Requirement's `origin`/`assetId` at `reassignTo`, then delete the entity. A missing or self-referencing `reassignTo` is a `ValidationError`. |
+| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, or (for an Asset) is not of `area` kind is a `ValidationError` and nothing is written. |
 | `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Requirements panel shows wherever it still has a row to show it on (see below). |
+
+**`reassign` changes a Requirement's inputs, so it owes the same cascade a geometry edit
+does.** Repointing `origin` at another Zone or `assetId` at another Asset replaces exactly
+the two values every figure on that Requirement was derived from — the source area and the
+unit price. There are three ways those inputs can change: the Zone's polygon moves
+(`ZoneGeometryChanged`), the Asset's price is edited (`AssetUpdated`), and the reference
+itself is repointed. The first two mark the Requirement stale and recalculate it; the third
+did neither, which left one of the three paths quietly exempt from the invariant the other
+two exist to hold.
+
+The read model does not save it, though it softens the symptom and the distinction is
+worth being exact about: `calculatedFrom` records the `zoneArea` and `unitCost` a figure
+was produced from, so a panel loading a reassigned Requirement compares them against its
+*new* target, finds a mismatch, and reports `"stale"` — one of the two guarantees already
+holds. The other two do not. The persisted marker still reads `"current"`, which is the
+state the round that added `recalculationStatus` set out to make impossible, and — the
+part no backstop covers — **nothing ever recalculates it**: no geometry changed and no
+Asset was edited, so neither subscriber fires, and the Requirement keeps the old Zone's
+area and the old Asset's price until something unrelated happens to touch one of them. A
+reassign onto a target with a coincidentally identical area even matches `calculatedFrom`
+and reads `"current"` while being right by accident.
+
+So the resolution does per Requirement what the other two input changes already do, in the
+order the failed-marker rule fixed: repoint and `markStale` first, persisted together, then
+recalculate. Recalculation runs **inline**, inside the command, the same way
+`AssignAssetCommand` triggers it — which is what lets slice 8's post-command refresh find
+finished numbers rather than racing a cascade, and what keeps the whole reassignment one
+undoable unit. A failed recalculation does not fail the delete: the marker is already
+persisted, so the Requirement stays visibly `"stale"` and the failure is logged — slice
+17's background-cascade case, reached the same way it always is. A failed repoint or a
+failed `markStale` is a different matter and does fail it, compensating from
+`affectedBefore` like any other write in the sequence, because those two are what the stale
+guarantee rests on.
+
+Undo needs nothing new for this. `affectedBefore` holds each Requirement's full
+pre-resolution state — old reference, old figures, old `calculatedFrom`, old marker — so
+restoring it puts back numbers that were correct for the old target rather than
+recalculating toward it.
 
 **`delete-anyway` owes the Requirements it strands a way to be seen, and this slice can
 pay only half of that.** PRD §64 requires the action, so retaining them is not optional —
@@ -670,8 +752,15 @@ The resolution therefore runs as a compensated sequence, the same shape slice 4 
 inside a repository:
 
 ```text
+0. Validate the resolution's own input (`reassignTo` resolves, is not the entity being
+   deleted, and for an Asset is of `area` kind) — before any write, so a rejected
+   reassignment has nothing to compensate.
 1. Read every referencing Requirement in full → `affectedBefore` snapshot.
-2. Apply the resolution to each in turn, recording which have been written.
+2. Apply the resolution to each in turn, recording which have been written. For
+   `reassign` that is more than one write per Requirement — repoint + markStale, then a
+   recalculation whose failure is logged and left stale rather than aborting the
+   sequence — and the snapshot covers all of them, since it is the whole entity as it
+   was before any of this ran.
 3. Delete the entity.
 4. On any failure in 2 or 3: restore every Requirement already written, from
    `affectedBefore`, then return the error. A failing compensation is logged through
@@ -707,6 +796,13 @@ but never says how a target is picked. Slice 15 is explicit that its dialog reso
 the caller performs before dispatching — a second picker — and neither the SDD nor the
 PRD specifies it, so this slice defines the command's contract for receiving a target
 without designing the UI that supplies it.
+
+What the command does **not** delegate to that unbuilt picker is validating what it is
+handed. An Asset `reassignTo` goes through the same `UNIT_KIND` area check
+`AssignAssetCommand` applies, for the identical reason: a Zone's area is not an identity
+input for a `piece` or `hour` Asset, and a rule enforced on one of the two paths that can
+create the link is a rule a user reaches around by deleting an Asset instead of assigning
+one. Both paths read the same map rather than each comparing against a literal `'m2'`.
 
 ## Interfaces & Contracts
 
@@ -788,6 +884,40 @@ type SetRequirementQuantityOverrideCommand = Command<SetRequirementQuantityOverr
 interface SetRequirementCostOverrideInput { requirementId: RequirementId; cost: Money | null; }
 type SetRequirementCostOverrideCommand = Command<SetRequirementCostOverrideInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
 
+// The two adapters the override fields actually dispatch — neither plain command above
+// can reach CommandHistory.run(), which is the Inspector's only commit path (slice 6).
+// Declared as a pair rather than one generic over the value type: they differ only in
+// what `T` is, and a shared adapter would have to be told how to read and write the
+// field, which is more machinery than the second small class it replaces.
+//
+// Each captures the whole pre-edit Requirement on its FIRST execute and restores it on
+// undo — not just the override field, because the quantity command also re-runs the Cost
+// Pipeline and a field-only restore would leave estimatedCost.calculated derived from a
+// quantity that no longer exists. `null` is a value inside that snapshot, not an absence:
+// "reset to calculated" sets the override to null, so undoing a reset restores the figure
+// the user typed and undoing a first-ever override restores null. Treating null as
+// "nothing to restore" would leave the reset affordance as the one edit in this panel
+// that undo cannot take back — silently, since every other test in the family passes.
+class ReversibleSetRequirementQuantityOverrideCommand implements UndoableCommand {
+  constructor(
+    private readonly setCommand: SetRequirementQuantityOverrideCommand,
+    private readonly requirementRepository: RequirementRepository,
+    private readonly input: SetRequirementQuantityOverrideInput,
+  );
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;
+}
+
+class ReversibleSetRequirementCostOverrideCommand implements UndoableCommand {
+  constructor(
+    private readonly setCommand: SetRequirementCostOverrideCommand,
+    private readonly requirementRepository: RequirementRepository,
+    private readonly input: SetRequirementCostOverrideInput,
+  );
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;
+}
+
 // application/queries
 // Rows for a Requirement whose Asset is gone come back with assetName: null,
 // missingTarget: 'asset' and recalculationStatus "stale", never "current" — the query
@@ -811,9 +941,12 @@ domain/asset/                          domain/requirement/
 
 application/commands/asset/            application/commands/requirement/
 ├── CreateAsset.ts                     ├── AssignAsset.ts
-├── UpdateAsset.ts                     ├── RecalculateRequirement.ts
-└── DeleteAsset.ts                     ├── SetRequirementQuantityOverride.ts
+├── UpdateAsset.ts                     ├── ReversibleAssignAssetCommand.ts
+└── DeleteAsset.ts                     ├── RecalculateRequirement.ts
+                                       ├── SetRequirementQuantityOverride.ts
                                        ├── SetRequirementCostOverride.ts
+                                       ├── ReversibleSetRequirementQuantityOverride.ts
+                                       ├── ReversibleSetRequirementCostOverride.ts
                                        └── DeleteRequirement.ts
 
 application/event-handlers/requirement/
@@ -980,6 +1113,24 @@ are additive, not breaking.
   idempotent path — `undo()` leaves it in place, with any overrides on it untouched.
   The second case is the one a naive adapter fails, and it fails invisibly, since a
   test that only ever assigns to a fresh Zone never reaches it.
+- **Application — undoable overrides.** Each adapter driven over the three transitions its
+  snapshot has to tell apart: `null → value`, `value → value'`, and `value → null` (the
+  reset affordance). Undo restores the left-hand side in all three, and the third is what
+  separates a correct adapter from one reading a captured `null` as "there was nothing
+  here". Asserted by comparing the **full** pre-edit and post-undo Requirement, not the
+  override field alone — the quantity adapter's whole reason for snapshotting the entity
+  is `estimatedCost.calculated`, which a field-level assertion never looks at. Redo
+  re-applies the recorded value rather than re-reading the field, asserted by undoing and
+  redoing twice: a snapshot-on-every-execute adapter drifts on the second round while
+  looking right on the first.
+- **Application — reassignment recalculates.** A Requirement on a 10 m² Zone, reassigned
+  to a 20 m² Zone, ends with the persisted figures the new area produces and a marker
+  that never reads `"current"` beside the old ones; the Asset case is the same test over
+  two `unitCost`s. Asserted against the repository rather than the DTO, because
+  `calculatedFrom` makes the read model say `"stale"` even when nothing recalculated —
+  which is the difference between the symptom being hidden and the bug being fixed. Two
+  failure cases beside it: a failing `markStale` compensates the whole resolution, and a
+  failing recalculation does not (repointed, stale, logged, delete completed).
 - **Application — dangling references.** After `delete-anyway` on an Asset,
   `GetRequirementsForZone` returns the row with `assetName: null`,
   `missingTarget: 'asset'` and `recalculationStatus: 'stale'` rather than failing or
@@ -1008,7 +1159,10 @@ are additive, not breaking.
   override with a distinct visual treatment and still shows the calculated
   value for comparison when one is set (§52); the "assign asset" picker
   dispatches `ReversibleAssignAssetCommand`; the cost field's reset control dispatches
-  `SetRequirementCostOverrideCommand(..., null)`.
+  `ReversibleSetRequirementCostOverrideCommand(..., null)`, and the quantity field's the
+  quantity adapter. Asserted on what reaches `CommandHistory.run()`, since that is the
+  difference the funnel rule is about — a control wired to the plain command dispatches
+  something that looks identical at the repository and never lands in undo history.
 - **Integration test vault (§75).** Add an `asset-and-requirement` fixture
   under `tests/vault/` — one Project, one Plan, one calibrated Zone with a
   known area, one Asset with known unit cost and waste factor, and one
@@ -1115,8 +1269,31 @@ are additive, not breaking.
       compensated restore. The mirror of the execute-side case above, and the one that
       only becomes testable here, where `affectedBefore` first holds more than the
       deleted entity itself.
-- [ ] `reassign` with a missing or self-referencing `reassignTo` resolves a
-      `ValidationError` and deletes nothing.
+- [ ] `reassign` recalculates. Reassigning a Requirement from a 10 m² Zone to a 20 m²
+      one leaves it holding the **new** target's figures and a persisted
+      `recalculationStatus` that is not `"current"`-with-old-numbers at any point a reader
+      could observe; same for an Asset reassign across two different `unitCost`s. Asserted
+      on the persisted entity, not on the DTO: `calculatedFrom` makes the *panel* read
+      `"stale"` either way, so a DTO-level test passes against a resolution that never
+      recalculated at all.
+- [ ] A recalculation that fails during `reassign` leaves that Requirement repointed and
+      persisted `"stale"`, logs, and still completes the delete — while a failed repoint
+      or a failed `markStale` compensates and fails it. The two halves are asserted
+      separately, since one policy applied to both would be wrong in one direction or the
+      other.
+- [ ] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, or
+      an Asset whose unit is not of `area` kind resolves a `ValidationError`, writes
+      nothing, and deletes nothing — the unit check reading slice 9's `UNIT_KIND`, the
+      same map `AssignAssetCommand` reads, so the two paths that can create a link cannot
+      disagree about what a valid one is.
+- [ ] Both override fields dispatch their reversible adapter through
+      `CommandHistory.run()` — no plain override command reaches the panel — and undo
+      restores the full pre-edit Requirement in each of the three cases that differ:
+      overriding a calculated figure (undo → `null`), changing an existing override
+      (undo → the earlier number), and resetting to calculated (undo → the number that was
+      cleared). The third is the one an adapter treating `null` as "nothing to restore"
+      fails while passing the first two, and the comparison covers `estimatedCost` as well
+      as the field edited, since a quantity override rewrites both.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
       (§92 #1–3).
 
@@ -1148,10 +1325,13 @@ criterion — "Zone Geometry → Area → Requirement → Cost works end to end"
    the undo paths deliberately publish nothing — and a second one would make the panel
    refresh twice per command.
 5. Override the cost to **550.00 EUR** (a negotiated price). The Inspector
-   dispatches `SetRequirementCostOverrideCommand`; `estimatedCost.override =
-   550.00`; `CostEstimateChanged` fires again. The Inspector now shows
-   **550.00 EUR**, badged as overridden, with 594.00 EUR still visible as the
-   underlying calculated figure.
+   dispatches `ReversibleSetRequirementCostOverrideCommand` — through
+   `CommandHistory.run()` like every other edit in the panel, so the override is undoable
+   and the reset affordance restores 550.00 rather than clearing it a second time;
+   `estimatedCost.override = 550.00`; `CostEstimateChanged` fires again. The Inspector now
+   shows **550.00 EUR**, badged as overridden, with 594.00 EUR still visible as the
+   underlying calculated figure, and `recalculationStatus` still `"current"` — an override
+   is not a claim about the derivation.
 6. Reload the plugin (disable/enable, or restart Obsidian). The
    `ObsidianRequirementRepository` reads the Requirement note back from
    Markdown; `estimatedCost.override` is still `550.00 EUR`.

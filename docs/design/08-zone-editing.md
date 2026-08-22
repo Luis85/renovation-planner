@@ -344,7 +344,8 @@ So the restore runs as its own compensated sequence, the mirror of slice 10's:
   reads as absent, and compensating it means deleting it again. Reading rather than
   reconstructing is what keeps the adapter's promise not to interpret `resolution`: it
   never has to know which of the three outcomes produced the state it is putting back.
-- **A failing compensation is logged via slice 11's Logger, never swallowed** — the same
+- **A failing compensation is logged through the `Logger` (slice 1's port, slice 11's
+  rule for what an unrecoverable step owes a log line), never swallowed** — the same
   admission slice 10 makes on the execute side. The repository does not promise
   multi-file atomicity (slice 4 promises it per file), and a compensated sequence is what
   this design offers instead of pretending otherwise.

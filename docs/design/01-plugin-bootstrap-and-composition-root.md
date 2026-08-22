@@ -28,6 +28,11 @@ Maps to SDD Increment 1 — Plugin Foundation (§91). Its stated success criteri
   slices 2, 4, and 9 fill in without moving the seam.
 - Registering the empty **Renovation Project** workspace view (SDD §11) and the one
   `revealView` activation path shared by every entry point (ribbon icon, command).
+- The `Logger` port (`application/ports/Logger.ts`, SDD §67's four levels) and its one
+  console-backed adapter (`infrastructure/logging/`), composed into the root and called
+  by `onload`/`onunload` — because bootstrap is the first code that can fail and today
+  has nowhere to say so. The `no-console` ban that makes "everything logs through the
+  port" a lint failure rather than a convention comes with it.
 - The Vue mounting strategy (SDD §12, ADR-004): an isolated Vue app — `createApp()` with its
   own Pinia instance — created per Obsidian `ItemView` in `onOpen` and unmounted in
   `onClose`. At this slice the mounted root has no real content; it exists to prove the
@@ -51,6 +56,11 @@ Maps to SDD Increment 1 — Plugin Foundation (§91). Its stated success criteri
   this slice only reserves where the composition root will hold the bus once it exists.
 - Bases views (SDD §13) and any workspace view beyond the one named in Increment 1 — later
   increments, explicitly deferred per `docs/design/README.md`.
+- Everything about logging *except* the port, the console adapter and this slice's own
+  calls — slice 11. What to log at which level across the codebase, the pairing with the
+  Error Boundary (every mapped `AppError` logged with its cause), exception mapping,
+  `ToUserMessage`, diagnostics, and a file-backed sink are all its. This slice gives the
+  plugin somewhere to log; that slice says what the rest of the codebase must log.
 
 ## Dependencies
 
@@ -73,8 +83,9 @@ disposing rather than pre-emptively:
 RenovationPlannerPlugin
 
 onload()
+ ├── create logger                    (createConsoleLogger — see below; not a §9 step)
  ├── load settings                    (loadData → settingsFrom)
- ├── initialize composition root      (createCompositionRoot(settings))
+ ├── initialize composition root      (createCompositionRoot(settings, logger))
  ├── register workspace views         (registerView)
  ├── register commands                (addCommand, addRibbonIcon)
  └── register vault listeners         (deferred — nothing reads the Vault yet)
@@ -82,8 +93,14 @@ onload()
 onunload()
  ├── flush pending writes             (deferred — nothing writes yet)
  ├── stop listeners                   (deferred)
- └── dispose services                 (deferred)
+ └── dispose services                 (deferred — a console sink has nothing to close;
+                                       a file-backed one, if slice 11 adds it, is what
+                                       first puts a real step here)
 ```
+
+The logger is deliberately **ahead of** §9's first step rather than inside its list: it is
+not one of the things bootstrap sets up, it is what the setup steps report through, and a
+step that can fail needs it to already exist. `loadData()` is the first such step.
 
 `registerView`, `addRibbonIcon`, and `addCommand` are unregistered by the `Plugin` base
 class itself; an `onunload` that only repeats what the base class already does is a place
@@ -99,22 +116,32 @@ when their slice lands.
 ### Composition root
 
 The SDD names five things a composition root composes (§10): repositories, application
-services, the event bus, query services, and settings. At this slice, only settings exist —
-so the root is a thin, explicitly-typed object rather than a container pre-loaded with
-placeholders for services that would otherwise have to be faked:
+services, the event bus, query services, and settings. At this slice, settings and the
+logger exist — so the root is a thin, explicitly-typed object rather than a container
+pre-loaded with placeholders for services that would otherwise have to be faked:
 
 ```typescript
 // src/plugin/composition-root.ts
 export interface CompositionRoot {
   readonly settings: RenovationPlannerSettings;
+  // Not one of §10's five, and held here for the reason slice 11 states as a contract:
+  // the Logger is injected via the composition root like any other Application port.
+  // If the root did not hold it from its first version, the injection point would have
+  // to move later — and this seam is extended by a field, never relocated.
+  readonly logger: Logger;
   // readonly eventBus: EventBus;                — arrives with slice 2 (Core Primitives)
   // readonly repositories: RepositoryRegistry;  — arrives with slice 4 (Persistence Layer)
   // readonly services: ApplicationServices;     — arrives with slice 4 / slice 9
   // readonly queries: QueryServices;            — arrives with slice 4
 }
 
-export function createCompositionRoot(settings: RenovationPlannerSettings): CompositionRoot {
-  return { settings };
+// The logger is a PARAMETER, not something this function constructs: it has to exist
+// before the settings load that may fail, and that happens before this call.
+export function createCompositionRoot(
+  settings: RenovationPlannerSettings,
+  logger: Logger,
+): CompositionRoot {
+  return { settings, logger };
 }
 ```
 
@@ -128,6 +155,97 @@ two that could drift.
 other layer (core, domain, application, infrastructure, presentation). That is the entire
 reason the inner layers can stay ignorant of Obsidian: something has to know how to build a
 `ZoneRepository` from an `App`, and it is this file, not `domain/zone/`.
+
+### Logging, from the first line that can fail
+
+Slice 11 owns logging *policy* and already states the wiring as a contract — "`Logger` is
+injected via the composition root (slice 1) like any other Application port". The port
+itself therefore cannot arrive in slice 11 without the root having to be re-opened to hold
+it, and the root is the one seam this slice promises every later slice extends by a field
+rather than moves. The blunter reason is this slice's own: `onload` can fail — `loadData()`
+is an I/O call, `registerView` runs before anything has validated the layout — and until
+there is a logger, a bootstrap that fails does so with nothing written down anywhere the
+plugin controls.
+
+**Where the port lives: `application/ports/`,** beside the repository ports slice 3 adds.
+Not `infrastructure/logging/`, which SDD §7.4 names as the home of the *implementation*: a
+port living there would force every application-layer caller to import `infrastructure/`,
+which is exactly the direction §8 forbids. Not `core/` either, and that placement is worth
+refusing explicitly — a port in `core/` is reachable from `domain/`, and domain code in
+this codebase does not log. A pure entity returns a `Result` and its caller decides what to
+record; the layer ADR-006 keeps free of frameworks should not gain a side-effecting
+dependency because it was convenient to reach.
+
+**One implementation, console-backed.** `createConsoleLogger(minLevel)` in
+`infrastructure/logging/` is the whole of it. Two properties earn that choice rather than a
+file sink: it keeps "no Vault access of any kind in this slice" true (see Persistence
+Impact), and its construction cannot fail — which matters precisely because it is
+constructed first, and a logger that needed I/O to exist could fail at the one moment a
+failure most needs reporting. A file-backed sink, if slice 11 adds one, replaces the
+adapter and leaves the port and every call site alone; it is also what would put the first
+real step into `onunload`.
+
+**Four levels, because §67 fixes four**, and this slice calls two of them:
+
+| Level | Console method | This slice's use |
+| --- | --- | --- |
+| `debug` | `console.debug` | one line per bootstrap step, load and unload included — dropped by the default threshold, per slice 11's "off by default" |
+| `info` | `console.debug` | no caller here; slice 11's rare notable transitions (a migration ran, the project index was rebuilt) |
+| `warn` | `console.warn` | no caller here; slice 11's recovered-from cases (a repaired index entry, a regenerated sidecar) |
+| `error` | `console.error` | a bootstrap step that failed — today only the settings load, since it is the only one that does I/O |
+
+**"Plugin loaded" is a `debug` line, not an `info` one**, and that is the publishing
+guidance rather than taste: `docs/setup/publishing.md` lists "console noise: logging that is
+not an actual error path" among the rejections only review catches, and a plugin that
+announces itself on every start is the plainest instance of it. The distinction that
+survives is *rarity*, not importance — `info` is for something that happened once and
+would be worth having in a support thread; a line that is always there tells a reader
+nothing. Together with the threshold below, that leaves a released build printing nothing
+at all unless something actually failed.
+
+**`info` does not map to `console.info`, and that is a lint constraint rather than a
+preference.** The `eslint-plugin-obsidianmd` ruleset carries its own console rule for the
+"avoid unnecessary logging to console" marketplace guideline, and it is narrower than it
+sounds: measured against this repository's own config, `console.log` and `console.info`
+fail it while `console.debug`, `console.warn` and `console.error` pass. The ban below on
+the rest of `src/` is ours and can be carved out; that one is the ruleset's, whose rules
+this project cannot disable inline (its own rule forbids that), so an adapter that reached
+for `console.info` would fail `npm run lint` no matter what our block said. `info` and
+`debug` therefore share a console method, and the level a line was written at is carried in
+the line's own prefix rather than by which function printed it — which is what a reader
+greps for anyway. `warn` and `error` keep their own methods, so the two levels a developer
+filters devtools by stay distinguishable there.
+
+The threshold is an argument to the adapter, not a setting: the composition root passes
+`'info'`, so this slice's `debug` calls compile and emit nothing, while the levels slice 11
+adds still reach a released build where they are worth having. A user-facing switch to raise it
+belongs with slice 11's diagnostics work — "copy diagnostics" and "turn on verbose
+logging" are the same conversation — and this slice does not add a settings field no
+feature reads yet.
+
+**Having caught the one failure, this slice has to say what follows it.** A rejected
+`loadData()` is logged at `error` and bootstrap *continues* with `DEFAULT_SETTINGS`:
+`settingsFrom(null)` is already the fresh-install path, the plugin is fully usable on
+defaults, and refusing to load at all because a preferences file could not be read trades a
+small problem for the largest one available. The rule that keeps that safe is the second
+half: a failed **read** is never followed by a write. `saveSettings()` is not called on
+this path, so a transient failure cannot stamp defaults over a `data.json` that is still
+sitting there intact. This is one call site's decision, not the Error Boundary — mapping
+exceptions to typed `AppError`s and routing them to a surface is slice 11's, and it
+arrives after this line already exists.
+
+**One instance, and the check that keeps it one.** `onload` constructs the logger once and
+hands it to `createCompositionRoot`; everything else reads `root.logger`. That is the same
+"one path in, not two that could drift" rule the root already applies to settings. What
+makes it hold for code not yet written is not this paragraph but `no-console`: it is an
+error across `src/` with **no** allowances — `console.error` included, since the only
+reason to permit that one was that there was nothing else to call — and
+`infrastructure/logging/**` is the single carve-out, the directory whose job is the
+console. A second logger, or a view that decides to `console.warn` its own failure, fails
+`npm run lint` rather than review. The carve-out is a per-directory block that *overrides*
+`no-console` for those files rather than merging with it — the same flat-config behaviour
+the `no-restricted-syntax` blocks have to work around, working in our favour here, and the
+reason that block sets that one rule and nothing else.
 
 ### Workspace view registration
 
@@ -275,9 +393,14 @@ A second rule bans DOM globals (`window`, `document`, `fetch`, `HTMLElement`, ..
 `core/` and `domain/` directly — §3.4 prohibits DOM APIs there too, not only the framework
 packages that wrap them.
 
-This rule set is committed and passing in Increment 1, with zero files under `core/`,
-`domain/`, or `application/` yet to exercise it — the rule exists for the first file slice 2
-adds, not for any file that exists today.
+A third bans `console.*` everywhere under `src/`, with `infrastructure/logging/**` carved
+out as the one place a console call is the point rather than a bypass (see "Logging" above).
+
+This rule set is committed and passing in Increment 1 with almost nothing yet to exercise
+it: `core/` and `domain/` are empty, and `application/` holds one file — `ports/Logger.ts`,
+an interface with no imports of its own. The rules exist for the first file slice 2 adds,
+not for any file that exists today, and the logging carve-out matches a directory that has
+exactly one file in it for the same reason: enforce before it can be broken.
 
 **`dependency-cruiser` is not adopted**, and this is the decision every later slice
 inherits rather than re-opens (slice 12 in particular states the same conclusion): ESLint
@@ -304,8 +427,30 @@ export default class RenovationPlannerPlugin extends Plugin {
 // src/plugin/composition-root.ts
 export interface CompositionRoot {
   readonly settings: RenovationPlannerSettings;
+  readonly logger: Logger;
 }
-export function createCompositionRoot(settings: RenovationPlannerSettings): CompositionRoot;
+export function createCompositionRoot(
+  settings: RenovationPlannerSettings,
+  logger: Logger,
+): CompositionRoot;
+
+// src/application/ports/Logger.ts — SDD §67's four levels, and the whole port. `event` is
+// a stable dot-delimited key ('settings.load.failed'), not a sentence: it is what a reader
+// greps for and what a test asserts on, while `context` carries the values. Slice 11's
+// rules for which level a given event takes, and for logging every mapped AppError with
+// its cause, attach to this interface without changing it.
+export interface Logger {
+  debug(event: string, context?: Record<string, unknown>): void;
+  info(event: string, context?: Record<string, unknown>): void;
+  warn(event: string, context?: Record<string, unknown>): void;
+  error(event: string, context?: Record<string, unknown> & { cause?: unknown }): void;
+}
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+// src/infrastructure/logging/consoleLogger.ts — the only implementation this slice builds.
+// Returns void and never throws: a call site that had to handle a logging failure would
+// have two failures to report and no way to report either.
+export function createConsoleLogger(minLevel: LogLevel): Logger;
 
 // src/plugin/settings/settings.ts
 export const UNITS: readonly ['metric', 'imperial'];
@@ -344,6 +489,10 @@ Module boundaries this slice fixes for every later one:
   view class.
 - A settings tab lives beside the settings it edits (`plugin/settings/`), not in
   `presentation/`, because it needs the plugin instance.
+- A port is an `application/ports/` interface and its implementation is an
+  `infrastructure/` module — `Logger` is the first pair, and the shape slice 3's
+  repositories repeat. The direction that makes it work is `infrastructure/ →
+  application/ports`, never the reverse.
 
 ## Persistence Impact
 
@@ -354,6 +503,10 @@ Module boundaries this slice fixes for every later one:
   lint rules (`no-restricted-syntax` on `vault.*`/`adapter.*` write methods and
   `processFrontMatter`) apply from this slice onward even though nothing yet calls them —
   the same "enforce before it can be broken" reasoning as the layer rule.
+- **The logger persists nothing.** Its sink is the developer console, so this slice adds no
+  file, no plugin-data key, and nothing to exclude from a project export. A file-backed
+  sink is slice 11's call, and the constraint it inherits is already written there: a log
+  is plugin-local operational data, never part of the Markdown-native project record.
 - Settings persistence is a trust boundary: `settingsFrom` treats `data.json` as
   attacker-adjacent input (a user can hand-edit it, or it can be a stale/downgraded file
   from an older version) and validates every field rather than trusting its shape.
@@ -366,6 +519,25 @@ Module boundaries this slice fixes for every later one:
   (ribbon, command) open the same single leaf rather than each opening its own tab. This is
   exactly the wiring that breaks silently, so it is driven against a fake `Workspace`
   (`FakeWorkspace`/`FakeLeaf`) rather than trusted by inspection.
+- **Logger** (`tests/infrastructure/logging/consoleLogger.test.ts`): against a stubbed
+  console — the one suite that touches one at all. A `'info'` logger emits `info`, `warn`
+  and `error` and drops `debug`. The level each line was written at appears in the line
+  itself, asserted on the emitted text: `info` and `debug` share `console.debug` (see the
+  ruleset constraint above), so a test that only checked which console method was called
+  could not tell an `info` from a `debug` at all, and level filtering downstream would rest
+  on nothing. `warn` and `error` additionally reach their own methods, and `error` passes
+  `cause` through untouched rather than stringifying it at the boundary.
+- **Bootstrap logging** (in `tests/plugin/registration.test.ts`, driven with a fake
+  `Logger` — the assertions are on the port, never on a console, since what the adapter
+  does with a call is the suite above's subject): the composition root exposes **the same
+  instance** `onload` constructed, asserted by identity, because two different loggers both
+  satisfy a shape assertion and "one instance" is the property that matters. And the
+  failure path: a `loadData()` that rejects produces exactly one `error` event, the view
+  and command still register, the settings in the root are `DEFAULT_SETTINGS`, and
+  `saveData` is never called — the last of those is what stops a transient read failure
+  from overwriting a file that was fine. A companion case asserts the happy path logs
+  nothing above `debug`, which is the shape of the console-noise rejection and is invisible
+  to a test that only counts calls.
 - **Settings** (`tests/plugin/settings/settings.test.ts`): plain node tests (no Obsidian
   runtime) driving `settingsFrom` against every shape `loadData` can hand back — `null`
   (fresh install), a stored partial, a value outside the vocabulary, an unknown key, junk
@@ -404,6 +576,22 @@ Module boundaries this slice fixes for every later one:
 - [ ] `src/plugin/composition-root.ts` exists, exporting `CompositionRoot` and
       `createCompositionRoot`; the plugin holds one `root: CompositionRoot` field rather
       than a bare `settings` field.
+- [ ] `onload()` constructs exactly one `Logger` — before every other step, so the first
+      step that can fail already has one — and hands it to `createCompositionRoot`;
+      `plugin.root.logger` is that same object, asserted by identity. A successful load
+      and unload emit nothing above `debug`, so a released build is silent unless
+      something failed.
+- [ ] `createConsoleLogger('info')` emits `info`/`warn`/`error` and drops `debug`, with
+      the level named in the emitted line; `warn`/`error` use `console.warn`/`console.error`
+      and neither `console.log` nor `console.info` appears anywhere in `src/`, since the
+      `obsidianmd` ruleset fails both and cannot be suppressed inline. `error` forwards its
+      `cause` untouched.
+- [ ] A `loadData()` that rejects logs one `error` event, leaves the plugin loaded on
+      `DEFAULT_SETTINGS` with its view and command registered, and calls no `saveData` —
+      a failed read never becomes a write.
+- [ ] `no-console` is an error across `src/` with **no** allowances, carved out only for
+      `infrastructure/logging/**`; `npm run lint` passes, and a `console.error` added
+      anywhere else fails it.
 - [ ] The Renovation Project view opens from both the ribbon icon and the command palette,
       reuses one leaf between them, and its type/display name/icon are all set.
 - [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
@@ -417,8 +605,8 @@ Module boundaries this slice fixes for every later one:
       dependency order and the packages `vue`/`pinia`/`konva`/`vue-konva`/`obsidian` for
       `core/`, `domain/`, and `application/` (and the first three of those five for
       `infrastructure/`); a DOM-globals ban applies to `core/` and `domain/`.
-      `npm run lint` passes with zero warnings (`--max-warnings 0`) against an otherwise
-      empty `core/`/`domain/`/`application/`.
+      `npm run lint` passes with zero warnings (`--max-warnings 0`) against an empty
+      `core/`/`domain/` and an `application/` holding only `ports/Logger.ts`.
 - [ ] `npm run build` produces a single `dist/main.js` (CJS, named exports) with Obsidian,
       Electron, CodeMirror, and Node builtins external; `npm run test` and
       `npm run test:coverage` pass against the coverage floors recorded for this increment.
@@ -443,6 +631,8 @@ Module boundaries this slice fixes for every later one:
 - SDD §12 Vue Mounting Strategy — isolated app per `ItemView`, mount/unmount lifecycle.
 - SDD §15 Persistent vs Ephemeral State — settings categories (default units, default
   folders, editor preferences).
+- SDD §67 Logging — the four levels this slice's port declares, and the "logs never leave
+  the device automatically" rule its console-only sink cannot break.
 - SDD §76 Architecture Test Rules — the automated restriction this slice implements.
 - SDD §77 Proposed Repository Structure — `src/plugin/`, `composition-root.ts`,
   `vite.config.ts`/`vitest.config.ts`/`tsconfig.json` at the repository root.

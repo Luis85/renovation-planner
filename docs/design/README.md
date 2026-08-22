@@ -85,6 +85,13 @@ this list is the bug report.
   brand that keeps the two apart.
 - **A polygon is validated by `createPolygon`** (slice 2), the one function implementing
   SDD §26's three required rules. A bare `Polygon` value is not assumed valid.
+- **Logging goes through the `Logger` port**, `application/ports/Logger.ts` from slice 1,
+  injected from the composition root and never constructed at a call site. `event` is a
+  stable dot-delimited key (`'zone.save.failed'`), `context` carries the values, and
+  `error`'s context carries `cause`. Nothing outside `infrastructure/logging/` touches
+  `console.*` — `no-console` is a lint error everywhere else in `src/` — and nothing under
+  `domain/` logs at all: a pure entity returns a `Result` and its caller records it. Which
+  level a given event takes is slice 11's table, not each slice's judgement.
 - **Every user-facing string goes through `t(language, key)`** — the pure lookup that
   already exists in `src/presentation/i18n/`, with `en.ts` as the complete table
   `StringKey` derives from and per-key fallback for every other locale. A slice that
@@ -115,7 +122,7 @@ before citing a number from memory.
 | 8 | [Zone Editing](08-zone-editing.md) | 6 | 6 | §26–28 |
 | 9 | [Quantity & Cost Engine](09-quantity-and-cost-engine.md) | 2 | 7 (part) | §48–52; ADR-010 |
 | 10 | [Assets, Requirements & the End-to-End Loop](10-assets-requirements-and-the-end-to-end-loop.md) | 4, 8, 9 | 7 (part) | wiring; PRD §8, §9 |
-| 11 | [Error Handling, Diagnostics & Data Safety](11-error-handling-diagnostics-and-data-safety.md) | 2 | — | §67–68, §86–88 |
+| 11 | [Error Handling, Diagnostics & Data Safety](11-error-handling-diagnostics-and-data-safety.md) | 1, 2 | — | §67–68, §86–88 |
 | 12 | [Testing & Architecture Enforcement Infrastructure](12-testing-and-architecture-enforcement-infrastructure.md) | all | — | §69–76, §92 |
 | 13 | [Notifications & Save-State Surfaces](13-notifications-and-save-state-surfaces.md) | 5 | — | PRD §67 (Autosave: Saved/Saving/Unsaved/Save Error) — not to be confused with the SDD's own §67 (Logging) |
 | 14 | [Empty States](14-empty-states.md) | 5 | — | PRD §94 |

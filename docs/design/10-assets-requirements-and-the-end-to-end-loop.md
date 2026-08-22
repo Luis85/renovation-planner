@@ -674,9 +674,9 @@ inside a repository:
 2. Apply the resolution to each in turn, recording which have been written.
 3. Delete the entity.
 4. On any failure in 2 or 3: restore every Requirement already written, from
-   `affectedBefore`, then return the error. A failing compensation is logged via
-   slice 11's Logger rather than swallowed — the repository cannot promise
-   multi-file atomicity and does not pretend to.
+   `affectedBefore`, then return the error. A failing compensation is logged through
+   the `Logger` (slice 1's port, slice 11's rules) rather than swallowed — the
+   repository cannot promise multi-file atomicity and does not pretend to.
 5. On success, return `affectedBefore` in the command's payload. It is not
    bookkeeping: it is what makes the delete undoable (see below).
 ```

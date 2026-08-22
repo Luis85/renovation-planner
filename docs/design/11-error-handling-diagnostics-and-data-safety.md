@@ -23,9 +23,12 @@ invent their own error handling, logging, or write-safety conventions.
   Infrastructure exception, maps it to one of slice 2's typed errors, wraps it
   in a `Result`, and turns it into a user-facing message at the Presentation
   boundary.
-- The logging facility (SDD §67): `debug` / `info` / `warn` / `error` levels,
-  where it lives (`infrastructure/logging/`), and the hard rule that logs
-  never leave the device automatically.
+- Logging **policy** (SDD §67): which events take which of the four levels, the rule
+  that every mapped `AppError` is logged with its original cause at the mapping step,
+  and the hard rule that logs never leave the device automatically. The facility
+  itself — the `Logger` port and its console adapter — is slice 1's, because bootstrap
+  can fail before any of this slice's code exists to catch it; this slice consumes that
+  port without widening it.
 - Diagnostics (SDD §68): the structured, content-free technical snapshot the
   plugin can produce on request.
 - Security & Privacy defaults (SDD §86) as they constrain this plugin's own
@@ -62,9 +65,12 @@ invent their own error handling, logging, or write-safety conventions.
 
 ## Dependencies
 
+- Slice 1 (Plugin Bootstrap & Composition Root) — the `Logger` port
+  (`application/ports/Logger.ts`), its console adapter, and the composition root that
+  injects it. This slice adds rules and call sites, not a second logger.
 - Slice 2 (Core Primitives) — the `AppError` hierarchy and `Result<T,E>`.
 - SDD §7.4 (Infrastructure Layer) — `infrastructure/logging/` is the home for
-  the logger; diagnostics collection sits alongside it.
+  the logger's implementation; diagnostics collection sits alongside it.
 - SDD §7.3 (Application Layer) — commands and queries are the layer that
   performs Infrastructure → Application error mapping before anything reaches
   Presentation.
@@ -163,10 +169,16 @@ derived from a typed `AppError`, never a raw exception.
 
 ### Logging
 
-- Levels: `debug`, `info`, `warn`, `error` (SDD §67), implemented by a single
-  logger in `infrastructure/logging/`. Domain and Application code depend on
-  a `Logger` port (an interface), not the concrete implementation — consistent
-  with the layer dependency rule (SDD §8).
+- Levels: `debug`, `info`, `warn`, `error` (SDD §67). The port and its single
+  implementation in `infrastructure/logging/` already exist (slice 1); what this slice
+  adds is which events take which level, and the requirement that they be used at all.
+- **Application and Infrastructure code log; Domain code does not.** Callers depend on
+  the `application/ports/Logger.ts` interface, never the concrete implementation — the
+  layer rule (SDD §8) would not permit otherwise. Domain is excluded deliberately rather
+  than by omission: a `Zone` that logged would be a pure entity with a side effect and an
+  injected dependency, against ADR-006. It returns a `Result`, and the command that
+  called it is the layer that records what happened — which is the same place the error
+  mapping below already sits, so the log line and the mapped error come from one step.
 - `debug` — verbose, developer-facing, off by default.
 - `info` — notable state transitions (migration ran, project index rebuilt).
 - `warn` — recovered-from problems (a stale index entry was repaired, an
@@ -307,13 +319,10 @@ migrations slices 3–4 build:
 // also defines — conflating the two would make this file's own `DomainError`
 // name collide with slice 2's, with a different (and incompatible) shape.
 
-// infrastructure/logging
-interface Logger {
-  debug(event: string, context?: Record<string, unknown>): void;
-  info(event: string, context?: Record<string, unknown>): void;
-  warn(event: string, context?: Record<string, unknown>): void;
-  error(event: string, context?: Record<string, unknown> & { cause?: unknown }): void;
-}
+// application/ports/Logger.ts (slice 1, referenced here) — not redefined and not
+// widened. Four levels, `(event, context?)`, `error`'s context carrying `cause`. A
+// second declaration of this interface beside its consumers is how two loggers with
+// drifting signatures start.
 
 // application layer — the one place Infrastructure exceptions are mapped
 type ExceptionMapper = (cause: unknown) => AppError;
@@ -340,7 +349,9 @@ type ToUserMessage = (language: string, error: AppError) => string;
 Contract notes:
 
 - `Logger` is injected via the composition root (slice 1) like any other
-  Application port; Domain code never imports it directly (SDD §8).
+  Application port; Domain code never imports it at all (see Logging above). Nothing
+  outside `infrastructure/logging/` reaches the console instead — slice 1's `no-console`
+  ban is what makes that checkable for code this slice never sees.
 - `ExceptionMapper` implementations are one-per-Infrastructure-adapter (one
   for the Obsidian Vault adapter, one for the import adapter, etc.), each
   narrowing to the smallest correct `AppError` variant — they are not a
@@ -425,9 +436,12 @@ will run.)
     internal file path, and is produced by `t()` from the locale tables rather than by a
     literal or by `AppError.message`; the corresponding `logger.error` call always carries
     that full detail, in English, unaffected by the user's language.
-- [ ] `logger.debug/info/warn/error` are implemented, injected via the
-    composition root, and write only to a local sink — no code path sends a log
-    entry off the device automatically.
+- [ ] Every level slice 1's port declares has a real caller by the end of this slice —
+    `warn` in particular, which slice 1 leaves without one — and each is used for the
+    category stated above rather than being chosen by feel at the call site.
+- [ ] The logger (slice 1's, injected via the composition root) still writes only to a
+    local sink after this slice: no code path sends a log entry off the device
+    automatically, and nothing under `domain/` imports the port.
 - [ ] `GetDiagnosticsSnapshot` returns plugin version, Obsidian version, schema
     versions, migration state, and validation issues, and demonstrably contains
     zero project content (no entity names, note bodies, or content-bearing

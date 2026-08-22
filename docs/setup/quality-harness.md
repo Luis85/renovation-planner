@@ -37,8 +37,8 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "build": "tsc -noEmit -skipLibCheck && vite build",
-    "lint": "oxlint --deny-warnings && eslint .",
+    "build": "tsc -noEmit && vite build",
+    "lint": "oxlint --deny-warnings && eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -52,9 +52,9 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
 
 Rules that go with it:
 
-- **Everything `npm run` invokes lives in `scripts/`.** The exceptions are the files a
-  *tool* finds by name at the root (`eslint.config.mjs`, `.oxlintrc.json`, `vitest.config.ts`,
-  `vite.config.ts`).
+- **Everything `npm run` invokes lives in `scripts/`.** The exceptions are the
+  configuration files a *tool* finds by name at the root — the eslint, vitest, Vite (every
+  Vite config, the harness's included), TypeScript, analyzer, npm and editor configs.
 - **Every script resolves paths from the working directory**, not from its own location.
   npm scripts and vitest both run from the repository root. State this once, in the one
   script where the difference bites.
@@ -457,7 +457,7 @@ How the pieces fit, since the order is load-bearing:
 | `tests/harness/index.html` | Links the three sheets in the order that matters, and says why in a comment beside them. |
 | `tests/harness/obsidian.css` | Obsidian's **real app.css**, vendored and reduced. Linked **first**, so real element defaults — button chrome included — are what the plugin's own resets have to strip, exactly as in a vault. |
 | `tests/harness/theme.css` | The harness's **own chrome only**: the leaf frame, the scheme switch, the missing-icon marker. It may restate nothing app.css already says, and every selector in it must name something the harness itself draws. |
-| `tests/harness/mount.ts` | Installs Obsidian's DOM prototype extensions (`createEl`, `addClass`, `setCssProps` — a browser has none of them), builds the leaf the app would supply, constructs the real view against the fake workspace and runs its first draw. Shared with the suite, so a test drives the same mount a browser gets. |
+| `tests/harness/mount.ts` | Installs Obsidian's DOM prototype extensions (`createEl`, `createDiv`, `empty`, `setText` — a browser has none of them, and only what code actually calls is installed), builds the leaf the app would supply, constructs the real view against the fake workspace and runs its first draw. Shared with the suite, so a test drives the same mount a browser gets. |
 | `tests/harness/page.ts` | The entry: `?theme=light`, `?phone`. For markup no code produces yet, add a second `.html` beside it and point the browser at it — the dev server serves any file under its root, so a mock needs no config. Keep it uncommitted; `npm run analyze` is right to call it dead. |
 
 Two rules the vendored sheet lives under, both learned by breaking them:
@@ -475,8 +475,9 @@ What checks it: `tests/harness/harness.test.ts` (it still mounts, the frame is t
 DOM extensions are installed, the scheme classes switch), `tests/harness/platform.test.ts`
 (its own file, because the ordering rule it holds is invisible in any file that has already
 installed the extensions), and `tests/harness/cssVars.test.ts` (every `var(--x)` the
-partials and the chrome read is declared by one of the two linked sheets — declarations
-only, scheme-blind, and it says so).
+partials and the chrome read is declared by one of the sheets `index.html` links — the
+link list is parsed from the page rather than hand-kept, declarations only, scheme-blind,
+and it says so).
 
 Not built: `npm run perf`. In the source project it runs the same page in headless Chromium
 and prints the stopwatch the page keeps — a way to **read** numbers where there is no

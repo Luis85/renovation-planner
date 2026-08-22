@@ -266,7 +266,10 @@ Not oversights; each has a trigger.
 
 - **Vue, Pinia, Konva, zod, decimal.js, dayjs.** Installing a dependency nothing imports
   fails `npm run analyze`, so each arrives with its first real use. `@vitejs/plugin-vue` is
-  one line in both Vite configs, and `tsc` becomes `vue-tsc` in the same edit.
+  one line in both Vite configs, and `tsc` becomes `vue-tsc` in the same edit. The full
+  contract for that arrival — conventions, the lint rules that enforce them, and the
+  gates whose `*.ts` globs must widen to `.vue` in the same pull request — is
+  [`docs/setup/vue-conventions.md`](docs/setup/vue-conventions.md).
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
 - **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,

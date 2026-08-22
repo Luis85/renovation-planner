@@ -73,6 +73,13 @@ covers and are left as feature work built on this slice and slice 8 once both ex
   define the transform.
 - **Slice 6 (Editor Tool Framework, Undo/Redo & Inspector)** — `EditorTool`,
   `EditorContext`, `Command`/`UndoableCommand`, `CommandHistory` (SDD §56–59, §29–31).
+- **Slice 10 (Assets, Requirements & the End-to-End Loop)** — not a build dependency
+  (slice 10 arrives much later, in Increment 7): this slice only publishes
+  `ZoneGeometryChanged` on every spatial object it rescales — a slice-3 event that
+  already exists independent of who subscribes to it. Slice 10's
+  `onZoneGeometryChanged` subscriber is what later gives that publish a downstream
+  effect (`markStale` → recalculation); this slice does not call into slice 10's
+  code, and would publish the identical event even if slice 10 never existed.
 - **ADR-007** (Command-Based Mutations), **ADR-009** (World Coordinates in
   Millimeters), **ADR-002** / **ADR-011** (geometry sidecar).
 
@@ -253,7 +260,12 @@ to make `Plan` a complete, testable entity; this slice's version supersedes its
 `execute()` body — a real domain command still living under `application/commands/
 plan/`, not a Presentation-layer wrapper — to add the rescale-every-spatial-object
 behavior recalibration needs, while keeping the same `CalibratePlanInput` shape and
-`PlanCalibrated`/`RequirementInvalidated` events slice 3 already established:
+the `PlanCalibrated`/`ZoneGeometryChanged` events slice 3 already established (not
+`RequirementInvalidated` — that event belongs to slice 10's `Requirement` module, and
+this slice reaches the same downstream effect the way slice 10 already wires it: by
+publishing the `ZoneGeometryChanged` slice 10's own subscriber already listens for,
+never by publishing a Requirement-domain event Plan-calibration code has no business
+naming):
 
 ```typescript
 interface CalibratePlanInput {
@@ -269,9 +281,14 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
     // 2. validate inputs, derive scaleCorrection (see above)
     // 3. rescale Plan.calibration's own points, background sizing, and every
     //    spatial object's geometry by scaleCorrection — one persistence write
-    // 4. emit PlanCalibrated (§32 event pattern); if any spatial object was
-    //    rescaled, also emit RequirementInvalidated per affected object
-    //    (recalculation itself is slice 9's concern)
+    // 4. emit PlanCalibrated (§32 event pattern); for every spatial object
+    //    that was rescaled, also emit ZoneGeometryChanged for that object —
+    //    the same event slice 8's move/vertex-edit commands already emit,
+    //    which slice 10's existing onZoneGeometryChanged subscriber picks up
+    //    to markStale() and recalculate every Requirement on that Zone.
+    //    Recalibration does not publish RequirementInvalidated itself or
+    //    invoke slice 9's engine directly — it reuses slice 10's cascade
+    //    rather than duplicating it.
   }
 
   async undo(): Promise<Result<void, PersistenceError>> {
@@ -368,6 +385,7 @@ new top-level field alongside `objects` — extending SDD §40's schema additive
 {
   "schemaVersion": 1,
   "planId": "plan-ground-floor",
+  "unit": "mm",
   "calibration": {
     "pointA": { "x": 812, "y": 240 },
     "pointB": { "x": 812, "y": 1180 },
@@ -418,10 +436,16 @@ Application (§71):
 - `ReversibleCalibratePlanCommand` on a Plan with existing Zones rescales every Zone's
   geometry in the same transaction; a failure partway through leaves previously valid
   data intact (§42).
-- `undo()` restores both the previous `Calibration` and any rescaled geometry.
+- `undo()` restores both the previous `Calibration` and any rescaled geometry, and
+  re-publishes `ZoneGeometryChanged` for every object it un-rescaled — undo is not
+  exempt from re-triggering slice 10's cascade, since the restored geometry is just as
+  much a real geometry change as the recalibration that produced it.
 - A successful recalibration that touched existing spatial objects emits
-  `PlanCalibrated` and one `RequirementInvalidated` per affected object (§32 pattern);
-  a first calibration with no existing objects emits only `PlanCalibrated`.
+  `PlanCalibrated` and one `ZoneGeometryChanged` per affected object (§32 pattern),
+  which a test asserts drives slice 10's `onZoneGeometryChanged` subscriber end to
+  end (`markStale` → `RequirementInvalidated` → recalculation) rather than only
+  checking that the event was published; a first calibration with no existing objects
+  emits only `PlanCalibrated`.
 
 Component/Canvas (§73–74, reusing that slice's harness):
 
@@ -454,8 +478,13 @@ the sidecar unchanged.
 - [ ] Recalibrating a Plan that already has persisted Zones rescales those Zones'
       geometry in the same transaction as the calibration update, with a passing
       test proving it — not just documented as intent.
+- [ ] Recalibration publishes `ZoneGeometryChanged` (never `RequirementInvalidated`
+      directly) for every rescaled object — proven by a test that this reaches slice
+      10's `onZoneGeometryChanged` subscriber end to end, not just that some event
+      fired.
 - [ ] `undo()` on a calibration command restores both the previous `Calibration` and
-      any geometry it had rescaled.
+      any geometry it had rescaled, and re-publishes `ZoneGeometryChanged` for every
+      object it un-rescaled.
 - [ ] All calibration unit and application tests run with Obsidian, Vue, and Konva
       absent from the test environment.
 

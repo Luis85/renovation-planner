@@ -1,0 +1,170 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+
+	// WHY A SECOND LINTER. oxlint does not replace ESLint here. It has no
+	// `no-restricted-syntax` at all — a config naming that rule is rejected outright, not
+	// quietly ignored (measured) — and that rule is the vault write boundary and the SVG
+	// class-token bans, both AST selectors. It has no port of `eslint-plugin-obsidianmd`,
+	// and nothing type-aware without `oxlint-tsgolint`. It DOES have
+	// `no-restricted-imports`, `no-restricted-globals` and the size and complexity
+	// budgets, so the layer bans are the one part of `eslint.config.mjs` that could move;
+	// they stay where the rest of the architecture already is.
+	//
+	// What oxlint adds is the broad wrong-code ruleset the ESLint config never turned on,
+	// over a WIDER tree: the
+	// Obsidian ruleset is type-aware, so `eslint.config.mjs` stops it at `src/` and
+	// ignores `scripts/` and the root configs entirely, leaving `tests/` with 24 rules and
+	// the build scripts with none. This file is what lints those. It earned the second
+	// linter on its first run, on a test file ESLint's core recommended never reached
+	// (`tests/build/config-alias.test.ts`, an unsafe optional chain).
+	//
+	// The two overlap on `src/`, where ESLint's core recommended and oxlint's `correctness`
+	// say many of the same things twice. That is deliberate and costs nothing: one fix
+	// satisfies both, and neither list can quietly become the only owner of a rule.
+	// `eslint-plugin-oxlint` exists to remove the overlap by switching those ESLint rules
+	// off — the trigger for adding it is ESLint's runtime becoming a real cost, not the
+	// duplication, which is not one.
+
+	// `plugins` REPLACES the default set rather than extending it, so the four oxlint
+	// enables by default (eslint, typescript, unicorn, oxc) are listed here too. The other
+	// four were each measured before being added: `import`, `promise` and `node` report
+	// nothing on this tree today and are here for the code not yet written; `vitest` found
+	// two `toThrow()` calls asserting only that SOMETHING threw.
+	"plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise", "node", "vitest"],
+
+	// Two categories, both about code being WRONG. The other four were measured on this
+	// tree and each one argues with a convention this project already chose rather than
+	// finding a defect: `pedantic` and `style` want a different comment case, import order
+	// and function style (136 findings for `capitalized-comments` alone); `restriction`
+	// wants no async/await and no optional chaining; `perf`'s two findings are a
+	// deliberately sequential three-file copy and a spread in a test. A category whose
+	// findings are all noise is a gate people learn to argue with, so none of them is on.
+	// Add one the day it would catch something.
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error"
+	},
+
+	// A directive that no longer silences anything is a claim about code that has since
+	// changed, and the ones that rot are the ones written to get past a gate. Denied rather
+	// than warned, because a warning here would be the only thing in `npm run lint` that
+	// does not fail. `tests/build/suppressions.test.ts` covers the other half — a directive
+	// that IS doing something — which this cannot see by construction.
+	"options": { "reportUnusedDisableDirectives": "deny" },
+
+	// Named rules on top of the categories. A category is a bundle whose worst member
+	// decides whether the bundle is usable, and the four left off each carry a handful of
+	// rules about being WRONG behind a majority about being written differently. These are
+	// those rules, picked out one at a time.
+	//
+	// Each was measured on this tree before it was added, and 27 of the 29 report NOTHING
+	// today — which is the whole reason to add them now. A rule adopted while it has no
+	// findings costs one line and refuses something in code nobody has written yet; the
+	// same rule adopted after the fact is a cleanup nobody schedules. The two that did
+	// report are fixed in the same commit, not configured away.
+	//
+	// There is no test asserting these are loaded, and that is a decision: oxlint REFUSES a
+	// config naming a rule it does not have (`Rule 'x' not found in plugin 'eslint'`, exit
+	// 1, measured), so a typo or a renamed rule fails `npm run lint` outright rather than
+	// quietly dropping the rule. 21 of the 29 were additionally watched firing against
+	// planted violations when they went in.
+	//
+	// What is deliberately NOT here, so the next reader does not re-litigate it:
+	// `no-await-in-loop` (its one finding is a deliberately sequential three-file copy),
+	// `no-else-return`, `no-lonely-if` and `vitest/prefer-equality-matcher` (style, not
+	// correctness), `promise/catch-or-return` (ESLint's type-aware `no-floating-promises`
+	// already owns that), and `no-duplicate-imports` (`import/no-duplicates` supersedes it
+	// and understands type imports).
+	"rules": {
+		// A `__`-prefixed name in this repository is a deliberate marker installed on a
+		// host global — `window.__obsidianDomInstalled`, the harness's `__rp` — where the
+		// dangle IS the signal that the name is not ordinary code's to touch. This is a
+		// naming rule, not a correctness one, and the allowlist form would need an edit
+		// per marker.
+		"no-underscore-dangle": "off",
+
+		// -- code that is simply wrong ---------------------------------------------
+		"eqeqeq": "error",
+		"require-await": "error",
+		// `'${x}'` in a quoted string: the interpolation that silently is not one.
+		"no-template-curly-in-string": "error",
+		"no-promise-executor-return": "error",
+		"no-constructor-return": "error",
+		"no-return-assign": "error",
+		"no-useless-assignment": "error",
+		// A `map`/`filter`/`reduce` callback that returns on some paths and not others.
+		"array-callback-return": "error",
+		"guard-for-in": "error",
+		"default-case-last": "error",
+		// A spread into a reduce accumulator: quadratic, and it reads linear.
+		"oxc/no-accumulating-spread": "error",
+
+		// -- throwing ----------------------------------------------------------------
+		// An `Error` with no message, and `throw Error()` without `new`, both of which
+		// reach a catch block carrying nothing to act on.
+		"unicorn/error-message": "error",
+		"unicorn/throw-new-error": "error",
+		"unicorn/prefer-type-error": "error",
+
+		// The `['1','2','3'].map(parseInt)` class: a callback handed straight to an
+		// iterator method receives the index and the array too. Caught one in this
+		// repository — harmless there, because the function ignored the extra arguments.
+		"unicorn/no-array-callback-reference": "error",
+
+		// -- imports -------------------------------------------------------------------
+		// `node:fs`, not `fs`. Caught the one file in the repository that disagreed.
+		"unicorn/prefer-node-protocol": "error",
+		"import/no-duplicates": "error",
+		"import/no-mutable-exports": "error",
+		"typescript/consistent-type-imports": "error",
+
+		// -- promises --------------------------------------------------------------------
+		"promise/no-return-wrap": "error",
+		"promise/param-names": "error",
+
+		// -- tests that would read green ---------------------------------------------
+		// The rest of this family — a test that asserts nothing, a stray `.only`, a
+		// skipped test, an `expect` outside a case — arrives with the `vitest` plugin and
+		// is already on. These three are the ones that are not.
+		"vitest/no-identical-title": "error",
+		"vitest/no-alias-methods": "error",
+		"vitest/no-test-return-statement": "error",
+
+		"typescript/no-empty-object-type": "error",
+		"node/no-exports-assign": "error",
+
+		// -- how code here is written, which is a decision rather than a defect ---------
+		// All three were at zero findings when they were adopted, so none of them is a
+		// verdict on existing code. `!` asserts what the compiler was told to doubt; a
+		// reassigned parameter makes an argument mean two things in one body; and a name
+		// used above its definition reads as a hoisting question.
+		"typescript/no-non-null-assertion": "error",
+		"no-param-reassign": "error",
+		"no-use-before-define": "error"
+	},
+
+	// The size and complexity budgets, on the files that had NONE. `eslint.config.mjs`
+	// applies them under `files: ['**/*.ts']`, which reaches `src/` and no further:
+	// `scripts/` is all `.mjs`, and the root configs are in ESLint's global `ignores`
+	// because the type-aware rules would meet a file `tsconfig.json` does not cover. The
+	// numbers are the ones `src/` already lives under, so this is the same budget reaching
+	// the rest of the repository rather than a second opinion about what large means.
+	// `tests/` is deliberately absent: its cap is 450 and ESLint already applies it.
+	"overrides": [
+		{
+			"files": ["scripts/**", "*.config.ts", "*.config.mjs"],
+			"rules": {
+				"max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],
+				"max-lines-per-function": ["error", { "max": 100, "skipBlankLines": true, "skipComments": true }],
+				"complexity": ["error", 16],
+				"max-depth": ["error", 4],
+				"max-params": ["error", 5]
+			}
+		}
+	],
+
+	// What is not this repository's code. Everything else IS linted, including `scripts/`
+	// and the root config files that `eslint.config.mjs` has to ignore. `.obsidian/` is the
+	// test-build vault and `.claude/` is vendored agent tooling — neither is written here.
+	"ignorePatterns": ["node_modules/**", "coverage/**", "dist/**", ".obsidian/**", ".claude/**"]
+}

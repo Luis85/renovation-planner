@@ -12,8 +12,16 @@ import harnessConfig from '../../vite.harness.config';
  * harness`. This is the check that makes that drift fail `npm run check` instead.
  */
 
-const aliasOf = (config: { resolve?: { alias?: unknown } }) =>
-	(config.resolve?.alias as Record<string, string>).obsidian;
+const aliasOf = (config: { resolve?: { alias?: unknown } }) => {
+	const alias = config.resolve?.alias as Record<string, string> | undefined;
+
+	// Read through the local rather than off the end of the optional chain: `(x?.y as T).z`
+	// short-circuits to `undefined` and then reads a property of it, so the helper would
+	// throw a TypeError on a config with no alias instead of letting the assertions below
+	// say which config is missing one. The empty string keeps the return a `string` and
+	// fails both of them.
+	return alias?.obsidian ?? '';
+};
 
 describe('the obsidian module alias', () => {
 	it('is the same file in the suite config and the harness config', () => {

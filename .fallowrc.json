@@ -1,6 +1,10 @@
 {
 	"$schema": "./node_modules/fallow/schema.json",
-	"entry": ["src/main.ts", "tests/harness/page.ts"],
+	// Process entry points, not import roots. `scripts/lint-edited.mjs` is the third
+	// kind: nothing imports it and no npm script runs it — Claude Code spawns it per edit,
+	// named in `.claude/settings.json`. Declared here rather than given a contrived npm
+	// script, and `tests/build/lint-edited.test.ts` is what checks the naming still resolves.
+	"entry": ["src/main.ts", "tests/harness/page.ts", "scripts/lint-edited.mjs"],
 	"dynamicallyLoaded": ["styles/**/*.css", "tests/harness/theme.css", "tests/harness/obsidian.css"],
 	"duplicates": {
 		"ignore": ["tests/harness/obsidian.css"]

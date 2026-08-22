@@ -15,7 +15,7 @@ Assumed stack: TypeScript on Node 22+, npm, vitest. Where the stack differs, the
 ## 0. The shape
 
 ```
-npm run check   # build + lint + coverage-thresholded tests + dead code + docs
+npm run check   # build + lint (two linters) + coverage-thresholded tests + dead code + docs
 ```
 
 Five steps, one command, no step optional and no step allowed to warn instead of fail.
@@ -38,7 +38,7 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "tsc -noEmit && vite build",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "oxlint --deny-warnings && eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -241,6 +241,104 @@ Two traps in flat config:
 
 Type-aware rulesets that are about *shipped* code stop at `src/`. The test doubles exist
 precisely to do what those rules forbid.
+
+**d. A second linter, for the tree the first one cannot reach.** The stop above is not
+free: with the type-aware ruleset held to `src/`, `tests/` was left on 24 rules and
+`scripts/` and the root configs on none — and that gap is invisible, because a directory
+nothing lints reports nothing. `npm i -D oxlint`, an `.oxlintrc.json`, and `lint` becomes
+`oxlint --deny-warnings && eslint .`: milliseconds first, then the slow one. It paid for
+itself on its first run here, on an unsafe optional chain in a test file ESLint's core
+recommended never reached. What the hook buys is feedback while the reasoning that produced
+the edit is still in hand — NOT prevention; see the first rule below before writing a word
+about it.
+
+Three things worth copying, none of them oxlint-specific:
+
+- **Turn on the categories that mean *wrong*, and measure the rest before believing them.**
+  Here `correctness` and `suspicious` found five real things; `pedantic`, `style` and
+  `restriction` produced close to six hundred findings between them, and each one argues
+  with a convention the project had already chosen (136 for comment capitalisation alone),
+  while `perf`'s two were both deliberate. A category whose findings are all noise is a
+  gate people learn to argue with.
+  Turning one off is a decision with a reason and a trigger, written where the config is.
+  **Then go back and name the individual rules you gave up.** A category is a bundle whose
+  worst member decides whether the bundle is usable, and the ones rejected above still
+  each hid a few rules about code being *wrong*. Picking 29 of them out here cost two
+  one-line fixes, because 27 reported nothing at all — which is exactly when a rule is
+  cheap to adopt. Adopted later, the same rule is a cleanup nobody schedules. Check first
+  whether the tool refuses an unknown rule name (oxlint does, loudly); if it does, a typo
+  cannot silently drop a rule and the config needs no test under it.
+- **Do not disable the overlap to make it tidy.** Where the two linters say the same thing
+  on `src/`, one fix satisfies both and neither list can quietly become a rule's only
+  owner. `eslint-plugin-oxlint` exists to switch the duplicates off; the trigger for it is
+  the slow linter's runtime being a cost somebody can name, not the duplication.
+- **The scope IS the claim, so check it.** "The second linter covers what the first cannot"
+  is a sentence about an `ignorePatterns` array, and a pattern that swallows a directory
+  makes the gate quieter, never redder — the one failure mode the gate cannot report on
+  itself. Ask the tool which files it would lint (`oxlint --debug=files`) and compare that
+  against the tree on disk, whole rather than sampled: `tests/build/lint-scope.test.ts`.
+  Watch it fail in both directions — a directory dropped from scope, and a vendored tree
+  pulled into it.
+- **Ban the inline suppression, in the directories the first linter never reached.** This
+  is the one that matters most once agents are writing the code, because a suppression is
+  what a model reaches for the moment a gate blocks it. Measured here: oxlint honours
+  ESLint's directive spelling as well as its own, and the rules that police suppressions
+  (`eslint-comments/*`) arrive with the plugin ruleset, which stops where the type-aware
+  rules stop. So across exactly the tree the second linter was added to cover, one comment
+  turned a rule off with nothing anywhere reporting it. Two halves, and both are needed:
+  the tool's own `reportUnusedDisableDirectives` catches a directive silencing nothing,
+  and it cannot by construction see the one that IS doing its job — that half is a scan of
+  the linted files (`tests/build/suppressions.test.ts`). Build the needles from parts so
+  the gate can scan its own source, and prove the ban targets something real by driving a
+  directive through the linter and watching a genuine finding disappear.
+  **A scan for a directive keyword is not the whole class**, and this is the part a review
+  bot caught here rather than the author: ESLint also accepts inline rule CONFIGURATION
+  (`eslint some-rule: off` in a block comment), which contains no directive keyword and
+  turned the AST-selector rules off invisibly — the very rules the fast linter cannot
+  express and so cannot backstop. Where the linter has a setting that refuses the whole
+  class, `linterOptions.noInlineConfig` here, prefer it to any spelling you can enumerate,
+  and put a check under the setting: what goes wrong is not the linter failing to honour
+  it, but flat config scoping it to nothing.
+- **Give the budgets to the files that had none.** A size and complexity block written
+  `files: ['**/*.ts']` reaches the typed source and nothing else — build scripts and root
+  config files sit outside it and outside the first linter's scope entirely. The second
+  linter's `overrides` can apply the SAME numbers there. Prove the rules are live by
+  lowering a cap and watching the right files fail; a budget nobody has tested is
+  indistinguishable from one that never loaded.
+
+**e. Move the fast linter into the agent's edit loop.** The gate runs when the agent
+decides to run it, which is several turns after the edit that broke something, with the
+reasoning that produced it gone. A linter fast enough to answer for one file — measured
+here at ~90ms against the slow linter's ~2.8s over the tree — can answer at the edit
+instead. In Claude Code that is a `PostToolUse` hook on Edit and Write, reading the tool
+call's JSON from stdin and linting `tool_input.file_path`; other harnesses have the same
+seam under a different name.
+
+Five rules, all of them learned by writing the hook wrong first, and the first one learned
+from a review bot after this was written:
+
+- **Find out whether the event you chose can actually block, and describe it as what it
+  is.** A post-tool event fires AFTER the write — Claude Code's table reads "Shows stderr
+  to Claude; the tool already ran" — so no exit code there prevents or reverts anything.
+  Only a pre-tool event blocks, and only for a payload it can lint before the write: a
+  whole-file write carries its content, a patch carries a fragment whose result would have
+  to be reconstructed. Either mechanism is defensible; calling the post-tool one a refusal
+  is not, and it is the sort of sentence that reads as settled and never gets checked.
+- **Pick the exit code by WHO IT TELLS, not by how severe it looks.** In Claude Code, 1
+  shows stderr to the user and the agent carries on unaware; 2 hands it to the agent as a
+  tool error. On a post-tool event that is the only difference between the two, and it is
+  the entire value of the hook.
+- **Fail OPEN on the hook's own bugs** — unparseable input, no file in the payload, a
+  missing linter. A hook that fails closed answers every edit in the session with an error
+  about the hook rather than about the code, and the gate is still there to catch what the
+  hook missed. Silence on a broken hook is the cheaper wrong answer.
+- **Test the wiring, not just the script.** The hook runs only because a settings file
+  names it; rename the script and that points at nothing, nothing fails, and edits quietly
+  stop being checked. Resolve the path from the command the host would run and assert it
+  exists and is the file the tests drive.
+- **Say what it cannot see, every time it is described.** One file means no layer
+  violation's other end, no type error, no dead export — and a hook described as if it
+  were the gate is how the gate stops being run.
 
 **adapt:** any linter with per-path config and an AST selector rule works. Without AST
 selectors, a small grep gate in `scripts/` is the fallback — but state honestly which

@@ -50,6 +50,6 @@ describe('file encoding', () => {
 	});
 
 	it('finds no UTF-8 BOM in any file git sees', () => {
-		expect(files.filter(startsWithBom)).toEqual([]);
+		expect(files.filter((file) => startsWithBom(file))).toEqual([]);
 	});
 });

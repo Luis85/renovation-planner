@@ -42,7 +42,13 @@ describe('version-bump run outside npm version', () => {
 			if (key.toLowerCase() === 'npm_package_version') delete env[key];
 		}
 
-		expect(() => execFileSync(process.execPath, [SCRIPT], { cwd: dir, env })).toThrow();
+		// Matched on the guard's own message rather than on `toThrow()` alone: a bare
+		// `toThrow` passes when the child dies for any reason at all — a moved SCRIPT
+		// path, a syntax error — and would report green while proving nothing about the
+		// refusal. execFileSync folds the child's stderr into the error it throws.
+		expect(() => execFileSync(process.execPath, [SCRIPT], { cwd: dir, env })).toThrow(
+			/npm_package_version is not set/,
+		);
 
 		// Refused BEFORE any write: both files exactly as planted.
 		expect(readFileSync(path.join(dir, 'manifest.json'), 'utf8')).toBe(manifest);

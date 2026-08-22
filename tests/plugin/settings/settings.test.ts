@@ -47,7 +47,7 @@ describe('resolving settings from stored data', () => {
 	});
 
 	it('answers the same shape as the defaults', () => {
-		expect(Object.keys(settingsFrom({})).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());
+		expect(new Set(Object.keys(settingsFrom({})))).toEqual(new Set(Object.keys(DEFAULT_SETTINGS)));
 	});
 
 	it('does not mutate the defaults', () => {

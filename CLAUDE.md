@@ -43,12 +43,44 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **build** — `tsc` first, then Vite. Also the stylesheet: the build fails on a partial no
   entry file imports, a line in `styles/index.css` the assembler cannot resolve, or a
   partial over the 400-line cap.
-- **lint** — the Obsidian plugin guidelines, the size and complexity budgets, and the
-  architecture: the layer rule below is `no-restricted-imports`, not prose. Warnings fail
-  too (`--max-warnings 0`) — the mobile-safety rule reports as a warning, and
+- **lint** — TWO linters in one step, because they refuse different things and neither
+  subsumes the other. **ESLint** is where the architecture lives: the layer rule below is
+  `no-restricted-imports` and the write boundary is `no-restricted-syntax`, not prose. It
+  also runs the Obsidian plugin guidelines and the size and complexity budgets. Warnings
+  fail too (`--max-warnings 0`) — the mobile-safety rule reports as a warning, and
   `isDesktopOnly: false` is a promise. `manifest.json` itself is linted
   (`obsidianmd/validate-manifest`), so the marketplace naming rules are a gate, not a
-  submission surprise.
+  submission surprise. **oxlint** runs first, in milliseconds, and adds the broad
+  wrong-code ruleset ESLint never turned on, over a WIDER tree: the Obsidian ruleset is
+  type-aware, so `eslint.config.mjs` stops it at `src/` and ignores `scripts/` and the
+  root configs outright — which left `tests/` on 24 rules and the build scripts on none.
+  Warnings fail here too (`--deny-warnings`), for the same reason. It is an ADDITION and
+  not a migration: oxlint has no `no-restricted-syntax` at all (a config naming that rule
+  is rejected outright, measured), no port of `eslint-plugin-obsidianmd`, and nothing
+  type-aware. It does have `no-restricted-imports` and the budgets, so the layer bans are
+  the one part that could move, and they stay where the rest of the architecture is.
+  `.oxlintrc.json` carries which categories are on and what the other four cost, plus 29
+  rules named one at a time out of the categories left off — a category is a bundle whose
+  worst member decides whether the bundle is usable, and those four each hide a few rules
+  about being WRONG behind a majority about being written differently. It also gives
+  `scripts/` and the root configs the size and complexity budgets they had none of — the
+  numbers `src/` already lives under, reaching the rest of the repository. **A rule is
+  adopted while it reports nothing**: 27 of the 29 did, which is what made them one line
+  each instead of a cleanup nobody schedules.
+  Two things about it are claims rather than rules, so both have checks. Its SCOPE: an
+  `ignorePatterns` edit that drops a directory makes the gate quieter rather than redder,
+  so `tests/build/lint-scope.test.ts` asks oxlint itself which files it lints and compares
+  that against the tree. And its REACH: **no comment in a linted file turns a rule off.**
+  Two halves, because the two linters read comments differently. ESLint takes
+  `linterOptions.noInlineConfig`, which refuses the whole class — the disable directives
+  AND the rule-CONFIGURATION form, a block comment reading `eslint some-rule: off`, which
+  carries no directive keyword. That form was the real exposure: `no-restricted-syntax`
+  and `no-restricted-imports` are ESLint-only, so one comment turned the write boundary
+  off and oxlint could not have backstopped it. oxlint's half is a scan of the files it
+  lints (`tests/build/suppressions.test.ts`) plus `reportUnusedDisableDirectives`, since
+  nothing in ESLint's configuration reaches oxlint's directive handling. A rule that does
+  not fit is turned off in `.oxlintrc.json`, where the reason is written down and review
+  sees it.
 - **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
   metrics today; the floors sit a covered unit below that, which at this denominator is
   several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
@@ -113,6 +145,37 @@ says why, and it is a real constraint rather than taste. Everything `npm run` in
 vitest, Vite (build and harness), TypeScript, fallow, npm and editor configs — and every
 script resolves its paths from the WORKING DIRECTORY rather than from its own location.
 
+## The linter in the edit loop
+
+`.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which
+lints THAT ONE FILE and hands the agent whatever oxlint says. About 90ms, against
+`npm run check` several turns later — and by then the reasoning that produced the defect
+is gone, which is the whole reason to move the cheap half earlier.
+
+**It does not prevent the edit and it does not roll one back**, and every description of it
+has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
+table reads "Shows stderr to Claude; the tool already ran". Only `PreToolUse` blocks, and
+only for a payload it can lint before the write: a `Write` carries its whole content, an
+`Edit` carries a fragment whose result would have to be reconstructed first. That is the
+trigger for revisiting the mechanism; it is not a reason to describe this one as more than
+it is. (This paragraph exists because the first version of it claimed otherwise, and a
+review bot caught it against the reference in `.claude/skills/impeccable/`.)
+
+Three properties it is built to have, each with a test in `tests/build/lint-edited.test.ts`:
+
+- **It exits 2, not merely non-zero.** Neither code stops anything here, but 1 shows stderr
+  to the USER and lets the agent carry on unaware, while 2 hands the findings over as a
+  tool error the agent has to answer for. That is who gets told, not whether it happened.
+- **It fails OPEN on its own bugs** — unreadable input, no file, a missing linter. A hook
+  that failed closed would answer every edit in the session with an error about the hook
+  rather than about the code, and the gate still catches what the hook missed.
+- **The wiring is checked, not assumed.** The hook only runs because the settings name it;
+  a renamed script leaves that pointing at nothing and edits silently stop being checked.
+
+It sees ONE file, so it cannot see a layer violation's other end, a type error, a dead
+export or anything ESLint owns. `npm run check` is still the definition of done, and
+nothing here is allowed to read as if it were.
+
 ## Testing
 
 `tests/` mirrors `src/`. Pure logic gets node tests — a rule about a quantity, a cost or a
@@ -166,7 +229,19 @@ that was fixing the previous instance.
 - The `obsidian` devDependency is pinned to the FLOOR **exactly** (`1.13.0`), not to npm's
   newest and not to a range over it, so the compiler refuses an API `minAppVersion` does not
   promise. `tests/release/manifest.test.ts` holds that pairing. Raise both or neither.
-- `@types/node` tracks the `engines` floor, never npm's newest. TypeScript upgrades are
+- **`engines.node` is a RANGE, and a measurement rather than a decision.** Every dependency
+  renegotiates it silently. `>=22` was already false before oxlint arrived, and the obvious
+  repair — raise the floor — was still wrong at the other end: eighteen installed packages
+  support `^22.x` and `>=24` while excluding Node 23, so any unbounded floor claims a
+  runtime the toolchain refuses. **A bound is not a range**, and a check that reads one
+  bound only finds the defects living at that end.
+  `tests/build/engines.test.ts` compares the whole declared range against every installed
+  package with npm's own `semver.subset` — the instrument that decides this in reality is
+  the one that should decide it here. What it cannot see: a constraint stated anywhere but
+  `engines.node`, and a package this platform did not install.
+- `@types/node` tracks the `engines` floor, never npm's newest — as closely as npm allows,
+  which is not exactly: the floor is `22.22.2` and `@types/node` stops at `22.20.1` on the
+  22 line, so `^22.20.1` is the nearest thing that exists. TypeScript upgrades are
   bounded by what `typescript-eslint` declares as a peer — losing lint is the cost.
 - **Vite's minifier strips every comment**, legal ones included — measured, both as
   `output.banner` and in the source. There is no source-pointer banner on the bundle for
@@ -209,6 +284,14 @@ Not oversights; each has a trigger.
   [`docs/setup/vue-conventions.md`](docs/setup/vue-conventions.md).
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
+- **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,
+  which on `src/` is most of core `recommended`. Two linters agreeing is not a defect —
+  one fix satisfies both, and neither list can quietly become a rule's only owner.
+  Thinning one to speed up the other trades a gate for seconds. Add it when ESLint's
+  runtime is a cost somebody can name.
+- **`oxlint --type-aware`.** It needs `oxlint-tsgolint`, and the type-aware rules this
+  project actually leans on — `no-floating-promises`, the Obsidian ruleset — already run
+  under ESLint's project service. Add it for a type-aware rule ESLint does not have.
 - **A `docs/` register gate** (`npm run docs` in the source project: every wikilink
   resolving, every module specified by a note, opt-in claim citations). Add it when `docs/`
   has a convention worth enforcing — see section 5 of `docs/setup/quality-harness.md`.

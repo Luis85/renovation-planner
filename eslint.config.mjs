@@ -176,6 +176,30 @@ export default defineConfig([
 			'vite.harness.config.ts',
 		],
 	},
+	{
+		/**
+		 * No comment in a linted file may reconfigure the linter. `no-restricted-syntax`
+		 * carries the vault write boundary and `no-restricted-imports` carries the layers,
+		 * and BOTH are ESLint-only — oxlint has no `no-restricted-syntax` at all — so a
+		 * single block comment reading `eslint no-restricted-syntax: off` used to turn the
+		 * architecture check off with nothing able to report it. Measured, on `src/`: the
+		 * write-boundary error disappeared and `npm run check` stayed green. (Spelled
+		 * without its delimiters here because it is a block comment inside one, and a
+		 * zero-width space to fake them would be an invisible character in linted source.)
+		 *
+		 * `noInlineConfig` rather than a rule, because it refuses the whole class — the
+		 * disable directives AND the rule-configuration form, which carries no directive
+		 * keyword and so is invisible to a scan for one — for code not yet written. The
+		 * ruleset's own `reportUnusedDisableDirectives` and `reportUnusedInlineConfigs` see
+		 * only the comments that affect nothing, which is the harmless half.
+		 *
+		 * No `files` key, so it applies to everything ESLint lints here; a comment that now
+		 * does nothing is reported, and `--max-warnings 0` fails on it. The complement is
+		 * `tests/build/suppressions.test.ts`: oxlint keeps its own directive handling, and
+		 * nothing in ESLint's configuration reaches that.
+		 */
+		linterOptions: { noInlineConfig: true },
+	},
 	...pluginRules,
 	{
 		// The ruleset's own manifest validation — the bot's naming, typing and

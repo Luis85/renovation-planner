@@ -10,6 +10,52 @@ entries are added by the pull request that earns them, never invented at release
 
 ## [Unreleased]
 
+### Added
+
+- The declared Node range is `^22.22.2 || ^24.15.0 || >=26.0.0`, and
+  `tests/build/engines.test.ts` keeps it honest by comparing it against every installed
+  package with npm's own `semver.subset`. `>=22` was already false before oxlint — `eslint`
+  asks for `^22.13.0` and `jsdom` for `^22.22.2` — and raising the floor alone was still
+  wrong at the top, because eighteen packages exclude Node 23 that an unbounded floor
+  claims.
+- 29 further oxlint rules, named one at a time out of the categories left off as bundles:
+  `eqeqeq`, `require-await`, `no-template-curly-in-string`, `array-callback-return`,
+  `oxc/no-accumulating-spread`, `unicorn/error-message`, `unicorn/no-array-callback-reference`,
+  `unicorn/prefer-node-protocol`, `import/no-duplicates`, `vitest/no-identical-title` and
+  the rest, including three that are decisions about how code is written here
+  (`typescript/no-non-null-assertion`, `no-param-reassign`, `no-use-before-define`).
+  27 reported nothing when they were adopted. The two that did are fixed rather than
+  configured away: `scripts/version-bump.mjs` was the only file in the repository importing a
+  builtin without the `node:` protocol, and `tests/build/encoding.test.ts` passed a
+  function reference straight to `flatMap`.
+- ESLint takes no inline configuration (`linterOptions.noInlineConfig`). A block comment
+  reading `eslint no-restricted-syntax: off` used to turn the vault write boundary off in
+  `src/` with `npm run check` still green — measured — and that rule is ESLint-only, so
+  oxlint could not have backstopped it. The setting refuses the whole class rather than a
+  spelling, and a comment that now does nothing is reported and fails `--max-warnings 0`.
+- Inline lint suppressions are refused across the whole linted tree
+  (`tests/build/suppressions.test.ts`). oxlint honours ESLint's directive spelling as well
+  as its own, and the rules that police suppressions arrive with the Obsidian ruleset,
+  which stops at `src/` — so a single comment used to turn a rule off in `tests/`,
+  `scripts/` or a root config with nothing anywhere reporting it. The complementary half,
+  a directive that silences nothing, is now denied by oxlint itself.
+- oxlint lints the edited file after every Edit and Write (`scripts/lint-edited.mjs`, wired
+  in `.claude/settings.json`), putting the findings in front of the agent in about 90
+  milliseconds instead of at the next `npm run check`. It does not prevent or revert the
+  edit — `PostToolUse` runs after the write — so exit 2 is chosen for being the code that
+  reaches the agent rather than the user. It fails open on its own bugs, and it is not the
+  gate: one file means it sees nothing cross-file and nothing ESLint owns.
+- `scripts/` and the root config files now have the size and complexity budgets they had
+  none of — ESLint's block reaches `**/*.ts` in `src/` only, and those paths are outside it.
+  The numbers are the ones `src/` already lives under.
+- oxlint runs beside ESLint in `npm run lint`, in milliseconds and before it. It covers the
+  tree the type-aware Obsidian ruleset has to be held out of — `tests/`, `scripts/` and the
+  root config files — and it found an unsafe optional chain there on its first run, plus
+  two `toThrow()` calls asserting only that something threw. `.oxlintrc.json` records which
+  categories are on and why the other four are not, and `tests/build/lint-scope.test.ts`
+  asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
+  quietly shrinking the gate.
+
 ### Changed
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,

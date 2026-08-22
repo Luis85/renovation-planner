@@ -651,6 +651,14 @@ interface FindZonesByPlanQuery {
   established, and both read and written through `settingsFrom` like `units`, since
   `data.json` is a trust boundary and a folder path is user-editable text.
   User-supplied paths pass through `normalizePath` before any Vault call.
+  **These are the settings that make slice 1's unrecovered rule bite.** A path is not a
+  preference: with `root.settings === null` — `data.json` present but unreadable — a
+  default folder is a *different* location, so an index built on it reports the user's
+  projects as missing and every write lands in a parallel tree beside their real one.
+  This slice is where slice 1's "compose no repositories, no index, no query services
+  while settings are unrecovered" stops being a rule about nothing, and its own tests
+  assert that the root wires none of the three in that state rather than wiring them
+  against defaults.
 - **New Vault registration:** one custom file extension for geometry sidecars,
   registered via `registerExtensions()` at plugin load, so sidecar files are visible
   and manageable in Obsidian's file explorer rather than treated as an unsupported

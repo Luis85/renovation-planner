@@ -123,7 +123,11 @@ pre-loaded with placeholders for services that would otherwise have to be faked:
 ```typescript
 // src/plugin/composition-root.ts
 export interface CompositionRoot {
-  readonly settings: RenovationPlannerSettings;
+  // `null` when data.json could not be READ — not when it is absent, which is a fresh
+  // install and loads defaults normally. Deliberately not "defaults on failure": once
+  // slice 4 puts folder paths in here, a default is a different location, not a milder
+  // version of the user's. See "Logging" for the full argument and the rules it implies.
+  readonly settings: RenovationPlannerSettings | null;
   // Not one of §10's five, and held here for the reason slice 11 states as a contract:
   // the Logger is injected via the composition root like any other Application port.
   // If the root did not hold it from its first version, the injection point would have
@@ -138,11 +142,14 @@ export interface CompositionRoot {
 // The logger is a PARAMETER, not something this function constructs: it has to exist
 // before the settings load that may fail, and that happens before this call.
 export function createCompositionRoot(
-  settings: RenovationPlannerSettings,
+  settings: RenovationPlannerSettings | null,
   logger: Logger,
 ): CompositionRoot {
   return { settings, logger };
 }
+// When slice 4 adds repositories, the index and query services, this function composes
+// them only when `settings !== null` — a service that reads or writes a configured
+// location has no correct behaviour without the configuration that names it.
 ```
 
 This is the one seam every later slice extends: a new field and a new constructor
@@ -223,16 +230,57 @@ belongs with slice 11's diagnostics work — "copy diagnostics" and "turn on ver
 logging" are the same conversation — and this slice does not add a settings field no
 feature reads yet.
 
-**Having caught the one failure, this slice has to say what follows it.** A rejected
-`loadData()` is logged at `error` and bootstrap *continues* with `DEFAULT_SETTINGS`:
-`settingsFrom(null)` is already the fresh-install path, the plugin is fully usable on
-defaults, and refusing to load at all because a preferences file could not be read trades a
-small problem for the largest one available. The rule that keeps that safe is the second
-half: a failed **read** is never followed by a write. `saveSettings()` is not called on
-this path, so a transient failure cannot stamp defaults over a `data.json` that is still
-sitting there intact. This is one call site's decision, not the Error Boundary — mapping
-exceptions to typed `AppError`s and routing them to a surface is slice 11's, and it
-arrives after this line already exists.
+**Having caught the one failure, this slice has to say what follows it — and "carry on
+with defaults" is the wrong answer.** It is tempting because it is true *today*: the only
+setting is `units`, and a display preference falling back to metric costs nothing. It stops
+being true at slice 4, which puts **locations** in settings — the project folder, and per
+ADR-0011 the geometry sidecar folder. Defaults are then not a degraded version of the
+user's configuration, they are a different place on disk: an index built on them scans
+folders the projects are not in, so existing work reads as missing, and anything written
+lands in a parallel tree beside it. A setting that names a path is not a preference, and a
+fallback that is harmless for a preference is a data-loss path for a location.
+
+So a failed read produces no settings at all, and the type is what says so:
+
+```typescript
+readonly settings: RenovationPlannerSettings | null;   // null === could not be read
+```
+
+Every consumer then has to face the case. That is the point rather than a cost: code that
+wants a default for a display preference writes `?? DEFAULT_SETTINGS` and is visibly
+choosing it, while code that needs a folder path cannot be handed a plausible wrong one.
+
+The line at the boundary is sharp and worth stating, because the two look alike from
+inside `onload`: `loadData()` **resolving** `null` is a fresh install, not a failure —
+`settingsFrom(null)` returns defaults and the plugin is fully configured. Only a
+**rejection** is unrecovered.
+
+Three rules follow, each a check rather than an intention:
+
+- **No write for the whole session, not only at bootstrap.** `saveSettings()` refuses while
+  `settings === null` — it makes no `saveData` call — so a transient read failure cannot
+  stamp defaults over a `data.json` that is sitting there intact. Bootstrap is not the only
+  writer, though, and the other one is the trap: the settings tab writes on every control
+  change. While unrecovered it therefore offers no controls — `getSettingDefinitions()`
+  returns an empty array, which is exactly the case 1.13 falls back to `display()` for, and
+  that fallback renders what happened and what to do about it. Two independent guards, and
+  the second is what makes the first hold for a control nobody has written yet.
+- **Nothing that reads or writes a configured location is composed.** The composition root
+  is where those services are wired, so it is where they can be left unwired: while
+  settings are unrecovered the root composes no repositories, no project index, and no
+  query services. None of them exist yet — they arrive with slice 4 — which is why the
+  rule is stated here rather than there, in the same "before it can be broken" spirit as
+  the lint rules below. The plugin still loads, the view still opens, and the failure is
+  visible in the one place a user would look.
+- **Recovery is a reload, not a repair UI.** Fixing or removing `data.json` and toggling
+  the plugin re-runs `onload` and the load either succeeds or does not. Nothing in this
+  slice attempts a re-read on a timer, and nothing writes a replacement file, because both
+  amount to guessing at data the user still has.
+
+This is one call site's decision, not the Error Boundary — mapping exceptions to typed
+`AppError`s and routing them to a surface is slice 11's and slice 17's, and they arrive
+after this line already exists. What they will add is where the failure shows up beyond
+the settings tab; what they cannot add later is the refusal to write.
 
 **One instance, and the check that keeps it one.** `onload` constructs the logger once and
 hands it to `createCompositionRoot`; everything else reads `root.logger`. That is the same
@@ -241,7 +289,10 @@ makes it hold for code not yet written is not this paragraph but `no-console`: i
 error across `src/` with **no** allowances — `console.error` included, since the only
 reason to permit that one was that there was nothing else to call — and
 `infrastructure/logging/**` is the single carve-out, the directory whose job is the
-console. A second logger, or a view that decides to `console.warn` its own failure, fails
+console. It covers what the config matches: `.ts` today, and `.vue` from the edit that
+adds Vue, which is where a stray `console.warn` is most likely to be written and the
+reason that edit widens every block rather than this one. A second logger, or a view that
+decides to report its own failure to the console, fails
 `npm run lint` rather than review. The carve-out is a per-directory block that *overrides*
 `no-console` for those files rather than merging with it — the same flat-config behaviour
 the `no-restricted-syntax` blocks have to work around, working in our favour here, and the
@@ -322,8 +373,10 @@ only layer allowed to call `loadData`/`saveData` — everything else reads
 `plugin.root.settings` or writes through `saveSettings()`.
 
 ```text
-onload():  this.root = createCompositionRoot(settingsFrom(await this.loadData()))
-saveSettings(): this.saveData(this.root.settings)
+onload():  raw  = await this.loadData()            — rejects → logger.error, settings := null
+           this.root = createCompositionRoot(raw === REJECTED ? null : settingsFrom(raw), logger)
+saveSettings(): this.root.settings === null → refuse, no saveData call
+                otherwise                   → this.saveData(this.root.settings)
 ```
 
 `settingsFrom` is a pure merge over defaults, not a spread: `data.json` is a file a user can
@@ -395,6 +448,19 @@ packages that wrap them.
 
 A third bans `console.*` everywhere under `src/`, with `infrastructure/logging/**` carved
 out as the one place a console call is the point rather than a bypass (see "Logging" above).
+
+**Every block above is `.ts`-scoped, and the presentation layer will not be.** That is fine
+while `src/` is all TypeScript and stops being fine at this slice's own `ViewRoot.vue`: a
+rule set that ends at `.ts` exempts precisely the layer whose imports the dependency rule
+constrains most, and a component is the likeliest place for both a direct repository import
+and a stray `console.warn`. So the edit that adds `vue` and `@vitejs/plugin-vue` also adds
+`vue-eslint-parser` — with the TypeScript parser configured for `<script lang="ts">` blocks
+— and widens every `src/` block's `files` to match `**/*.vue` alongside `**/*.ts`: the
+layer bans, the write-boundary selectors, the DOM-globals ban, the size budgets and
+`no-console`, not a Vue-specific subset of them. One edit, because the gap opens the moment
+the first `.vue` file exists rather than at some later point worth scheduling. Until then
+`src/**/*.ts` is all of `src/`, and every guarantee below is scoped to what the config
+actually matches.
 
 This rule set is committed and passing in Increment 1 with almost nothing yet to exercise
 it: `core/` and `domain/` are empty, and `application/` holds one file — `ports/Logger.ts`,
@@ -533,11 +599,18 @@ Module boundaries this slice fixes for every later one:
   instance** `onload` constructed, asserted by identity, because two different loggers both
   satisfy a shape assertion and "one instance" is the property that matters. And the
   failure path: a `loadData()` that rejects produces exactly one `error` event, the view
-  and command still register, the settings in the root are `DEFAULT_SETTINGS`, and
-  `saveData` is never called — the last of those is what stops a transient read failure
-  from overwriting a file that was fine. A companion case asserts the happy path logs
-  nothing above `debug`, which is the shape of the console-noise rejection and is invisible
-  to a test that only counts calls.
+  and command still register, and `root.settings` is **`null`** rather than
+  `DEFAULT_SETTINGS` — asserted as null specifically, since a test written against
+  "defaults are present" passes against the version that hands a wrong folder path to
+  slice 4. A companion case asserts the happy path logs nothing above `debug`, which is the
+  shape of the console-noise rejection and is invisible to a test that only counts calls.
+- **Unrecovered settings** (`tests/plugin/settings/`): with `root.settings === null`,
+  `saveSettings()` makes no `saveData` call and `getSettingDefinitions()` returns `[]` —
+  the two writers, asserted independently, because either one alone still overwrites the
+  file the user still has. The `loadData()`-resolves-`null` case is asserted beside them as
+  the opposite outcome: a fresh install loads `DEFAULT_SETTINGS`, saves normally, and
+  renders its controls. A single test that only drove "no settings" would treat the two
+  identically, which is the confusion the boundary exists to prevent.
 - **Settings** (`tests/plugin/settings/settings.test.ts`): plain node tests (no Obsidian
   runtime) driving `settingsFrom` against every shape `loadData` can hand back — `null`
   (fresh install), a stored partial, a value outside the vocabulary, an unknown key, junk
@@ -586,12 +659,20 @@ Module boundaries this slice fixes for every later one:
       and neither `console.log` nor `console.info` appears anywhere in `src/`, since the
       `obsidianmd` ruleset fails both and cannot be suppressed inline. `error` forwards its
       `cause` untouched.
-- [ ] A `loadData()` that rejects logs one `error` event, leaves the plugin loaded on
-      `DEFAULT_SETTINGS` with its view and command registered, and calls no `saveData` —
-      a failed read never becomes a write.
+- [ ] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
+      `null` — never `DEFAULT_SETTINGS` — with the view and command still registered. For
+      as long as it stays null, `saveSettings()` makes no `saveData` call and
+      `getSettingDefinitions()` returns `[]` so the tab offers no control that could:
+      a failed read never becomes a write, at bootstrap or later in the session. A
+      `loadData()` that *resolves* `null` is the fresh-install path and is unaffected.
 - [ ] `no-console` is an error across `src/` with **no** allowances, carved out only for
       `infrastructure/logging/**`; `npm run lint` passes, and a `console.error` added
       anywhere else fails it.
+- [ ] Every `src/` lint block — the layer bans, the write-boundary selectors, the
+      DOM-globals ban, the size budgets and `no-console` — matches `**/*.vue` as well as
+      `**/*.ts`, wired with `vue-eslint-parser`, in the same change that adds Vue.
+      Verified by a component that imports a repository and one that calls `console.warn`
+      each failing `npm run lint`, not by the config reading as though it covers them.
 - [ ] The Renovation Project view opens from both the ribbon icon and the command palette,
       reuses one leaf between them, and its type/display name/icon are all set.
 - [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +

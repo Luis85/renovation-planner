@@ -942,7 +942,7 @@ Forecast:
 ```text
 Actual Cost
 +
-Committed Cost (not yet invoiced)
+Committed Cost
 +
 Remaining Estimate
 =

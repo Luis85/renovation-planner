@@ -348,10 +348,20 @@ store — not at the dispatcher — is what makes the guarantee hold for *every*
 including the vault-change pipeline and any future spatial-object repository, rather than
 only for commands that happened to go through one editor's dispatcher.
 
-This also fixes a second-order effect: with writes serialized, commands complete in
-dispatch order, so slice 6's undo stack records them in the order the user performed
-them. Two concurrent commands resolving out of order would otherwise put the undo stack
-out of step with what the user did.
+**What this does not buy: undo-stack ordering.** It is tempting to conclude that
+serialized writes mean commands complete in dispatch order, so slice 6's undo stack
+records them in the order the user performed them. That is false, and the reason is
+worth stating so nobody re-derives it: the lock is released when the sidecar write
+completes, but the command is not finished then. It goes on to publish
+`ZoneGeometryChanged`, and slice 10 awaits that whole recalculation cascade inside the
+same dispatch. A command touching one Requirement can therefore finish its cascade and
+resolve before an earlier command still recalculating twenty, and `CommandHistory.run()`
+pushes in resolution order — so Undo would target the wrong edit.
+
+Serializing the storage primitive prevents lost updates. Ordering the undo stack is a
+different guarantee at a different level, and slice 6 provides it by serializing
+`CommandHistory`'s own operations per Plan. Both are needed; neither substitutes for the
+other.
 
 ### Schema versioning and migration (§44–45)
 

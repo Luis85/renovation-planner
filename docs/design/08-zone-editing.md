@@ -242,7 +242,25 @@ undo():    re-insert the captured snapshot verbatim — same ID, same zone type,
            same points, same schema version — via zoneRepository.save() directly,
            NOT via CreateZoneCommand (which would mint a fresh ID and publish
            ZoneCreated, misrepresenting a restore as a new zone)
+           AND restore every entity in affectedBefore (see below), for the same
+           reason and by the same means
 ```
+
+**The snapshot is the Zone plus everything the delete touched.** Once slice 10 forwards
+a reference `resolution`, `execute()` no longer changes one entity: it can delete the
+referencing Requirements, repoint them at another target, or flip their
+`recalculationStatus`. A Zone restored on its own, with its Requirements still deleted or
+still repointed, is not the state that existed before `execute()` — which would break the
+rule this slice's own Testing Strategy states, that every `execute()`/`undo()` pair is a
+true inverse.
+
+Slice 10's resolution already captures that state as `affectedBefore`, because it needs
+it to compensate a partial failure, and returns it in the command's payload. This adapter
+captures it on success and restores it alongside the Zone. Nothing new is computed here:
+the adapter is still a thin wrapper that snapshots and replays, the snapshot just covers
+what the wrapped command actually mutates. In this slice, with no entity able to reference
+a Zone yet, `affectedBefore` is always empty and the behaviour is exactly as described
+above.
 
 Undo must resurrect the same entity, not create a new one with a fresh ID. That makes
 `save()` an idempotent upsert keyed by entity ID rather than insert-only — a command's
@@ -380,7 +398,10 @@ class ReversibleMoveZoneVertexCommand implements UndoableCommand {
 // writes that snapshot back through it directly.
 class ReversibleDeleteZoneCommand implements UndoableCommand {
   constructor(
-    private readonly deleteCommand: Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>>,
+    // The wrapped command's payload carries `affectedBefore` — the pre-resolution state
+    // of every entity the delete touched (slice 10). Empty in this slice; undo() restores
+    // it alongside the Zone, so the pair stays a true inverse once it is not.
+    private readonly deleteCommand: Command<DeleteZoneInput, Result<DeleteWithReferencesResult, ReferenceError | ValidationError | PersistenceError>>,
     private readonly zoneRepository: ZoneRepository,
     // Forwarded verbatim into DeleteZoneInput. Undefined in this slice; slice 10's
     // delete dialog supplies it. This adapter never interprets it — the resolution is
@@ -435,7 +456,9 @@ Domain).
   - `Zone.withGeometry()` rejects what `createPolygon()` rejects, independent of any
     tool-level check (proves the domain does not trust its caller).
   - Every command's `execute()` → `undo()` pair is a true inverse: state after
-    `undo()` is identical to state before `execute()`.
+    `undo()` is identical to state before `execute()` — compared over every entity the
+    command touched, not only the one it is named for, so a delete that cascades to
+    referents is held to the same standard as one that does not.
 - **Application tests (in-memory repositories, per §71)**:
   `CreateZoneCommand → InMemoryZoneRepository → assertions`; `ReversibleMoveZoneCommand`
   and `ReversibleMoveZoneVertexCommand` roundtrips; `ReversibleDeleteZoneCommand`
@@ -474,7 +497,8 @@ Domain).
 6. Deleting a selected zone removes both its Markdown note and its sidecar geometry
    entry; **pressing undo immediately afterward restores the zone exactly** — same
    ID, same zone type, byte-identical geometry — verified by comparing pre-delete and
-   post-undo state in a test.
+   post-undo state in a test. The comparison covers every entity in `affectedBefore`
+   too, so the assertion stays honest when slice 10 makes that set non-empty.
 7. All of the above passes with `clipper2-ts` and `rbush` absent from the dependency
    graph entirely — zero boolean-geometry calls, zero spatial-index lookups, on any of
    the six paths above.

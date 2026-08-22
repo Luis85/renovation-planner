@@ -204,6 +204,25 @@ un-replayed, so it stays on `redoStack` rather than moving to `undoStack`.
 Neither stack is popped until the corresponding operation is confirmed to
 have succeeded.
 
+**`CommandHistory` serializes its own operations.** `run`, `undo` and `redo` queue
+against one another so that at most one is executing at any moment, and the stacks are
+mutated in the order the calls arrived rather than the order they happened to finish.
+This is not defensive coding around a rare interleaving — it is the only thing making
+the stack's order mean anything. Two commands can genuinely be in flight at once (an
+Inspector commit and a canvas gesture dispatch independently, per slice 13), and a
+command does not finish when its write lands: it goes on to await its event cascade,
+which slice 10 runs to completion inside the same dispatch. A command with a short
+cascade can therefore resolve before an earlier one with a long cascade, and an
+unserialized `run()` would push them in that order — leaving Undo pointed at the wrong
+edit. Slice 4's per-plan write lock does not help here: it is released when the write
+completes, long before the cascade does.
+
+Serializing here rather than at the dispatcher is what makes the guarantee hold for
+`undo()` and `redo()` too, and `CommandHistory` is already scoped per open Plan, so the
+queue needs no key: one instance, one Plan, one order. Slice 13's `withSaveStateTracking`
+wraps this and is unaffected — a queued call is still an outstanding call, so its
+`pendingCount` counts it exactly as before.
+
 `CommandHistory` is scoped per open Plan and lives in `EditorStore`; it is not
 persisted (SDD §15 — ephemeral) and does not survive a plugin reload or switching
 plans. Stack depth is unbounded in this design; the SDD does not specify a cap, so an
@@ -542,6 +561,12 @@ and tool-switching directly touch.
 - **`SnapService` unit tests** — each method (`snapToGrid`, `snapPoint`,
   `snapToVertex`, `snapToEdge`, `snapResize`, `snapRotation`) as a pure function over
   domain geometry fixtures, independent of any live canvas.
+- **`CommandHistory` serialization test** — dispatch two commands without awaiting the
+  first, where the second's fake resolves faster than the first; assert `undoStack` holds
+  them in dispatch order and that the second's `execute()` does not begin until the
+  first's has resolved. A test whose two fakes resolve in dispatch order anyway would
+  pass against an unserialized implementation, so the timing has to be inverted
+  deliberately.
 - **Gesture-to-command integration test** (component-level, per SDD §73–74's Vue/Konva
   test approach) — simulate `pointerDown` → N × `pointerMove` → `pointerUp` against a
   test-double `EditorTool`; assert exactly one `CommandHistory.run()` call and exactly
@@ -568,25 +593,30 @@ and tool-switching directly touch.
    one write per `pointerMove`.
 3. Undoing that entry restores prior domain state; redoing reapplies it; dispatching a
    new command after an undo clears the redo stack.
-4. A simulated Transformer resize/rotate never allows a `scaleX`/`scaleY` value to
+4. Two commands dispatched back-to-back without awaiting the first — the second with a
+   deliberately shorter event cascade, so it would otherwise resolve first — appear on
+   `undoStack` in dispatch order, not completion order. Asserted with a fake whose
+   cascade duration is controllable, since the bug this rules out only appears when
+   completion order and dispatch order disagree.
+5. A simulated Transformer resize/rotate never allows a `scaleX`/`scaleY` value to
    reach a command's input type or a persisted entity — asserted directly in the
    normalization test, not just implied by code review.
-5. A command whose `execute()` resolves to a failed `Result` (simulated validation or
+6. A command whose `execute()` resolves to a failed `Result` (simulated validation or
    persistence failure) is never pushed to `undoStack`, produces no redo-stack
    entry, and `CommandHistory.run()` returns that same failed `Result` to its caller —
    asserted against a resolved error `Result`, not a rejected promise. A command
    whose `.undo()` resolves to a failed `Result` stays on `undoStack` rather than moving
    to `redoStack`; a command whose `.execute()` resolves to a failed `Result` when called
    by `redo()` stays on `redoStack` rather than moving to `undoStack`.
-6. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
+7. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
    reachable from it, checked by the architecture/contract test.
-7. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,
+8. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,
    unit-tested without a live canvas.
-8. Selecting a fixture entity produces an Inspector DTO sourced from an application
+9. Selecting a fixture entity produces an Inspector DTO sourced from an application
    query — not a repository call — and committing an edited field dispatches exactly one
    command through the same `CommandHistory` tools use.
-9. `EditorContext`'s type surface contains no repository or Obsidian Vault API.
-10. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
+10. `EditorContext`'s type surface contains no repository or Obsidian Vault API.
+11. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
     future tool (e.g. `WallTool`) requires only a new `EditorTool` implementation, not a
     framework change.
 

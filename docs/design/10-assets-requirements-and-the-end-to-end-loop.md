@@ -464,6 +464,12 @@ interface RequirementInspectorDTO {
   wasteFactor: Decimal;
   quantity: { calculated: Quantity; override: Quantity | null; effective: Quantity };
   cost: { calculated: Money; override: Money | null; effective: Money };
+  // The whole point of persisting recalculationStatus is that the Inspector can warn
+  // when a figure is no longer trustworthy. This DTO is the only thing backing the
+  // Requirements panel, so omitting the field here would make the persisted marker
+  // unreachable by the surface designed to render it — the marker would survive a
+  // reload and then be invisible, which is indistinguishable from not having it.
+  recalculationStatus: 'current' | 'stale';
 }
 ```
 
@@ -525,6 +531,46 @@ outcomes rather than three synonyms for "delete":
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
 | `reassign` | Repoint every referencing Requirement's `origin`/`assetId` at `reassignTo`, then delete the entity. A missing or self-referencing `reassignTo` is a `ValidationError`. |
 | `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Inspector must show rather than hide. |
+
+**A resolution mutates several entities, so it needs compensation and a snapshot.**
+Every non-absent resolution is N Requirement writes followed by one entity delete, and
+naming that "one logical operation" does not make it one. Any write in the middle can
+fail, and the partial states are all bad in the same specific way: `remove-references`
+can permanently delete some Requirements while the Zone survives; `reassign` can split
+referents between the old target and the new; `delete-anyway` can mark some stale and
+not others. Worse, the command returns an error, so `CommandHistory.run()` records no
+undo entry for a mutation that did partly happen — the same failure this slice's sibling
+already fixed for the note-plus-sidecar case, reappearing one level up because the blast
+radius grew.
+
+The resolution therefore runs as a compensated sequence, the same shape slice 4 uses
+inside a repository:
+
+```text
+1. Read every referencing Requirement in full → `affectedBefore` snapshot.
+2. Apply the resolution to each in turn, recording which have been written.
+3. Delete the entity.
+4. On any failure in 2 or 3: restore every Requirement already written, from
+   `affectedBefore`, then return the error. A failing compensation is logged via
+   slice 11's Logger rather than swallowed — the repository cannot promise
+   multi-file atomicity and does not pretend to.
+5. On success, return `affectedBefore` in the command's payload. It is not
+   bookkeeping: it is what makes the delete undoable (see below).
+```
+
+Step 5 is the half that is easy to miss. Restoring the entity alone does not undo a
+resolution — a Zone brought back with its Requirements still deleted, or still repointed
+at another Asset, is not the state the user had before pressing Delete, and slice 8
+requires every `execute()`/`undo()` pair to be a true inverse. So the snapshot the
+command already had to take for step 4 is handed onward for undo to use, and
+`ReversibleDeleteZoneCommand` restores the entity *and* every entity in `affectedBefore`.
+
+```typescript
+type DeleteWithReferencesResult = {
+  deletedId: ZoneId | AssetId;
+  affectedBefore: readonly Requirement[]; // full pre-resolution state, for undo
+};
+```
 
 `reassignTo` is where PRD §64's own gap shows through: it names "Reassign" as an action
 but never says how a target is picked. Slice 15 is explicit that its dialog resolves
@@ -665,14 +711,14 @@ Grey outdoor porcelain, 20mm, slip-rated.
 type: renovation-requirement
 schema-version: 1
 
-id: requirement-01JG2K9F4M
-project: project-01HABC
-asset: asset-01JDEF7Q3K
+id: requirement-01JG2K9F4M7N9P1Q3R5S7T9V1W
+project: project-01JAB9Q2WE4RT6YU8IO0PA1SD2
+asset: asset-01JDEF7Q3K5M7N9P1Q3R5S7T9V1
 origin-kind: zone
-origin-zone: zone-01HXYZ
+origin-zone: zone-01JABC7XG3QK9F8N2M4P6R5T0W
 
 unit: m2
-waste-factor: 0.10
+waste-factor: "0.10"
 
 quantity-calculated: "13.2"
 quantity-override: null
@@ -681,9 +727,19 @@ cost-calculated: "594.00"
 cost-override: "550.00"
 currency: EUR
 
+recalculation-status: current
 required-date: null
 ---
 ```
+
+`recalculation-status` is **persisted, not derived**, and this is the frontmatter field
+that makes the design above true rather than aspirational. The whole stale-marker
+argument — mark stale durably *before* attempting recalculation, so a failure can never
+leave outdated numbers reading as current — depends on the marker outliving the process
+that set it. A `Requirement` schema without the field would lose it on the next
+hydration and show the cached `quantity-calculated`/`cost-calculated` as current, which
+is precisely the state `markStale` exists to prevent. It round-trips through the mapper
+and the Zod schema like any other field, and is covered by the contract suite below.
 
 Every decimal-valued field is persisted as a **quoted string**, not a YAML float.
 ADR-010 exists because native floating point silently loses money, and a YAML parser
@@ -748,7 +804,11 @@ are additive, not breaking.
   Obsidian implementations: round-trip through the Markdown mapping, and
   rejection of malformed frontmatter (negative `unit-cost`, unknown
   `category`, an `origin-zone` that doesn't parse as an ID) before it reaches
-  the domain (§43).
+  the domain (§43). The round-trip explicitly includes
+  `recalculation-status: stale`: save a stale Requirement, discard all in-memory
+  state, re-read it, and assert it is still `"stale"`. A marker that survives
+  `markStale()` but not a reload is the same defect as no marker at all, and only a
+  reload test distinguishes the two.
 - **Vue component (§73).** The Inspector's Requirements panel: renders
   calculated values with no badge when no override is set; renders the
   override with a distinct visual treatment and still shows the calculated
@@ -800,6 +860,11 @@ are additive, not breaking.
 - [ ] Both `Requirement.quantity` and `Requirement.estimatedCost` are
       `DerivedValue<T>`, and the Inspector visibly distinguishes calculated
       from overridden for each independently (§52).
+- [ ] `recalculationStatus` is persisted as `recalculation-status` in the Requirement
+      note, exposed on `RequirementInspectorDTO`, and survives a full reload: a
+      Requirement marked `"stale"` by a failed recalculation still reads `"stale"` after
+      the in-memory state is discarded and rebuilt, and the Inspector renders its badge
+      from the DTO rather than recomputing it.
 - [ ] Every decimal-valued field round-trips through the Markdown mapping without loss:
       a Requirement whose calculated cost is `594.005` reads back as exactly `594.005`,
       asserted on the `Decimal` value, never on a coerced `number`. This is the test
@@ -815,6 +880,13 @@ are additive, not breaking.
       repointed at `reassignTo`, and references left behind marked `"stale"`
       respectively. A dialog whose three non-cancel buttons all did the same thing would
       pass a test that only exercised one of them.
+- [ ] A resolution that fails partway — the third of five Requirement writes, and
+      separately the final entity delete — restores every Requirement already written
+      and returns the error, leaving the Vault as it was before the command ran. Covered
+      per resolution, since `remove-references` and `reassign` fail differently.
+- [ ] Undo after a successful resolution restores the deleted entity **and** every
+      Requirement the resolution touched, from `affectedBefore` — asserted by comparing
+      full pre-delete and post-undo state, not just the entity's own fields.
 - [ ] `reassign` with a missing or self-referencing `reassignTo` resolves a
       `ValidationError` and deletes nothing.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded

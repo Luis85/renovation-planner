@@ -94,16 +94,51 @@ export class Plugin {
 /**
  * `containerEl` carries Obsidian's own view chrome — the header and the tab actions — and
  * `contentEl` is the pane below it. The distinction decides what a view may empty, so the
- * fake has both and nests them the way the app does.
+ * fake has both and nests them the way the app does: `containerEl` is
+ * `.workspace-leaf-content` carrying a `data-type` naming the view (what
+ * `styles/chrome.css` keys its selector on), a `.view-header` first, then `contentEl` as
+ * `.view-content` — the same three classes and the attribute Obsidian's own DOM carries,
+ * so both `styles/chrome.css` and the height chain `styles/view.css` depends on can
+ * actually match here (measured in `tests/harness/harness.test.ts` and
+ * `tests/presentation/views/renovationProjectView.test.ts`).
+ *
+ * `data-type` can only come from the SUBCLASS's `getViewType()`, and this class is the
+ * base every subclass extends — reading it inside THIS constructor would run before a
+ * subclass's own field initialisers do. That happens to be safe today, because every
+ * `getViewType()` in this codebase is a plain prototype method rather than a bound
+ * class-field arrow function, but a fake that assumed that forever would be exactly the
+ * coupling this file's header warns against. So it is read lazily instead, on first ACCESS
+ * to `containerEl` — a `new Subclass(...)` expression always finishes running the
+ * subclass's own constructor (fields included) before it hands back a reference for
+ * anything outside the constructor to read, and nothing in this codebase reads
+ * `containerEl` from inside a constructor. By the time anything asks for it, `this` is
+ * always the fully-built subclass.
  */
 export class ItemView {
-	readonly containerEl: HTMLElement;
+	private readonly containerElNode: HTMLElement;
 	readonly contentEl: HTMLElement;
 
 	constructor(readonly leaf: WorkspaceLeaf) {
-		this.containerEl = document.createElement('div');
+		this.containerElNode = document.createElement('div');
+		this.containerElNode.classList.add('workspace-leaf-content');
+
+		const header = document.createElement('div');
+		header.classList.add('view-header');
+		this.containerElNode.appendChild(header);
+
 		this.contentEl = document.createElement('div');
-		this.containerEl.appendChild(this.contentEl);
+		this.contentEl.classList.add('view-content');
+		this.containerElNode.appendChild(this.contentEl);
+	}
+
+	get containerEl(): HTMLElement {
+		this.containerElNode.dataset.type = this.getViewType();
+		return this.containerElNode;
+	}
+
+	/** Every real subclass overrides this; a fake with no subclass has no type to carry. */
+	getViewType(): string {
+		throw new Error('ItemView.getViewType must be implemented by a subclass');
 	}
 }
 

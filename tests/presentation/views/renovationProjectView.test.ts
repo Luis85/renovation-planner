@@ -63,14 +63,36 @@ describe('the renovation project view', () => {
 	 * `contentEl`, not `containerEl`: the outer element carries Obsidian's own view chrome —
 	 * the header and the tab actions — and emptying it takes those with it. The fake nests
 	 * the two the way the app does, so a view that reached for the wrong one fails here.
+	 * The header asserted below is the fake's OWN `.view-header`, real chrome rather than a
+	 * manually appended stand-in — the same element `styles/chrome.css` hides.
 	 */
 	it('leaves the view chrome alone', async () => {
 		const chrome = subject.containerEl.appendChild(document.createElement('div'));
+		const header = subject.containerEl.querySelector('.view-header');
+		expect(header).not.toBeNull();
 
 		await subject.onOpen();
 		await subject.onClose();
 
 		expect(chrome.parentElement).toBe(subject.containerEl);
+		expect(subject.containerEl.querySelector('.view-header')).toBe(header);
+	});
+
+	/**
+	 * `styles/chrome.css` matches `.workspace-leaf-content[data-type="…"] .view-header`, and
+	 * `styles/view.css` gives `contentEl`'s child its height through the chain that starts at
+	 * `.view-content` — Obsidian's own class on `contentEl`. Neither can be looked at in the
+	 * harness (or matched by a real selector here) unless the fake carries the same class,
+	 * attribute and nesting Obsidian's own `ItemView` does.
+	 */
+	it('nests the header and content pane the way Obsidian does', () => {
+		expect(subject.containerEl.classList.contains('workspace-leaf-content')).toBe(true);
+		expect(subject.containerEl.dataset.type).toBe(RENOVATION_PROJECT_VIEW);
+		expect(subject.contentEl.classList.contains('view-content')).toBe(true);
+
+		const children = [...subject.containerEl.children];
+		expect(children[0]?.classList.contains('view-header')).toBe(true);
+		expect(children[1]).toBe(subject.contentEl);
 	});
 
 	/**

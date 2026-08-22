@@ -8,9 +8,21 @@
  * It asserts the FRAME and the plumbing, never appearance. Appearance is a live vault's
  * answer.
  */
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mountHarness } from '../harness/mount';
 import { drawSchemeToggle } from '../harness/theme';
+
+/**
+ * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
+ * itself and not with a copy of it — a retyped selector only proves the test agrees with
+ * itself. Comments are stripped first: the file's own header comment has no `{`, but
+ * relying on that would make the extraction correct by accident.
+ */
+function chromeHeaderSelector(): string {
+	const withoutComments = readFileSync('styles/chrome.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+	return withoutComments.slice(0, withoutComments.indexOf('{')).trim();
+}
 
 beforeEach(() => {
 	document.body.innerHTML = '';
@@ -25,6 +37,21 @@ describe('the browser harness', () => {
 		expect(view.containerEl.parentElement).toBe(leafEl);
 		// The view's own first draw ran: what a browser shows is the view, not the frame.
 		expect(view.contentEl.querySelector('.renovation-planner-view')).not.toBeNull();
+	});
+
+	/**
+	 * `styles/chrome.css` hides Obsidian's view header by matching
+	 * `.workspace-leaf-content[data-type="…"] .view-header`. The harness's mounted DOM has
+	 * to satisfy that selector itself for the rule to be lookable-at in the tool built for
+	 * looking — matched against the selector read from the file, not a copy of it.
+	 */
+	it('gives the mounted DOM what styles/chrome.css selects', () => {
+		const { view } = mountHarness(document.body);
+
+		const header = view.containerEl.querySelector('.view-header');
+
+		expect(header).not.toBeNull();
+		expect(header?.matches(chromeHeaderSelector())).toBe(true);
 	});
 
 	it('empties the root, so a second mount does not stack', () => {

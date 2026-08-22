@@ -27,7 +27,8 @@ export function mountHarness(root: HTMLElement): MountedHarness {
 
 	// Real nesting on purpose. `containerEl` is what the app hands a view and `contentEl` is
 	// the pane inside it, so a view that empties the wrong one is as visible here as in the
-	// suite — and the leaf frame is what supplies the height Obsidian's pane would.
+	// suite — and the leaf frame, together with the rules `tests/harness/theme.css` keys off
+	// it, is what supplies the height Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const view = makeView();
 	leafEl.appendChild(view.containerEl);

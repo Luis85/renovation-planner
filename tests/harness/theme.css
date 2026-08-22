@@ -43,11 +43,28 @@ body {
 	overflow: hidden;
 }
 
+/*
+ * The two rules below stand in for what a real `.workspace-leaf` gives its children: flex
+ * growth down the pane. `.workspace-leaf-content` and `.view-content` — the classes
+ * `tests/helpers/obsidian-mock.ts` now carries — get no such rule from
+ * `tests/harness/obsidian.css`: the sheet is reduced against another plugin's driven
+ * states, and nothing there ever sat inside a `.workspace-leaf` for the reduction to keep
+ * that rule. So this file still has to supply it, same as before this file's classes
+ * landed — and both selectors below stay within this file's own rule: neither names an
+ * Obsidian class. They select by POSITION under `.rp-harness-leaf` (a harness class) and
+ * a bare `div`, which is true of the container and the content pane only because of how
+ * `obsidian-mock.ts` nests them, not because either selector says so.
+ */
 .rp-harness-leaf > div {
 	flex: 1;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
+}
+
+.rp-harness-leaf > div > div:last-child {
+	flex: 1;
+	min-height: 0;
 }
 
 /*

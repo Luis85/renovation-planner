@@ -259,6 +259,13 @@ Three things worth copying, none of them oxlint-specific:
   while `perf`'s two were both deliberate. A category whose findings are all noise is a
   gate people learn to argue with.
   Turning one off is a decision with a reason and a trigger, written where the config is.
+  **Then go back and name the individual rules you gave up.** A category is a bundle whose
+  worst member decides whether the bundle is usable, and the ones rejected above still
+  each hid a few rules about code being *wrong*. Picking 29 of them out here cost two
+  one-line fixes, because 27 reported nothing at all — which is exactly when a rule is
+  cheap to adopt. Adopted later, the same rule is a cleanup nobody schedules. Check first
+  whether the tool refuses an unknown rule name (oxlint does, loudly); if it does, a typo
+  cannot silently drop a rule and the config needs no test under it.
 - **Do not disable the overlap to make it tidy.** Where the two linters say the same thing
   on `src/`, one fix satisfies both and neither list can quietly become a rule's only
   owner. `eslint-plugin-oxlint` exists to switch the duplicates off; the trigger for it is

@@ -31,7 +31,11 @@ function walk(dir: string): string[] {
 
 describe('file encoding', () => {
 	const files = [
-		...ROOTS.flatMap(walk),
+		// The arrow is load-bearing: `flatMap(walk)` hands the callback the index and the
+		// array as well, which is the shape that makes `['1','2','3'].map(parseInt)`
+		// return `[1, NaN, NaN]`. Harmless while `walk` ignores them, and one signature
+		// change from not being.
+		...ROOTS.flatMap((root) => walk(root)),
 		...readdirSync('.').filter((name) => statSync(name).isFile() && EXTENSIONS.has(path.extname(name))),
 	];
 

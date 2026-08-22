@@ -12,6 +12,16 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- 29 further oxlint rules, named one at a time out of the categories left off as bundles:
+  `eqeqeq`, `require-await`, `no-template-curly-in-string`, `array-callback-return`,
+  `oxc/no-accumulating-spread`, `unicorn/error-message`, `unicorn/no-array-callback-reference`,
+  `unicorn/prefer-node-protocol`, `import/no-duplicates`, `vitest/no-identical-title` and
+  the rest, including three that are decisions about how code is written here
+  (`typescript/no-non-null-assertion`, `no-param-reassign`, `no-use-before-define`).
+  27 reported nothing when they were adopted. The two that did are fixed rather than
+  configured away: `scripts/version-bump.mjs` was the only file of forty-two importing a
+  builtin without the `node:` protocol, and `tests/build/encoding.test.ts` passed a
+  function reference straight to `flatMap`.
 - ESLint takes no inline configuration (`linterOptions.noInlineConfig`). A block comment
   reading `eslint no-restricted-syntax: off` used to turn the vault write boundary off in
   `src/` with `npm run check` still green — measured — and that rule is ESLint-only, so

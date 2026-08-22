@@ -59,9 +59,14 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   is rejected outright, measured), no port of `eslint-plugin-obsidianmd`, and nothing
   type-aware. It does have `no-restricted-imports` and the budgets, so the layer bans are
   the one part that could move, and they stay where the rest of the architecture is.
-  `.oxlintrc.json` carries which categories are on and what the other four cost, and it
-  gives `scripts/` and the root configs the size and complexity budgets they had none of
-  — the numbers `src/` already lives under, reaching the rest of the repository.
+  `.oxlintrc.json` carries which categories are on and what the other four cost, plus 29
+  rules named one at a time out of the categories left off — a category is a bundle whose
+  worst member decides whether the bundle is usable, and those four each hide a few rules
+  about being WRONG behind a majority about being written differently. It also gives
+  `scripts/` and the root configs the size and complexity budgets they had none of — the
+  numbers `src/` already lives under, reaching the rest of the repository. **A rule is
+  adopted while it reports nothing**: 27 of the 29 did, which is what made them one line
+  each instead of a cleanup nobody schedules.
   Two things about it are claims rather than rules, so both have checks. Its SCOPE: an
   `ignorePatterns` edit that drops a directory makes the gate quieter rather than redder,
   so `tests/build/lint-scope.test.ts` asks oxlint itself which files it lints and compares

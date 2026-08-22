@@ -229,13 +229,16 @@ that was fixing the previous instance.
 - The `obsidian` devDependency is pinned to the FLOOR **exactly** (`1.13.0`), not to npm's
   newest and not to a range over it, so the compiler refuses an API `minAppVersion` does not
   promise. `tests/release/manifest.test.ts` holds that pairing. Raise both or neither.
-- **`engines.node` is a MEASUREMENT, not a decision.** Every dependency renegotiates it
-  silently, and `>=22` was already false before oxlint arrived — `eslint` wants `^22.13.0`
-  and `jsdom` wants `^22.22.2`, which is where the floor now sits.
-  `tests/build/engines.test.ts` reads the installed tree and fails when the declaration
-  falls behind it, because the number moves on its own with every upgrade and nobody
-  re-derives it by hand. What that check cannot see: a package that dropped our major
-  altogether, and any constraint stated outside `engines.node`.
+- **`engines.node` is a RANGE, and a measurement rather than a decision.** Every dependency
+  renegotiates it silently. `>=22` was already false before oxlint arrived, and the obvious
+  repair — raise the floor — was still wrong at the other end: eighteen installed packages
+  support `^22.x` and `>=24` while excluding Node 23, so any unbounded floor claims a
+  runtime the toolchain refuses. **A bound is not a range**, and a check that reads one
+  bound only finds the defects living at that end.
+  `tests/build/engines.test.ts` compares the whole declared range against every installed
+  package with npm's own `semver.subset` — the instrument that decides this in reality is
+  the one that should decide it here. What it cannot see: a constraint stated anywhere but
+  `engines.node`, and a package this platform did not install.
 - `@types/node` tracks the `engines` floor, never npm's newest — as closely as npm allows,
   which is not exactly: the floor is `22.22.2` and `@types/node` stops at `22.20.1` on the
   22 line, so `^22.20.1` is the nearest thing that exists. TypeScript upgrades are

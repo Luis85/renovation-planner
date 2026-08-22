@@ -12,10 +12,12 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
-- The declared Node floor is `>=22.22.2`, and `tests/build/engines.test.ts` keeps it there
-  by reading the installed tree rather than trusting the number. `>=22` was already false
-  before oxlint — `eslint` asks for `^22.13.0` and `jsdom` for `^22.22.2` — so a contributor
-  on Node 22.0 satisfied this project's promise while holding dependencies that did not.
+- The declared Node range is `^22.22.2 || ^24.15.0 || >=26.0.0`, and
+  `tests/build/engines.test.ts` keeps it honest by comparing it against every installed
+  package with npm's own `semver.subset`. `>=22` was already false before oxlint — `eslint`
+  asks for `^22.13.0` and `jsdom` for `^22.22.2` — and raising the floor alone was still
+  wrong at the top, because eighteen packages exclude Node 23 that an unbounded floor
+  claims.
 - 29 further oxlint rules, named one at a time out of the categories left off as bundles:
   `eqeqeq`, `require-await`, `no-template-curly-in-string`, `array-callback-return`,
   `oxc/no-accumulating-spread`, `unicorn/error-message`, `unicorn/no-array-callback-reference`,

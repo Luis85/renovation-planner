@@ -43,12 +43,26 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **build** — `tsc` first, then Vite. Also the stylesheet: the build fails on a partial no
   entry file imports, a line in `styles/index.css` the assembler cannot resolve, or a
   partial over the 400-line cap.
-- **lint** — the Obsidian plugin guidelines, the size and complexity budgets, and the
-  architecture: the layer rule below is `no-restricted-imports`, not prose. Warnings fail
-  too (`--max-warnings 0`) — the mobile-safety rule reports as a warning, and
+- **lint** — TWO linters in one step, because they refuse different things and neither
+  subsumes the other. **ESLint** is where the architecture lives: the layer rule below is
+  `no-restricted-imports` and the write boundary is `no-restricted-syntax`, not prose. It
+  also runs the Obsidian plugin guidelines and the size and complexity budgets. Warnings
+  fail too (`--max-warnings 0`) — the mobile-safety rule reports as a warning, and
   `isDesktopOnly: false` is a promise. `manifest.json` itself is linted
   (`obsidianmd/validate-manifest`), so the marketplace naming rules are a gate, not a
-  submission surprise.
+  submission surprise. **oxlint** runs first, in milliseconds, and adds the broad
+  wrong-code ruleset ESLint never turned on, over a WIDER tree: the Obsidian ruleset is
+  type-aware, so `eslint.config.mjs` stops it at `src/` and ignores `scripts/` and the
+  root configs outright — which left `tests/` on 24 rules and the build scripts on none.
+  Warnings fail here too (`--deny-warnings`), for the same reason. It is an ADDITION and
+  not a migration: oxlint has no `no-restricted-syntax` at all (a config naming that rule
+  is rejected outright, measured), no port of `eslint-plugin-obsidianmd`, and nothing
+  type-aware. It does have `no-restricted-imports` and the budgets, so the layer bans are
+  the one part that could move, and they stay where the rest of the architecture is.
+  `.oxlintrc.json` carries which categories are on and what the other four cost. Its
+  SCOPE is the whole claim, and an `ignorePatterns` edit that drops a directory makes the
+  gate quieter rather than redder, so `tests/build/lint-scope.test.ts` asks oxlint itself
+  which files it lints and compares that against the tree.
 - **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
   metrics today; the floors sit a covered unit below that, which at this denominator is
   several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
@@ -110,8 +124,8 @@ There is deliberately no list of modules here. `src/` is the list and it cannot 
 Build artifacts go to `dist/` and nothing is written to the repository root — `vite.config.ts`
 says why, and it is a real constraint rather than taste. Everything `npm run` invokes lives in
 `scripts/`, except the files a tool finds by name at the root (`eslint.config.mjs`,
-`vitest.config.ts`, `vite.config.ts`, `vite.harness.config.ts`), and every script resolves its
-paths from the WORKING DIRECTORY rather than from its own location.
+`.oxlintrc.json`, `vitest.config.ts`, `vite.config.ts`, `vite.harness.config.ts`), and every
+script resolves its paths from the WORKING DIRECTORY rather than from its own location.
 
 ## Testing
 
@@ -198,6 +212,14 @@ Not oversights; each has a trigger.
   one line in both Vite configs, and `tsc` becomes `vue-tsc` in the same edit.
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
+- **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,
+  which on `src/` is most of core `recommended`. Two linters agreeing is not a defect —
+  one fix satisfies both, and neither list can quietly become a rule's only owner.
+  Thinning one to speed up the other trades a gate for seconds. Add it when ESLint's
+  runtime is a cost somebody can name.
+- **`oxlint --type-aware`.** It needs `oxlint-tsgolint`, and the type-aware rules this
+  project actually leans on — `no-floating-promises`, the Obsidian ruleset — already run
+  under ESLint's project service. Add it for a type-aware rule ESLint does not have.
 - **A `docs/` register gate** (`npm run docs` in the source project: every wikilink
   resolving, every module specified by a note, opt-in claim citations). Add it when `docs/`
   has a convention worth enforcing — see section 5 of `docs/setup/quality-harness.md`.

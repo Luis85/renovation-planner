@@ -10,6 +10,16 @@ entries are added by the pull request that earns them, never invented at release
 
 ## [Unreleased]
 
+### Added
+
+- oxlint runs beside ESLint in `npm run lint`, in milliseconds and before it. It covers the
+  tree the type-aware Obsidian ruleset has to be held out of — `tests/`, `scripts/` and the
+  root config files — and it found an unsafe optional chain there on its first run, plus
+  two `toThrow()` calls asserting only that something threw. `.oxlintrc.json` records which
+  categories are on and why the other four are not, and `tests/build/lint-scope.test.ts`
+  asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
+  quietly shrinking the gate.
+
 ### Changed
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,

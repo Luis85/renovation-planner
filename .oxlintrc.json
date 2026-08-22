@@ -1,0 +1,61 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+
+	// WHY A SECOND LINTER. oxlint does not replace ESLint here. It has no
+	// `no-restricted-syntax` at all — a config naming that rule is rejected outright, not
+	// quietly ignored (measured) — and that rule is the vault write boundary and the SVG
+	// class-token bans, both AST selectors. It has no port of `eslint-plugin-obsidianmd`,
+	// and nothing type-aware without `oxlint-tsgolint`. It DOES have
+	// `no-restricted-imports`, `no-restricted-globals` and the size and complexity
+	// budgets, so the layer bans are the one part of `eslint.config.mjs` that could move;
+	// they stay where the rest of the architecture already is.
+	//
+	// What oxlint adds is the broad wrong-code ruleset the ESLint config never turned on,
+	// over a WIDER tree: the
+	// Obsidian ruleset is type-aware, so `eslint.config.mjs` stops it at `src/` and
+	// ignores `scripts/` and the root configs entirely, leaving `tests/` with 24 rules and
+	// the build scripts with none. This file is what lints those. It earned the second
+	// linter on its first run, on a test file ESLint's core recommended never reached
+	// (`tests/build/config-alias.test.ts`, an unsafe optional chain).
+	//
+	// The two overlap on `src/`, where ESLint's core recommended and oxlint's `correctness`
+	// say many of the same things twice. That is deliberate and costs nothing: one fix
+	// satisfies both, and neither list can quietly become the only owner of a rule.
+	// `eslint-plugin-oxlint` exists to remove the overlap by switching those ESLint rules
+	// off — the trigger for adding it is ESLint's runtime becoming a real cost, not the
+	// duplication, which is not one.
+
+	// `plugins` REPLACES the default set rather than extending it, so the four oxlint
+	// enables by default (eslint, typescript, unicorn, oxc) are listed here too. The other
+	// four were each measured before being added: `import`, `promise` and `node` report
+	// nothing on this tree today and are here for the code not yet written; `vitest` found
+	// two `toThrow()` calls asserting only that SOMETHING threw.
+	"plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise", "node", "vitest"],
+
+	// Two categories, both about code being WRONG. The other four were measured on this
+	// tree and each one argues with a convention this project already chose rather than
+	// finding a defect: `pedantic` and `style` want a different comment case, import order
+	// and function style (136 findings for `capitalized-comments` alone); `restriction`
+	// wants no async/await and no optional chaining; `perf`'s two findings are a
+	// deliberately sequential three-file copy and a spread in a test. A category whose
+	// findings are all noise is a gate people learn to argue with, so none of them is on.
+	// Add one the day it would catch something.
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error"
+	},
+
+	"rules": {
+		// A `__`-prefixed name in this repository is a deliberate marker installed on a
+		// host global — `window.__obsidianDomInstalled`, the harness's `__rp` — where the
+		// dangle IS the signal that the name is not ordinary code's to touch. This is a
+		// naming rule, not a correctness one, and the allowlist form would need an edit
+		// per marker.
+		"no-underscore-dangle": "off"
+	},
+
+	// What is not this repository's code. Everything else IS linted, including `scripts/`
+	// and the root config files that `eslint.config.mjs` has to ignore. `.obsidian/` is the
+	// test-build vault and `.claude/` is vendored agent tooling — neither is written here.
+	"ignorePatterns": ["node_modules/**", "coverage/**", "dist/**", ".obsidian/**", ".claude/**"]
+}

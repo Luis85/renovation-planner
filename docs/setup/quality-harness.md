@@ -15,7 +15,7 @@ Assumed stack: TypeScript on Node 22+, npm, vitest. Where the stack differs, the
 ## 0. The shape
 
 ```
-npm run check   # build + lint + coverage-thresholded tests + dead code + docs
+npm run check   # build + lint (two linters) + coverage-thresholded tests + dead code + docs
 ```
 
 Five steps, one command, no step optional and no step allowed to warn instead of fail.
@@ -38,7 +38,7 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "tsc -noEmit -skipLibCheck && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint --deny-warnings && eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -53,7 +53,8 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
 Rules that go with it:
 
 - **Everything `npm run` invokes lives in `scripts/`.** The exceptions are the files a
-  *tool* finds by name at the root (`eslint.config.mjs`, `vitest.config.ts`, `vite.config.ts`).
+  *tool* finds by name at the root (`eslint.config.mjs`, `.oxlintrc.json`, `vitest.config.ts`,
+  `vite.config.ts`).
 - **Every script resolves paths from the working directory**, not from its own location.
   npm scripts and vitest both run from the repository root. State this once, in the one
   script where the difference bites.
@@ -240,6 +241,35 @@ Two traps in flat config:
 
 Type-aware rulesets that are about *shipped* code stop at `src/`. The test doubles exist
 precisely to do what those rules forbid.
+
+**d. A second linter, for the tree the first one cannot reach.** The stop above is not
+free: with the type-aware ruleset held to `src/`, `tests/` was left on 24 rules and
+`scripts/` and the root configs on none — and that gap is invisible, because a directory
+nothing lints reports nothing. `npm i -D oxlint`, an `.oxlintrc.json`, and `lint` becomes
+`oxlint --deny-warnings && eslint .`: milliseconds first, then the slow one. It paid for
+itself on its first run here, on an unsafe optional chain in a test file ESLint's core
+recommended never reached.
+
+Three things worth copying, none of them oxlint-specific:
+
+- **Turn on the categories that mean *wrong*, and measure the rest before believing them.**
+  Here `correctness` and `suspicious` found five real things; `pedantic`, `style` and
+  `restriction` produced close to six hundred findings between them, and each one argues
+  with a convention the project had already chosen (136 for comment capitalisation alone),
+  while `perf`'s two were both deliberate. A category whose findings are all noise is a
+  gate people learn to argue with.
+  Turning one off is a decision with a reason and a trigger, written where the config is.
+- **Do not disable the overlap to make it tidy.** Where the two linters say the same thing
+  on `src/`, one fix satisfies both and neither list can quietly become a rule's only
+  owner. `eslint-plugin-oxlint` exists to switch the duplicates off; the trigger for it is
+  the slow linter's runtime being a cost somebody can name, not the duplication.
+- **The scope IS the claim, so check it.** "The second linter covers what the first cannot"
+  is a sentence about an `ignorePatterns` array, and a pattern that swallows a directory
+  makes the gate quieter, never redder — the one failure mode the gate cannot report on
+  itself. Ask the tool which files it would lint (`oxlint --debug=files`) and compare that
+  against the tree on disk, whole rather than sampled: `tests/build/lint-scope.test.ts`.
+  Watch it fail in both directions — a directory dropped from scope, and a vendored tree
+  pulled into it.
 
 **adapt:** any linter with per-path config and an AST selector rule works. Without AST
 selectors, a small grep gate in `scripts/` is the fallback — but state honestly which

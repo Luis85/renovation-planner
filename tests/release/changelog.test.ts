@@ -73,7 +73,7 @@ describe('the extractor', () => {
 	// of work that is not in the release.
 	it('refuses a version with no dated heading', () => {
 		expect(() => changelogNotes(doc, '9.9.9')).toThrow(/no dated heading for 9\.9\.9/);
-		expect(() => changelogNotes(doc, 'Unreleased')).toThrow();
+		expect(() => changelogNotes(doc, 'Unreleased')).toThrow(/no dated heading for Unreleased/);
 	});
 
 	// A file that does not end in a newline used to slice from offset 0 — the whole document

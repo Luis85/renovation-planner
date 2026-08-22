@@ -148,23 +148,33 @@ script resolves its paths from the WORKING DIRECTORY rather than from its own lo
 ## The linter in the edit loop
 
 `.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which
-lints THAT ONE FILE and refuses the edit if oxlint reports anything. About 90ms, against
+lints THAT ONE FILE and hands the agent whatever oxlint says. About 90ms, against
 `npm run check` several turns later — and by then the reasoning that produced the defect
 is gone, which is the whole reason to move the cheap half earlier.
 
+**It does not prevent the edit and it does not roll one back**, and every description of it
+has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
+table reads "Shows stderr to Claude; the tool already ran". Only `PreToolUse` blocks, and
+only for a payload it can lint before the write: a `Write` carries its whole content, an
+`Edit` carries a fragment whose result would have to be reconstructed first. That is the
+trigger for revisiting the mechanism; it is not a reason to describe this one as more than
+it is. (This paragraph exists because the first version of it claimed otherwise, and a
+review bot caught it against the reference in `.claude/skills/impeccable/`.)
+
 Three properties it is built to have, each with a test in `tests/build/lint-edited.test.ts`:
 
-- **It refuses with the host's blocking code (2), not merely non-zero.** Any other failing
-  exit is reported as a broken hook and the edit stands.
+- **It exits 2, not merely non-zero.** Neither code stops anything here, but 1 shows stderr
+  to the USER and lets the agent carry on unaware, while 2 hands the findings over as a
+  tool error the agent has to answer for. That is who gets told, not whether it happened.
 - **It fails OPEN on its own bugs** — unreadable input, no file, a missing linter. A hook
-  that failed closed would block every edit in the session with an error about the hook
+  that failed closed would answer every edit in the session with an error about the hook
   rather than about the code, and the gate still catches what the hook missed.
 - **The wiring is checked, not assumed.** The hook only runs because the settings name it;
   a renamed script leaves that pointing at nothing and edits silently stop being checked.
 
 It sees ONE file, so it cannot see a layer violation's other end, a type error, a dead
-export or anything ESLint owns. It is the first refusal. `npm run check` is still the
-definition of done, and nothing here is allowed to read as if it were.
+export or anything ESLint owns. `npm run check` is still the definition of done, and
+nothing here is allowed to read as if it were.
 
 ## Testing
 

@@ -34,9 +34,11 @@ entries are added by the pull request that earns them, never invented at release
   `scripts/` or a root config with nothing anywhere reporting it. The complementary half,
   a directive that silences nothing, is now denied by oxlint itself.
 - oxlint lints the edited file after every Edit and Write (`scripts/lint-edited.mjs`, wired
-  in `.claude/settings.json`), refusing the edit in about 90 milliseconds instead of at the
-  next `npm run check`. It fails open on its own bugs, and it is the first refusal rather
-  than the gate: one file means it sees nothing cross-file and nothing ESLint owns.
+  in `.claude/settings.json`), putting the findings in front of the agent in about 90
+  milliseconds instead of at the next `npm run check`. It does not prevent or revert the
+  edit — `PostToolUse` runs after the write — so exit 2 is chosen for being the code that
+  reaches the agent rather than the user. It fails open on its own bugs, and it is not the
+  gate: one file means it sees nothing cross-file and nothing ESLint owns.
 - `scripts/` and the root config files now have the size and complexity budgets they had
   none of — ESLint's block reaches `**/*.ts` in `src/` only, and those paths are outside it.
   The numbers are the ones `src/` already lives under.

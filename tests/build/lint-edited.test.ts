@@ -6,9 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
 
 /**
- * The edit-loop hook: oxlint over the ONE file an agent just wrote, refusing the edit
- * while the reasoning that produced it is still in hand. `npm run check` is still the
- * definition of done — this only moves the cheapest half of it several turns earlier.
+ * The edit-loop hook: oxlint over the ONE file an agent just wrote, reported back while
+ * the reasoning that produced it is still in hand. `npm run check` is still the definition
+ * of done — this only moves the cheapest half of it several turns earlier.
+ *
+ * It does NOT prevent or revert the write. `PostToolUse` runs after the tool has already
+ * changed the file; exit 2 there means "show stderr to Claude", not "block". The cases
+ * below assert what the script does — the exit code and what the agent is told — and
+ * nothing about an edit being stopped, because nothing stops one.
  *
  * Driven as a subprocess against planted files, the way Claude Code drives it, rather than
  * refactored into something importable: a seam built for the test is the thing that would
@@ -44,12 +49,13 @@ const plant = (contents: string) => {
 };
 
 describe('the edit-loop hook', () => {
-	it('refuses an edit oxlint has something to say about', () => {
+	it('tells the agent what oxlint found, on the code that reaches the agent', () => {
 		const { code, said } = hook(edited(plant(OFFENCE)));
 
-		// 2 is the host's BLOCKING code specifically. Any other non-zero exit is reported
-		// to the user as a broken hook and the edit stands, which is the failure this
-		// assertion exists to catch.
+		// 2, not merely non-zero. On `PostToolUse` neither code stops anything, but 1 shows
+		// stderr to the USER and lets the agent carry on unaware of the finding, while 2
+		// hands it over as a tool error the agent has to answer for. Getting this wrong
+		// costs the whole point of the hook and nothing reports it.
 		expect(code).toBe(2);
 		expect(said).toContain('no-dupe-keys');
 	});
@@ -66,7 +72,7 @@ describe('the edit-loop hook', () => {
 
 	/**
 	 * Fails OPEN, on every internal failure. A hook that failed closed on its own bug
-	 * would block every edit in the session with an error about the hook rather than
+	 * would answer every edit in the session with an error about the hook rather than
 	 * about the code — and `npm run check` still catches whatever this misses, so silence
 	 * is the cheaper wrong answer.
 	 */

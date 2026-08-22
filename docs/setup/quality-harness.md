@@ -248,7 +248,9 @@ free: with the type-aware ruleset held to `src/`, `tests/` was left on 24 rules 
 nothing lints reports nothing. `npm i -D oxlint`, an `.oxlintrc.json`, and `lint` becomes
 `oxlint --deny-warnings && eslint .`: milliseconds first, then the slow one. It paid for
 itself on its first run here, on an unsafe optional chain in a test file ESLint's core
-recommended never reached.
+recommended never reached. What the hook buys is feedback while the reasoning that produced
+the edit is still in hand — NOT prevention; see the first rule below before writing a word
+about it.
 
 Three things worth copying, none of them oxlint-specific:
 
@@ -312,12 +314,22 @@ instead. In Claude Code that is a `PostToolUse` hook on Edit and Write, reading 
 call's JSON from stdin and linting `tool_input.file_path`; other harnesses have the same
 seam under a different name.
 
-Four rules, all of them learned by writing the hook wrong first:
+Five rules, all of them learned by writing the hook wrong first, and the first one learned
+from a review bot after this was written:
 
-- **Refuse with the host's blocking code specifically** (2 in Claude Code), not merely
-  non-zero. Any other failing exit is reported as a broken hook, and the edit stands.
+- **Find out whether the event you chose can actually block, and describe it as what it
+  is.** A post-tool event fires AFTER the write — Claude Code's table reads "Shows stderr
+  to Claude; the tool already ran" — so no exit code there prevents or reverts anything.
+  Only a pre-tool event blocks, and only for a payload it can lint before the write: a
+  whole-file write carries its content, a patch carries a fragment whose result would have
+  to be reconstructed. Either mechanism is defensible; calling the post-tool one a refusal
+  is not, and it is the sort of sentence that reads as settled and never gets checked.
+- **Pick the exit code by WHO IT TELLS, not by how severe it looks.** In Claude Code, 1
+  shows stderr to the user and the agent carries on unaware; 2 hands it to the agent as a
+  tool error. On a post-tool event that is the only difference between the two, and it is
+  the entire value of the hook.
 - **Fail OPEN on the hook's own bugs** — unparseable input, no file in the payload, a
-  missing linter. A hook that fails closed blocks every edit in the session with an error
+  missing linter. A hook that fails closed answers every edit in the session with an error
   about the hook rather than about the code, and the gate is still there to catch what the
   hook missed. Silence on a broken hook is the cheaper wrong answer.
 - **Test the wiring, not just the script.** The hook runs only because a settings file
@@ -325,8 +337,8 @@ Four rules, all of them learned by writing the hook wrong first:
   stop being checked. Resolve the path from the command the host would run and assert it
   exists and is the file the tests drive.
 - **Say what it cannot see, every time it is described.** One file means no layer
-  violation's other end, no type error, no dead export. It is the first refusal, not the
-  last one — and a hook described as if it were the gate is how the gate stops being run.
+  violation's other end, no type error, no dead export — and a hook described as if it
+  were the gate is how the gate stops being run.
 
 **adapt:** any linter with per-path config and an AST selector rule works. Without AST
 selectors, a small grep gate in `scripts/` is the fallback — but state honestly which

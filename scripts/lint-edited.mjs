@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 /**
- * Lints ONE file the moment an agent writes it, and refuses the edit if oxlint has
- * something to say. Wired as a `PostToolUse` hook in `.claude/settings.json`; the tool
+ * Lints ONE file the moment an agent writes it, and puts what oxlint says in front of the
+ * agent immediately. Wired as a `PostToolUse` hook in `.claude/settings.json`; the tool
  * call's JSON arrives on stdin and `tool_input.file_path` is the file that changed.
  *
  * Why at the edit and not only at the gate: `npm run check` is the definition of done, but
@@ -11,17 +11,30 @@ import path from "node:path";
  * defect is gone. oxlint answers for one file in about 90ms — fast enough to be the
  * immediate answer, where ESLint's type-aware pass over the tree is not.
  *
- * What this is NOT: a substitute for `npm run check`. It sees one file, so it cannot see a
- * layer violation's other end, a type error, a dead export or anything ESLint owns. It is
- * the first refusal, not the last one, and the gate still decides.
+ * WHAT THIS DOES NOT DO, stated first because the obvious reading is wrong: it does not
+ * prevent the edit and it does not roll one back. `PostToolUse` runs AFTER the tool has
+ * written the file — Claude Code's own table reads "Shows stderr to Claude; the tool
+ * already ran" — so by the time this sees the path, the change is on disk. Only
+ * `PreToolUse` can block, and only for a payload it can lint before the write: a `Write`
+ * carries its whole content, an `Edit` carries a fragment whose result would have to be
+ * reconstructed to be linted at all. That is the trigger for revisiting this, and it is
+ * not today's problem.
+ *
+ * It is also no substitute for `npm run check`. One file means it cannot see a layer
+ * violation's other end, a type error, a dead export or anything ESLint owns.
  */
 
 // The extensions oxlint parses. Everything else — a stylesheet, a manifest, Markdown — is
 // somebody else's check, and running the linter on it would only produce noise.
 const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs)$/;
 
-// Claude Code's blocking exit code: stderr goes back to the agent as the reason.
-const REFUSE = 2;
+/**
+ * The exit code that routes stderr to the AGENT. This is the whole reason it is 2 and not
+ * 1: on `PostToolUse` neither code stops anything, but 1 shows stderr to the user and lets
+ * the agent carry on unaware, while 2 hands it the findings as a tool error it has to
+ * answer for. Nothing here refuses a write; this decides who gets told.
+ */
+const TELL_THE_AGENT = 2;
 
 const readStdin = async () => {
 	const chunks = [];
@@ -31,7 +44,7 @@ const readStdin = async () => {
 };
 
 /**
- * Every failure below exits 0. A hook that fails CLOSED on its own bug blocks every edit
+ * Every failure below exits 0. A hook that fails CLOSED on its own bug answers every edit
  * in the session with an error about the hook rather than about the code, and the gate is
  * still there to catch what this one missed. Silence on a broken hook is the lesser
  * failure, and the loud one is what `npm run check` is for.
@@ -55,6 +68,10 @@ try {
 
 	if (!findings) process.exit(0);
 
-	process.stderr.write(`${findings}\n\nFix these before continuing — oxlint runs again in npm run check.\n`);
-	process.exit(REFUSE);
+	// The file already carries these findings — this is not a rejected write to retry, it
+	// is a written one to go back and fix.
+	const next = "The edit is already on disk. Fix these — oxlint runs again in npm run check.";
+
+	process.stderr.write(`${findings}\n\n${next}\n`);
+	process.exit(TELL_THE_AGENT);
 }

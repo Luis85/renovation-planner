@@ -18,7 +18,7 @@ That colocation model has two problems in practice. First, if a user uninstalls 
 
 Add a plugin setting for the geometry sidecar folder, defaulting to `docs/geometry`. All plan geometry sidecar files are written as a flat list directly inside that single configured folder — not mirrored into per-plan subfolders, and not colocated next to the plan's Markdown note. Each sidecar is named by the plan's stable ID (see the SDD's Identity Model), not by the plan's display name, so renaming or moving a plan note never orphans its geometry file and two plans that happen to share a display name never collide.
 
-Sidecar files use a dedicated file extension specific to this plugin, rather than generic `.json`. The plugin registers this extension with Obsidian via `registerExtensions()` on load, so the files appear and are manageable in Obsidian's file explorer instead of being hidden or treated as an unsupported attachment.
+Sidecar files use the extension `rpgeo` (for example, `01JABC123.rpgeo` for the plan with ID `01JABC123`), rather than generic `.json`. The plugin registers this extension with Obsidian via `registerExtensions(["rpgeo"], viewType)` on load, so the files appear and are manageable in Obsidian's file explorer instead of being hidden or treated as an unsupported attachment. The content of an `.rpgeo` file is still the JSON payload defined by the Plan Sidecar Schema (see ADR-002); only the file's extension is non-standard, not its format.
 
 ## Consequences
 
@@ -27,7 +27,7 @@ Sidecar files use a dedicated file extension specific to this plugin, rather tha
 - Registering the custom extension keeps sidecar files visible and manageable inside Obsidian's UI, consistent with how the rest of the plugin's data (Markdown notes) behaves, rather than looking like foreign, unsupported files.
 - The Plan → sidecar mapping is now indirect: a sidecar's path can no longer be derived from the plan note's own path, so resolving it must always go through the project index (already required by the SDD) rather than simple path derivation.
 - Changing the configured folder after sidecars already exist needs deliberate handling (moving existing files, or treating it as a migration) rather than a silent setting change, or it will orphan existing geometry data.
-- The registered extension must be distinct enough not to collide with another installed plugin or with unrelated files a user already keeps in their vault.
+- `rpgeo` was chosen specifically because it is unlikely to collide with another installed plugin or with unrelated files a user already keeps in their vault; if a future collision is discovered, changing it is a migration (rename every sidecar and re-register), not a one-line settings change.
 - This supersedes the colocation detail in ADR-002's example; ADR-002's underlying decision (one JSON sidecar per plan, not per spatial object) is unchanged.
 
 ## Alternatives

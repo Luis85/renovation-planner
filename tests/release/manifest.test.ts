@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -39,6 +39,25 @@ describe('the release files agree', () => {
 	 */
 	it('pins the obsidian typings to minAppVersion exactly', () => {
 		expect(pkg.devDependencies.obsidian).toBe(manifest.minAppVersion);
+	});
+});
+
+describe('the toolchain agrees', () => {
+	/**
+	 * Every workflow's `node-version` is the `engines` floor, deliberately: CI verifies
+	 * against the OLDEST Node the project claims to support, not the newest available.
+	 * The literals live in three separate YAML steps that nothing else ties to
+	 * package.json — this is what ties them, so raising the floor cannot miss one.
+	 */
+	it('runs CI and the release on the engines floor', () => {
+		const floor = /\d+/.exec(pkg.engines.node)?.[0];
+		const pins = readdirSync('.github/workflows').flatMap((file) => [
+			...readFileSync(`.github/workflows/${file}`, 'utf8').matchAll(/node-version: "(\d+)"/g),
+		]);
+
+		// The instrument first: zero matches would "agree" about nothing.
+		expect(pins.length).toBeGreaterThanOrEqual(3);
+		expect(new Set(pins.map((m) => m[1]))).toEqual(new Set([floor]));
 	});
 });
 

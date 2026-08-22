@@ -1,6 +1,6 @@
-import { getLanguage, Plugin } from 'obsidian';
-import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
-import { t } from '../presentation/i18n/strings';
+import { Plugin } from 'obsidian';
+import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
+import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
 import { DEFAULT_SETTINGS, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
@@ -45,13 +45,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// own idea of what opening the view means. `void` rather than an async handler —
 		// Obsidian ignores a returned promise, and the explicit void is what says the
 		// rejection is unhandled on purpose here rather than by omission.
-		this.addRibbonIcon('hammer', t(getLanguage(), 'command.open-project'), () => {
+		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => {
 			void this.openProject();
 		});
 
 		this.addCommand({
 			id: 'open-project',
-			name: t(getLanguage(), 'command.open-project'),
+			name: tr('command.open-project'),
 			callback: () => {
 				void this.openProject();
 			},

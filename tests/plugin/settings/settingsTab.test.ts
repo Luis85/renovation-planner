@@ -11,15 +11,13 @@
  * definitions, so what the pane looks like is Obsidian's answer and only a live vault's.
  */
 import { describe, expect, it } from 'vitest';
-import RenovationPlannerPlugin from '../../../src/plugin/RenovationPlannerPlugin';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
 import { UNITS } from '../../../src/plugin/settings/settings';
-import { FakeWorkspace } from '../../helpers/workspace';
+import { t } from '../../../src/presentation/i18n/strings';
+import { loadedPlugin } from '../../helpers/plugin';
 
 const withStored = async (stored: unknown) => {
-	const plugin = new RenovationPlannerPlugin({ workspace: new FakeWorkspace() } as never, {});
-	plugin.data = stored;
-	await plugin.onload();
+	const { plugin } = await loadedPlugin(stored);
 	// The tab `onload` registered, not one built for the test: a test that builds its own
 	// passes while nothing is ever registered, which is exactly the defect this file exists
 	// for.
@@ -41,13 +39,15 @@ describe('the settings pane', () => {
 		expect(tab).toBeInstanceOf(SettingsTab);
 	});
 
+	// Through the string table, not a literal: the subject is that the pane is wired
+	// through `tr()`, and sentence case is the en.ts lint's job.
 	it('declares the units setting with a name and a description', async () => {
 		const { tab } = await withStored(null);
 
 		const units = unitsControl(tab);
 
-		expect(units.name).toBe('Units');
-		expect(units.desc).not.toBe('');
+		expect(units.name).toBe(t('en', 'settings.units.name'));
+		expect(units.desc).toBe(t('en', 'settings.units.desc'));
 	});
 
 	// Every unit the vocabulary declares is offered, so a third one cannot be settable in

@@ -41,6 +41,13 @@ function countLines(body) {
 	return lines.length;
 }
 
+/**
+ * Typed by JSDoc rather than a sibling `.d.mts`: a hand-written declaration file is a
+ * second copy of this signature that nothing type-checks against the implementation,
+ * while an annotation here cannot drift from the code under it.
+ *
+ * @returns {string} the assembled stylesheet
+ */
 export function assembleStyles() {
 	const entry = readFileSync(`${DIR}index.css`, 'utf8');
 
@@ -61,6 +68,14 @@ export function assembleStyles() {
 		throw new Error(
 			`styles/index.css contains lines the assembler cannot ship — only \`@import "./<partial>.css";\` (flat, no subdirectories) and comments belong in the entry file: ${unrecognized.join(' | ')}`,
 		);
+	}
+
+	// A partial imported TWICE passes every other gate (nothing is orphaned, every line
+	// parses) and is concatenated again at its later position — silently reordering the
+	// cascade the header above calls behaviour. A rebase or merge is where this comes from.
+	const duplicates = [...new Set(imported.filter((name, at) => imported.indexOf(name) !== at))];
+	if (duplicates.length > 0) {
+		throw new Error(`styles/index.css imports more than once: ${duplicates.join(', ')}`);
 	}
 
 	// An unimported partial is silently absent from the shipped sheet — the one failure

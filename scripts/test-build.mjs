@@ -35,9 +35,9 @@ const pluginDir = path.join(vaultDir, "plugins", manifest.id);
 // this build is to be debugged. This script only installs it, so nothing here can disagree
 // with the build the release uses.
 await mkdir(pluginDir, { recursive: true });
-for (const [from, to] of VAULT_FILES) {
-	await copyFile(from, path.join(pluginDir, to));
-}
+// Concurrent, not sequential: the three copies are independent, and a serial loop pays
+// three filesystem round-trips (each tens of ms under a Windows antivirus scan) for one.
+await Promise.all(VAULT_FILES.map(([from, to]) => copyFile(from, path.join(pluginDir, to))));
 
 const listed = await enablePlugin(manifest.id);
 

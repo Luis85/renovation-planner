@@ -40,10 +40,6 @@ entries are added by the pull request that earns them, never invented at release
 - Every user-facing string goes through one pure lookup (`src/presentation/i18n/`),
   following Obsidian's own language via `getLanguage()` — English complete, German first,
   per-key fallback. The English table is linted for sentence case.
-- A settings stub (`src/plugin/settings/`): `units` (metric/imperial), loaded first in
-  `onload` per the SDD's order, merged pure over defaults. Deliberately no settings tab
-  yet — an empty tab is a marketplace rejection; it arrives with the first setting a user
-  has to change.
 - The plugin's view hides Obsidian's view header (`styles/chrome.css`), scoped to this
   view's type; a test pairs the selector with the persisted type constant.
 - Minimum Obsidian version raised to 1.13.0 (manifest, typings pin, and versions.json
@@ -52,8 +48,16 @@ entries are added by the pull request that earns them, never invented at release
   (`no-nodejs-modules`) reports as a warning, and `isDesktopOnly: false` is a promise —
   and lints `manifest.json` itself (`obsidianmd/validate-manifest`).
 - A BOM gate (`tests/build/encoding.test.ts`) plus `.editorconfig`: a UTF-8 BOM in any
-  tracked text file fails the suite, after a BOM'd manifest broke lint with an error
+  file git can see fails the suite, after a BOM'd manifest broke lint with an error
   pointing nowhere near the cause.
+- Release builds are MINIFIED and checked: the assembled `styles.css` now follows the
+  build's minify switch (lightningcss, Vite 8's own CSS minifier), and the release
+  workflow refuses any readable `dist/` asset. `test-build` and `--mode development`
+  stay readable on purpose — that build exists to be debugged.
+- `tr()` — `t` in the app's own language, resolved in ONE place instead of per call
+  site; the view/ribbon icon is one exported constant (`RENOVATION_PROJECT_ICON`); the
+  workflows' Node versions are test-pinned to the `engines` floor
+  (`tests/release/manifest.test.ts`).
 
 ### Fixed
 
@@ -71,6 +75,15 @@ entries are added by the pull request that earns them, never invented at release
 - CI runs `npm run check` verbatim instead of re-enumerating its steps, cancels
   superseded PR runs, and the audit job no longer installs dependencies `npm audit`
   never reads; the release workflow caches npm like CI does.
+- The release CI gate paginates the check-runs list — a verify leg pushed off the first
+  page by future workflows could previously be missed entirely, or a failed off-page leg
+  overlooked — and the shipped-asset list is stated once (`RELEASE_ASSETS`) for both the
+  attestation and the release, so a fourth file cannot ship unattested.
+- The stylesheet assembler refuses a partial imported twice: the duplicate passed every
+  gate and was concatenated twice, silently reordering the cascade.
+- The vault-write lint boundary now exempts `src/infrastructure/obsidian/` — the
+  sanctioned writer no longer trips the rule whose message names it as the sanctioned
+  writer — with the shared SVG bans restated there per the flat-config override rule.
 
 ## [0.1.0] - 2026-08-22
 

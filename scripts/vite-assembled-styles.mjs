@@ -1,3 +1,4 @@
+import { transform } from 'lightningcss';
 import { assembleStyles } from './styles-assemble.mjs';
 
 /**
@@ -18,12 +19,36 @@ import { assembleStyles } from './styles-assemble.mjs';
  *   so what is on screen is the CSS being edited and never a stale build, and a partial
  *   edit reloads the page.
  */
+/**
+ * Typed by JSDoc rather than a sibling `.d.mts` — an annotation here cannot drift from
+ * the implementation the way a hand-written declaration file can.
+ *
+ * @returns {import('vite').Plugin} the shared stylesheet plugin
+ */
 export function assembledStyles() {
+	let minify = false;
 	return {
 		name: 'assembled-styles',
 
+		configResolved(config) {
+			// The sheet follows the BUILD's own minify switch: an asset emitted by a plugin
+			// hook is outside Vite's CSS pipeline, so without this the release would ship a
+			// readable styles.css beside a minified main.js. `--mode development` stays
+			// readable on purpose — that build exists to be debugged — and the dev server
+			// below always serves the readable form.
+			minify = config.build.minify !== false;
+		},
+
 		generateBundle() {
-			this.emitFile({ type: 'asset', fileName: 'styles.css', source: assembleStyles() });
+			const sheet = assembleStyles();
+			// lightningcss, because it is what Vite 8 itself minifies CSS with — the sheet
+			// leaves this hook as it would leave Vite's own pipeline. A named devDependency,
+			// not a reach into Vite's internals: `transformWithEsbuild` is deprecated in the
+			// rolldown Vite and requires esbuild, which nothing here installs.
+			const source = minify
+				? transform({ filename: 'styles.css', code: Buffer.from(sheet), minify: true }).code.toString()
+				: sheet;
+			this.emitFile({ type: 'asset', fileName: 'styles.css', source });
 		},
 
 		configureServer(server) {

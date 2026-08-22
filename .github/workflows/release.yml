@@ -26,6 +26,16 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # The shipped assets, stated ONCE: the attest step and `gh release create` both
+      # consume this list (newline-separated — the attest action splits on newlines and
+      # the shell word-splits on them), so a fourth file cannot be released unattested
+      # or attested but not released. `scripts/test-build.mjs` names the same trio for
+      # the vault, mapped to Obsidian's fixed names.
+      RELEASE_ASSETS: |-
+        dist/main.js
+        manifest.json
+        dist/styles.css
     steps:
       - uses: actions/checkout@v4
 
@@ -86,8 +96,13 @@ jobs:
 
           deadline=$(( SECONDS + 600 ))
           while :; do
-            verdict="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" \
-              --jq '[.check_runs[] | select(.name | startswith("verify"))]
+            # --paginate --slurp, because the endpoint pages at 30 check runs: without it
+            # the verdict is computed over page one only, so once CodeQL/Dependabot/more
+            # matrix legs push a verify run off the first page, "all green on this page"
+            # could publish a release whose off-page leg failed. --slurp wraps the pages
+            # in an array, hence the extra .[] hop.
+            verdict="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" \
+              --jq '[.[].check_runs[] | select(.name | startswith("verify"))]
                     | if length == 0 then "missing"
                       elif any(.status != "completed") then "pending"
                       elif all(.conclusion == "success") then "success"
@@ -159,18 +174,35 @@ jobs:
           npm ci
           npm run build
 
+      # A release ships to every install, so its built files must be MINIFIED — the
+      # readable build belongs to `test-build` and `--mode development`. Checked rather
+      # than assumed, because styles.css is emitted by a plugin hook Vite's own minify
+      # switch does not reach by default: a regression there would ship silently.
+      # Minified output is at most a couple of lines; any dist/ asset with more is a
+      # readable build that has no business in a release.
+      - name: Verify the built assets are minified
+        run: |
+          node -e '
+            const { readFileSync } = require("node:fs");
+            const assets = process.env.RELEASE_ASSETS.split("\n").filter((f) => f.startsWith("dist/"));
+            for (const file of assets) {
+              const lines = readFileSync(file, "utf8").split("\n").length;
+              if (lines > 10) {
+                console.error(`${file} has ${lines} lines - this is a readable build, not a minified one.`);
+                process.exit(1);
+              }
+            }
+            console.log(`Minified: ${assets.join(", ")}`);
+          '
+
       # Lets users verify a downloaded asset was built here, from this source, with
       # `gh attestation verify <file> --repo <owner>/<repo>`. Runs before the release so a
-      # published asset always has provenance attached. Subjects must stay in step with
-      # the assets uploaded below — an unattested one fails the verify command rather than
-      # silently skipping it.
+      # published asset always has provenance attached — and the subjects ARE the release
+      # assets, by construction: both steps read RELEASE_ASSETS above.
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: |
-            dist/main.js
-            manifest.json
-            dist/styles.css
+          subject-path: ${{ env.RELEASE_ASSETS }}
 
       # `gh release create --notes-file` PREPENDS this ahead of `--generate-notes`'s own
       # output — the CLI's own documented behaviour — so the release body reads the curated
@@ -191,10 +223,12 @@ jobs:
         run: |
           # --target is what lets a manual run create the tag. Obsidian downloads the
           # assets by these exact names — `gh` uploads each one under its basename, which is
-          # why building into dist/ costs nothing here.
+          # why building into dist/ costs nothing here. $RELEASE_ASSETS is deliberately
+          # unquoted: the newline-separated list word-splits into the file arguments, and
+          # none of the paths carries a space.
           gh release create "$TAG" \
             --title "$TAG" \
             --target "$GITHUB_SHA" \
             --notes-file release-notes.md \
             --generate-notes \
-            dist/main.js manifest.json dist/styles.css
+            $RELEASE_ASSETS

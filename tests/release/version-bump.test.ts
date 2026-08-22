@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 /**
  * `npm version` runs `scripts/version-bump.mjs` with `npm_package_version` set; any other
@@ -18,9 +18,15 @@ import { describe, expect, it } from 'vitest';
  */
 const SCRIPT = fileURLToPath(new URL('../../scripts/version-bump.mjs', import.meta.url));
 
+const planted: string[] = [];
+afterEach(() => {
+	for (const dir of planted.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
 describe('version-bump run outside npm version', () => {
 	it('refuses instead of corrupting the release files', () => {
 		const dir = mkdtempSync(path.join(tmpdir(), 'version-bump-'));
+		planted.push(dir);
 		const manifest = `${JSON.stringify({ id: 'x', version: '0.1.0', minAppVersion: '1.12.0' }, null, '  ')}\n`;
 		const versions = `${JSON.stringify({ '0.1.0': '1.12.0' }, null, '  ')}\n`;
 		writeFileSync(path.join(dir, 'manifest.json'), manifest);

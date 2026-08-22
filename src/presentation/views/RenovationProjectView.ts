@@ -1,5 +1,5 @@
-import { getLanguage, ItemView } from 'obsidian';
-import { t } from '../i18n/strings';
+import { ItemView } from 'obsidian';
+import { tr } from '../i18n/strings';
 
 /**
  * The workspace view the SDD names first (§11): the project surface.
@@ -9,6 +9,13 @@ import { t } from '../i18n/strings';
  * frontmatter key. The display name beside it is text, and translatable.
  */
 export const RENOVATION_PROJECT_VIEW = 'renovation-project';
+
+/**
+ * The surface's icon: ONE fact for the view tab and the ribbon button, exported so the
+ * two cannot drift — a ribbon whose icon disagrees with the tab it opens is invisible to
+ * every check here (the harness deliberately renders no icons yet) and found by a user.
+ */
+export const RENOVATION_PROJECT_ICON = 'hammer';
 
 /**
  * Draws nothing yet, and the empty root div is the point: it is the mount point the SDD's
@@ -26,11 +33,11 @@ export class RenovationProjectView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return t(getLanguage(), 'view.project.name');
+		return tr('view.project.name');
 	}
 
 	getIcon(): string {
-		return 'hammer';
+		return RENOVATION_PROJECT_ICON;
 	}
 
 	onOpen(): Promise<void> {

@@ -154,8 +154,6 @@ const SVG_CLASS_TOKENS = [
 	},
 ];
 
-const syntaxRules = (selectors) => ({ 'no-restricted-syntax': ['error', ...selectors] });
-
 export default defineConfig([
 	{
 		// Everything that is not this plugin's source. The build scripts are Node, not
@@ -164,7 +162,6 @@ export default defineConfig([
 		// `eslint .`, so the CLI walks the whole tree exactly like an editor does, and a
 		// type-aware rule on a file outside tsconfig crashes the run.
 		ignores: [
-			'main.js',
 			'node_modules/**',
 			'coverage/**',
 			'dist/**',
@@ -227,14 +224,24 @@ export default defineConfig([
 	),
 	{
 		// -- invariants that are checked rather than described ----------------------
-		// One region for now. When a directory needs a rule the rest of src/ must not
-		// have, carve it out with its own block AND repeat the shared selectors there:
+		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`
+		// is where the write-boundary messages say writes belong, so the boundary must
+		// not fire there — otherwise the first real repository meets a rule whose cheap
+		// escapes (an inline disable, renaming the local off `vault`) are exactly what
+		// this config forbids. The carve-out is built now, under no pressure, because
 		// two flat-config blocks matching one file OVERRIDE `no-restricted-syntax`
-		// rather than merging it, so a per-directory block silently drops every ban
-		// from this one. `**/`-anchored like every other block, for the base-path
-		// reason TESTS states.
+		// rather than merging it: the block below repeats the shared SVG selectors for
+		// that reason, and any further carve-out must do the same. `**/`-anchored like
+		// every other block, for the base-path reason TESTS states.
 		files: ['**/src/**/*.ts'],
-		rules: syntaxRules([...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS]),
+		ignores: ['**/src/infrastructure/obsidian/**'],
+		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS] },
+	},
+	{
+		// The sanctioned writer. Vault writes are this directory's job; every OTHER
+		// shared ban still applies, restated per the override warning above.
+		files: ['**/src/infrastructure/obsidian/**/*.ts'],
+		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS] },
 	},
 	{
 		// SDD §3.4 prohibits DOM APIs in domain/ and core/, not only the framework

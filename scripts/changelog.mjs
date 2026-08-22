@@ -25,6 +25,12 @@ import { fromMarkdown } from 'mdast-util-from-markdown';
  * The `startsWith('##')` guard is not redundant: a setext heading (`Title` over `---`) is
  * also depth 2, and a version line written that way is not the ATX heading this file's
  * callers mean.
+ *
+ * Typed by JSDoc rather than a sibling `.d.mts` — an annotation here cannot drift from
+ * the implementation the way a hand-written declaration file can.
+ *
+ * @param {string} text
+ * @returns {{ text: string, index: number }[]}
  */
 export function headings(text) {
 	const root = fromMarkdown(text);
@@ -49,6 +55,10 @@ export function headings(text) {
  * workflow rather than publishing a release whose body says nothing.
  * `tests/release/changelog.test.ts` already keeps that state off `main`, so in practice this
  * only fires on a manual dispatch against an unusual ref.
+ *
+ * @param {string} changelog
+ * @param {string} version
+ * @returns {string}
  */
 export function changelogNotes(changelog, version) {
 	const dated = new RegExp(`^\\[${version.replace(/\./g, '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}$`);

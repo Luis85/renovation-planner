@@ -7,9 +7,9 @@
  * (`npm run harness`). It draws; it checks nothing. jsdom remains the substitute for
  * Obsidian in tests, and a real vault remains the only place appearance is verified.
  */
-import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
+import type { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';
-import { FakeLeaf } from '../helpers/workspace';
+import { makeView } from '../helpers/workspace';
 
 export interface MountedHarness {
 	/** The workspace leaf the app would give the view. */
@@ -29,7 +29,7 @@ export function mountHarness(root: HTMLElement): MountedHarness {
 	// the pane inside it, so a view that empties the wrong one is as visible here as in the
 	// suite — and the leaf frame is what supplies the height Obsidian's pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new RenovationProjectView(new FakeLeaf() as never);
+	const view = makeView();
 	leafEl.appendChild(view.containerEl);
 	// The view's own first draw. `void` rather than awaited: this function is called from a
 	// page entry that cannot await, and `onOpen` does its work synchronously before the

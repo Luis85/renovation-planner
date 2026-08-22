@@ -20,7 +20,12 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 ### In scope
 
 - `DrawPolygonTool`: a concrete `EditorTool` that accumulates vertices from pointer
-  input and closes them into a `CreateZoneCommand`.
+  input and closes them into one `ReversibleCreateZoneCommand`.
+- `ReversibleCreateZoneCommand`: the adapter that makes creation undoable (PRD §68) —
+  `execute()` wraps slice 3's plain `CreateZoneCommand`, `undo()` deletes what it made,
+  and redo restores the same entity rather than minting a second one.
+- `withProjectStoreRefresh`: the decorator that puts a committed mutation on the canvas,
+  wrapping the three `CommandHistory` operations rather than each site that mutates.
 - `SelectTool`, first built here against `Zone`: hit-testing, selection state, and the
   vertex/body handles rendered in the `InteractionLayer` for a selected zone.
 - Whole-zone move (drag the body) as one `ReversibleMoveZoneCommand` (slice 6's
@@ -32,7 +37,8 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 - Zone deletion as one new `UndoableCommand`, `ReversibleDeleteZoneCommand` —
   wrapping slice 3's plain `DeleteZoneCommand` the same way slice 6's
   `ReversibleMoveZoneCommand` wraps `MoveSpatialObjectCommand` — whose `undo()`
-  resurrects the exact deleted entity (same ID, same geometry).
+  resurrects the exact deleted entity (same ID, same geometry) as a compensated
+  sequence, so an undo that fails part-way changes nothing.
 - Geometry validation at the point geometry is about to become a command input:
   minimum vertex count, finite/non-NaN coordinates, world-unit coordinates, and a
   well-formed viewport transform — per SDD §26's required (non-"Future") rules.
@@ -117,8 +123,10 @@ polygonResult = createPolygon(buffer)          # slice 2's smart constructor (SD
 if polygonResult is Err:
     show inline validation message; stay in drawing state; buffer is NOT cleared
 else:
-    dispatch CreateZoneCommand({ planId, name, zoneType, geometry: polygonResult.value })
-    on success: buffer = []; selection := new zone id
+    command = ReversibleCreateZoneCommand over
+              { planId, name, zoneType, geometry: polygonResult.value }
+    result  = context.commandDispatcher.run(command)   # slice 6's CommandHistory
+    on success: buffer = []; selection := command.createdZoneId
     on failure: show error; buffer is NOT cleared
 ```
 
@@ -128,6 +136,50 @@ in-progress work — they can keep placing vertices or press cancel deliberately
 Vertex removal mid-draw (e.g. "undo last point" before the shape is closed) is a
 reasonable UX affordance but is not required by the SDD and is left to implementation
 discretion; it does not appear in the Definition of Done below.
+
+### Un-creating a zone — `ReversibleCreateZoneCommand`
+
+Creation is undoable like every other gesture in this slice, and for two independent
+reasons: PRD §68 names `CreateZoneCommand` first among the changes that go through
+command history, and slice 6's `commandDispatcher.run()` accepts an `UndoableCommand` —
+nothing else. Dispatching slice 3's plain command from the tool would leave a mistaken
+polygon reachable only by deleting it, and would not type-check against the one entry
+point every path in this slice ends at.
+
+`execute()` is the same thin wrapper the move adapters are: it dispatches slice 3's
+plain `CreateZoneCommand` and keeps the created `Zone` from the payload an
+`UndoableCommand` otherwise discards. `undo()` is this slice's one adapter whose inverse
+is a *different* plain command rather than the same one replayed with swapped input:
+creation's inverse is deletion, so it dispatches `DeleteZoneCommand({ zoneId })` — which
+publishes `ZoneDeleted`, which is what actually happened.
+
+**Redo must not mint a second identity.** `CommandHistory.redo()` calls `execute()`
+again (slice 6), so an adapter that simply re-dispatched `CreateZoneCommand` would put a
+*new* Zone, with a new ID, where the user expects the one they drew. That is not a
+cosmetic difference — draw, move, undo, undo, redo, redo replays the move against the ID
+captured at drag time, which the re-created Zone no longer has, so the redo resolves a
+`ReferenceError` and the stacks record an edit that did not happen. The second and every
+later `execute()` therefore restores the captured snapshot verbatim through
+`zoneRepository.save()`, the ID-keyed upsert slice 3's port contract already guarantees
+and the same call `ReversibleDeleteZoneCommand.undo()` makes for the same reason.
+
+The two adapters are mirror images — create's `undo()` is delete's `execute()`, create's
+redo is delete's `undo()` — which is why both take the plain command family *and* the
+repository port, and why they sit together rather than one of them living with the
+pure-replay adapters.
+
+`createdZoneId` is readable on the adapter once `execute()` has succeeded. The tool needs
+it to select the zone it just drew, and `UndoableCommand.execute()` resolves
+`Result<void, AppError>` by design (slice 6: the adapter discards the payload). Reading
+it off the instance keeps that contract intact — no widening of `UndoableCommand` for one
+caller — and the adapter has to hold the snapshot for undo and redo regardless.
+
+Once slice 10 lets a Requirement reference a Zone, `undo()` inherits
+`DeleteZoneCommand`'s reference behaviour unchanged: with no `resolution` forwarded, a
+Zone that has since acquired referents refuses to be un-created and the command stays on
+`undoStack` (slice 6), rather than the adapter cascading on its own. An adapter that
+interpreted references would be a second place reference integrity is decided — the same
+reason `ReversibleDeleteZoneCommand` forwards its `resolution` without reading it.
 
 ### Selecting a zone — `SelectTool`
 
@@ -238,12 +290,16 @@ execute(): snapshot := read the full Zone entity + its sidecar geometry entry vi
            clear selection if it pointed at this zone
            return result
 
-undo():    re-insert the captured snapshot verbatim — same ID, same zone type,
-           same points, same schema version — via zoneRepository.save() directly,
-           NOT via CreateZoneCommand (which would mint a fresh ID and publish
-           ZoneCreated, misrepresenting a restore as a new zone)
-           AND restore every entity in affectedBefore (see below), for the same
-           reason and by the same means
+undo():    postDelete := read the CURRENT state of the Zone and of every entity in
+                        affectedBefore, before overwriting any of them — absent is
+                        a state, and here it is the usual one
+           restore the Zone FIRST, then each entity in affectedBefore (see below),
+           each verbatim — same ID, same zone type, same points, same schema
+           version — via zoneRepository.save() directly, NOT via CreateZoneCommand
+           (which would mint a fresh ID and publish ZoneCreated, misrepresenting a
+           restore as a new zone)
+           on any failure: replay postDelete over every entity already written,
+           then return the error — see "A failed undo is a no-op" below
 ```
 
 **The snapshot is the Zone plus everything the delete touched.** Once slice 10 forwards
@@ -262,12 +318,101 @@ what the wrapped command actually mutates. In this slice, with no entity able to
 a Zone yet, `affectedBefore` is always empty and the behaviour is exactly as described
 above.
 
+**A failed undo is a no-op, so the restore is compensated too.** Once `affectedBefore`
+is non-empty, `undo()` is N+1 writes across N+1 files, and calling it "the restore" no
+more makes it one operation than calling the resolution "one logical operation" made
+*that* one — the point slice 10 argues for `execute()` and then has to hold to on the way
+back. A failure after the Zone, or after an earlier Requirement, has been written leaves
+a half-restored Vault while `undo()` resolves an error and `CommandHistory` keeps the
+command on `undoStack` for the user to retry (slice 6). That retention is only honest if
+a failed undo left the Vault exactly as the delete left it; otherwise the retry starts
+from a state neither the command nor the stack describes, and the "true inverse" this
+slice's Testing Strategy demands is asserted against a state that only ever existed when
+nothing went wrong.
+
+So the restore runs as its own compensated sequence, the mirror of slice 10's:
+
+- **Order is the exact reverse of `execute()`'s.** The resolution writes the referents
+  and deletes the entity last, so the restore writes the entity first and the referents
+  last. No intermediate state then has a Requirement pointing at a Zone that is not
+  there — the one shape of partial state that is wrong in the same way whether it is
+  reached going forwards or backwards.
+- **The compensation snapshot is read, not derived.** Before overwriting an entity, the
+  adapter reads what is currently there; a Requirement that `remove-references` deleted
+  reads as absent, and compensating it means deleting it again. Reading rather than
+  reconstructing is what keeps the adapter's promise not to interpret `resolution`: it
+  never has to know which of the three outcomes produced the state it is putting back.
+- **A failing compensation is logged via slice 11's Logger, never swallowed** — the same
+  admission slice 10 makes on the execute side. The repository does not promise
+  multi-file atomicity (slice 4 promises it per file), and a compensated sequence is what
+  this design offers instead of pretending otherwise.
+
+Restoring a Requirement needs slice 10's `RequirementRepository`, which that slice adds to
+this adapter's constructor along with the referents themselves — the port arrives with the
+entities that need it, not ahead of them. In this slice `affectedBefore` is empty,
+`zoneRepository` covers both halves, and the sequence collapses to a single write whose
+compensation is never reached.
+
 Undo must resurrect the same entity, not create a new one with a fresh ID. That makes
 `save()` an idempotent upsert keyed by entity ID rather than insert-only — a command's
 `undo()` cannot go through a path that mints new identity. This is not a requirement
 this slice discovers late and imposes on slice 4: it is written into slice 3's
 repository port contract and asserted in the shared contract suite both slice 3 and
 slice 4 run, so an implementation that got it wrong fails before reaching here.
+
+### Showing the result — refreshing the editor's working state
+
+A committed mutation is not finished when the write lands. `ZoneLayer` renders from
+`ProjectStore.zones` and `SelectTool` hit-tests the same map, and slice 5 hydrates it
+from `GetPlan` and `FindZonesByPlan` when the Plan Editor opens — the only moment any
+slice so far refreshes it. Left there, this slice's own Definition of Done would be
+unreachable: a drawn zone would be persisted and invisible, missing from the canvas and
+from the hit-test candidates until the view was closed and reopened, and a deleted zone
+would stay on screen, still selectable, after its note and sidecar entry were gone.
+
+The refresh goes at the funnel every editor mutation already passes through, not at each
+site that mutates:
+
+```text
+withProjectStoreRefresh(history, projectStore, planQueries).<op>(...)   op in run | undo | redo
+  → result = await history.<op>(...)
+  → result.ok → re-run GetPlan + FindZonesByPlan for the active plan and re-hydrate
+                ProjectStore, through slice 5's own hydration routine
+  → return result unchanged to the caller
+```
+
+**Not a domain-event subscriber**, which is the obvious alternative and the wrong one
+here: the undo paths in this slice deliberately publish nothing a `ZoneCreated`
+subscriber would hear. `ReversibleDeleteZoneCommand.undo()` restores through the
+repository precisely so a restore is not announced as a creation, and
+`ReversibleCreateZoneCommand`'s redo restores the same way. A refresh keyed on events
+would leave the canvas blank after exactly the Undo the user pressed to get their zone
+back — the failure it was added to prevent, arrived at from the other side. Sitting on
+`CommandHistory` instead covers every command, including ones this slice does not
+define: slice 6's Inspector commits, slice 7's calibration rescale, and whatever slice
+10's cascade wrote, since slice 10 runs that cascade to completion inside the dispatch.
+
+Three properties this decorator holds to:
+
+- **It returns the wrapped `Result` unchanged.** A refresh is a read of data that is
+  already written; turning its failure into a failed write would misreport the one thing
+  the user needs to be true, and — through slice 13's decorator — would light
+  `Save Error` for a save that succeeded. A failed re-query surfaces through slice 17's
+  rules for a failed hydrating read, and `ProjectStore` keeps what it had.
+- **It nests inside slice 13's `withSaveStateTracking`**, i.e.
+  `withSaveStateTracking(withProjectStoreRefresh(history, …), …)`, so the indicator does
+  not read `Saved` while the canvas still shows the pre-command state. Because the
+  refresh never alters the `Result`, the nesting order cannot change what the indicator
+  reports, only when.
+- **It re-queries the whole plan**, which is proportional to plan size on every gesture —
+  the same trade the hit-test scan makes, and correct at any size. Refreshing only what
+  changed would need the entity IDs `UndoableCommand.execute()` deliberately discards
+  *and* whatever the event cascade touched downstream of them; that is an optimization
+  for whichever slice can measure it, not a correctness gap here.
+
+This is also what makes `DrawPolygonTool`'s `selection := command.createdZoneId` land on
+something: by the time `commandDispatcher.run()` resolves, the new zone is in the store,
+rendered, and a valid hit-test candidate.
 
 ### Geometry validation (SDD §26)
 
@@ -370,13 +515,37 @@ interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
 class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
+// application/commands/zone/ReversibleCreateZoneCommand.ts (new) — beside the delete
+// adapter it mirrors, and for the same reason: both need the repository port, because
+// both have a half whose inverse is an identity-preserving restore rather than a plain
+// command replayed with different input.
+class ReversibleCreateZoneCommand implements UndoableCommand {
+  constructor(
+    private readonly createCommand: Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>>,
+    // Creation's inverse is deletion, so undo() dispatches a different plain command
+    // rather than replaying createCommand — the only adapter in this slice that does.
+    // `resolution` is left undefined: a Zone that has acquired referents refuses to be
+    // un-created rather than cascading on an adapter's own judgement.
+    private readonly deleteCommand: Command<DeleteZoneInput, Result<DeleteWithReferencesResult, ReferenceError | ValidationError | PersistenceError>>,
+    private readonly zoneRepository: ZoneRepository,  // redo's restore, keyed by ID
+    private readonly input: CreateZoneInput,
+  );
+  // First call dispatches createCommand and captures the created Zone; every later
+  // call (i.e. redo) re-saves that snapshot verbatim, so the ID survives undo/redo.
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;   // dispatches deleteCommand for createdZoneId
+  readonly createdZoneId: ZoneId | null;     // set once execute() has succeeded; how
+                                             // DrawPolygonTool selects what it drew
+}
+
 // presentation/editor/commands/ReversibleMoveZoneVertexCommand.ts (new) — a vertex
 // drag is a whole-geometry replacement like a body drag, so it needs no new plain
 // command: it is a second ReversibleMoveZoneCommand-shaped adapter over slice 3's
 // MoveSpatialObjectCommand, differing only in how forward/inverse are computed (one
 // index replaced, versus every vertex translated). An UndoableCommand that wrote to a
-// repository itself would be the one command in this codebase bypassing the
-// plain-command layer, for no gain.
+// repository itself bypasses the plain-command layer; the two adapters here that do
+// (delete's undo, create's redo) buy identity preservation with it, and a vertex move
+// has nothing to buy.
 //
 // The target is a ZoneId, not a SpatialObjectId: no `spatial-object` domain module
 // exists (slice 3's Out of scope), so there is no such ID type to name. When one
@@ -410,8 +579,27 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
     private readonly input: DeleteZoneInput,
   );
   execute(): Promise<Result<void, ReferenceError | PersistenceError>>; // reads snapshot, then delegates to deleteCommand
-  undo(): Promise<Result<void, PersistenceError>>; // re-inserts snapshot verbatim, same ID
+  // Re-inserts the snapshot verbatim, same ID — the Zone first, then every entity in
+  // affectedBefore, as one compensated sequence: each entity's current state is read
+  // before it is overwritten, and a failure part-way restores what was already written
+  // to that state, so a failed undo leaves the Vault as the delete left it.
+  undo(): Promise<Result<void, PersistenceError>>;
 }
+```
+
+```typescript
+// presentation/editor/commands/with-project-store-refresh.ts (new) — decorates the
+// same three CommandHistory operations slice 13's withSaveStateTracking decorates,
+// and nests inside it. Transparent: the wrapped Result is returned unchanged, so a
+// failed re-query never reports a successful write as a failure. canUndo/canRedo/
+// clear pass through untouched — they change no persisted state to re-read.
+type RefreshedHistory = Pick<CommandHistory, 'run' | 'undo' | 'redo'>;
+
+export function withProjectStoreRefresh(
+  history: RefreshedHistory,
+  projectStore: Pick<ReturnType<typeof useProjectStore>, 'hydrate'>,   // slice 5's own
+  planQueries: { getPlan: GetPlanQuery; findZonesByPlan: FindZonesByPlanQuery }, // slice 4
+): RefreshedHistory;
 ```
 
 ```typescript
@@ -431,12 +619,22 @@ ends at `context.commandDispatcher.run(...)`, the method name slice 6's `EditorC
 declares, consistent with the layer dependency rule (Presentation → Application →
 Domain).
 
+Where the plain commands and the `ZoneRepository` port an adapter is constructed with
+come from is slice 6's wiring question, not a new one this slice opens: its own
+`ReversibleMoveZoneCommand` example already takes a `moveCommand` from somewhere
+`EditorContext` does not name. This slice adds one dependency to whatever answer that
+is — the repository port the two restore-halves need — and no second mechanism beside
+it. Stated as an assumption rather than designed here, because designing it would mean
+redefining `EditorContext`, which this slice's Out of scope refuses.
+
 ## Persistence Impact
 
 - **Create**: writes a new Markdown note (zone metadata: id, zone type, schema
   version) and appends one entry (`id`, `type: "polygon"`, `points`) to the plan's
   geometry sidecar (§39–40). Both writes are one logical transaction per §42 — this
-  slice triggers that path via `CreateZoneCommand`; it does not redefine it.
+  slice triggers that path via `CreateZoneCommand`; it does not redefine it. Undoing a
+  creation removes both again through `DeleteZoneCommand`, and redoing it re-saves the
+  captured snapshot under the original ID rather than minting a second one.
 - **Move / vertex edit**: rewrites only the sidecar's `points` array for that object's
   entry. The Markdown note is not touched — a drag or a vertex nudge must not churn
   the note's file mtime or frontmatter on every gesture.
@@ -463,19 +661,44 @@ Domain).
   `CreateZoneCommand → InMemoryZoneRepository → assertions`; `ReversibleMoveZoneCommand`
   and `ReversibleMoveZoneVertexCommand` roundtrips; `ReversibleDeleteZoneCommand`
   roundtrip asserting the resurrected zone has the same ID, not a new one.
+  - `ReversibleCreateZoneCommand`: `execute()` → `undo()` leaves no Zone and no sidecar
+    entry; `execute()` → `undo()` → `execute()` (the redo path) yields a Zone with the
+    **same ID as the first execute**, asserted directly — a test that only checked "a
+    zone exists again" passes against the fresh-identity bug this design exists to
+    prevent. Then the sequence that bug actually breaks: create, move, undo, undo,
+    redo, redo succeeds, with the move landing on the same entity.
+  - `ReversibleDeleteZoneCommand.undo()` against a repository stubbed to fail the
+    restore: the error is returned, the Vault is left exactly as the delete left it,
+    and — per slice 6 — the command is still on `undoStack`; retrying against a
+    repository that stops failing then succeeds, which is the property that retention
+    is for. With `affectedBefore` empty this exercises the compensated sequence's
+    trivial case (nothing written, nothing to compensate). The case that can actually
+    strand a half-restored Vault — a failure on the second of several writes — cannot
+    be written here, because `Requirement` does not exist until slice 10; it is that
+    slice's Definition of Done, alongside the execute-side compensation test it
+    already carries.
 - **Repository contract tests (§72)**: extend the shared suite (reused, not
   duplicated) with zone-geometry sidecar cases — add entry, update entry, remove
   entry — run against both `InMemory` and the Obsidian-backed repository.
 - **Component tests (Vue, §73)**: `DrawPolygonTool` driven by simulated pointer
-  sequences produces the expected vertex buffer and dispatches exactly one
-  `CreateZoneCommand` on close; `SelectTool` hit-testing against a fixture of
-  overlapping zones resolves ties by z-order; Inspector shows the selected zone's
-  Core-derived length/area (not a Quantity/Cost figure — that is slice 9).
+  sequences produces the expected vertex buffer and, on close, exactly one
+  `commandDispatcher.run()` call and one `CommandHistory` entry; `SelectTool`
+  hit-testing against a fixture of overlapping zones resolves ties by z-order;
+  Inspector shows the selected zone's Core-derived length/area (not a Quantity/Cost
+  figure — that is slice 9).
+- **Store-refresh tests**: `withProjectStoreRefresh` table-driven over `run`/`undo`/
+  `redo` — a successful operation re-hydrates `ProjectStore` from the queries, a failed
+  one does not, and the wrapped `Result` comes back unchanged either way; a re-query
+  that itself fails still returns the write's success and leaves the store's previous
+  contents in place. Then the symptom, asserted where a user would see it rather than
+  on the decorator: after a create dispatch resolves, the new ID is in
+  `ProjectStore.zones` and `SelectTool` hit-tests it; after a delete dispatch resolves,
+  it is in neither — with no view reopen in between.
 - **Canvas tests (§74)**: Transformer normalization (slice 6) exercised for the first
   time on a non-rectangular shape — confirm normalized command input never carries
   `scaleX`/`scaleY` (§20).
-- **E2E (PRD §101)**: create zone → persist/reload; select → move → undo; select →
-  edit vertex → undo; select → delete → undo.
+- **E2E (PRD §101)**: create zone → persist/reload; create → undo → redo (same ID);
+  select → move → undo; select → edit vertex → undo; select → delete → undo.
 - **Explicitly not tested here** (nothing to test — not built): self-intersection
   rejection, `clipper2-ts` adapter behavior, `rbush` index performance.
 
@@ -483,27 +706,40 @@ Domain).
 
 1. Drawing ≥ 3 vertices and closing the shape produces a persisted `Zone` — Markdown
    note plus sidecar geometry entry — that survives a plugin unload/reload.
-2. Attempting to close a polygon with fewer than 3 vertices, or with any non-finite
+2. Closing a polygon produces exactly one `ReversibleCreateZoneCommand` and one
+   `CommandHistory` entry; undo removes the zone, and redo brings back **the same
+   entity, same ID** — asserted against the ID the first execute produced, not merely
+   "a zone exists again".
+3. Every mutation above is visible on the canvas the moment its dispatch resolves — a
+   drawn zone renders and is selectable, a deleted one is gone and is no longer a
+   hit-test candidate — with no close-and-reopen of the Plan Editor, and the same holds
+   for the undo of each.
+4. Attempting to close a polygon with fewer than 3 vertices, or with any non-finite
    coordinate, is rejected before `CreateZoneCommand` is ever dispatched; no invalid
    geometry reaches the sidecar.
-3. Clicking an existing zone selects it and shows its vertex handles; clicking empty
+5. Clicking an existing zone selects it and shows its vertex handles; clicking empty
    canvas clears the selection.
-4. Dragging a selected zone's body — regardless of how many `pointermove` events
+6. Dragging a selected zone's body — regardless of how many `pointermove` events
    fired — produces exactly one `ReversibleMoveZoneCommand` and one `CommandHistory`
    entry; pressing undo restores the exact prior point set.
-5. Dragging one vertex handle produces exactly one `ReversibleMoveZoneVertexCommand`
+7. Dragging one vertex handle produces exactly one `ReversibleMoveZoneVertexCommand`
    per gesture; undo restores that vertex's exact prior coordinate without altering
    any other vertex.
-6. Deleting a selected zone removes both its Markdown note and its sidecar geometry
+8. Deleting a selected zone removes both its Markdown note and its sidecar geometry
    entry; **pressing undo immediately afterward restores the zone exactly** — same
    ID, same zone type, byte-identical geometry — verified by comparing pre-delete and
    post-undo state in a test. The comparison covers every entity in `affectedBefore`
    too, so the assertion stays honest when slice 10 makes that set non-empty.
-7. All of the above passes with `clipper2-ts` and `rbush` absent from the dependency
-   graph entirely — zero boolean-geometry calls, zero spatial-index lookups, on any of
-   the six paths above.
-8. Vitest coverage exists for the §26 validation boundary table and for every
-   command's `execute()`/`undo()` pair listed in Testing Strategy.
+9. An `undo()` whose restore fails leaves the Vault exactly as the delete left it and
+   the command on `undoStack`, so retrying it is a retry and not a repair. Proven here
+   for the single-entity case; the multi-write case that can strand a half-restored
+   Vault is slice 10's, which is where `affectedBefore` first has more than one thing
+   in it.
+10. All of the above passes with `clipper2-ts` and `rbush` absent from the dependency
+    graph entirely — zero boolean-geometry calls, zero spatial-index lookups, on any of
+    the paths above.
+11. Vitest coverage exists for the §26 validation boundary table and for every
+    command's `execute()`/`undo()` pair listed in Testing Strategy.
 
 ## References
 

@@ -301,6 +301,12 @@ in-flight undo, and — worse — leave it reading `Saved` after an undo that fa
 `PersistenceError`. The rule the indicator exists to express is "is this Plan's data
 safely written", and an undo is a write like any other.
 
+Slice 8 adds a second decorator over the same three operations —
+`withProjectStoreRefresh`, which re-queries the editor's working state after a command
+lands — and nests it *inside* this one, so `Saved` never appears while the canvas still
+shows the pre-command state. That decorator returns its wrapped `Result` untouched, so it
+changes when this one resolves, never what it reports.
+
 This wraps the same `CommandHistory` instance slice 6 hands to `EditorContext` and to
 `InspectorStore`'s commit path — tools, Inspector edits, and the undo/redo keybindings
 all funnel through one instance per Plan Editor (slice 6's own "one choke point" rule),

@@ -193,7 +193,11 @@ Persistent-vs-ephemeral (§15), restated against these concrete fields:
 | `project`, `plan`, every `ZoneDto` in `zones` | `viewport`, `activeToolId`, `hoveredObjectId`, `dragState`, `temporaryPolygon`, all of `WorkspaceStoreState` |
 
 If a Plan Editor view is closed and reopened, `ProjectStore` is rebuilt from the same two
-queries; nothing is lost because nothing canonical ever lived only in Pinia (ADR-005).
+queries; nothing is lost because nothing canonical ever lived only in Pinia (ADR-005). Open
+is the only moment this slice hydrates, because nothing here mutates a Zone. Slice 8 adds
+the other moment — one `hydrate` action, re-run after every committed command, so the
+canvas shows what was just written — and it re-uses this routine rather than adding a
+second one.
 
 ### 3. Konva scene structure
 

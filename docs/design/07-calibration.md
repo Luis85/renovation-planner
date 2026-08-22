@@ -49,7 +49,12 @@ real-world measurements."*
   `BackgroundRenderModel.worldScale`, not the transform.
 - `EditorTool`, `EditorContext`, `Command`/`UndoableCommand`, command history/undo
   stacks — slice 6.
-- Polygon drawing, zone vertex editing — slice 8.
+- Polygon drawing, zone vertex editing — slice 8. Also `withProjectStoreRefresh`, the
+  decorator that re-queries the editor's working state after a command lands: a rescale
+  changes every Zone's geometry, so this slice needs it too, but it belongs where the
+  first mutation that adds and removes rendered entities is. Built before slice 8, a
+  recalibration's rescale is correct on disk and stale on screen until the Plan Editor is
+  reopened — worth knowing when picking the order, since the slice map allows either.
 - Requirement/cost recalculation triggered by a geometry change — slice 9.
 
 PRD Epic 3 ("Calibration & Measurement") also lists distance measurement, area

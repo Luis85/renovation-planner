@@ -565,6 +565,12 @@ requires every `execute()`/`undo()` pair to be a true inverse. So the snapshot t
 command already had to take for step 4 is handed onward for undo to use, and
 `ReversibleDeleteZoneCommand` restores the entity *and* every entity in `affectedBefore`.
 
+That restore is N+1 writes, so it is compensated the same way this sequence is — slice 8
+defines its ordering (the entity first, the exact reverse of the order here) and its
+compensation (each entity's current state read before it is overwritten, and replayed if
+a later write fails). Undo is where a partial failure is easiest to miss, because the
+command returns an error and stays on `undoStack` as if nothing had happened.
+
 ```typescript
 type DeleteWithReferencesResult = {
   deletedId: ZoneId | AssetId;
@@ -887,6 +893,11 @@ are additive, not breaking.
 - [ ] Undo after a successful resolution restores the deleted entity **and** every
       Requirement the resolution touched, from `affectedBefore` — asserted by comparing
       full pre-delete and post-undo state, not just the entity's own fields.
+- [ ] An undo that fails part-way — the second of several restores — leaves the Vault
+      exactly as the delete left it and the command on `undoStack`, per slice 8's
+      compensated restore. The mirror of the execute-side case above, and the one that
+      only becomes testable here, where `affectedBefore` first holds more than the
+      deleted entity itself.
 - [ ] `reassign` with a missing or self-referencing `reassignTo` resolves a
       `ValidationError` and deletes nothing.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded

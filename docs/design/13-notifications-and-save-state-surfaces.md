@@ -302,7 +302,7 @@ in-flight undo, and — worse — leave it reading `Saved` after an undo that fa
 safely written", and an undo is a write like any other.
 
 Slice 8 adds a second decorator over the same three operations —
-`withProjectStoreRefresh`, which re-queries the editor's working state after a command
+`withEditorStateRefresh`, which re-queries the editor's working state after a command
 lands — and nests it *inside* this one, so `Saved` never appears while the canvas still
 shows the pre-command state. That decorator returns its wrapped `Result` untouched, so it
 changes when this one resolves, never what it reports.

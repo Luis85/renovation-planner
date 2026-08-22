@@ -228,8 +228,11 @@ CountRequirementsReferencing({ kind: 'zone', zoneId })   — slice 10's QUERY, n
                                                             handle (§58, §59)
   ↓
 count === 0?
-  yes → caller's choice: dispatch the delete command directly, or confirm via
-        ConfirmDialog — this slice does not decide which (see Out of scope)
+  yes → dispatch the delete command with NO resolution — the form slice 10's table
+        makes safe: the command refuses with a ReferenceError if referents exist after
+        all. Whether a plain ConfirmDialog precedes that dispatch is the caller's
+        choice, which this slice does not decide (see Out of scope); what the caller
+        may NOT do is turn a zero count into a resolution the user never chose
   no  → dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zone.name,
@@ -248,6 +251,17 @@ input to the command — not a substitute for the command's own check. Slice 10'
 commands re-verify references and refuse a bare delete that would orphan referents
 (§87 rule 5), because a script or a migration never opens a dialog. Two checks, two
 different jobs: this one informs a decision, that one enforces an invariant.
+
+**Which is why a zero count may not become a `delete-anyway`.** The read happens before
+the dialog; the command runs after it, and a Requirement can be created in between — by
+another view, a Vault change, or the user's own second tab. Handing the command
+`delete-anyway` because the count *was* zero converts an advisory read into consent the
+user was never asked for, and consent is precisely what the re-check cannot argue with:
+the one path that would have refused instead marks the new Requirement stale and strands
+it. The absent-resolution form has the opposite failure mode — it refuses, and a refusal
+is recoverable by asking. So the zero branch dispatches without a resolution and treats
+a `ReferenceError` as the signal to open the dialog after all, which is the same
+decision the non-zero branch makes, reached one round-trip later.
 
 PRD §64's own example lists four reference categories — Work Packages, Tasks, Cost
 Items, Documents. At the build stage slices 1–10 reach, only `Requirement` exists as an
@@ -372,14 +386,38 @@ async function onInspectorDeleteZone(
   const counted = await countRequirementsReferencing({ kind: 'zone', zoneId }); // slice 10
   if (isErr(counted)) return surfaceError(counted.error); // slice 17 decides the surface
 
-  const result: DeleteReferenceDialogResult =
-    counted.value === 0
-      ? { action: 'delete-anyway' } // or route through ConfirmDialog — caller's choice
-      : await dialogStore.openDialog({
-          kind: 'delete-reference',
-          entityLabel: zoneName,
-          references: [{ label: 'Requirements', count: counted.value }],
-        });
+  if (counted.value > 0) return askThenDelete(zoneId, zoneName, counted.value);
+
+  // Zero referents: dispatch the ABSENT-resolution form, never `delete-anyway`. The
+  // count is advisory and already stale by the time this line runs; the command's own
+  // re-check is the authority, and it can only refuse a delete it was not handed
+  // consent for (slice 10's resolution table, *(absent)* row).
+  const deleted = await commandDispatcher.run(reversibleDeleteZone({ zoneId }));
+  if (!isErr(deleted)) return;
+  if (deleted.error.category !== 'Reference') return surfaceError(deleted.error);
+
+  // Refused: a Requirement appeared between the count and the dispatch. Ask, exactly as
+  // the non-zero branch would have. The count comes from the query, not from the error —
+  // slice 2's `ReferenceError` names its referents in `message` and carries no
+  // structured payload, and re-reading is what the dialog's row needs anyway.
+  const recounted = await countRequirementsReferencing({ kind: 'zone', zoneId });
+  if (isErr(recounted)) return surfaceError(recounted.error);
+  // Came and went: report the refusal rather than open a dialog listing nothing. One
+  // retry, not a loop — a second race is a report, so this cannot spin.
+  if (recounted.value === 0) return surfaceError(deleted.error);
+  return askThenDelete(zoneId, zoneName, recounted.value);
+}
+
+async function askThenDelete(
+  zoneId: ZoneId,
+  zoneName: string,
+  referenceCount: number,
+): Promise<void> {
+  const result: DeleteReferenceDialogResult = await dialogStore.openDialog({
+    kind: 'delete-reference',
+    entityLabel: zoneName,
+    references: [{ label: 'Requirements', count: referenceCount }],
+  });
 
   if (result.action === 'cancel') return;
 
@@ -391,9 +429,10 @@ async function onInspectorDeleteZone(
     result.action === 'reassign' ? await pickReassignTarget(zoneId) : undefined;
   if (result.action === 'reassign' && reassignTo === undefined) return; // target picker cancelled
 
-  await commandDispatcher.run(
+  const deleted = await commandDispatcher.run(
     reversibleDeleteZone({ zoneId, resolution: result.action, reassignTo }),
   );
+  if (isErr(deleted)) surfaceError(deleted.error);
   // What each resolution does to the referencing Requirements is slice 10's table.
 }
 ```
@@ -462,6 +501,13 @@ contract ends at the typed result, before any write occurs.
   `CountRequirementsReferencing` double, and that choosing each of the four actions
   resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
+- **Stale-count test**, the one the zero branch exists for: a count double answering `0`
+  and a command double refusing with a `ReferenceError`. Assert on the command's *input*
+  — the first dispatch carries no `resolution` — because a test that only checked "a
+  dialog opened" is equally satisfied by a caller that sent `delete-anyway` straight to
+  the command and opened nothing. Then assert the refusal opens the dialog with the
+  re-read count, and that a re-read of `0` surfaces the refusal instead of opening a
+  dialog with an empty row.
 
 ## Definition of Done
 
@@ -484,13 +530,18 @@ contract ends at the typed result, before any write occurs.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
    stacking or queueing a second one — the modal-stacking rule is enforced by
    `DialogStore`, checked by a unit test, not left to caller discipline.
-8. No file under `presentation/dialogs/` imports a repository, a query, an application
+8. A zero reference count never produces a `resolution` on the dispatched command: the
+   worked example's zero branch dispatches the absent-resolution form, and a
+   `ReferenceError` back from it opens the dialog rather than being reported as a failed
+   delete. Asserted on the command input, so a caller that inferred `delete-anyway` from
+   a count that resolved zero fails this check rather than passing it by looking right.
+9. No file under `presentation/dialogs/` imports a repository, a query, an application
    command, or the event bus — enforced by the same import-boundary lint mechanism slice
    12 already runs, not by convention alone.
-9. No user-facing English literal appears under `presentation/dialogs/`, including the
-   `confirmLabel`/`cancelLabel` defaults; both dialog kinds' fixed copy lives in
-   `presentation/i18n/locales/` like every other string in the plugin.
-10. Each of `DeleteReferenceDialog`'s four buttons resolves the open Promise with its
+10. No user-facing English literal appears under `presentation/dialogs/`, including the
+    `confirmLabel`/`cancelLabel` defaults; both dialog kinds' fixed copy lives in
+    `presentation/i18n/locales/` like every other string in the plugin.
+11. Each of `DeleteReferenceDialog`'s four buttons resolves the open Promise with its
     own distinct discriminated result exactly once; no button click leaves the Promise
     pending or resolves it twice.
 

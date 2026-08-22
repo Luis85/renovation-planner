@@ -47,9 +47,9 @@ end to end.
   Zone.
 - `ReversibleAssignAssetCommand`: the undoable adapter the Inspector actually
   dispatches (PRD §68), over the plain, idempotent `AssignAssetCommand`.
-- The read model for a Requirement whose Zone or Asset is gone — `missingTarget` on
-  the Inspector DTO and `ListOrphanedRequirements` — since `delete-anyway` is what
-  creates that state and nothing else can reach it.
+- The read model for a Requirement whose **Asset** is gone — `missingTarget` on the
+  Inspector DTO — since `delete-anyway` is what creates that state and the Requirements
+  panel is the surface that would otherwise fail to build the row at all.
 - Extending the Project Index (SDD §47) with the lookups this slice's event
   handler needs to find affected Requirements without a Vault scan.
 
@@ -87,6 +87,18 @@ end to end.
 - `Asset.supplier` is a plain string field, not a reference to a real
   `Supplier` entity — that entity is Epic 11 (Suppliers & Quotes) and is
   explicitly deferred.
+- **A project-level list of Requirements**, and with it any in-plugin surface for the
+  Requirements that `delete-anyway` on a **Zone** strands. Every surface this map builds
+  is scoped to a selection or a Plan: the Requirements panel hangs off a selected Zone,
+  and a Zone-less Requirement has no Zone to select. The list that would reach it is
+  project-scoped content in the Renovation Project view, which slice 14 explicitly
+  defers as feature work ("the Renovation Project view's *populated* content"), or a
+  Bases view over `Requirements/`, which the slice map defers with SDD §13. This slice
+  therefore declares no `ListOrphanedRequirements` query: a query no surface calls is a
+  dead export `npm run analyze` fails on, and the repository's own rule is that a thing
+  arrives with its first real use. What the state costs the user, and what the MVP does
+  offer instead, is stated under "Deletion & reference integrity" and recorded in
+  `docs/issues/Zone-less requirements have no in-plugin surface.md`.
 
 ## Dependencies
 
@@ -96,7 +108,7 @@ end to end.
 | 3 — Domain Foundation | The entity/command/event module pattern, applied to Zone; `ZoneId`, `ProjectId` |
 | 4 — Persistence & Repository | Repository interface shape, Markdown↔DTO↔domain mapping, Zod schema pattern, Project Index |
 | 6 — Editor Tool Framework, Undo/Redo & Inspector | Command dispatch from UI, `UndoableCommand`, Inspector Query → DTO → Vue pattern |
-| 8 — Zone Editing | The concrete commands that mutate a Zone's geometry and emit `ZoneGeometryChanged` |
+| 8 — Zone Editing | The concrete commands that mutate a Zone's geometry and emit `ZoneGeometryChanged`; `withEditorStateRefresh`, the post-command decorator that re-queries the Inspector — this slice adds figures to that panel and no refresh mechanism of its own |
 | 9 — Quantity & Cost Engine | `Money`, `Quantity`, `MeasurementUnit`/`UnitKind`/`UNIT_KIND`, `DerivedValue<T>`, the Quantity Engine pipeline, the Cost Pipeline |
 
 This slice does not introduce a new SDD ADR; it applies ADR-006 (plain
@@ -504,9 +516,12 @@ interface RequirementInspectorDTO {
   // this DTO exists to carry would be unreachable for exactly the Requirements
   // that most need it. The row renders from assetId plus missingTarget instead.
   assetName: string | null;
-  // Which end of the reference is gone, if either. 'zone' is only reachable through
-  // ListOrphanedRequirements below, since a deleted Zone cannot be selected.
-  missingTarget: 'asset' | 'zone' | null;
+  // Which end of the reference is gone. Only the Asset end is representable here, and
+  // deliberately so: every query that builds this DTO is scoped to a Zone, so a
+  // Requirement whose Zone is gone never reaches a row at all. A 'zone' member would be
+  // a value no query can produce and no component can be tested against — the union
+  // gains it in the same edit as the project-level surface that can (see Out of scope).
+  missingTarget: 'asset' | null;
   unit: MeasurementUnit;
   wasteFactor: Decimal;
   quantity: { calculated: Quantity; override: Quantity | null; effective: Quantity };
@@ -597,10 +612,11 @@ outcomes rather than three synonyms for "delete":
 | *(absent)* | Refuse with a `ReferenceError` naming the referents, if any exist. This is the path a script or a migration takes. |
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
 | `reassign` | Repoint every referencing Requirement's `origin`/`assetId` at `reassignTo`, then delete the entity. A missing or self-referencing `reassignTo` is a `ValidationError`. |
-| `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Inspector must show rather than hide. |
+| `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Requirements panel shows wherever it still has a row to show it on (see below). |
 
-**`delete-anyway` owes the Requirements it strands a way to be seen.** PRD §64 requires
-the action, so retaining them is not optional — but "leave them marked stale" is only a
+**`delete-anyway` owes the Requirements it strands a way to be seen, and this slice can
+pay only half of that.** PRD §64 requires the action, so retaining them is not optional —
+but "leave them marked stale" is only a
 real answer if the marked Requirement can still be reached and read, and by default
 neither holds. A Requirement whose Asset is gone cannot fill `assetName: string`, so the
 one query backing the Requirements panel could not build its row at all; a Requirement
@@ -609,13 +625,35 @@ is scoped to a selected Zone and there is no longer one to select. The warning w
 persisted, correct, and invisible — the same defect as not marking it, arrived at from
 the read side.
 
-Two additions rather than a new subsystem: `RequirementInspectorDTO` represents a missing
-target explicitly (`assetName: string | null` plus `missingTarget`, below), so a dangling
-Requirement renders as a row that says what is wrong instead of failing to be built; and
-`ListOrphanedRequirements(projectId)` makes the Zone-less ones reachable, since nothing
-else in the read model can name them. Slice 17's table routes both — a dangling reference
-is a persisted-badge case, not a toast, because it is a state the user chose and must
-later resolve, not an event that just happened.
+**The Asset-side half is fixed here; the Zone-side half is not, and saying so is the
+point.** `RequirementInspectorDTO` represents a missing Asset explicitly (`assetName:
+string | null` plus `missingTarget`, below), so a Requirement whose Asset is gone renders
+as a row that says what is wrong instead of failing to be built. Slice 17's table routes
+it as a persisted badge rather than a toast, because it is a state the user chose and
+must later resolve, not an event that just happened.
+
+A Requirement whose **Zone** is gone gets no such row, because there is no panel to put
+it on: every read surface in this map is scoped to a selection or a Plan, and its
+selection no longer exists. A query alone would not change that: a
+`ListOrphanedRequirements(projectId)` declared here would have no caller anywhere in the
+map — a dead export `npm run analyze` fails on rather than a way for a user to find
+anything. The surface that would consume it is project-scoped content that slice 14 and
+the slice map both defer as feature work, so the query arrives with it, per this
+repository's rule that a thing arrives with its first real use.
+
+What the MVP does deliver for that state, stated as narrowly as it is true:
+
+- The Requirement note stays in `Requirements/`, with `recalculation-status: stale` and
+  its now-dangling `origin-zone` ID intact. Per ADR-0001 the note *is* the record, so it is
+  findable through Obsidian's own search and graph — not through a plugin surface, but
+  not lost either, and not silently rewritten.
+- `onAssetUpdated` still reaches it (it is found by `listByAsset`, not by Zone), fails to
+  re-derive against the missing Zone, and leaves it `"stale"` — slice 17's `ReferenceError`
+  case (b). Detection, in PRD §63's sense, happens; presentation is what is missing.
+- Nothing in this slice deletes it, repoints it, or drops it from a query it belongs to.
+
+The gap is recorded in `docs/issues/Zone-less requirements have no in-plugin surface.md`
+rather than closed with a query nothing calls.
 
 **A resolution mutates several entities, so it needs compensation and a snapshot.**
 Every non-absent resolution is N Requirement writes followed by one entity delete, and
@@ -751,12 +789,11 @@ interface SetRequirementCostOverrideInput { requirementId: RequirementId; cost: 
 type SetRequirementCostOverrideCommand = Command<SetRequirementCostOverrideInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
 
 // application/queries
+// Rows for a Requirement whose Asset is gone come back with assetName: null,
+// missingTarget: 'asset' and recalculationStatus "stale", never "current" — the query
+// neither fails nor drops them. There is deliberately no project-wide sibling to this
+// query for the Zone-less case: see "Deletion & reference integrity" and Out of scope.
 function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
-// Requirements whose Zone or Asset no longer exists — the state `delete-anyway`
-// creates. Zone-less ones have no other way to be reached: the Requirements panel is
-// scoped to a selected Zone, and theirs cannot be selected. Rows come back with
-// missingTarget set and recalculationStatus "stale", never "current".
-function ListOrphanedRequirements(projectId: ProjectId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
 function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
 function CountRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
@@ -946,10 +983,14 @@ are additive, not breaking.
 - **Application — dangling references.** After `delete-anyway` on an Asset,
   `GetRequirementsForZone` returns the row with `assetName: null`,
   `missingTarget: 'asset'` and `recalculationStatus: 'stale'` rather than failing or
-  omitting it; after `delete-anyway` on a Zone, `ListOrphanedRequirements` returns
-  that Requirement and the Zone's own panel no longer exists to be queried. Asserted
-  as rows returned, not as an error absent — a query that dropped the row would also
-  "not fail".
+  omitting it. Asserted as a row returned, not as an error absent — a query that dropped
+  the row would also "not fail". After `delete-anyway` on a **Zone**, the assertion is
+  what survives rather than what renders: the Requirement still loads through
+  `requirementRepository.getById` with its dangling `origin` reference and
+  `recalculationStatus: 'stale'` intact, and an `AssetUpdated` cascade over it leaves it
+  stale rather than deleting, repointing, or failing the whole cascade. There is no
+  query to assert on for that case, and a test written against one would be asserting a
+  surface this slice deliberately does not build.
 - **Repository contract (§72).** A shared `AssetRepository` and
   `RequirementRepository` contract suite runs against both in-memory and
   Obsidian implementations: round-trip through the Markdown mapping, and
@@ -1021,11 +1062,24 @@ are additive, not breaking.
       Requirement this gesture created, redo restores it under the same
       `RequirementId`, and undo on the idempotent path — where the Requirement already
       existed — deletes nothing and preserves its overrides.
-- [ ] A Requirement left dangling by `delete-anyway` is still readable: with its Asset
-      gone, `GetRequirementsForZone` returns the row with `assetName: null`,
-      `missingTarget: 'asset'` and `"stale"`; with its Zone gone,
-      `ListOrphanedRequirements` returns it. Neither query fails, and neither silently
-      omits the row.
+- [ ] A Requirement left dangling by `delete-anyway` on its **Asset** is still readable:
+      `GetRequirementsForZone` returns the row with `assetName: null`,
+      `missingTarget: 'asset'` and `"stale"`. The query neither fails nor silently omits
+      the row.
+- [ ] A Requirement left dangling by `delete-anyway` on its **Zone** survives intact —
+      note still present, `origin` still naming the deleted Zone, `"stale"` still set,
+      and an `AssetUpdated` cascade over it leaving all three that way. This slice builds
+      no surface that lists it (see Out of scope), so this is the checkable half of that
+      state: not that a user can find it, only that the plugin has not quietly altered or
+      dropped it.
+- [ ] The Requirements panel shows the result of a command while the Zone stays
+      selected, for all three writers this slice adds: assigning an Asset makes the new
+      row appear, a Zone-geometry commit leaves the recalculated quantity and cost on
+      screen, and a cost override leaves the overridden figure and its badge on screen —
+      each with no reselect and no view reopen. Asserted through the dispatch, on the
+      panel's DTO, so it fails if slice 8's `withEditorStateRefresh` stops refreshing the
+      Inspector; asserting only that the Vault holds the new figure would pass against
+      the stale panel this checks for.
 - [ ] Both `Requirement.quantity` and `Requirement.estimatedCost` are
       `DerivedValue<T>`, and the Inspector visibly distinguishes calculated
       from overridden for each independently (§52).
@@ -1083,8 +1137,16 @@ criterion — "Zone Geometry → Area → Requirement → Cost works end to end"
    commit the change. `ZoneGeometryChanged` fires → `RequirementInvalidated`
    → recalculation → `quantity.calculated = 12.0 × 1.10 = 13.2 m²` →
    `estimatedCost.calculated = 13.2 × 45.00 = 594.00 EUR` → `CostEstimateChanged`.
-   The still-open Inspector reactively updates to **13.2 m² / 594.00 EUR**
-   without being reopened.
+   The still-open Inspector shows **13.2 m² / 594.00 EUR** without being reopened
+   or reselected — through slice 8's `withEditorStateRefresh`, which re-queries
+   `GetRequirementsForZone` for the still-selected Zone in the same queued step as
+   the write, *not* through a presentation-layer subscriber on `CostEstimateChanged`.
+   This slice runs its cascade to completion inside the dispatch precisely so that
+   one post-command re-query is enough: by the time `run()` resolves, the recalculated
+   quantity and cost are already persisted, so the panel re-reads them rather than
+   racing them. A subscriber would be the wrong mechanism here for slice 8's reason —
+   the undo paths deliberately publish nothing — and a second one would make the panel
+   refresh twice per command.
 5. Override the cost to **550.00 EUR** (a negotiated price). The Inspector
    dispatches `SetRequirementCostOverrideCommand`; `estimatedCost.override =
    550.00`; `CostEstimateChanged` fires again. The Inspector now shows

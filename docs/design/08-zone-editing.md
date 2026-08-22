@@ -24,8 +24,9 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 - `ReversibleCreateZoneCommand`: the adapter that makes creation undoable (PRD §68) —
   `execute()` wraps slice 3's plain `CreateZoneCommand`, `undo()` deletes what it made,
   and redo restores the same entity rather than minting a second one.
-- `withProjectStoreRefresh`: the decorator that puts a committed mutation on the canvas,
-  wrapping the three `CommandHistory` operations rather than each site that mutates.
+- `withEditorStateRefresh`: the decorator that puts a committed mutation on the canvas
+  **and in the Inspector**, wrapping the three `CommandHistory` operations rather than
+  each site that mutates.
 - `SelectTool`, first built here against `Zone`: hit-testing, selection state, and the
   vertex/body handles rendered in the `InteractionLayer` for a selected zone.
 - Whole-zone move (drag the body) as one `ReversibleMoveZoneCommand` (slice 6's
@@ -88,9 +89,10 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 - **Slice 5 (Canvas Rendering & Editor Shell)** — `ZoneLayer`, `InteractionLayer`,
   `worldToScreen()` / `screenToWorld()`.
 - **Slice 6 (Editor Tool Framework)** — `EditorTool`, `EditorContext`,
-  `UndoableCommand`, `CommandHistory`, `SnapService`, Transformer normalization, and
-  the `ReversibleMoveZoneCommand` adapter this slice's whole-zone-move gesture
-  constructs one instance of per drag.
+  `UndoableCommand`, `CommandHistory`, `SnapService`, Transformer normalization, the
+  `ReversibleMoveZoneCommand` adapter this slice's whole-zone-move gesture constructs
+  one instance of per drag, and `InspectorStore.refresh()` — declared there because the
+  store is, and called only from this slice's post-command decorator.
 - **Slice 7 (Calibration)** — sibling, not a hard dependency. A `Plan` need not be
   calibrated before a zone can be drawn on it (the two slices can be built in either
   order per the slice map); `screenToWorld()` always produces *some* well-formed world
@@ -370,17 +372,40 @@ unreachable: a drawn zone would be persisted and invisible, missing from the can
 from the hit-test candidates until the view was closed and reopened, and a deleted zone
 would stay on screen, still selectable, after its note and sidecar entry were gone.
 
+**Two stores hold that working state, not one.** `InspectorStore.dto` (slice 6) is the
+same kind of cached read as `ProjectStore.zones` — a query result taken when the
+selection last changed — and a mutation invalidates it for the same reason: move or
+reshape the selected Zone and the panel keeps showing the pre-command area; rename it
+from the panel itself and the panel keeps showing the old name; and once slice 10 hangs
+Requirements off a Zone, a geometry commit's recalculation cascade changes the very
+quantity and cost figures the panel is displaying. Refreshing only the canvas would fix
+the half of the screen that happens to be drawn by Konva and leave the half drawn by Vue
+holding numbers the Vault no longer agrees with — a worse failure than the stale canvas,
+because a wrong number reads as a current one where a missing shape at least reads as
+missing.
+
 The refresh goes at the funnel every editor mutation already passes through, not at each
 site that mutates:
 
 ```text
-withProjectStoreRefresh(history, projectStore, planQueries).<op>(...)   op in run | undo | redo
+withEditorStateRefresh(history, projectStore, inspectorStore, planQueries)
+  .<op>(...)                                             op in run | undo | redo
   → queue this whole step behind any step already running (see below)
   → result = await history.<op>(...)
   → result.ok → re-run GetPlan + FindZonesByPlan for the active plan and re-hydrate
                 ProjectStore, through slice 5's own hydration routine
+              → then inspectorStore.refresh() — re-runs the inspector query for whatever
+                is currently selected; a no-op when nothing is
   → return result unchanged to the caller
 ```
+
+**The canvas is re-hydrated before the Inspector, and both inside the one queued step.**
+The Inspector renders a panel *for* the selection, and a selection is only meaningful
+against the entity map the canvas hit-tests, so re-reading the panel first would leave a
+window where a new DTO is paired with a pre-command entity set. Neither store's refresh
+is skipped on account of the other's: they are separate reads through separate queries,
+and assuming one answers for both is how a panel ends up trusting a hydration that never
+covered it.
 
 **The operation and its refresh are one queued step, not two.** `CommandHistory`
 serializes `run`/`undo`/`redo` (slice 6), but that queue ends when the operation
@@ -418,17 +443,21 @@ Three properties this decorator holds to:
   already written; turning its failure into a failed write would misreport the one thing
   the user needs to be true, and — through slice 13's decorator — would light
   `Save Error` for a save that succeeded. A failed re-query surfaces through slice 17's
-  rules for a failed hydrating read, and `ProjectStore` keeps what it had.
+  rules for a failed hydrating read, and the store keeps what it had — which is also why
+  neither re-read short-circuits the other: a failed plan hydration still leaves the
+  Inspector to be refreshed, and an entity the user is looking at is the last thing that
+  should silently keep pre-command numbers because an unrelated read failed.
 - **It nests inside slice 13's `withSaveStateTracking`**, i.e.
-  `withSaveStateTracking(withProjectStoreRefresh(history, …), …)`, so the indicator does
+  `withSaveStateTracking(withEditorStateRefresh(history, …), …)`, so the indicator does
   not read `Saved` while the canvas still shows the pre-command state. Because the
   refresh never alters the `Result`, the nesting order cannot change what the indicator
   reports, only when.
-- **It re-queries the whole plan**, which is proportional to plan size on every gesture —
-  the same trade the hit-test scan makes, and correct at any size. Refreshing only what
-  changed would need the entity IDs `UndoableCommand.execute()` deliberately discards
-  *and* whatever the event cascade touched downstream of them; that is an optimization
-  for whichever slice can measure it, not a correctness gap here.
+- **It re-queries the whole plan, and the whole selection**, which is proportional to
+  plan size on every gesture — the same trade the hit-test scan makes, and correct at any
+  size. Refreshing only what changed would need the entity IDs `UndoableCommand.execute()`
+  deliberately discards *and* whatever the event cascade touched downstream of them; that
+  is an optimization for whichever slice can measure it, not a correctness gap here. The
+  Inspector's share of the cost is bounded by the selection, not the plan.
 
 This is also what makes `DrawPolygonTool`'s `selection := command.createdZoneId` land on
 something: by the time `commandDispatcher.run()` resolves, the new zone is in the store,
@@ -608,7 +637,7 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
 ```
 
 ```typescript
-// presentation/editor/commands/with-project-store-refresh.ts (new) — decorates the
+// presentation/editor/commands/with-editor-state-refresh.ts (new) — decorates the
 // same three CommandHistory operations slice 13's withSaveStateTracking decorates,
 // and nests inside it. Transparent: the wrapped Result is returned unchanged, so a
 // failed re-query never reports a successful write as a failure. canUndo/canRedo/
@@ -618,9 +647,13 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
 // state and land after a later command's refresh (see Design).
 type RefreshedHistory = Pick<CommandHistory, 'run' | 'undo' | 'redo'>;
 
-export function withProjectStoreRefresh(
+export function withEditorStateRefresh(
   history: RefreshedHistory,
   projectStore: Pick<ReturnType<typeof useProjectStore>, 'hydrate'>,   // slice 5's own
+  // slice 6's own; `refresh` is the only member this decorator may touch — taking the
+  // whole store would let a later edit dispatch `commit` from inside the refresh path
+  // and re-enter the queue this decorator holds.
+  inspectorStore: Pick<InspectorStore, 'refresh'>,
   planQueries: { getPlan: GetPlanQuery; findZonesByPlan: FindZonesByPlanQuery }, // slice 4
 ): RefreshedHistory;
 ```
@@ -709,19 +742,25 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
   hit-testing against a fixture of overlapping zones resolves ties by z-order;
   Inspector shows the selected zone's Core-derived length/area (not a Quantity/Cost
   figure — that is slice 9).
-- **Store-refresh tests**: `withProjectStoreRefresh` table-driven over `run`/`undo`/
-  `redo` — a successful operation re-hydrates `ProjectStore` from the queries, a failed
-  one does not, and the wrapped `Result` comes back unchanged either way; a re-query
-  that itself fails still returns the write's success and leaves the store's previous
-  contents in place. Then the ordering case, which needs the refreshes to resolve out of
-  order to mean anything: two overlapping dispatches whose fakes make the *first*
-  command's re-query the slower one, asserting the store ends holding both commands'
-  results rather than the first's snapshot. A test whose queries resolved in dispatch
-  order would pass against an unqueued decorator. Then the symptom, asserted where a
-  user would see it rather than
+- **Store-refresh tests**: `withEditorStateRefresh` table-driven over `run`/`undo`/
+  `redo` — a successful operation re-hydrates `ProjectStore` from the queries **and
+  calls `inspectorStore.refresh()`**, a failed one does neither, and the wrapped
+  `Result` comes back unchanged either way; a re-query that itself fails still returns
+  the write's success and leaves the store's previous contents in place. Asserted per
+  store, never on one of them standing in for both: a decorator that refreshed only the
+  canvas satisfies every assertion written about the canvas, and the panel is exactly
+  where that gap hides. Then the ordering case, which needs the
+  refreshes to resolve out of order to mean anything: two overlapping dispatches whose
+  fakes make the *first* command's re-query the slower one, asserting the store ends
+  holding both commands' results rather than the first's snapshot. A test whose queries
+  resolved in dispatch order would pass against an unqueued decorator. Then the symptom,
+  asserted where a user would see it rather than
   on the decorator: after a create dispatch resolves, the new ID is in
   `ProjectStore.zones` and `SelectTool` hit-tests it; after a delete dispatch resolves,
-  it is in neither — with no view reopen in between.
+  it is in neither — with no view reopen in between; and after a move of the selected
+  zone resolves, the Inspector's DTO carries the post-move area, with no reselect in
+  between. Slice 10 asserts the same symptom one cascade further out, on a figure this
+  slice has no entity to produce.
 - **Canvas tests (§74)**: Transformer normalization (slice 6) exercised for the first
   time on a non-rectangular shape — confirm normalized command input never carries
   `scaleX`/`scaleY` (§20).
@@ -741,7 +780,10 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
 3. Every mutation above is visible on the canvas the moment its dispatch resolves — a
    drawn zone renders and is selectable, a deleted one is gone and is no longer a
    hit-test candidate — with no close-and-reopen of the Plan Editor, and the same holds
-   for the undo of each.
+   for the undo of each. **The Inspector is refreshed by the same dispatch**: moving or
+   reshaping the selected zone leaves its panel showing the post-command area, with no
+   reselect in between, and the assertion is made on the panel's DTO rather than only on
+   `ProjectStore`.
 4. Attempting to close a polygon with fewer than 3 vertices, or with any non-finite
    coordinate, is rejected before `CreateZoneCommand` is ever dispatched; no invalid
    geometry reaches the sidecar.

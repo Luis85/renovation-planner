@@ -362,6 +362,23 @@ undoable exactly like a canvas drag, and `InspectorStore` needs access to the sa
 `CommandHistory`/dispatcher instance `EditorContext` hands to tools (wired at the
 composition root, slice 1).
 
+**The DTO is a cached read, so something has to invalidate it.** `InspectorStore.dto`
+holds the result a query resolved when the selection last changed — not a live view of
+the entity. Every command that mutates the selected entity therefore leaves that snapshot
+behind: this slice's own Inspector commit (rename a Zone, and the panel still shows the
+old name), a canvas gesture that moves the selected Zone (slice 8), and anything a
+cascade writes downstream of either (slice 10's Requirement recalculation). Without an
+invalidation the panel is correct only until the first edit and then silently wrong until
+the user reselects or reopens the view, which is the same defect a stale canvas would be,
+one panel over.
+
+Re-running the query is thus an operation on the store — `refresh()` below — and the
+caller that invokes it is the post-command funnel, never each edit site: slice 8's
+`withEditorStateRefresh` wraps the same three `CommandHistory` operations and re-queries
+`ProjectStore` and this store together, in one queued step. This slice declares the
+operation because it owns the store; slice 8 owns the call, because it is where the first
+mutation reaching the Inspector from outside the Inspector lands.
+
 **No concrete property-update command exists yet, and this slice does not invent one.**
 Slice 3's catalogue covers create, geometry-change and delete, not "rename a Zone" or
 "change its zone type"; those arrive with slice 8, which owns post-creation metadata
@@ -509,6 +526,15 @@ type InspectorDto =
 interface InspectorStore {
   readonly dto: InspectorDto;
   commit(edit: Record<string, unknown>): Promise<Result<void, AppError>>; // → UndoableCommand → CommandHistory.run
+  // Re-runs the inspector query for the CURRENT selection and replaces `dto` with what
+  // it resolves — the invalidation half of the cached read above. A no-op on an empty
+  // selection, and it never changes what is selected: a refresh is a re-read, and a
+  // re-read that moved the selection would fight the user's next click. Returns void
+  // rather than a Result on purpose — its only caller is slice 8's post-command
+  // decorator, which must not turn a failed re-read into a failed write; a failed
+  // re-query leaves the previous DTO in place and surfaces through slice 17's rules for
+  // a failed hydrating read, exactly as ProjectStore's own re-hydration does.
+  refresh(): Promise<void>;
 }
 ```
 
@@ -581,6 +607,13 @@ and tool-switching directly touch.
   quietly erode.
 - **Inspector commit test** — simulate several keystrokes into a bound field, then
   blur; assert exactly one command dispatch, not one per keystroke.
+- **Inspector refresh test** — with a fixture entity selected and the query's next
+  answer changed, `refresh()` replaces `dto` with the new answer and leaves
+  `SelectionStore` untouched; on an empty selection it resolves without calling the
+  query at all; and a query that resolves a failed `Result` leaves the previous `dto`
+  in place rather than blanking the panel. The caller that invokes it — and the
+  assertion that a committed edit actually reaches the panel — is slice 8's, where the
+  decorator lives.
 
 ## Definition of Done
 

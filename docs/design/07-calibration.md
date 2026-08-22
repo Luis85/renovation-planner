@@ -49,7 +49,7 @@ real-world measurements."*
   `BackgroundRenderModel.worldScale`, not the transform.
 - `EditorTool`, `EditorContext`, `Command`/`UndoableCommand`, command history/undo
   stacks — slice 6.
-- Polygon drawing, zone vertex editing — slice 8. Also `withProjectStoreRefresh`, the
+- Polygon drawing, zone vertex editing — slice 8. Also `withEditorStateRefresh`, the
   decorator that re-queries the editor's working state after a command lands: a rescale
   changes every Zone's geometry, so this slice needs it too, but it belongs where the
   first mutation that adds and removes rendered entities is. Built before slice 8, a

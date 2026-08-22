@@ -16,6 +16,8 @@ Spatial objects (zones, physical elements, annotations) carry geometry — polyg
 
 High-volume plan geometry is stored per plan in a structured JSON sidecar file (for example, `Ground Floor.geometry.json`), separate from the plan's Markdown note, rather than embedding geometry in frontmatter or splitting it into one sidecar per spatial object.
 
+> Where exactly that sidecar file lives and what it is named is refined by [ADR-011](0011-configurable-geometry-sidecar-folder-and-file-extension.md): sidecars live in one configurable folder, named by plan ID, not colocated next to the plan note as the example above suggests. The "one sidecar per plan" decision below is unchanged.
+
 ## Consequences
 
 - Editing a plan touches one geometry file per plan instead of many small per-object files.

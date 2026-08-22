@@ -1,21 +1,20 @@
 # Software Design Document
-
 ## Renovation Planner
 
-**Status:** Draft
-**Version:** 0.1
-**Product Type:** Obsidian Community Plugin
-**Primary Language:** TypeScript
-**UI Stack:** Vue 3 · Pinia
-**Build Tool:** Vite
-**Test Framework:** Vitest
-**Rendering:** Konva · vue-konva
-**Persistence:** Obsidian Vault · Markdown · YAML Properties · JSON Sidecars
+**Status:** Draft  
+**Version:** 0.1  
+**Product Type:** Obsidian Community Plugin  
+**Primary Language:** TypeScript  
+**UI Stack:** Vue 3 · Pinia  
+**Build Tool:** Vite  
+**Test Framework:** Vitest  
+**Rendering:** Konva · vue-konva  
+**Persistence:** Obsidian Vault · Markdown · YAML Properties · JSON Sidecars  
 **Architecture Style:** Modular · Layered · Domain-Oriented · Local-First · Event-Aware
 
 ---
 
-## 1. Purpose
+# 1. Purpose
 
 This Software Design Document defines the technical foundation and target architecture of the Renovation Planner.
 
@@ -23,41 +22,41 @@ The system is an Obsidian plugin for spatially planning and managing renovation 
 
 It combines:
 
-* spatial planning,
-* floor and site plan visualization,
-* renovation zones,
-* construction sections,
-* assets and materials,
-* quantity calculation,
-* cost planning,
-* trades,
-* work packages,
-* tasks,
-* procurement,
-* scheduling,
-* project documentation.
+- spatial planning
+- floor and site plan visualization
+- renovation zones
+- construction sections
+- assets and materials
+- quantity calculation
+- cost planning
+- trades
+- work packages
+- tasks
+- procurement
+- scheduling
+- project documentation
 
 The architecture must support the product vision while keeping the implementation maintainable, testable, portable, and independent from individual UI or rendering technologies.
 
 ---
 
-## 2. Architectural Goal
+# 2. Architectural Goal
 
 The central architectural principle is:
 
 > The Obsidian Vault is the persistent source of truth, while Vue, Pinia, and Konva are replaceable presentation and interaction technologies.
 
-The system must therefore avoid coupling domain logic to:
+The system must avoid coupling domain logic to:
 
-* Obsidian API classes,
-* Vue components,
-* Pinia stores,
-* Konva objects,
-* browser DOM structures.
+- Obsidian API classes
+- Vue components
+- Pinia stores
+- Konva objects
+- browser DOM structures
 
-The intended dependency direction is:
+Dependency direction:
 
-```
+```text
 UI
  ↓
 Application
@@ -67,9 +66,9 @@ Domain
 Core
 ```
 
-Infrastructure implements interfaces defined by the inner layers.
+Infrastructure implements interfaces defined by inner layers.
 
-```
+```text
 Infrastructure
       ↓
 Application Ports
@@ -79,63 +78,40 @@ Domain
 
 ---
 
-## 3. Design Principles
+# 3. Design Principles
 
-### 3.1 Local First
+## 3.1 Local First
 
 All project data is stored locally inside the user's Obsidian Vault.
 
 Core functionality must not depend on:
 
-* remote databases,
-* SaaS APIs,
-* cloud accounts,
-* telemetry services.
+- remote databases
+- SaaS APIs
+- cloud accounts
+- telemetry services
 
----
-
-### 3.2 Markdown Native
+## 3.2 Markdown Native
 
 Human-readable project entities should be represented as Markdown files wherever practical.
 
-Examples:
+## 3.3 Domain First
 
-* Project
-* Plan
-* Zone
-* Construction Section
-* Asset
-* Trade
-* Work Package
-* Requirement
-* Supplier
-* Quote
-* Risk
-* Decision
+A `Zone` is not a Konva polygon.
 
----
+A `WorkPackage` is not a Markdown file.
 
-### 3.3 Domain First
-
-The business model must exist independently from rendering and persistence.
-
-A Zone is not a Konva polygon.
-
-A WorkPackage is not a Markdown file.
-
-A Requirement is not a Pinia object.
+A `Requirement` is not a Pinia object.
 
 These technologies are representations of domain concepts.
 
----
+## 3.4 Framework Independence
 
-### 3.4 Framework Independence
+Core modules use plain TypeScript.
 
-Core modules should use plain TypeScript.
+Prohibited in Domain/Core:
 
-The following dependencies are prohibited inside the Domain and Core layers:
-
-```
+```text
 vue
 pinia
 konva
@@ -144,59 +120,28 @@ obsidian
 DOM APIs
 ```
 
----
+## 3.5 Explicit State Changes
 
-### 3.5 Explicit State Changes
-
-Business-changing operations should be represented through application commands.
-
-Examples:
-
-```
-CreateZone
-MoveSpatialObject
-AssignAsset
-CreateRequirement
-RecordCost
-CompleteWorkPackage
-```
+Business-changing operations should be represented through commands.
 
 This provides a foundation for:
 
-* undo/redo,
-* validation,
-* event generation,
-* persistence,
-* testing,
-* auditability.
+- undo/redo
+- validation
+- event generation
+- persistence
+- testing
+- auditability
 
----
+## 3.6 Derived Data over Duplicate Data
 
-### 3.6 Derived Data over Duplicate Data
+Values that can be reliably calculated should not be stored redundantly unless required for overrides or historical snapshots.
 
-Values that can reliably be calculated should not be stored redundantly unless a manual override or historical snapshot requires persistence.
+## 3.7 Progressive Complexity
 
-Example:
+The MVP should remain simple:
 
-```
-Polygon
-   ↓
-Area
-   ↓
-Material Requirement
-   ↓
-Estimated Cost
-```
-
----
-
-### 3.7 Progressive Complexity
-
-The architecture must allow the initial product to remain simple.
-
-MVP:
-
-```
+```text
 Plan
 → Calibration
 → Zones
@@ -205,103 +150,90 @@ Plan
 → Costs
 ```
 
-without requiring advanced functionality such as:
+---
 
-* BIM,
-* CAD,
-* 3D,
-* scheduling engines,
-* procurement workflows.
+# 4. Technical Context
+
+The plugin runs inside Obsidian.
+
+Primary integration surfaces:
+
+- plugin lifecycle
+- workspace views
+- commands
+- Vault API
+- FileManager
+- metadata cache
+- Bases views
+- settings
 
 ---
 
-## 4. Technical Context
+# 5. Technology Stack
 
-The plugin runs within the Obsidian application environment.
+## Core Runtime
 
-Obsidian plugins are implemented using TypeScript and can register custom workspace views and commands through the official plugin API. (Developer Documentation)
-
-Obsidian also supports custom Bases views through `registerBasesView()`, allowing plugins to provide custom visualizations based on the same note/property data used by Bases. Obsidian invokes `onDataUpdated()` when relevant underlying data or configuration changes. (Developer Documentation)
-
-This enables the Renovation Planner to expose both:
-
-Dedicated Workspace Views
-
-and:
-
-Bases Views
-
-over the same domain data.
-
----
-
-## 5. Technology Stack
-
-**Core Runtime**
-
-```
+```text
 TypeScript
 ```
 
-**Host Platform**
+## Host Platform
 
-```
+```text
 Obsidian
 ```
 
-**UI**
+## UI
 
-```
+```text
 Vue 3
 Pinia
 @vueuse/core
 ```
 
-**Rendering**
+## Rendering
 
-```
+```text
 Konva
 vue-konva
 ```
 
-The current vue-konva package supports Vue 3, ships TypeScript declarations, exposes a core build, and itself uses Vite and Vitest in its development setup. (GitHub)
+## Validation
 
-**Validation**
-
-```
+```text
 zod
 ```
 
-**Financial Calculations**
+## Financial Calculations
 
-```
+```text
 decimal.js
 ```
 
-**Geometry**
+## Geometry
 
-```
+```text
 custom geometry-core
 clipper2-ts
 rbush
 ```
 
-**Date Handling**
+## Date Handling
 
-```
+```text
 dayjs
 ```
 
-**Document Handling**
+## Document Handling
 
-```
+```text
 pdfjs-dist
 pdf-lib
 ```
 
-**Testing**
+## Testing
 
-```
+```text
 vitest
 @vue/test-utils
 jsdom
@@ -309,9 +241,9 @@ jsdom
 
 ---
 
-## 6. High-Level Architecture
+# 6. High-Level Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │                       Obsidian                        │
 │                                                      │
@@ -335,8 +267,11 @@ jsdom
           Konva
             │
         Canvas / DOM
+
 ──────────────────────────────────────────────────────
+
                   Application Layer
+
                   Commands / Queries
                         │
         ┌───────────────┼────────────────┐
@@ -348,12 +283,18 @@ jsdom
         └───────────────┼────────────────┘
                         ▼
                      Domain
+
 ──────────────────────────────────────────────────────
+
                      Core Layer
+
               Geometry · Units · Money
               IDs · Results · Events
+
 ──────────────────────────────────────────────────────
+
                 Infrastructure Layer
+
              Obsidian Repositories
                      │
           ┌──────────┼──────────┐
@@ -364,28 +305,13 @@ jsdom
 
 ---
 
-## 7. Architectural Layers
+# 7. Architectural Layers
 
-### 7.1 Core Layer
+## 7.1 Core Layer
 
-The Core layer contains generic technical concepts that do not depend on the renovation domain.
+Generic technical concepts independent of renovation domain.
 
-Examples:
-
-```
-Geometry primitives
-Units
-Money
-Entity IDs
-Result types
-Domain errors
-Date ranges
-Event primitives
-```
-
-Example structure:
-
-```
+```text
 core/
 ├── geometry/
 ├── units/
@@ -396,15 +322,11 @@ core/
 └── result/
 ```
 
----
+## 7.2 Domain Layer
 
-## 8. Domain Layer
+Renovation-specific business rules.
 
-The Domain layer implements renovation-specific concepts and business rules.
-
-Suggested modules:
-
-```
+```text
 domain/
 ├── project/
 ├── site/
@@ -427,36 +349,30 @@ domain/
 └── decision/
 ```
 
-Each domain module may contain:
+Each module may contain:
 
-```
-entities
-value objects
-domain services
-domain events
-business rules
-schemas
-```
+- entities
+- value objects
+- domain services
+- domain events
+- business rules
+- schemas
 
----
+## 7.3 Application Layer
 
-## 9. Application Layer
+Coordinates use cases.
 
-The Application layer coordinates use cases.
+Responsibilities:
 
-It is responsible for:
+- loading entities
+- invoking domain logic
+- validating operations
+- calling repositories
+- publishing events
+- coordinating transactions
+- returning results to UI
 
-* loading entities,
-* invoking domain logic,
-* validating operations,
-* calling repositories,
-* publishing events,
-* coordinating transactions,
-* returning results to the UI.
-
-Example structure:
-
-```
+```text
 application/
 ├── commands/
 ├── queries/
@@ -465,13 +381,11 @@ application/
 └── event-handlers/
 ```
 
----
+## 7.4 Infrastructure Layer
 
-## 10. Infrastructure Layer
+Concrete implementations for external concerns.
 
-Infrastructure provides concrete implementations for external concerns.
-
-```
+```text
 infrastructure/
 ├── obsidian/
 │   ├── repositories/
@@ -479,43 +393,26 @@ infrastructure/
 │   ├── workspace/
 │   ├── bases/
 │   └── settings/
-│
 ├── persistence/
 ├── import/
 ├── export/
 └── logging/
 ```
 
-Infrastructure may depend on:
+## 7.5 Presentation Layer
 
-```
-obsidian
-pdfjs-dist
-pdf-lib
-```
+Contains:
 
-but Domain must not depend on Infrastructure.
+- Vue components
+- Pinia stores
+- Workspace views
+- Bases views
+- editor tools
+- inspector panels
+- dialogs
+- toolbars
 
----
-
-## 11. Presentation Layer
-
-The Presentation layer contains:
-
-```
-Vue components
-Pinia stores
-Workspace views
-Bases views
-Editor tools
-Inspector panels
-Dialogs
-Toolbars
-```
-
-Suggested structure:
-
-```
+```text
 presentation/
 ├── views/
 ├── components/
@@ -527,13 +424,11 @@ presentation/
 
 ---
 
-## 12. Dependency Rule
-
-Dependencies may only point inward.
+# 8. Dependency Rule
 
 Valid:
 
-```
+```text
 Presentation
      ↓
 Application
@@ -545,7 +440,7 @@ Core
 
 Valid:
 
-```
+```text
 Infrastructure
      ↓
 Application Ports
@@ -553,7 +448,7 @@ Application Ports
 
 Invalid:
 
-```
+```text
 Domain
      ↓
 Obsidian
@@ -561,7 +456,7 @@ Obsidian
 
 Invalid:
 
-```
+```text
 Geometry Engine
      ↓
 Konva
@@ -569,7 +464,7 @@ Konva
 
 Invalid:
 
-```
+```text
 Cost Engine
      ↓
 Pinia
@@ -577,14 +472,13 @@ Pinia
 
 ---
 
-## 13. Plugin Bootstrap
+# 9. Plugin Bootstrap
 
-The Obsidian plugin entry point should remain intentionally small.
+The plugin entry point should remain small.
 
-Example responsibility:
-
-```
+```text
 RenovationPlannerPlugin
+
 onload()
  ├── load settings
  ├── initialize dependency container
@@ -593,82 +487,56 @@ onload()
  ├── register commands
  ├── register vault listeners
  └── initialize project index
+
 onunload()
  ├── flush pending writes
  ├── stop listeners
  └── dispose services
 ```
 
-The plugin entry point must not contain domain logic.
+No domain logic belongs in the plugin entry point.
 
 ---
 
-## 14. Dependency Composition
+# 10. Dependency Composition
 
-Dependencies should be composed centrally.
+Dependencies are composed centrally.
 
-Conceptually:
-
-```
+```text
 CompositionRoot
+
 ├── repositories
-│
 ├── application services
-│
 ├── event bus
-│
 ├── query services
-│
 └── settings
 ```
 
-Example:
-
-```
-ObsidianZoneRepository
-          ↓
-CreateZoneHandler
-          ↓
-ZoneService
-```
-
-This avoids ad-hoc construction of services inside Vue components.
-
 ---
 
-## 15. Workspace Views
+# 11. Workspace Views
 
-Primary application surfaces should initially be implemented as Obsidian workspace views.
+Primary surfaces:
 
-Recommended initial views:
-
-```
-Renovation Project
-Plan Editor
-```
+- Renovation Project
+- Plan Editor
 
 Future:
 
-```
-Budget
-Schedule
-Procurement
-Dashboard
-```
+- Budget
+- Schedule
+- Procurement
+- Dashboard
 
-Views should be mounted only when visible where possible.
-
-Obsidian supports deferred view loading, and its documentation recommends avoiding assumptions that custom views are always loaded; forcing deferred views to load should be done sparingly because it removes a performance optimization. (Developer Documentation)
+Views should be mounted only when visible where practical.
 
 ---
 
-## 16. Vue Mounting Strategy
+# 12. Vue Mounting Strategy
 
-Each Obsidian view receives an isolated Vue application.
+Each Obsidian view receives an isolated Vue app.
 
-Concept:
-
-```
+```text
 Obsidian ItemView
       │
       ▼
@@ -678,52 +546,32 @@ createApp()
       └── ViewRoot.vue
 ```
 
-The Vue application must be unmounted when the Obsidian view is closed.
+Unmount when the Obsidian view closes.
 
 ---
 
-## 17. Bases Integration
+# 13. Bases Integration
 
-Bases views are considered read-heavy secondary views.
+Potential custom Bases views:
 
-Possible custom Bases views:
+- Renovation Plan
+- Budget
+- Assets
+- Procurement
+- Schedule
+- Risk
 
-```
-Renovation Plan
-Budget
-Assets
-Procurement
-Schedule
-Risk
-```
-
-Bases should consume the same canonical note properties used elsewhere.
-
-No separate Bases-specific domain model should exist.
-
-Architecture:
-
-```
-Bases Data
-    ↓
-Bases Adapter
-    ↓
-Domain Mapping
-    ↓
-Custom Bases View
-```
+No separate Bases-specific domain model.
 
 ---
 
-## 18. State Management
+# 14. State Management
 
 Pinia manages application-facing and UI state.
 
-It is not the persistent source of truth.
-
 Recommended stores:
 
-```
+```text
 ProjectStore
 EditorStore
 SelectionStore
@@ -731,105 +579,43 @@ InspectorStore
 WorkspaceStore
 ```
 
----
-
-## 19. Project Store
-
-Responsibilities:
-
-```
-active project
-loaded plans
-loaded zones
-loaded construction sections
-assets
-work packages
-derived summaries
-```
-
-The store represents an in-memory working set.
+Pinia is not the persistent source of truth.
 
 ---
 
-## 20. Editor Store
+# 15. Persistent vs Ephemeral State
 
-Responsibilities:
+Persistent:
 
-```
-active tool
-viewport
-zoom
-pan
-grid settings
-snapping configuration
-active layer
-drawing state
-```
+- project
+- plan
+- zone
+- asset
+- construction section
+- work package
+- cost data
+- geometry
 
----
+Ephemeral:
 
-## 21. Selection Store
+- hover
+- context menu
+- drag state
+- temporary polygon
+- selection marquee
+- active tool
 
-Responsibilities:
+Settings:
 
-```
-selected object IDs
-focused object
-multi-selection
-hover state
-```
-
-Selection must use domain IDs rather than Konva instances.
+- default units
+- default folders
+- editor preferences
 
 ---
 
-## 22. Persistent vs Ephemeral State
+# 16. Spatial Rendering Architecture
 
-**Persistent**
-
-Stored in Vault:
-
-```
-project
-plan
-zone
-asset
-construction section
-work package
-cost data
-geometry
-```
-
-**Ephemeral**
-
-Stored only in application memory:
-
-```
-hover
-context menu state
-drag state
-temporary polygon
-selection marquee
-active tool
-```
-
-**User Settings**
-
-Stored as plugin settings:
-
-```
-default units
-default folders
-editor preferences
-```
-
----
-
-## 23. Spatial Rendering Architecture
-
-Konva acts exclusively as rendering and interaction technology.
-
-```
+```text
 Domain Spatial Object
         ↓
 Render Model
@@ -841,9 +627,9 @@ vue-konva
 Konva Node
 ```
 
-The inverse direction:
+Interaction:
 
-```
+```text
 Pointer Interaction
         ↓
 Editor Tool
@@ -853,83 +639,55 @@ Application Command
 Domain Change
 ```
 
-Konva objects must never be written directly to the Vault.
+Konva objects are never written directly to the Vault.
 
 ---
 
-## 24. Konva Scene Structure
+# 17. Konva Scene Structure
 
-Recommended stage structure:
-
-```
+```text
 Stage
 │
 ├── BackgroundLayer
-│
 ├── ArchitectureLayer
-│
 ├── ZoneLayer
-│
 ├── ConstructionLayer
-│
 ├── AssetLayer
-│
 ├── AnnotationLayer
-│
 └── InteractionLayer
 ```
 
 ---
 
-## 25. Background Layer
+# 18. Background Layer
 
 Contains:
 
-* imported plans,
-* images,
-* rendered PDF pages.
+- imported plans
+- images
+- rendered PDF pages
 
-It should rarely redraw during normal editing.
-
----
-
-## 26. Spatial Layers
-
-Contain domain-controlled objects:
-
-```
-rooms
-zones
-construction sections
-assets
-physical elements
-```
+This layer should redraw rarely.
 
 ---
 
-## 27. Interaction Layer
+# 19. Interaction Layer
 
-Contains transient rendering:
+Transient only:
 
-```
-selection handles
-snap guides
-measure previews
-drawing previews
-transform controls
-```
-
-This layer must not represent domain state.
+- selection handles
+- snap guides
+- measure previews
+- drawing previews
+- transform controls
 
 ---
 
-## 28. Selection and Transformation
+# 20. Selection and Transformation
 
-Konva provides a Transformer abstraction for interactive resizing and rotation of shapes. The transformer internally modifies node scale values rather than directly changing width and height, so transformed values must be normalized before being written back to the domain model. (Konva.js)
+Konva transformation results must be normalized into true domain geometry before persistence.
 
-Therefore:
-
-```
+```text
 Konva Transform
       ↓
 Normalize Transform
@@ -939,23 +697,17 @@ Domain Geometry
 Command
 ```
 
-The domain must never persist:
-
-```
-scaleX
-scaleY
-```
-
-as a substitute for true dimensions.
+Do not persist `scaleX`/`scaleY` as true dimensions.
 
 ---
 
-## 29. Snapping Architecture
+# 21. Snapping Architecture
 
-Snapping should be implemented as an application/editor service rather than embedded inside components.
+Implement as an editor/application service.
 
-```
+```text
 SnapService
+
 snapPoint()
 snapRotation()
 snapResize()
@@ -964,17 +716,13 @@ snapToVertex()
 snapToEdge()
 ```
 
-Konva already supports transformer hooks and snapping concepts for resize and rotation, which can be used by the adapter layer while the actual snapping rules remain domain/editor logic. (Konva.js)
-
 ---
 
-## 30. Geometry Core
+# 22. Geometry Core
 
-Geometry must be implemented using plain TypeScript.
+Plain TypeScript primitives:
 
-Initial primitives:
-
-```
+```text
 Point
 Vector
 LineSegment
@@ -984,177 +732,122 @@ Polygon
 Transform
 ```
 
-Initial operations:
+Operations:
 
-```
-distance
-length
-area
-perimeter
-centroid
-bounding box
-point-in-polygon
-segment intersection
-projection
-translation
-rotation
-scale conversion
-```
+- distance
+- length
+- area
+- perimeter
+- centroid
+- bounding box
+- point-in-polygon
+- segment intersection
+- projection
+- translation
+- rotation
+- scale conversion
 
 ---
 
-## 31. World Coordinate System
+# 23. World Coordinate System
 
-Domain geometry must use world coordinates rather than screen pixels.
+Recommended:
 
-Recommended canonical unit:
-
-```
+```text
 1 world unit = 1 millimeter
 ```
 
-Example:
-
-```
-World:
-5400 mm
-
-Viewport:
-100 px/m
-
-Rendered:
-540 px
-```
+Domain geometry uses real-world coordinates, never screen pixels.
 
 ---
 
-## 32. Viewport Transform
+# 24. Viewport Transform
 
-Viewport conversion must be centralized.
+Centralized functions:
 
-```
+```text
 worldToScreen()
 screenToWorld()
 ```
 
 Transformation components:
 
-```
-translation
-zoom
-rotation
-device pixel ratio
-```
-
-UI tools must not perform ad-hoc coordinate conversion.
+- translation
+- zoom
+- rotation
+- device pixel ratio
 
 ---
 
-## 33. Calibration
+# 25. Calibration
 
-A plan calibration defines how background pixels correspond to world coordinates.
+A Plan calibration defines how background pixels map to world coordinates.
 
-Minimum calibration:
+Minimum:
 
-```
-Point A
-Point B
-Known real-world distance
-```
-
-Result:
-
-```
-pixelsPerWorldUnit
-```
-
-Calibration belongs to the Plan domain.
+- Point A
+- Point B
+- known real-world distance
 
 ---
 
-## 34. Geometry Validation
+# 26. Geometry Validation
 
-Geometry must be validated before persistence.
+Validate before persistence:
 
-Examples:
+- polygon has >= 3 vertices
+- finite coordinates
+- no NaN
+- no Infinity
+- valid unit
+- valid transform
 
-```
-Polygon has >= 3 vertices
-Coordinates are finite
-No NaN
-No Infinity
-Valid unit
-Valid transform
-```
+Future:
 
-Advanced validation may include:
-
-```
-self-intersection detection
-winding normalization
-polygon repair
-```
+- self-intersection detection
+- winding normalization
+- polygon repair
 
 ---
 
-## 35. Advanced Polygon Operations
+# 27. Advanced Polygon Operations
 
-Complex operations should use a specialized geometry adapter such as clipper2-ts.
+Use an adapter around `clipper2-ts`.
+
+Operations:
+
+- union
+- intersection
+- difference
+- offset
+
+No Clipper-specific types escape Infrastructure/Core adapters.
+
+---
+
+# 28. Spatial Index
+
+Use `rbush` when needed.
 
 Use cases:
 
-```
-union
-intersection
-difference
-offset
-```
+- hit candidate lookup
+- objects in viewport
+- assets inside zone
+- collision candidates
+- selection marquee
 
-The adapter must expose domain-native types.
-
-Example:
-
-```
-Domain Polygon
-     ↓
-Clipper Adapter
-     ↓
-Clipper2
-     ↓
-Domain Polygon
-```
-
-No Clipper-specific types should escape the adapter.
+The index is an optimization only.
 
 ---
 
-## 36. Spatial Index
+# 29. Command Architecture
 
-For larger plans, spatial search should be implemented using rbush.
+Meaningful changes pass through commands.
 
-Use cases:
+Concept:
 
-```
-hit candidate lookup
-objects in viewport
-assets inside zone
-collision candidates
-selection marquee
-```
-
-Spatial indexing is an optimization.
-
-Correctness must not depend on it.
-
----
-
-## 37. Command Architecture
-
-All meaningful changes should pass through commands.
-
-Example interface:
-
-```typescript
+```ts
 interface Command<TInput, TResult> {
   execute(input: TInput): Promise<TResult>;
 }
@@ -1162,31 +855,25 @@ interface Command<TInput, TResult> {
 
 Examples:
 
-```
-CreateProjectCommand
-CreatePlanCommand
-CalibratePlanCommand
-CreateZoneCommand
-MoveSpatialObjectCommand
-ResizeSpatialObjectCommand
-DeleteSpatialObjectCommand
-CreateAssetCommand
-AssignAssetCommand
-CreateRequirementCommand
-RecalculateRequirementCommand
-CreateWorkPackageCommand
-CompleteWorkPackageCommand
-```
+- CreateProjectCommand
+- CreatePlanCommand
+- CalibratePlanCommand
+- CreateZoneCommand
+- MoveSpatialObjectCommand
+- ResizeSpatialObjectCommand
+- DeleteSpatialObjectCommand
+- CreateAssetCommand
+- AssignAssetCommand
+- CreateRequirementCommand
+- RecalculateRequirementCommand
+- CreateWorkPackageCommand
+- CompleteWorkPackageCommand
 
 ---
 
-## 38. Undoable Editor Commands
+# 30. Undoable Editor Commands
 
-Editor commands should additionally support reversal.
-
-Concept:
-
-```typescript
+```ts
 interface UndoableCommand {
   execute(): Promise<void>;
   undo(): Promise<void>;
@@ -1195,32 +882,24 @@ interface UndoableCommand {
 
 History:
 
-```
+```text
 CommandHistory
+
 undoStack
 redoStack
 ```
 
 ---
 
-## 39. Transaction Boundary
+# 31. Transaction Boundary
 
-One user intent should represent one logical transaction.
+One user intent equals one logical transaction.
 
-Example:
-
-```
+```text
 Drag Zone
-pointerdown
- ↓
-movement
- ↓
-movement
- ↓
-pointerup
- ↓
+  ↓
 MoveZoneCommand
-
+  ↓
 ONE domain change
 ONE history item
 ONE persistence operation
@@ -1228,13 +907,13 @@ ONE persistence operation
 
 ---
 
-## 40. Event Architecture
+# 32. Event Architecture
 
-Commands may emit domain or application events after successful state changes.
+Commands may emit domain/application events after successful state changes.
 
 Example:
 
-```
+```text
 ZoneGeometryChanged
      ↓
 RequirementInvalidated
@@ -1246,77 +925,57 @@ CostEstimateChanged
 
 ---
 
-## 41. Event Bus
+# 33. Event Bus
 
-Initial implementation should use an in-process synchronous or promise-aware event bus.
+Initial implementation: in-process synchronous or promise-aware bus.
 
-No external event infrastructure is required.
-
-Concept:
-
-```typescript
-interface EventBus {
-  publish(event: DomainEvent): Promise<void>;
-  subscribe<T>(
-    eventType: string,
-    handler: EventHandler<T>
-  ): Disposable;
-}
-```
+No external event infrastructure.
 
 ---
 
-## 42. Domain Events
+# 34. Domain Events
 
-Initial event catalog:
+Initial catalog:
 
-```
-ProjectCreated
-PlanCreated
-PlanCalibrated
-ZoneCreated
-ZoneGeometryChanged
-ZoneDeleted
-AssetCreated
-AssetAssigned
-RequirementCreated
-RequirementRecalculated
-ConstructionSectionCreated
-WorkPackageCreated
-WorkPackageCompleted
-CostChanged
-BudgetChanged
-```
+- ProjectCreated
+- PlanCreated
+- PlanCalibrated
+- ZoneCreated
+- ZoneGeometryChanged
+- ZoneDeleted
+- AssetCreated
+- AssetAssigned
+- RequirementCreated
+- RequirementRecalculated
+- ConstructionSectionCreated
+- WorkPackageCreated
+- WorkPackageCompleted
+- CostChanged
+- BudgetChanged
 
 ---
 
-## 43. Query Architecture
+# 35. Query Architecture
 
-Reads should not require commands.
+Queries are read-only.
 
-Queries:
+Examples:
 
-```
-GetProject
-GetPlan
-GetZone
-GetProjectBudget
-GetConstructionSectionSummary
-GetAssetsForZone
-GetRequirementsForWorkPackage
-```
-
-Application queries may return purpose-specific DTOs.
+- GetProject
+- GetPlan
+- GetZone
+- GetProjectBudget
+- GetConstructionSectionSummary
+- GetAssetsForZone
+- GetRequirementsForWorkPackage
 
 ---
 
-## 44. Repository Pattern
-
-Domain persistence is abstracted through repository interfaces.
+# 36. Repository Pattern
 
 Example:
 
-```typescript
+```ts
 interface ZoneRepository {
   getById(id: ZoneId): Promise<Zone | null>;
   save(zone: Zone): Promise<void>;
@@ -1327,17 +986,17 @@ interface ZoneRepository {
 
 Concrete implementation:
 
-```
+```text
 ObsidianZoneRepository
 ```
 
 ---
 
-## 45. Obsidian Repository Layer
+# 37. Obsidian Repository Layer
 
-Repositories map between:
+Explicit mapping:
 
-```
+```text
 Markdown / Frontmatter
         ↕
 Persistence DTO
@@ -1345,63 +1004,50 @@ Persistence DTO
 Domain Entity
 ```
 
-Mapping must be explicit.
-
-Avoid sharing raw frontmatter objects throughout the application.
+Raw frontmatter must not leak throughout the application.
 
 ---
 
-## 46. Markdown Entity Model
+# 38. Markdown Entity Model
 
-Example Zone note:
+Example:
 
-```markdown
+```yaml
 ---
 type: renovation-zone
 schema-version: 1
+
 id: zone-01HXYZ
 project: project-01HABC
 plan: plan-ground-floor
+
 name: Bathroom
 zone-type: room
 status: planned
 ---
 ```
 
-Markdown body may contain free-form notes.
+The note body remains free-form.
 
 ---
 
-## 47. Sidecar Files
+# 39. Sidecar Files
 
-Geometry may be stored separately where appropriate.
+Recommended initial strategy:
+
+> Store plan geometry per plan rather than one sidecar per spatial object.
 
 Example:
 
-```
-Bathroom.md
-Bathroom.plan.json
-```
-
-or centrally per plan:
-
-```
+```text
 plans/
 ├── Ground Floor.md
 └── Ground Floor.geometry.json
 ```
 
-The recommended initial strategy is:
-
-> Store plan geometry per plan rather than one file per spatial object.
-
-This reduces the number of small write operations during editing.
-
 ---
 
-## 48. Plan Sidecar Schema
-
-Conceptual structure:
+# 40. Plan Sidecar Schema
 
 ```json
 {
@@ -1417,25 +1063,13 @@ Conceptual structure:
 }
 ```
 
-Human-readable metadata remains in Markdown.
-
-Geometry remains optimized for editor access.
-
 ---
 
-## 49. Persistence Boundary
+# 41. Persistence Boundary
 
-The UI must never directly call:
+UI must not directly call Vault write APIs.
 
-```
-Vault.modify()
-Vault.create()
-processFrontMatter()
-```
-
-Instead:
-
-```
+```text
 Vue
  ↓
 Application Command
@@ -1447,41 +1081,27 @@ Obsidian Adapter
 
 ---
 
-## 50. Persistence Consistency
+# 42. Persistence Consistency
 
-A spatial entity may exist across:
+A spatial entity may span:
 
-```
+```text
 Markdown metadata
 +
 Plan geometry sidecar
 ```
 
-Updates affecting both must be coordinated.
+Updates affecting both are treated as one logical transaction.
 
-The application service should treat this as a logical transaction.
-
-Failure must result in:
-
-* rollback where practical,
-* preservation of previous data,
-* explicit error state.
+Failure handling should preserve previous valid data where practical.
 
 ---
 
-## 51. Schema Validation
+# 43. Schema Validation
 
-All persisted data must pass runtime validation.
+Use Zod.
 
-Recommended:
-
-```
-Zod
-```
-
-Validation stages:
-
-```
+```text
 raw data
   ↓
 schema parse
@@ -1491,68 +1111,45 @@ persistence DTO
 domain mapping
 ```
 
-Invalid data must not silently enter the domain.
+Invalid persisted data must not silently enter the domain.
 
 ---
 
-## 52. Schema Versioning
+# 44. Schema Versioning
 
-Every persistent format must carry a schema version.
-
-Examples:
-
-```
-Markdown:
-schema-version: 1
-
-Sidecar:
-schemaVersion: 1
-```
+Every persistent format carries a schema version.
 
 ---
 
-## 53. Migration Architecture
+# 45. Migration Architecture
 
-Migration structure:
-
-```
+```text
 migration/
 ├── project/
 ├── entities/
 └── geometry/
 ```
 
-Example:
-
-```
-v1 → v2
-v2 → v3
-```
-
 Migrations must be:
 
-* deterministic,
-* idempotent where practical,
-* separately unit tested.
+- deterministic
+- tested
+- idempotent where practical
 
 ---
 
-## 54. Vault Change Detection
+# 46. Vault Change Detection
 
-The system must react to external changes.
+Respond to:
 
-Examples:
+- file created
+- file modified
+- file renamed
+- file deleted
 
-```
-file created
-file modified
-file renamed
-file deleted
-```
+Pipeline:
 
-Processing pipeline:
-
-```
+```text
 Obsidian Event
       ↓
 Vault Change Adapter
@@ -1568,93 +1165,60 @@ Pinia/View Refresh
 
 ---
 
-## 55. Project Index
+# 47. Project Index
 
-Scanning the entire vault repeatedly must be avoided.
-
-Introduce an in-memory ProjectIndex.
+Avoid repeated full-Vault scans.
 
 Responsibilities:
 
-```
+```text
 entity ID → file path
 entity type → IDs
 project ID → entity IDs
 plan ID → spatial objects
 ```
 
-The index can initially be rebuilt from the vault on startup.
+The index is rebuildable from Vault data.
 
 ---
 
-## 56. Index Integrity
+# 48. Cost Engine
 
-Index entries are caches.
-
-The Vault remains canonical.
-
-Therefore:
-
-```
-Index corruption
-≠
-Project corruption
-```
-
-The index must always be rebuildable.
-
----
-
-## 57. Cost Engine
-
-Cost calculations must reside in an independent domain service.
-
-```
-CostEngine
-```
+Independent domain service.
 
 Supports:
 
-```
-piece
-length
-area
-volume
-hour
-day
-fixed
-```
+- piece
+- length
+- area
+- volume
+- hour
+- day
+- fixed
 
 ---
 
-## 58. Money
+# 49. Money
 
 Never use native floating-point arithmetic directly for financial calculations.
 
-Use:
-
-```
-decimal.js
-```
+Use `decimal.js`.
 
 Domain concept:
 
-```typescript
-Money {
-  amount
-  currency
-}
+```text
+Money
+├── amount
+└── currency
 ```
 
 ---
 
-## 59. Quantity Engine
-
-Requirements are calculated separately from assets.
+# 50. Quantity Engine
 
 Pipeline:
 
-```
+```text
 Geometry
    ↓
 Measured Quantity
@@ -1670,9 +1234,9 @@ Purchase Quantity
 
 ---
 
-## 60. Cost Pipeline
+# 51. Cost Pipeline
 
-```
+```text
 Requirement
    ↓
 Quantity
@@ -1690,13 +1254,11 @@ Estimated Cost
 
 ---
 
-## 61. Manual Overrides
+# 52. Manual Overrides
 
-Derived values may expose manual overrides.
+Concept:
 
-Pattern:
-
-```typescript
+```ts
 DerivedValue<T> {
   calculated: T;
   override?: T;
@@ -1705,46 +1267,38 @@ DerivedValue<T> {
 
 Effective value:
 
-```
+```text
 override ?? calculated
 ```
 
-The UI must visibly distinguish overridden values.
+The UI must distinguish calculated from overridden values.
 
 ---
 
-## 62. Scheduling Architecture
+# 53. Scheduling Architecture
 
-Scheduling is not part of the initial architecture core.
+Not an MVP core requirement, but domain boundaries should support:
 
-However, domain boundaries should already allow:
+- WorkPackage
+- Task
+- Milestone
+- Dependency
+- DateRange
 
-```
-WorkPackage
-Task
-Milestone
-Dependency
-DateRange
-```
-
-A future Gantt renderer must remain an adapter.
+A future Gantt renderer remains an adapter.
 
 ---
 
-## 63. Document Import
+# 54. Document Import
 
 Images:
 
-```
-PNG
-JPEG
-```
-
-can be used directly as background resources.
+- PNG
+- JPEG
 
 PDF:
 
-```
+```text
 PDF
  ↓
 PDF.js
@@ -1754,86 +1308,77 @@ Rendered Page
 Plan Background
 ```
 
-The original PDF remains in the Vault.
+Original files remain in the Vault.
 
 ---
 
-## 64. Asset Handling
+# 55. Asset Handling
 
-Imported background assets should remain Vault files.
+Imported assets remain Vault files.
 
-Plan entities reference them through Vault-relative paths.
+Plans reference Vault-relative paths.
 
-No base64 embedding into Markdown or sidecar data.
+No base64 embedding.
 
 ---
 
-## 65. Editor Tool Architecture
+# 56. Editor Tool Architecture
 
-Tools should implement a shared abstraction.
+Shared abstraction:
 
-Example:
-
-```typescript
+```ts
 interface EditorTool {
   id: ToolId;
+
   activate(context: EditorContext): void;
   deactivate(): void;
+
   pointerDown(event: EditorPointerEvent): void;
   pointerMove(event: EditorPointerEvent): void;
   pointerUp(event: EditorPointerEvent): void;
+
   cancel(): void;
 }
 ```
 
 ---
 
-## 66. Initial Editor Tools
+# 57. Initial Editor Tools
 
-```
-SelectTool
-PanTool
-DrawPolygonTool
-PlaceAssetTool
-MeasureTool
-AnnotationTool
-```
+- SelectTool
+- PanTool
+- DrawPolygonTool
+- PlaceAssetTool
+- MeasureTool
+- AnnotationTool
 
 Future:
 
-```
-WallTool
-OpeningTool
-PathTool
-BooleanTool
-```
+- WallTool
+- OpeningTool
+- PathTool
+- BooleanTool
 
 ---
 
-## 67. Editor Context
+# 58. Editor Context
 
-Tools receive a controlled EditorContext.
+Tools receive controlled access to:
 
-It exposes:
+- viewport
+- selection
+- snap service
+- command dispatcher
+- render state
+- active plan
 
-```
-viewport
-selection
-snap service
-command dispatcher
-render state
-active plan
-```
-
-Tools must not directly call repositories.
+Tools must not call repositories directly.
 
 ---
 
-## 68. Inspector Architecture
+# 59. Inspector Architecture
 
-The Inspector should operate against selected domain IDs.
-
-```
+```text
 Selection
    ↓
 Inspector Query
@@ -1843,31 +1388,19 @@ Inspector DTO
 Vue UI
 ```
 
-Edits become commands:
-
-```
-Inspector Input
-    ↓
-UpdateZonePropertiesCommand
-```
+Edits become commands.
 
 ---
 
-## 69. UI Layout
+# 60. UI Layout
 
-Recommended desktop layout:
-
-```
+```text
 ┌────────────────────────────────────────────────────┐
 │ Toolbar                                            │
 ├──────────────┬──────────────────────┬──────────────┤
-│              │                      │              │
 │ Layers       │                      │ Inspector    │
-│              │                      │              │
 │ Objects      │      Plan Canvas     │ Properties   │
-│              │                      │              │
 │ Assets       │                      │ Relations    │
-│              │                      │              │
 ├──────────────┴──────────────────────┴──────────────┤
 │ Status / Measurements / Save State                │
 └────────────────────────────────────────────────────┘
@@ -1875,104 +1408,76 @@ Recommended desktop layout:
 
 ---
 
-## 70. Responsive Strategy
+# 61. Responsive Strategy
 
-The first version is optimized for Obsidian desktop.
+MVP optimized for Obsidian desktop.
 
-The architecture must avoid unnecessary Node/Electron-only APIs unless required.
-
-Obsidian manifests explicitly distinguish desktop-only plugins using `isDesktopOnly`; avoiding unnecessary desktop-only dependencies keeps future mobile support possible. (Developer Documentation)
-
-MVP may nevertheless declare desktop-only if canvas/editor usability cannot initially be guaranteed on mobile.
+Avoid unnecessary Electron/Node-specific dependencies where possible to preserve future mobile/read-only options.
 
 ---
 
-## 71. Performance Architecture
+# 62. Performance Architecture
 
 Primary risks:
 
-```
-large plan
-many shapes
-high-resolution background
-frequent pointer events
-frequent persistence
-reactivity overhead
-```
+- large plan
+- many shapes
+- high-resolution background
+- frequent pointer events
+- frequent persistence
+- reactivity overhead
+
+Rules:
+
+1. separate static and dynamic layers
+2. avoid full redraws
+3. no persistence during pointer movement
+4. do not mirror every Konva property into Vue state
+5. keep transient interaction state outside persistent stores
+6. use spatial indexing when justified
+7. render only relevant content where practical
 
 ---
 
-## 72. Rendering Performance Rules
+# 63. Worker Strategy
 
-1. Avoid full layer redraws where possible.
-2. Keep static and dynamic content on separate layers.
-3. Do not persist during pointer movement.
-4. Do not mirror every Konva property into reactive Vue state.
-5. Keep transient interaction state outside persistent stores.
-6. Use spatial indexing when project size demands it.
-7. Render only visible or relevant content where feasible.
+Possible future worker workloads:
 
-Obsidian's Bases documentation similarly warns that an unfiltered Base may contain thousands of entries and recommends DOM reuse and avoiding off-screen rendering, reinforcing the need for virtualization-aware views. (Developer Documentation)
+- large polygon operations
+- bulk requirement recalculation
+- large imports
+- report calculations
 
----
-
-## 73. Worker Strategy
-
-Expensive future operations may run in Web Workers.
-
-Candidates:
-
-```
-large polygon operations
-bulk requirement recalculation
-large imports
-report calculations
-```
-
-comlink may be introduced later to simplify worker communication.
-
-Do not introduce workers until profiling justifies them.
+`comlink` may be introduced later.
 
 ---
 
-## 74. Error Model
+# 64. Error Model
 
-Errors should use explicit application/domain categories.
+Categories:
 
-Base categories:
-
-```
-DomainError
-ValidationError
-PersistenceError
-GeometryError
-ImportError
-MigrationError
-ReferenceError
-CalculationError
-```
+- DomainError
+- ValidationError
+- PersistenceError
+- GeometryError
+- ImportError
+- MigrationError
+- ReferenceError
+- CalculationError
 
 ---
 
-## 75. Result Pattern
+# 65. Result Pattern
 
-Expected business failures should not rely exclusively on thrown exceptions.
+Expected business failures should use typed `Result<T,E>` style handling.
 
-Recommended pattern:
-
-```
-Result<T, E>
-```
-
-Unexpected technical failures may still throw and be caught at application boundaries.
+Unexpected technical failures may throw and be translated at application boundaries.
 
 ---
 
-## 76. Error Boundary
+# 66. Error Boundary
 
-Flow:
-
-```
+```text
 Infrastructure Exception
         ↓
 Application Error Mapping
@@ -1984,48 +1489,38 @@ Presentation
 User Message
 ```
 
-Technical errors should be logged locally with more detail than shown to users.
+---
+
+# 67. Logging
+
+Local logger levels:
+
+- debug
+- info
+- warn
+- error
+
+Logs never leave the device automatically.
 
 ---
 
-## 77. Logging
+# 68. Diagnostics
 
-Implement a lightweight internal logger.
+May expose:
 
-Levels:
+- plugin version
+- Obsidian version
+- schema version
+- migration state
+- entity validation issues
 
-```
-debug
-info
-warn
-error
-```
-
-Logs must not automatically leave the device.
+Do not include project content unless explicitly exported.
 
 ---
 
-## 78. Diagnostics
+# 69. Testing Strategy
 
-Diagnostic information may include:
-
-```
-plugin version
-Obsidian version
-schema version
-migration state
-entity validation issues
-```
-
-Do not include project content unless explicitly exported by the user.
-
----
-
-## 79. Testing Strategy
-
-Testing follows the architectural layers.
-
-```
+```text
                     E2E
                      ▲
                 Integration
@@ -2037,61 +1532,51 @@ Testing follows the architectural layers.
 
 ---
 
-## 80. Unit Tests
+# 70. Unit Tests
 
-Highest coverage should target framework-independent logic.
+## Geometry
 
-**Geometry**
+- distance
+- area
+- perimeter
+- centroid
+- transform
+- calibration
+- snapping
+- intersection
 
-```
-distance
-area
-perimeter
-centroid
-transform
-calibration
-snapping
-intersection
-```
+## Money
 
-**Money**
+- addition
+- tax
+- discounts
+- rounding
+- currency safety
 
-```
-addition
-tax
-discounts
-rounding
-currency safety
-```
+## Quantity
 
-**Quantity**
+- length requirements
+- area requirements
+- waste
+- packaging
+- manual overrides
 
-```
-length requirements
-area requirements
-waste
-packaging
-manual overrides
-```
+## Domain
 
-**Domain**
-
-```
-status transitions
-relationship rules
-validation
-dependency rules
-```
+- status transitions
+- relationship rules
+- validation
+- dependency rules
 
 ---
 
-## 81. Application Tests
+# 71. Application Tests
 
-Test command handlers using in-memory repositories.
+Use in-memory repositories.
 
 Example:
 
-```
+```text
 CreateZoneCommand
  ↓
 InMemoryZoneRepository
@@ -2099,71 +1584,51 @@ InMemoryZoneRepository
 Assertions
 ```
 
-This keeps most application tests independent from Obsidian.
+---
+
+# 72. Repository Contract Tests
+
+Shared repository contract suites should be reusable across:
+
+- InMemory repositories
+- Obsidian repositories
 
 ---
 
-## 82. Repository Contract Tests
-
-Every repository implementation should pass a shared repository contract suite.
-
-Example:
-
-```
-ZoneRepositoryContract
-```
-
-implementations:
-
-```
-InMemoryZoneRepository
-ObsidianZoneRepository
-```
-
----
-
-## 83. Vue Component Tests
+# 73. Vue Component Tests
 
 Use:
 
-```
+```text
 Vitest
 @vue/test-utils
 ```
 
 Test:
 
-* Inspector behavior,
-* toolbar state,
-* selection behavior,
-* dialogs,
-* validation messages.
-
-Do not attempt to prove geometry correctness through UI tests.
+- inspector behavior
+- toolbar state
+- selection behavior
+- dialogs
+- validation messages
 
 ---
 
-## 84. Canvas Tests
+# 74. Canvas Tests
 
-Canvas testing should focus on adapter behavior.
+Focus on adapter behavior:
 
-Examples:
+- polygon renders expected points
+- transform completion emits correct command
+- selection emits domain ID
 
-```
-domain polygon renders expected points
-transform completion emits correct command
-selection emits domain ID
-```
-
-Detailed geometry behavior remains unit tested outside Konva.
+Geometry correctness remains in unit tests.
 
 ---
 
-## 85. Integration Test Vault
+# 75. Integration Test Vault
 
-Maintain a dedicated fixture Vault:
-
-```
+```text
 tests/
 └── vault/
     ├── valid-project/
@@ -2172,17 +1637,13 @@ tests/
     └── large-project/
 ```
 
-The Obsidian developer documentation explicitly recommends using a separate development vault because plugin mistakes can otherwise cause unintended changes to user data. (Developer Documentation)
-
 ---
 
-## 86. Architecture Test Rules
+# 76. Architecture Test Rules
 
-Automated checks should ensure layer boundaries.
+Automated restrictions should ensure:
 
-For example:
-
-```
+```text
 domain/** may not import:
   vue
   pinia
@@ -2190,17 +1651,16 @@ domain/** may not import:
   obsidian
 ```
 
-This can initially be enforced through:
+Possible tooling:
 
-* ESLint import restrictions,
-* dependency-cruiser,
-* or equivalent tooling.
+- ESLint import restrictions
+- dependency-cruiser
 
 ---
 
-## 87. Proposed Repository Structure
+# 77. Proposed Repository Structure
 
-```
+```text
 renovation-planner/
 │
 ├── manifest.json
@@ -2210,9 +1670,7 @@ renovation-planner/
 ├── tsconfig.json
 │
 ├── src/
-│   │
 │   ├── main.ts
-│   │
 │   ├── plugin/
 │   │   ├── RenovationPlannerPlugin.ts
 │   │   ├── composition-root.ts
@@ -2296,14 +1754,13 @@ renovation-planner/
 
 ---
 
-## 88. Internal Module Pattern
-
-A domain module should be self-contained.
+# 78. Internal Module Pattern
 
 Example:
 
-```
+```text
 domain/zone/
+
 ├── Zone.ts
 ├── ZoneId.ts
 ├── ZoneType.ts
@@ -2314,10 +1771,11 @@ domain/zone/
 └── Zone.events.ts
 ```
 
-Application behavior:
+Commands:
 
-```
+```text
 application/commands/zone/
+
 ├── CreateZone.ts
 ├── UpdateZone.ts
 ├── DeleteZone.ts
@@ -2326,323 +1784,246 @@ application/commands/zone/
 
 ---
 
-## 89. Public Boundaries
+# 79. Public Boundaries
 
-Modules should expose explicit public APIs.
+Prefer explicit module public APIs.
 
-Avoid imports such as:
-
-```
-../../../../domain/zone/internal/helper
-```
-
-Prefer:
-
-```typescript
-import {
-  Zone,
-  ZoneId,
-  ZoneRepository
-} from "@/domain/zone";
-```
+Avoid deep internal imports.
 
 ---
 
-## 90. Naming Conventions
+# 80. Naming Conventions
 
-**Domain**
+Domain:
 
-Singular:
+- Zone
+- Asset
+- WorkPackage
 
-```
-Zone
-Asset
-WorkPackage
-```
+Commands:
 
-**Commands**
+- CreateZone
+- AssignAsset
+- DeleteWorkPackage
 
-Verb + object:
+Events:
 
-```
-CreateZone
-AssignAsset
-DeleteWorkPackage
-```
+- ZoneCreated
+- AssetAssigned
+- WorkPackageCompleted
 
-**Events**
+Queries:
 
-Past tense:
-
-```
-ZoneCreated
-AssetAssigned
-WorkPackageCompleted
-```
-
-**Queries**
-
-Get/List/Find:
-
-```
-GetZone
-ListAssets
-FindZonesByPlan
-```
+- GetZone
+- ListAssets
+- FindZonesByPlan
 
 ---
 
-## 91. TypeScript Rules
+# 81. TypeScript Rules
 
 Use:
 
-```
+```text
 strict: true
 ```
 
 Avoid:
 
-```
-any
-non-null assertions
-unchecked casts
-```
+- any
+- non-null assertions
+- unchecked casts
 
 Prefer:
 
-```
-unknown
-runtime validation
-discriminated unions
-readonly data where practical
-```
+- unknown
+- runtime validation
+- discriminated unions
+- readonly data where practical
 
 ---
 
-## 92. Entity IDs
+# 82. Entity IDs
 
 Persistent entities use stable IDs independent from filenames.
 
-Recommended approach:
+Recommended:
 
-```
-UUID
-```
-
-or sortable equivalent such as:
-
-```
-ULID
-```
+- UUID
+- or ULID
 
 Example:
 
-```
+```text
 zone-01JABC...
 asset-01JDEF...
 ```
 
 ---
 
-## 93. Entity References
+# 83. Entity References
 
-References should use stable IDs.
+References use stable IDs.
 
 Markdown links may additionally be stored for navigation.
 
-Never use filename alone as identity.
+Filename alone is never identity.
 
 ---
 
-## 94. CSS and Obsidian Theme Integration
+# 84. CSS and Theme Integration
 
-The plugin should reuse Obsidian CSS variables where practical.
+Use Obsidian CSS variables where practical.
 
-Avoid hard-coded application-wide color palettes.
+Avoid hard-coded global palettes.
 
-Status and semantic colors should remain compatible with:
+Support:
 
-```
-light themes
-dark themes
-custom themes
-```
-
-Canvas overlays must also remain readable across themes.
+- light themes
+- dark themes
+- custom themes
 
 ---
 
-## 95. Accessibility
+# 85. Accessibility
 
 Core requirements:
 
-* keyboard-accessible controls,
-* visible focus,
-* semantic labels,
-* status not encoded only through color,
-* alternative data access through lists/Bases,
-* sufficiently sized click targets.
-
-The Canvas is an enhancement to the data model, not the only way to access project information.
+- keyboard-accessible controls
+- visible focus
+- semantic labels
+- status not encoded only by color
+- alternative data access via lists/Bases
+- adequate hit targets
 
 ---
 
-## 96. Security and Privacy
+# 86. Security and Privacy
 
-The plugin is local-first.
+Default:
 
-Default behavior:
-
-```
+```text
 no telemetry
 no remote calls
 no account
 no cloud persistence
 ```
 
-Future integrations must be:
-
-* explicit,
-* configurable,
-* optional.
+Future integrations are explicit and optional.
 
 ---
 
-## 97. Data Safety
-
-The most important technical quality attribute is protection against Vault data loss.
+# 87. Data Safety
 
 Rules:
 
-1. Never develop against the user's production Vault.
-2. Validate before write.
-3. Preserve unknown Markdown content.
-4. Avoid rewriting full notes where targeted property changes suffice.
-5. Never cascade-delete silently.
-6. Maintain migration tests.
-7. Fail closed on unsupported schema versions.
+1. never develop against production Vaults
+2. validate before write
+3. preserve unknown Markdown content
+4. avoid full-note rewrites where targeted changes suffice
+5. never cascade-delete silently
+6. maintain migration tests
+7. fail closed on unsupported schema versions
 
 ---
 
-## 98. Non-Functional Requirements
+# 88. Non-Functional Requirements
 
-The system should align with ISO/IEC 25010 quality characteristics.
+Aligned with ISO/IEC 25010.
 
-**Functional Suitability**
+## Functional Suitability
 
 Domain calculations must be deterministic and verifiable.
 
-**Performance Efficiency**
+## Performance Efficiency
 
-Interactive editor operations should remain responsive.
+Interactive editing should remain responsive.
 
-Target:
+Target pointer feedback:
 
+```text
+< 16–32 ms where practical
 ```
-pointer feedback < 16–32 ms where practical
-```
 
-Normal editing should remain usable with several hundred spatial objects.
+## Compatibility
 
-**Compatibility**
+Coexist with:
 
-The plugin should coexist with:
+- standard Markdown
+- Obsidian Properties
+- Obsidian links
+- Bases
+- common community plugins
 
-* standard Markdown,
-* Obsidian Properties,
-* Obsidian links,
-* Bases,
-* common community plugins.
-
-**Usability**
+## Usability
 
 Primary workflows should require minimal editor knowledge.
 
-**Reliability**
+## Reliability
 
 Persistence errors must never silently discard project data.
 
-**Security**
+## Security
 
-No unnecessary external communication or privileged API use.
+No unnecessary external communication or privileged APIs.
 
-**Maintainability**
+## Maintainability
 
 Core domain logic remains framework independent.
 
-**Portability**
+## Portability
 
-Data remains human readable without the plugin.
-
----
-
-## 99. Initial Architecture Decisions
-
-**ADR-001 — Markdown as Canonical Metadata Storage**
-
-Decision: Human-readable project metadata is stored in Markdown and Properties.
+Data remains understandable without the plugin.
 
 ---
 
-**ADR-002 — JSON Sidecar for Plan Geometry**
+# 89. Initial Architecture Decisions
 
-Decision: High-volume geometry is stored per plan in structured JSON sidecars.
+## ADR-001 — Markdown as Canonical Metadata Storage
 
----
+Human-readable project metadata is stored in Markdown and Properties.
 
-**ADR-003 — Konva as Canvas Renderer**
+## ADR-002 — JSON Sidecar for Plan Geometry
 
-Decision: Konva is used for 2D canvas rendering and interaction.
+High-volume geometry is stored per plan in JSON sidecars.
 
----
+## ADR-003 — Konva as Canvas Renderer
 
-**ADR-004 — Vue 3 for Plugin UI**
+Konva handles 2D rendering and interaction.
 
-Decision: Vue 3 is used for view composition.
+## ADR-004 — Vue 3 for Plugin UI
 
----
+Vue 3 is used for composition.
 
-**ADR-005 — Pinia for Presentation State**
+## ADR-005 — Pinia for Presentation State
 
-Decision: Pinia manages UI/application state but is not persistent truth.
+Pinia manages UI/application state, not persistent truth.
 
----
+## ADR-006 — Plain TypeScript Domain
 
-**ADR-006 — Plain TypeScript Domain**
+Core/domain cannot depend on Vue, Konva, Pinia, or Obsidian.
 
-Decision: Domain and core code cannot depend on Vue, Konva, Pinia, or Obsidian.
+## ADR-007 — Command-Based Mutations
 
----
+User-visible mutations are routed through commands.
 
-**ADR-007 — Command-Based Mutations**
+## ADR-008 — Event-Aware Architecture
 
-Decision: User-visible mutations are routed through application commands.
+Commands may emit domain/application events.
 
----
+## ADR-009 — World Coordinates in Millimeters
 
-**ADR-008 — Event-Aware Architecture**
+Spatial geometry uses real-world units.
 
-Decision: Commands may emit domain/application events to decouple derived calculations.
+## ADR-010 — Decimal Money Arithmetic
 
----
-
-**ADR-009 — World Coordinates in Millimeters**
-
-Decision: Spatial geometry uses real-world coordinates rather than canvas pixels.
+Financial calculations use decimal arithmetic.
 
 ---
 
-**ADR-010 — Decimal Money Arithmetic**
+# 90. MVP Architecture Slice
 
-Decision: Financial calculations use arbitrary-precision decimal arithmetic.
-
----
-
-## 100. MVP Architecture Slice
-
-The first implementation should intentionally include only the architecture needed to prove the core system.
-
-```
+```text
 Plugin Bootstrap
       │
       ▼
@@ -2675,126 +2056,114 @@ Markdown + Plan JSON
 
 ---
 
-## 101. MVP Technical Increments
+# 91. MVP Technical Increments
 
-**Increment 1 — Plugin Foundation**
+## Increment 1 — Plugin Foundation
 
 Deliver:
 
-* Vite build
-* Vue mounting
-* Pinia
-* Vitest
-* plugin bootstrap
-* settings
-* workspace view
-* architecture dependency rules
+- Vite build
+- Vue mounting
+- Pinia
+- Vitest
+- plugin bootstrap
+- settings
+- workspace view
+- architecture dependency rules
 
-Success criterion:
+Success:
 
 > Empty Renovation Planner view opens reliably inside Obsidian.
 
----
-
-**Increment 2 — Domain Foundation**
+## Increment 2 — Domain Foundation
 
 Deliver:
 
-* identity
-* units
-* geometry primitives
-* Result
-* errors
-* Project
-* Plan
-* Zone
+- identity
+- units
+- geometry primitives
+- Result
+- errors
+- Project
+- Plan
+- Zone
 
-Success criterion:
+Success:
 
-> Domain can be fully instantiated and tested without Obsidian.
+> Domain can be instantiated and tested without Obsidian.
 
----
-
-**Increment 3 — Persistence**
+## Increment 3 — Persistence
 
 Deliver:
 
-* Project repository
-* Plan repository
-* Zone repository
-* Zod validation
-* Vault indexing
-* geometry sidecar format
+- Project repository
+- Plan repository
+- Zone repository
+- Zod validation
+- Vault indexing
+- geometry sidecar format
 
-Success criterion:
+Success:
 
-> Project, Plan, and Zone survive full unload/reload.
+> Project, Plan, and Zone survive unload/reload.
 
----
-
-**Increment 4 — Canvas**
+## Increment 4 — Canvas
 
 Deliver:
 
-* Konva Stage
-* viewport
-* pan
-* zoom
-* background layer
-* spatial layer
-* selection layer
+- Konva Stage
+- viewport
+- pan
+- zoom
+- background layer
+- spatial layer
+- selection layer
 
-Success criterion:
+Success:
 
-> Persisted domain geometry renders independently from Canvas coordinates.
+> Persisted domain geometry renders independently from canvas coordinates.
 
----
-
-**Increment 5 — Calibration**
+## Increment 5 — Calibration
 
 Deliver:
 
-* calibration tool
-* world/screen transform
-* distance calculation
-* scale persistence
+- calibration tool
+- world/screen transform
+- distance calculation
+- scale persistence
 
-Success criterion:
+Success:
 
-> Imported plan can be converted into real-world measurements.
+> Imported plan can produce real-world measurements.
 
----
-
-**Increment 6 — Zone Editing**
+## Increment 6 — Zone Editing
 
 Deliver:
 
-* polygon tool
-* selection
-* move
-* edit vertices
-* delete
-* undo/redo
+- polygon tool
+- selection
+- move
+- edit vertices
+- delete
+- undo/redo
 
-Success criterion:
+Success:
 
 > User can create and safely modify persistent spatial zones.
 
----
-
-**Increment 7 — Assets & Requirements**
+## Increment 7 — Assets & Requirements
 
 Deliver:
 
-* Asset
-* Requirement
-* area-based requirement calculation
-* unit price
-* estimated cost
+- Asset
+- Requirement
+- area-based requirement calculation
+- unit price
+- estimated cost
 
-Success criterion:
+Success:
 
-```
+```text
 Zone Geometry
 → Area
 → Requirement
@@ -2805,9 +2174,9 @@ works end to end.
 
 ---
 
-## 102. Architecture Completion Criteria
+# 92. Architecture Completion Criteria
 
-The technical foundation is considered successful when:
+The technical foundation is successful when:
 
 1. Domain logic runs without Obsidian.
 2. Domain logic runs without Vue.
@@ -2827,11 +2196,9 @@ The technical foundation is considered successful when:
 
 ---
 
-## 103. Target Architectural Outcome
+# 93. Target Architectural Outcome
 
-The final architectural shape should resemble:
-
-```
+```text
                   Renovation Planner
                          │
                  ┌───────┴────────┐
@@ -2865,16 +2232,16 @@ The final architectural shape should resemble:
                  Obsidian Vault
 ```
 
-The architecture deliberately separates:
+The architecture separates:
 
-> what the renovation project means
+> **what the renovation project means**
 
 from:
 
-> how Obsidian stores it
+> **how Obsidian stores it**
 
 and from:
 
-> how Konva renders it.
+> **how Konva renders it.**
 
-This separation is the primary technical foundation for allowing the Renovation Planner to grow from an initial spatial planning tool into a larger renovation project management system without requiring fundamental architectural rewrites.
+This separation allows the Renovation Planner to grow from a spatial planning tool into a broader renovation project management system without requiring fundamental architectural rewrites.

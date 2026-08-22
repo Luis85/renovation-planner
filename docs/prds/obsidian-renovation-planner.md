@@ -1,65 +1,68 @@
 # Product Requirements Document
-
 ## Obsidian Renovation Planner
 
-**Status:** Draft
-**Version:** 0.1
-**Product Type:** Obsidian Plugin
-**Architecture:** Local-first, Markdown-native, spatially aware
+**Status:** Draft  
+**Version:** 0.3  
+**Product Type:** Obsidian Plugin  
+**Architecture:** Local-first, Markdown-native, spatially aware  
 **Primary Stack:** TypeScript · Vue 3 · Pinia · Vite · Vitest · Konva
 
 ---
 
-## 1. Product Vision
+# 1. Product Vision
 
-The Obsidian Renovation Planner is a local-first planning tool for house, apartment, property, and garden projects.
+The **Obsidian Renovation Planner** is a local-first planning tool for house, apartment, property, and garden renovation projects.
 
-The plugin connects visual, spatial planning with classic project, cost, and documentation planning.
+The plugin combines visual spatial planning with project, cost, procurement, scheduling, and documentation capabilities.
 
 The central idea is:
 
 > The plan of a house or property becomes the spatial index of the entire renovation project.
 
-Users can import, calibrate, and mark up floor plans, site plans, or their own sketches with rooms, areas, construction sections, and assets.
+Users can import floor plans, site plans, or sketches, calibrate them, and mark rooms, areas, construction sections, and assets.
 
 These spatial objects are not isolated drawings. They are connected to structured Obsidian data:
 
-* Construction sections
-* Trades
-* Work packages
-* Tasks
-* Assets and materials
-* Costs
-* Suppliers
-* Quotes
-* Documents
-* Decisions
-* Photos
-* Appointments
+- construction sections
+- trades
+- work packages
+- tasks
+- assets and materials
+- costs
+- suppliers
+- quotes
+- procurement
+- documents
+- decisions
+- photos
+- risks
+- milestones
 
-This creates a spatially navigable project model.
+The visualization is **not the database**.
+
+Obsidian Markdown files and properties remain the persistent source of truth. The visual editor is a projection and interaction surface over that model.
 
 ---
 
-## 2. Product Thesis
+# 2. Product Thesis
 
-Classic renovation planning typically spreads information across different tools:
+Renovation planning typically spreads information across different tools:
 
-* Floor plans and sketches
-* Spreadsheets
-* Task lists
-* Quotes
-* Invoices
-* Photos
-* Notes
-* Calendars
-* Project plans
+- floor plans and sketches
+- spreadsheets
+- task lists
+- quotes
+- invoices
+- photos
+- notes
+- calendars
+- project plans
 
-The spatial relationship between this information gets lost in the process.
+The spatial relationship between this information is usually lost.
 
-The Renovation Planner, in contrast, treats spatial objects as part of the project model.
+The Renovation Planner treats spatial objects as part of the project model.
 
-```
+```text
                     Renovation Project
                            │
          ┌─────────────────┼──────────────────┐
@@ -78,166 +81,140 @@ The Renovation Planner, in contrast, treats spatial objects as part of the proje
                   Markdown + Properties
 ```
 
-The visualization itself is not the database.
-
-Obsidian Markdown files form the persistent source of truth. The visual editor is a projection and interaction surface on top of this data model.
-
 ---
 
-## 3. Product Principles
+# 3. Product Principles
 
-### 3.1 Local First
+## 3.1 Local First
 
-All project data lives locally in the Obsidian vault.
+All project data lives locally in the Obsidian Vault.
 
 No cloud infrastructure is required for core functionality.
 
----
-
-### 3.2 Markdown as Source of Truth
+## 3.2 Markdown as Source of Truth
 
 Project information remains:
 
-* human-readable
-* version-controllable
-* portable
-* searchable
-* editable outside the plugin
+- human-readable
+- versionable
+- portable
+- searchable
+- editable outside the plugin
 
 The plugin must not require a proprietary database.
 
----
-
-### 3.3 Spatially Aware
+## 3.3 Spatially Aware
 
 Spatial relationships are first-class domain information.
 
-The system understands, among other things:
+The system understands:
 
-* Position
-* Length
-* Area
-* Polygon
-* Spatial membership
-* Overlap
-* Construction section
-* Room
-* Property area
+- position
+- length
+- area
+- polygons
+- containment
+- overlap
+- construction sections
+- rooms
+- property areas
 
----
-
-### 3.4 Geometry Drives Planning
+## 3.4 Geometry Drives Planning
 
 Geometry can generate project information.
 
-Example:
-
-```
+```text
 Terrace
 42.7 m²
-        ×
-Material demand
-1.08 waste factor
-        ×
+   ×
+Waste factor
+1.08
+   ×
 34.95 €/m²
-        ↓
-Material quantity + cost
+   ↓
+Material quantity + Cost
 ```
 
----
+## 3.5 Progressive Complexity
 
-### 3.5 Progressive Complexity
-
-A user does not need to create a complete digital floor plan.
+A user does not need to create a full digital floor plan.
 
 The simplest workflow is:
 
-```
+```text
 Import image
-      ↓
+    ↓
 Calibrate
-      ↓
+    ↓
 Mark areas
-      ↓
-Assign project information
+    ↓
+Connect project information
 ```
 
-More advanced modeling can be added later.
+## 3.6 Obsidian Native
+
+Where useful, the plugin uses native Obsidian concepts:
+
+- Markdown
+- Properties
+- Links
+- Embeds
+- Bases
+- Commands
+- Workspace Views
+- Search
+- Tags
 
 ---
 
-### 3.6 Obsidian Native
+# 4. Target Users
 
-Existing Obsidian concepts should be used wherever it makes sense:
+## Primary Persona — Private Renovator
 
-* Markdown
-* Properties
-* Links
-* Embeds
-* Bases
-* Commands
-* Workspace views
-* Search
-* Tags
+Plans:
 
-The plugin should extend Obsidian rather than creating a second, isolated application inside Obsidian.
+- house renovation
+- apartment renovation
+- garden redesign
+- outdoor works
+- extensions
+- smaller building projects
 
----
+### Jobs to Be Done
 
-## 4. Target Users
+**When** I renovate my house or property,  
+**I want to** visualize all planned measures spatially and connect them to costs and tasks,  
+**so that** I always understand what must be done where, how much it costs, and how far the project has progressed.
 
-### Primary Persona — Private Renovator
+## Secondary Persona — Advanced DIY Planner
 
-A person independently planning:
+Needs additional support for:
 
-* House renovation
-* Apartment renovation
-* Garden remodeling
-* Outdoor facilities
-* Extensions
-* Smaller construction projects
+- material requirements
+- measurements
+- quantities
+- shopping lists
+- suppliers
+- price comparisons
+- dependencies
 
-and who wants to manage planning, costs, and documentation themselves.
+## Future Persona — Professional Planner
 
-**Jobs to be Done**
+Potential future users:
 
-> When I want to renovate my house or property,
-> I want to visualize all planned measures spatially and connect them with costs and tasks,
-> so that I always understand what needs to be done where, what it costs, and how far the project has progressed.
+- small contractors
+- interior designers
+- landscape planners
+- owner-side consultants
+- facility managers
 
----
-
-### Secondary Persona — Advanced DIY Planner
-
-Plans to do a lot of the work themselves and additionally needs:
-
-* Material requirements
-* Measurements
-* Quantities
-* Shopping lists
-* Suppliers
-* Cost comparison
-* Dependencies
+These are not part of the initial MVP.
 
 ---
 
-### Future Persona — Professional Planner
+# 5. Core User Journey
 
-Potential future target groups:
-
-* Small trade businesses
-* Interior designers
-* Landscape planners
-* Building consultants
-* Facility managers
-
-These target groups are not part of the initial MVP.
-
----
-
-## 5. Core User Journey
-
-```
+```text
 Create Project
       │
       ▼
@@ -285,19 +262,17 @@ Document Result
 
 ---
 
-## 6. Domain Model
+# 6. Domain Model
 
-The core model should be implemented independently of Vue, Konva, and Obsidian.
+The core model must be independent from Vue, Konva, and Obsidian.
 
-```
+```text
 RenovationProject
 │
 ├── Site
-│   │
 │   ├── Building
 │   │   └── Floor
 │   │       └── Space
-│   │
 │   └── OutdoorArea
 │
 ├── Plan
@@ -305,250 +280,209 @@ RenovationProject
 │   └── SpatialObject
 │
 ├── Zone
-│
 ├── ConstructionSection
-│
 ├── Asset
-│
+├── Requirement
 ├── Trade
-│
 ├── WorkPackage
 │   └── Task
-│
 ├── CostItem
-│
+├── ProcurementItem
 ├── Supplier
-│
 ├── Quote
-│
+├── Order
+├── Invoice
 ├── Document
-│
+├── Risk
+├── Decision
 └── Milestone
 ```
 
 ---
 
-## 7. Spatial Domain
+# 7. Spatial Domain
 
-### 7.1 Geometry Types
+## 7.1 Geometry Types
 
 Initial:
 
-* Point
-* Polyline
-* Rectangle
-* Polygon
+- Point
+- Polyline
+- Rectangle
+- Polygon
 
 Future:
 
-* Circle
-* Wall
-* Opening
-* Path
-* Compound Polygon
+- Circle
+- Wall
+- Opening
+- Path
+- Compound Polygon
 
----
+## 7.2 World Coordinates
 
-### 7.2 World Coordinates
-
-Canvas pixels must not be stored as domain measurements.
-
-Internally, a world coordinate system is used.
+Canvas pixels must not be used as domain measurements.
 
 Recommended base unit:
 
-```
+```text
 1 World Unit = 1 mm
 ```
 
 Transformation:
 
-```
+```text
 World Coordinate
-        ↓
+      ↓
 Viewport Transform
-        ↓
+      ↓
 Canvas Coordinate
 ```
 
-This keeps geometries independent of:
-
-* Screen resolution
-* Zoom
-* Canvas size
-* Export format
-
 ---
 
-## 8. Core Entities
+# 8. Core Entities
 
-### Project
+## Project
 
-Represents the entire renovation project.
+Represents the complete renovation project.
 
 Properties:
 
-* ID
-* Name
-* Description
-* Status
-* Start
-* Target Completion
-* Budget
-* Contingency
-* Location description
-* Linked plans
+- ID
+- name
+- description
+- status
+- start
+- target completion
+- budget
+- contingency
+- location description
+- linked plans
 
----
+## Plan
 
-### Plan
-
-A spatial representation of a project area.
+A spatial representation of part of the project.
 
 Examples:
 
-* Property
-* Ground floor
-* Upper floor
-* Basement
-* Garden
-* Garage
+- property
+- ground floor
+- first floor
+- basement
+- garden
+- garage
 
 Properties:
 
-* ID
-* Name
-* Background
-* Scale
-* Coordinate system
-* Layers
+- ID
+- name
+- background
+- scale
+- coordinate system
+- layers
 
----
+## Zone
 
-### Zone
-
-A functionally relevant area.
+A semantically meaningful area.
 
 Examples:
 
-* Kitchen
-* Bathroom
-* Terrace
-* Front garden
-* Flower bed
-* Driveway
-* Roof
+- kitchen
+- bathroom
+- terrace
+- front garden
+- flower bed
+- driveway
+- roof
 
-A zone has geometry and can automatically provide length or area.
+A Zone owns geometry and can expose derived length and area.
 
----
+## Construction Section
 
-### Construction Section
-
-A construction section groups related measures.
+Groups related measures.
 
 Examples:
 
-* CS-01 Roof
-* CS-02 Bathroom
-* CS-03 Terrace
-* CS-04 Front Garden
+- BA-01 Roof
+- BA-02 Bathroom
+- BA-03 Terrace
+- BA-04 Front Garden
 
 Properties:
 
-* status
-* priority
-* phase
-* zones
-* trades
-* work packages
-* budget
-* actual costs
-* planned dates
+- status
+- priority
+- phase
+- zones
+- trades
+- work packages
+- budget
+- actual costs
+- planned dates
 
----
+## Asset
 
-### Asset
-
-A physical or calculable element.
+A physical or cost-relevant item.
 
 Examples:
 
-* Tile
-* Plant
-* Window
-* Light fixture
-* Fence
-* Sink
-* Garden shed
-* Paint
+- tile
+- plant
+- window
+- light
+- fence
+- sink
+- garden shed
+- paint
 
----
-
-### Trade
-
-A trade/craft discipline.
+## Trade
 
 Examples:
 
-* Electrical
-* Plumbing
-* Painting
-* Tiling
-* Landscaping
-* Civil engineering
-* Roofing
+- electrical
+- plumbing
+- painting
+- tiling
+- gardening
+- groundworks
+- roofing
 
----
-
-### Work Package
+## Work Package
 
 A plannable unit of work.
 
-Example:
-
-```
-WP-TERRACE-03
-Lay terrace slabs
-```
-
 Contains:
 
-* Construction section
-* Trade
-* Scope
-* Assets
-* Tasks
-* Dependencies
-* Estimate
-* Planned dates
-* Actual dates
-* Status
+- construction section
+- trade
+- scope
+- assets
+- tasks
+- dependencies
+- estimate
+- planned dates
+- actual dates
+- status
+
+## Task
+
+Concrete executable work.
+
+Examples:
+
+- order terrace tiles
+- compact sub-base
+- install drainage
+- cut tiles
 
 ---
 
-### Task
-
-Concrete, executable work.
-
-```
-Order terrace slabs
-Compact the substrate
-Install drainage
-Cut slabs to size
-```
-
-Tasks can reference regular Obsidian task notes or Markdown tasks.
-
----
-
-## 9. Cost Model
-
-The cost model is a central product feature.
+# 9. Cost Model
 
 Supported quantity units:
 
-```
+```text
 piece
 m
 m²
@@ -560,14 +494,14 @@ fixed
 
 Examples:
 
-```
+```text
 Fence
 18.4 m × 89 €/m
 
 Tiles
-27.4 m² × 1.10 waste factor × 45 €/m²
+27.4 m² × 1.10 waste × 45 €/m²
 
-Light fixtures
+Lights
 8 pieces × 79 €
 
 Electrician
@@ -576,44 +510,42 @@ Electrician
 
 ---
 
-## 10. Cost Hierarchy
+# 10. Cost Hierarchy
 
-```
+```text
 Project
    │
    ├── Construction Section
-   │       │
    │       └── Work Package
-   │               │
    │               └── Cost Item
-   │
    └── Assets
 ```
 
-Costs should be aggregatable by:
+Costs can be aggregated by:
 
-* Project
-* Construction section
-* Zone
-* Trade
-* Work package
-* Asset
-* Supplier
+- project
+- construction section
+- zone
+- trade
+- work package
+- asset
+- supplier
 
 ---
 
-## 11. Cost Types
+# 11. Cost Types
 
-Supported:
+Support:
 
-* Estimated Cost
-* Quoted Cost
-* Committed Cost
-* Actual Cost
+- Budget
+- Estimated Cost
+- Quoted Cost
+- Committed Cost
+- Actual Cost
 
-This later enables a view such as:
+Example:
 
-```
+```text
 Budget             80,000 €
 Estimate           73,500 €
 Quoted             69,200 €
@@ -623,218 +555,112 @@ Actual             32,800 €
 
 ---
 
-## 12. Epic 1 — Project Management
+# 12. Epic 1 — Project Management
 
-### Goal
+## Goal
 
-Users can manage renovation projects as a central domain.
+Users can manage renovation projects as the central domain.
 
 ### Features
 
-**F1.1 Create Project**
-
-Create a project with:
-
-* Name
-* Description
-* Budget
-* Timeframe
-* Status
-
-**F1.2 Project Dashboard**
-
-Display of:
-
-* Total budget
-* Costs
-* Progress
-* Construction sections
-* Open tasks
-* Upcoming work
-
-**F1.3 Project Navigation**
-
-Direct access to:
-
-* Plans
-* Zones
-* Assets
-* Work packages
-* Budget
-* Schedule
+- Create Project
+- Project Dashboard
+- Project Navigation
+- Status
+- Budget
+- Date range
 
 ---
 
-## 13. Epic 2 — Plan Editor
+# 13. Epic 2 — Plan Editor
 
-### Goal
+## Goal
 
-Users can visualize their project spatially.
+Users can visualize the project spatially.
 
-**F2.1 Plan Creation**
+### Features
 
-Create plans for different areas.
+- plan creation
+- PNG/JPEG/PDF background import
+- pan & zoom
+- layers
+- selection
+- multi-selection
+- undo/redo
+- grid
+- snapping
 
-**F2.2 Background Import**
+Initial layers:
 
-Support for:
-
-* PNG
-* JPEG
-* PDF
-
-**F2.3 Pan & Zoom**
-
-Navigation within large plans.
-
-**F2.4 Layers**
-
-Show/hide layers.
-
-Initial:
-
-* Background
-* Areas
-* Construction Sections
-* Assets
-* Work
-* Annotation
-
-**F2.5 Selection**
-
-Select objects and edit properties.
-
-**F2.6 Multi Selection**
-
-Select multiple objects together.
-
-**F2.7 Undo / Redo**
-
-Editor command history.
-
-**F2.8 Grid**
-
-Optional grid.
-
-**F2.9 Snapping**
-
-Snapping to:
-
-* Grid
-* Points
-* Lines
-* Other objects
+- Background
+- Areas
+- Construction Sections
+- Assets
+- Work
+- Annotation
 
 ---
 
-## 14. Epic 3 — Calibration & Measurement
+# 14. Epic 3 — Calibration & Measurement
 
-### Goal
+## Goal
 
-Visual plans become measurable project models.
+Turn visual plans into measurable project models.
 
-**F3.1 Scale Calibration**
+### Features
 
-Users mark two points.
-
-```
-A ●──────────────● B
-Distance: 5.40 m
-```
-
-The plugin derives the scale from this.
-
-**F3.2 Distance Measurement**
-
-Measure distances.
-
-**F3.3 Area Calculation**
-
-Automatically calculate polygon area.
-
-**F3.4 Perimeter**
-
-Calculate perimeter.
-
-**F3.5 Measurement Annotation**
-
-Permanently display measurements on the plan.
+- scale calibration
+- distance measurement
+- area calculation
+- perimeter
+- measurement annotation
 
 ---
 
-## 15. Epic 4 — Zones & Spatial Objects
+# 15. Epic 4 — Zones & Spatial Objects
 
-### Goal
+## Goal
 
-Project areas can be marked semantically.
+Mark semantically meaningful project areas.
 
-**F4.1 Polygon Tool**
+### Features
 
-Draw freeform areas.
+- polygon tool
+- zone types
+- zone metadata
+- Markdown links
+- spatial queries
 
-**F4.2 Zone Types**
+Zone examples:
 
-Examples:
-
-* Room
-* Garden
-* Terrace
-* Driveway
-* Roof
-* Construction Area
-* Custom
-
-**F4.3 Zone Metadata**
-
-Zones receive:
-
-* Name
-* Type
-* Status
-* Notes
-* Tags
-
-**F4.4 Markdown Link**
-
-Every zone can be linked to an Obsidian note.
-
-**F4.5 Spatial Queries**
-
-Later:
-
-* Assets in zone
-* Work packages in zone
-* Construction sections intersecting a zone
+- Room
+- Garden
+- Terrace
+- Driveway
+- Roof
+- Construction Area
+- Custom
 
 ---
 
-## 16. Epic 5 — Construction Sections
+# 16. Epic 5 — Construction Sections
 
-### Goal
+## Goal
 
 Group renovation measures spatially and organizationally.
 
-**F5.1 Create Construction Section**
+### Features
 
-Create a construction section.
-
-**F5.2 Spatial Assignment**
-
-Assign one or more zones.
-
-**F5.3 Trade Assignment**
-
-Assign trades.
-
-**F5.4 Budget**
-
-Set a budget.
-
-**F5.5 Status**
+- create construction section
+- spatial assignment
+- trade assignment
+- budget
+- lifecycle/status
+- visual status
 
 Lifecycle:
 
-```
+```text
 idea
 planned
 ready
@@ -844,203 +670,89 @@ completed
 cancelled
 ```
 
-**F5.6 Visual Status**
-
-Construction sections are displayed distinctly on the plan depending on their status.
-
 ---
 
-## 17. Epic 6 — Asset Library
+# 17. Epic 6 — Asset Library
 
-### Goal
+## Goal
 
 Manage reusable materials and physical objects.
 
-**Asset Categories**
+### Asset Categories
 
-* Material
-* Furniture
-* Fixture
-* Plant
-* Equipment
-* Building Element
-* Custom
+- Material
+- Furniture
+- Fixture
+- Plant
+- Equipment
+- Building Element
+- Custom
 
-**F6.1 Asset Definition**
+### Features
 
-Properties:
-
-* name
-* category
-* supplier
-* SKU
-* unit
-* unit cost
-* waste factor
-* notes
-
-**F6.2 Asset Placement**
-
-Place assets on the plan.
-
-**F6.3 Asset Quantity**
-
-Define quantity or amount.
-
-**F6.4 Geometry-linked Asset**
-
-Link an asset to a zone.
-
-Example:
-
-```
-Terrace slabs
-applies-to: [[Terrace]]
-```
-
-**F6.5 Automatic Quantity**
-
-Derive quantity from geometry.
-
-```
-Zone area
-× waste
-=
-required material
-```
-
-**F6.6 Asset Catalog**
-
-Searchable library of all assets.
+- asset definition
+- asset placement
+- quantity
+- geometry-linked asset
+- automatic quantity
+- searchable asset catalog
 
 ---
 
-## 18. Epic 7 — Cost & Budget Engine
+# 18. Epic 7 — Cost & Budget Engine
 
-### Goal
+## Goal
 
-Automatically derive project costs from planning and quantities.
+Derive project costs automatically from planning and quantities.
 
-**F7.1 Cost Items**
+### Features
 
-Create cost items.
-
-**F7.2 Geometry-based Cost**
-
-Calculate cost based on:
-
-* Length
-* Area
-* Volume
-* Quantity
-
-**F7.3 Labor Cost**
-
-```
-hours × hourly rate
-```
-
-**F7.4 Fixed Cost**
-
-Flat-rate costs.
-
-**F7.5 Waste Factor**
-
-Account for material waste.
-
-**F7.6 Contingency**
-
-Project or construction section reserve.
-
-**F7.7 Budget Aggregation**
-
-Aggregation by:
-
-* Project
-* Construction section
-* Trade
-* Work package
-* Asset
-* Supplier
-
-**F7.8 Planned vs Actual**
-
-Compare planned and actual costs.
+- cost items
+- geometry-based costs
+- labor cost
+- fixed cost
+- waste factor
+- contingency
+- aggregation
+- planned vs actual
 
 ---
 
-## 19. Epic 8 — Trades & Work Packages
+# 19. Epic 8 — Trades & Work Packages
 
-### Goal
+## Goal
 
 Turn spatial planning into executable project planning.
 
-**F8.1 Trade Catalog**
+### Features
 
-Manage trades.
-
-**F8.2 Work Package Creation**
-
-Create work packages.
-
-**F8.3 Spatial Scope**
-
-Link a work package with:
-
-* Plan
-* Zone
-* Construction section
-
-**F8.4 Assets**
-
-Assign required assets.
-
-**F8.5 Tasks**
-
-Assign tasks.
-
-**F8.6 Dependencies**
-
-Define dependencies.
-
-Example:
-
-```
-Demolition
-     ↓
-Electrical
-     ↓
-Plumbing
-     ↓
-Tiling
-     ↓
-Painting
-```
-
-**F8.7 Progress**
-
-Determine progress.
+- trade catalog
+- work package creation
+- spatial scope
+- assets
+- tasks
+- dependencies
+- progress
 
 ---
 
-## 20. Epic 9 — Task Management
+# 20. Epic 9 — Task Management
 
-### Goal
+## Goal
 
-Drive concrete work directly from planning.
+Manage concrete execution work.
 
-**F9.1 Create Task**
+### Features
 
-Create a task directly from:
+- create task from zone/asset/work package/construction section
+- task status
+- due date
+- dependencies
+- Obsidian task integration
 
-* Zone
-* Asset
-* Work package
-* Construction section
+Task lifecycle:
 
-**F9.2 Task Status**
-
-```
+```text
 todo
 in-progress
 blocked
@@ -1048,168 +760,91 @@ done
 cancelled
 ```
 
-**F9.3 Due Date**
+---
 
-Set a due date.
+# 21. Epic 10 — Schedule
 
-**F9.4 Dependencies**
+## Goal
 
-Task dependencies.
+Plan renovation work over time.
 
-**F9.5 Obsidian Integration**
+### Features
 
-Existing Obsidian tasks should be reused wherever possible.
+- timeline
+- start/end
+- dependencies
+- milestones
+- trade timeline
+- construction section timeline
 
 ---
 
-## 21. Epic 10 — Schedule
+# 22. Epic 11 — Suppliers & Quotes
 
-### Goal
+## Goal
 
-Schedule renovation measures over time.
+Connect cost planning to real supplier and trade offers.
 
-**F10.1 Timeline**
+### Features
 
-Display work packages on a timeline.
-
-**F10.2 Start / End**
-
-Define timeframes.
-
-**F10.3 Dependencies**
-
-Predecessor/successor relationships.
-
-**F10.4 Milestones**
-
-Examples:
-
-* Demolition complete
-* Bathroom usable
-* Exterior complete
-
-**F10.5 Trade Timeline**
-
-Display planning by trade.
-
-**F10.6 Construction Section Timeline**
-
-Display planning by construction section.
+- supplier records
+- quote records
+- quote items
+- link quote items to assets/work packages
+- compare quotes
+- status and validity
 
 ---
 
-## 22. Epic 11 — Suppliers & Quotes
+# 23. Epic 12 — Documents, Photos & Evidence
 
-### Goal
+## Goal
 
-Connect cost planning with real quotes.
+Connect all project documents to spatial and domain objects.
 
-**F11.1 Supplier**
+### Features
 
-Manage suppliers.
+- document linking
+- photo documentation
+- spatial photo reference
+- document types
+- evidence timeline
 
-**F11.2 Quote**
+Supported document categories include:
 
-Document quotes.
-
-**F11.3 Quote Items**
-
-Capture quote line items.
-
-**F11.4 Link Assets**
-
-Link quote line items to assets.
-
----
-
-## 23. Epic 12 — Documents, Photos & Evidence
-
-### Goal
-
-All project-relevant documents should be linkable to spatial and domain objects.
-
-**F12.1 Document Linking**
-
-Documents can be linked to:
-
-* Project
-* Plan
-* Zone
-* Construction Section
-* Asset
-* Work Package
-* Supplier
-* Quote
-* Order
-* Invoice
-
-**F12.2 Photo Documentation**
-
-Photos can be used as project documentation.
-
-Use cases:
-
-* Before photo
-* Construction progress
-* Defect
-* Detail shot
-* After photo
-
-**F12.3 Spatial Photo Reference**
-
-A photo can additionally be linked to a point or area on the plan.
-
-**F12.4 Document Types**
-
-Supported document types:
-
-* Quote
-* Invoice
-* Delivery note
-* Product data sheet
-* Assembly instructions
-* Permit
-* Warranty
-* Contract
-* Photo
-* Sketch
-* Other
-
-**F12.5 Evidence Timeline**
-
-Documents and photos can be displayed chronologically.
+- quote
+- invoice
+- delivery note
+- product data sheet
+- installation manual
+- permit
+- warranty
+- contract
+- photo
+- sketch
+- other
 
 ---
 
-## 24. Epic 13 — Procurement & Shopping
+# 24. Epic 13 — Procurement & Shopping
 
-### Goal
+## Goal
 
-Concrete procurement planning should emerge from planning, assets, and quantities.
+Turn requirements and assets into concrete procurement.
 
-**F13.1 Procurement Requirement**
+### Features
 
-A procurement requirement can be generated from a material requirement.
-
-Example:
-
-```
-Terrace
-Calculated Requirement
-46.2 m² Terrace slabs
-Package Size
-1.44 m²
-Required Packages
-33
-Ordered Quantity
-47.52 m²
-```
-
-**F13.2 Procurement Status**
+- procurement requirement
+- procurement lifecycle
+- shopping lists
+- package sizes
+- minimum order quantities
+- delivery dates
+- procurement dependencies
 
 Lifecycle:
 
-```
+```text
 needed
 researching
 selected
@@ -1220,213 +855,91 @@ installed
 cancelled
 ```
 
-**F13.3 Shopping List**
+---
 
-Procurement items can be grouped by:
+# 25. Epic 14 — Decisions & Change Management
 
-* Supplier
-* Construction section
-* Trade
-* Work package
-* Priority
+## Goal
 
-**F13.4 Package Size**
+Document planning decisions and their impacts.
 
-Materials can have packaging or sales units.
+### Features
 
-Examples:
+- decisions
+- alternatives
+- change requests
+- impact analysis
+- change history
 
-* Tiles per box
-* Paint per bucket
-* Screws per pack
-* Gravel per big bag
+Impacts may affect:
 
-**F13.5 Minimum Order Quantity**
-
-Minimum order quantities can be taken into account.
-
-**F13.6 Delivery Date**
-
-Planned and actual delivery date.
-
-**F13.7 Procurement Dependencies**
-
-A work package can only become ready once the required materials are available.
+- budget
+- schedule
+- assets
+- procurement
+- work packages
+- tasks
 
 ---
 
-## 25. Epic 14 — Decisions & Change Management
+# 26. Epic 15 — Risks, Issues & Constraints
 
-### Goal
+## Goal
 
-Planning decisions and changes must be traceably documented.
+Make risks and blockers transparent.
 
-**F14.1 Decision**
+### Features
 
-Decisions can be managed as their own domain objects.
+- risks
+- issues
+- constraints
+- spatial issue markers
 
-Properties:
+Risk properties:
 
-* question
-* alternatives
-* decision
-* rationale
-* decision date
-* affected objects
-
-**F14.2 Change Request**
-
-A planned change can be documented.
-
-Examples:
-
-* Material change
-* Scope expansion
-* Rescheduling of a construction section
-* Additional work
-* Removal of a work item
-
-**F14.3 Impact Analysis**
-
-Changes can have effects on:
-
-* Budget
-* Schedule
-* Assets
-* Procurement
-* Work packages
-* Tasks
-
-**F14.4 Change History**
-
-Changes remain traceable.
+- probability
+- impact
+- exposure
+- mitigation
+- owner
+- affected area
 
 ---
 
-## 26. Epic 15 — Risks, Issues & Constraints
+# 27. Epic 16 — Progress & Site Documentation
 
-### Goal
+## Goal
 
-Transparently manage the project's risks, issues, and constraints.
+Support execution, not only planning.
 
-**F15.1 Risk**
+### Features
 
-Properties:
-
-* probability
-* impact
-* exposure
-* mitigation
-* owner
-* affected area
-
-**F15.2 Issue**
-
-Active issues can be documented.
-
-Examples:
-
-* Moisture discovered
-* Material unavailable
-* Tradesperson unavailable
-* Unclear routing of pipes/cables
-
-**F15.3 Constraint**
-
-Constraints can be recorded.
-
-Examples:
-
-* Budget ceiling
-* Permit
-* Delivery deadline
-* Weather
-* Access to the property
-
-**F15.4 Spatial Issue**
-
-Risks and issues can be marked spatially on the plan.
+- progress tracking
+- planned vs actual
+- progress photos
+- site log
+- completion evidence
 
 ---
 
-## 27. Epic 16 — Progress & Site Documentation
+# 28. Epic 17 — Reporting & Project Cockpit
 
-### Goal
+## Goal
 
-The plugin should support not only planning but also execution.
+Provide a compact, actionable project overview.
 
-**F16.1 Progress Tracking**
+### Features
 
-Progress can be tracked for:
+- project health
+- budget overview
+- forecast
+- upcoming work
+- procurement overview
+- project summary
 
-* Construction section
-* Work package
-* Task
+Forecast:
 
-**F16.2 Planned vs Actual**
-
-Display of:
-
-* Planned start
-* Actual start
-* Planned end
-* Actual end
-
-**F16.3 Progress Photos**
-
-Progress photos can be linked to work items.
-
-**F16.4 Site Log**
-
-Optional construction diary.
-
-Entries can include:
-
-* Date
-* Work performed
-* Trades involved
-* Issues
-* Decisions
-* Photos
-
-**F16.5 Completion Evidence**
-
-Completed work packages can include evidence.
-
----
-
-## 28. Epic 17 — Reporting & Project Cockpit
-
-### Goal
-
-The user gets a compact overview of project status at any time.
-
-**F17.1 Project Health**
-
-Display of:
-
-* Budget status
-* Schedule status
-* Progress
-* Risks
-* Open decisions
-* Open procurement
-
-**F17.2 Budget Overview**
-
-Breakdown by:
-
-* Construction section
-* Trade
-* Work package
-* Asset
-* Supplier
-
-**F17.3 Forecast**
-
-Calculation of an expected final value.
-
-```
+```text
 Actual Cost
 +
 Committed Cost (not yet invoiced)
@@ -1436,84 +949,40 @@ Remaining Estimate
 Forecast
 ```
 
-**F17.4 Upcoming Work**
+---
 
-Display of the next planned work items.
+# 29. Epic 18 — Scenarios & Alternatives
 
-**F17.5 Procurement Overview**
+## Goal
 
-Display of:
+Compare alternative solutions before committing.
 
-* Still to order
-* Ordered
-* Delayed
-* Delivered
+### Features
 
-**F17.6 Project Summary**
+- scenario
+- scenario costs
+- scenario schedule
+- scenario assets
+- scenario comparison
+- select scenario
 
-Summary project view as a dashboard.
+Comparison dimensions:
+
+- cost
+- duration
+- material
+- effort
+- risk
 
 ---
 
-## 29. Epic 18 — Scenarios & Alternatives
+# 30. Epic 19 — Existing State, Planned Change & As-Built
 
-### Goal
+## Goal
 
-Alternative solutions can be compared before being committed to.
+Represent renovation as transformation of an existing state.
 
-**F18.1 Scenario**
-
-A scenario describes a possible variant of a subproject.
-
-Example:
-
-```
-Terrace Renovation
-Scenario A
-Wood decking
-Scenario B
-Porcelain tiles
-Scenario C
-Concrete slabs
-```
-
-**F18.2 Scenario Costs**
-
-Each scenario can have its own calculation.
-
-**F18.3 Scenario Schedule**
-
-Scenarios can have different time requirements.
-
-**F18.4 Scenario Assets**
-
-Alternative assets or materials.
-
-**F18.5 Scenario Comparison**
-
-Comparison by:
-
-* Cost
-* Duration
-* Material
-* Effort
-* Risks
-
-**F18.6 Select Scenario**
-
-A scenario can be selected as the planned solution.
-
----
-
-## 30. Epic 19 — Existing State, Planned Change & As-Built
-
-### Goal
-
-Renovation projects must distinguish between existing state, planned change, and actual outcome.
-
-**State Model**
-
-```
+```text
 Existing State
       ↓
 Planned Change
@@ -1523,76 +992,46 @@ Execution
 As-Built State
 ```
 
-**F19.1 Existing Object**
+### Object states
 
-Existing objects can be marked as existing state.
+- existing
+- to-remove
+- to-retain
+- planned
+- in-progress
+- installed
 
-**F19.2 Retain**
+### Features
 
-Objects remain unchanged.
-
-**F19.3 Remove**
-
-Objects are removed.
-
-**F19.4 Modify**
-
-Existing objects are changed.
-
-**F19.5 New**
-
-New objects are added.
-
-**F19.6 Installed**
-
-New objects have actually been implemented.
-
-**F19.7 State Visualization**
-
-Plans can visualize different states:
-
-```
-existing
-to-remove
-to-retain
-planned
-in-progress
-installed
-```
-
-**F19.8 Existing vs Target View**
-
-Users can switch between existing state and target state.
-
-**F19.9 As-Built Documentation**
-
-After project completion, the plan reflects the actual final state.
+- existing object
+- retain
+- remove
+- modify
+- new
+- installed
+- state visualization
+- existing vs target view
+- as-built documentation
 
 ---
 
-## 31. Epic 20 — Plan Revisions
+# 31. Epic 20 — Plan Revisions
 
-### Goal
+## Goal
 
-Plan changes should be formally versioned.
+Version plan changes explicitly.
 
-**F20.1 Revision**
+### Features
 
-Every plan has a revision.
+- revision
+- revision metadata
+- lifecycle
+- revision comparison
+- immutable approved revision
 
-**F20.2 Revision Metadata**
+Lifecycle:
 
-Properties:
-
-* revision number
-* created
-* author
-* status
-* description
-
-**F20.3 Revision Lifecycle**
-
-```
+```text
 draft
 proposed
 approved
@@ -1600,81 +1039,44 @@ superseded
 as-built
 ```
 
-**F20.4 Revision Comparison**
+---
 
-Later, changes between revisions can be displayed.
+# 32. Quantity & Requirement Domain
 
-**F20.5 Immutable Approved Revision**
+Requirement, Asset, Procurement, and Cost must remain separate concepts.
 
-Approved revisions should not be unintentionally modified.
+```text
+Asset
+"Porcelain terrace tile"
+
+Requirement
+"46.2 m² required"
+
+Procurement Item
+"47.52 m² ordered"
+
+Cost Item
+"1,661.42 €"
+
+Installed Quantity
+"43.8 m² installed"
+```
+
+Requirement properties:
+
+- required asset
+- source geometry
+- calculated quantity
+- waste factor
+- unit
+- manual override
+- required date
 
 ---
 
-## 32. Quantity & Requirement Domain
+# 33. Financial Lifecycle
 
-### Purpose
-
-Requirement, product, procurement, and cost must not be the same entity.
-
-**Asset**
-
-Defines a product or material.
-
-```
-Fine stoneware terrace slab
-```
-
-**Requirement**
-
-Defines a needed quantity.
-
-```
-46.2 m² terrace slab
-```
-
-**Procurement Item**
-
-Defines the actual procurement.
-
-```
-33 boxes / 47.52 m² ordered
-```
-
-**Cost Item**
-
-Defines the financial valuation.
-
-```
-€1,661.42
-```
-
-**Installed Quantity**
-
-Defines the actual consumption.
-
-```
-43.8 m² installed
-```
-
-**Requirement Properties**
-
-* required asset
-* source geometry
-* calculated quantity
-* waste factor
-* unit
-* manual override
-* required date
-
----
-
-## 33. Financial Lifecycle
-
-### Goal
-
-Budget planning and actual cash flow are cleanly separated.
-
-```
+```text
 Budget
   ↓
 Estimate
@@ -1688,33 +1090,9 @@ Invoice
 Payment
 ```
 
-**Budget**
+Forecast:
 
-Approved financial framework.
-
-**Estimate**
-
-Currently expected costs.
-
-**Quote**
-
-Price offer from a supplier or trade.
-
-**Commitment**
-
-Bindingly ordered or contracted costs.
-
-**Invoice**
-
-Actually invoiced costs.
-
-**Payment**
-
-Actual payment.
-
-**Forecast**
-
-```
+```text
 Actual
 +
 Committed but not invoiced
@@ -1726,11 +1104,9 @@ Estimated Final Cost
 
 ---
 
-## 34. Spatial Object Model
+# 34. Spatial Object Model
 
-Spatial objects should be differentiated by domain.
-
-```
+```text
 SpatialObject
 │
 ├── PhysicalElement
@@ -1757,15 +1133,11 @@ SpatialObject
     └── PhotoReference
 ```
 
-A domain zone must therefore not automatically be equated with a physical object.
-
 ---
 
-## 35. Renovation Lifecycle
+# 35. Renovation Lifecycle
 
-A shared lifecycle serves as the domain orientation for the overall project.
-
-```
+```text
 IDEA
   ↓
 SURVEY
@@ -1787,119 +1159,86 @@ COMPLETE
 AS-BUILT
 ```
 
-Individual object types can use their own sub-lifecycles.
-
 ---
 
-## 36. Vault Data Model
-
-### Goal
-
-The project remains fully usable as a traceable vault structure.
+# 36. Vault Data Model
 
 Recommended structure:
 
-```
+```text
 Renovation/
 │
 ├── Project.md
-│
 ├── Plans/
-│
 ├── Zones/
-│
 ├── Construction Sections/
-│
 ├── Work Packages/
-│
 ├── Tasks/
-│
 ├── Assets/
-│
 ├── Requirements/
-│
 ├── Trades/
-│
 ├── Suppliers/
-│
 ├── Quotes/
-│
 ├── Orders/
-│
 ├── Invoices/
-│
 ├── Costs/
-│
 ├── Decisions/
-│
 ├── Risks/
-│
 ├── Documents/
-│
 └── Photos/
 ```
 
-The paths must be configurable.
+Paths must be configurable.
 
 ---
 
-## 37. Persistence Strategy
+# 37. Persistence Strategy
 
-**Note-Based Entities**
+## Note-Based Entities
 
-The following objects should generally be persisted as Markdown notes:
+Persist as Markdown notes:
 
-* Project
-* Plan
-* Zone
-* Construction Section
-* Work Package
-* Asset
-* Requirement
-* Trade
-* Supplier
-* Quote
-* Order
-* Invoice
-* Decision
-* Risk
+- Project
+- Plan
+- Zone
+- Construction Section
+- Work Package
+- Asset
+- Requirement
+- Trade
+- Supplier
+- Quote
+- Order
+- Invoice
+- Decision
+- Risk
 
-**Embedded Data**
-
-Suitable for embedded data:
-
-* simple geometry
-* smaller configuration objects
-* references
-
-**Sidecar Data**
-
-Large or editor-specific data may be stored as sidecar files.
-
-Example:
-
-```
-plan-name.plan.json
-```
+## Sidecar Data
 
 Suitable for:
 
-* geometry
-* layer states
-* large object collections
+- geometry
+- layer state
+- large editor-specific datasets
 
-**Ephemeral State**
+Example:
 
-UI state only:
+```text
+plan-name.plan.json
+```
 
-* current selection
-* hover state
-* open context menu
-* temporary drawing state
+## Ephemeral State
+
+UI only:
+
+- selection
+- hover
+- context menu
+- temporary drawing state
 
 ---
 
-## 38. Geometry Persistence
+# 38. Geometry Persistence
 
 Geometry must not be stored in canvas pixels.
 
@@ -1918,284 +1257,197 @@ Example:
 }
 ```
 
-The rendering layer applies the viewport transformation.
-
 ---
 
-## 39. User Experience Requirements
+# 39. User Experience Requirements
 
-**Editor Layout**
+Recommended layout:
 
-Recommended:
-
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │ Toolbar                                              │
 ├────────────┬────────────────────────────┬────────────┤
 │ Layers     │                            │ Inspector  │
-│            │                            │            │
 │ Objects    │           Plan             │ Properties │
-│            │                            │            │
 │ Library    │                            │ Relations  │
 ├────────────┴────────────────────────────┴────────────┤
 │ Status / Selection / Measurements                   │
 └──────────────────────────────────────────────────────┘
 ```
 
-**Primary Tools**
+Primary tools:
 
-The initial editor should deliberately have few tools:
+- Select
+- Pan
+- Draw Area
+- Place Asset
+- Measure
+- Annotate
 
-* Select
-* Pan
-* Draw Area
-* Place Asset
-* Measure
-* Annotate
+Inspector actions:
 
-**Inspector**
+- Edit
+- Duplicate
+- Delete
+- Link Note
+- Create Work Package
+- Add Cost
+- Add Task
 
-Selected objects show context-dependent properties.
+Keyboard shortcuts should include:
 
-**Context Actions**
-
-Should be supported:
-
-* Edit
-* Duplicate
-* Delete
-* Link Note
-* Create Work Package
-* Add Cost
-* Add Task
-
-**Keyboard Shortcuts**
-
-At minimum:
-
-* Undo
-* Redo
-* Delete
-* Copy
-* Paste
-* Duplicate
-* Escape
-* Fit to Screen
-
-**Object Visibility**
+- Undo
+- Redo
+- Delete
+- Copy
+- Paste
+- Duplicate
+- Escape
+- Fit to Screen
 
 Objects can be:
 
-* hidden
-* visible
-* locked
-
-**Accessibility**
-
-Important information must not be communicated exclusively through color.
+- hidden
+- visible
+- locked
 
 ---
 
-## 40. Search & Navigation
+# 40. Search & Navigation
 
-### Goal
+Spatial objects must remain accessible without the canvas.
 
-Spatial objects must remain reachable even without the canvas.
+Users can search for a domain object and navigate from:
 
-Users should, for example, be able to search for:
+- notes
+- Bases rows
+- lists
+- dashboards
 
-```
-Terrace
-```
-
-and get back:
-
-* Zone
-* Construction section
-* Work packages
-* Assets
-* Documents
-
-**Focus in Plan**
-
-From a note or a Bases row, users can navigate to the corresponding object on the plan.
+to the corresponding object in the plan.
 
 ---
 
-## 41. Bases Integration
+# 41. Bases Integration
 
-Going forward, the plugin should provide several Obsidian Bases views.
+Potential custom Bases views:
 
-Planned views:
+- Renovation Plan
+- Budget
+- Assets
+- Procurement
+- Work Packages
+- Schedule
+- Risks
 
-* Renovation Plan
-* Budget
-* Assets
-* Procurement
-* Work Packages
-* Schedule
-* Risks
-
-The views use the same vault data as the plan editor.
+These views use the same Vault data.
 
 ---
 
-## 42. Import Requirements
+# 42. Import Requirements
 
-**Initial**
+Initial:
 
-* PNG
-* JPEG
-* PDF
+- PNG
+- JPEG
+- PDF
 
-**Future**
+Future:
 
-* SVG
-* CSV
-* XLSX
-* GeoJSON
-* common floorplan formats where feasible
-
-Import must never unintentionally overwrite existing vault data.
+- SVG
+- CSV
+- XLSX
+- GeoJSON
+- selected floorplan formats where feasible
 
 ---
 
-## 43. Export Requirements
+# 43. Export Requirements
 
-**Initial**
+Initial:
 
-* PNG snapshot
-* JSON geometry
-* Markdown
+- PNG snapshot
+- JSON geometry
+- Markdown
 
-**Future**
+Future:
 
-* PDF project report
-* SVG
-* CSV
-* XLSX
-* procurement list
-* cost report
-
----
-
-## 44. Non-Functional Requirements
-
-### 44.1 Performance
-
-The editor should remain usable even with larger projects.
-
-Goals:
-
-* several hundred spatial objects per plan
-* smooth pan and zoom
-* no vault writes during pointer movement
-* persistent writes only on completed commands or via debounce
+- PDF project report
+- SVG
+- CSV
+- XLSX
+- procurement list
+- cost report
 
 ---
 
-### 44.2 Reliability
+# 44. Non-Functional Requirements
 
-The plugin must not corrupt existing vault data.
+## Performance
 
-Requirements:
+- several hundred spatial objects per plan
+- smooth pan/zoom
+- no Vault writes during pointer movement
+- persistence after completed commands or debounced property changes
 
-* validated writes
-* recovery from invalid frontmatter
-* fault-tolerant loading
-* undo/redo
-* traceable error messages
+## Reliability
 
----
+- validated writes
+- tolerant loading
+- recovery for invalid frontmatter
+- undo/redo
+- clear errors
 
-### 44.3 Maintainability
+## Maintainability
 
-Business logic must be implemented independently of the UI framework and Obsidian.
+Business logic must remain independent of Vue, Pinia, Konva, and Obsidian.
 
-```
-Core
-↓
-Domain
-↓
-Application
-↓
-Adapters
-↓
-UI
-```
+## Testability
 
-Vue, Pinia, Konva, and Obsidian dependencies must not leak into the domain core.
+Geometry, units, costs, requirements, scheduling, validation, and persistence mapping must be unit-testable.
 
----
+## Interoperability
 
-### 44.4 Testability
+Prefer open formats:
 
-At minimum, the following areas must be fully unit-testable:
+- Markdown
+- YAML
+- JSON
+- PNG
+- JPEG
+- PDF
+- CSV
 
-* Geometry Engine
-* Unit Conversion
-* Cost Engine
-* Requirement Engine
-* Scheduling Logic
-* Validation
-* Persistence Mapping
+## Portability
 
-Vitest is the primary test framework.
+Vault data remains readable without the plugin.
 
----
+## Accessibility
 
-### 44.5 Interoperability
+- keyboard support
+- visible focus
+- sufficient contrast
+- no color-only status encoding
+- alternative list/table access
 
-Persisted data must be based on open formats wherever possible:
+## Error Handling
 
-* Markdown
-* YAML
-* JSON
-* PNG
-* JPEG
-* PDF
-* CSV
+Typed error categories:
+
+- validation error
+- persistence error
+- import error
+- geometry error
+- calculation error
+- unsupported format
 
 ---
 
-### 44.6 Portability
+# 45. Technical Constraints
 
-Vault data remains readable even without the plugin installed.
+Required stack:
 
----
-
-### 44.7 Accessibility
-
-The editor must support at least:
-
-* keyboard-based core actions
-* visible focus
-* sufficient contrast
-* status shown not exclusively through color
-* alternative tabular display of important data
-
----
-
-### 44.8 Error Handling
-
-Error classes should be distinguished by domain:
-
-* validation error
-* persistence error
-* import error
-* geometry error
-* calculation error
-* unsupported format
-
-Errors must not cause silent data loss.
-
----
-
-## 45. Technical Constraints
-
-Given stack:
-
-```
+```text
 Obsidian
 TypeScript
 Vue 3
@@ -2206,7 +1458,7 @@ Vitest
 
 Recommended libraries:
 
-```
+```text
 konva
 vue-konva
 @vueuse/core
@@ -2219,9 +1471,9 @@ pdf-lib
 dayjs
 ```
 
-Optional future libraries:
+Optional later:
 
-```
+```text
 frappe-gantt
 vue-ganttastic
 papaparse
@@ -2231,49 +1483,34 @@ comlink
 
 ---
 
-## 46. Architecture Constraints
+# 46. Architecture Constraints
 
-**Source of Truth**
+Source of truth:
 
-```
+```text
 Obsidian Vault
 ```
 
-not:
+Pinia:
 
-```
-Pinia
-Konva
-Browser Storage
-```
+- UI state
+- application cache
+- active project working state
 
-**Pinia**
+Konva:
 
-Pinia serves as:
+- rendering
+- interaction adapter
 
-* UI state
-* application cache
-* active project state
+Geometry core:
 
-**Konva**
-
-Konva is exclusively:
-
-```
-Rendering + Interaction Adapter
-```
-
-and never the domain model.
-
-**Geometry Core**
-
-Framework-free TypeScript.
+- framework-free TypeScript
 
 ---
 
-## 47. Proposed Architecture
+# 47. Proposed Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │                  Obsidian                    │
 │                                             │
@@ -2291,7 +1528,9 @@ Framework-free TypeScript.
                                   Konva
                                    │
                               Canvas Renderer
+
 ──────────────── Application ────────────────
+
                        Commands
                           │
           ┌───────────────┼────────────────┐
@@ -2302,7 +1541,9 @@ Framework-free TypeScript.
           └───────────────┼────────────────┘
                           ▼
                         Domain
+
 ──────────────── Infrastructure ─────────────
+
                       Repositories
                           │
                     Obsidian Adapter
@@ -2312,135 +1553,133 @@ Framework-free TypeScript.
 
 ---
 
-## 48. MVP Scope
+# 48. MVP Scope
 
-**MVP — Spatial Renovation Planning**
+## MVP — Spatial Renovation Planning
 
 The MVP answers:
 
-> What should be changed where, and what quantities and costs result from it?
+> What should change where, and what quantities and costs result from it?
 
-**Included**
+Included:
 
-* Project
-* Plan
-* image/PDF background
-* calibration
-* pan/zoom
-* polygon zones
-* construction sections
-* basic assets
-* measurements
-* geometry calculations
-* basic requirement calculation
-* €/piece
-* €/m
-* €/m²
-* basic budget aggregation
-* Markdown persistence
-* Obsidian links
-* undo/redo
-* Vitest coverage
+- Project
+- Plan
+- image/PDF background
+- calibration
+- pan/zoom
+- polygon zones
+- construction sections
+- basic assets
+- measurements
+- geometry calculations
+- basic requirement calculation
+- €/piece
+- €/m
+- €/m²
+- basic budget aggregation
+- Markdown persistence
+- Obsidian links
+- undo/redo
+- Vitest coverage
 
-**Explicitly Out of Scope**
+Explicitly out of scope:
 
-* 3D
-* CAD replacement
-* BIM
-* automated architectural design
-* professional quantity surveying
-* advanced scheduling
-* invoices/payments
-* collaboration backend
+- 3D
+- CAD replacement
+- BIM
+- automated architectural design
+- professional quantity surveying
+- advanced scheduling
+- invoices/payments
+- collaboration backend
 
 ---
 
-## 49. V1 Scope — Renovation Management
+# 49. V1 Scope — Renovation Management
 
 V1 adds:
 
-* Trades
-* Work Packages
-* Tasks
-* Schedule
-* Suppliers
-* Quotes
-* Procurement
-* Planned vs Actual Costs
-* Documents
-* Photos
-* Progress
-* Project Dashboard
+- Trades
+- Work Packages
+- Tasks
+- Schedule
+- Suppliers
+- Quotes
+- Procurement
+- Planned vs Actual Costs
+- Documents
+- Photos
+- Progress
+- Project Dashboard
 
 ---
 
-## 50. V2 Scope — Advanced Planning
+# 50. V2 Scope — Advanced Planning
 
 V2 adds:
 
-* scenarios
-* alternatives
-* change management
-* risks/issues
-* plan revisions
-* existing vs target state
-* as-built state
-* advanced geometry
-* spatial queries
-* forecast
-* reporting
-* extended imports/exports
+- scenarios
+- alternatives
+- change management
+- risks/issues
+- plan revisions
+- existing vs target state
+- as-built state
+- advanced geometry
+- spatial queries
+- forecast
+- reporting
+- extended import/export
 
 ---
 
-## 51. Success Metrics
+# 51. Success Metrics
 
-Success should not be measured solely by frequency of use.
+## Planning Coverage
 
-**Planning Coverage**
+Share of renovation measures linked to a spatial area.
 
-Share of planned renovation measures that are linked to a spatial area.
+## Cost Coverage
 
-**Cost Coverage**
+Share of work packages with cost estimates.
 
-Share of work packages with a cost estimate.
-
-**Procurement Coverage**
+## Procurement Coverage
 
 Share of required materials with defined procurement information.
 
-**Execution Coverage**
+## Execution Coverage
 
-Share of work packages with a current status.
+Share of work packages with current status.
 
-**Documentation Coverage**
+## Documentation Coverage
 
-Share of completed construction sections with a documented outcome.
-
----
-
-## 52. Product Success Criteria
-
-An initial version is successful if a user can fully carry out the following:
-
-1. Create a renovation project
-2. Import a floor plan or garden plan
-3. Calibrate the scale
-4. Mark a construction section spatially
-5. Automatically determine the area
-6. Assign material
-7. Calculate the required quantity
-8. Calculate material costs
-9. Assign a trade and work package
-10. Create tasks
-11. Aggregate the project budget
-12. Keep all information as traceable vault data
+Share of completed construction sections with documented outcomes.
 
 ---
 
-## 53. Core Product Loop
+# 52. Product Success Criteria
 
-```
+A first version is successful when a user can:
+
+1. create a renovation project
+2. import a floor or garden plan
+3. calibrate the scale
+4. mark a construction section spatially
+5. calculate area automatically
+6. assign material
+7. calculate required quantity
+8. calculate material cost
+9. assign trade and work package
+10. create tasks
+11. aggregate project budget
+12. retain all information as understandable Vault data
+
+---
+
+# 53. Core Product Loop
+
+```text
 Observe
    ↓
 Plan
@@ -2460,173 +1699,96 @@ Document
 Update Plan
 ```
 
-This loop forms the domain core of the product.
+---
+
+# 54. Long-Term Product Direction
+
+The Renovation Planner should evolve into a **spatially-aware project system**.
+
+It should not attempt to replace professional CAD, BIM, or construction management systems.
+
+Positioning:
+
+> A lightweight, local-first, Markdown-native combination of spatial planning, project management, cost planning, procurement, and project documentation.
+
+The visual plan is the spatial entry point into the complete project knowledge base.
 
 ---
 
-## 54. Long-Term Product Direction
+# 55. Problem Statement
 
-In the long term, the Renovation Planner should evolve into a spatially-aware project system.
+Private renovation and garden projects are usually fragmented across drawings, spreadsheets, task apps, quotes, invoices, photos, notes, calendars, and project plans.
 
-It should not attempt to fully replace professional CAD, BIM, or construction project management systems.
+This makes it difficult to understand:
 
-The positioning remains:
+- what should change
+- where the change occurs
+- what work is necessary
+- which trades are involved
+- which materials are required
+- which quantities are needed
+- which costs result
+- which dependencies exist
+- what has already been executed
+- what the final as-built state is
 
-> A lightweight, local-first, and Markdown-native connection between spatial planning, project management, cost planning, and project documentation.
-
-The visual plan serves as the spatial entry point into the entire body of project knowledge.
-
----
-
-## 55. Problem Statement
-
-Planning private renovation, remodeling, and garden projects is typically spread across different tools and sources of information.
-
-These include:
-
-* Floor plans
-* Sketches
-* Photos
-* Spreadsheets
-* Task lists
-* Quotes
-* Invoices
-* Product information
-* Notes
-* Calendars
-* Project plans
-
-This information frequently has a spatial relationship that is not represented in classic project management tools.
-
-As a result, it becomes hard to track:
-
-* what should be changed,
-* where the change takes place,
-* what work is required for it,
-* which trades are involved,
-* which materials are needed,
-* which quantities are required,
-* what costs arise,
-* what dependencies exist,
-* what has already been implemented,
-* and what the actual final state looks like.
-
-The Obsidian Renovation Planner solves this problem by connecting spatial planning, project planning, cost planning, and documentation within a shared local-first data model.
-
-The plan acts as the spatial index of the project.
+The Renovation Planner solves this by connecting spatial planning, project planning, costs, procurement, execution, and documentation in one local-first model.
 
 ---
 
-## 56. Product Goals
+# 56. Product Goals
 
-**G1 — Spatial Project Planning**
-
-Renovation measures can be located spatially on house, apartment, or property plans.
-
-**G2 — Geometry-Driven Planning**
-
-Spatial information such as:
-
-* length
-* area
-* perimeter
-* count
-
-can be used as the basis for quantity and cost calculations.
-
-**G3 — Integrated Project Planning**
-
-Spatial areas can be connected with:
-
-* construction sections
-* trades
-* work packages
-* tasks
-* assets
-* costs
-* documents
-
-**G4 — Cost Transparency**
-
-The user can track at any time:
-
-* what budget is planned,
-* what costs are expected,
-* what costs have been committed,
-* what costs have actually been incurred,
-* and what total cost is forecast.
-
-**G5 — Execution Support**
-
-The system supports not only planning but also:
-
-* procurement
-* execution
-* progress tracking
-* documentation
-
-**G6 — Long-Term Documentation**
-
-After the project is completed, a traceable as-built state is retained.
-
-**G7 — Data Ownership**
-
-All domain project data stays in the user's Obsidian vault.
+- Spatial Project Planning
+- Geometry-Driven Planning
+- Integrated Project Planning
+- Cost Transparency
+- Execution Support
+- Long-Term Documentation
+- Data Ownership
 
 ---
 
-## 57. Non-Goals
+# 57. Non-Goals
 
-The Renovation Planner is explicitly not intended to replace:
+The product is not intended to replace:
 
-* professional CAD systems
-* BIM systems
-* structural engineering software
-* architectural design
-* building permit software
-* professional AVA (bid/quantity/contract) systems
-* professional construction accounting
-* ERP systems for construction companies
-* professional site management
-* multi-user cloud project platforms
-
-The product is a:
-
-> Lightweight Spatial Renovation Project Management System.
+- CAD
+- BIM
+- structural engineering software
+- architectural design
+- permitting software
+- professional AVA/estimating suites
+- accounting
+- construction ERP
+- professional site management
+- multi-user cloud collaboration platforms
 
 ---
 
-## 58. Canonical Relationship Model
+# 58. Canonical Relationship Model
 
-The domain data model represents the relationships between spatial planning, execution, and costs.
-
-```
+```text
 Project
 │
 ├── Site
-│   │
 │   ├── Building
 │   │   └── Floor
 │   │       └── Space
-│   │
 │   └── OutdoorArea
 │
 ├── Plan
 │   └── SpatialObject
-│       │
 │       ├── PhysicalElement
 │       ├── Area
 │       ├── PlanningZone
 │       └── Annotation
 │
 ├── ConstructionSection
-│   │
 │   ├── Zones
 │   ├── WorkPackages
 │   └── Budget
 │
 ├── WorkPackage
-│   │
 │   ├── Trade
 │   ├── Requirements
 │   ├── Tasks
@@ -2637,18 +1799,13 @@ Project
 │   └── Asset
 │
 ├── ProcurementItem
-│   │
 │   ├── Supplier
 │   └── Order
 │
 ├── Documents
-│
 ├── Decisions
-│
 ├── Risks
-│
 └── Financial
-    │
     ├── Budget
     ├── Estimate
     ├── Quote
@@ -2659,199 +1816,83 @@ Project
 
 ---
 
-## 59. Entity Relationship Rules
+# 59. Entity Relationship Rules
 
-**Project**
-
-A Project has:
-
-* 0..n Plans
-* 0..n Construction Sections
-* 0..n Work Packages
-* 0..n Assets
-* 0..n Suppliers
-* 0..n Documents
-
-All domain objects must be uniquely assignable to a Project.
-
----
-
-**Plan**
+A Project owns 0..n Plans, Construction Sections, Work Packages, Assets, Suppliers, and Documents.
 
 A Plan belongs to exactly one Project.
 
-A Project can have multiple Plans.
+A Spatial Object belongs to one Plan and may link to a domain note.
 
-Examples:
+A Construction Section belongs to one Project and may span multiple Zones and Work Packages.
 
-* Property
-* Ground floor
-* Upper floor
-* Basement
-* Garden
-* Garage
+A Work Package belongs to one Project, optionally one Construction Section, and at least one domain scope.
 
----
+A Requirement describes a need and must have an origin such as a Zone, Work Package, or Asset.
 
-**Spatial Object**
-
-A Spatial Object belongs to a Plan.
-
-A Spatial Object can optionally be linked to a domain note.
-
-Spatial Objects must not themselves be the source of truth for project information.
+A Procurement Item is based on a Requirement or manual need and must remain distinct from the Requirement itself.
 
 ---
 
-**Construction Section**
+# 60. Identity Model
 
-A Construction Section belongs to a Project.
+Every persistent domain entity has a stable ID independent of:
 
-A Construction Section can:
-
-* cover multiple Zones,
-* contain multiple Work Packages,
-* involve multiple Trades.
-
----
-
-**Work Package**
-
-A Work Package belongs to:
-
-* exactly one Project,
-* optionally one Construction Section,
-* at least one domain scope.
-
-A scope can be:
-
-* Zone
-* Area
-* Physical Element
-
----
-
-**Requirement**
-
-A Requirement describes a need.
-
-A Requirement must have an origin.
-
-Examples:
-
-```
-Zone
-→ Material Requirement
-
-Work Package
-→ Labor Requirement
-
-Asset
-→ Procurement Requirement
-```
-
----
-
-**Procurement Item**
-
-A Procurement Item is based on a Requirement or a manually defined need.
-
-Requirement and Procurement Item must not be the same entity.
-
----
-
-## 60. Identity Model
-
-Every persistent domain entity has a stable ID.
+- filename
+- note title
+- folder path
 
 Example:
 
-```
+```yaml
 id: zone-01JABC123
 ```
 
-The ID must not change due to:
-
-* renaming a note
-* moving a note
-* changing the display name
-
-Links between domain objects should be resolvable via stable IDs wherever possible, supplemented by Obsidian links.
-
 ---
 
-## 61. Schema Versioning
+# 61. Schema Versioning
 
-Persisted domain objects must have a schema version.
+Persistent objects carry a schema version.
 
-Example:
-
-```
+```yaml
 schema-version: 1
 ```
 
-This allows later plugin versions to migrate existing vaults.
+---
+
+# 62. Migration Requirements
+
+Schema migrations must be:
+
+- deterministic
+- testable
+- traceable
+- reversible where practical
+
+Large migrations must not silently overwrite existing data.
 
 ---
 
-## 62. Migration Requirements
+# 63. Reference Integrity
 
-The plugin must support schema migrations.
+The system must detect:
 
-Example:
-
-```
-Schema v1
-   ↓
-Migration
-   ↓
-Schema v2
-```
-
-Migrations must be:
-
-* deterministic
-* testable
-* traceable
-* reversible wherever possible
-
-Before major migrations, the plugin must not silently overwrite existing data.
+- missing references
+- deleted objects
+- invalid IDs
+- duplicate IDs
 
 ---
 
-## 63. Reference Integrity
+# 64. Deletion Semantics
 
-References between domain objects must be validatable.
-
-Example:
-
-```
-Work Package
-     │
-     └── zone-id
-             ↓
-           Zone
-```
-
-The system should detect:
-
-* missing references
-* deleted objects
-* invalid IDs
-* duplicate IDs
-
----
-
-## 64. Deletion Semantics
-
-Deleting a domain entity must not unintentionally destroy dependent information.
-
-Before deletion, it must be checked whether references exist.
+Deletion must check references first.
 
 Example:
 
-```
+```text
 Delete Zone?
+
 Referenced by:
 3 Work Packages
 7 Tasks
@@ -2861,244 +1902,168 @@ Referenced by:
 
 Possible actions:
 
-* Cancel
-* Remove References
-* Reassign
-* Delete Anyway
+- Cancel
+- Remove References
+- Reassign
+- Delete Anyway
 
-Hard cascading deletes should be avoided.
-
----
-
-## 65. External Modification Handling
-
-Since Markdown is the source of truth, files can be modified outside the plugin.
-
-The plugin must detect changes and update its application state accordingly.
-
-Examples:
-
-* frontmatter changed
-* note renamed
-* note moved
-* note deleted
-* new note created
-
-The plugin must not overwrite manual changes without warning.
+Silent cascading delete should be avoided.
 
 ---
 
-## 66. Save Strategy
+# 65. External Modification Handling
 
-Editor interactions are first executed as commands in the application state.
+Because Markdown is canonical, the plugin must respond to:
 
-Persistence happens after completed domain changes.
+- frontmatter edits
+- note rename
+- note move
+- note deletion
+- new notes
 
-Example:
+Manual edits must not be overwritten silently.
 
-```
+---
+
+# 66. Save Strategy
+
+Pointer movement is transient.
+
+Persistence occurs only after completed domain-level actions.
+
+```text
 Pointer Down
-    ↓
+  ↓
 Drag
-    ↓
-Drag
-    ↓
-Drag
-    ↓
+  ↓
 Pointer Up
-    ↓
+  ↓
 MoveObjectCommand
-    ↓
+  ↓
 Domain Update
-    ↓
+  ↓
 Persist
 ```
 
-Vault writes should not happen for every pointer movement.
+---
+
+# 67. Autosave
+
+Default autosave after:
+
+- completed commands
+- debounced property edits
+
+Visible states:
+
+- Saved
+- Saving
+- Unsaved Changes
+- Save Error
 
 ---
 
-## 67. Autosave
+# 68. Undo / Redo Architecture
 
-The editor should autosave by default.
-
-Autosave occurs:
-
-* after completed commands,
-* or debounced on property changes.
-
-The current save state must be visible to the user.
-
-Possible states:
-
-```
-Saved
-Saving
-Unsaved Changes
-Save Error
-```
-
----
-
-## 68. Undo / Redo Architecture
-
-Editor changes should go through commands.
+Editor changes should use command history.
 
 Examples:
 
-```
-CreateZoneCommand
-MoveObjectCommand
-ResizeObjectCommand
-DeleteObjectCommand
-AssignAssetCommand
-ChangePropertyCommand
-```
-
-Every reversible command has:
-
-```
-execute()
-undo()
-```
-
-This produces a command history.
+- CreateZoneCommand
+- MoveObjectCommand
+- ResizeObjectCommand
+- DeleteObjectCommand
+- AssignAssetCommand
+- ChangePropertyCommand
 
 ---
 
-## 69. Backup & Recovery
+# 69. Backup & Recovery
 
-The plugin should restore a safe state as far as possible when data is faulty.
+Recovery scenarios include:
 
-Recovery cases:
+- damaged sidecar
+- invalid frontmatter
+- missing background
+- invalid geometry
+- interrupted migration
 
-* corrupted sidecar file
-* invalid frontmatter
-* missing background image
-* invalid geometry
-* interrupted migration
-
-The plugin must not automatically destroy faulty data.
+The plugin must preserve recoverable source data.
 
 ---
 
-## 70. Unit System
+# 70. Unit System
 
-The domain model must explicitly handle units of measurement.
+Dimensions:
 
-Supported dimensions:
+- Length
+- Area
+- Volume
+- Quantity
+- Duration
 
-* Length
-* Area
-* Volume
-* Quantity
-* Duration
+Recommended normalized internal units:
 
-Internal reference units should be normalized.
-
-Recommendation:
-
-```
+```text
 Length → mm
 Area   → mm²
 Volume → mm³
 ```
 
-The UI can display values as:
-
-```
-mm
-cm
-m
-cm²
-m²
-l
-m³
-```
-
 ---
 
-## 71. Measurement Precision
+# 71. Measurement Precision
 
-Measurements must have a defined precision.
-
-For example:
-
-```
-Internal:
-42718432 mm²
-
-Display:
-42.72 m²
-```
-
-Display precision and internal precision must be handled separately.
-
----
-
-## 72. Currency Model
-
-A Project has a default currency.
+Internal precision and display precision are separate.
 
 Example:
 
+```text
+Internal: 42718432 mm²
+Display: 42.72 m²
 ```
+
+---
+
+# 72. Currency Model
+
+Projects define a standard currency.
+
+```yaml
 currency: EUR
 ```
 
-All money values must be able to unambiguously determine their currency.
+---
+
+# 73. Tax Model
+
+Optional support for:
+
+- net amount
+- tax rate
+- tax amount
+- gross amount
+
+This is planning support, not accounting or tax advice.
 
 ---
 
-## 73. Tax Model
+# 74. Price Components
 
-Costs can optionally account for taxes.
+Cost items may include:
 
-Properties can include:
-
-* net amount
-* tax rate
-* tax amount
-* gross amount
-
-Example:
-
-```
-Net        1,000.00 €
-VAT 19%      190.00 €
-Gross      1,190.00 €
-```
-
-Tax calculation serves project planning purposes only and does not replace accounting or tax advice.
+- discount
+- shipping
+- deposit
+- surcharge
+- tax
+- contingency
 
 ---
 
-## 74. Price Components
+# 75. Quantity Semantics
 
-Cost items can additionally account for:
-
-* discount
-* shipping
-* deposit
-* surcharge
-* tax
-* contingency
-
-This allows distinguishing between:
-
-```
-Unit Price
-Purchase Price
-Total Cost
-```
-
----
-
-## 75. Quantity Semantics
-
-Material quantities must be differentiated by domain.
-
-```
+```text
 Calculated Requirement
         ↓
 Waste Adjustment
@@ -3114,421 +2079,264 @@ Consumed Quantity
 Remaining Quantity
 ```
 
-These values must not be modeled as a single quantity field.
+---
+
+# 76. Inventory & Remaining Materials
+
+Remaining material can become reusable inventory.
 
 ---
 
-## 76. Inventory & Remaining Materials
+# 77. Dependency Model
 
-Unused material can be tracked as available stock.
+Dependencies may exist between:
 
-Example:
-
-```
-Purchased
-50 m²
-
-Consumed
-43.8 m²
-
-Remaining
-6.2 m²
-```
-
-Leftover material can later be assigned to another requirement.
+- Work Package → Work Package
+- Task → Task
+- Procurement → Work Package
+- Decision → Work Package
+- Milestone → Work Package
 
 ---
 
-## 77. Dependency Model
+# 78. Dependency Types
 
-Dependencies should not exist exclusively between tasks.
+Initial:
 
-Supported dependencies can include:
-
-```
-Work Package
-→ Work Package
-
-Task
-→ Task
-
-Procurement
-→ Work Package
-
-Decision
-→ Work Package
-
-Milestone
-→ Work Package
-```
-
-Example:
-
-```
-Tiles Delivered
-      ↓
-Tiling Work Package
-      ↓
-Grouting
-      ↓
-Bathroom Complete
-```
+- Finish-to-Start
+- Blocking
+- Informational
 
 ---
 
-## 78. Dependency Types
+# 79. Multi-Plan Model
 
-At minimum:
+A project may contain:
 
-* Finish-to-Start
-* Blocking
-* Informational
-
-Advanced scheduling dependencies can be added later.
-
----
-
-## 79. Multi-Plan Model
-
-A Project can have multiple spatial plans.
-
-Example:
-
-```
-Project
-├── Site Plan
-│
-├── House
-│   ├── Basement
-│   ├── Ground Floor
-│   └── First Floor
-│
-└── Garden
-```
+- site plan
+- basement
+- ground floor
+- upper floors
+- garden
+- garage
 
 ---
 
-## 80. Cross-Plan Relationships
+# 80. Cross-Plan Relationships
 
-A Construction Section can affect multiple plans.
-
-Example:
-
-```
-Heating Replacement
-├── Basement
-├── Ground Floor
-└── First Floor
-```
-
-Work packages and assets therefore do not necessarily have to be limited to a single plan.
+A Construction Section may span multiple Plans.
 
 ---
 
-## 81. Coordinate Transformations
+# 81. Coordinate Transformations
 
-A Plan must be positionable independently of the viewport.
+Support:
 
-Must be supported:
+- translation
+- scale
+- rotation
 
-* translation
-* scale
-* rotation
-
-Background image and world coordinate system must be handled separately.
+Background image and world coordinates remain separate.
 
 ---
 
-## 82. Plan Calibration Model
+# 82. Plan Calibration Model
 
-A Plan has a calibration.
+Minimum:
 
-At minimum:
+- Point A
+- Point B
+- known distance
 
-```
-Known Point A
-Known Point B
-Known Distance
-```
-
-The plan scale is derived from this.
-
-Later extensions can support multiple control points.
+Future: multiple control points.
 
 ---
 
-## 83. Configuration Model
+# 83. Configuration Model
 
-Plugin settings and project settings must be kept separate.
+## Plugin Settings
 
-**Plugin Settings**
+- default units
+- default currency
+- default folders
+- editor preferences
+
+## Project Settings
+
+- project currency
+- units
+- tax defaults
+- contingency
+- lifecycle configuration
+- project folder
+
+---
+
+# 84. Custom Types
+
+Support configurable:
+
+- Zone Types
+- Asset Types
+- Trade Types
+- Document Types
+- Cost Types
+
+---
+
+# 85. Command Model
 
 Examples:
 
-* default units
-* default currency
-* default folders
-* editor preferences
-
-**Project Settings**
-
-Examples:
-
-* project currency
-* project units
-* VAT defaults
-* contingency
-* lifecycle configuration
-* project folder
+- CreateProject
+- CreatePlan
+- CalibratePlan
+- CreateZone
+- MoveSpatialObject
+- CreateConstructionSection
+- AssignZone
+- AssignAsset
+- CreateRequirement
+- CreateWorkPackage
+- CompleteWorkPackage
+- CreateOrder
+- RecordActualCost
 
 ---
 
-## 84. Custom Types
-
-The system should support extensible types in the long term.
+# 86. Domain Event Model
 
 Examples:
 
-```
-Zone Types
-Asset Types
-Trade Types
-Document Types
-Cost Types
-```
-
-Users should be able to define their own domain categories without having to modify the domain core.
-
----
-
-## 85. Command Model
-
-Domain changes are modeled as commands.
-
-Examples:
-
-```
-CreateProject
-CreatePlan
-CalibratePlan
-CreateZone
-MoveSpatialObject
-CreateConstructionSection
-AssignZone
-AssignAsset
-CreateRequirement
-CreateWorkPackage
-CompleteWorkPackage
-CreateOrder
-RecordActualCost
-```
-
-Commands form the write interface of the application layer.
+- ProjectCreated
+- PlanCalibrated
+- ZoneCreated
+- ZoneGeometryChanged
+- ConstructionSectionCreated
+- AssetAssigned
+- RequirementCalculated
+- WorkPackageCreated
+- WorkPackageCompleted
+- ProcurementOrdered
+- MaterialDelivered
+- ActualCostRecorded
 
 ---
 
-## 86. Domain Event Model
+# 87. Event Use Cases
 
-Successful domain changes can produce domain events.
+Events can trigger:
 
-Examples:
-
-```
-ProjectCreated
-PlanCalibrated
-ZoneCreated
-ZoneGeometryChanged
-ConstructionSectionCreated
-AssetAssigned
-RequirementCalculated
-RequirementChanged
-WorkPackageCreated
-WorkPackageCompleted
-ProcurementOrdered
-MaterialDelivered
-ActualCostRecorded
-```
+- recalculation
+- cache updates
+- UI refresh
+- audit trail
+- future automation
+- future extension hooks
 
 ---
 
-## 87. Event Use Cases
+# 88. Derived Data
 
-Events can be used internally for:
+Prefer calculation over redundant persistence.
 
-* automatic recalculation
-* cache updates
-* UI refresh
-* audit trail
-* future automation
-* future plugin extensions
-
-Example:
-
-```
-ZoneGeometryChanged
-        ↓
-Requirement recalculated
-        ↓
-Cost recalculated
-        ↓
-Budget updated
-```
-
----
-
-## 88. Derived Data
-
-Computable information should not be persisted redundantly wherever possible.
-
-Examples:
-
-```
+```text
 Polygon
-    ↓
+  ↓
 Area
-
-Area + Asset
-    ↓
+  ↓
 Requirement
-
-Requirement + Price
-    ↓
+  ↓
 Estimated Cost
 ```
 
-What is persisted is primarily inputs and domain-relevant overrides.
+---
+
+# 89. Manual Overrides
+
+Calculated values must support visible manual overrides.
 
 ---
 
-## 89. Manual Overrides
+# 90. Validation
 
-Automatically calculated values must be controllably overridable.
+Validation levels:
 
-Example:
-
-```
-Calculated Requirement
-42.7 m²
-
-Manual Override
-45 m²
-```
-
-The system must visibly distinguish between:
-
-* calculated
-* manually overridden
+- schema validation
+- reference validation
+- business rule validation
+- geometry validation
 
 ---
 
-## 90. Validation
+# 91. Vault Health Check
 
-Domain objects must be validated on load and save.
+Potential checks:
 
-Types of validation:
-
-* schema validation
-* reference validation
-* business rule validation
-* geometry validation
-
-Example:
-
-```
-Asset
-unit: m²
-unit-cost: -12 €
-→ Validation Error
-```
+- invalid schemas
+- broken references
+- duplicate IDs
+- missing assets
+- invalid geometry
+- orphan sidecars
+- missing backgrounds
 
 ---
 
-## 91. Vault Health Check
+# 92. Diagnostics
 
-In the long term, the plugin should offer a project health check.
+Expose locally:
 
-The following can be checked:
+- plugin version
+- schema version
+- project version
+- validation errors
+- migration status
 
-* invalid schemas
-* broken references
-* duplicate IDs
-* missing assets
-* invalid geometries
-* orphaned sidecar files
-* missing background images
+No automatic upload of project data.
 
 ---
 
-## 92. Diagnostics
+# 93. Installation & Onboarding
 
-Errors should be diagnosable locally.
-
-The plugin should be able to provide structured technical information.
-
-Examples:
-
-* plugin version
-* schema version
-* project version
-* validation errors
-* migration status
-
-Sensitive project data must not be transmitted automatically.
-
----
-
-## 93. Installation & Onboarding
-
-The first launch should guide the user through a minimal workflow.
-
-```
+```text
 Install Plugin
-     ↓
+   ↓
 Create Renovation Project
-     ↓
+   ↓
 Choose Project Folder
-     ↓
+   ↓
 Import First Plan
-     ↓
+   ↓
 Calibrate
-     ↓
+   ↓
 Create First Zone
 ```
 
 ---
 
-## 94. Empty States
+# 94. Empty States
 
-Every central view needs a comprehensible empty state.
-
-Example, Plan View:
-
-> No plan yet. Import a floor plan, sketch, or garden plan to start spatial planning.
+Every central view should provide actionable empty states.
 
 ---
 
-## 95. Example Project
+# 95. Example Project
 
-The plugin should optionally provide a demo project.
+Optionally include a demo project showing:
 
-The demo project demonstrates:
-
-* a plan
-* a zone
-* a construction section
-* an asset
-* a work package
-* a cost calculation
-
-This lets new users understand the data model immediately.
+- a plan
+- a zone
+- a construction section
+- an asset
+- a work package
+- a cost calculation
 
 ---
 
-## 96. Plugin Lifecycle
+# 96. Plugin Lifecycle
 
-The product must account for the following plugin lifecycle cases:
-
-```
+```text
 Install
 ↓
 Initialize
@@ -3544,15 +2352,13 @@ Disable
 Uninstall
 ```
 
-Disabling or removing the plugin must not render domain project data unusable.
+Disabling/removing the plugin must not make project data unusable.
 
 ---
 
-## 97. Testing Strategy
+# 97. Testing Strategy
 
-The test strategy follows the architecture.
-
-```
+```text
                  E2E
                   ▲
              Integration
@@ -3564,24 +2370,135 @@ The test strategy follows the architecture.
 
 ---
 
-## 98. Unit Tests
+# 98. Unit Tests
 
-Especially high test coverage is expected for:
+High coverage for:
 
-**Geometry**
+## Geometry
 
-* distance
-* area
-* perimeter
-* centroid
-* scale
-* transformations
-* snapping
-* intersections
+- distance
+- area
+- perimeter
+- centroid
+- scale
+- transforms
+- snapping
+- intersection
 
-**Cost Engine**
+## Cost Engine
 
-* unit costs
-* waste
-* tax
-* discounts
+- unit costs
+- waste
+- tax
+- discounts
+- rounding
+- aggregation
+
+## Requirement Engine
+
+- area-based quantity
+- length-based quantity
+- waste
+- package size
+- manual override
+
+## Persistence
+
+- frontmatter mapping
+- sidecar mapping
+- validation
+- migrations
+- broken references
+
+---
+
+# 99. Integration Tests
+
+Include:
+
+- Obsidian repository adapters
+- plan loading
+- Vault change detection
+- persistence round-trips
+- migration fixtures
+
+---
+
+# 100. Component Tests
+
+Use Vitest + Vue Test Utils for:
+
+- inspector
+- toolbar
+- selection state
+- dialogs
+- validation feedback
+
+---
+
+# 101. E2E Tests
+
+Critical flows:
+
+- create project
+- import plan
+- calibrate
+- create zone
+- persist/reload
+- assign asset
+- calculate requirement
+- calculate cost
+
+---
+
+# 102. Performance Budgets
+
+Initial measurable targets should be established for:
+
+- plan load time
+- pointer interaction latency
+- pan/zoom responsiveness
+- save latency
+- project indexing time
+
+---
+
+# 103. Security & Privacy
+
+Default:
+
+- no telemetry
+- no remote calls
+- no cloud account
+- no external persistence
+
+Future integrations must be explicit and optional.
+
+---
+
+# 104. Extensibility
+
+The architecture should support later:
+
+- custom asset types
+- custom zone types
+- custom lifecycle/status models
+- custom cost rules
+- custom import/export adapters
+- custom Bases views
+- external integrations
+
+---
+
+# 105. Open Questions
+
+The following should remain explicit decisions until resolved:
+
+- one geometry sidecar per plan vs per spatial object
+- desktop-only MVP vs mobile-read support
+- Vue Ganttastic vs Frappe Gantt
+- UUID vs ULID
+- exact Markdown link + stable ID reference strategy
+- quote/invoice modeling depth
+- whether walls become first-class MVP entities
+- whether project folder structure is mandatory or template-driven

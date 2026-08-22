@@ -1,8 +1,12 @@
+---
+adr: 5
+title: Pinia for Presentation State
+status: Accepted
+date: 2026-08-22
+area: presentation
+---
+
 # ADR-005: Pinia for Presentation State
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -18,3 +22,12 @@ Pinia manages UI and application-facing state via dedicated stores (`ProjectStor
 - Store contents must always be rebuildable from the Vault — no canonical business data may exist only in Pinia.
 - Selection state is expressed as domain IDs, not references to Konva instances, so it stays meaningful independent of the rendering layer.
 - Pinia is confined to the Presentation layer and must not be depended on by Domain or Core code (see ADR-006).
+
+## Alternatives
+
+- Vue's built-in reactivity (`ref`/`reactive`) without a dedicated store library — rejected: loses Pinia's devtools support, testability, and clear store boundaries as the number of views and stores grows.
+- Vuex — rejected: superseded by Pinia for Vue 3, with a heavier API for the same guarantees.
+
+## Revisit when
+
+The number or complexity of stores outgrows what Pinia's flat store model handles cleanly — for example, needing cross-store transactions Pinia does not itself model.

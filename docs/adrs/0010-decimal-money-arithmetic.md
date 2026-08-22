@@ -1,8 +1,12 @@
+---
+adr: 10
+title: Decimal Money Arithmetic
+status: Accepted
+date: 2026-08-22
+area: domain
+---
+
 # ADR-010: Decimal Money Arithmetic
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -17,3 +21,12 @@ Financial calculations use arbitrary-precision decimal arithmetic via `decimal.j
 - Cost aggregation, tax, discounts, and rounding behave predictably and consistently across the Cost Engine, work package rollups, and project-level budget/forecast reporting.
 - Every money value carries its currency explicitly, so amounts can never be summed or compared without regard to currency.
 - Persistence, calculation, and display code must consistently use the `Money`/decimal representation rather than casting to native numbers at layer boundaries, which would reintroduce floating-point error.
+
+## Alternatives
+
+- Native JavaScript numbers with manual rounding — rejected: rounding errors resurface at every aggregation point (line items, work packages, budget totals).
+- Storing money as integer minor units (cents) — considered, not chosen: works for simple currencies, but complicates tax and discount percentage math and multi-currency display compared to `decimal.js`'s arbitrary precision.
+
+## Revisit when
+
+Performance profiling shows `decimal.js` is a bottleneck in bulk cost recalculation, which would justify a narrower, fixed-point integer representation for that path.

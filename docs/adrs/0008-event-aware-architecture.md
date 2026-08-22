@@ -1,8 +1,12 @@
+---
+adr: 8
+title: Event-Aware Architecture
+status: Accepted
+date: 2026-08-22
+area: application
+---
+
 # ADR-008: Event-Aware Architecture
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -17,3 +21,12 @@ Commands may emit domain or application events after a successful state change (
 - Recalculation, cache updates, UI refresh, and audit-trail entries can react to events without the originating command needing to know about every downstream consumer.
 - The event catalog (`ProjectCreated`, `ZoneGeometryChanged`, `RequirementRecalculated`, `WorkPackageCompleted`, `ActualCostRecorded`, and similar) gives future automation and plugin extensions defined hook points.
 - Because events are in-process, ordering and delivery are simple to reason about; introducing a durable or cross-process event system later would be a separate, deliberate decision, not an incremental extension of this one.
+
+## Alternatives
+
+- No event system — direct function calls between modules (for example, the zone module calling the cost module directly) — rejected: couples unrelated modules and rules out future extension points (automation, plugin hooks) without touching existing code.
+- An external message broker or queue — rejected as premature: no cross-process or durability requirement exists yet, and it would add operational complexity with no corresponding need.
+
+## Revisit when
+
+A real need for durable, cross-session, or cross-process event delivery emerges — for example, background workers or multi-window coordination.

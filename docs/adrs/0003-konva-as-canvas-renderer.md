@@ -1,8 +1,12 @@
+---
+adr: 3
+title: Konva as Canvas Renderer
+status: Accepted
+date: 2026-08-22
+area: rendering
+---
+
 # ADR-003: Konva as Canvas Renderer
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -19,3 +23,12 @@ Konva, via its `vue-konva` bindings, is used as the 2D canvas rendering and inte
 - Konva objects must never be written directly to the Vault.
 - The Transformer manipulates `scaleX`/`scaleY` rather than true width/height, so transform results must always be normalized into real domain geometry before being persisted (see ADR-009) — `scaleX`/`scaleY` are never persisted as a substitute for true dimensions.
 - Because Konva is confined to the Presentation layer, it could in principle be replaced by a different canvas/rendering technology without touching Domain or Application code.
+
+## Alternatives
+
+- Hand-rolled Canvas 2D or SVG rendering — rejected: reinvents transform, hit-testing, and selection handling that Konva already provides.
+- A heavier framework such as Fabric.js, or a full CAD engine — rejected: exceeds this product's lightweight spatial-planning scope (see the SDD's non-goals) and pulls in capability, such as CAD-grade constraint solving, this product explicitly does not need.
+
+## Revisit when
+
+Konva's maintenance stalls, or a requirement emerges — for example, WebGL-scale rendering for very large plans — that Konva's 2D canvas model cannot satisfy.

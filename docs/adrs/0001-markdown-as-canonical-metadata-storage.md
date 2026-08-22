@@ -1,8 +1,12 @@
+---
+adr: 1
+title: Markdown as Canonical Metadata Storage
+status: Accepted
+date: 2026-08-22
+area: persistence
+---
+
 # ADR-001: Markdown as Canonical Metadata Storage
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -19,3 +23,12 @@ Human-readable project metadata is stored in Markdown notes using YAML frontmatt
 - The plugin can interoperate with native Obsidian features: Properties, links, embeds, Bases, search, and tags.
 - Mapping between Markdown/frontmatter and domain entities must be explicit (see the Obsidian Repository Layer) — raw frontmatter must not leak throughout the application, and every persisted shape needs schema validation and a schema version for future migrations.
 - Large or high-churn data (in particular plan geometry) does not fit well in frontmatter and needs a separate storage strategy (see ADR-002).
+
+## Alternatives
+
+- A custom binary or SQLite database bundled with the plugin — rejected: breaks the local-first, human-readable, edit-outside-the-plugin requirement, and needs a bespoke migration/query layer with no Obsidian-native tooling support.
+- One large JSON/YAML file per project — rejected: loses per-entity versioning and diffing, note-level linking, and Obsidian's native search/Bases integration.
+
+## Revisit when
+
+Obsidian's own data model changes — for example, a first-class structured-data API — in a way that would let entities be both queryable and still human-readable without frontmatter's current limitations.

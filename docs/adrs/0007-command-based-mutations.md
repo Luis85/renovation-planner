@@ -1,8 +1,12 @@
+---
+adr: 7
+title: Command-Based Mutations
+status: Accepted
+date: 2026-08-22
+area: application
+---
+
 # ADR-007: Command-Based Mutations
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -18,3 +22,12 @@ All user-visible mutations are routed through explicit application commands (`Cr
 - The UI and editor tools must not call repositories directly; every mutation needs a corresponding command and handler.
 - Commands provide a single place to validate operations, apply business rules, and decide what gets persisted.
 - Commands are the natural point to emit domain/application events after a successful change (see ADR-008).
+
+## Alternatives
+
+- Direct mutation of Pinia stores or repositories from Vue components — rejected: no single place to hook validation, undo/redo, or events, and every component would need to reimplement transaction boundaries on its own.
+- A generic "actions" layer without a formal undo/redo contract — rejected: an explicit `execute()`/`undo()` contract was needed as soon as undo/redo became a requirement, so the weaker shape would only have been replaced later anyway.
+
+## Revisit when
+
+The command surface grows large enough that a more structured command bus — for example, with middleware or command versioning — is needed.

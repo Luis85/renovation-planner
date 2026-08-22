@@ -1,8 +1,12 @@
+---
+adr: 9
+title: World Coordinates in Millimeters
+status: Accepted
+date: 2026-08-22
+area: geometry
+---
+
 # ADR-009: World Coordinates in Millimeters
-
-## Status
-
-Accepted
 
 ## Context
 
@@ -17,3 +21,12 @@ Domain geometry uses real-world coordinates rather than canvas pixels, with a re
 - Area, length, and perimeter calculations, along with calibration and cost/requirement derivations, stay correct independent of screen resolution, zoom, canvas size, or export format.
 - Editor tools and rendering code must not perform ad-hoc pixel math; all coordinate conversion goes through the centralized viewport transform.
 - Persisted geometry (in Markdown-linked JSON sidecars, see ADR-002) is stored in world units, never canvas pixels — and Konva transform output (`scaleX`/`scaleY`) must be normalized into world-unit geometry before being persisted (see ADR-003).
+
+## Alternatives
+
+- Storing geometry directly in canvas pixels — rejected: breaks the moment zoom, screen resolution, or export format changes.
+- A unitless, normalized 0..1 coordinate space — rejected: loses the direct real-world meaning (a wall is genuinely 5400 mm long) needed for calibration, measurement, and requirement calculations.
+
+## Revisit when
+
+A requirement for a different canonical unit emerges (for example, inches for a specific locale) — the conversion boundary already isolates this decision from rendering code, so it would be a localized change.

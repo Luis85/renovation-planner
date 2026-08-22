@@ -1,0 +1,109 @@
+/*
+ * The harness's OWN chrome, and nothing else.
+ *
+ * `tests/harness/obsidian.css` — Obsidian's real app.css, reduced, linked BEFORE this file
+ * (see `scripts/harness.mjs`) — defines the whole default palette itself, concretely,
+ * under `.theme-light` / `.theme-dark`: the base scale, the named colours, the accent, and
+ * `color-scheme` with them. So nothing here may restate a value app.css already gives.
+ *
+ * That rule is not decoration. In the source project this file WAS the palette, and the
+ * copy loaded second and spelled its selectors `body.theme-dark`, which outranks app.css's
+ * `.theme-dark` — so every line of the copy won the cascade, and a copy that wins can only
+ * ever be equal or wrong. Twelve of them were already wrong; the rest stood ready to draw
+ * a stale colour over every value the next vendored app.css brings.
+ *
+ * The rule to keep, therefore: **every selector here names something the HARNESS draws** —
+ * a `.rp-harness-*` class or the missing-icon attribute, which no Obsidian selector can be
+ * spelled as. `body` below is the single exception, and it is held to `height`.
+ *
+ * What the page shows is Obsidian's DEFAULT appearance, not a guess at one — and not a
+ * USER's: a community theme replaces exactly these values and the accent is picked in
+ * settings. This replaces no live-vault check.
+ */
+
+/*
+ * The plugin renders into a view inside a workspace leaf, which is what gives it a page
+ * background, a font and a height to fill. Nothing above this line does that, so the
+ * harness supplies the frame the app would.
+ */
+body {
+	/*
+	 * The ONE thing app.css's own `body` rule cannot do here. It says `height: 100%`, which
+	 * needs an `html` height this page has no rule for — Obsidian's shell provides it.
+	 * Everything else a frame needs (margin, background, colour, the font family and size)
+	 * is app.css's own, and overriding it here would be a guess drawn over a real value.
+	 */
+	height: 100vh;
+}
+
+.rp-harness-leaf {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.rp-harness-leaf > div {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/*
+ * Obsidian's `setIcon` draws an SVG and the module mock only records the name. When the
+ * harness grows an icon renderer, this fires only where that drawing FAILED: an icon name
+ * lucide does not carry would otherwise be an invisible gap, in the one tool built for
+ * looking. Printing the name there keeps a typo loud.
+ *
+ * A pseudo-element rather than text, because the suite reads `textContent` and text inside
+ * those spans would join what a row assertion sees.
+ */
+[data-icon-missing]::after {
+	content: attr(data-icon-missing);
+	font-family: ui-monospace, monospace;
+	font-size: 9px;
+	line-height: 1;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+/*
+ * The harness's own scheme switch. Deliberately unlike anything the plugin draws and
+ * parked out of the way: a control in a screenshot that nobody can find in the plugin is
+ * worse than no control at all, so it says whose it is.
+ */
+.rp-harness-scheme {
+	position: fixed;
+	right: var(--size-4-3);
+	bottom: var(--size-4-3);
+	z-index: 30;
+	padding: var(--size-2-2) var(--size-4-2);
+	border: 1px dashed var(--background-modifier-border-hover);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	color: var(--text-faint);
+	font-family: ui-monospace, monospace;
+	font-size: 11px;
+	cursor: var(--cursor, pointer);
+}
+
+.rp-harness-scheme:hover {
+	color: var(--text-muted);
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * The placeholder the empty mount draws, until there is a view to mount. Marked as the
+ * harness's own for the same reason the switch is.
+ */
+.rp-harness-placeholder {
+	margin: auto;
+	max-width: 32em;
+	padding: var(--size-4-4);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	text-align: center;
+}

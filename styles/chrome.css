@@ -1,0 +1,14 @@
+/*
+ * This plugin's view hides Obsidian's view header — the pane title bar — because the
+ * project surface is a full-bleed workspace and the SDD's own toolbar will carry the
+ * chrome (§15).
+ *
+ * Scoped by the view TYPE, the persisted identifier, so no other pane is touched:
+ * styling anything outside the plugin's own view is a marketplace rejection. The pairing
+ * between this selector and RENOVATION_PROJECT_VIEW is held by
+ * tests/presentation/views/renovationProjectView.test.ts — renaming the type without
+ * this file fails the suite instead of silently leaving the header visible.
+ */
+.workspace-leaf-content[data-type="renovation-project"] .view-header {
+	display: none;
+}

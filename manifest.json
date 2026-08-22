@@ -1,0 +1,10 @@
+{
+  "id": "renovation-planner",
+  "name": "Renovation Planner",
+  "version": "0.1.0",
+  "minAppVersion": "1.13.0",
+  "description": "Plan a renovation as a work breakdown of rooms, trades and tasks, with budgets and a schedule.",
+  "author": "Luis85",
+  "authorUrl": "https://github.com/Luis85",
+  "isDesktopOnly": false
+}

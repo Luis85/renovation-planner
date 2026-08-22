@@ -1,0 +1,12 @@
+/*
+ * The stylesheet entry. One partial per concern; `scripts/styles-assemble.mjs` resolves
+ * the imports below and the build emits the result as `dist/styles.css` (gitignored).
+ * Edit a partial, never the generated file. Only imports and comments belong HERE — a
+ * rule authored in this file fails the build rather than silently not shipping.
+ *
+ * The ORDER below is behaviour, not organisation: two rules of equal specificity are
+ * decided by which came last. State here which positions are load-bearing and why, as
+ * soon as one is.
+ */
+@import "./view.css";
+@import "./chrome.css";

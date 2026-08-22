@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A superseded push to a PR cancels the stale run — four of six jobs on a three-fixup PR
+# would otherwise verify commits nobody merges, with the slow Windows leg queueing behind
+# itself. Pushes to main always run to completion: main is where both platforms' verdicts
+# are wanted on every commit.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    # Both platforms, because a green Ubuntu run says nothing about the two things that
+    # differ: path separators and line endings. Both have already produced a defect the
+    # source project could not see on one platform alone.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Both legs report. A cancelled sibling is a leg whose result nobody has, and the
+      # question this matrix exists to answer is exactly which platform failed.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # THE definition of done, verbatim — the same `npm run check` a commit must pass
+      # locally, not a re-enumeration of its steps that could silently drift from it the
+      # day `check` changes. Which gate failed is still in the log: npm prints each
+      # sub-command as it runs.
+      - name: Definition of done (npm run check)
+        run: npm run check
+
+  # Its own job, never a step in `verify`. `npm run check` is the offline definition of
+  # done and every step in it can be satisfied by the commit being written; an advisory
+  # can be published with no patched version, which is a red nobody can clear. Keeping it
+  # separate means a merge waits on it while a local `check` never does, and the two
+  # failures read differently because they are different.
+  #
+  # One platform, because an advisory is a fact about the dependency tree and the
+  # lockfile is the same on both. `--omit=dev` scopes it to what actually ships.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # No install: `npm audit` reads package-lock.json and asks the registry — it never
+      # touches node_modules, so an `npm ci` here would be a minute of work whose output
+      # nothing reads.
+      - name: Audit what ships
+        run: npm run audit

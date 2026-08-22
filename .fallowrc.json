@@ -1,0 +1,37 @@
+{
+	"$schema": "./node_modules/fallow/schema.json",
+	"entry": ["src/main.ts", "tests/harness/page.ts"],
+	"dynamicallyLoaded": ["styles/**/*.css", "tests/harness/theme.css", "tests/harness/obsidian.css"],
+	"duplicates": {
+		"ignore": ["tests/harness/obsidian.css"]
+	},
+	// The harness page's plugin stylesheet is SERVED, not imported: the dev server answers
+	// `/styles.css` from styles/ (scripts/vite-assembled-styles.mjs), so there is no file on
+	// disk for a static analyser to resolve — and there must not be one, or the page could
+	// show a stale build.
+	"ignoreUnresolvedImports": ["/styles.css"],
+	"health": {
+		"coverage": "coverage/coverage-final.json",
+		"ignore": ["tests/**"]
+	},
+	"rules": {
+		"unused-dev-dependencies": "error",
+		"unused-optional-dependencies": "error",
+		"unused-class-members": "error",
+		"private-type-leaks": "warn"
+	},
+	// Members a FRAMEWORK invokes — declared rather than suppressed inline, which is what
+	// keeps the rule able to report a genuinely dead one. A settings tab's contract is these
+	// three: what it declares, what it answers for a control key, and what it does with a new
+	// value. Obsidian calls all three; nothing in `src/` does.
+	"usedClassMembers": [
+		{ "extends": "Plugin", "members": ["onload", "onunload"] },
+		{ "extends": "PluginSettingTab", "members": ["getSettingDefinitions", "getControlValue", "setControlValue"] }
+	],
+	"overrides": [
+		{
+			"files": ["tests/**"],
+			"rules": { "unused-class-members": "off" }
+		}
+	]
+}

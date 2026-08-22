@@ -1,0 +1,15 @@
+/*
+ * The workspace view's root — the one element `RenovationProjectView` draws, and the
+ * stylesheet's only entry point into it.
+ *
+ * A view fills its leaf: Obsidian's own pane gives it the height, and a column flexbox is
+ * what lets a future toolbar sit above a scrolling body without either one measuring the
+ * other. Every colour comes from an Obsidian variable, so a themed vault stays themed.
+ */
+.renovation-planner-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+}

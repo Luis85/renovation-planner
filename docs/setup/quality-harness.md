@@ -37,7 +37,7 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "build": "tsc -noEmit -skipLibCheck && node scripts/build.mjs production",
+    "build": "tsc -noEmit -skipLibCheck && vite build",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -53,7 +53,7 @@ Build these in order 1 → 5. Each step is useful alone; stop wherever the value
 Rules that go with it:
 
 - **Everything `npm run` invokes lives in `scripts/`.** The exceptions are the files a
-  *tool* finds by name at the root (`eslint.config.mjs`, `vitest.config.mts`).
+  *tool* finds by name at the root (`eslint.config.mjs`, `vitest.config.ts`, `vite.config.ts`).
 - **Every script resolves paths from the working directory**, not from its own location.
   npm scripts and vitest both run from the repository root. State this once, in the one
   script where the difference bites.
@@ -108,7 +108,7 @@ at all. With one entry in the matrix, neither was visible.
 
 ## 2. Tests and the coverage ratchet
 
-`vitest.config.mts` at the root:
+`vitest.config.ts` at the root:
 
 ```ts
 import { defineConfig } from 'vitest/config';
@@ -116,7 +116,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['test/**/*.test.ts'],
+    include: ['tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
@@ -150,15 +150,15 @@ The policy, which matters more than the numbers:
    way. Four agreeing runs is not evidence a 1-in-3 flake is gone. Put the floor under the
    **lowest** figure any environment has reported.
 
-Test layout — `test/` mirrors `src/` directory for directory:
+Test layout — `tests/` mirrors `src/` directory for directory:
 
 - Pure logic gets **node** tests: a rule about ranking, scope or placement is asked of a
   function, never of a screen. That is what makes a pure layer worth having.
 - DOM code gets **jsdom** tests, and each such file installs its own environment.
 - The platform module (an SDK, `vscode`, a host app) is **aliased to a small mock** in
-  `vitest.config.mts` `resolve.alias`. Keep the mock minimal; extend it when new API
+  `vitest.config.ts` `resolve.alias`. Keep the mock minimal; extend it when new API
   surface is used.
-- `test/helpers/` holds the fakes: the platform mock, a fake filesystem or vault that
+- `tests/helpers/` holds the fakes: the platform mock, a fake filesystem or vault that
   records writes, and one shared view harness (`makeView`, `refresh`, `fixture`, `drag`,
   `key`, `flush`) that every view test imports.
 - **A fake must not be kinder than the real thing.** The source repo's SVG helper accepted
@@ -166,10 +166,11 @@ Test layout — `test/` mirrors `src/` directory for directory:
   harness both drew the broken markup happily, and it shipped a dead drag target in a real
   install. When a fake cannot be made strict, ban the tolerated spelling at the call site
   with a lint rule — a faithful fake only catches a path some test drives.
-- Write down the harness's known limits in `test/CLAUDE.md`, next to the helpers, and keep
-  it honest. Example that cost a deleted test: this file claimed for months that the fake
-  caches were static, when in fact a write was visible to the rebuilt model.
-- `test/**` gets a **larger** line budget than `src/**`, not none. The one suite without a
+- Write down the harness's known limits where an agent reads them — this repository keeps
+  them in the Testing section of the root `CLAUDE.md` — and keep them honest. Example that
+  cost a deleted test: such a note claimed for months that the fake caches were static,
+  when in fact a write was visible to the rebuilt model.
+- `tests/**` gets a **larger** line budget than `src/**`, not none. The one suite without a
   cap is the one that grows into the place tests hide.
 
 **adapt:** jest or `node:test` instead of vitest changes nothing above. The ratchet, the
@@ -224,7 +225,7 @@ complexity: ['error', 16],
 'max-params': ['error', 5],
 ```
 
-`test/**` overrides `max-lines` to 450. A pure data file — a message catalog — may switch
+`tests/**` overrides `max-lines` to 450. A pure data file — a message catalog — may switch
 `max-lines` off; nothing else may.
 
 Two traps in flat config:
@@ -232,7 +233,7 @@ Two traps in flat config:
 - **Two blocks matching one file OVERRIDE `no-restricted-syntax`, they do not merge.** A
   per-directory block silently drops every ban from the general `src/**` block. Compose
   the selector lists in JS and spread them into each block.
-- Anchor `files`/`ignores` patterns on `**/` (`'**/test/**'`), not on the repository root.
+- Anchor `files`/`ignores` patterns on `**/` (`'**/tests/**'`), not on the repository root.
   Patterns match against the linter's base path, and an editor's ESLint server need not
   put that where the CLI does. A type-aware rule then meets a file the tsconfig does not
   cover.
@@ -254,14 +255,14 @@ spellings it can see, and test the gate itself.
 {
   "entry": ["src/main.ts"],
   "dynamicallyLoaded": ["styles/**/*.css"],
-  "health": { "coverage": "coverage/coverage-final.json", "ignore": ["test/**"] },
+  "health": { "coverage": "coverage/coverage-final.json", "ignore": ["tests/**"] },
   "rules": {
     "unused-dev-dependencies": "error",
     "unused-optional-dependencies": "error",
     "unused-class-members": "error",
     "private-type-leaks": "warn"
   },
-  "overrides": [{ "files": ["test/**"], "rules": { "unused-class-members": "off" } }]
+  "overrides": [{ "files": ["tests/**"], "rules": { "unused-class-members": "off" } }]
 }
 ```
 
@@ -295,7 +296,7 @@ What it checks, in rising order of value:
 4. **Every module in `src/` is *specified* by at least one note** — named in a use case's
    `## Where it lives` or an ADR's `## Decision`. A mention anywhere else counts for
    nothing. This is the rule that finds *missing* notes rather than wrong ones.
-5. **Opt-in claim citations.** A note may write ``**Checked by** `test/x.test.ts` — "the
+5. **Opt-in claim citations.** A note may write ``**Checked by** `tests/x.test.ts` — "the
    test name"``, and the gate verifies the file exists and still contains that name. It
    does **not** verify the claim; nothing in a Markdown validator can. What it buys is the
    step where the author opens the check. The claim it was built for was written the same
@@ -317,11 +318,11 @@ Three implementation rules learned the hard way:
   every scan by its block **and** by the next marker, or a malformed citation reaches
   forward and adopts the next one's evidence — which is what happens in the ordinary shape
   of the convention, two citations in a row.
-- **`test/` is deliberately outside rule 4.** Naming a path is not describing it, so
+- **`tests/` is deliberately outside rule 4.** Naming a path is not describing it, so
   applying the rule there buys an index edit per new test file and nothing else.
 
-**Gate the gate.** `test/docs/checkerAccepts.test.ts` and `checkerRejects.test.ts` write a
-whole miniature repository (`docs/`, `src/`, `test/`) to a throwaway directory and run the
+**Gate the gate.** `tests/docs/checkerAccepts.test.ts` and `checkerRejects.test.ts` write a
+whole miniature repository (`docs/`, `src/`, `tests/`) to a throwaway directory and run the
 **real script as a subprocess** — the way CI runs it, not refactored into something
 importable, because a seam built for the test is the thing that would get tested. One
 valid tree (`baseRegister()`), and every case is a single delta against it, so a failure
@@ -337,17 +338,52 @@ so a tool writing prose into `docs/` does not have to satisfy backlog frontmatte
 
 ## 6. Looking at the UI without the host app
 
-Only if this project renders something. Two scripts, neither in `check`:
+**Built.** `npm run harness` starts a Vite dev server on `tests/harness/` and opens it: the
+real view, the real assembled stylesheet, and Obsidian's own app.css, in a browser, with no
+Obsidian. It draws and asserts nothing, and it is deliberately outside `check`.
 
-- `npm run harness` — bundle the real view into a static page with the real stylesheet, no
-  host app, and open it in a browser. It draws and asserts nothing. It answers layout,
-  spacing, hierarchy, and the platform's **default** colours. It cannot answer a themed
-  install's colours, its accent, or anything the host hands the view at runtime.
-- `npm run perf` — run that same page in headless Chromium and print the stopwatch the
-  page itself keeps. A way to **read** numbers where there is no display, not a benchmark
-  in the gate. Compare two builds by alternating them and printing both spreads; a delta
-  between overlapping spreads is environment drift, which has twice been mistaken for a
-  finding.
+A server rather than a static bundle, which is a change from the source project: there the
+page was an IIFE opened over `file://`, because a `file://` page cannot load ES modules —
+every file is its own opaque origin. Over http that constraint is gone, the entry is a plain
+module, and a partial edit reloads the page. What was lost with it is a folder a headless
+browser can screenshot with no server running; add a `vite build` to the harness config the
+day something needs one.
+
+How the pieces fit, since the order is load-bearing:
+
+| | |
+| --- | --- |
+| `vite.harness.config.ts` | `root: 'tests/harness'`, `obsidian` aliased to the same mock the suite uses (one mock, three consumers), and the assembled-styles plugin below. |
+| `scripts/vite-assembled-styles.mjs` | One plugin, both configs. On build it emits `styles.css` into `dist/`; on serve it answers `/styles.css` from `styles/` per request, so the page shows the CSS on disk right now and a partial edit reloads it. It re-runs the assembler rather than caching, because the assembler is what refuses an unimported partial. |
+| `tests/harness/index.html` | Links the three sheets in the order that matters, and says why in a comment beside them. |
+| `tests/harness/obsidian.css` | Obsidian's **real app.css**, vendored and reduced. Linked **first**, so real element defaults — button chrome included — are what the plugin's own resets have to strip, exactly as in a vault. |
+| `tests/harness/theme.css` | The harness's **own chrome only**: the leaf frame, the scheme switch, the missing-icon marker. It may restate nothing app.css already says, and every selector in it must name something the harness itself draws. |
+| `tests/harness/mount.ts` | Installs Obsidian's DOM prototype extensions (`createEl`, `addClass`, `setCssProps` — a browser has none of them), builds the leaf the app would supply, constructs the real view against the fake workspace and runs its first draw. Shared with the suite, so a test drives the same mount a browser gets. |
+| `tests/harness/page.ts` | The entry: `?theme=light`, `?phone`. For markup no code produces yet, add a second `.html` beside it and point the browser at it — the dev server serves any file under its root, so a mock needs no config. Keep it uncommitted; `npm run analyze` is right to call it dead. |
+
+Two rules the vendored sheet lives under, both learned by breaking them:
+
+- **`theme.css` loads second, so anything it restates WINS** — and a copy that wins can
+  only ever be equal or wrong. In the source project it held a full copy of the palette:
+  twelve values were already wrong, and the rest stood ready to draw stale colours over the
+  next vendored app.css, silently. Declare nothing Obsidian declares.
+- **The reduction is derived from the driven states of the project it came from.** A rule
+  this plugin needs and that one never exercised is simply absent, so an element default
+  can be missing here and present in a vault. Re-derive from a local app.css when a layout
+  reads right here and wrong in Obsidian.
+
+What checks it: `tests/harness/harness.test.ts` (it still mounts, the frame is there, the
+DOM extensions are installed, the scheme classes switch), `tests/harness/platform.test.ts`
+(its own file, because the ordering rule it holds is invisible in any file that has already
+installed the extensions), and `tests/harness/cssVars.test.ts` (every `var(--x)` the
+partials and the chrome read is declared by one of the two linked sheets — declarations
+only, scheme-blind, and it says so).
+
+Not built: `npm run perf`. In the source project it runs the same page in headless Chromium
+and prints the stopwatch the page keeps — a way to **read** numbers where there is no
+display, not a benchmark in the gate. Add it when there is a render cost to argue about,
+and remember that a delta between overlapping spreads is environment drift, which has twice
+been mistaken for a finding.
 
 Three things to write down and keep saying:
 
@@ -418,9 +454,9 @@ that was fixing the previous instance. Copy them into this project's agent guide
 
 ## Order of work
 
-1. `package.json`, `tsconfig.json`, `scripts/build.mjs`, the CI matrix. → `check` runs with
+1. `package.json`, `tsconfig.json`, `vite.config.ts`, the CI matrix. → `check` runs with
    two steps.
-2. vitest, `test/helpers/`, the first tests, thresholds at the first measured figure.
+2. vitest, `tests/helpers/`, the first tests, thresholds at the first measured figure.
 3. `eslint.config.mjs`: budgets first, then the layer bans once layers exist, then boundary
    bans as each boundary appears.
 4. fallow.

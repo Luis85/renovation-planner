@@ -1,1 +1,42 @@
+# the vault this repository is its own test vault for; `npm run test-build` writes
+# the plugin into .obsidian/plugins/<id>/
 .obsidian
+
+# the build: dist/main.js and dist/styles.css (the latter assembled from styles/ by
+# styles-assemble.mjs). Nothing is built into the repository root — see vite.config.ts.
+dist/
+*.js.map
+
+# dependencies
+node_modules/
+
+# misc — anchored to the root: an unanchored name would also swallow a future test
+# fixture of the same name anywhere in the tree, silently never staged. (.DS_Store is
+# the exception on purpose; macOS drops it everywhere.) The vault's data.json needs no
+# entry — `.obsidian` above already covers the only place Obsidian writes one.
+.DS_Store
+/coverage*/
+/release-notes.md
+
+# impeccable-ignore-start
+# Ephemeral output, runtime state, and per-dev overrides.
+# Unanchored: .impeccable may sit at the repo root or under a nested
+# workspace (apps/web/.impeccable/...); anchored patterns would miss it.
+# Shared artifacts stay tracked: config.json, live/config.json,
+# design.json, critique/*.md.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/*.png
+.impeccable/live/server.json
+.impeccable/live/sessions/
+.impeccable/live/previews/
+.impeccable/live/annotations/
+.impeccable/live/cache/
+.impeccable/live/manual-edit-apply-transaction.json
+.impeccable/live/manual-edit-events.jsonl
+.impeccable/live/manual-edit-evidence/
+.impeccable/live/pending-manual-edits.json
+.impeccable/live/deferred-svelte-component-accepts.json
+.impeccable/live/*.png
+# impeccable-ignore-end

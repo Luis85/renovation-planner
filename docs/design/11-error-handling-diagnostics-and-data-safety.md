@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Slice 2 defines the vocabulary of failure: the `DomainError` family
-(`ValidationError`, `PersistenceError`, `GeometryError`, `ImportError`,
+Slice 2 defines the vocabulary of failure: the `AppError` family (`DomainError`,
+`ValidationError`, `PersistenceError`, `GeometryError`, `ImportError`,
 `MigrationError`, `ReferenceError`, `CalculationError`) and the `Result<T,E>`
 type used to carry expected failures across layer boundaries. That vocabulary
 is inert on its own — nothing yet says what happens when an Obsidian API call
@@ -60,7 +60,7 @@ invent their own error handling, logging, or write-safety conventions.
 
 ## Dependencies
 
-- Slice 2 (Core Primitives) — `DomainError` hierarchy and `Result<T,E>`.
+- Slice 2 (Core Primitives) — the `AppError` hierarchy and `Result<T,E>`.
 - SDD §7.4 (Infrastructure Layer) — `infrastructure/logging/` is the home for
   the logger; diagnostics collection sits alongside it.
 - SDD §7.3 (Application Layer) — commands and queries are the layer that
@@ -100,7 +100,7 @@ Concretely:
   `schema-version` becomes `MigrationError`. A mapping site must not
   default everything to a generic `DomainError`; that defeats the purpose of
   having a typed hierarchy.
-- **Typed Result.** The mapped error is returned as `Result<T, DomainError>`,
+- **Typed Result.** The mapped error is returned as `Result<T, AppError>`,
   never thrown further. Commands and queries have no `throws` in their public
   contract.
 - **Presentation.** Presentation code (Pinia actions, Vue components) pattern
@@ -120,7 +120,7 @@ must not drift into being produced from two independent code paths.
 
 ```typescript
 // application/commands/zone/save-zone-geometry.ts (illustrative)
-async function saveZoneGeometry(cmd: SaveZoneGeometryCommand): Promise<Result<void, DomainError>> {
+async function saveZoneGeometry(cmd: SaveZoneGeometryCommand): Promise<Result<void, AppError>> {
   try {
     const saveResult = await zoneRepository.save(zone); // Result<void, PersistenceError> — resolves, never throws
     if (saveResult.isErr()) {
@@ -162,7 +162,7 @@ if (!result.ok) {
 - `info` — notable state transitions (migration ran, project index rebuilt).
 - `warn` — recovered-from problems (a stale index entry was repaired, an
   optional sidecar was missing and was regenerated).
-- `error` — every mapped `DomainError` that reached a command/query boundary,
+- `error` — every mapped `AppError` that reached a command/query boundary,
   logged with the original cause, at the Application Error Mapping step
   above.
 - **Logs never leave the device automatically** (SDD §67, §86). The logger
@@ -286,15 +286,13 @@ migrations slices 3–4 build:
 ## Interfaces & Contracts
 
 ```typescript
-// core/errors (slice 2, referenced here) — not redefined
-type DomainError =
-  | ValidationError
-  | PersistenceError
-  | GeometryError
-  | ImportError
-  | MigrationError
-  | ReferenceError
-  | CalculationError;
+// core/errors (slice 2, referenced here) — not redefined. AppError is the
+// full eight-category union (DomainError | ValidationError | PersistenceError
+// | GeometryError | ImportError | MigrationError | ReferenceError |
+// CalculationError); every type below that accepts "any mapped error" is
+// typed as AppError, not the narrower literal DomainError category slice 2
+// also defines — conflating the two would make this file's own `DomainError`
+// name collide with slice 2's, with a different (and incompatible) shape.
 
 // infrastructure/logging
 interface Logger {
@@ -305,7 +303,7 @@ interface Logger {
 }
 
 // application layer — the one place Infrastructure exceptions are mapped
-type ExceptionMapper = (cause: unknown) => DomainError;
+type ExceptionMapper = (cause: unknown) => AppError;
 
 // application/queries
 interface DiagnosticsSnapshot {
@@ -317,8 +315,8 @@ interface DiagnosticsSnapshot {
 }
 type GetDiagnosticsSnapshot = () => Promise<DiagnosticsSnapshot>;
 
-// presentation — the only place a DomainError becomes copy
-type ToUserMessage = (error: DomainError) => string;
+// presentation — the only place an AppError becomes copy
+type ToUserMessage = (error: AppError) => string;
 ```
 
 Contract notes:
@@ -327,9 +325,11 @@ Contract notes:
   Application port; Domain code never imports it directly (SDD §8).
 - `ExceptionMapper` implementations are one-per-Infrastructure-adapter (one
   for the Obsidian Vault adapter, one for the import adapter, etc.), each
-  narrowing to the smallest correct `DomainError` variant — they are not a
-  single catch-all switch.
-- `ToUserMessage` takes only a `DomainError`, never `unknown` — this is what
+  narrowing to the smallest correct `AppError` variant — they are not a
+  single catch-all switch, and "smallest correct" still permits the literal
+  `DomainError` category itself for a genuine domain-invariant violation that
+  doesn't warrant a narrower one (see slice 17's worked example).
+- `ToUserMessage` takes only an `AppError`, never `unknown` — this is what
   enforces "Presentation never sees a raw exception" at the type level.
 
 ## Persistence Impact
@@ -356,7 +356,7 @@ will run.)
 - **Error mapping unit tests**: for each `ExceptionMapper`, feed a
   representative Infrastructure exception (Vault write failure, Zod parse
   failure, dangling reference, unsupported schema version) and assert the
-  correct narrow `DomainError` variant is produced — never a generic fallback
+  correct narrow `AppError` variant is produced — never a generic fallback
   when a specific mapping exists.
 - **Result-not-throw contract**: application command/query tests assert no
   command or query function can reject/throw past its public boundary for
@@ -366,7 +366,7 @@ will run.)
   Error Mapping site inspects and returns that result — a `try`/`catch` around
   the call must not let the resolved error fall through to a happy-path
   `ok(...)` return, since it never entered the `catch` block to begin with.
-- **Message/log separation**: given a `DomainError`, `toUserMessage` returns
+- **Message/log separation**: given an `AppError`, `toUserMessage` returns
   a string containing no raw exception message, stack fragment, or file path;
   the paired `logger.error` call (asserted via a test double) receives the
   full cause.
@@ -389,7 +389,7 @@ will run.)
 ## Definition of Done
 
 - An Infrastructure exception thrown anywhere under `infrastructure/` is
-  caught and mapped to a specific slice-2 `DomainError` variant before it can
+  caught and mapped to a specific slice-2 `AppError` variant before it can
   reach Application or Presentation code; no command or query's public
   contract can throw.
 - A repository call that resolves to `Result.err` (an expected write failure,

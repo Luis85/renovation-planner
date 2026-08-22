@@ -23,8 +23,9 @@ real-world measurements."*
   background image.
 - `Calibration`, a plan-scoped value object (Point A, Point B, known real-world
   distance, derived scale) and its validation rules.
-- `CalibratePlanCommand`, the undoable application command that turns a completed
-  gesture plus a supplied distance into a persisted `Calibration`.
+- `ReversibleCalibratePlanCommand`, the undoable application command that turns a
+  completed gesture plus a supplied distance into a persisted `Calibration`
+  (supersedes slice 3's plain, non-undoable `CalibratePlanCommand` — see Design).
 - Deriving the scale factor from the two points and the known distance, and the
   precise (and limited) way that feeds `worldToScreen()` / `screenToWorld()`.
 - The pre-calibration default every fresh Plan renders under, since that default is
@@ -153,7 +154,7 @@ second point is placed, the tool hands off to the inspector/UI (§59's
 `Selection → Inspector Query → Inspector DTO → Vue UI` pattern) to prompt for the known
 real-world distance; the presentation layer converts that from the Plan's display unit
 into world units (mm) using slice 2's unit conversion before it ever reaches a command.
-Only then is `CalibratePlanCommand` dispatched.
+Only then is `ReversibleCalibratePlanCommand` dispatched.
 
 ### Deriving the scale
 
@@ -174,7 +175,7 @@ first calibration is just the case where `previousPixelsPerWorldUnit` is the def
 
 `pixelsPerWorldUnit` itself is not consumed by the viewport transform at render time —
 it is informational (audit trail, a "1 world unit ≈ N image px" display) and the value
-`CalibratePlanCommand` reads back to compute `scaleCorrection` on the next
+`ReversibleCalibratePlanCommand` reads back to compute `scaleCorrection` on the next
 recalibration.
 
 ### Validation
@@ -189,13 +190,22 @@ Per §26 Geometry Validation, applied to calibration's inputs specifically:
   floor against pathological floating-point input.
 
 All three are expected, nameable business failures — reported through `Result<T,E>`
-(§65), never thrown:
+(§65), never thrown. Slice 3's own command table already names this failure mode
+`CalculationError` (`pointA` = `pointB`, division by zero) for `CalibratePlanCommand`;
+this slice's three distinct cases are that same slice-2 `CalculationError`
+(`BaseError<'Calculation'>`), narrowed by `code`, not a bespoke type of their own —
+a bespoke `{ kind: ... }` shape would be incompatible with the `AppError` union every
+other slice's error routing (slices 11, 16, 17) is built against:
 
 ```typescript
-type CalibrationError =
-  | { kind: "CoincidentCalibrationPoints" }
-  | { kind: "InvalidCalibrationDistance"; value: number }
-  | { kind: "DegenerateScale"; pixelsPerWorldUnit: number };
+type CalibrationErrorCode =
+  | "calibration.coincident-points"
+  | "calibration.invalid-distance"
+  | "calibration.degenerate-scale";
+
+// CalculationError = BaseError<'Calculation'> (slice 2); narrowing TCode is
+// structurally still a CalculationError, not a new, incompatible type.
+type CalibrationError = BaseError<"Calculation", CalibrationErrorCode>;
 ```
 
 ### Recalibration
@@ -234,8 +244,16 @@ type CalibrationError =
 > because slice 8 (Zone Editing) starts producing exactly the geometry this decision
 > governs, and the architecture should not paint itself into a corner before then.
 
-`CalibratePlanCommand` implements this uniformly — it does not need to special-case
-"first calibration" versus "recalibration":
+`ReversibleCalibratePlanCommand` implements this uniformly — it does not need to
+special-case "first calibration" versus "recalibration". It is named distinctly from
+slice 3's plain `CalibratePlanCommand` (rather than redeclaring that name with a
+different shape, the mistake slice 8 had to correct for `DeleteZoneCommand`/
+`MoveSpatialObjectCommand`): slice 3's version only sets `Plan.calibration` far enough
+to make `Plan` a complete, testable entity; this slice's version supersedes its
+`execute()` body — a real domain command still living under `application/commands/
+plan/`, not a Presentation-layer wrapper — to add the rescale-every-spatial-object
+behavior recalibration needs, while keeping the same `CalibratePlanInput` shape and
+`PlanCalibrated`/`RequirementInvalidated` events slice 3 already established:
 
 ```typescript
 interface CalibratePlanInput {
@@ -245,8 +263,8 @@ interface CalibratePlanInput {
   knownDistance: number; // world units (mm)
 }
 
-class CalibratePlanCommand implements UndoableCommand {
-  async execute(): Promise<Result<Plan, CalibrationError | PersistenceError>> {
+class ReversibleCalibratePlanCommand implements UndoableCommand {
+  async execute(): Promise<Result<void, ReferenceError | ValidationError | CalibrationError | PersistenceError>> {
     // 1. load Plan (+ its spatial objects) via repositories (slice 3/4)
     // 2. validate inputs, derive scaleCorrection (see above)
     // 3. rescale Plan.calibration's own points, background sizing, and every
@@ -256,9 +274,12 @@ class CalibratePlanCommand implements UndoableCommand {
     //    (recalculation itself is slice 9's concern)
   }
 
-  async undo(): Promise<void> {
+  async undo(): Promise<Result<void, PersistenceError>> {
     // restore the previous Calibration and reverse the rescale (divide by
-    // scaleCorrection), from a snapshot taken before execute()
+    // scaleCorrection), from a snapshot taken before execute() — bypasses the
+    // command layer directly through the repository, the same reasoning
+    // slice 8's ReversibleDeleteZoneCommand.undo() uses (no natural "recalibrate
+    // to the opposite scale" inverse call to make instead)
   }
 }
 ```
@@ -304,7 +325,9 @@ interface Plan {
 ```
 
 ```typescript
-// application/commands/plan/calibrate-plan-command.ts (SDD §29, §85: CalibratePlan)
+// application/commands/plan/reversible-calibrate-plan-command.ts (SDD §29, §85:
+// CalibratePlan; named ReversibleCalibratePlanCommand here — see Design — to avoid
+// colliding with slice 3's plain, non-undoable CalibratePlanCommand)
 
 interface CalibratePlanInput {
   planId: PlanId;
@@ -313,9 +336,9 @@ interface CalibratePlanInput {
   knownDistance: number;
 }
 
-class CalibratePlanCommand implements UndoableCommand {
-  execute(): Promise<Result<Plan, CalibrationError | PersistenceError>>;
-  undo(): Promise<void>;
+class ReversibleCalibratePlanCommand implements UndoableCommand {
+  execute(): Promise<Result<void, ReferenceError | ValidationError | CalibrationError | PersistenceError>>;
+  undo(): Promise<Result<void, PersistenceError>>;
 }
 ```
 
@@ -379,9 +402,9 @@ Unit — domain, no Obsidian/Vue/Konva (ADR-006):
 
 - `deriveCalibration` on valid inputs returns the expected `pixelsPerWorldUnit` and
   `scaleCorrection`.
-- Rejects coincident points (`CoincidentCalibrationPoints`).
+- Rejects coincident points (`CalibrationError` code `calibration.coincident-points`).
 - Rejects `knownDistance` of `0`, negative, `NaN`, and `Infinity`
-  (`InvalidCalibrationDistance`) — §26.
+  (`CalibrationError` code `calibration.invalid-distance`) — §26.
 - Rescaling a polygon by `scaleCorrection` scales its vertices linearly and its area
   (slice 2's `area()`) by `scaleCorrection²`.
 - Recalibrating twice in sequence (`s1` then `s2`) produces the same end state as
@@ -390,11 +413,11 @@ Unit — domain, no Obsidian/Vue/Konva (ADR-006):
 
 Application (§71):
 
-- `CalibratePlanCommand` on a Plan with no spatial objects updates only
+- `ReversibleCalibratePlanCommand` on a Plan with no spatial objects updates only
   `Plan.calibration`.
-- `CalibratePlanCommand` on a Plan with existing Zones rescales every Zone's geometry
-  in the same transaction; a failure partway through leaves previously valid data
-  intact (§42).
+- `ReversibleCalibratePlanCommand` on a Plan with existing Zones rescales every Zone's
+  geometry in the same transaction; a failure partway through leaves previously valid
+  data intact (§42).
 - `undo()` restores both the previous `Calibration` and any rescaled geometry.
 - A successful recalibration that touched existing spatial objects emits
   `PlanCalibrated` and one `RequirementInvalidated` per affected object (§32 pattern);
@@ -404,8 +427,8 @@ Component/Canvas (§73–74, reusing that slice's harness):
 
 - A two-click gesture on `CalibrateTool` reads both clicks' `event.worldPoint` (produced
   upstream by a mocked `EditorContext.viewport.screenToWorld`, never recomputed by the
-  tool itself), and dispatches `CalibratePlanCommand` only once a valid distance is
-  supplied.
+  tool itself), and dispatches `ReversibleCalibratePlanCommand` only once a valid
+  distance is supplied.
 - `cancel()` after the first click clears the pending point without dispatching
   anything.
 
@@ -420,8 +443,8 @@ the sidecar unchanged.
       `event.worldPoint` (never `event.screenPoint`, never its own pixel math), and
       never calls `screenToWorld()` itself — that conversion already happened before
       the event reached the tool (ADR-009).
-- [ ] `CalibratePlanCommand` implements slice 6's `UndoableCommand`; one `execute()`
-      call is one persistence write and one undo/redo history entry (§31).
+- [ ] `ReversibleCalibratePlanCommand` implements slice 6's `UndoableCommand`; one
+      `execute()` call is one persistence write and one undo/redo history entry (§31).
 - [ ] Marking two distinct points on an imported plan's background and supplying a
       known real-world distance produces a `Plan` with a correctly derived,
       persisted `Calibration` — SDD Increment 5's success criterion, verified by a

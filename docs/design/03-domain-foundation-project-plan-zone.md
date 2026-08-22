@@ -291,9 +291,14 @@ exists; the general `spatial-object` domain module (which would let this command
 target Walls, Doors, etc.) is not part of this slice's scope. It always replaces the
 whole geometry rather than applying a delta — "move" vs. "resize" is a UI/tool-level
 distinction (Slices 6/8: which handle the user dragged), collapsing to the same
-domain operation here. `ResizeSpatialObjectCommand`/`DeleteSpatialObjectCommand` from
-the same SDD list are not introduced by this slice; `DeleteZoneCommand` covers the one
-concrete deletion this slice needs (`ZoneDeleted`).
+domain operation here. `ResizeSpatialObjectCommand` from the same SDD list is not
+introduced by this slice — no editor gesture needs it yet (slice 8 covers Zone
+resize via the same "move vs. resize is UI-level" collapse `MoveSpatialObjectCommand`
+already uses). `DeleteZoneCommand`, by the same "Zone-only, general SDD name kept
+where the concrete entity name reads just as well" choice, is this slice's plain,
+non-undoable version of the SDD's `DeleteSpatialObjectCommand` (`ZoneDeleted` on
+success); slice 8 wraps it in an `UndoableCommand` once slice 6's undo/redo exists,
+the same upgrade `CalibratePlanCommand` gets from slice 7.
 
 Every command follows the same shape: load referenced parent/target entities via
 repository ports, validate, construct/derive the new entity state via the entity's own

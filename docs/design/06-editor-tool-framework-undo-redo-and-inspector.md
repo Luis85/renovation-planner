@@ -48,6 +48,10 @@ concrete tool plugs into.
 
 ## Dependencies
 
+- Slice 2 (Core Primitives) — `Point`, `DomainId`, `Result`, and `AppError`; every
+  `Result`-returning signature in this slice (`UndoableCommand`, `CommandHistory`,
+  `InspectorStore.commit`) resolves to `Result<void, AppError>` from slice 2, not a
+  bespoke error type of its own.
 - Slice 5 (Canvas Rendering & Editor Shell) — Konva stage/layers and the
   `worldToScreen`/`screenToWorld` viewport transform this slice's `EditorContext` reads.
 - Slice 4 (Persistence & Repository Layer) — the repository writes a command handler
@@ -117,32 +121,40 @@ interface Command<TInput, TResult> {
 }
 ```
 
-Editor gestures need a reversible form. Per SDD §30:
+Editor gestures need a reversible form. Per SDD §30, adapted to this codebase's
+`Result`-returning commands (SDD §30's own sketch predates slice 3's correction that
+commands resolve a `Result`, never a bare value — see the note on `run()`/`undo()`/
+`redo()` below):
 
 ```typescript
 interface UndoableCommand {
-  execute(): Promise<void>;
-  undo(): Promise<void>;
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;
 }
 ```
 
 An `UndoableCommand` is a thin adapter around a slice-3 domain command, capturing
-enough state at gesture end to compute an inverse:
+enough state at gesture end to compute an inverse. The adapter discards the wrapped
+command's success payload (`{ zone }`) and passes its `Result.err` through unchanged,
+since `UndoableCommand`'s callers (`CommandHistory`) only need to know whether the
+stacks should be touched, not the returned entity:
 
 ```typescript
 class ReversibleMoveZoneCommand implements UndoableCommand {
   constructor(
-    private readonly moveCommand: Command<MoveSpatialObjectInput, void>,
+    private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>>,
     private readonly forward: MoveSpatialObjectInput,   // captured at pointerUp
     private readonly inverse: MoveSpatialObjectInput,    // captured at pointerDown
   ) {}
 
-  execute(): Promise<void> {
-    return this.moveCommand.execute(this.forward);
+  async execute(): Promise<Result<void, AppError>> {
+    const result = await this.moveCommand.execute(this.forward);
+    return result.isErr() ? result : Result.ok(undefined);
   }
 
-  undo(): Promise<void> {
-    return this.moveCommand.execute(this.inverse);
+  async undo(): Promise<Result<void, AppError>> {
+    const result = await this.moveCommand.execute(this.inverse);
+    return result.isErr() ? result : Result.ok(undefined);
   }
 }
 ```
@@ -380,7 +392,7 @@ interface EditorContext {
   };
   readonly selection: SelectionStore;
   readonly snapService: SnapService;
-  readonly commandDispatcher: { run(command: UndoableCommand): Promise<void> };
+  readonly commandDispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
   readonly renderState: RenderState;
   readonly activePlan: { id: DomainId; calibration: PlanCalibration; units: 'mm' };
 }
@@ -400,14 +412,14 @@ interface Command<TInput, TResult> {
 
 // presentation/editor/tools/undoable-command.ts
 interface UndoableCommand {
-  execute(): Promise<void>;
-  undo(): Promise<void>;
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;
 }
 
 interface CommandHistory {
-  run(command: UndoableCommand): Promise<void>;
-  undo(): Promise<void>;
-  redo(): Promise<void>;
+  run(command: UndoableCommand): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;
+  redo(): Promise<Result<void, AppError>>;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   clear(): void;
@@ -437,7 +449,7 @@ type InspectorDto =
 
 interface InspectorStore {
   readonly dto: InspectorDto;
-  commit(edit: Record<string, unknown>): Promise<void>; // → UndoableCommand → CommandHistory.run
+  commit(edit: Record<string, unknown>): Promise<Result<void, AppError>>; // → UndoableCommand → CommandHistory.run
 }
 ```
 

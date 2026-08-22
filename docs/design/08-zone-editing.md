@@ -23,11 +23,15 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
   input and closes them into a `CreateZoneCommand`.
 - `SelectTool`, first built here against `Zone`: hit-testing, selection state, and the
   vertex/body handles rendered in the `InteractionLayer` for a selected zone.
-- Whole-zone move (drag the body) as one `MoveSpatialObjectCommand` per drag gesture.
+- Whole-zone move (drag the body) as one `ReversibleMoveZoneCommand` (slice 6's
+  `UndoableCommand` adapter wrapping slice 3's plain `MoveSpatialObjectCommand`) per
+  drag gesture.
 - Single-vertex reshape (drag a vertex handle) as one new `UndoableCommand`,
   `MoveSpatialObjectVertexCommand`, per vertex-drag gesture.
-- Zone deletion as one new `UndoableCommand`, `DeleteSpatialObjectCommand`, whose
-  `undo()` resurrects the exact deleted entity (same ID, same geometry).
+- Zone deletion as one new `UndoableCommand`, `ReversibleDeleteZoneCommand` —
+  wrapping slice 3's plain `DeleteZoneCommand` the same way slice 6's
+  `ReversibleMoveZoneCommand` wraps `MoveSpatialObjectCommand` — whose `undo()`
+  resurrects the exact deleted entity (same ID, same geometry).
 - Geometry validation at the point geometry is about to become a command input:
   minimum vertex count, finite/non-NaN coordinates, world-unit coordinates, and a
   well-formed viewport transform — per SDD §26's required (non-"Future") rules.
@@ -43,7 +47,10 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
   Konva Transformer normalization, `SnapService` — slice 6 (consumed here, not
   redefined).
 - The `Zone` entity itself, its schema, and the plain (non-undoable)
-  `CreateZoneCommand` / `MoveSpatialObjectCommand` implementations — slice 3.
+  `CreateZoneCommand` / `MoveSpatialObjectCommand` / `DeleteZoneCommand`
+  implementations — slice 3. This slice wraps `DeleteZoneCommand` in an
+  `UndoableCommand` the same way it wraps `MoveSpatialObjectCommand`; it does not
+  reimplement zone deletion from scratch.
 - Repository mechanics, the plan geometry sidecar format, and the
   Markdown-plus-sidecar consistency rule — slice 4. This slice only triggers those
   paths via commands.
@@ -63,13 +70,17 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 - **Slice 2 (Core Primitives)** — `Polygon`, `Point`, geometry operations
   (point-in-polygon, area, perimeter), `Result<T,E>`, `GeometryError`.
 - **Slice 3 (Domain Foundation)** — `Zone` entity, `CreateZoneCommand`,
-  `MoveSpatialObjectCommand` as plain `Command<TInput,TResult>` implementations.
+  `MoveSpatialObjectCommand`, `DeleteZoneCommand` as plain `Command<TInput,TResult>`
+  implementations; this slice wraps the latter two in slice 6's `UndoableCommand`
+  adapters rather than modifying them.
 - **Slice 4 (Persistence & Repository Layer)** — `ZoneRepository`, the plan geometry
   sidecar, and the Markdown+sidecar transaction rule (SDD §42).
 - **Slice 5 (Canvas Rendering & Editor Shell)** — `ZoneLayer`, `InteractionLayer`,
   `worldToScreen()` / `screenToWorld()`.
 - **Slice 6 (Editor Tool Framework)** — `EditorTool`, `EditorContext`,
-  `UndoableCommand`, `CommandHistory`, `SnapService`, Transformer normalization.
+  `UndoableCommand`, `CommandHistory`, `SnapService`, Transformer normalization, and
+  the `ReversibleMoveZoneCommand` adapter this slice's whole-zone-move gesture
+  constructs one instance of per drag.
 - **Slice 7 (Calibration)** — sibling, not a hard dependency. A `Plan` need not be
   calibrated before a zone can be drawn on it (the two slices can be built in either
   order per the slice map); `screenToWorld()` always produces *some* well-formed world
@@ -147,26 +158,36 @@ the pipeline slice 6 already defines (§59: Selection → Inspector Query → In
 ### Moving a zone
 
 Dragging the body handle only updates a transient Konva preview while the pointer
-moves; domain geometry is untouched mid-drag (§20: normalize before persistence). On
-`pointerUp`:
+moves; domain geometry is untouched mid-drag (§20: normalize before persistence).
+`MoveSpatialObjectCommand` (slice 3) takes a full replacement `geometry: Polygon`, not
+a delta — "move" collapses to the same whole-geometry-replacement operation slice 3
+already defined, matching slice 3's own reasoning for using one command for both move
+and resize. On `pointerDown`, this slice captures the zone's current `Polygon` as the
+inverse snapshot; on `pointerUp`:
 
-1. Compute the total world-space delta via `screenToWorld()`.
-2. Run the candidate final position through `SnapService` (`snapToGrid` /
+1. Compute the total world-space delta via `screenToWorld()`, and translate every
+   vertex of the captured original polygon by it to produce the candidate final
+   polygon.
+2. Run the candidate polygon's points through `SnapService` (`snapToGrid` /
    `snapToVertex` / `snapToEdge`).
 3. Re-validate the translated polygon (translation cannot change vertex count, but the
    result is still passed back through `Polygon.create()` — see Validation below —
    because snap adjustment is arithmetic that must not be trusted blindly).
-4. Dispatch one `MoveSpatialObjectCommand`.
+4. Build one `ReversibleMoveZoneCommand` (slice 6) — the same adapter pattern this
+   slice's `ReversibleDeleteZoneCommand` follows — with `forward: { zoneId, geometry:
+   candidatePolygon }` and `inverse: { zoneId, geometry: originalPolygon }`, and run it
+   through `CommandHistory.run()`.
 
 If `pointerUp` fires with a near-zero delta (a click, not a drag), this is a pure
 selection, not a move: no command is dispatched and nothing is pushed onto
 `CommandHistory`. This matters — a no-op move must not pollute the undo stack.
 
-`MoveSpatialObjectCommand` already exists (slice 3) as a plain
-`Command<TInput,TResult>`. This slice is where it is first driven by real pointer
-input and made `UndoableCommand`-compliant for `CommandHistory` (its `undo()`
-re-applies the inverse delta and persists again) — one drag, one command, one history
-entry, per the transaction-boundary rule (§31).
+`MoveSpatialObjectCommand` itself stays exactly as slice 3 defined it — a plain
+`Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError
+| PersistenceError>>`, never modified to implement `UndoableCommand` directly. This
+slice is where it is first driven by real pointer input, wrapped in
+`ReversibleMoveZoneCommand` for `CommandHistory` compliance — one drag, one command,
+one history entry, per the transaction-boundary rule (§31).
 
 ### Editing a single vertex
 
@@ -191,17 +212,30 @@ adding that later as an extension of the same command family.
 
 ### Deleting a zone
 
-`DeleteSpatialObjectCommand` (new in this slice, named per SDD §29's command list) is
-the first delete-type `UndoableCommand` in the codebase, and its undo semantics are
-the one place in this slice where "undo" means more than replaying an inverse delta:
+`ReversibleDeleteZoneCommand` is the first delete-type `UndoableCommand` in the
+codebase. Its `execute()` is a thin wrapper around slice 3's plain `DeleteZoneCommand`
+(SDD §29 names the general operation `DeleteSpatialObjectCommand`; slice 3 already
+named its concrete, Zone-only command `DeleteZoneCommand` — the same "general SDD
+name in principle, concrete entity name in this codebase" choice slice 3 made for
+`MoveSpatialObjectCommand`, so this slice follows suit rather than introducing a
+second, competing delete command under the SDD's general name). Its `undo()` is the
+one place in this slice where "undo" means more than replaying an inverse delta
+through that same wrapped command — deletion has no natural "delete the opposite
+thing" inverse, so `undo()` bypasses the command layer entirely and restores the
+snapshot directly through the repository:
 
 ```text
-execute(): snapshot := full copy of the Zone entity + its sidecar geometry entry
-           remove the Markdown note (slice 4 mechanics) and the sidecar entry
+execute(): result := deleteZoneCommand.execute({ zoneId })   // slice 3's plain command
+           if result.isErr(): return result
+           snapshot := full copy of the Zone entity + its sidecar geometry entry,
+                       captured BEFORE calling execute() above
            clear selection if it pointed at this zone
+           return result
 
 undo():    re-insert the captured snapshot verbatim — same ID, same zone type,
-           same points, same schema version
+           same points, same schema version — via zoneRepository.save() directly,
+           NOT via CreateZoneCommand (which would mint a fresh ID and publish
+           ZoneCreated, misrepresenting a restore as a new zone)
 ```
 
 Undo must resurrect the same entity, not create a new one with a fresh ID. This is a
@@ -288,27 +322,27 @@ class SelectTool implements EditorTool {
 ```
 
 ```typescript
-// application/commands/zone/CreateZoneCommand.ts (slice 3, consumed here)
+// application/commands/zone/CreateZone.ts (slice 3, consumed here verbatim —
+// geometry is already validated by the time DrawPolygonTool builds this input,
+// see Design/Validation)
 interface CreateZoneInput {
   planId: PlanId;
+  name: string;
   zoneType: ZoneType;
-  polygon: Polygon;          // already validated — see Design/Validation
+  geometry: Polygon;
+  domainNoteLink?: string;
 }
-class CreateZoneCommand implements Command<CreateZoneInput, Result<Zone, DomainError>> {
-  execute(input: CreateZoneInput): Promise<Result<Zone, DomainError>>;
+class CreateZoneCommand implements Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>> {
+  execute(input: CreateZoneInput): Promise<Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>>;
 }
 
-// application/commands/spatial-object/MoveSpatialObjectCommand.ts
-// (slice 3: plain Command; this slice adds UndoableCommand compliance)
-interface MoveSpatialObjectInput {
-  objectId: SpatialObjectId;
-  delta: Vector;              // world mm
-}
-class MoveSpatialObjectCommand implements UndoableCommand {
-  constructor(input: MoveSpatialObjectInput);
-  execute(): Promise<void>;   // applies delta, persists
-  undo(): Promise<void>;      // applies inverse delta, persists
-}
+// application/commands/zone/MoveSpatialObject.ts (slice 3, consumed here
+// verbatim — a plain Command taking a full replacement geometry, not a delta;
+// this slice wraps it in slice 6's ReversibleMoveZoneCommand adapter rather
+// than making it implement UndoableCommand directly)
+interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
+class MoveSpatialObjectCommand
+  implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
 // application/commands/spatial-object/MoveSpatialObjectVertexCommand.ts (new)
 interface MoveSpatialObjectVertexInput {
@@ -318,15 +352,19 @@ interface MoveSpatialObjectVertexInput {
 }
 class MoveSpatialObjectVertexCommand implements UndoableCommand {
   constructor(input: MoveSpatialObjectVertexInput);
-  execute(): Promise<Result<void, GeometryError | DomainError>>;
-  undo(): Promise<void>;       // restores this vertex's prior point only
+  execute(): Promise<Result<void, ReferenceError | GeometryError | PersistenceError>>;
+  undo(): Promise<Result<void, ReferenceError | GeometryError | PersistenceError>>; // restores this vertex's prior point only
 }
 
-// application/commands/spatial-object/DeleteSpatialObjectCommand.ts (new)
-class DeleteSpatialObjectCommand implements UndoableCommand {
-  constructor(input: { objectId: SpatialObjectId });
-  execute(): Promise<Result<void, DomainError>>; // snapshots, then removes
-  undo(): Promise<void>;                          // re-inserts snapshot verbatim, same ID
+// application/commands/zone/ReversibleDeleteZoneCommand.ts (new) — wraps slice 3's
+// plain DeleteZoneCommand for execute(); undo() bypasses the command layer (see Design)
+class ReversibleDeleteZoneCommand implements UndoableCommand {
+  constructor(
+    private readonly deleteCommand: Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>>,
+    private readonly zoneRepository: ZoneRepository, // undo()'s direct restore path only
+  );
+  execute(): Promise<Result<void, ReferenceError | PersistenceError>>; // snapshots, then delegates to deleteCommand
+  undo(): Promise<Result<void, PersistenceError>>; // re-inserts snapshot verbatim, same ID
 }
 ```
 
@@ -371,8 +409,8 @@ dependency rule (Presentation → Application → Domain).
   - Every command's `execute()` → `undo()` pair is a true inverse: state after
     `undo()` is identical to state before `execute()`.
 - **Application tests (in-memory repositories, per §71)**:
-  `CreateZoneCommand → InMemoryZoneRepository → assertions`; `MoveSpatialObjectCommand`
-  and `MoveSpatialObjectVertexCommand` roundtrips; `DeleteSpatialObjectCommand`
+  `CreateZoneCommand → InMemoryZoneRepository → assertions`; `ReversibleMoveZoneCommand`
+  and `MoveSpatialObjectVertexCommand` roundtrips; `ReversibleDeleteZoneCommand`
   roundtrip asserting the resurrected zone has the same ID, not a new one.
 - **Repository contract tests (§72)**: extend the shared suite (reused, not
   duplicated) with zone-geometry sidecar cases — add entry, update entry, remove
@@ -400,7 +438,7 @@ dependency rule (Presentation → Application → Domain).
 3. Clicking an existing zone selects it and shows its vertex handles; clicking empty
    canvas clears the selection.
 4. Dragging a selected zone's body — regardless of how many `pointermove` events
-   fired — produces exactly one `MoveSpatialObjectCommand` and one `CommandHistory`
+   fired — produces exactly one `ReversibleMoveZoneCommand` and one `CommandHistory`
    entry; pressing undo restores the exact prior point set.
 5. Dragging one vertex handle produces exactly one `MoveSpatialObjectVertexCommand`
    per gesture; undo restores that vertex's exact prior coordinate without altering

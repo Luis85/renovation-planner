@@ -85,7 +85,7 @@ drawing, closing.
 
 ```text
 activate()      → buffer = []
-pointerDown()   → world = screenToWorld(event); snapped = snapService.snapPoint(world)
+pointerDown()   → world = event.worldPoint; snapped = snapService.snapPoint(world)
                   if snapped is within closing tolerance of buffer[0] and buffer.length >= 3:
                       closePolygon()
                   else:
@@ -123,7 +123,7 @@ generic "spatial objects on the active plan" list so slice 10 can extend the can
 set later without a parallel select mechanism.
 
 ```text
-pointerDown() → world = screenToWorld(event)
+pointerDown() → world = event.worldPoint
                 candidates = activePlan.spatialObjects   # linear scan, see below
                 hit = first candidate (in reverse z-order) whose Polygon contains world
                 if hit: selection.set(hit.id)
@@ -228,8 +228,8 @@ What is checked, matching §26's required list exactly:
 | --- | --- |
 | ≥ 3 vertices | `Polygon.create()` rejects 0, 1, 2 points |
 | finite coordinates, no NaN, no Infinity | `Polygon.create()` checks every point |
-| valid unit | vertices only ever enter `Polygon.create()` after `screenToWorld()` — a `Point` (world mm) and a raw screen coordinate are distinct types, so a screen pixel value cannot type-check as domain geometry without passing through the conversion |
-| valid transform | `screenToWorld()` itself returns a `Result`; a degenerate viewport (non-finite output) is a `GeometryError`, not a silently-wrong point |
+| valid unit | `DrawPolygonTool` and every zone-editing handler read only `event.worldPoint` (slice 6), never `event.screenPoint` — `Point` (world mm) and `ScreenPoint` (slice 5) are distinct, incompatible types, so passing a screen coordinate to `Polygon.create()` is a compile error, not a runtime bug (slice 6's `EditorPointerEvent`) |
+| valid transform | `worldToScreen`/`screenToWorld` (slice 5) do not themselves return a `Result` — a degenerate viewport (e.g. zero zoom) producing a non-finite point is instead caught by `Polygon.create()`'s own finite-coordinate check, the same backstop that catches any other bad input. This slice relies on that backstop rather than adding a second one. |
 
 What is explicitly **not** checked, per §26's own "Future" list, and why that is safe
 for this slice's correctness requirement:

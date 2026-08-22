@@ -57,9 +57,11 @@ without a mutation path attached is the whole point of splitting these into two 
 - **Slice 1 (Plugin Bootstrap & Composition Root)** — the `ItemView` registration pattern,
   the `revealView`/one-action-per-input convention, and the composition root that wires
   query services into a view's constructor.
-- **Slice 2 (Core Primitives)** — `Point`, `Polygon`, `Transform`, and the centralized
-  `worldToScreen()` / `screenToWorld()` functions (§22–24). This slice calls that math, it
-  does not re-derive it.
+- **Slice 2 (Core Primitives)** — `Point`, `Polygon`, `Transform` (§22–24). Slice 2
+  explicitly excludes viewport transform from its own scope ("Core never sees a pixel"),
+  so `worldToScreen()`/`screenToWorld()` and the `ScreenPoint` type are this slice's own
+  contribution, built on slice 2's types — not math re-derived from elsewhere, and not
+  math slice 2 provides.
 - **Slice 3 (Domain Foundation)** — the `Zone` entity and its geometry value object.
 - **Slice 4 (Persistence & Repository Layer)** — `PlanRepository`, `ZoneRepository`, and the
   query services (`GetPlan`, `FindZonesByPlan`, §35) this slice's `ProjectStore` hydrates
@@ -228,7 +230,7 @@ Zone (domain entity, slice 3)
         ↓  toZoneRenderModel()          — pure mapping, presentation-only, no mutation
 ZoneRenderModel
         ↓  <ZoneShape :model :viewport> — Vue component
-        ↓  worldToScreen() per point    — slice 2, not re-derived here
+        ↓  worldToScreen() per point    — this slice (§ Interfaces & Contracts)
         ↓  <v-line :points :closed>     — vue-konva
         ↓
 Konva Node (canvas pixels only — never read back as a geometry source)
@@ -327,9 +329,10 @@ if built as a dedicated, selectable mode rather than dropped — would share thi
 `Viewport` state and the same `worldToScreen()`/`screenToWorld()` calls; it would not
 change how panning fundamentally works.
 
-Every pointer-to-world conversion goes through slice 2's `screenToWorld()`, taking the
-current `Viewport` and the Stage's device pixel ratio — this slice does not compute its own
-pixel math anywhere. `Viewport` is not persisted: reopening a Plan Editor resets to a
+Every pointer-to-world conversion goes through this slice's own `screenToWorld()`
+(defined below, over slice 2's `Point`/`Transform`), taking the current `Viewport` and
+the Stage's device pixel ratio — no tool or component computes its own pixel math.
+`Viewport` is not persisted: reopening a Plan Editor resets to a
 computed "fit to background" (or a fixed default zoom if there is no background yet), since
 the SDD gives no requirement to remember a per-plan camera position across sessions.
 
@@ -417,14 +420,24 @@ export interface PlanEditorQueryServices {
 // presentation/editor/viewport/Viewport.ts
 export interface Point { readonly x: number; readonly y: number; } // re-exported from slice 2, not redefined
 
+// A screen coordinate is a distinct, incompatible type from Point (always
+// world millimeters, per ADR-009). Slice 2 deliberately never sees a pixel,
+// so ScreenPoint is introduced here — the first slice that needs it — not
+// in core/geometry. Slice 6 imports this same type rather than redefining
+// it, so there is exactly one ScreenPoint in the codebase, not two
+// coincidentally-shaped ones.
+export interface ScreenPoint { readonly x: number; readonly y: number; readonly __brand: 'ScreenPoint'; }
+
 export interface Viewport {
-  readonly pan: Point;
+  readonly pan: Point;     // world-space; see "Pan and zoom" above
   readonly zoom: number;
 }
 
-// Both delegate entirely to slice 2's core primitives; this module adds no math of its own.
-export function worldToScreen(point: Point, viewport: Viewport, dpr: number): Point;
-export function screenToWorld(point: Point, viewport: Viewport, dpr: number): Point;
+// The math is built here, on top of slice 2's Point/Transform — slice 2
+// itself excludes viewport transform from its scope ("Core never sees a
+// pixel"), so this module, not slice 2, owns worldToScreen/screenToWorld.
+export function worldToScreen(point: Point, viewport: Viewport, dpr: number): ScreenPoint;
+export function screenToWorld(point: ScreenPoint, viewport: Viewport, dpr: number): Point;
 ```
 
 ```typescript
@@ -494,10 +507,14 @@ Per §73–74 (Vue component tests, canvas adapter tests):
 - **Render pipeline (adapter tests, not geometry tests)**: given a fixed `ZoneRenderModel`
   and `Viewport`, `ZoneShape` renders a `<v-line>` with the expected screen-space point
   list — asserting the adapter renders what it is given, per §74, not re-verifying
-  `worldToScreen()`'s math (that is slice 2's unit-test responsibility).
+  `worldToScreen()`'s own math, which gets its own direct unit tests below.
+- **`worldToScreen`/`screenToWorld` unit tests** (this slice's own responsibility, since
+  slice 2 excludes viewport transform from its scope): table-driven over
+  pan/zoom/dpr combinations, including the round-trip property
+  `screenToWorld(worldToScreen(p, v, dpr), v, dpr) ≈ p`. No Konva, no Obsidian.
 - **Store tests**: `ProjectStore` hydration from mocked query services; `EditorStore`'s
-  viewport update actions call slice 2's transform functions with the right arguments
-  rather than reimplementing them.
+  viewport update actions call this slice's own transform functions with the right
+  arguments rather than reimplementing them.
 - **Background**: a PNG/JPEG fixture and a PDF fixture (rendered via `pdfjs-dist` in
   jsdom/a headless canvas) both resolve to a `BackgroundRenderModel` with a decoded raster
   handle, sourced from a Vault-relative path — no literal base64 string appears anywhere in

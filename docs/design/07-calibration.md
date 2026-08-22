@@ -35,13 +35,16 @@ real-world measurements."*
 
 ### Out of scope (covered by other slices)
 
-- `Point`, `distance()`, other Geometry Core primitives, `Result<T,E>`, the base error
-  categories, and the `worldToScreen`/`screenToWorld` transform itself — slice 2.
+- `Point`, `distance()`, other Geometry Core primitives, `Result<T,E>`, and the base
+  error categories — slice 2.
 - The `Plan` entity's other fields (name, background reference, layers), its schema,
   and its ID — slice 3.
 - The geometry sidecar file format, Plan repository, schema versioning, and migration
   mechanics — slice 4 (ADR-002, ADR-011).
-- Konva scene structure, the background layer's rendering, pan/zoom — slice 5.
+- Konva scene structure, the background layer's rendering, pan/zoom, and the
+  `worldToScreen`/`screenToWorld` transform itself (and the `ScreenPoint` type) — slice
+  5. This slice only supplies calibration's own output, `pixelsPerWorldUnit`, as one of
+  that transform's inputs; it does not define the transform.
 - `EditorTool`, `EditorContext`, `Command`/`UndoableCommand`, command history/undo
   stacks — slice 6.
 - Polygon drawing, zone vertex editing — slice 8.
@@ -56,16 +59,17 @@ covers and are left as feature work built on this slice and slice 8 once both ex
 ## Dependencies
 
 - **Slice 2 (Core Primitives)** — `Point`, `distance()`, `Result<T,E>`, the error
-  category taxonomy, unit conversion, and the `worldToScreen`/`screenToWorld`
-  transform (SDD §22–24; ADR-009).
+  category taxonomy, and unit conversion (SDD §22–23; ADR-009).
 - **Slice 3 (Domain Foundation)** — the `Plan` entity and its module (SDD §7.2, §78).
   `Calibration` is added as one of `Plan`'s own fields, not a new entity.
 - **Slice 4 (Persistence & Repository Layer)** — the Plan geometry sidecar and its
   repository (SDD §39–47; ADR-002, ADR-011). This slice extends that sidecar's schema
   by one field; it does not touch how sidecars are located, written, or migrated.
-- **Slice 5 (Canvas Rendering & Editor Shell)** — the background layer that renders a
-  Plan's image and is responsible for the pre-calibration default scale this slice
-  corrects (SDD §16–19).
+- **Slice 5 (Canvas Rendering & Editor Shell)** — the `worldToScreen`/`screenToWorld`
+  transform and the `ScreenPoint` type (SDD §24), the background layer that renders a
+  Plan's image, and the pre-calibration default scale this slice corrects (SDD §16–19).
+  This slice supplies `pixelsPerWorldUnit` as an input to that transform; it does not
+  define the transform.
 - **Slice 6 (Editor Tool Framework, Undo/Redo & Inspector)** — `EditorTool`,
   `EditorContext`, `Command`/`UndoableCommand`, `CommandHistory` (SDD §56–59, §29–31).
 - **ADR-007** (Command-Based Mutations), **ADR-009** (World Coordinates in
@@ -120,7 +124,8 @@ class CalibrateTool implements EditorTool {
   private pointA: Point | null = null;
 
   pointerDown(event: EditorPointerEvent): void {
-    const point = this.context.viewport.screenToWorld(event);
+    const point = event.worldPoint; // already through screenToWorld() — SDD's own
+                                     // EditorPointerEvent field, not recomputed here
     if (this.pointA === null) {
       this.pointA = point;
       return; // first point placed; wait for the second click
@@ -140,8 +145,10 @@ class CalibrateTool implements EditorTool {
 }
 ```
 
-Both points go through `context.viewport.screenToWorld()` — never raw screen pixels —
-per ADR-009's rule that editor tools must not perform ad-hoc pixel math. Once the
+Both points come from `event.worldPoint` — already converted through
+`context.viewport.screenToWorld()` before the tool ever sees the event — never raw
+screen pixels, per ADR-009's rule that editor tools must not perform ad-hoc pixel
+math. Once the
 second point is placed, the tool hands off to the inspector/UI (§59's
 `Selection → Inspector Query → Inspector DTO → Vue UI` pattern) to prompt for the known
 real-world distance; the presentation layer converts that from the Plan's display unit
@@ -395,9 +402,10 @@ Application (§71):
 
 Component/Canvas (§73–74, reusing that slice's harness):
 
-- A two-click gesture on `CalibrateTool` resolves both clicks through the mocked
-  `EditorContext.viewport.screenToWorld`, and dispatches `CalibratePlanCommand` only
-  once a valid distance is supplied.
+- A two-click gesture on `CalibrateTool` reads both clicks' `event.worldPoint` (produced
+  upstream by a mocked `EditorContext.viewport.screenToWorld`, never recomputed by the
+  tool itself), and dispatches `CalibratePlanCommand` only once a valid distance is
+  supplied.
 - `cancel()` after the first click clears the pending point without dispatching
   anything.
 
@@ -408,8 +416,10 @@ the sidecar unchanged.
 
 - [ ] `Calibration` and its validation live in the `plan` domain module (§78),
       self-contained: value object, errors, no framework dependency (ADR-006).
-- [ ] `CalibrateTool` implements slice 6's `EditorTool` exactly and performs no
-      coordinate math outside `context.viewport.screenToWorld()` (ADR-009).
+- [ ] `CalibrateTool` implements slice 6's `EditorTool` exactly, reads only
+      `event.worldPoint` (never `event.screenPoint`, never its own pixel math), and
+      never calls `screenToWorld()` itself — that conversion already happened before
+      the event reached the tool (ADR-009).
 - [ ] `CalibratePlanCommand` implements slice 6's `UndoableCommand`; one `execute()`
       call is one persistence write and one undo/redo history entry (§31).
 - [ ] Marking two distinct points on an imported plan's background and supplying a

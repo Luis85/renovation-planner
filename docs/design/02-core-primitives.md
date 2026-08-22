@@ -51,9 +51,13 @@ the types defined here.
   coordinates, no NaN/Infinity, valid unit/transform — §26) and **advanced
   polygon operations** (`clipper2-ts` union/intersection/difference/offset,
   §27) and the **spatial index** (`rbush`, §28) — all three belong to slice 8.
-- **Viewport transform and calibration** (`worldToScreen`/`screenToWorld`,
-  pixel↔world mapping, §24–25) — slice 7. Core's `Transform` and `scale`
-  operate purely within world units; they never see a pixel.
+- **Viewport transform** (`worldToScreen`/`screenToWorld`, pixel↔world
+  mapping, §24) — slice 5, built on this slice's `Point`/`Transform`. Core's
+  `Transform` and `scale` operate purely within world units; they never see
+  a pixel, and never define the `ScreenPoint` type that represents one.
+- **Calibration** (§25, the two-point/known-distance derivation and its
+  persistence) — slice 7. Calibration supplies one *input* to slice 5's
+  transform (`pixelsPerWorldUnit`); it does not define the transform itself.
 - **Konva/rendering** (§16–19) — slice 5.
 - **Persistence** (repositories, Zod schemas, sidecar format, §35–47) —
   slice 4.

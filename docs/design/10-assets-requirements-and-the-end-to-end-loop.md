@@ -169,6 +169,7 @@ interface Requirement {
   wasteFactor: number;                  // 0..1, defaulted from Asset.wasteFactorDefault, editable per-requirement
   quantity: DerivedValue<number>;       // "calculated quantity" + "manual override"
   estimatedCost: DerivedValue<Money>;
+  recalculationStatus: "current" | "stale"; // persisted — see "Event cascade" below
   requiredDate?: string;                // ISO date, optional — schema completeness only, unused by this slice's loop
 }
 ```
@@ -211,9 +212,20 @@ Zone.geometry (Polygon)              ← slice 8
 Measured Quantity (mm² → Asset.unit) ← slice 9 unit conversion
         ↓ Requirement Rule = area (identity for area/length/volume-based assets)
 Required Quantity
-        ↓ × (1 + Requirement.wasteFactor)
+        ↓ applyWaste(required, Requirement.wasteFactor × 100)   ← slice 9
 Purchase Quantity  ==  Requirement.quantity.calculated
 ```
+
+**Unit conversion at this boundary, not a shared convention.** `Requirement.wasteFactor`
+is a fraction in `[0, 1)` (`0.10` meaning "10% waste") because that is the natural
+range for the Inspector to validate and edit. Slice 9's `applyWaste(required,
+wastePercent)` takes whole percentage points (`10`, not `0.10`) and computes
+`1 + wastePercent / 100` — its own worked example is `wastePercent = 10 → ×1.10`.
+Passing `Requirement.wasteFactor` straight through unconverted would compute
+`1 + 0.10/100 = 1.001`, silently understating every quantity and cost by roughly two
+orders of magnitude. This slice's `AssignAsset`/`RecalculateRequirement` handlers are
+the one place that conversion (`wasteFactor × 100`) happens; nowhere else needs to
+know the two layers use different scales.
 
 and SDD §51's Cost Pipeline, with discount/shipping/tax as no-op stages this
 slice does not populate:
@@ -241,14 +253,42 @@ application-layer event handler that reacts to it:
 eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => {
   const requirements = await requirementRepository.listByZone(event.zoneId);
   for (const requirement of requirements) {
-    eventBus.publish(new RequirementInvalidated(requirement.id));
-    await recalculateRequirement.execute({ requirementId: requirement.id });
+    // Persist the stale marker BEFORE attempting recalculation — this is the
+    // durable fact "this Requirement's numbers are no longer trustworthy,"
+    // and it must survive a recalculation failure, not just a successful one.
+    await requirementRepository.markStale(requirement.id);
+    await eventBus.publish(new RequirementInvalidated(requirement.id));
+
+    const result = await recalculateRequirement.execute({ requirementId: requirement.id });
+    if (result.isErr()) {
+      // Do not silently continue as if this Requirement is current. Log via
+      // Slice 11's Error Boundary and move on to the next Requirement in this
+      // Zone — one Asset's bad currency/unit must not block the others from
+      // recalculating. `recalculationStatus` stays "stale" (never cleared),
+      // so the Inspector (Slice 6) surfaces it and a later manual retry or
+      // reconciliation pass can pick it up; no event fires for this failure
+      // since `RequirementRecalculated` would misrepresent what happened.
+      errorBoundary.logRecalculationFailure(requirement.id, result.error);
+      continue;
+    }
+    // On success, RecalculateRequirementCommand clears the stale marker as
+    // part of the same save that persists the new quantity (§42-style single
+    // logical write), then publishes RequirementRecalculated itself.
   }
 });
 ```
 
+`Requirement.recalculationStatus: "current" | "stale"` is a persisted field, not
+a derived one — it is precisely the flag that must survive a failed recalculation
+so the Inspector never presents a stale value as current. It is set to `"stale"`
+synchronously (see above) before recalculation is attempted, and only cleared back
+to `"current"` by `RecalculateRequirementCommand`'s own successful save. A crashed
+or failed recalculation therefore always leaves a Requirement visibly `"stale"`,
+never silently `"current"` with outdated numbers.
+
 `RecalculateRequirementCommand` (named in SDD §29) re-fetches the current Zone
-and Asset, re-runs the pipeline above, saves the Requirement, and publishes
+and Asset, re-runs the pipeline above, saves the Requirement (quantity, cost, and
+`recalculationStatus: "current"` together, one write), and publishes
 `RequirementRecalculated`. A second handler runs the Cost Pipeline off the
 freshly recalculated quantity and publishes `CostEstimateChanged`:
 
@@ -275,11 +315,19 @@ revisiting this one.
 
 Because the Event Bus is in-process and promise-aware (§33), the whole cascade
 runs to completion, synchronously awaited, inside the same command dispatch
-that changed the Zone's geometry. `RequirementInvalidated` is therefore never
-observed at rest — no persisted `status: "stale"` field exists; it is a
-transient signal only (useful for a UI "recalculating…" affordance), and
-staying out of persisted state is deliberate, not an oversight (Progressive
-Complexity, §3.7).
+that changed the Zone's geometry, and every `publish()` in it is itself
+awaited — including `RequirementInvalidated` — so a subscriber doing
+asynchronous work (a UI update, a log write) is guaranteed to finish before
+`RecalculateRequirementCommand` starts, keeping the promised event order
+deterministic and testable.
+
+`RequirementInvalidated` is a transient *notification* (useful for a UI
+"recalculating…" affordance) — but `Requirement.recalculationStatus` is not
+transient: it is exactly the persisted fact that survives the notification,
+in case recalculation itself fails. The two are deliberately different
+things: without a persisted marker, a failed recalculation would leave a
+Requirement showing an old quantity/cost with nothing distinguishing it from
+a correctly current one — the bug this design specifically closes.
 
 ### Override semantics
 
@@ -363,41 +411,50 @@ interface Money { readonly amount: Decimal; readonly currency: string; }
 interface DerivedValue<T> { readonly calculated: T; readonly override?: T; }
 function effective<T>(v: DerivedValue<T>): T { return v.override ?? v.calculated; }
 
-// domain/asset
+// domain/asset — save()/delete() are Result-based from the start, per Slice
+// 4's correction to Slice 3: these are real Obsidian-backed repositories with
+// fallible Vault writes, never a bare Promise<void> a caller could discard.
 interface AssetRepository {
   getById(id: AssetId): Promise<Asset | null>;
-  save(asset: Asset): Promise<void>;
-  delete(id: AssetId): Promise<void>;
+  save(asset: Asset): Promise<Result<void, PersistenceError>>;
+  delete(id: AssetId): Promise<Result<void, PersistenceError>>;
   listByProject(projectId: ProjectId): Promise<Asset[]>;
 }
 
 // domain/requirement
 interface RequirementRepository {
   getById(id: RequirementId): Promise<Requirement | null>;
-  save(requirement: Requirement): Promise<void>;
-  delete(id: RequirementId): Promise<void>;
+  save(requirement: Requirement): Promise<Result<void, PersistenceError>>;
+  delete(id: RequirementId): Promise<Result<void, PersistenceError>>;
   listByZone(zoneId: ZoneId): Promise<Requirement[]>;
   listByAsset(assetId: AssetId): Promise<Requirement[]>;
+  // Sets recalculationStatus: "stale" and persists it — one targeted-property
+  // write, not a full save() of a (possibly not-yet-recalculated) Requirement.
+  markStale(id: RequirementId): Promise<Result<void, PersistenceError>>;
 }
 
 // application/commands/asset
 interface CreateAssetInput { projectId: ProjectId; name: string; category: AssetCategory;
   unit: Unit; unitCost: Money; wasteFactorDefault?: number; supplier?: string; sku?: string; notes?: string; }
-type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationError>>;
+type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationError | PersistenceError>>;
 
-// application/commands/requirement
+// application/commands/requirement — every command's error union includes
+// PersistenceError: each calls AssetRepository/RequirementRepository.save(),
+// which can fail (see "domain/asset" / "domain/requirement" above), and per
+// Slice 3's corrected pattern that Result must be inspected and returned, not
+// discarded, before publishing any event or reporting success.
 interface AssignAssetInput { zoneId: ZoneId; assetId: AssetId; }
-type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, DomainError>>;
+type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
 // idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one
 
 interface RecalculateRequirementInput { requirementId: RequirementId; }
-type RecalculateRequirementCommand = Command<RecalculateRequirementInput, Result<Requirement, CalculationError>>;
+type RecalculateRequirementCommand = Command<RecalculateRequirementInput, Result<Requirement, CalculationError | ReferenceError | PersistenceError>>;
 
 interface SetRequirementQuantityOverrideInput { requirementId: RequirementId; quantity: number | null; }
-type SetRequirementQuantityOverrideCommand = Command<SetRequirementQuantityOverrideInput, Result<Requirement, DomainError>>;
+type SetRequirementQuantityOverrideCommand = Command<SetRequirementQuantityOverrideInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
 
 interface SetRequirementCostOverrideInput { requirementId: RequirementId; cost: Money | null; }
-type SetRequirementCostOverrideCommand = Command<SetRequirementCostOverrideInput, Result<Requirement, DomainError>>;
+type SetRequirementCostOverrideCommand = Command<SetRequirementCostOverrideInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
 
 // application/queries
 function GetRequirementsForZone(zoneId: ZoneId): Promise<RequirementInspectorDTO[]>;
@@ -589,7 +646,7 @@ criterion — "Zone Geometry → Area → Requirement → Cost works end to end"
 3. Assign the Asset to the Zone. `AssignAssetCommand` creates a Requirement
    (`wasteFactor` defaulted to `0.10`), which triggers
    `RecalculateRequirementCommand` inline:
-   `quantity.calculated = 10.0 × 1.10 = 11.0 m²`, then the Cost Pipeline:
+   `applyWaste(10.0, 0.10 × 100) = 10.0 × 1.10 = 11.0 m²`, then the Cost Pipeline:
    `estimatedCost.calculated = 11.0 × 45.00 = 495.00 EUR`. The Inspector shows
    **11.0 m² / 495.00 EUR**, both marked calculated.
 4. Edit the Zone's polygon (slice 8) so its area becomes **12.0 m²** and

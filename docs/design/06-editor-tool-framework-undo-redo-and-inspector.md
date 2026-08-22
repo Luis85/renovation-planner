@@ -154,14 +154,20 @@ CommandHistory
   undoStack: UndoableCommand[]
   redoStack: UndoableCommand[]
 
-  run(command)   → execute(), push to undoStack, clear redoStack
+  run(command)   → result = await command.execute()
+                 → if result.isErr(): return result — undoStack/redoStack untouched
+                 → push command to undoStack, clear redoStack, return result
   undo()         → pop undoStack, command.undo(), push to redoStack
   redo()         → pop redoStack, command.execute(), push to undoStack
 ```
 
-`run()` only pushes to `undoStack` after `execute()` resolves — a failed command (a
-handler-level validation error, a persistence failure from slice 4) is never recorded
-as a history entry.
+Every `UndoableCommand.execute()` resolves to a `Result`, per ADR-007/SDD §29 — it
+never rejects for an expected domain or persistence failure (only an unexpected
+technical fault throws, per SDD §65). "After `execute()` resolves" is therefore not
+enough to gate the stacks on: a resolved `Result.err` (a handler-level validation
+error, a persistence failure from slice 4) must be inspected explicitly and is never
+pushed to `undoStack` — `run()` checks `isErr()` before touching either stack, not
+just after the promise settles.
 
 `CommandHistory` is scoped per open Plan and lives in `EditorStore`; it is not
 persisted (SDD §15 — ephemeral) and does not survive a plugin reload or switching
@@ -311,12 +317,24 @@ tool-specific branching belongs inside `ToolManager` or `EditorContext` itself.
 ## Interfaces & Contracts
 
 ```typescript
+// presentation/editor/viewport/screen-point.ts — deliberately NOT exported
+// from core/geometry (slice 2 never sees a pixel). A screen coordinate is a
+// distinct, incompatible type from Point (always world millimeters), so a
+// tool cannot pass a screen pixel where domain geometry is expected and have
+// it type-check: the brand makes them structurally different, not just
+// differently named.
+interface ScreenPoint { readonly x: number; readonly y: number; readonly __brand: 'ScreenPoint'; }
+
 // presentation/editor/tools/editor-tool.ts
 type ToolId = 'select' | 'pan' | 'draw-polygon' | 'place-asset' | 'measure' | 'annotation';
 
 interface EditorPointerEvent {
-  worldPoint: Point;          // already through screenToWorld()
-  screenPoint: Point;
+  worldPoint: Point;          // world mm — already through screenToWorld(); this
+                               // is what every domain/geometry call must consume
+  screenPoint: ScreenPoint;   // raw pixels — for rendering-layer use only
+                               // (e.g. positioning an on-screen tooltip); passing
+                               // this to Polygon.create() or any Core geometry
+                               // function is a compile error, not a runtime bug
   button: 'primary' | 'secondary' | 'auxiliary';
   modifiers: { shift: boolean; ctrl: boolean; alt: boolean };
   targetId: DomainId | null;  // hit-tested render-model target, if any
@@ -332,13 +350,17 @@ interface EditorTool {
   cancel(): void;
 }
 
-// presentation/editor/tools/editor-context.ts
+// presentation/editor/tools/editor-context.ts — this is the actual home of
+// worldToScreen/screenToWorld (slice 2 explicitly excludes pixels from Core;
+// slice 7 only supplies the calibration input — pixelsPerWorldUnit — that
+// parameterizes these, it does not define them). Bound to the live pan/zoom
+// state slice 5's Konva stage maintains.
 interface EditorContext {
   readonly viewport: {
-    worldToScreen(p: Point): Point;
-    screenToWorld(p: Point): Point;
+    worldToScreen(p: Point): ScreenPoint;
+    screenToWorld(p: ScreenPoint): Point;
     setPan(delta: Vector): void;   // PanTool only; not a command
-    setZoom(factor: number, origin: Point): void;
+    setZoom(factor: number, origin: ScreenPoint): void;
   };
   readonly selection: SelectionStore;
   readonly snapService: SnapService;
@@ -437,7 +459,10 @@ and tool-switching directly touch.
 
 - **`CommandHistory` unit tests** — push/undo/redo/clear against fake `UndoableCommand`
   doubles; assert a new `run()` after an `undo()` clears the redo stack; assert a
-  rejected `execute()` never lands on `undoStack`. No Konva, no Obsidian.
+  command whose `execute()` **resolves to `Result.err`** (not a rejected promise —
+  this is the case that matters, since domain/persistence failures never reject) is
+  never pushed to `undoStack`, and that `run()` returns that same `Result.err` to its
+  caller. No Konva, no Obsidian.
 - **`normalizeTransformerResult` unit tests** — table-driven over plain
   `{x, y, rotation, scaleX, scaleY}` + base geometry inputs; assert the output never
   contains a `scaleX`/`scaleY` field and that `scaleX: 2, scaleY: 1` on a 1000×500mm
@@ -451,6 +476,12 @@ and tool-switching directly touch.
   one handler invocation, regardless of N.
 - **Architecture/contract test** — assert `EditorContext`'s type surface exposes no
   repository or Obsidian Vault API (extends SDD §76's architecture test rules).
+- **`ScreenPoint`/`Point` type-safety check** — a compile-time-only test file (e.g.
+  `// @ts-expect-error`) asserting that `Polygon.create(event.screenPoint)` and
+  `Zone.withGeometry({ points: [event.screenPoint] })` fail to type-check, while the
+  `event.worldPoint` equivalents compile. This is what makes the screen/world
+  distinction a real guarantee rather than a naming convention a future edit could
+  quietly erode.
 - **Inspector commit test** — simulate several keystrokes into a bound field, then
   blur; assert exactly one command dispatch, not one per keystroke.
 
@@ -468,6 +499,10 @@ and tool-switching directly touch.
 4. A simulated Transformer resize/rotate never allows a `scaleX`/`scaleY` value to
    reach a command's input type or a persisted entity — asserted directly in the
    normalization test, not just implied by code review.
+5. A command whose `execute()` resolves to `Result.err` (simulated validation or
+   persistence failure) is never pushed to `undoStack`, produces no redo-stack
+   entry, and `CommandHistory.run()` returns the same `Result.err` to its caller —
+   asserted against a resolved error `Result`, not a rejected promise.
 5. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
    reachable from it, checked by the architecture/contract test.
 6. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,

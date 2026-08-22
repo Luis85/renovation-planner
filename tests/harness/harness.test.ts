@@ -24,6 +24,22 @@ function chromeHeaderSelector(): string {
 	return withoutComments.slice(0, withoutComments.indexOf('{')).trim();
 }
 
+/**
+ * `theme.css`'s two growth rules are POSITIONAL on purpose (see the file's own comment
+ * above them): neither names `.workspace-leaf-content` or `.view-content`, so this can't
+ * pull one selector out by name the way `chromeHeaderSelector` does. Instead it discovers
+ * every rule rooted at `.rp-harness-leaf` whose body actually grants flex growth
+ * (`flex: 1`) — today that's the container's rule and the content pane's — without
+ * retyping either selector. Which one is "the content pane's" is for the test to prove by
+ * matching it against the real mounted `contentEl`, not for this function to assert.
+ */
+function harnessGrowthSelectors(): string[] {
+	const withoutComments = readFileSync('tests/harness/theme.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+	const rules = [...withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+
+	return rules.filter(([, selector, body]) => selector.includes('.rp-harness-leaf') && body.includes('flex: 1')).map(([, selector]) => selector.trim());
+}
+
 beforeEach(() => {
 	document.body.innerHTML = '';
 	document.body.className = '';
@@ -52,6 +68,24 @@ describe('the browser harness', () => {
 
 		expect(header).not.toBeNull();
 		expect(header?.matches(chromeHeaderSelector())).toBe(true);
+	});
+
+	/**
+	 * `styles/view.css` gives the mount point `height: 100%`, which only resolves because
+	 * `theme.css` grows `contentEl` to fill the leaf — and that growth rule is POSITIONAL
+	 * (`.rp-harness-leaf > div > div:last-child`, not a name), so it depends on
+	 * `obsidian-mock.ts` keeping `contentEl` as the last child it appends to `containerEl`.
+	 * If a future child landed after it, this selector would stop matching `contentEl`
+	 * silently — nothing else in `npm run check` looks at rendered layout — so this asserts
+	 * the coupling directly, against the selectors `theme.css` actually declares rather than
+	 * a copy of them.
+	 */
+	it('gives the mounted contentEl the growth rule theme.css declares for it', () => {
+		const { view } = mountHarness(document.body);
+
+		const matching = harnessGrowthSelectors().filter((selector) => view.contentEl.matches(selector));
+
+		expect(matching.length).toBeGreaterThan(0);
 	});
 
 	it('empties the root, so a second mount does not stack', () => {

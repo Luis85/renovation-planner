@@ -112,10 +112,13 @@ export class Plugin {
  * subclass's own constructor (fields included) before it hands back a reference for
  * anything outside the constructor to read, and nothing in this codebase reads
  * `containerEl` from inside a constructor. By the time anything asks for it, `this` is
- * always the fully-built subclass.
+ * always the fully-built subclass. Set once, not on every read: a getter that writes on
+ * every access is a surprise nothing here needs, since `getViewType()` cannot answer
+ * differently between two reads of the same instance.
  */
 export class ItemView {
 	private readonly containerElNode: HTMLElement;
+	private typeAssigned = false;
 	readonly contentEl: HTMLElement;
 
 	constructor(readonly leaf: WorkspaceLeaf) {
@@ -132,7 +135,10 @@ export class ItemView {
 	}
 
 	get containerEl(): HTMLElement {
-		this.containerElNode.dataset.type = this.getViewType();
+		if (!this.typeAssigned) {
+			this.typeAssigned = true;
+			this.containerElNode.dataset.type = this.getViewType();
+		}
 		return this.containerElNode;
 	}
 

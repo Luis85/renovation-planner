@@ -26,8 +26,9 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 - Whole-zone move (drag the body) as one `ReversibleMoveZoneCommand` (slice 6's
   `UndoableCommand` adapter wrapping slice 3's plain `MoveSpatialObjectCommand`) per
   drag gesture.
-- Single-vertex reshape (drag a vertex handle) as one new `UndoableCommand`,
-  `MoveSpatialObjectVertexCommand`, per vertex-drag gesture.
+- Single-vertex reshape (drag a vertex handle) as one `ReversibleMoveZoneVertexCommand`
+  per vertex-drag gesture — a second adapter over the same slice-3
+  `MoveSpatialObjectCommand`, not a new domain command.
 - Zone deletion as one new `UndoableCommand`, `ReversibleDeleteZoneCommand` —
   wrapping slice 3's plain `DeleteZoneCommand` the same way slice 6's
   `ReversibleMoveZoneCommand` wraps `MoveSpatialObjectCommand` — whose `undo()`
@@ -109,11 +110,11 @@ cancel()        → buffer = []; clear preview; no command dispatched
 `closePolygon()` is the only place this tool talks to the domain:
 
 ```text
-polygonResult = Polygon.create(buffer)          # slice 2 smart constructor
+polygonResult = createPolygon(buffer)          # slice 2's smart constructor (SDD §26)
 if polygonResult is Err:
     show inline validation message; stay in drawing state; buffer is NOT cleared
 else:
-    dispatch CreateZoneCommand({ planId, zoneType, polygon: polygonResult.value })
+    dispatch CreateZoneCommand({ planId, name, zoneType, geometry: polygonResult.value })
     on success: buffer = []; selection := new zone id
     on failure: show error; buffer is NOT cleared
 ```
@@ -171,7 +172,7 @@ inverse snapshot; on `pointerUp`:
 2. Run the candidate polygon's points through `SnapService` (`snapToGrid` /
    `snapToVertex` / `snapToEdge`).
 3. Re-validate the translated polygon (translation cannot change vertex count, but the
-   result is still passed back through `Polygon.create()` — see Validation below —
+   result is still passed back through `createPolygon()` — see Validation below —
    because snap adjustment is arithmetic that must not be trusted blindly).
 4. Build one `ReversibleMoveZoneCommand` (slice 6) — the same adapter pattern this
    slice's `ReversibleDeleteZoneCommand` follows — with `forward: { zoneId, geometry:
@@ -198,13 +199,13 @@ one vertex handle:
 2. On `pointerUp`, converts the handle's final position through `screenToWorld()` and
    `SnapService`, and builds the candidate point list (the polygon's existing points
    with just that one index replaced).
-3. Re-validates through `Polygon.create()` on the candidate list. On failure (e.g. the
+3. Re-validates through `createPolygon()` on the candidate list. On failure (e.g. the
    transform produced a non-finite point), the handle snaps back to its last valid
    position and no command is dispatched.
-4. On success, dispatches `MoveSpatialObjectVertexCommand({ objectId, vertexIndex,
-   toPoint })` — a new `UndoableCommand` this slice introduces, alongside `Move`/
-   `Delete` in the `spatial-object` command family. `undo()` restores that one vertex's
-   prior coordinate; the other vertices are untouched.
+4. On success, dispatches a `ReversibleMoveZoneVertexCommand` built from the pre-drag
+   and post-drag point lists — the same adapter shape `ReversibleMoveZoneCommand` uses
+   over slice 3's `MoveSpatialObjectCommand`. `undo()` restores the prior point list, so
+   only that vertex differs; every other vertex is untouched by construction.
 
 Inserting a new vertex mid-edge or removing a vertex (changing the vertex count) is
 out of scope — this slice only repositions existing vertices. Nothing here blocks
@@ -230,7 +231,7 @@ execute(): snapshot := read the full Zone entity + its sidecar geometry entry vi
                        deleteZoneCommand.execute() succeeds, that data is gone and
                        cannot be recovered from the Zone/sidecar itself
            result := deleteZoneCommand.execute({ zoneId })   // slice 3's plain command
-           if result.isErr(): return result   // snapshot is discarded, unused
+           if isErr(result): return result    // snapshot is discarded, unused
            clear selection if it pointed at this zone
            return result
 
@@ -240,20 +241,22 @@ undo():    re-insert the captured snapshot verbatim — same ID, same zone type,
            ZoneCreated, misrepresenting a restore as a new zone)
 ```
 
-Undo must resurrect the same entity, not create a new one with a fresh ID. This is a
-requirement this slice places on slice 4's repository contract: `save()` must be an
-idempotent upsert keyed by entity ID, not insert-only — a command's `undo()` cannot go
-through a path that mints new identity.
+Undo must resurrect the same entity, not create a new one with a fresh ID. That makes
+`save()` an idempotent upsert keyed by entity ID rather than insert-only — a command's
+`undo()` cannot go through a path that mints new identity. This is not a requirement
+this slice discovers late and imposes on slice 4: it is written into slice 3's
+repository port contract and asserted in the shared contract suite both slice 3 and
+slice 4 run, so an implementation that got it wrong fails before reaching here.
 
 ### Geometry validation (SDD §26)
 
 Two layers, both required, neither optional:
 
 - **Tool-level (fast feedback).** `DrawPolygonTool`, the move handler, and the
-  vertex-edit handler all call `Polygon.create()` before they ever construct a command
+  vertex-edit handler all call `createPolygon()` before they ever construct a command
   input, so a user sees a rejection immediately and no invalid command is dispatched.
 - **Domain-level (authoritative).** `Zone`'s own geometry-replacing operation
-  re-validates through the same `Polygon.create()` invariant regardless of caller. A
+  re-validates through the same `createPolygon()` invariant regardless of caller. A
   command handler is not a trusted caller by convention (§3.3 Domain First) — the
   entity protects its own invariant even if a future caller skips the tool layer
   entirely (a script, a migration, a different tool).
@@ -262,10 +265,10 @@ What is checked, matching §26's required list exactly:
 
 | Rule | Where enforced |
 | --- | --- |
-| ≥ 3 vertices | `Polygon.create()` rejects 0, 1, 2 points |
-| finite coordinates, no NaN, no Infinity | `Polygon.create()` checks every point |
-| valid unit | `DrawPolygonTool` and every zone-editing handler read only `event.worldPoint` (slice 6), never `event.screenPoint` — `Point` (world mm) and `ScreenPoint` (slice 5) are distinct, incompatible types, so passing a screen coordinate to `Polygon.create()` is a compile error, not a runtime bug (slice 6's `EditorPointerEvent`) |
-| valid transform | `worldToScreen`/`screenToWorld` (slice 5) do not themselves return a `Result` — a degenerate viewport (e.g. zero zoom) producing a non-finite point is instead caught by `Polygon.create()`'s own finite-coordinate check, the same backstop that catches any other bad input. This slice relies on that backstop rather than adding a second one. |
+| ≥ 3 vertices | `createPolygon()` rejects 0, 1, 2 points |
+| finite coordinates, no NaN, no Infinity | `createPolygon()` checks every point |
+| valid unit | `DrawPolygonTool` and every zone-editing handler read only `event.worldPoint` (slice 6), never `event.screenPoint` — `Point` (world mm) and `ScreenPoint` (slice 5) are distinct, incompatible types, so passing a screen coordinate to `createPolygon()` is a compile error, not a runtime bug (slice 6's `EditorPointerEvent`) |
+| valid transform | `worldToScreen`/`screenToWorld` (slice 5) do not themselves return a `Result` — a degenerate viewport (e.g. zero zoom) producing a non-finite point is instead caught by `createPolygon()`'s own finite-coordinate check, the same backstop that catches any other bad input. This slice relies on that backstop rather than adding a second one. |
 
 What is explicitly **not** checked, per §26's own "Future" list, and why that is safe
 for this slice's correctness requirement:
@@ -346,16 +349,25 @@ interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
 class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
-// application/commands/spatial-object/MoveSpatialObjectVertexCommand.ts (new)
-interface MoveSpatialObjectVertexInput {
-  objectId: SpatialObjectId;
-  vertexIndex: number;
-  toPoint: Point;              // world mm, already Polygon.create()-validated
-}
-class MoveSpatialObjectVertexCommand implements UndoableCommand {
-  constructor(input: MoveSpatialObjectVertexInput);
-  execute(): Promise<Result<void, ReferenceError | GeometryError | PersistenceError>>;
-  undo(): Promise<Result<void, ReferenceError | GeometryError | PersistenceError>>; // restores this vertex's prior point only
+// presentation/editor/commands/ReversibleMoveZoneVertexCommand.ts (new) — a vertex
+// drag is a whole-geometry replacement like a body drag, so it needs no new plain
+// command: it is a second ReversibleMoveZoneCommand-shaped adapter over slice 3's
+// MoveSpatialObjectCommand, differing only in how forward/inverse are computed (one
+// index replaced, versus every vertex translated). An UndoableCommand that wrote to a
+// repository itself would be the one command in this codebase bypassing the
+// plain-command layer, for no gain.
+//
+// The target is a ZoneId, not a SpatialObjectId: no `spatial-object` domain module
+// exists (slice 3's Out of scope), so there is no such ID type to name. When one
+// arrives, this widens with the rest of the Zone command family, not ahead of it.
+class ReversibleMoveZoneVertexCommand implements UndoableCommand {
+  constructor(
+    private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>>,
+    private readonly forward: MoveSpatialObjectInput,  // whole polygon, one vertex moved
+    private readonly inverse: MoveSpatialObjectInput,  // whole polygon, captured at pointerDown
+  );
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>; // restores the prior point list, so only that vertex differs
 }
 
 // application/commands/zone/ReversibleDeleteZoneCommand.ts (new) — wraps slice 3's
@@ -374,19 +386,21 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
 ```
 
 ```typescript
-// core/geometry/polygon.ts (slice 2, consumed here)
+// core/geometry/Polygon.ts (slice 2, consumed here — this slice adds no geometry
+// validation of its own; it is the first real caller of slice 2's smart constructor)
 function createPolygon(points: readonly Point[]): Result<Polygon, GeometryError>;
 
-// domain/zone/zone.ts (slice 3; this slice assumes/extends this method if not
-// already present, as the authoritative re-validation layer)
+// domain/zone/Zone.ts (slice 3, consumed here — the authoritative re-validation
+// layer, which routes through the same createPolygon invariant)
 class Zone {
   withGeometry(polygon: Polygon): Result<Zone, GeometryError>;
 }
 ```
 
-Tools never call `ZoneRepository` or any Obsidian API directly (§58) — every path
-above ends at `context.commandDispatcher.dispatch(...)`, consistent with the layer
-dependency rule (Presentation → Application → Domain).
+Tools never call `ZoneRepository` or any Obsidian API directly (§58) — every path above
+ends at `context.commandDispatcher.run(...)`, the method name slice 6's `EditorContext`
+declares, consistent with the layer dependency rule (Presentation → Application →
+Domain).
 
 ## Persistence Impact
 
@@ -397,25 +411,26 @@ dependency rule (Presentation → Application → Domain).
 - **Move / vertex edit**: rewrites only the sidecar's `points` array for that object's
   entry. The Markdown note is not touched — a drag or a vertex nudge must not churn
   the note's file mtime or frontmatter on every gesture.
-- **Delete**: removes the Markdown note and the sidecar entry together. Undo requires
-  the repository's `save()` to be an ID-keyed upsert (see Design) so the resurrected
-  zone is the same entity, not a new one with the same visible content.
+- **Delete**: removes the Markdown note and the sidecar entry together. Undo relies on
+  the repository's `save()` being an ID-keyed upsert — a property of slice 3's port
+  contract, already covered by the shared contract suite — so the resurrected zone is
+  the same entity, not a new one with the same visible content.
 - No new persistent schema is introduced by this slice — it uses the `Zone` entity
   schema and the geometry sidecar schema exactly as slice 3/4 defined them.
 
 ## Testing Strategy
 
 - **Unit (Core/domain, no Obsidian/Vue/Konva)**:
-  - `Polygon.create()` boundary table: 0/1/2/3 points, a point with `NaN`, a point
+  - `createPolygon()` boundary table: 0/1/2/3 points, a point with `NaN`, a point
     with `Infinity`, a well-formed polygon.
   - Point-in-polygon hit test: inside, outside, on an edge, on a vertex.
-  - `Zone.withGeometry()` rejects what `Polygon.create()` rejects, independent of any
+  - `Zone.withGeometry()` rejects what `createPolygon()` rejects, independent of any
     tool-level check (proves the domain does not trust its caller).
   - Every command's `execute()` → `undo()` pair is a true inverse: state after
     `undo()` is identical to state before `execute()`.
 - **Application tests (in-memory repositories, per §71)**:
   `CreateZoneCommand → InMemoryZoneRepository → assertions`; `ReversibleMoveZoneCommand`
-  and `MoveSpatialObjectVertexCommand` roundtrips; `ReversibleDeleteZoneCommand`
+  and `ReversibleMoveZoneVertexCommand` roundtrips; `ReversibleDeleteZoneCommand`
   roundtrip asserting the resurrected zone has the same ID, not a new one.
 - **Repository contract tests (§72)**: extend the shared suite (reused, not
   duplicated) with zone-geometry sidecar cases — add entry, update entry, remove
@@ -445,7 +460,7 @@ dependency rule (Presentation → Application → Domain).
 4. Dragging a selected zone's body — regardless of how many `pointermove` events
    fired — produces exactly one `ReversibleMoveZoneCommand` and one `CommandHistory`
    entry; pressing undo restores the exact prior point set.
-5. Dragging one vertex handle produces exactly one `MoveSpatialObjectVertexCommand`
+5. Dragging one vertex handle produces exactly one `ReversibleMoveZoneVertexCommand`
    per gesture; undo restores that vertex's exact prior coordinate without altering
    any other vertex.
 6. Deleting a selected zone removes both its Markdown note and its sidecar geometry

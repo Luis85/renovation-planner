@@ -26,8 +26,9 @@ real-world measurements."*
 - `ReversibleCalibratePlanCommand`, the undoable application command that turns a
   completed gesture plus a supplied distance into a persisted `Calibration`
   (supersedes slice 3's plain, non-undoable `CalibratePlanCommand` — see Design).
-- Deriving the scale factor from the two points and the known distance, and the
-  precise (and limited) way that feeds `worldToScreen()` / `screenToWorld()`.
+- Deriving the scale factor from the two points and the known distance, and the precise
+  (and deliberately narrow) place it lands: the background's world extent, **not** the
+  viewport transform — see "What calibration establishes".
 - The pre-calibration default every fresh Plan renders under, since that default is
   exactly what the first calibration corrects.
 - Recalibration semantics — an explicit, reasoned decision, flagged below, since the
@@ -44,8 +45,8 @@ real-world measurements."*
   mechanics — slice 4 (ADR-002, ADR-011).
 - Konva scene structure, the background layer's rendering, pan/zoom, and the
   `worldToScreen`/`screenToWorld` transform itself (and the `ScreenPoint` type) — slice
-  5. This slice only supplies calibration's own output, `pixelsPerWorldUnit`, as one of
-  that transform's inputs; it does not define the transform.
+  5. Calibration's own output, `pixelsPerWorldUnit`, feeds that slice's
+  `BackgroundRenderModel.worldScale`, not the transform.
 - `EditorTool`, `EditorContext`, `Command`/`UndoableCommand`, command history/undo
   stacks — slice 6.
 - Polygon drawing, zone vertex editing — slice 8.
@@ -53,9 +54,9 @@ real-world measurements."*
 
 PRD Epic 3 ("Calibration & Measurement") also lists distance measurement, area
 calculation, perimeter, and measurement annotation as features, and SDD §57 names a
-separate `MeasureTool` and `AnnotationTool`. Neither appears in any of the 12 slices'
-primary sections — they are not part of the architectural foundation this breakdown
-covers and are left as feature work built on this slice and slice 8 once both exist.
+separate `MeasureTool` and `AnnotationTool`. Neither is in scope for any slice in the
+map — they are not part of the architectural foundation this breakdown covers, and are
+left as feature work built on this slice and slice 8 once both exist.
 
 ## Dependencies
 
@@ -68,9 +69,9 @@ covers and are left as feature work built on this slice and slice 8 once both ex
   by one field; it does not touch how sidecars are located, written, or migrated.
 - **Slice 5 (Canvas Rendering & Editor Shell)** — the `worldToScreen`/`screenToWorld`
   transform and the `ScreenPoint` type (SDD §24), the background layer that renders a
-  Plan's image, and the pre-calibration default scale this slice corrects (SDD §16–19).
-  This slice supplies `pixelsPerWorldUnit` as an input to that transform; it does not
-  define the transform.
+  Plan's image, and the pre-calibration placeholder scale this slice corrects (SDD
+  §16–19). What this slice supplies is `BackgroundRenderModel.worldScale`; it neither
+  defines nor parameterizes the viewport transform.
 - **Slice 6 (Editor Tool Framework, Undo/Redo & Inspector)** — `EditorTool`,
   `EditorContext`, `Command`/`UndoableCommand`, `CommandHistory` (SDD §56–59, §29–31).
 - **Slice 10 (Assets, Requirements & the End-to-End Loop)** — not a build dependency
@@ -94,10 +95,10 @@ the mapping between its background image and world coordinates."* These are two
 different jobs:
 
 ```text
-Viewport Transform (slice 2/§24)   — ephemeral, per-session, never persisted
+Viewport Transform (slice 5, §24)  — ephemeral, per-session, never persisted
   world  ↔  screen pixels          — pan, zoom, rotation, DPR
 
-Calibration (this slice)           — persisted, per-Plan, changes rarely
+Calibration (this slice, §25)      — persisted, per-Plan, changes rarely
   background image  →  what world units mean for this Plan
 ```
 
@@ -128,7 +129,7 @@ by an explicit user action.
 
 ```typescript
 class CalibrateTool implements EditorTool {
-  readonly id: ToolId = "calibrate";
+  readonly id: ToolId = "calibrate";   // slice 6's ToolId union includes this member
   private pointA: Point | null = null;
 
   pointerDown(event: EditorPointerEvent): void {
@@ -180,10 +181,21 @@ coordinate for this Plan must be rescaled to stay consistent with the corrected 
 first calibration is just the case where `previousPixelsPerWorldUnit` is the default
 `1` and there is (typically) no existing geometry yet to rescale.
 
-`pixelsPerWorldUnit` itself is not consumed by the viewport transform at render time —
-it is informational (audit trail, a "1 world unit ≈ N image px" display) and the value
-`ReversibleCalibratePlanCommand` reads back to compute `scaleCorrection` on the next
-recalibration.
+`pixelsPerWorldUnit` has exactly two jobs, and neither is parameterizing
+`worldToScreen()`:
+
+1. It is what slice 5's `BackgroundRenderModel.worldScale` is derived from — how many
+   world millimetres one source pixel of this Plan's background covers. Before
+   calibration that is the placeholder `1`; after, it is this value's reciprocal.
+2. It is the value `ReversibleCalibratePlanCommand` reads back to compute
+   `scaleCorrection` on the next recalibration, plus an audit trail a UI can show as
+   "1 world unit ≈ N image px".
+
+Because recalibration also rescales every stored coordinate (see Recalibration below),
+world units stay genuine millimetres everywhere downstream, and the viewport transform
+— whose components §24 fixes as translation, zoom, rotation and device pixel ratio —
+never learns that calibration exists. Slices 2, 5 and 6 each state the same boundary
+from their own side.
 
 ### Validation
 
@@ -302,7 +314,8 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
 ```
 
 One `execute()` call is one logical transaction — one domain change, one undo entry,
-one persistence write — per §31 Transaction Boundary, exactly like `MoveZoneCommand`.
+one persistence write — per §31 Transaction Boundary, exactly like slice 6's
+`ReversibleMoveZoneCommand`.
 
 ### Forward compatibility
 
@@ -384,7 +397,7 @@ new top-level field alongside `objects` — extending SDD §40's schema additive
 ```json
 {
   "schemaVersion": 1,
-  "planId": "plan-ground-floor",
+  "planId": "plan-01JABB3C5D7E9F1G3H5J7K9M1N",
   "unit": "mm",
   "calibration": {
     "pointA": { "x": 812, "y": 240 },
@@ -406,10 +419,14 @@ new top-level field alongside `objects` — extending SDD §40's schema additive
 > two write paths. This should be confirmed, not silently assumed, when slice 3/4 are
 > actually implemented.
 
-- Adding `calibration` is additive to the existing sidecar schema: a sidecar written
-  before this slice existed parses with `calibration: null`. A future breaking format
-  change goes through slice 4's schema versioning/migration (§44–45), not through ad
-  hoc handling here.
+- `calibration` is **already a nullable field of slice 4's `PlanGeometrySchemaV1`** —
+  declared there, unfilled, precisely so this slice does not have to amend a schema.
+  This matters more than it looks: Zod strips unknown keys by default, so a field
+  "added additively" without touching the schema would be silently discarded on every
+  read. A sidecar written before this slice ran parses with `calibration: null`, and no
+  version bump is needed because no v1 sidecar without the key ever shipped. A future
+  *breaking* format change goes through slice 4's versioning/migration (§44–45), not
+  through ad hoc handling here.
 - Recalibration writes `calibration` and every rescaled spatial object's `objects[]`
   entry in the same sidecar write — one file, one Vault operation, naturally atomic.
 - No new Markdown frontmatter keys are introduced by this slice.

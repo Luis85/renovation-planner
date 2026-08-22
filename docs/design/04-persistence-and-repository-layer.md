@@ -29,8 +29,10 @@ This is the SDD's Increment 3. Its success criterion is exact and testable:
 
 ### In scope
 
-- `ProjectRepository`, `PlanRepository`, `ZoneRepository` ports (application layer)
-  and their `InMemory*` and `Obsidian*` implementations (infrastructure layer).
+- The `Obsidian*` implementations (infrastructure layer) of the `ProjectRepository`,
+  `PlanRepository`, and `ZoneRepository` ports. The ports themselves and their
+  `InMemory*` implementations are Slice 3's, reused **without a signature change** —
+  see "Repository ports are Slice 3's, unchanged" below.
 - Persistence DTOs (`ProjectFrontmatterDTO`, `PlanFrontmatterDTO`,
   `ZoneFrontmatterDTO`) and mappers between frontmatter, DTO, and domain entity —
   raw frontmatter never leaves the Obsidian repository implementations (§37).
@@ -54,8 +56,10 @@ This is the SDD's Increment 3. Its success criterion is exact and testable:
 - Project/Plan/Zone business rules, invariants, and value objects — Slice 3.
 - Konva/canvas rendering of geometry read out of the sidecar — Slice 5.
 - Command/query wiring into Vue components and Pinia stores — Slices 5–6.
-- Calibration fields on Plan (reference points, scale) — Slice 7; this slice's Plan
-  frontmatter carries only the fields needed to identify and locate a plan.
+- Deriving, validating, or rescaling geometry against a `Calibration` — Slice 7. This
+  slice declares the sidecar's nullable `calibration` field (so there is one versioned
+  sidecar schema, not one Slice 7 has to amend) and round-trips whatever value it is
+  given; it computes nothing.
 - Undo/redo around persistence writes — Slice 6 (§29–31); this slice defines *what*
   a save does, not how it becomes one undo step.
 - Repositories, DTOs, and sidecar entries for any entity beyond Project, Plan, and
@@ -129,14 +133,21 @@ Completion Criterion 8).
 Project, Plan, and Zone each get a `type` discriminator and a `schema-version`,
 following the SDD's Zone example directly:
 
+Every `id`, and every field referencing one, is a `<prefix>-<ULID>` value produced by
+Slice 2's `createEntityId` (§82) — never a slug derived from the entity's name. The
+examples below use full ULIDs rather than the SDD's own abbreviated `zone-01HXYZ`
+illustration precisely because a shortened, readable-looking ID is how a slug creeps
+back in: `plan-ground-floor` would look like a perfectly good value right up until two
+plans are both named "Ground Floor".
+
 ```yaml
 ---
 type: renovation-zone
 schema-version: 1
 
-id: zone-01HXYZ
-project: project-01HABC
-plan: plan-ground-floor
+id: zone-01JABC7XG3QK9F8N2M4P6R5T0W
+project: project-01JAB9Q2WE4RT6YU8IO0PA1SD2
+plan: plan-01JABB3C5D7E9F1G3H5J7K9M1N
 
 name: Bathroom
 zone-type: room
@@ -150,9 +161,9 @@ Project and Plan follow the same shape with their own field sets:
 ---
 type: renovation-project
 schema-version: 1
-id: project-01HABC
+id: project-01JAB9Q2WE4RT6YU8IO0PA1SD2
 name: Riverside Renovation
-status: planning
+status: idea
 ---
 ```
 
@@ -160,20 +171,47 @@ status: planning
 ---
 type: renovation-plan
 schema-version: 1
-id: plan-ground-floor
-project: project-01HABC
+id: plan-01JABB3C5D7E9F1G3H5J7K9M1N
+project: project-01JAB9Q2WE4RT6YU8IO0PA1SD2
 name: Ground Floor
-background: attachments/ground-floor-plan.pdf
+background-path: attachments/ground-floor-plan.pdf
+background-kind: pdf
+background-page: 1
+layers:
+  - Walls
+  - Fixtures
 ---
 ```
+
+Two things the persisted vocabulary has to agree with the domain on, since the mapper
+is the only thing standing between them:
+
+- **`status` values are the domain enums, kebab-cased.** A Project's `status` is one of
+  Slice 3's `ProjectStatus` lifecycle stages (`idea`, `survey`, `design`, `estimate`,
+  `procurement`, `ready`, `execution`, `inspection`, `complete`, `as-built`) — not a
+  free-text word like `planning`. A Zone's is `planned` / `in-progress` / `complete`,
+  matching Slice 3's `ZoneStatus` three-for-three. A persisted vocabulary that is
+  *nearly* the domain's (`done` where the domain says `Complete`) is worse than one
+  that is openly different: it maps by coincidence until someone adds a fourth value.
+- **`background` is a reference, not a path.** Slice 3's `Plan.background` is a
+  `PlanBackgroundRef` (path, kind, optional page), so it persists as three flat
+  frontmatter keys rather than one string — a bare path would silently lose which PDF
+  page the Plan was calibrated against.
+
+`calibration` is deliberately **not** in this frontmatter: it lives in the plan's
+geometry sidecar, per Slice 7's own reasoning that recalibration must rewrite the
+calibration and every rescaled object's geometry as one write. This slice's
+`PlanGeometrySchemaV1` below carries the field; Slice 7 fills it in.
 
 The note body is never parsed by the plugin (§38) — it is free-form and belongs to
 the user.
 
 Filenames are human-chosen (derived from the entity's name at creation time,
-deduplicated on collision) and live under the plugin's existing "default folder"
-setting (§14–15, Slice 1). Filename is never identity (§83) — every read resolves
-`id` → path through the Project Index, never the reverse.
+deduplicated on collision) and live under a **default project folder** setting. Slice 1
+established the settings surface and the `settingsFrom` trust boundary but declares only
+`units` — "a field arrives when a feature reads it" — so this slice is where that field
+arrives, alongside `geometrySidecarFolder` (§14–15, ADR-011). Filename is never identity
+(§83) — every read resolves `id` → path through the Project Index, never the reverse.
 
 ### The geometry sidecar (§39–40, ADR-011)
 
@@ -182,13 +220,15 @@ ADR-002's colocation example:
 
 ```text
 docs/geometry/                     ← configurable folder, default shown
-├── 01JPLANGF0000000000000001.rpgeo
-├── 01JPLANFF0000000000000002.rpgeo
-└── 01JPLANGD0000000000000003.rpgeo
+├── plan-01JABB3C5D7E9F1G3H5J7K9M1N.rpgeo
+├── plan-01JABC4D6E8F0G2H4J6K8M0N2P.rpgeo
+└── plan-01JABD5E7F9G1H3J5K7M9N1P3Q.rpgeo
 ```
 
-- Flat list, one file per plan, named by the plan's stable ID — never by the plan's
-  display name or its note's path.
+- Flat list, one file per plan, named by the plan's stable ID **including its `plan-`
+  prefix** — the same string the note's `id` field and the sidecar's own `planId` field
+  carry, so the three are comparable without a strip-or-add step that only one of the
+  three code paths remembers. Never named by the plan's display name or its note's path.
 - The extension is `rpgeo` (ADR-011), registered via `registerExtensions(["rpgeo"],
   viewType)` at plugin load so the file explorer treats it as a first-class file, not
   an unsupported attachment.
@@ -202,17 +242,23 @@ example omits it, which is exactly the gap ADR-009 closes):
 ```json
 {
   "schemaVersion": 1,
-  "planId": "plan-ground-floor",
+  "planId": "plan-01JABB3C5D7E9F1G3H5J7K9M1N",
   "unit": "mm",
+  "calibration": null,
   "objects": [
     {
-      "id": "zone-bathroom",
+      "id": "zone-01JABC7XG3QK9F8N2M4P6R5T0W",
       "type": "polygon",
-      "points": []
+      "points": [[0, 0], [2400, 0], [2400, 1800], [0, 1800]]
     }
   ]
 }
 ```
+
+The example polygon carries four real vertices rather than an empty array: `points: []`
+would be a shape `createPolygon` rejects (§26), and an illustrative example of a
+persisted object that could never legally be persisted is the kind of thing an
+implementer copies. `calibration` is `null` until Slice 7 writes it.
 
 `objects[]` is keyed by spatial-object ID, `type` discriminates the geometry shape
 (`polygon` today; Zone is the only spatial-object type this slice populates — future
@@ -345,51 +391,40 @@ more than one entity type to aggregate across.
 
 ## Interfaces & Contracts
 
-Repository ports (`application/ports/`), following the SDD's own example directly and
-extending it to Project and Plan:
+### Repository ports are Slice 3's, unchanged
+
+Slice 3 declares `ProjectRepository`, `PlanRepository`, and `ZoneRepository` in
+`application/ports/`, with every method — reads included — returning a `Result`, and
+"not found" expressed as `ok(null)`. This slice **implements** those ports; it does not
+restate, widen, or narrow a single signature. That is the load-bearing half of Slice 3's
+own reasoning for declaring them a slice early: a port this slice had to widen is a port
+every command and query written against it has to be revisited for, and the swap this
+slice exists to prove ("everything above can change persistence technology without
+knowing it happened", §41) would not have been proven at all.
+
+The one thing this slice adds is that the `isErr` branch stops being hypothetical. An
+`InMemoryZoneRepository.getById` can never fail; `ObsidianZoneRepository.getById` reads
+a file, resolves a path through the index, and runs a Zod parse, any of which can. Slice
+3's commands already handle that branch, so nothing in `application/` changes here.
+
+The `InMemory*Repository` implementations are likewise Slice 3's, reused as-is. They are
+permanent code, not test scaffolding to delete once the Obsidian ones exist (§72).
 
 ```typescript
-interface ProjectRepository {
-  getById(id: ProjectId): Promise<Result<Project | null, PersistenceError>>;
-  save(project: Project): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: ProjectId): Promise<Result<void, PersistenceError>>;
-  listAll(): Promise<Result<Project[], PersistenceError>>;
-}
-
-interface PlanRepository {
-  getById(id: PlanId): Promise<Result<Plan | null, PersistenceError>>;
-  save(plan: Plan): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: PlanId): Promise<Result<void, PersistenceError>>;
-  listByProject(projectId: ProjectId): Promise<Result<Plan[], PersistenceError>>;
-}
-
-interface ZoneRepository {
-  getById(id: ZoneId): Promise<Result<Zone | null, PersistenceError>>;
-  save(zone: Zone): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: ZoneId): Promise<Result<void, PersistenceError>>;
-  listByProject(projectId: ProjectId): Promise<Result<Zone[], PersistenceError>>;
-  listByPlan(planId: PlanId): Promise<Result<Zone[], PersistenceError>>;
-}
-```
-
-Each has an `InMemory*Repository` (a `Map` keyed by ID — reused unchanged from
-Slice 3's own tests) and an `Obsidian*Repository`. Both satisfy the same repository
-contract test suite (§72):
-
-```typescript
-// tests/contracts/zoneRepository.contract.ts
-export function zoneRepositoryContract(makeRepo: () => ZoneRepository) {
+// tests/contracts/zone-repository.contract.ts — Slice 3's suite, imported verbatim
+export function zoneRepositoryContract(makeRepository: () => ZoneRepository) {
   describe("ZoneRepository contract", () => {
-    it("returns null for an unknown id", async () => { /* ... */ });
+    it("resolves ok(null) for an unknown id", async () => { /* ... */ });
     it("round-trips a saved zone through getById", async () => { /* ... */ });
+    it("upserts by id rather than inserting a duplicate", async () => { /* ... */ });
     it("lists zones by plan", async () => { /* ... */ });
     it("removes a zone on delete", async () => { /* ... */ });
   });
 }
 
-// run against both implementations:
-zoneRepositoryContract(() => new InMemoryZoneRepository());
-zoneRepositoryContract(() => new ObsidianZoneRepository(/* fixture vault */));
+// This slice adds the second call site; the suite body is not edited to accommodate it:
+zoneRepositoryContract(() => new InMemoryZoneRepository());                  // slice 3
+zoneRepositoryContract(() => new ObsidianZoneRepository(/* fixture vault */)); // this slice
 ```
 
 Persistence DTOs and schemas (versioned; example shown for Zone, Project/Plan
@@ -404,7 +439,8 @@ const ZoneFrontmatterSchemaV1 = z.object({
   plan: z.string(),
   name: z.string(),
   "zone-type": z.string(),
-  status: z.enum(["planned", "in-progress", "done"]),
+  // Exactly Slice 3's ZoneStatus, kebab-cased — three values, not a near-match set.
+  status: z.enum(["planned", "in-progress", "complete"]),
 });
 type ZoneFrontmatterDTO = z.infer<typeof ZoneFrontmatterSchemaV1>;
 
@@ -412,6 +448,15 @@ const SpatialObjectGeometrySchemaV1 = z.object({
   id: z.string(),
   type: z.literal("polygon"),
   points: z.array(z.tuple([z.number(), z.number()])),
+});
+type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV1>;
+
+// Slice 7 fills this in; declared here so the sidecar has one schema, versioned once.
+const CalibrationSchemaV1 = z.object({
+  pointA: z.object({ x: z.number(), y: z.number() }),
+  pointB: z.object({ x: z.number(), y: z.number() }),
+  knownDistance: z.number().finite().positive(),
+  pixelsPerWorldUnit: z.number().finite().positive(),
 });
 
 const PlanGeometrySchemaV1 = z.object({
@@ -421,10 +466,17 @@ const PlanGeometrySchemaV1 = z.object({
                          // missing this field, or carrying any other value, fails
                          // validation and is never loaded, rather than being
                          // silently interpreted as millimeters.
+  calibration: CalibrationSchemaV1.nullable(),
   objects: z.array(SpatialObjectGeometrySchemaV1),
 });
 type PlanGeometryDTO = z.infer<typeof PlanGeometrySchemaV1>;
 ```
+
+`calibration` is declared as a nullable field of **v1** rather than added by Slice 7 as
+a v2 change. Slice 7 lands before any release, so there is no shipped v1 sidecar without
+the key to migrate; and a Zod object strips unknown keys by default, so a field Slice 7
+"added additively" without touching this schema would be silently discarded on every
+read. The one place that ambiguity gets resolved is here, in the schema itself.
 
 Mapper (frontmatter DTO + geometry entry ↔ domain entity — never partial):
 
@@ -490,7 +542,9 @@ interface MigrationRunner {
 }
 ```
 
-Queries (application layer):
+Queries (application layer) — Slice 3's `GetProject`/`GetPlan`/`GetZone`, re-pointed at
+the Obsidian repositories at the composition root and otherwise untouched, plus the one
+list query the canvas needs:
 
 ```typescript
 interface GetProjectQuery {
@@ -501,6 +555,14 @@ interface GetPlanQuery {
 }
 interface GetZoneQuery {
   execute(id: ZoneId): Promise<Result<Zone | null, PersistenceError>>;
+}
+
+// New here, not in slice 3: the Plan Editor (slice 5) hydrates a whole plan's zones in
+// one call, and §80's naming convention makes that a Find, not a Get. It wraps
+// ZoneRepository.listByPlan and adds nothing — declared in this slice because this is
+// where the repository method it wraps gets its first real implementation.
+interface FindZonesByPlanQuery {
+  execute(planId: PlanId): Promise<Result<Zone[], PersistenceError>>;
 }
 ```
 
@@ -514,8 +576,11 @@ interface GetZoneQuery {
   frontmatter via `FileManager.processFrontMatter` (note body untouched).
   `ObsidianZoneRepository.save` additionally reads-modifies-writes one entry in its
   plan's geometry sidecar, per the consistency sequence above.
-- **New setting:** `geometrySidecarFolder`, default `docs/geometry` (ADR-011), added
-  to the plugin's existing settings surface.
+- **New settings:** `geometrySidecarFolder`, default `docs/geometry` (ADR-011), and a
+  default project folder for entity notes — both added to the settings surface Slice 1
+  established, and both read and written through `settingsFrom` like `units`, since
+  `data.json` is a trust boundary and a folder path is user-editable text.
+  User-supplied paths pass through `normalizePath` before any Vault call.
 - **New Vault registration:** one custom file extension for geometry sidecars,
   registered via `registerExtensions()` at plugin load, so sidecar files are visible
   and manageable in Obsidian's file explorer rather than treated as an unsupported
@@ -558,11 +623,13 @@ interface GetZoneQuery {
 
 ## Definition of Done
 
-1. `ProjectRepository`, `PlanRepository`, `ZoneRepository` ports exist in
-   `application/ports/`; `InMemory*` and `Obsidian*` implementations exist for all
-   three.
-2. The same contract test suite passes against both implementations for all three
-   entities (§72) — no test is written twice, no test is skipped for one side.
+1. `Obsidian*` implementations exist for all three of Slice 3's repository ports, and
+   **no port signature changed** to accommodate them — `git diff` on
+   `application/ports/` across this slice is empty, and nothing in
+   `application/commands/` or `application/queries/` was edited to compile against them.
+2. The same contract test suite — Slice 3's file, imported, not copied — passes against
+   both implementations for all three entities (§72), including the upsert-by-ID case
+   Slice 8's undo depends on. No test is written twice, no test is skipped for one side.
 3. Zod schemas exist and are versioned (`schema-version: 1` / `schemaVersion: 1`)
    for Project, Plan, and Zone frontmatter and for the plan geometry sidecar; no
    repository or mapper accepts un-validated input, and no raw frontmatter or raw
@@ -591,8 +658,9 @@ interface GetZoneQuery {
    project ID → entity IDs, plan ID → spatial-object IDs, plan ID → geometry
    sidecar path) and is fully rebuildable from Vault contents with the in-memory
    index discarded (Completion Criterion 14).
-9. `GetProject`, `GetPlan`, `GetZone` are implemented against the Obsidian
-   repositories and used by the end-to-end reload test.
+9. `GetProject`, `GetPlan`, `GetZone`, and `FindZonesByPlan` resolve against the
+   Obsidian repositories and are used by the end-to-end reload test; a missing entity
+   resolves `ok(null)`/`ok([])`, and only a genuine read failure resolves `isErr`.
 10. The end-to-end reload test — create Project/Plan/Zone, discard in-memory state,
     rebuild the index, re-read through the same repositories, assert equality —
     passes. This is Increment 3's success criterion made concrete: **Project, Plan,

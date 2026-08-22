@@ -6,10 +6,11 @@ Every view needs two different ways to tell a user "something happened": a trans
 message about one event (a zone was created, an import failed) and a persistent
 indicator of one ongoing fact (is the current Plan's data safely written?). Nothing
 built so far provides either. Slice 5 reserved space for both — its status bar row
-already names a "Save state" region and says outright that it "has nothing to show
-until slice 6 introduces edits" (SDD §60) — and slice 6 built the
-`CommandHistory`/transaction-boundary machinery a save-state indicator would observe,
-but neither slice built the indicator itself, and neither built a toast system at all.
+carries SDD §60's own three regions (`Status / Measurements / Save State`) and leaves
+the third empty, since there are no edits to report before slice 6 — and slice 6 built
+the `CommandHistory`/transaction-boundary machinery a save-state indicator would
+observe, but neither slice built the indicator itself, and neither built a toast system
+at all.
 
 This slice builds both, as shared vocabulary any view or command can use, without
 deciding *which* errors should use the toast path versus a modal or an inline field
@@ -38,7 +39,7 @@ error — that decision is slice 17's, once slices 13-16 all exist to decide bet
 
 ### Out of scope (covered by other slices)
 
-- Which `DomainError` category becomes a toast, a modal, or an inline field error —
+- Which `AppError` category becomes a toast, a modal, or an inline field error —
   slice 17 (Presentation-Layer Error Surfacing). This slice only builds the toast
   surface and the API that reaches it; it makes no policy decision about who calls it.
 - Empty states — slice 14.
@@ -64,12 +65,14 @@ error — that decision is slice 17's, once slices 13-16 all exist to decide bet
   `EditorContext.commandDispatcher`, and the transaction-boundary rule (one gesture →
   one command → one history entry → one persistence operation) this slice's save-state
   transitions are driven by, without modifying it.
-- **Slice 2 (Core Primitives)** — `Result<T, AppError>`, and its `.ok` discriminant
-  (per slice 11's own usage — `if (!result.ok)`), consumed by
+- **Slice 2 (Core Primitives)** — `Result<T, AppError>` and its `.ok` discriminant
+  (the shared vocabulary in `docs/design/README.md`: `Result` is data, so this reads
+  `if (!result.ok)` or `isErr(result)`, never `result.isErr()`), consumed by
   `withSaveStateTracking` to decide `Saved` vs `Save Error`.
 - **Slice 11 (Error Handling, Diagnostics & Data Safety)** — the Error Boundary and
-  `ToUserMessage`; its own illustrative example (`toast.show(toUserMessage(result.error))`)
-  names the surface this slice gives a real contract to (`notify`, not `toast.show`).
+  `ToUserMessage`. Slice 11 deliberately stops at "a `ToUserMessage` string reaches
+  Presentation" and leaves the container unnamed; `notify` is the concrete container
+  this slice supplies for the toast case, and slice 17 decides when it is the right one.
 - **ADR-004 (Vue 3 for Plugin UI)** — "isolated app per `ItemView`" (SDD §12). This
   slice's `NotificationHost` is a deliberate, narrow exception: see Design.
 - **ADR-005 (Pinia for Presentation State)** — both stores this slice adds are pure
@@ -79,6 +82,9 @@ error — that decision is slice 17's, once slices 13-16 all exist to decide bet
 - **PRD §67 (Autosave)** — the four state labels this slice implements verbatim, and
   the two stated triggers ("completed commands", "debounced property edits") this
   slice's Design reduces to one mechanism.
+- **`src/presentation/i18n/`** — the existing `t(language, key)` lookup and the `en`/`de`
+  tables both this slice's surfaces render through. Not a new mechanism: this slice adds
+  keys to tables that already exist, per `docs/design/README.md`'s shared vocabulary.
 
 ## Design
 
@@ -97,7 +103,11 @@ A `Notification` carries enough to render and to time itself out:
 id            stable, unique per queue entry
 severity      success | info | warning | error
 message       plain text — no markup, matching every other user-facing string
-              this codebase produces (SDD §66's User Message step)
+              this codebase produces (SDD §66's User Message step). ALREADY
+              TRANSLATED by the caller: notify takes a resolved string, not a
+              StringKey, because slice 11's ToUserMessage also produces one and
+              a queue holding two different kinds of "message" would be worse
+              than a caller passing t(...) at the call site.
 createdAt     epoch ms; reset on a dedup hit
 count         starts at 1; >1 means "this exact message repeated N times"
 autoDismissMs number | null — see policy below
@@ -207,11 +217,16 @@ port.
 ```text
 initNotifications(store)   — called once, in onload(), before any view or command
                               can possibly call notify.*
-notify.success(message)    — no-op-safe id return, auto-dismiss per §2
+notify.success(message)    — auto-dismiss per §2
 notify.info(message)
 notify.warning(message)
 notify.error(message)
 ```
+
+Each returns `void`, not the entry id `NotificationStore.push` produces. A caller that
+could hold an id would be a caller that could dismiss someone else's toast, and nothing
+in slices 14–17 needs one: every consumer pushes and forgets. The id stays internal to
+the store, where the host component and the dedup check use it.
 
 Calling `notify.*` before `initNotifications` runs is a programming error (the
 composition root sequencing is wrong), not a recoverable runtime condition — it throws
@@ -236,17 +251,24 @@ SaveState = 'saved' | 'saving' | 'unsaved-changes' | 'save-error'
 ```
 
 PRD §67 states these four labels verbatim in Title Case ("Saved" / "Saving" /
-"Unsaved Changes" / "Save Error"). This project's own sentence-case UI-text rule
-(CLAUDE.md, enforced by `npm run lint` per the Obsidian marketplace guidelines) applies
-to rendered copy, so the *type*'s literal values stay traceable to the PRD's exact
-wording while a separate label map supplies the sentence-cased string that is actually
-rendered:
+"Unsaved Changes" / "Save Error"). Two things sit between that wording and what renders.
+
+First, this project's sentence-case UI-text rule (CLAUDE.md — a marketplace guideline;
+sentence case is *linted* inside `en.ts`, the file the `obsidianmd` locale rules match,
+and merely reviewed anywhere else). Second, and more importantly: **rendered copy is not
+a literal here at all.** `src/presentation/i18n/` already holds the one lookup every
+user-facing string in this plugin goes through, with a German table alongside English,
+so a hardcoded label map would be a second string table — untranslated, and outside the
+file the locale lint can see.
+
+So `SaveState`'s literal values stay traceable to the PRD's exact wording, and the map
+beside them resolves each to a `StringKey` this slice adds to `en.ts` (and `de.ts`):
 
 ```text
-saved             → "Saved"
-saving            → "Saving"
-unsaved-changes   → "Unsaved changes"
-save-error        → "Save error"
+saved             → 'save-state.saved'            → en: "Saved"
+saving            → 'save-state.saving'           → en: "Saving"
+unsaved-changes   → 'save-state.unsaved-changes'  → en: "Unsaved changes"
+save-error        → 'save-state.save-error'       → en: "Save error"
 ```
 
 ### 7. Save-state triggers
@@ -380,10 +402,9 @@ Per SDD §85:
   `warning`/`error` entries render with `role="alert"`/`aria-live="assertive"`, so a
   screen reader announces a warning/error promptly without demanding it for a routine
   confirmation.
-- Severity is never color-only: each entry carries a distinct icon and the word itself
-  (the SAVE_STATE_LABELS text, or an equivalent severity label for a toast) alongside
-  its color, matching the "status not color-only" rule slice 5 already applies to
-  `ZoneRenderModel.status`.
+- Severity is never color-only: each entry carries a distinct icon and a translated
+  severity label alongside its color, matching the "status not color-only" rule slice 5
+  already applies to `ZoneRenderModel.status`.
 - `SaveStateIndicator.vue` renders as text, not an icon alone, for the same reason.
 
 ## Interfaces & Contracts
@@ -453,13 +474,14 @@ export const MAX_VISIBLE_NOTIFICATIONS = 3;
 // presentation/editor/save-state/save-state.ts
 export type SaveState = 'saved' | 'saving' | 'unsaved-changes' | 'save-error';
 
-// The only place PRD §67's literal Title Case copy is produced; every other
-// reference to a SaveState value uses the kebab-case identifier above.
-export const SAVE_STATE_LABELS: Readonly<Record<SaveState, string>> = {
-  saved: 'Saved',
-  saving: 'Saving',
-  'unsaved-changes': 'Unsaved changes',
-  'save-error': 'Save error',
+// Maps a state to its i18n key — NOT to a literal. The copy itself lives in
+// presentation/i18n/locales/en.ts (and de.ts), like every other user-facing
+// string in this plugin; this map holds no English at all.
+export const SAVE_STATE_KEYS: Readonly<Record<SaveState, StringKey>> = {
+  saved: 'save-state.saved',
+  saving: 'save-state.saving',
+  'unsaved-changes': 'save-state.unsaved-changes',
+  'save-error': 'save-state.save-error',
 };
 ```
 
@@ -499,8 +521,8 @@ export function withSaveStateTracking(
 ```typescript
 // presentation/editor/save-state/SaveStateIndicator.vue — no props; reads
 // this Plan Editor's own useSaveStateStore() (its own Pinia instance) and
-// renders SAVE_STATE_LABELS[state] as text, into the third region of SDD
-// §60's status bar row ("Status / Measurements / Save State").
+// renders t(getLanguage(), SAVE_STATE_KEYS[state]) as text, into the third
+// region of SDD §60's status bar row ("Status / Measurements / Save State").
 ```
 
 File layout (per SDD §77):
@@ -580,14 +602,16 @@ split slice 5 already established for that layer's own stores:
   test enumerates the store's exported action names and asserts none of them is named
   or documented as producing it.
 - **`withSaveStateTracking` test**: wrap a fake dispatcher returning a resolved
-  `Result.ok`, then one returning `Result.err`; assert `beginSaving` is called before
+  an `ok` Result, then one returning a failed one; assert `beginSaving` is called before
   the wrapped `run()` resolves, and `resolveOk`/`resolveErr` is called with the correct
   result after, and that the wrapper's own return value is identical to what the fake
   dispatcher resolved (a transparent decorator, not a new contract).
 - **`SaveStateIndicator.vue` render test**: given each of the four `SaveState` values
   directly (including `'unsaved-changes'`, to prove the renderer is defensively correct
-  even though no producer test exercises it — see above), asserts the corresponding
-  `SAVE_STATE_LABELS` sentence-case text renders.
+  even though no producer test exercises it — see above), asserts the string `t` returns
+  for the corresponding `SAVE_STATE_KEYS` entry renders. A companion test asserts every
+  key in `SAVE_STATE_KEYS` resolves in `en.ts` — a key with no English entry does not
+  compile, but a *stale* key that still compiles would silently render its own name.
 - **Two-Plan-Editors-open test**: two `SaveStateStore` instances (one per view's own
   Pinia, per slice 5's mount pattern) transition independently — driving one to
   `'saving'` leaves the other's state untouched.
@@ -617,23 +641,25 @@ split slice 5 already established for that layer's own stores:
    `saved → saving → save-error` on a failed one, driven through
    `withSaveStateTracking` wrapping slice 6's `commandDispatcher` — with no change to
    `CommandHistory` itself.
-7a. Two overlapping dispatches against the same Plan Editor never show `'saved'`
-    while either is still unresolved, and a batch containing at least one failure
-    settles to `'save-error'` even if a sibling in that same batch succeeded —
-    proven by the overlapping-dispatch test (Testing Strategy), not just by the
-    single-dispatch case in item 7.
-8. `SaveStateIndicator.vue` renders the sentence-cased label for all four `SaveState`
-   values, into the "Save State" third of SDD §60's status bar row.
-9. `'unsaved-changes'` is proven unreachable through `SaveStateStore`'s own action
+8. Two overlapping dispatches against the same Plan Editor never show `'saved'`
+   while either is still unresolved, and a batch containing at least one failure
+   settles to `'save-error'` even if a sibling in that same batch succeeded —
+   proven by the overlapping-dispatch test (Testing Strategy), not just by the
+   single-dispatch case in item 7.
+9. `SaveStateIndicator.vue` renders all four `SaveState` values through `t()`, into the
+   "Save State" third of SDD §60's status bar row. No user-facing literal appears in
+   `presentation/notifications/` or `presentation/editor/save-state/`; the copy for both
+   surfaces lives in `presentation/i18n/locales/`, German included.
+10. `'unsaved-changes'` is proven unreachable through `SaveStateStore`'s own action
    surface by an exhaustive-transition test (Testing Strategy), and Design §8's
    reasoning for why is recorded here rather than left as a silently-included fourth
    state with no path to it.
-10. Neither `NotificationStore`'s queue nor `SaveStateStore`'s current value is written
+11. Neither `NotificationStore`'s queue nor `SaveStateStore`'s current value is written
     to the Vault, read back after a reload, or included in any project export —
     verified by inspection of both stores' action sets (no repository/Vault import
     reachable from either, matching the layer-dependency lint rule already enforced by
     `npm run lint`).
-11. `npm run check` (build, lint, coverage-thresholded tests, fallow) passes with this
+12. `npm run check` (build, lint, coverage-thresholded tests, fallow) passes with this
     slice's code included.
 
 ## References
@@ -654,10 +680,9 @@ split slice 5 already established for that layer's own stores:
 - SDD §29-31 Command Architecture, Undoable Editor Commands, Transaction Boundary
   (detailed in slice 6) — the rule this slice's save-state transitions are driven by
   and the reasoning behind `Unsaved Changes`'s unreachability (Design §8).
-- SDD §65 Result Pattern, §66 Error Boundary (detailed in slice 11) — `Result.ok` as
-  the discriminant this slice's `withSaveStateTracking` inspects; the `User Message`
-  step slice 11's own illustrative `toast.show(...)` example refers to, realized here
-  as `notify`.
+- SDD §65 Result Pattern, §66 Error Boundary (detailed in slice 11) — the `.ok` field as
+  the discriminant this slice's `withSaveStateTracking` inspects, and the `User Message`
+  step whose container slice 11 leaves unnamed and this slice supplies as `notify`.
 - SDD §84 CSS and Theme Integration — Obsidian CSS variables, no hardcoded palette.
 - SDD §85 Accessibility — keyboard operability, live regions, status not color-only.
 - ADR-004 Vue 3 for Plugin UI — isolated app per `ItemView`, and this slice's flagged

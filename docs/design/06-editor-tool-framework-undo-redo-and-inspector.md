@@ -22,6 +22,9 @@ concrete tool plugs into.
   service, command dispatcher, render state, active plan) and nothing else.
 - `UndoableCommand` and `CommandHistory` (undo/redo stacks), as the editor-gesture
   extension of slice 3's plain `Command<TInput, TResult>`.
+- `ReversibleMoveZoneCommand`, the first concrete adapter over a slice-3 command — a
+  deliverable of this slice, not merely an illustration, since slice 8 constructs one
+  per drag gesture and would otherwise have to author the adapter pattern itself.
 - The transaction boundary rule, enforced structurally: one gesture → one command → one
   history entry → one persistence operation.
 - `SelectionStore`: selection expressed as domain IDs, never Konva node references.
@@ -48,12 +51,16 @@ concrete tool plugs into.
 
 ## Dependencies
 
-- Slice 2 (Core Primitives) — `Point`, `DomainId`, `Result`, and `AppError`; every
-  `Result`-returning signature in this slice (`UndoableCommand`, `CommandHistory`,
-  `InspectorStore.commit`) resolves to `Result<void, AppError>` from slice 2, not a
-  bespoke error type of its own.
-- Slice 5 (Canvas Rendering & Editor Shell) — Konva stage/layers and the
-  `worldToScreen`/`screenToWorld` viewport transform this slice's `EditorContext` reads.
+- Slice 2 (Core Primitives) — `Point`, `EntityId`, `Result` (with its `ok`/`err`/
+  `isOk`/`isErr` functions), and `AppError`; every `Result`-returning signature in this
+  slice (`UndoableCommand`, `CommandHistory`, `InspectorStore.commit`) resolves to
+  `Result<void, AppError>` from slice 2, not a bespoke error type of its own.
+- Slice 5 (Canvas Rendering & Editor Shell) — Konva stage/layers, and the `ScreenPoint`
+  type plus the `worldToScreen`/`screenToWorld` pair, all **imported** from
+  `presentation/editor/viewport/` where slice 5 declares them. This slice declares none
+  of the three: a second structurally identical `ScreenPoint` would satisfy every
+  signature below while guaranteeing nothing, which is the one failure mode the brand
+  exists to prevent.
 - Slice 4 (Persistence & Repository Layer) — the repository writes a command handler
   performs; tools never see repositories, only the command dispatcher.
 - Slice 3 (Domain Foundation) — the plain `Command<TInput, TResult>` contract and the
@@ -97,7 +104,7 @@ EditorContext
 ├── snapService        the shared SnapService instance
 ├── commandDispatcher  the single choke point into the domain
 ├── renderState        transient visuals: hover, preview, marquee, snap guides
-└── activePlan         read-only reference to the open Plan (id, calibration, units)
+└── activePlan         read-only reference to the open Plan (id, nullable calibration)
 ```
 
 `viewport` is read-only for every tool except `PanTool`, which mutates pan/zoom
@@ -135,7 +142,7 @@ interface UndoableCommand {
 
 An `UndoableCommand` is a thin adapter around a slice-3 domain command, capturing
 enough state at gesture end to compute an inverse. The adapter discards the wrapped
-command's success payload (`{ zone }`) and passes its `Result.err` through unchanged,
+command's success payload (`{ zone }`) and passes a failed `Result` through unchanged,
 since `UndoableCommand`'s callers (`CommandHistory`) only need to know whether the
 stacks should be touched, not the returned entity:
 
@@ -149,12 +156,12 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
 
   async execute(): Promise<Result<void, AppError>> {
     const result = await this.moveCommand.execute(this.forward);
-    return result.isErr() ? result : Result.ok(undefined);
+    return isErr(result) ? result : ok(undefined);
   }
 
   async undo(): Promise<Result<void, AppError>> {
     const result = await this.moveCommand.execute(this.inverse);
-    return result.isErr() ? result : Result.ok(undefined);
+    return isErr(result) ? result : ok(undefined);
   }
 }
 ```
@@ -167,16 +174,16 @@ CommandHistory
   redoStack: UndoableCommand[]
 
   run(command)   → result = await command.execute()
-                 → if result.isErr(): return result — undoStack/redoStack untouched
+                 → if isErr(result): return result — undoStack/redoStack untouched
                  → push command to undoStack, clear redoStack, return result
   undo()         → peek undoStack (do not pop yet)
                  → result = await command.undo()
-                 → if result.isErr(): return result — command stays on undoStack,
+                 → if isErr(result): return result — command stays on undoStack,
                    not moved to redoStack
                  → pop undoStack, push command to redoStack, return result
   redo()         → peek redoStack (do not pop yet)
                  → result = await command.execute()
-                 → if result.isErr(): return result — command stays on redoStack,
+                 → if isErr(result): return result — command stays on redoStack,
                    not moved to undoStack
                  → pop redoStack, push command to undoStack, return result
 ```
@@ -186,7 +193,7 @@ ADR-007/SDD §29 — neither ever rejects for an expected domain or persistence
 failure (only an unexpected technical fault throws, per SDD §65), and per
 slice 4's repository contract a failed write is a no-op: it never partially
 applies. "After the promise resolves" is therefore not enough to gate the
-stacks on: a resolved `Result.err` (a handler-level validation error, a
+stacks on: a resolved, failed `Result` (a handler-level validation error, a
 persistence failure from slice 4) must be inspected explicitly at all three
 operations, not just `run()`. A failed `undo()` leaves the Vault in the same
 state it was in before the undo was attempted — i.e. still reflecting the
@@ -231,10 +238,10 @@ blur/enter/change-complete, not per keystroke.
 
 ```typescript
 interface SelectionStore {
-  selectedIds: readonly DomainId[];
-  select(ids: DomainId[]): void;
+  selectedIds: readonly EntityId<string>[];
+  select(ids: readonly EntityId<string>[]): void;
   clear(): void;
-  isSelected(id: DomainId): boolean;
+  isSelected(id: EntityId<string>): boolean;
 }
 ```
 
@@ -253,13 +260,21 @@ Konva Transform (x, y, rotation, scaleX, scaleY)
 Normalize Transform  (baseWidth * scaleX, baseHeight * scaleY → true mm dimensions;
                        reset node's scaleX/scaleY to 1 after reading)
       ↓
-Domain Geometry (Polygon / BoundingBox, world millimeters)
+Domain Geometry (BoundingBox, world millimeters)
       ↓
-Command input (e.g. ResizeSpatialObjectCommand's width/height fields)
+Command input (MoveSpatialObjectCommand's full replacement `geometry: Polygon`)
 ```
 
+The last step names `MoveSpatialObjectCommand`, not §29's `ResizeSpatialObjectCommand`:
+slice 3 collapses move and resize into one whole-geometry-replacement command on the
+reasoning that "move vs. resize" is a UI-level distinction (which handle the user
+dragged), and slice 8 builds resize on that same collapse. No
+`ResizeSpatialObjectCommand` exists in this codebase, so a normalized `BoundingBox` is
+converted to the replacement `Polygon` at the call site rather than fed to a
+width/height command input.
+
 This normalization is a pure function — `normalizeTransformerResult(transform,
-baseGeometry): DomainGeometry` — taking plain numbers in and out, so it is unit-tested
+baseGeometry): BoundingBox` — taking plain numbers in and out, so it is unit-tested
 without instantiating a real Konva node or stage. `scaleX`/`scaleY` must never appear
 in a command's input type or in any persisted entity (ADR-003, ADR-009); the
 normalization function is the only place that reads them, and it runs synchronously in
@@ -302,8 +317,13 @@ Selection → Inspector Query → Inspector DTO → Vue UI → edit → Command
 ```
 
 `InspectorStore` (Pinia) derives its current DTO from `SelectionStore` plus a
-read-only application-layer query (not a repository call) against the selected
-entity/entities:
+read-only application-layer query against the selected entity/entities — **a query, not
+a repository call**. This is not a stylistic preference: `EditorContext` deliberately
+excludes repositories (§58), and an Inspector that reached one directly would be the
+same layer violation a tool doing so would be, just in a panel instead of on a canvas.
+Anything the Inspector needs to *read* — including a reference count before offering a
+Delete action (slice 15's worked example) — arrives as a query result, never as a
+repository handle the presentation layer holds.
 
 - Empty selection → no DTO, Inspector panel shows nothing to edit.
 - Single selection → an entity-specific DTO (e.g., a `ZoneInspectorDTO` carrying name,
@@ -317,10 +337,19 @@ entity/entities:
 Edits become commands through the same single choke point tools use — the Inspector
 does not get its own separate dispatch path. A field edit (e.g., renaming a zone) is
 captured on blur/enter, not per keystroke, then wrapped the same way a pointer gesture
-is: one `UndoableCommand`, e.g. `UpdateZonePropertiesCommand`-shaped, pushed through
-`CommandHistory.run()`. This means an Inspector edit is undoable exactly like a canvas
-drag, and `InspectorStore` needs access to the same `CommandHistory`/dispatcher
-instance `EditorContext` hands to tools (wired at the composition root, slice 1).
+is: one `UndoableCommand` wrapping whichever plain command owns that entity's
+properties, pushed through `CommandHistory.run()`. This means an Inspector edit is
+undoable exactly like a canvas drag, and `InspectorStore` needs access to the same
+`CommandHistory`/dispatcher instance `EditorContext` hands to tools (wired at the
+composition root, slice 1).
+
+**No concrete property-update command exists yet, and this slice does not invent one.**
+Slice 3's catalogue covers create, geometry-change and delete, not "rename a Zone" or
+"change its zone type"; those arrive with slice 8, which owns post-creation metadata
+editing, as one more plain `Command` wrapped by the adapter above. What this slice
+fixes is the shape — one commit, one `UndoableCommand`, one history entry — not the
+command list. Naming a `UpdateZonePropertiesCommand` here as though it existed would be
+a forward reference to a thing no slice delivers.
 
 ### Initial tool roster — framework fitness, not tool logic
 
@@ -345,27 +374,33 @@ tool-specific branching belongs inside `ToolManager` or `EditorContext` itself.
 ## Interfaces & Contracts
 
 ```typescript
-// presentation/editor/viewport/screen-point.ts — deliberately NOT exported
-// from core/geometry (slice 2 never sees a pixel). A screen coordinate is a
-// distinct, incompatible type from Point (always world millimeters), so a
-// tool cannot pass a screen pixel where domain geometry is expected and have
-// it type-check: the brand makes them structurally different, not just
-// differently named.
-interface ScreenPoint { readonly x: number; readonly y: number; readonly __brand: 'ScreenPoint'; }
+// Imported, not declared here — slice 5 owns presentation/editor/viewport/.
+// A screen coordinate is a distinct, incompatible type from Point (always world
+// millimeters), so a tool cannot pass a screen pixel where domain geometry is
+// expected and have it type-check: the brand makes them structurally different,
+// not just differently named. That guarantee holds only while exactly one
+// ScreenPoint exists in the codebase.
+import type { Point, ScreenPoint } from '@presentation/editor/viewport/Viewport';
 
 // presentation/editor/tools/editor-tool.ts
-type ToolId = 'select' | 'pan' | 'draw-polygon' | 'place-asset' | 'measure' | 'annotation';
+// 'calibrate' is included because slice 7's CalibrateTool is a real EditorTool and
+// this union is what its `id` must satisfy. SDD §57's roster does not name it (it
+// treats calibration as its own workflow), but a tool that cannot name itself here
+// is a compile error, not a documentation nuance.
+type ToolId =
+  | 'select' | 'pan' | 'draw-polygon' | 'place-asset' | 'measure' | 'annotation'
+  | 'calibrate';
 
 interface EditorPointerEvent {
   worldPoint: Point;          // world mm — already through screenToWorld(); this
                                // is what every domain/geometry call must consume
   screenPoint: ScreenPoint;   // raw pixels — for rendering-layer use only
                                // (e.g. positioning an on-screen tooltip); passing
-                               // this to Polygon.create() or any Core geometry
+                               // this to createPolygon() or any Core geometry
                                // function is a compile error, not a runtime bug
   button: 'primary' | 'secondary' | 'auxiliary';
   modifiers: { shift: boolean; ctrl: boolean; alt: boolean };
-  targetId: DomainId | null;  // hit-tested render-model target, if any
+  targetId: EntityId<string> | null;  // hit-tested render-model target, if any
 }
 
 interface EditorTool {
@@ -378,11 +413,12 @@ interface EditorTool {
   cancel(): void;
 }
 
-// presentation/editor/tools/editor-context.ts — this is the actual home of
-// worldToScreen/screenToWorld (slice 2 explicitly excludes pixels from Core;
-// slice 7 only supplies the calibration input — pixelsPerWorldUnit — that
-// parameterizes these, it does not define them). Bound to the live pan/zoom
-// state slice 5's Konva stage maintains.
+// presentation/editor/tools/editor-context.ts — a thin, viewport-bound FACADE
+// over slice 5's worldToScreen/screenToWorld, not their home: it binds them to
+// the live pan/zoom state slice 5's Konva stage maintains so a tool never has
+// to pass a Viewport and a dpr by hand. Slice 5 owns the math; calibration
+// (slice 7) parameterizes neither — §24's transform is translation, zoom,
+// rotation and device pixel ratio, and calibration is none of them.
 interface EditorContext {
   readonly viewport: {
     worldToScreen(p: Point): ScreenPoint;
@@ -394,15 +430,19 @@ interface EditorContext {
   readonly snapService: SnapService;
   readonly commandDispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
   readonly renderState: RenderState;
-  readonly activePlan: { id: DomainId; calibration: PlanCalibration; units: 'mm' };
+  // calibration is nullable: a Plan renders and is editable before it is calibrated
+  // (slice 5's placeholder scale), so a tool that assumes a value here would break on
+  // every freshly imported plan. `Calibration` is slice 3's type name; there is no
+  // separate `PlanCalibration`.
+  readonly activePlan: { id: PlanId; calibration: Calibration | null };
 }
 
 // presentation/editor/selection/selection-store.ts
 interface SelectionStore {
-  readonly selectedIds: readonly DomainId[];
-  select(ids: DomainId[]): void;
+  readonly selectedIds: readonly EntityId<string>[];
+  select(ids: readonly EntityId<string>[]): void;
   clear(): void;
-  isSelected(id: DomainId): boolean;
+  isSelected(id: EntityId<string>): boolean;
 }
 
 // application ports consumed here, defined in slice 3
@@ -444,8 +484,8 @@ function normalizeTransformerResult(
 // presentation/editor/inspector/inspector-store.ts
 type InspectorDto =
   | { kind: 'empty' }
-  | { kind: 'zone'; id: DomainId; name: string; areaMm2: number /* ...zone-specific fields */ }
-  | { kind: 'multiple'; ids: readonly DomainId[] }; // shape only; behavior left open, see Design
+  | { kind: 'zone'; id: ZoneId; name: string; areaMm2: number /* ...zone-specific fields */ }
+  | { kind: 'multiple'; ids: readonly EntityId<string>[] }; // shape only; behavior left open, see Design
 
 interface InspectorStore {
   readonly dto: InspectorDto;
@@ -487,11 +527,11 @@ and tool-switching directly touch.
 
 - **`CommandHistory` unit tests** — push/undo/redo/clear against fake `UndoableCommand`
   doubles; assert a new `run()` after an `undo()` clears the redo stack; assert a
-  command whose `execute()` **resolves to `Result.err`** (not a rejected promise —
+  command whose `execute()` **resolves to a failed `Result`** (not a rejected promise —
   this is the case that matters, since domain/persistence failures never reject) is
-  never pushed to `undoStack`, and that `run()` returns that same `Result.err` to its
+  never pushed to `undoStack`, and that `run()` returns that same failed `Result` to its
   caller. A further pair of tests makes a double's `.undo()` and `.execute()` (as
-  called by `redo()`) each resolve to `Result.err` in turn, and asserts the command
+  called by `redo()`) each resolve to a failed `Result` in turn, and asserts the command
   stays on its original stack in both cases — `undo()`'s failure leaves it on
   `undoStack`, not moved to `redoStack`; `redo()`'s failure leaves it on `redoStack`,
   not moved to `undoStack`. No Konva, no Obsidian.
@@ -509,7 +549,7 @@ and tool-switching directly touch.
 - **Architecture/contract test** — assert `EditorContext`'s type surface exposes no
   repository or Obsidian Vault API (extends SDD §76's architecture test rules).
 - **`ScreenPoint`/`Point` type-safety check** — a compile-time-only test file (e.g.
-  `// @ts-expect-error`) asserting that `Polygon.create(event.screenPoint)` and
+  `// @ts-expect-error`) asserting that `createPolygon([event.screenPoint])` and
   `Zone.withGeometry({ points: [event.screenPoint] })` fail to type-check, while the
   `event.worldPoint` equivalents compile. This is what makes the screen/world
   distinction a real guarantee rather than a naming convention a future edit could
@@ -531,23 +571,24 @@ and tool-switching directly touch.
 4. A simulated Transformer resize/rotate never allows a `scaleX`/`scaleY` value to
    reach a command's input type or a persisted entity — asserted directly in the
    normalization test, not just implied by code review.
-5. A command whose `execute()` resolves to `Result.err` (simulated validation or
+5. A command whose `execute()` resolves to a failed `Result` (simulated validation or
    persistence failure) is never pushed to `undoStack`, produces no redo-stack
-   entry, and `CommandHistory.run()` returns the same `Result.err` to its caller —
+   entry, and `CommandHistory.run()` returns that same failed `Result` to its caller —
    asserted against a resolved error `Result`, not a rejected promise. A command
-   whose `.undo()` resolves to `Result.err` stays on `undoStack` rather than moving
-   to `redoStack`; a command whose `.execute()` resolves to `Result.err` when called
+   whose `.undo()` resolves to a failed `Result` stays on `undoStack` rather than moving
+   to `redoStack`; a command whose `.execute()` resolves to a failed `Result` when called
    by `redo()` stays on `redoStack` rather than moving to `undoStack`.
-5. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
+6. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
    reachable from it, checked by the architecture/contract test.
-6. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,
+7. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,
    unit-tested without a live canvas.
-7. Selecting a fixture entity produces an Inspector DTO; committing an edited field
-   dispatches exactly one command through the same `CommandHistory` tools use.
-8. `EditorContext`'s type surface contains no repository or Obsidian Vault API.
-9. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
-   future tool (e.g. `WallTool`) requires only a new `EditorTool` implementation, not a
-   framework change.
+8. Selecting a fixture entity produces an Inspector DTO sourced from an application
+   query — not a repository call — and committing an edited field dispatches exactly one
+   command through the same `CommandHistory` tools use.
+9. `EditorContext`'s type surface contains no repository or Obsidian Vault API.
+10. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
+    future tool (e.g. `WallTool`) requires only a new `EditorTool` implementation, not a
+    framework change.
 
 ## References
 

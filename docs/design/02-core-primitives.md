@@ -47,17 +47,26 @@ the types defined here.
 - **Concrete domain events** (`ProjectCreated`, `ZoneCreated`, …, §34) — the
   catalog is noted here to exist; the concrete union and payload shapes are
   introduced alongside their owning entities in slice 3.
-- **Geometry validation before persistence** (≥3 vertices, finite
-  coordinates, no NaN/Infinity, valid unit/transform — §26) and **advanced
-  polygon operations** (`clipper2-ts` union/intersection/difference/offset,
-  §27) and the **spatial index** (`rbush`, §28) — all three belong to slice 8.
+- **Applying** geometry validation at the editing boundary — where a tool
+  calls `createPolygon` mid-gesture, what a user sees when it rejects, and
+  the §26 rules deferred as "Future" (self-intersection, winding, repair) —
+  slice 8. The `createPolygon` smart constructor itself is *in* this slice
+  (see "Validity, and the one function that enforces it"), because it is the
+  only place §26's three required rules can be stated once for every caller.
+- **Advanced polygon operations** (`clipper2-ts` union/intersection/
+  difference/offset, §27) and the **spatial index** (`rbush`, §28) — both
+  explicitly deferred per the SDD and the slice map's "Explicitly deferred"
+  list, not scheduled into any slice.
 - **Viewport transform** (`worldToScreen`/`screenToWorld`, pixel↔world
   mapping, §24) — slice 5, built on this slice's `Point`/`Transform`. Core's
   `Transform` and `scale` operate purely within world units; they never see
   a pixel, and never define the `ScreenPoint` type that represents one.
 - **Calibration** (§25, the two-point/known-distance derivation and its
-  persistence) — slice 7. Calibration supplies one *input* to slice 5's
-  transform (`pixelsPerWorldUnit`); it does not define the transform itself.
+  persistence) — slice 7. Calibration is *not* a parameter of the viewport
+  transform: §24 lists that transform's components as translation, zoom,
+  rotation and device pixel ratio, and calibration is none of them. What
+  calibration fixes is what a world unit means for one Plan's background —
+  slice 7's own design.
 - **Konva/rendering** (§16–19) — slice 5.
 - **Persistence** (repositories, Zod schemas, sidecar format, §35–47) —
   slice 4.
@@ -150,16 +159,34 @@ geometry to support. (Konva's own `scaleX`/`scaleY` output is a *rendering*
 artifact that must be normalized before it reaches domain geometry at all —
 that normalization is §20's concern, owned by slice 6, not this one.)
 
-### Validity is not enforced here
+### Validity, and the one function that enforces it
 
-`core/geometry/` does not check that a `Polygon` has ≥3 points, that
-coordinates are finite, or that a transform is well-formed — those are the
-persistence-time validation rules of §26, owned by slice 8. A 1-point or
-0-point "polygon" is representable at the type level here on purpose: a
-`DrawPolygonTool` (slice 6/8) legitimately holds a not-yet-valid polygon
+The `Polygon` **interface** is deliberately unvalidated: a 1-point or 0-point
+polygon is representable at the type level on purpose, because a
+`DrawPolygonTool` (slice 8) legitimately holds a not-yet-valid point buffer
 while the user is still placing vertices.
 
-What core *is* responsible for is not pretending an operation on a
+Validity is enforced by one exported **smart constructor**, and it lives here:
+
+```typescript
+createPolygon(points: readonly Point[]): Result<Polygon, GeometryError>
+```
+
+It implements §26's three *required* rules — ≥3 vertices, finite
+coordinates, no `NaN`/`Infinity` — and nothing else. It lives in `core/`
+rather than in slice 8 for the reason §26's own framing implies: the rules
+are about what a polygon *is*, not about what a pointer gesture may produce,
+and both a domain entity (`Zone.withGeometry`, slice 3) and an editor tool
+(slice 8) must reach the same answer without either trusting the other. A
+rule stated in the editing layer would be a rule a migration, a script, or a
+second tool could bypass.
+
+What this slice does **not** own is §26's "Future" list (self-intersection
+detection, winding normalization, polygon repair) or the question of what a
+user sees when a construction is rejected — both are slice 8's, and slice 8
+is where `createPolygon` gets its first real caller.
+
+Separately, what core is responsible for is not pretending an operation on a
 degenerate shape produced a meaningful number. Operations that are
 mathematically undefined for some inputs return `Result<T, GeometryError>`
 instead of throwing or silently returning `0`/`NaN`; operations that are
@@ -194,7 +221,10 @@ this unit, never in canvas pixels (§23, ADR-009). `core/units/` exists to
 hold this as one documented fact rather than a convention every consumer has
 to independently remember; it does not perform any pixel↔mm conversion
 (that centralized conversion, `worldToScreen`/`screenToWorld`, is §24 and
-belongs to slice 7 at the viewport boundary).
+belongs to slice 5 at the viewport boundary), and it does not hold the
+measurement vocabulary a cost figure is priced in (`UnitKind`,
+`MeasurementUnit`, `Quantity` — slice 9, which adds them to this same
+directory when it lands).
 
 `Point.x`/`Point.y` remain plain `number` rather than a branded
 `Millimeters` numeric type: the SDD's own geometry examples (§22, §38) use
@@ -327,6 +357,14 @@ interface Transform {
 ```
 
 ```typescript
+// core/geometry/Polygon.ts — the one validated entry point (§26's required
+// rules: >= 3 vertices, finite coordinates, no NaN/Infinity). Every caller
+// that turns raw points into a Polygon goes through this; the bare interface
+// stays constructible so a tool can hold a partial buffer mid-gesture.
+function createPolygon(points: readonly Point[]): Result<Polygon, GeometryError>;
+```
+
+```typescript
 // core/geometry/operations.ts — pure functions, no mutation.
 // Signatures shown once for Point/Polygon; translate/rotate/scale repeat
 // identically for LineSegment, Polyline, and BoundingBox.
@@ -365,7 +403,7 @@ function project(point: Point, onto: LineSegment): Result<Point, GeometryError>;
 ```typescript
 // core/units/WorldUnit.ts
 /** 1 world unit = 1 millimeter. Domain geometry is always in this unit;
- *  pixel conversion happens only at the viewport boundary (§24, slice 7). */
+ *  pixel conversion happens only at the viewport boundary (§24, slice 5). */
 ```
 
 ```typescript
@@ -468,6 +506,11 @@ services that own them — not here.)
 
 Required coverage, derived from the contracts above:
 
+- **`createPolygon`**: a boundary table over 0, 1, 2 and 3 points, a point
+  carrying `NaN`, a point carrying `Infinity`, and a well-formed polygon —
+  asserting `isErr` with a `GeometryError` for each rejected case. This is
+  §26's required list, tested once here rather than at each of slice 8's
+  three call sites.
 - **Geometry**: each operation against at least one hand-computed case
   (e.g. a 3-4-5 right triangle for `area`/`perimeter`/`centroid`, an axis-
   aligned square for `boundingBoxOf`), plus the degenerate-input path for
@@ -507,6 +550,10 @@ integration test vault (§75) — those exercise slice 4 and later.
       specified: no geometry operation throws on a mathematically
       undefined input, and no always-defined operation is wrapped in
       `Result` needlessly.
+- [ ] `createPolygon` enforces §26's three required rules and is the only
+      exported way to obtain a validated `Polygon`; the boundary table above
+      passes. §26's "Future" rules (self-intersection, winding, repair) are
+      not implemented and not stubbed.
 - [ ] `core/units/` documents the 1-unit-=-1mm convention at the one place
       new contributors will look for it; no pixel/DPI conversion exists
       anywhere under `core/`.
@@ -530,7 +577,9 @@ integration test vault (§75) — those exercise slice 4 and later.
 - SDD §7.1 — Core Layer
 - SDD §22 — Geometry Core
 - SDD §23 — World Coordinate System
-- SDD §26 — Geometry Validation (noted as out of scope; owned by slice 8)
+- SDD §26 — Geometry Validation (the three *required* rules, implemented here
+  as `createPolygon`; the "Future" rules and the editing-boundary behaviour
+  are slice 8's)
 - SDD §32 — Event Architecture (context for the bus's async/failure-isolation decisions)
 - SDD §33 — Event Bus
 - SDD §34 — Domain Events (catalog existence only; concrete events → slice 3)

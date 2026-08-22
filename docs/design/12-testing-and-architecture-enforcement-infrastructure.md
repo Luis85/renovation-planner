@@ -2,10 +2,10 @@
 
 ## Purpose
 
-Slices 1–11 each carry their own "Testing Strategy" section describing what to test.
-None of those sections specify how a test gets run, what shared harness it plugs into,
-or what stops a layering violation from ever reaching code review. That shared
-machinery is this slice.
+Every other slice in the map carries its own "Testing Strategy" section describing what
+to test. None of those sections specify how a test gets run, what shared harness it
+plugs into, or what stops a layering violation from ever reaching code review. That
+shared machinery is this slice.
 
 This slice delivers:
 
@@ -15,15 +15,15 @@ This slice delivers:
 - the Vue Component and Canvas Adapter test harnesses that slices 5 and 6 fill in;
 - the Integration Test Vault fixture, so slice 4's persistence/migration/vault-change
   logic is developed against disposable fixture data, never a production Vault;
-- the automated, CI-enforced architecture-boundary check that makes ADR-006's
+- the automated, CI-enforced architecture-boundary checks that make ADR-006's
   "Domain must never depend on Infrastructure" rule fail a build instead of a review;
 - the SDD's own Architecture Completion Criteria (§92), reproduced here as the single
-  exit gate for the entire 12-slice architecture phase.
+  exit gate for the whole architecture phase every slice in the map belongs to.
 
-Without this slice, the other 11 slices' testing strategies are unenforceable prose —
-each would have to invent its own harness, its own fixture conventions, and its own
-notion of "done," and nothing would stop `domain/` from quietly importing `obsidian`
-until a human noticed.
+Without this slice, every other slice's testing strategy is unenforceable prose — each
+would have to invent its own harness, its own fixture conventions, and its own notion of
+"done," and nothing would stop `domain/` from quietly importing `obsidian` until a human
+noticed.
 
 ## Scope
 
@@ -43,7 +43,8 @@ until a human noticed.
 - The Integration Test Vault: a checked-in fixture vault with `valid-project/`,
   `broken-references/`, `legacy-schema/`, and `large-project/` cases (§75), and how it
   satisfies Data Safety Rule 1, "never develop against production Vaults" (§87).
-- Architecture Test Rules: the automated layer-boundary check and its CI wiring (§76).
+- Architecture Test Rules: the automated layer-boundary checks and their CI wiring
+  (§76), and the planted-violation meta-tests proving each one actually fires.
 - The Architecture Completion Criteria (§92) reproduced as the phase-level exit gate.
 
 ### Out of scope (covered by other slices)
@@ -60,15 +61,20 @@ until a human noticed.
 - Specific end-to-end wiring test cases (`Zone Geometry → Area → Requirement → Cost`) —
   slice 10.
 - Specific error-model, diagnostics, and data-safety test cases — slice 11.
+- Specific notification, save-state, empty-state, dialog, form-validation, and
+  error-surfacing test cases — slices 13–17. Their component tests run in the `jsdom`
+  profile and their pure selectors/policies (`selectPlanEditorEmptyState`, `routeError`,
+  `surfaceFor`) run in the `node` profile, using this slice's harnesses unchanged;
+  none of them needs a new one.
 
 ## Dependencies
 
-Per the slice map (`docs/design/README.md`), this slice's *completion* depends on all
-of slices 1–11 — the Architecture Completion Criteria (§92) cannot be verified true
-until every other slice exists. But its *infrastructure* (directory layout, vitest
-config, lint rules) has no such ordering constraint and should be stood up as early as
-slice 1, so slices 2–11 have somewhere to put their tests from day one rather than
-retrofitting a harness later.
+Per the slice map (`docs/design/README.md`), this slice's *completion* depends on every
+other slice — the Architecture Completion Criteria (§92) cannot be verified true until
+they all exist. But its *infrastructure* (directory layout, vitest config, lint rules)
+has no such ordering constraint and should be stood up as early as slice 1, so every
+later slice has somewhere to put its tests from day one rather than retrofitting a
+harness later.
 
 Specific ties:
 
@@ -86,6 +92,8 @@ Specific ties:
   Canvas Adapter Tests must prove.
 - ADR-006 (Plain TypeScript Domain) — the exact import restriction the Architecture
   Test Rules mechanize.
+- Slice 1 (Composition Root) again, for the tooling decision this slice inherits rather
+  than remakes: ESLint `no-restricted-imports`, no `dependency-cruiser`.
 - ADR-010 (Decimal Money Arithmetic) — why the Money unit category exists at all.
 
 ## Design
@@ -118,10 +126,12 @@ tests/
 └── architecture/     # meta-tests: prove the lint/contract rules actually fire
 ```
 
-Vue Component and Canvas Adapter tests live alongside the code they test
-(`src/presentation/**/*.spec.ts`), not under `tests/`, since Vitest colocation is the
-project's existing convention for presentation code; only cross-cutting suites live
-under `tests/`.
+**Every test lives under `tests/`, mirroring `src/`** — Vue Component and Canvas
+Adapter tests included, at `tests/presentation/**`. This repository's convention is
+`tests/` mirrors `src/` (CLAUDE.md, and the `tests/plugin/`, `tests/presentation/views/`
+layout slice 1 already ships); colocating presentation specs under `src/` would be a
+second answer to "where does a test go", and would put `.spec.ts` files inside the tree
+the build and the layer-boundary lint globs are scoped to.
 
 `vitest.config.ts` defines (at minimum) two run profiles, not one, and this is a
 deliberate design choice, not an implementation detail:
@@ -130,7 +140,7 @@ deliberate design choice, not an implementation detail:
 node profile:   tests/unit/**, tests/contracts/**, tests/integration/**
                 environment: 'node' — no DOM, no jsdom globals available
 
-jsdom profile:  src/presentation/**/*.spec.ts
+jsdom profile:  tests/presentation/**, tests/plugin/**
                 environment: 'jsdom'
 ```
 
@@ -147,8 +157,8 @@ assignment:
 
 | Category | Owning slice(s) | What it tests |
 | --- | --- | --- |
-| Geometry | Slice 2 (Core Primitives) | distance, area, perimeter, centroid, transform, point-in-polygon, segment intersection — pure `core/geometry/` functions. Calibration *math* is here; the calibration *tool/workflow* is slice 7. Snapping *math* is here; the `SnapService` *integration* is slice 6. |
-| Money | Slice 2 (Money value object) + Slice 9 (Cost Engine) | addition, tax, discounts, rounding, currency safety — `decimal.js`-backed, per ADR-010. |
+| Geometry | Slice 2 (Core Primitives) | distance, area, perimeter, centroid, transform, point-in-polygon, segment intersection, and `createPolygon`'s §26 validation — pure `core/geometry/` functions. §70 also files calibration and snapping under this heading, but both are tested against the services that own them: `deriveCalibration` in slice 7, `SnapService` in slice 6. Neither has a `core/geometry/` function to test, so filing their tests here would mean testing code that lives in another layer. |
+| Money | Slice 9 (Cost Engine) | addition, tax, discounts, rounding, currency safety — `decimal.js`-backed, per ADR-010. `Money` is slice 9's, not slice 2's: slice 2 explicitly excludes `core/money/` from its own scope. |
 | Quantity | Slice 9 (Quantity Engine) | length/area requirement derivation, waste, packaging, manual override precedence (`override ?? calculated`). |
 | Domain | Slice 3 (Project/Plan/Zone), extended by 7/8/10 as new entities land | status transitions, relationship rules (e.g. a Zone must belong to an existing Plan), validation, dependency rules. |
 
@@ -178,7 +188,7 @@ One shared suite per repository *interface*, written once, run against every
 implementation of that interface:
 
 ```text
-ZoneRepositoryContract(makeRepository)
+zoneRepositoryContract(makeRepository)
       ├── run against InMemoryZoneRepository   → tests/integration/in-memory/
       └── run against ObsidianZoneRepository   → tests/integration/obsidian/
                                                    (backed by the Integration
@@ -291,41 +301,48 @@ domain/**  and  core/**  and  application/**  may not import:
   (DOM globals, in domain/core — enforced by the node test profile, see §1)
 ```
 
-Two complementary mechanisms, both required, both wired into `npm run lint` /
-`npm run check` so a violation fails the build rather than waiting for review:
+Three mechanisms, all already wired into `npm run check` so a violation fails the build
+rather than waiting for review:
 
-- **ESLint `no-restricted-imports`**, scoped by `files` glob to `src/domain/**`,
-  `src/core/**`, `src/application/**` — catches a direct forbidden import in a single
-  file. Already anticipated by ADR-006 as living in this repository's
-  `eslint.config.mjs`.
-- **`dependency-cruiser`**, checking the full dependency graph, not just direct
-  imports — catches indirect violations ESLint's per-file rule cannot see (e.g.
-  `domain/` importing an `infrastructure/` helper that itself imports `obsidian`),
-  and enforces the directional rule from §8 of the SDD (`Presentation → Application →
-  Domain → Core`, never the reverse; `Infrastructure → Application Ports`, never
-  `Domain → Infrastructure`).
+- **ESLint `no-restricted-imports`**, as one block per layer directory, banning both the
+  sibling layers above it and the forbidden packages (plus their subpaths). This is
+  slice 1's rule set, committed before any file existed to violate it. Per-directory
+  blocks matter: two flat-config blocks matching one file **override** rather than merge,
+  so a single combined glob would silently drop the per-layer sibling bans.
+- **The `node` test profile** (§1 above), which fails on a DOM global reached through
+  *any* depth of import — the indirect case a per-file lint rule cannot see.
+- **`fallow`** (`npm run analyze`), which reports dependency hygiene across the graph.
 
-Both must run in CI on every push/PR, not only as an opt-in local script — a rule that
-only fails a build when someone remembers to run it locally is not enforcement.
+**`dependency-cruiser` is deliberately not adopted**, and this slice does not re-open
+that decision — slice 1 made it, with its reasoning, and this is the same conclusion:
+ESLint already runs on every commit, integrates with the existing flat config, and
+needs no second tool or second CI step. The gap a graph-level checker would close is
+narrower than it looks once the node profile and `fallow` are counted. If a real
+indirect violation ever survives all three, that is the trigger to add one — a fourth
+tool bought against a demonstrated hole rather than an imagined one.
+
+All three run in CI on every push/PR as part of one `npm run check`, not as an opt-in
+local script — a rule that only fails a build when someone remembers to run it locally
+is not enforcement.
 
 ### 9. The Architecture Completion Criteria as the phase gate (§92)
 
-The SDD's §92 is the exit gate for the entire 12-slice architecture phase, not for
-this slice alone. It is reproduced in full under **Definition of Done** below, with
+The SDD's §92 is the exit gate for the whole architecture phase, not for this slice
+alone. It is reproduced in full under **Definition of Done** below, with
 each criterion mapped to how it becomes verifiable rather than aspirational:
 
 | # | Criterion | Verified by |
 | --- | --- | --- |
 | 1–3 | Domain runs without Obsidian/Vue/Konva | Architecture Test Rules (§8) + node-profile unit tests (§1) |
 | 4 | UI communicates through commands/queries | Application Test pattern (§3) + slice 5/6 component tests asserting emitted commands, never direct repository calls |
-| 5–6 | Konva/Pinia store no canonical data | Canvas Adapter Tests (§6) assert Konva emits IDs/commands, not domain state; slice 4/14 Definition of Done |
+| 5–6 | Konva/Pinia store no canonical data | Canvas Adapter Tests (§6) assert Konva emits IDs/commands, not domain state; slice 5's Definition of Done items 3–5 (Pinia rebuildable from queries, no Konva node read as a geometry source) |
 | 7 | Vault files remain understandable without the plugin | slice 4 Definition of Done, exercised against `valid-project/` |
 | 8 | All persistence input is runtime validated | slice 4 schema tests, exercised against `broken-references/` and `legacy-schema/` |
 | 9 | Schema migrations need no redesign | `legacy-schema/` fixture + slice 4 migration tests |
 | 10 | Real-world coordinates | Geometry unit category (§2) + ADR-009 |
 | 11 | Undo/redo participation | slice 6 Definition of Done |
 | 12 | Deterministic geometry/cost unit tests | Geometry, Money, Quantity unit categories (§2) |
-| 13 | A broken project file doesn't block plugin load | `broken-references/` fixture + planted-tree test (Testing Strategy, below) |
+| 13 | A broken project file doesn't block plugin load | `broken-references/` fixture + planted-violation test (Testing Strategy, below) |
 | 14 | Project index always rebuildable | `large-project/` fixture + slice 4 tests |
 | 15 | New views reuse application/domain layers | Architecture Test Rules (§8) prevent the coupling that would make this false |
 
@@ -335,7 +352,9 @@ Repository contract suite shape (one per repository interface):
 
 ```typescript
 // tests/contracts/zone-repository.contract.ts
-export function ZoneRepositoryContract(
+// Named zoneRepositoryContract — lowerCamelCase, like every other function in this
+// codebase (§80). Slice 3 authors this file; slices 3 and 4 each add a call site.
+export function zoneRepositoryContract(
   makeRepository: () => ZoneRepository
 ): void {
   describe('ZoneRepository contract', () => {
@@ -354,47 +373,36 @@ Consumed from both sides:
 
 ```typescript
 // tests/integration/in-memory/zone-repository.spec.ts
-ZoneRepositoryContract(() => new InMemoryZoneRepository());
+zoneRepositoryContract(() => new InMemoryZoneRepository());
 
 // tests/integration/obsidian/zone-repository.spec.ts
-ZoneRepositoryContract(() =>
+zoneRepositoryContract(() =>
   new ObsidianZoneRepository(openFixtureVault('valid-project'))
 );
 ```
 
-ESLint layer-boundary rule (excerpt):
-
-```typescript
-// eslint.config.mjs
-{
-  files: ['src/domain/**/*.ts', 'src/core/**/*.ts', 'src/application/**/*.ts'],
-  rules: {
-    'no-restricted-imports': ['error', {
-      paths: ['vue', 'pinia', 'konva', 'vue-konva', 'obsidian'],
-    }],
-  },
-}
-```
-
-Dependency direction rule (excerpt):
+ESLint layer-boundary rule — slice 1's shape, shown for one layer. Each layer gets its
+own block from the shared `forbidden(layer, { groups, packages }, reason)` factory;
+`patterns` rather than `paths` is what catches subpath imports like `vue/dist/*`, and
+each block repeats the sibling-layer bans because two blocks matching one file override
+rather than merge:
 
 ```javascript
-// .dependency-cruiser.cjs
+// eslint.config.mjs — generated per layer, not hand-written per layer
 {
-  forbidden: [
-    {
-      name: 'domain-must-not-depend-on-infrastructure',
-      severity: 'error',
-      from: { path: '^src/domain' },
-      to: { path: '^src/infrastructure' },
-    },
-    {
-      name: 'core-must-not-depend-on-domain',
-      severity: 'error',
-      from: { path: '^src/core' },
-      to: { path: '^src/(domain|application|infrastructure|presentation)' },
-    },
-  ],
+  files: ['src/domain/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        // sibling layers this one may not reach
+        'src/application/**', 'src/infrastructure/**',
+        'src/presentation/**', 'src/plugin/**',
+        // packages, plus their subpaths
+        'vue', 'vue/**', 'pinia', 'pinia/**',
+        'konva', 'konva/**', 'vue-konva', 'vue-konva/**', 'obsidian',
+      ],
+    }],
+  },
 }
 ```
 
@@ -435,7 +443,7 @@ This slice introduces no production persistence. It defines:
 ## Testing Strategy
 
 This slice's own subject is testing infrastructure, so its Testing Strategy is about
-proving the infrastructure and rules actually work — a planted-tree test for each
+proving the infrastructure and rules actually work — a planted-violation test for each
 enforcement mechanism, living under `tests/architecture/`:
 
 - **Lint rule fires on a real violation.** A fixture file containing a deliberate
@@ -444,13 +452,15 @@ enforcement mechanism, living under `tests/architecture/`:
   error, not merely that the rule exists in `eslint.config.mjs`. A config entry that
   is never actually evaluated against a violating file is indistinguishable from no
   rule at all.
-- **dependency-cruiser fires on an indirect violation.** A fixture graph where
-  `domain/` imports an `infrastructure/`-only helper (no direct `obsidian` import)
-  is run through the configured rule set; the test asserts it is still flagged,
-  proving the graph-level check catches what the per-file ESLint rule cannot.
+- **The node profile fires on an indirect violation.** A fixture module where
+  `domain/` reaches a DOM global through a helper (no direct `obsidian` or `window`
+  import in the domain file itself) is imported inside a `node`-profile test; the test
+  asserts the import fails, proving the profile catches what the per-file ESLint rule
+  cannot see. This is the check that stands in for a graph-level tool, so it is the one
+  that must be shown to actually fire.
 - **A contract suite fails on a broken fake.** A deliberately broken repository fake
   (e.g. one whose `save()` silently drops the zone's `name`) is run through
-  `ZoneRepositoryContract`; the test asserts the suite fails. This proves the
+  `zoneRepositoryContract`; the test asserts the suite fails. This proves the
   contract suite is discriminating — it would actually catch a real regression in
   `ObsidianZoneRepository`, not just pass trivially against any object with the right
   method names.
@@ -461,9 +471,11 @@ enforcement mechanism, living under `tests/architecture/`:
   itself exercises the failure mode it claims to, rather than accidentally being a
   valid project file.
 - **CI actually invokes the checks.** A test (or a documented manual check at release
-  time) confirms the CI workflow definition runs `npm run lint` and the
-  architecture/dependency-cruiser check on every PR — catching the failure mode where
-  the scripts exist and pass locally but were never wired into CI.
+  time) confirms the CI workflow definition runs `npm run check` — the one command that
+  carries build, lint, coverage-gated tests and `fallow` — on every PR, on both Ubuntu
+  and Windows. This catches the failure mode where the scripts exist and pass locally
+  but were never wired into CI, and the related one where the two platforms drift
+  because they invoke different commands.
 
 These meta-tests run in CI alongside everything else. Their purpose is narrow: stop
 "the rule exists in a config file nobody runs" and "the contract suite exists but is
@@ -479,17 +491,20 @@ Infrastructure-specific:
       owned by the slice named in §2's table.
 - [ ] The Application Test pattern is demonstrated for at least one command
       (`CreateZoneCommand`) against `InMemoryZoneRepository`.
-- [ ] At least one `*RepositoryContract` suite (`ZoneRepositoryContract`) exists and
-      passes against both an `InMemory*` and an `Obsidian*` implementation.
-- [ ] The Vue Component Test harness is set up; at least one inspector, toolbar, and
-      dialog test passes, none of them asserting geometry correctness.
+- [ ] At least one `*RepositoryContract` suite (`zoneRepositoryContract`) exists and
+      passes against both an `InMemory*` and an `Obsidian*` implementation, from one
+      file with two call sites — not two files.
+- [ ] The Vue Component Test harness is set up under `tests/presentation/`; at least
+      one inspector, toolbar, and dialog test passes, none of them asserting geometry
+      correctness, and no `.spec.ts` file exists anywhere under `src/`.
 - [ ] The Canvas Adapter Test harness is set up; all three named behaviors (render,
       transform completion, selection) are covered.
 - [ ] The Integration Test Vault exists with all four cases, and is the only
       Vault-shaped data any automated test touches.
-- [ ] The Architecture Test Rules (ESLint + dependency-cruiser) are wired into
-      `npm run lint` / `npm run check`, run in CI, and each has a passing
-      planted-violation meta-test proving it fires.
+- [ ] The Architecture Test Rules (per-layer ESLint blocks, the `node` test profile,
+      and `fallow`) all run inside the single `npm run check` CI invokes on Ubuntu and
+      Windows, and the first two each have a passing planted-violation meta-test proving
+      they fire. No `dependency-cruiser` config exists — see §8.
 
 Phase-level exit gate — the SDD's Architecture Completion Criteria (§92), reproduced
 in full as the condition under which feature development may begin:

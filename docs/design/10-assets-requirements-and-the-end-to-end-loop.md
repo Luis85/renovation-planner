@@ -87,12 +87,12 @@ end to end.
 
 | Slice | What this slice takes from it |
 | --- | --- |
-| 2 — Core Primitives | `Polygon.area()`, `Result<T, E>`, identity/ID scheme, Event Bus base |
+| 2 — Core Primitives | `area(polygon)` (a `Result`), `Result<T, E>` and its guards, identity/ID scheme, Event Bus base |
 | 3 — Domain Foundation | The entity/command/event module pattern, applied to Zone; `ZoneId`, `ProjectId` |
 | 4 — Persistence & Repository | Repository interface shape, Markdown↔DTO↔domain mapping, Zod schema pattern, Project Index |
 | 6 — Editor Tool Framework, Undo/Redo & Inspector | Command dispatch from UI, `UndoableCommand`, Inspector Query → DTO → Vue pattern |
 | 8 — Zone Editing | The concrete commands that mutate a Zone's geometry and emit `ZoneGeometryChanged` |
-| 9 — Quantity & Cost Engine | `Money`, `DerivedValue<T>`, the Quantity Engine pipeline, the Cost Pipeline |
+| 9 — Quantity & Cost Engine | `Money`, `Quantity`, `MeasurementUnit`/`UnitKind`/`UNIT_KIND`, `DerivedValue<T>`, the Quantity Engine pipeline, the Cost Pipeline |
 
 This slice does not introduce a new SDD ADR; it applies ADR-006 (plain
 TypeScript domain), ADR-007 (command-based mutations), ADR-008 (event-aware
@@ -118,9 +118,10 @@ interface Asset {
   category: AssetCategory;
   supplier?: string;               // free text this slice; Supplier entity is Epic 11
   sku?: string;
-  unit: Unit;                      // "piece" | "m" | "m2" | "m3" | "hour" | "day" | "fixed" — SDD §48
+  unit: MeasurementUnit;           // slice 9's concrete symbol type; its UnitKind
+                                    //   (slice 9's UNIT_KIND map) is SDD §48's dimension
   unitCost: Money;                 // ADR-010
-  wasteFactorDefault: number;      // 0..1, default 0
+  wasteFactorDefault: Decimal;     // fraction in [0, 1], default 0 — see "Unit conversion" 
   notes?: string;
 }
 ```
@@ -165,9 +166,9 @@ interface Requirement {
   readonly projectId: ProjectId;
   readonly assetId: AssetId;            // "required asset"
   readonly origin: RequirementOrigin;   // "source geometry" — a reference, not a copy (§3.6)
-  unit: Unit;                           // copied from Asset.unit at creation
-  wasteFactor: number;                  // 0..1, defaulted from Asset.wasteFactorDefault, editable per-requirement
-  quantity: DerivedValue<number>;       // "calculated quantity" + "manual override"
+  unit: MeasurementUnit;                // copied from Asset.unit at creation
+  wasteFactor: Decimal;                 // fraction in [0, 1], defaulted from Asset.wasteFactorDefault, editable per-requirement
+  quantity: DerivedValue<Quantity>;     // "calculated quantity" + "manual override"
   estimatedCost: DerivedValue<Money>;
   recalculationStatus: "current" | "stale"; // persisted — see "Event cascade" below
   requiredDate?: string;                // ISO date, optional — schema completeness only, unused by this slice's loop
@@ -208,34 +209,51 @@ This slice maps SDD §50's Quantity Engine pipeline onto real data, for the
 
 ```text
 Zone.geometry (Polygon)              ← slice 8
-        ↓ Polygon.area()             ← slice 2
+        ↓ area(zone.geometry)        ← slice 2 (a Result; an isErr here is a
+                                        CalculationError on the Requirement, not a crash)
 Measured Quantity (mm² → Asset.unit) ← slice 9 unit conversion
-        ↓ Requirement Rule = area (identity, `m2`-unit Assets only)
+        ↓ Requirement Rule = area (identity, area-kind Assets only)
 Required Quantity
         ↓ applyWaste(required, Requirement.wasteFactor × 100)   ← slice 9
+        ↓ applyPackaging(wasted, undefined)                     ← slice 9, no-op
 Purchase Quantity  ==  Requirement.quantity.calculated
 ```
 
-**The area rule is dimensionally valid only for an `m2`-unit Asset.** A Zone's
-`Polygon.area()` is an area; treating it as an identity input for an `m` (length) or
-`m3` (volume) Asset would silently divide/multiply nothing and just relabel an area
-figure as a length or a volume — a real quantity would need the Zone's perimeter (for
-`m`) or area × a height/depth this slice has no input for (for `m3`), neither of which
-this slice derives. `AssignAssetCommand` therefore rejects assigning a non-`m2` Asset
-to a Zone with a `ValidationError`, rather than silently computing a dimensionally
-meaningless quantity; the picker (`ListAssets`, below) still lists every project Asset
-unfiltered; the command is what actually enforces this rule.
+The packaging stage is present but supplied `undefined`, so it passes the quantity
+through unchanged. It is shown rather than omitted because slice 9's pipeline has five
+stages and this slice runs all five — silently dropping one would make "Purchase
+Quantity" mean something different here than it does there. A real lot size arrives with
+a material catalog (Epic 11), not with this slice.
+
+**The area rule is dimensionally valid only for an area-kind Asset.** A Zone's polygon
+area is an area; treating it as an identity input for a length (`m`) or volume (`m3`)
+Asset would silently divide/multiply nothing and just relabel an area figure — a real
+quantity would need the Zone's perimeter (for `m`) or area × a height/depth this slice
+has no input for (for `m3`), neither of which this slice derives. `AssignAssetCommand`
+therefore rejects the assignment with a `ValidationError`.
+
+The check is on the **dimension**, not the symbol — `UNIT_KIND[asset.unit] !== 'area'`,
+using slice 9's map, rather than `asset.unit !== 'm2'`. Today those are the same test,
+because `m2` is the only area unit; a hard-coded `'m2'` would silently start rejecting
+valid assignments the day `ft2` is added, and would do it by returning a plausible
+validation error rather than failing loudly. The picker (`ListAssets`, below) still
+lists every project Asset unfiltered; the command is what enforces the rule.
 
 **Unit conversion at this boundary, not a shared convention.** `Requirement.wasteFactor`
-is a fraction in `[0, 1)` (`0.10` meaning "10% waste") because that is the natural
-range for the Inspector to validate and edit. Slice 9's `applyWaste(required,
-wastePercent)` takes whole percentage points (`10`, not `0.10`) and computes
-`1 + wastePercent / 100` — its own worked example is `wastePercent = 10 → ×1.10`.
-Passing `Requirement.wasteFactor` straight through unconverted would compute
-`1 + 0.10/100 = 1.001`, silently understating every quantity and cost by roughly two
-orders of magnitude. This slice's `AssignAsset`/`RecalculateRequirement` handlers are
-the one place that conversion (`wasteFactor × 100`) happens; nowhere else needs to
-know the two layers use different scales.
+is a fraction in `[0, 1]` (`0.10` meaning "10% waste") because that is the natural range
+for the Inspector to validate and edit. Slice 9's `applyWaste(required, wastePercent)`
+takes whole percentage points (`10`, not `0.10`) and computes `1 + wastePercent / 100` —
+its own worked example is `wastePercent = 10 → ×1.10`. Passing `Requirement.wasteFactor`
+straight through unconverted would compute `1 + 0.10/100 = 1.001`, silently
+understating every quantity and cost by roughly two orders of magnitude. This slice's
+`AssignAsset`/`RecalculateRequirement` handlers are the one place that conversion
+(`wasteFactor × 100`) happens; nowhere else needs to know the two layers use different
+scales.
+
+The range is closed at `1`, not half-open: 100% waste (buy twice what you measure) is a
+real answer for an awkward cut pattern, and there is no reason the domain should reject
+it. Anything above `1` is rejected as far likelier to be a percentage entered where a
+fraction was expected.
 
 and SDD §51's Cost Pipeline, with discount/shipping/tax as no-op stages this
 slice does not populate:
@@ -257,10 +275,11 @@ this rule exists to prevent.
 
 ### Event cascade
 
-Slice 8's geometry-mutating commands (SDD §29's `MoveSpatialObjectCommand` /
-`ResizeSpatialObjectCommand` pattern, applied to Zone) already emit
-`ZoneGeometryChanged` after a successful save (§34). This slice adds one
-application-layer event handler that reacts to it:
+Slice 8's geometry-mutating gestures — body drag, vertex drag — both resolve to slice
+3's `MoveSpatialObjectCommand`, which emits `ZoneGeometryChanged` after a successful
+save (§34). (§29 also names a `ResizeSpatialObjectCommand`; slices 3 and 8 collapse
+resize into the same whole-geometry replacement, so no such command exists here.) This
+slice adds one application-layer event handler that reacts to that event:
 
 ```typescript
 // application/event-handlers/requirement/onZoneGeometryChanged.ts
@@ -271,19 +290,22 @@ eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => 
     // durable fact "this Requirement's numbers are no longer trustworthy,"
     // and it must survive a recalculation failure, not just a successful one.
     const staleResult = await requirementRepository.markStale(requirement.id);
-    if (staleResult.isErr()) {
+    if (isErr(staleResult)) {
       // The durable-staleness guarantee depends on this write landing before
       // recalculation is attempted. If it fails, do not proceed to recalculate —
       // that could leave outdated values under a status still read as "current"
       // by whatever last successfully saved it. Log and move on to the next
       // Requirement; this one keeps its last-persisted status untouched.
-      errorBoundary.logStaleMarkerFailure(requirement.id, staleResult.error);
+      logger.error('requirement.stale-marker.failed', {
+        requirementId: requirement.id,
+        cause: staleResult.error,
+      });
       continue;
     }
-    await eventBus.publish(new RequirementInvalidated(requirement.id));
+    await eventBus.publish(requirementInvalidated({ requirementId: requirement.id }));
 
     const result = await recalculateRequirement.execute({ requirementId: requirement.id });
-    if (result.isErr()) {
+    if (isErr(result)) {
       // Do not silently continue as if this Requirement is current. Log via
       // Slice 11's Error Boundary and move on to the next Requirement in this
       // Zone — one Asset's bad currency/unit must not block the others from
@@ -291,7 +313,10 @@ eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => 
       // so the Inspector (Slice 6) surfaces it and a later manual retry or
       // reconciliation pass can pick it up; no event fires for this failure
       // since `RequirementRecalculated` would misrepresent what happened.
-      errorBoundary.logRecalculationFailure(requirement.id, result.error);
+      logger.error('requirement.recalculation.failed', {
+        requirementId: requirement.id,
+        cause: result.error,
+      });
       continue;
     }
     // On success, RecalculateRequirementCommand clears the stale marker as
@@ -393,16 +418,23 @@ Vue UI` (§59). This slice adds a Requirements panel to a Zone's inspector view,
 backed by one new query and reusing the asset catalog:
 
 ```typescript
-function GetRequirementsForZone(zoneId: ZoneId): Promise<RequirementInspectorDTO[]>;
-function ListAssets(projectId: ProjectId): Promise<Asset[]>; // populates the "assign asset" picker
+function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
+function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>; // the "assign asset" picker
+
+// Used by slice 15's delete-confirmation flow. The Inspector needs a reference count
+// before offering Delete, and §58/§59 route that through a query, never a repository
+// handle the presentation layer holds.
+function CountRequirementsReferencing(
+  target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
+): Promise<Result<number, PersistenceError>>;
 
 interface RequirementInspectorDTO {
   requirementId: RequirementId;
   assetId: AssetId;
   assetName: string;
-  unit: Unit;
-  wasteFactor: number;
-  quantity: { calculated: number; override: number | null; effective: number };
+  unit: MeasurementUnit;
+  wasteFactor: Decimal;
+  quantity: { calculated: Quantity; override: Quantity | null; effective: Quantity };
   cost: { calculated: Money; override: Money | null; effective: Money };
 }
 ```
@@ -417,40 +449,52 @@ Inspector never writes to a Requirement directly.
 
 ### Deletion & reference integrity
 
-Deleting a Zone or an Asset that a Requirement still references must not
-silently cascade-delete the Requirement (PRD §63–64). `DeleteZoneCommand`
-(slice 8) and `DeleteAssetCommand` (this slice) both check
-`requirementRepository.listByZone`/`listByAsset` first and surface the
-reference count through the same Cancel/Remove-References/Reassign/Delete-Anyway
-flow PRD §64 describes for every entity — no new mechanism, just this slice's
-entities participating in it.
+Deleting a Zone or an Asset that a Requirement still references must not silently
+cascade-delete the Requirement (PRD §63–64). The check happens in **two places, for two
+different reasons**, and keeping them apart is what makes the flow work:
+
+- **Before the dialog**, the Inspector asks `CountRequirementsReferencing` (the query
+  above) so slice 15's `DeleteReferenceDialog` can show the user what they are about to
+  affect. This is a read for display. It goes through a query, never a repository handle
+  held by presentation code — §58/§59, and slice 6's Inspector rule.
+- **Inside the command**, `DeleteZoneCommand` (slice 3, extended here) and
+  `DeleteAssetCommand` (this slice) re-check and refuse a bare delete that would orphan
+  referents, returning a `ReferenceError` naming them. This is the enforcement, and it
+  has to be in the command because a script, a migration, or a future caller that never
+  opened a dialog must not be able to walk past it (§87 rule 5, slice 11).
+
+The dialog's resolution is passed to the command as an explicit resolution parameter
+(`'remove-references' | 'reassign' | 'delete-anyway'`), so "the user chose to proceed"
+is data the command receives, not a state the UI assumes on its behalf. No new
+mechanism — just this slice's entities participating in PRD §64's existing flow.
 
 ## Interfaces & Contracts
 
 ```typescript
-// core, from slice 9 — consumed, not redefined here
-type Unit = "piece" | "m" | "m2" | "m3" | "hour" | "day" | "fixed";
-interface Money { readonly amount: Decimal; readonly currency: string; }
-interface DerivedValue<T> { readonly calculated: T; readonly override?: T; }
-function effective<T>(v: DerivedValue<T>): T { return v.override ?? v.calculated; }
+// Imported from slice 9 — genuinely consumed, not restated. The names below are
+// referenced so the signatures in this file read, but none of them is declared here:
+//   MeasurementUnit, UnitKind, UNIT_KIND, Quantity, Money, DerivedValue<T>,
+//   effectiveValue<T>
+// (An earlier draft re-declared Money and a differently-named `effective()` under a
+// "consumed, not redefined" comment. A second declaration is a second answer.)
 
-// domain/asset — save()/delete() are Result-based from the start, per Slice
-// 4's correction to Slice 3: these are real Obsidian-backed repositories with
-// fallible Vault writes, never a bare Promise<void> a caller could discard.
+// application/ports — every method Result-returning, reads included, exactly the port
+// shape Slice 3 fixed and Slice 4 implemented without widening. These are real
+// Obsidian-backed repositories: a read is a file read plus a Zod parse, so it can fail
+// just as a write can. "Not found" is ok(null); isErr means the read did not happen.
 interface AssetRepository {
-  getById(id: AssetId): Promise<Asset | null>;
-  save(asset: Asset): Promise<Result<void, PersistenceError>>;
+  getById(id: AssetId): Promise<Result<Asset | null, PersistenceError>>;
+  save(asset: Asset): Promise<Result<void, PersistenceError | ValidationError>>;
   delete(id: AssetId): Promise<Result<void, PersistenceError>>;
-  listByProject(projectId: ProjectId): Promise<Asset[]>;
+  listByProject(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
 }
 
-// domain/requirement
 interface RequirementRepository {
-  getById(id: RequirementId): Promise<Requirement | null>;
-  save(requirement: Requirement): Promise<Result<void, PersistenceError>>;
+  getById(id: RequirementId): Promise<Result<Requirement | null, PersistenceError>>;
+  save(requirement: Requirement): Promise<Result<void, PersistenceError | ValidationError>>;
   delete(id: RequirementId): Promise<Result<void, PersistenceError>>;
-  listByZone(zoneId: ZoneId): Promise<Requirement[]>;
-  listByAsset(assetId: AssetId): Promise<Requirement[]>;
+  listByZone(zoneId: ZoneId): Promise<Result<Requirement[], PersistenceError>>;
+  listByAsset(assetId: AssetId): Promise<Result<Requirement[], PersistenceError>>;
   // Sets recalculationStatus: "stale" and persists it — one targeted-property
   // write, not a full save() of a (possibly not-yet-recalculated) Requirement.
   markStale(id: RequirementId): Promise<Result<void, PersistenceError>>;
@@ -458,14 +502,14 @@ interface RequirementRepository {
 
 // application/commands/asset
 interface CreateAssetInput { projectId: ProjectId; name: string; category: AssetCategory;
-  unit: Unit; unitCost: Money; wasteFactorDefault?: number; supplier?: string; sku?: string; notes?: string; }
+  unit: MeasurementUnit; unitCost: Money; wasteFactorDefault?: Decimal; supplier?: string; sku?: string; notes?: string; }
 type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationError | PersistenceError>>;
 
 // application/commands/requirement — every command's error union includes
-// PersistenceError: each calls AssetRepository/RequirementRepository.save(),
-// which can fail (see "domain/asset" / "domain/requirement" above), and per
-// Slice 3's corrected pattern that Result must be inspected and returned, not
-// discarded, before publishing any event or reporting success.
+// PersistenceError: each calls AssetRepository/RequirementRepository, whose reads and
+// writes alike can fail (see the ports above), and per Slice 3's rule that a Result
+// must be inspected and returned, not discarded, before publishing any event or
+// reporting success.
 interface AssignAssetInput { zoneId: ZoneId; assetId: AssetId; }
 type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, ValidationError | DomainError | ReferenceError | PersistenceError>>;
 // idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one;
@@ -481,8 +525,11 @@ interface SetRequirementCostOverrideInput { requirementId: RequirementId; cost: 
 type SetRequirementCostOverrideCommand = Command<SetRequirementCostOverrideInput, Result<Requirement, DomainError | ReferenceError | PersistenceError>>;
 
 // application/queries
-function GetRequirementsForZone(zoneId: ZoneId): Promise<RequirementInspectorDTO[]>;
-function ListAssets(projectId: ProjectId): Promise<Asset[]>;
+function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
+function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
+function CountRequirementsReferencing(
+  target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
+): Promise<Result<number, PersistenceError>>;
 ```
 
 ```text
@@ -532,9 +579,9 @@ category: material
 supplier: "Acme Tile Co."
 sku: PTT-600x600-GREY
 unit: m2
-unit-cost: 45.00
+unit-cost: "45.00"
 currency: EUR
-waste-factor-default: 0.10
+waste-factor-default: "0.10"
 ---
 
 Grey outdoor porcelain, 20mm, slip-rated.
@@ -555,21 +602,28 @@ origin-zone: zone-01HXYZ
 unit: m2
 waste-factor: 0.10
 
-quantity-calculated: 13.2
+quantity-calculated: "13.2"
 quantity-override: null
 
-cost-calculated: 594.00
-cost-override: 550.00
+cost-calculated: "594.00"
+cost-override: "550.00"
 currency: EUR
 
 required-date: null
 ---
 ```
 
-Both `*-calculated` fields are persisted deliberately (not recomputed on every
-load) — this is the exception §3.6 itself names: values needed "for overrides
-or historical snapshots." Reading either note outside Obsidian still shows a
-meaningful last-known figure (SDD §92 #7).
+Every decimal-valued field is persisted as a **quoted string**, not a YAML float.
+ADR-010 exists because native floating point silently loses money, and a YAML parser
+producing `594.0000000000001` from `594.00` would reintroduce exactly that at the one
+boundary the plugin does not control — the file a user can hand-edit. `Decimal` parses a
+string exactly; the mapper is the only place the conversion happens. It stays readable
+to a human either way, which is the §3.2 property that matters.
+
+Both `*-calculated` fields are persisted deliberately (not recomputed on every load) —
+this is the exception §3.6 itself names: values needed "for overrides or historical
+snapshots." Reading either note outside Obsidian still shows a meaningful last-known
+figure (SDD §92 #7).
 
 The Project Index (§47) gains two new lookups this slice's event handler
 depends on, extending its existing "plan ID → spatial objects" responsibility:
@@ -590,7 +644,7 @@ are additive, not breaking.
 ## Testing Strategy
 
 - **Unit (domain).** Asset validation (unit cost ≥ 0, `wasteFactorDefault` and
-  `wasteFactor` in `[0, 1)`, category is one of the seven allowed values).
+  `wasteFactor` in `[0, 1]`, category is one of the seven allowed values).
   Requirement factory rules (origin must reference a resolvable Zone).
   `DerivedValue` effective-value resolution reused at the Requirement level for
   both `quantity` and `estimatedCost` independently (§70 "Quantity" +
@@ -602,7 +656,7 @@ are additive, not breaking.
 - **Application (in-memory repositories, §71).** `AssignAssetCommand` creates
   exactly one Requirement and is idempotent on a repeated call for the same
   (zone, asset) pair. `AssignAssetCommand` against an Asset whose `unit` is
-  `m`, `m3`, `piece`, `hour`, `day`, or `fixed` resolves `Result.err(ValidationError)`
+  `m`, `m3`, `piece`, `hour`, `day`, or `fixed` resolves a `ValidationError`
   and creates no Requirement — table-driven over all six rejected units, not just
   one. A test publishes `ZoneGeometryChanged` directly on an
   in-memory Event Bus and asserts the full cascade fires in order —
@@ -611,7 +665,7 @@ are additive, not breaking.
   updated. Separate tests confirm `SetRequirementQuantityOverrideCommand` and
   `SetRequirementCostOverrideCommand` each publish `CostEstimateChanged` only
   when the effective cost actually changes. A further test makes
-  `requirementRepository.markStale` resolve `Result.err` on an in-memory
+  `requirementRepository.markStale` resolve a failed `Result` on an in-memory
   repository configured to fail, and asserts the cascade stops there: no
   `RequirementInvalidated` is published and `recalculateRequirement` is never
   invoked for that Requirement.
@@ -653,9 +707,10 @@ are additive, not breaking.
 - [ ] `AssignAssetCommand` creates a `Requirement` whose `quantity.calculated`
       and `estimatedCost.calculated` are correct on first creation, without
       requiring a subsequent Zone edit.
-- [ ] `AssignAssetCommand` rejects an Asset whose `unit` is not `m2` with
+- [ ] `AssignAssetCommand` rejects an Asset whose unit is not of `area` kind with a
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
-      identity input for a length, volume, piece, hour, day, or fixed-unit Asset.
+      identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
+      check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
 - [ ] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
@@ -666,6 +721,10 @@ are additive, not breaking.
 - [ ] Both `Requirement.quantity` and `Requirement.estimatedCost` are
       `DerivedValue<T>`, and the Inspector visibly distinguishes calculated
       from overridden for each independently (§52).
+- [ ] Every decimal-valued field round-trips through the Markdown mapping without loss:
+      a Requirement whose calculated cost is `594.005` reads back as exactly `594.005`,
+      asserted on the `Decimal` value, never on a coerced `number`. This is the test
+      that fails if a persisted decimal is ever written as a YAML float.
 - [ ] Undoing the Zone-geometry command that triggered a recalculation also
       restores the Requirement's prior calculated quantity and cost, without
       a separate undo-history entry for the Requirement itself (§30–31).

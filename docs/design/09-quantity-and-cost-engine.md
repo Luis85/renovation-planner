@@ -25,7 +25,9 @@ and Requirement entities, and the `Zone Geometry → Area → Requirement → Co
 
 - The `Money` value type and decimal-based arithmetic (add, multiply, percentage,
   rounding, currency-safety checks) — SDD §49, ADR-010.
-- Supported unit kinds: piece, length, area, volume, hour, day, fixed — SDD §48.
+- The two unit vocabularies: `UnitKind` (SDD §48's seven dimensions: piece, length,
+  area, volume, hour, day, fixed) and `MeasurementUnit` (the concrete symbol a price and
+  a quantity are expressed in), plus the mapping between them.
 - The Quantity Engine pipeline: Geometry → Measured Quantity → Requirement Rule →
   Required Quantity → Waste → Purchase Quantity — SDD §50.
 - The Cost Pipeline: Requirement (quantity) → Unit Price → Discount → Shipping → Tax →
@@ -76,8 +78,9 @@ and Requirement entities, and the `Zone Geometry → Area → Requirement → Co
 ```text
 core/
 ├── money/        ← Money type, decimal arithmetic, rounding, currency safety
-├── units/        ← UnitKind, Quantity<Unit>, mm→display-unit conversion
-└── result/       ← Result<T,E> (from slice 2), DerivedValue<T> (added here)
+├── units/        ← UnitKind, MeasurementUnit, Quantity, mm→display-unit conversion
+│                    (added alongside slice 2's WorldUnit.ts, which stays untouched)
+└── derived/      ← DerivedValue<T> and effectiveValue<T> (new folder, see below)
 
 domain/
 └── cost/         ← QuantityEngine, CostPipeline (pure domain services;
@@ -88,9 +91,12 @@ domain/
 about them is renovation-specific. The Quantity Engine and Cost Pipeline *are*
 domain-specific business rules (waste factors, requirement rules, discount/tax
 ordering), so they live in `domain/cost/` per §7.2, as a domain service with no
-entities of its own. `DerivedValue<T>` is placed in `core/` rather than `domain/cost/`
-because it is not cost-specific — it is a generic calculated-vs-overridden wrapper that
-later feature work (schedule estimates, quote comparisons) is expected to reuse.
+entities of its own. `DerivedValue<T>` is placed in `core/` rather than `domain/cost/` because it is not
+cost-specific — it is a generic calculated-vs-overridden wrapper that later feature work
+(schedule estimates, quote comparisons) is expected to reuse. It gets its own
+`core/derived/` folder rather than joining `core/result/`: it is not a `Result`, shares
+none of its constructors or guards, and filing it there would make "what is in
+`core/result/`" a question with two answers.
 
 ### Money
 
@@ -104,15 +110,15 @@ Money.zero(currency)             → additive identity
 add(a: Money, b: Money)          → Result<Money, CalculationError>  (currency must match)
 subtract(a: Money, b: Money)     → Result<Money, CalculationError>
 scale(a: Money, factor: Decimal) → Money                             (unit price × quantity)
-applyPercentage(a: Money, pct: Decimal) → Money                      (discount / tax)
+percentageOf(a: Money, pct: Decimal) → Money   (a × pct/100 — the PART, not the total)
 round(a: Money)                  → Money  (to the currency's minor-unit precision)
 compare(a: Money, b: Money)      → Result<-1 | 0 | 1, CalculationError>
 ```
 
 Rules:
 
-- `add`/`subtract`/`compare` on mismatched currencies return
-  `Result.err(CalculationError)` — never silently coerced, never `NaN`.
+- `add`/`subtract`/`compare` on mismatched currencies resolve `err(calculationError(…))`
+  — never silently coerced, never `NaN`.
 - Intermediate pipeline values keep full `decimal.js` precision. Rounding to the
   currency's minor unit (2 decimal places for USD/EUR) happens only at the boundary
   where a `Money` value is finalized as pipeline output — never between stages — so
@@ -124,20 +130,38 @@ Rules:
 
 ### Unit kinds and Quantity
 
+Two vocabularies, deliberately distinct, both defined here:
+
 ```typescript
+// The DIMENSION — SDD §48's list, verbatim. What kind of thing is being counted.
 type UnitKind = "piece" | "length" | "area" | "volume" | "hour" | "day" | "fixed";
+
+// The concrete SYMBOL a quantity is expressed and priced in, and what an Asset
+// persists (slice 10). Not in §48 — §48 gives dimensions, not units of measure —
+// so this is this slice's own addition, named apart so the two cannot be confused.
+type MeasurementUnit = "piece" | "m" | "m2" | "m3" | "hour" | "day" | "fixed";
+
+const UNIT_KIND: Readonly<Record<MeasurementUnit, UnitKind>> = {
+  piece: "piece", m: "length", m2: "area", m3: "volume",
+  hour: "hour", day: "day", fixed: "fixed",
+};
 
 interface Quantity {
   readonly value: Decimal;
-  readonly unit: UnitKind;
+  readonly unit: MeasurementUnit;
 }
 ```
 
-`length`/`area`/`volume` quantities entering this engine are already converted from the
-mm-based world coordinate system (ADR-009, SDD §22–23) to their display unit (m, m²,
-m³) — that conversion is this engine's responsibility, applied once, at the
-`Geometry → Measured Quantity` step. `piece`, `hour`, `day`, and `fixed` pass through
-unconverted (fixed is a single lump-sum quantity of 1).
+Keeping both is what lets slice 10 state its rule as "a Zone's area is only a valid
+input for an *area*-kind Asset" (`UNIT_KIND[asset.unit] === "area"`) rather than
+hard-coding the string `"m2"` — a check that would silently stop working the day a
+second area unit (`ft2`) is added.
+
+`m`/`m2`/`m3` quantities entering this engine are already converted from the mm-based
+world coordinate system (ADR-009, SDD §22–23) — that conversion is this engine's
+responsibility, applied once, at the `Geometry → Measured Quantity` step. `piece`,
+`hour`, `day`, and `fixed` pass through unconverted (`fixed` is a single lump-sum
+quantity of 1).
 
 ### Quantity Engine pipeline (SDD §50)
 
@@ -175,18 +199,26 @@ Purchase Quantity       (Quantity)
 Requirement Quantity     (Purchase Quantity, from the Quantity Engine)
    ↓  scale(unitPrice, quantity.value)
 Line Subtotal             (Money)
-   ↓  applyDiscount(subtotal, discountRule?)
+   ↓  subtract(subtotal, percentageOf(subtotal, discount.percent ?? 0))
 After Discount             (Money)
-   ↓  add(afterDiscount, shipping ?? Money.zero(currency))
+   ↓  add(afterDiscount, shipping ?? zero(currency))
 After Shipping             (Money)
-   ↓  applyPercentage(afterShipping, taxRate ?? 0)
+   ↓  add(afterShipping, percentageOf(afterShipping, taxRate ?? 0))
    ↓  round(...)
 Estimated Cost             (Money)
 ```
 
-`computeEstimatedCost(input): Result<Money, CalculationError>` is the single exported
-entry point; the intermediate steps above are private composition, not separately
-exported, so callers cannot skip stages or reorder them. Order is fixed by §51 and is
+`percentageOf` returns the *part*, never the adjusted total — discount subtracts it, tax
+adds it. One function that "applies a percentage" for both would need an unstated sign
+convention, and getting that convention backwards produces a plausible number rather
+than an error: the worked example below would come out as `$16.76` (the tax alone)
+instead of `$219.88`, and nothing in the types would object.
+
+`computeEstimatedCost(input): Result<DerivedValue<Money>, CalculationError>` is the
+single exported entry point — a `DerivedValue`, not a bare `Money`, for the same reason
+`runQuantityEngine` returns one: §52 requires the output to carry both sides so a UI can
+distinguish calculated from overridden. The intermediate steps above are private
+composition, not separately exported, so callers cannot skip stages or reorder them. Order is fixed by §51 and is
 not configurable: tax is computed over the post-shipping total (shipping is taxable),
 discount is computed before shipping is added (shipping is not discounted). `unitPrice`
 must share `quantity.unit`'s pricing basis and `discount`/`shipping`/`estimatedCost`
@@ -240,7 +272,7 @@ function zero(currency: CurrencyCode): Money;
 function add(a: Money, b: Money): Result<Money, CalculationError>;
 function subtract(a: Money, b: Money): Result<Money, CalculationError>;
 function scale(a: Money, factor: Decimal): Money;
-function applyPercentage(a: Money, percent: Decimal): Money;
+function percentageOf(a: Money, percent: Decimal): Money; // the part (a × pct/100), not the total
 function round(a: Money): Money;
 function compare(a: Money, b: Money): Result<-1 | 0 | 1, CalculationError>;
 
@@ -328,7 +360,7 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
     `Money.of("0.30", "USD")` exactly (assert on the decimal string/`.equals()`, never
     on a coerced `number` — this is the case that native float addition gets wrong).
   - Currency safety: `add(Money.of("10", "USD"), Money.of("10", "EUR"))` returns
-    `Result.err(CalculationError)`, not a thrown exception and not silent USD/EUR
+    a `CalculationError` via `err(...)`, not a thrown exception and not silent USD/EUR
     mixing.
   - Rounding: boundary cases around `.005`/`.125` confirm `ROUND_HALF_UP` behavior
     deterministically (see worked example below).
@@ -353,16 +385,16 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
       `Money.of("0.30","USD")` — verified without ever converting to a native `number`
       mid-calculation (demonstrates the ADR-010 rationale: `0.1 + 0.2 !== 0.3` in
       native floats, but is exact here).
-- [ ] Adding `Money` values of different currencies returns
-      `Result.err(CalculationError)` in every arithmetic function that takes two
-      `Money` operands (add, subtract, compare).
+- [ ] Adding `Money` values of different currencies resolves a `CalculationError` in
+      every arithmetic function that takes two `Money` operands (add, subtract,
+      compare).
 - [ ] End-to-end worked example, Quantity Engine → Cost Pipeline, produces the
       following exact values (all in `decimal.js`, asserted as such):
       - Geometry input: `12,345,678 mm²` → Measured Quantity: `12.345678 m²`.
       - Requirement Rule (1:1 coverage) → Required Quantity: `12.345678 m²`.
       - Waste `10%` → wasted quantity: `13.5802458 m²`.
       - Packaging (`lotSize = 2.5 m²`, no minimum) → Purchase Quantity:
-        `15 m²` (rounds up from 6 lots × 2.5, since `13.5802458 / 2.5 = 5.432...`).
+        `15 m²` (`13.5802458 / 2.5 = 5.432...`, rounded up to 6 lots × 2.5).
       - Unit Price `$12.50/m²` → Line Subtotal: `$187.50`.
       - Discount `5%` → After Discount: `$178.125` (full precision retained,
         not yet rounded).
@@ -378,13 +410,17 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
 - [ ] All SDD §70 Money and Quantity unit test bullets (addition, tax, discounts,
       rounding, currency safety, length requirements, area requirements, waste,
       packaging, manual overrides) have a corresponding passing `vitest` test.
-- [ ] No file under `core/money`, `core/units`, or `domain/cost` imports from
-      `obsidian`, `vue`, `pinia`, or `konva` (enforced by the architecture test rules
-      slice 12 will add; verifiable by hand for this slice via `grep` in the interim).
+- [ ] No file under `core/money`, `core/units`, `core/derived`, or `domain/cost`
+      imports from `obsidian`, `vue`, `pinia`, or `konva`. This needs no new check and
+      no manual verification: slice 1 committed the per-directory
+      `no-restricted-imports` bans for `core/**` and `domain/**` before any file existed
+      to violate them, so `npm run lint` already fails on it. (A `grep` would be the
+      wrong instrument anyway — it cannot see an import reached through a re-export.)
 
 ## References
 
-- SDD §48 — Cost Engine
+- SDD §48 — Cost Engine (the seven `UnitKind` dimensions; `MeasurementUnit` is this
+  slice's own addition on top, not sourced from §48)
 - SDD §49 — Money
 - SDD §50 — Quantity Engine
 - SDD §51 — Cost Pipeline

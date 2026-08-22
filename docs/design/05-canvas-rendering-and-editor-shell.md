@@ -34,8 +34,9 @@ without a mutation path attached is the whole point of splitting these into two 
 - Pan and zoom of the viewport, as a baseline camera interaction.
 - Theme integration (Obsidian CSS variables, no hardcoded palettes, §84) and baseline
   accessibility (§85).
-- The outer editor shell layout (§60): the four screen regions (toolbar, layers panel,
-  canvas, inspector, status bar), as empty or read-only-content regions other slices fill in.
+- The outer editor shell layout (§60): its five screen regions (toolbar, layers panel,
+  plan canvas, inspector, status bar), as empty or read-only-content regions other slices
+  fill in.
 
 ### Out of scope (covered by other slices)
 
@@ -63,9 +64,10 @@ without a mutation path attached is the whole point of splitting these into two 
   contribution, built on slice 2's types — not math re-derived from elsewhere, and not
   math slice 2 provides.
 - **Slice 3 (Domain Foundation)** — the `Zone` entity and its geometry value object.
-- **Slice 4 (Persistence & Repository Layer)** — `PlanRepository`, `ZoneRepository`, and the
-  query services (`GetPlan`, `FindZonesByPlan`, §35) this slice's `ProjectStore` hydrates
-  from. This slice reads through those queries only; it introduces no new repository calls.
+- **Slice 4 (Persistence & Repository Layer)** — the `GetPlan` and `FindZonesByPlan`
+  queries (§35) this slice's `ProjectStore` hydrates from, both declared there. This
+  slice reads through those queries only; it introduces no new repository method and
+  never calls a repository directly.
 - **ADR-002 / ADR-011** — geometry sidecar shape and location (informs what a hydrated
   `Zone`'s geometry looks like, not how this slice persists anything).
 - **ADR-003** — Konva as canvas renderer; this slice is where that decision is first built.
@@ -227,6 +229,8 @@ The pipeline is exactly §16's diagram, made concrete for `Zone`:
 
 ```text
 Zone (domain entity, slice 3)
+        ↓  query service                — maps entity → flat read model at the boundary
+ZoneDto (presentation read model)
         ↓  toZoneRenderModel()          — pure mapping, presentation-only, no mutation
 ZoneRenderModel
         ↓  <ZoneShape :model :viewport> — Vue component
@@ -283,11 +287,19 @@ of the view, not a data URI in any store).
 
 **Placeholder scale before calibration.** Increment 4 (this slice) precedes Increment 5
 (Calibration, slice 7) in the SDD's own roadmap, so a Plan can — and per the SDD's own
-success criterion, must — render a background before it has been calibrated. Until slice 7
-exists, a Plan without calibration data renders its background at a fixed placeholder scale
-(1 image pixel = 1 world millimeter). `CalibratePlanCommand` (slice 7) later overwrites the
-Plan's real scale; nothing in this render pipeline changes when that happens; only the
-scale value fed into `worldToScreen()` does.
+success criterion, must — render a background before it has been calibrated. Until slice
+7 exists, a Plan without calibration data renders its background at a fixed placeholder
+scale (1 image pixel = 1 world millimetre).
+
+Where calibration lands when slice 7 arrives is worth stating precisely, because it is
+easy to assume wrongly: it does **not** become a parameter of `worldToScreen()`. §24
+fixes that transform's components as translation, zoom, rotation and device pixel ratio,
+and calibration is none of them. What calibration fixes is `BackgroundRenderModel.
+worldScale` — how many world millimetres one source pixel of *this Plan's background*
+covers. Slice 7 additionally rescales every stored coordinate to match, so world units
+remain genuine millimetres everywhere downstream and the viewport transform never learns
+that calibration exists. Nothing in this render pipeline changes when slice 7 lands
+except the value of `worldScale`.
 
 **Assumption, flagged explicitly:** this slice assumes the Plan DTO already carries an
 optional, nullable background reference —
@@ -300,12 +312,19 @@ interface PlanBackgroundRef {
 }
 ```
 
-— set on the persisted `Plan` at some point, but *setting it for the first time* (a file
-picker, copying/writing the asset into the Vault, persisting the reference) is a
-user-triggered write and is out of scope here (see Persistence Impact). The SDD does not
-say which later slice owns that write path; bundling it with Calibration (slice 7, which
-already needs a background to calibrate against) is the natural fit, but that decision is
-not made by this document.
+— matching the `PlanBackgroundRef` slice 3 declares on the `Plan` entity and slice 4
+persists as `background-path`/`background-kind`/`background-page`. This slice reads it;
+*setting it for the first time* (a file picker, copying the asset into the Vault,
+persisting the reference) is a user-triggered write and is out of scope here (see
+Persistence Impact).
+
+**Who owns that import flow is an open question this document does not close.** The SDD
+does not say, and neither does any slice: slice 7 is the natural host (it already needs a
+background to calibrate against) and slice 14's `noBackground` empty state already has an
+"Import a plan" button that will need somewhere to hand off to. Both those slices name
+the gap and defer to whoever resolves it. It is called out in all three places rather
+than silently assumed, because a gap three documents each expect another to close is
+exactly the kind that survives to implementation.
 
 ### 6. Pan and zoom
 
@@ -320,11 +339,13 @@ interface Viewport {
 
 Wheel-zoom (centered on the pointer) and click-drag-to-pan on the Stage background are
 implemented here as a fixed, always-available **camera** interaction — not an `EditorTool`.
-This is a deliberate scope call: §57 lists `PanTool` among the *Initial Editor Tools*
-governed by the `EditorTool` interface (§56), which is slice 6's Editor Tool Framework, but
-the slice map (`docs/design/README.md`) assigns pan/zoom to this slice, and a baseline
-camera that works with no tool selected is standard for this class of editor (comparable to
-Figma/Illustrator's always-on wheel-zoom regardless of active tool). Slice 6's `PanTool` —
+This is a deliberate scope call, made here rather than sourced: §57 lists `PanTool` among
+the *Initial Editor Tools* governed by the `EditorTool` interface (§56), which is slice
+6's Editor Tool Framework. Nothing in the SDD or the slice map assigns pan/zoom to either
+slice, so this slice claims it — a baseline camera that works with no tool selected is
+standard for this class of editor (comparable to Figma/Illustrator's always-on wheel-zoom
+regardless of active tool), and the read-only view this slice must deliver needs one
+before any tool exists to select. Slice 6's `PanTool` —
 if built as a dedicated, selectable mode rather than dropped — would share this same
 `Viewport` state and the same `worldToScreen()`/`screenToWorld()` calls; it would not
 change how panning fundamentally works.
@@ -369,7 +390,7 @@ CSS, styled exactly like `styles/view.css` today: Obsidian variables only, follo
 
 ### 9. Editor shell layout
 
-The four regions from §60 are stood up as empty or read-only-content Vue components so
+The five regions from §60 are stood up as empty or read-only-content Vue components so
 slice 6 fills in behavior without restructuring the shell:
 
 ```text
@@ -381,13 +402,18 @@ slice 6 fills in behavior without restructuring the shell:
 │ visibility   │   (this slice's main   │  slice 6)    │
 │ toggles)     │      deliverable)      │              │
 ├──────────────┴────────────────────────┴──────────────┤
-│ Status bar: plan name · zoom % · world coords at ptr │
+│ Status         │ Measurements         │ Save state   │
+│ (plan name)    │ (zoom %, world coords│ (empty —     │
+│                │  at pointer)         │  slice 13)   │
 └─────────────────────────────────────────────────────┘
 ```
 
-The status bar's coordinate readout is read-only telemetry (`screenToWorld()` on the last
-known pointer position) — it demonstrates the viewport transform working without needing
-any editable state. "Save state" (§60) has nothing to show until slice 6 introduces edits.
+The status bar keeps §60's own three named regions — `Status / Measurements / Save
+State` — rather than inventing a different split, because slice 13 mounts its save-state
+indicator into the third of them by name. The Measurements readout is read-only
+telemetry (`screenToWorld()` on the last known pointer position): it demonstrates the
+viewport transform working without needing any editable state. Save State stays an empty
+region here — there are no edits until slice 6 and no indicator until slice 13.
 
 ## Interfaces & Contracts
 
@@ -410,15 +436,56 @@ export class PlanEditorView extends ItemView {
 
 // The only application-layer surface this slice's presentation code depends on —
 // concrete Obsidian repositories are wired at the composition root, not here.
+// Both methods return slice 4's query Result verbatim: a missing Plan is ok(null),
+// and a failed read is isErr. Flattening either into a bare `PlanDto | null` would
+// make "no such plan" and "the vault read failed" indistinguishable, which is exactly
+// the distinction slice 14's empty-state selectors and slice 17's error routing
+// both branch on.
 export interface PlanEditorQueryServices {
-  getPlan(planId: string): Promise<PlanDto | null>;
-  findZonesByPlan(planId: string): Promise<readonly ZoneDto[]>;
+  getPlan(planId: string): Promise<Result<PlanDto | null, PersistenceError>>;
+  findZonesByPlan(planId: string): Promise<Result<readonly ZoneDto[], PersistenceError>>;
+}
+```
+
+**The read-model DTOs.** `PlanDto`, `ZoneDto`, and `ProjectSummaryDto` are
+presentation-facing read models, and this slice is where they are declared
+(`presentation/read-models/`). They are **not** slice 4's `PlanFrontmatterDTO` family:
+those are shape-of-storage types that, per §37, never leave an Obsidian repository. Two
+different things called "the Plan DTO" in one codebase is a real hazard, so the two
+families are named apart — `*FrontmatterDTO` for storage, `*Dto` for presentation — and
+the query services above are the boundary that maps a domain entity into the latter.
+
+```typescript
+// presentation/read-models/PlanDto.ts — flat, serializable, no domain methods
+export interface PlanDto {
+  readonly id: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly background: PlanBackgroundRef | null;
+  readonly layers: readonly string[];
+}
+
+export interface ZoneDto {
+  readonly id: string;
+  readonly planId: string;
+  readonly name: string;
+  readonly zoneType: string;
+  readonly status: string;
+  readonly points: readonly Point[]; // world millimetres, straight from Zone.geometry
+}
+
+export interface ProjectSummaryDto {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
 }
 ```
 
 ```typescript
 // presentation/editor/viewport/Viewport.ts
-export interface Point { readonly x: number; readonly y: number; } // re-exported from slice 2, not redefined
+export type { Point } from '@core/geometry/Point'; // re-exported from slice 2, never redeclared:
+                                                    // a second structurally-identical Point would
+                                                    // type-check everywhere and mean nothing
 
 // A screen coordinate is a distinct, incompatible type from Point (always
 // world millimeters, per ADR-009). Slice 2 deliberately never sees a pixel,
@@ -428,6 +495,11 @@ export interface Point { readonly x: number; readonly y: number; } // re-exporte
 // coincidentally-shaped ones.
 export interface ScreenPoint { readonly x: number; readonly y: number; readonly __brand: 'ScreenPoint'; }
 
+// The only way to obtain a ScreenPoint from raw pointer/DOM coordinates. Without it
+// the brand would be unconstructible outside worldToScreen, and every call site would
+// reach for a cast — which is the same as having no brand.
+export function screenPoint(x: number, y: number): ScreenPoint;
+
 export interface Viewport {
   readonly pan: Point;     // world-space; see "Pan and zoom" above
   readonly zoom: number;
@@ -436,6 +508,8 @@ export interface Viewport {
 // The math is built here, on top of slice 2's Point/Transform — slice 2
 // itself excludes viewport transform from its scope ("Core never sees a
 // pixel"), so this module, not slice 2, owns worldToScreen/screenToWorld.
+// This is also the ONE home for these two functions and for ScreenPoint:
+// slice 6 imports them from here, and defines neither.
 export function worldToScreen(point: Point, viewport: Viewport, dpr: number): ScreenPoint;
 export function screenToWorld(point: ScreenPoint, viewport: Viewport, dpr: number): Point;
 ```
@@ -551,10 +625,15 @@ Per §73–74 (Vue component tests, canvas adapter tests):
    render path, a store, or persisted Plan data.
 7. All seven Konva layers exist in the fixed §17 order; `InteractionLayer` is present,
    mounted, and empty, ready for slice 6.
-8. Zone fill/stroke colors are resolved from Obsidian CSS variables at render time and
+8. `ScreenPoint`, `screenPoint()`, `worldToScreen()` and `screenToWorld()` are declared
+   in exactly one module (`presentation/editor/viewport/`), and `Point` is re-exported
+   from `core/geometry/` rather than redeclared — asserted by a check that no second
+   declaration of either type name exists under `src/`, since two structurally
+   identical brands would type-check everywhere and guarantee nothing.
+9. Zone fill/stroke colors are resolved from Obsidian CSS variables at render time and
    change correctly when Obsidian's theme changes, without a code change or restart.
-9. Zone status is visually distinguishable without relying on color alone.
-10. No Vault write occurs anywhere in this slice's code paths — `npm run check` (build,
+10. Zone status is visually distinguishable without relying on color alone.
+11. No Vault write occurs anywhere in this slice's code paths — `npm run check` (build,
     lint including the write-boundary and layer-dependency rules, coverage-thresholded
     tests, fallow) passes with this slice's code included.
 

@@ -27,9 +27,10 @@ dialog resolved with this typed value."
 
 - `DialogStore` (Pinia): the single place that tracks whether a dialog is open and
   which one, following slice 5's store-scaffolding pattern.
-- `openDialog<TResult>(descriptor): Promise<TResult>` — the one entry point every
-  caller uses to open a dialog and await its outcome, instead of passing resolve/reject
-  callbacks as props.
+- `openDialog(descriptor): Promise<…>` — the one entry point every caller uses to open
+  a dialog and await its outcome, instead of passing resolve/reject callbacks as props.
+  Its result type is derived from the descriptor's `kind`, so a caller cannot ask for a
+  result shape the dialog it opened will never produce.
 - Focus trap, `Escape`-to-cancel, and focus restoration on close (SDD §85
   Accessibility: keyboard-accessible controls, visible focus).
 - `ConfirmDialog` — a binary confirm/cancel dialog for low-stakes actions.
@@ -43,9 +44,9 @@ dialog resolved with this typed value."
 
 ### Out of scope (covered by other slices)
 
-- The reference-counting query itself (`requirementRepository.listByZone` /
-  `.listByAsset`) — slices 8 and 10. This slice renders whatever count it is given; it
-  never queries a repository.
+- The reference-counting query itself (slice 10's `CountRequirementsReferencing`) —
+  slice 10. This slice renders whatever count it is given; nothing under
+  `presentation/dialogs/` calls a query, let alone a repository.
 - What happens after the dialog resolves — the branching on `'remove-references'` /
   `'reassign'` / `'delete-anyway'`, and which concrete command runs for each — slice
   8's zone-delete command and slice 10's `DeleteAssetCommand`. This slice's contract
@@ -67,7 +68,11 @@ dialog resolved with this typed value."
 - Slice 5 (Canvas Rendering & Editor Shell) — the Vue + Pinia app instance a
   `DialogStore` and its host component are added to; ADR-005's "Pinia is not the
   persistent source of truth" is exactly the guarantee `DialogStore`'s ephemeral state
-  relies on.
+  relies on. `DialogHost` mounts into every `ItemView`-scoped app, not the Plan Editor's
+  alone — see Interfaces & Contracts.
+- Slice 14 (Empty States) — not a build dependency, but the reason the previous point
+  matters: slice 14's "Create a project" action opens a dialog from the Renovation
+  Project view, which has its own Vue app and therefore needs its own `DialogHost`.
 - Slice 6 (Editor Tool Framework, Undo/Redo & Inspector) — the Inspector action
   pipeline (Selection → Inspector Query → Inspector DTO → Vue UI → edit → Command) this
   slice's worked example attaches its "Delete" action to, and the convention that
@@ -77,10 +82,11 @@ dialog resolved with this typed value."
   wrapping slice 3's plain `DeleteZoneCommand`) that dispatches after this dialog
   resolves, and whose "Deletion & reference-integrity checking" was explicitly
   deferred to slice 10.
-- Slice 10 (Assets, Requirements & the End-to-End Loop) — `RequirementRepository`'s
-  `listByZone`/`listByAsset`, and the "Deletion & reference integrity" section that
-  names the Cancel/Remove-References/Reassign/Delete-Anyway flow this slice's
-  `DeleteReferenceDialog` renders.
+- Slice 10 (Assets, Requirements & the End-to-End Loop) — the
+  `CountRequirementsReferencing` query that supplies this dialog's rows, and the
+  "Deletion & reference integrity" section that names the
+  Cancel/Remove-References/Reassign/Delete-Anyway flow this dialog renders and the
+  command-side enforcement it does not replace.
 - ADR-004 (Vue 3 for Plugin UI) — dialogs are Vue components, not raw DOM built by
   hand.
 - ADR-005 (Pinia for Presentation State) — `DialogStore` is UI state, never canonical.
@@ -99,14 +105,14 @@ is exactly what §14's list is a starting point for, not a ceiling on.
 
 ```text
 DialogStore
-  current: DialogDescriptor<unknown> | null
+  current: DialogDescriptor | null
 
-  openDialog<TResult>(descriptor: DialogDescriptor<TResult>): Promise<TResult>
+  openDialog(descriptor)  → Promise<result type implied by descriptor.kind>
     → if current is already set: throw — see Modal stacking rule below
     → sets current = descriptor, captures the Promise's resolve function internally
     → returns the Promise; nothing else in the app can construct one directly
 
-  resolve<TResult>(result: TResult): void
+  resolve(result)
     → called only by the active dialog component itself, never by an outside caller
     → settles the captured Promise with `result`, then clears `current`
 ```
@@ -117,7 +123,8 @@ subscribe to before opening. A caller that wants to act on the outcome simply
 `await`s the returned Promise:
 
 ```typescript
-const result = await dialogStore.openDialog<ConfirmDialogResult>({
+// No explicit type argument: `kind: 'confirm'` already determines the result type.
+const result = await dialogStore.openDialog({
   kind: 'confirm',
   title: 'Duplicate this zone?',
   message: 'A copy will be created in the same plan.',
@@ -125,10 +132,9 @@ const result = await dialogStore.openDialog<ConfirmDialogResult>({
 if (result === 'cancel') return;
 ```
 
-A single `DialogHost` component, mounted once at the same app root slice 5 mounts
-`ProjectStore`/`EditorStore`'s consumers under, renders whichever descriptor `current`
-holds by switching on its `kind` — there is exactly one live dialog element in the DOM
-at any time, never one per potential caller.
+A single `DialogHost` component, mounted once at each `ItemView`-scoped app root,
+renders whichever descriptor `current` holds by switching on its `kind` — there is
+exactly one live dialog element per view at any time, never one per potential caller.
 
 ### Focus trap and `Escape`
 
@@ -216,23 +222,32 @@ like.
 ```text
 Inspector "Delete" button (slice 6 Inspector action, PRD §39)
   ↓
-requirementRepository.listByZone(zoneId)     — slice 10, read-only, NOT re-run here
+CountRequirementsReferencing({ kind: 'zone', zoneId })   — slice 10's QUERY, not its
+                                                            repository: presentation
+                                                            never holds a repository
+                                                            handle (§58, §59)
   ↓
-references.length === 0?
+count === 0?
   yes → caller's choice: dispatch the delete command directly, or confirm via
         ConfirmDialog — this slice does not decide which (see Out of scope)
-  no  → dialogStore.openDialog<DeleteReferenceDialogResult>({
+  no  → dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zone.name,
-          references: [{ label: 'Requirements', count: references.length }],
+          references: [{ label: 'Requirements', count }],
         })
   ↓
 await result
   ↓
 switch (result.action) { cancel | remove-references | reassign | delete-anyway }
-  → entirely slice 8's zone-delete command's branching from here; this slice's
-    contract is satisfied the moment the switch statement above receives a value
+  → the chosen resolution is passed INTO slice 8's zone-delete command as data;
+    this slice's contract is satisfied the moment the switch above receives a value
 ```
+
+The count this dialog displays is for the user's benefit, and the dialog's answer is an
+input to the command — not a substitute for the command's own check. Slice 10's delete
+commands re-verify references and refuse a bare delete that would orphan referents
+(§87 rule 5), because a script or a migration never opens a dialog. Two checks, two
+different jobs: this one informs a decision, that one enforces an invariant.
 
 PRD §64's own example lists four reference categories — Work Packages, Tasks, Cost
 Items, Documents. At the build stage slices 1–10 reach, only `Requirement` exists as an
@@ -270,20 +285,32 @@ convention.
 
 ```typescript
 // presentation/dialogs/dialog-store.ts
-type DialogDescriptor<TResult> =
-  | {
-      kind: 'confirm';
-      title: string;
-      message: string;
-      confirmLabel?: string;   // default: "Confirm"
-      cancelLabel?: string;    // default: "Cancel"
-      danger?: boolean;        // style the confirm action as destructive
-    }
-  | {
-      kind: 'delete-reference';
-      entityLabel: string;
-      references: readonly { label: string; count: number }[];
-    };
+
+// Every user-facing field below is a RESOLVED string, not a StringKey: a dialog's
+// title and message are usually built from a specific entity's name ("Delete
+// \"Kitchen\"?"), so the caller — which knows both the key and the entity — resolves
+// through t() before opening. What must not happen is a literal default inside this
+// module: `confirmLabel ?? 'Confirm'` would be an untranslated string in the one
+// component every confirmation in the plugin flows through. The defaults are
+// StringKeys the host resolves, not English.
+interface ConfirmDescriptor {
+  kind: 'confirm';
+  title: string;
+  message: string;
+  confirmLabel?: string;   // default: t(lang, 'dialog.confirm')
+  cancelLabel?: string;    // default: t(lang, 'dialog.cancel')
+  danger?: boolean;        // style the confirm action as destructive
+}
+
+interface DeleteReferenceDescriptor {
+  kind: 'delete-reference';
+  entityLabel: string;
+  // `label` is resolved copy ("Requirements"), supplied by the caller from its own
+  // StringKey — this dialog renders rows, it does not name entity types.
+  references: readonly { label: string; count: number }[];
+}
+
+type DialogDescriptor = ConfirmDescriptor | DeleteReferenceDescriptor;
 
 type ConfirmDialogResult = 'confirm' | 'cancel';
 
@@ -293,18 +320,41 @@ type DeleteReferenceDialogResult =
   | { action: 'reassign' }
   | { action: 'delete-anyway' };
 
+// The result type is DERIVED from the descriptor's kind, not supplied by the caller.
+// A free `openDialog<TResult>(d: DialogDescriptor<TResult>)` would leave TResult
+// unconstrained by the descriptor — `openDialog<DeleteReferenceDialogResult>({ kind:
+// 'confirm', ... })` would type-check and then resolve with the string 'cancel',
+// which the caller's `result.action` switch would read as undefined. Keying the map
+// on `kind` is what makes the pairing a checked contract rather than a convention.
+interface DialogResultByKind {
+  confirm: ConfirmDialogResult;
+  'delete-reference': DeleteReferenceDialogResult;
+}
+type DialogResultFor<D extends DialogDescriptor> = DialogResultByKind[D['kind']];
+
 interface DialogStore {
-  readonly current: DialogDescriptor<unknown> | null;
-  openDialog<TResult>(descriptor: DialogDescriptor<TResult>): Promise<TResult>;
+  readonly current: DialogDescriptor | null;
+  openDialog<D extends DialogDescriptor>(descriptor: D): Promise<DialogResultFor<D>>;
   // Called only by the active dialog component's own button handlers — never by an
   // external caller, which only ever sees the Promise openDialog returned.
-  resolve<TResult>(result: TResult): void;
+  resolve(result: DialogResultByKind[DialogDescriptor['kind']]): void;
 }
 ```
 
 ```typescript
 // presentation/dialogs/DialogHost.vue
-// Mounted once per Vue app instance (one per open Plan Editor view, per slice 5).
+// Mounted once per ItemView-scoped Vue app — which means the Plan Editor's (slice 5)
+// AND the Renovation Project view's (slice 1, given content by slice 14), not the Plan
+// Editor's alone: slice 14's "Create a project" empty-state action opens a dialog from
+// the Renovation Project view, and a DialogHost that only ever mounted alongside a
+// PlanCanvas would leave that click with nothing to open.
+//
+// Deliberately NOT plugin-global, unlike slice 13's NotificationHost. A dialog blocks
+// interaction with the view that raised it and must trap focus within that view's own
+// content; a toast reports something that may have nothing to do with any open view.
+// One DialogStore per view also makes the one-at-a-time rule below mean "one per view,"
+// which is the correct scope — two Plan Editor tabs can legitimately each have a dialog.
+//
 // Switches on dialogStore.current?.kind and renders ConfirmDialog.vue or
 // DeleteReferenceDialog.vue; owns the focus-trap, inert-background, and Escape
 // wiring shared by both kinds so neither dialog component reimplements it.
@@ -312,20 +362,23 @@ interface DialogStore {
 
 ```typescript
 // Worked example call site — presentation/editor/inspector/ (slice 6's Inspector
-// action; the query is slice 10's; the command dispatched per branch is slice 8's)
+// action; the query is slice 10's; the command dispatched per branch is slice 8's).
+// Note what is NOT here: no repository. The Inspector reads through a query, exactly
+// as §59 and slice 6 require, and dispatches through the command dispatcher.
 async function onInspectorDeleteZone(
   zoneId: ZoneId,
   zoneName: string,
 ): Promise<void> {
-  const references = await requirementRepository.listByZone(zoneId); // slice 10
+  const counted = await countRequirementsReferencing({ kind: 'zone', zoneId }); // slice 10
+  if (isErr(counted)) return surfaceError(counted.error); // slice 17 decides the surface
 
   const result: DeleteReferenceDialogResult =
-    references.length === 0
+    counted.value === 0
       ? { action: 'delete-anyway' } // or route through ConfirmDialog — caller's choice
-      : await dialogStore.openDialog<DeleteReferenceDialogResult>({
+      : await dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zoneName,
-          references: [{ label: 'Requirements', count: references.length }],
+          references: [{ label: 'Requirements', count: counted.value }],
         });
 
   switch (result.action) {
@@ -334,7 +387,8 @@ async function onInspectorDeleteZone(
     case 'remove-references':
     case 'reassign':
     case 'delete-anyway':
-      // slice 8's zone-delete command branches on this value; not this slice's job.
+      // The resolution is passed into slice 8's zone-delete command as data; how that
+      // command acts on it is not this slice's job.
       break;
   }
 }
@@ -389,20 +443,20 @@ contract ends at the typed result, before any write occurs.
   original element every time, not just on the cancel path.
 - **Architecture/contract test** (extends slice 12's suite) — `no-restricted-imports`
   (or an equivalent import-boundary check) asserts nothing under
-  `presentation/dialogs/` imports a repository, an application command, or the event
-  bus; this slice's dialogs are display-and-resolve only, and a future edit that starts
+  `presentation/dialogs/` imports a repository, a query, an application command, or the
+  event bus; this slice's dialogs are display-and-resolve only, and a future edit that starts
   querying a repository from inside `DeleteReferenceDialog.vue` fails the build rather
   than passing review by accident.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
   `references: [{ label: 'Requirements', count: 2 }]` sourced from a fake
-  `RequirementRepository.listByZone` double, and that choosing each of the four actions
+  `CountRequirementsReferencing` double, and that choosing each of the four actions
   resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
 
 ## Definition of Done
 
-1. `openDialog<TResult>(descriptor)` returns a Promise that resolves exactly once, with
+1. `openDialog(descriptor)` returns a Promise that resolves exactly once, with
    the typed value the dialog component itself passed to `resolve()`.
 2. Pressing `Escape` while any dialog is open resolves it as a cancellation
    (`'cancel'` / `{ action: 'cancel' }`) and dispatches no command — asserted directly,
@@ -415,18 +469,21 @@ contract ends at the typed result, before any write occurs.
    supplied — no recomputation, no invented default rows when the caller supplies only
    one.
 6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly
-   `Requirements: 2`, sourced from `requirementRepository.listByZone` (slice 10) —
+   `Requirements: 2`, sourced from slice 10's `CountRequirementsReferencing` query —
    verified by an integration test asserting the value passed into the dialog
    descriptor, not a value this slice's component recomputed.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
    stacking or queueing a second one — the modal-stacking rule is enforced by
    `DialogStore`, checked by a unit test, not left to caller discipline.
-8. No file under `presentation/dialogs/` imports a repository, an application command,
-   or the event bus — enforced by the same import-boundary lint mechanism slice 12
-   already runs, not by convention alone.
-9. Each of `DeleteReferenceDialog`'s four buttons resolves the open Promise with its
-   own distinct discriminated result exactly once; no button click leaves the Promise
-   pending or resolves it twice.
+8. No file under `presentation/dialogs/` imports a repository, a query, an application
+   command, or the event bus — enforced by the same import-boundary lint mechanism slice
+   12 already runs, not by convention alone.
+9. No user-facing English literal appears under `presentation/dialogs/`, including the
+   `confirmLabel`/`cancelLabel` defaults; both dialog kinds' fixed copy lives in
+   `presentation/i18n/locales/` like every other string in the plugin.
+10. Each of `DeleteReferenceDialog`'s four buttons resolves the open Promise with its
+    own distinct discriminated result exactly once; no button click leaves the Promise
+    pending or resolves it twice.
 
 ## References
 

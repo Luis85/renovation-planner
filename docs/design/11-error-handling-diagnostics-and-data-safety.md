@@ -54,9 +54,11 @@ invent their own error handling, logging, or write-safety conventions.
   slice 12 (`12-testing-and-architecture-enforcement-infrastructure.md`).
   This slice defines the rules; slice 12 defines the harness that catches a
   regression against them.
-- Vue-level validation message *copy* and form UX — slice 6's inspector work
-  consumes the Presentation-facing messages this slice produces, but wording
-  and layout are that slice's concern.
+- How a `ToUserMessage` string is *rendered*: which surface it lands on (toast,
+  modal, inline field error, save-state badge) is slice 17's routing decision,
+  and what an inline field error looks like — draft retention, `aria-invalid`
+  wiring, the error-code-to-field map — is slice 16's. This slice produces the
+  typed error and the message; neither slice's container is designed here.
 
 ## Dependencies
 
@@ -119,18 +121,19 @@ terse user message, and a detailed log entry. They are produced together and
 must not drift into being produced from two independent code paths.
 
 ```typescript
-// application/commands/zone/save-zone-geometry.ts (illustrative)
-async function saveZoneGeometry(cmd: SaveZoneGeometryCommand): Promise<Result<void, AppError>> {
+// application/commands/zone/MoveSpatialObject.ts (illustrative — the same shape every
+// command in this codebase has; slice 3 owns this command's actual body)
+async function execute(input: MoveSpatialObjectInput): Promise<Result<void, AppError>> {
   try {
-    const saveResult = await zoneRepository.save(zone); // Result<void, PersistenceError> — resolves, never throws
-    if (saveResult.isErr()) {
-      logger.error('zone.save.failed', { zoneId: cmd.zoneId, cause: saveResult.error });
+    const saveResult = await zoneRepository.save(zone); // Result — resolves, never throws
+    if (isErr(saveResult)) {
+      logger.error('zone.save.failed', { zoneId: input.zoneId, cause: saveResult.error });
       return saveResult;
     }
     return ok(undefined);
   } catch (cause) {
     const mapped = mapPersistenceException(cause); // -> PersistenceError | ValidationError
-    logger.error('zone.save.failed', { zoneId: cmd.zoneId, cause });
+    logger.error('zone.save.failed', { zoneId: input.zoneId, cause });
     return err(mapped);
   }
 }
@@ -138,19 +141,25 @@ async function saveZoneGeometry(cmd: SaveZoneGeometryCommand): Promise<Result<vo
 
 The `try`/`catch` here still matters: it is the boundary for whatever *does*
 throw (an unexpected technical fault per SDD §65, not the repository's own
-expected-failure path). Slice 4's repository contract returns a resolved
-`Result.err` for an expected write failure rather than throwing, so that
-result must be inspected and returned explicitly — the `catch` block is not
-what runs for it, and this function must not report a failed write as
-`ok(undefined)` by falling through the happy path unchecked.
+expected-failure path). Slice 3's repository port resolves a failed `Result` for an
+expected write failure rather than throwing, so that result must be inspected
+and returned explicitly — the `catch` block is not what runs for it, and this
+function must not report a failed write as `ok(undefined)` by falling through
+the happy path unchecked.
 
 ```typescript
 // presentation/stores/zone-store.ts (illustrative)
-const result = await saveZoneGeometry(cmd);
+const result = await moveZoneGeometry(input);
 if (!result.ok) {
-  toast.show(toUserMessage(result.error)); // domain-level message only
+  surfaceError(toUserMessage(getLanguage(), result.error), origin); // domain-level, translated
 }
 ```
+
+`surfaceError` stands in for a decision this slice deliberately does not make: *which*
+surface the message lands on — a toast, a modal, an inline field error, or the
+save-state indicator — is slice 17's routing table, over containers slices 13, 15 and 16
+build. What this slice fixes is that the argument is always a `ToUserMessage` string
+derived from a typed `AppError`, never a raw exception.
 
 ### Logging
 
@@ -260,14 +269,18 @@ migrations slices 3–4 build:
    narrower option (e.g. first-time note creation), and even then must still
    satisfy rule 3 for the parts it is asked to preserve (e.g. a template's
    body).
-5. **Never cascade-delete silently.** The SDD does not define a dedicated
-   Deletion Semantics concept, so the rule stated plainly: deleting an entity
-   that other entities reference (e.g. a `Zone` referenced by `Requirement`s)
-   must not silently delete or orphan those referents as a side effect. The
-   repository/command layer either (a) blocks the delete and returns a
-   `ReferenceError` naming the referents, or (b) requires an explicit,
-   separate confirmation step that enumerates what else will be affected
-   before proceeding. Silent, implicit cascades are disallowed either way.
+5. **Never cascade-delete silently.** The SDD has no Deletion Semantics
+   section, but the PRD does (§64), and it specifies the flow rather than just
+   the prohibition: Cancel / Remove References / Reassign / Delete Anyway.
+   Stated as a rule for this layer: deleting an entity that other entities
+   reference (e.g. a `Zone` referenced by `Requirement`s) must not silently
+   delete or orphan those referents as a side effect. The command layer either
+   (a) blocks the delete and returns a `ReferenceError` naming the referents,
+   or (b) proceeds only on an explicit resolution passed in as data, after a
+   confirmation step that enumerated what would be affected. Silent, implicit
+   cascades are disallowed either way. Slice 15 builds the dialog; slice 10
+   wires this slice's two entities into it; the enforcement stays in the
+   command, because a script or a migration never sees a dialog.
 6. **Maintain migration tests.** Every migration under `migration/` (SDD §45)
    ships with a test fixture pair (pre-migration, expected post-migration)
    exercised by slice 12's test infrastructure. This slice's obligation is
@@ -315,8 +328,13 @@ interface DiagnosticsSnapshot {
 }
 type GetDiagnosticsSnapshot = () => Promise<DiagnosticsSnapshot>;
 
-// presentation — the only place an AppError becomes copy
-type ToUserMessage = (error: AppError) => string;
+// presentation — the only place an AppError becomes copy. It takes the language,
+// because it produces user-facing text and every user-facing string in this plugin
+// resolves through presentation/i18n's t(language, key). The mapping an
+// implementation performs is `error.code` -> StringKey -> t(...); a code with no key
+// falls back to a generic per-category message, never to the error's own `message`
+// field, which is developer-facing English written at the throw site.
+type ToUserMessage = (language: string, error: AppError) => string;
 ```
 
 Contract notes:
@@ -329,8 +347,12 @@ Contract notes:
   single catch-all switch, and "smallest correct" still permits the literal
   `DomainError` category itself for a genuine domain-invariant violation that
   doesn't warrant a narrower one (see slice 17's worked example).
-- `ToUserMessage` takes only an `AppError`, never `unknown` — this is what
-  enforces "Presentation never sees a raw exception" at the type level.
+- `ToUserMessage` takes an `AppError`, never `unknown` — this is what enforces
+  "Presentation never sees a raw exception" at the type level. The `AppError`'s own
+  `message` field is *not* what it returns: that string is written for a log line, in
+  English, at the site that raised it. User-facing copy comes from the locale tables,
+  keyed by `error.code`, so a German user reads German and the sentence-case lint that
+  runs over `en.ts` covers it.
 
 ## Persistence Impact
 
@@ -360,16 +382,19 @@ will run.)
   when a specific mapping exists.
 - **Result-not-throw contract**: application command/query tests assert no
   command or query function can reject/throw past its public boundary for
-  any input in its test matrix; failures always arrive as `Result.err`.
+  any input in its test matrix; failures always arrive as a resolved, failed `Result`.
 - **Resolved-failure-is-not-a-throw test**: given a repository test double
-  configured to resolve `Result.err` (never to reject), assert the Application
+  configured to resolve a failed `Result` (never to reject), assert the Application
   Error Mapping site inspects and returns that result — a `try`/`catch` around
   the call must not let the resolved error fall through to a happy-path
   `ok(...)` return, since it never entered the `catch` block to begin with.
-- **Message/log separation**: given an `AppError`, `toUserMessage` returns
-  a string containing no raw exception message, stack fragment, or file path;
-  the paired `logger.error` call (asserted via a test double) receives the
-  full cause.
+- **Message/log separation**: given an `AppError`, `toUserMessage` returns a string
+  containing no raw exception message, stack fragment, or file path — and, for a code
+  with a locale entry, not the `AppError.message` field either; the paired
+  `logger.error` call (asserted via a test double) receives the full cause. A companion
+  case asserts the same error resolves to different text under `'en'` and `'de'`, which
+  is what proves the message is coming from the locale tables rather than from a
+  literal that happens to read well in English.
 - **Diagnostics content test**: given a snapshot fixture with sample project
   data loaded, assert the produced `DiagnosticsSnapshot` contains no zone
   names, note bodies, or file paths — only the fields in the interface above.
@@ -388,39 +413,40 @@ will run.)
 
 ## Definition of Done
 
-- An Infrastructure exception thrown anywhere under `infrastructure/` is
-  caught and mapped to a specific slice-2 `AppError` variant before it can
-  reach Application or Presentation code; no command or query's public
-  contract can throw.
-- A repository call that resolves to `Result.err` (an expected write failure,
-  per slice 4's contract) is inspected and propagated at its Application
-  Error Mapping site, never mistaken for the absence of failure because no
-  exception was thrown.
-- A user-facing error message never contains a raw exception message, stack
-  trace, or internal file path; the corresponding `logger.error` call always
-  carries that full detail.
-- `logger.debug/info/warn/error` are implemented, injected via the
-  composition root, and write only to a local sink — no code path sends a log
-  entry off the device automatically.
-- `GetDiagnosticsSnapshot` returns plugin version, Obsidian version, schema
-  versions, migration state, and validation issues, and demonstrably contains
-  zero project content (no entity names, note bodies, or content-bearing
-  file paths) unless a separate, explicit export action was taken.
-- No dependency on a network client, analytics SDK, or remote endpoint exists
-  in `infrastructure/logging/` or the diagnostics query.
-- A note with unknown extra frontmatter keys and a hand-authored body
-  survives a targeted property-update round trip unchanged in both the
-  unknown keys and the body.
-- Deleting an entity with existing referents is either refused with a
-  `ReferenceError` naming the referents, or gated behind an explicit
-  confirmation step — never a silent cascade.
-- An entity whose `schema-version` is unsupported causes the plugin to refuse
-  to load that entity with a clear, typed error, not a silent
-  best-effort parse, coercion, or drop — and this failure is scoped to that
-  entity, not the whole plugin (per SDD §92 item 13).
-- All of the above is exercised by unit/application-level tests runnable
-  independent of slice 12's fixture Vaults (slice 12 additionally proves it
-  end to end against real Vault-shaped fixtures).
+- [ ] An Infrastructure exception thrown anywhere under `infrastructure/` is
+    caught and mapped to a specific slice-2 `AppError` variant before it can
+    reach Application or Presentation code; no command or query's public
+    contract can throw.
+- [ ] A repository call that resolves to a failed `Result` (an expected read or write
+    failure, per slice 3's port contract) is inspected and propagated at its Application
+    Error Mapping site, never mistaken for the absence of failure because no
+    exception was thrown.
+- [ ] A user-facing error message never contains a raw exception message, stack trace, or
+    internal file path, and is produced by `t()` from the locale tables rather than by a
+    literal or by `AppError.message`; the corresponding `logger.error` call always carries
+    that full detail, in English, unaffected by the user's language.
+- [ ] `logger.debug/info/warn/error` are implemented, injected via the
+    composition root, and write only to a local sink — no code path sends a log
+    entry off the device automatically.
+- [ ] `GetDiagnosticsSnapshot` returns plugin version, Obsidian version, schema
+    versions, migration state, and validation issues, and demonstrably contains
+    zero project content (no entity names, note bodies, or content-bearing
+    file paths) unless a separate, explicit export action was taken.
+- [ ] No dependency on a network client, analytics SDK, or remote endpoint exists
+    in `infrastructure/logging/` or the diagnostics query.
+- [ ] A note with unknown extra frontmatter keys and a hand-authored body
+    survives a targeted property-update round trip unchanged in both the
+    unknown keys and the body.
+- [ ] Deleting an entity with existing referents is either refused with a
+    `ReferenceError` naming the referents, or gated behind an explicit
+    confirmation step — never a silent cascade.
+- [ ] An entity whose `schema-version` is unsupported causes the plugin to refuse
+    to load that entity with a clear, typed error, not a silent
+    best-effort parse, coercion, or drop — and this failure is scoped to that
+    entity, not the whole plugin (per SDD §92 item 13).
+- [ ] All of the above is exercised by unit/application-level tests runnable
+    independent of slice 12's fixture Vaults (slice 12 additionally proves it
+    end to end against real Vault-shaped fixtures).
 
 ## References
 
@@ -433,6 +459,11 @@ will run.)
 - SDD §68 Diagnostics — allowed fields and the no-content rule.
 - SDD §7.3 Application Layer — where error mapping and queries live.
 - SDD §7.4 Infrastructure Layer — `infrastructure/logging/` location.
+- `src/presentation/i18n/` and `docs/requirements/Multilanguage.md` — the existing
+  `t(language, key)` lookup `ToUserMessage` resolves through, and the standing
+  requirement that makes a user-facing English literal a defect rather than a shortcut.
+  Log lines are the deliberate exception: they stay English, since they are read by a
+  developer, not the user.
 - SDD §38 Markdown Entity Model — note body remains free-form.
 - SDD §42 Persistence Consistency — preserve previous valid data on failure.
 - SDD §43 Schema Validation — validate-before-domain-entry via Zod.
@@ -448,4 +479,7 @@ will run.)
   external communication or privileged APIs") subsections.
 - SDD §92 Architecture Completion Criteria, item 13 — a broken project file
   does not prevent the entire plugin from loading.
+- PRD §63–64 Reference Integrity, Deletion Semantics — the source of Data Safety
+  rule 5's Cancel/Remove-References/Reassign/Delete-Anyway flow (not to be confused
+  with the SDD's own §64, Error Model).
 - `docs/design/README.md` — slice map and shared conventions.

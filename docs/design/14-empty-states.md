@@ -58,7 +58,7 @@ that hands off to it.
 - **Loading states.** A query in flight (before its first result arrives) is not this
   slice's concern; neither the PRD nor any slice in this map currently asks for a
   loading skeleton, so none is added speculatively.
-- **Error states.** A query that fails (`Result.err`) is never rendered as an empty
+- **Error states.** A query that fails (a failed `Result`) is never rendered as an empty
   state — see Design → "Empty is not the same claim as error," and slice 17
   (Presentation-Layer Error Surfacing), which owns what a failed query *does* render as.
 - **A "dangling reference" state** — `GetPlan(planId)` succeeding with `Ok(null)` for a
@@ -87,14 +87,18 @@ that hands off to it.
 - **Slice 3 (Domain Foundation)** — `CreateProjectCommand` is the action-button target
   for the Renovation Project view's empty state; referenced by name only, not
   redesigned.
-- **Slice 4 (Persistence & Repository Layer)** — `ProjectRepository.listAll()` is what
-  the new `ListProjects` query wraps; `GetPlan`/`FindZonesByPlan`'s `Result` shape is
-  what this slice's selectors pattern-match on.
+- **Slice 4 (Persistence & Repository Layer)** — the `ProjectRepository.listAll()`
+  implementation the new `ListProjects` query wraps (the port method itself is slice
+  3's), and `GetPlan`/`FindZonesByPlan`'s `Result<T | null, PersistenceError>` shape.
+  That shape is load-bearing here, not incidental: this slice's selectors exist to tell
+  `ok([])`/`ok(plan-with-null-background)` (legitimately empty) apart from `ok(null)` (a
+  dangling reference) apart from `isErr` (a failed read), and all three have to remain
+  distinguishable at the query boundary for that to be possible.
 - **Slice 5 (Canvas Rendering & Editor Shell)** — the Vue/Pinia shell `EmptyState`
   mounts inside; `ProjectStore`'s existing `plan`/`zones` state, which this slice adds a
   getter over; `PlanEditorQueryServices`, `PlanDto`, `ZoneDto`, `PlanBackgroundRef` —
-  consumed, not redefined. The four-region editor shell (§60) is unchanged: the empty
-  state occupies the `PlanCanvas` region only: toolbar, layers panel, inspector, and
+  consumed, not redefined. The five-region editor shell (§60) is unchanged: the empty
+  state occupies the `PlanCanvas` region only; toolbar, layers panel, inspector, and
   status bar stay exactly as slice 5 built them.
 - Forward references, not hard dependencies (same relationship slice 5 has to slices
   6–8): slice 6's `EditorStore.activeToolId` / `ToolId` (`'draw-polygon'`), and slice
@@ -132,39 +136,51 @@ feature this slice delivers.
 
 ### 2. Content registry
 
+The registry holds **`StringKey`s, not copy**. `src/presentation/i18n/` already owns
+every user-facing string in this plugin (`t(language, key)`, with `en.ts` as the complete
+table and `de.ts` alongside it), and PRD §94's own worked example is written in German —
+so an empty state whose headline was an English literal would be the one surface in the
+plugin that could not answer the requirement its own PRD section states. The three
+entries' copy is added to `en.ts` and `de.ts`; this file maps a state to its keys.
+
 ```typescript
 export interface EmptyStateContent {
-  readonly headline: string;
-  readonly body: string;
-  readonly actionLabel?: string;
+  readonly headline: StringKey;
+  readonly body: StringKey;
+  readonly actionLabel?: StringKey;
 }
 
 export const EMPTY_STATE_CONTENT = {
   renovationProject: {
     noProjects: {
-      headline: 'No renovation projects yet',
-      body: 'Create a renovation project to start planning floor plans, zones, costs, and work packages in one place.',
-      actionLabel: 'Create a project',
+      headline: 'empty.project.no-projects.headline',
+      body: 'empty.project.no-projects.body',
+      actionLabel: 'empty.project.no-projects.action',
     },
   },
   planEditor: {
-    // PRD §94's own worked example, translated: "Noch kein Plan vorhanden..."
+    // PRD §94's own worked example ("Noch kein Plan vorhanden…") is the de.ts entry
+    // for these keys, not a comment about a translation that does not exist.
     noBackground: {
-      headline: 'No plan yet',
-      body: 'Import a floor plan, sketch, or garden plan to start spatial planning.',
-      actionLabel: 'Import a plan',
+      headline: 'empty.plan.no-background.headline',   // en: "No plan yet"
+      body: 'empty.plan.no-background.body',
+      actionLabel: 'empty.plan.no-background.action',
     },
     // Deliberately distinct copy from noBackground — a Plan with a background but no
     // Zones is a different, later stage of the same onboarding flow (PRD §93), not a
     // variant wording of "nothing here yet."
     noZones: {
-      headline: 'No zones yet',
-      body: 'Draw your first zone to start marking rooms, areas, or construction sections on this plan.',
-      actionLabel: 'Draw a zone',
+      headline: 'empty.plan.no-zones.headline',        // en: "No zones yet"
+      body: 'empty.plan.no-zones.body',
+      actionLabel: 'empty.plan.no-zones.action',
     },
   },
 } as const satisfies Record<string, Record<string, EmptyStateContent>>;
 ```
+
+Typing the fields as `StringKey` rather than `string` is what makes this checkable: a key
+with no entry in `en.ts` fails to compile, so "the registry and the locale tables agree"
+is a compiler guarantee rather than a review item.
 
 A registry, not a switch statement scattered across two views: adding a fourth entry
 (a future central view) is one object literal, never a new `if` chain in a component.
@@ -216,7 +232,7 @@ not narrowed here.
 An empty state means *the query succeeded and legitimately returned nothing* — `[]`,
 or a Plan with a `null` field, is exactly the data `ListProjects`/`GetPlan` are
 supposed to return in that situation, no different in kind from returning a populated
-result. A failed query (`Result.err(...)`, SDD §65) is never silently downgraded into
+result. A failed query (a failed `Result`, SDD §65) is never silently downgraded into
 an empty state: that would hide a real, actionable problem (a persistence error, a
 migration failure) behind cheerful onboarding copy telling the user to just create
 something. The composing view branches on `result.ok` before ever calling this slice's
@@ -231,10 +247,11 @@ caller of the same function every other entry point already calls, never a secon
 decision-maker.
 
 ```typescript
-// RenovationProjectView's root component (illustrative)
+// RenovationProjectView's root component (illustrative). `resolve` maps a registry
+// entry's StringKeys through t() once; EmptyState itself never sees a key.
 <EmptyState
   v-if="projects.length === 0"
-  v-bind="EMPTY_STATE_CONTENT.renovationProject.noProjects"
+  v-bind="resolve(EMPTY_STATE_CONTENT.renovationProject.noProjects)"
   @action="openCreateProjectModal()"   // slice 15's modal → CreateProjectCommand (slice 3)
 />
 ```
@@ -243,12 +260,12 @@ decision-maker.
 // PlanEditorRoot's canvas region (illustrative) — replaces PlanCanvas, not the shell
 <EmptyState
   v-if="projectStore.emptyStateKey === 'noBackground'"
-  v-bind="EMPTY_STATE_CONTENT.planEditor.noBackground"
+  v-bind="resolve(EMPTY_STATE_CONTENT.planEditor.noBackground)"
   @action="startPlanBackgroundImport(planId)"   // the flow slice 5 flagged, unowned here
 />
 <EmptyState
   v-else-if="projectStore.emptyStateKey === 'noZones'"
-  v-bind="EMPTY_STATE_CONTENT.planEditor.noZones"
+  v-bind="resolve(EMPTY_STATE_CONTENT.planEditor.noZones)"
   @action="editorStore.activeToolId = 'draw-polygon'"   // slice 6's ToolId, slice 8's tool
 />
 <PlanCanvas v-else />
@@ -265,7 +282,10 @@ just not one this slice performs directly — each hands off to exactly one plac
 ## Interfaces & Contracts
 
 ```typescript
-// presentation/components/EmptyState.vue — script-setup contract
+// presentation/components/EmptyState.vue — script-setup contract. Takes RESOLVED
+// strings, not keys: the component knows nothing about i18n, so it stays reusable by
+// a future view (or a test) that has copy from somewhere else. The composing view
+// resolves EMPTY_STATE_CONTENT's keys through t() and passes the results down.
 export interface EmptyStateProps {
   readonly headline: string;
   readonly body: string;
@@ -276,11 +296,11 @@ export interface EmptyStateProps {
 ```
 
 ```typescript
-// presentation/emptyStates/content.ts
+// presentation/emptyStates/content.ts — keys only; the copy lives in i18n/locales/
 export interface EmptyStateContent {
-  readonly headline: string;
-  readonly body: string;
-  readonly actionLabel?: string;
+  readonly headline: StringKey;
+  readonly body: StringKey;
+  readonly actionLabel?: StringKey;
 }
 export const EMPTY_STATE_CONTENT: {
   readonly renovationProject: { readonly noProjects: EmptyStateContent };
@@ -330,10 +350,11 @@ interface RenovationProjectStoreState {
 ```
 
 ```typescript
-// application/queries/ListProjects.ts — thin wrapper, same shape as GetPlanQuery (§35)
-// Wraps slice 4's already-defined ProjectRepository.listAll(); introduces no new
-// persistence behavior, only the Get/List/Find-named entry point (§80) nothing
-// consumed until now.
+// application/queries/ListProjects.ts — thin wrapper, same shape as GetPlanQuery (§35).
+// Wraps ProjectRepository.listAll(), which slice 3 declared on the port and slice 4
+// implemented; introduces no new persistence behavior, only the Get/List/Find-named
+// entry point (§80) nothing had consumed until now. `listAll` was declared ahead of
+// this consumer precisely so adding one is a query file, not a port change.
 interface ListProjectsQuery {
   execute(): Promise<Result<ProjectSummaryDto[], PersistenceError>>;
 }
@@ -368,10 +389,14 @@ export interface RenovationProjectQueryServices {
   always render; the action button renders iff `actionLabel` is passed, and a click
   emits exactly one `action` event with no payload; content passed to the `icon` slot
   renders verbatim, and the slot renders nothing when omitted.
-- **Registry content test**: every entry in `EMPTY_STATE_CONTENT` has a non-empty
-  `headline` and `body`; a direct assertion that `planEditor.noBackground` and
-  `planEditor.noZones` do not share a `headline` or `body` string — the two states are
-  required to read as different problems, not variants of one message.
+- **Registry content test**: every `StringKey` in `EMPTY_STATE_CONTENT` resolves to a
+  non-empty string in `en.ts` (a missing key does not compile, but a stale one would
+  render its own name), and the same holds in `de.ts` — PRD §94's worked example is
+  German, so the German path is the one this requirement is actually stated against. A
+  direct assertion that `planEditor.noBackground` and `planEditor.noZones` resolve to
+  different `headline` and `body` strings in every locale — the two states are required
+  to read as different problems, not variants of one message, and a translator can
+  collapse that distinction as easily as an author can.
 - **Selector unit tests** (plain node, no DOM, no Obsidian):
   - `selectRenovationProjectEmptyState([])` → `'noProjects'`; any non-empty array →
     `null`.
@@ -379,7 +404,7 @@ export interface RenovationProjectQueryServices {
     `plan.background` (`null`/set) × `zones.length` (`0`/`>0`), plus `plan === null` —
     asserting the exact precedence in Design §3, including that `plan === null` never
     produces `'noBackground'` or any other key.
-- **Wiring/regression test**: given a `Result.err(...)` fixture from `GetPlan` or
+- **Wiring/regression test**: given a failed-`Result` fixture from `GetPlan` or
   `FindZonesByPlan`, assert the composing view never calls either selector and never
   renders `EmptyState` — the branch on `result.ok` happens first, asserted directly
   rather than trusted by inspection (per CLAUDE.md: "a category invariant is checked at
@@ -406,8 +431,10 @@ export interface RenovationProjectQueryServices {
    component and the Plan Editor's canvas region, and satisfies its component contract
    (headline/body always render; action button conditional on `actionLabel`; one
    `action` event per click; `icon` slot passes through untouched).
-2. `EMPTY_STATE_CONTENT` has exactly the three entries in Design §2, each with
-   non-empty, and — for the two Plan Editor entries — mutually distinct, copy.
+2. `EMPTY_STATE_CONTENT` has exactly the three entries in Design §2, holding
+   `StringKey`s rather than literals; every key resolves in both `en.ts` and `de.ts`,
+   and the two Plan Editor entries resolve to mutually distinct copy in each. No
+   user-facing literal appears anywhere under `presentation/emptyStates/`.
 3. `selectRenovationProjectEmptyState` and `selectPlanEditorEmptyState` are pure,
    Obsidian-free, DOM-free functions whose full input/output table (Design §3) is
    covered by tests, including the `plan === null` case producing no key.
@@ -417,9 +444,9 @@ export interface RenovationProjectQueryServices {
 5. The Plan Editor renders `planEditor.noBackground` when the open Plan's `background`
    is `null`, `planEditor.noZones` when it is set but `FindZonesByPlan` returns `[]`,
    and neither when both are populated — verified against slice 5's existing
-   `ProjectStore` state, with no change to the four-region shell layout outside the
+   `ProjectStore` state, with no change to the five-region shell layout outside the
    `PlanCanvas` region.
-6. A simulated `Result.err(...)` from either query never renders `EmptyState` and never
+6. A simulated failed `Result` from either query never renders `EmptyState` and never
    reaches either selector — asserted by a test, not by code review.
 7. Each of the three actions invokes exactly the one hand-off named in Design §6 and no
    second, independently-implemented path to the same effect exists anywhere in the
@@ -430,11 +457,18 @@ export interface RenovationProjectQueryServices {
 ## References
 
 - PRD §94 Empty States — the requirement this slice satisfies, including its own
-  worked example ("no plan yet, import a floor plan, sketch, or garden plan").
+  worked example ("no plan yet, import a floor plan, sketch, or garden plan"), stated
+  there in German, which is why this slice's copy goes through `t()` rather than
+  English literals.
+- `docs/requirements/Multilanguage.md` and `src/presentation/i18n/` — the standing
+  requirement and the existing `t(language, key)` lookup this slice's three entries
+  add keys to.
 - PRD §93 Installation & Onboarding — the Create Project → Import Plan → Calibrate →
   Create Zone order that fixes the `noBackground`-before-`noZones` precedence.
-- PRD §8 Core Entities — Project's `linked plans` (why `ListProjects` can return more
-  than one) and Plan's `background`/`layers` fields this slice's triggers read.
+- PRD §8 Core Entities — Plan's `background` field, the trigger `selectPlanEditorEmptyState`
+  reads. (PRD §8 also lists "linked plans" on Project; slice 3 deliberately does not
+  store it as a field, and this slice does not read it — `ListProjects` enumerates
+  Projects, which is unrelated.)
 - SDD §11 Workspace Views — the two "central" primary surfaces this slice covers;
   Budget/Schedule/Procurement/Dashboard are named as future, out of scope here.
 - SDD §35 Query Architecture, §80 Naming Conventions (`ListAssets` as the pattern

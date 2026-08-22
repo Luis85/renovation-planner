@@ -56,7 +56,7 @@ several fields, or none.
   gesture or one field commit → one command → one history entry) is unchanged; this
   slice only defines what happens to the field when that one command's `Result` is
   `Err`.
-- The validation rules themselves (`unitCost >= 0`, `wasteFactor` in `[0, 1)`,
+- The validation rules themselves (`unitCost >= 0`, `wasteFactor` in `[0, 1]`,
   `pointA !== pointB`, and so on) — owned by the domain modules and commands that raise
   them (slices 3, 7, 9, 10). This slice only consumes their typed errors.
 - Mapping an Infrastructure exception to a typed `AppError` — slice 11's Error
@@ -67,11 +67,10 @@ several fields, or none.
 
 - Slice 6 (Editor Tool Framework, Undo/Redo & Inspector) — the commit-then-dispatch flow
   this slice attaches to: a field commits on blur/enter, becomes one `UndoableCommand`,
-  and is run through `CommandHistory.run()`, resolving `Promise<Result<void, AppError>>`
-  (both its prose and its typed `Interfaces & Contracts` now agree on this signature —
-  `CommandHistory.run()`/`InspectorStore.commit()` return that `Result` directly, not a
-  bare `void`). This slice depends on that `Result` reaching the field; there would be
-  nothing to route otherwise.
+  and is run through `CommandHistory.run()`, which resolves
+  `Promise<Result<void, AppError>>` rather than a bare `void`. That return type is what
+  this slice depends on: a dispatcher that resolved `void` would leave a field with
+  nothing to route, and no way to tell a rejected commit from an accepted one.
 - Slice 2 (Core Primitives) — the `BaseError`/`ErrorCategory`/`AppError` shape
   (`ValidationError`, `CalculationError`, etc.) this slice renders. Consumed as-is; not
   redefined, not extended with new required fields.
@@ -95,7 +94,7 @@ hosted inside it rather than defining their own overlay/backdrop/focus-trap.
 
 ### Three kinds of validation feedback, and why field-level is its own thing
 
-The same underlying failure — a `Result.err` from a command — can surface three
+The same underlying failure — a failed `Result` from a command — can surface three
 different ways, and confusing them is the mistake this slice exists to prevent:
 
 ```text
@@ -121,7 +120,7 @@ the field it was about would already have scrolled past by the time they read it
 ### The commit-rejection contract
 
 Slice 6 fixed the dispatch side: one field commit → one command → `CommandHistory.run()`
-→ if `Result.err`, nothing is pushed to the undo stack. It left open what the field
+→ on a failed `Result`, nothing is pushed to the undo stack. It left open what the field
 *displays* at that moment. Two candidates:
 
 1. **Revert** — snap the field back to its last known-valid (query-derived) value the
@@ -146,7 +145,7 @@ Reasoning:
   already on screen.
 - **It does not weaken "one commit, one command."** Both candidates satisfy that rule
   equally: a rejected commit is still exactly one `UndoableCommand.execute()` call that
-  resolved to `Result.err`, exactly once, with nothing queued or retried automatically.
+  resolved to a failed `Result`, exactly once, with nothing queued or retried automatically.
   Keeping the value only changes what the *next* keystroke-then-blur cycle starts from —
   correction is a deliberate, separate user action that produces its own new, single
   command dispatch when it commits. Nothing here reopens or resends the rejected
@@ -172,9 +171,9 @@ clean      : draft == canonical (from DTO/query); no error
 editing    : draft != canonical; no error yet; no command dispatched (keystrokes only)
 committing : blur/enter fired; exactly one command in flight; draft unchanged, disabled
              or marked pending
-rejected   : command resolved Result.err; draft UNCHANGED (still the rejected value);
+rejected   : command resolved a failed Result; draft UNCHANGED (still the rejected value);
              inline error shown; field stays editable
-accepted   : command resolved Result.ok; draft cleared; field re-syncs to the new
+accepted   : command resolved ok; draft cleared; field re-syncs to the new
              canonical value on the next query/DTO refresh
 cancelled  : user pressed Escape from "editing" or "rejected"; draft discarded, error
              cleared, field resyncs to canonical value; no command ever dispatched
@@ -182,7 +181,7 @@ cancelled  : user pressed Escape from "editing" or "rejected"; draft discarded, 
 
 ### Error-to-field routing
 
-A command's `Result.err` is one `AppError` (slice 2), but not every `AppError` is "about"
+A command's failed `Result` carries one `AppError` (slice 2), but not every `AppError` is "about"
 one field:
 
 - `CreateAssetCommand`'s `unitCost < 0` (slice 10) is squarely about the `unitCost`
@@ -212,8 +211,8 @@ type RoutedError<TInput> =
 function routeError<TInput>(
   error: AppError,
   map: FieldErrorMap<TInput>,
-  toUserMessage: (error: AppError) => string, // slice 11's port; not reimplemented here
-): RoutedError<TInput> {
+  toUserMessage: (error: AppError) => string, // slice 11's port, language already bound
+): RoutedError<TInput> {                       //   by the caller — see below
   const fields = map[error.code];
   const message = toUserMessage(error);
   return fields === undefined
@@ -225,13 +224,17 @@ function routeError<TInput>(
 `map`'s values are typed as `keyof TInput`, so a form's error map is checked against the
 real command input shape at compile time — a typo'd field name, or a field the command
 was refactored to remove, fails to type-check rather than silently pointing an error at
-nothing. This is the same category of guarantee ADR-003's `ScreenPoint` brand gives slice
-6: the mapping is a real, checked contract, not a naming convention a later edit can
-quietly break.
+nothing. This is the same category of guarantee slice 5's `ScreenPoint` brand gives the
+editor: the mapping is a real, checked contract, not a naming convention a later edit
+can quietly break.
 
 `message` comes from the same `toUserMessage(error)` call whether it ends up at a field
 or in a banner — one message, one place it is produced, shown in one of two places. A
-form never authors a second, field-specific wording for the same error.
+form never authors a second, field-specific wording for the same error, and never a
+literal: slice 11's `ToUserMessage` resolves copy through `presentation/i18n`'s
+`t(language, key)`, so a field error is translated for free. `routeError` takes it as a
+pre-bound `(error) => string` rather than taking a language of its own, which keeps the
+routing function pure and language-agnostic — it decides *where*, never *what*.
 
 Worked examples:
 
@@ -251,6 +254,14 @@ CalibrationFormErrorMap: FieldErrorMap<CalibratePlanInput> = {
 → CalibrationError{ code: 'calibration.coincident-points' } has no map entry → banner:
   "Point A and Point B must be different locations."
 ```
+
+The calibration case is the clearest illustration of *why* the fallback exists, and it
+is worth being precise about the surface it applies to. Slice 7's calibration panel is
+not a four-field form: `pointA` and `pointB` come from two canvas clicks, and the only
+thing the user types is `knownDistance`. That is exactly the point — `knownDistance` is
+the one input a field error can attach to, and `coincident-points` is a failure of a
+pair the user expressed by clicking, with no input under which to render it. A design
+that insisted every error code map to *some* field would have had to invent one here.
 
 This routing is category-agnostic: a `ValidationError` and a `CalculationError` (e.g. a
 derived cross-field figure a command rejects, distinct from a single bad input) are
@@ -275,9 +286,11 @@ One component renders a field-level error; one renders the banner fallback. Both
 └─────────────────────────┘
 ```
 
-- `<FieldError>` wraps a bound input, an optional error slot, `aria-invalid="true"` on
-  the input while an error is present, and `aria-describedby` pointing at the error
-  text's element id. The error is always rendered as text plus a non-color glyph (`⚠` or
+- `<FieldError>` wraps a caller-supplied input via its default slot and renders the
+  error text beneath it; it sets `aria-invalid="true"` on that input while an error is
+  present, and `aria-describedby` pointing at the error text's element id. It does not
+  own the input's value — the composables below hold the draft, so `<FieldError>` takes
+  only `message` and `inputId` and stays usable by any bound control. The error is always rendered as text plus a non-color glyph (`⚠` or
   equivalent) next to the input's own border-color change — per SDD §85 / PRD §44,
   "status not encoded only by color."
 - `<FormBanner>` renders the fallback case: a single message anchored to the form/dialog
@@ -309,7 +322,8 @@ interface UseFieldCommit<T> {
 
 function useFieldCommit<T, TInput>(options: {
   canonicalValue: Ref<T>;                       // sourced from InspectorDto, read-only here
-  buildCommand: (value: T) => UndoableCommand;  // e.g. wraps an UpdateZonePropertiesCommand
+  buildCommand: (value: T) => UndoableCommand;  // wraps whichever plain command owns
+                                                //   this entity's properties (slice 8)
   history: Pick<CommandHistory, 'run'>;         // the same instance EditorContext hands tools
   errorMap: FieldErrorMap<TInput>;
   field: keyof TInput;
@@ -331,7 +345,7 @@ interface UseFormCommit<TInput> {
   readonly banner: Ref<string | null>;
   readonly submitting: Ref<boolean>;
   setField<K extends keyof TInput>(key: K, value: TInput[K]): void;
-  submit(): Promise<boolean>;   // true only on Result.ok; caller closes the dialog then
+  submit(): Promise<boolean>;   // true only on an ok Result; caller closes the dialog then
 }
 
 function useFormCommit<TInput, TResult>(options: {
@@ -362,7 +376,7 @@ type RoutedError<TInput> =
 function routeError<TInput>(
   error: AppError,               // slice 2 — consumed, not redefined
   map: FieldErrorMap<TInput>,
-  toUserMessage: (error: AppError) => string, // slice 11's port
+  toUserMessage: (error: AppError) => string, // slice 11's port, language pre-bound
 ): RoutedError<TInput>;
 
 // presentation/composables/use-field-commit.ts — Inspector, per-field blur-commit
@@ -432,28 +446,29 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   map routes to a banner with the same text; a map entry naming multiple fields produces
   a `fields` array with more than one entry. No Vue, no command, no Obsidian.
 - **Field commit-rejection test** — drive `useFieldCommit` with a fake `buildCommand`
-  whose `execute()` resolves to `Result.err(ValidationError)`; assert `draft` still holds
+  whose `execute()` resolves a failed `Result` carrying a `ValidationError`; assert `draft` still holds
   the rejected value (not the pre-edit canonical one), `error` is non-null, and
   `history.run()` was called exactly once. Then call `onCancel()` and assert `draft`
   resets to `canonicalValue` and `error` clears.
-- **Field commit-success test** — same setup with `Result.ok`; assert `draft` clears and
+- **Field commit-success test** — same setup resolving `ok(...)`; assert `draft` clears and
   the field's displayed value tracks a subsequently updated `canonicalValue` (simulating
   the DTO refresh after a successful write).
 - **Creation-dialog rejection test (the worked example)** — drive `useFormCommit` with a
   `CreateAssetCommand`-shaped `dispatch` fixture returning
-  `Result.err(ValidationError{ code: 'asset.unit-cost.negative' })` for
+  `err(validationError({ code: 'asset.unit-cost.negative' }))` for
   `{ unitCost: -5, ... }`; assert `submit()` resolves `false`, `fieldErrors` contains an
   entry for `unitCost`, `values.unitCost` is still `-5`, and the fixture's underlying
   repository/event-publish spies recorded zero calls (no `AssetCreated`, no write).
-- **Creation-dialog success test** — same fixture returning `Result.ok`; assert `submit()`
+- **Creation-dialog success test** — same fixture resolving `ok(...)`; assert `submit()`
   resolves `true` (the signal the dialog host uses to close, per slice 15's container
   contract) and `fieldErrors`/`banner` are empty.
 - **Banner-routing test** — a `ReversibleCalibratePlanCommand`-shaped fixture returning
   `CalibrationError{ code: 'calibration.coincident-points' }`; assert `routeError` (and,
   through it, `useFormCommit`) produces a `banner` result and that neither `pointA` nor
   `pointB` receives an entry in `fieldErrors`.
-- **`<FieldError>` component test (Vue Test Utils, per PRD §100)** — `message: null`
-  renders no error text and no `aria-invalid`; a non-null message renders the text
+- **`<FieldError>` component test (Vue Test Utils, per PRD §100)** — the component
+  takes an already-resolved `message`, so these tests pass literals directly and involve
+  no locale table; `message: null` renders no error text and no `aria-invalid`; a non-null message renders the text
   content itself (not only a CSS class), sets `aria-invalid="true"` on the input, and
   sets `aria-describedby` to the error text element's id.
 - **No-color-only assertion** — for a rendered field error, assert the accessible text
@@ -463,7 +478,8 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 ## Definition of Done
 
 1. Submitting `{ unitCost: -5, ... }` on the Asset creation form dispatches
-   `CreateAssetCommand` exactly once, which resolves `Result.err(ValidationError)` before
+   `CreateAssetCommand` exactly once, which resolves a failed `Result` carrying a
+   `ValidationError` before
    any repository write (per slice 11's "validate before write" rule); the dialog does
    not close; an inline error renders under the `unitCost` field specifically; no
    `AssetCreated` event is published and no Vault write occurs.
@@ -474,7 +490,7 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 3. An Inspector field's rejected commit behaves identically to (1)–(2): the draft is
    kept, the inline error renders, and no entry is pushed to the undo stack (consistent
    with slice 6's own Definition of Done item 5). The field only adopts a new displayed
-   value after a subsequent commit resolves `Result.ok` and the DTO/query is refreshed.
+   value after a subsequent commit resolves `ok(...)` and the DTO/query is refreshed.
 4. `ReversibleCalibratePlanCommand`'s `calibration.coincident-points` renders as a
    form-level banner, never as an inline error under `pointA` or `pointB`
    individually — proven by a `routeError` unit test, not asserted only in prose.
@@ -490,6 +506,9 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 8. No new Pinia store, repository, or persisted field was introduced by this slice; all
    draft/error/pending state is traceable to component-local `ref`/`reactive` state that
    does not outlive the component or dialog it belongs to.
+9. No user-facing literal appears under `presentation/components/` or
+   `presentation/composables/` — every message a field or banner renders arrived through
+   slice 11's `ToUserMessage`, which resolves it from the locale tables.
 
 ## References
 

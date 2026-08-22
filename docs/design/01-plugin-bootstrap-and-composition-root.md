@@ -54,7 +54,7 @@ Maps to SDD Increment 1 — Plugin Foundation (§91). Its stated success criteri
 
 ## Dependencies
 
-- No earlier slice — this is the foundation the other eleven build on.
+- No earlier slice — this is the foundation every other slice in the map builds on.
 - ADR-004 (Vue 3 for Plugin UI) — governs the mounting strategy this slice establishes.
 - ADR-006 (Plain TypeScript Domain) — governs the lint rules this slice adds; there is no
   domain code yet for them to guard, but the rule must exist before there is.
@@ -277,9 +277,18 @@ packages that wrap them.
 
 This rule set is committed and passing in Increment 1, with zero files under `core/`,
 `domain/`, or `application/` yet to exercise it — the rule exists for the first file slice 2
-adds, not for any file that exists today. `dependency-cruiser` is not adopted: ESLint
+adds, not for any file that exists today.
+
+**`dependency-cruiser` is not adopted**, and this is the decision every later slice
+inherits rather than re-opens (slice 12 in particular states the same conclusion): ESLint
 already runs on every commit via `npm run lint`, integrates with the existing flat config,
-and needs no second tool or second CI step to produce the same guarantee.
+and needs no second tool or second CI step. The one guarantee it would add that
+`no-restricted-imports` cannot give is the *indirect* case — `domain/` importing an
+inner-layer helper that itself imports `obsidian`. Two things already narrow that gap:
+`npm run analyze` (fallow) reports dependency hygiene across the graph, and slice 12's
+node-profile test suite fails on a DOM global reached through any depth of import. If a
+real indirect violation ever survives both, that is the trigger to add a graph-level
+check — not a rule written ahead of a demonstrated hole.
 
 ## Interfaces & Contracts
 

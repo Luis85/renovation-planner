@@ -60,19 +60,26 @@ persisted in this slice needs a migration when Slice 4 introduces real repositor
 - The interactive calibration workflow (picking two points on a rendered background,
   live preview) — that UI is Slice 7. This slice only provides the domain command
   `CalibratePlanCommand` that the workflow will eventually call.
-- Geometry validity beyond what Slice 2's `Polygon`/`Point` constructors already
-  enforce (≥3 vertices, finite coordinates, no `NaN`/`Infinity` — SDD §26). Advanced
+- Geometry validity beyond what Slice 2's `createPolygon` smart constructor already
+  enforces (≥3 vertices, finite coordinates, no `NaN`/`Infinity` — SDD §26). Advanced
   polygon operations (`clipper2-ts`) and the spatial index (`rbush`) are explicitly
   deferred per the SDD and the slice map's "Explicitly deferred" list.
+- `Money`'s own arithmetic and the measurement-unit vocabulary — Slice 9. This slice
+  consumes `Money` as an opaque value type for `Project.budget`/`contingency` and never
+  performs arithmetic on it, so it does not need Slice 9 to exist to be built; the
+  budget fields simply stay `null` in every test fixture until it does.
 
 ## Dependencies
 
-- **Slice 2 (Core Primitives)** — `Result<T,E>`, the base error hierarchy (SDD §64:
-  `ValidationError`, `ReferenceError`, `GeometryError`, `CalculationError`, and
-  friends), the entity ID scheme (branded `ProjectId`/`PlanId`/`ZoneId` strings, SDD
-  §82), geometry primitives (`Point`, `Polygon`), `Money` (ADR-010), and the generic,
-  in-process `EventBus` (SDD §33). This slice only consumes those types — it does not
-  redefine them.
+- **Slice 2 (Core Primitives)** — `Result<T,E>` and its `ok`/`err`/`isOk`/`isErr`
+  functions, the base error hierarchy (SDD §64: `ValidationError`, `ReferenceError`,
+  `GeometryError`, `CalculationError`, and friends), the entity ID scheme (branded
+  `ProjectId`/`PlanId`/`ZoneId` strings, SDD §82), geometry primitives (`Point`,
+  `Polygon`, `createPolygon`), and the generic, in-process `EventBus` (SDD §33). This
+  slice only consumes those types — it does not redefine them.
+- **Slice 9 (Quantity & Cost Engine)** — `Money` (ADR-010), referenced by type only.
+  Slice 2 explicitly excludes `core/money/` from its own scope, so `Money` is slice 9's;
+  see Out of scope for why that is not a build-order dependency.
 - **ADR-001** (Markdown as Canonical Metadata Storage) — the reason `Zone` carries an
   optional domain-note link even though no note exists to link to until Slice 4.
 - **ADR-006** (Plain TypeScript Domain) — every file in this slice's `domain/` and
@@ -163,7 +170,7 @@ non-breaking addition, not a contradiction of this one.
 | `id` | `PlanId` | immutable |
 | `projectId` | `ProjectId` | immutable, set at creation |
 | `name` | `string` | required, non-empty |
-| `background` | `BackgroundImageRef \| null` | a reference (path/link + pixel dimensions), not the raw image — file access is Slice 4/5 |
+| `background` | `PlanBackgroundRef \| null` | a reference (Vault-relative path, `kind: 'image' \| 'pdf'`, and a page number for PDFs), not the raw image — file access is Slice 5, persistence is Slice 4. Named to match the type slice 5 declares and slice 4 persists; there is one background-reference type, not three |
 | `calibration` | `Calibration \| null` | `{ pointA: Point, pointB: Point, knownDistance: number, pixelsPerWorldUnit: number }`; `null` until `CalibratePlanCommand` runs |
 | `layers` | `readonly string[]` | ordered, unique names; visibility/rendering is Slice 5 |
 
@@ -192,13 +199,18 @@ undo/redo exists — the same pattern slice 8 uses for the Zone commands below.
 | `name` | `string` | required, non-empty |
 | `zoneType` | `ZoneType` | `Room \| Garden \| Terrace \| Driveway \| Roof \| ConstructionArea \| Custom` — PRD §15's zone examples; **assumption:** the PRD gives examples, not a closed enum, so this is this slice's best-effort closure, with `Custom` as the escape hatch |
 | `status` | `ZoneStatus` | `Planned \| InProgress \| Complete`; **assumption:** SDD §38's example frontmatter shows only `status: planned`, so `InProgress`/`Complete` are inferred, not sourced |
-| `geometry` | `Polygon` | Slice 2 primitive, world millimeters (ADR-009); ≥3 vertices, finite, no `NaN`/`Infinity` (SDD §26) |
+| `geometry` | `Polygon` | Slice 2 primitive, world millimeters (ADR-009); constructed only via `createPolygon`, which enforces ≥3 vertices, finite, no `NaN`/`Infinity` (SDD §26) |
 | `domainNoteLink` | `string \| null` | opaque Markdown link/path; navigation only, never identity (SDD §83) |
 
-Zone exposes derived `area()` and `perimeter()` methods computed on demand from
-`geometry` via Slice 2's `Polygon` operations (PRD §8: "A Zone owns geometry and can
-expose derived length and area") — these are **not** stored fields, so there is
-nothing to keep in sync when geometry changes.
+Zone exposes derived `area()` and `perimeter()` computed on demand from `geometry` via
+Slice 2's `Polygon` operations (PRD §8: "A Zone owns geometry and can expose derived
+length and area") — these are **not** stored fields, so there is nothing to keep in
+sync when geometry changes. Both return `Result<number, GeometryError>`, matching the
+signature of the Slice 2 operations they delegate to. A `Zone`'s geometry came through
+`createPolygon`, so in practice neither can fail; returning the delegate's own shape
+rather than unwrapping it here means no caller has to trust a `Zone`-only exception to
+that rule, and adding a future `Zone` factory path would not silently turn an
+unwrapping into a crash.
 
 All three entities are immutable value-shaped objects (readonly properties; SDD §81's
 "readonly data where practical"). A mutation produces a new instance through a
@@ -346,7 +358,7 @@ class Plan {
     readonly id: PlanId,
     readonly projectId: ProjectId,
     readonly name: string,
-    readonly background: BackgroundImageRef | null,
+    readonly background: PlanBackgroundRef | null,
     readonly calibration: Calibration | null,
     readonly layers: readonly string[],
   ) {}
@@ -373,8 +385,8 @@ class Zone {
   static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError>;
   withGeometry(geometry: Polygon): Result<Zone, GeometryError>;
 
-  area(): number;      // mm², delegates to Polygon
-  perimeter(): number; // mm, delegates to Polygon
+  area(): Result<number, GeometryError>;      // mm², delegates to Polygon
+  perimeter(): Result<number, GeometryError>; // mm, delegates to Polygon
 }
 ```
 
@@ -398,28 +410,48 @@ class CreateZoneCommand
   ) {}
 
   async execute(input: CreateZoneInput) {
-    const plan = await this.plans.getById(input.planId);
-    if (!plan) return Result.err(new ReferenceError(`Plan ${input.planId} not found`));
+    // Every repository method resolves a Result (see ports below), so a read is
+    // inspected the same way a write is: `ok(null)` means "no such Plan",
+    // `isErr` means the read itself failed. Conflating the two would report a
+    // Vault failure as a missing parent.
+    const planResult = await this.plans.getById(input.planId);
+    if (isErr(planResult)) return planResult;
+    if (planResult.value === null) {
+      return err(referenceError('zone.plan-not-found', `Plan ${input.planId} not found`));
+    }
 
-    const zoneResult = Zone.create({ ...input, projectId: plan.projectId });
-    if (zoneResult.isErr()) return zoneResult;
+    const zoneResult = Zone.create({ ...input, projectId: planResult.value.projectId });
+    if (isErr(zoneResult)) return zoneResult;
 
     const zone = zoneResult.value;
     const saveResult = await this.zones.save(zone);
-    if (saveResult.isErr()) return saveResult; // never publish or report success on a failed write
+    if (isErr(saveResult)) return saveResult; // never publish or report success on a failed write
 
-    await this.events.publish(
-      new ZoneCreated({ zoneId: zone.id, planId: zone.planId, projectId: zone.projectId }),
-    );
-    return Result.ok({ zone });
+    await this.events.publish(zoneCreated({
+      zoneId: zone.id,
+      planId: zone.planId,
+      projectId: zone.projectId,
+    }));
+    return ok({ zone });
   }
 }
 ```
 
+Two spellings in that example are load-bearing rather than stylistic, and are the
+shared vocabulary every other slice's examples follow (`docs/design/README.md`):
+
+- `isErr(result)` / `ok(...)` / `err(...)` are slice 2's free functions. `Result` is a
+  plain discriminated union with an `.ok` field — it has no `.isErr()` method and no
+  `Result.ok(...)` namespace to call.
+- `referenceError(...)` / `zoneCreated(...)` are factory functions returning plain
+  data. Slice 2's error categories and events are interfaces, never classes: writing
+  `new ReferenceError(...)` would construct JavaScript's own global `ReferenceError`,
+  which is exactly the collision slice 2's naming note warns about.
+
 ```typescript
 // application/commands/zone/MoveSpatialObject.ts — signature only; every
 // command below follows CreateZoneCommand's pattern above: check each
-// repository call's Result and return early on Result.err before publishing.
+// repository call's Result and return early on failure before publishing.
 interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
 class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
@@ -442,52 +474,81 @@ class CalibratePlanCommand
 ```
 
 ```typescript
-// domain/zone/Zone.events.ts — representative; Project/Plan events follow the same shape
-interface ZoneCreated { readonly name: 'ZoneCreated'; readonly payload: { zoneId: ZoneId; planId: PlanId; projectId: ProjectId } }
-interface ZoneGeometryChanged { readonly name: 'ZoneGeometryChanged'; readonly payload: { zoneId: ZoneId; planId: PlanId; projectId: ProjectId } }
-interface ZoneDeleted { readonly name: 'ZoneDeleted'; readonly payload: { zoneId: ZoneId; planId: PlanId; projectId: ProjectId } }
+// domain/zone/Zone.events.ts — representative; Project/Plan events follow the same shape.
+// The discriminant field is `type`, because that is what slice 2's DomainEvent<TType>
+// declares and what EventBus.subscribe(type, handler) matches on. A `name` field here
+// would compile as a structurally different type the bus could never dispatch.
+interface ZoneEventPayload { readonly zoneId: ZoneId; readonly planId: PlanId; readonly projectId: ProjectId }
+
+interface ZoneCreated extends DomainEvent<'ZoneCreated'> { readonly payload: ZoneEventPayload }
+interface ZoneGeometryChanged extends DomainEvent<'ZoneGeometryChanged'> { readonly payload: ZoneEventPayload }
+interface ZoneDeleted extends DomainEvent<'ZoneDeleted'> { readonly payload: ZoneEventPayload }
+
+// Each ships a factory beside it, for the same reason the errors do: these are plain
+// data, never classes, so there is nothing to `new`.
+function zoneCreated(payload: ZoneEventPayload): ZoneCreated;
 ```
 
 ```typescript
-// application/ports/ZoneRepository.ts — SDD §36 shows save()/delete() returning
-// Promise<void>, but Slice 4's real Obsidian-backed implementation can fail
-// (a Vault write, a schema validation). Declaring the Result-based shape here,
-// rather than a bare Promise<void> this slice would later have to widen, means
-// every caller already handles failure and Slice 4 only swaps the
-// implementation, never the interface or its callers.
+// application/ports/ZoneRepository.ts — SDD §36 shows every method returning a bare
+// value or Promise<void>, but Slice 4's real Obsidian-backed implementation can fail
+// on EVERY method: a read is a Vault file read plus a Zod parse, not a Map lookup.
+// So the Result wrapper goes on reads as well as writes, declared once here. This is
+// the whole point of declaring the port in this slice rather than in Slice 4: a
+// signature Slice 4 has to widen is a signature every caller in this file has to be
+// revisited for, which is precisely the churn the port exists to prevent.
+//
+// "Not found" is `ok(null)`, never an error — a missing entity is a legitimate answer
+// to a lookup, while `isErr` means the lookup itself did not happen. A command that
+// wants a missing parent to be a failure raises its own ReferenceError (see
+// CreateZoneCommand above); the repository does not decide that for it.
 interface ZoneRepository {
-  getById(id: ZoneId): Promise<Zone | null>;
-  save(zone: Zone): Promise<Result<void, PersistenceError>>;
+  getById(id: ZoneId): Promise<Result<Zone | null, PersistenceError>>;
+  save(zone: Zone): Promise<Result<void, PersistenceError | ValidationError>>;
   delete(id: ZoneId): Promise<Result<void, PersistenceError>>;
-  listByProject(projectId: ProjectId): Promise<Zone[]>;
+  listByProject(projectId: ProjectId): Promise<Result<Zone[], PersistenceError>>;
+  listByPlan(planId: PlanId): Promise<Result<Zone[], PersistenceError>>;
 }
 
 // application/ports/PlanRepository.ts — extended by analogy with ZoneRepository;
 // SDD only gives the Zone example, so listByProject here is this slice's own
 // consistent extension, not a sourced requirement.
 interface PlanRepository {
-  getById(id: PlanId): Promise<Plan | null>;
-  save(plan: Plan): Promise<Result<void, PersistenceError>>;
+  getById(id: PlanId): Promise<Result<Plan | null, PersistenceError>>;
+  save(plan: Plan): Promise<Result<void, PersistenceError | ValidationError>>;
   delete(id: PlanId): Promise<Result<void, PersistenceError>>;
-  listByProject(projectId: ProjectId): Promise<Plan[]>;
+  listByProject(projectId: ProjectId): Promise<Result<Plan[], PersistenceError>>;
 }
 
-// application/ports/ProjectRepository.ts — root aggregate, no listByX
+// application/ports/ProjectRepository.ts — root aggregate, so listAll rather than
+// listByX. listAll has no consumer until slice 14's ListProjects query; it is declared
+// now because the port is declared once, not grown one caller at a time.
 interface ProjectRepository {
-  getById(id: ProjectId): Promise<Project | null>;
-  save(project: Project): Promise<Result<void, PersistenceError>>;
+  getById(id: ProjectId): Promise<Result<Project | null, PersistenceError>>;
+  save(project: Project): Promise<Result<void, PersistenceError | ValidationError>>;
   delete(id: ProjectId): Promise<Result<void, PersistenceError>>;
+  listAll(): Promise<Result<Project[], PersistenceError>>;
 }
 ```
 
+`save()` is an **ID-keyed upsert**, not insert-only, on every implementation. Slice 8's
+`ReversibleDeleteZoneCommand.undo()` restores a deleted entity by writing its captured
+snapshot back through `save()`, and a restore that minted a new ID would not be an undo.
+This is part of the port's contract, so it is asserted in the shared contract suite
+below rather than left as an assumption slice 8 discovers.
+
 ```typescript
-// application/queries/GetZone.ts — representative; GetProject/GetPlan follow the same shape
+// application/queries/GetZone.ts — representative; GetProject/GetPlan follow the same
+// shape. A query PASSES THROUGH the repository's "not found is ok(null)" answer rather
+// than converting it into a ReferenceError: a caller asking "is there a Zone with this
+// id" is asking a question, not asserting there must be one. Slice 14's empty-state
+// selectors depend on being able to tell "no such entity" (ok(null)) apart from "the
+// read failed" (isErr) — collapsing both into one error type makes that impossible.
 interface GetZoneInput { zoneId: ZoneId }
-class GetZone implements Query<GetZoneInput, Result<Zone, ReferenceError>> {
+class GetZone implements Query<GetZoneInput, Result<Zone | null, PersistenceError>> {
   constructor(private readonly zones: ZoneRepository) {}
   async execute({ zoneId }: GetZoneInput) {
-    const zone = await this.zones.getById(zoneId);
-    return zone ? Result.ok(zone) : Result.err(new ReferenceError(`Zone ${zoneId} not found`));
+    return this.zones.getById(zoneId);
   }
 }
 ```
@@ -496,14 +557,23 @@ class GetZone implements Query<GetZoneInput, Result<Zone, ReferenceError>> {
 // infrastructure/persistence/in-memory/InMemoryZoneRepository.ts
 class InMemoryZoneRepository implements ZoneRepository {
   private readonly store = new Map<ZoneId, Zone>();
-  async getById(id: ZoneId) { return this.store.get(id) ?? null; }
-  async save(zone: Zone) { this.store.set(zone.id, zone); return Result.ok(undefined); }
-  async delete(id: ZoneId) { this.store.delete(id); return Result.ok(undefined); }
+  async getById(id: ZoneId) { return ok(this.store.get(id) ?? null); }
+  async save(zone: Zone) { this.store.set(zone.id, zone); return ok(undefined); } // upsert by id
+  async delete(id: ZoneId) { this.store.delete(id); return ok(undefined); }
   async listByProject(projectId: ProjectId) {
-    return [...this.store.values()].filter((z) => z.projectId === projectId);
+    return ok([...this.store.values()].filter((z) => z.projectId === projectId));
+  }
+  async listByPlan(planId: PlanId) {
+    return ok([...this.store.values()].filter((z) => z.planId === planId));
   }
 }
 ```
+
+An in-memory implementation can never actually produce `isErr` on any of these. It
+returns `Result` anyway because the port, not the implementation, is the contract — and
+because the alternative (a narrower in-memory signature) would let a command compile
+against the fake while failing against the real one, which is the exact drift the shared
+contract suite below exists to catch.
 
 ## Persistence Impact
 
@@ -521,31 +591,36 @@ repository implementation swaps at the composition root.
   `Zone.create`/`withGeometry` each tested for: valid construction succeeds; empty
   name is rejected (`ValidationError`); `Project`'s `targetCompletion` before `start`
   is rejected; `Zone`'s geometry with <3 vertices or non-finite coordinates is
-  rejected (`GeometryError`, delegating to Slice 2's `Polygon` construction);
+  rejected (`GeometryError`, delegating to Slice 2's `createPolygon`);
   `Calibration` with `pointA === pointB` or `knownDistance <= 0` is
   rejected.
 - **Command tests**, per SDD §71's pattern (`Command → InMemoryRepository →
-  Assertions`) — for each of the six commands: the success path returns `Result.ok`
+  Assertions`) — for each of the six commands: the success path returns `ok(...)`
   with the expected entity, persists it (retrievable via the same in-memory
   repository's `getById`), and publishes exactly one event of the correct type and
   payload; every domain-validation failure path (bad input, missing parent) returns
-  `Result.err` with the correct SDD §64 error category and performs **no** `save` and
+  a failed `Result` with the correct SDD §64 error category and performs **no** `save` and
   **no** `publish` (asserted via a spy `EventBus` and by re-querying the repository).
 - **Repository-failure propagation tests** — for each command that calls `save`/
   `delete`, wrap the in-memory repository with a decorator whose `save`/`delete`
-  returns `Result.err(new PersistenceError(...))`, and assert the command returns
-  that same `Result.err`, publishes **no** event, and the repository's own store is
-  left as the decorator produced it (not silently treated as success). This is the
-  regression test for a save failure being discarded and success reported anyway.
-- **Query tests** — `GetProject`/`GetPlan`/`GetZone` return `Result.ok` for an entity
-  seeded directly into the repository (independent of any command) and
-  `Result.err(ReferenceError)` for a missing id, proving the queries are
-  repository-agnostic.
-- **Repository contract tests** (SDD §72) — one shared suite per entity (e.g.
-  `zoneRepositoryContractTests(makeRepository: () => ZoneRepository)`) exercising
-  `getById`/`save`/`delete`/`listByProject` against whatever instance is passed in.
-  This slice runs each suite against its `InMemory*Repository`; Slice 4 imports the
-  identical suite and runs it against the Obsidian-backed implementation, unmodified.
+  resolves `err(persistenceError(...))`, and assert the command returns that same
+  error, publishes **no** event, and the repository's own store is left as the decorator
+  produced it (not silently treated as success). This is the regression test for a save
+  failure being discarded and success reported anyway. A second decorator does the same
+  for `getById`, since reads are equally fallible under the port above — asserting the
+  command surfaces the read failure rather than mistaking it for a missing parent.
+- **Query tests** — `GetProject`/`GetPlan`/`GetZone` return `ok(entity)` for an entity
+  seeded directly into the repository (independent of any command), `ok(null)` for a
+  missing id, and pass a repository `isErr` straight through — proving the queries are
+  repository-agnostic and that the two "no entity came back" cases stay distinguishable.
+- **Repository contract tests** (SDD §72) — one shared suite per entity, named
+  `zoneRepositoryContract(makeRepository: () => ZoneRepository)` and living at
+  `tests/contracts/zone-repository.contract.ts` (the naming slice 12's harness fixes for
+  every contract suite), exercising `getById`/`save`/`delete`/`listByProject`/
+  `listByPlan` against whatever instance is passed in — including that `save` upserts by
+  ID rather than inserting, the property slice 8's undo depends on. This slice runs each
+  suite against its `InMemory*Repository`; Slice 4 imports the identical suite and runs
+  it against the Obsidian-backed implementation, unmodified.
 - **Environment** — the entire suite runs under Vitest in a plain Node environment.
   No `obsidian`, `vue`, `pinia`, `konva`, or DOM API may appear anywhere in the
   `domain/` or `application/` code exercised by these tests (enforced by the ESLint
@@ -565,20 +640,25 @@ repository implementation swaps at the composition root.
 - [ ] `ProjectCreated`, `PlanCreated`, `PlanCalibrated`, `ZoneCreated`,
       `ZoneGeometryChanged`, `ZoneDeleted` are defined and are published through
       Slice 2's `EventBus` on, and only on, each corresponding command's success path.
-- [ ] Every command that calls `save`/`delete` inspects the returned `Result` and
-      returns it unpublished on `Result.err` — a failing repository write can never
-      be reported as success or produce an event.
+- [ ] Every command inspects every `Result` a repository hands back — reads as well as
+      writes — and returns it unpublished on failure. A failing repository call can
+      never be reported as success, produce an event, or be mistaken for `ok(null)`.
 - [ ] `GetProject`, `GetPlan`, `GetZone` are implemented against the repository *port*
-      types only, with no reference to any concrete repository implementation.
+      types only, with no reference to any concrete repository implementation, and
+      return `Result<T | null, PersistenceError>` — "not found" is `ok(null)`.
 - [ ] `ProjectRepository`, `PlanRepository`, `ZoneRepository` ports are defined in
-      `application/ports/`, each with a passing `InMemory*Repository` implementation
-      and a shared repository contract test suite that is written to be reusable,
-      unmodified, by Slice 4.
+      `application/ports/`, with every method `Result`-returning, each with a passing
+      `InMemory*Repository` implementation and a shared repository contract test suite
+      that is written to be reusable, unmodified, by Slice 4 — no method signature
+      changes when Slice 4 lands.
+- [ ] Every error and event value in this slice is built by a factory function
+      returning plain data; `new` appears nowhere in an error or event construction,
+      and no file declares `class ReferenceError`.
 - [ ] A project can be created, a plan created under it and calibrated, and a zone
       created under the plan, moved, and deleted — all in a single Vitest file, using
       only `InMemory*Repository` instances, with zero Obsidian API surface touched.
       This is the concrete, scoped-down form of Increment 2's success criterion.
-- [ ] Every command's failure paths are covered by a test asserting `Result.err` with
+- [ ] Every command's failure paths are covered by a test asserting a failed `Result` with
       the correct SDD §64 error category, no repository mutation, and no event
       published.
 - [ ] The dependency-direction lint rule (ADR-006, SDD §76) passes for every file

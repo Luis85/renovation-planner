@@ -9,10 +9,12 @@ finish designing:
 Infrastructure Exception → Application Error Mapping → Typed Result → Presentation → User Message
 ```
 
-Slice 11 fixed everything up to and including "a `DomainError` reaches
-Presentation." It also fixed *what* a user message may contain (domain-level
-fields only, never a raw exception). It did not fix *where* that message
-appears. Meanwhile slices 13, 15, and 16 each built one presentation surface
+Slice 11 fixed everything up to and including "an `AppError` reaches
+Presentation." (`AppError` — the eight-category union — not `DomainError`, which is one
+member of it; slice 11 flags that collision explicitly, and conflating the two is the
+easiest mistake to make in a document about error routing.) It also fixed *what* a user
+message may contain (domain-level fields only, never a raw exception). It did not fix
+*where* that message appears. Meanwhile slices 13, 15, and 16 each built one presentation surface
 — a toast/save-state system, a modal/dialog framework, and inline field
 validation — without needing to know which of slice 2's eight error
 categories would ever reach them.
@@ -41,16 +43,21 @@ exist.
   logged regardless of which surface — if any — it also receives.
 - Naming the general case where no immediate, interruptive surface is
   correct, and what replaces it (a persisted, discoverable marker).
+- The two cases slice 14 defers here — a view whose hydrating query failed, and a
+  stored entity ID that no longer resolves — neither of which is an `AppError` the
+  table can route, and both of which would otherwise land nowhere.
 
 ### Out of scope (covered by other slices)
 
 - The toast/save-state widgets, the modal/dialog framework, and inline
   field-error rendering themselves — slices 13, 15, 16 respectively. This
   slice only says which one a given error reaches; it does not design any
-  of them, and introduces no fourth surface.
+  of them. It adds exactly one surface of its own, the in-place view failure
+  state, and only because slice 14 identified a case none of the three covers
+  (see "Two cases that are not `AppError`s").
 - The error category type hierarchy and `Result<T,E>` — slice 2. Referenced
   here, not redefined.
-- The Infrastructure-exception-to-`DomainError` mapping, logging levels, and
+- The Infrastructure-exception-to-`AppError` mapping, logging levels, and
   diagnostics snapshot — slice 11. This slice starts from an already-mapped
   `AppError` and a `Logger` call that has already happened; it does not
   revisit how either got there.
@@ -75,6 +82,10 @@ exist.
 - Slice 10 (Assets, Requirements & the End-to-End Loop) — the
   `recalculationStatus` worked example this slice cites as the background-
   failure case.
+- Slice 14 (Empty States) — the one slice that hands cases *to* this one rather than
+  taking a surface from it. It explicitly defers two: a view whose hydrating query
+  resolved `isErr`, and a view whose stored entity ID resolved `ok(null)`. Both are
+  answered under "Two cases that are not `AppError`s" below.
 - SDD §66 Error Boundary — the pipeline this slice completes.
 
 ## Design
@@ -82,7 +93,7 @@ exist.
 ### The decision procedure
 
 A surface is not a function of the error *category* alone — the same
-category can reach different surfaces depending on how it arose. Two
+category can reach different surfaces depending on how it arose. Five
 questions, asked in order, determine it:
 
 ```text
@@ -104,7 +115,14 @@ questions, asked in order, determine it:
      → yes, otherwise:
          TOAST (slice 13), naming the failed operation.
 
-4. Otherwise — discovered later, not the direct result of a click; a
+4. Otherwise, did a view's own hydrating query fail, leaving it with no content to
+   show at all?
+     → IN-PLACE VIEW FAILURE STATE (this slice) — the message replaces the view's
+       content, in the slot slice 14's `EmptyState` would otherwise occupy. Never an
+       empty state (that would claim the data is legitimately absent) and never a
+       toast alone (that would leave a blank region behind it).
+
+5. Otherwise — discovered later, not the direct result of a click; a
    background cascade, or a load-time check on an entity nobody opened this
    session:
      → NO INTERRUPTIVE SURFACE. Log it (slice 11, already happened) and
@@ -114,7 +132,7 @@ questions, asked in order, determine it:
        entity, or at Diagnostics, next.
 ```
 
-Step 4 is the one most designs skip: most failures do not need to interrupt
+Step 5 is the one most designs skip: most failures do not need to interrupt
 the user *at all*, only to be honest and discoverable when they do look.
 Slice 10's `recalculationStatus` is the existing, already-designed proof
 that this plugin already commits to that idea; this slice generalizes it
@@ -142,12 +160,40 @@ other case out of scope.
 Every row still passes through slice 11's `ToUserMessage` for its copy; this
 table only decides the container.
 
+### Two cases that are not `AppError`s
+
+Slice 14 defers two situations here, and neither arrives as an `AppError` — so the
+decision procedure above cannot route them, and saying "slice 17 owns it" without
+saying how would leave both landing nowhere. They are answered by the same
+attributability test, applied one level up:
+
+- **A view's hydrating query resolved `isErr`.** This *is* an `AppError` (typically
+  `PersistenceError`), but its origin is not in `ErrorOrigin`'s list: nothing the user
+  clicked failed — the view simply could not load. It gets a fifth origin,
+  `{ kind: "view-hydration" }`, and a surface the table above does not otherwise
+  produce: the view renders a **failure state in place of its content** — the same slot
+  slice 14's `EmptyState` would have occupied, with slice 11's `ToUserMessage` copy and
+  a retry action, never an empty state's onboarding copy. Slice 14 is emphatic about
+  why: "create your first project" shown because the vault read failed is actively
+  misleading. A toast is wrong here too — it would leave a blank canvas behind it.
+- **`GetPlan(planId)` resolved `ok(null)`.** This is not an error at all: the query
+  succeeded and correctly reported that no Plan resolves. It reaches no error surface
+  and `surfaceFor` is never called for it. The Plan Editor renders a **dangling-
+  reference state** — "this tab points at a plan that no longer exists", with an action
+  to close the leaf or pick another plan. It is neither an empty state (slice 14's own
+  reasoning: the user may well have imported a plan, and then it vanished) nor an
+  `AppError` to route. It is named here because slice 14 defers it here, and a deferral
+  with no landing place is how a case gets lost.
+
+Both render through the same in-place slot slice 14's `EmptyState` uses, and both are
+distinct from it in copy and in what they offer the user to do next.
+
 ### Worked examples, reconciled explicitly
 
-- **Zone save `PersistenceError` (slice 3/4).** Slice 11's own illustrative
-  code (`toast.show(toUserMessage(result.error))` in
-  `presentation/stores/zone-store.ts`) predates slice 13 and is superseded,
-  for this specific autosave path, by the rule above: a Zone geometry save
+- **Zone save `PersistenceError` (slice 3/4).** Slice 11's illustrative
+  `surfaceError(toUserMessage(result.error), origin)` in
+  `presentation/stores/zone-store.ts` deliberately leaves the container
+  unnamed; this is where it is named. For this specific autosave path: a Zone geometry save
   failing under the debounced-property-edit or completed-command autosave
   path (PRD §67) flips the Saved/Saving/Unsaved/Save Error indicator to
   **Save Error**. It does not additionally call `notify.error(...)` for the
@@ -171,7 +217,7 @@ table only decides the container.
 - **`recalculationStatus` (slice 10).** The worked example for "does not get
   an immediate interruptive surface at all." A failed
   `RecalculateRequirementCommand` inside the `onZoneGeometryChanged` cascade
-  is logged (`errorBoundary.logRecalculationFailure`, slice 10's own code)
+  is logged (`logger.error('requirement.recalculation.failed', …)`, slice 10's own code)
   and leaves `Requirement.recalculationStatus: "stale"` — no toast, no
   modal, no inline error, because nothing the user directly clicked just
   failed. The Inspector (slice 6) surfaces the stale badge whenever that
@@ -204,6 +250,7 @@ type ErrorOrigin =
   | { kind: "autosave-write" }                      // → slice 13 save-state territory
   | { kind: "explicit-operation" }                  // → slice 13 toast territory
   | { kind: "decision-required" }                    // → slice 15 modal territory
+  | { kind: "view-hydration" }                       // → in-place failure state
   | { kind: "background-cascade" };                  // → persisted marker, no UI
 
 type ErrorSurface =
@@ -211,6 +258,7 @@ type ErrorSurface =
   | { kind: "toast"; level: "warning" | "error" }
   | { kind: "modal" }
   | { kind: "save-state" }
+  | { kind: "view-failure" } // in place of the view's content — see "Two cases" above
   | { kind: "none" }; // logged already; a persisted marker, not this policy's concern
 
 // Pure — no side effects, no import of slice 13/15/16's concrete APIs. A call
@@ -226,6 +274,14 @@ Contract notes:
   `ReferenceError`) resolving to different surfaces depending on it. A
   policy keyed on `error.category` alone cannot express that split; keying
   on the pair is what makes the split explicit and testable.
+- The converse is worth stating too, since it is not obvious from the table: `origin`
+  alone does not decide the answer either. It picks the *container*, and `error`
+  supplies what the container still needs — the `level` on a toast (`warning` for a
+  recovered-from failure, `error` otherwise) comes from the category, and
+  `GeometryError` at an `explicit-operation` origin is the one pairing that resolves to
+  a quieter surface than its origin would suggest. If a future edit finds `error` truly
+  unused, the honest fix is to drop the parameter, not to keep an argument the function
+  ignores.
 - `surfaceFor` returning `{ kind: "none" }` is a valid, common answer (the
   background-cascade row) — it is not an omission or a TODO. Slice 10's
   `recalculationStatus` marker is written by the command itself, not by
@@ -290,30 +346,36 @@ Contract notes:
 
 ## Definition of Done
 
-- All eight `AppError` categories from slice 2 appear in the decision table
-  with a typical origin, a surface, and a justification — none silently
-  defaulted to "toast" or omitted.
-- `surfaceFor(error, origin)` is implemented, pure, and exhaustive over
-  `ErrorCategory` with no `default` fallthrough case.
-- A Zone-save `PersistenceError` on the autosave path flips slice 13's
-  indicator to Save Error and does not also raise a toast for the same
-  failure — proven by a test, not left as a sentence in this document.
-- Calibration's `calibration.invalid-distance` renders as an inline field
-  error; `calibration.coincident-points` and `calibration.degenerate-scale`
-  render as toasts — both proven by tests distinguishing the two by origin.
-- A delete on an entity with existing referents reaches slice 15's modal
-  and never a toast or inline error, in every code path that can trigger it
-  (Zone delete, Asset delete).
-- A failed background recalculation (`onZoneGeometryChanged` cascade)
-  produces zero toast/modal/inline calls; `recalculationStatus` remains the
-  only user-facing trace until the affected Requirement is next viewed.
-- Every error routed through `surfaceFor`, including every one resolving to
-  `"none"`, is independently provable to have already been passed to
-  `logger.error` — logging is never conditional on the surface chosen.
-- No new UI component, widget, or fourth surface is introduced by this
-  slice; every routed error lands on a toast, a modal, an inline field
-  error, the save-state indicator, or a persisted marker slices 10/11/13/15/16
-  already define.
+- [ ] All eight `AppError` categories from slice 2 appear in the decision table
+    with a typical origin, a surface, and a justification — none silently
+    defaulted to "toast" or omitted.
+- [ ] `surfaceFor(error, origin)` is implemented, pure, and exhaustive over
+    `ErrorCategory` with no `default` fallthrough case.
+- [ ] A Zone-save `PersistenceError` on the autosave path flips slice 13's
+    indicator to Save Error and does not also raise a toast for the same
+    failure — proven by a test, not left as a sentence in this document.
+- [ ] Calibration's `calibration.invalid-distance` renders as an inline field
+    error; `calibration.coincident-points` and `calibration.degenerate-scale`
+    render as toasts — both proven by tests distinguishing the two by origin.
+- [ ] A delete on an entity with existing referents reaches slice 15's modal
+    and never a toast or inline error, in every code path that can trigger it
+    (Zone delete, Asset delete).
+- [ ] A failed background recalculation (`onZoneGeometryChanged` cascade)
+    produces zero toast/modal/inline calls; `recalculationStatus` remains the
+    only user-facing trace until the affected Requirement is next viewed.
+- [ ] Every error routed through `surfaceFor`, including every one resolving to
+    `"none"`, is independently provable to have already been passed to
+    `logger.error` — logging is never conditional on the surface chosen.
+- [ ] A view whose hydrating query resolved `isErr` renders an in-place failure state with
+    `ToUserMessage` copy and a retry action — never slice 14's empty-state copy, and
+    never a toast over a blank region. A `GetPlan` that resolved `ok(null)` renders a
+    dangling-reference state and reaches no error surface at all, since it is not an
+    error. Both are proven by tests, and both close deferrals slice 14 made to this slice.
+- [ ] The only surface this slice adds beyond slices 13/15/16 is that in-place view failure
+    state, and it is added because slice 14 identified a case none of them covers — not
+    because a fourth container looked useful. Every other routed error lands on a toast, a
+    modal, an inline field error, the save-state indicator, or a persisted marker slices
+    10/11/13 already define.
 
 ## References
 
@@ -350,7 +412,7 @@ Contract notes:
   reconciled explicitly above.
 - Slice 11 (`11-error-handling-diagnostics-and-data-safety.md`) — the
   `AppError`/`Logger`/`ToUserMessage` contracts this slice consumes, and the
-  illustrative `toast.show(...)` call this slice's `PersistenceError` row
-  supersedes for the autosave path.
+  deliberately unnamed `surfaceError(...)` container its illustrative code
+  leaves for this slice's table to fill in.
 - `docs/design/README.md` — slice map, shared conventions, and the
   `§N`/`PRD §N` disambiguation this document follows throughout.

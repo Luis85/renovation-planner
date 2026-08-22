@@ -57,6 +57,44 @@ These apply to every slice below and are not repeated in each one:
   Infrastructure → Application Ports → Domain; enforced by lint, not just convention) —
   SDD §8, ADR-006.
 
+## Shared vocabulary
+
+Seventeen documents describing one codebase will drift on the small shared types unless
+one place fixes them. Each rule below is stated once here and consumed, never restated
+with a variation, by every slice. Where a slice's own examples and this list disagree,
+this list is the bug report.
+
+- **`Result` is data, not an object with methods.** Slice 2 exports the free functions
+  `ok` / `err` / `isOk` / `isErr` and the `.ok` discriminant. Write `isErr(result)` or
+  `if (!result.ok)`, never `result.isErr()`; write `err(...)`, never `Result.err(...)`.
+- **An `AppError` is a plain, constructed-by-factory object.** Never `new SomeError(...)`
+  — slice 2's categories are interfaces, and `new ReferenceError(...)` in particular
+  resolves to the JavaScript global, not the domain type.
+- **A domain event's discriminant is `type`**, matching slice 2's `DomainEvent<TType>`.
+  Not `name`, and not `kind`.
+- **Every repository port method returns a `Result`**, including reads — slice 3 declares
+  that shape once and slice 4 implements it without widening any signature. "Not found"
+  is `ok(null)`, never an error; an error means the read or write itself failed.
+- **Units come from slice 9**, not slice 2: `Money`, `Quantity`, `UnitKind` (SDD §48's
+  seven dimension kinds), `MeasurementUnit` (the concrete symbol persisted on an Asset),
+  and `DerivedValue<T>`. Slice 2's `core/units/` holds only the world-unit convention.
+- **`Point` is always world millimetres; `ScreenPoint` is always pixels.** Both, and the
+  `worldToScreen`/`screenToWorld` pair between them, are defined once in slice 5
+  (`presentation/editor/viewport/`) and imported everywhere else — core never sees a
+  pixel, and a second structurally-identical `ScreenPoint` would silently defeat the
+  brand that keeps the two apart.
+- **A polygon is validated by `createPolygon`** (slice 2), the one function implementing
+  SDD §26's three required rules. A bare `Polygon` value is not assumed valid.
+- **Every user-facing string goes through `t(language, key)`** — the pure lookup that
+  already exists in `src/presentation/i18n/`, with `en.ts` as the complete table
+  `StringKey` derives from and per-key fallback for every other locale. A slice that
+  needs new copy adds keys to `en.ts`; it does not define its own string table. This
+  matters more than it looks: the English table is the file the `obsidianmd` ruleset's
+  locale rules match, so sentence-case UI text is *linted* there and merely reviewed
+  anywhere else, and `docs/requirements/Multilanguage.md` is a standing requirement a
+  hardcoded literal quietly breaks. Callers resolve the language once from Obsidian's
+  own `getLanguage()`; the plugin never grows a language setting of its own.
+
 ## The slice map
 
 **A citation with a bare `§N` means the SDD; `PRD §N` means the PRD.** The two
@@ -83,7 +121,7 @@ before citing a number from memory.
 | 14 | [Empty States](14-empty-states.md) | 5 | — | PRD §94 |
 | 15 | [Modals & Confirmation Dialogs](15-modals-and-confirmation-dialogs.md) | 5, 6 | — | PRD §64 (Deletion Semantics), PRD §39 (Inspector actions) — PRD §39/§64 are unrelated to the SDD's own §39 (Sidecar Files) and §64 (Error Model) |
 | 16 | [Form & Inline Validation Feedback](16-form-and-inline-validation-feedback.md) | 6 | — | SDD §59 (Inspector), SDD §64 (Error Model, applied) |
-| 17 | [Presentation-Layer Error Surfacing](17-presentation-layer-error-surfacing.md) | 11, 13, 15, 16 | — | SDD §66 (Error Boundary, the Presentation half) |
+| 17 | [Presentation-Layer Error Surfacing](17-presentation-layer-error-surfacing.md) | 11, 13, 14, 15, 16 | — | SDD §66 (Error Boundary, the Presentation half) |
 
 Slices 7 and 8 both depend only on slice 6 and can be built in either order (the PRD's
 own MVP scope needs calibration before zone measurements are meaningful, but nothing in
@@ -102,7 +140,11 @@ this group, the same role slice 10 plays for the domain/cost loop: it does not
 introduce new UI vocabulary, it only defines the decision rules connecting slice 11's
 error categories to slices 13–16's surfaces — which category becomes a toast, which
 becomes an inline field error, which becomes a blocking modal, and which becomes a
-persisted status badge like slice 10's `recalculationStatus`.
+persisted status badge like slice 10's `recalculationStatus`. Slice 14 is in its
+dependency list because it is the one slice that hands cases *to* slice 17 rather than
+taking a surface from it: a view whose hydrating query failed, and a view whose stored
+entity ID no longer resolves, are both explicitly deferred there and must land
+somewhere in slice 17's table.
 
 ## Explicitly deferred
 

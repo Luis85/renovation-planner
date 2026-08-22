@@ -45,6 +45,13 @@
 		"suspicious": "error"
 	},
 
+	// A directive that no longer silences anything is a claim about code that has since
+	// changed, and the ones that rot are the ones written to get past a gate. Denied rather
+	// than warned, because a warning here would be the only thing in `npm run lint` that
+	// does not fail. `tests/build/suppressions.test.ts` covers the other half — a directive
+	// that IS doing something — which this cannot see by construction.
+	"options": { "reportUnusedDisableDirectives": "deny" },
+
 	"rules": {
 		// A `__`-prefixed name in this repository is a deliberate marker installed on a
 		// host global — `window.__obsidianDomInstalled`, the harness's `__rp` — where the
@@ -53,6 +60,26 @@
 		// per marker.
 		"no-underscore-dangle": "off"
 	},
+
+	// The size and complexity budgets, on the files that had NONE. `eslint.config.mjs`
+	// applies them under `files: ['**/*.ts']`, which reaches `src/` and no further:
+	// `scripts/` is all `.mjs`, and the root configs are in ESLint's global `ignores`
+	// because the type-aware rules would meet a file `tsconfig.json` does not cover. The
+	// numbers are the ones `src/` already lives under, so this is the same budget reaching
+	// the rest of the repository rather than a second opinion about what large means.
+	// `tests/` is deliberately absent: its cap is 450 and ESLint already applies it.
+	"overrides": [
+		{
+			"files": ["scripts/**", "*.config.ts", "*.config.mjs"],
+			"rules": {
+				"max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],
+				"max-lines-per-function": ["error", { "max": 100, "skipBlankLines": true, "skipComments": true }],
+				"complexity": ["error", 16],
+				"max-depth": ["error", 4],
+				"max-params": ["error", 5]
+			}
+		}
+	],
 
 	// What is not this repository's code. Everything else IS linted, including `scripts/`
 	// and the root config files that `eslint.config.mjs` has to ignore. `.obsidian/` is the

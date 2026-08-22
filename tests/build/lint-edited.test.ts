@@ -1,0 +1,106 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { REPO } from '../helpers/oxlint';
+
+/**
+ * The edit-loop hook: oxlint over the ONE file an agent just wrote, refusing the edit
+ * while the reasoning that produced it is still in hand. `npm run check` is still the
+ * definition of done — this only moves the cheapest half of it several turns earlier.
+ *
+ * Driven as a subprocess against planted files, the way Claude Code drives it, rather than
+ * refactored into something importable: a seam built for the test is the thing that would
+ * get tested.
+ */
+
+const HOOK = path.join(REPO, 'scripts', 'lint-edited.mjs');
+const SETTINGS = path.join(REPO, '.claude', 'settings.json');
+
+// A finding from `correctness`, which this repository has switched on.
+const OFFENCE = 'export const settings = { units: 1, units: 2 };\n';
+
+/** Runs the hook the way the host does — the tool call's JSON on stdin — and reports both
+ * halves of what the host reads back: the exit code, and what the agent is told. */
+const hook = (input: string) => {
+	try {
+		execFileSync(process.execPath, [HOOK], { cwd: REPO, input, encoding: 'utf8', stdio: 'pipe' });
+		return { code: 0, said: '' };
+	} catch (error) {
+		const failure = error as { status?: number; stderr?: string };
+
+		return { code: failure.status ?? 0, said: String(failure.stderr ?? '') };
+	}
+};
+
+const edited = (file: string) => JSON.stringify({ tool_input: { file_path: file } });
+
+const plant = (contents: string) => {
+	const file = path.join(mkdtempSync(path.join(tmpdir(), 'lint-edited-')), 'edited.ts');
+
+	writeFileSync(file, contents);
+	return file;
+};
+
+describe('the edit-loop hook', () => {
+	it('refuses an edit oxlint has something to say about', () => {
+		const { code, said } = hook(edited(plant(OFFENCE)));
+
+		// 2 is the host's BLOCKING code specifically. Any other non-zero exit is reported
+		// to the user as a broken hook and the edit stands, which is the failure this
+		// assertion exists to catch.
+		expect(code).toBe(2);
+		expect(said).toContain('no-dupe-keys');
+	});
+
+	it('says nothing about a clean edit', () => {
+		const { code, said } = hook(edited(plant('export const ok = 1;\n')));
+
+		expect({ code, said }).toEqual({ code: 0, said: '' });
+	});
+
+	it('leaves a file oxlint does not parse alone', () => {
+		expect(hook(edited('README.md')).code).toBe(0);
+	});
+
+	/**
+	 * Fails OPEN, on every internal failure. A hook that failed closed on its own bug
+	 * would block every edit in the session with an error about the hook rather than
+	 * about the code — and `npm run check` still catches whatever this misses, so silence
+	 * is the cheaper wrong answer.
+	 */
+	for (const [what, input] of [
+		['input it cannot parse', 'not json'],
+		['a tool call with no file', '{}'],
+	]) {
+		it(`stays out of the way given ${what}`, () => {
+			expect(hook(input).code).toBe(0);
+		});
+	}
+
+	/**
+	 * The wiring, which is the half no amount of testing the script itself would reach:
+	 * the hook only runs because `.claude/settings.json` names it, and a renamed or moved
+	 * script leaves that pointing at nothing. Nothing fails — the edits simply stop being
+	 * checked, which is the silent direction.
+	 */
+	it('is the command the host is configured to run', () => {
+		const settings = JSON.parse(readFileSync(SETTINGS, 'utf8')) as {
+			hooks: { PostToolUse: { matcher: string; hooks: { command: string }[] }[] };
+		};
+		const [wired] = settings.hooks.PostToolUse;
+
+		expect(wired.matcher).toBe('Edit|Write');
+		expect(wired.hooks).toHaveLength(1);
+
+		// Resolved from the command the host would actually run rather than compared to a
+		// literal: the settings name a path relative to the working directory, and the two
+		// things worth refusing are that path not existing and it not being the file the
+		// cases above just drove.
+		const named = path.join(REPO, wired.hooks[0].command.replace(/^node\s+/, ''));
+
+		expect(existsSync(named)).toBe(true);
+		expect(named).toBe(HOOK);
+	});
+});

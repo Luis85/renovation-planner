@@ -59,10 +59,18 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   is rejected outright, measured), no port of `eslint-plugin-obsidianmd`, and nothing
   type-aware. It does have `no-restricted-imports` and the budgets, so the layer bans are
   the one part that could move, and they stay where the rest of the architecture is.
-  `.oxlintrc.json` carries which categories are on and what the other four cost. Its
-  SCOPE is the whole claim, and an `ignorePatterns` edit that drops a directory makes the
-  gate quieter rather than redder, so `tests/build/lint-scope.test.ts` asks oxlint itself
-  which files it lints and compares that against the tree.
+  `.oxlintrc.json` carries which categories are on and what the other four cost, and it
+  gives `scripts/` and the root configs the size and complexity budgets they had none of
+  — the numbers `src/` already lives under, reaching the rest of the repository.
+  Two things about it are claims rather than rules, so both have checks. Its SCOPE: an
+  `ignorePatterns` edit that drops a directory makes the gate quieter rather than redder,
+  so `tests/build/lint-scope.test.ts` asks oxlint itself which files it lints and compares
+  that against the tree. And its REACH: **no linted file may silence a linter inline**
+  (`tests/build/suppressions.test.ts`). oxlint honours ESLint's directive spelling as well
+  as its own, and the rules that govern suppressions come with the Obsidian ruleset, which
+  stops at `src/` — so across the very tree oxlint was added to cover, one comment used to
+  turn a rule off with nothing reporting it. A rule that does not fit is turned off in
+  `.oxlintrc.json`, where the reason is written down and review sees it.
 - **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
   metrics today; the floors sit a covered unit below that, which at this denominator is
   several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
@@ -126,6 +134,27 @@ says why, and it is a real constraint rather than taste. Everything `npm run` in
 `scripts/`, except the files a tool finds by name at the root (`eslint.config.mjs`,
 `.oxlintrc.json`, `vitest.config.ts`, `vite.config.ts`, `vite.harness.config.ts`), and every
 script resolves its paths from the WORKING DIRECTORY rather than from its own location.
+
+## The linter in the edit loop
+
+`.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which
+lints THAT ONE FILE and refuses the edit if oxlint reports anything. About 90ms, against
+`npm run check` several turns later — and by then the reasoning that produced the defect
+is gone, which is the whole reason to move the cheap half earlier.
+
+Three properties it is built to have, each with a test in `tests/build/lint-edited.test.ts`:
+
+- **It refuses with the host's blocking code (2), not merely non-zero.** Any other failing
+  exit is reported as a broken hook and the edit stands.
+- **It fails OPEN on its own bugs** — unreadable input, no file, a missing linter. A hook
+  that failed closed would block every edit in the session with an error about the hook
+  rather than about the code, and the gate still catches what the hook missed.
+- **The wiring is checked, not assumed.** The hook only runs because the settings name it;
+  a renamed script leaves that pointing at nothing and edits silently stop being checked.
+
+It sees ONE file, so it cannot see a layer violation's other end, a type error, a dead
+export or anything ESLint owns. It is the first refusal. `npm run check` is still the
+definition of done, and nothing here is allowed to read as if it were.
 
 ## Testing
 

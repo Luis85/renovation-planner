@@ -1,8 +1,7 @@
-import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { REPO, lintedFiles } from '../helpers/oxlint';
 
 /**
  * The whole argument for a second linter is the tree the first one cannot reach: the
@@ -18,12 +17,6 @@ import { describe, expect, it } from 'vitest';
  * excluded — the set is measured whole, not sampled.
  */
 
-const REPO = fileURLToPath(new URL('../..', import.meta.url));
-// The oxlint package's bin is a plain ES module, so it runs under `process.execPath` on
-// both CI platforms. `node_modules/.bin/oxlint` is a shell shim on Windows, which
-// execFileSync cannot spawn without a shell.
-const OXLINT = path.join(REPO, 'node_modules', 'oxlint', 'bin', 'oxlint');
-
 // What oxlint parses. `.d.mts` is in the list because it lints the declaration files
 // beside the build scripts, and a check that quietly skipped them would report a smaller
 // set than the tool does and still pass.
@@ -37,16 +30,7 @@ const walk = (dir: string): string[] =>
 		return LINTED.test(entry.name) ? [child] : [];
 	});
 
-// Posix separators on both platforms: oxlint reports Windows paths with backslashes, and
-// the expected set is built from `path.join`, which agrees with it there and nowhere else.
-const posix = (file: string) => file.split(path.sep).join('/');
-
-const linted = new Set(
-	execFileSync(process.execPath, [OXLINT, '--debug=files'], { cwd: REPO, encoding: 'utf8' })
-		.split('\n')
-		.map((line) => posix(line.trim()))
-		.filter(Boolean),
-);
+const linted = new Set(lintedFiles());
 
 describe('the oxlint gate', () => {
 	// One case per tree, so a failure names the directory that fell out of scope rather

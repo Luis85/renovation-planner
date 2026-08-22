@@ -116,15 +116,14 @@ export class ItemView {
  *
  * What a test drives instead is the three overrides, which is the whole of a tab's
  * contract: what it declares, what it answers for a key, and what it does with a new value.
+ * There is deliberately no `containerEl` here: nothing reads one (the tab is declarative),
+ * and a fake member nothing exercises cannot be caught drifting — it arrives with its
+ * first consumer, per this file's own policy.
  */
 export class PluginSettingTab {
-	readonly containerEl: HTMLElement;
-
 	constructor(
 		readonly app: unknown,
 		readonly plugin: unknown,
-	) {
-		this.containerEl = document.createElement('div');
-	}
+	) {}
 }
 

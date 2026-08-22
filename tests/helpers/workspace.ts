@@ -8,10 +8,12 @@
  */
 
 import type { WorkspaceLeaf } from './obsidian-mock';
+import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 
-// `implements` is what ties this fake to the mock's contract: when `WorkspaceLeaf`
-// grows a member, this file stops compiling instead of silently drifting behind the
-// `as never` casts at the call sites.
+// `implements` ties this fake to the mock's contract where the EDITOR can see it — no
+// gate type-checks tests/** yet (vitest transpiles without checking, tsconfig includes
+// src/ only), so drift past the editor is the reviewer's to catch; the root CLAUDE.md's
+// Testing section names this limit.
 export class FakeLeaf implements WorkspaceLeaf {
 	state: { type: string; active?: boolean } | undefined;
 
@@ -20,6 +22,14 @@ export class FakeLeaf implements WorkspaceLeaf {
 		return Promise.resolve();
 	}
 }
+
+/**
+ * The real view against a fake leaf — the `as never` cast lives HERE, once. Both the
+ * jsdom suite and the browser harness mount build their view through this, so a grown
+ * constructor requirement meets every consumer at the same time instead of fixing the
+ * suite and silently stranding the harness page.
+ */
+export const makeView = (): RenovationProjectView => new RenovationProjectView(new FakeLeaf() as never);
 
 export class FakeWorkspace {
 	readonly leaves: FakeLeaf[] = [];

@@ -41,6 +41,23 @@ const hook = (input: string) => {
 
 const edited = (file: string) => JSON.stringify({ tool_input: { file_path: file } });
 
+/**
+ * The script a hook command would actually run, resolved from the command itself rather
+ * than compared to a literal: `$CLAUDE_PROJECT_DIR` on one platform,
+ * `$env:CLAUDE_PROJECT_DIR` and backslashes on the other.
+ */
+const named = (command: string) =>
+	path.join(
+		REPO,
+		command
+			.replace(/^node\s+/, '')
+			.replace(/["']/g, '')
+			.replace(/\$(env:)?CLAUDE_PROJECT_DIR/, '')
+			.replace(/^[\\/]/, '')
+			.split('\\')
+			.join('/'),
+	);
+
 const plant = (contents: string) => {
 	const file = path.join(mkdtempSync(path.join(tmpdir(), 'lint-edited-')), 'edited.ts');
 
@@ -90,23 +107,28 @@ describe('the edit-loop hook', () => {
 	 * the hook only runs because `.claude/settings.json` names it, and a renamed or moved
 	 * script leaves that pointing at nothing. Nothing fails — the edits simply stop being
 	 * checked, which is the silent direction.
+	 *
+	 * The settings file is shared with the tooling the repository vendors, so this finds
+	 * OUR entry by the script it names rather than by position, and it reads both platform
+	 * spellings: a `commandWindows` that drifted from its `command` would disable the hook
+	 * on exactly one CI leg, with nothing to say so.
 	 */
-	it('is the command the host is configured to run', () => {
+	it('is the command the host is configured to run, on both platforms', () => {
 		const settings = JSON.parse(readFileSync(SETTINGS, 'utf8')) as {
-			hooks: { PostToolUse: { matcher: string; hooks: { command: string }[] }[] };
+			hooks: { PostToolUse: { matcher: string; hooks: { command: string; commandWindows?: string }[] }[] };
 		};
-		const [wired] = settings.hooks.PostToolUse;
+		const wired = settings.hooks.PostToolUse.flatMap((entry) =>
+			entry.hooks.filter((h) => h.command.includes('lint-edited')).map((h) => ({ matcher: entry.matcher, ...h })),
+		);
 
-		expect(wired.matcher).toBe('Edit|Write');
-		expect(wired.hooks).toHaveLength(1);
+		expect(wired).toHaveLength(1);
 
-		// Resolved from the command the host would actually run rather than compared to a
-		// literal: the settings name a path relative to the working directory, and the two
-		// things worth refusing are that path not existing and it not being the file the
-		// cases above just drove.
-		const named = path.join(REPO, wired.hooks[0].command.replace(/^node\s+/, ''));
+		// Every tool that writes a file, not just the two: a MultiEdit that skipped the
+		// linter would be the one shape nobody notices going unchecked.
+		expect(new Set(wired[0].matcher.split('|'))).toEqual(new Set(['Edit', 'Write', 'MultiEdit']));
 
-		expect(existsSync(named)).toBe(true);
-		expect(named).toBe(HOOK);
+		expect(named(wired[0].command)).toBe(HOOK);
+		expect(named(wired[0].commandWindows ?? '')).toBe(HOOK);
+		expect(existsSync(HOOK)).toBe(true);
 	});
 });

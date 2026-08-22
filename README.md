@@ -33,9 +33,11 @@ npm run test-build   # build into the vault in this repository and look at it in
 `npm run harness` starts a Vite dev server and draws the real view against the real
 stylesheet **and Obsidian's own app.css**, so what you see is Obsidian's default appearance
 — `?theme=light` and `?phone` switch the body classes the app sets, and editing a partial
-reloads the page. It answers markup, spacing, hierarchy and default colours. It cannot
-answer a themed vault's colours or anything Obsidian hands the view at runtime, so it
-replaces no live-vault check.
+reloads the page. It answers markup, spacing, hierarchy and default colours — though the
+vendored app.css is REDUCED against another plugin's driven states, so an element default
+that plugin never exercised can be missing here and present in a vault. It cannot answer a
+themed vault's colours or anything Obsidian hands the view at runtime, so it replaces no
+live-vault check.
 
 `npm run check` is what CI runs, on Ubuntu and Windows. Nothing merges without it.
 

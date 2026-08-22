@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { t } from '../../../src/presentation/i18n/strings';
+import { t, tr } from '../../../src/presentation/i18n/strings';
 
 /**
  * Pure lookups, asked of the function — no view, no mock, no language global. The
@@ -17,5 +17,11 @@ describe('translating a string', () => {
 
 	it('falls back to English for a language nothing translates', () => {
 		expect(t('fr', 'view.project.name')).toBe('Renovation project');
+	});
+
+	// `tr` is `t` in the app's own language — the mock answers 'en', so this pins the
+	// delegation, and the per-locale behaviour is already driven through `t` above.
+	it('tr answers in the app language', () => {
+		expect(tr('view.project.name')).toBe(t('en', 'view.project.name'));
 	});
 });

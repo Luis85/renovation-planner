@@ -141,8 +141,8 @@ There is deliberately no list of modules here. `src/` is the list and it cannot 
 
 Build artifacts go to `dist/` and nothing is written to the repository root — `vite.config.ts`
 says why, and it is a real constraint rather than taste. Everything `npm run` invokes lives in
-`scripts/`, except the files a tool finds by name at the root (`eslint.config.mjs`,
-`.oxlintrc.json`, `vitest.config.ts`, `vite.config.ts`, `vite.harness.config.ts`), and every
+`scripts/`, except the configuration files a tool finds by NAME at the root — the eslint,
+vitest, Vite (build and harness), TypeScript, fallow, npm and editor configs — and every
 script resolves its paths from the WORKING DIRECTORY rather than from its own location.
 
 ## The linter in the edit loop
@@ -182,6 +182,14 @@ nothing here is allowed to read as if it were.
 zone is asked of a function, never of a screen, which is the whole return on the layering.
 DOM code gets jsdom, per file. The `obsidian` module is aliased to one small mock that the
 suite, the harness and nothing else share.
+
+**Known limits of the fakes**, so nothing trusts them wider than they are: the module mock
+models only the members something drives, and its `getLanguage()` always answers `'en'` —
+a call site resolving the language wrongly is invisible to the suite, which is why `t` is
+pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
+behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
+nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
+only), so an `implements` there binds the editor, not the gate.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

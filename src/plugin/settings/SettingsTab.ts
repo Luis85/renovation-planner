@@ -1,5 +1,5 @@
-import { PluginSettingTab, getLanguage, type SettingDefinitionItem } from 'obsidian';
-import { t } from '../../presentation/i18n/strings';
+import { PluginSettingTab, type SettingDefinitionItem } from 'obsidian';
+import { tr } from '../../presentation/i18n/strings';
 import { DEFAULT_SETTINGS, UNITS, settingsFrom, type RenovationPlannerSettings } from './settings';
 import type RenovationPlannerPlugin from '../RenovationPlannerPlugin';
 
@@ -28,20 +28,18 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
-		// Read per call, not per instance: the tab is built once at load and this runs on
-		// every render, so resolving the language here is what keeps the pane correct after
-		// Obsidian's own language setting changes.
-		const language = getLanguage();
+		// `tr` resolves the language per call, and this runs on every render — which is
+		// what keeps the pane correct after Obsidian's own language setting changes.
 		return [
 			{
-				name: t(language, 'settings.units.name'),
-				desc: t(language, 'settings.units.desc'),
+				name: tr('settings.units.name'),
+				desc: tr('settings.units.desc'),
 				control: {
 					type: 'dropdown',
 					key: 'units',
 					// Options from the vocabulary rather than written out again: a third unit
 					// system would otherwise be settable in `settings.ts` and unreachable here.
-					options: Object.fromEntries(UNITS.map((unit) => [unit, t(language, `settings.units.${unit}`)])),
+					options: Object.fromEntries(UNITS.map((unit) => [unit, tr(`settings.units.${unit}`)])),
 					defaultValue: DEFAULT_SETTINGS.units,
 				},
 			},

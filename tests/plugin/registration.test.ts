@@ -9,25 +9,23 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
-import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
-import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
-import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
+import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
+import {
+	RENOVATION_PROJECT_ICON,
+	RENOVATION_PROJECT_VIEW,
+	RenovationProjectView,
+} from '../../src/presentation/views/RenovationProjectView';
+import { t } from '../../src/presentation/i18n/strings';
+import { loadedPlugin } from '../helpers/plugin';
+import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 
 installObsidianDom();
-
-const loaded = async (stored: unknown = null) => {
-	const workspace = new FakeWorkspace();
-	const plugin = new RenovationPlannerPlugin({ workspace } as never, {});
-	plugin.data = stored;
-	await plugin.onload();
-	return { plugin, workspace };
-};
 
 let plugin: RenovationPlannerPlugin;
 let workspace: FakeWorkspace;
 
 beforeEach(async () => {
-	({ plugin, workspace } = await loaded());
+	({ plugin, workspace } = await loadedPlugin());
 });
 
 describe('what onload registers', () => {
@@ -42,10 +40,17 @@ describe('what onload registers', () => {
 		expect(built).toBeInstanceOf(RenovationProjectView);
 	});
 
-	it('adds one ribbon button, named in sentence case', () => {
+	/**
+	 * Asserted THROUGH the string table, not against a literal: the subject here is that
+	 * the ribbon is wired through `tr()` (a literal pin would break on every copy edit
+	 * while proving nothing about the wiring — sentence case is `en.ts`'s lint's job).
+	 * The icon is asserted against the view's exported constant for the same reason: one
+	 * fact, and a ribbon disagreeing with the tab it opens is invisible to every check.
+	 */
+	it('adds one ribbon button, named from the string table', () => {
 		expect(plugin.ribbon).toHaveLength(1);
-		expect(plugin.ribbon[0].title).toBe('Open renovation project');
-		expect(plugin.ribbon[0].icon).not.toBe('');
+		expect(plugin.ribbon[0].title).toBe(t('en', 'command.open-project'));
+		expect(plugin.ribbon[0].icon).toBe(RENOVATION_PROJECT_ICON);
 	});
 
 	/**
@@ -56,7 +61,7 @@ describe('what onload registers', () => {
 	 */
 	it('adds the open command with an unprefixed id', () => {
 		expect(plugin.commands.map((c) => c.id)).toEqual(['open-project']);
-		expect(plugin.commands[0].name).toBe('Open renovation project');
+		expect(plugin.commands[0].name).toBe(t('en', 'command.open-project'));
 	});
 
 	// SDD §10: settings load FIRST in onload, so everything registered below may read
@@ -66,7 +71,7 @@ describe('what onload registers', () => {
 	});
 
 	it('loads stored settings over the defaults', async () => {
-		const { plugin: withStored } = await loaded({ units: 'imperial' });
+		const { plugin: withStored } = await loadedPlugin({ units: 'imperial' });
 
 		expect(withStored.settings.units).toBe('imperial');
 	});

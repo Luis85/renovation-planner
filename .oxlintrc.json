@@ -112,7 +112,7 @@
 		"unicorn/no-array-callback-reference": "error",
 
 		// -- imports -------------------------------------------------------------------
-		// `node:fs`, not `fs`. Caught the one file of forty-two that disagreed.
+		// `node:fs`, not `fs`. Caught the one file in the repository that disagreed.
 		"unicorn/prefer-node-protocol": "error",
 		"import/no-duplicates": "error",
 		"import/no-mutable-exports": "error",

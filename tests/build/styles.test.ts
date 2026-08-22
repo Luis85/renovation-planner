@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,10 +14,17 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  */
 
 const cwd = process.cwd();
-afterEach(() => process.chdir(cwd));
+const planted: string[] = [];
+afterEach(() => {
+	// Restore FIRST — the planted dir cannot be removed while it is the working directory
+	// (Windows refuses), and every later test resolves from cwd.
+	process.chdir(cwd);
+	for (const dir of planted.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 const plant = (files: Record<string, string>) => {
 	const dir = mkdtempSync(path.join(tmpdir(), 'styles-'));
+	planted.push(dir);
 	mkdirSync(path.join(dir, 'styles'));
 	for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, 'styles', name), body);
 	process.chdir(dir);
@@ -120,5 +127,21 @@ describe('assembling the stylesheet', () => {
 		});
 
 		expect(() => assembleStyles()).toThrow(/zones\/plan\.css/);
+	});
+
+	/**
+	 * A rebase or merge can leave the same import twice, and every other gate stays green:
+	 * nothing is orphaned, every line parses. But the second copy is concatenated again at
+	 * its later position — silently reordering the cascade this file's own header calls
+	 * behaviour, since the duplicate now overrides everything between the two copies.
+	 */
+	it('refuses a partial imported twice', () => {
+		plant({
+			'index.css': '@import "./one.css";\n@import "./two.css";\n@import "./one.css";\n',
+			'one.css': '.one { color: red; }\n',
+			'two.css': '.two { color: blue; }\n',
+		});
+
+		expect(() => assembleStyles()).toThrow(/one\.css/);
 	});
 });

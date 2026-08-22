@@ -1,9 +1,9 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { closeSync, existsSync, openSync, readSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 /**
- * No tracked text file starts with a UTF-8 BOM.
+ * No file git can see starts with a UTF-8 BOM.
  *
  * The failure is real and was measured here: PowerShell 5.1's `Set-Content -Encoding
  * utf8` writes a BOM, `JSON.parse` refuses a BOM'd document, and the first victim was
@@ -12,44 +12,44 @@ import { describe, expect, it } from 'vitest';
  * cause. A BOM inside a styles partial would likewise land mid-sheet in the assembled
  * output. `.editorconfig` asks editors for plain utf-8; this is the check under that ask,
  * because a shell redirect never reads `.editorconfig`.
+ *
+ * The set under measurement is git's, not a hand-listed tree: `git ls-files` with
+ * `--others --exclude-standard` yields exactly the files a commit could carry — every
+ * extension and every future directory included, and NO gitignored scratch file, which a
+ * directory walk would fail the suite on even though it can never reach a commit. Only
+ * the first bytes are read; a BOM anywhere else is not this test's subject.
  */
 
-const BOM = '﻿';
+const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 
-// Directories that hold tracked text files, walked recursively; extensions the tools
-// here actually parse. Generated and vendored trees are not this test's problem.
-const ROOTS = ['src', 'tests', 'scripts', 'styles', 'docs', '.github'];
-const EXTENSIONS = new Set(['.ts', '.mts', '.mjs', '.js', '.json', '.css', '.yml', '.yaml', '.md', '.base', '.html']);
-
-function walk(dir: string): string[] {
-	return readdirSync(dir).flatMap((name) => {
-		const file = path.join(dir, name);
-		if (statSync(file).isDirectory()) return walk(file);
-		return EXTENSIONS.has(path.extname(name)) ? [file] : [];
-	});
+function startsWithBom(file: string): boolean {
+	const fd = openSync(file, 'r');
+	try {
+		const head = Buffer.alloc(3);
+		const got = readSync(fd, head, 0, 3, 0);
+		return got === 3 && head.equals(BOM);
+	} finally {
+		closeSync(fd);
+	}
 }
 
 describe('file encoding', () => {
-	const files = [
-		// The arrow is load-bearing: `flatMap(walk)` hands the callback the index and the
-		// array as well, which is the shape that makes `['1','2','3'].map(parseInt)`
-		// return `[1, NaN, NaN]`. Harmless while `walk` ignores them, and one signature
-		// change from not being.
-		...ROOTS.flatMap((root) => walk(root)),
-		...readdirSync('.').filter((name) => statSync(name).isFile() && EXTENSIONS.has(path.extname(name))),
-	];
+	// `existsSync` because `--cached` also lists a tracked file DELETED from the working
+	// tree (a staged or pending delete) — that is version control's business, not an
+	// encoding subject, and opening it would fail the suite on a missing file.
+	const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' })
+		.split('\n')
+		.filter((line) => line !== '' && existsSync(line));
 
-	// The instrument, tested first: an empty file list would pass every assertion below
-	// by asserting nothing.
+	// The instrument, tested first: an empty file list would pass the assertion below by
+	// asserting nothing.
 	it('sees the tree it claims to guard', () => {
 		expect(files.length).toBeGreaterThan(30);
-		expect(files).toContain(path.join('manifest.json'));
-		expect(files).toContain(path.join('styles', 'index.css'));
+		expect(files).toContain('manifest.json');
+		expect(files).toContain('styles/index.css');
 	});
 
-	it('finds no UTF-8 BOM in any tracked text file', () => {
-		const bommed = files.filter((file) => readFileSync(file, 'utf8').startsWith(BOM));
-
-		expect(bommed).toEqual([]);
+	it('finds no UTF-8 BOM in any file git sees', () => {
+		expect(files.filter((file) => startsWithBom(file))).toEqual([]);
 	});
 });

@@ -17,9 +17,11 @@ import { REPO, lintedFiles } from '../helpers/oxlint';
  * excluded — the set is measured whole, not sampled.
  */
 
-// What oxlint parses. `.d.mts` is in the list because it lints the declaration files
-// beside the build scripts, and a check that quietly skipped them would report a smaller
-// set than the tool does and still pass.
+// What oxlint parses, and it must not be NARROWER than what the tool parses: an extension
+// missing here makes this check measure a smaller tree than the one it is asserting about,
+// which passes. `.d.mts` and `.cts` match nothing on disk today and stay listed for that
+// reason — the cost of a spare extension is nothing, and the cost of a missing one is a
+// silent pass.
 const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs)$/;
 
 const walk = (dir: string): string[] =>

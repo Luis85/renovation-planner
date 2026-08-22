@@ -4,18 +4,17 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../../helpers/dom';
-import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../../src/presentation/views/RenovationProjectView';
-import { FakeLeaf } from '../../helpers/workspace';
+import { RENOVATION_PROJECT_VIEW, type RenovationProjectView } from '../../../src/presentation/views/RenovationProjectView';
+import { t } from '../../../src/presentation/i18n/strings';
+import { makeView } from '../../helpers/workspace';
 
 installObsidianDom();
-
-const view = () => new RenovationProjectView(new FakeLeaf() as never);
 
 describe('the renovation project view', () => {
 	let subject: RenovationProjectView;
 
 	beforeEach(() => {
-		subject = view();
+		subject = makeView();
 	});
 
 	/**
@@ -28,8 +27,10 @@ describe('the renovation project view', () => {
 		expect(RENOVATION_PROJECT_VIEW).toBe('renovation-project');
 	});
 
+	// Display text through the string table — the subject is that the view is wired
+	// through `tr()`; the copy itself is en.ts's to own and its lint's to case.
 	it('has a display name and an icon', () => {
-		expect(subject.getDisplayText()).toBe('Renovation project');
+		expect(subject.getDisplayText()).toBe(t('en', 'view.project.name'));
 		expect(subject.getIcon()).not.toBe('');
 	});
 

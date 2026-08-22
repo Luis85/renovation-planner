@@ -65,12 +65,17 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   Two things about it are claims rather than rules, so both have checks. Its SCOPE: an
   `ignorePatterns` edit that drops a directory makes the gate quieter rather than redder,
   so `tests/build/lint-scope.test.ts` asks oxlint itself which files it lints and compares
-  that against the tree. And its REACH: **no linted file may silence a linter inline**
-  (`tests/build/suppressions.test.ts`). oxlint honours ESLint's directive spelling as well
-  as its own, and the rules that govern suppressions come with the Obsidian ruleset, which
-  stops at `src/` — so across the very tree oxlint was added to cover, one comment used to
-  turn a rule off with nothing reporting it. A rule that does not fit is turned off in
-  `.oxlintrc.json`, where the reason is written down and review sees it.
+  that against the tree. And its REACH: **no comment in a linted file turns a rule off.**
+  Two halves, because the two linters read comments differently. ESLint takes
+  `linterOptions.noInlineConfig`, which refuses the whole class — the disable directives
+  AND the rule-CONFIGURATION form, a block comment reading `eslint some-rule: off`, which
+  carries no directive keyword. That form was the real exposure: `no-restricted-syntax`
+  and `no-restricted-imports` are ESLint-only, so one comment turned the write boundary
+  off and oxlint could not have backstopped it. oxlint's half is a scan of the files it
+  lints (`tests/build/suppressions.test.ts`) plus `reportUnusedDisableDirectives`, since
+  nothing in ESLint's configuration reaches oxlint's directive handling. A rule that does
+  not fit is turned off in `.oxlintrc.json`, where the reason is written down and review
+  sees it.
 - **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
   metrics today; the floors sit a covered unit below that, which at this denominator is
   several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet

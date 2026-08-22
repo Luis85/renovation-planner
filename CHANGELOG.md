@@ -12,6 +12,11 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- ESLint takes no inline configuration (`linterOptions.noInlineConfig`). A block comment
+  reading `eslint no-restricted-syntax: off` used to turn the vault write boundary off in
+  `src/` with `npm run check` still green — measured — and that rule is ESLint-only, so
+  oxlint could not have backstopped it. The setting refuses the whole class rather than a
+  spelling, and a comment that now does nothing is reported and fails `--max-warnings 0`.
 - Inline lint suppressions are refused across the whole linted tree
   (`tests/build/suppressions.test.ts`). oxlint honours ESLint's directive spelling as well
   as its own, and the rules that police suppressions arrive with the Obsidian ruleset,

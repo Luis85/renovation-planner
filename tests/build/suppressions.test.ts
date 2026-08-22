@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -22,6 +23,13 @@ import { REPO, lintOne, lintedFiles } from '../helpers/oxlint';
  * `options.reportUnusedDisableDirectives` covers the complementary case, and only that
  * one: a directive silencing nothing. It cannot see a directive that is doing its job,
  * which is the one worth refusing.
+ *
+ * ESLint's half of this is `linterOptions.noInlineConfig` in `eslint.config.mjs`, which
+ * refuses the whole class rather than a spelling — including the rule-CONFIGURATION form
+ * (`eslint some-rule: off` in a block comment), which carries no directive keyword and so
+ * is invisible to the scan below. That form was the real exposure: `no-restricted-syntax`
+ * and `no-restricted-imports` are ESLint-only, so oxlint could not have backstopped them.
+ * The last case here is what keeps that setting from being removed silently.
  */
 
 // Assembled from parts rather than written out, so this file is scannable by the rule it
@@ -64,5 +72,26 @@ describe('inline lint suppressions', () => {
 		const suppressing = files.filter((file) => carries(readFileSync(path.join(REPO, file), 'utf8')));
 
 		expect(suppressing).toEqual([]);
+	});
+
+	/**
+	 * Asked of `src/`, where the rules worth turning off live — the layer bans and the
+	 * vault write boundary — and asked of the resolved configuration rather than of the
+	 * file that declares it, because flat config is where this would go wrong: a block
+	 * matching one file overrides rather than merges, so a setting can be present and not
+	 * reach anything. What this does NOT check is that ESLint honours its own setting;
+	 * that is ESLint's contract, and the measurement is in the comment beside it.
+	 */
+	it('cannot be re-enabled by a comment, because ESLint takes no inline configuration', () => {
+		// ESLint's own bin, under `process.execPath`, for the reason `tests/helpers/oxlint.ts`
+		// states: `node_modules/.bin/eslint` is a shell shim on Windows, and `npx` would
+		// need a shell to find it on one platform and not the other.
+		const eslint = path.join(REPO, 'node_modules', 'eslint', 'bin', 'eslint.js');
+		const printed = execFileSync(process.execPath, [eslint, '--print-config', 'src/main.ts'], {
+			cwd: REPO,
+			encoding: 'utf8',
+		});
+
+		expect((JSON.parse(printed) as { linterOptions: { noInlineConfig?: boolean } }).linterOptions.noInlineConfig).toBe(true);
 	});
 });

@@ -282,6 +282,14 @@ Three things worth copying, none of them oxlint-specific:
   the linted files (`tests/build/suppressions.test.ts`). Build the needles from parts so
   the gate can scan its own source, and prove the ban targets something real by driving a
   directive through the linter and watching a genuine finding disappear.
+  **A scan for a directive keyword is not the whole class**, and this is the part a review
+  bot caught here rather than the author: ESLint also accepts inline rule CONFIGURATION
+  (`eslint some-rule: off` in a block comment), which contains no directive keyword and
+  turned the AST-selector rules off invisibly — the very rules the fast linter cannot
+  express and so cannot backstop. Where the linter has a setting that refuses the whole
+  class, `linterOptions.noInlineConfig` here, prefer it to any spelling you can enumerate,
+  and put a check under the setting: what goes wrong is not the linter failing to honour
+  it, but flat config scoping it to nothing.
 - **Give the budgets to the files that had none.** A size and complexity block written
   `files: ['**/*.ts']` reaches the typed source and nothing else — build scripts and root
   config files sit outside it and outside the first linter's scope entirely. The second

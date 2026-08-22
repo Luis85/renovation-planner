@@ -92,6 +92,8 @@ describe('inline lint suppressions', () => {
 			encoding: 'utf8',
 		});
 
-		expect((JSON.parse(printed) as { linterOptions: { noInlineConfig?: boolean } }).linterOptions.noInlineConfig).toBe(true);
+		const resolved = JSON.parse(printed) as { linterOptions: { noInlineConfig?: boolean } };
+
+		expect(resolved.linterOptions.noInlineConfig).toBe(true);
 	});
 });

@@ -8,12 +8,13 @@ architecture as a whole. It stays verbatim, as received, per this folder's conve
 This folder breaks that architecture down into smaller, bounded design documents —
 "slices" — each scoped tightly enough to be implemented, tested, and reviewed on its
 own, in the order listed below. Together they build the plugin's architectural
-foundation: bootstrapping, domain model, persistence, rendering, editor framework, and
-the cost/quantity engine, proven end to end on the first three domain entities
-(Project, Plan, Zone). Only once that foundation exists does actual **feature
-development** begin — the rest of the PRD's epics (trades, work packages, tasks,
-procurement, suppliers, documents, risks, scenarios, and so on) are built on top of it,
-not as part of it.
+foundation: bootstrapping, domain model, persistence, rendering, editor framework, the
+cost/quantity engine, and the shared UI/UX vocabulary every view reuses (notifications,
+empty states, modals, form feedback, error surfacing) — proven end to end on the first
+three domain entities (Project, Plan, Zone). Only once that foundation exists does
+actual **feature development** begin — the rest of the PRD's epics (trades, work
+packages, tasks, procurement, suppliers, documents, risks, scenarios, and so on) are
+built on top of it, not as part of it.
 
 These are derived documents, not received evidence: unlike `docs/prds/` and
 `docs/sdds/`, they are expected to be edited as the design is refined. They are not
@@ -58,6 +59,12 @@ These apply to every slice below and are not repeated in each one:
 
 ## The slice map
 
+**A citation with a bare `§N` means the SDD; `PRD §N` means the PRD.** The two
+documents number their own sections independently starting from 1, so `§39`/`§64`/`§67`
+(among others) name a completely different topic in each — always write `PRD §N` when
+citing the PRD, never rely on context to disambiguate, and check the actual heading
+before citing a number from memory.
+
 | # | Slice | Depends on | Increment | Primary SDD sections |
 | --- | --- | --- | --- | --- |
 | 1 | [Plugin Bootstrap & Composition Root](01-plugin-bootstrap-and-composition-root.md) | — | 1 | §§4–12, §76 |
@@ -72,6 +79,11 @@ These apply to every slice below and are not repeated in each one:
 | 10 | [Assets, Requirements & the End-to-End Loop](10-assets-requirements-and-the-end-to-end-loop.md) | 4, 8, 9 | 7 (part) | wiring; PRD §8, §9 |
 | 11 | [Error Handling, Diagnostics & Data Safety](11-error-handling-diagnostics-and-data-safety.md) | 2 | — | §67–68, §86–88 |
 | 12 | [Testing & Architecture Enforcement Infrastructure](12-testing-and-architecture-enforcement-infrastructure.md) | all | — | §69–76, §92 |
+| 13 | [Notifications & Save-State Surfaces](13-notifications-and-save-state-surfaces.md) | 5 | — | PRD §67 (Autosave: Saved/Saving/Unsaved/Save Error) — not to be confused with the SDD's own §67 (Logging) |
+| 14 | [Empty States](14-empty-states.md) | 5 | — | PRD §94 |
+| 15 | [Modals & Confirmation Dialogs](15-modals-and-confirmation-dialogs.md) | 5, 6 | — | PRD §64 (Deletion Semantics), PRD §39 (Inspector actions) — PRD §39/§64 are unrelated to the SDD's own §39 (Sidecar Files) and §64 (Error Model) |
+| 16 | [Form & Inline Validation Feedback](16-form-and-inline-validation-feedback.md) | 6 | — | SDD §59 (Inspector), SDD §64 (Error Model, applied) |
+| 17 | [Presentation-Layer Error Surfacing](17-presentation-layer-error-surfacing.md) | 11, 13, 15, 16 | — | SDD §66 (Error Boundary, the Presentation half) |
 
 Slices 7 and 8 both depend only on slice 6 and can be built in either order (the PRD's
 own MVP scope needs calibration before zone measurements are meaningful, but nothing in
@@ -81,6 +93,16 @@ not introduce new architecture, only wires slices 4, 8, and 9 together into the
 Slices 11 and 12 are cross-cutting and can be worked in parallel with slices 5–10 once
 slice 2 exists, since nothing later structurally depends on them — but the SDD's own
 Architecture Completion Criteria (§92) are not met until they are.
+
+Slices 13–16 are independent UI vocabulary — each defines one reusable presentation
+pattern (a toast, an empty-state slot, a dialog, a field-level error) that any view can
+use, and none of them depend on each other. They can be built in parallel once slice 5
+(the Vue/Pinia shell they render inside) exists. Slice 17 is the integration point for
+this group, the same role slice 10 plays for the domain/cost loop: it does not
+introduce new UI vocabulary, it only defines the decision rules connecting slice 11's
+error categories to slices 13–16's surfaces — which category becomes a toast, which
+becomes an inline field error, which becomes a blocking modal, and which becomes a
+persisted status badge like slice 10's `recalculationStatus`.
 
 ## Explicitly deferred
 

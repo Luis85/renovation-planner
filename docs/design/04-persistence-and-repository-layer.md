@@ -196,12 +196,14 @@ docs/geometry/                     ← configurable folder, default shown
   resolving it **always** goes through the Project Index's `planId → sidecar path`
   entry. There is no path-derivation fallback.
 
-Sidecar content (§40):
+Sidecar content (§40, with the `unit` field ADR-009 requires — the SDD's own §40
+example omits it, which is exactly the gap ADR-009 closes):
 
 ```json
 {
   "schemaVersion": 1,
   "planId": "plan-ground-floor",
+  "unit": "mm",
   "objects": [
     {
       "id": "zone-bathroom",
@@ -240,9 +242,14 @@ both writes as one logical transaction:
    the index is not left to catch up asynchronously via the vault-change pipeline.
 ```
 
-`delete(zoneId)` is the mirror: remove the sidecar entry, delete the note, then
-remove the index entry — in an order that, on partial failure, prefers leaving an
-orphaned-but-harmless sidecar entry over a dangling index pointing at a deleted note.
+`delete(zoneId)` is the mirror, but not a literal reversal of the write order: delete
+the note **first**, then remove the sidecar entry, then remove the index entry. If
+sidecar removal fails after the note is already gone, the result is an orphaned-but-
+harmless sidecar entry — recoverable, and garbage-collectable later against the
+Project Index. Removing the sidecar entry first would risk the opposite: a note
+deletion failure after its geometry was already erased leaves a *live* Zone note with
+no geometry, which is a worse, confusing failure mode than a harmless orphaned
+sidecar entry, and the one this ordering exists to avoid.
 
 Plan creation/deletion owns the sidecar's *existence* (create an empty sidecar when a
 Plan is created; delete it when a Plan is deleted) but never touches `objects[]`
@@ -410,6 +417,10 @@ const SpatialObjectGeometrySchemaV1 = z.object({
 const PlanGeometrySchemaV1 = z.object({
   schemaVersion: z.literal(1),
   planId: z.string(),
+  unit: z.literal("mm"), // ADR-009: mandatory, not merely recommended — a sidecar
+                         // missing this field, or carrying any other value, fails
+                         // validation and is never loaded, rather than being
+                         // silently interpreted as millimeters.
   objects: z.array(SpatialObjectGeometrySchemaV1),
 });
 type PlanGeometryDTO = z.infer<typeof PlanGeometrySchemaV1>;
@@ -556,7 +567,10 @@ interface GetZoneQuery {
    for Project, Plan, and Zone frontmatter and for the plan geometry sidecar; no
    repository or mapper accepts un-validated input, and no raw frontmatter or raw
    sidecar JSON object is passed to application or domain code (§37, Completion
-   Criterion 8).
+   Criterion 8). `PlanGeometrySchemaV1` requires `unit: "mm"` (ADR-009); a sidecar
+   missing that field, or carrying any other value, fails validation and is never
+   loaded — a test proves this explicitly, not just that the field exists in the
+   schema.
 4. Geometry sidecars are written to the configured folder (default `docs/geometry`)
    as a flat list keyed by plan ID, with the registered custom extension; no code
    path derives a sidecar's path from the plan note's path — every resolution goes

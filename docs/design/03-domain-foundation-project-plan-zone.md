@@ -270,12 +270,20 @@ Six commands, six events, one-to-one on the success path:
 
 | Command | Input (essentials) | Event on success | Failure modes (SDD §64 categories) |
 | --- | --- | --- | --- |
-| `CreateProjectCommand` | `name`, optional `description`/`status`/dates/`budget`/`contingency`/`locationDescription` | `ProjectCreated` | `ValidationError` |
-| `CreatePlanCommand` | `projectId`, `name`, optional `background`/`layers` | `PlanCreated` | `ValidationError`, `ReferenceError` (project not found) |
-| `CalibratePlanCommand` | `planId`, `pointA`, `pointB`, `knownDistance` | `PlanCalibrated` | `ReferenceError` (plan not found), `ValidationError` (distance ≤ 0), `CalculationError` (`pointA` = `pointB`, division by zero) |
-| `CreateZoneCommand` | `planId`, `name`, `zoneType`, `geometry`, optional `domainNoteLink` | `ZoneCreated` | `ReferenceError` (plan not found), `ValidationError`, `GeometryError` |
-| `MoveSpatialObjectCommand` | `zoneId`, `geometry` (full replacement) | `ZoneGeometryChanged` | `ReferenceError` (zone not found), `GeometryError` |
-| `DeleteZoneCommand` | `zoneId` | `ZoneDeleted` | `ReferenceError` (zone not found) |
+| `CreateProjectCommand` | `name`, optional `description`/`status`/dates/`budget`/`contingency`/`locationDescription` | `ProjectCreated` | `ValidationError`, `PersistenceError` |
+| `CreatePlanCommand` | `projectId`, `name`, optional `background`/`layers` | `PlanCreated` | `ValidationError`, `ReferenceError` (project not found), `PersistenceError` |
+| `CalibratePlanCommand` | `planId`, `pointA`, `pointB`, `knownDistance` | `PlanCalibrated` | `ReferenceError` (plan not found), `ValidationError` (distance ≤ 0), `CalculationError` (`pointA` = `pointB`, division by zero), `PersistenceError` |
+| `CreateZoneCommand` | `planId`, `name`, `zoneType`, `geometry`, optional `domainNoteLink` | `ZoneCreated` | `ReferenceError` (plan not found), `ValidationError`, `GeometryError`, `PersistenceError` |
+| `MoveSpatialObjectCommand` | `zoneId`, `geometry` (full replacement) | `ZoneGeometryChanged` | `ReferenceError` (zone not found), `GeometryError`, `PersistenceError` |
+| `DeleteZoneCommand` | `zoneId` | `ZoneDeleted` | `ReferenceError` (zone not found), `PersistenceError` |
+
+Every command's repository call (`save`/`delete`) returns `Result<void, PersistenceError>`
+(see `ZoneRepository`/`PlanRepository`/`ProjectRepository` below), and every command
+inspects that result and returns it — without publishing an event or reporting
+success — before doing anything else. A failed in-memory write can't actually happen
+in this slice's own `InMemory*Repository`, but the interface commits to this shape now
+so Slice 4's real, fallible Obsidian-backed repositories are a drop-in swap, not an
+interface change that would otherwise force every caller in this file to be revisited.
 
 `MoveSpatialObjectCommand` takes its name from SDD §29's example list. In this slice
 it operates on `Zone` only, because Zone is the only concrete spatial object that
@@ -376,7 +384,7 @@ interface CreateZoneInput {
 }
 
 class CreateZoneCommand
-  implements Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError>>
+  implements Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>>
 {
   constructor(
     private readonly zones: ZoneRepository,
@@ -392,7 +400,9 @@ class CreateZoneCommand
     if (zoneResult.isErr()) return zoneResult;
 
     const zone = zoneResult.value;
-    await this.zones.save(zone);
+    const saveResult = await this.zones.save(zone);
+    if (saveResult.isErr()) return saveResult; // never publish or report success on a failed write
+
     await this.events.publish(
       new ZoneCreated({ zoneId: zone.id, planId: zone.planId, projectId: zone.projectId }),
     );
@@ -402,15 +412,17 @@ class CreateZoneCommand
 ```
 
 ```typescript
-// application/commands/zone/MoveSpatialObject.ts — signature only
+// application/commands/zone/MoveSpatialObject.ts — signature only; every
+// command below follows CreateZoneCommand's pattern above: check each
+// repository call's Result and return early on Result.err before publishing.
 interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
 class MoveSpatialObjectCommand
-  implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError>> { /* … */ }
+  implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
 // application/commands/zone/DeleteZone.ts
 interface DeleteZoneInput { zoneId: ZoneId }
 class DeleteZoneCommand
-  implements Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError>> { /* … */ }
+  implements Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>> { /* … */ }
 
 // application/commands/plan/CalibratePlan.ts — plain command for this slice;
 // Slice 7 upgrades this to UndoableCommand once slice 6's undo/redo exists.
@@ -421,7 +433,7 @@ interface CalibratePlanInput {
   knownDistance: number;
 }
 class CalibratePlanCommand
-  implements Command<CalibratePlanInput, Result<{ plan: Plan }, ReferenceError | ValidationError | CalculationError>> { /* … */ }
+  implements Command<CalibratePlanInput, Result<{ plan: Plan }, ReferenceError | ValidationError | CalculationError | PersistenceError>> { /* … */ }
 ```
 
 ```typescript
@@ -432,11 +444,16 @@ interface ZoneDeleted { readonly name: 'ZoneDeleted'; readonly payload: { zoneId
 ```
 
 ```typescript
-// application/ports/ZoneRepository.ts (SDD §36, verbatim shape)
+// application/ports/ZoneRepository.ts — SDD §36 shows save()/delete() returning
+// Promise<void>, but Slice 4's real Obsidian-backed implementation can fail
+// (a Vault write, a schema validation). Declaring the Result-based shape here,
+// rather than a bare Promise<void> this slice would later have to widen, means
+// every caller already handles failure and Slice 4 only swaps the
+// implementation, never the interface or its callers.
 interface ZoneRepository {
   getById(id: ZoneId): Promise<Zone | null>;
-  save(zone: Zone): Promise<void>;
-  delete(id: ZoneId): Promise<void>;
+  save(zone: Zone): Promise<Result<void, PersistenceError>>;
+  delete(id: ZoneId): Promise<Result<void, PersistenceError>>;
   listByProject(projectId: ProjectId): Promise<Zone[]>;
 }
 
@@ -445,16 +462,16 @@ interface ZoneRepository {
 // consistent extension, not a sourced requirement.
 interface PlanRepository {
   getById(id: PlanId): Promise<Plan | null>;
-  save(plan: Plan): Promise<void>;
-  delete(id: PlanId): Promise<void>;
+  save(plan: Plan): Promise<Result<void, PersistenceError>>;
+  delete(id: PlanId): Promise<Result<void, PersistenceError>>;
   listByProject(projectId: ProjectId): Promise<Plan[]>;
 }
 
 // application/ports/ProjectRepository.ts — root aggregate, no listByX
 interface ProjectRepository {
   getById(id: ProjectId): Promise<Project | null>;
-  save(project: Project): Promise<void>;
-  delete(id: ProjectId): Promise<void>;
+  save(project: Project): Promise<Result<void, PersistenceError>>;
+  delete(id: ProjectId): Promise<Result<void, PersistenceError>>;
 }
 ```
 
@@ -475,8 +492,8 @@ class GetZone implements Query<GetZoneInput, Result<Zone, ReferenceError>> {
 class InMemoryZoneRepository implements ZoneRepository {
   private readonly store = new Map<ZoneId, Zone>();
   async getById(id: ZoneId) { return this.store.get(id) ?? null; }
-  async save(zone: Zone) { this.store.set(zone.id, zone); }
-  async delete(id: ZoneId) { this.store.delete(id); }
+  async save(zone: Zone) { this.store.set(zone.id, zone); return Result.ok(undefined); }
+  async delete(id: ZoneId) { this.store.delete(id); return Result.ok(undefined); }
   async listByProject(projectId: ProjectId) {
     return [...this.store.values()].filter((z) => z.projectId === projectId);
   }
@@ -506,9 +523,15 @@ repository implementation swaps at the composition root.
   Assertions`) — for each of the six commands: the success path returns `Result.ok`
   with the expected entity, persists it (retrievable via the same in-memory
   repository's `getById`), and publishes exactly one event of the correct type and
-  payload; every failure path returns `Result.err` with the correct SDD §64 error
-  category and performs **no** `save` and **no** `publish` (asserted via a spy
-  `EventBus` and by re-querying the repository).
+  payload; every domain-validation failure path (bad input, missing parent) returns
+  `Result.err` with the correct SDD §64 error category and performs **no** `save` and
+  **no** `publish` (asserted via a spy `EventBus` and by re-querying the repository).
+- **Repository-failure propagation tests** — for each command that calls `save`/
+  `delete`, wrap the in-memory repository with a decorator whose `save`/`delete`
+  returns `Result.err(new PersistenceError(...))`, and assert the command returns
+  that same `Result.err`, publishes **no** event, and the repository's own store is
+  left as the decorator produced it (not silently treated as success). This is the
+  regression test for a save failure being discarded and success reported anyway.
 - **Query tests** — `GetProject`/`GetPlan`/`GetZone` return `Result.ok` for an entity
   seeded directly into the repository (independent of any command) and
   `Result.err(ReferenceError)` for a missing id, proving the queries are
@@ -537,6 +560,9 @@ repository implementation swaps at the composition root.
 - [ ] `ProjectCreated`, `PlanCreated`, `PlanCalibrated`, `ZoneCreated`,
       `ZoneGeometryChanged`, `ZoneDeleted` are defined and are published through
       Slice 2's `EventBus` on, and only on, each corresponding command's success path.
+- [ ] Every command that calls `save`/`delete` inspects the returned `Result` and
+      returns it unpublished on `Result.err` — a failing repository write can never
+      be reported as success or produce an event.
 - [ ] `GetProject`, `GetPlan`, `GetZone` are implemented against the repository *port*
       types only, with no reference to any concrete repository implementation.
 - [ ] `ProjectRepository`, `PlanRepository`, `ZoneRepository` ports are defined in

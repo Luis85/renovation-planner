@@ -1429,7 +1429,7 @@ Calculation of an expected final value.
 ```
 Actual Cost
 +
-Committed Cost
+Committed Cost (not yet invoiced)
 +
 Remaining Estimate
 =

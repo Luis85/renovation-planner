@@ -45,6 +45,11 @@ end to end.
   `RequirementRepository` (+ Obsidian and in-memory implementations), and
   extending slice 6's Inspector with a Requirements panel for the selected
   Zone.
+- `ReversibleAssignAssetCommand`: the undoable adapter the Inspector actually
+  dispatches (PRD §68), over the plain, idempotent `AssignAssetCommand`.
+- The read model for a Requirement whose Zone or Asset is gone — `missingTarget` on
+  the Inspector DTO and `ListOrphanedRequirements` — since `delete-anyway` is what
+  creates that state and nothing else can reach it.
 - Extending the Project Index (SDD §47) with the lookups this slice's event
   handler needs to find affected Requirements without a Vault scan.
 
@@ -291,15 +296,19 @@ eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => 
     // and it must survive a recalculation failure, not just a successful one.
     const staleResult = await requirementRepository.markStale(requirement.id);
     if (isErr(staleResult)) {
-      // The durable-staleness guarantee depends on this write landing before
-      // recalculation is attempted. If it fails, do not proceed to recalculate —
-      // that could leave outdated values under a status still read as "current"
-      // by whatever last successfully saved it. Log and move on to the next
-      // Requirement; this one keeps its last-persisted status untouched.
+      // Do not proceed to recalculate — that could leave outdated values under a
+      // status still read as "current" by whatever last successfully saved it.
+      // This branch is NOT silent: the durable marker is what justifies staying
+      // quiet about a background failure (slice 17), and it is exactly what did
+      // not land, so this one is surfaced as well as logged. The reading itself
+      // is kept honest without this write by the input snapshot below, which the
+      // read model compares — a marker that could not be written is not the only
+      // thing standing between the user and an obsolete number.
       logger.error('requirement.stale-marker.failed', {
         requirementId: requirement.id,
         cause: staleResult.error,
       });
+      notifyStaleMarkerFailed(requirement.id);   // slice 13 toast, per slice 17
       continue;
     }
     await eventBus.publish(requirementInvalidated({ requirementId: requirement.id }));
@@ -333,6 +342,36 @@ synchronously (see above) before recalculation is attempted, and only cleared ba
 to `"current"` by `RecalculateRequirementCommand`'s own successful save. A crashed
 or failed recalculation therefore always leaves a Requirement visibly `"stale"`,
 never silently `"current"` with outdated numbers.
+
+**The marker cannot be the only thing holding that guarantee, because the marker is a
+write.** `markStale()` fails in exactly the circumstances where the numbers most need
+questioning, and a design that answers "the flag makes stale values impossible" with a
+flag that could not be written is answering with the thing that broke. The same hole is
+open on a crash between the geometry write and the marker write, which no error path
+covers at all. So the Requirement also persists **what it was calculated from** — the
+two inputs that live outside it:
+
+```text
+calculatedFrom: { zoneArea: Quantity; unitCost: Money }
+```
+
+Both are written by `RecalculateRequirementCommand` in the same save as the figures they
+produced, so they are always written when writes are working, never when they are not.
+The read model compares them against the Zone and Asset it has already loaded, and
+reports `"stale"` on any mismatch regardless of the persisted flag.
+
+The direction of that backstop is the whole of its contract, and it is deliberately
+one-way: it can move a reading from `"current"` to `"stale"`, never the reverse. A
+persisted `"stale"` stays stale even if the inputs happen to match again, because the
+marker means "a recalculation was owed and is not known to have completed" — which
+matching inputs do not disprove. So this adds no second authority over what
+`recalculationStatus` means; it removes the case where the first one is silently absent.
+
+Comparison happens on the persisted, already-rounded values — the read side recomputes
+the area through the same pipeline step and rounding rule that produced the stored one
+(slice 9), rather than comparing a raw geometric area against a rounded record. A
+comparison at a finer precision than the pipeline itself uses would report drift the
+pipeline could not have produced, and every Requirement would read as permanently stale.
 
 **A second subscriber, on `AssetUpdated`, is required for the same reason.** A
 Requirement's cost is a function of the Zone's geometry *and* the Asset's `unitCost` and
@@ -459,7 +498,15 @@ function CountRequirementsReferencing(
 interface RequirementInspectorDTO {
   requirementId: RequirementId;
   assetId: AssetId;
-  assetName: string;
+  // null when the Asset this Requirement references no longer exists — the state
+  // `delete-anyway` deliberately creates. Typed `string` it could not be built at
+  // all, so the query would have to fail or drop the row, and the stale warning
+  // this DTO exists to carry would be unreachable for exactly the Requirements
+  // that most need it. The row renders from assetId plus missingTarget instead.
+  assetName: string | null;
+  // Which end of the reference is gone, if either. 'zone' is only reachable through
+  // ListOrphanedRequirements below, since a deleted Zone cannot be selected.
+  missingTarget: 'asset' | 'zone' | null;
   unit: MeasurementUnit;
   wasteFactor: Decimal;
   quantity: { calculated: Quantity; override: Quantity | null; effective: Quantity };
@@ -469,6 +516,9 @@ interface RequirementInspectorDTO {
   // Requirements panel, so omitting the field here would make the persisted marker
   // unreachable by the surface designed to render it — the marker would survive a
   // reload and then be invisible, which is indistinguishable from not having it.
+  // Reported "stale" when the persisted marker says so, when calculatedFrom does not
+  // match the loaded Zone and Asset, or when missingTarget is set — the query never
+  // reports "current" for a figure it cannot re-derive.
   recalculationStatus: 'current' | 'stale';
 }
 ```
@@ -476,10 +526,27 @@ interface RequirementInspectorDTO {
 For the selected Zone, the panel lists one row per Requirement: Asset name,
 effective quantity (with a visible "overridden" badge and the calculated
 figure still shown when `override !== null`), and effective cost (same
-treatment). An "Assign Asset" control dispatches `AssignAssetCommand`; a cost
-field with a "reset to calculated" affordance dispatches
-`SetRequirementCostOverrideCommand`. Edits become commands, per §59 — the
+treatment). A missing target renders from `assetId` with the reason shown rather than a
+name (see `delete-anyway` above). An "Assign Asset" control dispatches
+`ReversibleAssignAssetCommand`; a cost field with a "reset to calculated" affordance
+dispatches `SetRequirementCostOverrideCommand`. Edits become commands, per §59 — the
 Inspector never writes to a Requirement directly.
+
+**Assignment goes through an adapter, like every other edit reaching command history.**
+PRD §68 names `AssignAssetCommand` undoable, and slice 6's Inspector commit path is
+`CommandHistory.run()`, which accepts an `UndoableCommand` and nothing else — so the
+plain command could not be dispatched from this panel even if undo were not wanted.
+`ReversibleAssignAssetCommand` wraps it with one piece of state the plain command's
+payload cannot supply: whether this call created the Requirement or found an existing
+one. `AssignAssetCommand` is idempotent by design, so both return a Requirement, and an
+`undo()` that deleted unconditionally would destroy a link — with whatever overrides had
+been set on it — that the user's gesture never created. Undo deletes only what execute
+created, and is a no-op otherwise.
+
+Redo restores that Requirement under its original ID rather than re-running assignment,
+for the reason slice 8 spells out for creation: `CommandHistory.redo()` calls `execute()`
+again, and a fresh identity would strand every later command that captured the old one.
+The two adapters are the same shape, over different plain commands.
 
 ### Deletion & reference integrity
 
@@ -531,6 +598,24 @@ outcomes rather than three synonyms for "delete":
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
 | `reassign` | Repoint every referencing Requirement's `origin`/`assetId` at `reassignTo`, then delete the entity. A missing or self-referencing `reassignTo` is a `ValidationError`. |
 | `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Inspector must show rather than hide. |
+
+**`delete-anyway` owes the Requirements it strands a way to be seen.** PRD §64 requires
+the action, so retaining them is not optional — but "leave them marked stale" is only a
+real answer if the marked Requirement can still be reached and read, and by default
+neither holds. A Requirement whose Asset is gone cannot fill `assetName: string`, so the
+one query backing the Requirements panel could not build its row at all; a Requirement
+whose Zone is gone is not reachable from that panel in the first place, because the panel
+is scoped to a selected Zone and there is no longer one to select. The warning would be
+persisted, correct, and invisible — the same defect as not marking it, arrived at from
+the read side.
+
+Two additions rather than a new subsystem: `RequirementInspectorDTO` represents a missing
+target explicitly (`assetName: string | null` plus `missingTarget`, below), so a dangling
+Requirement renders as a row that says what is wrong instead of failing to be built; and
+`ListOrphanedRequirements(projectId)` makes the Zone-less ones reachable, since nothing
+else in the read model can name them. Slice 17's table routes both — a dangling reference
+is a persisted-badge case, not a toast, because it is a state the user chose and must
+later resolve, not an event that just happened.
 
 **A resolution mutates several entities, so it needs compensation and a snapshot.**
 Every non-absent resolution is N Requirement writes followed by one entity delete, and
@@ -632,6 +717,30 @@ type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, Validati
 // idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one;
 // ValidationError if the Asset's unit is not "m2" — see "The derivation pipeline" above
 
+// application/commands/requirement/ReversibleAssignAssetCommand.ts — the adapter the
+// Inspector's "Assign Asset" control actually dispatches. PRD §68 names
+// AssignAssetCommand undoable, and the Inspector commit path is CommandHistory.run()
+// (slice 6), which takes an UndoableCommand: a plain Command cannot be dispatched
+// there at all. Same family as slice 8's ReversibleCreateZoneCommand, and it lives
+// beside the command it wraps for the same reason — undo and redo both need the
+// repository, not just the plain command.
+class ReversibleAssignAssetCommand implements UndoableCommand {
+  constructor(
+    private readonly assignCommand: Command<AssignAssetInput, Result<Requirement, ValidationError | DomainError | ReferenceError | PersistenceError>>,
+    private readonly requirementRepository: RequirementRepository,
+    private readonly input: AssignAssetInput,
+  );
+  // First call dispatches assignCommand and records BOTH the Requirement and whether
+  // this call created it or found an existing one — AssignAssetCommand is idempotent,
+  // so the two are indistinguishable from its payload alone, and an undo that deleted
+  // a pre-existing Requirement would destroy a link (and its overrides) the user never
+  // made in this gesture. Every later call (i.e. redo) re-saves the recorded snapshot
+  // under its original ID instead of re-assigning, so the ID survives undo/redo.
+  execute(): Promise<Result<void, AppError>>;
+  undo(): Promise<Result<void, AppError>>;   // deletes only what execute() created; a
+                                             // no-op when it found one already there
+}
+
 interface RecalculateRequirementInput { requirementId: RequirementId; }
 type RecalculateRequirementCommand = Command<RecalculateRequirementInput, Result<Requirement, CalculationError | ReferenceError | PersistenceError>>;
 
@@ -643,6 +752,11 @@ type SetRequirementCostOverrideCommand = Command<SetRequirementCostOverrideInput
 
 // application/queries
 function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
+// Requirements whose Zone or Asset no longer exists — the state `delete-anyway`
+// creates. Zone-less ones have no other way to be reached: the Requirements panel is
+// scoped to a selected Zone, and theirs cannot be selected. Rows come back with
+// missingTarget set and recalculationStatus "stale", never "current".
+function ListOrphanedRequirements(projectId: ProjectId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
 function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
 function CountRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
@@ -733,6 +847,9 @@ cost-calculated: "594.00"
 cost-override: "550.00"
 currency: EUR
 
+calculated-from-area: "12.0"
+calculated-from-unit-cost: "45.00"
+
 recalculation-status: current
 required-date: null
 ---
@@ -746,6 +863,14 @@ that set it. A `Requirement` schema without the field would lose it on the next
 hydration and show the cached `quantity-calculated`/`cost-calculated` as current, which
 is precisely the state `markStale` exists to prevent. It round-trips through the mapper
 and the Zod schema like any other field, and is covered by the contract suite below.
+
+`calculated-from-area` and `calculated-from-unit-cost` are the same argument carried one
+step further: they record the two inputs that live outside this note, so a reader can
+tell that the stored figures are obsolete even when the marker never got written (see
+"The marker cannot be the only thing holding that guarantee" above). They are written
+only by `RecalculateRequirementCommand`, in the same save as the figures they explain,
+and they are decimals-as-quoted-strings for the same ADR-010 reason as everything else
+in this block.
 
 Every decimal-valued field is persisted as a **quoted string**, not a YAML float.
 ADR-010 exists because native floating point silently loses money, and a YAML parser
@@ -802,9 +927,29 @@ are additive, not breaking.
   `requirementRepository.markStale` resolve a failed `Result` on an in-memory
   repository configured to fail, and asserts the cascade stops there: no
   `RequirementInvalidated` is published and `recalculateRequirement` is never
-  invoked for that Requirement. The `AssetUpdated` handler is driven by the same
+  invoked for that Requirement. That test continues past the cascade, because
+  stopping is only half the requirement: the Zone's area is then changed, all
+  in-memory state is discarded, and `GetRequirementsForZone` must report the
+  Requirement `"stale"` — from the `calculatedFrom` mismatch, since the marker
+  write is exactly what failed. A test that asserted only "no recalculation
+  happened" passes against a design that silently shows the old number as current.
+  The `AssetUpdated` handler is driven by the same
   table: publishing it after a `unitCost` change recalculates every Requirement
   `listByAsset` returns, and none is left `"current"` at the old price.
+- **Application — undoable assignment.** `ReversibleAssignAssetCommand` on a
+  (zone, asset) pair with no existing Requirement: `undo()` removes it;
+  `execute()` again (redo) brings it back **under the same RequirementId**, asserted
+  against the first execute's ID. On a pair that already has a Requirement — the
+  idempotent path — `undo()` leaves it in place, with any overrides on it untouched.
+  The second case is the one a naive adapter fails, and it fails invisibly, since a
+  test that only ever assigns to a fresh Zone never reaches it.
+- **Application — dangling references.** After `delete-anyway` on an Asset,
+  `GetRequirementsForZone` returns the row with `assetName: null`,
+  `missingTarget: 'asset'` and `recalculationStatus: 'stale'` rather than failing or
+  omitting it; after `delete-anyway` on a Zone, `ListOrphanedRequirements` returns
+  that Requirement and the Zone's own panel no longer exists to be queried. Asserted
+  as rows returned, not as an error absent — a query that dropped the row would also
+  "not fail".
 - **Repository contract (§72).** A shared `AssetRepository` and
   `RequirementRepository` contract suite runs against both in-memory and
   Obsidian implementations: round-trip through the Markdown mapping, and
@@ -814,12 +959,14 @@ are additive, not breaking.
   `recalculation-status: stale`: save a stale Requirement, discard all in-memory
   state, re-read it, and assert it is still `"stale"`. A marker that survives
   `markStale()` but not a reload is the same defect as no marker at all, and only a
-  reload test distinguishes the two.
+  reload test distinguishes the two. `calculated-from-area` and
+  `calculated-from-unit-cost` round-trip in the same test, as quoted decimals — they
+  are what keeps that reading honest when the marker write is the thing that failed.
 - **Vue component (§73).** The Inspector's Requirements panel: renders
   calculated values with no badge when no override is set; renders the
   override with a distinct visual treatment and still shows the calculated
   value for comparison when one is set (§52); the "assign asset" picker
-  dispatches `AssignAssetCommand`; the cost field's reset control dispatches
+  dispatches `ReversibleAssignAssetCommand`; the cost field's reset control dispatches
   `SetRequirementCostOverrideCommand(..., null)`.
 - **Integration test vault (§75).** Add an `asset-and-requirement` fixture
   under `tests/vault/` — one Project, one Plan, one calibrated Zone with a
@@ -862,7 +1009,23 @@ are additive, not breaking.
 - [ ] A failed `requirementRepository.markStale` write aborts the cascade for
       that Requirement before `RequirementInvalidated` publishes or
       recalculation runs, covered by a test against a repository configured
-      to fail.
+      to fail — and is surfaced to the user, not only logged, since the durable
+      marker that lets a background failure stay quiet is the write that failed.
+- [ ] After that failed marker write, the Requirement still reads `"stale"` once its
+      Zone's area has changed and all in-memory state has been discarded — from the
+      `calculatedFrom` mismatch, with the persisted flag still saying `"current"`. This
+      is the assertion that the guarantee does not rest on the write that can fail.
+- [ ] `calculatedFrom` never moves a reading the other way: a Requirement persisted as
+      `"stale"` whose inputs happen to match again still reads `"stale"`.
+- [ ] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
+      Requirement this gesture created, redo restores it under the same
+      `RequirementId`, and undo on the idempotent path — where the Requirement already
+      existed — deletes nothing and preserves its overrides.
+- [ ] A Requirement left dangling by `delete-anyway` is still readable: with its Asset
+      gone, `GetRequirementsForZone` returns the row with `assetName: null`,
+      `missingTarget: 'asset'` and `"stale"`; with its Zone gone,
+      `ListOrphanedRequirements` returns it. Neither query fails, and neither silently
+      omits the row.
 - [ ] Both `Requirement.quantity` and `Requirement.estimatedCost` are
       `DerivedValue<T>`, and the Inspector visibly distinguishes calculated
       from overridden for each independently (§52).

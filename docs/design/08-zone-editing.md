@@ -375,11 +375,31 @@ site that mutates:
 
 ```text
 withProjectStoreRefresh(history, projectStore, planQueries).<op>(...)   op in run | undo | redo
+  → queue this whole step behind any step already running (see below)
   → result = await history.<op>(...)
   → result.ok → re-run GetPlan + FindZonesByPlan for the active plan and re-hydrate
                 ProjectStore, through slice 5's own hydration routine
   → return result unchanged to the caller
 ```
+
+**The operation and its refresh are one queued step, not two.** `CommandHistory`
+serializes `run`/`undo`/`redo` (slice 6), but that queue ends when the operation
+resolves — a refresh started after it runs outside it. Two editor sources can dispatch
+concurrently (slice 13's overlapping-dispatch case), and then command A's re-query can
+begin before command B's write, resolve after B's refresh, and overwrite `ProjectStore`
+with zones that predate B — both writes succeeded, the indicator reads `Saved`, and the
+canvas shows the older of the two. So this decorator holds its own queue around the pair
+rather than relying on the inner one: same reasoning slice 6 gives for serializing at
+`CommandHistory` instead of at the dispatcher — the guarantee belongs wherever the whole
+unit is, and here the unit is "write, then read back what was written". The inner queue
+stays where it is and is simply never contended by this caller.
+
+A generation token on the store — apply a hydration only if no later one already
+landed — would also prevent the overwrite, and is the cheaper option if the extra
+serialization ever costs measurable latency. It is not the one taken here because it
+still permits a stale snapshot to render briefly before the newer one replaces it, and
+because a counter is a second thing to keep correct next to a queue this decorator needs
+anyway.
 
 **Not a domain-event subscriber**, which is the obvious alternative and the wrong one
 here: the undo paths in this slice deliberately publish nothing a `ZoneCreated`
@@ -593,6 +613,9 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
 // and nests inside it. Transparent: the wrapped Result is returned unchanged, so a
 // failed re-query never reports a successful write as a failure. canUndo/canRedo/
 // clear pass through untouched — they change no persisted state to re-read.
+// Each wrapped call queues the operation and its refresh together: CommandHistory's
+// own queue releases at the operation, so an unqueued refresh can read pre-command
+// state and land after a later command's refresh (see Design).
 type RefreshedHistory = Pick<CommandHistory, 'run' | 'undo' | 'redo'>;
 
 export function withProjectStoreRefresh(
@@ -690,7 +713,12 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
   `redo` — a successful operation re-hydrates `ProjectStore` from the queries, a failed
   one does not, and the wrapped `Result` comes back unchanged either way; a re-query
   that itself fails still returns the write's success and leaves the store's previous
-  contents in place. Then the symptom, asserted where a user would see it rather than
+  contents in place. Then the ordering case, which needs the refreshes to resolve out of
+  order to mean anything: two overlapping dispatches whose fakes make the *first*
+  command's re-query the slower one, asserting the store ends holding both commands'
+  results rather than the first's snapshot. A test whose queries resolved in dispatch
+  order would pass against an unqueued decorator. Then the symptom, asserted where a
+  user would see it rather than
   on the decorator: after a create dispatch resolves, the new ID is in
   `ProjectStore.zones` and `SelectTool` hit-tests it; after a delete dispatch resolves,
   it is in neither — with no view reopen in between.

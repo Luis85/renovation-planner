@@ -405,14 +405,25 @@ new top-level field alongside `objects` — extending SDD §40's schema additive
   "planId": "plan-01JABB3C5D7E9F1G3H5J7K9M1N",
   "unit": "mm",
   "calibration": {
-    "pointA": { "x": 812, "y": 240 },
-    "pointB": { "x": 812, "y": 1180 },
+    "pointA": { "x": 3248, "y": 960 },
+    "pointB": { "x": 3248, "y": 4160 },
     "knownDistance": 3200,
-    "pixelsPerWorldUnit": 0.29375
+    "pixelsPerWorldUnit": 0.25
   },
   "objects": []
 }
 ```
+
+**The persisted points are post-rescale, which is why they are 3200 apart.** The user
+picked (812, 240) and (812, 1040) — 800 world units apart under the placeholder scale —
+and said the real distance is 3200 mm, giving `scaleCorrection = 3200 / 800 = 4` and
+`pixelsPerWorldUnit = 1 / 4`. Step 3 of `execute()` multiplies every world-unit
+coordinate for the Plan by `scaleCorrection`, and the calibration's own points are on
+that list, so what lands in the file is the picked points already corrected. A persisted
+calibration therefore always satisfies `distance(pointA, pointB) === knownDistance`;
+points that disagree with their own `knownDistance` are the pre-rescale values, which is
+a fixture that never existed at rest. Asserted directly rather than left to the reader —
+see Testing Strategy.
 
 > **Assumption:** the PRD lists `scale` among `Plan`'s properties (§8) but does not say
 > which persisted file holds it — Markdown frontmatter (ADR-001) or the geometry
@@ -455,6 +466,10 @@ Application (§71):
 
 - `ReversibleCalibratePlanCommand` on a Plan with no spatial objects updates only
   `Plan.calibration`.
+- After any successful `execute()`, the persisted calibration satisfies
+  `distance(pointA, pointB) === knownDistance` — the rescale applies to the
+  calibration's own points, not only to the geometry around them. Asserted on the saved
+  value rather than the input, since the input is exactly where the two disagree.
 - `ReversibleCalibratePlanCommand` on a Plan with existing Zones rescales every Zone's
   geometry in the same transaction; a failure partway through leaves previously valid
   data intact (§42).
@@ -497,6 +512,10 @@ the sidecar unchanged.
       passing test, not just by inspection.
 - [ ] Coincident points and non-finite/non-positive distances are rejected via
       `Result`, never thrown (§26, §65).
+- [ ] A persisted `Calibration` measures its own `knownDistance`: the saved `pointA`
+      and `pointB` are `scaleCorrection` apart from the picked ones, so
+      `distance(pointA, pointB) === knownDistance` on read-back — including for the
+      sidecar example above, which is a fixture people copy.
 - [ ] Recalibrating a Plan that already has persisted Zones rescales those Zones'
       geometry in the same transaction as the calibration update, with a passing
       test proving it — not just documented as intent.

@@ -256,7 +256,16 @@ eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => 
     // Persist the stale marker BEFORE attempting recalculation — this is the
     // durable fact "this Requirement's numbers are no longer trustworthy,"
     // and it must survive a recalculation failure, not just a successful one.
-    await requirementRepository.markStale(requirement.id);
+    const staleResult = await requirementRepository.markStale(requirement.id);
+    if (staleResult.isErr()) {
+      // The durable-staleness guarantee depends on this write landing before
+      // recalculation is attempted. If it fails, do not proceed to recalculate —
+      // that could leave outdated values under a status still read as "current"
+      // by whatever last successfully saved it. Log and move on to the next
+      // Requirement; this one keeps its last-persisted status untouched.
+      errorBoundary.logStaleMarkerFailure(requirement.id, staleResult.error);
+      continue;
+    }
     await eventBus.publish(new RequirementInvalidated(requirement.id));
 
     const result = await recalculateRequirement.execute({ requirementId: requirement.id });
@@ -583,7 +592,11 @@ are additive, not breaking.
   — exactly once each, with the Requirement's persisted `calculated` values
   updated. Separate tests confirm `SetRequirementQuantityOverrideCommand` and
   `SetRequirementCostOverrideCommand` each publish `CostEstimateChanged` only
-  when the effective cost actually changes.
+  when the effective cost actually changes. A further test makes
+  `requirementRepository.markStale` resolve `Result.err` on an in-memory
+  repository configured to fail, and asserts the cascade stops there: no
+  `RequirementInvalidated` is published and `recalculateRequirement` is never
+  invoked for that Requirement.
 - **Repository contract (§72).** A shared `AssetRepository` and
   `RequirementRepository` contract suite runs against both in-memory and
   Obsidian implementations: round-trip through the Markdown mapping, and
@@ -625,6 +638,10 @@ are additive, not breaking.
 - [ ] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
+- [ ] A failed `requirementRepository.markStale` write aborts the cascade for
+      that Requirement before `RequirementInvalidated` publishes or
+      recalculation runs, covered by a test against a repository configured
+      to fail.
 - [ ] Both `Requirement.quantity` and `Requirement.estimatedCost` are
       `DerivedValue<T>`, and the Inspector visibly distinguishes calculated
       from overridden for each independently (§52).

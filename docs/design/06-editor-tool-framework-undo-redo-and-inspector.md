@@ -157,17 +157,33 @@ CommandHistory
   run(command)   → result = await command.execute()
                  → if result.isErr(): return result — undoStack/redoStack untouched
                  → push command to undoStack, clear redoStack, return result
-  undo()         → pop undoStack, command.undo(), push to redoStack
-  redo()         → pop redoStack, command.execute(), push to undoStack
+  undo()         → peek undoStack (do not pop yet)
+                 → result = await command.undo()
+                 → if result.isErr(): return result — command stays on undoStack,
+                   not moved to redoStack
+                 → pop undoStack, push command to redoStack, return result
+  redo()         → peek redoStack (do not pop yet)
+                 → result = await command.execute()
+                 → if result.isErr(): return result — command stays on redoStack,
+                   not moved to undoStack
+                 → pop redoStack, push command to undoStack, return result
 ```
 
-Every `UndoableCommand.execute()` resolves to a `Result`, per ADR-007/SDD §29 — it
-never rejects for an expected domain or persistence failure (only an unexpected
-technical fault throws, per SDD §65). "After `execute()` resolves" is therefore not
-enough to gate the stacks on: a resolved `Result.err` (a handler-level validation
-error, a persistence failure from slice 4) must be inspected explicitly and is never
-pushed to `undoStack` — `run()` checks `isErr()` before touching either stack, not
-just after the promise settles.
+Every `UndoableCommand.execute()` and `.undo()` resolves to a `Result`, per
+ADR-007/SDD §29 — neither ever rejects for an expected domain or persistence
+failure (only an unexpected technical fault throws, per SDD §65), and per
+slice 4's repository contract a failed write is a no-op: it never partially
+applies. "After the promise resolves" is therefore not enough to gate the
+stacks on: a resolved `Result.err` (a handler-level validation error, a
+persistence failure from slice 4) must be inspected explicitly at all three
+operations, not just `run()`. A failed `undo()` leaves the Vault in the same
+state it was in before the undo was attempted — i.e. still reflecting the
+command as applied — so the command must stay on `undoStack`, available to
+retry; moving it to `redoStack` would record it as "available to redo" when
+it was never undone. Symmetrically, a failed `redo()` leaves the command
+un-replayed, so it stays on `redoStack` rather than moving to `undoStack`.
+Neither stack is popped until the corresponding operation is confirmed to
+have succeeded.
 
 `CommandHistory` is scoped per open Plan and lives in `EditorStore`; it is not
 persisted (SDD §15 — ephemeral) and does not survive a plugin reload or switching
@@ -462,7 +478,11 @@ and tool-switching directly touch.
   command whose `execute()` **resolves to `Result.err`** (not a rejected promise —
   this is the case that matters, since domain/persistence failures never reject) is
   never pushed to `undoStack`, and that `run()` returns that same `Result.err` to its
-  caller. No Konva, no Obsidian.
+  caller. A further pair of tests makes a double's `.undo()` and `.execute()` (as
+  called by `redo()`) each resolve to `Result.err` in turn, and asserts the command
+  stays on its original stack in both cases — `undo()`'s failure leaves it on
+  `undoStack`, not moved to `redoStack`; `redo()`'s failure leaves it on `redoStack`,
+  not moved to `undoStack`. No Konva, no Obsidian.
 - **`normalizeTransformerResult` unit tests** — table-driven over plain
   `{x, y, rotation, scaleX, scaleY}` + base geometry inputs; assert the output never
   contains a `scaleX`/`scaleY` field and that `scaleX: 2, scaleY: 1` on a 1000×500mm
@@ -502,7 +522,10 @@ and tool-switching directly touch.
 5. A command whose `execute()` resolves to `Result.err` (simulated validation or
    persistence failure) is never pushed to `undoStack`, produces no redo-stack
    entry, and `CommandHistory.run()` returns the same `Result.err` to its caller —
-   asserted against a resolved error `Result`, not a rejected promise.
+   asserted against a resolved error `Result`, not a rejected promise. A command
+   whose `.undo()` resolves to `Result.err` stays on `undoStack` rather than moving
+   to `redoStack`; a command whose `.execute()` resolves to `Result.err` when called
+   by `redo()` stays on `redoStack` rather than moving to `undoStack`.
 5. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
    reachable from it, checked by the architecture/contract test.
 6. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,

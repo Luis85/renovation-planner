@@ -122,7 +122,11 @@ must not drift into being produced from two independent code paths.
 // application/commands/zone/save-zone-geometry.ts (illustrative)
 async function saveZoneGeometry(cmd: SaveZoneGeometryCommand): Promise<Result<void, DomainError>> {
   try {
-    await zoneRepository.save(zone);
+    const saveResult = await zoneRepository.save(zone); // Result<void, PersistenceError> — resolves, never throws
+    if (saveResult.isErr()) {
+      logger.error('zone.save.failed', { zoneId: cmd.zoneId, cause: saveResult.error });
+      return saveResult;
+    }
     return ok(undefined);
   } catch (cause) {
     const mapped = mapPersistenceException(cause); // -> PersistenceError | ValidationError
@@ -131,6 +135,14 @@ async function saveZoneGeometry(cmd: SaveZoneGeometryCommand): Promise<Result<vo
   }
 }
 ```
+
+The `try`/`catch` here still matters: it is the boundary for whatever *does*
+throw (an unexpected technical fault per SDD §65, not the repository's own
+expected-failure path). Slice 4's repository contract returns a resolved
+`Result.err` for an expected write failure rather than throwing, so that
+result must be inspected and returned explicitly — the `catch` block is not
+what runs for it, and this function must not report a failed write as
+`ok(undefined)` by falling through the happy path unchecked.
 
 ```typescript
 // presentation/stores/zone-store.ts (illustrative)
@@ -349,6 +361,11 @@ will run.)
 - **Result-not-throw contract**: application command/query tests assert no
   command or query function can reject/throw past its public boundary for
   any input in its test matrix; failures always arrive as `Result.err`.
+- **Resolved-failure-is-not-a-throw test**: given a repository test double
+  configured to resolve `Result.err` (never to reject), assert the Application
+  Error Mapping site inspects and returns that result — a `try`/`catch` around
+  the call must not let the resolved error fall through to a happy-path
+  `ok(...)` return, since it never entered the `catch` block to begin with.
 - **Message/log separation**: given a `DomainError`, `toUserMessage` returns
   a string containing no raw exception message, stack fragment, or file path;
   the paired `logger.error` call (asserted via a test double) receives the
@@ -375,6 +392,10 @@ will run.)
   caught and mapped to a specific slice-2 `DomainError` variant before it can
   reach Application or Presentation code; no command or query's public
   contract can throw.
+- A repository call that resolves to `Result.err` (an expected write failure,
+  per slice 4's contract) is inspected and propagated at its Application
+  Error Mapping site, never mistaken for the absence of failure because no
+  exception was thrown.
 - A user-facing error message never contains a raw exception message, stack
   trace, or internal file path; the corresponding `logger.error` call always
   carries that full detail.

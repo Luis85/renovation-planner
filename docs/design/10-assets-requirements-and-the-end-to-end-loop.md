@@ -334,6 +334,34 @@ to `"current"` by `RecalculateRequirementCommand`'s own successful save. A crash
 or failed recalculation therefore always leaves a Requirement visibly `"stale"`,
 never silently `"current"` with outdated numbers.
 
+**A second subscriber, on `AssetUpdated`, is required for the same reason.** A
+Requirement's cost is a function of the Zone's geometry *and* the Asset's `unitCost` and
+`wasteFactorDefault`; the cascade above covers only the first input. Without the second,
+editing a catalog price leaves every linked Requirement holding its old persisted
+`estimatedCost.calculated` while still marked `"current"` — a stale number presented as
+current, which is precisely what `recalculationStatus` exists to make impossible. The
+handler is the same shape, over `listByAsset` (already on the repository) instead of
+`listByZone`:
+
+```typescript
+// application/event-handlers/requirement/onAssetUpdated.ts
+// Identical markStale-then-recalculate sequence, including the abort-on-failed-marker
+// rule above — the only difference is which repository lookup finds the affected
+// Requirements. It is a separate file rather than a shared one because the two events
+// carry different payloads; the sequence itself is small enough that sharing it would
+// cost more indirection than it saves.
+eventBus.subscribe("AssetUpdated", async (event: AssetUpdated) => {
+  const requirements = await requirementRepository.listByAsset(event.assetId);
+  /* … markStale → RequirementInvalidated → recalculate, exactly as above … */
+});
+```
+
+`UpdateAssetCommand` publishes `AssetUpdated` on every successful save, including edits
+that cannot change a cost (a `name` or `notes` change). Recalculating a few Requirements
+unnecessarily is cheap and always correct; diffing the Asset to decide whether to fire
+would be a second place that has to know which fields the pipeline reads, and would go
+wrong silently the first time the pipeline started reading one more.
+
 `RecalculateRequirementCommand` (named in SDD §29) re-fetches the current Zone
 and Asset, re-runs the pipeline above, saves the Requirement (quantity, cost, and
 `recalculationStatus: "current"` together, one write), and publishes
@@ -463,10 +491,47 @@ different reasons**, and keeping them apart is what makes the flow work:
   has to be in the command because a script, a migration, or a future caller that never
   opened a dialog must not be able to walk past it (§87 rule 5, slice 11).
 
-The dialog's resolution is passed to the command as an explicit resolution parameter
-(`'remove-references' | 'reassign' | 'delete-anyway'`), so "the user chose to proceed"
-is data the command receives, not a state the UI assumes on its behalf. No new
-mechanism — just this slice's entities participating in PRD §64's existing flow.
+The dialog's resolution reaches the command as data, which means a command input has to
+carry it. **This slice is what adds that field**, because this slice introduces the first
+entity that can reference a Zone — exactly the deferral slice 8 makes ("deferred to
+whichever of those slices introduces the first entity that can reference a Zone"). Slice
+3's `DeleteZoneInput` is widened by one optional field, and `DeleteAssetInput` is
+declared with it from the start:
+
+```typescript
+type ReferenceResolution = 'remove-references' | 'reassign' | 'delete-anyway';
+
+// slice 3's input, widened here — optional, so every existing caller still compiles
+// and a caller that omits it gets the safe behaviour: refuse if referents exist.
+interface DeleteZoneInput {
+  zoneId: ZoneId;
+  resolution?: ReferenceResolution;
+  reassignTo?: ZoneId;   // required when resolution is 'reassign'; see below
+}
+
+interface DeleteAssetInput {
+  assetId: AssetId;
+  resolution?: ReferenceResolution;
+  reassignTo?: AssetId;
+}
+```
+
+What each resolution means to the command, so the dialog's four buttons are four real
+outcomes rather than three synonyms for "delete":
+
+| Resolution | Command behaviour |
+| --- | --- |
+| *(absent)* | Refuse with a `ReferenceError` naming the referents, if any exist. This is the path a script or a migration takes. |
+| `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
+| `reassign` | Repoint every referencing Requirement's `origin`/`assetId` at `reassignTo`, then delete the entity. A missing or self-referencing `reassignTo` is a `ValidationError`. |
+| `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Inspector must show rather than hide. |
+
+`reassignTo` is where PRD §64's own gap shows through: it names "Reassign" as an action
+but never says how a target is picked. Slice 15 is explicit that its dialog resolves
+*that* the user chose Reassign and carries no target. Sourcing one is a follow-up step
+the caller performs before dispatching — a second picker — and neither the SDD nor the
+PRD specifies it, so this slice defines the command's contract for receiving a target
+without designing the UI that supplies it.
 
 ## Interfaces & Contracts
 
@@ -550,12 +615,19 @@ application/commands/asset/            application/commands/requirement/
 
 application/event-handlers/requirement/
 ├── onZoneGeometryChanged.ts    (→ RequirementInvalidated → RecalculateRequirement)
+├── onAssetUpdated.ts            (same, for every Requirement linked to that Asset)
 └── onRequirementRecalculated.ts (→ Cost Pipeline → CostEstimateChanged)
 ```
 
 Domain events this slice adds to §34's catalog: `AssetCreated`, `AssetUpdated`,
 `AssetDeleted`, `RequirementCreated`, `RequirementInvalidated`,
-`RequirementRecalculated`, `CostEstimateChanged`.
+`RequirementRecalculated`, `CostEstimateChanged`. Every one of them has either a
+subscriber in this slice or a stated reason to have none: `AssetUpdated` drives the
+recalculation cascade above, `RequirementRecalculated` drives the cost pipeline, and
+`AssetCreated`/`AssetDeleted`/`RequirementCreated` are published for later epics and
+for the Vault-change pipeline, with nothing in this slice's loop depending on them.
+An event published with no subscriber and no reason is how the `AssetUpdated` gap got
+in; naming the split here is what stops the next one.
 
 ## Persistence Impact
 
@@ -668,7 +740,9 @@ are additive, not breaking.
   `requirementRepository.markStale` resolve a failed `Result` on an in-memory
   repository configured to fail, and asserts the cascade stops there: no
   `RequirementInvalidated` is published and `recalculateRequirement` is never
-  invoked for that Requirement.
+  invoked for that Requirement. The `AssetUpdated` handler is driven by the same
+  table: publishing it after a `unitCost` change recalculates every Requirement
+  `listByAsset` returns, and none is left `"current"` at the old price.
 - **Repository contract (§72).** A shared `AssetRepository` and
   `RequirementRepository` contract suite runs against both in-memory and
   Obsidian implementations: round-trip through the Markdown mapping, and
@@ -714,6 +788,11 @@ are additive, not breaking.
 - [ ] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
+- [ ] The same chain runs from `AssetUpdated`: changing an Asset's `unitCost` updates
+      every linked Requirement's `estimatedCost.calculated` and leaves none marked
+      `"current"` with a figure computed from the old price — covered by a test that
+      edits a price and asserts the Requirement's persisted cost changed, not merely
+      that the event fired.
 - [ ] A failed `requirementRepository.markStale` write aborts the cascade for
       that Requirement before `RequirementInvalidated` publishes or
       recalculation runs, covered by a test against a repository configured
@@ -728,8 +807,16 @@ are additive, not breaking.
 - [ ] Undoing the Zone-geometry command that triggered a recalculation also
       restores the Requirement's prior calculated quantity and cost, without
       a separate undo-history entry for the Requirement itself (§30–31).
-- [ ] Deleting a Zone or Asset with a live Requirement surfaces the
-      reference-integrity flow (PRD §63–64) instead of cascading silently.
+- [ ] Deleting a Zone or Asset with a live Requirement and **no** `resolution` refuses
+      with a `ReferenceError` naming the referents, instead of cascading silently — the
+      path a script or migration takes.
+- [ ] Each of `remove-references`, `reassign` and `delete-anyway` produces its own
+      distinct outcome, covered by a test per resolution: references deleted, references
+      repointed at `reassignTo`, and references left behind marked `"stale"`
+      respectively. A dialog whose three non-cancel buttons all did the same thing would
+      pass a test that only exercised one of them.
+- [ ] `reassign` with a missing or self-referencing `reassignTo` resolves a
+      `ValidationError` and deletes nothing.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
       (§92 #1–3).
 

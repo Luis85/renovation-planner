@@ -457,6 +457,10 @@ class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
 // application/commands/zone/DeleteZone.ts
+// Slice 10 widens this input with an optional reference `resolution` once Requirement
+// exists to reference a Zone — the deferral slice 8 makes explicit. Absent (the only
+// possibility in this slice, where nothing references a Zone) means "refuse if
+// referents exist", so the field arrives without changing this slice's behaviour.
 interface DeleteZoneInput { zoneId: ZoneId }
 class DeleteZoneCommand
   implements Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>> { /* … */ }

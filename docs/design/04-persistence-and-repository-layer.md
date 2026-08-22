@@ -288,19 +288,70 @@ both writes as one logical transaction:
    the index is not left to catch up asynchronously via the vault-change pipeline.
 ```
 
-`delete(zoneId)` is the mirror, but not a literal reversal of the write order: delete
-the note **first**, then remove the sidecar entry, then remove the index entry. If
-sidecar removal fails after the note is already gone, the result is an orphaned-but-
-harmless sidecar entry — recoverable, and garbage-collectable later against the
-Project Index. Removing the sidecar entry first would risk the opposite: a note
-deletion failure after its geometry was already erased leaves a *live* Zone note with
-no geometry, which is a worse, confusing failure mode than a harmless orphaned
-sidecar entry, and the one this ordering exists to avoid.
+`delete(zoneId)` is the mirror, and it compensates the same way `save()` does:
+
+```text
+1. Read the full Zone (note + its sidecar entry) as a restore snapshot, before any
+   deletion. This repository holds it for step 4; it is not the caller's snapshot.
+2. Delete the note.
+3. Remove this zone's entry from the plan's sidecar and write the sidecar back.
+4. If step 3 fails after step 2 succeeded: attempt to restore the note from the
+   step-1 snapshot, and return a PersistenceError. As in save(), this is a
+   compensating write, not a transaction — if the compensation itself fails, that is
+   logged rather than papered over.
+5. On success, remove the Project Index entry synchronously.
+```
+
+Note-first ordering is deliberate: removing the sidecar entry first would risk leaving a
+*live* Zone note with no geometry, a worse and more confusing failure mode than the
+transient inconsistency above.
+
+**The compensating write in step 4 is what makes a failed delete undoable**, and it is
+the reason `delete()` cannot simply leave an orphaned sidecar entry and call it
+harmless. A caller's `Result` is its only signal: slice 6's `CommandHistory.run()`
+leaves both stacks untouched on a failed `Result`, so a `delete()` that returned a
+`PersistenceError` *after* the note was already gone would destroy the note and leave no
+undo entry for it — the one outcome the undo stack exists to prevent. Compensating makes
+the failure honest: either the Zone is deleted and the command is on the undo stack, or
+nothing was deleted and there is nothing to undo. There is no third state a caller has
+to reason about.
 
 Plan creation/deletion owns the sidecar's *existence* (create an empty sidecar when a
 Plan is created; delete it when a Plan is deleted) but never touches `objects[]`
 content — only `ObsidianZoneRepository` (and later, other spatial-object
 repositories) writes individual entries.
+
+### Sidecar writes are serialized per plan (§42)
+
+Both sequences above are a **read-modify-write of one whole file**: they read the plan's
+entire sidecar, change one entry in `objects[]`, and write all of it back. That makes
+concurrent writes against the same plan a lost-update hazard, not merely an ordering
+question:
+
+```text
+save(zoneA)  reads sidecar  ─┐
+save(zoneB)  reads sidecar  ─┤ both see objects[] without A' or B'
+save(zoneA)  writes  A'     ─┤
+save(zoneB)  writes  B'     ─┘ built on B's stale read — A' is silently gone
+```
+
+Concurrency here is real, not theoretical. Slice 13 works through the case directly: an
+Inspector field commit and a canvas gesture each call the dispatcher independently, so
+two commands can be in flight against one Plan Editor at once. Slice 13's `pendingCount`
+correctly stops the *indicator* misreporting that, but an indicator cannot prevent a lost
+write — that has to be prevented here, in the only code that touches the file.
+
+`PlanGeometryStore` therefore serializes per `planId`: a plan's read-modify-write runs to
+completion before the next one for that plan begins, queued rather than rejected. Plans
+do not contend with each other, so two Plan Editors stay independent. Serializing at the
+store — not at the dispatcher — is what makes the guarantee hold for *every* writer,
+including the vault-change pipeline and any future spatial-object repository, rather than
+only for commands that happened to go through one editor's dispatcher.
+
+This also fixes a second-order effect: with writes serialized, commands complete in
+dispatch order, so slice 6's undo stack records them in the order the user performed
+them. Two concurrent commands resolving out of order would otherwise put the undo stack
+out of step with what the user did.
 
 ### Schema versioning and migration (§44–45)
 
@@ -499,6 +550,15 @@ interface PlanGeometryStore {
   read(planId: PlanId): Promise<Result<PlanGeometryDTO, PersistenceError | ValidationError>>;
   write(planId: PlanId, dto: PlanGeometryDTO): Promise<Result<void, PersistenceError>>;
   delete(planId: PlanId): Promise<Result<void, PersistenceError>>;
+
+  // The read-modify-write of one plan's sidecar, run under that plan's own lock.
+  // Callers use THIS rather than read()+write(), which is why the separate read/write
+  // pair stays available but is not the upsert path: a caller that composed its own
+  // read-then-write would reintroduce exactly the lost update this method prevents.
+  mutate(
+    planId: PlanId,
+    change: (dto: PlanGeometryDTO) => PlanGeometryDTO,
+  ): Promise<Result<void, PersistenceError | ValidationError>>;
 }
 ```
 
@@ -608,7 +668,16 @@ interface FindZonesByPlanQuery {
 - **Persistence consistency tests:** simulate a Zone save where the sidecar write
   fails after the frontmatter write succeeds; assert a `PersistenceError` is
   returned and the frontmatter is restored to its prior valid content (or, if the
-  compensating write itself fails, that this is surfaced rather than swallowed).
+  compensating write itself fails, that this is surfaced rather than swallowed). The
+  mirror case for `delete()`: sidecar removal fails after the note is deleted; assert
+  the note is restored, so no caller is handed a failed `Result` for an operation that
+  half-happened.
+- **Concurrent-write test:** issue two `save()` calls for different Zones on the same
+  Plan without awaiting the first, and assert both entries are present in the sidecar
+  afterwards. Written against the repository, not a dispatcher — the guarantee has to
+  hold for the vault-change pipeline and future spatial-object repositories too, so a
+  test that passed only because the caller happened to serialize would be testing the
+  caller.
 - **Vault change detection tests:** simulate `create`/`modify`/`rename`/`delete`
   sequences against a fixture vault and assert the Project Index converges to the
   same state as a full rebuild from the same fixture vault's final contents.
@@ -646,26 +715,35 @@ interface FindZonesByPlanQuery {
    logical operation; a test proves a mid-sequence failure surfaces a
    `PersistenceError` and does not leave the frontmatter silently pointing at
    discarded geometry (§42).
-6. The migration registry/runner exists under
+6. Deleting a Zone compensates symmetrically: a test in which sidecar removal fails
+   after the note is deleted asserts the note is restored and a `PersistenceError` is
+   returned — so a failed delete leaves nothing deleted, and a caller's failed
+   `Result` never means "partly done, and no longer undoable."
+7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
+   test issues them without awaiting the first, then asserts the sidecar contains both
+   entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the
+   repositories rather than a dispatcher, and no caller-side sequencing is what makes
+   it pass.
+8. The migration registry/runner exists under
    `infrastructure/persistence/migration/{project,entities,geometry}` and is
    exercised by at least one synthetic migration test proving determinism and
    idempotency, even though no real prior schema version exists yet (§45,
    Completion Criterion 9).
-7. `VaultChangeAdapter` reacts to create/modify/rename/delete and updates the
+9. `VaultChangeAdapter` reacts to create/modify/rename/delete and updates the
    Project Index incrementally; a test proves a full rebuild and the incremental
    path converge to the same index for the same fixture vault.
-8. The Project Index answers all five lookups (entity ID → path, entity type → IDs,
+10. The Project Index answers all five lookups (entity ID → path, entity type → IDs,
    project ID → entity IDs, plan ID → spatial-object IDs, plan ID → geometry
    sidecar path) and is fully rebuildable from Vault contents with the in-memory
    index discarded (Completion Criterion 14).
-9. `GetProject`, `GetPlan`, `GetZone`, and `FindZonesByPlan` resolve against the
+11. `GetProject`, `GetPlan`, `GetZone`, and `FindZonesByPlan` resolve against the
    Obsidian repositories and are used by the end-to-end reload test; a missing entity
    resolves `ok(null)`/`ok([])`, and only a genuine read failure resolves `isErr`.
-10. The end-to-end reload test — create Project/Plan/Zone, discard in-memory state,
+12. The end-to-end reload test — create Project/Plan/Zone, discard in-memory state,
     rebuild the index, re-read through the same repositories, assert equality —
     passes. This is Increment 3's success criterion made concrete: **Project, Plan,
     and Zone survive full unload/reload.**
-11. A malformed note or sidecar in a fixture vault (`tests/vault/broken-references`,
+13. A malformed note or sidecar in a fixture vault (`tests/vault/broken-references`,
     `tests/vault/legacy-schema`) is reported as a diagnostic and excluded from the
     index without aborting the load of the rest of the vault (Completion
     Criterion 13).

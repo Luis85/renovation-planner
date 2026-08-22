@@ -284,25 +284,42 @@ this slice to design; both PRD triggers arrive at `CommandHistory.run()`.
 defines, not by changing `CommandHistory` itself:
 
 ```text
-withSaveStateTracking(dispatcher, saveStateStore).run(command)
+withSaveStateTracking(history, saveStateStore).<op>(...)   for op in run | undo | redo
   → saveStateStore.beginSaving()      pendingCount++; state := 'saving'
-  → result = await dispatcher.run(command)
+  → result = await history.<op>(...)
   → result.ok  → saveStateStore.resolveOk()    pendingCount--
   → !result.ok → saveStateStore.resolveErr()   pendingCount--; hasErrorInBatch := true
   → return result unchanged to the caller
 ```
 
-This wraps the same `commandDispatcher` object slice 6 hands to `EditorContext` and to
-`InspectorStore`'s commit path — both tools and Inspector edits already funnel through
-one dispatcher instance per Plan Editor (slice 6's own "one choke point" rule), so
-wrapping it once at the composition root covers every command source without either
-`ToolManager` or `InspectorStore` needing to know a save-state store exists.
+**All three of `CommandHistory`'s operations are decorated, not just `run`.** `undo()`
+and `redo()` each execute a command, which means each performs a repository write
+(slice 6: `undo()` replays an inverse through the same wrapped command; slice 8's
+`ReversibleDeleteZoneCommand.undo()` writes a snapshot back through the repository). A
+decorator that covered only `run` would leave the indicator reading `Saved` throughout an
+in-flight undo, and — worse — leave it reading `Saved` after an undo that failed with a
+`PersistenceError`. The rule the indicator exists to express is "is this Plan's data
+safely written", and an undo is a write like any other.
+
+This wraps the same `CommandHistory` instance slice 6 hands to `EditorContext` and to
+`InspectorStore`'s commit path — tools, Inspector edits, and the undo/redo keybindings
+all funnel through one instance per Plan Editor (slice 6's own "one choke point" rule),
+so wrapping it once at the composition root covers every command source without
+`ToolManager`, `InspectorStore`, or the keybinding handler needing to know a save-state
+store exists.
 
 **Overlapping dispatches are a real case, not a simplification this slice can skip.**
 Slice 6's "one choke point" rule serializes commands *per gesture* (one `pointerUp`,
 one command), not globally — an Inspector field commit and a canvas gesture can each
 independently call `dispatcher.run()` around the same time, so two or more commands
-can be in flight against the same Plan Editor simultaneously. Naively setting `state`
+can be in flight against the same Plan Editor simultaneously.
+
+What follows solves the *indicator*, not the data. Two overlapping commands writing the
+same plan's geometry sidecar is a lost-update hazard, and a counter in a Pinia store
+cannot prevent one — that is prevented in slice 4, which serializes each plan's
+read-modify-write inside `PlanGeometryStore.mutate`. This slice assumes that guarantee
+rather than restating it, and would be wrong without it: an indicator that reported
+`Saved` accurately over silently-lost data would be worse than one that misreported. Naively setting `state`
 directly inside `resolveOk`/`resolveErr` breaks the moment that happens: the faster of
 two in-flight writes resolving `ok` would flip the indicator to `Saved` while the
 slower one is still pending, misreporting data as safely written before it is.
@@ -508,14 +525,16 @@ export const useSaveStateStore: () => {
 
 ```typescript
 // presentation/editor/save-state/with-save-state-tracking.ts
-// Decorates the same commandDispatcher shape slice 6's EditorContext and
-// InspectorStore already depend on (`{ run(command): Promise<Result<void,
-// AppError>> }`, per slice 6 — see Design §7). Transparent: the wrapped
-// object's return value is unchanged from the caller's point of view.
+// Decorates all three of slice 6's CommandHistory operations that perform a write.
+// Transparent: every wrapped method's return value is unchanged from the caller's
+// point of view. canUndo/canRedo/clear are passed through untouched — they write
+// nothing, so they have no save state to report.
+type TrackedHistory = Pick<CommandHistory, 'run' | 'undo' | 'redo'>;
+
 export function withSaveStateTracking(
-  dispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> },
+  history: TrackedHistory,
   saveState: Pick<ReturnType<typeof useSaveStateStore>, 'beginSaving' | 'resolveOk' | 'resolveErr'>,
-): { run(command: UndoableCommand): Promise<Result<void, AppError>> };
+): TrackedHistory;
 ```
 
 ```typescript
@@ -601,11 +620,13 @@ split slice 5 already established for that layer's own stores:
   `'unsaved-changes'` never appears as a resulting value; a companion architecture-style
   test enumerates the store's exported action names and asserts none of them is named
   or documented as producing it.
-- **`withSaveStateTracking` test**: wrap a fake dispatcher returning a resolved
-  an `ok` Result, then one returning a failed one; assert `beginSaving` is called before
-  the wrapped `run()` resolves, and `resolveOk`/`resolveErr` is called with the correct
-  result after, and that the wrapper's own return value is identical to what the fake
-  dispatcher resolved (a transparent decorator, not a new contract).
+- **`withSaveStateTracking` test**: table-driven over all three wrapped operations
+  (`run`, `undo`, `redo`), each against a fake resolving an `ok` Result and then a failed
+  one. For each: `beginSaving` is called before the operation resolves,
+  `resolveOk`/`resolveErr` after, and the wrapper's return value is identical to what the
+  fake resolved (a transparent decorator, not a new contract). Running the table over all
+  three is the point — a decorator covering only `run` passes a `run`-only test while
+  leaving a failed undo reported as `Saved`.
 - **`SaveStateIndicator.vue` render test**: given each of the four `SaveState` values
   directly (including `'unsaved-changes'`, to prove the renderer is defensively correct
   even though no producer test exercises it — see above), asserts the string `t` returns
@@ -639,8 +660,9 @@ split slice 5 already established for that layer's own stores:
 7. `SaveStateStore` is scoped one-per-Plan-Editor (its own Pinia instance, per slice 5's
    pattern), transitions `saved → saving → saved` on a successful command and
    `saved → saving → save-error` on a failed one, driven through
-   `withSaveStateTracking` wrapping slice 6's `commandDispatcher` — with no change to
-   `CommandHistory` itself.
+   `withSaveStateTracking` wrapping slice 6's `CommandHistory` — with no change to
+   `CommandHistory` itself. `run`, `undo` and `redo` are all wrapped: an in-flight or
+   failed undo reports exactly as a failed dispatch does, since both are writes.
 8. Two overlapping dispatches against the same Plan Editor never show `'saved'`
    while either is still unresolved, and a batch containing at least one failure
    settles to `'save-error'` even if a sibling in that same batch succeeded —

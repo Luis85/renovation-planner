@@ -381,18 +381,27 @@ async function onInspectorDeleteZone(
           references: [{ label: 'Requirements', count: counted.value }],
         });
 
-  switch (result.action) {
-    case 'cancel':
-      return;
-    case 'remove-references':
-    case 'reassign':
-    case 'delete-anyway':
-      // The resolution is passed into slice 8's zone-delete command as data; how that
-      // command acts on it is not this slice's job.
-      break;
-  }
+  if (result.action === 'cancel') return;
+
+  // Every non-cancel branch dispatches — the resolution is the command's input, not a
+  // note the UI keeps to itself. `reassignTo` is sourced by the caller for the reassign
+  // case (slice 15's dialog deliberately carries no target; see "Reassign has no target
+  // picker here"), which is the one branch needing a step beyond this dispatch.
+  const reassignTo =
+    result.action === 'reassign' ? await pickReassignTarget(zoneId) : undefined;
+  if (result.action === 'reassign' && reassignTo === undefined) return; // target picker cancelled
+
+  await commandDispatcher.run(
+    reversibleDeleteZone({ zoneId, resolution: result.action, reassignTo }),
+  );
+  // What each resolution does to the referencing Requirements is slice 10's table.
 }
 ```
+
+The `switch` this example previously ended on is worth calling out as a shape to avoid:
+three non-cancel cases falling through to a shared `break` reads as handled, and is
+indistinguishable from three buttons that do nothing. If a branch has no dispatch, the
+dialog offering it is offering a no-op.
 
 File layout (SDD §7.5 names "dialogs" as presentation-layer content, distinct from
 "editor tools" and "inspector panels"; §77's tree does not draw it, so it is a sibling

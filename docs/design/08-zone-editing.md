@@ -58,7 +58,10 @@ actual boundary a `Zone`'s geometry cannot cross without being rejected.
 - Deletion reference-integrity checking (PRD §64: "Referenced by: N Work Packages...").
   No domain module references `Zone` yet at this point in the build (Requirement and
   Work Package arrive in slices 9–10) — deferred to whichever of those slices
-  introduces the first entity that can reference a Zone.
+  introduces the first entity that can reference a Zone. That is slice 10, which widens
+  `DeleteZoneInput` with an optional `resolution` and defines what each of PRD §64's
+  four actions does. Nothing in this slice changes when it lands: an absent `resolution`
+  means "refuse if referents exist", and in this slice there are none.
 - Configurable/custom zone types (PRD §84) and post-creation metadata editing (rename,
   Markdown links, custom fields) — these flow through the generic Inspector
   edit-to-command pipeline slice 6 already provides; no new architecture is needed
@@ -379,6 +382,11 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
   constructor(
     private readonly deleteCommand: Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>>,
     private readonly zoneRepository: ZoneRepository,
+    // Forwarded verbatim into DeleteZoneInput. Undefined in this slice; slice 10's
+    // delete dialog supplies it. This adapter never interprets it — the resolution is
+    // the wrapped command's business, and an adapter that branched on it would be a
+    // second place reference integrity is decided.
+    private readonly input: DeleteZoneInput,
   );
   execute(): Promise<Result<void, ReferenceError | PersistenceError>>; // reads snapshot, then delegates to deleteCommand
   undo(): Promise<Result<void, PersistenceError>>; // re-inserts snapshot verbatim, same ID

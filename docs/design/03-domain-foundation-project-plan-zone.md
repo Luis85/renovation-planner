@@ -164,16 +164,23 @@ non-breaking addition, not a contradiction of this one.
 | `projectId` | `ProjectId` | immutable, set at creation |
 | `name` | `string` | required, non-empty |
 | `background` | `BackgroundImageRef \| null` | a reference (path/link + pixel dimensions), not the raw image — file access is Slice 4/5 |
-| `calibration` | `Calibration \| null` | `{ pointA: Point, pointB: Point, knownRealWorldDistanceMm: number, scale: number }`; `null` until `CalibratePlanCommand` runs |
+| `calibration` | `Calibration \| null` | `{ pointA: Point, pointB: Point, knownDistance: number, pixelsPerWorldUnit: number }`; `null` until `CalibratePlanCommand` runs |
 | `layers` | `readonly string[]` | ordered, unique names; visibility/rendering is Slice 5 |
 
 The PRD lists "scale" and "coordinate system" as properties separate from a
 calibration concept it doesn't name at the entity level. This slice folds both into
 `calibration`: per ADR-009, a Plan's coordinate system is always "world millimeters,
 established by calibration," so there is no independent `coordinateSystem` field, and
-`scale` is calibration's derived output (world millimeters per background pixel), not
-an independently settable field. This is a design decision made to resolve that PRD
-ambiguity, not a value taken from the source material.
+`pixelsPerWorldUnit` (SDD §25's own term for what the PRD calls "scale") is
+calibration's derived output, not an independently settable field. This is a design
+decision made to resolve that PRD ambiguity, not a value taken from the source
+material.
+
+This slice defines `Calibration` and a plain (non-undoable) `CalibratePlanCommand`
+only far enough to make `Plan` a complete, testable in-memory entity. Slice 7
+(Calibration) owns the type in full: the interactive `CalibrateTool`, recalibration
+semantics, and upgrading `CalibratePlanCommand` to `UndoableCommand` once slice 6's
+undo/redo exists — the same pattern slice 8 uses for the Zone commands below.
 
 **Zone** (PRD §8):
 
@@ -265,7 +272,7 @@ Six commands, six events, one-to-one on the success path:
 | --- | --- | --- | --- |
 | `CreateProjectCommand` | `name`, optional `description`/`status`/dates/`budget`/`contingency`/`locationDescription` | `ProjectCreated` | `ValidationError` |
 | `CreatePlanCommand` | `projectId`, `name`, optional `background`/`layers` | `PlanCreated` | `ValidationError`, `ReferenceError` (project not found) |
-| `CalibratePlanCommand` | `planId`, `pointA`, `pointB`, `knownRealWorldDistanceMm` | `PlanCalibrated` | `ReferenceError` (plan not found), `ValidationError` (distance ≤ 0), `CalculationError` (`pointA` = `pointB`, division by zero) |
+| `CalibratePlanCommand` | `planId`, `pointA`, `pointB`, `knownDistance` | `PlanCalibrated` | `ReferenceError` (plan not found), `ValidationError` (distance ≤ 0), `CalculationError` (`pointA` = `pointB`, division by zero) |
 | `CreateZoneCommand` | `planId`, `name`, `zoneType`, `geometry`, optional `domainNoteLink` | `ZoneCreated` | `ReferenceError` (plan not found), `ValidationError`, `GeometryError` |
 | `MoveSpatialObjectCommand` | `zoneId`, `geometry` (full replacement) | `ZoneGeometryChanged` | `ReferenceError` (zone not found), `GeometryError` |
 | `DeleteZoneCommand` | `zoneId` | `ZoneDeleted` | `ReferenceError` (zone not found) |
@@ -405,12 +412,13 @@ interface DeleteZoneInput { zoneId: ZoneId }
 class DeleteZoneCommand
   implements Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError>> { /* … */ }
 
-// application/commands/plan/CalibratePlan.ts
+// application/commands/plan/CalibratePlan.ts — plain command for this slice;
+// Slice 7 upgrades this to UndoableCommand once slice 6's undo/redo exists.
 interface CalibratePlanInput {
   planId: PlanId;
   pointA: Point;
   pointB: Point;
-  knownRealWorldDistanceMm: number;
+  knownDistance: number;
 }
 class CalibratePlanCommand
   implements Command<CalibratePlanInput, Result<{ plan: Plan }, ReferenceError | ValidationError | CalculationError>> { /* … */ }
@@ -492,7 +500,7 @@ repository implementation swaps at the composition root.
   name is rejected (`ValidationError`); `Project`'s `targetCompletion` before `start`
   is rejected; `Zone`'s geometry with <3 vertices or non-finite coordinates is
   rejected (`GeometryError`, delegating to Slice 2's `Polygon` construction);
-  `Calibration` with `pointA === pointB` or `knownRealWorldDistanceMm <= 0` is
+  `Calibration` with `pointA === pointB` or `knownDistance <= 0` is
   rejected.
 - **Command tests**, per SDD §71's pattern (`Command → InMemoryRepository →
   Assertions`) — for each of the six commands: the success path returns `Result.ok`

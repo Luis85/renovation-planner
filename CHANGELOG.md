@@ -12,6 +12,10 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- The declared Node floor is `>=22.22.2`, and `tests/build/engines.test.ts` keeps it there
+  by reading the installed tree rather than trusting the number. `>=22` was already false
+  before oxlint — `eslint` asks for `^22.13.0` and `jsdom` for `^22.22.2` — so a contributor
+  on Node 22.0 satisfied this project's promise while holding dependencies that did not.
 - 29 further oxlint rules, named one at a time out of the categories left off as bundles:
   `eqeqeq`, `require-await`, `no-template-curly-in-string`, `array-callback-return`,
   `oxc/no-accumulating-spread`, `unicorn/error-message`, `unicorn/no-array-callback-reference`,

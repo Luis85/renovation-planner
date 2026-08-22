@@ -2475,3 +2475,1113 @@ The positioning remains:
 > A lightweight, local-first, and Markdown-native connection between spatial planning, project management, cost planning, and project documentation.
 
 The visual plan serves as the spatial entry point into the entire body of project knowledge.
+
+---
+
+## 55. Problem Statement
+
+Planning private renovation, remodeling, and garden projects is typically spread across different tools and sources of information.
+
+These include:
+
+* Floor plans
+* Sketches
+* Photos
+* Spreadsheets
+* Task lists
+* Quotes
+* Invoices
+* Product information
+* Notes
+* Calendars
+* Project plans
+
+This information frequently has a spatial relationship that is not represented in classic project management tools.
+
+As a result, it becomes hard to track:
+
+* what should be changed,
+* where the change takes place,
+* what work is required for it,
+* which trades are involved,
+* which materials are needed,
+* which quantities are required,
+* what costs arise,
+* what dependencies exist,
+* what has already been implemented,
+* and what the actual final state looks like.
+
+The Obsidian Renovation Planner solves this problem by connecting spatial planning, project planning, cost planning, and documentation within a shared local-first data model.
+
+The plan acts as the spatial index of the project.
+
+---
+
+## 56. Product Goals
+
+**G1 — Spatial Project Planning**
+
+Renovation measures can be located spatially on house, apartment, or property plans.
+
+**G2 — Geometry-Driven Planning**
+
+Spatial information such as:
+
+* length
+* area
+* perimeter
+* count
+
+can be used as the basis for quantity and cost calculations.
+
+**G3 — Integrated Project Planning**
+
+Spatial areas can be connected with:
+
+* construction sections
+* trades
+* work packages
+* tasks
+* assets
+* costs
+* documents
+
+**G4 — Cost Transparency**
+
+The user can track at any time:
+
+* what budget is planned,
+* what costs are expected,
+* what costs have been committed,
+* what costs have actually been incurred,
+* and what total cost is forecast.
+
+**G5 — Execution Support**
+
+The system supports not only planning but also:
+
+* procurement
+* execution
+* progress tracking
+* documentation
+
+**G6 — Long-Term Documentation**
+
+After the project is completed, a traceable as-built state is retained.
+
+**G7 — Data Ownership**
+
+All domain project data stays in the user's Obsidian vault.
+
+---
+
+## 57. Non-Goals
+
+The Renovation Planner is explicitly not intended to replace:
+
+* professional CAD systems
+* BIM systems
+* structural engineering software
+* architectural design
+* building permit software
+* professional AVA (bid/quantity/contract) systems
+* professional construction accounting
+* ERP systems for construction companies
+* professional site management
+* multi-user cloud project platforms
+
+The product is a:
+
+> Lightweight Spatial Renovation Project Management System.
+
+---
+
+## 58. Canonical Relationship Model
+
+The domain data model represents the relationships between spatial planning, execution, and costs.
+
+```
+Project
+│
+├── Site
+│   │
+│   ├── Building
+│   │   └── Floor
+│   │       └── Space
+│   │
+│   └── OutdoorArea
+│
+├── Plan
+│   └── SpatialObject
+│       │
+│       ├── PhysicalElement
+│       ├── Area
+│       ├── PlanningZone
+│       └── Annotation
+│
+├── ConstructionSection
+│   │
+│   ├── Zones
+│   ├── WorkPackages
+│   └── Budget
+│
+├── WorkPackage
+│   │
+│   ├── Trade
+│   ├── Requirements
+│   ├── Tasks
+│   ├── Dependencies
+│   └── Costs
+│
+├── Requirement
+│   └── Asset
+│
+├── ProcurementItem
+│   │
+│   ├── Supplier
+│   └── Order
+│
+├── Documents
+│
+├── Decisions
+│
+├── Risks
+│
+└── Financial
+    │
+    ├── Budget
+    ├── Estimate
+    ├── Quote
+    ├── Commitment
+    ├── Invoice
+    └── Payment
+```
+
+---
+
+## 59. Entity Relationship Rules
+
+**Project**
+
+A Project has:
+
+* 0..n Plans
+* 0..n Construction Sections
+* 0..n Work Packages
+* 0..n Assets
+* 0..n Suppliers
+* 0..n Documents
+
+All domain objects must be uniquely assignable to a Project.
+
+---
+
+**Plan**
+
+A Plan belongs to exactly one Project.
+
+A Project can have multiple Plans.
+
+Examples:
+
+* Property
+* Ground floor
+* Upper floor
+* Basement
+* Garden
+* Garage
+
+---
+
+**Spatial Object**
+
+A Spatial Object belongs to a Plan.
+
+A Spatial Object can optionally be linked to a domain note.
+
+Spatial Objects must not themselves be the source of truth for project information.
+
+---
+
+**Construction Section**
+
+A Construction Section belongs to a Project.
+
+A Construction Section can:
+
+* cover multiple Zones,
+* contain multiple Work Packages,
+* involve multiple Trades.
+
+---
+
+**Work Package**
+
+A Work Package belongs to:
+
+* exactly one Project,
+* optionally one Construction Section,
+* at least one domain scope.
+
+A scope can be:
+
+* Zone
+* Area
+* Physical Element
+
+---
+
+**Requirement**
+
+A Requirement describes a need.
+
+A Requirement must have an origin.
+
+Examples:
+
+```
+Zone
+→ Material Requirement
+
+Work Package
+→ Labor Requirement
+
+Asset
+→ Procurement Requirement
+```
+
+---
+
+**Procurement Item**
+
+A Procurement Item is based on a Requirement or a manually defined need.
+
+Requirement and Procurement Item must not be the same entity.
+
+---
+
+## 60. Identity Model
+
+Every persistent domain entity has a stable ID.
+
+Example:
+
+```
+id: zone-01JABC123
+```
+
+The ID must not change due to:
+
+* renaming a note
+* moving a note
+* changing the display name
+
+Links between domain objects should be resolvable via stable IDs wherever possible, supplemented by Obsidian links.
+
+---
+
+## 61. Schema Versioning
+
+Persisted domain objects must have a schema version.
+
+Example:
+
+```
+schema-version: 1
+```
+
+This allows later plugin versions to migrate existing vaults.
+
+---
+
+## 62. Migration Requirements
+
+The plugin must support schema migrations.
+
+Example:
+
+```
+Schema v1
+   ↓
+Migration
+   ↓
+Schema v2
+```
+
+Migrations must be:
+
+* deterministic
+* testable
+* traceable
+* reversible wherever possible
+
+Before major migrations, the plugin must not silently overwrite existing data.
+
+---
+
+## 63. Reference Integrity
+
+References between domain objects must be validatable.
+
+Example:
+
+```
+Work Package
+     │
+     └── zone-id
+             ↓
+           Zone
+```
+
+The system should detect:
+
+* missing references
+* deleted objects
+* invalid IDs
+* duplicate IDs
+
+---
+
+## 64. Deletion Semantics
+
+Deleting a domain entity must not unintentionally destroy dependent information.
+
+Before deletion, it must be checked whether references exist.
+
+Example:
+
+```
+Delete Zone?
+Referenced by:
+3 Work Packages
+7 Tasks
+4 Cost Items
+2 Documents
+```
+
+Possible actions:
+
+* Cancel
+* Remove References
+* Reassign
+* Delete Anyway
+
+Hard cascading deletes should be avoided.
+
+---
+
+## 65. External Modification Handling
+
+Since Markdown is the source of truth, files can be modified outside the plugin.
+
+The plugin must detect changes and update its application state accordingly.
+
+Examples:
+
+* frontmatter changed
+* note renamed
+* note moved
+* note deleted
+* new note created
+
+The plugin must not overwrite manual changes without warning.
+
+---
+
+## 66. Save Strategy
+
+Editor interactions are first executed as commands in the application state.
+
+Persistence happens after completed domain changes.
+
+Example:
+
+```
+Pointer Down
+    ↓
+Drag
+    ↓
+Drag
+    ↓
+Drag
+    ↓
+Pointer Up
+    ↓
+MoveObjectCommand
+    ↓
+Domain Update
+    ↓
+Persist
+```
+
+Vault writes should not happen for every pointer movement.
+
+---
+
+## 67. Autosave
+
+The editor should autosave by default.
+
+Autosave occurs:
+
+* after completed commands,
+* or debounced on property changes.
+
+The current save state must be visible to the user.
+
+Possible states:
+
+```
+Saved
+Saving
+Unsaved Changes
+Save Error
+```
+
+---
+
+## 68. Undo / Redo Architecture
+
+Editor changes should go through commands.
+
+Examples:
+
+```
+CreateZoneCommand
+MoveObjectCommand
+ResizeObjectCommand
+DeleteObjectCommand
+AssignAssetCommand
+ChangePropertyCommand
+```
+
+Every reversible command has:
+
+```
+execute()
+undo()
+```
+
+This produces a command history.
+
+---
+
+## 69. Backup & Recovery
+
+The plugin should restore a safe state as far as possible when data is faulty.
+
+Recovery cases:
+
+* corrupted sidecar file
+* invalid frontmatter
+* missing background image
+* invalid geometry
+* interrupted migration
+
+The plugin must not automatically destroy faulty data.
+
+---
+
+## 70. Unit System
+
+The domain model must explicitly handle units of measurement.
+
+Supported dimensions:
+
+* Length
+* Area
+* Volume
+* Quantity
+* Duration
+
+Internal reference units should be normalized.
+
+Recommendation:
+
+```
+Length → mm
+Area   → mm²
+Volume → mm³
+```
+
+The UI can display values as:
+
+```
+mm
+cm
+m
+cm²
+m²
+l
+m³
+```
+
+---
+
+## 71. Measurement Precision
+
+Measurements must have a defined precision.
+
+For example:
+
+```
+Internal:
+42718432 mm²
+
+Display:
+42.72 m²
+```
+
+Display precision and internal precision must be handled separately.
+
+---
+
+## 72. Currency Model
+
+A Project has a default currency.
+
+Example:
+
+```
+currency: EUR
+```
+
+All money values must be able to unambiguously determine their currency.
+
+---
+
+## 73. Tax Model
+
+Costs can optionally account for taxes.
+
+Properties can include:
+
+* net amount
+* tax rate
+* tax amount
+* gross amount
+
+Example:
+
+```
+Net        1,000.00 €
+VAT 19%      190.00 €
+Gross      1,190.00 €
+```
+
+Tax calculation serves project planning purposes only and does not replace accounting or tax advice.
+
+---
+
+## 74. Price Components
+
+Cost items can additionally account for:
+
+* discount
+* shipping
+* deposit
+* surcharge
+* tax
+* contingency
+
+This allows distinguishing between:
+
+```
+Unit Price
+Purchase Price
+Total Cost
+```
+
+---
+
+## 75. Quantity Semantics
+
+Material quantities must be differentiated by domain.
+
+```
+Calculated Requirement
+        ↓
+Waste Adjustment
+        ↓
+Required Quantity
+        ↓
+Purchase Quantity
+        ↓
+Delivered Quantity
+        ↓
+Consumed Quantity
+        ↓
+Remaining Quantity
+```
+
+These values must not be modeled as a single quantity field.
+
+---
+
+## 76. Inventory & Remaining Materials
+
+Unused material can be tracked as available stock.
+
+Example:
+
+```
+Purchased
+50 m²
+
+Consumed
+43.8 m²
+
+Remaining
+6.2 m²
+```
+
+Leftover material can later be assigned to another requirement.
+
+---
+
+## 77. Dependency Model
+
+Dependencies should not exist exclusively between tasks.
+
+Supported dependencies can include:
+
+```
+Work Package
+→ Work Package
+
+Task
+→ Task
+
+Procurement
+→ Work Package
+
+Decision
+→ Work Package
+
+Milestone
+→ Work Package
+```
+
+Example:
+
+```
+Tiles Delivered
+      ↓
+Tiling Work Package
+      ↓
+Grouting
+      ↓
+Bathroom Complete
+```
+
+---
+
+## 78. Dependency Types
+
+At minimum:
+
+* Finish-to-Start
+* Blocking
+* Informational
+
+Advanced scheduling dependencies can be added later.
+
+---
+
+## 79. Multi-Plan Model
+
+A Project can have multiple spatial plans.
+
+Example:
+
+```
+Project
+├── Site Plan
+│
+├── House
+│   ├── Basement
+│   ├── Ground Floor
+│   └── First Floor
+│
+└── Garden
+```
+
+---
+
+## 80. Cross-Plan Relationships
+
+A Construction Section can affect multiple plans.
+
+Example:
+
+```
+Heating Replacement
+├── Basement
+├── Ground Floor
+└── First Floor
+```
+
+Work packages and assets therefore do not necessarily have to be limited to a single plan.
+
+---
+
+## 81. Coordinate Transformations
+
+A Plan must be positionable independently of the viewport.
+
+Must be supported:
+
+* translation
+* scale
+* rotation
+
+Background image and world coordinate system must be handled separately.
+
+---
+
+## 82. Plan Calibration Model
+
+A Plan has a calibration.
+
+At minimum:
+
+```
+Known Point A
+Known Point B
+Known Distance
+```
+
+The plan scale is derived from this.
+
+Later extensions can support multiple control points.
+
+---
+
+## 83. Configuration Model
+
+Plugin settings and project settings must be kept separate.
+
+**Plugin Settings**
+
+Examples:
+
+* default units
+* default currency
+* default folders
+* editor preferences
+
+**Project Settings**
+
+Examples:
+
+* project currency
+* project units
+* VAT defaults
+* contingency
+* lifecycle configuration
+* project folder
+
+---
+
+## 84. Custom Types
+
+The system should support extensible types in the long term.
+
+Examples:
+
+```
+Zone Types
+Asset Types
+Trade Types
+Document Types
+Cost Types
+```
+
+Users should be able to define their own domain categories without having to modify the domain core.
+
+---
+
+## 85. Command Model
+
+Domain changes are modeled as commands.
+
+Examples:
+
+```
+CreateProject
+CreatePlan
+CalibratePlan
+CreateZone
+MoveSpatialObject
+CreateConstructionSection
+AssignZone
+AssignAsset
+CreateRequirement
+CreateWorkPackage
+CompleteWorkPackage
+CreateOrder
+RecordActualCost
+```
+
+Commands form the write interface of the application layer.
+
+---
+
+## 86. Domain Event Model
+
+Successful domain changes can produce domain events.
+
+Examples:
+
+```
+ProjectCreated
+PlanCalibrated
+ZoneCreated
+ZoneGeometryChanged
+ConstructionSectionCreated
+AssetAssigned
+RequirementCalculated
+RequirementChanged
+WorkPackageCreated
+WorkPackageCompleted
+ProcurementOrdered
+MaterialDelivered
+ActualCostRecorded
+```
+
+---
+
+## 87. Event Use Cases
+
+Events can be used internally for:
+
+* automatic recalculation
+* cache updates
+* UI refresh
+* audit trail
+* future automation
+* future plugin extensions
+
+Example:
+
+```
+ZoneGeometryChanged
+        ↓
+Requirement recalculated
+        ↓
+Cost recalculated
+        ↓
+Budget updated
+```
+
+---
+
+## 88. Derived Data
+
+Computable information should not be persisted redundantly wherever possible.
+
+Examples:
+
+```
+Polygon
+    ↓
+Area
+
+Area + Asset
+    ↓
+Requirement
+
+Requirement + Price
+    ↓
+Estimated Cost
+```
+
+What is persisted is primarily inputs and domain-relevant overrides.
+
+---
+
+## 89. Manual Overrides
+
+Automatically calculated values must be controllably overridable.
+
+Example:
+
+```
+Calculated Requirement
+42.7 m²
+
+Manual Override
+45 m²
+```
+
+The system must visibly distinguish between:
+
+* calculated
+* manually overridden
+
+---
+
+## 90. Validation
+
+Domain objects must be validated on load and save.
+
+Types of validation:
+
+* schema validation
+* reference validation
+* business rule validation
+* geometry validation
+
+Example:
+
+```
+Asset
+unit: m²
+unit-cost: -12 €
+→ Validation Error
+```
+
+---
+
+## 91. Vault Health Check
+
+In the long term, the plugin should offer a project health check.
+
+The following can be checked:
+
+* invalid schemas
+* broken references
+* duplicate IDs
+* missing assets
+* invalid geometries
+* orphaned sidecar files
+* missing background images
+
+---
+
+## 92. Diagnostics
+
+Errors should be diagnosable locally.
+
+The plugin should be able to provide structured technical information.
+
+Examples:
+
+* plugin version
+* schema version
+* project version
+* validation errors
+* migration status
+
+Sensitive project data must not be transmitted automatically.
+
+---
+
+## 93. Installation & Onboarding
+
+The first launch should guide the user through a minimal workflow.
+
+```
+Install Plugin
+     ↓
+Create Renovation Project
+     ↓
+Choose Project Folder
+     ↓
+Import First Plan
+     ↓
+Calibrate
+     ↓
+Create First Zone
+```
+
+---
+
+## 94. Empty States
+
+Every central view needs a comprehensible empty state.
+
+Example, Plan View:
+
+> No plan yet. Import a floor plan, sketch, or garden plan to start spatial planning.
+
+---
+
+## 95. Example Project
+
+The plugin should optionally provide a demo project.
+
+The demo project demonstrates:
+
+* a plan
+* a zone
+* a construction section
+* an asset
+* a work package
+* a cost calculation
+
+This lets new users understand the data model immediately.
+
+---
+
+## 96. Plugin Lifecycle
+
+The product must account for the following plugin lifecycle cases:
+
+```
+Install
+↓
+Initialize
+↓
+Use
+↓
+Upgrade
+↓
+Migrate
+↓
+Disable
+↓
+Uninstall
+```
+
+Disabling or removing the plugin must not render domain project data unusable.
+
+---
+
+## 97. Testing Strategy
+
+The test strategy follows the architecture.
+
+```
+                 E2E
+                  ▲
+             Integration
+                  ▲
+              Component
+                  ▲
+               Unit
+```
+
+---
+
+## 98. Unit Tests
+
+Especially high test coverage is expected for:
+
+**Geometry**
+
+* distance
+* area
+* perimeter
+* centroid
+* scale
+* transformations
+* snapping
+* intersections
+
+**Cost Engine**
+
+* unit costs
+* waste
+* tax
+* discounts

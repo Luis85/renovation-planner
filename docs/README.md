@@ -19,6 +19,8 @@ installs *this* plugin into it) and open `Product Backlog.base`. That view belon
 | `prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
 | `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
 | `design/` | Design **slices** — the received SDD broken into implementable, reviewable chunks. Derived, and edited as the design is refined | *(none — not backlog items)* |
+| `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
+| `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
 | `setup/` | How this repository's own tooling was built and is released | *(none — not backlog items)* |
 | `superpowers/` | Claude's design specs and implementation plans, not the product's | *(none — not backlog items)* |
@@ -28,7 +30,7 @@ of that kind has somewhere obvious to go rather than a decision to make.
 
 ## What is a work item and what is evidence
 
-The backlog says what the product does and why someone wants it. Six folders in the table
+The backlog says what the product does and why someone wants it. Eight folders in the table
 are deliberately outside it, for three different reasons.
 
 **`prds/` and `sdds/` are what a backlog is derived FROM, not things in it.** Each arrives
@@ -37,14 +39,32 @@ to agree with it, and carries no `type`, no `order` and no `status` — giving i
 state would file the evidence as work, the same mistake as writing a customer interview into
 the backlog because it was important.
 
-**`design/` and `reviews/` are DERIVED from that evidence, and the distinction is the one
-that decides whether a document may be edited.** A received document is corrected only by
-receiving a new one; a derived document is expected to change as the design is refined, and
-a refinement that contradicts its source names the source section it refines and lands here
-or in an ADR, never in `prds/` or `sdds/`. `design/README.md` states that rule for the
-slices and is the place to read it in full. Neither folder is backlog: a slice is not work
-someone is scheduled to do — the Epic that schedules it lives in `requirements/` — and a
-review ledger is a record of findings, not a rank among siblings.
+**`design/`, `actors/`, `entities/` and `reviews/` are DERIVED from that evidence, and the
+distinction is the one that decides whether a document may be edited.** A received document
+is corrected only by receiving a new one; a derived document is expected to change as the
+design is refined, and a refinement that contradicts its source names the source section it
+refines and lands here or in an ADR, never in `prds/` or `sdds/`. `design/README.md` states
+that rule for the slices and is the place to read it in full. None of the four is backlog: a
+slice is not work someone is scheduled to do — the Epic that schedules it lives in
+`requirements/` — and a review ledger is a record of findings, not a rank among siblings.
+
+**`actors/` and `entities/` answer *who* and *what*, which is the one axis the backlog does
+not have.** `requirements/` is organised by the work to be done, so a [[Zone]] is described
+across a dozen notes and nowhere in particular; these two folders give every actor and every
+business object one note that says what it is, where it is persisted, what it relates to and
+which rules hold for it, with the PRD and SDD sections it was read from cited at the bottom.
+They carry no `type`, `order` or `status` for the same reason a PRD does not: an actor is
+somebody the product deals with and an entity is something the product has — neither is work
+someone is scheduled to do, and ranking them would file the model as a backlog. Their
+frontmatter is `kind`, `name`, `layer`, `persistence`, `partOf` and `sources`, none of which
+the view reads, so like an ADR they never appear in the tree.
+
+Two things about them are worth knowing before adding one. **They are singular where
+`requirements/` is plural** — `Risk` and `Risks`, `Layer` and `Layers`, `Supplier` and
+`Suppliers` — and since a basename is an address (see **Conventions**), that convention is
+the only thing keeping the two folders from colliding with the backlog. And **they use
+`partOf:`, not `parent:`**, because `parent` is a key the base reads and these notes are
+deliberately invisible to it.
 
 **Two suffix conventions are in use, and this is the note that admits it.** The received
 documents landed as `docs/prds/obsidian-renovation-planner.md` and

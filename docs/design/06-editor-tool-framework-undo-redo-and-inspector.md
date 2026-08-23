@@ -131,14 +131,11 @@ interface Command<TInput, TResult> {
 Editor gestures need a reversible form. Per SDD §30, adapted to this codebase's
 `Result`-returning commands (SDD §30's own sketch predates slice 3's correction that
 commands resolve a `Result`, never a bare value — see the note on `run()`/`undo()`/
-`redo()` below):
-
-```typescript
-interface UndoableCommand {
-  execute(): Promise<Result<void, AppError>>;
-  undo(): Promise<Result<void, AppError>>;
-}
-```
+`redo()` below). `UndoableCommand` is declared once, in **Interfaces & Contracts** —
+two `execute()`/`undo()` methods, each resolving `Promise<Result<void, AppError>>`. It is
+not repeated here: this document had three types written out twice apiece, and the copies
+had already drifted (one `readonly` present in one copy only), so every shared type in
+this slice is declared in that one block and referenced from the prose.
 
 An `UndoableCommand` is a thin adapter around a slice-3 domain command, capturing
 enough state at gesture end to compute an inverse. The adapter discards the wrapped
@@ -148,21 +145,22 @@ stacks should be touched, not the returned entity:
 
 ```typescript
 class ReversibleMoveZoneCommand implements UndoableCommand {
-  // The version this adapter's own last successful write produced — revision AND
-  // observation token, since half an expectation catches half the conflicts. Null until
-  // execute() has succeeded once; every operation after that presents it, so each write
-  // is conditional on the state the previous one left. See below.
-  private lastWritten: EntityVersion | null = null;
+  // Whether this adapter has written at all. The first execute() is the user's gesture
+  // and carries no expectation; every operation after it is conditional. What it is
+  // conditional ON is not this adapter's own last write but the ledger's — see
+  // "The expectation is the history's, not the adapter's" below.
+  private hasWritten = false;
 
   constructor(
     private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | PersistenceError>>,
+    private readonly ledger: WriteLedger,               // from EditorContext, shared with CommandHistory
     private readonly forward: MoveSpatialObjectInput,   // captured at pointerUp
     private readonly inverse: MoveSpatialObjectInput,    // captured at pointerDown
   ) {}
 
   async execute(): Promise<Result<void, AppError>> {
     // The first execute() is the user's gesture and carries no expectation; every
-    // later one is a redo and expects what undo() left.
+    // later one is a redo and expects what the history last wrote.
     return this.dispatch(this.forward);
   }
 
@@ -171,11 +169,13 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
   }
 
   private async dispatch(input: MoveSpatialObjectInput): Promise<Result<void, AppError>> {
+    const expected = this.hasWritten ? this.ledger.lastWritten(input.zoneId) : null;
     const result = await this.moveCommand.execute(
-      this.lastWritten === null ? input : { ...input, expected: this.lastWritten },
+      expected === null ? input : { ...input, expected },
     );
     if (isErr(result)) return result;
-    this.lastWritten = result.value.zone.version;   // read for this one field, then discarded
+    this.hasWritten = true;
+    this.ledger.record(input.zoneId, result.value.zone.version); // read for one field, then discarded
     return ok(undefined);
   }
 }
@@ -186,8 +186,8 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
 `undo()` above passes an expectation rather than replaying the captured input plainly,
 and that is a rule for every adapter, not a detail of this one:
 
-> **A reversible adapter presents, on every operation after its first, the revision its
-> own previous successful write returned.**
+> **A reversible adapter presents, on every operation after its first, the revision this
+> editor's own history last wrote for the entity it is touching.**
 
 The reasoning is the difference between what a forward gesture means and what an inverse
 means. A user dragging a shape is looking at it and asserting where it should now be; if
@@ -208,10 +208,61 @@ Redo has the same premise and gets the same treatment by construction: `execute(
 gesture wrote, and the chain never re-reads to find a revision — re-reading to discover
 what to expect is the check-then-act this design refuses everywhere.
 
+### The expectation is the history's, not the adapter's
+
+The rule says *this editor's own history last wrote*, and the word doing the work is
+**history**. An earlier draft of this design said *this adapter's own previous write*,
+which is wrong, and wrong in a way that only shows up once two commands touch one entity
+— which is the ordinary case, not an exotic one:
+
+```text
+move zone Z     execute() → no expectation → writes V1   (adapter A remembers V1)
+rename zone Z   execute() → no expectation → writes V2   (adapter B remembers V2)
+undo rename     expects V2, holds          → writes V3   (adapter B remembers V3)
+undo move       expects V1 … against V3    → REFUSED
+```
+
+Nothing foreign happened. Every write was this plugin's, in order, and the last one is
+the state the user is looking at — yet adapter A's private memory has gone stale, the
+undo is refused as a revision conflict, and per the failed-undo rule above the command
+stays on `undoStack`, where **every retry fails identically**. A user who moves a zone,
+renames it, and presses undo twice reaches an undo that can never succeed.
+
+The premise the expectation encodes is "nothing has happened since", and a per-adapter
+field cannot evaluate it: an adapter knows what *it* wrote and is blind to its siblings.
+The history is not blind — it dispatched all of them. So the memory moves there:
+
+```text
+WriteLedger  (application layer; one instance per CommandHistory, same lifetime)
+  lastWritten(id: EntityId): EntityVersion | null
+  record(id: EntityId, version: EntityVersion): void
+```
+
+It advances on exactly one event — a write this history dispatched and that succeeded —
+so it distinguishes the two cases the adapter could not tell apart:
+
+- **A sibling command in this history wrote in between.** The ledger advanced, the
+  expectation presented is current, and the undo applies. The walked example above
+  becomes `undo move → expects V3 → writes V4`.
+- **Anyone else wrote in between** — another tab, a hand edit, a sync. The ledger did
+  *not* advance, the expectation it hands over is stale against the file, and the write
+  is refused. Exactly the protection this section exists to buy, unchanged.
+
+The adapter therefore keeps one boolean (has it written yet — the first-gesture
+exemption) and reads the version from the ledger it was handed. `WriteLedger` reaches
+tools the same way everything else does, as one more field on `EditorContext`, wired at
+the composition root against the same `CommandHistory` instance; a tool never constructs
+one. It holds a bounded map keyed by the entities this session has touched and nothing
+else — no entity state, no cache, nothing readable as a source of truth.
+
+The **entity**, not the command, is the key. A command touching several entities records
+one version per entity and expects each of them; a ledger keyed by command would be the
+per-adapter field again with more steps.
+
 This is why the adapter reads the wrapped command's payload at all, and why that payload
 is `{ zone: Loaded<Zone> }` rather than `{ zone: Zone }`. The version lives on `Loaded<T>`
-and nowhere else (slice 3), so a command that returned a bare entity would leave this
-adapter with no expectation to record and nothing to do but re-read for one — the
+and nowhere else (slice 3), so a command that returned a bare entity would leave the
+ledger with no version to record and nothing to do but re-read for one — the
 check-then-act the contract exists to remove. The adapter still returns `ok(undefined)`
 to `CommandHistory`, which needs only success or failure; the payload is read for exactly
 one field on the way past.
@@ -328,16 +379,10 @@ blur/enter/change-complete, not per keystroke.
 
 ### Selection and Transformer normalization
 
-`SelectionStore` holds only domain IDs (ADR-005):
-
-```typescript
-interface SelectionStore {
-  selectedIds: readonly EntityId<string>[];
-  select(ids: readonly EntityId<string>[]): void;
-  clear(): void;
-  isSelected(id: EntityId<string>): boolean;
-}
-```
+`SelectionStore` holds only domain IDs (ADR-005): a `readonly selectedIds` array of
+`EntityId<string>`, plus `select`, `clear` and `isSelected`. Declared in
+**Interfaces & Contracts**, with `presentation/editor/selection/selection-store.ts` as
+its home; the `readonly` on `selectedIds` is load-bearing and part of that declaration.
 
 No Konva node, ref, or shape ever appears in this store. The presentation layer (owned
 by slice 5's render-model lookup) separately maps a selected domain ID to the Konva
@@ -376,18 +421,10 @@ the Transformer's `transformend` handler, before `pointerUp` builds the command.
 
 ### SnapService
 
-Implemented once as an editor-level service (SDD §21), not per-tool:
-
-```typescript
-interface SnapService {
-  snapPoint(point: Point, candidates: SnapCandidates): Point;
-  snapRotation(angleRadians: number): number;
-  snapResize(box: BoundingBox, handle: TransformerHandle): BoundingBox;
-  snapToGrid(point: Point): Point;
-  snapToVertex(point: Point, candidates: readonly Point[]): Point | null;
-  snapToEdge(point: Point, candidates: readonly LineSegment[]): Point | null;
-}
-```
+Implemented once as an editor-level service (SDD §21), not per-tool. Its six methods —
+`snapPoint`, `snapRotation`, `snapResize`, `snapToGrid`, `snapToVertex`, `snapToEdge` —
+are declared in **Interfaces & Contracts**, at
+`presentation/editor/snapping/snap-service.ts`.
 
 Any tool that needs snapping calls `context.snapService` during both `pointerMove`
 (to compute the snapped preview point written to render state) and `pointerUp` (to
@@ -540,6 +577,11 @@ interface EditorContext {
   readonly selection: SelectionStore;
   readonly snapService: SnapService;
   readonly commandDispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
+  // What this editor's own history has written, per entity — the expectation a
+  // reversible adapter presents on every operation after its first. Wired against the
+  // same CommandHistory instance as commandDispatcher; see "The expectation is the
+  // history's, not the adapter's". A tool never reads it directly; its adapters do.
+  readonly writeLedger: WriteLedger;
   readonly renderState: RenderState;
   // calibration is nullable: a Plan renders and is editable before it is calibrated
   // (slice 5's placeholder scale), so a tool that assumes a value here would break on
@@ -574,6 +616,17 @@ interface CommandHistory {
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   clear(): void;
+}
+
+// application/editor/WriteLedger.ts — what THIS history has written, per entity.
+// One instance per CommandHistory, same lifetime, reached by adapters through
+// EditorContext. Advances on a successful write this history dispatched and on
+// nothing else, which is what lets an expectation tell a sibling command apart
+// from a foreign writer. See Design → "The expectation is the history's, not the
+// adapter's".
+interface WriteLedger {
+  lastWritten(id: EntityId<string>): EntityVersion | null;
+  record(id: EntityId<string>, version: EntityVersion): void;
 }
 
 // presentation/editor/snapping/snap-service.ts
@@ -655,6 +708,16 @@ and tool-switching directly touch.
   stays on its original stack in both cases — `undo()`'s failure leaves it on
   `undoStack`, not moved to `redoStack`; `redo()`'s failure leaves it on `redoStack`,
   not moved to `undoStack`. No Konva, no Obsidian.
+- **`WriteLedger` expectation tests** — two cases, and the first is the one an earlier
+  draft of this design got wrong. **In order, same entity:** move zone Z, rename zone Z,
+  undo the rename, undo the move; assert the last undo *succeeds* and that the zone's
+  geometry is back at its pre-move value. Watched failing with the ledger replaced by a
+  per-adapter field, which is where it refuses with `zone.revision-conflict` and then
+  refuses identically on every retry. **Foreign write, same entity:** move zone Z, write
+  the zone through a second repository handle without going through this history, then
+  undo the move; assert it is refused and the foreign write survives intact. Both cases
+  must be in the suite: the first alone is satisfied by an adapter that presents no
+  expectation at all, which would pass it while discarding the foreign write.
 - **`normalizeTransformerResult` unit tests** — table-driven over plain
   `{x, y, rotation, scaleX, scaleY}` + base geometry inputs; assert the output never
   contains a `scaleX`/`scaleY` field and that `scaleX: 2, scaleY: 1` on a 1000×500mm
@@ -706,25 +769,31 @@ and tool-switching directly touch.
    `undoStack` in dispatch order, not completion order. Asserted with a fake whose
    cascade duration is controllable, since the bug this rules out only appears when
    completion order and dispatch order disagree.
-5. A simulated Transformer resize/rotate never allows a `scaleX`/`scaleY` value to
+5. Undo survives an intervening command of this history on the same entity, and refuses
+   an intervening write from anywhere else: move → rename → undo rename → undo move
+   applies, while move → foreign write → undo move is refused with
+   `zone.revision-conflict` and leaves the foreign write intact. Both asserted, since
+   either alone is passed by a design that is wrong in the other direction, and the
+   expectation is read from `WriteLedger` rather than from a per-adapter field.
+6. A simulated Transformer resize/rotate never allows a `scaleX`/`scaleY` value to
    reach a command's input type or a persisted entity — asserted directly in the
    normalization test, not just implied by code review.
-6. A command whose `execute()` resolves to a failed `Result` (simulated validation or
+7. A command whose `execute()` resolves to a failed `Result` (simulated validation or
    persistence failure) is never pushed to `undoStack`, produces no redo-stack
    entry, and `CommandHistory.run()` returns that same failed `Result` to its caller —
    asserted against a resolved error `Result`, not a rejected promise. A command
    whose `.undo()` resolves to a failed `Result` stays on `undoStack` rather than moving
    to `redoStack`; a command whose `.execute()` resolves to a failed `Result` when called
    by `redo()` stays on `redoStack` rather than moving to `undoStack`.
-7. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
+8. `SelectionStore`'s type contains only domain IDs; no Konva node/ref type is
    reachable from it, checked by the architecture/contract test.
-8. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,
+9. `SnapService` is a standalone, injectable implementation of all six SDD §21 methods,
    unit-tested without a live canvas.
-9. Selecting a fixture entity produces an Inspector DTO sourced from an application
+10. Selecting a fixture entity produces an Inspector DTO sourced from an application
    query — not a repository call — and committing an edited field dispatches exactly one
    command through the same `CommandHistory` tools use.
-10. `EditorContext`'s type surface contains no repository or Obsidian Vault API.
-11. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
+11. `EditorContext`'s type surface contains no repository or Obsidian Vault API.
+12. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
     future tool (e.g. `WallTool`) requires only a new `EditorTool` implementation, not a
     framework change.
 

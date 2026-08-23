@@ -69,6 +69,10 @@ exist.
 - Slice 11 (Error Handling, Diagnostics & Data Safety) — the eight `AppError`
   categories, the `ToUserMessage` contract, and the unconditional logging
   this slice assumes already ran before any surface is chosen.
+- Slice 1 (Plugin Bootstrap & Composition Root) — the settings-load failure it
+  deliberately leaves half-surfaced, deferring "where it shows up beyond the settings
+  tab" to slices 11 and 17. Answered under "Bootstrap: the failure that precedes every
+  row above". Not a build dependency in the other direction: slice 1 ships without this.
 - Slice 13 (Notifications & Save-State Surfaces) — assumed to provide
   `notify.success/info/warning/error(message)` and a persistent
   Saved/Saving/Unsaved/Save Error indicator (PRD §67 Autosave).
@@ -93,21 +97,37 @@ exist.
 ### The decision procedure
 
 A surface is not a function of the error *category* alone — the same
-category can reach different surfaces depending on how it arose. Five
-questions, asked in order, determine it:
+category can reach different surfaces depending on how it arose. Six
+questions, asked in order, determine it. **They are labelled, not numbered**,
+because everything else in this document refers back to them and a number is
+correct only until a question is inserted above it — which is exactly what
+adding the BOOTSTRAP question below did:
 
 ```text
-1. Does resolving this require the user to pick between several different,
+BOOTSTRAP. Did the plugin fail to load its own settings, so nothing that reads
+   a configured location was composed at all (slice 1)?
+     → yes: SESSION FAILURE STATE. Asked first because it is the only failure
+       that invalidates the questions below rather than being answered by them:
+       there is no field to annotate, no operation to name, and no query that
+       "failed" — none was ever wired. Every view the plugin renders shows the
+       failure in place of its content for the whole session, with NO retry
+       action, because recovery is fixing `data.json` and reloading, not a
+       button (slice 1: "recovery is a reload, not a repair UI"). Slice 1's
+       settings-tab explanation is the other half of this surface and is not a
+       second, competing report of the same fact — it is the only place that can
+       say what to fix.
+
+DECISION. Does resolving this require the user to pick between several different,
    real outcomes (not just "OK" / dismiss)?
      → yes: MODAL (slice 15). Rare — reserved for cases like deletion with
        existing referents, where proceeding silently would violate SDD §87's
        "never cascade-delete silently."
 
-2. Otherwise, is the failure attributable to exactly one visible input the
+FIELD. Otherwise, is the failure attributable to exactly one visible input the
    user just edited (a single Inspector/form field)?
      → yes: INLINE FIELD ERROR (slice 16).
 
-3. Otherwise, did this happen synchronously, as the direct result of an
+OPERATION. Otherwise, did this happen synchronously, as the direct result of an
    operation the user just triggered (a save, a delete, an explicit command)?
      → yes, and the operation is an autosave write with a live Saved/Saving/
        Unsaved indicator already on screen for that entity:
@@ -115,14 +135,14 @@ questions, asked in order, determine it:
      → yes, otherwise:
          TOAST (slice 13), naming the failed operation.
 
-4. Otherwise, did a view's own hydrating query fail, leaving it with no content to
-   show at all?
+HYDRATION. Otherwise, did a view's own hydrating query fail, leaving it with no
+   content to show at all?
      → IN-PLACE VIEW FAILURE STATE (this slice) — the message replaces the view's
        content, in the slot slice 14's `EmptyState` would otherwise occupy. Never an
        empty state (that would claim the data is legitimately absent) and never a
        toast alone (that would leave a blank region behind it).
 
-5. Otherwise — discovered later, not the direct result of a click; a
+BACKGROUND. Otherwise — discovered later, not the direct result of a click; a
    background cascade, or a load-time check on an entity nobody opened this
    session:
      → NO INTERRUPTIVE SURFACE. Log it (slice 11, already happened) and
@@ -132,7 +152,7 @@ questions, asked in order, determine it:
        entity, or at Diagnostics, next.
 ```
 
-Step 5 is the one most designs skip: most failures do not need to interrupt
+The BACKGROUND step is the one most designs skip: most failures do not need to interrupt
 the user *at all*, only to be honest and discoverable when they do look.
 Slice 10's `recalculationStatus` is the existing, already-designed proof
 that this plugin already commits to that idea; this slice generalizes it
@@ -160,6 +180,27 @@ other case out of scope.
 Every row still passes through slice 11's `ToUserMessage` for its copy; this
 table only decides the container.
 
+### Bootstrap: the failure that precedes every row above
+
+Slice 1 defers "where the settings-load failure shows up beyond the settings tab" to
+slices 11 and 17 by name. This is that answer, and it needed a new origin rather than a
+row in the table above, because **a bootstrap failure is not one of the eight `AppError`
+categories reaching a surface** — it is a rejected `loadData()` before any command,
+query or repository exists to produce an `AppError` at all. Routing it through
+`surfaceFor(error, origin)` with a manufactured category would have been the "map
+everything to a generic `DomainError`" mistake slice 11 warns against, one layer up.
+
+| Origin | Surface | Justification |
+| --- | --- | --- |
+| `{ kind: "bootstrap" }` — `loadData()` rejected, so `settings === null` and the composition root deliberately wired no repositories, no index and no query services (slice 1). | `{ kind: "session-failure" }`: every view the plugin renders replaces its content with slice 11's `ToUserMessage` copy, for the whole session, **with no retry action**. | The plugin is loaded but structurally cannot do anything that touches a configured location, and that is true until the vault is reloaded — so a toast (dismissible, momentary) understates it and an empty state (which claims the data is legitimately absent) misreports it, the same objection slice 14 raises for `view-hydration`. No retry, because slice 1 already refused a repair UI: there is nothing to re-run, and a button that re-read `data.json` on a timer would be guessing at data the user still has. The **actionable** half — what to fix — lives in the settings tab, where slice 1 puts it via the empty-`getSettingDefinitions()` fallback; this surface is what stops a user staring at a blank Plan Editor wondering why. |
+
+Two things this row deliberately does not do. It does not make slice 17 a dependency of
+slice 1 — slice 1 ships this failure with the settings tab alone, and views acquire the
+session-failure state when slices 5 and 14 give them a content slot to replace. And it
+does not touch slice 1's three rules (no write for the session, nothing configured
+composed, recovery is a reload); it names where they become visible, which is exactly the
+scope slice 1 deferred.
+
 ### Two cases that are not `AppError`s
 
 Slice 14 defers two situations here, and neither arrives as an `AppError` — so the
@@ -169,7 +210,7 @@ attributability test, applied one level up:
 
 - **A view's hydrating query resolved `isErr`.** This *is* an `AppError` (typically
   `PersistenceError`), but its origin is not in `ErrorOrigin`'s list: nothing the user
-  clicked failed — the view simply could not load. It gets a fifth origin,
+  clicked failed — the view simply could not load. It gets its own origin,
   `{ kind: "view-hydration" }`, and a surface the table above does not otherwise
   produce: the view renders a **failure state in place of its content** — the same slot
   slice 14's `EmptyState` would have occupied, with slice 11's `ToUserMessage` copy and
@@ -228,7 +269,7 @@ distinct from it in copy and in what they offer the user to do next.
 
 Slice 11 already logs every mapped error at the Application Error Mapping
 step, before Presentation makes any choice covered by this slice. Nothing
-here changes that. "No interruptive surface" (procedure step 4) means *no
+here changes that. "No interruptive surface" (the BACKGROUND step) means *no
 additional UI beyond the persisted marker* — it never means "not logged,"
 and it never means a call site is allowed to skip `logger.error` because it
 decided a toast/modal/inline error was unwarranted. The two are produced by
@@ -246,6 +287,7 @@ a `Result`:
 // presentation/errors/errorSurfacePolicy.ts
 
 type ErrorOrigin =
+  | { kind: "bootstrap" }                            // → session failure state
   | { kind: "form-field-commit"; field: string }   // → slice 16 territory
   | { kind: "autosave-write" }                      // → slice 13 save-state territory
   | { kind: "explicit-operation" }                  // → slice 13 toast territory
@@ -261,6 +303,10 @@ type ErrorSurface =
   | { kind: "modal" }
   | { kind: "save-state" }
   | { kind: "view-failure" } // in place of the view's content — see "Two cases" above
+  // Every view, whole session, no retry action. Distinct from view-failure: that one
+  // is per-view and retryable because a query can be re-run; this one is neither,
+  // because nothing was composed to re-run (slice 1).
+  | { kind: "session-failure" }
   | { kind: "none" }; // logged already; a persisted marker, not this policy's concern
 
 // Pure — no side effects, no import of slice 13/15/16's concrete APIs. A call

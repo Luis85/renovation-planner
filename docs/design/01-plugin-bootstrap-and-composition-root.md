@@ -279,8 +279,13 @@ Three rules follow, each a check rather than an intention:
 
 This is one call site's decision, not the Error Boundary — mapping exceptions to typed
 `AppError`s and routing them to a surface is slice 11's and slice 17's, and they arrive
-after this line already exists. What they will add is where the failure shows up beyond
-the settings tab; what they cannot add later is the refusal to write.
+after this line already exists. What they add is where the failure shows up beyond the
+settings tab: slice 17 gives it a `{ kind: "bootstrap" }` origin and a
+`{ kind: "session-failure" }` surface — every view replaces its content for the whole
+session, with no retry action, because of the reload rule above. See slice 17,
+*Bootstrap: the failure that precedes every row above*, which is where that decision is
+written down rather than left as a forward promise. What they cannot add later is the
+refusal to write.
 
 **One instance, and the check that keeps it one.** `onload` constructs the logger once and
 hands it to `createCompositionRoot`; everything else reads `root.logger`. That is the same

@@ -323,8 +323,20 @@ slice adds one application-layer event handler that reacts to that event:
 ```typescript
 // application/event-handlers/requirement/onZoneGeometryChanged.ts
 eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => {
-  const requirements = await requirementRepository.listByZone(event.zoneId);
-  for (const requirement of requirements) {
+  // listByZone returns Result<Loaded<Requirement>[], PersistenceError>, like every
+  // port method in this codebase (README shared vocabulary). A failed LIST is not a
+  // failed recalculation of nothing — it is "we do not know which Requirements this
+  // affects", so nothing may be marked stale and nothing may be reported as current.
+  // There is no Requirement to hang a durable marker on either, which is what makes
+  // this the one branch in the cascade that has to be loud without one.
+  const listed = await requirementRepository.listByZone(event.zoneId);
+  if (isErr(listed)) {
+    logger.error('requirement.list-by-zone.failed', { zoneId: event.zoneId, cause: listed.error });
+    notifyCascadeAborted(event.zoneId);   // slice 13 toast, per slice 17
+    return;
+  }
+
+  for (const requirement of listed.value) {
     // Persist the stale marker BEFORE attempting recalculation — this is the
     // durable fact "this Requirement's numbers are no longer trustworthy,"
     // and it must survive a recalculation failure, not just a successful one.
@@ -435,8 +447,14 @@ handler is the same shape, over `listByAsset` (already on the repository) instea
 // carry different payloads; the sequence itself is small enough that sharing it would
 // cost more indirection than it saves.
 eventBus.subscribe("AssetUpdated", async (event: AssetUpdated) => {
-  const requirements = await requirementRepository.listByAsset(event.assetId);
-  /* … markStale → RequirementInvalidated → recalculate, exactly as above … */
+  const listed = await requirementRepository.listByAsset(event.assetId);
+  if (isErr(listed)) {
+    logger.error('requirement.list-by-asset.failed', { assetId: event.assetId, cause: listed.error });
+    notifyCascadeAborted(event.assetId);
+    return;
+  }
+  /* for (const requirement of listed.value) — markStale → RequirementInvalidated →
+     recalculate, exactly as above, including the abort-on-failed-marker rule */
 });
 ```
 
@@ -804,25 +822,33 @@ different reasons**, and keeping them apart is what makes the flow work:
   `resolvedReferents` rather than trusting either count.
 
 The dialog's resolution reaches the command as data, which means a command input has to
-carry it. **This slice is what adds that field**, because this slice introduces the first
+carry it. **This slice is what adds those fields**, because this slice introduces the first
 entity that can reference a Zone — exactly the deferral slice 8 makes ("deferred to
 whichever of those slices introduces the first entity that can reference a Zone"). Slice
-3's `DeleteZoneInput` is widened by one optional field, and `DeleteAssetInput` is
-declared with it from the start:
+3's `DeleteZoneInput` is widened by **three** optional fields, and `DeleteAssetInput` is
+declared with all three from the start:
 
 ```typescript
 type ReferenceResolution = 'remove-references' | 'reassign' | 'delete-anyway';
 
-// slice 3's input, widened here — optional, so every existing caller still compiles
-// and a caller that omits it gets the safe behaviour: refuse if referents exist.
-interface DeleteZoneInput {
-  zoneId: ZoneId;
-  resolution?: ReferenceResolution;
-  reassignTo?: ZoneId;   // required when resolution is 'reassign'; see below
-  // The exact referents the user was shown when they chose `resolution`. Required
-  // whenever `resolution` is present; see "A resolution consents to a specific set".
-  resolvedReferents?: readonly RequirementId[];
-}
+// application/commands/zone/DeleteZone.ts — slice 3's file and slice 3's interface.
+// Its existing members are NOT restated here: `zoneId`, and `expected?: EntityVersion`,
+// which is load-bearing (slice 8's undo-a-creation supplies it so the delete refuses if
+// the Zone changed after it was created). An earlier draft of this block did restate
+// the interface and dropped `expected` in the process, silently un-specifying that
+// undo — which is why what follows is the diff and not a copy.
+//
+// Added to DeleteZoneInput by this slice, all optional, so every existing caller still
+// compiles and a caller that omits them gets the safe behaviour — refuse if referents
+// exist:
+//
+//   resolution?: ReferenceResolution
+//   reassignTo?: ZoneId               required when resolution is 'reassign'; see below
+//   resolvedReferents?: readonly RequirementId[]
+//                                     the exact referents the user was shown when they
+//                                     chose `resolution`; required whenever
+//                                     `resolution` is present. See "A resolution
+//                                     consents to a specific set".
 
 interface DeleteAssetInput {
   assetId: AssetId;

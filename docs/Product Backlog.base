@@ -43,3 +43,13 @@ views:
       - layer
       - persistence
       - partOf
+  - type: table
+    name: Design
+    filters:
+      and:
+        - file.inFolder("docs/design")
+    order:
+      - file.name
+      - type
+    columnSize:
+      file.name: 384

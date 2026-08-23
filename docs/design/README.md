@@ -1,3 +1,6 @@
+---
+type:
+---
 # Design Slices — from SDD to Implementable Chunks
 
 ## Purpose

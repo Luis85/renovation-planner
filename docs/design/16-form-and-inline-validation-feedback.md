@@ -1,3 +1,6 @@
+---
+type:
+---
 # Design Slice 16: Form & Inline Validation Feedback
 
 ## Purpose

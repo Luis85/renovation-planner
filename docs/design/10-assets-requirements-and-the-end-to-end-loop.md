@@ -52,6 +52,15 @@ end to end.
   panel is the surface that would otherwise fail to build the row at all.
 - Extending the Project Index (SDD §47) with the lookups this slice's event
   handler needs to find affected Requirements without a Vault scan.
+- **`ReferenceLock`, the `SequenceMarker` and its load-time recovery** — the
+  two-level lock hierarchy, the durable marker written before a multi-entity
+  sequence's first mutation, and the recovery pass that reads one at load. Listed
+  here because it is a substantial, testable piece of this slice rather than an
+  implementation detail of the delete flow: it is what makes "a failed resolution
+  leaves the Vault as it was" true across a process exit, and slice 8's
+  `ReversibleDeleteZoneCommand.undo()` takes the same contract. Its own design is
+  under "Deletion & reference integrity"; its persistence is in **Persistence
+  Impact**.
 
 ### Out of scope (covered by other slices)
 
@@ -381,6 +390,42 @@ eventBus.subscribe("ZoneGeometryChanged", async (event: ZoneGeometryChanged) => 
 });
 ```
 
+**The `for` loop above is the shape, not the schedule.** Read as written it is 2N
+sequential awaited vault writes — `markStale` then a recalculation save, per Requirement,
+one after another — inside the dispatch of the gesture that moved the Zone. At the scale
+this plugin is for that is the difference between a drag that ends and a drag that
+appears to hang: eighty Requirements is a hundred and sixty round-trips to disk, done
+strictly one at a time.
+
+Nothing requires that. Each Requirement's pair is **independent of every other's**: the
+lock hierarchy below gives an ordinary Requirement write a level-2 lock on that
+Requirement and nothing else, so two pairs cannot contend, cannot deadlock, and cannot
+observe each other. The writes are IO-bound, so the win is real rather than theoretical.
+So the cascade runs the pairs with **bounded concurrency** — a small fixed limit, not an
+unbounded fan-out, because the shared resource being saturated is the user's disk and the
+Obsidian adapter in front of it, and five hundred simultaneous writes is a worse answer
+than sequential rather than a better one.
+
+Three properties the concurrent form must keep, each of which the sequential form gets by
+accident and which are therefore the things to assert:
+
+- **Per-Requirement failure isolation, unchanged.** A failed `markStale` skips its own
+  recalculation and nothing else's; a failed recalculation leaves its own Requirement
+  stale and nothing else's. Neither aborts the cascade. This is already the sequential
+  behaviour — both branches `continue` — so concurrency does not change the semantics, it
+  changes only how long they take.
+- **`markStale` still precedes its own recalculation.** The ordering that matters is
+  *within* a pair, never *between* pairs. Nothing in the design ever depended on
+  Requirement A being marked before Requirement B.
+- **Undo ordering is not affected**, and this is the part worth checking rather than
+  assuming, because the cascade is awaited inside the dispatch. Slice 4 warns that a
+  command finishing a one-Requirement cascade can resolve before an earlier command still
+  recalculating twenty, so `CommandHistory.run()` would push in resolution order — but
+  slice 4 also states the fix, and it is not here: slice 6 serializes `CommandHistory`'s
+  own operations per Plan. Making this cascade faster changes *how much* the two
+  durations differ and not *whether* they can, so it neither creates that hazard nor
+  relies on having removed it.
+
 `Requirement.recalculationStatus: "current" | "stale"` is a persisted field, not
 a derived one — it is precisely the flag that must survive a failed recalculation
 so the Inspector never presents a stale value as current. It is set to `"stale"`
@@ -416,6 +461,22 @@ impossible. It is deliberately not inferred from `Requirement.unit`: that field 
 the Requirement's *current* Asset (reassign rewrites it), so comparing it against the
 Asset would compare a value to a copy of itself and agree in exactly the case that
 matters.
+
+*Considered and declined: recompute-and-compare on the outputs instead of snapshotting
+the inputs.* Recomputing the pipeline at read time and comparing against the stored
+figures needs no new persisted fields, and it catches strictly more — including a figure
+someone hand-edited in the note, which an input snapshot cannot see because the inputs
+still match. Declined for three reasons that hold together rather than separately. It
+puts the cost engine on the **read path**, so every Requirement row rendered costs a
+pipeline run, and the read model is what the Inspector builds on every selection. It
+cannot distinguish "stale" from "overridden" without knowing the override rules too, so
+the comparison would have to reimplement the branch it is checking. And a snapshot is
+human-readable **provenance** in the note itself — `calculated-from-area: "12.0"` tells a
+person opening the file in a plain editor what the number came from, which is §3.2's whole
+premise and something a recomputation leaves nowhere. The hand-edited-figure case is
+therefore genuinely uncovered, and it is uncovered on purpose: a user who edits
+`cost-calculated` by hand has edited the plugin's own cache of its own arithmetic, and the
+plugin's answer is to overwrite it on the next recalculation rather than to police it.
 
 The direction of that backstop is the whole of its contract, and it is deliberately
 one-way: it can move a reading from `"current"` to `"stale"`, never the reverse. A
@@ -459,10 +520,37 @@ eventBus.subscribe("AssetUpdated", async (event: AssetUpdated) => {
 ```
 
 `UpdateAssetCommand` publishes `AssetUpdated` on every successful save, including edits
-that cannot change a cost (a `name` or `notes` change). Recalculating a few Requirements
-unnecessarily is cheap and always correct; diffing the Asset to decide whether to fire
-would be a second place that has to know which fields the pipeline reads, and would go
-wrong silently the first time the pipeline started reading one more.
+that cannot change a cost (a `name` or `notes` change) — deciding at the *publisher*
+whether an edit matters would put field knowledge in a second place, and it would go
+wrong silently the first time the pipeline started reading one more field.
+
+**The handler still does not rewrite a Requirement it does not have to**, and the check
+costs no new coupling, which is what makes this worth doing rather than pricing as
+acceptable. Unconditional cascade means `markStale` plus a recalculation save per linked
+Requirement — two writes each — so renaming an Asset that eighty Requirements reference
+is a hundred and sixty vault writes and a visible freeze, for a change to a string
+nothing computes with. So, per Requirement, before `markStale`:
+
+```typescript
+// The Requirement's own record of what its figures were computed FROM. If the
+// updated Asset still matches it, the figures are still correct by construction —
+// there is nothing to mark stale and nothing to recalculate.
+if (unchangedAgainst(requirement.calculatedFrom, event.asset)) continue;
+```
+
+The objection this would normally attract — "now a second place knows which Asset fields
+the pipeline reads" — does not apply, because `calculatedFrom` is not a second place. It
+is the **first and only** declaration of exactly those inputs, it already exists, it is
+already written by `RecalculateRequirementCommand` in the same save as the figures, and
+the read model already compares against it to catch a `markStale` that never landed. A
+pipeline that started reading one more Asset field would have to add it to
+`calculatedFrom` or the read-model backstop would silently stop working — so the
+forcing function is already there and already load-bearing. Comparing against it here
+reuses that, rather than duplicating it.
+
+What this deliberately does not do is skip the *lookup*. `listByAsset` still runs, and
+every linked Requirement is still examined. The saving is in the writes, which is where
+the cost is; an eighty-Requirement rename becomes eighty comparisons and zero writes.
 
 **One Asset edit is refused rather than cascaded: a unit change that leaves the `area`
 kind while Requirements still reference it.** `AssignAssetCommand` rejects a non-area
@@ -518,6 +606,31 @@ Requirement-scoped specialization of `CostChanged` for the one cost type
 (Estimated) this slice produces. Later epics that add Quoted/Committed/Actual
 costs can add their own `*Changed` events under the same pattern without
 revisiting this one.
+
+**And they get a shared payload shape to add them under, reserved here rather than
+discovered later.** An open family of `*Changed` events with nothing in common is fine
+for a publisher and wrong for the subscriber this family is obviously heading toward: a
+budget rollup wants "any cost on this Project moved", and against four unrelated event
+types that is four subscriptions plus four payload readers, which is four places to
+forget the fifth cost type. So every member of the family carries the same three fields:
+
+```typescript
+// The common half of every cost event. Not a base CLASS — a domain event is data
+// (README shared vocabulary), so this is a payload shape the concrete events spread.
+interface CostChangePayload {
+  readonly costType: 'estimated';        // widened by the epic that adds Quoted/etc.
+  readonly scope: { kind: 'requirement'; id: RequirementId };  // widened likewise
+  readonly currency: CurrencyCode;
+}
+```
+
+`CostEstimateChanged`'s payload is that plus its own `previous`/`current` `Money`. This
+slice adds no rollup subscriber and no generic `CostChanged` event — there is one cost
+type, so a generic event today would have exactly one publisher and one member, which is
+the abstraction the SDD's §34/§32 split is already unclear enough about. What is bought
+now is only that the fields a rollup needs in order to *discriminate* exist from the
+first event, so adding the second cost type is a widened union rather than a migration of
+the first one's payload.
 
 Because the Event Bus is in-process and promise-aware (§33), the whole cascade
 runs to completion, synchronously awaited, inside the same command dispatch
@@ -1137,6 +1250,30 @@ general. A recalculation, an override edit, or a `markStale` on an existing Requ
 cannot turn a correct reference set into a stale one — only creating a new reference
 can — so serializing those too would cost contention for no invariant.
 
+**Why not one general write mutex instead of two levels**, since that is the obvious
+simplification and a mutex scoped narrowly to reference-graph mutations demonstrably does
+*not* work — it fails to cover the compensation case in the next section, so the honest
+alternative is a mutex over every Requirement write:
+
+- Contention "at human editing rates" is the weak version of the argument, and it is
+  worth not leaning on: a human types slowly, but this plugin's writes are not
+  human-paced. The cascade above deliberately runs its per-Requirement pairs
+  concurrently, and a general write mutex would put every one of them back in a single
+  queue *and* put the user's next Inspector edit behind all of them. The two decisions
+  are one decision: a wider mutex is only simpler if the cascade stays sequential, and
+  the cascade being sequential is the freeze this slice is already fixing.
+- It would also make the two-level structure necessary anyway rather than removing it.
+  The delete sequence must hold exclusion over an entity *and* over a set of
+  Requirements discovered under that exclusion; one mutex covering both is one lock held
+  across a read, a decision, N writes and a compensation — which is the general mutex in
+  name and a global stop-the-world in behaviour.
+
+What the wider mutex would genuinely buy is that nobody has to check a new command
+against a hierarchy rule. That cost is real and is paid by stating the rule as a rule:
+**a level-2 holder never reaches back for a level-1 lock**, and every new sequence is
+checked against it. Reconsider if a second rule ever has to be added to keep the
+hierarchy sound — one rule is cheaper than a mutex, two probably are not.
+
 ### The compensation needs its own exclusion, and its own recovery
 
 That scoping note is about the *reference* invariant, and it does not carry to the
@@ -1225,15 +1362,44 @@ type SequenceMarker = {
   entityDeleted: boolean;              // did step 3 complete?
   affectedBefore: readonly Loaded<Requirement>[];
   // Appended after each completed write, so recovery can tell which writes landed
-  // rather than inferring it. Deliberately the SAME shape as the command payload's
-  // affectedAfter — one description of "what this sequence did", durable and in-memory,
-  // not two that can disagree.
-  progress: readonly (
-    | { id: RequirementId; outcome: 'written'; version: EntityVersion }
-    | { id: RequirementId; outcome: 'deleted' }
-  )[];
+  // rather than inferring it.
+  //
+  // This is the SAME ARRAY the command returns as `affectedAfter`, not a second one
+  // with the same shape. An earlier draft had two — one durable, one in-memory — and
+  // proposed a test asserting they agreed, which is the tell: a test policing two
+  // records of one fact is cheaper to delete than to keep, and it only fails after the
+  // divergence has already shipped somewhere the test does not look. The sequence has
+  // exactly one writer of "what this sequence did" (itself, appending after each write),
+  // and on success it hands that array to its own result. Their LIFETIMES differ — the
+  // marker is cleared, the payload travels on to undo — but a lifetime is a property of
+  // the holder, not a reason for a second copy.
+  progress: readonly SequenceProgress[];
 };
+
+type SequenceProgress =
+  | { id: RequirementId; outcome: 'written'; version: EntityVersion }
+  | { id: RequirementId; outcome: 'deleted' };   // remove-references: expect absence
 ```
+
+**Where the marker lives, and what happens to it across versions.** It is plugin-local
+operational state, not project data, so it goes where slice 4 puts the sidecar-folder
+migration marker: **the plugin's own data, and deliberately not `data.json`'s settings
+object** — `settingsFrom` drops any key this version does not declare (slice 1's trust
+boundary), which would silently discard an outstanding recovery, and a marker is not a
+preference a user should find in their settings file. It carries its own
+`schemaVersion`, like every other persisted shape in this plugin (§44).
+
+Its migration story is the one shape in the codebase that is allowed to be short, and
+saying why is the point: **a marker that a newer version cannot read is discarded, not
+migrated.** Two reasons, and both have to hold. It is short-lived by construction — it
+exists only between the first mutation of one interrupted sequence and that sequence's
+completion or recovery — so the window in which an upgrade can find one at all is the
+window in which the plugin was closed mid-delete and then updated. And attempting to
+recover from a marker whose shape this version does not understand is worse than
+discarding it: recovery *writes*, so a misread `progress` entry restores the wrong
+content over a Requirement. Discarding it leaves the vault in the partially-resolved
+state the marker described, which is exactly the state slice 11's diagnostics are for —
+so the discard is surfaced as a diagnostic naming the entity, never dropped silently.
 
 4. **Recovery is conditional, and has a third outcome.** At load, a marker means a
    sequence was interrupted. For each entry in `progress`, restore that Requirement from
@@ -1283,10 +1449,10 @@ type DeleteWithReferencesResult = {
   // own writes already superseded: every restore would conflict against the command's
   // own effect, and re-reading to find the current one is the check-then-act this
   // design refuses everywhere else.
-  affectedAfter: readonly (
-    | { id: RequirementId; outcome: 'written'; version: EntityVersion }
-    | { id: RequirementId; outcome: 'deleted' }   // remove-references: expect absence
-  )[];
+  //
+  // This IS the sequence marker's `progress` array, handed on rather than rebuilt — one
+  // writer, one record. See the marker's own declaration above.
+  affectedAfter: readonly SequenceProgress[];
 };
 ```
 
@@ -1685,6 +1851,19 @@ No new migration category is needed yet: `RequirementOrigin` is already a
 discriminated union, so later epics adding `work-package`/`asset` origin kinds
 are additive, not breaking.
 
+**The sequence marker is the one thing this slice persists that is not a note**, and it
+is easy to leave out of this section because it is not project data — which is exactly
+why it belongs here. It is plugin-local operational state: it lives in the plugin's own
+data, **not** in `data.json`'s settings object (`settingsFrom` drops keys this version
+does not declare, which would discard an outstanding recovery), carries its own
+`schemaVersion` like every other persisted shape, and is excluded from anything that
+exports or shares a project — a half-finished delete is not part of the Markdown-native
+record (§3.2). Unlike every note above it is **short-lived by construction**, existing
+only between one interrupted sequence's first mutation and its recovery, and a marker a
+newer version cannot read is discarded with a diagnostic rather than migrated. The
+reasoning for that, which is the one place this plugin declines to migrate a persisted
+shape, is at the marker's own declaration under "Compensated multi-entity sequences".
+
 ## Testing Strategy
 
 - **Unit (domain).** Asset validation (unit cost ≥ 0, `wasteFactorDefault` and
@@ -1957,10 +2136,17 @@ are additive, not breaking.
       running it once. The idempotence case is not decoration: a crash can land between a
       Requirement write and its `progress` append, so an entry can be missing for a write
       that happened and present for one that did not, and both must be survivable.
-- [ ] `progress` and the payload's `affectedAfter` are one shape, asserted by a test that
-      builds a marker's `progress` from a completed resolution and compares it to the
-      returned `affectedAfter`. Two descriptions of what a sequence did are two things
-      that can disagree, and the disagreement would only surface during a recovery.
+- [ ] `progress` and the payload's `affectedAfter` are the **same array**, not two of one
+      shape — asserted by reference identity on a completed resolution, which is a
+      stronger and shorter check than comparing two independently built records. The
+      comparison test this replaces was the design smell: two descriptions of what a
+      sequence did can disagree, and the disagreement would only surface during a
+      recovery, so the fix is one writer rather than a test policing two.
+- [ ] The sequence marker persists to the plugin's own data (never `data.json`'s settings
+      object, which drops undeclared keys), carries a `schemaVersion`, and a marker this
+      version cannot read is **discarded with a diagnostic** rather than migrated or
+      silently dropped — asserted with a fixture marker at an unknown version, checking
+      that no Requirement is written and that slice 11 receives the diagnostic.
 - [ ] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
       the now-unreferenced Asset from `m2` to `m`, the redo resolves a
       `ValidationError` and creates nothing, rather than restoring a Requirement whose

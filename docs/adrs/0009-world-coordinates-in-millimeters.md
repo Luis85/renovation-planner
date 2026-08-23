@@ -20,7 +20,7 @@ Domain geometry uses real-world coordinates rather than canvas pixels, with a ma
 
 - Area, length, and perimeter calculations, along with calibration and cost/requirement derivations, stay correct independent of screen resolution, zoom, canvas size, or export format.
 - Editor tools and rendering code must not perform ad-hoc pixel math; all coordinate conversion goes through the centralized viewport transform.
-- Persisted geometry (in the per-plan geometry sidecars of ADR-002 — JSON in content, `.rpgeo` on disk since [ADR-011](0011-configurable-geometry-sidecar-folder-and-file-extension.md) renamed the extension; this ADR's references to "JSON sidecars" mean the format, not the filename) is stored in world units, never canvas pixels — and Konva transform output (`scaleX`/`scaleY`) must be normalized into world-unit geometry before being persisted (see ADR-003).
+- Persisted geometry (in the per-plan geometry sidecars of ADR-002 — JSON in content, `.rpgeo` on disk since [ADR-011](0011-project-scoped-geometry-sidecar-folder-and-file-extension.md) renamed the extension; this ADR's references to "JSON sidecars" mean the format, not the filename) is stored in world units, never canvas pixels — and Konva transform output (`scaleX`/`scaleY`) must be normalized into world-unit geometry before being persisted (see ADR-003).
 - The received SDD's own Plan Sidecar Schema example (§40) has no unit field; this ADR refines that example by requiring one, the same way ADR-011 refines ADR-002's storage location — schema validation (see the SDD's Schema Validation, §43) must reject a sidecar missing or disagreeing with `"unit": "mm"` rather than accepting it.
 
 ## Alternatives

@@ -1366,8 +1366,8 @@ before any Requirement is locked — and it is the rule to check any new command
 **A sequence marker, for the failure a lock cannot answer.** A lock keeps other writers
 out; it does nothing about the compensating write failing on I/O, or the process exiting
 mid-sequence — and a compensation that can itself fail needs an answer, not a log line.
-So the sequence records a durable marker, on the same reasoning as slice 4's
-sidecar-folder migration marker: no rollback survives a process exit.
+So the sequence records a durable marker, on the reasoning no rollback can answer:
+no rollback survives a process exit.
 
 So step 0 acquires level 1, step 1 reads under it and then acquires level 2, and step 2
 onward runs holding both.
@@ -1426,9 +1426,8 @@ type SequenceProgress =
 ```
 
 **Where the marker lives, and what happens to it across versions.** It is plugin-local
-operational state, not project data, so it goes where slice 4 puts the sidecar-folder
-migration marker: **the plugin's own data, and deliberately not `data.json`'s settings
-object** — `settingsFrom` drops any key this version does not declare (slice 1's trust
+operational state, not project data, so it lives in **the plugin's own data, and
+deliberately not `data.json`'s settings object** — `settingsFrom` drops any key this version does not declare (slice 1's trust
 boundary), which would silently discard an outstanding recovery, and a marker is not a
 preference a user should find in their settings file. It carries its own
 `schemaVersion`, like every other persisted shape in this plugin (§44).
@@ -2172,8 +2171,7 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       marker exists for and the one a marker carrying only an ID cannot serve, since
       rolling back then means putting the entity back and an ID is not a Zone. Simulated
       by leaving a marker behind, since the process that would have rolled back is gone —
-      the same way slice 4 tests its interrupted folder change, and for the same reason a
-      lock cannot cover this case.
+      which is exactly the case a lock cannot cover.
 - [ ] Recovery is conditional and idempotent: a Requirement changed out of band while the
       process was dead is NOT overwritten — recovery surfaces a diagnostic and leaves it
       — and running recovery twice over the same marker produces the same Vault as

@@ -35,10 +35,25 @@ nothing else can:
 
 ## Identity and persistence
 
-Split across two files, which is ADR-002 and SDD §39: a **note** carrying name, background,
-scale, calibration and the stable `id`, plus a **geometry sidecar** (`Ground Floor.geometry.json`,
-SDD §40) holding the [[Spatial object]] points. Geometry is verbose, machine-written and
-useless to a human reader, so it stays out of the Markdown that is meant to be read.
+Split across two files, which is ADR-002 and SDD §39: a **note** carrying name, the
+background reference, the layer names, the owning project and the stable `id`, plus a
+**geometry sidecar** (SDD §40) holding the [[Spatial object]] points. Geometry is verbose,
+machine-written and useless to a human reader, so it stays out of the Markdown that is
+meant to be read.
+
+**`calibration` is in the sidecar, not the note**, even though the section above calls it
+one of the two things a plan owns — owning it and storing it are different questions.
+Recalibrating rewrites the calibration *and* every rescaled object's geometry, and those
+have to land as one write; split across two files it is the plan's own hazard below,
+applied to the one value every measurement on the plan derives from. Slice 4 declares the
+field on the sidecar schema and slice 7 fills it in. The note carries no `scale` key
+either — the calibration is what establishes scale, so a second stored answer to it could
+only disagree.
+
+The sidecar is named by the plan's full `id` and lives in a `Geometry/` folder inside the
+project's own folder —
+`Geometry/plan-01JABB3C5D7E9F1G3H5J7K9M1N.rpgeo`, per ADR-011, not the
+`Ground Floor.geometry.json` beside the note that ADR-002 and SDD §39 first drew.
 
 The pairing is the plan's main hazard: two files, no transaction (SDD §42), and a rename by
 [[Another editor on the vault]] can separate them. The sidecar carries the `planId`, not a

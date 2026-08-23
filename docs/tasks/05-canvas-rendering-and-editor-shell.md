@@ -841,5 +841,5 @@ Per §73–74 (Vue component tests, canvas adapter tests):
 - ADR-004 Vue 3 for Plugin UI
 - ADR-005 Pinia for Presentation State
 - ADR-009 World Coordinates in Millimeters
-- ADR-011 Configurable Geometry Sidecar Folder and Dedicated File Extension
+- ADR-011 Project-Scoped Geometry Sidecar Folder and Dedicated File Extension
 - `docs/requirements/Architecture and Software Design.md` — slice map and shared conventions

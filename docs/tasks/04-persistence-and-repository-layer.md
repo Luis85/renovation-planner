@@ -54,7 +54,7 @@ This is the SDD's Increment 3. Its success criterion is exact and testable:
   `ZoneFrontmatterDTO`) and mappers between frontmatter, DTO, and domain entity —
   raw frontmatter never leaves the Obsidian repository implementations (§37).
 - The plan geometry sidecar: JSON schema, one file per plan (§39–40), stored per
-  ADR-011 — a configurable flat folder (default `Renovation/Geometry`), filename keyed by
+  ADR-011 — a `Geometry/` folder inside the project's own folder, filename keyed by
   the plan's stable ID, a dedicated registered file extension.
 - Zod schema validation and schema versioning for both the Markdown frontmatter
   shapes and the sidecar JSON shape (§43–44).
@@ -98,15 +98,15 @@ This is the SDD's Increment 3. Its success criterion is exact and testable:
   this slice is the "explicit mapping" and "schema validation" work ADR-001's
   Consequences section calls out as required follow-through.
 - **ADR-002 as revised by ADR-011** — one JSON sidecar per plan (ADR-002's core
-  decision, unchanged) stored in a configurable ID-keyed folder with a dedicated
-  extension (ADR-011's revision of ADR-002's colocation example). This slice
-  implements ADR-011's location, not ADR-002's original `Ground Floor.geometry.json`
-  example.
-- **Plugin settings and composition root (Slice 1)** — this slice adds one new
-  setting, the geometry sidecar folder (ADR-011), to the settings surface Slice 1
-  established, and requires a `registerExtensions()` call at plugin load for the
-  sidecar's custom extension. It does not redesign the composition root; it registers
-  into it.
+  decision, unchanged) stored in an ID-keyed `Geometry/` folder inside the project's
+  own folder, with a dedicated extension (ADR-011's revision of ADR-002's colocation
+  example). This slice implements ADR-011's location, not ADR-002's original
+  `Ground Floor.geometry.json` example.
+- **Plugin settings and composition root (Slice 1)** — this slice adds the project
+  folder to the settings surface Slice 1 established, and requires a
+  `registerExtensions()` call at plugin load for the sidecar's custom extension. There
+  is **no** separate geometry-folder setting: ADR-011 derives the sidecar folder from
+  the project folder. It does not redesign the composition root; it registers into it.
 
 ## Design
 
@@ -224,161 +224,69 @@ The note body is never parsed by the plugin (§38) — it is free-form and belon
 the user.
 
 Filenames are human-chosen (derived from the entity's name at creation time,
-deduplicated on collision) and live under a **default project folder** setting. Slice 1
+deduplicated on collision) and live under the **project folder** setting. Slice 1
 established the settings surface and the `settingsFrom` trust boundary but declares only
 `units` — "a field arrives when a feature reads it" — so this slice is where that field
-arrives, alongside `geometrySidecarFolder` (§14–15, ADR-011). Filename is never identity
+arrives. It is the **only** location field this slice adds: ADR-011 derives the geometry
+folder from it rather than declaring a second setting. Filename is never identity
 (§83) — every read resolves `id` → path through the Project Index, never the reverse.
 
 ### The geometry sidecar (§39–40, ADR-011)
 
 One sidecar per **plan**, not per spatial object. Location follows ADR-011, not
-ADR-002's colocation example:
+ADR-002's colocation example: a `Geometry/` folder inside the project's own folder,
+a sibling of the note folders.
 
 ```text
-Renovation/Geometry/                     ← configurable folder, default shown
-├── plan-01JABB3C5D7E9F1G3H5J7K9M1N.rpgeo
-├── plan-01JABC4D6E8F0G2H4J6K8M0N2P.rpgeo
-└── plan-01JABD5E7F9G1H3J5K7M9N1P3Q.rpgeo
+Renovation/Kitchen Refit/                ← the project folder (the one setting)
+├── Project.md
+├── Plans/
+│   ├── Ground Floor.md
+│   └── First Floor.md
+└── Geometry/
+    ├── plan-01JABB3C5D7E9F1G3H5J7K9M1N.rpgeo
+    ├── plan-01JABC4D6E8F0G2H4J6K8M0N2P.rpgeo
+    └── plan-01JABD5E7F9G1H3J5K7M9N1P3Q.rpgeo
 ```
 
-- Flat list, one file per plan, named by the plan's stable ID **including its `plan-`
+- One file per plan, named by the plan's stable ID **including its `plan-`
   prefix** — the same string the note's `id` field and the sidecar's own `planId` field
   carry, so the three are comparable without a strip-or-add step that only one of the
   three code paths remembers. Never named by the plan's display name or its note's path.
 - The extension is `rpgeo` (ADR-011), registered via `registerExtensions(["rpgeo"],
   viewType)` at plugin load so the file explorer treats it as a first-class file, not
   an unsupported attachment.
-- Because the sidecar's path cannot be derived from the plan note's path (ADR-011),
-  resolving it **always** goes through the Project Index's `planId → sidecar path`
-  entry. There is no path-derivation fallback.
+- `Geometry/` is **not** a setting. The subfolder name is fixed inside a project the
+  same way `Plans/` is; what a user chooses is where the project folder is, one level up
+  (ADR-011). There is no geometry-folder field to write, so there is no folder-change
+  migration either — the ninety-line move-then-write-then-rebuild protocol an earlier
+  version of this slice carried died with the setting it protected.
+- Resolving a sidecar **always** goes through the Project Index's `planId → sidecar path`
+  entry. The path is derivable in principle now (project folder + `Geometry/` + plan ID),
+  but derivation is a repair path for a damaged index, not a second lookup for normal
+  reads — one answer to "where is this plan's geometry", per ADR-011.
 
-### Changing the sidecar folder moves the sidecars
+### Open: moving a project folder is not designed here
 
-ADR-011 names this in its own Consequences — "changing the configured folder after
-sidecars already exist needs deliberate handling (moving existing files, or treating it
-as a migration) rather than a silent setting change, or it will orphan existing geometry
-data" — and this slice is where that handling lives, since it owns both the sidecar
-files and the index that finds them.
+The hazard the deleted folder-change protocol addressed did not disappear; it moved one
+level up, and got bigger. Changing the **project folder** setting while data exists
+orphans notes *and* geometry together: the running index keeps working, so nothing looks
+wrong, and on the next load `ProjectIndexBuilder` scans a tree the project is not in and
+every entity reads as missing while the files sit intact where nothing looks.
 
-Persisting the new path on its own is the failure mode, not a smaller version of it.
-The running index keeps working, so nothing appears wrong; on the next plugin load
-`ProjectIndexBuilder` scans only the newly configured folder, finds no sidecars, and
-every Plan entry comes back without a `geometrySidecarPath` — so every Zone read and
-write fails, on data that is still sitting intact in a folder nothing looks at any more.
-A user who changed a setting and restarted a day later has no way to connect the two.
+This slice does not design that move, and says so rather than leaving a protocol behind
+that no longer matches what it would have to move. Two things the deleted version got
+right are worth carrying into whichever slice does:
 
-*The obvious alternative, considered and declined: make the folder setting irrelevant by
-discovering sidecars vault-wide.* If `rebuild` enumerated every `.rpgeo` file in the vault
-rather than one folder, changing the setting would need no protocol at all — new sidecars
-go to the new folder, old ones keep working where they are, and this whole section
-(roughly ninety lines and six tests) disappears. It is not a strawman: the index rebuild
-already reads the geometry folder *and* the note folders and joins them, so it is already
-a multi-source scan.
-
-Declined, because vault-wide discovery does not remove the failure modes, it trades them
-for worse ones:
-
-- **A sync conflict copy becomes a hard error.** Obsidian sync and Dropbox both resolve a
-  conflict by writing a second file beside the first (`plan-01JABC (1).rpgeo`,
-  `plan-01JABC.sync-conflict.rpgeo`). Scoped to one folder, that is one stray file in a
-  folder the user chose and can see. Scoped vault-wide, two files claim one `planId` and
-  the index has no rule for which wins — the refusal that step 1 above gives a *user*, at
-  the moment they chose the folder, becomes a refusal given to nobody at load time.
-- **Stranded files stay stranded, silently.** Sidecars left in the old folder keep working
-  forever, so nothing ever tells the user their geometry is spread across two places. The
-  first time it matters is a backup or an export that points at the configured folder and
-  quietly misses half the plans — the same class of failure as the silent setting change,
-  moved further away from its cause.
-- **It contradicts ADR-011's own reason for existing.** The point of a configured folder
-  is that plugin data sits "somewhere a user would think to look", so that uninstalling
-  does not leave files scattered across the vault. A design that discovers them anywhere
-  makes the setting cosmetic and puts the scatter back.
-
-What tips it is that the protocol below is bounded — one sequence, run when a user
-changes one setting — while vault-wide discovery is unbounded: every load, every plan,
-forever, with the ambiguity resolved by whichever file the enumeration happened to reach
-first. Revisit if Obsidian ever offers a conflict-free way to claim a filename, or if the
-folder setting is dropped.
-
-So the change is a compensated operation that must complete **before** the setting is
-written, in the same shape as this slice's other multi-file sequences:
-
-Steps 3–5 run inside `PlanGeometryStore.withGlobalBarrier`, for the reason the
-per-plan serialization exists at all — see "Sidecar writes are serialized per plan".
-A Zone save in flight writes its plan's sidecar *at the path the index gave it*, so
-without the barrier a save can recreate or update a sidecar in the old folder while
-the move is walking it: step 4 then rebuilds from the target only, step 5 makes that
-the persisted truth, and the write is lost at the next restart with nothing to
-indicate it. Per-plan locks cannot prevent this, because the migration's claim is
-about every plan at once — "no sidecar may be written anywhere right now" — which is
-not a statement any per-plan queue can make.
-
-```text
-1. Resolve and normalizePath the target folder; create it if absent. A target that
-   exists and already contains .rpgeo files is refused (ValidationError) rather than
-   merged into — two sets of sidecars in one folder is a collision this design has no
-   rule for resolving.
-2. Write a migration marker to the plugin's own data (NOT data.json's settings, which
-   step 6 still has to write): { from, to, startedAt }. This is what makes the move
-   survivable across a process exit — see below.
-   ─── acquire the global geometry-write barrier ───
-3. Move every .rpgeo file from the current folder to the target, recording each move.
-4. Rebuild the Project Index against the new folder, so getGeometrySidecarPath()
-   resolves before any caller can ask.
-5. Persist geometrySidecarFolder through settingsFrom.
-   ─── release the barrier: queued Zone saves resume, and resolve their sidecar
-       paths through the rebuilt index, so they land in the new folder ───
-6. Clear the migration marker. The move is complete only now.
-
-On failure at ANY of steps 3, 4 or 5: move every file already moved back to the
-original folder, rebuild the index against the original folder, leave the setting
-unchanged, and return a PersistenceError. A failed folder change changes nothing at
-all. The marker is cleared ONLY once that rollback is verified complete — every
-sidecar accounted for in `from` and none left in `to`. If the rollback itself fails
-part-way, the marker stays, so the next load still has the signal it needs.
-```
-
-Step 5 before 6 and after 3 is the whole point: the setting is the *record* of where
-the sidecars are, so writing it before the files move makes it a claim about a state
-that does not exist yet — and leaving the files moved with the setting unchanged is the
-same lie in the other direction. Both produce exactly the orphaning this sequence
-prevents, which is why the rollback covers the index rebuild and the settings write and
-not only the moves. The first version of this sequence rolled back on step 3 alone,
-which quietly assumed the two steps after it could not fail.
-
-**The marker is what covers a process exit**, which no rollback can. Steps 3–5 are
-several writes with no atomicity between them, so a crash mid-move leaves files split
-across two folders with the setting pointing at one of them. On plugin load — meaning
-inside `app.workspace.onLayoutReady`, per slice 1's bootstrap rule, since this walks the
-vault — and before the index is built: if a marker is present, the plugin completes the
-interrupted move
-(every `.rpgeo` still in `from` moves to `to`, and the setting is set to `to`) and then
-clears it. Completing forward rather than reversing is the safer of the two, because
-`to` is where the majority of files already are by the time most of the sequence has
-run, and because the alternative would have to undo a settings write that may already
-have happened. A marker whose `from` and `to` folders are both empty of sidecars is
-cleared as a no-op.
-
-**A rollback is itself a multi-file operation, so it does not get to clear the marker
-on faith.** Moving files back can fail for the same reasons moving them forward can,
-and a rollback that failed half-way leaves the split state the marker exists to
-describe — so clearing it there would destroy the only record that a migration is
-outstanding, and the next load would build an index over whichever folder the setting
-happens to name and quietly lose the rest. The marker therefore outlives its own
-sequence: it is cleared on exactly two conditions, a completed forward move or a
-verified-complete rollback, and on nothing else. Recovery on load does not need to know
-which direction the interrupted attempt was going; it completes forward from whatever
-split it finds, and a marker left by a failed rollback resolves the same way as one
-left by a crash.
-
-If the folder is empty of sidecars — no Plans yet, the common case — steps 3–4 are
-no-ops and the change is a marker write, a setting write, and a marker clear.
-
-Whether the user is asked to confirm first belongs to the settings surface (slice 1's
-tab, using slice 15's `ConfirmDialog`), not here; this slice's contract is that the
-move either completes and the setting follows, or nothing moves and the setting does
-not change.
+- **The setting is the record of where the data is**, so it is written *after* the files
+  have moved and the index has been rebuilt, and a failure at any step rolls back all
+  three. A marker written before the move and cleared only on a completed move or a
+  verified-complete rollback is what covers a process exit, which no rollback can.
+- **A whole-tree move needs a claim no per-entity lock can make** — "nothing may be
+  written anywhere right now". That is why `PlanGeometryStore` no longer declares
+  `withGlobalBarrier`: its one caller was the folder migration, and an exported method
+  with no caller is what `npm run analyze` exists to refuse. It comes back with the
+  operation that needs it, covering notes as well as sidecars.
 
 Sidecar content (§40, with the `unit` field ADR-009 requires — the SDD's own §40
 example omits it, which is exactly the gap ADR-009 closes):
@@ -853,8 +761,7 @@ interface PlanGeometryStore {
   // one, with a comment beneath it forbidding the read()+write() composition it is the
   // only way to perform — a method whose own documentation says not to call it, kept
   // "available" for a caller that does not exist. create/mutate/delete cover every use
-  // in these slices, and the folder migration moves whole files under
-  // withGlobalBarrier rather than rewriting their contents. A public method with no
+  // in these slices. A public method with no
   // caller and a documented prohibition is not an escape hatch, it is the lost update
   // waiting for the first person who reads the signature and not the paragraph. If a
   // whole-file replacement is ever genuinely needed, it arrives as a named operation
@@ -890,12 +797,13 @@ interface PlanGeometryStore {
     expected?: EntityVersion,
   ): Promise<Result<{ version: EntityVersion }, PersistenceError | ValidationError>>;
 
-  // Drains every per-plan queue and holds them all for the duration of `during`,
-  // so no sidecar write can land while it runs. The folder migration is the one
-  // caller — see "Changing the sidecar folder moves the sidecars". Per-plan locks
-  // cannot express "no plan may be written right now", which is exactly what
-  // relocating every sidecar at once requires.
-  withGlobalBarrier<T>(during: () => Promise<T>): Promise<T>;
+  // There is deliberately NO `withGlobalBarrier`. An earlier version of this port
+  // declared one — drain every per-plan queue and hold them all — for the sidecar
+  // folder migration, and ADR-011's revision removed the setting that migration
+  // protected, leaving an exported method with no caller. Per-plan locks still
+  // cannot express "no plan may be written right now"; it comes back with the
+  // operation that needs it (see "Open: moving a project folder is not designed
+  // here"), covering notes as well as sidecars.
 }
 ```
 
@@ -935,8 +843,8 @@ cannot be indexed the way a note is, and `upsert`/`rebuild` take entries keyed b
 `getGeometrySidecarPath` something to read: `ObsidianPlanRepository` sets it in the same
 `upsert` that records the Plan note's path (it has just created or resolved the sidecar,
 so it is the only code that knows the path), and `rebuild` recovers it by **joining the
-two halves of the scan it already performs** — it reads the geometry folder for sidecars
-as well as the note folders (see Persistence Impact), and every validated
+two halves of the scan it already performs** — it reads the project's `Geometry/` folder
+for sidecars as well as its note folders (see Persistence Impact), and every validated
 `PlanGeometryDTO` carries the `planId` its file belongs to, so each sidecar's own path
 attaches to that Plan's entry.
 
@@ -1020,28 +928,26 @@ interface FindZonesByPlanQuery {
 
 ## Persistence Impact
 
-- **Reads:** `ProjectIndexBuilder` scans the configured default folder(s) for
-  Project/Plan/Zone notes (via `MetadataCache`, not raw file parsing) and the configured
-  geometry folder for sidecars, populating the Project Index. Every `getById` after that
+- **Reads:** `ProjectIndexBuilder` scans the project folder for Project/Plan/Zone notes
+  (via `MetadataCache`, not raw file parsing) and its `Geometry/` subfolder for sidecars,
+  populating the Project Index. Every `getById` after that
   is a single file read, not a scan. **This runs from
   `app.workspace.onLayoutReady`, not from `onload`** — slice 1's bootstrap rule, and it
   is load-bearing twice here: a vault-wide scan in `onload` competes with workspace
   restoration on the main thread, and `MetadataCache` is incomplete until layout-ready,
-  so a scan that ran earlier would build a partial index that looks complete. Marker
-  recovery (above) runs first inside the same callback.
+  so a scan that ran earlier would build a partial index that looks complete.
 - **Writes:** `ObsidianProjectRepository`/`ObsidianPlanRepository` write Markdown
   frontmatter via `FileManager.processFrontMatter` (note body untouched).
   `ObsidianZoneRepository.save` additionally reads-modifies-writes one entry in its
   plan's geometry sidecar, per the consistency sequence above.
-- **New settings:** `geometrySidecarFolder`, default `Renovation/Geometry` (ADR-011), and a
-  default project folder for entity notes — both added to the settings surface Slice 1
-  established, and both read and written through `settingsFrom` like `units`, since
+- **New setting:** the project folder for entity notes — added to the settings surface
+  Slice 1 established, and read and written through `settingsFrom` like `units`, since
   `data.json` is a trust boundary and a folder path is user-editable text.
-  User-supplied paths pass through `normalizePath` before any Vault call. Changing
-  `geometrySidecarFolder` once sidecars exist is not a plain setting write — it moves
-  the files and rebuilds the index first, and persists the setting only if that
-  succeeded (see "Changing the sidecar folder moves the sidecars").
-  **These are the settings that make slice 1's unrecovered rule bite.** A path is not a
+  User-supplied paths pass through `normalizePath` before any Vault call. There is no
+  second location field: ADR-011 puts geometry in `Geometry/` inside this folder, so the
+  sidecar path is derived rather than configured, and changing this one setting while
+  data exists is the open question above rather than a sequence this slice specifies.
+  **This is the setting that makes slice 1's unrecovered rule bite.** A path is not a
   preference: with `root.settings === null` — `data.json` present but unreadable — a
   default folder is a *different* location, so an index built on it reports the user's
   projects as missing and every write lands in a parallel tree beside their real one.
@@ -1152,34 +1058,12 @@ interface FindZonesByPlanQuery {
   `rebuild()` case runs against a fixture where the sidecar's **filename does not
   match** what any derivation rule would produce, so a builder that quietly derived the
   path instead of joining on the DTO's `planId` fails rather than passing by accident.
-- **Sidecar folder-change tests:** with Plans present, changing `geometrySidecarFolder`
-  moves every `.rpgeo` file, rebuilds the index, and only then persists the setting —
-  asserted by reading `getGeometrySidecarPath` and saving a Zone immediately afterwards,
-  with no plugin reload. Then the failure paths, one per fallible step and not just the
-  first: a failing **move**, a failing **index rebuild**, and a failing **settings
-  write** each leave every file back in the original folder, the setting at its old
-  value, the index resolving against the original folder, and return a
-  `PersistenceError`. The rebuild and settings-write cases are the ones a
-  rollback-on-move-only implementation fails, and they are the reason each gets its own
-  assertion. And the refusal path: a target folder already containing `.rpgeo` files is
-  rejected without moving anything. A test that only asserted the setting's new value
-  would pass against the silent write that orphans the data.
-- **Interrupted folder-change test:** simulate a process exit mid-move by leaving a
-  migration marker plus a folder split across `from` and `to`, then run plugin load.
-  Assert the move completes forward, the setting ends at `to`, the marker is cleared,
-  and `getGeometrySidecarPath` resolves for every Plan — the recovery no rollback can
-  perform, since the process that would have rolled back is gone.
-- **Failed-rollback test:** fail a move *and* fail one of the move-backs. Assert the
-  marker is still present afterwards, and that a subsequent plugin load resolves the
-  split and clears it. An implementation that clears the marker at the end of its
-  rollback path passes every other test here and loses the recovery signal only in
-  this one.
-- **Migration-versus-write test:** start a Zone save on a Plan and, without awaiting
-  it, start a `geometrySidecarFolder` change. Assert the Zone's geometry is present in
-  the sidecar in the **new** folder afterwards — the save either completed before the
-  barrier or resumed after it, and in neither case landed in the old folder or
-  vanished. Driven by interleaving without awaiting, since a migration that ran
-  between two fully-awaited operations passes with no barrier at all.
+- **Sidecar location test:** with the project folder set to something other than its
+  default, a Zone save writes its plan's sidecar to `<project folder>/Geometry/` under
+  the plan's full ID — asserted by reading the vault, not by reading back through the
+  index, which would pass against a store that wrote anywhere and remembered where.
+  A second project with its own folder gets its own `Geometry/`, and neither project's
+  scan sees the other's sidecars.
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -1215,10 +1099,10 @@ interface FindZonesByPlanQuery {
    missing that field, or carrying any other value, fails validation and is never
    loaded — a test proves this explicitly, not just that the field exists in the
    schema.
-4. Geometry sidecars are written to the configured folder (default `Renovation/Geometry`)
-   as a flat list keyed by plan ID, with the registered custom extension; no code
-   path derives a sidecar's path from the plan note's path — every resolution goes
-   through the Project Index (ADR-011).
+4. Geometry sidecars are written to `Geometry/` inside the project's own folder, keyed
+   by plan ID, with the registered custom extension (ADR-011); there is no
+   geometry-folder setting, and every resolution goes through the Project Index rather
+   than deriving a path at the call site.
 5. Saving a Zone updates its frontmatter and its geometry sidecar entry as one
    logical operation; a test proves a mid-sequence failure surfaces a
    `PersistenceError` and does not leave the frontmatter silently pointing at
@@ -1267,23 +1151,10 @@ interface FindZonesByPlanQuery {
     `PlanGeometryDTO`'s own `planId` — never on the filename, and never from a
     frontmatter field (there is none). The port has no read whose mapping nothing
     writes, and no caller derives a sidecar path from a note path (ADR-011).
-6e. Changing `geometrySidecarFolder` while sidecars exist moves them, rebuilds the
-    index, and persists the setting only on success; a failure at **any** of the move,
-    the rebuild or the settings write restores every file and leaves the setting
-    unchanged; a target folder already holding `.rpgeo` files is refused. ADR-011's
-    orphaning consequence is discharged here rather than left as a warning — a Plan's
-    geometry stays reachable across the change with no reload. The move, rebuild and
-    settings write run inside `PlanGeometryStore.withGlobalBarrier`, so a concurrent
-    Zone save cannot write a sidecar into the folder being emptied — asserted by
-    interleaving a save with the change and finding the geometry in the new folder.
-6f. A process exit part-way through that change is recoverable: a migration marker
-    written before the first move and cleared only after the setting is persisted lets
-    the next plugin load complete the interrupted move and clear the marker, before
-    the index is built. Asserted from a fixture with a marker and a half-moved folder,
-    since this is the failure a rollback cannot cover. The marker is cleared on exactly
-    two conditions — a completed forward move, or a rollback verified complete — so a
-    rollback that itself fails part-way leaves the signal in place rather than
-    destroying the only record that a migration is outstanding.
+6e. The settings schema declares **one** folder field, the project folder. A
+    geometry-folder setting is absent, not defaulted — asserted against the settings
+    definitions themselves, since a field nothing reads is invisible to every other
+    test here and would quietly reintroduce the placement decision ADR-011 removed.
 7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
    test issues them without awaiting the first, then asserts the sidecar contains both
    entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the
@@ -1337,10 +1208,10 @@ interface FindZonesByPlanQuery {
 - ADR-001: Markdown as Canonical Metadata Storage
 - ADR-002: JSON Sidecar for Plan Geometry — the "one sidecar per plan" decision this
   slice implements
-- ADR-011: Configurable Geometry Sidecar Folder and Dedicated File Extension —
+- ADR-011: Project-Scoped Geometry Sidecar Folder and Dedicated File Extension —
   **supersedes ADR-002's colocation example** (`Ground Floor.geometry.json` next to
-  `Ground Floor.md`). This slice implements ADR-011's location (configurable folder,
-  default `Renovation/Geometry`, flat list keyed by plan ID, dedicated registered
-  extension), not ADR-002's original example.
+  `Ground Floor.md`). This slice implements ADR-011's location (`Geometry/` inside the
+  project's own folder, keyed by plan ID, dedicated registered extension), not
+  ADR-002's original example.
 - PRD §8 Core Entities (Project, Plan, Zone property lists this slice's frontmatter
   shapes are derived from)

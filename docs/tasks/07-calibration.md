@@ -696,4 +696,4 @@ the sidecar unchanged.
 - ADR-002 — JSON Sidecar for Plan Geometry
 - ADR-007 — Command-Based Mutations
 - ADR-009 — World Coordinates in Millimeters
-- ADR-011 — Configurable Geometry Sidecar Folder and Dedicated File Extension
+- ADR-011 — Project-Scoped Geometry Sidecar Folder and Dedicated File Extension

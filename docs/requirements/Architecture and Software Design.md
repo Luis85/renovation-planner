@@ -2,10 +2,10 @@
 type: Feature
 parent: "[[Cross-cutting concerns]]"
 order: 0
-status: ""
-started: ""
+status: Active
+started: 2026-08-23
 finished: ""
-horizon: ""
+horizon: Now
 start: ""
 due: ""
 risk: ""
@@ -45,10 +45,11 @@ and stays verbatim, so a note citing §8 cites something that has not been edite
 with it. `docs/tasks/` holds seventeen **derived** slices, expected to change as the
 design is refined, each naming the SDD sections it derives from. `docs/adrs/` holds what
 was actually **decided**, and where a decision and the SDD disagree the ADR is what holds.
-That is not hypothetical: ADR-0011 makes the geometry sidecar's folder and extension
-configurable, which is nowhere among §89's ten. A refinement that contradicts its source
-lands in a slice or an ADR and never in `docs/sdds/`; **Shared conventions** below states
-that rule and is where to read it in full.
+That is not hypothetical: ADR-011 moves the geometry sidecar into a `Geometry/` folder
+inside the project's own folder and gives it a registered extension, which is nowhere
+among §89's ten. A refinement that contradicts its source lands in a slice or an ADR and
+never in `docs/sdds/`; **Shared conventions** below states that rule and is where to read
+it in full.
 
 What separates this Feature from a paragraph about good structure is how little of the SDD
 argues for itself. §8's dependency rule is `no-restricted-imports`, per directory, in

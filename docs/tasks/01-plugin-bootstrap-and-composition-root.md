@@ -293,8 +293,10 @@ feature reads yet.
 **Having caught the one failure, this slice has to say what follows it — and "carry on
 with defaults" is the wrong answer.** It is tempting because it is true *today*: the only
 setting is `units`, and a display preference falling back to metric costs nothing. It stops
-being true at slice 4, which puts **locations** in settings — the project folder, and per
-ADR-0011 the geometry sidecar folder. Defaults are then not a degraded version of the
+being true at slice 4, which puts a **location** in settings — the project folder, which
+per ADR-011 is also what a plan's geometry sidecar path is derived from (`Geometry/`
+inside it), so one wrong path misplaces notes and geometry alike. Defaults are then not a
+degraded version of the
 user's configuration, they are a different place on disk: an index built on them scans
 folders the projects are not in, so existing work reads as missing, and anything written
 lands in a parallel tree beside it. A setting that names a path is not a preference, and a

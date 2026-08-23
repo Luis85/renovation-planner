@@ -16,7 +16,7 @@ Spatial objects (zones, physical elements, annotations) carry geometry — polyg
 
 High-volume plan geometry is stored per plan in a structured JSON sidecar file (for example, `Ground Floor.geometry.json`), separate from the plan's Markdown note, rather than embedding geometry in frontmatter or splitting it into one sidecar per spatial object.
 
-> Where exactly that sidecar file lives, what it is named, and **what extension it carries** are all refined by [ADR-011](0011-configurable-geometry-sidecar-folder-and-file-extension.md): sidecars live in one configurable folder (default `Renovation/Geometry`), are named by the plan's full stable ID, and use the registered extension **`.rpgeo`, not `.geometry.json`** — so the `Ground Floor.geometry.json` example above is stale in three ways at once and is kept only because this document records what was decided when. The *format* is still JSON, and the "one sidecar per plan" decision below is unchanged; those are what this ADR actually decided, and neither moved.
+> Where exactly that sidecar file lives, what it is named, and **what extension it carries** are all refined by [ADR-011](0011-project-scoped-geometry-sidecar-folder-and-file-extension.md): sidecars live in a `Geometry/` folder inside the project's own folder, are named by the plan's full stable ID, and use the registered extension **`.rpgeo`, not `.geometry.json`** — so the `Ground Floor.geometry.json` example above is stale in three ways at once and is kept only because this document records what was decided when. The *format* is still JSON, and the "one sidecar per plan" decision below is unchanged; those are what this ADR actually decided, and neither moved.
 
 ## Consequences
 

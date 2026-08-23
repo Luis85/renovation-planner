@@ -979,7 +979,12 @@ inside a repository:
    acquiring is deliberate: `reassignTo` resolving is a fact about an entity another tab
    could be deleting, and a check made outside the lock is one the lock does not keep
    true.
-1. Read every referencing Requirement in full → `affectedBefore` snapshot. Compare its
+1. Under the level-1 locks, read every referencing Requirement in full →
+   `affectedBefore` snapshot, then acquire the level-2 lock on each as one sorted batch
+   and hold them through step 4. Reading first and locking second is safe here and only
+   here: the level-1 lock already prevents the *set* from changing, so what step 2 is
+   protecting against is a concurrent edit to a member of a set that can no longer grow.
+   Compare its
    IDs against `resolvedReferents` as a set; on any difference, return
    `reference.set-changed` and stop here — still before any write, so a resolution
    consented to against a set that has since moved costs nothing to refuse. This
@@ -991,9 +996,12 @@ inside a repository:
    was before any of this ran.
 3. Delete the entity.
 4. On any failure in 2 or 3: restore every Requirement already written, from
-   `affectedBefore`, then return the error. A failing compensation is logged through
-   the `Logger` (slice 1's port, slice 11's rules) rather than swallowed — the
-   repository cannot promise multi-file atomicity and does not pretend to.
+   `affectedBefore`, presenting the version step 2 recorded for each — so the rollback
+   is as conditional as the write it undoes. Then return the error. A failing
+   compensation is logged through the `Logger` (slice 1's port, slice 11's rules) rather
+   than swallowed, AND recorded in the resolution marker below, because a log entry is
+   not a recovery: the repository cannot promise multi-file atomicity and does not
+   pretend to.
 5. On success, return `affectedBefore` in the command's payload. It is not
    bookkeeping: it is what makes the delete undoable (see below).
 ```
@@ -1014,10 +1022,18 @@ slice 4 uses for sidecar writes per `planId` ("queued rather than rejected", so
 unrelated entities never contend):
 
 ```text
-ReferenceLock — application-layer, keyed by EntityId (a ZoneId or an AssetId)
+ReferenceLock — application-layer, keyed by EntityId, in two levels:
+  level 1  a ZoneId or an AssetId — who may create a reference, or delete a referent
+  level 2  a RequirementId — who may write that Requirement
+Levels are always taken 1 then 2, each as one sorted batch. See the hierarchy below.
+
+Any ordinary Requirement write (recalculation, override edit, markStale)
+  → holds that Requirement's level-2 lock for its own write, and nothing else.
+    One lock, no level-1 lock ever, so such a writer cannot be in a wait cycle
 
 DeleteZoneCommand / DeleteAssetCommand
-  → hold the lock on the entity being deleted, across steps 0-3, PLUS the lock on
+  → hold the level-1 lock on the entity being deleted, from step 0 through the
+    compensation in step 4, PLUS the level-1 lock on
     the reassignment target when the resolution is `reassign` — repointing a
     Requirement at that target creates a reference to it, so a target deleted
     concurrently leaves the same dangling reference the delete is resolving away
@@ -1042,8 +1058,9 @@ disagree with an invariant someone is about to rely on*: creating a reference, d
 a referenced entity, and changing a referenced entity's unit. It is not a general
 Requirement mutex — see the scoping note at the end of this section.
 
-**Two of those acquirers take more than one lock, so the order is fixed and the set is
-taken at once.** `AssignAssetCommand` holds the Zone's and the Asset's; a delete whose
+**Several of those acquirers take more than one lock, so the order is fixed and each
+level's set is taken at once.** (Level 1 is what this section is about; the level-2
+Requirement locks and why they exist are below.) `AssignAssetCommand` holds the Zone's and the Asset's; a delete whose
 resolution is `reassign` holds the deleted entity's *and* the reassignment target's,
 because repointing a Requirement at that target creates a reference to it — the same
 hazard, from the other side, that makes assignment take both. Nothing about "hold both"
@@ -1070,8 +1087,8 @@ arrives in `DeleteZoneInput.resolution`, before step 0. A resolution that named 
 the command discovered mid-sequence would break this rule, which is a reason not to add
 one rather than a limitation to work around.
 
-`UpdateAssetCommand` and a plain (non-reassigning) delete take a single lock and are
-unaffected — an ordering rule over one element is just that element.
+`UpdateAssetCommand` and a plain (non-reassigning) delete take a single level-1 lock and
+are unaffected — an ordering rule over one element is just that element.
 
 The rule holds against slice 4's queues for the same reason it holds here: they are
 acquired in a fixed order too (a `ReferenceLock` first, then slice 4's per-entity and
@@ -1080,8 +1097,9 @@ reached back for a `ReferenceLock` would close the cycle across layers, which th
 rule already forbids — `infrastructure/` cannot import from `application/` — so this one
 is enforced by lint rather than by remembering it.
 
-Held across steps 0–3 rather than only around step 3, so the set the user consented to
-is the set that is still true when the entity goes. It is released before undo can run:
+Held from step 0 rather than only around step 3, so the set the user consented to is the
+set that is still true when the entity goes — and through step 4, so the compensation is
+covered by the same exclusion the writes it undoes were. It is released before undo can run:
 `undo()` is a separate dispatch that re-acquires, so a held lock never outlives the
 command that took it.
 
@@ -1089,6 +1107,64 @@ This is deliberately a lock over *reference creation*, not over Requirement writ
 general. A recalculation, an override edit, or a `markStale` on an existing Requirement
 cannot turn a correct reference set into a stale one — only creating a new reference
 can — so serializing those too would cost contention for no invariant.
+
+### The compensation needs its own exclusion, and its own recovery
+
+That scoping note is about the *reference* invariant, and it does not carry to the
+compensation. Once step 2 has rewritten Requirement R1, another tab is free to edit R1 —
+an override, a recalculation, nothing reference-related — and then step 3 fails. The
+rollback presents the version step 2 wrote, R1 has moved past it, and the restore
+refuses. The command returns an error having applied part of its resolution, with no undo
+entry, and the sequence's own promise — a failure leaves the Vault as it was — is false.
+Logging it does not make it true.
+
+Two mechanisms, because they answer different failures:
+
+**A per-Requirement lock over the touched set.** The resolution holds a lock on each
+Requirement in `affectedBefore` from step 2 through the compensation, and every ordinary
+Requirement writer takes that Requirement's lock for the duration of its own write. This
+is not the general mutex refused above: contention is per Requirement, so a recalculation
+on an unrelated one never waits.
+
+This does **not** fit the single-acquisition rule stated above, and pretending it does
+would be worse than saying so. That rule requires every acquirer to know its full set
+before taking anything, and this one cannot: which Requirements are touched is the answer
+to a read that is only trustworthy once the entity is already locked. Locking the set
+requires knowing it; knowing it requires the lock. So the rule is refined rather than
+satisfied — into a **two-level hierarchy**:
+
+```text
+level 1 — entity locks     (the deleted entity, any reassignment target)
+level 2 — Requirement locks (every entity in affectedBefore)
+
+each level acquired as ONE sorted batch, ascending by EntityId
+levels always in that order, never the reverse, never interleaved
+```
+
+Two levels, each internally sorted, acquired in a fixed order is deadlock-free by the
+same resource-ordering argument as before — the wait-for graph still cannot cycle, since
+no holder of a level-2 lock ever waits for a level-1 lock, and within a level everyone
+takes the same sorted batch. The single-acquisition rule was the one-level case of this;
+it stays exactly right for `AssignAssetCommand` and `UpdateAssetCommand`, which touch
+level 1 only. An ordinary Requirement writer touches level 2 only, takes one lock, and so
+can never be in a cycle at all.
+
+What the hierarchy forbids is the thing that would break it: a level-2 holder reaching
+back for a level-1 lock. Nothing in this design does — reference creation is decided
+before any Requirement is locked — and it is the rule to check any new command against.
+
+**A resolution marker, for the failure a lock cannot answer.** A lock keeps other writers
+out; it does nothing about the compensating write failing on I/O, or the process exiting
+between step 2 and step 4 — and a compensation that can itself fail needs an answer, not
+a log line. So before step 2 writes anything, the resolution records a marker naming the
+entity, the resolution kind, and `affectedBefore` — the same shape and the same reasoning
+as slice 4's sidecar-folder migration marker, which exists because no rollback survives a
+process exit. The marker clears only when the sequence completes forward OR the
+compensation is verified complete. A marker found at load means a resolution was
+interrupted, and the recovery is to finish the rollback from the snapshot it carries.
+
+So step 0 acquires level 1, step 1 reads under it and then acquires level 2, and step 2
+onward runs holding both.
 
 Step 5 is the half that is easy to miss. Restoring the entity alone does not undo a
 resolution — a Zone brought back with its Requirements still deleted, or still repointed
@@ -1768,11 +1844,20 @@ are additive, not breaking.
       timeout, so a deadlock fails the test rather than hanging the suite — and the
       test is watched failing with the sort removed, since a passing deadlock test that
       never deadlocked is evidence of nothing.
-- [ ] The lock set is taken in one acquisition: a test asserts that a command holding a
-      `ReferenceLock` never requests a second one outside the set it started with —
-      checked at the lock itself (a re-entrant request from a holder is an error the
-      lock raises), not by driving the commands that exist today, so it holds for
-      commands not yet written.
+- [ ] Each level's set is taken in one acquisition, and levels only ever go 1 → 2:
+      checked at the lock itself — it raises on a second request within a level from a
+      holder, and on any level-1 request from a level-2 holder — rather than by driving
+      the commands that exist today, so both hold for commands not yet written.
+- [ ] A resolution's compensation is not blocked by a concurrent edit: with an ordinary
+      override edit dispatched against an affected Requirement *after* step 2 rewrote it
+      and *before* step 3 fails, the rollback still restores every Requirement and the
+      command's failure leaves the Vault as it was. Interleaved without awaiting — a test
+      that let the resolution finish first would pass with no level-2 lock at all.
+- [ ] A resolution interrupted by a process exit between step 2 and step 4 is recovered
+      at next load from its marker: the rollback completes from the snapshot the marker
+      carries. Simulated by leaving a marker and its `affectedBefore` behind, since the
+      process that would have rolled back is gone — the same way slice 4 tests its
+      interrupted folder change, and for the same reason a lock cannot cover this case.
 - [ ] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
       the now-unreferenced Asset from `m2` to `m`, the redo resolves a
       `ValidationError` and creates nothing, rather than restoring a Requirement whose

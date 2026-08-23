@@ -155,7 +155,7 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
   private lastWritten: EntityVersion | null = null;
 
   constructor(
-    private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>>,
+    private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | PersistenceError>>,
     private readonly forward: MoveSpatialObjectInput,   // captured at pointerUp
     private readonly inverse: MoveSpatialObjectInput,    // captured at pointerDown
   ) {}
@@ -175,7 +175,7 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
       this.lastWritten === null ? input : { ...input, expected: this.lastWritten },
     );
     if (isErr(result)) return result;
-    this.lastWritten = result.value.version;   // the payload is read for this, then discarded
+    this.lastWritten = result.value.zone.version;   // read for this one field, then discarded
     return ok(undefined);
   }
 }
@@ -208,9 +208,13 @@ Redo has the same premise and gets the same treatment by construction: `execute(
 gesture wrote, and the chain never re-reads to find a revision — re-reading to discover
 what to expect is the check-then-act this design refuses everywhere.
 
-This is why the adapter reads the wrapped command's payload at all. It still returns
-`ok(undefined)` to `CommandHistory`, which needs only success or failure; the `{ zone }`
-it discards is read for exactly one field on the way past.
+This is why the adapter reads the wrapped command's payload at all, and why that payload
+is `{ zone: Loaded<Zone> }` rather than `{ zone: Zone }`. The version lives on `Loaded<T>`
+and nowhere else (slice 3), so a command that returned a bare entity would leave this
+adapter with no expectation to record and nothing to do but re-read for one — the
+check-then-act the contract exists to remove. The adapter still returns `ok(undefined)`
+to `CommandHistory`, which needs only success or failure; the payload is read for exactly
+one field on the way past.
 
 A refused inverse surfaces as `zone.revision-conflict` (or `zone.external-modification`,
 if the note was changed outside the plugin — slice 3 distinguishes them), and

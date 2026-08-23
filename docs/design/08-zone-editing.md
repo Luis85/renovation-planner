@@ -241,7 +241,7 @@ selection, not a move: no command is dispatched and nothing is pushed onto
 `CommandHistory`. This matters — a no-op move must not pollute the undo stack.
 
 `MoveSpatialObjectCommand` itself stays exactly as slice 3 defined it — a plain
-`Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError
+`Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError
 | PersistenceError>>`, never modified to implement `UndoableCommand` directly. This
 slice is where it is first driven by real pointer input, wrapped in
 `ReversibleMoveZoneCommand` for `CommandHistory` compliance — one drag, one command,
@@ -292,7 +292,14 @@ execute(): snapshot := read the full Zone entity + its sidecar geometry entry vi
            clear selection if it pointed at this zone
            return result
 
-undo():    postDelete := read the CURRENT state of the Zone and of every entity in
+undo():    acquire the reference locks for the Zone and for every endpoint the
+                        restored Requirements point at, as ONE sorted acquisition
+                        (slice 10's canonical order) — held through the whole restore
+           REVALIDATE against current state: every endpoint still exists, still shares
+                        the project, and still has a unit of the kind each restored
+                        Requirement's quantity was computed in. Refuse the whole undo
+                        if any check fails — see below
+           postDelete := read the CURRENT state of the Zone and of every entity in
                         affectedBefore, before overwriting any of them — absent is
                         a state, and here it is the usual one
            restore the Zone FIRST, then each entity in affectedBefore (see below),
@@ -303,6 +310,32 @@ undo():    postDelete := read the CURRENT state of the Zone and of every entity 
            on any failure: replay postDelete over every entity already written,
            then return the error — see "A failed undo is a no-op" below
 ```
+
+**Restoring an ID is not restoring a legal state.** The compare-and-swap on each write
+guards the note being written and nothing else: it asks "is this Requirement as I left
+it", never "does the thing this Requirement points at still exist". Those come apart
+precisely because the delete succeeded. After `remove-references` deletes the
+Requirements that referenced an Asset, that Asset is unreferenced — so deleting it, or
+changing its unit from `m2` to `m`, becomes *legal*, and a user may well do exactly that
+next, because the plugin just told them nothing depends on it. Undo then re-inserts
+snapshots pointing at an Asset that is gone, or one whose unit no longer matches the
+dimension the stored quantity was computed in, and every CAS succeeds while doing it.
+Neither error is visible at the moment it is created: the Vault simply now contains a
+Requirement that no invariant in this codebase would have allowed anyone to create.
+
+So `undo()` re-runs the checks `AssignAssetCommand` runs at creation — existence, same
+project, unit kind — against the endpoints as they are *now*, under the endpoint locks,
+before writing anything. This is the same correction `ReversibleAssignAssetCommand`'s
+redo already carries (slice 10): **an inverse restores identity, never validity.** That
+this adapter needed it too, after the redo case had been fixed, is the shape worth
+naming — a rule established on one path and not carried to the symmetric one.
+
+Refusal is all-or-nothing and returns a `ReferenceError` or `ValidationError`; the
+command stays on `undoStack` per slice 6, so the user is told the undo is no longer legal
+rather than being handed a Vault the plugin's own rules forbid. Restoring the subset
+whose endpoints survived is deliberately not offered: a Zone back with half its
+Requirements is not the state before `execute()`, and this adapter's whole contract is
+that `execute()`/`undo()` is a true inverse or nothing.
 
 **The snapshot is the Zone plus everything the delete touched.** Once slice 10 forwards
 a reference `resolution`, `execute()` no longer changes one entity: it can delete the
@@ -553,8 +586,8 @@ interface CreateZoneInput {
   geometry: Polygon;
   domainNoteLink?: string;
 }
-class CreateZoneCommand implements Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>> {
-  execute(input: CreateZoneInput): Promise<Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>>;
+class CreateZoneCommand implements Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>> {
+  execute(input: CreateZoneInput): Promise<Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>>;
 }
 
 // application/commands/zone/MoveSpatialObject.ts (slice 3, consumed here
@@ -566,7 +599,7 @@ class CreateZoneCommand implements Command<CreateZoneInput, Result<{ zone: Zone 
 // inverse.
 interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon; expected?: EntityVersion }
 class MoveSpatialObjectCommand
-  implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
+  implements Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
 // application/commands/zone/ReversibleCreateZoneCommand.ts (new) — beside the delete
 // adapter it mirrors, and for the same reason: both need the repository port, because
@@ -574,7 +607,7 @@ class MoveSpatialObjectCommand
 // command replayed with different input.
 class ReversibleCreateZoneCommand implements UndoableCommand {
   constructor(
-    private readonly createCommand: Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>>,
+    private readonly createCommand: Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>>,
     // Creation's inverse is deletion, so undo() dispatches a different plain command
     // rather than replaying createCommand — the only adapter in this slice that does.
     // `resolution` is left undefined: a Zone that has acquired referents refuses to be
@@ -612,7 +645,7 @@ class ReversibleCreateZoneCommand implements UndoableCommand {
 // arrives, this widens with the rest of the Zone command family, not ahead of it.
 class ReversibleMoveZoneVertexCommand implements UndoableCommand {
   constructor(
-    private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>>,
+    private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | PersistenceError>>,
     private readonly forward: MoveSpatialObjectInput,  // whole polygon, one vertex moved
     private readonly inverse: MoveSpatialObjectInput,  // whole polygon, captured at pointerDown
   );
@@ -804,6 +837,15 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
    reshaping the selected zone leaves its panel showing the post-command area, with no
    reselect in between, and the assertion is made on the panel's DTO rather than only on
    `ProjectStore`.
+3a. `ReversibleDeleteZoneCommand.undo()` revalidates before it restores: with a
+   `remove-references` delete followed by deleting the now-unreferenced Asset, and
+   separately by changing that Asset's unit from `m2` to `m`, the undo refuses and
+   writes nothing rather than re-inserting Requirements that point at a missing Asset or
+   carry an area quantity against a length unit. Both cases are only reachable *because*
+   the delete succeeded — that is what made the Asset unreferenced and those operations
+   legal — so both need their own test; and each passes trivially against an
+   unconditional restore, since every individual compare-and-swap succeeds while the
+   Vault ends up in a state no command would have produced.
 4. Attempting to close a polygon with fewer than 3 vertices, or with any non-finite
    coordinate, is rejected before `CreateZoneCommand` is ever dispatched; no invalid
    geometry reaches the sidecar.

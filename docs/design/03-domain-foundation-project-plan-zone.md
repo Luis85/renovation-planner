@@ -407,7 +407,7 @@ interface CreateZoneInput {
 }
 
 class CreateZoneCommand
-  implements Command<CreateZoneInput, Result<{ zone: Zone }, ValidationError | ReferenceError | GeometryError | PersistenceError>>
+  implements Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>>
 {
   constructor(
     private readonly zones: ZoneRepository,
@@ -476,8 +476,14 @@ interface MoveSpatialObjectInput {
   geometry: Polygon;
   expected?: EntityVersion;
 }
+// The payload is `{ zone: Loaded<Zone> }`, not `{ zone: Zone }` — every command that
+// writes returns what the repository returned, version included. This is not
+// decoration: slice 6's adapters make each operation conditional on the version their
+// OWN previous write produced, and a payload that dropped it would leave them re-reading
+// to find one, which is the check-then-act the whole contract exists to remove. The rule
+// is "a write hands back what it wrote", and it applies to every command below.
 class MoveSpatialObjectCommand
-  implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
+  implements Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
 // application/commands/zone/DeleteZone.ts
 // Slice 10 widens this input with an optional reference `resolution` once Requirement
@@ -696,11 +702,24 @@ is the mistake this whole section is about, stated one more time: a lock makes w
 *ordered*, and ordering says a move and a later undo do not interleave — not that the
 move did not happen. Slice 7's calibration undo is the case that proves it, since it
 restores pre-calibration geometry for every object in the file and would silently discard
-a Zone another editor moved in between. So the sidecar carries a **`generation`**: one
-integer for the whole file, bumped by every `mutate`, and `mutate` takes the generation
-its caller expects and refuses with `plan-geometry.generation-conflict` when it differs.
-One token for the file rather than one per object, because a sidecar write rewrites the
-whole document — per-object versions would describe a granularity the write does not have.
+a Zone another editor moved in between.
+
+So the sidecar carries an `EntityVersion` too — **the same type, not an analogous one**.
+Its `revision` is one integer for the whole file, bumped by every `mutate`; its
+`observed` is a token minted per read from the file's contents. A first attempt gave it
+only the counter, under the name `generation`, which repeats the first mistake at one
+remove: a counter is plugin-owned, so a `.rpgeo` file hand-edited or synced from a device
+where a person edited it comes back at the same generation with different geometry, and
+an undo comparing integers sees a match and restores over it. ADR-011 makes these files
+visible and openable in Obsidian *on purpose* — hand-editing them is a supported thing to
+do, not an edge case — so a sidecar expectation without a content token is exactly as
+false as a note expectation without one.
+
+One version for the file rather than one per object, because a sidecar write rewrites the
+whole document; per-object versions would describe a granularity the write does not have.
+And one *type* rather than a parallel vocabulary, because two near-identical version
+shapes is where the next exception hides — the reason `revision` is the field name here
+even though "generation" reads more naturally for a file.
 
 A `mutate` that does not care — an ordinary Zone save appending its own object entry —
 passes no expectation and is last-writer-wins, exactly as a forward gesture is. Only a

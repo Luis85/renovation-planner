@@ -54,7 +54,7 @@ export class SettingsTab extends PluginSettingTab {
 	 * `RenovationPlannerSettings`, so a second setting needs no second branch here.
 	 */
 	getControlValue(key: string): unknown {
-		return this.host.settings[key as keyof RenovationPlannerSettings];
+		return this.host.root.settings[key as keyof RenovationPlannerSettings];
 	}
 
 	/**
@@ -64,7 +64,6 @@ export class SettingsTab extends PluginSettingTab {
 	 * declare is dropped rather than persisted forever.
 	 */
 	setControlValue(key: string, value: unknown): Promise<void> {
-		this.host.settings = settingsFrom({ ...this.host.settings, [key]: value });
-		return this.host.saveSettings();
+		return this.host.saveSettings(settingsFrom({ ...this.host.root.settings, [key]: value }));
 	}
 }

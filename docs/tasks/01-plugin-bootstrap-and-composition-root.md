@@ -627,7 +627,7 @@ check — not a rule written ahead of a demonstrated hole.
 export default class RenovationPlannerPlugin extends Plugin {
   root: CompositionRoot;
   async onload(): Promise<void>;
-  saveSettings(): Promise<void>;
+  saveSettings(next: RenovationPlannerSettings): Promise<void>;
   private openProject(): Promise<void>;
 }
 
@@ -686,6 +686,10 @@ export class RenovationProjectView extends ItemView {
 // src/infrastructure/obsidian/workspace/revealView.ts
 export function revealView(workspace: Workspace, type: string): Promise<void>;
 ```
+
+`saveSettings` takes the next settings rather than reading a mutable field: `CompositionRoot`'s
+members are `readonly`, so the tab cannot assign through the root, and the plugin replaces its
+root instead. One read path (`plugin.root.settings`), one write path (`plugin.saveSettings`).
 
 Module boundaries this slice fixes for every later one:
 

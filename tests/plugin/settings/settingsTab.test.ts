@@ -80,7 +80,7 @@ describe('the settings pane', () => {
 
 		await tab.setControlValue('units', 'imperial');
 
-		expect(plugin.settings.units).toBe('imperial');
+		expect(plugin.root.settings).toEqual({ units: 'imperial' });
 		expect(plugin.saved).toEqual([{ units: 'imperial' }]);
 	});
 
@@ -94,7 +94,7 @@ describe('the settings pane', () => {
 
 		await tab.setControlValue('units', 'furlongs');
 
-		expect(plugin.settings.units).toBe('metric');
+		expect(plugin.root.settings).toEqual({ units: 'metric' });
 		expect(plugin.saved).toEqual([{ units: 'metric' }]);
 	});
 
@@ -117,6 +117,6 @@ describe('the settings pane', () => {
 
 		await tab.setControlValue('currency', 'EUR');
 
-		expect(plugin.settings.units).toBe('imperial');
+		expect(plugin.root.settings).toEqual({ units: 'imperial' });
 	});
 });

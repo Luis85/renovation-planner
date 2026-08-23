@@ -2,8 +2,20 @@ import { Plugin } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
-import { DEFAULT_SETTINGS, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
+import type { LogLevel } from '../application/ports/Logger';
+import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
+import { createCompositionRoot, type CompositionRoot } from './composition-root';
+import { settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
+
+/**
+ * The threshold is an argument to the adapter, not a setting: this slice's `debug` calls
+ * compile and emit nothing, while the levels slice 11 adds still reach a released build
+ * where they are worth having. A user-facing switch belongs with slice 11's diagnostics
+ * work — "copy diagnostics" and "turn on verbose logging" are the same conversation — and
+ * this slice does not add a settings field no feature reads yet.
+ */
+const LOG_LEVEL: LogLevel = 'info';
 
 /**
  * The plugin shell: the ONLY place anything is registered with Obsidian, and the only layer
@@ -27,13 +39,24 @@ import { SettingsTab } from './settings/SettingsTab';
  * trusting it.
  */
 export default class RenovationPlannerPlugin extends Plugin {
-	settings: RenovationPlannerSettings = DEFAULT_SETTINGS;
+	/**
+	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
+	 * state through `plugin.root.settings` — one path in, not two that could drift.
+	 * Definitely assigned in `onload`, which Obsidian calls before anything can read it.
+	 */
+	root!: CompositionRoot;
 
 	async onload(): Promise<void> {
-		// Settings first — the SDD's stated onload order (§10) — so everything registered
-		// below may read them. The merge is pure (`settingsFrom`); only the `loadData`
-		// call lives here, in the layer allowed to name it.
-		this.settings = settingsFrom(await this.loadData());
+		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
+		// it is not one of the things bootstrap sets up, it is what the setup steps report
+		// through, and the step below is the first one that can fail.
+		const logger = createConsoleLogger(LOG_LEVEL);
+		logger.debug('plugin.load.started');
+
+		// Settings first of the steps — the SDD's stated onload order (§9) — so everything
+		// registered below may read them. The merge is pure (`settingsFrom`); only the
+		// `loadData` call lives here, in the layer allowed to name it.
+		this.root = createCompositionRoot(settingsFrom(await this.loadData()), logger);
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
@@ -56,16 +79,23 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void this.openProject();
 			},
 		});
+
+		// A `debug` line rather than an `info` one, and that is the publishing guidance
+		// rather than taste: a plugin that announces itself on every start is the plainest
+		// instance of the "console noise" rejection. What survives as `info` is RARITY —
+		// something that happened once and would be worth having in a support thread.
+		logger.debug('plugin.loaded');
 	}
 
 	/**
-	 * The one write path for settings, so no control has to know how they are persisted —
-	 * and so a future migration or debounce has a single place to live. `saveData` replaces
-	 * the whole file, which is why the tab mutates `settings` and then calls this rather
-	 * than writing a patch.
+	 * The one write path for settings, so no control has to know how they are persisted.
+	 * `saveData` replaces the whole file, which is why this takes the complete next settings
+	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
+	 * fields are readonly, so there is exactly one way state changes here.
 	 */
-	saveSettings(): Promise<void> {
-		return this.saveData(this.settings);
+	saveSettings(next: RenovationPlannerSettings): Promise<void> {
+		this.root = createCompositionRoot(next, this.root.logger);
+		return this.saveData(next);
 	}
 
 	private openProject(): Promise<void> {

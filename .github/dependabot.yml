@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # The plugin's own dependency tree. Two pins here are deliberate, not stale, and a bot
+  # that "fixes" either one fights the project rather than helping it:
+  #
+  # - `obsidian` is pinned to `minAppVersion` EXACTLY (CLAUDE.md's Gotchas section), so the
+  #   compiler refuses an API the manifest does not promise Obsidian users have. Raising it
+  #   is a deliberate two-file edit (`package.json` devDependency AND `manifest.json`
+  #   `minAppVersion` together) that `tests/release/manifest.test.ts` holds the pairing
+  #   for — never a bot bumping one file alone. `versions: ["*"]` below tells Dependabot to
+  #   never propose ANY update for it.
+  # - `@types/node` tracks the `engines.node` FLOOR, not npm's newest — it currently sits a
+  #   patch behind that floor (`^22.20.1` vs. a `22.22.2` floor) because that is the newest
+  #   `@types/node` publishes on the 22 line. Its major version IS the Node line (22.x
+  #   typings vs. 24.x vs. 26.x — measured against the published version list); its minor
+  #   and patch numbers both move within a line (22.19.x -> 22.20.x -> 22.20.1 are all
+  #   still 22.x typings). So only `semver-major` is ignored: Dependabot stays free to
+  #   bump the minor/patch numbers that keep it current on the 22 line — the one thing it
+  #   can safely do unattended — while a jump to the 24.x or 26.x typings (the moment
+  #   `engines.node` follows) stays a deliberate edit alongside the `engines` change, not
+  #   something a bot proposes on its own.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "obsidian"
+        versions: ["*"]
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+
+  # The workflow actions themselves (`actions/checkout`, `actions/setup-node`, …). Neither
+  # pinning policy above applies here — there is nothing analogous to `minAppVersion` or an
+  # `engines` floor for an Action version — so this ecosystem gets no `ignore` list.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

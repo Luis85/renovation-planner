@@ -33,22 +33,53 @@ cast at either end would be a second answer to what a setting is.
 npm run check   # build + lint + coverage-thresholded tests + fallow
 ```
 
-All four must pass before committing; CI runs the same `npm run check`, verbatim, on
-Ubuntu **and Windows** — one command in both places, so the two cannot drift apart.
-Paths and line endings are the only things that differ between the two, and both have
-already produced a defect the project this harness came from could not see on one platform.
+All four must pass before committing; CI runs the same `npm run check`, verbatim, across
+four legs — the same one command every one of them has to survive. Three are **Ubuntu**,
+one per `engines.node` range this package declares (`^22.22.2 || ^24.15.0 || >=26.0.0`):
+a declared range nobody actually executes on is the same defect `engines.node` itself
+exists to catch, moved to a different file, so 22/24/26 all ride CI. The fourth is
+**Windows**, at the floor only — a full OS × Node cross product would be six jobs for what
+this earns, so the newer ranges ride the faster Ubuntu leg rather than tripling the slow
+Windows one, while Windows still runs the version every platform must support. Paths and
+line endings are the only things that differ between the two PLATFORMS, and both have
+already produced a defect the project this harness came from could not see on one alone.
 
 What each step refuses, because a step whose purpose is vague gets skipped:
 
 - **build** — `tsc` first, then Vite. Also the stylesheet: the build fails on a partial no
-  entry file imports, a line in `styles/index.css` the assembler cannot resolve, or a
-  partial over the 400-line cap.
+  entry file imports, a line in `styles/index.css` the assembler cannot resolve, a partial
+  over the 400-line cap, or a hard-coded colour — SDD §84 asks for an Obsidian CSS variable
+  instead, so a themed vault stays themed. That check runs on `lightningcss`'s own parsed
+  tree (already a devDependency, already used to minify this sheet), not on source text, so
+  it sees every literal colour a declaration's VALUE resolves to, at any nesting depth,
+  regardless of what a selector, an at-rule prelude, a comment or a quoted string contains —
+  hex, `rgb`/`hsl`/`hwb`/`lab`/`lch`/`oklab`/`oklch`/`color()`, and (because the parser
+  resolves a CSS NAMED colour to the identical node a hex literal produces) a bare word like
+  `red`, on any property lightningcss's grammar fully parses. `device-cmyk()` is the one
+  colour function the parser does not fold into that shape, so it is refused by name
+  instead — the one function-specific case, not the general rule. What the check still
+  cannot see: a bare colour WORD inside a raw token stream the parser leaves unresolved —
+  a custom property's own value (`--accent: red;`) or an unresolved function's fallback —
+  where a hex or `rgb()`-shaped literal is still caught generically but a bare word is just
+  an identifier. `scripts/styles-assemble.mjs` carries the full account.
 - **lint** — TWO linters in one step, because they refuse different things and neither
   subsumes the other. **ESLint** is where the architecture lives: the layer rule below is
-  `no-restricted-imports` and the write boundary is `no-restricted-syntax`, not prose. It
-  also runs the Obsidian plugin guidelines and the size and complexity budgets. Warnings
-  fail too (`--max-warnings 0`) — the mobile-safety rule reports as a warning, and
-  `isDesktopOnly: false` is a promise. `manifest.json` itself is linted
+  `no-restricted-imports`, and `no-restricted-syntax` carries the write boundary and
+  `I18N_LITERAL_BAN` (`eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule) —
+  not prose. `I18N_LITERAL_BAN` is narrower than "every user-visible string": it refuses a
+  literal at exactly FOUR call sites — `.setText(...)`, and the `text:` option of
+  `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
+  untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
+  It does not reach `new Notice('…')`, `addCommand({ name: '…' })`,
+  `addRibbonIcon(icon, 'title', …)`, a `title` or `attr:` value, `el.textContent = '…'`, or
+  a literal held in a variable first — today's actual UI text (settings `name`/`desc`, the
+  command name, the ribbon title, `getDisplayText`) reaches none of those four call sites,
+  so it is compliant by convention rather than by this gate — the same way the write
+  boundary below names the spellings its selectors see and the ones they cannot, rather
+  than claiming to see more. It also runs the Obsidian plugin guidelines
+  and the size and complexity budgets. Warnings fail too (`--max-warnings 0`) — the
+  mobile-safety rule reports as a warning, and `isDesktopOnly: false` is a promise.
+  `manifest.json` itself is linted
   (`obsidianmd/validate-manifest`), so the marketplace naming rules are a gate, not a
   submission surprise. **oxlint** runs first, in milliseconds, and adds the broad
   wrong-code ruleset ESLint never turned on, over a WIDER tree: the Obsidian ruleset is
@@ -84,21 +115,46 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
   metrics today; the floors sit a covered unit below that, which at this denominator is
   several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
-  policy: floors only rise, and they rise to what a FINISHED increment measures.
+  policy: floors only rise, and they rise to what a FINISHED increment measures. The suite
+  includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
+  real mounted view (`mountHarness`, not a fixture), checking roles, accessible names,
+  form labels, heading order and ARIA attribute validity. Read its header before trusting
+  the word "accessibility" any wider than that: it does NOT verify colour contrast, a
+  visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
+  of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
+  and those two are not the same mechanism: `duplicate-id` is deprecated and disabled by
+  default in this axe-core version, so it is invisible here independent of scope — it
+  fires correctly at BOTH `contentEl` and whole-document scope once force-enabled, so
+  scoping is not why it is missed today. The landmark rules (`region`, `document-title`,
+  `html-has-lang`, …) are the ones actually scope-dependent, needing whole-page context
+  this file cannot give them because it scans `contentEl`, the plugin's own subtree, not
+  the whole document. A live vault (`npm run test-build`) remains the only place
+  appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
 
-Obsidian itself cannot run here. Two commands stand in, and neither replaces the other:
+Obsidian itself cannot run here. Three commands stand in, and none replaces another:
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
   and **Obsidian's own app.css**, in a browser, with no Obsidian. Faithful about markup,
-  spacing, hierarchy and Obsidian's DEFAULT colours. Not faithful about a themed vault's
+  spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
+  nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
+  `.view-content`), which the fake `ItemView` in `tests/helpers/obsidian-mock.ts` nests the
+  same way, checked against the real selector `styles/chrome.css` declares by
+  `tests/harness/harness.test.ts` rather than assumed. Not faithful about a themed vault's
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
   "faithful" read wider than it is.
+- `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
+  binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
+  scheme plus `?phone` to a gitignored `harness-shots/` folder — a look at rendered layout,
+  which jsdom cannot produce at all and which is how a real defect (the view collapsing to
+  a sliver of its pane, invisible to a suite that draws nothing) was found in this plan.
+  It draws and asserts nothing itself and there is no baseline to diff against, so like
+  `npm run harness` it is deliberately outside `npm run check` and outside CI.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.
@@ -195,10 +251,18 @@ only), so an `implements` there binds the editor, not the gate.
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
   source project, six of ten review findings were comments precisely stating the rule the
   code beside them broke. A confident paragraph is evidence of intent and of nothing else.
-- **A fake must not be kinder than the real thing.** A DOM helper that accepted what
-  Obsidian rejects shipped a dead drag target while every test and the browser harness drew
-  it happily. Where a fake cannot be made strict, ban the tolerated spelling at the call
-  site — `SVG_CLASS_TOKENS` in `eslint.config.mjs` is that shape.
+- **A fake must not be kinder than the real thing — and not thinner either.** A DOM helper
+  that accepted what Obsidian rejects shipped a dead drag target while every test and the
+  browser harness drew it happily; too kind. A fake `ItemView` that never nested a
+  `.view-header` inside `.workspace-leaf-content` the way Obsidian does left
+  `styles/chrome.css`'s own selector nothing to match and the harness's growth chain
+  nothing to key its `:last-child` rule off, collapsing the browser harness to a sliver of
+  its pane — too thin, and invisible to the suite either way, since neither defect touches
+  a property jsdom draws or an assertion checked. Where a fake cannot be made strict, ban
+  the tolerated spelling at the call site — `SVG_CLASS_TOKENS` in `eslint.config.mjs` is
+  that shape. Where a fake is too thin, the fix is a fake that actually nests what the real
+  thing nests — `ItemView` in `tests/helpers/obsidian-mock.ts`, since the harness-collapse
+  fix.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 

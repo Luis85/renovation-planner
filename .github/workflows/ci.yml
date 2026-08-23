@@ -18,19 +18,55 @@ jobs:
     # Both platforms, because a green Ubuntu run says nothing about the two things that
     # differ: path separators and line endings. Both have already produced a defect the
     # source project could not see on one platform alone.
+    #
+    # `engines.node` declares three supported ranges (`^22.22.2 || ^24.15.0 || >=26.0.0`);
+    # `tests/build/engines.test.ts` only checks that every installed package's own
+    # `engines.node` fits inside that declaration — it cannot see a runtime break on a
+    # range this suite never actually executes on. So all three ride here: a declared
+    # range nobody executes is the same defect `engines.node` itself exists to catch,
+    # moved to a different file. A full OS x Node cross product (6 jobs) is more than
+    # this earns, so 24 and 26 ride the faster Ubuntu leg only rather than tripling the
+    # slow Windows one; Windows still runs the floor.
     runs-on: ${{ matrix.os }}
     strategy:
-      # Both legs report. A cancelled sibling is a leg whose result nobody has, and the
-      # question this matrix exists to answer is exactly which platform failed.
+      # Every leg reports. A cancelled sibling is a leg whose result nobody has, and the
+      # question this matrix exists to answer is exactly which platform/version failed.
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            node: "22"
+          - os: ubuntu-latest
+            node: "24"
+          - os: ubuntu-latest
+            node: "26"
+          - os: windows-latest
+            node: "22"
     steps:
       - uses: actions/checkout@v4
 
+      # Three conditional steps, not one `node-version: ${{ matrix.node }}`, because
+      # `tests/release/manifest.test.ts` reads every literal `node-version: "..."` in
+      # this file and asserts the `engines.node` floor is among them — a templated value
+      # is plain expression text with no surrounding quotes, so it would be invisible to
+      # that scan and would silently drop this job's floor pin from what the test can
+      # see. Each leg's version is a literal quoted string for that reason.
       - uses: actions/setup-node@v4
+        if: ${{ matrix.node == '22' }}
         with:
           node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-node@v4
+        if: ${{ matrix.node == '24' }}
+        with:
+          node-version: "24"
+          cache: npm
+
+      - uses: actions/setup-node@v4
+        if: ${{ matrix.node == '26' }}
+        with:
+          node-version: "26"
           cache: npm
 
       - name: Install dependencies
@@ -51,6 +87,14 @@ jobs:
   #
   # One platform, because an advisory is a fact about the dependency tree and the
   # lockfile is the same on both. `--omit=dev` scopes it to what actually ships.
+  #
+  # `npm run audit` runs at `--audit-level=high`, not `critical`: a high-severity advisory
+  # in a shipped dependency was passing this job silently before. `high` still leaves the
+  # "no patched version" red-nobody-can-clear failure mode out of `npm run check` — that
+  # reasoning is what keeps `audit` its own job rather than a `check` step — while no
+  # longer treating a high-severity, unpatched-shipped-dependency advisory as invisible.
+  # Verified safe to raise now: `npm audit --omit=dev --audit-level=high` and
+  # `npm audit --audit-level=high` (full tree) both report 0 vulnerabilities.
   audit:
     runs-on: ubuntu-latest
     steps:

@@ -43,9 +43,9 @@ export default defineConfig({
 			// Look for the dead branch before writing the test: deleting an unreachable
 			// arm raises the figure on a smaller denominator.
 			//
-			// Measured 2026-08-22 with the project view, its activation, the plugin
-			// registration, the i18n lookup and the settings pane in place: 45/45 statements,
-			// 12/12 branches, 20/20 functions, 41/41 lines — 100% of all four. (The first
+			// Measured 2026-08-23 with the project view, its activation, the plugin
+			// registration, the i18n lookup and the settings pane in place: 44/44 statements,
+			// 12/12 branches, 22/22 functions, 41/41 lines — 100% of all four. (The first
 			// measurement, at 21 statements, set 95/75/90/94; git holds which increment moved
 			// which figure.)
 			//
@@ -53,7 +53,7 @@ export default defineConfig({
 			// unit is still large here: a statement is 2.2pp, a BRANCH 8.3pp. Pinning 100 would
 			// make the first genuinely unreachable defensive branch a choice between a test
 			// gymnastic and lowering a floor, and a floor never comes down. Whole numbers
-			// rather than decimals: precision at n=45 would be theatre.
+			// rather than decimals: precision at n=44 would be theatre.
 			thresholds: {
 				statements: 97,
 				branches: 91,

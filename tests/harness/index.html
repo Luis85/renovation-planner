@@ -4,6 +4,11 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Renovation Planner — harness</title>
+		<!-- An empty icon, so a browser does not fetch /favicon.ico on its own: that request
+		     404s (there is no such file), and `scripts/harness-shot.mjs` treats a console
+		     error as a real one — the failure this page should be caught making, not one a
+		     bare `<head>` invites from every browser that opens it. -->
+		<link rel="icon" href="data:," />
 		<!--
 			The ORDER is load-bearing.
 

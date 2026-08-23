@@ -4,8 +4,20 @@
 	// kind: nothing imports it and no npm script runs it — Claude Code spawns it per edit,
 	// named in `.claude/settings.json`. Declared here rather than given a contrived npm
 	// script, and `tests/build/lint-edited.test.ts` is what checks the naming still resolves.
-	"entry": ["src/main.ts", "tests/harness/page.ts", "scripts/lint-edited.mjs"],
+	// `scripts/harness-shot.mjs` is the same shape from the other direction: an npm script
+	// (`harness-shot`) does run it, but fallow's import graph starts from `entry` and this
+	// file imports nothing under `src/` or `tests/` — nothing else in the graph reaches it
+	// either, so it needs the same declaration or fallow reports it dead.
+	"entry": ["src/main.ts", "tests/harness/page.ts", "scripts/lint-edited.mjs", "scripts/harness-shot.mjs"],
 	"dynamicallyLoaded": ["styles/**/*.css", "tests/harness/theme.css", "tests/harness/obsidian.css"],
+	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
+	// every manual entry is otherwise treated as production-reachable code, so
+	// `scripts/harness-shot.mjs`'s own devDependency (`playwright-core`) reads as a
+	// devDependency imported by production code, which `dev-dependencies-in-production`
+	// exists to catch for a real case: an import a production-only install would break on.
+	// This is the opposite — the importing file IS the dev tooling — and fallow's own
+	// suggested fix for this exact finding is this key.
+	"ignoreDependencies": ["playwright-core"],
 	"duplicates": {
 		"ignore": ["tests/harness/obsidian.css"]
 	},

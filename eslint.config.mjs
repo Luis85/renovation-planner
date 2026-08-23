@@ -154,6 +154,82 @@ const SVG_CLASS_TOKENS = [
 	},
 ];
 
+/**
+ * Obsidian is localized (`docs/requirements/Multilanguage.md`): every string this plugin
+ * shows has to reach `t`/`tr` in `src/presentation/i18n/`, because that is the one place
+ * German — or any locale added later — can answer it from. Nothing else refuses a
+ * hard-coded English literal in a new screen: it passes the build, the sentence-case lint
+ * on `locales/en.ts`, and the suite. Twenty product epics of screens are coming, so this
+ * is the cheapest point to put the rule at the forbidden call rather than in a paragraph,
+ * by the same argument that put `WRITE_BOUNDARY` above.
+ *
+ * The spellings these SEE: a string literal passed directly as the argument to
+ * `.setText(...)`, and a string literal that IS the `value` field of a `text` property
+ * that is itself a DIRECT property of the options object — the actual DOM-info argument
+ * of `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`, not any object nested inside
+ * it. `createDiv(options)`/`createSpan(options)` take that object as the FIRST argument;
+ * `createEl(tag, options)` takes it as the SECOND. The selector does not hard-code either
+ * position — `CallExpression > ObjectExpression.arguments` matches whichever argument is
+ * the object literal, since a tag argument is a string and never an `ObjectExpression`,
+ * so at most one argument can ever match regardless of where it sits.
+ *
+ * Three combinators, each pinning one hop of that path, and each closes a real
+ * over-match this rule shipped with and a reviewer caught by building it:
+ *   - `CallExpression > ObjectExpression.arguments` — the options object must be a
+ *     direct ARGUMENT of the call. Without this, `el.createDiv(makeOptions({ text: … }))`
+ *     would still be reachable by the rest of the selector, and worse, a completely
+ *     unrelated call three levels down would be too.
+ *   - `> :matches(Property[key.name='text'], Property[key.value='text'])` — that `text`
+ *     key must be a direct PROPERTY of the options object, not of an object nested
+ *     inside it. Obsidian's `DomElementInfo.attr` is exactly that nesting:
+ *     `createDiv({ attr: { text: 'internal-token' } })` sets an HTML `text` ATTRIBUTE,
+ *     which is not rendered copy and has nothing to do with `t`/`tr` — the first shipped
+ *     version of this selector used a descendant combinator here and flagged it anyway,
+ *     with no inline-suppression escape available (`linterOptions.noInlineConfig`), which
+ *     is what made it a real defect rather than a false positive with a way out.
+ *   - `> Literal.value` — the literal must be the `value` FIELD of that property, not
+ *     something nested inside it. `Literal.value` is esquery's field selector: without
+ *     it, `{ text: tr('some.key') }` matched the string argument INSIDE the `tr(...)`
+ *     call and rejected the idiomatic form this rule exists to allow — the first
+ *     round's defect, fixed by this pin alone before the `attr` case above was found.
+ * A call to `t`/`tr` is a CallExpression at that `value` position, not a Literal, so
+ * `el.setText(tr('x'))` and `createSpan({ text: tr('x') })` both pass untouched — that is
+ * the whole mechanism, and every hop above exists to keep it checking that exact
+ * position and nothing else nearby.
+ *
+ * What they cannot see: a literal one hop away from the call (`const label = 'Cancel';
+ * el.setText(label)`), a template literal even with no interpolation — `setText(`Cancel`)`
+ * is a TemplateLiteral node, not a Literal — and a string built from a joined array
+ * (`parts.join(' ')` is a CallExpression). None of those are a Literal node at the
+ * position these selectors check. A reviewer who sees one is the backstop, the same as
+ * for the spellings `SVG_CLASS_TOKENS` cannot see. `attr:` is the same blind spot in a
+ * different shape, deliberately: the accessibility gate
+ * (`tests/harness/accessibility.test.ts`) can push a literal like
+ * `createDiv({ attr: { 'aria-label': 'Cancel' } })` — real user-visible copy, read aloud by
+ * a screen reader — and this rule structurally cannot see it, since `attr`'s own contents
+ * are excluded above precisely so a genuine HTML attribute (`attr: { text: '…' }`) is not
+ * flagged. Widening the selector to reach inside `attr` would reintroduce that false
+ * positive; a reviewer satisfying the a11y gate with an `aria-label` literal is the
+ * backstop this rule does not have.
+ *
+ * `[value=/\S/]` rather than bare `Literal`: an empty string or a whitespace-only one
+ * (`el.setText('')` to clear an element, or a padding space) carries no user-visible
+ * text, so it has nothing to translate and is exempt rather than flagged.
+ */
+const TEXT_KEY = ":matches(Property[key.name='text'], Property[key.value='text'])";
+const I18N_LITERAL_BAN = [
+	{
+		selector: "CallExpression[callee.property.name='setText'] > Literal[value=/\\S/]",
+		message:
+			"setText received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
+	},
+	{
+		selector: `CallExpression[callee.property.name=/^(createEl|createDiv|createSpan)$/] > ObjectExpression.arguments > ${TEXT_KEY} > Literal.value[value=/\\S/]`,
+		message:
+			"createEl/createDiv/createSpan's text option received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
+	},
+];
+
 export default defineConfig([
 	{
 		// Everything that is not this plugin's source. The build scripts are Node, not
@@ -259,13 +335,15 @@ export default defineConfig([
 		// every other block, for the base-path reason TESTS states.
 		files: ['**/src/**/*.ts'],
 		ignores: ['**/src/infrastructure/obsidian/**'],
-		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS] },
+		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
 	{
 		// The sanctioned writer. Vault writes are this directory's job; every OTHER
-		// shared ban still applies, restated per the override warning above.
+		// shared ban still applies, restated per the override warning above — including
+		// I18N_LITERAL_BAN: infrastructure/obsidian/ may show its own UI (a Notice, an
+		// error surface) and that text is exactly as translatable as a view's.
 		files: ['**/src/infrastructure/obsidian/**/*.ts'],
-		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS] },
+		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
 	{
 		// SDD §3.4 prohibits DOM APIs in domain/ and core/, not only the framework

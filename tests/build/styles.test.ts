@@ -171,210 +171,9 @@ describe('assembling the stylesheet', () => {
 			expect(() => assembleStyles()).toThrow(/one\.css:1/);
 		});
 
-		it('refuses an rgb() colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: rgb(0, 0, 0); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('refuses an rgba() colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: rgba(0, 0, 0, 0.5); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('refuses an hsl() colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: hsl(0, 0%, 0%); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('refuses an hsla() colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: hsla(0, 0%, 0%, 0.5); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('accepts an Obsidian CSS variable', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: var(--text-normal); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		// currentColor, transparent and inherit are not palettes — none of them is a hex,
-		// rgb()/rgba() or hsl()/hsla() spelling, so the check never matches them at all.
-		it('accepts currentColor', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { border-color: currentColor; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('accepts transparent', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { background: transparent; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('accepts inherit', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: inherit; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		// A colour mentioned inside a CSS comment is not shipped as a rule — the check
-		// strips comments before scanning, the same way the entry-file parser above does.
-		it('ignores a colour inside a comment', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '/* was #fff, now themed */\n.one { color: var(--text-normal); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		/**
-		 * The bare word `red` and the hex `#ff0000` become the SAME parsed `CssColor`
-		 * node — lightningcss does not keep the keyword spelling any more than it keeps
-		 * `#f00`'s. Earlier, string-scanning rounds of this gate excluded named colours
-		 * on purpose: a bare word cannot be told apart from a class name or a
-		 * custom-property name without parsing the declaration it sits in. A real parser
-		 * removes exactly that ambiguity — `Declaration.value` only ever holds a
-		 * `CssColor` node when the CSS value grammar put one there, never a selector or a
-		 * property name — so this is not a new feature bolted on, it is the same check
-		 * losing a caveat it no longer needs.
-		 */
-		it('refuses a CSS named colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: red; }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		/**
-		 * A selector is never a colour, however hex-shaped its name reads: `#fade`, `#dad`
-		 * and `#face-plate` are ID selectors, not colours, and every letter of `fade`,
-		 * `dad`, `face`, `cab`, `bad`, `beef`, `cafe` and `ace` is a valid hex digit. This
-		 * is no longer a scan the check has to steer around: `lightningcss` parses a
-		 * selector into a `SelectorList`, structurally separate from a declaration's
-		 * VALUE, and this check only ever calls `findHardcodedColor` on the latter — a
-		 * selector is never visited at all, regardless of nesting depth under `@media` /
-		 * `@supports` / `@container`. `url(#fade)` is the same story one level in: the
-		 * parser gives it `type: 'url'`, never the `CssColor` shape this check matches, so
-		 * a fragment reference is not a colour by construction, not by an exemption this
-		 * check has to remember to apply. This project forbids inline suppressions, so a
-		 * false positive here has no escape hatch except editing this shared script under
-		 * pressure — these are regression tests, not exploratory ones.
-		 */
-		it('does not flag a hex-shaped ID selector', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '#dad { margin: 0; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag a hyphenated hex-shaped ID selector', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '#face-plate { color: var(--text-normal); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag a url() fragment reference on a hex-shaped selector', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '#fade { filter: url(#fade); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag a url() fragment reference inside a declaration value', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.icon { filter: url(#feed); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag an 8-digit url() fragment reference in a declaration value', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { background: url(#deadbeef-icon); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		// A real hex colour immediately followed by punctuation (not another identifier
-		// character, and not inside a url() call, and not in selector position) is still
-		// caught — the exemptions above narrow what the check looks at, they do not remove
-		// the check.
-		it('still refuses a hex colour immediately followed by a semicolon', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one{color:#fff;}\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		// Valid CSS hex colours are exactly 3, 4, 6 or 8 digits (RGB, RGBA, RRGGBB,
-		// RRGGBBAA) — 5 and 7 are not a spelling this pattern claims to see, and matching
-		// them anyway would be the pattern promising more than the comment above it says.
-		it('does not flag a 5-digit run, which is not a valid hex colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: #12345; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag a 7-digit run, which is not a valid hex colour', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: #1234567; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
 		// A Windows editor can save a PARTIAL with CRLF before .gitattributes ever sees
-		// it, the same risk the entry-file CRLF test above guards against. The colour
-		// check splits on '\n' the same way assembleStyles does for the entry file, which
-		// leaves a trailing '\r' on each line — this pins that a hard-coded colour is
-		// still caught rather than trusted to argument alone.
+		// it. lightningcss's own tokenizer, not a '\n'-split, is what has to tolerate
+		// this now — this pins that it does.
 		it('refuses a hard-coded colour in a CRLF-saved partial', () => {
 			plant({
 				'index.css': '@import "./one.css";\n',
@@ -384,153 +183,11 @@ describe('assembling the stylesheet', () => {
 			expect(() => assembleStyles()).toThrow(/one\.css/);
 		});
 
-		/**
-		 * Finding A: a selector nested inside an at-rule (`@media`, `@supports`,
-		 * `@container`) sits at brace depth >= 1 same as a declaration does — depth alone
-		 * cannot tell them apart. `#fade` here is a selector regardless of how many
-		 * blocks it sits inside, and must stay unscanned; the declaration nested one
-		 * level deeper than IT must still be scanned.
-		 */
-		it('does not flag a hex-shaped selector nested inside an at-rule', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '@media (width > 1px) { #fade { margin: 0; } }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('still refuses a hard-coded colour nested inside an at-rule', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '@media (width > 1px) { .x { color: #fff; } }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		/**
-		 * Finding B: a `}` (or `{`) inside a quoted CSS string is literal text, not
-		 * structure. The old depth counter read the quoted `"}"` as closing the block
-		 * early, so `color: #fff` that followed looked like it sat outside any block and
-		 * was silently skipped — a false NEGATIVE, worse than any false positive: the
-		 * gate stayed green while `styles/view.css`'s own comment ("every colour comes
-		 * from an Obsidian variable") went false underneath it.
-		 */
-		it('still refuses a colour after a quoted closing brace in the same block', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { content: "}"; color: #fff; }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('still refuses a colour after a quoted opening brace in the same block', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { content: "{"; color: #fff; }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		// A colour is never legitimately written as a quoted string — `content: "#fff";`
-		// sets literal label text, not a palette value — so the quoted text is masked out
-		// of the scan entirely, the same fix that makes the two tests above correct.
-		it('does not flag a hex-shaped word inside a quoted content string', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { content: "#fff"; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		/**
-		 * Finding C: the function list only named `rgb`/`rgba`/`hsl`/`hsla`. Every other
-		 * CSS Color function — `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()`
-		 * — is exactly as hard-coded a palette value and passed the gate untouched.
-		 */
-		it.each([
-			['hwb', 'background: hwb(200 30% 20%);'],
-			['lab', 'color: lab(50% 20 -30);'],
-			['lch', 'color: lch(50% 40 30);'],
-			['oklab', 'color: oklab(0.5 0.1 -0.1);'],
-			['oklch', 'color: oklch(60% 0.2 30);'],
-			['color()', 'color: color(display-p3 1 0 0);'],
-		])('refuses a hard-coded %s() colour', (_name, declaration) => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': `.one { ${declaration} }\n`,
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		// The trap `color(` sets: `color` is both a CSS PROPERTY and, spelled with a
-		// trailing `(`, a colour FUNCTION. `\bcolor\(` requires the immediate `(` a
-		// property name never has (`color:` is followed by `:`), so the property itself,
-		// and a custom property merely named after it, must both still pass.
-		it('does not flag the color PROPERTY assigned an Obsidian variable', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { color: var(--text-normal); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag a custom property merely named after the colour function', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.one { --my-color: var(--text-normal); --color-scheme: dark; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		/**
-		 * Six bypasses were found across four rounds of hand-rolled string scanning, all
-		 * defeated content that LOOKED like syntax to a scan that could not actually
-		 * parse it: an at-rule-nested selector, a quoted brace, a modern colour function
-		 * missing from a word list, a `/*` inside a string bridging to a real comment
-		 * (two variants), a colour function (`device-cmyk()`) still missing from the
-		 * word list, and an escaped `)` inside `url()`. This project's own rule — an
-		 * invariant gets a test that fails without it — applies here at the scale of the
-		 * whole approach: `scripts/styles-assemble.mjs` now runs `lightningcss` instead
-		 * of scanning source text at all, and every case below is regression coverage
-		 * for one of the six, run against the real parser rather than patched string
-		 * logic.
-		 */
-		it('refuses a colour bridged by a string containing a comment-open delimiter', () => {
-			// Bypass 1: withoutComments() ran before any quote awareness, so `/*` inside
-			// this string paired with a LATER real `*/` and swallowed `color: #fff;`.
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { content: "/*"; color: #fff; content: "*/"; }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('refuses a colour after a stray comment-open string bridges into a later rule', () => {
-			// Bypass 2 (variant): the stray `/*` need not close in the SAME rule — any
-			// real `*/` anywhere later in the file, even a genuine trailing comment on an
-			// unrelated rule, closed the false comment and hid everything between.
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.a { content: "oops /*"; }\n.b { color: #fff; } /* trailing */\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
 		it('reports a clear parse failure for an unterminated string, rather than silently masking what follows it', () => {
-			// Bypass 3: a string that never closes is not a scanning edge case to a real
-			// parser — CSS terminates a string at a bare newline (a "bad string" token)
-			// — so lightningcss throws, and this project's own rule ("a parse error must
-			// be reported clearly, not swallowed") is what turns that into a named build
+			// A string that never closes is not a scanning edge case to a real parser —
+			// CSS terminates a string at a bare newline (a "bad string" token) — so
+			// lightningcss throws, and this project's own rule ("a parse error must be
+			// reported clearly, not swallowed") is what turns that into a named build
 			// failure instead of a silently-passed partial.
 			plant({
 				'index.css': '@import "./one.css";\n',
@@ -540,121 +197,138 @@ describe('assembling the stylesheet', () => {
 			expect(() => assembleStyles()).toThrow(/one\.css/);
 		});
 
-		it('still passes a real comment, unaffected by string-awareness', () => {
+		// A per-type sub-visitor (`Rule: { style(rule) {...} }`) only fires for THAT
+		// type, so `@keyframes` and `@page` used to leave the tracked line at its
+		// initial `null` — printing the literal text "null" in the thrown message. The
+		// fix is a single generic `Rule(rule)` visitor; these two pin that every rule
+		// kind now reports a real line, not the word "null".
+		it('reports a real line number for a colour inside @keyframes, not the word null', () => {
 			plant({
 				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { /* color: #fff; */ margin: 0; }\n',
+				'one.css': '@keyframes fade {\n\tfrom { color: #fff; }\n}\n',
 			});
 
-			expect(() => assembleStyles()).not.toThrow();
+			expect(() => assembleStyles()).toThrow(/one\.css:1/);
 		});
 
-		it('refuses device-cmyk(), the one colour function lightningcss leaves unresolved', () => {
-			// Bypass 5 (this round's report numbering): the closed-list residual this
-			// project documented and expected to keep growing. With a real parser, it is
-			// a list of one function, not an open-ended word list to maintain.
+		it('reports a real line number for a colour inside @page, not the word null', () => {
 			plant({
 				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { color: device-cmyk(0% 81% 81% 30%); }\n',
+				'one.css': '@page {\n\tcolor: #fff;\n}\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css:1/);
+		});
+
+		/**
+		 * Everything below is regression coverage run against the real parser rather
+		 * than patched string logic — every colour function the CSS Color spec defines
+		 * (including the one, `device-cmyk()`, lightningcss's parser leaves unresolved
+		 * and this check names explicitly instead); `light-dark()` judged as a
+		 * CONTAINER, one argument per colour scheme, not as a literal itself — the
+		 * theme-correct `light-dark(var(--a), var(--b))` must pass, and it must not cost
+		 * catching `light-dark(#fff, #000)`; a colour nested at any depth (a gradient
+		 * stop, a `var()` fallback, an otherwise-unresolved function's own arguments,
+		 * `@property`'s `initial-value`); and every one of six bypasses found across
+		 * four rounds of hand-rolled scanning, each defeated by CSS content that LOOKED
+		 * like syntax to a scan that could not actually parse it — a quoted brace, a
+		 * `/*` inside a string bridging to a real comment (two variants), an escaped
+		 * `)` inside `url()`, an at-rule-nested selector.
+		 */
+		it.each([
+			['an rgb() colour', '.one { color: rgb(0, 0, 0); }'],
+			['an rgba() colour', '.one { color: rgba(0, 0, 0, 0.5); }'],
+			['an hsl() colour', '.one { color: hsl(0, 0%, 0%); }'],
+			['an hsla() colour', '.one { color: hsla(0, 0%, 0%, 0.5); }'],
+			['a hard-coded hwb() colour', '.one { background: hwb(200 30% 20%); }'],
+			['a hard-coded lab() colour', '.one { color: lab(50% 20 -30); }'],
+			['a hard-coded lch() colour', '.one { color: lch(50% 40 30); }'],
+			['a hard-coded oklab() colour', '.one { color: oklab(0.5 0.1 -0.1); }'],
+			['a hard-coded oklch() colour', '.one { color: oklch(60% 0.2 30); }'],
+			['a hard-coded color() colour', '.one { color: color(display-p3 1 0 0); }'],
+			['a CSS named colour', '.one { color: red; }'],
+			['a hex colour with no whitespace before the semicolon', '.one{color:#fff;}'],
+			['a colour after a quoted closing brace in the same block', '.x { content: "}"; color: #fff; }'],
+			['a colour after a quoted opening brace in the same block', '.x { content: "{"; color: #fff; }'],
+			['a colour nested inside an at-rule', '@media (width > 1px) { .x { color: #fff; } }'],
+			['a colour bridged by a string containing a comment-open delimiter', '.x { content: "/*"; color: #fff; content: "*/"; }'],
+			['a colour after a stray comment-open string bridges into a later rule', '.a { content: "oops /*"; }\n.b { color: #fff; } /* trailing */'],
+			['device-cmyk(), the one colour function lightningcss leaves unresolved', '.x { color: device-cmyk(0% 81% 81% 30%); }'],
+			['a literal colour argument inside an unresolved function call', '.x { color: color-contrast(#fff vs #000, #ccc); }'],
+			['the computed result of a literal-only color-mix()', '.x { color: color-mix(in srgb, #fff 50%, #000 50%); }'],
+			['a colour nested inside a gradient colour-stop', '.x { background: linear-gradient(#fff, blue); }'],
+			['a colour used as a var() fallback', '.x { color: var(--missing, #fff); }'],
+			['light-dark() with two literal colours', '.x { color: light-dark(#fff, #000); }'],
+			['light-dark() with one literal colour and one variable', '.x { color: light-dark(var(--text-normal), #000); }'],
+			[
+				'a hard-coded colour as an @property initial-value',
+				'@property --accent {\n\tsyntax: "<color>";\n\tinherits: false;\n\tinitial-value: #fff;\n}',
+			],
+		])('refuses %s', (_label, css) => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': `${css}\n`,
 			});
 
 			expect(() => assembleStyles()).toThrow(/one\.css/);
 		});
 
-		it('does not flag an escaped close-paren inside a url()', () => {
-			// Bypass 6: `\)` is part of the URL per CSS's own escaping rules, so
-			// `#fade` here is never a separate token at all — a regex stopping at the
-			// raw `)` character does not know that; a conformant parser always does.
+		/**
+		 * Every exemption this check grants, plus every case a false positive was found
+		 * and fixed in: `currentColor`, `transparent` (and its generalisation to alpha 0
+		 * on any colour type), `inherit` and a CSS system-colour keyword all adapt to a
+		 * theme rather than encoding a palette value; a selector — however hex-shaped,
+		 * at any `@media`/`@supports`/`@container` nesting depth — and a `url()`
+		 * fragment reference are never even visited as a colour, by construction; a
+		 * quoted string's content (a comment-open delimiter, a hex-shaped word) is
+		 * masked from the scan entirely; `light-dark()` with only variables (or
+		 * `currentColor`) is the theme-correct pattern and must not be refused; and
+		 * `--accent: red;` documents the one residual this project has decided not to
+		 * chase (D4 in the task report): a named colour is caught on a typed property
+		 * but not inside a raw token stream, where only a literal hex or function call
+		 * is still recognised generically (`--accent: #fff;`, refused above).
+		 */
+		it.each([
+			['an Obsidian CSS variable', '.one { color: var(--text-normal); }'],
+			['currentColor', '.one { border-color: currentColor; }'],
+			['transparent, spelled as the keyword', '.one { background: transparent; }'],
+			['inherit', '.one { color: inherit; }'],
+			['a colour inside a comment', '/* was #fff, now themed */\n.one { color: var(--text-normal); }'],
+			['a hex-shaped ID selector', '#dad { margin: 0; }'],
+			['a hyphenated hex-shaped ID selector', '#face-plate { color: var(--text-normal); }'],
+			['a url() fragment reference on a hex-shaped selector', '#fade { filter: url(#fade); }'],
+			['a url() fragment reference inside a declaration value', '.icon { filter: url(#feed); }'],
+			['an 8-digit url() fragment reference in a declaration value', '.one { background: url(#deadbeef-icon); }'],
+			['a 5-digit run, which is not a valid hex colour', '.one { color: #12345; }'],
+			['a 7-digit run, which is not a valid hex colour', '.one { color: #1234567; }'],
+			['a hex-shaped selector nested inside an at-rule', '@media (width > 1px) { #fade { margin: 0; } }'],
+			['a hex-shaped word inside a quoted content string', '.x { content: "#fff"; }'],
+			[
+				'a custom property merely named after the colour function',
+				'.one { --my-color: var(--text-normal); --color-scheme: dark; }',
+			],
+			['an escaped close-paren inside a url()', '.x { filter: url(icon\\)#fade); }'],
+			['a color-mix() whose arguments are both Obsidian variables', '.x { color: color-mix(in srgb, var(--a) 50%, var(--b) 50%); }'],
+			['an explicit rgba() with alpha 0, the same as the keyword', '.x { background: rgba(0, 0, 0, 0); }'],
+			['a CSS system-colour keyword', '.x { color: Canvas; }'],
+			['light-dark(currentColor, currentColor)', '.x { color: light-dark(currentColor, currentColor); }'],
+			[
+				'light-dark() with two Obsidian variables, the theme-correct pattern',
+				'.x { color: light-dark(var(--text-normal), var(--text-normal)); }',
+			],
+			['a real comment, unaffected by string-awareness', '.x { /* color: #fff; */ margin: 0; }'],
+			[
+				'an @property initial-value that is an Obsidian variable',
+				'@property --accent {\n\tsyntax: "<color>";\n\tinherits: false;\n\tinitial-value: currentColor;\n}',
+			],
+			['a named colour inside a custom property, unlike a hex literal', '.x { --accent: red; }'],
+		])('does not flag %s', (_label, css) => {
 			plant({
 				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { filter: url(icon\\)#fade); }\n',
+				'one.css': `${css}\n`,
 			});
 
 			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		// Backs the code comment's claim: a colour ARGUMENT inside an otherwise
-		// unresolved function call still surfaces as a real `CssColor` node, because
-		// lightningcss recognises a colour literal generically wherever one appears —
-		// not only on properties or functions it fully understands.
-		it('refuses a literal colour argument inside an unresolved function call', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { color: color-contrast(#fff vs #000, #ccc); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('refuses the computed result of a literal-only color-mix()', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { color: color-mix(in srgb, #fff 50%, #000 50%); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('does not flag a color-mix() whose arguments are both Obsidian variables', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { color: color-mix(in srgb, var(--a) 50%, var(--b) 50%); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		// `transparent` earns its exemption a different way than `currentColor` does:
-		// lightningcss does not keep the keyword spelling, resolving it to `rgb(0 0 0 /
-		// 0)` like any equivalent literal — so the exemption generalises to alpha 0 on
-		// ANY colour type, not only that one keyword.
-		it('does not flag transparent, spelled as the keyword', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { background: transparent; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('does not flag an explicit rgba() with alpha 0, the same as the keyword', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { background: rgba(0, 0, 0, 0); }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		// A CSS system-colour keyword (`Canvas`, `ButtonText`, …) adapts to the OS/browser
-		// colour scheme rather than encoding a fixed palette value, the same reasoning
-		// `currentColor` is exempt for — and it parses to a bare STRING, never the object
-		// shape this check matches, so no exemption code exists for it at all.
-		it('does not flag a CSS system-colour keyword', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { color: Canvas; }\n',
-			});
-
-			expect(() => assembleStyles()).not.toThrow();
-		});
-
-		it('refuses a hard-coded colour nested inside a gradient colour-stop', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { background: linear-gradient(#fff, blue); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
-		});
-
-		it('refuses a hard-coded colour used as a var() fallback', () => {
-			plant({
-				'index.css': '@import "./one.css";\n',
-				'one.css': '.x { color: var(--missing, #fff); }\n',
-			});
-
-			expect(() => assembleStyles()).toThrow(/one\.css/);
 		});
 	});
 });

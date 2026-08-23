@@ -62,33 +62,64 @@ function countLines(body) {
 // What this SEES: every literal colour value lightningcss's own parser resolves into a
 // `CssColor` node — hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, `hwb()`, `lab()`, `lch()`,
 // `oklab()`, `oklch()`, `color()`, a literal-only `color-mix()` (lightningcss computes
-// the blended result, which is itself a `CssColor`), and `light-dark()` — found by
-// walking each declaration's parsed VALUE recursively, at any nesting depth (a gradient
-// colour-stop, a `var()` fallback, an otherwise-unresolved function's own arguments — see
+// the blended result, which is itself a `CssColor`) — found by walking each
+// declaration's parsed VALUE recursively, at any nesting depth (a gradient colour-stop, a
+// `var()` fallback, an otherwise-unresolved function's own arguments — see
 // `color-contrast()` in the test file for that last one). Because detection reads the
 // PARSED tree rather than source text, it is correct regardless of what a selector, an
 // at-rule prelude, a comment or a quoted string contains: those are never declaration
 // VALUES, so they are never visited, by construction — not by a rule that excludes them.
 //
-// A caveat every earlier round of this check carried and had to repeat is gone, not
-// narrowed: CSS NAMED colours (`red`, `rebeccapurple`, …) ARE now caught. `red` and
-// `#ff0000` parse to the identical `CssColor` node — lightningcss does not keep the
-// keyword spelling any more than it keeps a hex literal's — so the ambiguity that made a
-// bare word unsafe to flag under a source-text scan (indistinguishable from a class name
-// or a custom-property name) does not exist here: `Declaration.value` only ever holds a
-// `CssColor` node where the CSS value grammar put a literal colour, never a selector or a
-// property name. See 'refuses a CSS named colour' in the test file.
+// `light-dark()` is a CONTAINER, not a colour itself: `light-dark(var(--a), var(--b))` —
+// the theme-correct pattern this check must not punish — has no literal colour in it at
+// all, and `light-dark(var(--a), #000)` has exactly one. So `light-dark` is deliberately
+// NOT in `COLOR_TYPE_TAGS`: its own node (however lightningcss happens to shape it — a
+// bare `{type:'light-dark', light, dark}` when both sides are literal, or a `light`/`dark`
+// pair of raw token arrays wrapped in `{type:'unresolved-color', ...}` when at least one
+// side is not) is never itself a match, and the SAME recursive walk that finds a colour
+// anywhere else finds one inside `light`/`dark` too, judging each side independently.
 //
-// What this does NOT see, and why it is a deliberate, narrow line: `device-cmyk()` is the
-// one CSS Color function lightningcss's parser (1.33) does not fold into a `CssColor`
-// node — its four arguments are bare percentages, so nothing about a literal
-// `device-cmyk(0% 81% 81% 30%)` is ever colour-SHAPED in the parsed tree, unlike every
-// other named colour function this project checked by hand against this version of
-// lightningcss (including an entirely unresolved one, `color-contrast()`, whose literal
-// colour ARGUMENTS still surface as `CssColor` nodes). `UNRESOLVED_COLOR_FUNCTIONS` below
-// is that one-function list, named by lightningcss's own function-call shape rather than
-// inferred from source spelling — a future lightningcss version that resolves it removes
-// the need for this list without this check changing behaviour.
+// A caveat every earlier round of this check carried and had to repeat is gone, not
+// narrowed, for a TYPED property (`color:`, `background:`, any property lightningcss's
+// grammar fully parses): CSS NAMED colours (`red`, `rebeccapurple`, …) ARE now caught
+// there. `red` and `#ff0000` parse to the identical `CssColor` node on a typed property —
+// lightningcss does not keep the keyword spelling any more than it keeps a hex literal's
+// — so the ambiguity that made a bare word unsafe to flag under a source-text scan
+// (indistinguishable from a class name) does not exist there. See 'refuses a CSS named
+// colour' in the test file. That symmetry does NOT reach a RAW token stream — a custom
+// property's own value (`--accent: red;`), or a `var()`/unresolved-function fallback or
+// argument — where lightningcss leaves anything it does not recognise as a sequence of
+// raw tokens instead of parsing it: a hex or `rgb()`-shaped LITERAL is still recognised
+// generically even there (`--accent: #fff;` IS caught — confirmed in the test file), but
+// a bare colour WORD in that context is just an `ident` token, indistinguishable from any
+// other identifier, and stays uncaught (`--accent: red;` passes — also pinned as a test,
+// documenting the asymmetry rather than hiding it). This project has decided not to chase
+// that gap: a bare word is still not self-marking outside a typed property, the same
+// reasoning as before, now scoped to where it is actually true rather than claimed
+// everywhere.
+//
+// lightningcss's AUTOMATIC resolution into `CssColor` does not cover every named colour
+// function, and where it does not, this check compensates by NAME rather than by shape —
+// it still refuses the value, just via a second mechanism, not a blind spot. Confirmed by
+// hand against every named colour function in the CSS Color spec: `device-cmyk()` is the
+// one whose four arguments are bare percentages, never colour-SHAPED in the parsed tree
+// (unlike an entirely unresolved function like `color-contrast()`, whose literal colour
+// ARGUMENTS still surface as `CssColor` nodes generically). `UNRESOLVED_COLOR_FUNCTIONS`
+// below is that one-function list, named by lightningcss's own function-call shape rather
+// than inferred from source spelling — a future lightningcss version that resolves it
+// removes the need for this list without this check's behaviour changing.
+//
+// This check also reaches TWO at-rules whose declarations never fire the `Declaration`
+// visitor at all — confirmed by inspecting what lightningcss's visitor actually calls,
+// not assumed: `@font-face { ... }` and `@property --x { ... }` structure their contents
+// as named fields directly on the RULE object (`properties`, `initialValue`) rather than
+// as a generic declaration list. `checkForHardcodedColors` below runs the SAME recursive
+// colour walk directly on the rule's own value for exactly these two rule types — found
+// by testing every rule kind used or plausible here, not guessed — which is how
+// `@property --accent { initial-value: #fff; }` is caught even though it never reaches a
+// `Declaration` callback. `@font-face` has no colour-typed descriptor in the CSS spec, so
+// this is closing a structural blind spot on principle rather than a real leak, but the
+// mechanism is identical and free once written for `@property`.
 //
 // `currentColor` and a CSS system-colour keyword (`Canvas`, `ButtonText`, …) both adapt
 // to the viewer's theme or OS colour scheme rather than encoding a fixed palette value,
@@ -103,12 +134,15 @@ function countLines(body) {
 //
 // One narrowing that follows from using the real parser rather than source text: the
 // LINE named in the error is the enclosing rule's own line, not necessarily the exact
-// declaration's line within a multi-line rule. lightningcss's public visitor API gives a
-// source location on a `Rule`, never on a `Declaration` — confirmed by inspecting what
-// the visitor actually receives, not assumed from the type definitions alone — so that is
-// the finest position this check can honestly report. A rule spanning many declarations
-// still points at ONE line for all of them; the file and the fact of the violation are
-// exact regardless.
+// declaration's line within a multi-line rule — lightningcss's public visitor API gives a
+// source location on every `Rule` kind this check has checked (a plain style rule,
+// `@keyframes`, `@page`, `@font-face`, `@property`), never on a `Declaration`, confirmed
+// by inspecting what the visitor actually receives rather than assumed from the type
+// definitions alone. A `@keyframes` block reports its OWN line for a colour in any of its
+// keyframe selectors (`from`/`to`/a percentage), not the individual selector's line,
+// because lightningcss's visitor fires once for the whole `@keyframes` rule rather than
+// once per keyframe — coarser than a single style rule, but still a real, useful line,
+// never the unnamed failure a missing position would be.
 const COLOR_TYPE_TAGS = new Set([
 	'rgb',
 	'hsl',
@@ -125,10 +159,14 @@ const COLOR_TYPE_TAGS = new Set([
 	'rec2020',
 	'xyz-d50',
 	'xyz-d65',
-	'light-dark',
 ]);
 
 const UNRESOLVED_COLOR_FUNCTIONS = new Set(['device-cmyk']);
+
+// The two rule kinds whose own declarations never reach the `Declaration` visitor — see
+// the header comment above. Named explicitly rather than inferred, the same reasoning as
+// `UNRESOLVED_COLOR_FUNCTIONS`: found by testing, not guessed from the type definitions.
+const RULE_VALUE_FALLBACK_TYPES = new Set(['font-face', 'property']);
 
 function isPlainObject(value) {
 	return typeof value === 'object' && value !== null;
@@ -154,16 +192,18 @@ function isUnresolvedColorFunctionCall(node) {
 }
 
 /**
- * Walks a declaration's already-PARSED value — plain objects and arrays, the shape
- * `JSON.parse(JSON.stringify(...))` would give it — for the first node that is a literal
- * colour. Recurses into every field generically, by depth rather than by name, because a
- * `CssColor` node appears in genuinely different shapes depending on context: wrapped as
- * `{ type: 'color', value: CssColor }` inside a raw token stream (a custom property, an
- * unresolved function's arguments), or as a bare `CssColor` object assigned directly to a
- * named field of an already-typed value (`background`'s own `color`, a gradient
- * colour-stop's `color`, `border`'s `color`). A name-based walk would have to enumerate
- * both shapes at every property this project might ever use; a depth-based one does not
- * need to know either exists.
+ * Walks a declaration's (or a `@font-face`/`@property` rule's own) already-PARSED value —
+ * plain objects and arrays, the shape `JSON.parse(JSON.stringify(...))` would give it —
+ * for the first node that is a literal colour. Recurses into every field generically, by
+ * depth rather than by name, because a `CssColor` node appears in genuinely different
+ * shapes depending on context: wrapped as `{ type: 'color', value: CssColor }` inside a
+ * raw token stream (a custom property, an unresolved function's arguments), or as a bare
+ * `CssColor` object assigned directly to a named field of an already-typed value
+ * (`background`'s own `color`, a gradient colour-stop's `color`, `@property`'s own
+ * `initialValue`). A name-based walk would have to enumerate every such shape at every
+ * property or descriptor this project might ever use; a depth-based one does not need to
+ * know any of them exist. `light-dark`'s `light`/`dark` fields are reached the same way —
+ * no special case, since the walk already recurses into every field.
  *
  * @returns {object | null} the offending node, or null if `value` holds no literal colour
  */
@@ -216,12 +256,18 @@ function checkForHardcodedColors(name, body) {
 			filename: name,
 			code: Buffer.from(body),
 			visitor: {
-				Rule: {
-					style(rule) {
-						// 0-indexed in lightningcss's own AST; every message elsewhere in this
-						// file, and every editor, counts from 1.
-						ruleLine = rule.value.loc.line + 1;
-					},
+				// Generic, not `{ style(rule) {...} }`: a per-type sub-visitor only fires for
+				// THAT type, which is why `ruleLine` used to stay `null` — and print as the
+				// literal text "null" in the error — for every declaration inside `@keyframes`
+				// or `@page`. Every rule kind carries its own `loc`, checked directly above.
+				Rule(rule) {
+					// 0-indexed in lightningcss's own AST; every message elsewhere in this
+					// file, and every editor, counts from 1.
+					ruleLine = rule.value.loc.line + 1;
+					if (!violation && RULE_VALUE_FALLBACK_TYPES.has(rule.type)) {
+						const found = findHardcodedColor(rule.value);
+						if (found) violation = { found, line: ruleLine };
+					}
 				},
 				Declaration(declaration) {
 					if (violation) return;

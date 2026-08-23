@@ -256,6 +256,22 @@ valid assignments the day `ft2` is added, and would do it by returning a plausib
 validation error rather than failing loudly. The picker (`ListAssets`, below) still
 lists every project Asset unfiltered; the command is what enforces the rule.
 
+**The Zone and the Asset must belong to the same Project.** `AssignAssetInput` is two
+bare IDs, so nothing in its shape stops a caller pairing a Zone from Project A with an
+Asset from Project B — and `AssignAssetCommand` already loads both entities (it needs
+the Zone's area and the Asset's unit/cost regardless), so the check costs nothing:
+`zone.projectId !== asset.projectId` is a `ValidationError`, refused before any
+Requirement is constructed. Without it the command would persist a `Requirement` whose
+own `projectId` came from one Project while its `assetId` points into another's
+catalog, leaking one project's unit costs into another's estimates and producing a
+Requirement that `ListAssets(projectId)` can never surface a matching Asset for.
+
+The UI cannot be the guard here: `ListAssets(projectId)` filtering the picker to one
+project makes the bad pairing *unreachable through the Inspector*, which is exactly the
+kind of "it can't happen from the UI" reasoning that leaves a script, a migration, or a
+later epic's caller free to do it. The command owns the invariant, per §3.3's
+Domain-First rule that a handler is not a trusted caller.
+
 **Unit conversion at this boundary, not a shared convention.** `Requirement.wasteFactor`
 is a fraction in `[0, 1]` (`0.10` meaning "10% waste") because that is the natural range
 for the Inspector to validate and edit. Slice 9's `applyWaste(required, wastePercent)`
@@ -798,11 +814,15 @@ PRD specifies it, so this slice defines the command's contract for receiving a t
 without designing the UI that supplies it.
 
 What the command does **not** delegate to that unbuilt picker is validating what it is
-handed. An Asset `reassignTo` goes through the same `UNIT_KIND` area check
-`AssignAssetCommand` applies, for the identical reason: a Zone's area is not an identity
-input for a `piece` or `hour` Asset, and a rule enforced on one of the two paths that can
-create the link is a rule a user reaches around by deleting an Asset instead of assigning
-one. Both paths read the same map rather than each comparing against a literal `'m2'`.
+handed. An Asset `reassignTo` goes through **both** of `AssignAssetCommand`'s checks —
+the same `UNIT_KIND` area check and the same `zone.projectId === asset.projectId`
+check — for the identical reason: a Zone's area is not an identity input for a `piece`
+or `hour` Asset, a Requirement must not point into another Project's catalog, and a
+rule enforced on one of the two paths that can create the link is a rule a user reaches
+around by deleting an Asset instead of assigning one. Both paths read the same
+`UNIT_KIND` map rather than each comparing against a literal `'m2'`, and both compare
+the two entities' `projectId`s rather than trusting whichever picker supplied the
+target.
 
 ## Interfaces & Contracts
 
@@ -848,8 +868,10 @@ type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationErro
 // reporting success.
 interface AssignAssetInput { zoneId: ZoneId; assetId: AssetId; }
 type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, ValidationError | DomainError | ReferenceError | PersistenceError>>;
-// idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one;
-// ValidationError if the Asset's unit is not "m2" — see "The derivation pipeline" above
+// idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one.
+// ValidationError if the Asset's unit is not area-kind, or if zone.projectId !==
+// asset.projectId — both checked before any Requirement is constructed, see
+// "The derivation pipeline" above
 
 // application/commands/requirement/ReversibleAssignAssetCommand.ts — the adapter the
 // Inspector's "Assign Asset" control actually dispatches. PRD §68 names
@@ -1087,7 +1109,11 @@ are additive, not breaking.
   (zone, asset) pair. `AssignAssetCommand` against an Asset whose `unit` is
   `m`, `m3`, `piece`, `hour`, `day`, or `fixed` resolves a `ValidationError`
   and creates no Requirement — table-driven over all six rejected units, not just
-  one. A test publishes `ZoneGeometryChanged` directly on an
+  one. `AssignAssetCommand` given a Zone and an Asset with different `projectId`s
+  likewise resolves a `ValidationError` and creates no Requirement — driven through
+  the command with two fixture Projects, never through the picker, since the picker
+  is precisely the path that cannot produce this input. A test publishes
+  `ZoneGeometryChanged` directly on an
   in-memory Event Bus and asserts the full cascade fires in order —
   `RequirementInvalidated` → `RequirementRecalculated` → `CostEstimateChanged`
   — exactly once each, with the Requirement's persisted `calculated` values
@@ -1193,6 +1219,10 @@ are additive, not breaking.
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
       identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
       check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
+- [ ] `AssignAssetCommand` rejects a Zone and Asset belonging to different Projects
+      with a `ValidationError` and creates no Requirement, asserted by driving the
+      command directly rather than the project-filtered picker — no Requirement can
+      reference an Asset from another Project's catalog.
 - [ ] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
@@ -1281,10 +1311,12 @@ are additive, not breaking.
       or a failed `markStale` compensates and fails it. The two halves are asserted
       separately, since one policy applied to both would be wrong in one direction or the
       other.
-- [ ] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, or
-      an Asset whose unit is not of `area` kind resolves a `ValidationError`, writes
-      nothing, and deletes nothing — the unit check reading slice 9's `UNIT_KIND`, the
-      same map `AssignAssetCommand` reads, so the two paths that can create a link cannot
+- [ ] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, an
+      Asset whose unit is not of `area` kind, or an Asset belonging to a different
+      Project than the Zone resolves a `ValidationError`, writes nothing, and deletes
+      nothing — the unit check reading slice 9's `UNIT_KIND` and the project check
+      comparing the two entities' `projectId`s, the same two checks
+      `AssignAssetCommand` applies, so the two paths that can create a link cannot
       disagree about what a valid one is.
 - [ ] Both override fields dispatch their reversible adapter through
       `CommandHistory.run()` — no plain override command reaches the panel — and undo

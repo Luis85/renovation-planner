@@ -274,16 +274,29 @@ both writes as one logical transaction:
 ```text
 1. Validate the incoming Zone → { frontmatter DTO, geometry entry } — fully, before
    any disk I/O. A validation failure aborts here; nothing is written.
-2. Read the plan's current sidecar (via Project Index → sidecar path).
+2. Read the plan's current sidecar (via Project Index → sidecar path), AND read this
+   zone's note to capture the restore snapshot step 5 needs: for an existing note,
+   its current frontmatter; for a note that does not exist yet, the fact that this
+   save is an INSERT. Which of the two it is decides how step 5 compensates, so it
+   is established here, before anything is written — never inferred afterwards, when
+   the note exists either way and the two cases are indistinguishable.
 3. Write the zone's Markdown frontmatter (FileManager.processFrontMatter — body
-   untouched).
+   untouched), creating the note if this is an insert.
 4. Upsert this zone's entry into the sidecar's objects[] and write the sidecar back.
-5. If step 4 fails after step 3 succeeded: attempt to restore the frontmatter this
-   repository just overwrote to its pre-write snapshot, and return a
-   PersistenceError. This is a compensating write, not a database transaction —
-   Obsidian's Vault API has no multi-file atomicity — so the repository logs when
-   the compensating write itself fails, rather than claiming consistency it cannot
-   guarantee.
+5. If step 4 fails after step 3 succeeded, compensate according to what step 2
+   recorded, and return a PersistenceError either way:
+     - UPDATE — restore the frontmatter this repository just overwrote to its
+       step-2 snapshot. The note keeps its body, its unknown keys, and its prior
+       geometry entry, exactly as if the save had never run.
+     - INSERT — delete the note this repository just created. There is no snapshot
+       to restore, and leaving it would produce a live Zone note with no geometry
+       entry: the same failure mode note-first delete ordering exists to prevent
+       (below), reached from the other direction. Restoring "the pre-write
+       frontmatter" of a note that had none is not a no-op — it is what silently
+       leaves that orphan behind.
+   This is a compensating write, not a database transaction — Obsidian's Vault API
+   has no multi-file atomicity — so the repository logs when the compensating write
+   itself fails, rather than claiming consistency it cannot guarantee.
 6. On success, upsert the Project Index entry for this zone synchronously (§47) —
    the index is not left to catch up asynchronously via the vault-change pipeline.
 ```
@@ -320,6 +333,40 @@ Plan creation/deletion owns the sidecar's *existence* (create an empty sidecar w
 Plan is created; delete it when a Plan is deleted) but never touches `objects[]`
 content — only `ObsidianZoneRepository` (and later, other spatial-object
 repositories) writes individual entries.
+
+That two-file lifecycle needs the same compensated ordering as a Zone's, for the same
+reason — a Plan note and its sidecar are two writes with no atomicity between them:
+
+```text
+ObsidianPlanRepository.save() — insert:
+1. Write the sidecar first, with an empty objects[] (and calibration: null).
+2. Write the Plan note's frontmatter, creating the note.
+3. If step 2 fails after step 1 succeeded: delete the sidecar just created, and
+   return a PersistenceError. Sidecar-first is deliberate here, the mirror of
+   note-first for delete: a Plan note that exists without its sidecar is the worse
+   failure — every ObsidianZoneRepository.save() against that Plan then fails at
+   step 2 above, so the Plan looks live but cannot hold geometry — while an orphan
+   sidecar with no note is inert, unreferenced by the Project Index, and reclaimed
+   by the same cleanup that handles any other orphan.
+
+ObsidianPlanRepository.save() — update: the Plan note's frontmatter only. An update
+never creates or deletes the sidecar, so there is no second write to compensate.
+
+ObsidianPlanRepository.delete():
+1. Read both the Plan note's frontmatter and its sidecar as a restore snapshot.
+2. Delete the note.
+3. Delete the sidecar.
+4. If step 3 fails after step 2 succeeded: restore the note from the step-1
+   snapshot, and return a PersistenceError — the same reasoning as a Zone's
+   delete(), and the same reason it cannot shrug off the orphan: a caller whose
+   Result is an error must be able to trust that nothing was deleted.
+5. On success, remove the Plan's Project Index entry (and its sidecar-path mapping)
+   synchronously.
+```
+
+A Plan delete does not iterate its Zones' notes: deleting a Plan with existing Zones
+is a reference-integrity decision (PRD §64), made before this repository is called,
+not a cascade this layer performs on its own (slice 11's Data Safety rule 5).
 
 ### Sidecar writes are serialized per plan (§42)
 
@@ -690,6 +737,18 @@ interface FindZonesByPlanQuery {
   mirror case for `delete()`: sidecar removal fails after the note is deleted; assert
   the note is restored, so no caller is handed a failed `Result` for an operation that
   half-happened.
+- **Insert-specific compensation test:** the same sidecar-write failure, but on a
+  save that *creates* a new Zone note rather than updating one. Assert the note does
+  not exist afterwards — a restore-the-snapshot compensation would pass the update
+  test above while leaving exactly the orphan (a live note with no geometry entry)
+  this case exists to prevent, so the insert path needs its own assertion and cannot
+  be folded into the update one.
+- **Plan lifecycle compensation tests:** a Plan insert whose note write fails after
+  the sidecar was created — assert the sidecar is gone and a `PersistenceError` is
+  returned; and a Plan delete whose sidecar removal fails after the note was deleted
+  — assert the note is restored. Both mirror the Zone cases and both must be
+  asserted directly, since a Plan's two writes have the same lack of atomicity and
+  the failure is only visible on the path that failed.
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -737,6 +796,15 @@ interface FindZonesByPlanQuery {
    after the note is deleted asserts the note is restored and a `PersistenceError` is
    returned — so a failed delete leaves nothing deleted, and a caller's failed
    `Result` never means "partly done, and no longer undoable."
+6a. A Zone save that *inserts* a note and then fails its sidecar write deletes that
+    note rather than restoring a snapshot it never had — asserted by its own test,
+    separate from the update-path case in item 5, since restoring nothing would leave
+    a live note with no geometry and still pass item 5.
+6b. `ObsidianPlanRepository` compensates its own two-file lifecycle: an insert writes
+    the sidecar before the note and deletes the sidecar if the note write fails; a
+    delete removes the note before the sidecar and restores the note if the sidecar
+    removal fails. Both directions are covered by tests, so a failed Plan create or
+    delete never exposes a live Plan without its sidecar.
 7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
    test issues them without awaiting the first, then asserts the sidecar contains both
    entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the

@@ -447,10 +447,19 @@ precisely the link the assignment path refuses to create — an invariant enforc
 things are made and abandoned where they are changed, which is the same shape as the
 two rules already corrected above. Recalculating cannot rescue it either: there is no
 correct quantity to recalculate *to*, because a Zone's area is not a length. So
-`UpdateAssetCommand` first asks `listByAsset`, and if any Requirement references the
-Asset and `UNIT_KIND[next] !== UNIT_KIND[current]`, it returns a `ValidationError`
-naming the referencing count and writes nothing. Changes *within* a kind stay allowed
-and cascade normally, as does any unit change on an Asset nothing references yet.
+`UpdateAssetCommand` acquires that Asset's reference lock (below), then asks
+`listByAsset`, and if any Requirement references the Asset and
+`UNIT_KIND[next] !== UNIT_KIND[current]`, it returns a `ValidationError` naming the
+referencing count and writes nothing. Changes *within* a kind stay allowed and cascade
+normally, as does any unit change on an Asset nothing references yet.
+
+**The lock is held from before `listByAsset` through the save, not just around the
+check.** Otherwise this is a check-and-write with a gap in it: an update observing zero
+referents can be overtaken by an `AssignAssetCommand` that creates one, and the save
+then lands a non-area unit under a live Requirement — the very state the guard exists
+to refuse, reached by getting the timing right rather than by bypassing anything. It is
+the same shape as the delete sequence's window below, and it needs the same answer,
+because a guard that only *usually* holds is not an invariant.
 
 That guard and `calculatedFrom.assetUnit` are not redundant: the guard is the invariant
 and stops the state being reachable through the command, while the snapshot is the
@@ -655,6 +664,24 @@ for the reason slice 8 spells out for creation: `CommandHistory.redo()` calls `e
 again, and a fresh identity would strand every later command that captured the old one.
 This adapter and slice 8's `ReversibleCreateZoneCommand` are the same shape over
 different plain commands.
+
+**Preserving the ID is not the same as skipping the checks, and redo must still run
+them.** The gap between an undo and its redo is ordinary editing time, and the undo
+itself is what opens it: with the Requirement gone, the Asset is unreferenced, so the
+unit guard above — which only refuses while referents exist — correctly permits changing
+it from `m2` to `m`. A redo that re-saved the snapshot blindly would then recreate a
+Requirement whose quantity is an area against an Asset measured in length, through
+nothing but assign → undo → edit → redo, with no step in that sequence doing anything
+wrong. Deleting either endpoint in the same window has the same shape and produces a
+dangling reference instead.
+
+So redo re-acquires both endpoint locks and re-runs `AssignAssetCommand`'s checks — both
+endpoints resolve, `projectId`s match, the Asset is still area-kind — against the
+current world, and carries over only the ID. It can therefore fail, which is correct and
+already handled: slice 6's `redo()` inspects the resolved `Result` and leaves the command
+on `redoStack` when it errors, so a refused redo neither half-applies nor vanishes from
+the history. Nothing about "the user already did this once" makes a link valid against
+entities that have since changed underneath it.
 
 ### Deletion & reference integrity
 
@@ -892,7 +919,21 @@ AssignAssetCommand (and reassign, which also creates references)
   → hold the lock on BOTH endpoints it links — the Zone and the Asset — for the
     duration of the create, since either one being deleted concurrently is the
     same hazard
+
+UpdateAssetCommand, when the edit changes the Asset's unit
+  → hold the lock on that Asset from before listByAsset through the save, so the
+    "no referents, therefore this unit change is safe" conclusion cannot be
+    falsified by a concurrent assignment before the write lands
+
+ReversibleAssignAssetCommand.execute() on redo
+  → holds both endpoint locks, exactly as a first assignment does; a redo creates
+    a reference like any other create (see below)
 ```
+
+The lock is a mutual-exclusion set over *everything that can make the reference graph
+disagree with an invariant someone is about to rely on*: creating a reference, deleting
+a referenced entity, and changing a referenced entity's unit. It is not a general
+Requirement mutex — see the scoping note at the end of this section.
 
 Held across steps 0–3 rather than only around step 3, so the set the user consented to
 is the set that is still true when the entity goes. It is released before undo can run:
@@ -1018,8 +1059,15 @@ class ReversibleAssignAssetCommand implements UndoableCommand {
   // this call created it or found an existing one — AssignAssetCommand is idempotent,
   // so the two are indistinguishable from its payload alone, and an undo that deleted
   // a pre-existing Requirement would destroy a link (and its overrides) the user never
-  // made in this gesture. Every later call (i.e. redo) re-saves the recorded snapshot
-  // under its original ID instead of re-assigning, so the ID survives undo/redo.
+  // made in this gesture.
+  //
+  // Redo restores the recorded snapshot UNDER ITS ORIGINAL ID, but it is a
+  // create like any other and revalidates before saving: it re-acquires both
+  // endpoint locks, re-reads the current Zone and Asset, and re-runs exactly the
+  // checks AssignAssetCommand runs — both endpoints still exist, their projectIds
+  // still match, the Asset's unit is still area-kind — failing with the same errors
+  // if any no longer holds. Only the ID is carried over from the snapshot; the
+  // validity is re-established against the world as it is now.
   execute(): Promise<Result<void, AppError>>;
   undo(): Promise<Result<void, AppError>>;   // deletes only what execute() created; a
                                              // no-op when it found one already there
@@ -1374,7 +1422,9 @@ are additive, not breaking.
       Requirement references the Asset — `ValidationError`, nothing written, no
       `AssetUpdated` published — while a same-kind unit change, and any unit change on
       an unreferenced Asset, still succeeds and cascades. This is the update-path half
-      of the invariant `AssignAssetCommand` enforces at creation.
+      of the invariant `AssignAssetCommand` enforces at creation, and it holds the
+      Asset's reference lock from before `listByAsset` through the save, so a
+      concurrent assignment cannot falsify the check between the two.
 - [ ] With that guard bypassed (a hand-edited note or a migration), a Requirement whose
       Asset unit changed kind still reads `"stale"` even though its `zoneArea` and
       `unitCost` are byte-identical — the `calculatedFrom.assetUnit` mismatch is what
@@ -1382,7 +1432,10 @@ are additive, not breaking.
 - [ ] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
       Requirement this gesture created, redo restores it under the same
       `RequirementId`, and undo on the idempotent path — where the Requirement already
-      existed — deletes nothing and preserves its overrides.
+      existed — deletes nothing and preserves its overrides. Redo restores the ID but
+      not the validity: it re-acquires both endpoint locks and re-runs
+      `AssignAssetCommand`'s existence, project and unit-kind checks against the
+      current entities, refusing rather than recreating a link that is no longer legal.
 - [ ] A Requirement left dangling by `delete-anyway` on its **Asset** is still readable:
       `GetRequirementsForZone` returns the row with `assetName: null`,
       `missingTarget: 'asset'` and `"stale"`. The query neither fails nor silently omits
@@ -1432,6 +1485,18 @@ are additive, not breaking.
       waits and fails to resolve an entity that is gone. Asserted by interleaving the
       two commands without awaiting the first, not by reasoning about ordering — a test
       that awaited the delete before assigning would pass without any lock at all.
+- [ ] An `AssignAssetCommand` dispatched *during* a unit-changing `UpdateAssetCommand`
+      — after its `listByAsset` returned empty and before its save — cannot leave a
+      Requirement linked to a non-area Asset: the same lock serializes them, so either
+      the update lands first (and the assignment then refuses on unit kind) or the
+      assignment lands first (and the update then refuses on referents). Interleaved
+      without awaiting, for the same reason as above.
+- [ ] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
+      the now-unreferenced Asset from `m2` to `m`, the redo resolves a
+      `ValidationError` and creates nothing, rather than restoring a Requirement whose
+      area quantity now describes a length-unit Asset. Same for redo after either
+      endpoint is deleted. The command stays on `redoStack` (slice 6), so the history
+      is not corrupted by the refusal.
 - [ ] Each of `remove-references`, `reassign` and `delete-anyway` produces its own
       distinct outcome, covered by a test per resolution: references deleted, references
       repointed at `reassignTo`, and references left behind marked `"stale"`

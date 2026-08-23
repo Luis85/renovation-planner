@@ -259,19 +259,42 @@ written, in the same shape as this slice's other multi-file sequences:
    exists and already contains .rpgeo files is refused (ValidationError) rather than
    merged into — two sets of sidecars in one folder is a collision this design has no
    rule for resolving.
-2. Move every .rpgeo file from the current folder to the target, recording each move.
-3. If any move fails: move back everything already moved, leave the setting unchanged,
-   and return a PersistenceError. A failed folder change changes nothing at all.
+2. Write a migration marker to the plugin's own data (NOT data.json's settings, which
+   step 6 still has to write): { from, to, startedAt }. This is what makes the move
+   survivable across a process exit — see below.
+3. Move every .rpgeo file from the current folder to the target, recording each move.
 4. Rebuild the Project Index against the new folder, so getGeometrySidecarPath()
    resolves before any caller can ask.
-5. Only now persist geometrySidecarFolder through settingsFrom.
+5. Persist geometrySidecarFolder through settingsFrom.
+6. Clear the migration marker. The move is complete only now.
+
+On failure at ANY of steps 3, 4 or 5: move every file already moved back to the
+original folder, rebuild the index against the original folder, leave the setting
+unchanged, clear the marker, and return a PersistenceError. A failed folder change
+changes nothing at all.
 ```
 
-Step 5 last is the whole point: the setting is the *record* of where the sidecars are,
-so writing it first would make it a claim about a state that does not exist yet, and a
-crash between the two would leave exactly the orphaning this sequence prevents. If the
-folder is empty of sidecars — no Plans yet, the common case — steps 2–4 are no-ops and
-the change is just a setting write.
+Step 5 before 6 and after 3 is the whole point: the setting is the *record* of where
+the sidecars are, so writing it before the files move makes it a claim about a state
+that does not exist yet — and leaving the files moved with the setting unchanged is the
+same lie in the other direction. Both produce exactly the orphaning this sequence
+prevents, which is why the rollback covers the index rebuild and the settings write and
+not only the moves. The first version of this sequence rolled back on step 3 alone,
+which quietly assumed the two steps after it could not fail.
+
+**The marker is what covers a process exit**, which no rollback can. Steps 3–5 are
+several writes with no atomicity between them, so a crash mid-move leaves files split
+across two folders with the setting pointing at one of them. On plugin load, before the
+index is built: if a marker is present, the plugin completes the interrupted move
+(every `.rpgeo` still in `from` moves to `to`, and the setting is set to `to`) and then
+clears it. Completing forward rather than reversing is the safer of the two, because
+`to` is where the majority of files already are by the time most of the sequence has
+run, and because the alternative would have to undo a settings write that may already
+have happened. A marker whose `from` and `to` folders are both empty of sidecars is
+cleared as a no-op.
+
+If the folder is empty of sidecars — no Plans yet, the common case — steps 3–4 are
+no-ops and the change is a marker write, a setting write, and a marker clear.
 
 Whether the user is asked to confirm first belongs to the settings surface (slice 1's
 tab, using slice 15's `ConfirmDialog`), not here; this slice's contract is that the
@@ -854,11 +877,20 @@ interface FindZonesByPlanQuery {
 - **Sidecar folder-change tests:** with Plans present, changing `geometrySidecarFolder`
   moves every `.rpgeo` file, rebuilds the index, and only then persists the setting —
   asserted by reading `getGeometrySidecarPath` and saving a Zone immediately afterwards,
-  with no plugin reload. Then the failure path: a move that fails partway moves
-  everything back, leaves the setting at its old value, and returns a
-  `PersistenceError`. And the refusal path: a target folder already containing `.rpgeo`
-  files is rejected without moving anything. A test that only asserted the setting's
-  new value would pass against the silent write that orphans the data.
+  with no plugin reload. Then the failure paths, one per fallible step and not just the
+  first: a failing **move**, a failing **index rebuild**, and a failing **settings
+  write** each leave every file back in the original folder, the setting at its old
+  value, the index resolving against the original folder, and return a
+  `PersistenceError`. The rebuild and settings-write cases are the ones a
+  rollback-on-move-only implementation fails, and they are the reason each gets its own
+  assertion. And the refusal path: a target folder already containing `.rpgeo` files is
+  rejected without moving anything. A test that only asserted the setting's new value
+  would pass against the silent write that orphans the data.
+- **Interrupted folder-change test:** simulate a process exit mid-move by leaving a
+  migration marker plus a folder split across `from` and `to`, then run plugin load.
+  Assert the move completes forward, the setting ends at `to`, the marker is cleared,
+  and `getGeometrySidecarPath` resolves for every Plan — the recovery no rollback can
+  perform, since the process that would have rolled back is gone.
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -926,10 +958,16 @@ interface FindZonesByPlanQuery {
     frontmatter field (there is none). The port has no read whose mapping nothing
     writes, and no caller derives a sidecar path from a note path (ADR-011).
 6e. Changing `geometrySidecarFolder` while sidecars exist moves them, rebuilds the
-    index, and persists the setting only on success; a failed move restores every file
-    and leaves the setting unchanged; a target folder already holding `.rpgeo` files
-    is refused. ADR-011's orphaning consequence is discharged here rather than left as
-    a warning — a Plan's geometry stays reachable across the change with no reload.
+    index, and persists the setting only on success; a failure at **any** of the move,
+    the rebuild or the settings write restores every file and leaves the setting
+    unchanged; a target folder already holding `.rpgeo` files is refused. ADR-011's
+    orphaning consequence is discharged here rather than left as a warning — a Plan's
+    geometry stays reachable across the change with no reload.
+6f. A process exit part-way through that change is recoverable: a migration marker
+    written before the first move and cleared only after the setting is persisted lets
+    the next plugin load complete the interrupted move and clear the marker, before
+    the index is built. Asserted from a fixture with a marker and a half-moved folder,
+    since this is the failure a rollback cannot cover.
 7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
    test issues them without awaiting the first, then asserts the sidecar contains both
    entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the

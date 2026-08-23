@@ -1,6 +1,17 @@
 ---
 type: Task
 parent: "[[Architecture and Software Design]]"
+order: 160
+status: ""
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 # Design Slice 14: Empty States
 

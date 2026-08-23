@@ -3,6 +3,15 @@ type: Issue
 status: Open
 order: 20
 parent: "[[Architecture and Software Design]]"
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 
 # Zone-less requirements have no in-plugin surface

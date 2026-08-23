@@ -1,6 +1,17 @@
 ---
 type: Task
 parent: "[[Architecture and Software Design]]"
+order: 50
+status: ""
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 # Design Slice 3: Domain Foundation — Project, Plan, Zone
 

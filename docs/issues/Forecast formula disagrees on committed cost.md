@@ -3,6 +3,15 @@ type: Issue
 status: Open
 order: 10
 parent: "[[Architecture and Software Design]]"
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 
 # Forecast formula disagrees on committed cost

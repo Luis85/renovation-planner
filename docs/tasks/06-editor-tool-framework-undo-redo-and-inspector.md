@@ -1,6 +1,17 @@
 ---
 type: Task
 parent: "[[Architecture and Software Design]]"
+order: 80
+status: ""
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 # Design Slice 6: Editor Tool Framework, Undo/Redo & Inspector
 

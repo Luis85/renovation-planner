@@ -1,6 +1,17 @@
 ---
 type: Task
 parent: "[[Architecture and Software Design]]"
+order: 130
+status: ""
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 # Design Slice 11: Error Handling, Diagnostics & Data Safety
 

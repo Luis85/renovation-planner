@@ -1,6 +1,17 @@
 ---
 type: Task
 parent: "[[Architecture and Software Design]]"
+order: 60
+status: ""
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
 ---
 # Design Slice 4: Persistence & Repository Layer
 

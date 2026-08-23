@@ -112,6 +112,17 @@ them:
   since a plain Map out of a composable is a snapshot and a rejected `submit()` would have
   rendered no errors at all — is a `Ref`.
 
+  A fifth followed from the fourth and is a different lesson worth keeping. Giving
+  `setField` real behaviour — clearing the edited field's error, so a corrected value
+  stops carrying a stale message — established a rule on the form path and left the
+  Inspector's `onInput` without it, in a slice whose own text says the two composables
+  differ only in commit boundary. The types had been mirrored and the behaviour had not,
+  which is the harder half to notice: an Inspector field would have displayed "must be
+  zero or more" under a value the user had already fixed. Both composables now carry the
+  rule and each asserts it directly rather than inheriting it from the other. **When a
+  rule is established on one path, find its mirror in the same change** — nothing in a
+  document flags the half you did not write.
+
   The rule those four cases produced: **a departure is for when conforming and behaving
   come apart.** Three of the four turned out not to be that, and the fourth (slice 13's)
   genuinely is.

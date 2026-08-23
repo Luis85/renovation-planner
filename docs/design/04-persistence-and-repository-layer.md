@@ -348,9 +348,20 @@ ObsidianPlanRepository.save() — insert:
    step 2 above, so the Plan looks live but cannot hold geometry — while an orphan
    sidecar with no note is inert, unreferenced by the Project Index, and reclaimed
    by the same cleanup that handles any other orphan.
+4. On success, upsert the Plan's Project Index entry synchronously — BOTH the note
+   path and geometrySidecarPath, in one entry — exactly as a Zone save does (step 6
+   above) and as this repository's own delete() does in reverse. This step is not
+   optional bookkeeping: until it runs, GetPlan cannot resolve the new Plan and
+   ObsidianZoneRepository.save() cannot find its sidecar, so navigating to the Plan
+   or drawing the first Zone fails for as long as the debounced vault-change
+   pipeline takes to notice the new files. This repository is also the only code
+   that knows the sidecar's path at this moment, and ADR-011 forbids re-deriving it.
 
 ObsidianPlanRepository.save() — update: the Plan note's frontmatter only. An update
-never creates or deletes the sidecar, so there is no second write to compensate.
+never creates or deletes the sidecar, so there is no second write to compensate — but
+it still upserts the index entry on success, carrying geometrySidecarPath through
+unchanged. Writing an entry that dropped the field would clear the mapping and break
+every Zone operation on a Plan whose only change was its title.
 
 ObsidianPlanRepository.delete():
 1. Read both the Plan note's frontmatter and its sidecar as a restore snapshot.
@@ -641,8 +652,29 @@ interface ProjectIndexEntry {
   path: string;
   projectId?: ProjectId;
   planId?: PlanId;
+  // Plan entries only: the path of this Plan's geometry sidecar. This is what
+  // getGeometrySidecarPath() reads, and the only way the mapping is ever written
+  // — see "The sidecar path is a field on the Plan's entry" below.
+  geometrySidecarPath?: string;
 }
 ```
+
+**The sidecar path is a field on the Plan's entry, not an entry of its own.** A sidecar
+has no entity ID — it is a file belonging to a Plan, not an entity in the model — so it
+cannot be indexed the way a note is, and `upsert`/`rebuild` take entries keyed by
+`EntityId`. Carrying the path on the Plan's own entry is what gives
+`getGeometrySidecarPath` something to read: `ObsidianPlanRepository` sets it in the same
+`upsert` that records the Plan note's path (it has just created or resolved the sidecar,
+so it is the only code that knows the path), and `rebuild` recovers it during the scan
+by reading each Plan note's frontmatter for its sidecar reference. Without this field
+the port had a getter no writer could satisfy, and since path derivation is explicitly
+forbidden (ADR-011), every Zone read and write on that Plan would resolve to
+`undefined`.
+
+A non-Plan entry leaves it absent, and a Plan entry missing it is a broken index rather
+than a Plan without geometry: an empty sidecar still exists and still has a path (slice
+4 creates one with every Plan), so `undefined` here means the mapping was lost, not that
+there is nothing to point at.
 
 Migration registry (infrastructure):
 
@@ -749,6 +781,15 @@ interface FindZonesByPlanQuery {
   — assert the note is restored. Both mirror the Zone cases and both must be
   asserted directly, since a Plan's two writes have the same lack of atomicity and
   the failure is only visible on the path that failed.
+- **Immediate-usability test:** save a new Plan, then — with the vault-change pipeline
+  disabled or not yet fired — assert `GetPlan` resolves it and
+  `ObsidianZoneRepository.save()` finds its sidecar and writes a Zone. This is what
+  the synchronous index upsert on the insert path buys, and a test that let the
+  debounced pipeline run first would pass without it.
+- **Sidecar-mapping round trip:** assert `getGeometrySidecarPath(planId)` returns the
+  path after a `save()`-driven `upsert`, after a `rebuild()` from a Vault scan, and
+  after an update-only `save()` that changed just the Plan's title (the case where an
+  entry written without `geometrySidecarPath` would silently clear the mapping).
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -805,6 +846,14 @@ interface FindZonesByPlanQuery {
     delete removes the note before the sidecar and restores the note if the sidecar
     removal fails. Both directions are covered by tests, so a failed Plan create or
     delete never exposes a live Plan without its sidecar.
+6c. A newly saved Plan is usable immediately, without waiting for the vault-change
+    pipeline: `GetPlan` resolves it and a Zone can be saved against it, because the
+    insert path upserts the Project Index entry — note path **and**
+    `geometrySidecarPath` — synchronously on success.
+6d. `getGeometrySidecarPath(planId)` is populated by every writer that can populate
+    it: `ObsidianPlanRepository.save()` on insert and on update, and `rebuild()` from
+    a Vault scan. The port has no read whose mapping nothing writes, and no caller
+    derives a sidecar path from a note path (ADR-011).
 7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
    test issues them without awaiting the first, then asserts the sidecar contains both
    entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the

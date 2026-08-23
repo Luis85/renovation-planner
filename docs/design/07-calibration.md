@@ -283,10 +283,10 @@ the tool asks first, through slice 15's `ConfirmDialog`:
 ```text
 CalibrateTool, after the known distance is supplied
   ↓
-plan.calibration === null OR the Plan has no spatial objects?
-  yes → dispatch ReversibleCalibratePlanCommand directly. A first calibration
-        establishes the scale; it does not reinterpret anything already drawn
-  no  → dialogStore.openDialog({ kind: 'confirm', danger: true, … })
+does the Plan have any spatial objects?
+  no  → dispatch ReversibleCalibratePlanCommand directly. There is nothing drawn
+        for the new scale to reinterpret
+  yes → dialogStore.openDialog({ kind: 'confirm', danger: true, … })
           — names the count of objects that will be rescaled
   ↓
 'cancel' → dispatch nothing. Escape and the cancel button are the same answer
@@ -294,16 +294,25 @@ plan.calibration === null OR the Plan has no spatial objects?
 'confirm' → dispatch ReversibleCalibratePlanCommand
 ```
 
-Three things this deliberately does **not** do. It does not make the command
-conditional — `ReversibleCalibratePlanCommand` still rescales uniformly whether or not
-a dialog preceded it, because a script, a migration, or an undo/redo replay never opens
-one, and a command that trusted a caller's confirmation would be trusting the one thing
-that is absent exactly when it matters. It does not gate on `plan.calibration !== null`
-alone: a Plan calibrated once but never drawn on has nothing to reinterpret, so asking
-would train the user to click through a dialog that is usually meaningless — the count
-of affected objects is what makes the question real. And it does not confirm the
-*undo*: undo reverses a change the user just confirmed, and asking again would make
-the reversal harder than the action.
+**The gate is the object count alone — not whether this is the first calibration.**
+Slice 8 is explicit that a Zone can be drawn on an uncalibrated Plan (`screenToWorld`
+produces well-formed world points calibrated or not), so `calibration === null` with
+existing geometry is an ordinary state, not a contradiction. And the command does not
+treat that state specially: it derives `scaleCorrection` against a
+`previousPixelsPerWorldUnit` that defaults to `1` and rescales every spatial object
+uniformly, exactly as a recalibration does. A first calibration over existing geometry
+is therefore the same large-blast-radius operation under a different name, and gating
+on "is this the first one" would skip the dialog for precisely the case that most needs
+it — silently reinterpreting every Zone the user drew before calibrating. What makes
+the question real is that objects will be rescaled, which is what the gate asks.
+
+Two things this deliberately does **not** do. It does not make the command conditional
+— `ReversibleCalibratePlanCommand` still rescales uniformly whether or not a dialog
+preceded it, because a script, a migration, or an undo/redo replay never opens one, and
+a command that trusted a caller's confirmation would be trusting the one thing that is
+absent exactly when it matters. And it does not confirm the *undo*: undo reverses a
+change the user just confirmed, and asking again would make the reversal harder than
+the action.
 
 This is a `ConfirmDialog`, not a `DeleteReferenceDialog`: the question is binary
 (proceed or not), nothing is being deleted, and there are no referents to enumerate —
@@ -353,11 +362,18 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
   }
 
   async undo(): Promise<Result<void, PersistenceError>> {
-    // restore the previous Calibration and reverse the rescale (divide by
-    // scaleCorrection), from a snapshot taken before execute() — bypasses the
-    // command layer directly through the repository, the same reasoning
-    // slice 8's ReversibleDeleteZoneCommand.undo() uses (no natural "recalibrate
-    // to the opposite scale" inverse call to make instead)
+    // 1. restore the previous Calibration and reverse the rescale (divide by
+    //    scaleCorrection), from a snapshot taken before execute() — bypasses the
+    //    command layer directly through the repository, the same reasoning
+    //    slice 8's ReversibleDeleteZoneCommand.undo() uses (no natural "recalibrate
+    //    to the opposite scale" inverse call to make instead)
+    // 2. emit ZoneGeometryChanged for every object it just un-rescaled — the same
+    //    event, for the same objects, that execute() emitted. Restoring the
+    //    coordinates is only half the inverse: execute()'s events drove slice 10
+    //    to recalculate every Requirement against the rescaled areas, and an undo
+    //    that skipped them would leave those quantities and costs describing
+    //    geometry that no longer exists, marked "current". Bypassing the command
+    //    layer for the WRITE does not license bypassing it for the CASCADE.
   }
 }
 ```
@@ -520,7 +536,12 @@ Application (§71):
 - `undo()` restores both the previous `Calibration` and any rescaled geometry, and
   re-publishes `ZoneGeometryChanged` for every object it un-rescaled — undo is not
   exempt from re-triggering slice 10's cascade, since the restored geometry is just as
-  much a real geometry change as the recalibration that produced it.
+  much a real geometry change as the recalibration that produced it. Asserted through
+  to the **Requirement**, not just the event: with slice 10's subscriber attached, a
+  calibrate-then-undo round trip leaves every Requirement's persisted quantity and cost
+  back at its pre-calibration figures. An undo that restored coordinates but skipped
+  the cascade passes a geometry-only assertion while leaving those figures describing
+  areas that no longer exist, marked `"current"` — which is the whole defect.
 - A successful recalibration that touched existing spatial objects emits
   `PlanCalibrated` and one `ZoneGeometryChanged` per affected object (§32 pattern),
   which a test asserts drives slice 10's `onZoneGeometryChanged` subscriber end to
@@ -536,12 +557,15 @@ Component/Canvas (§73–74, reusing that slice's harness):
   distance is supplied.
 - `cancel()` after the first click clears the pending point without dispatching
   anything.
-- **Recalibration confirmation**, three cases against a `DialogStore` double: a Plan
+- **Recalibration confirmation**, four cases against a `DialogStore` double: a Plan
   with no spatial objects dispatches with **no** dialog opened; a Plan with existing
   objects opens exactly one `ConfirmDialog` before dispatching, and the descriptor
-  names the affected object count; answering `'cancel'` dispatches nothing at all.
-  Asserted on the dispatcher spy, not only on the dialog — a tool that opened the
-  dialog and dispatched regardless would pass a dialog-only assertion.
+  names the affected object count; answering `'cancel'` dispatches nothing at all; and
+  — the case the gate was originally wrong about — a Plan with `calibration === null`
+  **and** existing objects still opens the dialog, since a first calibration rescales
+  that geometry exactly as a recalibration does. Asserted on the dispatcher spy, not
+  only on the dialog: a tool that opened the dialog and dispatched regardless would
+  pass a dialog-only assertion.
 
 Repository contract (§72, reused from slice 4): a `Calibration` round-trips through
 the sidecar unchanged.
@@ -569,21 +593,23 @@ the sidecar unchanged.
 - [ ] Recalibrating a Plan that already has persisted Zones rescales those Zones'
       geometry in the same transaction as the calibration update, with a passing
       test proving it — not just documented as intent.
-- [ ] `CalibrateTool` opens slice 15's `ConfirmDialog` before dispatching a
-      recalibration over a Plan that has spatial objects, and dispatches nothing on
-      cancel; a first calibration, and a calibration of a Plan with no objects, opens
-      no dialog. Asserted on the command dispatcher, so a tool that asks and then
-      proceeds regardless fails this rather than passing it by opening a dialog.
-      `ReversibleCalibratePlanCommand` itself is unchanged by this: it rescales
-      uniformly whether or not a dialog preceded it, since a script, a migration, and
-      an undo/redo replay never open one.
+- [ ] `CalibrateTool` opens slice 15's `ConfirmDialog` before dispatching **any**
+      calibration over a Plan that has spatial objects — first-time or repeat, since
+      the command rescales existing geometry either way — and dispatches nothing on
+      cancel; only a Plan with no objects skips the dialog. Asserted on the command
+      dispatcher, so a tool that asks and then proceeds regardless fails this rather
+      than passing it by opening a dialog. `ReversibleCalibratePlanCommand` itself is
+      unchanged by this: it rescales uniformly whether or not a dialog preceded it,
+      since a script, a migration, and an undo/redo replay never open one.
 - [ ] Recalibration publishes `ZoneGeometryChanged` (never `RequirementInvalidated`
       directly) for every rescaled object — proven by a test that this reaches slice
       10's `onZoneGeometryChanged` subscriber end to end, not just that some event
       fired.
 - [ ] `undo()` on a calibration command restores both the previous `Calibration` and
       any geometry it had rescaled, and re-publishes `ZoneGeometryChanged` for every
-      object it un-rescaled.
+      object it un-rescaled — asserted through to the Requirement, so a
+      calibrate-then-undo round trip leaves every quantity and cost back at its
+      pre-calibration figures rather than describing areas that no longer exist.
 - [ ] All calibration unit and application tests run with Obsidian, Vue, and Konva
       absent from the test environment.
 

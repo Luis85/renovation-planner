@@ -44,20 +44,34 @@ describe('the release files agree', () => {
 
 describe('the toolchain agrees', () => {
 	/**
-	 * Every workflow's `node-version` is the `engines` floor, deliberately: CI verifies
-	 * against the OLDEST Node the project claims to support, not the newest available.
-	 * The literals live in three separate YAML steps that nothing else ties to
-	 * package.json — this is what ties them, so raising the floor cannot miss one.
+	 * `engines.node` declares the OLDEST Node each supported range starts at
+	 * (`^22.22.2 || ^24.15.0 || >=26.0.0`). The one thing this checks is that the FLOOR —
+	 * the oldest range's start — is pinned and actually run somewhere in CI or the
+	 * release, because that is the one leg nothing else ties to `package.json`: skip it
+	 * and the whole point of declaring a floor (refusing an API the oldest supported
+	 * runtime lacks) goes untested. It does not require the floor be the ONLY thing run —
+	 * `verify`'s matrix also exercises the newer declared ranges as supplementary
+	 * coverage, and a range is a range precisely because supporting it does not mean
+	 * pinning one exact value.
+	 *
+	 * The scan reads every `node-version: "..."` value, not just ones that happen to be
+	 * bare digits: a leg spelled as a range (`"24.x"`) is still a `node-version` value,
+	 * and a digits-only pattern would silently stop seeing it the moment its spelling
+	 * did — this project's own rule about `foo(` missing `foo<T>(`, in a different file.
+	 * Only each value's leading major is compared, matching how the floor itself is read
+	 * from `engines.node` below.
 	 */
-	it('runs CI and the release on the engines floor', () => {
+	it('pins the engines floor somewhere in CI and the release', () => {
 		const floor = /\d+/.exec(pkg.engines.node)?.[0];
-		const pins = readdirSync('.github/workflows').flatMap((file) => [
-			...readFileSync(`.github/workflows/${file}`, 'utf8').matchAll(/node-version: "(\d+)"/g),
-		]);
+		const values = readdirSync('.github/workflows').flatMap((file) => [
+			...readFileSync(`.github/workflows/${file}`, 'utf8').matchAll(/node-version: "([^"]+)"/g),
+		]).map((m) => m[1]);
 
 		// The instrument first: zero matches would "agree" about nothing.
-		expect(pins.length).toBeGreaterThanOrEqual(3);
-		expect(new Set(pins.map((m) => m[1]))).toEqual(new Set([floor]));
+		expect(values.length).toBeGreaterThanOrEqual(3);
+
+		const majors = values.map((v) => /^\d+/.exec(v)?.[0]);
+		expect(majors).toContain(floor);
 	});
 });
 

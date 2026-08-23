@@ -2,9 +2,9 @@
 type: Task
 parent: "[[Foundation and composition root]]"
 order: 10
-status: Active
+status: Done
 started: 2026-08-23
-finished: ""
+finished: 2026-08-23
 horizon: ""
 start: ""
 due: ""
@@ -1039,12 +1039,33 @@ Module boundaries this slice fixes for every later one:
       `npm run test:coverage` pass against the coverage floors recorded for this increment.
 - [x] `npm run check` (build + lint + coverage-thresholded tests + `fallow`) passes on a
       clean checkout, and is the CI gate on both Ubuntu and Windows.
-- [ ] Manually verified inside Obsidian (`npm run test-build`, a real vault): the plugin
+- [x] Manually verified inside Obsidian (`npm run test-build`, a real vault): the plugin
       loads, the ribbon icon and command both open the empty Renovation Project view, and
-      reloading Obsidian does not duplicate leaves or lose the settings value.
-      **Left unticked deliberately** — no gate in this repository can answer it, and it is
-      the one box a person has to walk. The checklist to walk is in the implementation
-      plan's Task 6, Step 5.
+      reloading Obsidian does not duplicate leaves or lose the settings value. Walked
+      2026-08-23 against Obsidian 1.13 with this repository as the vault.
+
+      **The walk earned its place rather than confirming what was already known.** It found
+      the defect no gate here could: `loadData()` does not reject on malformed JSON, so the
+      unrecovered-settings boundary never engaged for the commonest corruption there is, and
+      220 passing tests said otherwise. See the Design section's table and
+      `settings.load.unreadable`. That is the argument for this box existing, written down
+      where the next slice's author will read it.
+
+      It also corrected a checklist item rather than the code: the implementation plan
+      claimed two `debug` lines appear at the console's Verbose level. They do not, and
+      should not — `LOG_LEVEL` is `'info'`, so this slice's `debug` calls are dropped by the
+      threshold, which is what "compile and emit nothing" in `RenovationPlannerPlugin.ts`
+      means. A silent console at every filter level is the correct result.
+
+      Two IDE warnings were raised against `SettingsTab.ts` and dismissed with evidence, not
+      by inspection: `obsidianmd/settings-tab/require-display` claiming `minAppVersion` is
+      `1.12.0`, and `import/no-extraneous-dependencies` claiming `vue` is not a dependency.
+      Both are artifacts of an editor ESLint server whose working directory is not this
+      repository — the plugin reads `fs.readFileSync('manifest.json')` on a BARE RELATIVE
+      path into module-level cache, and from that cwd it resolved another plugin's manifest
+      inside `.obsidian/plugins/`. The CLI reports neither, and `npm run lint` runs
+      `--max-warnings 0`, so either firing for real would be a red build. `eslint.config.mjs`
+      already documents this failure mode above `projectService`.
 
 ## References
 

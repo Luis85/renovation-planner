@@ -361,12 +361,23 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
     //    rather than duplicating it.
   }
 
-  async undo(): Promise<Result<void, PersistenceError>> {
+  async undo(): Promise<Result<void, CalibrationError | PersistenceError>> {
+    // 0. present the sidecar `generation` that execute()'s own write returned, so the
+    //    restore refuses with plan-geometry.generation-conflict if anything touched
+    //    this plan's geometry in between. This is slice 6's rule for inverses, and the
+    //    per-plan mutate lock is NOT a substitute for it: the lock orders this undo
+    //    against a concurrent Zone move, and ordering is exactly what makes the hazard
+    //    reachable — the move lands first, in order, and then this undo overwrites it.
+    //    Two ways it would corrupt the file, both silent: restoring the pre-calibration
+    //    polygon for a Zone somebody moved since, and dividing coordinates that were
+    //    authored against the NEW scale by a correction they were never scaled by.
+    //    A snapshot inverse is only valid against the state it was computed for.
     // 1. restore the previous Calibration and reverse the rescale (divide by
     //    scaleCorrection), from a snapshot taken before execute() — bypasses the
     //    command layer directly through the repository, the same reasoning
     //    slice 8's ReversibleDeleteZoneCommand.undo() uses (no natural "recalibrate
-    //    to the opposite scale" inverse call to make instead)
+    //    to the opposite scale" inverse call to make instead). Redo is the same shape
+    //    in the other direction: it expects the generation the undo wrote.
     // 2. emit ZoneGeometryChanged for every object it just un-rescaled — the same
     //    event, for the same objects, that execute() emitted. Restoring the
     //    coordinates is only half the inverse: execute()'s events drove slice 10
@@ -381,6 +392,13 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
 One `execute()` call is one logical transaction — one domain change, one undo entry,
 one persistence write — per §31 Transaction Boundary, exactly like slice 6's
 `ReversibleMoveZoneCommand`.
+
+That single write is why the sidecar's `generation` is one integer for the file rather
+than one per object: this command rewrites the whole document in one `mutate`, and a
+per-object version would be describing a granularity the write does not have. It also
+means the refusal is all-or-nothing, which is the honest outcome — a calibration undo
+that restored the objects nobody touched and skipped the rest would leave the plan half
+at one scale and half at another, which is worse than refusing and telling the user.
 
 ### Forward compatibility
 
@@ -578,6 +596,12 @@ the sidecar unchanged.
       `event.worldPoint` (never `event.screenPoint`, never its own pixel math), and
       never calls `screenToWorld()` itself — that conversion already happened before
       the event reached the tool (ADR-009).
+- [ ] Undoing a calibration refuses with `plan-geometry.generation-conflict` when
+      anything wrote to the plan's sidecar in between, asserted by moving a Zone
+      between the calibration and its undo and checking that both the move and the
+      calibration survive intact. Watched failing with the generation expectation
+      removed — under the per-plan lock alone the test's writes are perfectly ordered
+      and the undo still eats the move, which is the whole point.
 - [ ] `ReversibleCalibratePlanCommand` implements slice 6's `UndoableCommand`; one
       `execute()` call is one persistence write and one undo/redo history entry (§31).
 - [ ] Marking two distinct points on an imported plan's background and supplying a

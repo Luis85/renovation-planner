@@ -148,10 +148,11 @@ stacks should be touched, not the returned entity:
 
 ```typescript
 class ReversibleMoveZoneCommand implements UndoableCommand {
-  // The revision this adapter's own last successful write produced. Null until
-  // execute() has succeeded once; every operation after that presents it, so each
-  // write is conditional on the state the previous one left. See below.
-  private lastWritten: number | null = null;
+  // The version this adapter's own last successful write produced — revision AND
+  // observation token, since half an expectation catches half the conflicts. Null until
+  // execute() has succeeded once; every operation after that presents it, so each write
+  // is conditional on the state the previous one left. See below.
+  private lastWritten: EntityVersion | null = null;
 
   constructor(
     private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>>,
@@ -171,10 +172,10 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
 
   private async dispatch(input: MoveSpatialObjectInput): Promise<Result<void, AppError>> {
     const result = await this.moveCommand.execute(
-      this.lastWritten === null ? input : { ...input, expectedRevision: this.lastWritten },
+      this.lastWritten === null ? input : { ...input, expected: this.lastWritten },
     );
     if (isErr(result)) return result;
-    this.lastWritten = result.value.zone.revision;   // the payload is read for this, then discarded
+    this.lastWritten = result.value.version;   // the payload is read for this, then discarded
     return ok(undefined);
   }
 }
@@ -223,10 +224,12 @@ Slice 3's `MoveSpatialObjectInput` carries the optional field this needs:
 interface MoveSpatialObjectInput {
   zoneId: ZoneId;
   geometry: Polygon;
-  // Absent: the handler saves with the revision it read — a fresh gesture, last-writer-
-  // wins. Present: the handler passes it to ZoneRepository.save as `expected`, so a
-  // foreign write since refuses the operation instead of overwriting it.
-  expectedRevision?: number;
+  // Absent: the handler saves with the version its own load returned — a fresh gesture,
+  // last-writer-wins. Present: the handler passes it to ZoneRepository.save as
+  // `expected`, so a foreign write since refuses the operation instead of overwriting
+  // it. The whole EntityVersion, so the refusal covers a hand edit too, not only a
+  // plugin writer.
+  expected?: EntityVersion;
 }
 ```
 

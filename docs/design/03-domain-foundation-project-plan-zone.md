@@ -380,11 +380,12 @@ class Zone {
     readonly status: ZoneStatus,
     readonly geometry: Polygon,
     readonly domainNoteLink: string | null,
-    // Persistence concurrency, not domain state: assigned by the repository, never
-    // by a factory or a with* method, and never reasoned about by domain code. It is
-    // on the entity because a caller has to be able to hand it back — see "Writes are
-    // conditional". Project and Plan carry the same field for the same reason.
-    readonly revision: number,
+    // No version field. Concurrency bookkeeping travels beside the entity in
+    // `Loaded<Zone>`, not inside it — see "Writes are conditional". A draft put
+    // `revision` here, which reads naturally until the version grows a second half
+    // that is a content digest: an infrastructure artefact on a domain object, in the
+    // layer that may not name infrastructure at all. Project and Plan carry none
+    // either, for the same reason.
   ) {}
 
   static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError>;
@@ -459,16 +460,21 @@ shared vocabulary every other slice's examples follow (`docs/design/README.md`):
 // application/commands/zone/MoveSpatialObject.ts — signature only; every
 // command below follows CreateZoneCommand's pattern above: check each
 // repository call's Result and return early on failure before publishing.
-// `expectedRevision` is optional and absent in this slice: a fresh gesture asserts
-// where the shape should now be and is last-writer-wins, so the handler saves with the
-// revision it read. Slice 6's undo/redo supplies it — an inverse claims "nothing has
+// `expected` is optional and absent in this slice: a fresh gesture asserts where the
+// shape should now be and is last-writer-wins, so the handler saves with the version its
+// own load returned. Slice 6's undo/redo supplies it — an inverse claims "nothing has
 // happened since", which is a claim only a compare-and-swap can check — and the handler
-// passes it straight through as `save`'s `expected`. The field arrives without changing
-// this slice's behaviour, exactly as `DeleteZoneInput.resolution` does.
+// passes it straight through to `save`. The field arrives without changing this slice's
+// behaviour, exactly as `DeleteZoneInput.resolution` does.
+//
+// It is the whole `EntityVersion`, not a bare revision number. A number alone expresses
+// only "no plugin wrote this", so an inverse carrying one would be conditional on
+// exactly the half of the contract that a hand edit slips past — the case the token
+// exists for. The two travel together everywhere or the pair means nothing.
 interface MoveSpatialObjectInput {
   zoneId: ZoneId;
   geometry: Polygon;
-  expectedRevision?: number;
+  expected?: EntityVersion;
 }
 class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
@@ -478,10 +484,10 @@ class MoveSpatialObjectCommand
 // exists to reference a Zone — the deferral slice 8 makes explicit. Absent (the only
 // possibility in this slice, where nothing references a Zone) means "refuse if
 // referents exist", so the field arrives without changing this slice's behaviour.
-// `expectedRevision`, like MoveSpatialObjectInput's, is absent for a user-initiated
-// delete (the handler deletes with the revision it read) and supplied by slice 8's
+// `expected`, like MoveSpatialObjectInput's, is absent for a user-initiated delete (the
+// handler deletes with the version its own load returned) and supplied by slice 8's
 // undo-a-creation, which must refuse if the Zone changed after it was created.
-interface DeleteZoneInput { zoneId: ZoneId; expectedRevision?: number }
+interface DeleteZoneInput { zoneId: ZoneId; expected?: EntityVersion }
 class DeleteZoneCommand
   implements Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>> { /* … */ }
 
@@ -526,48 +532,67 @@ function zoneCreated(payload: ZoneEventPayload): ZoneCreated;
 // to a lookup, while `isErr` means the lookup itself did not happen. A command that
 // wants a missing parent to be a failure raises its own ReferenceError (see
 // CreateZoneCommand above); the repository does not decide that for it.
-// Every mutating method takes an `expected` version — see "Writes are conditional"
-// below. `Expected` is declared once and shared by all three ports.
-type Expected = number | 'absent';
+// Every read returns the entity WITH the version the reader observed, and every
+// mutating method takes the version the caller expects to still be current — see
+// "Writes are conditional" below. All three types are declared once and shared by
+// every entity port in the codebase.
+
+// Opaque, minted by the repository, never parsed or compared by anything above
+// infrastructure. Slice 4 derives it from the plugin-owned frontmatter it read.
+type ObservationToken = string & { readonly __brand: 'ObservationToken' };
+
+interface EntityVersion {
+  readonly revision: number;          // persisted in the note; bumped by plugin writes
+  readonly observed: ObservationToken; // what the bytes looked like when THIS read ran
+}
+
+// Reads hand back a pair, not a bare entity: the version is the store's bookkeeping
+// ABOUT the entity, not part of it, and a domain object carrying a content digest
+// would put an infrastructure detail inside the pure layer. `null` is still the whole
+// answer for "not found" — there is no version of an entity that is not there.
+interface Loaded<T> { readonly entity: T; readonly version: EntityVersion }
+
+type Expected = EntityVersion | 'absent';
 
 interface ZoneRepository {
-  getById(id: ZoneId): Promise<Result<Zone | null, PersistenceError>>;
-  save(zone: Zone, expected: Expected): Promise<Result<Zone, PersistenceError | ValidationError>>;
-  delete(id: ZoneId, expected: number): Promise<Result<void, PersistenceError | ValidationError>>;
-  listByProject(projectId: ProjectId): Promise<Result<Zone[], PersistenceError>>;
-  listByPlan(planId: PlanId): Promise<Result<Zone[], PersistenceError>>;
+  getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, PersistenceError>>;
+  save(zone: Zone, expected: Expected): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>>;
+  delete(id: ZoneId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>>;
+  listByProject(projectId: ProjectId): Promise<Result<Loaded<Zone>[], PersistenceError>>;
+  listByPlan(planId: PlanId): Promise<Result<Loaded<Zone>[], PersistenceError>>;
 }
 
 // application/ports/PlanRepository.ts — extended by analogy with ZoneRepository;
 // SDD only gives the Zone example, so listByProject here is this slice's own
 // consistent extension, not a sourced requirement.
 interface PlanRepository {
-  getById(id: PlanId): Promise<Result<Plan | null, PersistenceError>>;
-  save(plan: Plan, expected: Expected): Promise<Result<Plan, PersistenceError | ValidationError>>;
-  delete(id: PlanId, expected: number): Promise<Result<void, PersistenceError | ValidationError>>;
-  listByProject(projectId: ProjectId): Promise<Result<Plan[], PersistenceError>>;
+  getById(id: PlanId): Promise<Result<Loaded<Plan> | null, PersistenceError>>;
+  save(plan: Plan, expected: Expected): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>>;
+  delete(id: PlanId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>>;
+  listByProject(projectId: ProjectId): Promise<Result<Loaded<Plan>[], PersistenceError>>;
 }
 
 // application/ports/ProjectRepository.ts — root aggregate, so listAll rather than
 // listByX. listAll has no consumer until slice 14's ListProjects query; it is declared
 // now because the port is declared once, not grown one caller at a time.
 interface ProjectRepository {
-  getById(id: ProjectId): Promise<Result<Project | null, PersistenceError>>;
-  save(project: Project, expected: Expected): Promise<Result<Project, PersistenceError | ValidationError>>;
-  delete(id: ProjectId, expected: number): Promise<Result<void, PersistenceError | ValidationError>>;
-  listAll(): Promise<Result<Project[], PersistenceError>>;
+  getById(id: ProjectId): Promise<Result<Loaded<Project> | null, PersistenceError>>;
+  save(project: Project, expected: Expected): Promise<Result<Loaded<Project>, PersistenceError | ValidationError>>;
+  delete(id: ProjectId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>>;
+  listAll(): Promise<Result<Loaded<Project>[], PersistenceError>>;
 }
 ```
 
 ### Writes are conditional
 
-Every entity carries a persisted `revision`, and every mutating repository method takes
-the `expected` value the caller believes is current. The repository compares and writes
-as **one** operation, serialized per entity ID, and refuses with a `ValidationError`
-(`<entity>.revision-conflict`) when the stored revision differs. `save` returns the
-written entity carrying its new revision; `'absent'` means "insert, and fail if
-something is already there", which is what makes restoring a deleted entity safe rather
-than a blind overwrite of whatever now holds that ID.
+Every read hands the caller an `EntityVersion` alongside the entity, and every mutating
+method takes the version the caller expects to still be current. The repository compares
+and writes as **one** operation, serialized per entity ID, and refuses with a
+`ValidationError` when what it finds does not match. `save` returns the entity with the
+version it just wrote, so a caller that writes twice never has to re-read to find out
+what it did. `'absent'` means "insert, and fail if something is already there", which is
+what makes restoring a deleted entity safe rather than a blind overwrite of whatever now
+holds that ID.
 
 This is declared here, in the port, for exactly the reason the `Result` wrapper is: a
 signature Slice 4 has to widen is one every caller has to be revisited for. It is not an
@@ -586,37 +611,40 @@ matter how carefully it re-reads.
 `revision` is a plugin-owned field, so comparing it detects a writer that went through a
 repository and nothing else. ADR-001 makes every entity a Markdown note the user is
 invited to edit, and a note edited in Obsidian's own editor comes back with its prose or
-its frontmatter changed and its `revision` **untouched** — so a caller's stale `expected`
-still matches, the CAS passes, and the plugin overwrites the edit it was supposed to
+its frontmatter changed and its `revision` **untouched** — so a caller's stale expectation
+still matches, the compare passes, and the plugin overwrites the edit it was supposed to
 notice. Sync inherits the same hole: a file synced from another device carries whatever
 `revision` that device's *plugin* last wrote, which is bumped if a command made the
 change and unchanged if a person did. An earlier draft of this section listed hand edits
 and sync among the cases the revision comparison protects. It does not protect them, and
 naming a hazard is not covering it.
 
-So the atomic write makes **two** comparisons, not one:
+So an `EntityVersion` carries two things and the atomic write makes **two** comparisons:
 
 ```text
 inside the serialized compare-and-write, per entity ID:
 
-  1. expected            vs  the stored revision
+  1. expected.revision   vs  the stored revision
          differs → ValidationError <entity>.revision-conflict
          "another writer moved this since you read it"
 
-  2. the digest this repository last observed for this entity
-                         vs  the digest of what it just read
+  2. expected.observed   vs  a token minted from what it just read
          differs → ValidationError <entity>.external-modification
          "something that is not this plugin changed this note"
 ```
 
-The second comparison is the repository's own bookkeeping, not a caller argument: the
-repository records a digest of the plugin-owned frontmatter every time it reads an entity
-**and** every time it writes one, so the value it holds is always "the bytes I last put
-there or last saw." A difference is therefore, by construction, a change no repository
-write made. That is the one question `revision` cannot answer, and it is answerable only
-here — a caller comparing digests from outside is back to check-then-act.
+`observed` is minted by the repository from the plugin-owned frontmatter at the moment of
+a read, and handed out with that read. It is the caller's, not the repository's — and
+that distinction is the whole mechanism, not a detail of where the value is stored. A
+draft of this section kept ONE current digest per entity inside the repository, refreshed
+on every read and write. That is not an expectation, because anybody's read moves it: A
+reads, the note is hand-edited, a status-bar query or a second tab reads, and the shared
+baseline now matches the hand-edited disk. A's stale save then passes both comparisons and
+eats the edit — the exact defect the digest was added to prevent, reintroduced by making
+it shared. A value that says "what *this* reader saw" cannot be stored anywhere but with
+that reader.
 
-Four things about it are worth stating rather than leaving to be discovered:
+Five things about it are worth stating rather than leaving to be discovered:
 
 - **The digest covers the plugin-owned frontmatter keys, not the note.** Slice 4 leaves
   the body untouched on every write and never parses it (§38) — it is the user's. A
@@ -625,22 +653,58 @@ Four things about it are worth stating rather than leaving to be discovered:
 - **Unknown frontmatter keys are outside the digest too**, for the same reason and by the
   same rule slice 4 already follows: it preserves keys this version does not declare, so
   it must not conflict over them either.
-- **`'absent'` needs no digest.** The comparison there is existence, and there is nothing
-  observed to compare against.
-- **The baseline is per repository instance and does not survive a plugin reload.** It
-  does not need to: an `expected` revision can only have come from a read, and that read
-  is what establishes the baseline. An edit made before the plugin ever read the entity is
-  not a lost update — it is simply the state the repository loads.
+- **`'absent'` carries no token.** The comparison there is existence, and a reader who
+  found nothing observed nothing.
+- **The token is opaque above `infrastructure/`.** Nothing in `application/` or
+  `domain/` parses, orders or compares one — it is threaded from the read that produced
+  it to the write that presents it, and only slice 4 knows it is a digest. Changing how
+  it is computed is then a change to one function, not to a contract.
+- **Both halves are needed, and the pair is what makes the two errors separable.** A
+  matching revision with a differing token is precisely "no plugin wrote this, but it
+  changed" — an external edit. A differing revision is a plugin writer. The digest alone
+  would detect both and be able to name neither.
 
 The two errors are distinct codes because the recovery differs, and a UI that could only
 say "conflict" would have to guess: a `revision-conflict` is resolved by re-reading and
 retrying, while an `external-modification` means the user's own edit is on disk and the
 question to put to them is whose version wins (slices 11 and 15 own that surface).
 
-Two things deliberately do **not** get a revision: a plan's geometry sidecar, whose
-`objects[]` is already guarded by slice 4's per-plan `PlanGeometryStore.mutate` lock, and
-targeted single-field markers like `markStale` (slice 10) that move one field in one
-direction and cannot lose information by being applied twice.
+### What this costs the callers, and why it is still right
+
+Threading a version from a read to a write is more ceremony than passing an entity around,
+and it is worth being explicit that the ceremony is the feature. A caller that cannot
+produce a version is a caller that never read the thing it is about to overwrite, and that
+is the case worth making noisy rather than convenient. The two shapes it takes:
+
+- **A command that loads, decides and writes** carries the `Loaded<T>` it read and passes
+  `loaded.version` to `save`. Nothing is stored between calls.
+- **An `UndoableCommand`** (slice 6) keeps the version its own last successful write
+  returned, and presents that on the next operation — the rule that makes an inverse
+  conditional on the write it inverts.
+
+A read-only caller ignores `.version` entirely. Queries (below) return `Loaded<T>` rather
+than unwrapping, so a query result can be handed to a write without a second read; a
+presentation-layer consumer that wants the entity takes `.entity` and never sees the rest.
+
+One thing deliberately does **not** get a version: a targeted single-field marker like
+`markStale` (slice 10), which moves one field in one direction and cannot lose
+information by being applied twice.
+
+**The plan geometry sidecar is not the second one.** A draft exempted it on the grounds
+that slice 4's per-plan `PlanGeometryStore.mutate` lock already guards `objects[]`. That
+is the mistake this whole section is about, stated one more time: a lock makes writes
+*ordered*, and ordering says a move and a later undo do not interleave — not that the
+move did not happen. Slice 7's calibration undo is the case that proves it, since it
+restores pre-calibration geometry for every object in the file and would silently discard
+a Zone another editor moved in between. So the sidecar carries a **`generation`**: one
+integer for the whole file, bumped by every `mutate`, and `mutate` takes the generation
+its caller expects and refuses with `plan-geometry.generation-conflict` when it differs.
+One token for the file rather than one per object, because a sidecar write rewrites the
+whole document — per-object versions would describe a granularity the write does not have.
+
+A `mutate` that does not care — an ordinary Zone save appending its own object entry —
+passes no expectation and is last-writer-wins, exactly as a forward gesture is. Only a
+caller claiming "nothing has changed since I read this" has to prove it.
 
 `save()` is an **ID-keyed upsert**, not insert-only, on every implementation. Slice 8's
 `ReversibleDeleteZoneCommand.undo()` restores a deleted entity by writing its captured
@@ -655,8 +719,11 @@ below rather than left as an assumption slice 8 discovers.
 // id" is asking a question, not asserting there must be one. Slice 14's empty-state
 // selectors depend on being able to tell "no such entity" (ok(null)) apart from "the
 // read failed" (isErr) — collapsing both into one error type makes that impossible.
+// It returns `Loaded<Zone>` rather than unwrapping to the entity, so a caller that
+// loads in order to write has the version already and never reads twice. A caller that
+// only renders takes `.entity` and ignores the rest.
 interface GetZoneInput { zoneId: ZoneId }
-class GetZone implements Query<GetZoneInput, Result<Zone | null, PersistenceError>> {
+class GetZone implements Query<GetZoneInput, Result<Loaded<Zone> | null, PersistenceError>> {
   constructor(private readonly zones: ZoneRepository) {}
   async execute({ zoneId }: GetZoneInput) {
     return this.zones.getById(zoneId);
@@ -667,31 +734,63 @@ class GetZone implements Query<GetZoneInput, Result<Zone | null, PersistenceErro
 ```typescript
 // infrastructure/persistence/in-memory/InMemoryZoneRepository.ts
 class InMemoryZoneRepository implements ZoneRepository {
-  private readonly store = new Map<ZoneId, Zone>();
+  // Entity and version stored together; nothing outside gets one without the other.
+  private readonly store = new Map<ZoneId, Loaded<Zone>>();
+
   async getById(id: ZoneId) { return ok(this.store.get(id) ?? null); }
+
   // Implements the same conditional contract as the Obsidian one — an in-memory
   // repository that skipped the compare would let the contract suite (§72) pass
-  // against an implementation that cannot hold the invariant.
+  // against an implementation that cannot hold the invariant. `observed` is a counter
+  // here rather than a digest: the contract is "a token that changes when the stored
+  // bytes change from any cause", and how it is derived is each implementation's own
+  // business. The counter advances on an out-of-band `poke()` this fake exposes for
+  // exactly one purpose — letting the contract suite simulate the hand edit that
+  // slice 4's implementation detects for real.
   async save(zone: Zone, expected: Expected) {
     const current = this.store.get(zone.id);
-    if (expected === 'absent' ? current !== undefined : current?.revision !== expected) {
-      return err(revisionConflict('zone', zone.id));
-    }
-    const written = { ...zone, revision: (current?.revision ?? 0) + 1 };
+    const conflict = this.check(zone.id, current, expected);
+    if (conflict) return err(conflict);
+    const written: Loaded<Zone> = {
+      entity: zone,
+      version: {
+        revision: (current?.version.revision ?? 0) + 1,
+        observed: this.mint(),
+      },
+    };
     this.store.set(zone.id, written);
     return ok(written);
   }
-  async delete(id: ZoneId, expected: number) {
-    const current = this.store.get(id);
-    if (current?.revision !== expected) return err(revisionConflict('zone', id));
+
+  async delete(id: ZoneId, expected: EntityVersion) {
+    const conflict = this.check(id, this.store.get(id), expected);
+    if (conflict) return err(conflict);
     this.store.delete(id);
     return ok(undefined);
   }
+
+  // One comparison, used by both mutating methods — the property is "every write is
+  // conditional", and a second copy of the compare is a second chance to get it wrong.
+  private check(id: ZoneId, current: Loaded<Zone> | undefined, expected: Expected) {
+    if (expected === 'absent') {
+      return current === undefined ? null : revisionConflict('zone', id);
+    }
+    if (current === undefined || current.version.revision !== expected.revision) {
+      return revisionConflict('zone', id);
+    }
+    // Revision matches but the bytes moved: not a plugin writer. Distinct error,
+    // because the caller's recovery differs — see above.
+    if (current.version.observed !== expected.observed) {
+      return externalModification('zone', id);
+    }
+    return null;
+  }
+
   async listByProject(projectId: ProjectId) {
-    return ok([...this.store.values()].filter((z) => z.projectId === projectId));
+    return ok([...this.store.values()].filter((z) => z.entity.projectId === projectId));
   }
   async listByPlan(planId: PlanId) {
-    return ok([...this.store.values()].filter((z) => z.planId === planId));
+    return ok([...this.store.values()].filter((z) => z.entity.planId === planId));
   }
 }
 ```

@@ -380,14 +380,16 @@ both writes as one logical transaction:
       - `expected === 'absent'` against the note's existence; a note already there is
         the same error. This is what makes slice 8's restore-a-deleted-Zone an insert
         rather than a blind overwrite.
-      - the digest this repository last observed for this entity against the digest of
-        the plugin-owned frontmatter keys it just read; a difference is a
-        `ValidationError` `<entity>.external-modification`. Unknown keys and the body
-        are outside the digest, exactly as they are outside every write below.
+      - `expected.observed` — the token the CALLER received from the read it is acting
+        on — against a token freshly minted from the plugin-owned frontmatter keys just
+        read; a difference is a `ValidationError` `<entity>.external-modification`.
+        Unknown keys and the body are outside the token, exactly as they are outside
+        every write below. The token is a digest here; that is this implementation's
+        business and nothing above `infrastructure/` knows it (slice 3).
     Either failure aborts here, with nothing written. On success the entity is written
-    with `revision + 1`, and the repository records the digest of what it wrote — so
-    the value it holds is always the bytes it last put there or last saw, which is what
-    makes a later difference mean "not this plugin" (slice 3).
+    with `revision + 1`, and `save` returns the `Loaded<T>` carrying the new revision
+    and a token minted from what it just wrote — so the caller's next write has an
+    expectation without re-reading.
 3. Write the zone's Markdown frontmatter (FileManager.processFrontMatter — body
    untouched), creating the note if this is an insert.
 4. Upsert this zone's entry into the sidecar's objects[] and write the sidecar back.
@@ -676,6 +678,20 @@ const ZoneFrontmatterSchemaV1 = z.object({
   type: z.literal("renovation-zone"),
   "schema-version": z.literal(1),
   id: z.string(),
+  // Slice 3's conditional-write contract needs this to survive a disk round-trip, and
+  // Zod strips what it does not declare — so an undeclared `revision` would be dropped
+  // on read, leaving no value for a caller to present back as `expected` and no way to
+  // detect a concurrent write at all. It is declared on EVERY note-backed entity
+  // schema, not just this one: a port-wide contract with a per-entity gap is not a
+  // contract. It is persistence bookkeeping, so the mapper lifts it into
+  // `Loaded<Zone>.version` rather than onto the domain entity, which has no such field.
+  //
+  // Non-negative rather than positive: a note written before this field existed, or
+  // hand-created by a user, reads as 0 and takes the insert path. A hand-edited value
+  // is not trusted to be meaningful — it is only ever compared for equality, never
+  // used as a source of ordering, and the observation token catches the hand edit
+  // regardless of what the number says.
+  revision: z.number().int().nonnegative().catch(0),
   project: z.string(),
   plan: z.string(),
   name: z.string(),
@@ -703,6 +719,12 @@ const CalibrationSchemaV1 = z.object({
 const PlanGeometrySchemaV1 = z.object({
   schemaVersion: z.literal(1),
   planId: z.string(),
+  // The whole file's version, for the same reason each note carries a `revision`:
+  // slice 7's calibration undo restores every object in this document and must be
+  // able to refuse if anything moved since. One integer for the file, because a
+  // sidecar write rewrites the whole document — a per-object version would claim a
+  // granularity the write does not have. Same `.catch(0)` reasoning as above.
+  generation: z.number().int().nonnegative().catch(0),
   unit: z.literal("mm"), // ADR-009: mandatory, not merely recommended — a sidecar
                          // missing this field, or carrying any other value, fails
                          // validation and is never loaded, rather than being
@@ -745,10 +767,21 @@ interface PlanGeometryStore {
   // Callers use THIS rather than read()+write(), which is why the separate read/write
   // pair stays available but is not the upsert path: a caller that composed its own
   // read-then-write would reintroduce exactly the lost update this method prevents.
+  //
+  // `expectedGeneration` is slice 3's conditional-write contract applied to the file
+  // this store owns. Omitted, the change is applied to whatever is current — an
+  // ordinary Zone save appending its own entry, last-writer-wins like any forward
+  // gesture. Supplied, the mutate refuses with `plan-geometry.generation-conflict`
+  // unless the file is still at that generation, which is what an inverse needs:
+  // slice 7's calibration undo restores every object's pre-calibration coordinates,
+  // and the LOCK does not make that safe. The lock orders this undo against a
+  // concurrent Zone move; ordering is what puts the move on disk first and then lets
+  // the undo overwrite it. The returned generation is what a caller presents next.
   mutate(
     planId: PlanId,
     change: (dto: PlanGeometryDTO) => PlanGeometryDTO,
-  ): Promise<Result<void, PersistenceError | ValidationError>>;
+    expectedGeneration?: number,
+  ): Promise<Result<{ generation: number }, PersistenceError | ValidationError>>;
 
   // Drains every per-plan queue and holds them all for the duration of `during`,
   // so no sidecar write can land while it runs. The folder migration is the one
@@ -933,6 +966,24 @@ interface FindZonesByPlanQuery {
   and looks correct: appending prose to the note body, and adding a frontmatter key this
   version does not declare, each leave a subsequent `save` succeeding, with the body and
   the unknown key preserved in what it wrote.
+- **Interleaved-reader test**, which is the one a shared baseline passes and a per-read
+  token fails: A reads, the note is changed out of band, a SECOND read runs (a query, a
+  status bar, another tab), and then A saves with the version its own read returned.
+  Assert `external-modification`. An implementation that keeps one current digest per
+  entity has had it refreshed by the second read and lets A's write through — so this
+  test is the only one that distinguishes the two designs, and it is the design the
+  first draft of this slice had.
+- **Round-trip tests for the version fields themselves:** a Zone written and re-read
+  returns the `revision` it was written with (asserted against the Zod-parsed DTO, since
+  an undeclared key is stripped silently rather than failing), and a sidecar written and
+  re-read returns its `generation`. A note with no `revision` key at all — hand-created,
+  or written by a version before the field existed — reads as 0 and takes the insert
+  path rather than failing validation.
+- **Sidecar generation tests:** a `mutate` with no `expectedGeneration` applies to
+  whatever is current and returns the bumped value; one with a stale expectation returns
+  `plan-geometry.generation-conflict` and leaves the file byte-identical; and two
+  concurrent `mutate` calls under the per-plan lock both land, since ordering is not
+  what the generation is for.
 - **Insert-specific compensation test:** the same sidecar-write failure, but on a
   save that *creates* a new Zone note rather than updating one. Assert the note does
   not exist afterwards — a restore-the-snapshot compensation would pass the update
@@ -1038,6 +1089,14 @@ interface FindZonesByPlanQuery {
     reverting the digest comparison turns that test red while leaving item 5a green.
     Note-body prose and undeclared frontmatter keys are outside the digest: a save
     after either still succeeds, and preserves both.
+5c. Every note-backed entity schema declares `revision` and the sidecar schema declares
+    `generation`, both surviving a write/read round-trip; a note or sidecar lacking the
+    field reads as 0 rather than failing. Without this the conditional-write contract
+    cannot work at all — Zod strips undeclared keys, so the value a caller must present
+    back would never come off disk.
+5d. `PlanGeometryStore.mutate` honours an optional `expectedGeneration`: absent, it
+    applies to current state; stale, it refuses with `plan-geometry.generation-conflict`
+    and writes nothing. Slice 7's calibration undo is the caller that supplies one.
 6. Deleting a Zone compensates symmetrically: a test in which sidecar removal fails
    after the note is deleted asserts the note is restored and a `PersistenceError` is
    returned — so a failed delete leaves nothing deleted, and a caller's failed

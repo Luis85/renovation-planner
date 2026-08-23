@@ -188,11 +188,12 @@ interface Requirement {
   quantity: DerivedValue<Quantity>;     // "calculated quantity" + "manual override"
   estimatedCost: DerivedValue<Money>;
   recalculationStatus: "current" | "stale"; // persisted — see "Event cascade" below
-  revision: number;                     // persisted; bumped by the repository on every
-                                        // write. The compare-and-swap key that makes a
-                                        // snapshot-restoring undo safe against a
-                                        // concurrent edit — see "Restoring the whole
-                                        // entity…" below. Not a schema version.
+                                        // No version field on the entity: a Requirement
+                                        // travels as Loaded<Requirement>, like every
+                                        // other entity, and `revision` persists in the
+                                        // frontmatter for the mapper to lift into that
+                                        // version. Slice 3 says why the two are not the
+                                        // same place. Not a schema version either way.
   requiredDate?: string;                // ISO date, optional — schema completeness only, unused by this slice's loop
 }
 ```
@@ -651,20 +652,22 @@ snapshot the more it erases: the very breadth that makes the undo a true inverse
 *this* command is what makes it a clobber of everyone else's.
 
 So undo is conditional on the entity still being what this command left — and the check
-and the write have to be **one operation**, not a comparison followed by a save. A
-`Requirement` therefore carries a persisted `revision`, bumped by the repository on
-every successful write, and the repository's save is a compare-and-swap:
+and the write have to be **one operation**, not a comparison followed by a save. This is
+slice 3's contract, and a `Requirement` takes it unchanged rather than growing a parallel
+one: a persisted `revision`, an `observed` token minted per read, and a save that
+compares both inside the write:
 
 ```typescript
 // application/ports — the only shape that makes "check, then restore" safe
-save(requirement: Requirement, expectedRevision: number):
-  Promise<Result<Requirement, PersistenceError | ValidationError>>;
-  // ValidationError code 'requirement.revision-conflict' when the stored revision
-  // is not expectedRevision. The repository serializes per RequirementId, so its
-  // own read-compare-write cannot be interleaved.
+save(requirement: Requirement, expected: Expected):
+  Promise<Result<Loaded<Requirement>, PersistenceError | ValidationError>>;
+  // 'requirement.revision-conflict' when the stored revision is not expected.revision;
+  // 'requirement.external-modification' when the revision matches but the bytes moved,
+  // i.e. somebody hand-edited the note. The repository serializes per RequirementId,
+  // so its own read-compare-write cannot be interleaved.
 ```
 
-Undo passes the revision its own `execute()` produced. Equal means nothing else has
+Undo passes the version its own `execute()` produced. Equal means nothing else has
 touched the Requirement and the restore lands; different means a later edit exists that
 the snapshot does not know about, and the save refuses — undo returns the conflict, the
 command stays on `undoStack` (slice 6's stack-retention rule), nothing is lost, and the
@@ -680,19 +683,21 @@ not removable by re-reading inside one of them — arrived at a second time, fro
 other side. Comparison has to happen where the write happens.
 
 That also overrides the earlier preference for comparing whole entities rather than a
-version counter. Comparing the entity answers a slightly better question, but it cannot
-be made atomic without doing it inside the write, and a single integer is what a write
-can compare cheaply. A better question asked non-atomically loses to a narrower one
-asked atomically.
+version. Comparing the entity answers a slightly better question, but it cannot be made
+atomic without doing it inside the write. What the write can compare cheaply is a
+version — and slice 3's is two values rather than one precisely because the counter
+alone answers too narrow a question, missing every writer that is not this plugin. A
+better question asked non-atomically loses to a narrower one asked atomically; the fix
+is to widen the atomic question, not to go back outside the write.
 
-Every writer passes an expected revision, not only undo: a caller that fetched a
+Every writer passes an expected version, not only undo: a caller that fetched a
 Requirement, computed from it, and saves without one is issuing a blind last-write-wins,
 which is the same lost update from a different direction. And every snapshot-restoring
 undo in this slice takes this path — the delete resolutions' `affectedBefore` restore
-included, since it has strictly more entities to clobber, each with its own revision.
+included, since it has strictly more entities to clobber, each with its own version.
 
-**Every conditional write, not only `save`.** `delete` takes an `expectedRevision` too:
-an assignment undo removes the Requirement its `execute()` created, and a CAS on `save`
+**Every conditional write, not only `save`.** `delete` takes an `expected` too: an
+assignment undo removes the Requirement its `execute()` created, and a CAS on `save`
 does nothing to stop that delete taking a later override or recalculation with it. And
 any command that hands work to an undo owes that undo the revisions **it** produced —
 see `affectedAfter` on the delete resolutions' payload — because pre-state revisions are
@@ -1101,14 +1106,18 @@ command returns an error and stays on `undoStack` as if nothing had happened.
 ```typescript
 type DeleteWithReferencesResult = {
   deletedId: ZoneId | AssetId;
-  affectedBefore: readonly Requirement[]; // full pre-resolution state, for undo
-  // What THIS command left behind, per affected Requirement — the expectedRevision
-  // undo must present. Without it undo has only pre-resolution revisions, which the
-  // resolution's own writes already superseded: every restore would conflict against
-  // the command's own effect, and re-reading to find the current revision is the
-  // check-then-act this design refuses everywhere else.
+  // Full pre-resolution state, for undo to restore. Loaded<> rather than bare entities:
+  // the versions these were READ at are not the versions undo presents (see below), but
+  // dropping them here would make the payload the one place an entity travels without
+  // its version, and a shape that is nearly uniform is where the exception hides.
+  affectedBefore: readonly Loaded<Requirement>[];
+  // What THIS command left behind, per affected Requirement — the expectation undo must
+  // present. Without it undo has only pre-resolution versions, which the resolution's
+  // own writes already superseded: every restore would conflict against the command's
+  // own effect, and re-reading to find the current one is the check-then-act this
+  // design refuses everywhere else.
   affectedAfter: readonly (
-    | { id: RequirementId; outcome: 'written'; revision: number }
+    | { id: RequirementId; outcome: 'written'; version: EntityVersion }
     | { id: RequirementId; outcome: 'deleted' }   // remove-references: expect absence
   )[];
 };
@@ -1199,32 +1208,42 @@ deleted.projectId` — and only the `UNIT_KIND` half is conditional on which kin
 // shape Slice 3 fixed and Slice 4 implemented without widening. These are real
 // Obsidian-backed repositories: a read is a file read plus a Zod parse, so it can fail
 // just as a write can. "Not found" is ok(null); isErr means the read did not happen.
+// Conditional on the same terms as every other entity port — `Loaded<T>`, `Expected`
+// and `EntityVersion` are slice 3's, unchanged. An earlier draft left Assets alone
+// while generalising Project, Plan, Zone and Requirement, which is not a smaller
+// version of the contract but a hole in it: two concurrent UpdateAssetCommands would
+// silently lose one edit, and worse, an ordinary non-unit edit loaded before a
+// concurrent DeleteAssetCommand would save afterwards and RESURRECT the Asset — with
+// its Requirements already removed or reassigned by the delete's resolution, so the
+// recreated Asset is one nothing points at and no dialog will ever mention again.
+// The reference lock does not cover it: that lock serializes reference CREATION
+// against deletion, and a plain field edit creates no reference.
 interface AssetRepository {
-  getById(id: AssetId): Promise<Result<Asset | null, PersistenceError>>;
-  save(asset: Asset): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: AssetId): Promise<Result<void, PersistenceError>>;
-  listByProject(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
+  getById(id: AssetId): Promise<Result<Loaded<Asset> | null, PersistenceError>>;
+  save(asset: Asset, expected: Expected): Promise<Result<Loaded<Asset>, PersistenceError | ValidationError>>;
+  delete(id: AssetId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>>;
+  listByProject(projectId: ProjectId): Promise<Result<Loaded<Asset>[], PersistenceError>>;
 }
 
 interface RequirementRepository {
-  getById(id: RequirementId): Promise<Result<Requirement | null, PersistenceError>>;
-  // Compare-and-swap: refuses with ValidationError 'requirement.revision-conflict' if
-  // the stored revision is not expectedRevision, and returns the saved Requirement
-  // carrying its new revision. Serialized per RequirementId, so the compare and the
-  // write are one operation — a caller cannot make them atomic from outside.
-  // `Expected` is slice 3's shared type: a revision number, or 'absent' meaning
-  // "insert, and fail if anything already holds this ID". The sentinel is what makes
-  // restoring a deleted Requirement atomic — a numeric revision cannot express "there
-  // should be nothing here", and reading for absence then inserting is the
-  // check-then-act this contract exists to remove.
-  save(requirement: Requirement, expected: Expected): Promise<Result<Requirement, PersistenceError | ValidationError>>;
+  getById(id: RequirementId): Promise<Result<Loaded<Requirement> | null, PersistenceError>>;
+  // Compare-and-swap on slice 3's terms: the stored revision against
+  // `expected.revision`, and the bytes against `expected.observed` — the token THIS
+  // caller's read handed back, so a Requirement hand-edited between the read and the
+  // write is caught even though a hand edit bumps no revision. Refuses with
+  // 'requirement.revision-conflict' or 'requirement.external-modification', serialized
+  // per RequirementId so the compare and the write are one operation. `'absent'` means
+  // "insert, and fail if anything already holds this ID" — what makes restoring a
+  // deleted Requirement atomic, since a version cannot express "there should be
+  // nothing here" and reading for absence then inserting is the check-then-act this
+  // contract exists to remove.
+  save(requirement: Requirement, expected: Expected): Promise<Result<Loaded<Requirement>, PersistenceError | ValidationError>>;
   // Conditional for the same reason save() is, and it is NOT covered by save()'s CAS:
   // an assignment undo deletes the Requirement it created, and another tab may have
-  // set an override or landed a recalculation on it since. Refuses with
-  // 'requirement.revision-conflict' when the stored revision is not expectedRevision.
-  delete(id: RequirementId, expectedRevision: number): Promise<Result<void, PersistenceError | ValidationError>>;
-  listByZone(zoneId: ZoneId): Promise<Result<Requirement[], PersistenceError>>;
-  listByAsset(assetId: AssetId): Promise<Result<Requirement[], PersistenceError>>;
+  // set an override or landed a recalculation on it since.
+  delete(id: RequirementId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>>;
+  listByZone(zoneId: ZoneId): Promise<Result<Loaded<Requirement>[], PersistenceError>>;
+  listByAsset(assetId: AssetId): Promise<Result<Loaded<Requirement>[], PersistenceError>>;
   // Sets recalculationStatus: "stale" and persists it — one targeted-property
   // write, not a full save() of a (possibly not-yet-recalculated) Requirement.
   markStale(id: RequirementId): Promise<Result<void, PersistenceError>>;
@@ -1433,6 +1452,7 @@ currency: EUR
 
 calculated-from-area: "12.0"
 calculated-from-unit-cost: "45.00"
+calculated-from-asset-unit: m2
 
 recalculation-status: current
 required-date: null
@@ -1448,13 +1468,27 @@ hydration and show the cached `quantity-calculated`/`cost-calculated` as current
 is precisely the state `markStale` exists to prevent. It round-trips through the mapper
 and the Zod schema like any other field, and is covered by the contract suite below.
 
-`calculated-from-area` and `calculated-from-unit-cost` are the same argument carried one
-step further: they record the two inputs that live outside this note, so a reader can
-tell that the stored figures are obsolete even when the marker never got written (see
-"The marker cannot be the only thing holding that guarantee" above). They are written
-only by `RecalculateRequirementCommand`, in the same save as the figures they explain,
-and they are decimals-as-quoted-strings for the same ADR-010 reason as everything else
-in this block.
+`calculated-from-area`, `calculated-from-unit-cost` and `calculated-from-asset-unit` are
+the same argument carried one step further: they record the **three** inputs that live
+outside this note, so a reader can tell that the stored figures are obsolete even when
+the marker never got written (see "The marker cannot be the only thing holding that
+guarantee" above). They are written only by `RecalculateRequirementCommand`, in the same
+save as the figures they explain, and the two decimal ones are quoted strings for the
+same ADR-010 reason as everything else in this block.
+
+The unit is the one of the three that is easiest to leave out and the one whose absence
+is hardest to notice, so it is worth saying why it is here. `calculatedFrom` is declared
+in the read model as `{ zoneArea, unitCost, assetUnit }` precisely so a load can ask "is
+the Asset's unit still the unit these figures were computed against?" — the check that
+catches an `m2 → m` change when `markStale` failed or the process died before it ran. A
+schema persisting only the first two answers that question with nothing: the field exists
+in memory, is populated on every recalculation, and is gone the moment the plugin
+reloads, which is exactly the window the backstop was for. The read model would then have
+to either reject the note or quietly drop the comparison, and dropping it is the one that
+ships. It is the raw `MeasurementUnit` symbol, unquoted — a vocabulary value like
+`status` or `currency`, not a decimal — and it round-trips through the DTO, the schema
+and the mapper like every other field, with its own round-trip assertion in the contract
+suite rather than an inherited one.
 
 Every decimal-valued field is persisted as a **quoted string**, not a YAML float.
 ADR-010 exists because native floating point silently loses money, and a YAML parser
@@ -1569,9 +1603,13 @@ are additive, not breaking.
   `recalculation-status: stale`: save a stale Requirement, discard all in-memory
   state, re-read it, and assert it is still `"stale"`. A marker that survives
   `markStale()` but not a reload is the same defect as no marker at all, and only a
-  reload test distinguishes the two. `calculated-from-area` and
-  `calculated-from-unit-cost` round-trip in the same test, as quoted decimals — they
-  are what keeps that reading honest when the marker write is the thing that failed.
+  reload test distinguishes the two. All three `calculated-from-*` fields round-trip in
+  the same test — the two decimals as quoted strings, `calculated-from-asset-unit` as a
+  bare `MeasurementUnit` symbol — since they are what keeps that reading honest when the
+  marker write is the thing that failed. The unit needs its own assertion rather than an
+  inherited one: it is the field whose loss is invisible (the read model keeps working
+  and simply stops catching unit changes), and it is the one a schema is likeliest to
+  omit, since the other two are obviously numeric and it is not.
 - **Vue component (§73).** The Inspector's Requirements panel: renders
   calculated values with no badge when no override is set; renders the
   override with a distinct visual treatment and still shows the calculated
@@ -1644,7 +1682,16 @@ are additive, not breaking.
 - [ ] With that guard bypassed (a hand-edited note or a migration), a Requirement whose
       Asset unit changed kind still reads `"stale"` even though its `zoneArea` and
       `unitCost` are byte-identical — the `calculatedFrom.assetUnit` mismatch is what
-      catches it, and a two-field snapshot would report `"current"` here.
+      catches it, and a two-field snapshot would report `"current"` here. Asserted
+      **after a reload**, not against an in-memory Requirement: `assetUnit` is only a
+      backstop if it survives to disk, and the version of this test that skips the round
+      trip passes against a schema that never persisted the field.
+- [ ] Every Asset write is conditional on the same terms as every other entity's: two
+      `UpdateAssetCommand`s from stale reads cannot both land, and an Asset edit loaded
+      before a concurrent `DeleteAssetCommand` refuses rather than resurrecting the
+      Asset after the delete removed or reassigned its Requirements. The resurrection
+      case gets its own test — it is the one the reference lock does not cover, since a
+      field edit creates no reference for that lock to serialize against.
 - [ ] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
       Requirement this gesture created, redo restores it under the same
       `RequirementId`, and undo on the idempotent path — where the Requirement already
@@ -1785,13 +1832,18 @@ are additive, not breaking.
       adapters and for the delete resolutions' `affectedBefore` restore, which has more
       entities to lose.
 - [ ] That refusal is atomic, not merely checked: `RequirementRepository.save` takes an
-      `expectedRevision` and refuses on mismatch, serialized per `RequirementId`. Driven
-      by a repository double that lands a competing write *between* a caller's read and
-      its save — the interleaving a compare-then-write implementation loses to, and the
-      only one that distinguishes a real compare-and-swap from a narrowed window.
-- [ ] Every `save` **and `delete`** call site passes an `expectedRevision`; none writes
-      or removes blind. Checked by the type (neither has a one-argument overload), so a
+      `Expected` and refuses on mismatch, serialized per `RequirementId`. Driven by a
+      repository double that lands a competing write *between* a caller's read and its
+      save — the interleaving a compare-then-write implementation loses to, and the only
+      one that distinguishes a real compare-and-swap from a narrowed window.
+- [ ] Every `save` **and `delete`** call site passes an `Expected`; none writes or
+      removes blind. Checked by the type (neither has a one-argument overload), so a
       last-write-wins caller cannot compile rather than being caught by review.
+- [ ] A Requirement hand-edited between a caller's read and its save refuses with
+      `requirement.external-modification`, even though the hand edit left `revision`
+      untouched — the half of the expectation a bare revision number cannot carry, and
+      the reason every input that defers an expectation names `EntityVersion` rather
+      than a number.
 - [ ] An assignment undo whose Requirement was edited by another tab since `execute()`
       returns `requirement.revision-conflict` and deletes nothing — the case a CAS on
       `save` alone does not cover, since undo's write here is a delete.

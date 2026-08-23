@@ -363,12 +363,13 @@ Dispatched through `CommandHistory` like every other user-triggered mutation, wi
 `PlanBackgroundRef` (or `null`, for the first import) — the same snapshot-and-restore
 shape slice 10's adapters use.
 
-That undo is conditional, and the mechanism is slice 3's: `PlanRepository.save` takes
-the `expected` revision and compares-and-writes as one operation, so an undo presenting
-the revision its own `execute()` produced refuses with `plan.revision-conflict` rather
-than overwriting a background someone set since — from another tab, another synced
-device, or by editing the note by hand. Undo passes the revision `execute()` returned;
-it does not re-read to find one, which would be the check-then-act this design rejects.
+That undo is conditional, and the mechanism is slice 3's: `PlanRepository.save` takes the
+`expected` version and compares-and-writes as one operation, so an undo presenting the
+version its own `execute()` returned refuses with `plan.revision-conflict` — or
+`plan.external-modification`, if the note was changed outside the plugin — rather than
+overwriting a background someone set since, from another tab, another synced device, or
+by hand. Undo passes the version `execute()` returned; it does not re-read to find one,
+which would be the check-then-act this design rejects.
 An earlier draft of this section claimed the undo was conditional without naming any
 mechanism capable of enforcing it, which was a promise with nothing behind it.
 
@@ -708,9 +709,10 @@ Per §73–74 (Vue component tests, canvas adapter tests):
     untouched, and that the command's own failure cases (a path resolving to no Vault
     file, an unsupported kind) write nothing at all.
 12. Undoing a background import restores the previous `PlanBackgroundRef`, `null`
-    included, and refuses with `plan.revision-conflict` if the Plan's background was
-    changed by anything else in between — asserted directly, since an unconditional
-    restore passes every single-writer test.
+    included, and refuses if the Plan's background was changed by anything else in
+    between — `plan.revision-conflict` for another tab, `plan.external-modification`
+    for a hand edit that left the revision alone. Asserted directly, since an
+    unconditional restore passes every single-writer test.
 13. `npm run check` (build, lint including the write-boundary and layer-dependency rules,
     coverage-thresholded tests, fallow) passes with this slice's code included.
 

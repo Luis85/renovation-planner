@@ -281,7 +281,11 @@ that, using this slice's table, and may legitimately be "none."
 
 This slice adds one small, presentation-local policy — not a new component,
 a routing decision a call site consults after slice 11 has already produced
-a `Result`:
+a `Result`. It goes in `presentation/errors/`, which **slice 16 creates** for
+`route-error.ts` and which this slice joins rather than opening a second
+folder beside it: slice 16 lands first (it needs 6 and 11; this slice needs
+it), so the directory is there by the time this module does. Slice 16's File
+layout section is where that ownership is written down.
 
 ```typescript
 // presentation/errors/errorSurfacePolicy.ts

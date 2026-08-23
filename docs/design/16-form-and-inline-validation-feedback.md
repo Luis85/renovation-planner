@@ -501,9 +501,19 @@ pure helper under `composables/` needs jsdom, which would be a worse error than 
 misplacement it was justifying.
 
 `presentation/errors/` is a new top-level folder under `presentation/`, so this slice no
-longer claims to add none. Slice 11 owns error mapping but names no directory for it; if
-a later slice gives that mapping a home, this is the folder it joins rather than a second
-one beside it.
+longer claims to add none — the same refinement of §77 that slice 15 makes for
+`presentation/dialogs/`, and made the same way: §77's tree does not draw it, so it is a
+sibling rather than something nested inside a folder it does not belong to.
+
+**This slice creates the folder and slice 17 joins it**, which is a fact rather than a
+plan. Slice 17's `errorSurfacePolicy.ts` — its routing table from an `ErrorOrigin` to a
+surface — already sits there, and slice 17 depends on this one (the README's table: 16
+needs 6 and 11; 17 needs 11 and 13–16), so the directory exists by the time slice 17
+needs it. An earlier version of this paragraph said "if a later slice gives that mapping
+a home", which was a forward promise over something a document away had already done;
+slice 17 now names this slice back, so a reader arriving from either side finds the
+other. Slice 11 owns error *mapping* and names no presentation directory at all, so
+nothing of its is waiting on this one.
 
 ## Persistence Impact
 

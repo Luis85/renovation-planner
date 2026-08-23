@@ -154,6 +154,14 @@ belongs at
 the environment they run in, not a directory — and a directory that repeats a fact the
 path already carries is the drift this slice's own §2 table exists to prevent.
 
+`vitest.config.ts` also needs `@vitejs/plugin-vue` registered, which slice 1 installs as
+part of its Vue arrival checklist and which is named here because this is the section an
+implementer reads when building the file. `vitest.config.ts` is standalone — `defineConfig`
+from `vitest/config`, no `mergeConfig` with the build config — so the plugin being in
+`vite.config.ts` does nothing for it, and without it a component test fails at parse rather
+than at an assertion. The environments below are what this slice owns; the plugin is
+slice 1's, recorded here so the two halves of one file are not each other's blind spot.
+
 `vitest.config.ts` defines two run environments, not one, and the split is stated as
 **a default plus a named exception** rather than as two glob lists:
 

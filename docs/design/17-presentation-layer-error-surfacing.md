@@ -1,6 +1,3 @@
----
-type:
----
 # Design Slice 17: Presentation-Layer Error Surfacing
 
 ## Purpose

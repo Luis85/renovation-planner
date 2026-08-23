@@ -251,6 +251,39 @@ every Plan entry comes back without a `geometrySidecarPath` — so every Zone re
 write fails, on data that is still sitting intact in a folder nothing looks at any more.
 A user who changed a setting and restarted a day later has no way to connect the two.
 
+*The obvious alternative, considered and declined: make the folder setting irrelevant by
+discovering sidecars vault-wide.* If `rebuild` enumerated every `.rpgeo` file in the vault
+rather than one folder, changing the setting would need no protocol at all — new sidecars
+go to the new folder, old ones keep working where they are, and this whole section
+(roughly ninety lines and six tests) disappears. It is not a strawman: the index rebuild
+already reads the geometry folder *and* the note folders and joins them, so it is already
+a multi-source scan.
+
+Declined, because vault-wide discovery does not remove the failure modes, it trades them
+for worse ones:
+
+- **A sync conflict copy becomes a hard error.** Obsidian sync and Dropbox both resolve a
+  conflict by writing a second file beside the first (`plan-01JABC (1).rpgeo`,
+  `plan-01JABC.sync-conflict.rpgeo`). Scoped to one folder, that is one stray file in a
+  folder the user chose and can see. Scoped vault-wide, two files claim one `planId` and
+  the index has no rule for which wins — the refusal that step 1 above gives a *user*, at
+  the moment they chose the folder, becomes a refusal given to nobody at load time.
+- **Stranded files stay stranded, silently.** Sidecars left in the old folder keep working
+  forever, so nothing ever tells the user their geometry is spread across two places. The
+  first time it matters is a backup or an export that points at the configured folder and
+  quietly misses half the plans — the same class of failure as the silent setting change,
+  moved further away from its cause.
+- **It contradicts ADR-011's own reason for existing.** The point of a configured folder
+  is that plugin data sits "somewhere a user would think to look", so that uninstalling
+  does not leave files scattered across the vault. A design that discovers them anywhere
+  makes the setting cosmetic and puts the scatter back.
+
+What tips it is that the protocol below is bounded — one sequence, run when a user
+changes one setting — while vault-wide discovery is unbounded: every load, every plan,
+forever, with the ambiguity resolved by whichever file the enumeration happened to reach
+first. Revisit if Obsidian ever offers a conflict-free way to claim a filename, or if the
+folder setting is dropped.
+
 So the change is a compensated operation that must complete **before** the setting is
 written, in the same shape as this slice's other multi-file sequences:
 
@@ -531,6 +564,33 @@ do not contend with each other, so two Plan Editors stay independent. Serializin
 store — not at the dispatcher — is what makes the guarantee hold for *every* writer,
 including the vault-change pipeline and any future spatial-object repository, rather than
 only for commands that happened to go through one editor's dispatcher.
+
+**Considered and declined for this slice: caching the parsed sidecar, and coalescing
+queued mutations.** Both are real optimizations over the shape above, which re-reads,
+re-parses, re-serializes and rewrites a whole file for every single-zone change, and
+both are declined now with a named trigger rather than left unmentioned.
+
+*A cache* would hold the parsed `PlanGeometryDTO` per open plan and skip the read. It is
+declined because it makes the store a second authority over the file's contents, and the
+file is one a user can open and edit in Obsidian — this is a **registered, visible file
+type** (ADR-011), which is the whole reason `EntityVersion` carries an observation token
+rather than a revision alone. A cache would therefore need invalidation from the
+vault-change pipeline to be correct, and the vault-change pipeline is debounced, so the
+window where the cache is confidently wrong is exactly the window a hand edit lands in.
+That is a lost update wearing a performance improvement, and the current shape's
+`mutate()` reads inside the lock precisely so it cannot happen.
+
+*Coalescing* would merge several queued mutations for one plan into a single
+read-modify-write. It is declined because each mutation returns the `EntityVersion` its
+own write produced, and that return value is load-bearing: slice 6's expectation chain
+and slice 7's calibration undo are both built on "the version my write produced".
+Coalescing N mutations into one write means N callers sharing one version, and working
+out which of them may legitimately claim it is a new contract, not an optimization.
+
+The trigger for either is a **measured** cost: a plan whose sidecar is large enough that
+one read-modify-write is visible in a drag, which needs a real vault to observe and
+`npm run perf` to argue about — neither of which exists yet. Until then the correct
+version of a slow thing beats a fast thing with an unwritten invalidation rule.
 
 **What this does not buy: undo-stack ordering.** It is tempting to conclude that
 serialized writes mean commands complete in dispatch order, so slice 6's undo stack
@@ -861,9 +921,30 @@ so it is the only code that knows the path), and `rebuild` recovers it by **join
 two halves of the scan it already performs** — it reads the geometry folder for sidecars
 as well as the note folders (see Persistence Impact), and every validated
 `PlanGeometryDTO` carries the `planId` its file belongs to, so each sidecar's own path
-attaches to that Plan's entry. The join key comes from the sidecar's contents, never
-from its filename: a filename is a derivation by another route, and ADR-011 forbids
-that.
+attaches to that Plan's entry.
+
+**The filename is the fast path, and the contents are what confirm it.** What ADR-011
+forbids is deriving a sidecar's path from the **plan note's** path — that is the
+colocation model it replaced, and the reason resolution goes through the index. It says
+nothing against reading a sidecar's own filename, which ADR-011 itself fixes as the
+plan's stable ID and this section's own convention above repeats. So the rebuild does
+not read and Zod-parse every file's full contents to learn something the directory
+listing already told it: on a vault with hundreds of plans that is hundreds of whole-file
+reads and schema validations, at the one moment `onLayoutReady` is competing with
+workspace restoration.
+
+The join is therefore: take the `planId` from the filename, attach the path to that
+Plan's entry, and **verify** against the contents — but the verification is where the
+cost is, so it is not a full parse of every file either. It is one comparison of the
+sidecar's own `planId` field against the filename, on the read the Plan's first Zone
+access performs anyway. A mismatch is not a Plan without geometry: it is a broken index
+entry, surfaced as a diagnostic (slice 11) and never silently preferred in either
+direction, because a hand-renamed sidecar and a hand-edited `planId` field are both
+things a user can do to a visible, registered file type.
+
+What this does not weaken: a sidecar whose filename is not a plan ID at all is skipped
+with a diagnostic rather than guessed at, and the index still holds the authoritative
+`planId → path` entry — nothing outside `rebuild` ever derives a path from anything.
 
 There is deliberately no sidecar reference in the Plan's frontmatter to read instead.
 Adding one would put the same fact in two writable places — a note a user can edit and

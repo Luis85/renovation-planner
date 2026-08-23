@@ -508,10 +508,28 @@ Three properties this decorator holds to:
   reports, only when.
 - **It re-queries the whole plan, and the whole selection**, which is proportional to
   plan size on every gesture — the same trade the hit-test scan makes, and correct at any
-  size. Refreshing only what changed would need the entity IDs `UndoableCommand.execute()`
-  deliberately discards *and* whatever the event cascade touched downstream of them; that
-  is an optimization for whichever slice can measure it, not a correctness gap here. The
-  Inspector's share of the cost is bounded by the selection, not the plan.
+  size. The Inspector's share of the cost is bounded by the selection, not the plan.
+
+  *Considered and declined: use what `save()` already returned instead of re-reading.*
+  Slice 4's `save()` resolves the written `Loaded<T>`, so the entity this command wrote is
+  in hand and re-reading it is provably redundant — an N+1-file read where one file's
+  contents were already known. It still does not answer this refresh, for two reasons
+  that are structural rather than incidental. The wrapped value is **discarded before it
+  gets here**: `UndoableCommand.execute()` resolves `Result<void, AppError>` by contract
+  (slice 6), and the adapter reads the payload for one `EntityVersion` and drops the
+  rest — widening that contract to carry entities back out would put a domain entity in
+  the return type of every reversible adapter, for the benefit of one caller. And it is
+  the wrong *set* even where it is available: what this refresh has to cover is not the
+  entity the command saved but everything the command's **cascade** wrote — slice 7's
+  calibration rescales every Zone on the plan, slice 10's handler rewrites Requirements
+  the command never named, and an undo restores through the repository without announcing
+  anything. A refresh built from one save's return value would be correct for exactly the
+  commands that change one entity and silently wrong for the ones that do not, which is
+  the worse of the two failure modes: it would look right in every simple test.
+
+  Refreshing only what changed therefore needs a durable record of what the whole
+  dispatch touched, not a return value — and that is a real design, for whichever slice
+  can measure the cost it would save.
 
 This is also what makes `DrawPolygonTool`'s `selection := command.createdZoneId` land on
 something: by the time `commandDispatcher.run()` resolves, the new zone is in the store,

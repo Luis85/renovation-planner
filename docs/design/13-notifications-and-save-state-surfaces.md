@@ -234,6 +234,33 @@ loudly rather than silently dropping the message, matching this codebase's gener
 preference for a loud failure at the point a real bug exists over a caller-visible
 silent no-op.
 
+**`notify` is an importable module-global, and the Pinia argument above does not defend
+that** — it defends *explicit binding* over ambient resolution, which is a different
+question and the one that was actually being asked. What an importable global means is
+that any file in `presentation/` reaches a toast by adding one import, with nothing in the
+type of a component or a decorator recording that it does. So the alternative deserves
+naming: **constructor injection**, `notify` handed to whatever needs it the way slice 1
+hands the `Logger` port to everything that logs.
+
+Kept as a module-global, for two reasons that hold specifically for this dependency and
+are not a general licence:
+
+- **A toast has no second implementation and never will.** The `Logger` port is injected
+  because its implementation is chosen at the composition root — console today, file-backed
+  if slice 11 adds one — and because `domain/` must be able to *not* have one. `notify`
+  is one function over one store, in one layer, in a plugin with one notification surface.
+  Injecting it would thread a parameter through every intermediate component that does not
+  use it, to reach a leaf, to select between one option.
+- **The seam that matters for testing is the store, not the import.** A test drives
+  `initNotifications(fakeStore)` and asserts on the fake — which is the same substitution
+  injection would buy, one level down, without the plumbing.
+
+What is given up, and therefore what to watch: an import is invisible in a signature, so
+"which components can raise a toast" is answerable only by grep. That is the cost, and the
+trigger for revisiting is a second push surface (a status-bar message, a modal queue)
+arriving — at which point the choice is no longer between one option and the plumbing is
+buying something.
+
 ### 6. Save-state model, and where it lives
 
 Unlike `NotificationStore`, `SaveStateStore` is scoped **per open Plan Editor** — one
@@ -288,9 +315,45 @@ withSaveStateTracking(history, saveStateStore).<op>(...)   for op in run | undo 
   → saveStateStore.beginSaving()      pendingCount++; state := 'saving'
   → result = await history.<op>(...)
   → result.ok  → saveStateStore.resolveOk()    pendingCount--
-  → !result.ok → saveStateStore.resolveErr()   pendingCount--; hasErrorInBatch := true
+  → !result.ok → affectsSaveState(result.error)
+                   ? saveStateStore.resolveErr()  pendingCount--; hasErrorInBatch := true
+                   : saveStateStore.resolveOk()   pendingCount--
   → return result unchanged to the caller
 ```
+
+**Not every failed `Result` is a save error, and the decorator filters rather than
+flipping on anything.** A field commit that fails a domain rule resolves a
+`ValidationError` and **writes nothing** — the repository was never reached. Flipping the
+indicator to `Save Error` for it would be wrong twice: it reports a persistence failure
+that did not happen, and slice 17 routes a `ValidationError` to an inline field error
+*only*, forbidding a second surface for the same fact. The user would get the inline
+message they need plus a `Save Error` badge about data that is exactly as safe as it was
+before they typed.
+
+So the filter is a predicate over the error's own category:
+
+```typescript
+// presentation/stores/saveState/affectsSaveState.ts
+// True only for a failure that means "this Plan's data may not be written". A category
+// that never reaches a write cannot.
+const affectsSaveState = (error: AppError): boolean => error.category !== 'validation';
+```
+
+**Which slice owns that predicate is the part worth pinning**, because it is exactly the
+kind of rule that ends up stated twice. **Slice 17 owns the mapping from an error to a
+surface**; this slice owns the *indicator*, and the indicator is one of slice 17's
+surfaces. So the predicate lives here, in `presentation/stores/saveState/`, and it is
+**derived from slice 17's table rather than authored beside it**: a category whose row
+routes to `save-state` for any origin returns true, and one that never does returns false.
+Slice 17's own no-double-reporting test is the check that keeps the two in agreement, and
+its scope widens to cover this case — the autosave `PersistenceError` (already covered)
+plus the `ValidationError`, which must produce an inline error and **no** indicator
+transition.
+
+Stated as an inequality against one category rather than a list of the ones that do count,
+deliberately: a new `AppError` category added by a later slice should default to
+*affecting* the indicator, because "we might not have written your data" is the safe
+answer to give while nobody has thought about it. The unsafe default is silence.
 
 **All three of `CommandHistory`'s operations are decorated, not just `run`.** `undo()`
 and `redo()` each execute a command, which means each performs a repository write

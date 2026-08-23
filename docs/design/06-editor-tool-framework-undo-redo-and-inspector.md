@@ -301,7 +301,8 @@ CommandHistory
 
   run(command)   → result = await command.execute()
                  → if isErr(result): return result — undoStack/redoStack untouched
-                 → push command to undoStack, clear redoStack, return result
+                 → push command to undoStack, dropping the oldest entry past
+                   UNDO_DEPTH, clear redoStack, return result
   undo()         → peek undoStack (do not pop yet)
                  → result = await command.undo()
                  → if isErr(result): return result — command stays on undoStack,
@@ -351,9 +352,32 @@ wraps this and is unaffected — a queued call is still an outstanding call, so 
 
 `CommandHistory` is scoped per open Plan and lives in `EditorStore`; it is not
 persisted (SDD §15 — ephemeral) and does not survive a plugin reload or switching
-plans. Stack depth is unbounded in this design; the SDD does not specify a cap, so an
-explicit depth limit is an assumption left for whichever slice tunes memory behavior,
-not required here.
+plans.
+
+**Stack depth is capped, at a constant declared here.** The earlier position — unbounded,
+because the SDD specifies no cap and the stack is session-bounded anyway — is being
+changed, and the reason is what an entry actually holds. A reversible adapter captures
+`before` and `after` as **whole-geometry snapshots** (see the transaction boundary below:
+`pointerDown` captures the before-state, `pointerUp` builds the command from both), so one
+move of a thousand-vertex polygon is two thousand `Point` objects retained for as long as
+the editor is open. "Session-bounded" is a bound on *when* it is released, not on how large
+it gets first, and the session is a user drawing all afternoon.
+
+```typescript
+const UNDO_DEPTH = 100;   // entries per Plan Editor; oldest dropped on push
+```
+
+A hundred rather than a tuned number, because the figure that would justify tuning does
+not exist yet: nothing here can measure a snapshot's real size, and `npm run perf` is
+deliberately absent until there is a render cost to argue about. What one constant buys
+over "an assumption left for whichever slice tunes memory behavior" is that the failure it
+prevents is bounded *now*, by one line, and the constant is where a later measurement
+lands rather than a design that has to be added.
+
+The cap is only on `undoStack`. `redoStack` is bounded by it transitively — nothing
+reaches redo except by being undone — and a dropped entry is dropped silently: telling a
+user "your hundredth-from-last edit is no longer undoable" is a notification about a
+limit they have not hit and cannot act on.
 
 ### Transaction boundary
 
@@ -796,6 +820,10 @@ and tool-switching directly touch.
 12. No tool-specific branching exists inside `ToolManager` or `EditorContext` — adding a
     future tool (e.g. `WallTool`) requires only a new `EditorTool` implementation, not a
     framework change.
+13. `undoStack` never exceeds `UNDO_DEPTH`: pushing one entry past the cap drops the
+    oldest, `canUndo` still reports true, and `redoStack` is unaffected. Asserted at the
+    cap rather than at a hundred-and-first real gesture — the constant is read from the
+    module, so a later tuning does not turn this into a failing test about a number.
 
 ## References
 

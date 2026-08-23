@@ -144,6 +144,33 @@ export async function revealPlanEditor(
 ): Promise<void>;
 ```
 
+**This is a second function, and CLAUDE.md's "one action, every input" rule is what makes
+that need justifying rather than assuming.** The rule's actual target is two entry points
+that each decide what opening means — a ribbon and a command with their own activation,
+which open a duplicate tab the moment a user uses both. That failure is about the number
+of *deciders* per action, not the number of functions in the module, and every way of
+opening a Plan Editor still lands on exactly one of them.
+
+*Generalizing `revealView` with a matcher* was the alternative, and it is rejected on what
+`revealView` can actually see: it matches with `getLeavesOfType(type)` and nothing else,
+because that is all it needs, whereas matching a Plan means reading each candidate leaf's
+`getState().planId`. A `revealView(workspace, type, match?)` would therefore make every
+caller of the singleton case pay for a parameter that only one caller can supply, and its
+body would branch on whether a matcher was given — which is the "tool-specific branching
+inside the shared thing" shape slice 6 refuses for `ToolManager` for the same reason.
+
+The two also want genuinely different behaviour, which is the deciding fact rather than a
+preference: `revealView` exists to guarantee **one** leaf, and the Plan Editor's whole
+premise is that several coexist (comparing Ground Floor against First Floor). One function
+that both guarantees uniqueness and permits multiplicity guarantees nothing.
+
+What the rule does buy, and what is therefore load-bearing here: the two share their
+*mechanism* — find candidates, take the first or create one, `setViewState` only on a leaf
+this call created, then `revealLeaf` — as one internal helper in this module, so
+"`setViewState` only on a new leaf" is not a subtlety re-remembered per function. And a
+third activation, whenever it arrives, extends one of these two rather than becoming a
+third: the test is whether it needs to match on state, and that is a closed question.
+
 Query-service access is constructor-injected from the composition root, exactly like
 `RenovationProjectView` would be once it has data needs — `registerView(PLAN_EDITOR_VIEW,
 (leaf) => new PlanEditorView(leaf, planQueryServices))`. The view never imports an Obsidian

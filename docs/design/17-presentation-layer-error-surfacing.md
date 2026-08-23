@@ -393,11 +393,17 @@ Contract notes:
   including every one that resolves to `"none"`, assert `logger.error` (a
   test double, per slice 11's own pattern) was still called before
   `surfaceFor` was consulted — proving surface choice never gates logging.
-- **No double-reporting test**: for the autosave-write `PersistenceError`
-  case specifically, assert that choosing `save-state` does not also invoke
+- **No double-reporting test**, in both directions. For the autosave-write
+  `PersistenceError`, assert that choosing `save-state` does not also invoke
   `notify.error` — the reconciliation with slice 13 is a behavior, not just
   a sentence, and gets a test that fails if a future edit reintroduces the
-  duplicate toast slice 11's own illustrative code showed.
+  duplicate toast slice 11's own illustrative code showed. And for a
+  `ValidationError` on a field commit, assert the inline error is raised and
+  slice 13's indicator does **not** transition: the category never reaches a
+  write, so `Save Error` would report a persistence failure that did not
+  happen alongside the inline message that did. Slice 13's
+  `affectsSaveState` predicate is derived from this table, so this test is
+  what keeps the two in agreement rather than a comment in each.
 
 ## Definition of Done
 

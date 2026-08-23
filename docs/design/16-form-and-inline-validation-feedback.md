@@ -416,20 +416,32 @@ interface FormBannerProps {
 }
 ```
 
-File layout (SDD §77 already draws `presentation/components/` and
-`presentation/composables/`; this slice populates them, it does not add new top-level
-folders):
+File layout. SDD §77 already draws `presentation/components/` and
+`presentation/composables/`, which this slice populates rather than adds. It does add one
+sibling — `presentation/errors/` — for the one module here that is not a composable:
 
 ```text
 presentation/
 ├── components/
 │   ├── FieldError.vue
 │   └── FormBanner.vue
-└── composables/
-    ├── route-error.ts
-    ├── use-field-commit.ts
-    └── use-form-commit.ts
+├── composables/
+│   ├── use-field-commit.ts
+│   └── use-form-commit.ts
+└── errors/
+    └── route-error.ts
 ```
+
+`route-error.ts` sits outside `composables/` because
+`docs/setup/vue-conventions.md` §4 scopes that directory to `use*` composables — things
+that bind reactivity or a lifecycle — and `routeError` is a pure function that binds
+neither. The placement is not cosmetic: it is what keeps the routing logic node-testable
+instead of reachable only through jsdom, which is the return §4 exists to protect.
+
+`presentation/errors/` is a new top-level folder under `presentation/`, so this slice no
+longer claims to add none. Slice 11 owns error mapping but names no directory for it; if
+a later slice gives that mapping a home, this is the folder it joins rather than a second
+one beside it.
 
 ## Persistence Impact
 
@@ -527,7 +539,11 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   this slice consumes; this slice is the last stage, "User Message," applied specifically
   to a field.
 - SDD §77 Proposed Repository Structure — `presentation/components/` and
-  `presentation/composables/`, populated, not newly added, by this slice.
+  `presentation/composables/`, populated, not newly added, by this slice; plus
+  `presentation/errors/`, which this slice DOES add, for `route-error.ts` (see File
+  layout).
+- `docs/setup/vue-conventions.md` §4 — the composable rules this slice's two `use*`
+  modules follow, and the reason `route-error.ts` is not among them.
 - SDD §85 Accessibility — "semantic labels," "status not encoded only by color,"
   "visible focus," applied to `<FieldError>`.
 - PRD §39 (User Experience Requirements: Inspector actions, the `Escape` shortcut) — not

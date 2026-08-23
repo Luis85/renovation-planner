@@ -380,13 +380,24 @@ covers at all. So the Requirement also persists **what it was calculated from** 
 two inputs that live outside it:
 
 ```text
-calculatedFrom: { zoneArea: Quantity; unitCost: Money }
+calculatedFrom: { zoneArea: Quantity; unitCost: Money; assetUnit: MeasurementUnit }
 ```
 
-Both are written by `RecalculateRequirementCommand` in the same save as the figures they
-produced, so they are always written when writes are working, never when they are not.
-The read model compares them against the Zone and Asset it has already loaded, and
+All three are written by `RecalculateRequirementCommand` in the same save as the figures
+they produced, so they are always written when writes are working, never when they are
+not. The read model compares them against the Zone and Asset it has already loaded, and
 reports `"stale"` on any mismatch regardless of the persisted flag.
+
+`assetUnit` is in that record because the Asset's unit is an input to the figures in the
+strongest sense available — it fixes their *dimension*, not merely their magnitude. Area
+and unit cost can both be byte-identical across a unit change (a `45.00 EUR` Asset
+switched from `m2` to `m` keeps its price, and the Zone's area does not move), so a
+two-field snapshot compares equal and reports `"current"` over a quantity that is no
+longer dimensionally meaningful — the one reading this backstop exists to make
+impossible. It is deliberately not inferred from `Requirement.unit`: that field tracks
+the Requirement's *current* Asset (reassign rewrites it), so comparing it against the
+Asset would compare a value to a copy of itself and agree in exactly the case that
+matters.
 
 The direction of that backstop is the whole of its contract, and it is deliberately
 one-way: it can move a reading from `"current"` to `"stale"`, never the reverse. A
@@ -428,6 +439,25 @@ that cannot change a cost (a `name` or `notes` change). Recalculating a few Requ
 unnecessarily is cheap and always correct; diffing the Asset to decide whether to fire
 would be a second place that has to know which fields the pipeline reads, and would go
 wrong silently the first time the pipeline started reading one more.
+
+**One Asset edit is refused rather than cascaded: a unit change that leaves the `area`
+kind while Requirements still reference it.** `AssignAssetCommand` rejects a non-area
+Asset outright, so a `m2 → m` edit on a referenced Asset would manufacture, by update,
+precisely the link the assignment path refuses to create — an invariant enforced where
+things are made and abandoned where they are changed, which is the same shape as the
+two rules already corrected above. Recalculating cannot rescue it either: there is no
+correct quantity to recalculate *to*, because a Zone's area is not a length. So
+`UpdateAssetCommand` first asks `listByAsset`, and if any Requirement references the
+Asset and `UNIT_KIND[next] !== UNIT_KIND[current]`, it returns a `ValidationError`
+naming the referencing count and writes nothing. Changes *within* a kind stay allowed
+and cascade normally, as does any unit change on an Asset nothing references yet.
+
+That guard and `calculatedFrom.assetUnit` are not redundant: the guard is the invariant
+and stops the state being reachable through the command, while the snapshot is the
+backstop for the paths a command cannot police — a migration, a hand-edited note, or a
+future area unit where the kind matches and the magnitude does not. Slice 11's Data
+Safety rules put the authority in the domain and the detection in the read model; this
+is that split, applied to one field.
 
 `RecalculateRequirementCommand` (named in SDD §29) re-fetches the current Zone
 and Asset, re-runs the pipeline above, saves the Requirement (quantity, cost, and
@@ -519,12 +549,15 @@ backed by one new query and reusing the asset catalog:
 function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
 function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>; // the "assign asset" picker
 
-// Used by slice 15's delete-confirmation flow. The Inspector needs a reference count
+// Used by slice 15's delete-confirmation flow. The Inspector needs the referents
 // before offering Delete, and §58/§59 route that through a query, never a repository
-// handle the presentation layer holds.
-function CountRequirementsReferencing(
+// handle the presentation layer holds. It returns IDs rather than a count because the
+// caller owes the command the exact set the user consented to, not just how many there
+// were (see "A resolution consents to a specific set of referents"); the dialog's row
+// renders `.length`.
+function ListRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
-): Promise<Result<number, PersistenceError>>;
+): Promise<Result<readonly RequirementId[], PersistenceError>>;
 
 interface RequirementInspectorDTO {
   requirementId: RequirementId;
@@ -629,15 +662,20 @@ Deleting a Zone or an Asset that a Requirement still references must not silentl
 cascade-delete the Requirement (PRD §63–64). The check happens in **two places, for two
 different reasons**, and keeping them apart is what makes the flow work:
 
-- **Before the dialog**, the Inspector asks `CountRequirementsReferencing` (the query
+- **Before the dialog**, the Inspector asks `ListRequirementsReferencing` (the query
   above) so slice 15's `DeleteReferenceDialog` can show the user what they are about to
   affect. This is a read for display. It goes through a query, never a repository handle
-  held by presentation code — §58/§59, and slice 6's Inspector rule.
+  held by presentation code — §58/§59, and slice 6's Inspector rule. The caller keeps
+  the IDs, not just the count, because it owes them back to the command as the record
+  of what was consented to.
 - **Inside the command**, `DeleteZoneCommand` (slice 3, extended here) and
   `DeleteAssetCommand` (this slice) re-check and refuse a bare delete that would orphan
   referents, returning a `ReferenceError` naming them. This is the enforcement, and it
   has to be in the command because a script, a migration, or a future caller that never
-  opened a dialog must not be able to walk past it (§87 rule 5, slice 11).
+  opened a dialog must not be able to walk past it (§87 rule 5, slice 11). The re-check
+  is also what catches the set *moving* between the two reads — the display read is
+  advisory and stale by construction, so the command compares what it finds against
+  `resolvedReferents` rather than trusting either count.
 
 The dialog's resolution reaches the command as data, which means a command input has to
 carry it. **This slice is what adds that field**, because this slice introduces the first
@@ -655,14 +693,51 @@ interface DeleteZoneInput {
   zoneId: ZoneId;
   resolution?: ReferenceResolution;
   reassignTo?: ZoneId;   // required when resolution is 'reassign'; see below
+  // The exact referents the user was shown when they chose `resolution`. Required
+  // whenever `resolution` is present; see "A resolution consents to a specific set".
+  resolvedReferents?: readonly RequirementId[];
 }
 
 interface DeleteAssetInput {
   assetId: AssetId;
   resolution?: ReferenceResolution;
   reassignTo?: AssetId;
+  resolvedReferents?: readonly RequirementId[];
 }
 ```
+
+**A resolution consents to a specific set of referents, not to a number.** The dialog
+counts, the user decides, and only then does the command look the referents up for
+itself — so the set it acts on is the set at dispatch time, which is not necessarily
+the set that was on screen. Another view adding a Requirement inside that window is
+enough: `remove-references` would then delete a Requirement the user was never shown
+and never consented to losing, and the count they approved would not even have been
+wrong. Slice 15's flow already guards the opposite drift (referents that vanished
+before dispatch, which it re-counts and reports); this is the same race in the
+direction that destroys data instead of merely confusing.
+
+So a `resolution` is only honoured together with `resolvedReferents`, the referent IDs
+as displayed. The command re-reads the live set and compares:
+
+```text
+resolution present, resolvedReferents absent  → ValidationError (a caller that
+                                                 resolved without showing anything)
+live set === resolvedReferents (as a set)     → proceed
+live set !== resolvedReferents                → ReferenceError, code
+                                                 'reference.set-changed', naming the
+                                                 live count. Nothing is written.
+```
+
+The mismatch is a refusal, not a re-prompt the command issues: the command has no
+dialog to open (slice 15 owns that, and this layer may not reach it). Slice 15's caller
+re-counts and re-asks, exactly as it already does for the vanished-referent case, so
+the user re-consents to the set that actually exists. Order matters — this check runs
+before any write, in step 0 of the compensated sequence below, so a stale resolution
+costs nothing to reject.
+
+Comparison is set equality, not list or count equality: an added and a removed referent
+in the same window would leave the count untouched while changing what is deleted, and
+that is the case a count-based check reads as unchanged.
 
 What each resolution means to the command, so the dialog's four buttons are four real
 outcomes rather than three synonyms for "delete":
@@ -671,7 +746,7 @@ outcomes rather than three synonyms for "delete":
 | --- | --- |
 | *(absent)* | Refuse with a `ReferenceError` naming the referents, if any exist. This is the path a script or a migration takes. |
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
-| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, or (for an Asset) is not of `area` kind is a `ValidationError` and nothing is written. |
+| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, belongs to a **different Project** than the entity being deleted, or (for an Asset) is not of `area` kind is a `ValidationError` and nothing is written. |
 | `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Requirements panel shows wherever it still has a row to show it on (see below). |
 
 **`reassign` changes a Requirement's inputs, so it owes the same cascade a geometry edit
@@ -684,10 +759,10 @@ did neither, which left one of the three paths quietly exempt from the invariant
 two exist to hold.
 
 The read model does not save it, though it softens the symptom and the distinction is
-worth being exact about: `calculatedFrom` records the `zoneArea` and `unitCost` a figure
-was produced from, so a panel loading a reassigned Requirement compares them against its
-*new* target, finds a mismatch, and reports `"stale"` — one of the two guarantees already
-holds. The other two do not. The persisted marker still reads `"current"`, which is the
+worth being exact about: `calculatedFrom` records the `zoneArea`, `unitCost` and
+`assetUnit` a figure was produced from, so a panel loading a reassigned Requirement
+compares them against its *new* target, finds a mismatch, and reports `"stale"` — one
+of the two guarantees already holds. The other two do not. The persisted marker still reads `"current"`, which is the
 state the round that added `recalculationStatus` set out to make impossible, and — the
 part no backstop covers — **nothing ever recalculates it**: no geometry changed and no
 Asset was edited, so neither subscriber fires, and the Requirement keeps the old Zone's
@@ -769,9 +844,13 @@ inside a repository:
 
 ```text
 0. Validate the resolution's own input (`reassignTo` resolves, is not the entity being
-   deleted, and for an Asset is of `area` kind) — before any write, so a rejected
-   reassignment has nothing to compensate.
-1. Read every referencing Requirement in full → `affectedBefore` snapshot.
+   deleted, shares the deleted entity's `projectId`, and for an Asset is of `area`
+   kind) — before any write, so a rejected reassignment has nothing to compensate.
+1. Read every referencing Requirement in full → `affectedBefore` snapshot. Compare its
+   IDs against `resolvedReferents` as a set; on any difference, return
+   `reference.set-changed` and stop here — still before any write, so a resolution
+   consented to against a set that has since moved costs nothing to refuse. This
+   reuses the read step 4 needs anyway rather than adding a second lookup.
 2. Apply the resolution to each in turn, recording which have been written. For
    `reassign` that is more than one write per Requirement — repoint + markStale, then a
    recalculation whose failure is logged and left stale rather than aborting the
@@ -823,6 +902,16 @@ around by deleting an Asset instead of assigning one. Both paths read the same
 `UNIT_KIND` map rather than each comparing against a literal `'m2'`, and both compare
 the two entities' `projectId`s rather than trusting whichever picker supplied the
 target.
+
+**The project check binds a Zone `reassignTo` too, not only an Asset one.** The unit
+check is genuinely Asset-only — a Zone has no unit to be incompatible — but nothing
+about "stay inside one Project" is. Repointing a Requirement's `origin` at a Zone in
+another Project produces exactly the inconsistency the Asset check exists to prevent,
+arrived at from the other side: the Requirement keeps the deleted Zone's `projectId`
+while its origin now names geometry another Project owns, so its area is computed from
+a Zone that Project's own queries will never list it under. So `reassignTo` is
+validated against the entity being deleted for **both** kinds — `target.projectId ===
+deleted.projectId` — and only the `UNIT_KIND` half is conditional on which kind it is.
 
 ## Interfaces & Contracts
 
@@ -947,9 +1036,9 @@ class ReversibleSetRequirementCostOverrideCommand implements UndoableCommand {
 // query for the Zone-less case: see "Deletion & reference integrity" and Out of scope.
 function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
 function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
-function CountRequirementsReferencing(
+function ListRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
-): Promise<Result<number, PersistenceError>>;
+): Promise<Result<readonly RequirementId[], PersistenceError>>;
 ```
 
 ```text
@@ -1242,6 +1331,15 @@ are additive, not breaking.
       is the assertion that the guarantee does not rest on the write that can fail.
 - [ ] `calculatedFrom` never moves a reading the other way: a Requirement persisted as
       `"stale"` whose inputs happen to match again still reads `"stale"`.
+- [ ] `UpdateAssetCommand` refuses a unit change that crosses `UNIT_KIND` while any
+      Requirement references the Asset — `ValidationError`, nothing written, no
+      `AssetUpdated` published — while a same-kind unit change, and any unit change on
+      an unreferenced Asset, still succeeds and cascades. This is the update-path half
+      of the invariant `AssignAssetCommand` enforces at creation.
+- [ ] With that guard bypassed (a hand-edited note or a migration), a Requirement whose
+      Asset unit changed kind still reads `"stale"` even though its `zoneArea` and
+      `unitCost` are byte-identical — the `calculatedFrom.assetUnit` mismatch is what
+      catches it, and a two-field snapshot would report `"current"` here.
 - [ ] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
       Requirement this gesture created, redo restores it under the same
       `RequirementId`, and undo on the idempotent path — where the Requirement already
@@ -1282,6 +1380,12 @@ are additive, not breaking.
 - [ ] Deleting a Zone or Asset with a live Requirement and **no** `resolution` refuses
       with a `ReferenceError` naming the referents, instead of cascading silently — the
       path a script or migration takes.
+- [ ] A `resolution` supplied without `resolvedReferents` is a `ValidationError`, and a
+      `resolution` whose `resolvedReferents` no longer match the live set returns
+      `reference.set-changed` with nothing written — asserted with a Requirement added
+      between the read and the dispatch, so `remove-references` cannot delete a referent
+      the user was never shown. Set equality, not count: a test that swaps one referent
+      for another (count unchanged) must still refuse.
 - [ ] Each of `remove-references`, `reassign` and `delete-anyway` produces its own
       distinct outcome, covered by a test per resolution: references deleted, references
       repointed at `reassignTo`, and references left behind marked `"stale"`
@@ -1312,12 +1416,13 @@ are additive, not breaking.
       separately, since one policy applied to both would be wrong in one direction or the
       other.
 - [ ] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, an
-      Asset whose unit is not of `area` kind, or an Asset belonging to a different
-      Project than the Zone resolves a `ValidationError`, writes nothing, and deletes
-      nothing — the unit check reading slice 9's `UNIT_KIND` and the project check
-      comparing the two entities' `projectId`s, the same two checks
+      Asset whose unit is not of `area` kind, or a target (Zone **or** Asset) belonging
+      to a different Project than the entity being deleted resolves a `ValidationError`,
+      writes nothing, and deletes nothing — the unit check reading slice 9's `UNIT_KIND`
+      and the project check comparing the two entities' `projectId`s, the same two checks
       `AssignAssetCommand` applies, so the two paths that can create a link cannot
-      disagree about what a valid one is.
+      disagree about what a valid one is. The cross-project case is asserted for a Zone
+      target as well as an Asset one: only the unit half is kind-specific.
 - [ ] Both override fields dispatch their reversible adapter through
       `CommandHistory.run()` — no plain override command reaches the panel — and undo
       restores the full pre-edit Requirement in each of the three cases that differ:

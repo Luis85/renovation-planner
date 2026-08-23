@@ -32,7 +32,8 @@ real-world measurements."*
 - The pre-calibration default every fresh Plan renders under, since that default is
   exactly what the first calibration corrects.
 - Recalibration semantics — an explicit, reasoned decision, flagged below, since the
-  SDD does not specify it.
+  SDD does not specify it — including the confirmation a recalibration over existing
+  geometry requires before it is dispatched.
 - Validation of calibration inputs against slice 2's `Result`/error conventions.
 
 ### Out of scope (covered by other slices)
@@ -79,6 +80,11 @@ left as feature work built on this slice and slice 8 once both exist.
   defines nor parameterizes the viewport transform.
 - **Slice 6 (Editor Tool Framework, Undo/Redo & Inspector)** — `EditorTool`,
   `EditorContext`, `Command`/`UndoableCommand`, `CommandHistory` (SDD §56–59, §29–31).
+- **Slice 15 (Modals & Confirmation Dialogs)** — `ConfirmDialog` and `DialogStore`,
+  which `CalibrateTool` opens before dispatching a recalibration over existing
+  geometry (see "Confirming a recalibration"). A build dependency for that branch
+  only: a first calibration, which is all Increment 5 requires, dispatches without
+  a dialog and needs nothing from slice 15.
 - **Slice 10 (Assets, Requirements & the End-to-End Loop)** — not a build dependency
   (slice 10 arrives much later, in Increment 7): this slice only publishes
   `ZoneGeometryChanged` on every spatial object it rescales — a slice-3 event that
@@ -259,14 +265,52 @@ type CalibrationError = BaseError<"Calculation", CalibrationErrorCode>;
 > This has real consequences worth flagging: recalibrating a Plan with existing Zones
 > is a larger-blast-radius operation than a first calibration (it touches every spatial
 > object in that Plan, and downstream Requirements derived from their area are now
-> stale). The Presentation layer should treat "recalibrate a Plan that already has
-> geometry" as needing explicit user confirmation, not a silent side effect — but that
-> UI decision belongs to a later slice, not this one.
+> stale). So it is confirmed explicitly, never applied as a silent side effect — see
+> "Confirming a recalibration" below, which wires that to slice 15's `ConfirmDialog`
+> rather than leaving it as an intention.
 >
 > Increment 5's own success criterion only requires calibrating a freshly imported
 > plan with no existing geometry, where this decision is a no-op. It is documented here
 > because slice 8 (Zone Editing) starts producing exactly the geometry this decision
 > governs, and the architecture should not paint itself into a corner before then.
+
+### Confirming a recalibration
+
+`CalibrateTool` dispatches immediately when the Plan has no spatial objects — the
+common case, and the only one Increment 5 requires. When the Plan already has geometry,
+the tool asks first, through slice 15's `ConfirmDialog`:
+
+```text
+CalibrateTool, after the known distance is supplied
+  ↓
+plan.calibration === null OR the Plan has no spatial objects?
+  yes → dispatch ReversibleCalibratePlanCommand directly. A first calibration
+        establishes the scale; it does not reinterpret anything already drawn
+  no  → dialogStore.openDialog({ kind: 'confirm', danger: true, … })
+          — names the count of objects that will be rescaled
+  ↓
+'cancel' → dispatch nothing. Escape and the cancel button are the same answer
+          (slice 15), and match this tool's own cancel() semantics
+'confirm' → dispatch ReversibleCalibratePlanCommand
+```
+
+Three things this deliberately does **not** do. It does not make the command
+conditional — `ReversibleCalibratePlanCommand` still rescales uniformly whether or not
+a dialog preceded it, because a script, a migration, or an undo/redo replay never opens
+one, and a command that trusted a caller's confirmation would be trusting the one thing
+that is absent exactly when it matters. It does not gate on `plan.calibration !== null`
+alone: a Plan calibrated once but never drawn on has nothing to reinterpret, so asking
+would train the user to click through a dialog that is usually meaningless — the count
+of affected objects is what makes the question real. And it does not confirm the
+*undo*: undo reverses a change the user just confirmed, and asking again would make
+the reversal harder than the action.
+
+This is a `ConfirmDialog`, not a `DeleteReferenceDialog`: the question is binary
+(proceed or not), nothing is being deleted, and there are no referents to enumerate —
+which is exactly slice 15's stated split between its two dialog kinds. `danger: true`
+because the operation is not reversible by simply recalibrating back: floating-point
+rescale is not exactly round-tripping, so undo (which restores the snapshot) is the
+recovery path, not a second calibration.
 
 `ReversibleCalibratePlanCommand` implements this uniformly — it does not need to
 special-case "first calibration" versus "recalibration". It is named distinctly from
@@ -492,6 +536,12 @@ Component/Canvas (§73–74, reusing that slice's harness):
   distance is supplied.
 - `cancel()` after the first click clears the pending point without dispatching
   anything.
+- **Recalibration confirmation**, three cases against a `DialogStore` double: a Plan
+  with no spatial objects dispatches with **no** dialog opened; a Plan with existing
+  objects opens exactly one `ConfirmDialog` before dispatching, and the descriptor
+  names the affected object count; answering `'cancel'` dispatches nothing at all.
+  Asserted on the dispatcher spy, not only on the dialog — a tool that opened the
+  dialog and dispatched regardless would pass a dialog-only assertion.
 
 Repository contract (§72, reused from slice 4): a `Calibration` round-trips through
 the sidecar unchanged.
@@ -519,6 +569,14 @@ the sidecar unchanged.
 - [ ] Recalibrating a Plan that already has persisted Zones rescales those Zones'
       geometry in the same transaction as the calibration update, with a passing
       test proving it — not just documented as intent.
+- [ ] `CalibrateTool` opens slice 15's `ConfirmDialog` before dispatching a
+      recalibration over a Plan that has spatial objects, and dispatches nothing on
+      cancel; a first calibration, and a calibration of a Plan with no objects, opens
+      no dialog. Asserted on the command dispatcher, so a tool that asks and then
+      proceeds regardless fails this rather than passing it by opening a dialog.
+      `ReversibleCalibratePlanCommand` itself is unchanged by this: it rescales
+      uniformly whether or not a dialog preceded it, since a script, a migration, and
+      an undo/redo replay never open one.
 - [ ] Recalibration publishes `ZoneGeometryChanged` (never `RequirementInvalidated`
       directly) for every rescaled object — proven by a test that this reaches slice
       10's `onZoneGeometryChanged` subscriber end to end, not just that some event

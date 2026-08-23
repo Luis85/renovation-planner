@@ -44,7 +44,7 @@ dialog resolved with this typed value."
 
 ### Out of scope (covered by other slices)
 
-- The reference-counting query itself (slice 10's `CountRequirementsReferencing`) —
+- The reference-counting query itself (slice 10's `ListRequirementsReferencing`) —
   slice 10. This slice renders whatever count it is given; nothing under
   `presentation/dialogs/` calls a query, let alone a repository.
 - What happens after the dialog resolves — the branching on `'remove-references'` /
@@ -83,7 +83,7 @@ dialog resolved with this typed value."
   resolves, and whose "Deletion & reference-integrity checking" was explicitly
   deferred to slice 10.
 - Slice 10 (Assets, Requirements & the End-to-End Loop) — the
-  `CountRequirementsReferencing` query that supplies this dialog's rows, and the
+  `ListRequirementsReferencing` query that supplies this dialog's rows, and the
   "Deletion & reference integrity" section that names the
   Cancel/Remove-References/Reassign/Delete-Anyway flow this dialog renders and the
   command-side enforcement it does not replace.
@@ -176,6 +176,13 @@ Create Work Package, Add Cost, Add Task) actually route through `ConfirmDialog` 
 slice 17's decision, not this one; this slice only guarantees the dialog exists for
 whichever of them need it.
 
+One caller outside that list is already named: slice 7's `CalibrateTool` opens a
+`ConfirmDialog` before recalibrating a Plan that already has geometry, since the
+rescale reinterprets every existing coordinate. It is a `ConfirmDialog` rather than a
+`DeleteReferenceDialog` for exactly the reason the two kinds are separate — the
+question is binary and nothing is being deleted, so there are no referent rows to
+enumerate.
+
 **`DeleteReferenceDialog`** — modeled as a genuinely distinct kind, not a `ConfirmDialog`
 variant, because it has four mutually exclusive outcomes, not two, and the caller needs
 to distinguish all four:
@@ -222,12 +229,12 @@ like.
 ```text
 Inspector "Delete" button (slice 6 Inspector action, PRD §39)
   ↓
-CountRequirementsReferencing({ kind: 'zone', zoneId })   — slice 10's QUERY, not its
+ListRequirementsReferencing({ kind: 'zone', zoneId })   — slice 10's QUERY, not its
                                                             repository: presentation
                                                             never holds a repository
                                                             handle (§58, §59)
   ↓
-count === 0?
+referents.length === 0?
   yes → dispatch the delete command with NO resolution — the form slice 10's table
         makes safe: the command refuses with a ReferenceError if referents exist after
         all. Whether a plain ConfirmDialog precedes that dispatch is the caller's
@@ -236,14 +243,21 @@ count === 0?
   no  → dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zone.name,
-          references: [{ label: 'Requirements', count }],
+          references: [{ label: 'Requirements', count: referents.length }],
         })
   ↓
 await result
   ↓
 switch (result.action) { cancel | remove-references | reassign | delete-anyway }
-  → the chosen resolution is passed INTO slice 8's zone-delete command as data;
-    this slice's contract is satisfied the moment the switch above receives a value
+  → the chosen resolution is passed INTO slice 8's zone-delete command as data,
+    together with `resolvedReferents: referents` — the exact IDs that were on
+    screen. This slice's contract is satisfied the moment the switch above
+    receives a value; carrying the IDs onward is the caller's job, not the
+    dialog's (the dialog is handed rows and never learns what an ID is)
+  ↓
+command returns 'reference.set-changed'?
+  → the set moved while the dialog was open: re-read, re-ask once against what
+    exists now. A different set is a different question
 ```
 
 The count this dialog displays is for the user's benefit, and the dialog's answer is an
@@ -251,6 +265,16 @@ input to the command — not a substitute for the command's own check. Slice 10'
 commands re-verify references and refuse a bare delete that would orphan referents
 (§87 rule 5), because a script or a migration never opens a dialog. Two checks, two
 different jobs: this one informs a decision, that one enforces an invariant.
+
+**The same staleness cuts both ways, and only one direction is recoverable by refusing.**
+The zero branch below covers referents appearing after an empty read. The mirror case —
+referents appearing after a *non-empty* read, while the dialog is open — is worse,
+because the command would not refuse anything: the user's `remove-references` is valid
+consent, just not for the set that now exists, so a Requirement they were never shown
+gets deleted along with the ones they approved. That is why the resolution travels with
+`resolvedReferents` and the command compares sets before writing (slice 10). This slice's
+part is small and strictly caller-side: pass forward what was displayed, and re-ask when
+told the answer no longer fits the question.
 
 **Which is why a zero count may not become a `delete-anyway`.** The read happens before
 the dialog; the command runs after it, and a Requirement can be created in between — by
@@ -383,40 +407,41 @@ async function onInspectorDeleteZone(
   zoneId: ZoneId,
   zoneName: string,
 ): Promise<void> {
-  const counted = await countRequirementsReferencing({ kind: 'zone', zoneId }); // slice 10
-  if (isErr(counted)) return surfaceError(counted.error); // slice 17 decides the surface
+  const listed = await listRequirementsReferencing({ kind: 'zone', zoneId }); // slice 10
+  if (isErr(listed)) return surfaceError(listed.error); // slice 17 decides the surface
 
-  if (counted.value > 0) return askThenDelete(zoneId, zoneName, counted.value);
+  if (listed.value.length > 0) return askThenDelete(zoneId, zoneName, listed.value);
 
   // Zero referents: dispatch the ABSENT-resolution form, never `delete-anyway`. The
-  // count is advisory and already stale by the time this line runs; the command's own
+  // read is advisory and already stale by the time this line runs; the command's own
   // re-check is the authority, and it can only refuse a delete it was not handed
   // consent for (slice 10's resolution table, *(absent)* row).
   const deleted = await commandDispatcher.run(reversibleDeleteZone({ zoneId }));
   if (!isErr(deleted)) return;
   if (deleted.error.category !== 'Reference') return surfaceError(deleted.error);
 
-  // Refused: a Requirement appeared between the count and the dispatch. Ask, exactly as
-  // the non-zero branch would have. The count comes from the query, not from the error —
-  // slice 2's `ReferenceError` names its referents in `message` and carries no
+  // Refused: a Requirement appeared between the read and the dispatch. Ask, exactly as
+  // the non-empty branch would have. The referents come from the query, not from the
+  // error — slice 2's `ReferenceError` names them in `message` and carries no
   // structured payload, and re-reading is what the dialog's row needs anyway.
-  const recounted = await countRequirementsReferencing({ kind: 'zone', zoneId });
-  if (isErr(recounted)) return surfaceError(recounted.error);
+  const relisted = await listRequirementsReferencing({ kind: 'zone', zoneId });
+  if (isErr(relisted)) return surfaceError(relisted.error);
   // Came and went: report the refusal rather than open a dialog listing nothing. One
   // retry, not a loop — a second race is a report, so this cannot spin.
-  if (recounted.value === 0) return surfaceError(deleted.error);
-  return askThenDelete(zoneId, zoneName, recounted.value);
+  if (relisted.value.length === 0) return surfaceError(deleted.error);
+  return askThenDelete(zoneId, zoneName, relisted.value);
 }
 
 async function askThenDelete(
   zoneId: ZoneId,
   zoneName: string,
-  referenceCount: number,
+  referents: readonly RequirementId[],
+  isRetry = false,
 ): Promise<void> {
   const result: DeleteReferenceDialogResult = await dialogStore.openDialog({
     kind: 'delete-reference',
     entityLabel: zoneName,
-    references: [{ label: 'Requirements', count: referenceCount }],
+    references: [{ label: 'Requirements', count: referents.length }],
   });
 
   if (result.action === 'cancel') return;
@@ -429,13 +454,45 @@ async function askThenDelete(
     result.action === 'reassign' ? await pickReassignTarget(zoneId) : undefined;
   if (result.action === 'reassign' && reassignTo === undefined) return; // target picker cancelled
 
+  // `resolvedReferents` is what the user actually saw. The command re-reads the live set
+  // and refuses if it moved, so a Requirement added in this window cannot be swept up by
+  // a `remove-references` the user gave for a different set (slice 10, "A resolution
+  // consents to a specific set of referents").
   const deleted = await commandDispatcher.run(
-    reversibleDeleteZone({ zoneId, resolution: result.action, reassignTo }),
+    reversibleDeleteZone({
+      zoneId,
+      resolution: result.action,
+      reassignTo,
+      resolvedReferents: referents,
+    }),
   );
-  if (isErr(deleted)) surfaceError(deleted.error);
+  if (!isErr(deleted)) return;
+
+  // The set changed under the open dialog: re-read and ask again, against what exists
+  // now. Bounded to one retry for the same reason the zero-referent path above is —
+  // a second race is reported, not re-prompted, so this cannot spin.
+  if (deleted.error.code === 'reference.set-changed' && !isRetry) {
+    const relisted = await listRequirementsReferencing({ kind: 'zone', zoneId });
+    if (isErr(relisted)) return surfaceError(relisted.error);
+    if (relisted.value.length === 0) {
+      // Every referent went away; the plain delete is now the honest operation.
+      const retried = await commandDispatcher.run(reversibleDeleteZone({ zoneId }));
+      if (isErr(retried)) surfaceError(retried.error);
+      return;
+    }
+    return askThenDelete(zoneId, zoneName, relisted.value, true);
+  }
+
+  surfaceError(deleted.error);
   // What each resolution does to the referencing Requirements is slice 10's table.
 }
 ```
+
+The retry is deliberately a re-ask rather than a silent re-dispatch with the new set.
+The user consented to a resolution over a set they were shown; a different set is a
+different question, and answering it on their behalf is the exact substitution the
+`resolvedReferents` check exists to prevent. Re-opening the dialog costs one click and
+keeps the consent attached to what it was given for.
 
 The `switch` this example previously ended on is worth calling out as a shape to avoid:
 three non-cancel cases falling through to a shared `break` reads as handled, and is
@@ -498,16 +555,29 @@ contract ends at the typed result, before any write occurs.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
   `references: [{ label: 'Requirements', count: 2 }]` sourced from a fake
-  `CountRequirementsReferencing` double, and that choosing each of the four actions
+  `ListRequirementsReferencing` double, and that choosing each of the four actions
   resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
-- **Stale-count test**, the one the zero branch exists for: a count double answering `0`
+- **Stale-count test**, the one the zero branch exists for: a query double answering `[]`
   and a command double refusing with a `ReferenceError`. Assert on the command's *input*
   — the first dispatch carries no `resolution` — because a test that only checked "a
   dialog opened" is equally satisfied by a caller that sent `delete-anyway` straight to
   the command and opened nothing. Then assert the refusal opens the dialog with the
-  re-read count, and that a re-read of `0` surfaces the refusal instead of opening a
+  re-read count, and that a re-read of `[]` surfaces the refusal instead of opening a
   dialog with an empty row.
+- **Consented-set test**, the mirror of the above and the one that protects data rather
+  than clarity: a query double answering `[r1, r2]`, then a command double returning
+  `reference.set-changed`. Assert the first dispatch carried `resolvedReferents:
+  [r1, r2]` exactly — the IDs the dialog's row was built from, not a count and not the
+  live set — then assert the dialog re-opens with the re-read set, and that the second
+  dispatch carries the *new* IDs. Assert on the input again for the same reason as
+  above: a caller that dropped `resolvedReferents` entirely would still open a dialog
+  and still dispatch, and the deletion it silently widened is invisible from the
+  outside.
+- **Bounded-retry test**: a command double returning `reference.set-changed` on *every*
+  dispatch. Assert the dialog opens exactly twice and the error is surfaced — the retry
+  is one round, not a loop, so a permanently churning reference set cannot trap the user
+  in a reopening dialog.
 
 ## Definition of Done
 
@@ -524,7 +594,7 @@ contract ends at the typed result, before any write occurs.
    supplied — no recomputation, no invented default rows when the caller supplies only
    one.
 6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly
-   `Requirements: 2`, sourced from slice 10's `CountRequirementsReferencing` query —
+   `Requirements: 2`, sourced from slice 10's `ListRequirementsReferencing` query —
    verified by an integration test asserting the value passed into the dialog
    descriptor, not a value this slice's component recomputed.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
@@ -535,6 +605,11 @@ contract ends at the typed result, before any write occurs.
    `ReferenceError` back from it opens the dialog rather than being reported as a failed
    delete. Asserted on the command input, so a caller that inferred `delete-anyway` from
    a count that resolved zero fails this check rather than passing it by looking right.
+8a. Every dispatch carrying a `resolution` also carries `resolvedReferents` holding the
+    exact IDs the dialog's row was built from — asserted on the command input. A
+    `reference.set-changed` refusal re-reads and re-opens the dialog once against the
+    live set, and a second such refusal is surfaced rather than re-prompted, so a
+    churning reference set cannot loop the dialog.
 9. No file under `presentation/dialogs/` imports a repository, a query, an application
    command, or the event bus — enforced by the same import-boundary lint mechanism slice
    12 already runs, not by convention alone.
@@ -574,10 +649,13 @@ contract ends at the typed result, before any write occurs.
 - `docs/design/06-editor-tool-framework-undo-redo-and-inspector.md` — the Inspector
   action pipeline this slice's worked example attaches to, and the `Escape`-cancels-
   the-current-transient-interaction convention this slice extends to dialogs.
+- `docs/design/07-calibration.md` — "Confirming a recalibration", the one named
+  `ConfirmDialog` caller outside PRD §39's Inspector-action list.
 - `docs/design/08-zone-editing.md` — "Deletion & reference-integrity checking" section
   (explicitly deferred there to slice 10) and the zone-delete command that dispatches
   after this dialog resolves.
 - `docs/design/10-assets-requirements-and-the-end-to-end-loop.md` — "Deletion &
-  reference integrity" section naming `requirementRepository.listByZone`/`listByAsset`
-  and `DeleteAssetCommand`, whose flow this slice's dialog renders without
-  recomputing.
+  reference integrity" section naming `ListRequirementsReferencing` and
+  `DeleteAssetCommand`, whose flow this slice's dialog renders without recomputing,
+  and "A resolution consents to a specific set of referents", which is why this
+  slice's caller carries `resolvedReferents` into the dispatch.

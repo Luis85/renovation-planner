@@ -24,6 +24,19 @@ const eslint = new ESLint({ cwd: REPO });
 export const resolveConfig = async (file: string): Promise<ResolvedConfig> =>
 	(await eslint.calculateConfigForFile(file)) as ResolvedConfig;
 
+/**
+ * Whether ESLint would skip this path, its own `ignores` resolution.
+ *
+ * `tests/build/lint-scope.test.ts` measures oxlint's scope as a whole SET, because
+ * oxlint's entire justification is that it lints everything and an `ignorePatterns` edit
+ * would make that quietly false. ESLint's claim is narrower — it deliberately ignores
+ * `scripts/` and the root configs, so "which files" is not a promise it makes — but the
+ * direction that matters is still checkable: a global `ignores` entry that grew to cover
+ * `src/` or `tests/` would make the gate silent rather than red, which is the same
+ * failure mode in a smaller blast radius.
+ */
+export const isIgnored = (file: string): Promise<boolean> => eslint.isPathIgnored(file);
+
 export interface ResolvedConfig {
 	readonly linterOptions: { readonly noInlineConfig?: boolean };
 	readonly rules: Record<string, readonly unknown[]>;

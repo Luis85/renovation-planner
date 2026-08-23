@@ -37,7 +37,7 @@ This is the SDD's Increment 3. Its success criterion is exact and testable:
   `ZoneFrontmatterDTO`) and mappers between frontmatter, DTO, and domain entity —
   raw frontmatter never leaves the Obsidian repository implementations (§37).
 - The plan geometry sidecar: JSON schema, one file per plan (§39–40), stored per
-  ADR-011 — a configurable flat folder (default `docs/geometry`), filename keyed by
+  ADR-011 — a configurable flat folder (default `Renovation/Geometry`), filename keyed by
   the plan's stable ID, a dedicated registered file extension.
 - Zod schema validation and schema versioning for both the Markdown frontmatter
   shapes and the sidecar JSON shape (§43–44).
@@ -219,7 +219,7 @@ One sidecar per **plan**, not per spatial object. Location follows ADR-011, not
 ADR-002's colocation example:
 
 ```text
-docs/geometry/                     ← configurable folder, default shown
+Renovation/Geometry/                     ← configurable folder, default shown
 ├── plan-01JABB3C5D7E9F1G3H5J7K9M1N.rpgeo
 ├── plan-01JABC4D6E8F0G2H4J6K8M0N2P.rpgeo
 └── plan-01JABD5E7F9G1H3J5K7M9N1P3Q.rpgeo
@@ -1016,7 +1016,7 @@ interface FindZonesByPlanQuery {
   frontmatter via `FileManager.processFrontMatter` (note body untouched).
   `ObsidianZoneRepository.save` additionally reads-modifies-writes one entry in its
   plan's geometry sidecar, per the consistency sequence above.
-- **New settings:** `geometrySidecarFolder`, default `docs/geometry` (ADR-011), and a
+- **New settings:** `geometrySidecarFolder`, default `Renovation/Geometry` (ADR-011), and a
   default project folder for entity notes — both added to the settings surface Slice 1
   established, and both read and written through `settingsFrom` like `units`, since
   `data.json` is a trust boundary and a folder path is user-editable text.
@@ -1198,7 +1198,7 @@ interface FindZonesByPlanQuery {
    missing that field, or carrying any other value, fails validation and is never
    loaded — a test proves this explicitly, not just that the field exists in the
    schema.
-4. Geometry sidecars are written to the configured folder (default `docs/geometry`)
+4. Geometry sidecars are written to the configured folder (default `Renovation/Geometry`)
    as a flat list keyed by plan ID, with the registered custom extension; no code
    path derives a sidecar's path from the plan note's path — every resolution goes
    through the Project Index (ADR-011).
@@ -1323,7 +1323,7 @@ interface FindZonesByPlanQuery {
 - ADR-011: Configurable Geometry Sidecar Folder and Dedicated File Extension —
   **supersedes ADR-002's colocation example** (`Ground Floor.geometry.json` next to
   `Ground Floor.md`). This slice implements ADR-011's location (configurable folder,
-  default `docs/geometry`, flat list keyed by plan ID, dedicated registered
+  default `Renovation/Geometry`, flat list keyed by plan ID, dedicated registered
   extension), not ADR-002's original example.
 - PRD §8 Core Entities (Project, Plan, Zone property lists this slice's frontmatter
   shapes are derived from)

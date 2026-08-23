@@ -152,6 +152,36 @@
 	// `tests/` is deliberately absent: its cap is 450 and ESLint already applies it.
 	"overrides": [
 		{
+			// `no-console`, mirroring `eslint.config.mjs`'s block for it — the one policy
+			// rule in this repository that ESLint owned alone, with nothing to notice its
+			// removal. CLAUDE.md's case for a second linter is exactly this: one fix
+			// satisfies both, and neither list can quietly become a rule's only owner. It
+			// also reaches the EDIT LOOP, which is where the real gain is —
+			// `scripts/lint-edited.mjs` runs oxlint and only oxlint, so before this a
+			// `console.log` written into `src/` was invisible until `npm run check`.
+			//
+			// Scoped to `src/**` rather than set at the root, and that is a measurement
+			// rather than a preference: at the root it reports 9 findings across
+			// `scripts/` (changelog, test-build, harness-shot), which is a build script
+			// printing to the console and is correct. A rule is adopted while it reports
+			// nothing, so the scope is the part that had to be narrowed.
+			"files": ["src/**"],
+			"rules": { "no-console": "error" }
+		},
+		{
+			// The sink, matching ESLint's carve-out for the same directory. Later
+			// override wins (measured: a planted `console.debug` here passes while one in
+			// `src/` reds), so this pairs with the block above rather than fighting it.
+			//
+			// What oxlint canNOT back up: inside this directory ESLint still fails
+			// `console.log`/`console.info` through the obsidianmd wrapper, and oxlint has
+			// no port of that ruleset. So the edit loop is blind to exactly that case,
+			// and `tests/build/logging-carve-out.test.ts` plus `npm run check` are what
+			// catch it. Narrowing the sentence rather than implying the backstop is total.
+			"files": ["src/infrastructure/logging/**"],
+			"rules": { "no-console": "off" }
+		},
+		{
 			"files": ["scripts/**", "*.config.ts", "*.config.mjs"],
 			"rules": {
 				"max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],

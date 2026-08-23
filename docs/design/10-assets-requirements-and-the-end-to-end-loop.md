@@ -632,6 +632,14 @@ now is only that the fields a rollup needs in order to *discriminate* exist from
 first event, so adding the second cost type is a widened union rather than a migration of
 the first one's payload.
 
+`costType` is also where a resolved PRD contradiction lands. The PRD gives two
+disagreeing Forecast formulas over these types (PRD §28 against PRD §33), settled in
+[`docs/issues/Forecast formula disagrees on committed cost.md`](../issues/Forecast%20formula%20disagrees%20on%20committed%20cost.md):
+`committed` means *not yet invoiced*. A rollup subscriber that summed a `committed` event
+carrying the full commitment would double-count anything already invoiced — which is
+exactly the discrimination this field exists to make possible, and the reason to name the
+issue here rather than leaving the next reader to re-derive it.
+
 Because the Event Bus is in-process and promise-aware (§33), the whole cascade
 runs to completion, synchronously awaited, inside the same command dispatch
 that changed the Zone's geometry, and every `publish()` in it is itself

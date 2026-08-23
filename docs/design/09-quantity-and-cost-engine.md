@@ -119,14 +119,17 @@ Rules:
 
 - `add`/`subtract`/`compare` on mismatched currencies resolve `err(calculationError(…))`
   — never silently coerced, never `NaN`.
-- Intermediate pipeline values keep full `decimal.js` precision. Rounding to the
-  currency's minor unit (2 decimal places for USD/EUR) happens only at the boundary
-  where a `Money` value is finalized as pipeline output — never between stages — so
-  waste/discount/tax stacking cannot compound rounding error one step at a time.
-- Rounding mode is `ROUND_HALF_UP`, applied once at the final `Estimated Cost` step
-  (see **Design → Definition of Done** for a worked example). The SDD does not specify
-  a rounding mode; this is a slice-level decision, documented here so it is a single
-  point of truth rather than an implicit per-call choice.
+- **Rounding mode is `ROUND_HALF_UP`, applied once where a `Money` value is finalized as
+  pipeline output** — here, the final `Estimated Cost` step; see **Definition of Done**
+  for a worked example. Both halves are **ADR-010's** decision, not this slice's, and
+  the ADR carries the reasoning and the rejected alternative (`ROUND_HALF_EVEN`). An
+  earlier version of this document was the only place either was written down, which
+  made a decision with consequences findable only by whoever already knew which slice to
+  open — while ADR-010 restated SDD §49 without deciding anything.
+- What this slice adds is the application: intermediate pipeline values keep full
+  `decimal.js` precision, never rounded between stages, so waste/discount/tax stacking
+  cannot compound rounding error one step at a time — and the currency's minor unit
+  (2 decimal places for USD/EUR) is what "finalized" rounds to.
 
 ### Unit kinds and Quantity
 
@@ -343,6 +346,17 @@ function computeEstimatedCost(
 
 `CalculationError` is one of the categories already established in the shared error
 model (SDD §64); this slice does not introduce a new error category.
+
+**One open question this pipeline does not answer, recorded so the rollup that inherits it
+can find the answer.** This slice produces `Estimated Cost` and nothing else — `Actual`,
+`Committed` and `Invoiced` are cost types it does not model. The PRD states two
+disagreeing Forecast formulas over those types (PRD §28 against PRD §33), and the
+resolution is
+[`docs/issues/Forecast formula disagrees on committed cost.md`](../issues/Forecast%20formula%20disagrees%20on%20committed%20cost.md):
+`Committed` means *not yet invoiced*, so a rollup summing commitments and actuals cannot
+count an invoiced commitment twice. Nothing here has to act on that — there is one cost
+type — but the rollup is built on this pipeline's output, and the issue is where the
+decision lives rather than in whichever epic gets there first.
 
 ## Persistence Impact
 

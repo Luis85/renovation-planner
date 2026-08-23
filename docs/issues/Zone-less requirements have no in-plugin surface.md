@@ -2,7 +2,7 @@
 type: Issue
 status: Open
 order: 20
-parent: "[[Codebase health]]"
+parent: "[[Architecture and Software Design]]"
 ---
 
 # Zone-less requirements have no in-plugin surface

@@ -16,9 +16,11 @@ That colocation model has two problems in practice. First, if a user uninstalls 
 
 ## Decision
 
-Add a plugin setting for the geometry sidecar folder, defaulting to `docs/geometry`. All plan geometry sidecar files are written as a flat list directly inside that single configured folder — not mirrored into per-plan subfolders, and not colocated next to the plan's Markdown note. Each sidecar is named by the plan's stable ID (see the SDD's Identity Model), not by the plan's display name, so renaming or moving a plan note never orphans its geometry file and two plans that happen to share a display name never collide.
+Add a plugin setting for the geometry sidecar folder, defaulting to `Renovation/Geometry`. All plan geometry sidecar files are written as a flat list directly inside that single configured folder — not mirrored into per-plan subfolders, and not colocated next to the plan's Markdown note. Each sidecar is named by the plan's stable ID (see the SDD's Identity Model), not by the plan's display name, so renaming or moving a plan note never orphans its geometry file and two plans that happen to share a display name never collide.
 
-Sidecar files use the extension `rpgeo` (for example, `01JABC123.rpgeo` for the plan with ID `01JABC123`), rather than generic `.json`. The plugin registers this extension with Obsidian via `registerExtensions(["rpgeo"], viewType)` on load, so the files appear and are manageable in Obsidian's file explorer instead of being hidden or treated as an unsupported attachment. The content of an `.rpgeo` file is still the JSON payload defined by the Plan Sidecar Schema (see ADR-002); only the file's extension is non-standard, not its format.
+> The default is `Renovation/Geometry` rather than `docs/geometry`, which an earlier version of this ADR chose. PRD §36's Vault Data Model puts every folder this plugin owns under a single `Renovation/` tree, and a default outside it would scatter the one kind of file a user is least likely to recognise. `docs/` was also a false familiarity: it reads as natural only because the repository this plugin is developed in happens to be a vault whose own documentation lives there, which is true of no user's vault.
+
+Sidecar files use the extension `rpgeo` (for example, `plan-01JABC123.rpgeo` for the plan with ID `plan-01JABC123`), rather than generic `.json`. The filename is the plan's stable ID **in full, prefix included** — SDD §82's identity model gives every ID a `<prefix>-<ULID>` shape, so the note's `id` field, the sidecar's own `planId` field and the filename are the same string and are comparable without a strip-or-add step that only one of the three code paths remembers. The plugin registers this extension with Obsidian via `registerExtensions(["rpgeo"], viewType)` on load, so the files appear and are manageable in Obsidian's file explorer instead of being hidden or treated as an unsupported attachment. The content of an `.rpgeo` file is still the JSON payload defined by the Plan Sidecar Schema (see ADR-002); only the file's extension is non-standard, not its format.
 
 ## Consequences
 
@@ -29,12 +31,13 @@ Sidecar files use the extension `rpgeo` (for example, `01JABC123.rpgeo` for the 
 - Changing the configured folder after sidecars already exist needs deliberate handling (moving existing files, or treating it as a migration) rather than a silent setting change, or it will orphan existing geometry data.
 - `rpgeo` was chosen specifically because it is unlikely to collide with another installed plugin or with unrelated files a user already keeps in their vault; if a future collision is discovered, changing it is a migration (rename every sidecar and re-register), not a one-line settings change.
 - This supersedes the colocation detail in ADR-002's example; ADR-002's underlying decision (one JSON sidecar per plan, not per spatial object) is unchanged.
+- **It also supersedes the received SDD's §39 Sidecar Files example**, which draws `Ground Floor.geometry.json` beside `Ground Floor.md` — the same colocation, and the same display-name filename, this ADR replaces. §39's recommendation itself ("store plan geometry per plan rather than one sidecar per spatial object") is unchanged and is exactly what ADR-002 adopted; only its illustrated layout and naming are refined. Stated here because the SDD stays verbatim as received, so a refinement of it has to be findable from the ADR side — the same way ADR-009 records its refinement of §40's schema example. Named alongside ADR-002 rather than instead of it: §39 is where a reader looking for "where does a sidecar go" actually lands.
 
 ## Alternatives
 
 - Colocating a per-plan sidecar next to its Markdown note, as originally illustrated in ADR-002 — rejected: scatters geometry files across every plan's folder, making them easy to overlook when backing up or auditing vault contents outside the plugin, and easy to mistake for clutter once the plugin is removed.
 - Plain `.json` sidecars without registering a custom extension — rejected: unregistered file types are not reliably shown or manageable in Obsidian's file explorer, and generic `.json` risks colliding with unrelated JSON files a user already keeps in the vault for other purposes.
-- A fixed, non-configurable sidecar folder — rejected: vault organization conventions vary between users (for example, wanting plugin data under a top-level folder instead of nested under `docs/`), and a hardcoded path cannot accommodate that.
+- A fixed, non-configurable sidecar folder — rejected: vault organization conventions vary between users (for example, wanting plugin data under its own top-level folder rather than nested inside a `Renovation/` tree), and a hardcoded path cannot accommodate that.
 
 ## Revisit when
 

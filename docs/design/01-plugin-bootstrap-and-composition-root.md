@@ -507,7 +507,11 @@ and a stray `console.warn`. So the edit that adds `vue` and `@vitejs/plugin-vue`
 `vue-eslint-parser` — with the TypeScript parser configured for `<script lang="ts">` blocks
 — and widens every `src/` block's `files` to match `**/*.vue` alongside `**/*.ts`: the
 layer bans, the write-boundary selectors, the DOM-globals ban, the size budgets and
-`no-console`, not a Vue-specific subset of them. One edit, because the gap opens the moment
+`no-console`, **and the logging carve-out block**, not a Vue-specific subset of them. The
+carve-out is the one easy to leave out of that list, and leaving it out fails inward rather
+than outward: the ban would reach the sink's `.vue` files while the exemption did not, so
+the directory whose job is the console would be the one place a `.vue` file could not use
+it. One edit, because the gap opens the moment
 the first `.vue` file exists rather than at some later point worth scheduling. Until then
 `src/**/*.ts` is all of `src/`, and every guarantee below is scoped to what the config
 actually matches.
@@ -737,12 +741,25 @@ Module boundaries this slice fixes for every later one:
       `loadData()` that *resolves* `null` is the fresh-install path and is unaffected.
 - [ ] `no-console` is an error across `src/` with **no** allowances, carved out only for
       `infrastructure/logging/**`; `npm run lint` passes, and a `console.error` added
-      anywhere else fails it.
-- [ ] Every `src/` lint block — the layer bans, the write-boundary selectors, the
-      DOM-globals ban, the size budgets and `no-console` — matches `**/*.vue` as well as
-      `**/*.ts`, wired with `vue-eslint-parser`, in the same change that adds Vue.
-      Verified by a component that imports a repository and one that calls `console.warn`
-      each failing `npm run lint`, not by the config reading as though it covers them.
+      anywhere else fails it. **In both linters**: `eslint.config.mjs` and
+      `.oxlintrc.json` each carry the rule and each carry the carve-out, so removing it
+      from one leaves the other red rather than leaving the policy unowned — and oxlint's
+      copy is what puts it in the edit loop, since `scripts/lint-edited.mjs` runs oxlint
+      and only oxlint. What oxlint cannot mirror is the obsidianmd wrapper that still
+      fails `console.log`/`console.info` *inside* the carve-out, so that one case is
+      caught by `npm run check` and `tests/build/logging-carve-out.test.ts`, never by the
+      edit loop.
+- [ ] Every `src/` lint block matches `**/*.vue` as well as `**/*.ts`, wired with
+      `vue-eslint-parser`, in the same change that adds Vue — the layer bans, the
+      write-boundary selectors, the DOM-globals ban, the size budgets, `no-console`,
+      **and the logging carve-out block itself**, which is the one this checklist used to
+      omit while the prose above promised it. A carve-out narrower than the ban it carves
+      out of is the sink's own `.vue` files failing `no-console` — the exact inverse
+      failure, and the harder one to diagnose, because the rule *looks* correctly
+      configured. Verified by a component that imports a repository and one that calls
+      `console.warn` each failing `npm run lint`, and by a `.vue` file under
+      `infrastructure/logging/` passing it — not by the config reading as though it
+      covers them.
 - [ ] The Renovation Project view opens from both the ribbon icon and the command palette,
       reuses one leaf between them, and its type/display name/icon are all set.
 - [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +

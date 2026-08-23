@@ -11,15 +11,41 @@ resolve-via-callback-prop plumbing; a second dialog built the same way by hand i
 inconsistent Escape handling and stranded focus enter a codebase.
 
 This slice defines that once: a generic, reusable dialog framework — how a dialog
-opens, traps focus, cancels on `Escape`, and resolves with a typed result — and three
-dialog KINDS built on it. It also walks through the delete-confirmation flow as the
+opens, traps focus, cancels on `Escape`, and resolves with a typed result — and the
+dialog KINDS built on it. The union of kinds is deliberately **open**, and where it is
+extended is named in Interfaces & Contracts rather than left to be discovered: slice 14's
+create-project action and slice 16's creation forms both need a kind this slice does not
+build the contents of. It also walks through the delete-confirmation flow as the
 framework's canonical worked example, because that flow is the reason the richer kind
 exists and the clearest test of whether the boundary with slices 8/10 holds.
 
-This slice does not decide *which* actions need a confirmation dialog (slice 17), does
-not compute reference counts or reassignment candidates (slices 8/10 already do), and
-does not decide what happens once a target is chosen (slices 8/10 again). Its contract
-ends at "the dialog resolved with this typed value."
+This slice does not compute reference counts or reassignment candidates (slices 8/10
+already do), and does not decide what happens once a target is chosen (slices 8/10
+again). Its contract ends at "the dialog resolved with this typed value."
+
+**It does, however, own the *test* for which actions need one** — a correction to an
+earlier draft that deferred that question to slice 17. Slice 17 is an `AppError` router:
+it decides which surface a *failure* takes, and "should Duplicate ask first?" is not a
+failure, has no `AppError`, and reaches none of its origins. It never mentioned the
+question, and it structurally could not have answered it. Deferring a non-error decision
+to an error router is how a decision ends up owned by nobody.
+
+So: **the slice that owns an action decides whether it confirms, against the two-part
+test stated here.** An action confirms if it is (a) irreversible or destructive from the
+user's point of view — data they authored stops existing, or stops being reachable — or
+(b) reference-bearing, meaning something else in the vault points at what it touches
+(PRD §64's deletion semantics, which this slice already derives from). Everything else
+dispatches directly; an "are you sure" on a reversible action trains people to click
+through the ones that matter.
+
+Worked against PRD §39's Inspector list, so the test has been exercised rather than just
+asserted: **Delete** confirms under both (a) and (b) — a `DeleteReferenceDialog` when
+referents exist, a `ConfirmDialog` when they do not. **Edit**, **Duplicate**, **Link
+Note**, **Add Cost**, **Add Task** and **Create Work Package** confirm under neither:
+each is reversible through undo (slice 6), and creating a thing is not destroying one.
+The one caller outside that list is slice 7's `CalibrateTool`, which confirms under (a) —
+a recalibration reinterprets every coordinate already drawn, and undo restores it, but
+the user cannot see what they are about to lose before it happens.
 
 ## Scope
 
@@ -169,7 +195,12 @@ Per SDD §85 (keyboard-accessible controls, visible focus):
   open. A dialog that resolves without restoring focus strands a keyboard user outside
   the document they were editing — this is treated as a defect, not a nicety.
 
-### Two dialog kinds
+### The two dialog kinds this slice builds
+
+Two of the four `kind`s in Interfaces & Contracts are designed and built here.
+`entity-picker` is a thin list the delete flow's Reassign branch needs (worked example
+below), and `form` is the container slice 16 fills — neither has design worth a section
+of its own, which is precisely why both were nearly left out of the union entirely.
 
 **`ConfirmDialog`** — binary confirm/cancel, for actions where a single "are you sure"
 question is the whole story:
@@ -181,10 +212,9 @@ type ConfirmDialogResult = 'confirm' | 'cancel';
 `title`, `message`, optional `confirmLabel`/`cancelLabel` overrides, and an optional
 `danger` flag that styles the confirm button as destructive (for an action that is
 irreversible but carries no reference-integrity question — e.g. discarding an unsaved
-edit). Which Inspector actions from PRD §39's list (Edit, Duplicate, Delete, Link Note,
-Create Work Package, Add Cost, Add Task) actually route through `ConfirmDialog` is
-slice 17's decision, not this one; this slice only guarantees the dialog exists for
-whichever of them need it.
+edit). Which of PRD §39's Inspector actions route through `ConfirmDialog` is answered by
+the two-part test in **Purpose** above — owned by whichever slice owns the action, and
+worked through that list there. Of the seven, only Delete confirms.
 
 One caller outside that list is already named: slice 7's `CalibrateTool` opens a
 `ConfirmDialog` before recalibrating a Plan that already has geometry, since the
@@ -366,16 +396,47 @@ interface DeleteReferenceDescriptor {
   // `label` is resolved copy ("Requirements"), supplied by the caller from its own
   // StringKey — this dialog renders rows, it does not name entity types.
   references: readonly { label: string; count: number }[];
-} | {
-  // Supplies the Reassign target DeleteReferenceDialog deliberately does not carry.
-  // Candidates come from slice 10's ListReassignmentTargets — this dialog renders
-  // them in the order given and applies no eligibility rule of its own.
+}
+
+// Supplies the Reassign target DeleteReferenceDialog deliberately does not carry.
+// Candidates come from slice 10's ListReassignmentTargets — this dialog renders
+// them in the order given and applies no eligibility rule of its own.
+// Its own interface rather than a bare arm spliced onto DeleteReferenceDescriptor with
+// a `|`, which is how it ended up declared-but-not-in-the-union in an earlier draft.
+interface EntityPickerDescriptor {
   kind: 'entity-picker';
   title: string;
   candidates: readonly { id: string; label: string }[];
 }
 
-type DialogDescriptor = ConfirmDescriptor | DeleteReferenceDescriptor;
+// A form a user fills in and submits — slice 16's creation dialogs (its "New Asset"
+// form) and slice 14's "Create a project" empty-state action, which routes here. This
+// slice supplies the container, the focus trap, the Escape semantics and the resolution
+// Promise; it holds NO field knowledge, so the descriptor names a component rather than
+// describing fields. Slice 16 owns what renders inside it and its per-form
+// submit-commit; a resolved 'submit' means the form validated, not that anything was
+// written — dispatching the command is still the caller's.
+interface FormDescriptor {
+  kind: 'form';
+  title: string;
+  // The Vue component slice 16 built for this form. Rendered inside the dialog's
+  // content region; a form component never draws its own overlay, backdrop or trap.
+  component: Component;
+  props?: Readonly<Record<string, unknown>>;
+}
+
+// THE EXTENSION POINT, named because three later slices already need it and a union
+// that looks closed is how a needed kind ends up rendered outside the framework. A new
+// dialog kind is TWO additions and nothing else: a member here, and its result type in
+// DialogResultByKind below. DialogHost switches on `kind` exhaustively, so a member
+// added without a result entry fails to compile rather than falling through to a blank
+// dialog. `entity-picker` was declared above and left out of this union in an earlier
+// draft, which is exactly that failure with the type checker's half missing.
+type DialogDescriptor =
+  | ConfirmDescriptor
+  | DeleteReferenceDescriptor
+  | EntityPickerDescriptor
+  | FormDescriptor;
 
 type ConfirmDialogResult = 'confirm' | 'cancel';
 
@@ -394,6 +455,14 @@ type DeleteReferenceDialogResult =
 interface DialogResultByKind {
   confirm: ConfirmDialogResult;
   'delete-reference': DeleteReferenceDialogResult;
+  // The picked candidate's id, or a cancellation. An id rather than the whole
+  // candidate: the caller supplied the list, so it already has the rest.
+  'entity-picker': { readonly id: string } | 'cancel';
+  // 'submit' means the form validated and the user confirmed — not that anything was
+  // written. The payload is whatever slice 16's component emitted, typed by that
+  // component rather than here, for the same reason FormDescriptor carries a component
+  // and not a field list.
+  form: { readonly action: 'submit'; readonly values: unknown } | 'cancel';
 }
 type DialogResultFor<D extends DialogDescriptor> = DialogResultByKind[D['kind']];
 

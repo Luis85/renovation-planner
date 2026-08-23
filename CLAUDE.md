@@ -81,7 +81,17 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   mobile-safety rule reports as a warning, and `isDesktopOnly: false` is a promise.
   `manifest.json` itself is linted
   (`obsidianmd/validate-manifest`), so the marketplace naming rules are a gate, not a
-  submission surprise. **oxlint** runs first, in milliseconds, and adds the broad
+  submission surprise. The ruleset is also kept ON inside the `no-console` carve-out for
+  `src/infrastructure/logging/**`, which is what still fails `console.log`/`console.info`
+  in the one directory `no-console` is off for. Switching it off there was available and is
+  refused for a reason worth stating, because the obvious one is wrong: not that the
+  ruleset forbids disabling its own rules, but that **the marketplace review bot lints
+  with its own configuration**, so a local override would not travel and the rejection
+  would arrive at submission rather than at `npm run check`. That guarantee rests on a
+  wrapper (`rule-custom-message`) matching ESLint's own message text verbatim and
+  reporting NOTHING on a miss, so `tests/build/logging-carve-out.test.ts` pins the two
+  against each other — a reworded upstream message would otherwise turn the marketplace
+  check off silently. **oxlint** runs first, in milliseconds, and adds the broad
   wrong-code ruleset ESLint never turned on, over a WIDER tree: the Obsidian ruleset is
   type-aware, so `eslint.config.mjs` stops it at `src/` and ignores `scripts/` and the
   root configs outright — which left `tests/` on 24 rules and the build scripts on none.
@@ -98,6 +108,15 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   numbers `src/` already lives under, reaching the rest of the repository. **A rule is
   adopted while it reports nothing**: 27 of the 29 did, which is what made them one line
   each instead of a cleanup nobody schedules.
+  It also mirrors ESLint's **`no-console`** and its `infrastructure/logging/**` carve-out,
+  which is the one policy rule ESLint owned alone with nothing to notice its removal —
+  and the mirror is what puts it in the EDIT LOOP, since `scripts/lint-edited.mjs` runs
+  oxlint and only oxlint. Scoped to `src/**` by measurement rather than taste: at the root
+  it reports nine findings across `scripts/`, where a build script printing to the console
+  is correct. The mirror is not total, and the sentence has to say so — inside the carve-out
+  ESLint still fails `console.log`/`console.info` through the obsidianmd wrapper, oxlint has
+  no port of that ruleset, so exactly that case is invisible to the edit loop and is caught
+  by `npm run check` and `tests/build/logging-carve-out.test.ts`.
   Two things about it are claims rather than rules, so both have checks. Its SCOPE: an
   `ignorePatterns` edit that drops a directory makes the gate quieter rather than redder,
   so `tests/build/lint-scope.test.ts` asks oxlint itself which files it lints and compares

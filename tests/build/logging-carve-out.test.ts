@@ -1,7 +1,7 @@
 import { Linter } from 'eslint';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { type ResolvedConfig, resolveConfig, severityOf } from '../helpers/eslint';
+import { type ResolvedConfig, isIgnored, resolveConfig, severityOf } from '../helpers/eslint';
 
 /**
  * `eslint.config.mjs` carves `no-console` off for `src/infrastructure/logging/**`, and the
@@ -41,6 +41,9 @@ import { type ResolvedConfig, resolveConfig, severityOf } from '../helpers/eslin
 // Resolved in a beforeAll rather than at module scope: booting ESLint takes seconds, and a
 // top-level await that overruns reports as a module-load failure with no useful message,
 // where an overrunning hook names itself and its own timeout.
+const IN_CARVE_OUT = 'src/infrastructure/logging/consoleLogger.ts';
+const OUTSIDE = 'src/plugin/RenovationPlannerPlugin.ts';
+
 let inCarveOut: ResolvedConfig;
 let outside: ResolvedConfig;
 
@@ -68,8 +71,8 @@ const emittedFor = (code: string): string[] =>
 
 describe('the logging carve-out', () => {
 	beforeAll(async () => {
-		inCarveOut = await resolveConfig('src/infrastructure/logging/consoleLogger.ts');
-		outside = await resolveConfig('src/plugin/RenovationPlannerPlugin.ts');
+		inCarveOut = await resolveConfig(IN_CARVE_OUT);
+		outside = await resolveConfig(OUTSIDE);
 	}, 60_000);
 
 	it('turns no-console off under src/infrastructure/logging/ and nowhere else', () => {
@@ -111,5 +114,19 @@ describe('the logging carve-out', () => {
 	 */
 	it('leaves console.debug alone, which is what the sink actually calls', () => {
 		expect(emittedFor("console.debug('x');\n")).toEqual([]);
+	});
+
+	/**
+	 * The carve-out only means anything if the surrounding tree is linted at all. ESLint's
+	 * global `ignores` legitimately covers `scripts/` and the root configs, so this is not
+	 * a whole-set measurement like `lint-scope.test.ts` — it is the one direction that
+	 * would turn the gate silent instead of red.
+	 */
+	it('does not ignore the trees it is the only linter for', async () => {
+		const ignored = await Promise.all(
+			[IN_CARVE_OUT, OUTSIDE, 'src/main.ts', 'tests/build/suppressions.test.ts'].map((file) => isIgnored(file)),
+		);
+
+		expect(ignored).toEqual([false, false, false, false]);
 	});
 });

@@ -93,8 +93,20 @@ them:
   `Reactive<TInput>`, declared on the reasoning that `v-model="values.unitCost"` beats a
   per-field `Ref` map — but `v-model` on a mutable reactive property assigns to it
   directly, walking past the `setField` the same sentence called the sole write path. The
-  justification defeated itself, so `values` is a `Readonly<Ref<TInput>>` written only
-  through `setField`, and the slice conforms. Its two other §4 near-misses were likewise
+  justification defeated itself, so `values` is a `DeepReadonly<Ref<TInput>>` written only
+  through `setField`, and the slice conforms.
+
+  **Deep**, and the first repair was not. It said `Readonly<Ref<TInput>>`, which is a
+  shallow mapped type: it freezes `.value` and leaves every property under it writable, so
+  `values.value.unitCost = -5` and — since a ref unwraps in templates — the very
+  `v-model="values.unitCost"` the departure was withdrawn over both still type-checked.
+  The fix reproduced the defect it was closing, in a shape that reads as though it had
+  not. Recorded here because it is the fourth instance of this section's own subject: a
+  sentence describing a mechanism that is not there, this time carried by a type name that
+  sounded like the guarantee. Slice 16's Definition of Done now requires both writes to
+  fail `vue-tsc`, so the claim has a check under it rather than a plausible-looking type.
+
+  Its two other §4 near-misses were likewise
   conformed rather than declared: `useFieldCommit` now accepts `MaybeRefOrGetter`, and
   `fieldErrors` — a bare `ReadonlyMap`, which is a defect rather than a style question,
   since a plain Map out of a composable is a snapshot and a rejected `submit()` would have

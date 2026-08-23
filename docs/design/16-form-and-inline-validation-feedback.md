@@ -520,6 +520,12 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 
 ## Testing Strategy
 
+Both composables return refs, so **test code dereferences `.value`** —
+`values.value.unitCost`, `fieldErrors.value.get('unitCost')`, `draft.value`. The
+unwrapping that lets a template write `values.unitCost` is a template feature and does
+not apply here. Stated once because every assertion below touches one of these members,
+and a spec written in the template's spelling would not type-check as a test.
+
 - **`routeError` unit tests** — pure-function, table-driven: a code present in the map
   routes to its field(s) with `toUserMessage(error)`'s exact text; a code absent from the
   map routes to a banner with the same text; a map entry naming multiple fields produces
@@ -539,10 +545,14 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 - **Creation-dialog rejection test (the worked example)** — drive `useFormCommit` with a
   `CreateAssetCommand`-shaped `dispatch` fixture returning
   `err(validationError({ code: 'asset.unit-cost.negative' }))` for
-  `{ unitCost: -5, ... }`; assert `submit()` resolves `false`, `fieldErrors` contains an
-  entry for `unitCost`, a subsequent `setField('unitCost', 5)` removes that entry while
-  leaving any other field's entry untouched, `values.unitCost` is still `-5`, and the fixture's underlying
-  repository/event-publish spies recorded zero calls (no `AssetCreated`, no write).
+  `{ unitCost: -5, ... }`. The order matters, because the last step changes what the
+  earlier ones assert. First: `submit()` resolves `false`; `fieldErrors.value` holds an
+  entry for `unitCost`; `values.value.unitCost` is still `-5` — draft preservation, which
+  is the point of the test; and the fixture's repository/event-publish spies recorded zero
+  calls (no `AssetCreated`, no write). **Then** call `setField('unitCost', 5)` and assert
+  it removes that entry while leaving any other field's entry untouched — the
+  stale-message rule, mirroring the field test above. Asserting draft preservation after
+  that call would be checking for `-5` in a field just set to `5`.
 - **Creation-dialog success test** — same fixture resolving `ok(...)`; assert `submit()`
   resolves `true` (the signal the dialog host uses to close, per slice 15's container
   contract) and `fieldErrors`/`banner` are empty.

@@ -236,6 +236,48 @@ docs/geometry/                     ← configurable folder, default shown
   resolving it **always** goes through the Project Index's `planId → sidecar path`
   entry. There is no path-derivation fallback.
 
+### Changing the sidecar folder moves the sidecars
+
+ADR-011 names this in its own Consequences — "changing the configured folder after
+sidecars already exist needs deliberate handling (moving existing files, or treating it
+as a migration) rather than a silent setting change, or it will orphan existing geometry
+data" — and this slice is where that handling lives, since it owns both the sidecar
+files and the index that finds them.
+
+Persisting the new path on its own is the failure mode, not a smaller version of it.
+The running index keeps working, so nothing appears wrong; on the next plugin load
+`ProjectIndexBuilder` scans only the newly configured folder, finds no sidecars, and
+every Plan entry comes back without a `geometrySidecarPath` — so every Zone read and
+write fails, on data that is still sitting intact in a folder nothing looks at any more.
+A user who changed a setting and restarted a day later has no way to connect the two.
+
+So the change is a compensated operation that must complete **before** the setting is
+written, in the same shape as this slice's other multi-file sequences:
+
+```text
+1. Resolve and normalizePath the target folder; create it if absent. A target that
+   exists and already contains .rpgeo files is refused (ValidationError) rather than
+   merged into — two sets of sidecars in one folder is a collision this design has no
+   rule for resolving.
+2. Move every .rpgeo file from the current folder to the target, recording each move.
+3. If any move fails: move back everything already moved, leave the setting unchanged,
+   and return a PersistenceError. A failed folder change changes nothing at all.
+4. Rebuild the Project Index against the new folder, so getGeometrySidecarPath()
+   resolves before any caller can ask.
+5. Only now persist geometrySidecarFolder through settingsFrom.
+```
+
+Step 5 last is the whole point: the setting is the *record* of where the sidecars are,
+so writing it first would make it a claim about a state that does not exist yet, and a
+crash between the two would leave exactly the orphaning this sequence prevents. If the
+folder is empty of sidecars — no Plans yet, the common case — steps 2–4 are no-ops and
+the change is just a setting write.
+
+Whether the user is asked to confirm first belongs to the settings surface (slice 1's
+tab, using slice 15's `ConfirmDialog`), not here; this slice's contract is that the
+move either completes and the setting follows, or nothing moves and the setting does
+not change.
+
 Sidecar content (§40, with the `unit` field ADR-009 requires — the SDD's own §40
 example omits it, which is exactly the gap ADR-009 closes):
 
@@ -665,11 +707,24 @@ cannot be indexed the way a note is, and `upsert`/`rebuild` take entries keyed b
 `EntityId`. Carrying the path on the Plan's own entry is what gives
 `getGeometrySidecarPath` something to read: `ObsidianPlanRepository` sets it in the same
 `upsert` that records the Plan note's path (it has just created or resolved the sidecar,
-so it is the only code that knows the path), and `rebuild` recovers it during the scan
-by reading each Plan note's frontmatter for its sidecar reference. Without this field
-the port had a getter no writer could satisfy, and since path derivation is explicitly
-forbidden (ADR-011), every Zone read and write on that Plan would resolve to
-`undefined`.
+so it is the only code that knows the path), and `rebuild` recovers it by **joining the
+two halves of the scan it already performs** — it reads the geometry folder for sidecars
+as well as the note folders (see Persistence Impact), and every validated
+`PlanGeometryDTO` carries the `planId` its file belongs to, so each sidecar's own path
+attaches to that Plan's entry. The join key comes from the sidecar's contents, never
+from its filename: a filename is a derivation by another route, and ADR-011 forbids
+that.
+
+There is deliberately no sidecar reference in the Plan's frontmatter to read instead.
+Adding one would put the same fact in two writable places — a note a user can edit and
+a folder setting they can change — with no rule for which wins when they disagree, and
+§3.6's derived-data-over-duplicate-data preference points the other way. The sidecar
+already knows which Plan it belongs to; nothing is gained by having the Plan also claim
+to know where its sidecar is.
+
+Without this field the port had a getter no writer could satisfy, and since path
+derivation is explicitly forbidden (ADR-011), every Zone read and write on that Plan
+would resolve to `undefined`.
 
 A non-Plan entry leaves it absent, and a Plan entry missing it is a broken index rather
 than a Plan without geometry: an empty sidecar still exists and still has a path (slice
@@ -729,7 +784,10 @@ interface FindZonesByPlanQuery {
   default project folder for entity notes — both added to the settings surface Slice 1
   established, and both read and written through `settingsFrom` like `units`, since
   `data.json` is a trust boundary and a folder path is user-editable text.
-  User-supplied paths pass through `normalizePath` before any Vault call.
+  User-supplied paths pass through `normalizePath` before any Vault call. Changing
+  `geometrySidecarFolder` once sidecars exist is not a plain setting write — it moves
+  the files and rebuilds the index first, and persists the setting only if that
+  succeeded (see "Changing the sidecar folder moves the sidecars").
   **These are the settings that make slice 1's unrecovered rule bite.** A path is not a
   preference: with `root.settings === null` — `data.json` present but unreadable — a
   default folder is a *different* location, so an index built on it reports the user's
@@ -789,7 +847,18 @@ interface FindZonesByPlanQuery {
 - **Sidecar-mapping round trip:** assert `getGeometrySidecarPath(planId)` returns the
   path after a `save()`-driven `upsert`, after a `rebuild()` from a Vault scan, and
   after an update-only `save()` that changed just the Plan's title (the case where an
-  entry written without `geometrySidecarPath` would silently clear the mapping).
+  entry written without `geometrySidecarPath` would silently clear the mapping). The
+  `rebuild()` case runs against a fixture where the sidecar's **filename does not
+  match** what any derivation rule would produce, so a builder that quietly derived the
+  path instead of joining on the DTO's `planId` fails rather than passing by accident.
+- **Sidecar folder-change tests:** with Plans present, changing `geometrySidecarFolder`
+  moves every `.rpgeo` file, rebuilds the index, and only then persists the setting —
+  asserted by reading `getGeometrySidecarPath` and saving a Zone immediately afterwards,
+  with no plugin reload. Then the failure path: a move that fails partway moves
+  everything back, leaves the setting at its old value, and returns a
+  `PersistenceError`. And the refusal path: a target folder already containing `.rpgeo`
+  files is rejected without moving anything. A test that only asserted the setting's
+  new value would pass against the silent write that orphans the data.
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -852,8 +921,15 @@ interface FindZonesByPlanQuery {
     `geometrySidecarPath` — synchronously on success.
 6d. `getGeometrySidecarPath(planId)` is populated by every writer that can populate
     it: `ObsidianPlanRepository.save()` on insert and on update, and `rebuild()` from
-    a Vault scan. The port has no read whose mapping nothing writes, and no caller
-    derives a sidecar path from a note path (ADR-011).
+    a Vault scan, which joins each scanned sidecar to its Plan entry on the
+    `PlanGeometryDTO`'s own `planId` — never on the filename, and never from a
+    frontmatter field (there is none). The port has no read whose mapping nothing
+    writes, and no caller derives a sidecar path from a note path (ADR-011).
+6e. Changing `geometrySidecarFolder` while sidecars exist moves them, rebuilds the
+    index, and persists the setting only on success; a failed move restores every file
+    and leaves the setting unchanged; a target folder already holding `.rpgeo` files
+    is refused. ADR-011's orphaning consequence is discharged here rather than left as
+    a warning — a Plan's geometry stays reachable across the change with no reload.
 7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
    test issues them without awaiting the first, then asserts the sidecar contains both
    entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the

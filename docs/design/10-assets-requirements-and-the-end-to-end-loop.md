@@ -843,9 +843,11 @@ The resolution therefore runs as a compensated sequence, the same shape slice 4 
 inside a repository:
 
 ```text
-0. Validate the resolution's own input (`reassignTo` resolves, is not the entity being
-   deleted, shares the deleted entity's `projectId`, and for an Asset is of `area`
-   kind) — before any write, so a rejected reassignment has nothing to compensate.
+0. Acquire the reference lock for the entity being deleted (see below), and hold it
+   through step 3. Then validate the resolution's own input (`reassignTo` resolves, is
+   not the entity being deleted, shares the deleted entity's `projectId`, and for an
+   Asset is of `area` kind) — before any write, so a rejected reassignment has nothing
+   to compensate.
 1. Read every referencing Requirement in full → `affectedBefore` snapshot. Compare its
    IDs against `resolvedReferents` as a set; on any difference, return
    `reference.set-changed` and stop here — still before any write, so a resolution
@@ -864,6 +866,43 @@ inside a repository:
 5. On success, return `affectedBefore` in the command's payload. It is not
    bookkeeping: it is what makes the delete undoable (see below).
 ```
+
+**The set check and the delete need one lock between them, not just correct ordering.**
+Step 1's comparison establishes what references exist at step 1; the entity does not go
+away until step 3. In that window another Plan Editor tab can dispatch
+`AssignAssetCommand` and create a Requirement that is in neither `affectedBefore` nor
+the resolution's writes — so `remove-references` deletes the ones it knew about, step 3
+deletes the entity, and the new Requirement is left pointing at something gone. The
+`resolvedReferents` check does not catch it: that comparison already passed, correctly,
+before the Requirement existed.
+
+Re-checking again just before step 3 would only narrow the window, not close it — the
+race is between two commands, so no amount of re-reading inside one of them removes it.
+So reference creation and entity deletion are serialized per entity, the same shape
+slice 4 uses for sidecar writes per `planId` ("queued rather than rejected", so
+unrelated entities never contend):
+
+```text
+ReferenceLock — application-layer, keyed by EntityId (a ZoneId or an AssetId)
+
+DeleteZoneCommand / DeleteAssetCommand
+  → hold the lock on the entity being deleted, across steps 0-3
+
+AssignAssetCommand (and reassign, which also creates references)
+  → hold the lock on BOTH endpoints it links — the Zone and the Asset — for the
+    duration of the create, since either one being deleted concurrently is the
+    same hazard
+```
+
+Held across steps 0–3 rather than only around step 3, so the set the user consented to
+is the set that is still true when the entity goes. It is released before undo can run:
+`undo()` is a separate dispatch that re-acquires, so a held lock never outlives the
+command that took it.
+
+This is deliberately a lock over *reference creation*, not over Requirement writes in
+general. A recalculation, an override edit, or a `markStale` on an existing Requirement
+cannot turn a correct reference set into a stale one — only creating a new reference
+can — so serializing those too would cost contention for no invariant.
 
 Step 5 is the half that is easy to miss. Restoring the entity alone does not undo a
 resolution — a Zone brought back with its Requirements still deleted, or still repointed
@@ -1386,6 +1425,13 @@ are additive, not breaking.
       between the read and the dispatch, so `remove-references` cannot delete a referent
       the user was never shown. Set equality, not count: a test that swaps one referent
       for another (count unchanged) must still refuse.
+- [ ] An `AssignAssetCommand` dispatched *during* a delete resolution — after its set
+      check has passed and before the entity is deleted — cannot leave a dangling
+      Requirement: the reference lock makes the two serialize, so either the assignment
+      completes first (and the delete then refuses with `reference.set-changed`) or it
+      waits and fails to resolve an entity that is gone. Asserted by interleaving the
+      two commands without awaiting the first, not by reasoning about ordering — a test
+      that awaited the delete before assigning would pass without any lock at all.
 - [ ] Each of `remove-references`, `reassign` and `delete-anyway` produces its own
       distinct outcome, covered by a test per resolution: references deleted, references
       repointed at `reassignTo`, and references left behind marked `"stale"`

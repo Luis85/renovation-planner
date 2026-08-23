@@ -51,5 +51,7 @@ views:
     order:
       - file.name
       - type
+      - parent
     columnSize:
       file.name: 384
+      note.type: 186

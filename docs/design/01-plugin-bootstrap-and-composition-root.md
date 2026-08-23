@@ -377,10 +377,15 @@ the same edit"). An implementer following the old sentence would ship a `ViewRoo
 browser harness cannot compile and no type gate ever reads. The full edit, in this slice's
 own pull request:
 
-- **`@vitejs/plugin-vue` in BOTH Vite configs** — `vite.config.ts` and
-  `vite.harness.config.ts`. The harness renders the real view against the real stylesheet;
-  a plugin only the build knows about splits them, and the split is invisible until someone
-  runs `npm run harness` and gets a parse error.
+- **`@vitejs/plugin-vue` in all THREE configs that transform source** — `vite.config.ts`,
+  `vite.harness.config.ts`, and `vitest.config.ts`. `vue-conventions.md` §1 says "both Vite
+  configs" because the project it was written for had two; this repository has a third
+  Vite-powered surface, and its own standalone `vitest.config.ts` (`defineConfig` from
+  `vitest/config`, no `mergeConfig`) is where every test runs. Without the plugin there,
+  importing an SFC fails at parse — before the lifecycle test executes and before coverage
+  can measure anything, so the failure is not even a red assertion, it is a file that will
+  not load. Each omission is invisible in a different place: the build one at `npm run
+  build`, the harness one at `npm run harness`, the Vitest one at `npm test`.
 - **`tsc -noEmit` becomes `vue-tsc -noEmit` in `build` AND in `test-build`**, and
   `tsconfig.json`'s `include` gains `src/**/*.vue`. Vite transpiles SFCs without
   type-checking them, so `vue-tsc` is the only command-line type gate a `.vue` file gets —
@@ -724,8 +729,8 @@ Module boundaries this slice fixes for every later one:
       every item on it is a gate that silently does nothing until it is wired: `vue`,
       `pinia` and `@vue/test-utils` added (`@vueuse/core` is NOT — see Design; `fallow`
       refuses a dependency with no importer, and this slice has none for it);
-      `@vitejs/plugin-vue` in **both**
-      `vite.config.ts` and `vite.harness.config.ts`; `vue-tsc -noEmit` replacing
+      `@vitejs/plugin-vue` in **all three** of
+      `vite.config.ts`, `vite.harness.config.ts` and `vitest.config.ts`; `vue-tsc -noEmit` replacing
       `tsc -noEmit` in **both** `build` and `test-build`, with `src/**/*.vue` in
       `tsconfig.json`'s `include`; `vitest.config.ts`'s `coverage.include` widened to
       `src/**/*.{ts,vue}`; `eslint-plugin-vue`'s flat configs added with the TypeScript
@@ -733,11 +738,13 @@ Module boundaries this slice fixes for every later one:
 
       Each is asserted by its **effect**, never by reading the config, because every one of
       these fails silently: the harness renders `ViewRoot.vue` (proving the second Vite
-      config); a deliberate type error in an SFC fails `npm run build` **and**
-      `npm run test-build` (proving both substitutions and the `include`); an SFC with an
-      untaken branch moves the coverage numbers (proving the coverage include — a config
-      assertion would pass while the file was invisible to the gate); and the lint checks
-      below cover the rest.
+      config); the `ViewRoot.vue` mount test runs at all (proving the Vitest plugin — an
+      SFC import fails at parse without it, so this one is proven by the suite executing
+      rather than by an assertion inside it); a deliberate type error in an SFC fails
+      `npm run build` **and** `npm run test-build` (proving both substitutions and the
+      `include`); an SFC with an untaken branch moves the coverage numbers (proving the
+      coverage include — a config assertion would pass while the file was invisible to the
+      gate); and the lint checks below cover the rest.
 
       `docs/setup/vue-conventions.md` §1 is where this list comes from, and it is a
       superset of §1 rather than a copy: §1 was written against a generic project and names

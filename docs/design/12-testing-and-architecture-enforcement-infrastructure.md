@@ -134,7 +134,15 @@ second answer to "where does a test go", and would put `.spec.ts` files inside t
 the build and the layer-boundary lint globs are scoped to.
 
 `vitest.config.ts` defines (at minimum) two run profiles, not one, and this is a
-deliberate design choice, not an implementation detail:
+deliberate design choice, not an implementation detail.
+
+It also needs `@vitejs/plugin-vue` registered, which slice 1 installs as part of its Vue
+arrival checklist and which is named here because this is the section an implementer reads
+when building the file. `vitest.config.ts` is standalone — `defineConfig` from
+`vitest/config`, no `mergeConfig` with the build config — so the plugin being in
+`vite.config.ts` does nothing for it, and without it a component test fails at parse rather
+than at an assertion. The profiles below are what this slice owns; the plugin is slice 1's,
+recorded here so the two halves of one file are not each other's blind spot:
 
 ```text
 node profile:   tests/unit/**, tests/contracts/**, tests/integration/**

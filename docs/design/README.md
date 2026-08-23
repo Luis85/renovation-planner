@@ -47,8 +47,9 @@ own areas, and a slice that touches those areas is expected to have been read ag
 them:
 
 - **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules. It
-  binds **any slice that specifies a `.vue` component, a Pinia store, a composable, or the
-  build wiring for any of them.** That is a rule rather than a list on purpose. Two drafts
+  binds **any slice that specifies a Vue surface at all** — a component (whether or not it
+  names an SFC file), a component test, a Pinia store, a composable, or the build or test
+  wiring for any of them. That is a rule rather than a list on purpose. Two drafts
   of this bullet carried a list instead: the first was "the presentation slices (5, 6,
   13–17)", which omitted slice 1 — the slice that installs Vue and writes the build configs,
   and the one that was actually wrong. The second added slice 1 and still omitted slice 10,
@@ -59,8 +60,18 @@ them:
   missing the ones that merely *touch* it, and it goes stale the moment a slice grows its
   first component. CLAUDE.md states this directly — a table that enumerates code goes
   stale, a table that states a rule does not — and it took two findings here to apply it.
-  The test is now mechanical: does this slice name a `.vue` file, a store, a composable, or
-  the config that builds one?
+  The predicate had to be widened once more after that, and the reason is worth keeping.
+  The first mechanical version asked whether a slice names "a `.vue` file, a store, a
+  composable, or the config that builds one" — and slice 10 names none of those. It
+  specifies a Requirements panel and a component test without ever assigning an SFC
+  filename, so the rule written to stop excluding slice 10 went on excluding it. I had
+  drawn the test from the artifacts I happened to be looking at (filenames) rather than
+  from what the convention governs (Vue surfaces), which is the same scoping error in its
+  third costume.
+
+  So the test errs toward inclusion, which is the right direction for a conformance sweep:
+  a slice wrongly included costs a reading, a slice wrongly excluded costs a defect that
+  ships. If a slice talks about Vue in any way, read it against the conventions.
 
   Where a slice departs from the conventions, the departure is named in that slice's
   **References**, not left to be discovered. There are **three** today. Two are in slice

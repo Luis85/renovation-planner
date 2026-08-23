@@ -951,7 +951,15 @@ interface FindZonesByPlanQuery {
   shape and the sidecar shape — missing `schema-version`, wrong discriminator,
   out-of-range enum, malformed geometry points (NaN/Infinity/non-finite, tying into
   §26's geometry-validation rules) — asserting the invalid cases never reach a
-  mapper.
+  mapper. This is also where §26's `valid unit` and `valid transform` are enforced,
+  and it is the **only** place they can be: slice 8's answers to those two bullets are
+  a compile-time type distinction and a downstream finite-coordinate backstop, and
+  neither survives contact with a file a user hand-edited. Concretely, the sidecar and
+  frontmatter schemas reject a unit outside the persisted vocabulary and a calibration
+  or viewport transform whose scale is zero, negative or non-finite, with the same
+  invalid fixtures as every other schema rule. See `docs/design/README.md`'s
+  shared-vocabulary entry for the split, and slice 2's Design for why `createPolygon`
+  cannot take these two.
 - **Migration tests:** a synthetic `v0 → v1` fixture per migratable kind, asserting
   the migration is deterministic (same input → same output) and idempotent
   (re-running it on already-migrated data is a no-op or a validated error, never

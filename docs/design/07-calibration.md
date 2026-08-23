@@ -621,7 +621,12 @@ the sidecar unchanged.
 - [ ] Recalibrating a Plan that already has persisted Zones rescales those Zones'
       geometry in the same transaction as the calibration update, with a passing
       test proving it — not just documented as intent.
-- [ ] `CalibrateTool` opens slice 15's `ConfirmDialog` before dispatching **any**
+- [ ] *(Requires slice 15; not part of Increment 5.* A Plan with spatial objects is by
+      definition not a first calibration, and Increment 5's success criterion is the
+      first one. The slice map records the same split — slice 7 depends on "6; 15 for the
+      recalibration branch" — so shipping Increment 5 does not mean shipping this box
+      unticked and hoping nobody notices.*)
+      `CalibrateTool` opens slice 15's `ConfirmDialog` before dispatching **any**
       calibration over a Plan that has spatial objects — first-time or repeat, since
       the command rescales existing geometry either way — and dispatches nothing on
       cancel; only a Plan with no objects skips the dialog. Asserted on the command

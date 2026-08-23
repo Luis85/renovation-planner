@@ -181,6 +181,18 @@ and both a domain entity (`Zone.withGeometry`, slice 3) and an editor tool
 rule stated in the editing layer would be a rule a migration, a script, or a
 second tool could bypass.
 
+**"Three" is a collapse of four of §26's six required bullets**, not the whole list.
+§26 asks for ≥3 vertices, finite coordinates, no `NaN`, no `Infinity`, `valid unit` and
+`valid transform`; the first four are properties of a point list and are what
+`createPolygon` checks (finite/`NaN`/`Infinity` being one predicate, hence "three
+rules"). The last two are **not** properties of a point list — a `Point[]` carries
+neither a unit nor a transform — so a smart constructor over one structurally cannot
+check them, and this slice refines §26 by assigning them elsewhere rather than by
+leaving them unowned: slice 8's "Geometry validation (SDD §26)" table owns the editor
+boundary, and slice 4's schema validation owns the persistence boundary that §26's own
+"validate before persistence" framing is actually about. `docs/design/README.md`'s
+shared-vocabulary entry states the split once; this paragraph is why it exists.
+
 What this slice does **not** own is §26's "Future" list (self-intersection
 detection, winding normalization, polygon repair) or the question of what a
 user sees when a construction is rejected — both are slice 8's, and slice 8
@@ -550,10 +562,13 @@ integration test vault (§75) — those exercise slice 4 and later.
       specified: no geometry operation throws on a mathematically
       undefined input, and no always-defined operation is wrapped in
       `Result` needlessly.
-- [ ] `createPolygon` enforces §26's three required rules and is the only
-      exported way to obtain a validated `Polygon`; the boundary table above
-      passes. §26's "Future" rules (self-intersection, winding, repair) are
-      not implemented and not stubbed.
+- [ ] `createPolygon` enforces the four of §26's required bullets that are
+      properties of a point list (counted as three rules — see Design) and is
+      the only exported way to obtain a validated `Polygon`; the boundary table
+      above passes. §26's `valid unit` and `valid transform` are deliberately
+      **not** here — they are slice 8's and slice 4's, per Design — and §26's
+      "Future" rules (self-intersection, winding, repair) are not implemented
+      and not stubbed.
 - [ ] `core/units/` documents the 1-unit-=-1mm convention at the one place
       new contributors will look for it; no pixel/DPI conversion exists
       anywhere under `core/`.

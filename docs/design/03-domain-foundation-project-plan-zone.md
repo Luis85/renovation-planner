@@ -459,7 +459,17 @@ shared vocabulary every other slice's examples follow (`docs/design/README.md`):
 // application/commands/zone/MoveSpatialObject.ts — signature only; every
 // command below follows CreateZoneCommand's pattern above: check each
 // repository call's Result and return early on failure before publishing.
-interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
+// `expectedRevision` is optional and absent in this slice: a fresh gesture asserts
+// where the shape should now be and is last-writer-wins, so the handler saves with the
+// revision it read. Slice 6's undo/redo supplies it — an inverse claims "nothing has
+// happened since", which is a claim only a compare-and-swap can check — and the handler
+// passes it straight through as `save`'s `expected`. The field arrives without changing
+// this slice's behaviour, exactly as `DeleteZoneInput.resolution` does.
+interface MoveSpatialObjectInput {
+  zoneId: ZoneId;
+  geometry: Polygon;
+  expectedRevision?: number;
+}
 class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
@@ -468,7 +478,10 @@ class MoveSpatialObjectCommand
 // exists to reference a Zone — the deferral slice 8 makes explicit. Absent (the only
 // possibility in this slice, where nothing references a Zone) means "refuse if
 // referents exist", so the field arrives without changing this slice's behaviour.
-interface DeleteZoneInput { zoneId: ZoneId }
+// `expectedRevision`, like MoveSpatialObjectInput's, is absent for a user-initiated
+// delete (the handler deletes with the revision it read) and supplied by slice 8's
+// undo-a-creation, which must refuse if the Zone changed after it was created.
+interface DeleteZoneInput { zoneId: ZoneId; expectedRevision?: number }
 class DeleteZoneCommand
   implements Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | PersistenceError>> { /* … */ }
 
@@ -562,12 +575,67 @@ Obsidian detail — an `InMemory*Repository` implements the same compare, and th
 suite (§72) tests both against it.
 
 Why it is needed at all, given commands are dispatched one at a time within a view: a
-command history is view-local (slice 6), two Plan Editors can be open at once, Obsidian
-syncs across devices, and a user can edit a note by hand. So "read, decide, write" is
-never safe across those boundaries — a snapshot-restoring undo is the sharpest case, but
-any read-modify-write has it. Making the comparison part of the write is the only place
-it can be made atomic; a caller cannot achieve it from outside no matter how carefully it
-re-reads.
+command history is view-local (slice 6) and two Plan Editors can be open at once, so
+"read, decide, write" is never safe across them — a snapshot-restoring undo is the
+sharpest case, but any read-modify-write has it. Making the comparison part of the write
+is the only place it can be made atomic; a caller cannot achieve it from outside no
+matter how carefully it re-reads.
+
+### The revision only sees writers that bump it
+
+`revision` is a plugin-owned field, so comparing it detects a writer that went through a
+repository and nothing else. ADR-001 makes every entity a Markdown note the user is
+invited to edit, and a note edited in Obsidian's own editor comes back with its prose or
+its frontmatter changed and its `revision` **untouched** — so a caller's stale `expected`
+still matches, the CAS passes, and the plugin overwrites the edit it was supposed to
+notice. Sync inherits the same hole: a file synced from another device carries whatever
+`revision` that device's *plugin* last wrote, which is bumped if a command made the
+change and unchanged if a person did. An earlier draft of this section listed hand edits
+and sync among the cases the revision comparison protects. It does not protect them, and
+naming a hazard is not covering it.
+
+So the atomic write makes **two** comparisons, not one:
+
+```text
+inside the serialized compare-and-write, per entity ID:
+
+  1. expected            vs  the stored revision
+         differs → ValidationError <entity>.revision-conflict
+         "another writer moved this since you read it"
+
+  2. the digest this repository last observed for this entity
+                         vs  the digest of what it just read
+         differs → ValidationError <entity>.external-modification
+         "something that is not this plugin changed this note"
+```
+
+The second comparison is the repository's own bookkeeping, not a caller argument: the
+repository records a digest of the plugin-owned frontmatter every time it reads an entity
+**and** every time it writes one, so the value it holds is always "the bytes I last put
+there or last saw." A difference is therefore, by construction, a change no repository
+write made. That is the one question `revision` cannot answer, and it is answerable only
+here — a caller comparing digests from outside is back to check-then-act.
+
+Four things about it are worth stating rather than leaving to be discovered:
+
+- **The digest covers the plugin-owned frontmatter keys, not the note.** Slice 4 leaves
+  the body untouched on every write and never parses it (§38) — it is the user's. A
+  plugin write that refused because the user typed a sentence under the frontmatter would
+  make the plugin unusable, and would be refusing over something it cannot lose.
+- **Unknown frontmatter keys are outside the digest too**, for the same reason and by the
+  same rule slice 4 already follows: it preserves keys this version does not declare, so
+  it must not conflict over them either.
+- **`'absent'` needs no digest.** The comparison there is existence, and there is nothing
+  observed to compare against.
+- **The baseline is per repository instance and does not survive a plugin reload.** It
+  does not need to: an `expected` revision can only have come from a read, and that read
+  is what establishes the baseline. An edit made before the plugin ever read the entity is
+  not a lost update — it is simply the state the repository loads.
+
+The two errors are distinct codes because the recovery differs, and a UI that could only
+say "conflict" would have to guess: a `revision-conflict` is resolved by re-reading and
+retrying, while an `external-modification` means the user's own edit is on disk and the
+question to put to them is whose version wins (slices 11 and 15 own that surface).
 
 Two things deliberately do **not** get a revision: a plan's geometry sidecar, whose
 `objects[]` is already guarded by slice 4's per-plan `PlanGeometryStore.mutate` lock, and

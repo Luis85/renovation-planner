@@ -148,6 +148,11 @@ stacks should be touched, not the returned entity:
 
 ```typescript
 class ReversibleMoveZoneCommand implements UndoableCommand {
+  // The revision this adapter's own last successful write produced. Null until
+  // execute() has succeeded once; every operation after that presents it, so each
+  // write is conditional on the state the previous one left. See below.
+  private lastWritten: number | null = null;
+
   constructor(
     private readonly moveCommand: Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>>,
     private readonly forward: MoveSpatialObjectInput,   // captured at pointerUp
@@ -155,16 +160,79 @@ class ReversibleMoveZoneCommand implements UndoableCommand {
   ) {}
 
   async execute(): Promise<Result<void, AppError>> {
-    const result = await this.moveCommand.execute(this.forward);
-    return isErr(result) ? result : ok(undefined);
+    // The first execute() is the user's gesture and carries no expectation; every
+    // later one is a redo and expects what undo() left.
+    return this.dispatch(this.forward);
   }
 
   async undo(): Promise<Result<void, AppError>> {
-    const result = await this.moveCommand.execute(this.inverse);
-    return isErr(result) ? result : ok(undefined);
+    return this.dispatch(this.inverse);
+  }
+
+  private async dispatch(input: MoveSpatialObjectInput): Promise<Result<void, AppError>> {
+    const result = await this.moveCommand.execute(
+      this.lastWritten === null ? input : { ...input, expectedRevision: this.lastWritten },
+    );
+    if (isErr(result)) return result;
+    this.lastWritten = result.value.zone.revision;   // the payload is read for this, then discarded
+    return ok(undefined);
   }
 }
 ```
+
+### An inverse is conditional on the write it inverts
+
+`undo()` above passes an expectation rather than replaying the captured input plainly,
+and that is a rule for every adapter, not a detail of this one:
+
+> **A reversible adapter presents, on every operation after its first, the revision its
+> own previous successful write returned.**
+
+The reasoning is the difference between what a forward gesture means and what an inverse
+means. A user dragging a shape is looking at it and asserting where it should now be; if
+another tab moved it a moment ago, that assertion still stands, so a first `execute()`
+carries no expectation and is last-writer-wins. `undo()` asserts something else entirely
+— *put this back to how it was, because nothing has happened since* — and that premise is
+false the instant another writer touches the Zone. Replaying the captured "before"
+polygon unconditionally does not undo A's move; it silently discards B's.
+
+Serialization does not cover this, and it is worth being explicit about why, because it
+looks like it should. Slice 4's per-plan and per-entity queues make writes *ordered*;
+ordering says B's write and A's undo do not interleave, and says nothing about whether
+B's write happened. Only a comparison against a specific prior state can distinguish
+"unchanged since I wrote it" from "changed, in order, by someone else."
+
+Redo has the same premise and gets the same treatment by construction: `execute()` and
+`undo()` share one `dispatch`, so redo expects what undo left, undo expects what the
+gesture wrote, and the chain never re-reads to find a revision — re-reading to discover
+what to expect is the check-then-act this design refuses everywhere.
+
+This is why the adapter reads the wrapped command's payload at all. It still returns
+`ok(undefined)` to `CommandHistory`, which needs only success or failure; the `{ zone }`
+it discards is read for exactly one field on the way past.
+
+A refused inverse surfaces as `zone.revision-conflict` (or `zone.external-modification`,
+if the note was changed outside the plugin — slice 3 distinguishes them), and
+`CommandHistory` already does the right thing with it: a failed `undo()` leaves the
+command on `undoStack`, so the user is told the undo did not apply rather than being
+shown a stack that has quietly lost its meaning.
+
+Slice 3's `MoveSpatialObjectInput` carries the optional field this needs:
+
+```typescript
+interface MoveSpatialObjectInput {
+  zoneId: ZoneId;
+  geometry: Polygon;
+  // Absent: the handler saves with the revision it read — a fresh gesture, last-writer-
+  // wins. Present: the handler passes it to ZoneRepository.save as `expected`, so a
+  // foreign write since refuses the operation instead of overwriting it.
+  expectedRevision?: number;
+}
+```
+
+The default is absence, so slice 3's own callers and slice 8's create/draw path are
+unaffected by the field existing — the same additive shape `DeleteZoneInput.resolution`
+takes in slice 10.
 
 `CommandHistory` holds the stacks (SDD §30):
 

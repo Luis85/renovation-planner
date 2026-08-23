@@ -12,11 +12,16 @@ contract:
 
 > Persisted domain geometry renders independently from canvas coordinates.
 
-Keeping this slice strictly read-only is deliberate. The render pipeline
-(`Domain Spatial Object → Render Model → Vue Component → vue-konva → Konva Node`, §16) has
-to be provably correct — a pure function of persisted geometry and viewport state — before
-slice 6 adds pointer interaction, commands, and undo/redo on top of it. Validating the pipe
-without a mutation path attached is the whole point of splitting these into two slices.
+Keeping the **render pipeline** read-only is deliberate. `Domain Spatial Object → Render
+Model → Vue Component → vue-konva → Konva Node` (§16) has to be provably correct — a pure
+function of persisted geometry and viewport state — before slice 6 adds pointer
+interaction, commands, and undo/redo on top of it. Validating the pipe without a mutation
+path attached is the whole point of splitting these into two slices.
+
+The one thing this slice writes sits outside that pipeline and does not weaken it:
+`SetPlanBackgroundCommand` (§5 below) sets which file a Plan's background is, which is an
+input the pipeline reads and never something the pipeline produces. Nothing rendered
+here can write, and no geometry is mutated in this slice at all.
 
 ## Scope
 
@@ -598,16 +603,28 @@ export const useWorkspaceStore = defineStore('workspace', ...);
 
 ## Persistence Impact
 
-This slice is **read-only** against every repository slice 4 introduces:
+This slice is read-only against every repository slice 4 introduces **except one write**:
+`SetPlanBackgroundCommand`, which this slice owns (Design → §5).
 
 - `ProjectStore` hydrates via `GetPlan` and `FindZonesByPlan` (§35 query architecture) —
   queries only, never a repository `.save()` call.
 - The background asset (PNG/JPEG/PDF) is read via generic Vault file APIs
   (`vault.getResourcePath`, `vault.readBinary`), not through a slice-4 domain repository —
   it is a raw file read, not a domain entity load.
-- No new Vault writes are introduced anywhere in this slice, including a Plan's background
-  reference: reading an existing `PlanBackgroundRef` is in scope; writing one for the first
-  time is not (see Design → §5, flagged assumption).
+- **The one write is a Plan's background reference.** `SetPlanBackgroundCommand` writes
+  `background-path`/`background-kind`/`background-page` through slice 4's
+  `PlanRepository.save`, conditional on the expected revision like every other write, and
+  publishes `PlanBackgroundChanged`. Frontmatter only: no sidecar entry changes, so there
+  is one file and one write, and neither slice 4's per-plan geometry lock nor a
+  compensating sequence is involved. Its undo restores the previous `PlanBackgroundRef`
+  (or `null`) presenting the revision `execute()` returned, per slice 6's rule for
+  inverses. An earlier draft of this section declared the slice write-free while the
+  Design section above assigned it this command — the two halves of one document
+  disagreeing, which is the same failure that left the background import unowned in the
+  first place.
+- Nothing else in this slice writes. Rendering, hydration, pan and zoom touch no
+  repository, and the write boundary stays where `WRITE_BOUNDARY` puts it: the command
+  goes through `PlanRepository`, not through a view reaching for the Vault.
 - Konva nodes hold no canonical data at any point (§16) — closing and reopening a Plan
   Editor discards the Stage and rebuilds it from the same two queries, with identical
   output, because nothing about a shape's position is stored anywhere but the Zone's
@@ -685,9 +702,17 @@ Per §73–74 (Vue component tests, canvas adapter tests):
 9. Zone fill/stroke colors are resolved from Obsidian CSS variables at render time and
    change correctly when Obsidian's theme changes, without a code change or restart.
 10. Zone status is visually distinguishable without relying on color alone.
-11. No Vault write occurs anywhere in this slice's code paths — `npm run check` (build,
-    lint including the write-boundary and layer-dependency rules, coverage-thresholded
-    tests, fallow) passes with this slice's code included.
+11. `SetPlanBackgroundCommand` is the only code path in this slice that writes, and it
+    writes only a Plan's three background frontmatter keys through `PlanRepository`: a
+    test asserts that rendering, hydration, and a pan/zoom session leave every repository
+    untouched, and that the command's own failure cases (a path resolving to no Vault
+    file, an unsupported kind) write nothing at all.
+12. Undoing a background import restores the previous `PlanBackgroundRef`, `null`
+    included, and refuses with `plan.revision-conflict` if the Plan's background was
+    changed by anything else in between — asserted directly, since an unconditional
+    restore passes every single-writer test.
+13. `npm run check` (build, lint including the write-boundary and layer-dependency rules,
+    coverage-thresholded tests, fallow) passes with this slice's code included.
 
 ## References
 

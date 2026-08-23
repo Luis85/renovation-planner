@@ -964,11 +964,16 @@ The resolution therefore runs as a compensated sequence, the same shape slice 4 
 inside a repository:
 
 ```text
-0. Acquire the reference lock for the entity being deleted (see below), and hold it
-   through step 3. Then validate the resolution's own input (`reassignTo` resolves, is
-   not the entity being deleted, shares the deleted entity's `projectId`, and for an
-   Asset is of `area` kind) — before any write, so a rejected reassignment has nothing
-   to compensate.
+0. Acquire the reference locks (see below) and hold them through step 3: the entity
+   being deleted, and — when the resolution is `reassign` — the reassignment target as
+   well, taken as one sorted acquisition. Both IDs are known from the input, which is
+   what lets the set be taken at once rather than one lock at a time. Then validate the
+   resolution's own input (`reassignTo` resolves, is not the entity being deleted, shares
+   the deleted entity's `projectId`, and for an Asset is of `area` kind) — before any
+   write, so a rejected reassignment has nothing to compensate. Validating *after*
+   acquiring is deliberate: `reassignTo` resolving is a fact about an entity another tab
+   could be deleting, and a check made outside the lock is one the lock does not keep
+   true.
 1. Read every referencing Requirement in full → `affectedBefore` snapshot. Compare its
    IDs against `resolvedReferents` as a set; on any difference, return
    `reference.set-changed` and stop here — still before any write, so a resolution
@@ -1007,7 +1012,10 @@ unrelated entities never contend):
 ReferenceLock — application-layer, keyed by EntityId (a ZoneId or an AssetId)
 
 DeleteZoneCommand / DeleteAssetCommand
-  → hold the lock on the entity being deleted, across steps 0-3
+  → hold the lock on the entity being deleted, across steps 0-3, PLUS the lock on
+    the reassignment target when the resolution is `reassign` — repointing a
+    Requirement at that target creates a reference to it, so a target deleted
+    concurrently leaves the same dangling reference the delete is resolving away
 
 AssignAssetCommand (and reassign, which also creates references)
   → hold the lock on BOTH endpoints it links — the Zone and the Asset — for the
@@ -1028,6 +1036,44 @@ The lock is a mutual-exclusion set over *everything that can make the reference 
 disagree with an invariant someone is about to rely on*: creating a reference, deleting
 a referenced entity, and changing a referenced entity's unit. It is not a general
 Requirement mutex — see the scoping note at the end of this section.
+
+**Two of those acquirers take more than one lock, so the order is fixed and the set is
+taken at once.** `AssignAssetCommand` holds the Zone's and the Asset's; a delete whose
+resolution is `reassign` holds the deleted entity's *and* the reassignment target's,
+because repointing a Requirement at that target creates a reference to it — the same
+hazard, from the other side, that makes assignment take both. Nothing about "hold both"
+says in which order, and unordered acquisition is a deadlock: one tab reassigning Z1's
+requirements to Z2 while another reassigns Z2's to Z1 can each take its own source and
+then wait forever on the other's. Neither tab is doing anything wrong; the mechanism is.
+
+```text
+Acquiring more than one ReferenceLock:
+
+  take the whole set in ONE acquisition, sorted ascending by the EntityId's
+  string value — ULIDs, so the order is total, stable, and computable by every
+  caller without coordination
+
+  never acquire a lock while already holding one outside that set
+```
+
+A total order over the resources plus one acquisition point is the standard cure, and
+both halves are load-bearing. Sorting alone is not enough if a command can take a first
+lock, learn something, and then take a second — that is the same wait-for cycle with more
+steps. So every acquirer must know its full set before it takes anything, and each does:
+`AssignAssetCommand` has both endpoints in its input, and a delete's reassignment target
+arrives in `DeleteZoneInput.resolution`, before step 0. A resolution that named a target
+the command discovered mid-sequence would break this rule, which is a reason not to add
+one rather than a limitation to work around.
+
+`UpdateAssetCommand` and a plain (non-reassigning) delete take a single lock and are
+unaffected — an ordering rule over one element is just that element.
+
+The rule holds against slice 4's queues for the same reason it holds here: they are
+acquired in a fixed order too (a `ReferenceLock` first, then slice 4's per-entity and
+per-plan queues inside the writes it guards), never the reverse. A repository write that
+reached back for a `ReferenceLock` would close the cycle across layers, which the layer
+rule already forbids — `infrastructure/` cannot import from `application/` — so this one
+is enforced by lint rather than by remembering it.
 
 Held across steps 0–3 rather than only around step 3, so the set the user consented to
 is the set that is still true when the entity goes. It is released before undo can run:
@@ -1667,6 +1713,19 @@ are additive, not breaking.
       the update lands first (and the assignment then refuses on unit kind) or the
       assignment lands first (and the update then refuses on referents). Interleaved
       without awaiting, for the same reason as above.
+- [ ] Two multi-lock commands whose lock sets are the same two entities in opposite
+      orders both complete: Zone Z1's requirements reassigned to Z2 while Z2's are
+      reassigned to Z1, dispatched interleaved without awaiting either. Under
+      first-come-first-served acquisition this hangs; under the sorted single
+      acquisition one waits for the other and both finish. Asserted with a bounded
+      timeout, so a deadlock fails the test rather than hanging the suite — and the
+      test is watched failing with the sort removed, since a passing deadlock test that
+      never deadlocked is evidence of nothing.
+- [ ] The lock set is taken in one acquisition: a test asserts that a command holding a
+      `ReferenceLock` never requests a second one outside the set it started with —
+      checked at the lock itself (a re-entrant request from a holder is an error the
+      lock raises), not by driving the commands that exist today, so it holds for
+      commands not yet written.
 - [ ] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
       the now-unreferenced Asset from `m2` to `m`, the redo resolves a
       `ValidationError` and creates nothing, rather than restoring a Requirement whose

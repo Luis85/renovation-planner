@@ -561,7 +561,9 @@ class CreateZoneCommand implements Command<CreateZoneInput, Result<{ zone: Zone 
 // verbatim — a plain Command taking a full replacement geometry, not a delta;
 // this slice wraps it in slice 6's ReversibleMoveZoneCommand adapter rather
 // than making it implement UndoableCommand directly)
-interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon }
+// `expectedRevision` is slice 3's optional field; this slice's tools leave it absent on
+// the forward gesture and slice 6's adapters fill it in for every inverse.
+interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon; expectedRevision?: number }
 class MoveSpatialObjectCommand
   implements Command<MoveSpatialObjectInput, Result<{ zone: Zone }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
 
@@ -582,6 +584,12 @@ class ReversibleCreateZoneCommand implements UndoableCommand {
   );
   // First call dispatches createCommand and captures the created Zone; every later
   // call (i.e. redo) re-saves that snapshot verbatim, so the ID survives undo/redo.
+  // Both halves are conditional, per slice 6's rule that an inverse expects what its
+  // own previous write left — and the two ends of this adapter make the two shapes an
+  // expectation takes. Redo re-saves with `'absent'`: undo deleted the note, so a note
+  // at that ID now is somebody else's, and restoring over it is not an undo. Undo
+  // deletes with the revision the create (or the last redo) returned, so a Zone the
+  // user has edited since refuses to be un-created rather than losing that edit.
   execute(): Promise<Result<void, AppError>>;
   undo(): Promise<Result<void, AppError>>;   // dispatches deleteCommand for createdZoneId
   readonly createdZoneId: ZoneId | null;     // set once execute() has succeeded; how
@@ -606,6 +614,11 @@ class ReversibleMoveZoneVertexCommand implements UndoableCommand {
     private readonly forward: MoveSpatialObjectInput,  // whole polygon, one vertex moved
     private readonly inverse: MoveSpatialObjectInput,  // whole polygon, captured at pointerDown
   );
+  // Both operations go through the same conditional dispatch slice 6 specifies:
+  // the first execute() carries no expectation, and every operation after it presents
+  // the revision this adapter's own previous write returned. Sharing the mechanism
+  // rather than the words is the point — an adapter that re-derived it is where the
+  // unconditional replay comes back.
   execute(): Promise<Result<void, AppError>>;
   undo(): Promise<Result<void, AppError>>; // restores the prior point list, so only that vertex differs
 }
@@ -628,6 +641,10 @@ class ReversibleDeleteZoneCommand implements UndoableCommand {
     // second place reference integrity is decided.
     private readonly input: DeleteZoneInput,
   );
+  // Conditional on both halves, the same way: execute() (the first delete, and every
+  // redo) presents the revision the last restore wrote, and undo() re-inserts with
+  // `'absent'` — slice 10's `affectedAfter` carries the same pair of expectations for
+  // each Requirement the resolution touched, for the same reason.
   execute(): Promise<Result<void, ReferenceError | PersistenceError>>; // reads snapshot, then delegates to deleteCommand
   // Re-inserts the snapshot verbatim, same ID — the Zone first, then every entity in
   // affectedBefore, as one compensated sequence: each entity's current state is read

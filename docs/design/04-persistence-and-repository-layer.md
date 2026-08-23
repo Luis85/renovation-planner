@@ -372,6 +372,22 @@ both writes as one logical transaction:
    save is an INSERT. Which of the two it is decides how step 5 compensates, so it
    is established here, before anything is written — never inferred afterwards, when
    the note exists either way and the two cases are indistinguishable.
+2b. Compare, before writing anything — slice 3's conditional-write contract, and the
+    reason step 2's read and step 3's write must sit inside one serialized section
+    rather than being two independent calls. Against the frontmatter step 2 just read:
+      - `expected` (a number) against the stored `revision`; a difference is a
+        `ValidationError` `<entity>.revision-conflict`.
+      - `expected === 'absent'` against the note's existence; a note already there is
+        the same error. This is what makes slice 8's restore-a-deleted-Zone an insert
+        rather than a blind overwrite.
+      - the digest this repository last observed for this entity against the digest of
+        the plugin-owned frontmatter keys it just read; a difference is a
+        `ValidationError` `<entity>.external-modification`. Unknown keys and the body
+        are outside the digest, exactly as they are outside every write below.
+    Either failure aborts here, with nothing written. On success the entity is written
+    with `revision + 1`, and the repository records the digest of what it wrote — so
+    the value it holds is always the bytes it last put there or last saw, which is what
+    makes a later difference mean "not this plugin" (slice 3).
 3. Write the zone's Markdown frontmatter (FileManager.processFrontMatter — body
    untouched), creating the note if this is an insert.
 4. Upsert this zone's entry into the sidecar's objects[] and write the sidecar back.
@@ -393,7 +409,21 @@ both writes as one logical transaction:
    the index is not left to catch up asynchronously via the vault-change pipeline.
 ```
 
-`delete(zoneId)` is the mirror, and it compensates the same way `save()` does:
+Steps 2 through 5 run inside a **per-entity-ID** queue, for the reason slice 3 gives:
+a comparison the caller could make from outside is check-then-act, and only a
+comparison the write cannot be separated from is a compare-and-swap. This is a second
+queue, not the per-`planId` sidecar lock below — that one serializes writers to one
+shared file, this one serializes writers to one entity — and a Zone save takes both.
+They nest in one order, entity then plan, everywhere; taking them in either order at
+different call sites is the deadlock this states the ordering to avoid.
+
+The compensation in step 5 is inside the queue, not after it. A restore that ran outside
+would be a second write racing the writer that acquired the queue next, and it would
+undo that writer's work rather than this one's — the failure this whole sequence exists
+to prevent, reintroduced by the cleanup.
+
+`delete(zoneId)` is the mirror, and it compensates the same way `save()` does: it makes
+step 2b's comparison against the same read, and refuses the same two ways.
 
 ```text
 1. Read the full Zone (note + its sidecar entry) as a restore snapshot, before any
@@ -884,6 +914,25 @@ interface FindZonesByPlanQuery {
   mirror case for `delete()`: sidecar removal fails after the note is deleted; assert
   the note is restored, so no caller is handed a failed `Result` for an operation that
   half-happened.
+- **Conditional-write tests**, run against the Obsidian repositories and the in-memory
+  ones through the shared contract suite, since the whole point of declaring the
+  contract in the port is that both honour it: a `save` with a stale `expected` returns
+  `<entity>.revision-conflict` and leaves the note byte-identical; a `save` with
+  `'absent'` against an existing note returns the same and writes nothing; a `delete`
+  with a stale `expected` leaves the entity in place; and a successful `save` returns
+  the entity carrying `revision + 1`.
+- **External-modification test:** read an entity through the repository, rewrite the
+  note's frontmatter *outside* the repository (as a hand edit or a synced file would),
+  then `save` with the revision that read returned — the value that still matches, which
+  is exactly why the revision comparison cannot catch this. Assert
+  `<entity>.external-modification` and that the out-of-band content survives. Reverting
+  the digest comparison must turn this test red while every conditional-write test above
+  stays green; that is the only evidence that the second comparison is doing work the
+  first one was already claimed to do.
+- **Digest-scope tests**, both directions, because a digest drawn too wide fails closed
+  and looks correct: appending prose to the note body, and adding a frontmatter key this
+  version does not declare, each leave a subsequent `save` succeeding, with the body and
+  the unknown key preserved in what it wrote.
 - **Insert-specific compensation test:** the same sidecar-write failure, but on a
   save that *creates* a new Zone note rather than updating one. Assert the note does
   not exist afterwards — a restore-the-snapshot compensation would pass the update
@@ -979,6 +1028,16 @@ interface FindZonesByPlanQuery {
    logical operation; a test proves a mid-sequence failure surfaces a
    `PersistenceError` and does not leave the frontmatter silently pointing at
    discarded geometry (§42).
+5a. Every mutating repository method honours slice 3's conditional-write contract, on
+    the Obsidian implementations and the in-memory ones alike: a stale `expected`
+    refuses with `<entity>.revision-conflict` and writes nothing, `'absent'` against an
+    existing entity refuses the same way, and a successful `save` returns the entity
+    at `revision + 1`.
+5b. A change made to an entity note outside this plugin refuses the next `save` with
+    `<entity>.external-modification`, with the out-of-band content intact — and
+    reverting the digest comparison turns that test red while leaving item 5a green.
+    Note-body prose and undeclared frontmatter keys are outside the digest: a save
+    after either still succeeds, and preserves both.
 6. Deleting a Zone compensates symmetrically: a test in which sidecar removal fails
    after the note is deleted asserts the note is restored and a `PersistenceError` is
    returned — so a failed delete leaves nothing deleted, and a caller's failed

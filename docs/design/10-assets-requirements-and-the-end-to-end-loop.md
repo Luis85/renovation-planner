@@ -1093,9 +1093,12 @@ are unaffected — an ordering rule over one element is just that element.
 The rule holds against slice 4's queues for the same reason it holds here: they are
 acquired in a fixed order too (a `ReferenceLock` first, then slice 4's per-entity and
 per-plan queues inside the writes it guards), never the reverse. A repository write that
-reached back for a `ReferenceLock` would close the cycle across layers, which the layer
-rule already forbids — `infrastructure/` cannot import from `application/` — so this one
-is enforced by lint rather than by remembering it.
+reached back for a `ReferenceLock` would close the cycle across layers — and **lint does
+not catch that one**: `infrastructure/` may import from `application/`, because that is
+how it reaches the ports it implements (`eslint.config.mjs` bans only `presentation` and
+`plugin` there). The layer rule buys the direction of the port dependency, not the
+absence of this cycle. What holds it is the convention stated here plus review: a
+repository takes no lock it did not declare, and `ReferenceLock` is not among them.
 
 Held from step 0 rather than only around step 3, so the set the user consented to is the
 set that is still true when the entity goes — and through step 4, so the compensation is

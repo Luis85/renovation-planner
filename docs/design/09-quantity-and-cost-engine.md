@@ -199,7 +199,7 @@ Purchase Quantity       (Quantity)
 Requirement Quantity     (Purchase Quantity, from the Quantity Engine)
    ↓  scale(unitPrice, quantity.value)
 Line Subtotal             (Money)
-   ↓  subtract(subtotal, percentageOf(subtotal, discount.percent ?? 0))
+   ↓  subtract(subtotal, percentageOf(subtotal, discount?.percent ?? 0))
 After Discount             (Money)
    ↓  add(afterDiscount, shipping ?? zero(currency))
 After Shipping             (Money)
@@ -276,15 +276,17 @@ function percentageOf(a: Money, percent: Decimal): Money; // the part (a × pct/
 function round(a: Money): Money;
 function compare(a: Money, b: Money): Result<-1 | 0 | 1, CalculationError>;
 
-// core/units
+// core/units — two vocabularies, deliberately distinct (see Design → Unit kinds and Quantity)
 type UnitKind = "piece" | "length" | "area" | "volume" | "hour" | "day" | "fixed";
+type MeasurementUnit = "piece" | "m" | "m2" | "m3" | "hour" | "day" | "fixed";
+const UNIT_KIND: Readonly<Record<MeasurementUnit, UnitKind>>;
 
 interface Quantity {
   readonly value: Decimal;
-  readonly unit: UnitKind;
+  readonly unit: MeasurementUnit;
 }
 
-// core/result (extended in this slice)
+// core/derived (new in this slice — deliberately not core/result)
 interface DerivedValue<T> {
   readonly calculated: T;
   readonly override?: T;
@@ -300,7 +302,7 @@ interface PackagingRule {
   readonly minimumOrder?: Decimal;
 }
 
-function toMeasuredQuantity(rawValue: Decimal, unit: UnitKind): Quantity;
+function toMeasuredQuantity(rawValue: Decimal, unit: MeasurementUnit): Quantity;
 function applyRequirementRule(
   measured: Quantity,
   rule: RequirementRule
@@ -316,7 +318,7 @@ function applyPackaging(
 
 function runQuantityEngine(
   rawValue: Decimal,
-  unit: UnitKind,
+  unit: MeasurementUnit,
   rule: RequirementRule,
   wastePercent: Decimal,
   packaging?: PackagingRule

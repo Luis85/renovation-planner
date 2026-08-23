@@ -469,14 +469,22 @@ not for any file that exists today, and the logging carve-out matches a director
 exactly one file in it for the same reason: enforce before it can be broken.
 
 **`dependency-cruiser` is not adopted**, and this is the decision every later slice
-inherits rather than re-opens (slice 12 in particular states the same conclusion): ESLint
-already runs on every commit via `npm run lint`, integrates with the existing flat config,
-and needs no second tool or second CI step. The one guarantee it would add that
-`no-restricted-imports` cannot give is the *indirect* case — `domain/` importing an
-inner-layer helper that itself imports `obsidian`. Two things already narrow that gap:
-`npm run analyze` (fallow) reports dependency hygiene across the graph, and slice 12's
-node-profile test suite fails on a DOM global reached through any depth of import. If a
-real indirect violation ever survives both, that is the trigger to add a graph-level
+inherits rather than re-opens (slice 12 defers to this paragraph rather than restating
+it): ESLint already runs on every commit via `npm run lint`, integrates with the existing
+flat config, and needs no second tool or second CI step.
+
+The one guarantee it would add that `no-restricted-imports` cannot give is the *indirect*
+case — `domain/` importing an inner-layer helper that itself imports `obsidian`. **Nothing
+in the repository closes that gap**, and it is worth being exact about why the two things
+that look like they might do not: `npm run analyze` (fallow) reports dead code,
+duplication, complexity and dependency hygiene, none of which is a layer boundary; and
+the bare `node` test environment catches a DOM *global* at runtime, for code some test
+actually executes, which is neither an import graph nor a package ban.
+
+The decision stands on a bound instead. For the indirect case to open, some `core/` or
+`domain/` file must itself import the banned package — and ESLint reds *that* file
+directly. The hole therefore needs two violations, and the first one is already caught.
+If a real indirect violation ever survives that, it is the trigger to add a graph-level
 check — not a rule written ahead of a demonstrated hole.
 
 ## Interfaces & Contracts

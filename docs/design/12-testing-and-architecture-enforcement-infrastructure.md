@@ -112,20 +112,6 @@ SDD §69's pyramid, base to apex:
                    Unit
 ```
 
-This maps onto the `tests/` tree from SDD §77:
-
-```text
-tests/
-├── unit/          # Geometry, Money, Quantity, Domain — pure, no I/O, no DOM
-├── contracts/      # shared *RepositoryContract(makeRepository) suites
-├── integration/     # command-handler tests, contract suites run against
-│                     # both InMemory and Obsidian repositories, vault-change
-│                     # detection, migrations — all against the fixture vault
-├── fixtures/        # small in-memory fixtures shared across unit/integration
-├── vault/           # the Integration Test Vault (valid-project/, ...)
-└── architecture/     # meta-tests: prove the lint/contract rules actually fire
-```
-
 **Every test lives under `tests/`, mirroring `src/`** — Vue Component and Canvas
 Adapter tests included, at `tests/presentation/**`. This repository's convention is
 `tests/` mirrors `src/` (CLAUDE.md, and the `tests/plugin/`, `tests/presentation/views/`
@@ -133,22 +119,68 @@ layout slice 1 already ships); colocating presentation specs under `src/` would 
 second answer to "where does a test go", and would put `.spec.ts` files inside the tree
 the build and the layer-boundary lint globs are scoped to.
 
-`vitest.config.ts` defines (at minimum) two run profiles, not one, and this is a
-deliberate design choice, not an implementation detail:
+**This refines SDD §77's `tests/` tree**, which draws `unit/`, `integration/`,
+`contracts/`, `fixtures/` and `vault/` as sibling *categories*. A category tree and a
+mirror of `src/` are two answers to "where does the test for this module go", and the
+mirror is the one the repository already implements and CLAUDE.md already states, so the
+mirror wins and the categories that survive are only the ones that hold something which
+is **not** a test of a `src/` module:
 
 ```text
-node profile:   tests/unit/**, tests/contracts/**, tests/integration/**
-                environment: 'node' — no DOM, no jsdom globals available
-
-jsdom profile:  tests/presentation/**, tests/plugin/**
-                environment: 'jsdom'
+tests/
+├── core/ domain/ application/            ← one directory per src/ directory:
+├── infrastructure/ presentation/ plugin/    the mirror. Every test of a src module
+│                                            lives at its module's path.
+│
+├── contracts/     # MATERIAL, not tests: shared *RepositoryContract(makeRepository)
+│                    suites, called from the mirrored files above (§4)
+├── fixtures/      # small in-memory fixtures shared across the mirrored suites
+├── helpers/       # the obsidian mock, the DOM helpers, the oxlint driver (exists)
+├── vault/         # the Integration Test Vault (valid-project/, …) — SDD §75
+├── build/         # meta-tests over the gates themselves: lint scope, suppressions,
+│                    the stylesheet assembler, engines.node (exists) — and the
+│                    planted-violation tests below, which are the same species
+├── harness/       # the browser harness's parity and accessibility tests (exists)
+└── release/       # manifest, changelog and version-bump tests (exists)
 ```
+
+The SDD's `unit/` and `integration/` do not appear, and neither does a separate
+`architecture/`: a planted-violation test proving a lint rule fires is the same species
+as `tests/build/lint-scope.test.ts`, shares its instrument, and a second directory for it
+would be a second answer to "where does a gate meta-test go". A unit test of `Money`
+belongs at
+`tests/core/money/`, and an integration test of `ObsidianZoneRepository` belongs at
+`tests/infrastructure/obsidian/`. What distinguishes them is the fixture they take and
+the environment they run in, not a directory — and a directory that repeats a fact the
+path already carries is the drift this slice's own §2 table exists to prevent.
+
+`vitest.config.ts` defines two run environments, not one, and the split is stated as
+**a default plus a named exception** rather than as two glob lists:
+
+```text
+node    — the DEFAULT. Everything under tests/ that the jsdom list does not name.
+          environment: 'node' — no DOM, no jsdom globals available.
+
+jsdom   — the OPT-IN, and the complete list of it:
+          tests/presentation/**, tests/plugin/**, tests/harness/**,
+          plus any single mirrored file whose subject is DOM code, opted in with
+          a per-file `@vitest-environment jsdom` docblock (today's mechanism).
+```
+
+Two glob lists would be the defect: a directory named in neither runs in neither, and a
+suite that silently stops running is indistinguishable from a suite that passes. Stated
+as default-plus-exception, a new directory joins the node profile by existing. **This is
+a claim about the configuration, so it gets a check**, in the shape
+`tests/build/lint-scope.test.ts` already uses for oxlint: ask vitest itself which files
+each project collects and assert the union equals every `tests/**/*.test.ts` on disk.
 
 Running domain/application/contract tests in a bare `node` environment — not
 `jsdom` — is itself an architecture check: if `domain/` or `application/` code
-accidentally reaches for `window`, `document`, or any DOM global, the node-profile
-suite fails immediately, independent of the ESLint rule in §5 below. This is a second,
-independent enforcement of ADR-006's boundary, not a duplicate of it.
+accidentally reaches for `window`, `document`, or any DOM global, the node suite
+fails immediately, independent of the ESLint rule in §8 below. This is a second,
+independent enforcement of ADR-006's boundary, not a duplicate of it — and node being
+the default rather than one of two lists is what makes it hold for a domain test nobody
+has written yet.
 
 ### 2. Unit test category ownership (§70)
 
@@ -180,7 +212,8 @@ Assertions on repository state + returned Result
 Application tests prove the *use case* — validation, repository calls, event
 emission — without touching Obsidian, Vue, or Konva. They are the first place a
 command handler is exercised end-to-end; slice-level Application tests (one per
-command introduced by slices 3, 7, 8, 9, 10) live under `tests/integration/application/`.
+command introduced by slices 3, 7, 8, 9, 10) live at the handler's mirrored path under
+`tests/application/`.
 
 ### 4. Repository Contract Test pattern (§72)
 
@@ -189,8 +222,8 @@ implementation of that interface:
 
 ```text
 zoneRepositoryContract(makeRepository)
-      ├── run against InMemoryZoneRepository   → tests/integration/in-memory/
-      └── run against ObsidianZoneRepository   → tests/integration/obsidian/
+      ├── run against InMemoryZoneRepository   → tests/infrastructure/in-memory/
+      └── run against ObsidianZoneRepository   → tests/infrastructure/obsidian/
                                                    (backed by the Integration
                                                     Test Vault's valid-project/ case)
 ```
@@ -298,30 +331,39 @@ domain/**  and  core/**  and  application/**  may not import:
   konva
   vue-konva
   obsidian
-  (DOM globals, in domain/core — enforced by the node test profile, see §1)
+  (DOM globals, in domain/core — enforced by the node default environment, see §1)
 ```
 
-Three mechanisms, all already wired into `npm run check` so a violation fails the build
-rather than waiting for review:
+Two mechanisms, and **only the first of them is enforcement today** — the second is an
+obligation of this slice. Stating which is which is the point of the list; a mechanism
+credited before it exists is the same defect as a rule in a config nobody runs:
 
-- **ESLint `no-restricted-imports`**, as one block per layer directory, banning both the
-  sibling layers above it and the forbidden packages (plus their subpaths). This is
-  slice 1's rule set, committed before any file existed to violate it. Per-directory
-  blocks matter: two flat-config blocks matching one file **override** rather than merge,
-  so a single combined glob would silently drop the per-layer sibling bans.
-- **The `node` test profile** (§1 above), which fails on a DOM global reached through
-  *any* depth of import — the indirect case a per-file lint rule cannot see.
-- **`fallow`** (`npm run analyze`), which reports dependency hygiene across the graph.
+- **ESLint `no-restricted-imports`** — *runs today*, as one block per layer directory
+  (`eslint.config.mjs`), banning both the sibling layers above it and the forbidden
+  packages (plus their subpaths). This is slice 1's rule set, committed before any file
+  existed to violate it, and it fails `npm run check`. Per-directory blocks matter: two
+  flat-config blocks matching one file **override** rather than merge, so a single
+  combined glob would silently drop the per-layer sibling bans.
+- **The `node` environment as the default** (§1 above), which fails on a DOM global
+  reached through *any* depth of import — the indirect case a per-file lint rule cannot
+  see. The *default* half of this is real today (`vitest.config.ts` sets
+  `environment: 'node'` for the whole suite, with jsdom opted into per file). The
+  *profile* half — the two projects and the check that their union covers `tests/**` —
+  does not exist yet and is this slice's to build.
 
-**`dependency-cruiser` is deliberately not adopted**, and this slice does not re-open
-that decision — slice 1 made it, with its reasoning, and this is the same conclusion:
-ESLint already runs on every commit, integrates with the existing flat config, and
-needs no second tool or second CI step. The gap a graph-level checker would close is
-narrower than it looks once the node profile and `fallow` are counted. If a real
-indirect violation ever survives all three, that is the trigger to add one — a fourth
-tool bought against a demonstrated hole rather than an imagined one.
+**`fallow` is not on this list.** `npm run analyze` reports dead files, dead exports,
+duplication, complexity and dependency hygiene; none of those is a layer boundary, and
+counting it here would inflate the enforcement story by one whole mechanism.
 
-All three run in CI on every push/PR as part of one `npm run check`, not as an opt-in
+**`dependency-cruiser` is deliberately not adopted.** Slice 1 made that decision and
+states the reasoning, including the indirect-import gap neither mechanism above closes
+and the bound the decision actually rests on; this slice does not re-open it and does not
+restate it — see slice 1, *Design → Layer-dependency rule, enforced before it can be
+broken*. What this slice adds is
+only the trigger: the planted-violation tests below are what would surface a real
+indirect violation, and one surviving them is what buys a graph-level tool.
+
+Both run in CI on every push/PR as part of one `npm run check`, not as an opt-in
 local script — a rule that only fails a build when someone remembers to run it locally
 is not enforcement.
 
@@ -333,7 +375,7 @@ each criterion mapped to how it becomes verifiable rather than aspirational:
 
 | # | Criterion | Verified by |
 | --- | --- | --- |
-| 1–3 | Domain runs without Obsidian/Vue/Konva | Architecture Test Rules (§8) + node-profile unit tests (§1) |
+| 1–3 | Domain runs without Obsidian/Vue/Konva | Architecture Test Rules (§8) + node-environment unit tests (§1) |
 | 4 | UI communicates through commands/queries | Application Test pattern (§3) + slice 5/6 component tests asserting emitted commands, never direct repository calls |
 | 5–6 | Konva/Pinia store no canonical data | Canvas Adapter Tests (§6) assert Konva emits IDs/commands, not domain state; slice 5's Definition of Done items 3–5 (Pinia rebuildable from queries, no Konva node read as a geometry source) |
 | 7 | Vault files remain understandable without the plugin | slice 4 Definition of Done, exercised against `valid-project/` |
@@ -372,14 +414,18 @@ export function zoneRepositoryContract(
 Consumed from both sides:
 
 ```typescript
-// tests/integration/in-memory/zone-repository.spec.ts
+// tests/infrastructure/in-memory/zoneRepository.test.ts
 zoneRepositoryContract(() => new InMemoryZoneRepository());
 
-// tests/integration/obsidian/zone-repository.spec.ts
+// tests/infrastructure/obsidian/zoneRepository.test.ts
 zoneRepositoryContract(() =>
   new ObsidianZoneRepository(openFixtureVault('valid-project'))
 );
 ```
+
+Both call sites sit at the mirrored path of the implementation they exercise (§1), and
+both are named `*.test.ts`: `vitest.config.ts` collects `tests/**/*.test.ts` and nothing
+else, so a `.spec.ts` file under `tests/` is a suite that never runs.
 
 ESLint layer-boundary rule — slice 1's shape, shown for one layer. Each layer gets its
 own block from the shared `forbidden(layer, { groups, packages }, reason)` factory;
@@ -444,38 +490,64 @@ This slice introduces no production persistence. It defines:
 
 This slice's own subject is testing infrastructure, so its Testing Strategy is about
 proving the infrastructure and rules actually work — a planted-violation test for each
-enforcement mechanism, living under `tests/architecture/`:
+enforcement mechanism, living under `tests/build/` beside the gate meta-tests that
+already exist there (§1):
 
-- **Lint rule fires on a real violation.** A fixture file containing a deliberate
-  `import { Notice } from 'obsidian'` inside a stand-in `domain/` module is linted as
-  part of a dedicated architecture-test run; the test asserts ESLint reports an
-  error, not merely that the rule exists in `eslint.config.mjs`. A config entry that
-  is never actually evaluated against a violating file is indistinguishable from no
-  rule at all.
-- **The node profile fires on an indirect violation.** A fixture module where
+- **Lint rule fires on a real violation.** A config entry that is never actually
+  evaluated against a violating file is indistinguishable from no rule at all — but
+  *where the violating file lives* is the whole problem, and the obvious spec does not
+  work. The layer rule is keyed on `src/domain/**/*.ts`, so a fixture has to sit under
+  `src/domain/` for it to fire; a fixture that sits there reds the real `eslint .` run,
+  and the usual escape — adding it to the flat config's global `ignores` — makes the
+  meta-test lint a file ESLint skips, assert zero findings, and pass vacuously. That is
+  precisely the failure this test exists to prevent, reproduced inside the test.
+
+  So the fixture is **never a file on disk under `src/`**. Follow the harness this
+  repository already has for exactly this shape — `tests/build/lint-*.test.ts` driving
+  the real linter through `tests/helpers/oxlint.ts`, which spawns the tool and reads its
+  own resolution rather than re-implementing it. The ESLint equivalent is the `ESLint`
+  class's `lintText(code, { filePath })`: `filePath` decides which flat-config blocks
+  apply, and it does **not** have to exist. Lint a string of
+  `import { Notice } from 'obsidian';` as `src/domain/__planted__.ts`, assert the report
+  carries a `no-restricted-imports` error, and assert the same string as
+  `src/infrastructure/__planted__.ts` carries none — the negative case is what proves
+  the rule is keyed on the layer rather than firing everywhere.
+
+  Two properties this shape has that a disk fixture does not: nothing is added to
+  `ignores`, so `tests/build/suppressions.test.ts`'s no-suppressions claim stays whole;
+  and `lintText` honours `warnIgnored`, so if a future `ignores` edit ever *did* cover
+  the synthetic path, the test can be made to fail rather than to pass quietly. A
+  helper alongside `tests/helpers/oxlint.ts` owns the `ESLint` instance, for the same
+  reason that one exists: a second test needing it must not duplicate the spawn.
+- **The node environment fires on an indirect violation.** A fixture module where
   `domain/` reaches a DOM global through a helper (no direct `obsidian` or `window`
   import in the domain file itself) is imported inside a `node`-profile test; the test
-  asserts the import fails, proving the profile catches what the per-file ESLint rule
-  cannot see. This is the check that stands in for a graph-level tool, so it is the one
-  that must be shown to actually fire.
+  asserts the import fails, proving the node environment catches what the per-file ESLint
+  rule cannot see. Note what this does *not* stand in for: it is a DOM global at runtime,
+  not an import graph, so the indirect *package* import slice 1 names as the open gap is
+  still open after this test passes.
 - **A contract suite fails on a broken fake.** A deliberately broken repository fake
   (e.g. one whose `save()` silently drops the zone's `name`) is run through
   `zoneRepositoryContract`; the test asserts the suite fails. This proves the
   contract suite is discriminating — it would actually catch a real regression in
   `ObsidianZoneRepository`, not just pass trivially against any object with the right
   method names.
-- **`broken-references/` actually degrades gracefully.** Loading the
+- **`broken-references/` actually degrades gracefully** (this one is a real test of the
+  bootstrap path, not a gate meta-test, so it sits at `tests/plugin/` — its mirrored
+  home — rather than under `tests/build/`). Loading the
   `broken-references/` fixture through the real (non-fixture) plugin bootstrap path
   is asserted to leave the rest of the plugin usable — directly exercising
   Architecture Completion Criterion 13, and simultaneously proving the fixture
   itself exercises the failure mode it claims to, rather than accidentally being a
   valid project file.
-- **CI actually invokes the checks.** A test (or a documented manual check at release
-  time) confirms the CI workflow definition runs `npm run check` — the one command that
-  carries build, lint, coverage-gated tests and `fallow` — on every PR, on both Ubuntu
-  and Windows. This catches the failure mode where the scripts exist and pass locally
-  but were never wired into CI, and the related one where the two platforms drift
-  because they invoke different commands.
+- **CI actually invokes the checks.** A test — not a documented manual check at release
+  time — confirms the CI workflow definition runs `npm run check` on every PR, on both
+  Ubuntu and Windows. §8 has just said that a rule which only fails when someone
+  remembers to run it is not enforcement, and a release-time manual step is exactly
+  that, so the parenthetical alternative is withdrawn rather than offered. This catches
+  the failure mode where the scripts exist and pass locally but were never wired into
+  CI, and the related one where the two platforms drift because they invoke different
+  commands.
 
 These meta-tests run in CI alongside everything else. Their purpose is narrow: stop
 "the rule exists in a config file nobody runs" and "the contract suite exists but is
@@ -485,8 +557,14 @@ vacuous" from passing unnoticed.
 
 Infrastructure-specific:
 
-- [ ] `tests/{unit,contracts,integration,fixtures,vault,architecture}` exist, and
-      `vitest.config.ts` runs the `node` and `jsdom` profiles described in §1.
+- [ ] The `tests/` layout in §1 holds: every test of a `src/` module sits at its
+      module's mirrored path, `tests/{contracts,fixtures,vault}` exist alongside the
+      `helpers/`, `build/`, `harness/` and `release/` directories already on disk, and
+      no `unit/`, `integration/` or `architecture/` directory has been reintroduced.
+- [ ] `vitest.config.ts` runs the node-default / jsdom-opt-in split described in §1,
+      and a check asserts the two projects' collected files union to every
+      `tests/**/*.test.ts` on disk — so no existing suite (`build/`, `harness/`,
+      `release/`, `helpers/`' consumers) is dropped by the split.
 - [ ] Each of Geometry, Money, Quantity, Domain has at least one passing suite,
       owned by the slice named in §2's table.
 - [ ] The Application Test pattern is demonstrated for at least one command
@@ -501,10 +579,12 @@ Infrastructure-specific:
       transform completion, selection) are covered.
 - [ ] The Integration Test Vault exists with all four cases, and is the only
       Vault-shaped data any automated test touches.
-- [ ] The Architecture Test Rules (per-layer ESLint blocks, the `node` test profile,
-      and `fallow`) all run inside the single `npm run check` CI invokes on Ubuntu and
-      Windows, and the first two each have a passing planted-violation meta-test proving
-      they fire. No `dependency-cruiser` config exists — see §8.
+- [ ] The Architecture Test Rules — the per-layer ESLint blocks and the `node` default
+      environment, the two mechanisms §8 lists, `fallow` deliberately not among them —
+      both run inside the single `npm run check` CI invokes on Ubuntu and Windows, and
+      each has a passing planted-violation meta-test under `tests/build/` proving it
+      fires. No `dependency-cruiser` config exists — see §8, including the indirect-import
+      gap it names rather than claims to close.
 
 Phase-level exit gate — the SDD's Architecture Completion Criteria (§92), reproduced
 in full as the condition under which feature development may begin:

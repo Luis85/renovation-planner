@@ -144,4 +144,120 @@ describe('assembling the stylesheet', () => {
 
 		expect(() => assembleStyles()).toThrow(/one\.css/);
 	});
+
+	/**
+	 * A hard-coded colour looks correct in whichever theme authored it and wrong in every
+	 * other one (SDD §84). The check sees hex, `rgb()`/`rgba()` and `hsl()`/`hsla()` — the
+	 * spellings a string scan can find without a CSS parser this project has decided not
+	 * to add. CSS named colours are a deliberate scope decision, not an oversight: see the
+	 * 'does not flag a CSS named colour' test below for why.
+	 */
+	describe('hard-coded colours', () => {
+		it('refuses a hex colour, naming the file and the line', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one {\n\tcolor: #fff;\n}\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css:2/);
+		});
+
+		it('refuses an rgb() colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: rgb(0, 0, 0); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses an rgba() colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: rgba(0, 0, 0, 0.5); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses an hsl() colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: hsl(0, 0%, 0%); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses an hsla() colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: hsla(0, 0%, 0%, 0.5); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('accepts an Obsidian CSS variable', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: var(--text-normal); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// currentColor, transparent and inherit are not palettes — none of them is a hex,
+		// rgb()/rgba() or hsl()/hsla() spelling, so the check never matches them at all.
+		it('accepts currentColor', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { border-color: currentColor; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('accepts transparent', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { background: transparent; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('accepts inherit', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: inherit; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// A colour mentioned inside a CSS comment is not shipped as a rule — the check
+		// strips comments before scanning, the same way the entry-file parser above does.
+		it('ignores a colour inside a comment', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '/* was #fff, now themed */\n.one { color: var(--text-normal); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// A larger and more ambiguous set than hex/rgb()/hsl(): a bare word like `red` or
+		// `tan` cannot be told apart from a class name, a custom-property name or plain
+		// prose without parsing the declaration it sits in, and this project has decided
+		// not to add a CSS parser for one check. Excluded deliberately, not missed.
+		it('does not flag a CSS named colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: red; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+	});
 });

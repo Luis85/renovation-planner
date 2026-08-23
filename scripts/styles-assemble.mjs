@@ -41,6 +41,48 @@ function countLines(body) {
 	return lines.length;
 }
 
+// A hard-coded colour looks correct in whichever theme authored it and wrong in every
+// other one — SDD §84 asks for Obsidian's CSS variables instead, and `styles/view.css`
+// already claims none exist here. This is what makes that claim checked rather than
+// merely believed.
+//
+// What this SEES: hex (`#fff`, `#a1b2c3`, with or without an alpha channel) and
+// `rgb()` / `rgba()` / `hsl()` / `hsla()` — the spellings a plain string scan can find
+// without a CSS parser, which this project has decided not to add for one check (see
+// the header above: this file is string work on purpose).
+//
+// What this does NOT see, deliberately: CSS NAMED colours (`red`, `rebeccapurple`, …).
+// That set is larger and more ambiguous — a bare word cannot be told apart from a class
+// name, a custom-property name or prose in a comment without parsing the declaration it
+// sits in, and a false positive on a class named `.tan-line` would cost more than the
+// palette this catches. `currentColor`, `transparent` and `inherit` are not palettes and
+// need no exemption logic: neither is a hex or a function-call spelling, so the pattern
+// below simply never matches them.
+const HARDCODED_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\s*\(/i;
+
+// A colour named only inside a `/* comment */` is not shipped as a rule. Blanking the
+// comment bodies (newlines kept, everything else spaced out) removes it from view while
+// leaving every other line's number exactly where it was — the same trade the entry-file
+// parser above makes by stripping comments before it looks for `@import` lines.
+function withoutComments(body) {
+	return body.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '));
+}
+
+// A partial with a hard-coded colour fails the build LOUDLY, naming the file and the
+// line — the one failure mode a shipped, themed-looking stylesheet cannot report for
+// itself the way a broken import can.
+function checkForHardcodedColors(name, body) {
+	const lines = withoutComments(body).split('\n');
+	for (const [index, line] of lines.entries()) {
+		const match = HARDCODED_COLOR.exec(line);
+		if (match) {
+			throw new Error(
+				`styles/${name}:${index + 1} hard-codes a colour (\`${match[0]}\`) — use an Obsidian CSS variable (e.g. var(--text-normal)) instead, so a themed vault stays themed.`,
+			);
+		}
+	}
+}
+
 /**
  * Typed by JSDoc rather than a sibling `.d.mts`: a hand-written declaration file is a
  * second copy of this signature that nothing type-checks against the implementation,
@@ -90,6 +132,7 @@ export function assembleStyles() {
 		const body = readFileSync(DIR + name, 'utf8');
 		const lines = countLines(body);
 		if (lines > MAX_LINES) throw new Error(`styles/${name} is ${lines} lines, over the ${MAX_LINES}-line cap`);
+		checkForHardcodedColors(name, body);
 		return `/* === styles/${name} === */\n\n${body.trim()}\n`;
 	});
 

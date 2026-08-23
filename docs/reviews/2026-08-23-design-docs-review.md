@@ -19,6 +19,82 @@ Ground rules for fixing (from CLAUDE.md and the docs' own conventions):
 - `npm run check` must pass when done. Do not fix Section D items — they were checked
   and refuted.
 
+## Resolution — what was done
+
+**Worked 2026-08-23**, on branch `docs/review-fixes-2026-08-23`, eight commits.
+`npm run check` passes all four steps: build, lint (oxlint + ESLint, zero warnings),
+175 tests at 100% coverage of all four metrics, `fallow` clean.
+
+Every item in Sections A, B and C is dispositioned below. **Fixed** means the cited
+location changed. **Decided** means a Section C judgment call was adopted, with the
+reasoning written at the cited location. **Declined** means it was considered and
+refused, with the reason written at the cited location — the ledger's own permitted
+outcome, not a skip. Section D was left alone.
+
+| # | Disposition | What landed, and where |
+| --- | --- | --- |
+| 1 | Fixed | Slice 09's contracts block types `Quantity.unit` as `MeasurementUnit` and declares `MeasurementUnit`/`UNIT_KIND`; `toMeasuredQuantity` and `runQuantityEngine` follow. |
+| 2 | Fixed | `discount?.percent ?? 0` in slice 09's cost-pipeline diagram. |
+| 3 | Fixed | Header is `// core/derived (new in this slice — deliberately not core/result)`. |
+| 4 | Fixed | Slice 06 gains `WriteLedger` — the expectation is what *this history* last wrote for the entity, not what this adapter last wrote. Walked example of the move/rename/undo/undo failure, `EditorContext` field, contract declaration, two tests (in-order and foreign-write), DoD item. |
+| 5 | Fixed | `SelectionStore`, `SnapService` and `UndoableCommand` declared once, in Interfaces & Contracts; the Design prose references them. The `readonly` that existed in only one copy is kept. |
+| 6 | Fixed | Both cascade handlers unwrap `listByZone`/`listByAsset`. A failed list aborts loudly — it is the one cascade branch with no Requirement to hang a durable marker on. |
+| 7 | Fixed | The `DeleteZoneInput` restatement is a diff against slice 3, not a copy; `expected?` is named as the field the old copy dropped, and the prose counts three added fields. |
+| 8 | Fixed | The false "enforced by lint" is gone. `infrastructure/` reaching `application/` is the ports pattern; the sentence now says convention and review hold it, and names what the eslint block actually bans. |
+| 9 | Fixed | Slice 12's §8 lists two mechanisms, marks which runs today, and excludes `fallow` by name. The `dependency-cruiser` rejection defers to slice 1, whose own version is re-argued on the bound that holds (the indirect case needs two violations; ESLint reds the first). |
+| 10 | Fixed | One layout: the mirror of `src/`, refining SDD §77 explicitly. `unit/`, `integration/` and `architecture/` are gone; the profile split is stated as node-default plus a named jsdom exception so nothing can fall out of both, with a union-covers-everything check. Tree, claim, globs and DoD reconciled; `.spec.ts` under `tests/` named as a suite that never runs. |
+| 11 | Fixed | Slice 17 gains a `bootstrap` origin and a `session-failure` surface, a routing row and a justification; slice 01 points at it instead of forward-promising. |
+| 12 | Fixed | Narrowed. Slice 11 *does* have later structural dependents (13, 16, 17); the "nothing later depends on them" justification survives only for slice 12 and is stated there. |
+| 13 | Fixed | Table row 13 gains slice 6 and slice 11; the prose says only slice 14 is buildable on slice 5 alone, with the table as the authority. |
+| 14 | Fixed | Slice 12's row reads "1 to build; all to complete", which is what both statements were reaching for and what slice 12's own Dependencies section already said. |
+| 15 | Fixed | Both. Table row 7 reads "6; 15 for the recalibration branch", and slice 07's DoD item is marked as requiring slice 15 and outside Increment 5. |
+| 16 | Fixed | `Point` is slice 2's, in `core/geometry`; slice 5 re-exports it, as slice 5's own DoD says. `ScreenPoint` and the converters are slice 5's. |
+| 17 | Fixed | SDD §26 has six required bullets. `valid unit` and `valid transform` are not properties of a point list, so `createPolygon` structurally cannot take them — assigned to slice 8 (editor boundary) and slice 4 (persistence boundary, which is what §26's own framing means), recorded as a refinement in slice 02 and stated once in the README. |
+| 18 | Fixed | `docs/README.md` gains `design/` and `reviews/` rows plus the derived-vs-received section — the distinction that decides whether a document may be edited at all. |
+| 19 | Fixed | All three slice-15 examples resolve through `t()`. DoD item 10 widened to the call sites, with the honest statement that neither half is caught by lint (`I18N_LITERAL_BAN` cannot see an object property) and a named trigger for a fifth selector. |
+| 20 | Fixed | Slice 01 states it once: registration in `onload`, vault walks in `app.workspace.onLayoutReady`. Two independent reasons (main-thread contention; `MetadataCache` incomplete during startup). Slice 04's ordering language adjusted, recovery still before the index build. |
+| 21 | Fixed | Pan/zoom is the content `Group`'s transform; `ZoneShape` passes world millimetres straight to `<v-line>` and takes no `Viewport`. `strokeScaleEnabled: false` and the unscaled-sibling layer for slice 6's handles are named. DoD asserts points are reference-identical across a pan. |
+| 22 | Fixed | `write()` dropped from `PlanGeometryStore`; `read()` kept. The comment records why a method whose own documentation forbids its only use is not an escape hatch. |
+| 23 | Fixed | Respecced against the existing harness: `ESLint.lintText` with a synthetic `src/domain/` `filePath`, positive and negative cases, no `ignores` entry, so `suppressions.test.ts`'s claim stays whole. The tests move to `tests/build/`, and 473's "or a documented manual check at release time" is withdrawn against §8's own principle. |
+| 24 | Fixed | "matches nothing until slice 1's console sink lands there" — true before and after. |
+| 25 | Fixed | (a) The real reason is written in both places: the marketplace bot lints with its own config, so a local override would not travel. The old justification was wrong twice — `noInlineConfig` already refuses the comment form, and a config-level `'obsidianmd/rule-custom-message': 'off'` was available. (b) `tests/build/logging-carve-out.test.ts` pins the wrapper's verbatim message match against ESLint's own rendered message, both read from `node_modules`. `tests/helpers/eslint.ts` owns the instrument; `suppressions.test.ts` moves onto it and stops spawning the bin. |
+| 26 | Decided — adopted | The cascade runs its per-Requirement pairs with bounded concurrency. Independence follows from the lock hierarchy's own rules; undo ordering was never resting on this (slice 6 serializes `CommandHistory` per Plan). The three properties the concurrent form must keep are stated. |
+| 27 | Decided — adopted | `AssetUpdated` skips a Requirement whose `calculatedFrom` still matches. The usual objection does not apply: `calculatedFrom` is the first and only declaration of those inputs, and the read-model backstop already depends on it. An 80-Requirement rename: 160 writes down to zero. |
+| 28 | Declined | Refreshing from `save()`'s return value. The payload is discarded by `UndoableCommand`'s contract, and it is the wrong *set* anyway — the refresh must cover what the cascade wrote, so it would be right for one-entity commands and silently wrong for the rest. Recorded in slice 08's third decorator property. |
+| 29 | Decided — adopted | Filename fast path with contents as verification. ADR-011 forbids deriving from the plan *note's* path; the sidecar's own filename is the plan ID by that ADR's decision. Mismatch is a diagnostic, never a silent preference either way. |
+| 30 | Declined | Caching or coalescing the sidecar read-modify-write. A cache needs invalidation from a debounced pipeline against a user-editable file type; coalescing breaks the "the version my write produced" contract slices 6 and 7 are built on. Trigger named: a measured cost, which needs `npm run perf`. |
+| 31 | Declined | Vault-wide sidecar discovery. It turns a sync-conflict copy into an unresolvable duplicate claim, leaves stranded files silently working, and makes ADR-011's whole reason for a configured folder cosmetic. Recorded above the migration protocol. |
+| 32 | Declined | Generalizing `revealView` with a matcher. `revealView` exists to guarantee **one** leaf and the Plan Editor's premise is that several coexist. The mechanism is shared as an internal helper, which is what "one action, every input" actually buys. |
+| 33 | Decided — adopted | `UNDO_DEPTH = 100`. "Session-bounded" bounds when a whole-geometry snapshot is released, not how large the stack gets first. `run()` drops the oldest; DoD item asserts it against the constant, not a number. |
+| 34 | Declined | Constructor-injecting `notify`. One implementation, one layer, and the testing seam is the store rather than the import. The Pinia argument is noted as defending explicit *binding*, which was a different question. Cost named (grep-only visibility), trigger named (a second push surface). |
+| 35 | Decided — adopted | A reserved `CostChangePayload` (`costType`, `scope`, `currency`) on every member of the family. No generic `CostChanged` and no rollup subscriber yet — one cost type would make that an abstraction over one member. |
+| 36 | Declined | One general write mutex. The contention argument is the weak version; the real one is that a wider mutex only looks simpler if the cascade stays sequential, and item 26 is making it concurrent. The hierarchy's one rule is stated as the thing to check new sequences against. |
+| 37 | Decided — adopted | `ReferenceLock`/`SequenceMarker`/recovery added to In-scope, and the marker given a persistence story in Persistence Impact: plugin data rather than `data.json`'s settings, its own `schemaVersion`, and a deliberate refusal to migrate — an unreadable marker is discarded with a diagnostic, because recovery writes. |
+| 38 | Decided — adopted | Single writer. `progress` and `affectedAfter` are the same array handed on; the DoD asserts reference identity instead of policing two records for agreement. |
+| 39 | Declined | Recompute-and-compare on outputs. It catches more (a hand-edited figure) but puts the cost engine on the read path, must reimplement the override branch to tell stale from overridden, and leaves no human-readable provenance in the note. The uncovered case is named as uncovered. |
+| 40 | Fixed | `CalibratePlanInput` referenced, not restated, in both slice-07 locations; slice 3 gains the mm note it owns. The two disagreeing `undo()` unions are resolved to the narrower one on the body's own reasoning, and that signature is marked authoritative. |
+| 41 | Fixed | One *snapshot-inverse contract* in slice 06, with four obligations; slices 5, 7 and 8 reference it. The genuine slice-7-vs-slice-8 disagreement becomes obligation 4 stated as a rule: replay change events, never lifecycle events. |
+| 42 | Fixed | Slice 11's "(slice N, referenced here) — not redefined" style adopted for `Command<>` in slice 06 and for `CreateZoneInput`/`MoveSpatialObjectInput` in slice 08, with item 7 cited as the counterexample. |
+| 43 | Fixed | Slice 15 owns the test (irreversible, or reference-bearing per PRD §64) and works it against PRD §39's seven actions — only Delete confirms. Slice 17 is named as structurally unable to answer a non-error question. |
+| 44 | Fixed | Four named descriptor interfaces, `entity-picker` actually in the union (it was spliced on with a bare pipe and unreachable), a `form` kind naming a component rather than fields, result types for both, and the extension point stated. |
+| 45 | Decided — adopted | An `affectsSaveState` category filter on the decorator. A `ValidationError` writes nothing and slice 17 routes it inline-only. The predicate lives with the indicator but is derived from slice 17's table; slice 17's no-double-reporting test now covers both directions. Stated as an inequality so a new category defaults to *affecting* the indicator. |
+| 46 | Fixed | The procedure's steps are labelled, not numbered — inserting the BOOTSTRAP question is exactly what would have broken the numeric references again. "a fifth origin" became "its own origin". |
+| 47 | Decided | The Verbose-channel cost is named rather than glossed, and the structural-level alternative is recorded as considered and declined (the sink's consumer is a person scanning a console, not a parser), with slice 11's diagnostics as the revisit trigger. |
+| 48 | Fixed | All five. ADR-011: SDD §39 supersession line, `plan-` prefix in the example, default moved to `Renovation/Geometry` (PRD §36's tree; `docs/` was a false familiarity from this repo being a vault) and propagated through slice 04. ADR-002 and ADR-009 gain superseded-detail notes for `.geometry.json`. ADR-010 carries `ROUND_HALF_UP` and round-once as decisions with a rejected alternative; slice 09 references it. |
+| 49 | Fixed | Cited by PRD section (§28, §33) — "F17.3" does not exist, Epic 17's features are an unnumbered list. Slices 09 and 10 name the issue; the issue names them back. |
+| 50 | Fixed | `.oxlintrc.json` mirrors `no-console` and its carve-out, scoped to `src/**` by measurement (nine correct findings in `scripts/` at the root), which also puts it in the edit loop. The mirror is stated as partial — oxlint has no port of the obsidianmd wrapper that catches `console.log` *inside* the carve-out. The carve-out glob and ESLint's non-ignoring of `src/`/`tests/` both get assertions. Slice 01's Vue-widening checklist gains the carve-out block its own prose promised. |
+| 51 | Fixed | `docs/README.md` records the convention: bare basename going forward, the existing SDD keeps its `-SDD` suffix because its basename is its address and every citation resolves against it. |
+
+Two things changed that the ledger did not ask for, both consequences of items above and
+both worth naming rather than leaving to be noticed:
+
+- **`tests/helpers/eslint.ts` is new**, and `tests/build/suppressions.test.ts` moved onto
+  it. Item 25(b) needed a second caller of ESLint-as-an-instrument, and the existing one
+  was spending 4.4 seconds of vitest's 5-second default inside a subprocess boot. The
+  suite is now several times faster overall.
+- **Slice 12's §1 cross-reference to "§5 below"** pointed at the Vue Component Test
+  harness; the Architecture Test Rules are §8. Corrected while reconciling item 10.
+
 ## A. Confirmed defects — fix all
 
 ### Internal contradictions an implementer would build from

@@ -58,15 +58,18 @@
  *      casualty of scoping it here.
  *    - The rules that ARE scope-dependent are the ones enabled by default that need
  *      whole-page context to judge: `region`, `document-title`, `html-has-lang`,
- *      `html-lang-valid`, `bypass`, `skip-link`, `page-has-heading-one`,
- *      `duplicate-id-aria`, and eight of the nine `landmark-*` rules (the ninth,
+ *      `html-lang-valid`, `skip-link`, `page-has-heading-one`, `duplicate-id-aria`, and
+ *      eight of the nine `landmark-*` rules (the ninth,
  *      `landmark-complementary-is-top-level`, is ALSO disabled-by-default like
  *      `duplicate-id` above — unrelated to scope). Scoped to `contentEl`, every one of
  *      those lands in axe's `inapplicable` bucket rather than `violations` or
  *      `incomplete` — they run, axe decides a partial-document context doesn't meet
  *      their precondition, and they report no pass/fail signal this file could act on
  *      even if it looked. Confirmed by dumping all four result buckets for the mounted,
- *      untouched `contentEl`.
+ *      untouched `contentEl`. (`bypass` is also enabled by default and also silent under
+ *      subtree scoping, but its bucket wasn't confirmed as `inapplicable` the way the
+ *      others were — even isolated with `runOnly: ['bypass']` it appeared in none of the
+ *      four buckets — so it is left off this list rather than grouped in on a guess.)
  *
  *    Element-level rules are unaffected by either of the above and fire correctly on a
  *    subtree — confirmed directly below for `image-alt`, and true the same way for

@@ -14,29 +14,62 @@
  *
  * 1. LAYOUT. axe running inside jsdom checks semantics only — roles, accessible names,
  *    form labels, heading order, ARIA attribute validity. It CANNOT see colour contrast,
- *    a visible focus indicator, or hit-target size, because all three need real layout
- *    and jsdom computes none — `getBoundingClientRect` answers all zeroes here regardless
- *    of markup. `color-contrast` and `color-contrast-enhanced` never resolve to a pass or
- *    a violation in this environment, they land in axe's `incomplete` bucket on every
- *    run; `target-size` finds zero elements to evaluate at all because every element
- *    measures 0×0. All three are disabled below (`LAYOUT_DEPENDENT_RULES`) so this file
- *    does not depend on an `incomplete` result it can never act on. axe has no rule at
- *    all for a visible focus indicator, so nothing here checks that either. A live vault
- *    (`npm run test-build`) remains the only place appearance, contrast, focus
- *    visibility and hit-target size are verified.
+ *    a visible focus indicator, or hit-target size — jsdom has no rendering engine, so
+ *    none of the three can work, but the three rules involved fail for three DIFFERENT,
+ *    separately verified reasons, not one shared "needs layout":
+ *
+ *    - `color-contrast` IS enabled by default and DOES run, but throws inside axe's own
+ *      check every time: `TypeError: Cannot read properties of null (reading 'canvas')`,
+ *      from an internal text-detection helper that expects a working
+ *      `HTMLCanvasElement.getContext()` — which jsdom does not implement. axe catches
+ *      that per-rule error and reports the rule `incomplete` with the error attached,
+ *      rather than a pass or a violation. Confirmed by reading the attached error, not
+ *      just the bucket it landed in.
+ *    - `color-contrast-enhanced` and `target-size` are simply `enabled: false` by
+ *      default in this axe-core version (`axe.getRules()` shows both, independent of
+ *      jsdom) — the same "off by default" story as `duplicate-id` below, not a layout
+ *      story. Forced on anyway, `target-size` shows the deeper problem: run against a
+ *      button styled 2px×2px, it reports a false PASS, because
+ *      `getBoundingClientRect`/`offsetWidth`/`offsetHeight` all answer zero for every
+ *      element in jsdom regardless of its CSS — so even forcing the rule on would not
+ *      make it catch a real hit-target defect, it would make it silently pass one.
+ *
+ *    All three are disabled below (`LAYOUT_DEPENDENT_RULES`) so this file's assertion
+ *    doesn't depend on an `incomplete` result it can never act on, or on a rule that
+ *    would pass a genuine defect if left forced on. axe has no rule at all for a visible
+ *    focus indicator — verified by reading its full rule list — so nothing here checks
+ *    that either. A live vault (`npm run test-build`) remains the only place appearance,
+ *    contrast, focus visibility and hit-target size are verified.
  *
  * 2. SCOPE. This check runs against `contentEl` — the plugin's own subtree — rather than
  *    the whole `document`, because jsdom's bare test document has no `<title>`, no
  *    `lang`, and none of the landmarks a real Obsidian window supplies around a view, and
  *    scanning the whole document would fail on those instead of on anything this plugin
- *    controls. The cost, also measured rather than assumed: axe's PAGE-LEVEL rules —
- *    `duplicate-id`, `landmark-one-main` and the other `landmark-*` rules, `region`,
- *    `document-title`, `html-has-lang`, `bypass`/`skip-link` — report in NONE of
- *    `violations`, `incomplete` or even `inapplicable` when the run is scoped to an
- *    element instead of the document, no matter which other rules are enabled or
- *    disabled. Two ids sharing a value inside `contentEl` today would not be caught by
- *    this file. Element-level rules are unaffected by that scoping and do fire correctly
- *    on a subtree — confirmed directly below for `image-alt`, and true the same way for
+ *    controls. Two DIFFERENT, separately measured costs follow, and they are not the same
+ *    mechanism even though both end in "not caught by this file":
+ *
+ *    - `duplicate-id` (and `duplicate-id-active`) never fires here, but NOT because of
+ *      subtree scoping — `axe.getRules()` shows both `enabled: false` with a
+ *      `'deprecated'` tag in this axe-core version, so they are off by default at ANY
+ *      scope. Force-enabling `duplicate-id` (`{ rules: { 'duplicate-id': { enabled: true
+ *      } } }`) makes it fire correctly on both `contentEl` and `document` — confirmed
+ *      both ways. So two ids sharing a value inside `contentEl` today would not be
+ *      caught by this file, but that is a rule this axe-core ships disabled, not a
+ *      casualty of scoping it here.
+ *    - The rules that ARE scope-dependent are the ones enabled by default that need
+ *      whole-page context to judge: `region`, `document-title`, `html-has-lang`,
+ *      `html-lang-valid`, `bypass`, `skip-link`, `page-has-heading-one`,
+ *      `duplicate-id-aria`, and eight of the nine `landmark-*` rules (the ninth,
+ *      `landmark-complementary-is-top-level`, is ALSO disabled-by-default like
+ *      `duplicate-id` above — unrelated to scope). Scoped to `contentEl`, every one of
+ *      those lands in axe's `inapplicable` bucket rather than `violations` or
+ *      `incomplete` — they run, axe decides a partial-document context doesn't meet
+ *      their precondition, and they report no pass/fail signal this file could act on
+ *      even if it looked. Confirmed by dumping all four result buckets for the mounted,
+ *      untouched `contentEl`.
+ *
+ *    Element-level rules are unaffected by either of the above and fire correctly on a
+ *    subtree — confirmed directly below for `image-alt`, and true the same way for
  *    `button-name`, `label`, `link-name`, `heading-order` and the `aria-*` rules.
  *
  * Put together: this file verifies roles, accessible names, form labels, heading order
@@ -56,10 +89,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { mountHarness } from './mount';
 
 /**
- * See the header: all three need real layout, which jsdom does not compute, so left
- * enabled they report `incomplete` rather than a usable pass or violation. Disabled here
- * rather than filtered out of the result afterward, so the rule set this file actually
- * asserts against matches the rule set the header claims — a filter written once and
+ * See LAYOUT in the header for the three separate, verified reasons these cannot work
+ * here: one throws inside axe itself (jsdom has no canvas), two are simply shipped
+ * disabled and would pass a real defect if forced on. Disabled here explicitly rather
+ * than left to their defaults, so the rule set this file actually asserts against does
+ * not silently change if a future axe-core release flips a default — and rather than
+ * filtering an `incomplete`/false-pass result out afterward, so the rule set this file
+ * asserts against matches the rule set the header claims. A filter written once and
  * forgotten is exactly the kind of drift `CLAUDE.md`'s "write the guarantee to the check"
  * warns about.
  */

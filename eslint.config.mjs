@@ -164,11 +164,18 @@ const SVG_CLASS_TOKENS = [
  * by the same argument that put `WRITE_BOUNDARY` above.
  *
  * The spellings these SEE: a string literal passed directly as the argument to
- * `.setText(...)`, and a string literal under a `text` key (bare `key.name` or quoted
- * `key.value`, same reason as `CLS_KEY`) inside an object argument to
- * `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`. A call to `t`/`tr` is a
- * CallExpression at that position, not a Literal, so `el.setText(tr('x'))` passes
- * untouched — that is the whole mechanism.
+ * `.setText(...)`, and a string literal that IS the `value` field of a `text` property
+ * (bare `key.name` or quoted `key.value`, same reason as `CLS_KEY`) inside an object
+ * argument to `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`. `Literal.value`
+ * pins the match to that specific AST field — not `Literal` alone, which is a descendant
+ * search and would also match a Literal nested ANYWHERE under the property, including the
+ * key string 'text' itself when the key is quoted, and including a string literal buried
+ * inside a call sitting as the value. That last case is exactly `tr('some.key')`: without
+ * the field pin, the selector matched the Literal argument INSIDE the `tr(...)` call and
+ * rejected the idiomatic `{ text: tr('x') }`, which is the opposite of this rule's intent.
+ * A call to `t`/`tr` is a CallExpression at the value position itself, not a Literal, so
+ * `el.setText(tr('x'))` and `createSpan({ text: tr('x') })` both pass untouched — that is
+ * the whole mechanism, and it depends on checking that exact position and no other.
  *
  * What they cannot see: a literal one hop away from the call (`const label = 'Cancel';
  * el.setText(label)`), a template literal even with no interpolation — `setText(`Cancel`)`
@@ -189,7 +196,7 @@ const I18N_LITERAL_BAN = [
 			"setText received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
 	},
 	{
-		selector: `CallExpression[callee.property.name=/^(createEl|createDiv|createSpan)$/] ${TEXT_KEY} Literal[value=/\\S/]`,
+		selector: `CallExpression[callee.property.name=/^(createEl|createDiv|createSpan)$/] ${TEXT_KEY} > Literal.value[value=/\\S/]`,
 		message:
 			"createEl/createDiv/createSpan's text option received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
 	},

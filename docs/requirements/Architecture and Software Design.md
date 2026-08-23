@@ -42,12 +42,12 @@ a user's terms would make it the one note in the folder whose Outcome is a ficti
 
 The record it owns has a direction, and the direction is the rule. The SDD is **received**
 and stays verbatim, so a note citing §8 cites something that has not been edited to agree
-with it. `docs/design/` holds seventeen **derived** slices, expected to change as the
+with it. `docs/tasks/` holds seventeen **derived** slices, expected to change as the
 design is refined, each naming the SDD sections it derives from. `docs/adrs/` holds what
 was actually **decided**, and where a decision and the SDD disagree the ADR is what holds.
 That is not hypothetical: ADR-0011 makes the geometry sidecar's folder and extension
 configurable, which is nowhere among §89's ten. A refinement that contradicts its source
-lands in a slice or an ADR and never in `docs/sdds/` — `docs/design/README.md` states that
+lands in a slice or an ADR and never in `docs/sdds/` — `docs/tasks/README.md` states that
 rule and is where to read it in full.
 
 What separates this Feature from a paragraph about good structure is how little of the SDD
@@ -64,12 +64,19 @@ application/domain layers" are judgements about a design, checked by reading it 
 slice. Naming which criteria are lint's and which are review's is the work here, because a
 criterion nobody has assigned is a criterion everybody assumes somebody else holds.
 
-Beneath this Feature is where the slices become work. Each of the seventeen is scoped to be
-implemented, tested and reviewed on its own, which is a `Task` in this register's own
-vocabulary — engineering work with evidence, an approach and acceptance criteria — and that
-conversion is the intent, not something done yet. While a slice sits in `docs/design/` it
-carries no `type`, no `parent` and no `order`, and is deliberately invisible to the backlog
-tree.
+Beneath this Feature is where the slices become work, and they now do. Each of the seventeen
+is scoped to be implemented, tested and reviewed on its own, which is a `Task` in this
+register's own vocabulary — engineering work with evidence, an approach and acceptance
+criteria — so each carries `type: Task` and this note as its `parent`, lives in `docs/tasks/`
+(the folder the view files a `Task` into) and appears under this Feature in the tree.
+
+The ladder skips a rung, deliberately: `Feature` → `Task`, with no `PBI` between them. The
+backlog's type rules are advisory — a declared type is the type a note keeps, however oddly
+it sits — so nothing is refused, and inventing seventeen PBIs to hold one slice each would be
+a rung carrying no information. No `order` is set either, so the seventeen tie and the view
+settles a tie by its configured sort, which is filename: `01-` through `17-`, the reading
+order. That is a property of the view's setting rather than of these notes, so they need
+explicit `order` values before that sort is changed.
 
 Two boundaries. **The quality harness is not this Feature.** `npm run check`, the coverage
 ratchet, the browser harness, the live-vault checks and the release pipeline are tooling

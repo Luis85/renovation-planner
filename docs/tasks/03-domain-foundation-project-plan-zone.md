@@ -450,7 +450,7 @@ class CreateZoneCommand
 ```
 
 Two spellings in that example are load-bearing rather than stylistic, and are the
-shared vocabulary every other slice's examples follow (`docs/design/README.md`):
+shared vocabulary every other slice's examples follow (`docs/tasks/README.md`):
 
 - `isErr(result)` / `ok(...)` / `err(...)` are slice 2's free functions. `Result` is a
   plain discriminated union with an `.ok` field — it has no `.isErr()` method and no

@@ -11,14 +11,13 @@ installs *this* plugin into it) and open `Product Backlog.base`. That view belon
 | Folder | Holds | Type |
 | --- | --- | --- |
 | `requirements/` | What the plugin is meant to do | `Epic` → `Feature` → `PBI` |
-| `tasks/` | Engineering work done to keep it maintainable | `Task` |
+| `tasks/` | Engineering work done to keep it maintainable, and the design **slices** — the received SDD broken into implementable, reviewable chunks. The slices are derived, and edited as the design is refined | `Task` |
 | `issues/` | Open questions and recorded decisions | `Issue` |
 | `bugs/` | Defects, with what was learned from them | `Bug` |
 | `tests/cases/` | One live-vault check each, walked before a release | `Test case` |
 | `adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
 | `prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
 | `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
-| `design/` | Design **slices** — the received SDD broken into implementable, reviewable chunks. Derived, and edited as the design is refined | *(none — not backlog items)* |
 | `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
 | `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
@@ -39,14 +38,22 @@ to agree with it, and carries no `type`, no `order` and no `status` — giving i
 state would file the evidence as work, the same mistake as writing a customer interview into
 the backlog because it was important.
 
-**`design/`, `actors/`, `entities/` and `reviews/` are DERIVED from that evidence, and the
-distinction is the one that decides whether a document may be edited.** A received document
-is corrected only by receiving a new one; a derived document is expected to change as the
-design is refined, and a refinement that contradicts its source names the source section it
-refines and lands here or in an ADR, never in `prds/` or `sdds/`. `design/README.md` states
-that rule for the slices and is the place to read it in full. None of the four is backlog: a
-slice is not work someone is scheduled to do — the Epic that schedules it lives in
-`requirements/` — and a review ledger is a record of findings, not a rank among siblings.
+**The design slices in `tasks/`, plus `actors/`, `entities/` and `reviews/`, are DERIVED
+from that evidence, and the distinction is the one that decides whether a document may be
+edited.** A received document is corrected only by receiving a new one; a derived document
+is expected to change as the design is refined, and a refinement that contradicts its source
+names the source section it refines and lands in a slice or an ADR, never in `prds/` or
+`sdds/`. `tasks/README.md` states that rule for the slices and is the place to read it in
+full.
+
+**Derived and non-backlog are different axes, and the slices are the case that separates
+them.** They are typed `Task` under the *Architecture and Software Design* Feature, so they
+do appear in the tree — a slice is work someone is scheduled to do, whatever else it is.
+`actors/`, `entities/` and `reviews/` are the ones outside the backlog for being derived: an
+actor is somebody the product deals with rather than work, and a review ledger is a record of
+findings rather than a rank among siblings. An earlier version of this section put the slices
+in that group, which was true while they lived in a folder of their own and stopped being
+true when they were typed.
 
 **`actors/` and `entities/` answer *who* and *what*, which is the one axis the backlog does
 not have.** `requirements/` is organised by the work to be done, so a [[Zone]] is described
@@ -72,7 +79,7 @@ documents landed as `docs/prds/obsidian-renovation-planner.md` and
 carries the kind, so the bare form is the convention going forward and a new received
 document takes it. The existing SDD keeps its name rather than being renamed to match —
 a received document's basename is its address (see **Conventions** below), every citation
-in `docs/design/` and `docs/adrs/` resolves against it, and churning a filename to win a
+in `docs/tasks/` and `docs/adrs/` resolves against it, and churning a filename to win a
 cosmetic consistency is a worse trade than one sentence recording the exception.
 
 **`adrs/` are outside for a chosen reason**: an ADR says what this codebase decided, what it

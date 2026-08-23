@@ -490,5 +490,5 @@ export interface RenovationProjectQueryServices {
   strategy slice 1 and slice 5 established.
 - ADR-005 Pinia for Presentation State — both this slice's Pinia additions are cache
   only, rebuildable from the same queries.
-- `docs/design/README.md` — slice map, shared conventions, and the bare-§N-vs-PRD-§N
+- `docs/tasks/README.md` — slice map, shared conventions, and the bare-§N-vs-PRD-§N
   disambiguation this document follows throughout.

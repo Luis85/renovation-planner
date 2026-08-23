@@ -344,7 +344,7 @@ decision the non-zero branch makes, reached one round-trip later.
 PRD §64's own example lists four reference categories — Work Packages, Tasks, Cost
 Items, Documents. At the build stage slices 1–10 reach, only `Requirement` exists as an
 entity that can reference a `Zone`; Work Package, Task, and Document arrive in later,
-unsliced feature epics (see `docs/design/README.md`, "Explicitly deferred"). The worked
+unsliced feature epics (see `docs/tasks/README.md`, "Explicitly deferred"). The worked
 example's actual dialog therefore shows one row, `Requirements: N`, not the PRD's
 illustrative four. `DeleteReferenceDialog`'s `references` field is an arbitrary-length
 array precisely so each later epic's slice adds its own row (`Work Packages: N`,
@@ -781,19 +781,19 @@ contract ends at the typed result, before any write occurs.
   of this slice's focus-trap and focus-restoration requirements.
 - ADR-004 Vue 3 for Plugin UI.
 - ADR-005 Pinia for Presentation State — `DialogStore` as non-canonical UI state.
-- `docs/design/README.md` — slice map, shared conventions, and the `§N`/`PRD §N`
+- `docs/tasks/README.md` — slice map, shared conventions, and the `§N`/`PRD §N`
   disambiguation this document follows.
-- `docs/design/05-canvas-rendering-and-editor-shell.md` — the Pinia store scaffolding
+- `docs/tasks/05-canvas-rendering-and-editor-shell.md` — the Pinia store scaffolding
   pattern (`defineStore`, one app instance per Plan Editor view) this slice follows.
-- `docs/design/06-editor-tool-framework-undo-redo-and-inspector.md` — the Inspector
+- `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md` — the Inspector
   action pipeline this slice's worked example attaches to, and the `Escape`-cancels-
   the-current-transient-interaction convention this slice extends to dialogs.
-- `docs/design/07-calibration.md` — "Confirming a recalibration", the one named
+- `docs/tasks/07-calibration.md` — "Confirming a recalibration", the one named
   `ConfirmDialog` caller outside PRD §39's Inspector-action list.
-- `docs/design/08-zone-editing.md` — "Deletion & reference-integrity checking" section
+- `docs/tasks/08-zone-editing.md` — "Deletion & reference-integrity checking" section
   (explicitly deferred there to slice 10) and the zone-delete command that dispatches
   after this dialog resolves.
-- `docs/design/10-assets-requirements-and-the-end-to-end-loop.md` — "Deletion &
+- `docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md` — "Deletion &
   reference integrity" section naming `ListRequirementsReferencing` and
   `DeleteAssetCommand`, whose flow this slice's dialog renders without recomputing,
   and "A resolution consents to a specific set of referents", which is why this

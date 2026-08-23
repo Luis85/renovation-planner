@@ -19,7 +19,7 @@ formulas for the same "Forecast" concept:
 Epic 17 lists its features as an unnumbered bullet list — *project health, budget
 overview, forecast, upcoming work, procurement overview, project summary* — so a
 feature-number citation resolves to nothing and cannot be checked against the source.
-Both sites are cited by PRD section number instead, per `docs/design/README.md`'s rule
+Both sites are cited by PRD section number instead, per `docs/tasks/README.md`'s rule
 that a PRD citation is written `PRD §N` and checked against the actual heading.)
 
 If §28's `Committed Cost` is read as the full committed amount, a commitment that has
@@ -47,16 +47,16 @@ separate, literal, full-committed-amount total.
 ## Where this gets applied
 
 Nothing in the sliced foundation computes a Forecast: the cost rollup this decision
-governs is feature work (PRD Epic 17), and `docs/design/README.md` puts everything from
+governs is feature work (PRD Epic 17), and `docs/tasks/README.md` puts everything from
 Epic 8 onward outside the slices. What the foundation does supply is the shape the rollup
 will be built on, so the two places to check when it arrives are named here rather than
 left to be rediscovered:
 
-- **`docs/design/09-quantity-and-cost-engine.md`** — the Cost Pipeline, which produces
+- **`docs/tasks/09-quantity-and-cost-engine.md`** — the Cost Pipeline, which produces
   `Estimated Cost` only. `Actual`, `Committed` and `Invoiced` are cost *types* that
   slice 09 does not model, so the rollup adds them rather than reinterpreting anything
   slice 09 computed.
-- **`docs/design/10-assets-requirements-and-the-end-to-end-loop.md`** — the cost-event
+- **`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`** — the cost-event
   family and its reserved `CostChangePayload` (`costType`, `scope`, `currency`). That
   `costType` is the field this decision constrains: a rollup subscriber summing
   `committed` events has to sum the not-yet-invoiced subset, and the payload exists so

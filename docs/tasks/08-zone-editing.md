@@ -951,4 +951,4 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
   Relationship Rules, §63 Reference Integrity, §64 Deletion Semantics (deferred
   aspect — see Out of scope), §68 Undo/Redo Architecture, §85 Command Model, §101
   E2E Tests.
-- `docs/design/README.md` — slice map and shared conventions.
+- `docs/tasks/README.md` — slice map and shared conventions.

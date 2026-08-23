@@ -487,5 +487,5 @@ Contract notes:
   `AppError`/`Logger`/`ToUserMessage` contracts this slice consumes, and the
   deliberately unnamed `surfaceError(...)` container its illustrative code
   leaves for this slice's table to fill in.
-- `docs/design/README.md` — slice map, shared conventions, and the
+- `docs/tasks/README.md` — slice map, shared conventions, and the
   `§N`/`PRD §N` disambiguation this document follows throughout.

@@ -62,7 +62,7 @@ here can write, and no geometry is mutated in this slice at all.
 - Calibration (§25) — slice 7. Before slice 7 exists, a Plan's background renders at a
   placeholder scale (see Design → Background Layer).
 - Zone creation/editing/deletion via the UI (§26–28) — slice 8.
-- Bases views (§13) — explicitly deferred, per the SDD and `docs/design/README.md`.
+- Bases views (§13) — explicitly deferred, per the SDD and `docs/tasks/README.md`.
 - Writing anything new to the Vault, including a Plan's background reference — see
   Persistence Impact.
 
@@ -829,4 +829,4 @@ Per §73–74 (Vue component tests, canvas adapter tests):
 - ADR-005 Pinia for Presentation State
 - ADR-009 World Coordinates in Millimeters
 - ADR-011 Configurable Geometry Sidecar Folder and Dedicated File Extension
-- `docs/design/README.md` — slice map and shared conventions
+- `docs/tasks/README.md` — slice map and shared conventions

@@ -5,6 +5,13 @@ the ADRs, the issues, `docs/README.md`, and the `eslint.config.mjs` change. 16 f
 angles, findings deduplicated and adversarially verified against the actual files.
 Line numbers were verified at review time; re-locate by the quoted text if edits move them.
 
+**Paths in this ledger are the ones that existed at review time.** The slices have since
+moved from `docs/design/` to `docs/tasks/` and been typed as backlog `Task` items under the
+*Architecture and Software Design* Feature; `docs/design/README.md` is now
+`docs/tasks/README.md`. Every citation below resolves under that substitution. The old paths
+are left as written rather than rewritten, because a dated record of what was reviewed is
+worth more than one whose paths agree with today's tree.
+
 Ground rules for fixing (from CLAUDE.md and the docs' own conventions):
 
 - The SDD stays verbatim as received. Where a fix means "the SDD's position needs

@@ -369,7 +369,7 @@ Not oversights; each has a trigger.
   surfaces and names neither `test-build` nor the coverage include. The full contract for
   that arrival, as a superset of it and scoped to the gates this repository actually has,
   is design slice 1's Vue arrival checklist
-  ([`docs/design/01-plugin-bootstrap-and-composition-root.md`](01-plugin-bootstrap-and-composition-root.md)).
+  ([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](docs/tasks/01-plugin-bootstrap-and-composition-root.md)).
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
 - **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,

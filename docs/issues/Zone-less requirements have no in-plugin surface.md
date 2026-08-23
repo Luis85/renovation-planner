@@ -25,7 +25,7 @@ off. It is persisted, marked, correct, and invisible to the plugin.
   the state handled is the "persisted, correct, and invisible" defect one layer up.
 - **Build a project-level Requirements list in slice 10.** Rejected: the Renovation
   Project view's populated content is explicitly deferred as feature work by slice 14 and
-  by `docs/design/README.md`, and slice 10's own charter is integration — it introduces
+  by `docs/tasks/README.md`, and slice 10's own charter is integration — it introduces
   no new rendering surface. Widening it to open the first project-scoped view would make
   the closing slice of the architecture phase the first slice of the feature phase.
 - **Refuse `delete-anyway` on a Zone until a surface exists.** Rejected: PRD §64 names the

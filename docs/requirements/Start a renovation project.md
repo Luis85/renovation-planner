@@ -41,7 +41,7 @@ without thought and a path that can be overridden.
 
 - Plugin settings loaded successfully. A failed settings load leaves the composition root
   with no repositories at all — the `settings === null` case in
-  [`docs/design/01-plugin-bootstrap-and-composition-root.md`](01-plugin-bootstrap-and-composition-root.md)
+  [`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](../tasks/01-plugin-bootstrap-and-composition-root.md)
   — and what the plugin should do about that belongs to
   [[Error handling and diagnostics]], not here.
 - The vault holds no project yet. Creating a second project alongside a first raises
@@ -74,7 +74,7 @@ without thought and a path that can be overridden.
 - **4b** — A note with that basename already exists. Refused before submit, naming the note it
   clashes with, so the renovator can rename in the second they are already standing there. The
   deduplication described in
-  [`docs/design/04-persistence-and-repository-layer.md`](04-persistence-and-repository-layer.md)
+  [`docs/tasks/04-persistence-and-repository-layer.md`](../tasks/04-persistence-and-repository-layer.md)
   remains the backstop for writes made with no human present; it is not what happens here.
 - **4c** — The renovation folder already exists. It is reused, and its contents are left
   alone. It is refused only if it already holds a project.
@@ -128,7 +128,7 @@ Named here rather than left looking forgotten:
 Each of these is something this note decided that its sources did not settle.
 
 1. **This use case forces a design change.** The `Project` entity in
-   [`docs/design/03-domain-foundation-project-plan-zone.md`](03-domain-foundation-project-plan-zone.md)
+   [`docs/tasks/03-domain-foundation-project-plan-zone.md`](../tasks/03-domain-foundation-project-plan-zone.md)
    carries `budget`, `contingency`, dates, `status` and `locationDescription`, and no
    currency, unit system, tax defaults or project folder; `CreateProjectCommand` takes none of
    them either. PRD §83 assigns all four to project scope, [[Project]] states that a project
@@ -136,12 +136,12 @@ Each of these is something this note decided that its sources did not settle.
    [[Project management]]'s definition of done requires downstream code to read them from the
    project rather than from a plugin default. The entity and the command have to gain them.
    That is an edit to a derived design document, which
-   [`docs/design/README.md`](docs/tasks/README.md) expects — but it is a change, not a reading
+   [`docs/tasks/README.md`](../tasks/README.md) expects — but it is a change, not a reading
    of what is there today.
 2. **Tax defaults have no modelled shape anywhere.** PRD §83 names them; no slice types them.
    Criterion 2 is written so it becomes checkable once somebody decides what they are.
 3. **The project note is named after the project**, deduplicated on collision, per
-   [`docs/design/04-persistence-and-repository-layer.md`](04-persistence-and-repository-layer.md).
+   [`docs/tasks/04-persistence-and-repository-layer.md`](../tasks/04-persistence-and-repository-layer.md).
    PRD §36 draws `Renovation/Project.md`, but that section is headed "Recommended structure"
    and closes with "Paths must be configurable", so this refines a recommendation rather than
    contradicting a mandate. [[Project]] had hardened it into identity and has been corrected
@@ -168,6 +168,6 @@ Design slices read for this note: 01 (composition root and settings), 03 (the `P
 and `CreateProjectCommand`), 04 (filenames, folders, persistence), 14 (the no-project empty
 state), 15 (modals), 16 (form validation).
 
-Every section number here names its document. `docs/design/` reads a bare `§` as the SDD and
+Every section number here names its document. `docs/tasks/` reads a bare `§` as the SDD and
 `docs/requirements/` has read it as the PRD, and the two documents number independently — PRD
 §83 is the Configuration Model, SDD §83 is Entity References.

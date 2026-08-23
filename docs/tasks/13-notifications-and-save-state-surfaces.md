@@ -70,7 +70,7 @@ error — that decision is slice 17's, once slices 13-16 all exist to decide bet
   one command → one history entry → one persistence operation) this slice's save-state
   transitions are driven by, without modifying it.
 - **Slice 2 (Core Primitives)** — `Result<T, AppError>` and its `.ok` discriminant
-  (the shared vocabulary in `docs/design/README.md`: `Result` is data, so this reads
+  (the shared vocabulary in `docs/tasks/README.md`: `Result` is data, so this reads
   `if (!result.ok)` or `isErr(result)`, never `result.isErr()`), consumed by
   `withSaveStateTracking` to decide `Saved` vs `Save Error`.
 - **Slice 11 (Error Handling, Diagnostics & Data Safety)** — the Error Boundary and
@@ -88,7 +88,7 @@ error — that decision is slice 17's, once slices 13-16 all exist to decide bet
   slice's Design reduces to one mechanism.
 - **`src/presentation/i18n/`** — the existing `t(language, key)` lookup and the `en`/`de`
   tables both this slice's surfaces render through. Not a new mechanism: this slice adds
-  keys to tables that already exist, per `docs/design/README.md`'s shared vocabulary.
+  keys to tables that already exist, per `docs/tasks/README.md`'s shared vocabulary.
 
 ## Design
 
@@ -806,6 +806,6 @@ split slice 5 already established for that layer's own stores:
 - ADR-005 Pinia for Presentation State — cache/working state, never source of truth.
 - ADR-007 Command-Based Mutations — "one user intent, one logical transaction," the
   guarantee this slice's save-state model depends on holding.
-- `docs/design/README.md` — slice map and shared conventions.
+- `docs/tasks/README.md` — slice map and shared conventions.
 - `src/plugin/RenovationPlannerPlugin.ts` — the current `onload`, with no `onunload`,
   that this slice extends.

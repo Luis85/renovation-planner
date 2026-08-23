@@ -686,7 +686,7 @@ and a spec written in the template's spelling would not type-check as a test.
   two write contracts, one of them reachable without saying so. `DeepReadonly` is Vue's
   own type and what `readonly()` returns, so both spellings fail to compile and the proxy
   refuses the write at runtime besides.
-- `docs/design/12-testing-and-architecture-enforcement-infrastructure.md` — the node
+- `docs/tasks/12-testing-and-architecture-enforcement-infrastructure.md` — the node
   profile `routeError` is assigned to, which is where its test environment is decided and
   is unaffected by which directory it lives in.
 - SDD §85 Accessibility — "semantic labels," "status not encoded only by color,"
@@ -701,16 +701,16 @@ and a spec written in the template's spelling would not type-check as a test.
   target.
 - ADR-004 — Vue 3 for Plugin UI.
 - ADR-005 — Pinia for Presentation State — why draft/error state stays component-local.
-- `docs/design/02-core-primitives.md` — `BaseError`/`ErrorCategory`/`AppError`, reused
+- `docs/tasks/02-core-primitives.md` — `BaseError`/`ErrorCategory`/`AppError`, reused
   as-is.
-- `docs/design/06-editor-tool-framework-undo-redo-and-inspector.md` — the commit-then-
+- `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md` — the commit-then-
   dispatch flow and `CommandHistory`/`InspectorStore` contracts this slice attaches to.
-- `docs/design/07-calibration.md` — `ReversibleCalibratePlanCommand`'s
+- `docs/tasks/07-calibration.md` — `ReversibleCalibratePlanCommand`'s
   `calibration.coincident-points` as the concrete no-single-field example.
-- `docs/design/10-assets-requirements-and-the-end-to-end-loop.md` — `CreateAssetCommand`/
+- `docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md` — `CreateAssetCommand`/
   `AssignAssetCommand` and their per-field validation rules as the concrete single-field
   example.
-- `docs/design/11-error-handling-diagnostics-and-data-safety.md` — `ToUserMessage`, reused
+- `docs/tasks/11-error-handling-diagnostics-and-data-safety.md` — `ToUserMessage`, reused
   rather than reimplemented.
-- `docs/design/README.md` — slice map; slices 13–16 as independent, parallel UI
+- `docs/tasks/README.md` — slice map; slices 13–16 as independent, parallel UI
   vocabulary; slice 17 as the integration point this slice does not preempt.

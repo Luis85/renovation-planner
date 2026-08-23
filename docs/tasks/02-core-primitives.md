@@ -4,9 +4,9 @@ parent: "[[Foundation and composition root]]"
 order: 20
 dependsOn:
   - "[[01-plugin-bootstrap-and-composition-root]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-23
+finished: 2026-08-23
 horizon: ""
 start: ""
 due: ""
@@ -566,41 +566,41 @@ integration test vault (§75) — those exercise slice 4 and later.
 
 ## Definition of Done
 
-- [ ] `core/geometry/`, `core/units/`, `core/identity/`, `core/result/`,
+- [x] `core/geometry/`, `core/units/`, `core/identity/`, `core/result/`,
       `core/errors/`, `core/events/` exist under `src/core/` per the layout
       above, with zero imports of `vue`, `pinia`, `konva`, `vue-konva`,
       `obsidian`, or any of `window`/`document`/`navigator`/`localStorage`/
       `sessionStorage`/`fetch`/`HTMLElement`/`Element`/`customElements`
       (verified by this repository's existing `eslint.config.mjs` rules for
       `core/**`, not a new check).
-- [ ] All seven primitive types and all twelve operations named in §22 are
+- [x] All seven primitive types and all twelve operations named in §22 are
       implemented, immutable, and produce no side effects.
-- [ ] The `Result`-vs-direct-return split above is implemented exactly as
+- [x] The `Result`-vs-direct-return split above is implemented exactly as
       specified: no geometry operation throws on a mathematically
       undefined input, and no always-defined operation is wrapped in
       `Result` needlessly.
-- [ ] `createPolygon` enforces the four of §26's required bullets that are
+- [x] `createPolygon` enforces the four of §26's required bullets that are
       properties of a point list (counted as three rules — see Design) and is
       the only exported way to obtain a validated `Polygon`; the boundary table
       above passes. §26's `valid unit` and `valid transform` are deliberately
       **not** here — they are slice 8's and slice 4's, per Design — and §26's
       "Future" rules (self-intersection, winding, repair) are not implemented
       and not stubbed.
-- [ ] `core/units/` documents the 1-unit-=-1mm convention at the one place
+- [x] `core/units/` documents the 1-unit-=-1mm convention at the one place
       new contributors will look for it; no pixel/DPI conversion exists
       anywhere under `core/`.
-- [ ] `createEntityId` produces IDs matching §82's `<prefix>-<ULID>` shape
+- [x] `createEntityId` produces IDs matching §82's `<prefix>-<ULID>` shape
       and is demonstrably lexicographically sortable by creation order.
-- [ ] `Result<T, E>` and the eight `AppError` category types compile, are
+- [x] `Result<T, E>` and the eight `AppError` category types compile, are
       exported from `core/result/` and `core/errors/` respectively, and each
       category is exercised by at least one construction + narrowing test.
-- [ ] `EventBus`/`Disposable` are implemented with the failure-isolation and
+- [x] `EventBus`/`Disposable` are implemented with the failure-isolation and
       `Promise`-aware behavior described above, and `core/events/` contains
       no reference to any concrete event name from §34.
-- [ ] Every file above can be imported and its exports exercised in a
+- [x] Every file above can be imported and its exports exercised in a
       Vitest suite with no Obsidian, Vue, or Konva present — the Increment 2
       success criterion (§91), scoped to these primitives.
-- [ ] `npm run check` passes (build, lint including the architecture
+- [x] `npm run check` passes (build, lint including the architecture
       rules, coverage-gated tests, fallow) per this repository's existing
       Definition of Done.
 

@@ -2,7 +2,7 @@
  * The harness's OWN chrome, and nothing else.
  *
  * `tests/harness/obsidian.css` — Obsidian's real app.css, reduced, linked BEFORE this file
- * (see `scripts/harness.mjs`) — defines the whole default palette itself, concretely,
+ * (see `tests/harness/index.html`) — defines the whole default palette itself, concretely,
  * under `.theme-light` / `.theme-dark`: the base scale, the named colours, the accent, and
  * `color-scheme` with them. So nothing here may restate a value app.css already gives.
  *
@@ -108,19 +108,4 @@ body {
 .rp-harness-scheme:hover {
 	color: var(--text-muted);
 	background-color: var(--background-modifier-hover);
-}
-
-/*
- * The placeholder the empty mount draws, until there is a view to mount. Marked as the
- * harness's own for the same reason the switch is.
- */
-.rp-harness-placeholder {
-	margin: auto;
-	max-width: 32em;
-	padding: var(--size-4-4);
-	border: 1px dashed var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-	text-align: center;
 }

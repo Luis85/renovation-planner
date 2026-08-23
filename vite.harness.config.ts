@@ -20,6 +20,17 @@ import { assembledStyles } from './scripts/vite-assembled-styles.mjs';
  * page. What was lost with it is a folder a headless browser can screenshot without a
  * server; add `vite build` here the day something needs one.
  */
+
+// Vite's default opener shells out to `xdg-open` on Linux, `open` on macOS, `start` on
+// Windows. Only the Linux path failed here: `npm run harness` printed
+// `Error: spawn xdg-open ENOENT` in a container with no `xdg-open` binary and no display
+// server. macOS's and Windows' openers are OS-provided and exist whether or not a GUI is
+// attached, so they are left alone; on Linux, `DISPLAY` (X11) or `WAYLAND_DISPLAY`
+// (Wayland) is exactly what is present on a developer's desktop and absent in that
+// container, so it is the signal that keeps this silent and correct in both places
+// without guessing at "agent" or "CI" by name.
+const canOpenBrowser = process.platform !== 'linux' || Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+
 export default defineConfig({
 	// The page and its two static sheets live here; `/styles.css` is answered by the plugin
 	// below, from the partials on disk.
@@ -35,7 +46,7 @@ export default defineConfig({
 		},
 	},
 	server: {
-		open: true,
+		open: canOpenBrowser,
 		// The assembler and the mock are outside `root`, so the server has to be allowed to
 		// read them.
 		fs: { allow: ['..', '../..'] },

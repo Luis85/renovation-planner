@@ -13,6 +13,7 @@ sources:
   - PRD §74
   - SDD §48
   - SDD §51
+  - ADR-012
 type: entity
 ---
 
@@ -34,9 +35,12 @@ the seven axes it aggregates *by*: project, construction section, zone, trade, w
 asset, supplier.
 
 §74's price components — discount, shipping, deposit, surcharge, tax, contingency — are parts of
-a cost item rather than cost items of their own, and SDD §51's pipeline fixes the order they
-apply in: quantity → unit price → discount → shipping → tax → estimated cost. Order matters:
-tax on a discounted total is not a discount on a taxed total.
+a cost item rather than cost items of their own. **ADR-012** places all six; SDD §51 places only
+the three it names, and an earlier version of this paragraph claimed §51 fixed the order for all
+of them and then listed an order containing three. The order is
+quantity → unit price → discount → shipping → surcharge → tax → estimated cost, with contingency
+held beside the estimate and a deposit belonging to §33's lifecycle rather than to the price.
+Order matters: tax on a discounted total is not a discount on a taxed total.
 
 ## Identity and persistence
 
@@ -72,8 +76,12 @@ that must not move when the drawing does.
   cited by section number rather than feature number because Epic 17 lists its features as an
   unnumbered bullet list: no `F17.x` identifier exists to check against the source.
 - §73's tax support is planning support, and the model says so — not accounting, not tax advice.
-- Contingency is a §74 component, held apart from the estimate rather than added into it, so the
+- Contingency is a §74 component, held apart from the estimate rather than added into it (ADR-012), so the
   question *how much of the buffer is left* stays answerable.
+
+## Business rules that reach this entity
+
+[[The forecast counts a commitment only until it is invoiced]] · [[Money is rounded once, where the pipeline finalizes it]] · [[Each cost type has exactly one source of record]] · [[A cost rollup is derived along its axis, never stored]] · [[The cost pipeline applies its components in one fixed order]]
 
 ## Sources
 

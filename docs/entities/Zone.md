@@ -63,6 +63,10 @@ The body is free-form and belongs to the user.
   references, reassign, delete anyway. A silent cascade is refused, and so is a delete that
   leaves dangling ids (§63).
 
+## Business rules that reach this entity
+
+[[Identity is the id, never the filename, title or path]] · [[A derived value is recomputed on read, not persisted]] · [[A delete reports what references it and offers four choices]] · [[A type this version does not know survives a round trip verbatim]]
+
 ## Sources
 
 PRD §8 · PRD §15 · PRD §34 · PRD §36 · PRD §60 · PRD §64 · PRD §84 · PRD §88 · SDD §38, in

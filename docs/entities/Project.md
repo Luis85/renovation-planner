@@ -57,6 +57,10 @@ the one entity whose filename is fixed while every other is derived from its nam
 - Deleting it is not a modelled operation — that is deleting the folder, which belongs to
   [[The vault]] and its owner.
 
+## Business rules that reach this entity
+
+[[Every entity resolves to exactly one project]] · [[Each cost type has exactly one source of record]]
+
 ## Sources
 
 PRD §8 · PRD §12 · PRD §58 · PRD §59 · PRD §72 · PRD §83 · SDD §47, in

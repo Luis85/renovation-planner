@@ -44,7 +44,16 @@ None. It is stored as part of whatever holds it — a [[Cost item]]'s amount, a 
   to be assumed.
 - §73's net / tax rate / tax amount / gross are four values, and the model keeps all four rather
   than storing one and recomputing the others at display time.
-- Rounding happens at display, not in the arithmetic (§71's separation, applied to money).
+- **Two roundings, and only the first belongs to the arithmetic.** A `Money` value is rounded
+  once, where the cost pipeline finalizes it — `ROUND_HALF_UP`, to the currency's minor unit
+  (ADR-010) — and intermediate values keep full precision. Display formatting rounds again and
+  never feeds back (§71's separation, applied to money). An earlier version of this bullet said
+  rounding happens *at display, not in the arithmetic*, which read the second rounding as
+  replacing the first and contradicted ADR-010's *once, at the end*.
+
+## Business rules that reach this entity
+
+[[Money is rounded once, where the pipeline finalizes it]] · [[A mismatched unit or currency is an error, not a coercion]]
 
 ## Sources
 

@@ -53,6 +53,10 @@ Frontmatter on the dependent side, referencing the other by stable `id` (SDD §8
   by a scheduler that fails to terminate.
 - Only Finish-to-Start moves dates. Blocking changes status; Informational changes nothing.
 
+## Business rules that reach this entity
+
+[[A dependency is allowed only between five pairs of things]]
+
 ## Sources
 
 PRD §77 · PRD §78 · PRD §21 · PRD §19 · PRD §20, in

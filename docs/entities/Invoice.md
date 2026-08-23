@@ -50,6 +50,10 @@ number, the date, the due date, net/tax/gross and the payment state in frontmatt
   [[Cost item]], the entity that carries the cost type.
 - An invoice with no matching order is legitimate — not everything bought was ordered formally.
 
+## Business rules that reach this entity
+
+[[The forecast counts a commitment only until it is invoiced]] · [[Each cost type has exactly one source of record]]
+
 ## Sources
 
 PRD §33 · PRD §11 · PRD §37 · PRD §23 · PRD §73, in

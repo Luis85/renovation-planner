@@ -115,8 +115,13 @@ end to end.
 - `Asset.supplier` is a plain string field, not a reference to a real
   `Supplier` entity — that entity is Epic 11 (Suppliers & Quotes) and is
   explicitly deferred.
-- **A project-level list of Requirements**, and with it any in-plugin surface for the
-  Requirements that `delete-anyway` on a **Zone** strands. Every surface this map builds
+- **A project-level list of Requirements**, and with it any *browsable* in-plugin surface for
+  the Requirements that `delete-anyway` on a **Zone** strands. Not that nothing reaches them:
+  a stranded Requirement is a §63 *deleted object* reference failure, and the
+  *Validation and vault health* Feature (`docs/requirements/Validation and vault health.md`,
+  MVP horizon, not yet assigned to a slice) is what answers "what is broken and where" — with
+  slice 11's content-free `DiagnosticsSnapshot.validationIssues` reporting *that* an entity has
+  an issue in the meantime. What this slice defers is the navigable list, not the detection. Every surface this map builds
   is scoped to a selection or a Plan: the Requirements panel hangs off a selected Zone,
   and a Zone-less Requirement has no Zone to select. The list that would reach it is
   project-scoped content in the Renovation Project view, which slice 14 explicitly

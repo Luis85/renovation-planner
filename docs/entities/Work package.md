@@ -55,6 +55,10 @@ sentences.
 - Planned dates live here; actual dates live on the tasks. Conflating them loses the variance
   that §28's forecast is built from.
 
+## Business rules that reach this entity
+
+[[A cost rollup is derived along its axis, never stored]] · [[A derived value is recomputed on read, not persisted]] · [[A dependency is allowed only between five pairs of things]]
+
 ## Sources
 
 PRD §8 · PRD §19 · PRD §10 · PRD §58 · PRD §59 · PRD §77, in

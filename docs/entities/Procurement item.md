@@ -54,6 +54,10 @@ an entity whose whole value is being queryable by state and date.
 - Partially-delivered is a real state, not a rounding of ordered or delivered.
 - Cancelled is kept, not deleted. It is why something was not bought.
 
+## Business rules that reach this entity
+
+[[Requirement, procurement, cost and installed quantity stay four concepts]] · [[A quantity flows through seven stages and no stage stands in for another]] · [[Purchase quantity rounds up to whole lots, then up to the minimum order]]
+
 ## Sources
 
 PRD §24 · PRD §32 · PRD §59 · PRD §75 · PRD §76 · PRD §77, in

@@ -53,6 +53,10 @@ derived rather than stored at all (§88).
 - The pipeline stages are distinct quantities. Reusing one where another is meant is the defect
   §32 exists to prevent.
 
+## Business rules that reach this entity
+
+[[A quantity flows through seven stages and no stage stands in for another]] · [[A mismatched unit or currency is an error, not a coercion]] · [[World coordinates are millimetres, converted once at the engine boundary]] · [[Internal precision and display precision are separate]]
+
 ## Sources
 
 PRD §9 · PRD §70 · PRD §71 · PRD §75 · SDD §23 · SDD §50 · ADR-009, in

@@ -44,6 +44,10 @@ describes.
 - A comparison between two revisions is derived on demand, never stored.
 - The as-built revision is the record of what was actually built, not a plan for it.
 
+## Business rules that reach this entity
+
+[[A derived value is recomputed on read, not persisted]]
+
 ## Sources
 
 PRD §31 · PRD §30 · PRD §61, in

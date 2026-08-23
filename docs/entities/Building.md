@@ -38,6 +38,10 @@ project where the building and the site are the same thing.
 - A building with no floors modelled is still valid — the hierarchy is optional depth, not a
   required path.
 
+## Business rules that reach this entity
+
+[[Every entity resolves to exactly one project]]
+
 ## Sources
 
 PRD §6 · PRD §58 · PRD §79, in

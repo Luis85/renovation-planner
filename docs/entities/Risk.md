@@ -51,6 +51,10 @@ owner and status in frontmatter — an entity whose value is largely in being so
 - A risk with no mitigation and no owner is a worry. §26's property list makes both explicit for
   that reason.
 
+## Business rules that reach this entity
+
+[[A derived value is recomputed on read, not persisted]]
+
 ## Sources
 
 PRD §26 · PRD §58 · PRD §28, in

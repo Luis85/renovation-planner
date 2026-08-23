@@ -53,6 +53,10 @@ frontmatter, and the reasoning in the body where prose belongs.
 - Impact analysis (§25) is derived at the time of asking — it reads the current graph rather
   than replaying what was true when the decision was taken.
 
+## Business rules that reach this entity
+
+[[A dependency is allowed only between five pairs of things]] · [[A derived value is recomputed on read, not persisted]]
+
 ## Sources
 
 PRD §25 · PRD §58 · PRD §77 · PRD §29, in

@@ -20,6 +20,7 @@ installs *this* plugin into it) and open `Product Backlog.base`. That view belon
 | `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
 | `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
 | `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
+| `business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
 | `setup/` | How this repository's own tooling was built and is released | *(none — not backlog items)* |
 | `superpowers/` | Claude's design specs and implementation plans, not the product's | *(none — not backlog items)* |
@@ -29,7 +30,7 @@ of that kind has somewhere obvious to go rather than a decision to make.
 
 ## What is a work item and what is evidence
 
-The backlog says what the product does and why someone wants it. Eight folders in the table
+The backlog says what the product does and why someone wants it. Nine folders in the table
 are deliberately outside it, for three different reasons.
 
 **`prds/` and `sdds/` are what a backlog is derived FROM, not things in it.** Each arrives
@@ -38,8 +39,8 @@ to agree with it, and carries no `type`, no `order` and no `status` — giving i
 state would file the evidence as work, the same mistake as writing a customer interview into
 the backlog because it was important.
 
-**The design slices in `tasks/`, plus `actors/`, `entities/` and `reviews/`, are DERIVED
-from that evidence, and the distinction is the one that decides whether a document may be
+**The design slices in `tasks/`, plus `actors/`, `entities/`, `business-rules/` and `reviews/`,
+are DERIVED from that evidence, and the distinction is the one that decides whether a document may be
 edited.** A received document is corrected only by receiving a new one; a derived document
 is expected to change as the design is refined, and a refinement that contradicts its source
 names the source section it refines and lands in a slice or an ADR, never in `prds/` or
@@ -49,9 +50,10 @@ and carries the conventions and vocabulary all seventeen share.
 **Derived and non-backlog are different axes, and the slices are the case that separates
 them.** They are typed `Task` under the *Architecture and Software Design* Feature, so they
 do appear in the tree — a slice is work someone is scheduled to do, whatever else it is.
-`actors/`, `entities/` and `reviews/` are the ones outside the backlog for being derived: an
-actor is somebody the product deals with rather than work, and a review ledger is a record of
-findings rather than a rank among siblings. An earlier version of this section put the slices
+`actors/`, `entities/`, `business-rules/` and `reviews/` are the ones outside the backlog for
+being derived: an actor is somebody the product deals with rather than work, a rule is a
+constraint on work rather than work, and a review ledger is a record of findings rather than a
+rank among siblings. An earlier version of this section put the slices
 in that group, which was true while they lived in a folder of their own and stopped being
 true when they were typed.
 
@@ -72,6 +74,30 @@ Two things about them are worth knowing before adding one. **They are singular w
 the only thing keeping the two folders from colliding with the backlog. And **they use
 `partOf:`, not `parent:`**, because `parent` is a key the base reads and these notes are
 deliberately invisible to it.
+
+**`business-rules/` holds only what no single entity owns.** Every note in `entities/` already
+carries a `## Rules` section, and those are the rules *about that object* — they stay there. This
+folder is for the other kind: a rule that constrains several entities at once (the forecast spans
+[[Cost item]], [[Order]] and [[Invoice]]; the quantity chain spans four entities), or a formula the
+engine implements and a test can drive (rounding mode and point, waste, packaging). The test for
+which folder a rule belongs in is **whether one entity note could state it without lying by
+omission.** If it could, it belongs there and this folder does not repeat it — a rule stated twice
+is two rules the day one of them is edited, which is what the review ground rules mean by *do not
+leave two statements*.
+
+Its frontmatter is `rule`, `kind`, `name`, `area` and `sources`, plus `type: business-rule` for the
+base's table view — none of which the tree reads. **`rule` is an address, not a label**: `BR-COST-002`
+is what a test name, a doc comment and a future `npm run docs` citation point at, so an id is never
+reused and never renumbered, the same way a view type and a command id are data rather than text
+(see [`CLAUDE.md`](../CLAUDE.md)). `kind` says what shape the rule is — `calculation`, `constraint`,
+`separation`, `derivation`, `integrity`, `lifecycle` — and `area` says which part of the product it
+governs. A basename is the rule stated as a sentence, so these cannot collide with the singular
+entity notes or the plural requirement notes.
+
+Every note ends with **Checked by**, and today all twenty-seven say *not yet*, naming the slice
+where the check lands. That is the honest state of a repository whose `src/` is still a scaffold,
+and it is deliberately a sentence somebody has to come back and change rather than an omission
+nobody can see.
 
 **Two suffix conventions are in use, and this is the note that admits it.** The received
 documents landed as `docs/prds/obsidian-renovation-planner.md` and

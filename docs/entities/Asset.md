@@ -56,6 +56,10 @@ links and photos in the body.
 - Package size and minimum order quantity belong here, and are what [[Procurement item]] rounds
   against (§24).
 
+## Business rules that reach this entity
+
+[[Purchase quantity rounds up to whole lots, then up to the minimum order]] · [[An asset's unit kind must match the dimension its requirement is derived from]] · [[A type this version does not know survives a round trip verbatim]]
+
 ## Sources
 
 PRD §8 · PRD §17 · PRD §32 · PRD §59 · PRD §84 · SDD §55, in

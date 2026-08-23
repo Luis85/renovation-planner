@@ -46,6 +46,10 @@ the expected delivery date and the order reference in frontmatter.
   partially-delivered state is per line, because that is how deliveries actually arrive.
 - Cancelling releases the commitment. It does not delete the order.
 
+## Business rules that reach this entity
+
+[[The forecast counts a commitment only until it is invoiced]] · [[Each cost type has exactly one source of record]]
+
 ## Sources
 
 PRD §24 · PRD §33 · PRD §37 · PRD §11, in

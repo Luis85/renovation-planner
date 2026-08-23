@@ -54,6 +54,10 @@ notes — they have no lifecycle of their own.
 - A quote item without a link to an [[Asset]] or [[Work package]] is still valid — that is the
   common case on arrival, and linking it is the work of comparing.
 
+## Business rules that reach this entity
+
+[[Each cost type has exactly one source of record]] · [[A derived value is recomputed on read, not persisted]]
+
 ## Sources
 
 PRD §22 · PRD §11 · PRD §33 · PRD §23, in

@@ -61,6 +61,10 @@ path, for exactly that reason.
 - The sidecar is derived-format but not derived data — it is canonical geometry in a second
   file, and losing it loses work.
 
+## Business rules that reach this entity
+
+[[World coordinates are millimetres, converted once at the engine boundary]] · [[Internal precision and display precision are separate]] · [[An uncalibrated plan never presents a measurement as true]]
+
 ## Sources
 
 PRD §8 · PRD §13 · PRD §38 · PRD §59 · PRD §79 · PRD §82 · SDD §39 · SDD §40, in

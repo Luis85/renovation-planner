@@ -50,6 +50,10 @@ frontmatter, pointing at the image in [[The vault]]. §36 gives `Photos/` its ow
 - Ordered by capture date, not file date. The two diverge as soon as anything is copied.
 - The image is never modified. Annotation is a layer over it, not a write to it.
 
+## Business rules that reach this entity
+
+[[Identity is the id, never the filename, title or path]]
+
 ## Sources
 
 PRD §23 · PRD §27 · PRD §30 · PRD §36, in

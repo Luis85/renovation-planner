@@ -43,6 +43,10 @@ outdoor work need not have one.
 - Being empty is legitimate. It is a place to hang structure when there is structure, not a
   step to complete.
 
+## Business rules that reach this entity
+
+[[Every entity resolves to exactly one project]]
+
 ## Sources
 
 PRD §6 · PRD §58 · PRD §79, in

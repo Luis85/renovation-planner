@@ -47,6 +47,10 @@ A note in a small catalog (§36's `Trades/`), with a stable `id` (§60).
 - Not a party to anything. A trade has no contact details, no address and no price — those
   belong to [[Supplier]] and [[Quote]].
 
+## Business rules that reach this entity
+
+[[A type this version does not know survives a round trip verbatim]] · [[A cost rollup is derived along its axis, never stored]]
+
 ## Sources
 
 PRD §8 · PRD §19 · PRD §10 · PRD §21 · PRD §84, in

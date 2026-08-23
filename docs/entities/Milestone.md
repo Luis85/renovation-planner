@@ -48,6 +48,10 @@ mostly frontmatter.
   percentage.
 - Missing one is a fact worth keeping. The date is not edited to whatever happened.
 
+## Business rules that reach this entity
+
+[[A dependency is allowed only between five pairs of things]] · [[A derived value is recomputed on read, not persisted]]
+
 ## Sources
 
 PRD §21 · PRD §58 · PRD §77 · PRD §28, in

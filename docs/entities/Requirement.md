@@ -56,6 +56,10 @@ id, the waste factor and any manual override in frontmatter.
   legible as two facts (§9).
 - A requirement is not a purchase. It is what is needed; [[Procurement item]] is what is bought.
 
+## Business rules that reach this entity
+
+[[Requirement, procurement, cost and installed quantity stay four concepts]] · [[Waste multiplies the required quantity and stays a separate factor]] · [[A requirement names what it is required for]] · [[A manual override is stored as an override, beside what it replaced]]
+
 ## Sources
 
 PRD §32 · PRD §59 · PRD §75 · PRD §88 · PRD §89 · SDD §50 · SDD §51, in

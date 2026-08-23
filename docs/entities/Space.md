@@ -39,6 +39,10 @@ projects go straight to [[Zone]]s.
 - Carries no geometry. If it has an outline you drew, that outline is a [[Zone]].
 - Existing without any planned work is the normal case and must stay expressible.
 
+## Business rules that reach this entity
+
+[[Every entity resolves to exactly one project]]
+
 ## Sources
 
 PRD §6 · PRD §58 · PRD §34, in

@@ -50,6 +50,10 @@ duplicated its assets would drift from the library the moment a price changed.
 - V2 scope (§50). The entity is named here so the model has a place for it, not because it is
   being built.
 
+## Business rules that reach this entity
+
+[[A cost rollup is derived along its axis, never stored]] · [[A derived value is recomputed on read, not persisted]]
+
 ## Sources
 
 PRD §29 · PRD §25 · PRD §50, in

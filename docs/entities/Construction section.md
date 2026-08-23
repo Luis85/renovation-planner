@@ -54,6 +54,10 @@ dates in frontmatter, so [[Bases]] can group by any of them.
 - Dates are planned at this level and actual at [[Task]] level; a section's real dates are
   derived.
 
+## Business rules that reach this entity
+
+[[Every entity resolves to exactly one project]] · [[A cost rollup is derived along its axis, never stored]]
+
 ## Sources
 
 PRD §8 · PRD §16 · PRD §10 · PRD §58 · PRD §59 · PRD §80, in

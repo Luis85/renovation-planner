@@ -223,7 +223,9 @@ Line Subtotal             (Money)
 After Discount             (Money)
    ↓  add(afterDiscount, shipping ?? zero(currency))
 After Shipping             (Money)
-   ↓  add(afterShipping, percentageOf(afterShipping, taxRate ?? 0))
+   ↓  add(afterShipping, surcharge ?? zero(currency))
+After Surcharge            (Money)
+   ↓  add(afterSurcharge, percentageOf(afterSurcharge, taxRate ?? 0))
    ↓  round(...)
 Estimated Cost             (Money)
 ```
@@ -241,9 +243,20 @@ distinguish calculated from overridden. The intermediate steps above are private
 composition, not separately exported, so callers cannot skip stages or reorder them. Order is fixed by §51 and is
 not configurable: tax is computed over the post-shipping total (shipping is taxable),
 discount is computed before shipping is added (shipping is not discounted). `unitPrice`
-must share `quantity.unit`'s pricing basis and `discount`/`shipping`/`estimatedCost`
+must share `quantity.unit`'s pricing basis and `discount`/`shipping`/`surcharge`/`estimatedCost`
 must share `unitPrice.currency`; a mismatch is a `CalculationError`, not a thrown
 exception.
+
+**`surcharge` is this pipeline's one addition to §51's stage list, and it is ADR-012's decision
+rather than this slice's.** PRD §74 names six price components; §51 places three, which left
+`surcharge` and `deposit` stored by the requirements and applied by nothing — the same shape of
+omission ADR-010 closed for rounding, and with the same failure mode, since an additive term
+placed before or after tax by whichever call site reaches it first produces a plausible number
+rather than an error. ADR-012 puts a surcharge where shipping already is (additive, taxable, not
+discountable), and places the other two components *outside* the chain: contingency is held beside
+the estimate so the buffer stays reportable, and a deposit is a payment against a commitment
+rather than a component of a price. So this pipeline reads `surcharge` and does not read
+`contingency` or `deposit` — a placement in both cases, not an omission.
 
 ### DerivedValue<T> and manual overrides (SDD §52)
 
@@ -353,6 +366,7 @@ interface CostPipelineInput {
   readonly unitPrice: Money;
   readonly discount?: DiscountRule;
   readonly shipping?: Money;
+  readonly surcharge?: Money; // ADR-012 — additive with shipping, before tax
   readonly taxRate?: Decimal; // percent
 }
 
@@ -439,6 +453,12 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
       flows forward through the pipeline, not just at the point of override.
 - [ ] `applyPackaging` with `packaging: undefined` returns the waste-adjusted quantity
       unchanged (no error, no silent default lot size).
+- [ ] `surcharge` omitted leaves the post-shipping total unchanged, and a supplied
+      `surcharge` is added **before** tax is computed (ADR-012). Asserted with a case where
+      the two orders differ, so a reordering cannot pass silently: on the worked example
+      above, a `$25.00` surcharge gives `($203.125 + $25.00) × 1.0825 = $246.9453125`, while
+      applying it after tax would give `$203.125 × 1.0825 + $25.00 = $244.8828125` — a
+      `$2.0625` difference, which is the tax on the surcharge.
 - [ ] All SDD §70 Money and Quantity unit test bullets (addition, tax, discounts,
       rounding, currency safety, length requirements, area requirements, waste,
       packaging, manual overrides) have a corresponding passing `vitest` test.

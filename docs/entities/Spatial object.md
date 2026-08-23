@@ -57,6 +57,10 @@ drawn on the plan becomes *the bathroom* rather than staying a shape.
 - The link to a domain note is by stable `id`, never by filename (SDD §83).
 - An Annotation branch object never contributes to a quantity or a cost.
 
+## Business rules that reach this entity
+
+[[World coordinates are millimetres, converted once at the engine boundary]] · [[A change is a state on an object, not a second object]]
+
 ## Sources
 
 PRD §7 · PRD §30 · PRD §34 · PRD §38 · PRD §59 · SDD §22 · SDD §26 · SDD §40, in

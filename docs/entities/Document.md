@@ -55,6 +55,10 @@ attachment is the bytes.
 - The plugin does not move or rename the user's attachments. Where files live is [[The vault]]'s
   business and its owner's.
 
+## Business rules that reach this entity
+
+[[Identity is the id, never the filename, title or path]] · [[A type this version does not know survives a round trip verbatim]]
+
 ## Sources
 
 PRD §23 · PRD §42 · PRD §59 · SDD §54 · SDD §55, in

@@ -40,6 +40,10 @@ A note, with a stable `id` (§60).
 - Nothing in the quantity, cost or scheduling model may assume a room. An outdoor
   [[Requirement]] is measured from area and length the same way an indoor one is.
 
+## Business rules that reach this entity
+
+[[A requirement names what it is required for]]
+
 ## Sources
 
 PRD §6 · PRD §58 · PRD §4 · PRD §8, in

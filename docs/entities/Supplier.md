@@ -48,6 +48,10 @@ prose belongs.
 - Has no prices of its own. A price is a [[Quote]] with a date and a validity, because
   yesterday's price is not today's.
 
+## Business rules that reach this entity
+
+[[Each cost type has exactly one source of record]] · [[A cost rollup is derived along its axis, never stored]]
+
 ## Sources
 
 PRD §22 · PRD §10 · PRD §59 · PRD §103, in

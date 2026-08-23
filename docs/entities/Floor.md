@@ -39,6 +39,10 @@ A note, with a stable `id` (§60).
 - Naming is the user's. §84's custom types reach the vocabulary here as much as anywhere —
   *Souterrain* and *Dachgeschoss* have to round-trip unchanged.
 
+## Business rules that reach this entity
+
+[[A type this version does not know survives a round trip verbatim]] · [[Every entity resolves to exactly one project]]
+
 ## Sources
 
 PRD §6 · PRD §58 · PRD §79 · PRD §8, in

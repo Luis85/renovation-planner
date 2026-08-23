@@ -43,3 +43,18 @@ views:
       - layer
       - persistence
       - partOf
+  - type: table
+    name: Business rules
+    filters:
+      and:
+        - file.inFolder("docs/business-rules")
+    groupBy:
+      property: area
+      direction: ASC
+    order:
+      - rule
+      - file.name
+      - kind
+      - area
+    columnSize:
+      file.name: 541

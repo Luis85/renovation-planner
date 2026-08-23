@@ -47,6 +47,10 @@ it a note would put a file in [[The vault]] that no one has a reason to open.
 - A layer groups; it never owns. Deleting a layer must not delete the objects on it, or
   hiding and deleting become one keystroke apart.
 
+## Business rules that reach this entity
+
+[[A delete reports what references it and offers four choices]]
+
 ## Sources
 
 PRD §6 · PRD §8 · PRD §13 · PRD §30 · PRD §37 · SDD §17 · SDD §18, in

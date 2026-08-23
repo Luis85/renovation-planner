@@ -53,6 +53,10 @@ beside it, never instead of it.
 - Cancelled is not deleted: it is a state (§20), and the record of a decision not to do
   something is worth as much as the doing.
 
+## Business rules that reach this entity
+
+[[Identity is the id, never the filename, title or path]] · [[A dependency is allowed only between five pairs of things]]
+
 ## Sources
 
 PRD §8 · PRD §20 · PRD §58 · PRD §65 · PRD §77, in

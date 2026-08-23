@@ -11,6 +11,7 @@ sources:
   - SDD §21
   - SDD §85
 type: component
+image: "[[selection-handle.png]]"
 ---
 
 # Selection handle

@@ -10,6 +10,7 @@ sources:
   - SDD §21
   - SDD §85
 type: component
+image: "[[snap-guide.png]]"
 ---
 
 # Snap guide

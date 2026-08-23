@@ -10,6 +10,7 @@ sources:
   - PRD §94
   - PRD §95
 type: component
+image: "[[empty-state.png]]"
 ---
 
 # Empty state

@@ -10,6 +10,7 @@ sources:
   - PRD §64
   - SDD §85
 type: component
+image: "[[modal.png]]"
 ---
 
 # Modal

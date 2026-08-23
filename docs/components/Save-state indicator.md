@@ -11,6 +11,7 @@ sources:
   - PRD §67
   - SDD §85
 type: component
+image: "[[save-state-indicator.png]]"
 ---
 
 # Save-state indicator

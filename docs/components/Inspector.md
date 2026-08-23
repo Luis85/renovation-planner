@@ -10,6 +10,7 @@ sources:
   - SDD §59
   - SDD §60
 type: component
+image: "[[inspector.png]]"
 ---
 
 # Inspector

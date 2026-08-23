@@ -77,23 +77,24 @@ views:
       - kind
       - file.name
       - standing
-  - type: table
+  - type: cards
     name: Components
     filters:
       and:
         - file.inFolder("docs/components")
     groupBy:
-      property: medium
+      property: region
       direction: ASC
     order:
-      - type
-      - region
       - file.name
+      - region
       - slice
-      - partOf
     columnSize:
       file.name: 220
       note.slice: 599
+    image: note.image
+    cardSize: 290
+    imageFit: contain
   - type: table
     name: Entities
     filters:

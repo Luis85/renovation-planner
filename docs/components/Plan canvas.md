@@ -12,6 +12,7 @@ sources:
   - SDD §19
   - SDD §60
 type: component
+image: "[[plan-canvas.png]]"
 ---
 
 # Plan canvas

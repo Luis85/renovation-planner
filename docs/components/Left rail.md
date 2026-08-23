@@ -10,6 +10,7 @@ sources:
   - PRD §40
   - SDD §60
 type: component
+image: "[[left-rail.png]]"
 ---
 
 # Left rail

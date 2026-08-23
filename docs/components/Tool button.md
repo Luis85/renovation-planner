@@ -12,6 +12,7 @@ sources:
   - SDD §57
   - SDD §85
 type: component
+image: "[[tool-button.png]]"
 ---
 
 # Tool button

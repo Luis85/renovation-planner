@@ -11,6 +11,7 @@ sources:
   - SDD §60
   - SDD §61
 type: component
+image: "[[toolbar.png]]"
 ---
 
 # Toolbar

@@ -9,6 +9,7 @@ sources:
   - SDD §15
   - SDD §17
 type: component
+image: "[[layer-toggle.png]]"
 ---
 
 # Layer toggle

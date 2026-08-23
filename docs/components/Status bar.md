@@ -10,6 +10,7 @@ sources:
   - PRD §67
   - SDD §60
 type: component
+image: "[[status-bar.png]]"
 ---
 
 # Status bar

@@ -10,6 +10,7 @@ sources:
   - SDD §60
   - SDD §84
 type: component
+image: "[[view-shell.png]]"
 ---
 
 # View shell

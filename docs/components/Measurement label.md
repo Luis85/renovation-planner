@@ -12,6 +12,7 @@ sources:
   - SDD §19
   - SDD §25
 type: component
+image: "[[measurement-label.png]]"
 ---
 
 # Measurement label

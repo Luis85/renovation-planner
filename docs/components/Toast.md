@@ -12,6 +12,7 @@ sources:
   - SDD §64
   - SDD §66
 type: component
+image: "[[toast.png]]"
 ---
 
 # Toast

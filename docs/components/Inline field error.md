@@ -11,6 +11,7 @@ sources:
   - SDD §64
   - SDD §65
 type: component
+image: "[[inline-field-error.png]]"
 ---
 
 # Inline field error

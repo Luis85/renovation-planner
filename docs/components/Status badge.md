@@ -11,6 +11,7 @@ sources:
   - SDD §64
   - SDD §66
 type: component
+image: "[[status-badge.png]]"
 ---
 
 # Status badge

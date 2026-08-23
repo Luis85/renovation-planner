@@ -24,7 +24,7 @@ unit, a unit price, and the [[Money]] that falls out.
 **A cost item carries a cost *type*, and that is what makes the model useful.** §11 lists five:
 Budget, Estimated, Quoted, Committed, Actual. The same fence appears at all five values over the
 life of a project — budgeted at 2,000, estimated at 1,637, quoted at 1,540, committed when
-ordered, actual when invoiced — and §28's forecast is arithmetic *across* those types:
+ordered, actual when invoiced — and the forecast is arithmetic *across* those types:
 actual + committed-but-not-invoiced + remaining estimate. Collapse them into one number and the
 project can never answer *are we over*.
 
@@ -58,6 +58,19 @@ that must not move when the drawing does.
 - **Never native floating-point arithmetic** (SDD §49, ADR-010). `decimal.js`, always.
 - Estimated values are derived and recomputed; quoted, committed and actual values are recorded
   and do not move.
+- **`Committed` means *not yet invoiced*, and the forecast is computed on that reading.** The PRD
+  states the same Forecast concept twice and the two do not agree: §28 (Epic 17, Reporting &
+  Project Cockpit) writes `Actual Cost + Committed Cost + Remaining Estimate`, while §33
+  (Financial Lifecycle) writes `Actual + Committed but not invoiced + Remaining Estimate`. §33's
+  is the one implemented. Read literally, §28 counts a commitment that has already been invoiced
+  twice — once as Actual, again as Committed — and inflates the forecast; §33's phrasing is the
+  same intent stated precisely, so §28's `Committed Cost` is shorthand for it, not a second,
+  full-commitment total. Booking an [[Invoice]] retires the matching commitment, which is the
+  mechanism that makes the narrower reading the only coherent one. The PRD is received evidence
+  and is kept verbatim per [`docs/README.md`](../README.md), so the correction lives here rather
+  than as an edit to the source — which is what keeps the §28 cited above unedited. Both sites are
+  cited by section number rather than feature number because Epic 17 lists its features as an
+  unnumbered bullet list: no `F17.x` identifier exists to check against the source.
 - §73's tax support is planning support, and the model says so — not accounting, not tax advice.
 - Contingency is a §74 component, held apart from the estimate rather than added into it, so the
   question *how much of the buffer is left* stays answerable.

@@ -45,9 +45,9 @@ number, the date, the due date, net/tax/gross and the payment state in frontmatt
 
 - Actual cost is recorded, never derived, and never moves afterwards.
 - Booking an invoice retires the matching commitment. Counting both is the classic way to
-  overstate a forecast, and the open issue
-  [[Forecast formula disagrees on committed cost]] is where that is being argued in this
-  repository.
+  overstate a forecast, and it is the reason the PRD's two Forecast formulas (§28 against §33)
+  are settled on §33's *committed but not invoiced* reading — the decision is recorded on
+  [[Cost item]], the entity that carries the cost type.
 - An invoice with no matching order is legitimate — not everything bought was ordered formally.
 
 ## Sources

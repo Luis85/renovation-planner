@@ -20,7 +20,9 @@ impact may touch: budget, schedule, assets, procurement, work packages, tasks.
 **The alternatives are the content.** A decision recording only what was chosen leaves the next
 reader — usually the same person, months later — to re-derive why the other options were worse,
 which turns a decision into a piece of history rather than something that can be argued with.
-This repository holds itself to the same rule for its own `issues/` and `adrs/`.
+This repository holds itself to the same rule for its own decisions, wherever they land — its
+`adrs/`, and the rejected alternatives written beside a decision in the entity or slice note that
+owns the subject.
 
 It blocks work, which is why §77 admits decision → [[Work package]] as a [[Dependency]] pair.
 *We cannot order until we choose the tile* is a real schedule constraint and one of the two

@@ -11,8 +11,12 @@ under five PBIs beneath the *Architecture and Software Design* Feature. `docs/de
 was retired rather than moved: its shared conventions, shared vocabulary, slice map and
 deferred list are sections of that Feature note, its per-group scheduling prose went to the
 PBI it argues about, and its dependency column became a `dependsOn` list on each slice. Items
-12, 13, 14, 16, 17 and 51 below cite it — read those against the Feature note. The old paths
-are left as written rather than rewritten, because a dated record of what was reviewed is
+12, 13, 14, 16, 17 and 51 below cite it — read those against the Feature note. The two notes
+under `docs/issues/` have since been retired the same way: both decisions were made, so each was
+folded into the note that owns its subject — the Forecast formula into `docs/entities/Cost item.md`,
+the Zone-less Requirement gap into slice 10's "Deletion & reference integrity" — and the notes were
+deleted rather than carried into development as open questions. Item 49 cites one of them. The old
+paths are left as written rather than rewritten, because a dated record of what was reviewed is
 worth more than one whose paths agree with today's tree.
 
 Ground rules for fixing (from CLAUDE.md and the docs' own conventions):

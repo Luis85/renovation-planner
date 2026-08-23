@@ -125,8 +125,8 @@ end to end.
   therefore declares no `ListOrphanedRequirements` query: a query no surface calls is a
   dead export `npm run analyze` fails on, and the repository's own rule is that a thing
   arrives with its first real use. What the state costs the user, and what the MVP does
-  offer instead, is stated under "Deletion & reference integrity" and recorded in
-  `docs/issues/Zone-less requirements have no in-plugin surface.md`.
+  offer instead — along with the two other ways out that were refused — is stated under
+  "Deletion & reference integrity".
 
 ## Dependencies
 
@@ -653,11 +653,11 @@ the first one's payload.
 
 `costType` is also where a resolved PRD contradiction lands. The PRD gives two
 disagreeing Forecast formulas over these types (PRD §28 against PRD §33), settled in
-[`docs/issues/Forecast formula disagrees on committed cost.md`](../issues/Forecast%20formula%20disagrees%20on%20committed%20cost.md):
-`committed` means *not yet invoiced*. A rollup subscriber that summed a `committed` event
-carrying the full commitment would double-count anything already invoiced — which is
-exactly the discrimination this field exists to make possible, and the reason to name the
-issue here rather than leaving the next reader to re-derive it.
+[`docs/entities/Cost item.md`](../entities/Cost%20item.md): `committed` means *not yet
+invoiced*. A rollup subscriber that summed a `committed` event carrying the full commitment
+would double-count anything already invoiced — which is exactly the discrimination this
+field exists to make possible, and the reason to name the decision here rather than leaving
+the next reader to re-derive it.
 
 Because the Event Bus is in-process and promise-aware (§33), the whole cascade
 runs to completion, synchronously awaited, inside the same command dispatch
@@ -1117,8 +1117,20 @@ What the MVP does deliver for that state, stated as narrowly as it is true:
   case (b). Detection, in PRD §63's sense, happens; presentation is what is missing.
 - Nothing in this slice deletes it, repoints it, or drops it from a query it belongs to.
 
-The gap is recorded in `docs/issues/Zone-less requirements have no in-plugin surface.md`
-rather than closed with a query nothing calls.
+**Two other ways out were considered and refused, recorded here so neither is re-proposed
+as the fix.** *Refusing `delete-anyway` on a Zone until a surface exists* trades an invisible
+outcome for a missing one: PRD §64 names the action as one of the four resolutions, so
+withholding it is the larger defect. *Routing the orphans into slice 11's
+`DiagnosticsSnapshot`* stays available as a detection aid but is not the answer: the snapshot
+is content-free by SDD §68 — IDs only, no names, no costs — so a user reading it could see
+that something dangles without learning what it was or what it cost. That is a bug-report
+artifact, not a recovery surface.
+
+The gap is therefore stated rather than closed with a query nothing calls, and it closes with
+the first surface that lists Requirements across a Project — the Renovation Project view's
+populated content, or a Bases view over `Requirements/` (SDD §13, deferred).
+`ListOrphanedRequirements`, or whatever query that surface needs, arrives in the same change
+as the surface.
 
 **A resolution mutates several entities, so it needs compensation and a snapshot.**
 Every non-absent resolution is N Requirement writes followed by one entity delete, and

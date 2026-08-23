@@ -314,8 +314,38 @@ choosing it, while code that needs a folder path cannot be handed a plausible wr
 
 The line at the boundary is sharp and worth stating, because the two look alike from
 inside `onload`: `loadData()` **resolving** `null` is a fresh install, not a failure —
-`settingsFrom(null)` returns defaults and the plugin is fully configured. Only a
-**rejection** is unrecovered.
+`settingsFrom(null)` returns defaults and the plugin is fully configured.
+
+**An earlier version of this section stopped there, saying "only a rejection is
+unrecovered", and that was wrong in the way that mattered most.** Walked in a real vault
+against a `data.json` containing `{`, Obsidian's `loadData()` does **not** reject: it
+catches the `JSON.parse` failure itself, logs `failed to read JSON …` on its own side, and
+**resolves empty**. So the commonest corruption there is — a hand-edited file — arrived
+wearing the fresh-install shape, the plugin loaded defaults, the settings pane offered a
+working dropdown, and the first change made through it replaced the user's file. The
+refusal this whole section describes never engaged. Every unit test passed throughout,
+because they drove the rejection the API does not perform.
+
+So the boundary needs **two** triggers, and the second one needs a question the plugin
+cannot answer by itself:
+
+| What `loadData()` did | The file on disk | Meaning | `root.settings` |
+| --- | --- | --- | --- |
+| resolved with data | present | normal | the stored settings |
+| resolved empty | **absent** | fresh install | `DEFAULT_SETTINGS` |
+| resolved empty | **present** | Obsidian could not parse it | `null` — `settings.load.unreadable` |
+| rejected | either | a read that failed outright | `null` — `settings.load.failed` |
+
+The file's existence is the only thing separating rows two and three, which is why
+`PluginDataProbe` (`application/ports/`) and its `adapter.exists` implementation
+(`infrastructure/obsidian/settings/`) exist. Two event names rather than one, because the
+rejection carries a `cause` and the unparseable file cannot — Obsidian swallowed the error
+before the plugin saw it.
+
+**This is the one place slice 1 reads from the vault adapter**, which the Persistence
+Impact section below would otherwise forbid. It reads no note: the path is
+`<configDir>/plugins/<id>/data.json`, plugin-local operational data rather than any part of
+the Markdown record, and the write boundary is untouched.
 
 Three rules follow, each a check rather than an intention:
 
@@ -666,6 +696,21 @@ export interface Logger {
 }
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+// src/application/ports/PluginDataProbe.ts — one question, and it exists because
+// loadData() resolves EMPTY rather than rejecting when data.json will not parse, so the
+// file's existence is the only thing separating a fresh install from an unreadable file.
+export interface PluginDataProbe {
+  dataFileExists(): Promise<boolean>;
+}
+
+// src/infrastructure/obsidian/settings/pluginDataFile.ts — adapter.exists() against
+// <configDir>/plugins/<pluginId>/data.json. The id is a parameter because infrastructure/
+// may not import plugin/ — the same reason revealView takes a view type as a string.
+export function createPluginDataProbe(app: App, pluginId: string): PluginDataProbe;
+
+// src/plugin/settings/settings.ts — whether loadData() gave anything to interpret.
+export function isDataAbsent(raw: unknown): boolean;
+
 // src/infrastructure/logging/consoleLogger.ts — the only implementation this slice builds.
 // Returns void and never throws: a call site that had to handle a logging failure would
 // have two failures to report and no way to report either.
@@ -722,10 +767,20 @@ Module boundaries this slice fixes for every later one:
 - **Reads/writes:** plugin `data.json` only, via Obsidian's `loadData`/`saveData` — the
   settings object (`{ units: 'metric' | 'imperial' }`). No Vault files, no sidecars, no
   frontmatter.
-- **No Vault access of any kind** in this slice: no repositories exist, and the write-safety
-  lint rules (`no-restricted-syntax` on `vault.*`/`adapter.*` write methods and
-  `processFrontMatter`) apply from this slice onward even though nothing yet calls them —
-  the same "enforce before it can be broken" reasoning as the layer rule.
+- **No Vault WRITE of any kind, and exactly one adapter read** — narrowed from "no Vault
+  access of any kind", which this slice turned out to need an exception to. The read is
+  `adapter.exists()` on `<configDir>/plugins/<id>/data.json`
+  (`infrastructure/obsidian/settings/pluginDataFile.ts`), and it is not a convenience: it is
+  the only way to tell a fresh install from a `data.json` Obsidian could not parse, because
+  `loadData()` resolves empty for both (see the Design section's table). It touches no note
+  and no sidecar — the plugin's own folder is operational data, not part of the Markdown
+  record — and it reads rather than writes, so the write boundary is untouched.
+  No repositories exist, and the write-safety lint rules (`no-restricted-syntax` on
+  `vault.*`/`adapter.*` write methods and `processFrontMatter`) apply from this slice onward
+  even though nothing yet calls them — the same "enforce before it can be broken" reasoning
+  as the layer rule. **`exists` is deliberately not among the banned methods**: the ban is
+  about mutation, and a slice that could not ask a question about the filesystem would have
+  shipped the defect above.
 - **The logger persists nothing.** Its sink is the developer console, so this slice adds no
   file, no plugin-data key, and nothing to exclude from a project export. A file-backed
   sink is slice 11's call, and the constraint it inherits is already written there: a log
@@ -829,6 +884,15 @@ Module boundaries this slice fixes for every later one:
       `obsidianmd` ruleset fails both and is deliberately left on inside the carve-out (the
       marketplace bot lints with its own config, so a local override would not travel).
       `error` forwards its `cause` untouched.
+- [x] **Two triggers, not one, because a real vault falsified the one-trigger version.**
+      Obsidian's `loadData()` does not reject on malformed JSON — it logs
+      `failed to read JSON …` itself and resolves EMPTY — so "resolved empty" is
+      disambiguated by whether the file exists (`PluginDataProbe`): absent is a fresh
+      install and loads defaults, present logs `settings.load.unreadable` and leaves
+      `root.settings` as `null`. Two event names because only the rejection has a `cause`
+      to forward. The suite reproduces the vault defect: the corrupt-file cases go red
+      against the version that returned defaults, including `plugin.saved` showing the
+      overwrite.
 - [x] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
       `null` — never `DEFAULT_SETTINGS` — with the view and command still registered. For
       as long as it stays null, `saveSettings()` makes no `saveData` call and

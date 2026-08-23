@@ -51,23 +51,24 @@ export default defineConfig({
 			//
 			// Measured 2026-08-23 at the end of design slice 1 — the Logger port and its
 			// console sink, the composition root, the unrecovered-settings boundary and the
-			// Vue mount lifecycle, with `src/**/*.vue` inside `include` above: 83/83
-			// statements, 24/24 branches, 30/30 functions, 73/73 lines — 100% of all four.
+			// Vue mount lifecycle and the plugin-data probe, with `src/**/*.vue` inside
+			// `include` above: 92/92 statements, 34/34 branches, 33/33 functions, 81/81 lines —
+			// 100% of all four.
 			//
 			// Which increment moved which figure, so git is not the only record:
 			//   - first measurement, 21 statements:  95 / 75 / 90 / 94
 			//   - the view, its activation, registration, i18n and the settings pane
 			//     (44 statements):                   97 / 91 / 95 / 97
-			//   - design slice 1 (83 statements):    98 / 95 / 96 / 98  ← this one
+			//   - design slice 1 (92 statements):    98 / 97 / 96 / 98  ← this one
 			//
 			// The floors are not 100. Rule 3 above wants one covered unit of headroom, and one
-			// unit is still large here: a statement is 1.2pp, a BRANCH 4.2pp. Pinning 100 would
+			// unit is still large here: a statement is 1.1pp, a BRANCH 2.9pp. Pinning 100 would
 			// make the first genuinely unreachable defensive branch a choice between a test
 			// gymnastic and lowering a floor, and a floor never comes down. Whole numbers
-			// rather than decimals: precision at n=83 would be theatre.
+			// rather than decimals: precision at n=92 would be theatre.
 			thresholds: {
 				statements: 98,
-				branches: 95,
+				branches: 97,
 				functions: 96,
 				lines: 98,
 			},

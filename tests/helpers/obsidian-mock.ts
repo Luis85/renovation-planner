@@ -26,6 +26,24 @@ export function getLanguage(): string {
 	return 'en';
 }
 
+/**
+ * The real `normalizePath`, and no kinder: it is what a path handed to the vault adapter
+ * has to pass through, and a fake that returned its input unchanged would pass every
+ * caller while the real call answered about a DIFFERENT path.
+ *
+ * Four things it does, all of them driven by
+ * `tests/infrastructure/obsidian/settings/pluginDataFile.test.ts`: Windows separators
+ * become forward slashes, repeated slashes collapse, leading and trailing slashes go, and
+ * the result is NFC-normalized — the last because macOS hands out NFD filenames and a
+ * decomposed path does not match a composed one.
+ */
+export function normalizePath(path: string): string {
+	return path
+		.replace(/[\\/]+/g, '/')
+		.replace(/^\/+|\/+$/g, '')
+		.normalize('NFC');
+}
+
 export type ViewFactory = (leaf: WorkspaceLeaf) => unknown;
 
 /** What a leaf must be for the code under test; `tests/helpers/workspace.ts` supplies one. */

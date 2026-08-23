@@ -323,10 +323,18 @@ Three rules follow, each a check rather than an intention:
   `settings === null` — it makes no `saveData` call — so a transient read failure cannot
   stamp defaults over a `data.json` that is sitting there intact. Bootstrap is not the only
   writer, though, and the other one is the trap: the settings tab writes on every control
-  change. While unrecovered it therefore offers no controls — `getSettingDefinitions()`
-  returns an empty array, which is exactly the case 1.13 falls back to `display()` for, and
-  that fallback renders what happened and what to do about it. Two independent guards, and
-  the second is what makes the first hold for a control nobody has written yet.
+  change. While unrecovered it therefore offers no CONTROL — `getSettingDefinitions()`
+  returns one text-only item (`SettingDefinitionEmpty`: a `name` and nothing to write
+  through) carrying what happened and what to do about it. Two independent guards, and the
+  second is what makes the first hold for a control nobody has written yet.
+
+  **Not the `display()` fallback**, which was the obvious shape and is refused on this
+  ruleset's own terms: `obsidianmd/settings-tab/no-deprecated-display` fails a tab that
+  implements both, and turning that rule off locally would not travel — the marketplace
+  review bot lints a submission with its own configuration, so the flag would arrive at
+  submission rather than at `npm run check`. A definition is independently the better
+  answer: it is what Obsidian's settings SEARCH indexes, which an imperatively drawn pane
+  is absent from.
 - **Nothing that reads or writes a configured location is composed.** The composition root
   is where those services are wired, so it is where they can be left unwired: while
   settings are unrecovered the root composes no repositories, no project index, and no
@@ -518,7 +526,9 @@ runtime involved.
 The settings tab (`SettingsTab`) is declarative — `getSettingDefinitions()`,
 `getControlValue()`, `setControlValue()` — which is what Obsidian 1.13+ renders from and
 indexes for the settings search; `display()` is called only when the definitions array is
-empty. It lives under `plugin/settings/`, not `presentation/`, because it needs the plugin
+empty, and this tab declares no `display()` at all — the definitions are never empty, since
+the unrecovered-settings case returns the reason as a text-only item. It lives under
+`plugin/settings/`, not `presentation/`, because it needs the plugin
 instance directly to read and write settings, and `presentation/` may not import `plugin/`.
 
 ### Build, lint, and test wiring
@@ -633,11 +643,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 // src/plugin/composition-root.ts
 export interface CompositionRoot {
-  readonly settings: RenovationPlannerSettings;
+  // null means could not be READ, never absent — a resolved null from loadData() is a
+  // fresh install and loads defaults. See the Design section above for why not defaults.
+  readonly settings: RenovationPlannerSettings | null;
   readonly logger: Logger;
 }
 export function createCompositionRoot(
-  settings: RenovationPlannerSettings,
+  settings: RenovationPlannerSettings | null,
   logger: Logger,
 ): CompositionRoot;
 
@@ -761,9 +773,10 @@ Module boundaries this slice fixes for every later one:
   slice 4. A companion case asserts the happy path logs nothing above `debug`, which is the
   shape of the console-noise rejection and is invisible to a test that only counts calls.
 - **Unrecovered settings** (`tests/plugin/settings/`): with `root.settings === null`,
-  `saveSettings()` makes no `saveData` call and `getSettingDefinitions()` returns `[]` —
-  the two writers, asserted independently, because either one alone still overwrites the
-  file the user still has. The `loadData()`-resolves-`null` case is asserted beside them as
+  `saveSettings()` makes no `saveData` call and `getSettingDefinitions()` declares no
+  CONTROL — the two writers, asserted independently, because either one alone still
+  overwrites the file the user still has. Asserted as "no item carries a control" rather
+  than as "the array is empty", because the array is not empty: it holds the reason. The `loadData()`-resolves-`null` case is asserted beside them as
   the opposite outcome: a fresh install loads `DEFAULT_SETTINGS`, saves normally, and
   renders its controls. A single test that only drove "no settings" would treat the two
   identically, which is the confusion the boundary exists to prevent.
@@ -819,7 +832,8 @@ Module boundaries this slice fixes for every later one:
 - [ ] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
       `null` — never `DEFAULT_SETTINGS` — with the view and command still registered. For
       as long as it stays null, `saveSettings()` makes no `saveData` call and
-      `getSettingDefinitions()` returns `[]` so the tab offers no control that could:
+      `getSettingDefinitions()` offers no control that could — it returns one text-only
+      definition carrying the reason, and the tab declares no deprecated `display()`:
       a failed read never becomes a write, at bootstrap or later in the session. A
       `loadData()` that *resolves* `null` is the fresh-install path and is unaffected.
 - [ ] `no-console` is an error across `src/` with **no** allowances, carved out only for

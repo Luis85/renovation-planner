@@ -11,6 +11,7 @@ export const en = {
 	'settings.units.desc': 'Measurement system for quantities and dimensions.',
 	'settings.units.metric': 'Metric',
 	'settings.units.imperial': 'Imperial',
+	'settings.unrecovered': 'Settings could not be read. Fix or remove data.json in the plugin folder, then reload the app.',
 } as const;
 
 export type StringKey = keyof typeof en;

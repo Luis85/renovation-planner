@@ -45,6 +45,13 @@ export class Plugin {
 	/** What `loadData` answers; a test plants it BEFORE `onload`. Null is a fresh install. */
 	data: unknown = null;
 
+	/**
+	 * When set, `loadData` REJECTS with it. A RESOLVED null is a fresh install and stays
+	 * `data`'s job — the two are different outcomes and a fake that could only express one
+	 * would make the suite unable to tell them apart.
+	 */
+	loadFailure: unknown = undefined;
+
 	/** Every `saveData` call, in order — so a test asserts what was written AND how often. */
 	readonly saved: unknown[] = [];
 
@@ -56,7 +63,7 @@ export class Plugin {
 	) {}
 
 	loadData(): Promise<unknown> {
-		return Promise.resolve(this.data);
+		return this.loadFailure === undefined ? Promise.resolve(this.data) : Promise.reject(this.loadFailure);
 	}
 
 	/**
@@ -157,9 +164,10 @@ export class ItemView {
  *
  * What a test drives instead is the three overrides, which is the whole of a tab's
  * contract: what it declares, what it answers for a key, and what it does with a new value.
- * There is deliberately no `containerEl` here: nothing reads one (the tab is declarative),
- * and a fake member nothing exercises cannot be caught drifting — it arrives with its
- * first consumer, per this file's own policy.
+ * There is deliberately no `containerEl` here: nothing reads one (the tab is declarative
+ * all the way down — even the unrecovered-settings message is a text-only DEFINITION rather
+ * than a `display()` fallback), and a fake member nothing exercises cannot be caught
+ * drifting — it arrives with its first consumer, per this file's own policy.
  */
 export class PluginSettingTab {
 	constructor(

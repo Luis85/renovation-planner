@@ -2,7 +2,7 @@ import { Plugin } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
-import type { LogLevel } from '../application/ports/Logger';
+import type { LogLevel, Logger } from '../application/ports/Logger';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
 import { createCompositionRoot, type CompositionRoot } from './composition-root';
 import { settingsFrom, type RenovationPlannerSettings } from './settings/settings';
@@ -56,7 +56,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// Settings first of the steps — the SDD's stated onload order (§9) — so everything
 		// registered below may read them. The merge is pure (`settingsFrom`); only the
 		// `loadData` call lives here, in the layer allowed to name it.
-		this.root = createCompositionRoot(settingsFrom(await this.loadData()), logger);
+		this.root = createCompositionRoot(await this.loadSettings(logger), logger);
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
@@ -88,12 +88,33 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * `loadData()` RESOLVING null is a fresh install, not a failure: `settingsFrom(null)`
+	 * returns defaults and the plugin is fully configured. Only a REJECTION is unrecovered,
+	 * and recovery is a reload rather than a repair UI — fixing or removing `data.json` and
+	 * toggling the plugin re-runs this. Nothing here re-reads on a timer and nothing writes a
+	 * replacement file, because both amount to guessing at data the user still has.
+	 */
+	private async loadSettings(logger: Logger): Promise<RenovationPlannerSettings | null> {
+		try {
+			return settingsFrom(await this.loadData());
+		} catch (cause) {
+			logger.error('settings.load.failed', { cause });
+			return null;
+		}
+	}
+
+	/**
 	 * The one write path for settings, so no control has to know how they are persisted.
 	 * `saveData` replaces the whole file, which is why this takes the complete next settings
 	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
 	 * fields are readonly, so there is exactly one way state changes here.
 	 */
 	saveSettings(next: RenovationPlannerSettings): Promise<void> {
+		// Refused for the whole SESSION, not only at bootstrap: a transient read failure
+		// must not stamp defaults over a `data.json` that is sitting there intact. The tab
+		// is the other writer and is guarded independently (`getSettingDefinitions`).
+		if (this.root.settings === null) return Promise.resolve();
+
 		this.root = createCompositionRoot(next, this.root.logger);
 		return this.saveData(next);
 	}

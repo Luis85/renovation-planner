@@ -13,4 +13,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.units.desc': 'Maßsystem für Mengen und Abmessungen.',
 	'settings.units.metric': 'Metrisch',
 	'settings.units.imperial': 'Imperial',
+	'settings.unrecovered':
+		'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
 };

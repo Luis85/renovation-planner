@@ -76,3 +76,28 @@ export const lintText = async (code: string, filePath: string): Promise<string[]
 
 	return result.messages.map((message) => message.ruleId ?? 'PARSE_ERROR');
 };
+
+/**
+ * Resolve the flat config once, so no TEST BODY pays for it.
+ *
+ * Measured, and the reason this exists rather than a raised global timeout: the first
+ * `lintText` or `resolveConfig` call in a worker costs ~3s idle and was seen at 17.8s under
+ * full-suite parallel load, while every call after it is 7–30ms. Vitest's default test
+ * timeout is 5s, so whichever test happened to be first in its file carried a cost that
+ * intermittently blew that budget — a green suite that goes red on whichever machine is
+ * busiest, which is the failure mode `suppressions.test.ts` was already one caller away
+ * from (its own heaviest case measures 3.0s) and which a third caller made real.
+ *
+ * A `beforeAll` is where a one-time toolchain boot belongs: it can be given a budget that
+ * says "this is slow on purpose" without also telling every test in the repository that
+ * five seconds of silence is acceptable. `logging-carve-out.test.ts` already did exactly
+ * this, with this number — the constant is here so the other two callers share it rather
+ * than each picking their own, and so raising it is one edit. Each file needs its own hook:
+ * vitest gives each test file its own module registry, so the instance above is per file,
+ * and a file that already resolves a config in a `beforeAll` needs no second warm-up.
+ */
+export const ESLINT_BOOT_MS = 60_000;
+
+export const warmUpEslint = async (): Promise<void> => {
+	await eslint.calculateConfigForFile('src/main.ts');
+};

@@ -1,9 +1,13 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { resolveConfig } from '../helpers/eslint';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { ESLINT_BOOT_MS, resolveConfig, warmUpEslint } from '../helpers/eslint';
 import { REPO, lintOne, lintedFiles } from '../helpers/oxlint';
+
+// The ESLint boot, paid once here rather than by whichever test ran first — see
+// ESLINT_BOOT_MS in tests/helpers/eslint.ts for the measurement.
+beforeAll(warmUpEslint, ESLINT_BOOT_MS);
 
 /**
  * No linted file silences a linter inline.

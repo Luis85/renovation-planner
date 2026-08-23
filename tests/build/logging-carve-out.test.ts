@@ -1,7 +1,8 @@
 import { Linter } from 'eslint';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { type ResolvedConfig, isIgnored, resolveConfig, severityOf } from '../helpers/eslint';
+import { ESLINT_BOOT_MS, isIgnored, resolveConfig, severityOf, type ResolvedConfig } from '../helpers/eslint';
+
 
 /**
  * `eslint.config.mjs` carves `no-console` off for `src/infrastructure/logging/**`, and the
@@ -73,7 +74,7 @@ describe('the logging carve-out', () => {
 	beforeAll(async () => {
 		inCarveOut = await resolveConfig(IN_CARVE_OUT);
 		outside = await resolveConfig(OUTSIDE);
-	}, 60_000);
+	}, ESLINT_BOOT_MS);
 
 	it('turns no-console off under src/infrastructure/logging/ and nowhere else', () => {
 		expect(severityOf(inCarveOut, 'no-console')).toBe(0);

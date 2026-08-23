@@ -2,8 +2,8 @@
 type: Task
 parent: "[[Foundation and composition root]]"
 order: 10
-status: ""
-started: ""
+status: Active
+started: 2026-08-23
 finished: ""
 horizon: ""
 start: ""
@@ -812,31 +812,31 @@ Module boundaries this slice fixes for every later one:
 
 ## Definition of Done
 
-- [ ] `RenovationPlannerPlugin.onload()` loads settings, builds the composition root,
+- [x] `RenovationPlannerPlugin.onload()` loads settings, builds the composition root,
       registers the Renovation Project view, and wires both the ribbon icon and the command
       to the same `revealView` call — in the order SDD §9 states.
-- [ ] `src/plugin/composition-root.ts` exists, exporting `CompositionRoot` and
+- [x] `src/plugin/composition-root.ts` exists, exporting `CompositionRoot` and
       `createCompositionRoot`; the plugin holds one `root: CompositionRoot` field rather
       than a bare `settings` field.
-- [ ] `onload()` constructs exactly one `Logger` — before every other step, so the first
+- [x] `onload()` constructs exactly one `Logger` — before every other step, so the first
       step that can fail already has one — and hands it to `createCompositionRoot`;
       `plugin.root.logger` is that same object, asserted by identity. A successful load
       and unload emit nothing above `debug`, so a released build is silent unless
       something failed.
-- [ ] `createConsoleLogger('info')` emits `info`/`warn`/`error` and drops `debug`, with
+- [x] `createConsoleLogger('info')` emits `info`/`warn`/`error` and drops `debug`, with
       the level named in the emitted line; `warn`/`error` use `console.warn`/`console.error`
       and neither `console.log` nor `console.info` appears anywhere in `src/`, since the
       `obsidianmd` ruleset fails both and is deliberately left on inside the carve-out (the
       marketplace bot lints with its own config, so a local override would not travel).
       `error` forwards its `cause` untouched.
-- [ ] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
+- [x] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
       `null` — never `DEFAULT_SETTINGS` — with the view and command still registered. For
       as long as it stays null, `saveSettings()` makes no `saveData` call and
       `getSettingDefinitions()` offers no control that could — it returns one text-only
       definition carrying the reason, and the tab declares no deprecated `display()`:
       a failed read never becomes a write, at bootstrap or later in the session. A
       `loadData()` that *resolves* `null` is the fresh-install path and is unaffected.
-- [ ] `no-console` is an error across `src/` with **no** allowances, carved out only for
+- [x] `no-console` is an error across `src/` with **no** allowances, carved out only for
       `infrastructure/logging/**`; `npm run lint` passes, and a `console.error` added
       anywhere else fails it. **In both linters**: `eslint.config.mjs` and
       `.oxlintrc.json` each carry the rule and each carry the carve-out, so removing it
@@ -846,7 +846,16 @@ Module boundaries this slice fixes for every later one:
       fails `console.log`/`console.info` *inside* the carve-out, so that one case is
       caught by `npm run check` and `tests/build/logging-carve-out.test.ts`, never by the
       edit loop.
-- [ ] Every `src/` lint block matches `**/*.vue` as well as `**/*.ts`, wired with
+
+      **Measured while wiring Vue: oxlint DOES parse an SFC** — it reports `no-console`
+      inside a `<script setup lang="ts">` block, and `--debug=files` names `ViewRoot.vue`
+      among the files it lints. So `.vue` files are in the oxlint gate AND in the edit loop,
+      which needed two edits rather than a note: `vue` joined the extension list in
+      `tests/build/lint-scope.test.ts` (or that test would assert about a tree with the SFCs
+      cut out of it) and in `scripts/lint-edited.mjs`, whose own list was missing it — so an
+      SFC edit was silently skipped by the hook. Verified end to end: the hook exits 0 on a
+      clean SFC and 2 on one with a console call.
+- [x] Every `src/` lint block matches `**/*.vue` as well as `**/*.ts`, wired with
       `vue-eslint-parser`, in the same change that adds Vue — the layer bans, the
       write-boundary selectors, the DOM-globals ban, the size budgets, `no-console`,
       **and the logging carve-out block itself**, which is the one this checklist used to
@@ -857,11 +866,23 @@ Module boundaries this slice fixes for every later one:
       `console.warn` each failing `npm run lint`, and by a `.vue` file under
       `infrastructure/logging/` passing it — not by the config reading as though it
       covers them.
-- [ ] The Renovation Project view opens from both the ribbon icon and the command palette,
+- [x] The Renovation Project view opens from both the ribbon icon and the command palette,
       reuses one leaf between them, and its type/display name/icon are all set.
-- [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
+- [x] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
       `Pinia` instance) into `contentEl`; `onClose()` unmounts it and empties `contentEl`.
-- [ ] The Vue arrival checklist is complete in this slice's own pull request, because
+      The app is held in a field named `vueApp` and NOT `app`: `View.app` is Obsidian's own
+      member, so the shorter name shadows it with an incompatible type and makes the whole
+      class unassignable to `View` — `registerView`'s factory stops type-checking, three
+      files away from the declaration. Invisible to the suite, which does not type-check;
+      found by `vue-tsc`.
+      A `src/presentation/views/vue-shim.d.ts` declares what an SFC import means to tooling
+      that cannot parse one: ESLint's type-aware rules run on the TypeScript project
+      service — plain tsserver, with no Vue language plugin — so without it every use of an
+      imported component in a `.ts` file is an unsafe-any. Its docblock carries the four
+      measurements bounding what it does and does not blind, including that SFC-to-SFC prop
+      checking in templates is unaffected. **Trigger for deleting it:** the day a `.ts`
+      file needs a component's real props checked.
+- [x] The Vue arrival checklist is complete in this slice's own pull request, because
       every item on it is a gate that silently does nothing until it is wired: `vue`,
       `pinia` and `@vue/test-utils` added (`@vueuse/core` is NOT — see Design; `fallow`
       refuses a dependency with no importer, and this slice has none for it);
@@ -907,23 +928,59 @@ Module boundaries this slice fixes for every later one:
       neither `test-build` nor the coverage include, because neither exists in the shape it
       assumed. An imported checklist is scoped to what its author could see, so it is a
       starting point for this repository's own gates, not an inventory of them.
-- [ ] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
+
+      **Narrowed, and the narrowing is the guarantee.** The `.vue` block carries the
+      NON-type-aware rules only: the budgets, `no-console`, the layer bans, the write
+      boundary and the DOM-globals ban. `@typescript-eslint/no-floating-promises` remains
+      `.ts`-only, because type-aware linting of an SFC needs `extraFileExtensions` and a
+      file the project service can resolve, which the fixture technique above — linting
+      text at a path with no file on disk — cannot supply. **Trigger:** the first SFC with
+      an async call site is when the type-aware half gets wired, with `extraFileExtensions`
+      and a fixture that exists on disk.
+
+      Five further corrections, each measured while wiring this and each having changed the
+      edit rather than only the prose:
+
+      - `eslint-plugin-vue`'s flat configs carry **no `files` of their own**, so spreading
+        them as shipped points every Vue rule at every linted file — and
+        `vue/multi-word-component-names` loading against `package.json` throws
+        `Cannot read properties of undefined (reading 'getDocumentFragment')` and takes the
+        whole `npm run lint` run down with it. They are scoped to `src/`'s SFCs.
+      - `flat/recommended` brings `vue/html-indent`, which defaults to two SPACES while
+        this repository indents with tabs. It is configured to `'tab'` rather than
+        reformatting one file away from every other — and it therefore gets fixtures in
+        BOTH directions, so "we told it tabs" stays distinguishable from "we turned it off".
+      - `vue/component-api-style` reports on the Options API being **used**. An
+        `export default` carrying only a `name` property is not a use of it and reported
+        nothing, so that fixture was wrong rather than the scope; it uses `data()`.
+      - `vue/component-name-in-template-casing` defaults to `registeredComponentsOnly`, so
+        a bare unimported `<view-root />` reports nothing. The fixture imports the
+        component — the real case — and the rule stays at its default. The narrower
+        guarantee: an **unregistered** kebab-case tag is not caught.
+      - Two fixtures beyond the six, for `no-restricted-syntax` — the ban with the most to
+        lose from a `.ts`-only scope, and the one flat config OVERRIDES rather than merges
+        when two blocks match a file: a vault write and an untranslated `setText` literal,
+        both from a component.
+- [x] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
       renders from `getSettingDefinitions()` and both reads and writes go through
       `settingsFrom`.
-- [ ] `eslint.config.mjs` bans, per directory, every sibling layer above it in the
+- [x] `eslint.config.mjs` bans, per directory, every sibling layer above it in the
       dependency order and the packages `vue`/`pinia`/`konva`/`vue-konva`/`obsidian` for
       `core/`, `domain/`, and `application/` (and the first three of those five for
       `infrastructure/`); a DOM-globals ban applies to `core/` and `domain/`.
       `npm run lint` passes with zero warnings (`--max-warnings 0`) against an empty
       `core/`/`domain/` and an `application/` holding only `ports/Logger.ts`.
-- [ ] `npm run build` produces a single `dist/main.js` (CJS, named exports) with Obsidian,
+- [x] `npm run build` produces a single `dist/main.js` (CJS, named exports) with Obsidian,
       Electron, CodeMirror, and Node builtins external; `npm run test` and
       `npm run test:coverage` pass against the coverage floors recorded for this increment.
-- [ ] `npm run check` (build + lint + coverage-thresholded tests + `fallow`) passes on a
+- [x] `npm run check` (build + lint + coverage-thresholded tests + `fallow`) passes on a
       clean checkout, and is the CI gate on both Ubuntu and Windows.
 - [ ] Manually verified inside Obsidian (`npm run test-build`, a real vault): the plugin
       loads, the ribbon icon and command both open the empty Renovation Project view, and
       reloading Obsidian does not duplicate leaves or lose the settings value.
+      **Left unticked deliberately** — no gate in this repository can answer it, and it is
+      the one box a person has to walk. The checklist to walk is in the implementation
+      plan's Task 6, Step 5.
 
 ## References
 

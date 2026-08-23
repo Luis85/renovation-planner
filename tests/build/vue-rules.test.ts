@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { lintText } from '../helpers/eslint';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
+
+// The ESLint boot, paid once here rather than by whichever test ran first — see
+// ESLINT_BOOT_MS in tests/helpers/eslint.ts for the measurement.
+beforeAll(warmUpEslint, ESLINT_BOOT_MS);
 
 /**
  * The Vue half of the lint gate, proven by fixtures rather than by reading the config.

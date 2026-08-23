@@ -254,6 +254,16 @@ A user who changed a setting and restarted a day later has no way to connect the
 So the change is a compensated operation that must complete **before** the setting is
 written, in the same shape as this slice's other multi-file sequences:
 
+Steps 3–5 run inside `PlanGeometryStore.withGlobalBarrier`, for the reason the
+per-plan serialization exists at all — see "Sidecar writes are serialized per plan".
+A Zone save in flight writes its plan's sidecar *at the path the index gave it*, so
+without the barrier a save can recreate or update a sidecar in the old folder while
+the move is walking it: step 4 then rebuilds from the target only, step 5 makes that
+the persisted truth, and the write is lost at the next restart with nothing to
+indicate it. Per-plan locks cannot prevent this, because the migration's claim is
+about every plan at once — "no sidecar may be written anywhere right now" — which is
+not a statement any per-plan queue can make.
+
 ```text
 1. Resolve and normalizePath the target folder; create it if absent. A target that
    exists and already contains .rpgeo files is refused (ValidationError) rather than
@@ -262,10 +272,13 @@ written, in the same shape as this slice's other multi-file sequences:
 2. Write a migration marker to the plugin's own data (NOT data.json's settings, which
    step 6 still has to write): { from, to, startedAt }. This is what makes the move
    survivable across a process exit — see below.
+   ─── acquire the global geometry-write barrier ───
 3. Move every .rpgeo file from the current folder to the target, recording each move.
 4. Rebuild the Project Index against the new folder, so getGeometrySidecarPath()
    resolves before any caller can ask.
 5. Persist geometrySidecarFolder through settingsFrom.
+   ─── release the barrier: queued Zone saves resume, and resolve their sidecar
+       paths through the rebuilt index, so they land in the new folder ───
 6. Clear the migration marker. The move is complete only now.
 
 On failure at ANY of steps 3, 4 or 5: move every file already moved back to the
@@ -706,6 +719,13 @@ interface PlanGeometryStore {
     planId: PlanId,
     change: (dto: PlanGeometryDTO) => PlanGeometryDTO,
   ): Promise<Result<void, PersistenceError | ValidationError>>;
+
+  // Drains every per-plan queue and holds them all for the duration of `during`,
+  // so no sidecar write can land while it runs. The folder migration is the one
+  // caller — see "Changing the sidecar folder moves the sidecars". Per-plan locks
+  // cannot express "no plan may be written right now", which is exactly what
+  // relocating every sidecar at once requires.
+  withGlobalBarrier<T>(during: () => Promise<T>): Promise<T>;
 }
 ```
 
@@ -910,6 +930,12 @@ interface FindZonesByPlanQuery {
   split and clears it. An implementation that clears the marker at the end of its
   rollback path passes every other test here and loses the recovery signal only in
   this one.
+- **Migration-versus-write test:** start a Zone save on a Plan and, without awaiting
+  it, start a `geometrySidecarFolder` change. Assert the Zone's geometry is present in
+  the sidecar in the **new** folder afterwards — the save either completed before the
+  barrier or resumed after it, and in neither case landed in the old folder or
+  vanished. Driven by interleaving without awaiting, since a migration that ran
+  between two fully-awaited operations passes with no barrier at all.
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -981,7 +1007,10 @@ interface FindZonesByPlanQuery {
     the rebuild or the settings write restores every file and leaves the setting
     unchanged; a target folder already holding `.rpgeo` files is refused. ADR-011's
     orphaning consequence is discharged here rather than left as a warning — a Plan's
-    geometry stays reachable across the change with no reload.
+    geometry stays reachable across the change with no reload. The move, rebuild and
+    settings write run inside `PlanGeometryStore.withGlobalBarrier`, so a concurrent
+    Zone save cannot write a sidecar into the folder being emptied — asserted by
+    interleaving a save with the change and finding the geometry in the new folder.
 6f. A process exit part-way through that change is recoverable: a migration marker
     written before the first move and cleared only after the setting is persisted lets
     the next plugin load complete the interrupted move and clear the marker, before

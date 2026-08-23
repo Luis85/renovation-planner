@@ -188,6 +188,11 @@ interface Requirement {
   quantity: DerivedValue<Quantity>;     // "calculated quantity" + "manual override"
   estimatedCost: DerivedValue<Money>;
   recalculationStatus: "current" | "stale"; // persisted — see "Event cascade" below
+  revision: number;                     // persisted; bumped by the repository on every
+                                        // write. The compare-and-swap key that makes a
+                                        // snapshot-restoring undo safe against a
+                                        // concurrent edit — see "Restoring the whole
+                                        // entity…" below. Not a schema version.
   requiredDate?: string;                // ISO date, optional — schema completeness only, unused by this slice's loop
 }
 ```
@@ -645,23 +650,57 @@ pre-edit snapshot back wholesale would erase that work silently, and the wider t
 snapshot the more it erases: the very breadth that makes the undo a true inverse of
 *this* command is what makes it a clobber of everyone else's.
 
-So undo is conditional on the entity still being what this command left. The adapter
-records both sides of its own edit — the pre-edit snapshot **and** the state its
-`execute()` produced — and `undo()` re-reads the current Requirement and compares it
-against that recorded "after" state. Equal means nothing else has touched it and the
-restore is safe. Different means a later edit exists that the snapshot does not know
-about, and undo returns a conflict `ValidationError` rather than writing: the command
-stays on `undoStack` (slice 6's stack-retention rule), nothing is lost, and the user is
-told their undo is out of date rather than having it silently take someone else's edit
-with it.
+So undo is conditional on the entity still being what this command left — and the check
+and the write have to be **one operation**, not a comparison followed by a save. A
+`Requirement` therefore carries a persisted `revision`, bumped by the repository on
+every successful write, and the repository's save is a compare-and-swap:
 
-Comparing against the *after* state rather than a version counter is deliberate: it
-needs no new persisted field, and it answers the exact question — "is the world still
-holding what I put there?" — rather than a proxy for it. It is the same test the
-assignment adapter's redo applies to its endpoints, in the other direction: an inverse
-is only valid against the state it was computed for. Every snapshot-restoring undo in
-this slice takes this check, not only these two adapters — the delete resolutions'
-`affectedBefore` restore included, since it has strictly more entities to clobber.
+```typescript
+// application/ports — the only shape that makes "check, then restore" safe
+save(requirement: Requirement, expectedRevision: number):
+  Promise<Result<Requirement, PersistenceError | ValidationError>>;
+  // ValidationError code 'requirement.revision-conflict' when the stored revision
+  // is not expectedRevision. The repository serializes per RequirementId, so its
+  // own read-compare-write cannot be interleaved.
+```
+
+Undo passes the revision its own `execute()` produced. Equal means nothing else has
+touched the Requirement and the restore lands; different means a later edit exists that
+the snapshot does not know about, and the save refuses — undo returns the conflict, the
+command stays on `undoStack` (slice 6's stack-retention rule), nothing is lost, and the
+user is told their undo is out of date rather than having it silently take someone
+else's edit with it.
+
+**The first version of this check read, compared, and then wrote as three steps**, which
+narrows the window rather than closing it: ordinary Requirement writes deliberately share
+no lock, so another tab can save between the comparison and the restore, and the restore
+then clobbers exactly the edit the comparison was there to protect. That is the same
+lesson the delete sequence records a few sections down — a race between two commands is
+not removable by re-reading inside one of them — arrived at a second time, from the
+other side. Comparison has to happen where the write happens.
+
+That also overrides the earlier preference for comparing whole entities rather than a
+version counter. Comparing the entity answers a slightly better question, but it cannot
+be made atomic without doing it inside the write, and a single integer is what a write
+can compare cheaply. A better question asked non-atomically loses to a narrower one
+asked atomically.
+
+Every writer passes an expected revision, not only undo: a caller that fetched a
+Requirement, computed from it, and saves without one is issuing a blind last-write-wins,
+which is the same lost update from a different direction. And every snapshot-restoring
+undo in this slice takes this path — the delete resolutions' `affectedBefore` restore
+included, since it has strictly more entities to clobber, each with its own revision.
+
+Why this is a `Requirement` concern and not a general one, stated so the scope is a
+decision rather than an oversight: the geometry-bearing undos are already covered by a
+different mechanism. Slice 8's zone-move undo writes through `PlanGeometryStore.mutate`,
+which is a read-modify-write under that plan's own lock (slice 4), so it cannot lose an
+update; and its zone-*delete* undo restores an entity that, being deleted, nobody could
+have edited in the meantime. `Requirement`s are plain Markdown notes with neither
+protection — no per-plan mutate lock, and very much still present while being undone —
+which is exactly why they need their own. `markStale` needs no revision either: it sets
+one field in one direction, and the design already forbids anything moving it back
+except a successful recalculation.
 
 The snapshot is taken on the first `execute()` only; redo re-applies the recorded new value
 rather than re-reading what undo just wrote — the same rule the assignment adapter follows,
@@ -1062,7 +1101,11 @@ interface AssetRepository {
 
 interface RequirementRepository {
   getById(id: RequirementId): Promise<Result<Requirement | null, PersistenceError>>;
-  save(requirement: Requirement): Promise<Result<void, PersistenceError | ValidationError>>;
+  // Compare-and-swap: refuses with ValidationError 'requirement.revision-conflict' if
+  // the stored revision is not expectedRevision, and returns the saved Requirement
+  // carrying its new revision. Serialized per RequirementId, so the compare and the
+  // write are one operation — a caller cannot make them atomic from outside.
+  save(requirement: Requirement, expectedRevision: number): Promise<Result<Requirement, PersistenceError | ValidationError>>;
   delete(id: RequirementId): Promise<Result<void, PersistenceError>>;
   listByZone(zoneId: ZoneId): Promise<Result<Requirement[], PersistenceError>>;
   listByAsset(assetId: AssetId): Promise<Result<Requirement[], PersistenceError>>;
@@ -1608,6 +1651,14 @@ are additive, not breaking.
       present, and that the command stayed on `undoStack`. Asserted for the override
       adapters and for the delete resolutions' `affectedBefore` restore, which has more
       entities to lose.
+- [ ] That refusal is atomic, not merely checked: `RequirementRepository.save` takes an
+      `expectedRevision` and refuses on mismatch, serialized per `RequirementId`. Driven
+      by a repository double that lands a competing write *between* a caller's read and
+      its save — the interleaving a compare-then-write implementation loses to, and the
+      only one that distinguishes a real compare-and-swap from a narrowed window.
+- [ ] Every `save` call site passes an `expectedRevision`; none writes blind. Checked
+      by the type (there is no one-argument overload), so a last-write-wins caller
+      cannot compile rather than being caught by review.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
       (§92 #1–3).
 

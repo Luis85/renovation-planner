@@ -1,5 +1,4 @@
 ---
-kind:
 name: Spatial object
 layer: domain
 persistence: sidecar
@@ -8,6 +7,7 @@ sources:
   - PRD §7
   - PRD §30
   - PRD §34
+  - PRD §37
   - PRD §38
   - PRD §59
   - SDD §22
@@ -63,6 +63,6 @@ drawn on the plan becomes *the bathroom* rather than staying a shape.
 
 ## Sources
 
-PRD §7 · PRD §30 · PRD §34 · PRD §38 · PRD §59 · SDD §22 · SDD §26 · SDD §40, in
+PRD §7 · PRD §30 · PRD §34 · PRD §37 · PRD §38 · PRD §59 · SDD §22 · SDD §26 · SDD §40, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

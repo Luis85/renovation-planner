@@ -1,13 +1,14 @@
 ---
-kind:
 name: Order
 layer: domain
 persistence: note
 sources:
+  - PRD §11
   - PRD §24
   - PRD §33
+  - PRD §36
   - PRD §37
-  - PRD §11
+  - PRD §60
 type: entity
 ---
 
@@ -52,6 +53,6 @@ the expected delivery date and the order reference in frontmatter.
 
 ## Sources
 
-PRD §24 · PRD §33 · PRD §37 · PRD §11, in
+PRD §11 · PRD §24 · PRD §33 · PRD §36 · PRD §37 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

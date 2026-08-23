@@ -1,13 +1,13 @@
 ---
-kind:
 name: Milestone
 layer: domain
 persistence: note
 sources:
   - PRD §21
-  - PRD §58
-  - PRD §77
   - PRD §28
+  - PRD §58
+  - PRD §60
+  - PRD §77
 type: entity
 ---
 
@@ -54,6 +54,6 @@ mostly frontmatter.
 
 ## Sources
 
-PRD §21 · PRD §58 · PRD §77 · PRD §28, in
+PRD §21 · PRD §28 · PRD §58 · PRD §60 · PRD §77, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

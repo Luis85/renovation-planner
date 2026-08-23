@@ -1,5 +1,4 @@
 ---
-kind:
 name: Asset
 layer: domain
 persistence: note
@@ -8,7 +7,9 @@ sources:
   - PRD §8
   - PRD §17
   - PRD §32
+  - PRD §36
   - PRD §59
+  - PRD §60
   - PRD §84
   - SDD §55
 type: entity
@@ -62,6 +63,6 @@ links and photos in the body.
 
 ## Sources
 
-PRD §8 · PRD §17 · PRD §32 · PRD §59 · PRD §84 · SDD §55, in
+PRD §8 · PRD §17 · PRD §32 · PRD §36 · PRD §59 · PRD §60 · PRD §84 · SDD §55, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

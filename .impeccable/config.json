@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "docs/concepts/concept.css"
+        ],
+        "createdAt": "2026-08-23T15:59:59.237Z",
+        "reason": "The .rp-canvas grid IS the plan canvas: an imported floor plan that pans and zooms, which is the blueprint/measurement surface this rule explicitly carves out. Lines derive from --text-normal so they re-tint per theme. SDD 16-21."
+      }
+    ]
+  }
+}

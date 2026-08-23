@@ -1,13 +1,14 @@
 ---
-kind:
 name: Supplier
 layer: domain
 persistence: note
 partOf: "[[Project]]"
 sources:
-  - PRD §22
   - PRD §10
+  - PRD §22
+  - PRD §36
   - PRD §59
+  - PRD §60
   - PRD §103
 type: entity
 ---
@@ -54,6 +55,6 @@ prose belongs.
 
 ## Sources
 
-PRD §22 · PRD §10 · PRD §59 · PRD §103, in
+PRD §10 · PRD §22 · PRD §36 · PRD §59 · PRD §60 · PRD §103, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

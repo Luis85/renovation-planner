@@ -4,7 +4,7 @@ name: Private renovator
 standing: primary persona
 sources:
   - PRD §1
-  - PRD §3.7
+  - PRD §3.5
   - PRD §4
   - PRD §5
   - PRD §52
@@ -24,7 +24,7 @@ visualize all planned measures spatially and connect them to costs and tasks, so
 always understand what must be done where, how much it costs, and how far the project has
 progressed.*
 
-What follows from that, and what §3.7's progressive complexity exists to protect, is that
+What follows from that, and what §3.5's progressive complexity exists to protect, is that
 they arrive knowing almost nothing about the model. They do not know what a
 [[Construction section]] is, they will not distinguish a [[Requirement]] from a
 [[Procurement item]] until the difference costs them money, and they will abandon the plugin
@@ -53,6 +53,6 @@ rather than learn a schema. Every concept in `entities/` has to be earnable in t
 
 ## Sources
 
-PRD §1 · PRD §3.7 · PRD §4 · PRD §5 · PRD §52, in
+PRD §1 · PRD §3.5 · PRD §4 · PRD §5 · PRD §52, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

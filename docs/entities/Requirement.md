@@ -1,11 +1,12 @@
 ---
-kind:
 name: Requirement
 layer: domain
 persistence: note
 sources:
   - PRD §32
+  - PRD §36
   - PRD §59
+  - PRD §60
   - PRD §75
   - PRD §88
   - PRD §89
@@ -62,6 +63,6 @@ id, the waste factor and any manual override in frontmatter.
 
 ## Sources
 
-PRD §32 · PRD §59 · PRD §75 · PRD §88 · PRD §89 · SDD §50 · SDD §51, in
+PRD §32 · PRD §36 · PRD §59 · PRD §60 · PRD §75 · PRD §88 · PRD §89 · SDD §50 · SDD §51, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

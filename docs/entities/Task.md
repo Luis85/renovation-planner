@@ -1,5 +1,4 @@
 ---
-kind:
 name: Task
 layer: domain
 persistence: note
@@ -8,6 +7,7 @@ sources:
   - PRD §8
   - PRD §20
   - PRD §58
+  - PRD §60
   - PRD §65
   - PRD §77
 type: entity
@@ -59,6 +59,6 @@ beside it, never instead of it.
 
 ## Sources
 
-PRD §8 · PRD §20 · PRD §58 · PRD §65 · PRD §77, in
+PRD §8 · PRD §20 · PRD §58 · PRD §60 · PRD §65 · PRD §77, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

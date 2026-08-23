@@ -1,5 +1,4 @@
 ---
-kind:
 name: Money
 layer: core
 persistence: none

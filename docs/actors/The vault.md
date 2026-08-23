@@ -20,7 +20,9 @@ type: actor
 
 A folder of Markdown files the user owns. It is both where this plugin persists and an actor
 in its own right, because it changes underneath the plugin and pushes those changes at it
-(SDD §46) rather than waiting to be asked.
+(SDD §46) rather than waiting to be asked. It is [[Obsidian]]'s store half: that note keeps
+the surfaces about being an *application* — lifecycle, views, commands, settings — and hands
+the Vault API, the FileManager and the metadata cache here.
 
 Treating it as an actor rather than as a database is the whole of §3.2. A database is private
 to the program that owns it; this is not. Every entity marked `persistence: note` in
@@ -49,6 +51,12 @@ folder paths themselves be configurable, so even the shape of the store is their
 - Keeping derived values *out* of frontmatter (§88). Area and perimeter are recomputed on
   read, because a stored derivative drifts away from the geometry that produced it.
 - Checking references before deleting (§64), and never a silent cascade.
+- Writing a `schema-version` on everything it persists, and migrating deterministically —
+  [[Every persistent object carries a schema version]]. The files outlive the version that
+  wrote them and there is no server to run a migration on.
+- Writing only on a completed domain action, never on a frame —
+  [[Only a completed domain action persists]]. A drag is hundreds of positions and one
+  decision, and this store is a folder of files the user syncs.
 
 ## Sources
 

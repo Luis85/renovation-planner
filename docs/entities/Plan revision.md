@@ -1,12 +1,12 @@
 ---
-kind:
 name: Plan revision
 layer: domain
 persistence: note
 partOf: "[[Plan]]"
 sources:
-  - PRD §31
   - PRD §30
+  - PRD §31
+  - PRD §60
   - PRD §61
 type: entity
 ---
@@ -50,6 +50,6 @@ describes.
 
 ## Sources
 
-PRD §31 · PRD §30 · PRD §61, in
+PRD §30 · PRD §31 · PRD §60 · PRD §61, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

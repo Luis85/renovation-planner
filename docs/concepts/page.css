@@ -1,0 +1,616 @@
+/*
+ * The concept PAGE's own furniture — the frame around the mock, never the mock.
+ *
+ * The split is the same one `tests/harness/theme.css` keeps against
+ * `tests/harness/obsidian.css`, and for the same reason: a mock whose frame and whose
+ * subject share a stylesheet cannot be reviewed, because a reader cannot tell which
+ * decisions are being proposed and which are the page holding them up.
+ *
+ * So: every selector here names something the PAGE draws — a `.pg-*` class. Nothing here
+ * styles a `.rp-*` element, and nothing here restates a value Obsidian's app.css declares.
+ * `concept.css` is the proposal; this file is the wall it is pinned to.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/*
+ * These pages are DOCUMENTS. Obsidian's app.css is written for an app WINDOW, and its
+ * `html, body` rule says so:
+ *
+ *     html, body { height: 100%; width: 100%; overscroll-behavior: none; }
+ *     body { overflow: hidden; overflow: clip; contain: strict; user-select: none; }
+ *
+ * Every one of those is correct inside Obsidian, where the shell owns the viewport and each
+ * pane scrolls itself. On a page whose content is taller than the screen they combine into a
+ * page that cannot scroll at all — and `contain: strict` is the one that actually does it,
+ * because strict containment includes SIZE containment: the body stops being measured by its
+ * children, reports no content height, and clips the rest.
+ *
+ * So this block is not a restatement of a host value, which the rest of this file refuses.
+ * It is the one thing app.css cannot know: that this document is not a pane. Four
+ * declarations, each undoing exactly one app-shell assumption, and no more.
+ *
+ * `tests/harness/theme.css` records the other half of the same trap from the other side —
+ * there, app.css's `height: 100%` needs an `html` height the harness page has no rule for.
+ * Same rule, opposite failure, and both are worth having written down.
+ */
+html.pg-doc { height: auto; }
+
+.pg {
+	margin: 0;
+	min-height: 100vh;
+	/* Undo the app shell: scroll, be measured by content, and allow selection. */
+	height: auto;
+	overflow: visible;
+	contain: none;
+	user-select: text;
+	-webkit-user-select: text;
+	overscroll-behavior: auto;
+
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+	color: var(--text-normal);
+}
+
+/* One selector list, both page kinds, so a focus ring cannot differ between them. */
+.pg :focus-visible,
+.pg-solo :focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/* ── The banner. It says what this is and what it is not, on every page, because
+      a mock that circulates without that sentence gets read as a screenshot. ── */
+.pg-banner {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-4);
+	padding: 10px 22px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.pg-banner-mark {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	font-weight: 600;
+	letter-spacing: -0.005em;
+}
+
+.pg-banner-mark svg { color: var(--interactive-accent); }
+
+/* Invented data is LABELLED. PRODUCT.md makes this binding, not decorative:
+   there is no real renovation project behind any number on these pages. */
+.pg-invented {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 7px;
+	border: 1px dashed var(--text-warning);
+	border-radius: var(--radius-s);
+	/* --text-warning is 2.73:1 here. The label is a claim about the entire page, so
+	   it stays readable and the warning hue rides the border and the icon. */
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	font-weight: 500;
+}
+
+.pg-invented svg { color: var(--text-warning); }
+
+.pg-nav { display: flex; gap: 3px; margin-left: auto; }
+
+.pg-nav a {
+	padding: 4px 10px;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	text-decoration: none;
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-nav a:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.pg-nav a[aria-current="page"] { background: var(--background-modifier-hover); color: var(--text-normal); font-weight: 600; }
+
+.pg-controls { display: flex; align-items: center; gap: 6px; }
+
+.pg-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.pg-btn:hover { background: var(--background-modifier-hover); }
+.pg-btn[aria-pressed="true"] {
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+/* ── Page rhythm. More space above a heading than below it. ── */
+.pg-main { padding: 0 22px 72px; max-width: 1500px; margin: 0 auto; }
+
+.pg-lede { max-width: 68ch; padding: 26px 0 4px; }
+
+.pg-lede h1 {
+	margin: 0 0 8px;
+	font-size: 1.6rem;
+	font-weight: 650;
+	letter-spacing: -0.02em;
+	line-height: 1.15;
+	text-wrap: balance;
+}
+
+.pg-lede p { margin: 0 0 10px; color: var(--text-muted); }
+.pg-lede a { color: var(--interactive-accent); text-underline-offset: 2px; }
+.pg-lede code { font-size: 0.92em; }
+
+.pg-section { padding-top: 42px; }
+
+.pg-section > h2 {
+	margin: 0 0 4px;
+	font-size: 1.06rem;
+	font-weight: 620;
+	letter-spacing: -0.01em;
+}
+
+.pg-section > p {
+	margin: 0 0 16px;
+	max-width: 74ch;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-section > p code, .pg-spec code { color: var(--text-normal); }
+
+/* ── The mock frame: a device for the plugin, one per colour scheme. ── */
+.pg-schemes {
+	display: grid;
+	gap: 18px;
+	grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+}
+
+.pg-frame {
+	min-width: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+	background: var(--background-primary);
+}
+
+.pg-frame-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 11px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+}
+
+/* The pane the plugin would live in. Obsidian's own leaf nesting is reproduced in
+   the markup; this only gives it the height a real workspace leaf would. */
+.pg-leaf { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.pg-leaf > div { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pg-leaf > div > div:last-child { flex: 1; min-height: 0; }
+
+.pg-editor { height: 620px; }
+.pg-editor-tall { height: 660px; }
+
+/*
+ * A PANE, not a page — and this is the fix for the way these mocks used to mislead.
+ *
+ * The editor frames used to span the whole page, so a 1440px window drew a 1394px editor
+ * and the canvas got 67% of it. A real Obsidian pane is the window minus both sidebars,
+ * which is 680-900px in normal use, and there the two rails still take their fixed 462px
+ * and the canvas drops to 29-46%. The mock was reviewed at the one width that flattered it.
+ *
+ * `resize: horizontal` because that share is Design System's OPEN QUESTION 2, which says
+ * the spacing decision is undecided "until the three-column editor is measured in a real
+ * pane". A fixed screenshot cannot settle it and an argument should not have to; dragging
+ * the edge and watching the readout can. min-width is the narrowest pane that still holds
+ * three columns at all, which is itself part of the answer.
+ */
+.pg-pane {
+	width: min(100%, 880px);
+	min-width: 430px;
+	resize: horizontal;
+}
+
+.pg-pane-readout {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	align-items: baseline;
+	margin: 8px 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-pane-readout b {
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+}
+
+.pg-pane-readout em {
+	color: var(--text-muted);
+	font-style: normal;
+}
+
+.pg-pane-readout[data-tight="true"] b { color: var(--text-warning); }
+
+/*
+ * ── The editor alone: `plan-editor-solo.html`. ──
+ *
+ * The counter-case to this file's opening comment, and it needs almost nothing. That page
+ * drops `class="pg-doc"`, so app.css's app-shell rules — `html, body { height: 100% }`,
+ * `overflow: clip`, `contain: strict`, `user-select: none` — are left ALONE rather than
+ * undone, because there every one of them is correct: the document is a pane. So `body`
+ * already has a definite viewport height, `.pg-leaf`'s `height: 100%` already resolves
+ * against it, and the growth chain above already carries that height down to the canvas.
+ *
+ * Which leaves the one thing app.css cannot know, and one thing this page deliberately does
+ * not take. It does not carry `.pg`, so it inherits none of that block's typography — and
+ * it should not: the pane's type scale is Obsidian's own, and `--font-ui-small` on `.pg`
+ * exists to size PROSE. What remains is the margin, and it is the whole visual claim of the
+ * file: a pane draws to its own edges.
+ */
+.pg-solo {
+	margin: 0;
+}
+
+/*
+ * The one `.pg-*` element that sits INSIDE the mock rather than around it.
+ *
+ * It is the invented-data label, which `PRODUCT.md` makes binding on every page. The other
+ * four carry it in their banner; this page has no banner, so it rides in the status bar —
+ * and that is exactly why it is a `.pg-*` class styled here rather than an `.rp-*` class
+ * styled in concept.css. `docs/components/Status bar.md` specifies THREE regions and calls
+ * the bar a readout; an unmarked fourth item would read as a component this design does not
+ * have. Kept on this side of the split, a reader can still tell the proposal from the wall.
+ *
+ * Colour reinforces and never carries, per README: the text takes `--text-muted` and the hue
+ * goes to the icon, where WCAG's 3:1 non-text threshold applies rather than 4.5:1. So this
+ * block introduces no new colour VALUE, and the README's contrast finding holds for this page
+ * by construction rather than by a second measurement.
+ *
+ * No `margin-left: auto` here: concept.css already gives it to `.rp-savestate`, so the flag
+ * simply follows it. Two auto margins would split the difference and un-right-align both.
+ */
+.pg-mock-flag {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-mock-flag svg { color: var(--text-warning); }
+
+/* ── Specimen: one component, its states, and what holds it. ── */
+.pg-grid {
+	display: grid;
+	gap: 16px;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	align-items: start;
+}
+
+/*
+ * A specimen carries `.renovation-planner-view` so the component rules in concept.css —
+ * all scoped under that class — actually match inside it. The cost is that it also inherits
+ * the VIEW SHELL's geometry from the same class: `height: 100%` and `display: flex`. In a
+ * grid that made every card as tall as its tallest neighbour, so a short specimen trailed
+ * 100px of blank card, and `align-items: start` on the grid could not fix it because the
+ * item was asking for 100% of its area rather than being stretched into it.
+ *
+ * A specimen is a FRAME, not a view, so the frame says so. (0,2,0), which beats the shell
+ * rule regardless of sheet order.
+ */
+.pg-specimen.renovation-planner-view,
+.pg-stage.renovation-planner-view {
+	display: block;
+	height: auto;
+}
+
+/* These two keep their own display and only shed the shell's height, since a grid
+   and a centring flexbox are what they are FOR. */
+.pg-tokens.renovation-planner-view { display: grid; height: auto; }
+.pg-overlay-stage.renovation-planner-view { display: flex; height: auto; }
+
+.pg-specimen {
+	align-self: start;
+	min-width: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.pg-specimen-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 9px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.pg-specimen-head h3 { margin: 0; font-size: var(--font-ui-small); font-weight: 620; }
+
+.pg-keys { display: flex; gap: 4px; margin-left: auto; }
+
+.pg-key {
+	padding: 0 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-family: var(--font-monospace, monospace);
+}
+
+.pg-key[data-medium="canvas"] { color: var(--color-orange); border-color: currentcolor; }
+.pg-key[data-medium="both"] { color: var(--interactive-accent); border-color: currentcolor; }
+
+.pg-stage {
+	padding: 14px 12px;
+	background: var(--background-primary);
+}
+
+.pg-stage-tight { padding: 0; }
+
+/* Each state labelled, because an unlabelled row of variants is a guess about
+   which one is default. */
+.pg-states { display: flex; flex-direction: column; gap: 11px; }
+
+.pg-state-row {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	flex-wrap: wrap;
+}
+
+.pg-state-name {
+	flex: 0 0 92px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.pg-spec {
+	padding: 9px 12px 11px;
+	border-top: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.45;
+}
+
+.pg-spec dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+.pg-spec dt { color: var(--text-muted); }
+.pg-spec dd { margin: 0; color: var(--text-normal); }
+.pg-spec p { margin: 7px 0 0; }
+.pg-spec b { color: var(--text-normal); }
+
+/* ── Token plate: the canvas language, shown as itself. ── */
+.pg-tokens {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+	padding: 2px 0 0;
+}
+
+.pg-token {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.pg-token-chip {
+	width: 30px;
+	height: 30px;
+	flex: 0 0 auto;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.pg-token-name { display: block; font-weight: 600; }
+.pg-token-src {
+	display: block;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-family: var(--font-monospace, monospace);
+	overflow-wrap: anywhere;
+}
+
+/* ── Overlay stage: toasts and modals need a ground to sit above.
+      A plain surface, deliberately. This carried a tiled grid backdrop until the
+      design hook called it out, correctly: a grid belongs on the plan canvas,
+      where it is a measurement surface something pans across, and nowhere else.
+      Here the toast's own border and shadow, and the modal's scrim, already show
+      that the thing floats — the grid was doing nothing the overlay was not. ── */
+.pg-overlay-stage {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 190px;
+	padding: 18px;
+	background: var(--background-primary);
+}
+
+.pg-scrim {
+	position: absolute;
+	inset: 0;
+	background: color-mix(in srgb, var(--text-normal) 24%, transparent);
+}
+
+.pg-overlay-stage > .rp-modal, .pg-overlay-stage > .rp-toast { position: relative; }
+
+/* ── Two selectors this file would otherwise refuse, and the precedent for them ──
+ *
+ * The settings mock draws Obsidian's OWN markup, because a declarative tab is rendered by
+ * Obsidian and the plugin styles none of it — which is the whole point of that page. So
+ * `.setting-item` and `.setting-item-description` come from the vendored app.css and are not
+ * touched here.
+ *
+ * `.setting-item-info` and `.setting-item-control` are the exception: the vendored sheet is
+ * REDUCED, and those two carry no rule in it — the plugin it was reduced against never drove
+ * a settings pane, so nothing kept them. Without a rule the name, description and control
+ * pile into one column and the mock shows a layout Obsidian does not produce.
+ *
+ * This is the same shape as `tests/harness/theme.css` supplying the `.workspace-leaf-content`
+ * flex growth its reduction dropped, and it is declared here rather than in concept.css for
+ * the reason this file exists: it is scaffolding holding the mock up, not a proposal.
+ * Two declarations, no colours, and both go the day a fuller app.css is vendored.
+ */
+.setting-item-info { flex: 1; min-width: 0; }
+
+.setting-item-control {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ── The ladder matrix: an order, so a table and not a diagram ── */
+.pg-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.pg-ladder-table { overflow-x: auto; }
+
+.pg-matrix {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-matrix th,
+.pg-matrix td {
+	padding: 7px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	text-align: left;
+	vertical-align: baseline;
+}
+
+.pg-matrix thead th {
+	color: var(--text-muted);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.pg-matrix tbody th { font-weight: 600; white-space: nowrap; }
+.pg-matrix td { color: var(--text-muted); }
+.pg-cause { white-space: nowrap; }
+.pg-cause b { color: var(--text-normal); font-weight: 600; }
+
+/* "open" as a WORD, not a tick or a filled cell: the whole subject of this page is
+   that a rung is open or absent, and a coloured square says neither out loud. */
+.pg-on { color: var(--text-normal); font-weight: 600; }
+.pg-undecided { color: var(--text-warning); font-weight: 600; }
+
+/* ── Settings page: a search field and the trust-boundary rows ── */
+.pg-search {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 12px;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-search-icon { color: var(--text-muted); display: inline-flex; }
+
+.pg-trust { display: flex; flex-direction: column; gap: 14px; }
+
+.pg-trust-row {
+	display: grid;
+	grid-template-columns: minmax(0, 15rem) auto minmax(0, 17rem);
+	gap: 4px 10px;
+	align-items: center;
+}
+
+.pg-trust-in {
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-smaller);
+	overflow-wrap: anywhere;
+}
+
+.pg-trust-arrow { color: var(--text-muted); }
+.pg-trust-out { margin-bottom: 0; }
+
+.pg-trust-note {
+	grid-column: 1 / -1;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.pg-trust-note code { color: var(--text-normal); }
+
+@media (max-width: 620px) {
+	.pg-trust-row { grid-template-columns: minmax(0, 1fr); }
+	.pg-trust-arrow { display: none; }
+}
+
+/* ── Footer ── */
+.pg-foot {
+	margin-top: 54px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	max-width: 78ch;
+}
+
+.pg-foot a { color: var(--text-muted); }
+
+@media (max-width: 700px) {
+	.pg-main { padding: 0 14px 48px; }
+	.pg-banner { padding: 9px 14px; }
+	.pg-nav { margin-left: 0; width: 100%; }
+	.pg-editor, .pg-editor-tall { height: 560px; }
+	.pg-state-name { flex-basis: 100%; }
+}

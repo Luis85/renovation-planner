@@ -1,5 +1,4 @@
 ---
-kind:
 name: Dependency
 layer: domain
 persistence: note

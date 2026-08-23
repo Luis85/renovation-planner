@@ -1,14 +1,15 @@
 ---
-kind:
 name: Trade
 layer: domain
 persistence: note
 partOf: "[[Project]]"
 sources:
   - PRD §8
-  - PRD §19
   - PRD §10
+  - PRD §19
   - PRD §21
+  - PRD §36
+  - PRD §60
   - PRD §84
 type: entity
 ---
@@ -53,6 +54,6 @@ A note in a small catalog (§36's `Trades/`), with a stable `id` (§60).
 
 ## Sources
 
-PRD §8 · PRD §19 · PRD §10 · PRD §21 · PRD §84, in
+PRD §8 · PRD §10 · PRD §19 · PRD §21 · PRD §36 · PRD §60 · PRD §84, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

@@ -9,7 +9,6 @@ sources:
   - SDD §9
   - SDD §11
   - SDD §84
-  - SDD §96
 type: actor
 ---
 
@@ -27,7 +26,7 @@ plugin owes each of them something different.
 
 ## What it does to the plugin
 
-- **Loads and unloads it** (§96). Everything registered has to be released; a leaked listener
+- **Loads and unloads it** (SDD §9). Everything registered has to be released; a leaked listener
   outlives the plugin and the user pays for it, not the developer.
 - **Decides where a view goes.** The plugin asks to reveal a leaf; Obsidian decides whether
   that is a new tab, an existing one, or a sidebar. Which is why activation goes through one
@@ -41,7 +40,7 @@ plugin owes each of them something different.
 
 ## What the plugin owes it
 
-- Releasing every registration on unload (§96).
+- Releasing every registration on unload (SDD §9).
 - Honouring mobile, or declaring itself desktop-only. `isDesktopOnly: false` is a promise
   about what the code may touch.
 - Not reaching for a global `app`, and not writing outside the vault APIs.
@@ -49,6 +48,6 @@ plugin owes each of them something different.
 
 ## Sources
 
-PRD §3.6 · PRD §45 · SDD §4 · SDD §9 · SDD §11 · SDD §84 · SDD §96, in
+PRD §3.6 · PRD §45 · SDD §4 · SDD §9 · SDD §11 · SDD §84, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

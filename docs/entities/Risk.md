@@ -1,12 +1,13 @@
 ---
-kind:
 name: Risk
 layer: domain
 persistence: note
 sources:
   - PRD §26
-  - PRD §58
   - PRD §28
+  - PRD §36
+  - PRD §58
+  - PRD §60
 type: entity
 ---
 
@@ -57,6 +58,6 @@ owner and status in frontmatter — an entity whose value is largely in being so
 
 ## Sources
 
-PRD §26 · PRD §58 · PRD §28, in
+PRD §26 · PRD §28 · PRD §36 · PRD §58 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

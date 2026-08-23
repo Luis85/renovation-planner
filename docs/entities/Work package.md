@@ -1,15 +1,17 @@
 ---
-kind:
 name: Work package
 layer: domain
 persistence: note
 partOf: "[[Project]]"
 sources:
   - PRD §8
-  - PRD §19
   - PRD §10
+  - PRD §19
+  - PRD §36
+  - PRD §37
   - PRD §58
   - PRD §59
+  - PRD §60
   - PRD §77
 type: entity
 ---
@@ -61,6 +63,6 @@ sentences.
 
 ## Sources
 
-PRD §8 · PRD §19 · PRD §10 · PRD §58 · PRD §59 · PRD §77, in
+PRD §8 · PRD §10 · PRD §19 · PRD §36 · PRD §37 · PRD §58 · PRD §59 · PRD §60 · PRD §77, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

@@ -1,5 +1,4 @@
 ---
-kind:
 name: Quantity
 layer: core
 persistence: none

@@ -9,7 +9,19 @@
 	// file imports nothing under `src/` or `tests/` — nothing else in the graph reaches it
 	// either, so it needs the same declaration or fallow reports it dead.
 	"entry": ["src/main.ts", "tests/harness/page.ts", "scripts/lint-edited.mjs", "scripts/harness-shot.mjs"],
-	"dynamicallyLoaded": ["styles/**/*.css", "tests/harness/theme.css", "tests/harness/obsidian.css"],
+	// Loaded by a page, never imported by a module — which is what this key is for.
+	// `docs/concepts/*.css` are the concept mocks' sheets: two static HTML files in `docs/`
+	// link them, and those files are documentation rather than an entry point, so fallow's
+	// import graph cannot reach either sheet and reports both dead. Declared as the two
+	// files they are rather than as `docs/**/*.css`, so the next stylesheet somebody drops
+	// into `docs/` still has to be accounted for instead of being silently covered.
+	"dynamicallyLoaded": [
+		"styles/**/*.css",
+		"tests/harness/theme.css",
+		"tests/harness/obsidian.css",
+		"docs/concepts/concept.css",
+		"docs/concepts/page.css"
+	],
 	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
 	// every manual entry is otherwise treated as production-reachable code, so
 	// `scripts/harness-shot.mjs`'s own devDependency (`playwright-core`) reads as a

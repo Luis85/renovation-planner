@@ -1,11 +1,11 @@
 ---
 type: Feature
 parent: "[[Cross-cutting concerns]]"
-order: 10
+order: 30
 status: ""
 started: ""
 finished: ""
-horizon: MVP
+horizon: "MVP"
 start: ""
 due: ""
 risk: ""

@@ -1,13 +1,14 @@
 ---
-kind:
 name: Decision
 layer: domain
 persistence: note
 sources:
   - PRD §25
-  - PRD §58
-  - PRD §77
   - PRD §29
+  - PRD §36
+  - PRD §58
+  - PRD §60
+  - PRD §77
 type: entity
 ---
 
@@ -59,6 +60,6 @@ frontmatter, and the reasoning in the body where prose belongs.
 
 ## Sources
 
-PRD §25 · PRD §58 · PRD §77 · PRD §29, in
+PRD §25 · PRD §29 · PRD §36 · PRD §58 · PRD §60 · PRD §77, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

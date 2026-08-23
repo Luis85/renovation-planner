@@ -1,5 +1,4 @@
 ---
-kind:
 name: Document
 layer: domain
 persistence: note
@@ -8,6 +7,7 @@ sources:
   - PRD §23
   - PRD §42
   - PRD §59
+  - PRD §60
   - SDD §54
   - SDD §55
 type: entity
@@ -30,7 +30,7 @@ the data sheet from the [[Asset]] it describes.
 with a link and a date.
 
 PDF handling is real work rather than storage: §42 admits PDF as a plan import source and SDD
-§54 covers importing it, so the same PDF can be both evidence and the background of a [[Plan]].
+SDD §54 covers importing it, so the same PDF can be both evidence and the background of a [[Plan]].
 
 ## Identity and persistence
 
@@ -61,6 +61,6 @@ attachment is the bytes.
 
 ## Sources
 
-PRD §23 · PRD §42 · PRD §59 · SDD §54 · SDD §55, in
+PRD §23 · PRD §42 · PRD §59 · PRD §60 · SDD §54 · SDD §55, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

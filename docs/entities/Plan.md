@@ -1,5 +1,4 @@
 ---
-kind:
 name: Plan
 layer: domain
 persistence: note + sidecar

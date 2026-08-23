@@ -1,5 +1,4 @@
 ---
-kind:
 name: Photo
 layer: domain
 persistence: note
@@ -9,6 +8,7 @@ sources:
   - PRD §27
   - PRD §30
   - PRD §36
+  - PRD §60
 type: entity
 ---
 
@@ -56,6 +56,6 @@ frontmatter, pointing at the image in [[The vault]]. §36 gives `Photos/` its ow
 
 ## Sources
 
-PRD §23 · PRD §27 · PRD §30 · PRD §36, in
+PRD §23 · PRD §27 · PRD §30 · PRD §36 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

@@ -11,7 +11,7 @@ type: actor
 
 # Bases
 
-Obsidian's own database-like view over notes with frontmatter. It reads the same files this
+[[Obsidian]]'s own database-like view over notes with frontmatter. It reads the same files this
 plugin writes and renders them as tables the user builds themselves, with no involvement from
 this plugin at all.
 

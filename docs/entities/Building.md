@@ -1,5 +1,4 @@
 ---
-kind:
 name: Building
 layer: domain
 persistence: note
@@ -7,6 +6,7 @@ partOf: "[[Site]]"
 sources:
   - PRD §6
   - PRD §58
+  - PRD §60
   - PRD §79
 type: entity
 ---
@@ -44,6 +44,6 @@ project where the building and the site are the same thing.
 
 ## Sources
 
-PRD §6 · PRD §58 · PRD §79, in
+PRD §6 · PRD §58 · PRD §60 · PRD §79, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

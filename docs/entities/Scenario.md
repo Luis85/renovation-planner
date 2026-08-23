@@ -1,12 +1,13 @@
 ---
-kind:
 name: Scenario
 layer: domain
 persistence: note
 sources:
-  - PRD §29
   - PRD §25
+  - PRD §29
+  - PRD §36
   - PRD §50
+  - PRD §60
 type: entity
 ---
 
@@ -56,6 +57,6 @@ duplicated its assets would drift from the library the moment a price changed.
 
 ## Sources
 
-PRD §29 · PRD §25 · PRD §50, in
+PRD §25 · PRD §29 · PRD §36 · PRD §50 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

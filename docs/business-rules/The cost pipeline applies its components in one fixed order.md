@@ -30,7 +30,7 @@ including the two the received documents place nowhere:
 | Discount | Before shipping | Shipping is not discounted |
 | Shipping | After discount, before tax | Shipping is taxable |
 | Surcharge | With shipping, before tax | Additive and taxable, and not discountable — it is levied on the order, not negotiated on the goods |
-| Tax | Last, on the post-shipping total | §51 |
+| Tax | Last, on the post-shipping total | SDD §51 |
 | Contingency | **Not a stage** — held beside the estimate | An estimate that has swallowed its buffer cannot report the buffer |
 | Deposit | **Not a stage** — a payment, not a price | It changes *when* something is paid, not what it costs (§33) |
 

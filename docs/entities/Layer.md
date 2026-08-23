@@ -1,5 +1,4 @@
 ---
-kind:
 name: Layer
 layer: domain
 persistence: sidecar

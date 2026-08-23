@@ -1,16 +1,18 @@
 ---
 type: PBI
 parent: "[[User Interface]]"
-order: 40
+order: 0
+dependsOn: "[[Design System]]"
 status: New
 started: ""
 finished: ""
-horizon: Now
-start: 2026-08-23
-due: 2026-09-05
+horizon: "MVP"
+start: ""
+due: ""
 risk: ""
 priority: ""
 assignee: ""
+iteration: "[[1 - Iteration]]"
 ---
 # Shared UI vocabulary
 

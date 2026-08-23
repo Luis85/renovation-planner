@@ -3,6 +3,7 @@ kind: system
 name: Another editor on the vault
 standing: adversarial
 sources:
+  - PRD §60
   - PRD §63
   - PRD §65
   - PRD §66
@@ -51,6 +52,6 @@ plugin is measured against: **manual edits must not be overwritten silently.**
 
 ## Sources
 
-PRD §63 · PRD §65 · PRD §66 · PRD §69 · PRD §91 · PRD §92 · SDD §42 · SDD §46 · SDD §87, in
+PRD §60 · PRD §63 · PRD §65 · PRD §66 · PRD §69 · PRD §91 · PRD §92 · SDD §42 · SDD §46 · SDD §87, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

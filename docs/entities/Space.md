@@ -1,13 +1,13 @@
 ---
-kind:
 name: Space
 layer: domain
 persistence: note
 partOf: "[[Floor]]"
 sources:
   - PRD §6
-  - PRD §58
   - PRD §34
+  - PRD §58
+  - PRD §60
 type: entity
 ---
 
@@ -45,6 +45,6 @@ projects go straight to [[Zone]]s.
 
 ## Sources
 
-PRD §6 · PRD §58 · PRD §34, in
+PRD §6 · PRD §34 · PRD §58 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

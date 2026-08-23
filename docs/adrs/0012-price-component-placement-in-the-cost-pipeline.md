@@ -14,11 +14,11 @@ PRD §74 names six price components a cost item may carry: discount, shipping, d
 
 That leaves a gap nobody had to notice while the engine was unwritten. **Deposit and surcharge are named by the requirements and placed by nothing.** Contingency is placed, but only by a derived note (`docs/entities/Cost item.md`, "held apart from the estimate"), not by the received design. And `docs/entities/Cost item.md` states the whole thing wider than the evidence supports: it lists all six components and then says "SDD §51's pipeline fixes the order they apply in", followed by an order containing three of them.
 
-The gap is the same shape as the one ADR-010 closed for rounding. An unplaced additive component is placed independently by each call site, and the two plausible placements — before or after tax — produce different totals from the same inputs, both of which look right. Slice 09 fixes the order of the three it has for exactly this reason ("order is fixed by §51 and is not configurable"), and that argument does not stop applying at the components §51 happened to list.
+The gap is the same shape as the one ADR-010 closed for rounding. An unplaced additive component is placed independently by each call site, and the two plausible placements — before or after tax — produce different totals from the same inputs, both of which look right. Slice 09 fixes the order of the three it has for exactly this reason ("order is fixed by SDD §51 and is not configurable"), and that argument does not stop applying at the components SDD §51 happened to list.
 
 ## Decision
 
-All six of §74's components have a stated placement, and the pipeline has one order. Two of the six are deliberately **not** stages in it, which is a placement rather than an omission.
+All six of PRD §74's components have a stated placement, and the pipeline has one order. Two of the six are deliberately **not** stages in it, which is a placement rather than an omission.
 
 | Component | Placement | Why there |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ All six of §74's components have a stated placement, and the pipeline has one o
 | Shipping | Stage: after discount, before tax | SDD §51. Shipping is taxable |
 | Tax | Stage: last, on the post-shipping total | SDD §51 |
 | Contingency | **Not a stage.** Held beside the estimate, never added into it | So *how much of the buffer is left* stays answerable. Folded in, a contingency is indistinguishable from a higher estimate |
-| Deposit | **Not a stage.** A payment against a commitment | A deposit does not change what a thing costs, only when it is paid. It belongs to §33's financial lifecycle, not to the price |
+| Deposit | **Not a stage.** A payment against a commitment | A deposit does not change what a thing costs, only when it is paid. It belongs to PRD §33's financial lifecycle, not to the price |
 
 Surcharge is therefore a second additive, pre-tax term alongside shipping, and the full order is:
 
@@ -48,7 +48,7 @@ This refines SDD §51 by extending it, the way ADR-009 refines the SDD's §40 si
 
 ## Alternatives
 
-- **Leave deposit and surcharge unplaced, as §74 and §51 jointly do** — rejected: that is the omission this ADR exists to close. Slice 09 already argues that an unstated convention "produces a plausible number rather than an error", and an unplaced component is an unstated convention with a field to store it in.
+- **Leave deposit and surcharge unplaced, as PRD §74 and SDD §51 jointly do** — rejected: that is the omission this ADR exists to close. Slice 09 already argues that an unstated convention "produces a plausible number rather than an error", and an unplaced component is an unstated convention with a field to store it in.
 - **Surcharge after tax** — rejected: it would make a surcharge the only untaxed charge on the line, which is wrong for the surcharges a renovation actually meets (delivery, fuel, small-order, out-of-hours), all of which are part of the taxable supply.
 - **Surcharge as negative discount, reusing that stage** — rejected: it would make a surcharge discountable, and it destroys the breakdown. A discount of −50 and a surcharge of +50 are not an absence of both.
 - **Contingency as a pipeline stage** — rejected, and this ADR only records what `docs/entities/Cost item.md` already decided: an estimate that has swallowed its own buffer cannot report the buffer.

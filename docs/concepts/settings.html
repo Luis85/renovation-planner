@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en" class="pg-doc">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings — concept mock</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../../tests/harness/obsidian.css" />
+<link rel="stylesheet" href="page.css" />
+<link rel="stylesheet" href="concept.css" />
+</head>
+<body class="pg theme-light">
+
+<!-- Icons: Lucide 1.33.0, the set Obsidian itself ships and `setIcon` resolves
+     against. Vendored verbatim (generated, not hand-drawn) for the same reason
+     tests/harness/obsidian.css is vendored: an approximation from memory is a fake that
+     is kinder than the real thing, and one of these was visibly wrong at 14px.
+     24x24 box, 2px stroke, round caps — set on each referencing <svg>. -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute" focusable="false"><defs>
+<g id="i-select"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z" /></g>
+<g id="i-pan"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></g>
+<g id="i-area"><path d="M10.83 2.38a2 2 0 0 1 2.34 0l8 5.74a2 2 0 0 1 .73 2.25l-3.04 9.26a2 2 0 0 1-1.9 1.37H7.04a2 2 0 0 1-1.9-1.37L2.1 10.37a2 2 0 0 1 .73-2.25z" /></g>
+<g id="i-asset"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="M12 22V12" /><polyline points="3.29 7 12 12 20.71 7" /><path d="m7.5 4.27 9 5.15" /></g>
+<g id="i-measure"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" /><path d="m14.5 12.5 2-2" /><path d="m11.5 9.5 2-2" /><path d="m8.5 6.5 2-2" /><path d="m17.5 15.5 2-2" /></g>
+<g id="i-annotate"><path d="M12 4v16" /><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /><path d="M9 20h6" /></g>
+<g id="i-undo"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></g>
+<g id="i-redo"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" /></g>
+<g id="i-fit"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></g>
+<g id="i-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></g>
+<g id="i-eye-off"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" /><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" /><path d="m2 2 20 20" /></g>
+<g id="i-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>
+<g id="i-unlock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></g>
+<g id="i-layers"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></g>
+<g id="i-box"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></g>
+<g id="i-check"><path d="M20 6 9 17l-5-5" /></g>
+<g id="i-spinner"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></g>
+<g id="i-dot"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="1" /></g>
+<g id="i-warn"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></g>
+<g id="i-info"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></g>
+<g id="i-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></g>
+<g id="i-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></g>
+<g id="i-plus"><path d="M5 12h14" /><path d="M12 5v14" /></g>
+<g id="i-trash"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></g>
+<g id="i-edit"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></g>
+<g id="i-derived"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2" /></g>
+<g id="i-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></g>
+<g id="i-map"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /><path d="M15 5.764v15" /><path d="M9 3.236v15" /></g>
+<g id="i-calibrate"><circle cx="12" cy="12" r="10" /><line x1="22" x2="18" y1="12" y2="12" /><line x1="6" x2="2" y1="12" y2="12" /><line x1="12" x2="12" y1="6" y2="2" /><line x1="12" x2="12" y1="22" y2="18" /></g>
+<g id="i-flag"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" /></g>
+<g id="i-search"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></g>
+</defs></svg>
+
+<header class="pg-banner">
+	<span class="pg-banner-mark">
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-area"/></svg>
+		Renovation Planner — concept mock
+	</span>
+	<span class="pg-invented">
+		<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flag"/></svg>
+		Invented sample data
+	</span>
+	<nav class="pg-nav" aria-label="Concept mocks">
+		<a href="plan-editor.html">Plan editor</a>
+		<a href="plan-editor-solo.html">Editor, alone</a>
+		<a href="component-gallery.html">Component gallery</a>
+		<a href="disclosure-ladder.html">Disclosure ladder</a>
+		<a href="settings.html" aria-current="page">Settings</a>
+	</nav>
+	<div class="pg-controls">
+		<button type="button" class="pg-btn" id="scheme" aria-pressed="false">
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye"/></svg>
+			<span id="scheme-label">Dark</span>
+		</button>
+	</div>
+</header>
+
+<main class="pg-main">
+
+	<div class="pg-lede">
+		<h1>One setting, and the three things it demonstrates</h1>
+		<p>
+			The only mock here that can be checked against real code: this pane
+			<b>already exists</b> in <code>src/plugin/settings/</code>. The plugin styles none of
+			it — a declarative tab is rendered by Obsidian from
+			<code>getSettingDefinitions()</code>, so everything below is app.css.
+		</p>
+	</div>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     The pane
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>As Obsidian renders it</h2>
+		<p>
+			<b>No heading and no plugin name.</b> Obsidian draws the name itself, and repeating it
+			is a recurring marketplace review rejection — so the definitions array contains one
+			entry and nothing else.
+		</p>
+
+		<div class="pg-schemes">
+			<div class="pg-frame">
+				<div class="pg-frame-label">en · shipped</div>
+				<div class="pg-stage">
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name">Units</div>
+							<div class="setting-item-description">Measurement system for quantities and dimensions.</div>
+						</div>
+						<div class="setting-item-control">
+							<select class="dropdown" aria-label="Units">
+								<option selected>Metric</option>
+								<option>Imperial</option>
+							</select>
+						</div>
+					</div>
+				</div>
+				<div class="pg-spec">
+					<dl>
+						<dt>Key</dt><dd><code>units</code></dd>
+						<dt>Default</dt><dd><code>metric</code></dd>
+						<dt>Vocabulary</dt><dd><code>UNITS</code>, written down once</dd>
+					</dl>
+				</div>
+			</div>
+
+			<div class="pg-frame">
+				<div class="pg-frame-label">de · shipped</div>
+				<div class="pg-stage" lang="de">
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name">Einheiten</div>
+							<div class="setting-item-description">Maßsystem für Mengen und Abmessungen.</div>
+						</div>
+						<div class="setting-item-control">
+							<select class="dropdown" aria-label="Einheiten">
+								<option selected>Metrisch</option>
+								<option>Imperial</option>
+							</select>
+						</div>
+					</div>
+				</div>
+				<div class="pg-spec">
+					<dl>
+						<dt>Source</dt><dd>real strings — 4 of <code>de.ts</code>'s 6 keys</dd>
+						<dt>Language</dt><dd>Obsidian's <code>getLanguage()</code>, never a setting of ours</dd>
+					</dl>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     Why declarative
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>Why declarative, drawn</h2>
+		<p>
+			An imperatively drawn pane is <b>absent from Obsidian's settings search</b>. That is
+			the concrete cost of <code>display()</code>, and it is invisible until somebody goes
+			looking for a setting by name.
+		</p>
+
+		<div class="pg-schemes">
+			<div class="pg-frame">
+				<div class="pg-frame-label">declarative — indexed</div>
+				<div class="pg-stage">
+					<div class="pg-search">
+						<span class="pg-search-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg>
+						</span>
+						<span>units</span>
+					</div>
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name">Units</div>
+							<div class="setting-item-description">Renovation Planner</div>
+						</div>
+						<div class="setting-item-control">
+							<span class="rp-badge" data-health="recalculating">1 result</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="pg-frame">
+				<div class="pg-frame-label">display() — not indexed</div>
+				<div class="pg-stage">
+					<div class="pg-search">
+						<span class="pg-search-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg>
+						</span>
+						<span>units</span>
+					</div>
+					<div class="rp-empty">
+						<strong>No results</strong>
+						The setting exists and works. Nothing can find it by name.
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     The trust boundary, made visible
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>What a hand-edited <code>data.json</code> renders as</h2>
+		<p>
+			<code>data.json</code> is a file the user can edit, so it is a trust boundary rather
+			than a formality. Every value passes <code>settingsFrom</code> on the way in
+			<b>and</b> on the way out. This is that gate with a face on it.
+		</p>
+
+		<div class="pg-frame">
+			<div class="pg-frame-label">three files, three panes</div>
+			<div class="pg-stage">
+				<div class="pg-trust">
+					<div class="pg-trust-row">
+						<code class="pg-trust-in">{ "units": "imperial" }</code>
+						<span class="pg-trust-arrow" aria-hidden="true">→</span>
+						<div class="setting-item pg-trust-out">
+							<div class="setting-item-info"><div class="setting-item-name">Units</div></div>
+							<div class="setting-item-control">
+								<select class="dropdown" aria-label="Units"><option selected>Imperial</option></select>
+							</div>
+						</div>
+						<span class="pg-trust-note">recognised</span>
+					</div>
+
+					<div class="pg-trust-row">
+						<code class="pg-trust-in">{ "units": "furlongs" }</code>
+						<span class="pg-trust-arrow" aria-hidden="true">→</span>
+						<div class="setting-item pg-trust-out">
+							<div class="setting-item-info"><div class="setting-item-name">Units</div></div>
+							<div class="setting-item-control">
+								<select class="dropdown" aria-label="Units"><option selected>Metric</option></select>
+							</div>
+						</div>
+						<span class="pg-trust-note">outside the vocabulary — falls back to the default, silently and on purpose</span>
+					</div>
+
+					<div class="pg-trust-row">
+						<code class="pg-trust-in">{ "units": "metric", "theme": "dark" }</code>
+						<span class="pg-trust-arrow" aria-hidden="true">→</span>
+						<div class="setting-item pg-trust-out">
+							<div class="setting-item-info"><div class="setting-item-name">Units</div></div>
+							<div class="setting-item-control">
+								<select class="dropdown" aria-label="Units"><option selected>Metric</option></select>
+							</div>
+						</div>
+						<span class="pg-trust-note"><code>theme</code> is not declared by this version — dropped, not carried forward forever</span>
+					</div>
+				</div>
+			</div>
+			<div class="pg-spec">
+				<p>
+					The middle row is the one worth arguing about: a bad value produces <b>no
+					message</b>. That is deliberate — the file is not a form and the user may never
+					open the pane — but it means a typo is undiagnosable from the UI. Whether an
+					unrecognised value deserves a notice is open, and it is a
+					<a href="../components/Toast.md">Toast</a>-versus-silence question rather than a
+					settings one.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<footer class="pg-foot">
+		<p>
+			<code>src/plugin/settings/</code> ·
+			<a href="../components/Inline%20field%20error.md">Inline field error</a> ·
+			<a href="README.md">what this mock is not</a>
+		</p>
+	</footer>
+</main>
+
+<script>
+(function () {
+	var body = document.body;
+	var btn = document.getElementById('scheme');
+	var label = document.getElementById('scheme-label');
+
+	function apply(dark) {
+		body.classList.toggle('theme-dark', dark);
+		body.classList.toggle('theme-light', !dark);
+		btn.setAttribute('aria-pressed', String(dark));
+		label.textContent = dark ? 'Light' : 'Dark';
+	}
+
+	apply(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+	btn.addEventListener('click', function () {
+		apply(!body.classList.contains('theme-dark'));
+	});
+})();
+</script>
+</body>
+</html>

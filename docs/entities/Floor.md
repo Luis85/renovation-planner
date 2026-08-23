@@ -1,14 +1,14 @@
 ---
-kind:
 name: Floor
 layer: domain
 persistence: note
 partOf: "[[Building]]"
 sources:
   - PRD §6
-  - PRD §58
-  - PRD §79
   - PRD §8
+  - PRD §58
+  - PRD §60
+  - PRD §79
 type: entity
 ---
 
@@ -45,6 +45,6 @@ A note, with a stable `id` (§60).
 
 ## Sources
 
-PRD §6 · PRD §58 · PRD §79 · PRD §8, in
+PRD §6 · PRD §8 · PRD §58 · PRD §60 · PRD §79, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

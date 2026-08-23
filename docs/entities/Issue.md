@@ -1,5 +1,4 @@
 ---
-kind:
 name: Issue
 layer: domain
 persistence: note
@@ -7,6 +6,7 @@ sources:
   - PRD §26
   - PRD §27
   - PRD §58
+  - PRD §60
 type: entity
 ---
 
@@ -53,6 +53,6 @@ A Markdown note with a stable `id` (§60), status, owner and the affected entity
 
 ## Sources
 
-PRD §26 · PRD §27 · PRD §58, in
+PRD §26 · PRD §27 · PRD §58 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

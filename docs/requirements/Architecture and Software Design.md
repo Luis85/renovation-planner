@@ -5,7 +5,7 @@ order: 0
 status: Active
 started: 2026-08-23
 finished: ""
-horizon: Now
+horizon: "MVP"
 start: ""
 due: ""
 risk: ""
@@ -118,11 +118,14 @@ Each slice document follows the same shape:
 
 ## Shared conventions
 
-**A citation with a bare `§N` means the SDD; `PRD §N` means the PRD.** The two documents
-number their own sections independently starting from 1, so `§39`/`§64`/`§67` (among others)
-name a completely different topic in each — always write `PRD §N` when citing the PRD, never
-rely on context to disambiguate, and check the actual heading before citing a number from
-memory.
+**In these seventeen documents a bare `§N` means the SDD; `PRD §N` means the PRD.** That is
+the slice half of a register-wide rule, and the rest of it — which folder each default holds
+in, and why an `adrs/` citation gets no default at all — is in
+[`docs/README.md`](../README.md)'s **Conventions**. What matters here: the two documents
+number their own sections independently from 1, so `§39`/`§64`/`§67` (among others) name a
+completely different topic in each. Always write `PRD §N` when citing the PRD from a slice,
+never rely on context to disambiguate, and check the actual heading before citing a number
+from memory.
 
 These apply to every slice and are not repeated in each one:
 

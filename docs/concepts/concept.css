@@ -1,0 +1,1116 @@
+/*
+ * The concept mock's stylesheet — a PROPOSAL, not the plugin's.
+ *
+ * `styles/` is the implementation and this file is the drawing. They are deliberately
+ * separate: a mock that imported the real partials could only ever show what already
+ * exists, and what these pages are for is the seventeen components that do not.
+ *
+ * Two rules carried over from `styles/` verbatim, because breaking either here would make
+ * the mock lie about the thing it exists to show:
+ *
+ *   1. A value the host declares is READ, never restated. Every colour below resolves to a
+ *      variable `tests/harness/obsidian.css` declares under `.theme-light` / `.theme-dark`.
+ *      Where a tint is needed, `color-mix()` derives it FROM that variable rather than
+ *      replacing it with a literal — so the mock re-tints itself under a community theme
+ *      exactly as the plugin would.
+ *   2. A value the host does not declare is declared ONCE. That is the `--rp-*` block
+ *      below, and it is the actual design proposal in this file: Obsidian declares nothing
+ *      for a canvas, so the canvas's visual language is the plugin's to decide.
+ *
+ * What this file is NOT faithful about: a themed vault's colours and accent. The vendored
+ * app.css gives Obsidian's DEFAULT appearance only, and it was reduced against another
+ * plugin's driven states, so an element default it dropped is missing here too. Appearance
+ * is verified in a live vault and nowhere else.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The canvas visual language
+
+   Design System's open question 1 — which Obsidian variable means what on the
+   canvas — answered here as a proposal, so it can be argued with rather than
+   left open in a note nobody can look at.
+
+   Every entry derives from a host variable whose MEANING already matches:
+   accent for selection because that is what accent means in Obsidian, the error
+   colour for an invalid polygon, the warning colour for an uncalibrated plan.
+   None of them is a new palette.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view {
+	/* Zones are NEUTRAL, and this is the correction the block needed most. The
+	   comment above already says "accent for selection because that is what accent
+	   means in Obsidian" — and the first version then spent the accent on every
+	   zone, so four unselected rooms and the selected one carried the same hue and
+	   were told apart by 1.25px of stroke weight. Screenshot at 1440px in the light
+	   default: the selected zone was the hardest state on the canvas to find, which
+	   is the wrong one to lose in an editor. Zones now derive from the plan's own
+	   ink, and the accent appears exactly once per canvas. */
+	/* Above the grid and above the imported plan's detail ink, and deliberately
+	   not below its walls: a zone is the user's own work sitting on top of
+	   somebody else's drawing, so it may not be the quieter of the two. The first
+	   pass at neutral zones went to 42% and lost to --rp-plan-wall at 66%. */
+	--rp-zone-fill: color-mix(in srgb, var(--text-normal) 10%, transparent);
+	--rp-zone-fill-hover: color-mix(in srgb, var(--text-normal) 17%, transparent);
+	--rp-zone-stroke: color-mix(in srgb, var(--text-normal) 54%, transparent);
+
+	/* Selection: the only accent on the canvas, and still three channels — fill,
+	   stroke weight, handles — so it survives a theme resolving the accent to a
+	   grey. */
+	--rp-selected-fill: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+	--rp-selected-stroke: var(--interactive-accent);
+	--rp-stroke-w: 1.25;
+	--rp-stroke-w-selected: 2.5;
+
+	/* Handles read against any fill, so they invert: page ground, accent rim. */
+	--rp-handle-fill: var(--background-primary);
+	--rp-handle-stroke: var(--interactive-accent);
+
+	/* Snapping borrows orange: advisory, neither an error nor a selection. */
+	--rp-snap: var(--color-orange);
+
+	/* An uncalibrated plan is the warning colour PLUS a hatch — never colour alone. */
+	--rp-uncalibrated: var(--color-yellow);
+
+	/* An invalid polygon takes the error colour, the meaning it already has. */
+	--rp-invalid: var(--color-red);
+
+	/* The imported plan sits behind everything and must not compete with it. */
+	--rp-plan-ink: color-mix(in srgb, var(--text-normal) 34%, transparent);
+	--rp-plan-wall: color-mix(in srgb, var(--text-normal) 66%, transparent);
+
+	/* The metre grid. Drawn in PLAN space rather than screen pixels, so it obeys
+	   the scale beside it — the canvas section says what the first version got
+	   wrong. One unit of the mock's plan space is 20mm, so a metre is 50 units and
+	   the major line falls every 5m. */
+	/* The 5m line was first set to 34%, which is --rp-plan-ink exactly: the grid
+	   and the imported plan's door arcs at one weight, the scaffolding claiming
+	   the same voice as the drawing. Everything on this canvas now sits on one
+	   monotonic ladder, and the whole ladder is measured against Obsidian's two
+	   defaults (#222222 on #ffffff, #dadada on #1C1C1C) rather than asserted:
+	
+	     grid, 1m        18%   1.44:1 light   1.62:1 dark
+	     grid, 5m        30%   1.94:1         2.38:1
+	     plan detail     34%   2.07:1         2.59:1
+	     zone stroke     54%   3.54:1         4.50:1
+	     measure line    62%   4.54:1         5.48:1
+	     plan wall       66%   5.17:1         5.98:1
+	
+	   Only one of those has to clear WCAG 1.4.11's 3:1, and it does in both
+	   schemes: the zone stroke is the boundary of a selectable object. The grid
+	   is deliberately under it and that is a decision rather than an oversight —
+	   an area is stated as a NUMBER in four places (rail row, canvas label,
+	   inspector field, status bar), so the grid reinforces a measurement it never
+	   carries, which is this project's own second-channel rule pointed at itself.
+	   `.rp-scene-detail` was already below the threshold on the same grounds, so
+	   this is an existing category and not a new one. */
+	--rp-grid-line: color-mix(in srgb, var(--text-normal) 18%, transparent);
+	--rp-grid-line-major: color-mix(in srgb, var(--text-normal) 30%, transparent);
+
+	/* Density inside a three-column editor: Obsidian's scale, one step tighter.
+	   These two are the WIDEST step only — the container ladder below retunes them,
+	   because a pane is not a page and 210 + 252 of a 720px pane is 64% of it. */
+	--rp-gutter: var(--size-4-2);
+	--rp-rail-w: 210px;
+	--rp-inspector-w: 252px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   View shell — slice 01. The one entry class, and the growth chain under it.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+}
+
+.renovation-planner-view .rp-body {
+	display: grid;
+	grid-template-columns: var(--rp-rail-w) minmax(0, 1fr) var(--rp-inspector-w);
+	flex: 1;
+	min-height: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The container ladder — Design System's open question 2, answered
+
+   The README measured this and stopped: fixed rails leave the canvas 67% of a
+   1440px pane and 29% of a 680px one, so the one region that matters is the one
+   that pays for both. A split Obsidian pane is routinely that narrow.
+
+   A CONTAINER query and not a media query, and that distinction IS the finding:
+   the editor's width is its pane's — the window minus both Obsidian sidebars
+   minus whatever is split beside it. A viewport query would be answering a
+   question nobody asked.
+
+   The container is `.view-content > .renovation-planner-view`, the assembled
+   editor, and deliberately not the class alone: component-gallery.html puts that
+   same class on narrow <article> specimens, so a ladder keyed to the class would
+   tighten the rail inside the page whose job is to document the rail at full
+   width. A @container query with no matching ancestor container never applies,
+   which is what keeps the gallery out of it.
+
+   What it does NOT do, stated rather than left to be found: nothing here
+   collapses a rail. Below roughly 620px the three columns still crowd each
+   other, and the fix for that is a disclosure control — a rail that can be shut
+   and reopened — which is a design decision and not a tightening. Hiding the
+   object list behind an icon with no way to open it would also break product
+   principle 5, that nothing is canvas-only. So the ladder narrows and never
+   hides, and the remaining case is open rather than quietly half-solved.
+   ───────────────────────────────────────────────────────────────────────────── */
+.view-content > .renovation-planner-view { container: rpview / inline-size; }
+
+
+/* The INSPECTOR pays first, and which column pays in what order is the part of
+   this that had to be measured rather than chosen.
+
+   210px is not slack in the left rail. It is what "Konstruktionsabschnitte" needs
+   beside a visibility toggle and a lock toggle — 23 characters a translator
+   controls, against "Construction sections" at 21 — and the README records that
+   as a finding: German LABELS fit at 210 and German NAMES do not, because a label
+   is bounded by a translator and a name is bounded by nobody. The first version
+   of this ladder took the rail to 180px at the very first step and quietly broke
+   the one measurement that justified 210 in the first place.
+
+   The inspector has no such floor: its labels sit ABOVE their values on their own
+   line, so it narrows without clipping anything a translator wrote.
+   ───────────────────────────────────────────────────────────────────────────── */
+@container rpview (width < 1080px) {
+	.renovation-planner-view .rp-body { --rp-inspector-w: 214px; }
+}
+
+/* The step where the rail finally pays too, and the cost is stated rather than
+   discovered: at 192px "Konstruktionsabschnitte" truncates by about 11px while
+   the English label still fits. The `title` on every rail row name is what makes
+   that recoverable, and the alternative — a rail wide enough for the longest
+   translated label at every width — is exactly what left the canvas 29% of a
+   680px pane. The gutter tightens with the columns, and only inside the body:
+   the toolbar and the status bar are not short of room, and reflowing them would
+   move furniture the reader has not run out of. */
+@container rpview (width < 860px) {
+	.renovation-planner-view .rp-body {
+		--rp-rail-w: 192px;
+		--rp-inspector-w: 192px;
+		--rp-gutter: var(--size-4-1);
+	}
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The control reset, and why it needs this exact selector
+
+   `tests/harness/index.html` predicts this: "real element defaults — button
+   chrome included — are what the plugin's own resets have to strip". Two of
+   app.css's rules reach every `<button>` the plugin draws:
+
+     button                      { padding: var(--size-4-1) var(--size-4-3);
+                                   height: var(--input-height); }
+     button:not(.clickable-icon) { background-color: var(--interactive-normal);
+                                   box-shadow: var(--input-shadow); }
+
+   The second is specificity (0,1,1), so it beats ANY single-class selector — a
+   `.rp-toggle { background: transparent }` silently loses. And the first is
+   worse than it looks: 12px of horizontal padding on a 22px-wide flex button
+   leaves a zero-width content box, so the icon inside is squeezed to nothing
+   and the control renders as an empty box. Both were live defects here, found
+   by measuring the rendered page rather than by reading the sheet.
+
+   So the reset is `.renovation-planner-view button` — (0,1,1), which ties the
+   rule it has to beat and wins on order, since this sheet loads last. And every
+   component rule below is scoped under the same entry class, putting it at
+   (0,2,0) or higher: above app.css AND above this reset, which is the only
+   arrangement where all three orderings hold at once. Scoping the whole sheet
+   under one class is what SDD §84's "one entry class per view" already asks
+   for; this is the cascade reason it is not merely tidiness.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view button {
+	padding: 0;
+	height: auto;
+	/* app.css `button` is `display: inline-flex; justify-content: center`, which is
+	   invisible until a button in this sheet is wider than its content — the
+	   inspector's action column centred every label the moment it went full width.
+	   Third instance of the trap this comment block is about, so it belongs in the
+	   reset rather than in the one component that noticed. */
+	justify-content: flex-start;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	text-align: inherit;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Toolbar and tool button — slices 05, 06
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 0 0 auto;
+	padding: 6px var(--rp-gutter);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.renovation-planner-view .rp-toolbar-spacer { flex: 1; }
+
+.renovation-planner-view .rp-toolbar-divider {
+	width: 1px;
+	align-self: stretch;
+	margin: 3px 6px;
+	background: var(--background-modifier-border);
+}
+
+.renovation-planner-view .rp-tool {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	/* 30px, so the target clears 24px at every zoom. Verified in a vault and
+	   nowhere else — jsdom answers zero for every box. */
+	min-width: 30px;
+	height: 30px;
+	padding: 0 7px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Demonstrable states
+
+   The gallery has to SHOW hover and focus on a page nobody is hovering. The first
+   version faked them with inline styles that restated the values below, which is a
+   fake kinder than the real thing: change a hover here and the specimen keeps
+   showing the old value, with nothing to notice.
+
+   So every interactive state below answers to its real pseudo-class OR to
+   `data-demo`, in one selector list. The specimen and the live control cannot
+   diverge, because there is only one declaration and both spellings reach it.
+   `~=` so one attribute can carry more than one state.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.renovation-planner-view .rp-tool:hover,
+.renovation-planner-view .rp-tool[data-demo~="hover"] {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.renovation-planner-view .rp-tool:focus-visible,
+.renovation-planner-view .rp-tool[data-demo~="focus"] {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Selected is STATUS, so it carries three channels: fill, contrast, and the
+   label its icon-only siblings do not show. */
+.renovation-planner-view .rp-tool[aria-pressed="true"] {
+	/* --text-on-accent over --interactive-accent measures 3.43:1 in the light
+	   default, below AA at this size. Rather than restate either value, the
+	   selected state stops depending on it: an accent TINT keeps the hue, the
+	   border keeps the edge, the text stays legible. The visible label is still
+	   the channel that survives with no colour at all. */
+	background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+.renovation-planner-view .rp-tool[aria-pressed="true"] .rp-tool-label { display: inline; }
+
+.renovation-planner-view .rp-tool-label {
+	display: none;
+	font-size: var(--font-ui-smaller);
+	font-weight: 500;
+	letter-spacing: 0.01em;
+	white-space: nowrap;
+}
+
+/* Given a pane this wide, every tool says what it is rather than only the active
+   one. Five of the six were icons with an aria-label and no tooltip — nameless to
+   the pointer user, in a toolbar whose glyphs assume a reader who has used a CAD
+   program. Below this width the title attribute is the channel that survives.
+
+   It sits HERE, after the rule it overrides, and not up with the rest of the
+   ladder: a container query adds no specificity, so at (0,2,0) against (0,2,0)
+   the winner is source order. Written next to the ladder it lost, silently, and
+   the labels stayed hidden at 1440px. */
+@container rpview (width >= 1180px) {
+	.renovation-planner-view .rp-tool-label { display: inline; }
+}
+
+.renovation-planner-view .rp-tool[aria-disabled="true"] {
+	opacity: 0.45;
+	color: var(--text-faint);
+	cursor: not-allowed;
+}
+
+.renovation-planner-view .rp-readout {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	padding: 0 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Left rail, inspector, and the rows inside both — slices 05, 06
+   ───────────────────────────────────────────────────────────────────────────── */
+.rp-rail,
+.renovation-planner-view .rp-inspector {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow-y: auto;
+	background: var(--background-secondary);
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-planner-view .rp-rail { border-right: 1px solid var(--background-modifier-border); }
+.renovation-planner-view .rp-inspector { border-left: 1px solid var(--background-modifier-border); }
+
+.renovation-planner-view .rp-section + .rp-section { border-top: 1px solid var(--background-modifier-border); }
+
+.renovation-planner-view .rp-section-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 9px var(--rp-gutter) 5px;
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	/* --text-faint measures 2.12:1 on --background-secondary, which fails AA. A
+	   section heading is meaning, not decoration, so it takes --text-muted
+	   (6.19:1 light, 7.03:1 dark). Same rule for every small label below: the fix
+	   for a failing colour is a better HOST variable, never a literal of our own. */
+	color: var(--text-muted);
+}
+
+.renovation-planner-view .rp-section-count {
+	margin-left: auto;
+	font-weight: 400;
+	letter-spacing: 0;
+	text-transform: none;
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-planner-view .rp-list { margin: 0 0 6px; padding: 0; list-style: none; }
+
+.renovation-planner-view .rp-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	padding: 4px var(--rp-gutter);
+	border: 0;
+	background: transparent;
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	text-align: left;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.renovation-planner-view .rp-row:hover,
+.renovation-planner-view .rp-row[data-demo~="hover"] { background: var(--background-modifier-hover); }
+
+.renovation-planner-view .rp-row:focus-visible,
+.renovation-planner-view .rp-row[data-demo~="focus"] {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* Selected: fill, weight AND an inset bar. Three channels, because a row in a
+   narrow rail is exactly where a fill-only state disappears. */
+.renovation-planner-view .rp-row[aria-selected="true"] {
+	background: color-mix(in srgb, var(--interactive-accent) 17%, transparent);
+	font-weight: 600;
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.renovation-planner-view .rp-row-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.renovation-planner-view .rp-row-meta {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A hidden layer's NAME dims and strikes through, so the state survives without
+   reading one 14px icon. */
+.renovation-planner-view .rp-row[data-hidden="true"] .rp-row-name {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+.renovation-planner-view .rp-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	flex: 0 0 auto;
+	border: 0;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.renovation-planner-view .rp-toggle:hover,
+.renovation-planner-view .rp-toggle[data-demo~="hover"] { background: var(--background-modifier-hover); color: var(--text-normal); }
+.renovation-planner-view .rp-toggle:focus-visible,
+.renovation-planner-view .rp-toggle[data-demo~="focus"] { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.renovation-planner-view .rp-toggle[aria-pressed="true"] { color: var(--text-normal); }
+
+/* Locked needed a second channel and had none. Hidden gets the strikethrough
+   above; locked was two 14px padlocks differing only in the shackle — exactly the
+   one-glyph state this sheet's own rule says must not exist. So a locked toggle
+   takes a FILLED chip and an unlocked one stays empty: fill against no fill,
+   which survives with no colour and at any size the icon itself survives. */
+.renovation-planner-view .rp-toggle[data-toggle="lock"][aria-pressed="true"] {
+	background: color-mix(in srgb, var(--text-normal) 12%, transparent);
+	box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+
+/* A colour chip, not a checkbox. The canvas tint is 14% of the accent, which at
+   9px is invisible — so the chip uses a legible share of the same hue rather
+   than a second colour. Same source, different size, different percentage. */
+.renovation-planner-view .rp-swatch {
+	width: 9px;
+	height: 9px;
+	flex: 0 0 auto;
+	border: 1px solid var(--rp-zone-stroke);
+	border-radius: 2px;
+	/* The chip and the polygon are one object seen twice, so they read the same two
+	   tokens. The first version filled the chip with 55% accent while the canvas
+	   filled the zone with a tint of it — the rail and the plan disagreeing about
+	   what a zone looks like, in the one control whose only job is to say "this row
+	   is that shape". */
+	background: color-mix(in srgb, var(--text-normal) 22%, transparent);
+}
+
+/* Selected, and only selected, is accent — the canvas rule, reaching the rail. */
+.renovation-planner-view .rp-row[aria-selected="true"] .rp-swatch {
+	border-color: var(--rp-selected-stroke);
+	background: color-mix(in srgb, var(--interactive-accent) 55%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Inspector fields, and the inline field error — slice 16
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-field { padding: 5px var(--rp-gutter); }
+
+.renovation-planner-view .rp-field-label {
+	display: block;
+	margin-bottom: 3px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-planner-view .rp-field-value {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 26px;
+	padding: 3px 7px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-planner-view .rp-field-value[data-readonly="true"] {
+	border-color: transparent;
+	background: transparent;
+	padding-left: 0;
+	color: var(--text-normal);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The box means editable, so only an editable thing may wear it
+
+   The rule above is the design: a bordered box is the "you can change this"
+   signal and a borderless value is derived. The first version then put the box on
+   a <span> — a control-shaped thing that cannot be focused, typed into or tabbed
+   to. That is the same defect class as a comment stating the invariant the code
+   beside it breaks: the sheet said "editable" and the markup could not be.
+
+   So Name is an <input> and Zone type is a <select>, both real. Two consequences
+   worth naming. The label becomes a <label for>, which is what makes the pair an
+   accessible field rather than two neighbours. And the cascade trap the button
+   reset documents applies again: app.css styles `input[type='text']` at (0,1,1),
+   so a single-class rule would silently lose — these are (0,2,1), which wins on
+   specificity rather than on load order.
+
+   The <select> keeps `appearance: auto` and therefore the platform's own arrow.
+   Obsidian's `.dropdown` rules, which would have drawn a themed one, are among
+   the element defaults the vendored app.css reduction dropped — so the honest
+   choice here is the native affordance rather than a chevron of our own invention
+   that the real plugin would not use.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view input.rp-field-value,
+.renovation-planner-view select.rp-field-value {
+	display: block;
+	width: 100%;
+	height: 26px;
+	min-height: 26px;
+	padding: 3px 7px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: var(--font-ui-smaller);
+	box-shadow: none;
+}
+
+.renovation-planner-view select.rp-field-value { padding-right: 2px; cursor: pointer; }
+
+.renovation-planner-view input.rp-field-value:hover,
+.renovation-planner-view select.rp-field-value:hover,
+.renovation-planner-view input.rp-field-value[data-demo~="hover"],
+.renovation-planner-view select.rp-field-value[data-demo~="hover"] {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.renovation-planner-view input.rp-field-value:focus-visible,
+.renovation-planner-view select.rp-field-value:focus-visible,
+.renovation-planner-view input.rp-field-value[data-demo~="focus"],
+.renovation-planner-view select.rp-field-value[data-demo~="focus"] {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* An invalid field marks the CONTROL, not a wrapper around it — see the
+   [data-invalid] rule below, which now has to reach the input as well. */
+.renovation-planner-view .rp-field[data-invalid="true"] input.rp-field-value {
+	border-color: var(--text-error);
+	background: color-mix(in srgb, var(--text-error) 10%, transparent);
+}
+
+/* Derived, so it says so — Design System's rule that a derived value names where
+   it came from rather than pretending to be typed in. */
+.renovation-planner-view .rp-derived {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: normal;
+}
+
+/* --background-modifier-error is a strong fill: --text-normal over it measures
+   3.78:1 light and 2.47:1 dark. A low-alpha tint of the error colour keeps the
+   signal and keeps the value readable. */
+.renovation-planner-view .rp-field[data-invalid="true"] .rp-field-value {
+	border-color: var(--text-error);
+	background: color-mix(in srgb, var(--text-error) 10%, transparent);
+}
+
+/* --text-error tops out at 4.20:1 on --background-primary in the light default,
+   so it cannot carry a sentence at AA. The message takes --text-normal and the
+   error colour moves to the icon and the border -- which is what the
+   second-channel rule wanted anyway: colour reinforces, it never carries. */
+.renovation-planner-view .rp-field-error {
+	display: flex;
+	align-items: flex-start;
+	gap: 4px;
+	margin-top: 4px;
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.35;
+}
+
+.renovation-planner-view .rp-field-error svg { flex: 0 0 auto; margin-top: 1px; color: var(--text-error); }
+
+/* A badge that is the FIELD's own note rather than part of its value — the
+   unknown-type case, which cannot live inside the <select> it qualifies. The
+   child combinator matters: the same component also appears inside a
+   .rp-field-value, where it is the value and needs no gap of its own. */
+.renovation-planner-view .rp-field > .rp-badge { margin-top: 5px; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Actions — the inspector's seven, per PRD §39
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Seven equal-weight buttons wrapped into three ragged rows, and Delete landed
+   beside Task — a destructive action sharing a row, a weight and a visual group
+   with a creation action. That last part is the defect; the wrapping is not.
+
+   Two tidier repairs were tried against the render and both cost more than they
+   fixed. A two-column grid does not survive translation: at a 252px inspector a
+   cell is 108px, "Work package" needs about that, and "Arbeitspaket erstellen" is
+   22 characters — any column count that fits English clips German, which is the
+   one thing the German scenario exists to catch. A single column fits every label
+   in every language and then spends 210px of a panel that also holds Properties
+   and Relations, pushing Delete below the fold in a pane of ordinary height.
+
+   So the wrap stays and only the grouping changes: the six operations flow, the
+   rule below forces its own line, and Delete has the last row to itself. A ragged
+   right edge on a wrapped set of controls is how a toolbar has always looked; a
+   destructive action indistinguishable from its neighbours is not. */
+.renovation-planner-view .rp-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 6px var(--rp-gutter) 10px;
+}
+
+/* `width: 100%` is what forces the line break in a wrap container — the rule is
+   the separation, so it has to be the thing that ends the row. */
+.renovation-planner-view .rp-action-sep {
+	width: 100%;
+	height: 1px;
+	margin: 4px 0 2px;
+	background: var(--background-modifier-border);
+}
+
+.renovation-planner-view .rp-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 26px;
+	padding: 0 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.renovation-planner-view .rp-action:hover,
+.renovation-planner-view .rp-action[data-demo~="hover"] { background: var(--background-modifier-hover); }
+.renovation-planner-view .rp-action:focus-visible,
+.renovation-planner-view .rp-action[data-demo~="focus"] { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+
+/* Destructive is never the default: it sits last and takes no fill that would
+   read as primary.
+
+   The first version set `color: var(--text-error)` and, on hover,
+   `background: var(--background-modifier-error)` -- error text on an error fill,
+   measured at 1.00:1. The label disappeared at the exact moment a user was about
+   to click a destructive control, which is the worst place in the whole
+   interface for it to happen. So the label is --text-normal in every state, and
+   the hover says "destructive" with its border and its icon instead. */
+.renovation-planner-view .rp-action[data-destructive="true"] { color: var(--text-normal); }
+.renovation-planner-view .rp-action[data-destructive="true"] > svg { color: var(--text-error); }
+.renovation-planner-view .rp-action[data-destructive="true"]:hover,
+.renovation-planner-view .rp-action[data-destructive="true"][data-demo~="hover"] {
+	background: var(--background-modifier-hover);
+	border-color: var(--text-error);
+	box-shadow: inset 0 0 0 1px var(--text-error);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Plan canvas — slice 05. The host element; the scene is drawn inside it.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-canvas {
+	position: relative;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The grid, and why it moved out of this element
+
+   It used to be a CSS background here at a fixed 24px pitch, which the
+   screenshots caught: the plan scales to fit its pane and the background did
+   not, so the grid and the scale readout six inches away disagreed at every
+   width. A grid whose pitch ignores the scale is decoration in a ruler's
+   clothes — and in this product that is not a small lie, because the whole claim
+   is that the geometry produces the number.
+
+   So it is drawn inside the svg, in the plan's own coordinates, as a METRE grid:
+   50 units to the metre at 20mm per unit, a major line every 5m, and the status
+   bar names the pitch so the reader is told rather than left to infer. Pan and
+   zoom still have something to move against, which is all the first one was for.
+
+   `non-scaling-stroke` so the lines stay hairlines as the plan zooms: the SPACING
+   carries the measurement, the weight carries nothing and should not grow.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-grid { fill: url(#rp-grid-m); }
+.renovation-planner-view .rp-grid-major { fill: url(#rp-grid-5m); }
+
+.renovation-planner-view .rp-grid-line {
+	fill: none;
+	stroke: var(--rp-grid-line);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.renovation-planner-view .rp-grid-line-major {
+	fill: none;
+	stroke: var(--rp-grid-line-major);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.renovation-planner-view .rp-canvas > svg { display: block; width: 100%; height: 100%; }
+
+.renovation-planner-view .rp-scene-wall { fill: none; stroke: var(--rp-plan-wall); stroke-width: 3; stroke-linejoin: miter; }
+.renovation-planner-view .rp-scene-detail { fill: none; stroke: var(--rp-plan-ink); stroke-width: 1.25; }
+
+.renovation-planner-view .rp-zone {
+	fill: var(--rp-zone-fill);
+	stroke: var(--rp-zone-stroke);
+	stroke-width: var(--rp-stroke-w);
+	stroke-linejoin: round;
+	cursor: pointer;
+}
+
+.renovation-planner-view .rp-zone:hover,
+.renovation-planner-view .rp-zone[data-demo~="hover"] { fill: var(--rp-zone-fill-hover); }
+
+.renovation-planner-view .rp-zone[aria-selected="true"] {
+	fill: var(--rp-selected-fill);
+	stroke: var(--rp-selected-stroke);
+	stroke-width: var(--rp-stroke-w-selected);
+}
+
+.renovation-planner-view .rp-zone[data-invalid="true"] {
+	stroke: var(--rp-invalid);
+	stroke-dasharray: 5 3;
+}
+
+.renovation-planner-view .rp-zone-label {
+	fill: var(--text-normal);
+	font-family: var(--font-interface);
+	font-size: 11px;
+	font-weight: 600;
+	pointer-events: none;
+}
+
+.renovation-planner-view .rp-zone-sub {
+	fill: var(--text-muted);
+	font-family: var(--font-interface);
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	pointer-events: none;
+}
+
+/* Handles: page-ground fill so they read over any zone tint, accent rim so they
+   read as selection rather than as content. */
+.renovation-planner-view .rp-handle {
+	fill: var(--rp-handle-fill);
+	stroke: var(--rp-handle-stroke);
+	stroke-width: 1.75;
+}
+
+.renovation-planner-view .rp-handle-rot { fill: var(--rp-handle-stroke); stroke: var(--rp-handle-fill); stroke-width: 1.5; }
+
+/* Snap guide: dashed, so it cannot be mistaken for drawn geometry even in one
+   colour. The dash is the second channel. */
+.renovation-planner-view .rp-snap-line {
+	stroke: var(--rp-snap);
+	stroke-width: 1.25;
+	stroke-dasharray: 4 3;
+}
+
+.renovation-planner-view .rp-snap-mark { fill: none; stroke: var(--rp-snap); stroke-width: 1.75; }
+
+/* Measurement label: a chip, because a bare number over a plan is unreadable at
+   any zoom the plan itself chooses. */
+/* An annotation, not geometry. The first version drew a 1.25px --text-normal
+   diagonal across a zone with the chip hanging in mid-air beside it, and at 1440px
+   it read as stray geometry — the measure tool's own output looking like the
+   invalid state defined four rules above. Now: a hairline at muted weight, the
+   architectural slash ticks at each end, and the chip breaking the line rather
+   than floating next to it. Same three parts a dimension has had on paper for a
+   century, which is the point — a renovator has seen this before. */
+.renovation-planner-view .rp-measure-line {
+	fill: none;
+	stroke: color-mix(in srgb, var(--text-normal) 62%, transparent);
+	stroke-width: 1;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+.renovation-planner-view .rp-measure-chip { fill: var(--background-primary); stroke: var(--background-modifier-border); }
+.renovation-planner-view .rp-measure-text {
+	fill: var(--text-normal);
+	font-family: var(--font-interface);
+	font-size: 10.5px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Uncalibrated: the warning colour AND a hatch AND the word. Three channels on
+   the one state a user must never read as true. */
+.renovation-planner-view .rp-uncal-chip { fill: var(--background-primary); stroke: var(--rp-uncalibrated); stroke-width: 1.5; }
+.renovation-planner-view .rp-uncal-text { fill: var(--text-warning); font-family: var(--font-interface); font-size: 10.5px; font-weight: 600; }
+.renovation-planner-view .rp-uncal-fill { fill: url(#rp-hatch); stroke: var(--rp-uncalibrated); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.renovation-planner-view .rp-hatch-stroke { stroke: var(--rp-uncalibrated); stroke-width: 1.25; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Status bar and save-state indicator — slice 13
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-statusbar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-4);
+	flex: 0 0 auto;
+	padding: 5px var(--rp-gutter);
+	border-top: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-planner-view .rp-status-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-planner-view .rp-status-item strong { color: var(--text-normal); font-weight: 600; }
+.renovation-planner-view .rp-statusbar .rp-savestate { margin-left: auto; }
+
+.renovation-planner-view .rp-savestate {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--font-ui-smaller);
+}
+
+/* Every one of the four names a WORD as well as a mark. That is the whole point
+   of this component and the reason it is not a coloured dot. */
+.renovation-planner-view .rp-savestate[data-state="saved"] { color: var(--text-muted); }
+.renovation-planner-view .rp-savestate[data-state="saving"] { color: var(--text-muted); }
+.renovation-planner-view .rp-savestate[data-state="unsaved"] { color: var(--text-normal); }
+.renovation-planner-view .rp-savestate[data-state="error"] { color: var(--text-normal); font-weight: 600; }
+
+/* The four states are told apart by their WORD and their MARK. Colour is the
+   third channel and it lives on the mark, where WCAG's 3:1 non-text threshold
+   applies instead of 4.5:1 -- which is the only reason --text-warning is usable
+   here at all, measuring 2.95:1 against the page in the light default. */
+.renovation-planner-view .rp-savestate[data-state="unsaved"] > svg { color: var(--text-warning); }
+.renovation-planner-view .rp-savestate[data-state="error"] > svg { color: var(--text-error); }
+
+.renovation-planner-view .rp-savestate[data-state="saving"] svg {
+	animation: rp-spin 1s linear infinite;
+	transform-origin: center;
+}
+
+@keyframes rp-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+	.renovation-planner-view .rp-savestate[data-state="saving"] svg { animation-duration: 3s; }
+}
+
+.renovation-planner-view .rp-retry {
+	border: 0;
+	padding: 0 2px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Status badge — slice 17. A label first, a mark second.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 6px 1px 5px;
+	border: 1px solid currentcolor;
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	font-weight: 500;
+	line-height: 1.5;
+	white-space: nowrap;
+}
+
+/* Same split as the save state. The label IS the component, so it stays legible
+   and the hue rides the border and the icon. */
+.renovation-planner-view .rp-badge { color: var(--text-normal); }
+.renovation-planner-view .rp-badge[data-health="stale"] { border-color: var(--text-warning); }
+.renovation-planner-view .rp-badge[data-health="stale"] > svg { color: var(--text-warning); }
+.renovation-planner-view .rp-badge[data-health="recalculating"] { border-color: var(--text-muted); }
+.renovation-planner-view .rp-badge[data-health="recalculating"] > svg { color: var(--text-muted); }
+.renovation-planner-view .rp-badge[data-health="failed"] { border-color: var(--text-error); }
+.renovation-planner-view .rp-badge[data-health="failed"] > svg { color: var(--text-error); }
+/* An unknown value renders as ITSELF — the round-trip rule, reaching the display. */
+.renovation-planner-view .rp-badge[data-health="unknown"] { color: var(--text-muted); border-color: var(--text-muted); border-style: dashed; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Toast — slice 13
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-toast {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	max-width: 340px;
+	padding: 9px 11px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+	/* A real offset and a soft blur — a lift, not a halo. */
+	box-shadow: 0 6px 20px -6px color-mix(in srgb, var(--text-normal) 34%, transparent);
+}
+
+.renovation-planner-view .rp-toast[data-severity="error"] { border-color: var(--text-error); }
+.renovation-planner-view .rp-toast[data-severity="error"] .rp-toast-icon { color: var(--text-error); }
+.renovation-planner-view .rp-toast[data-severity="success"] .rp-toast-icon { color: var(--text-success); }
+.renovation-planner-view .rp-toast-icon { flex: 0 0 auto; margin-top: 1px; color: var(--text-muted); }
+.renovation-planner-view .rp-toast-body { flex: 1; }
+.renovation-planner-view .rp-toast-title { font-weight: 600; }
+.renovation-planner-view .rp-toast-detail { color: var(--text-muted); margin-top: 2px; }
+
+.renovation-planner-view .rp-toast-action {
+	margin-top: 6px;
+	display: inline-flex;
+	gap: 10px;
+}
+
+/* --interactive-accent as TEXT measures 3.17:1 light and 3.46:1 dark. An action
+   has to be readable before it is accent-coloured, so weight and an underline
+   carry the affordance and the accent moves to the underline itself. */
+.renovation-planner-view .rp-toast-action button {
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: var(--text-normal);
+	font: inherit;
+	font-weight: 600;
+	text-decoration: underline;
+	text-decoration-color: var(--interactive-accent);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 3px;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.renovation-planner-view .rp-toast-dismiss {
+	flex: 0 0 auto;
+	width: 20px;
+	height: 20px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 0;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.renovation-planner-view .rp-toast-dismiss:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Modal — slice 15. PRD §64's reference report, then its four choices.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-modal {
+	width: 100%;
+	max-width: 420px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	box-shadow: 0 18px 48px -14px color-mix(in srgb, var(--text-normal) 45%, transparent);
+	overflow: hidden;
+}
+
+.renovation-planner-view .rp-modal-title {
+	margin: 0;
+	padding: 13px var(--size-4-4) 0;
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+}
+
+.renovation-planner-view .rp-modal-body {
+	padding: 7px var(--size-4-4) 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.5;
+}
+
+/* The reference report IS the content. A confirmation with no consequences
+   listed is a speed bump. */
+.renovation-planner-view .rp-refs {
+	margin: 9px 0 0;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.renovation-planner-view .rp-refs li {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 5px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.renovation-planner-view .rp-refs b { font-variant-numeric: tabular-nums; min-width: 1.6em; text-align: right; }
+.renovation-planner-view .rp-refs span { color: var(--text-muted); }
+
+.renovation-planner-view .rp-modal-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 6px;
+	padding: var(--size-4-4);
+}
+
+.renovation-planner-view .rp-modal-actions .rp-action { height: 28px; }
+
+/* Cancel is the safe default and it is the one that is focused on open, so it
+   also carries the accent ring rather than the destructive action doing. */
+.renovation-planner-view .rp-modal-actions .rp-action[data-default="true"] {
+	border-color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Empty state — slice 14. A line, and ONE action.
+   ───────────────────────────────────────────────────────────────────────────── */
+.renovation-planner-view .rp-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 7px;
+	padding: 14px var(--rp-gutter) 16px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.45;
+}
+
+.renovation-planner-view .rp-empty-canvas {
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	text-align: center;
+	padding: var(--size-4-4);
+}
+
+.renovation-planner-view .rp-empty-icon { color: var(--text-faint); }
+.renovation-planner-view .rp-empty strong { display: block; color: var(--text-normal); font-weight: 600; }
+
+.renovation-planner-view .rp-empty .rp-action {
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+	font-weight: 600;
+}

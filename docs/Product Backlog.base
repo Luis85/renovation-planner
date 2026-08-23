@@ -78,6 +78,23 @@ views:
       - file.name
       - standing
   - type: table
+    name: Components
+    filters:
+      and:
+        - file.inFolder("docs/components")
+    groupBy:
+      property: medium
+      direction: ASC
+    order:
+      - type
+      - region
+      - file.name
+      - slice
+      - partOf
+    columnSize:
+      file.name: 220
+      note.slice: 599
+  - type: table
     name: Entities
     filters:
       and:

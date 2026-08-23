@@ -1,5 +1,4 @@
 ---
-kind:
 name: Project
 layer: domain
 persistence: note

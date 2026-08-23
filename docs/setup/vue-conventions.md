@@ -18,6 +18,15 @@ and eslint.vuejs.org in August 2026; re-verify against the installed version on 
 
 ## 1. Arrival checklist
 
+**This checklist is not the authoritative one, and it names two configs where this repository
+has three.** It was written against a project with two Vite surfaces; here the standalone
+`vitest.config.ts` is a third thing that transforms source, and its `coverage.include` is a
+fourth item this list does not have. The superset — scoped to the four gates this repository
+actually runs — is design slice 1's **Vue arrival checklist**
+([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](../tasks/01-plugin-bootstrap-and-composition-root.md)),
+which names this file's item 2 as the thing it corrects. Read that one on the day; read the
+rules below for *why* each item is there, which is what this file is good for.
+
 The first `.vue` file's pull request contains ALL of the following, because each one is
 the check under a rule in this file:
 
@@ -27,11 +36,16 @@ the check under a rule in this file:
    nothing uses, so nothing arrives early.)
 2. **Both Vite configs** — `@vitejs/plugin-vue` in `vite.config.ts` AND
    `vite.harness.config.ts`. The harness renders the real view; a plugin only the build
-   knows about splits them.
+   knows about splits them. (**In this repository that is three, not two** — the standalone
+   `vitest.config.ts` needs it too, or importing an SFC fails at parse before any test runs.
+   Slice 1's checklist is the corrected version.)
 3. **Type-checking** — `tsc -noEmit` becomes `vue-tsc -noEmit` in the `build` script,
    and `tsconfig.json`'s `include` gains `"src/**/*.vue"`. Vite transpiles without
    type-checking, so `vue-tsc` in the build is the only command-line type gate SFCs get.
    (`strict` and `isolatedModules` are already set, which is what Vue's TS guide asks for.)
+   **Also `vitest.config.ts`'s `coverage.include`** → `src/**/*.{ts,vue}`: the floors are
+   ratcheted and are one of the four gates, so an SFC outside the include is uncovered code
+   the ratchet cannot see.
 4. **ESLint** — spread `pluginVue.configs['flat/recommended']` (the Vue 3 flat configs)
    into `eslint.config.mjs`, with `parserOptions.parser: '@typescript-eslint/parser'` on
    the `**/*.vue` block so `<script setup lang="ts">` parses. Add the named rules from

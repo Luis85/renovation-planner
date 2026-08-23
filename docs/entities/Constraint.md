@@ -1,12 +1,12 @@
 ---
-kind:
 name: Constraint
 layer: domain
 persistence: note
 sources:
+  - PRD §25
   - PRD §26
   - PRD §58
-  - PRD §25
+  - PRD §60
 type: entity
 ---
 
@@ -50,6 +50,6 @@ frontmatter. Frequently short — a constraint is often one sentence and a numbe
 
 ## Sources
 
-PRD §26 · PRD §58 · PRD §25, in
+PRD §25 · PRD §26 · PRD §58 · PRD §60, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

@@ -1,13 +1,14 @@
 ---
-kind:
 name: Invoice
 layer: domain
 persistence: note
 sources:
-  - PRD §33
   - PRD §11
-  - PRD §37
   - PRD §23
+  - PRD §33
+  - PRD §36
+  - PRD §37
+  - PRD §60
   - PRD §73
 type: entity
 ---
@@ -56,6 +57,6 @@ number, the date, the due date, net/tax/gross and the payment state in frontmatt
 
 ## Sources
 
-PRD §33 · PRD §11 · PRD §37 · PRD §23 · PRD §73, in
+PRD §11 · PRD §23 · PRD §33 · PRD §36 · PRD §37 · PRD §60 · PRD §73, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

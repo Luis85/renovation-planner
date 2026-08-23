@@ -1,5 +1,4 @@
 ---
-kind:
 name: Cost item
 layer: domain
 persistence: note
@@ -9,6 +8,8 @@ sources:
   - PRD §11
   - PRD §32
   - PRD §33
+  - PRD §36
+  - PRD §60
   - PRD §73
   - PRD §74
   - SDD §48
@@ -36,7 +37,7 @@ asset, supplier.
 
 §74's price components — discount, shipping, deposit, surcharge, tax, contingency — are parts of
 a cost item rather than cost items of their own. **ADR-012** places all six; SDD §51 places only
-the three it names, and an earlier version of this paragraph claimed §51 fixed the order for all
+the three it names, and an earlier version of this paragraph claimed SDD §51 fixed the order for all
 of them and then listed an order containing three. The order is
 quantity → unit price → discount → shipping → surcharge → tax → estimated cost, with contingency
 held beside the estimate and a deposit belonging to §33's lifecycle rather than to the price.
@@ -85,6 +86,6 @@ that must not move when the drawing does.
 
 ## Sources
 
-PRD §9 · PRD §10 · PRD §11 · PRD §32 · PRD §33 · PRD §73 · PRD §74 · SDD §48 · SDD §51, in
+PRD §9 · PRD §10 · PRD §11 · PRD §32 · PRD §33 · PRD §36 · PRD §60 · PRD §73 · PRD §74 · SDD §48 · SDD §51, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

@@ -16,6 +16,7 @@ import { REPO } from '../helpers/oxlint';
  */
 
 const PACKAGE_JSON = path.join(REPO, 'package.json');
+const SCRIPT = path.join(REPO, 'scripts', 'harness-shot.mjs');
 
 const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {
 	scripts: Record<string, string>;
@@ -43,5 +44,42 @@ describe('the headless harness capture script', () => {
 
 	it('is absent from npm run check — it draws and asserts no appearance, so there is nothing for the gate to verify', () => {
 		expect(pkg.scripts.check).not.toContain('harness-shot');
+	});
+
+	/*
+	 * Where the browser comes from. This one is a real defect caught late: the script used to
+	 * BUILD the executable's path itself, mirroring Playwright's per-platform layout —
+	 * `chrome-win/chrome.exe`, `chrome-linux/chrome`, `chrome-mac/Chromium.app/…`. Playwright
+	 * moved to Chrome-for-Testing builds and renamed every one of those directories, so the
+	 * mirrored table was wrong on four of its five platforms and `npm run harness-shot` failed
+	 * on this repository's own Windows leg with "No Chromium build found".
+	 *
+	 * The layout is Playwright's to know, so it is asked rather than mirrored. These two check
+	 * that, and they are deliberately machine-independent: asserting the RESOLVED path would
+	 * need a Chromium installed, and CI has none — this script is outside `npm run check` for
+	 * exactly that reason. So the invariant checked is the one that caused the defect: no
+	 * browser-layout literal is written down here at all.
+	 */
+	it('asks playwright-core for the executable path instead of constructing one', () => {
+		expect(readFileSync(SCRIPT, 'utf8')).toContain('chromium.executablePath()');
+	});
+
+	it('writes down no per-platform browser layout of its own', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		// Every directory name Playwright's own EXECUTABLE_PATHS table has used for a
+		// chromium build, current and superseded. A literal from either era in this file
+		// means the layout is being mirrored again.
+		const layouts = [
+			'chrome-win',
+			'chrome-linux',
+			'chrome-mac',
+			'chrome.exe',
+			'Chromium.app',
+			'Google Chrome for Testing',
+			'chrome-headless-shell',
+		];
+
+		expect(layouts.filter((name) => source.includes(name))).toEqual([]);
 	});
 });

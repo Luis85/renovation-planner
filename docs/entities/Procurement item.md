@@ -1,12 +1,13 @@
 ---
-kind:
 name: Procurement item
 layer: domain
 persistence: note
 sources:
   - PRD §24
   - PRD §32
+  - PRD §36
   - PRD §59
+  - PRD §60
   - PRD §75
   - PRD §76
   - PRD §77
@@ -60,6 +61,6 @@ an entity whose whole value is being queryable by state and date.
 
 ## Sources
 
-PRD §24 · PRD §32 · PRD §59 · PRD §75 · PRD §76 · PRD §77, in
+PRD §24 · PRD §32 · PRD §36 · PRD §59 · PRD §60 · PRD §75 · PRD §76 · PRD §77, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

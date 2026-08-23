@@ -7,6 +7,7 @@ sources:
   - PRD §54
   - PRD §57
   - PRD §58
+  - PRD §60
   - PRD §73
 type: actor
 ---
@@ -45,6 +46,6 @@ reasons.
 
 ## Sources
 
-PRD §4 · PRD §54 · PRD §57 · PRD §58 · PRD §73, in
+PRD §4 · PRD §54 · PRD §57 · PRD §58 · PRD §60 · PRD §73, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

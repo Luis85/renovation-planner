@@ -1,15 +1,17 @@
 ---
-kind:
 name: Construction section
 layer: domain
 persistence: note
 partOf: "[[Project]]"
 sources:
   - PRD §8
-  - PRD §16
   - PRD §10
+  - PRD §16
+  - PRD §36
+  - PRD §37
   - PRD §58
   - PRD §59
+  - PRD §60
   - PRD §80
 type: entity
 ---
@@ -60,6 +62,6 @@ dates in frontmatter, so [[Bases]] can group by any of them.
 
 ## Sources
 
-PRD §8 · PRD §16 · PRD §10 · PRD §58 · PRD §59 · PRD §80, in
+PRD §8 · PRD §10 · PRD §16 · PRD §36 · PRD §37 · PRD §58 · PRD §59 · PRD §60 · PRD §80, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

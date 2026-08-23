@@ -4,7 +4,7 @@ order: 10
 status: Active
 started: 2026-08-23
 finished: ""
-horizon: Now
+horizon: "MVP"
 start: ""
 due: ""
 risk: ""
@@ -17,11 +17,16 @@ iteration: ""
 
 The PRD scopes twenty epics, and each of them owns one part of the product: the plan
 editor, the cost engine, the schedule. Several requirements in it belong to none of them.
-§44 asks for keyboard support, visible focus, no colour-only status encoding and an
-alternative list view of anything spatial; §44 again names six typed error categories that
-every one of those epics can raise; §83 puts units, currency, folders and editor
-preferences in one settings model; §68 wants one undo stack rather than twenty. None of
-that is the plan editor's work, and none of it is the cost engine's.
+§44 asks for an accessibility list [[Accessibility]] states in full rather than this note
+restating it; §44 again names six typed error categories that every one of those epics can
+raise; §83 puts units, currency, folders and editor preferences in one settings model; §68
+wants one undo stack rather than twenty. None of that is the plan editor's work, and none of
+it is the cost engine's.
+
+*(This paragraph used to name four of §44's five accessibility requirements and drop
+"sufficient contrast" — two statements of one list, the shorter one wrong, which is exactly
+what the definition of done below forbids. The Feature that owns a list is where the list
+lives.)*
 
 Written into whichever epic reaches it first, a concern like that gets decided twenty
 times and differently — the twentieth screen learns the convention from whichever of the

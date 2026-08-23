@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
-import os from 'node:os';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
+import { resolveChromiumExecutable } from './chromium.mjs';
 
 /**
  * Headless capture of the browser harness — the dark scheme, the light scheme and `?phone`
@@ -18,11 +18,11 @@ import { createServer } from 'vite';
  * "the page looks right" — only that it did not fall over while being looked at.
  *
  * `playwright-core` and not `playwright`: the latter downloads browsers on `npm install`,
- * which this project's install must not do on a machine with no browser. This resolves an
- * already-installed Chromium from `PLAYWRIGHT_BROWSERS_PATH` (or the same default cache
- * playwright-core itself uses) rather than hard-coding a version directory — the revision
- * folder name changes with every Playwright bump, and this repository's pinned
- * `playwright-core` does not necessarily match whatever got installed on this machine.
+ * which this project's install must not do on a machine with no browser. So the browser has
+ * to already be on disk, and finding it is `resolveChromiumExecutable` in `chromium.mjs` —
+ * which asks playwright-core where it is rather than working it out, for reasons that
+ * comment gives at length. It sits in its own file because `concept-shots.mjs` needs the
+ * same answer, and two copies of it is the shape of the defect its history describes.
  */
 
 const OUT_DIR = 'harness-shots';
@@ -36,70 +36,6 @@ const SHOTS = [
 	{ name: 'light', query: '?theme=light' },
 	{ name: 'phone', query: '?phone' },
 ];
-
-/** Where a Playwright install puts its browsers when nothing overrides it — mirrored here
- * rather than imported, because asking `playwright-core` to resolve a browser missing from
- * disk throws instead of returning a path this function could report on. */
-function defaultBrowsersRoot() {
-	const home = os.homedir();
-
-	if (process.platform === 'win32') return path.join(home, 'AppData', 'Local', 'ms-playwright');
-	if (process.platform === 'darwin') return path.join(home, 'Library', 'Caches', 'ms-playwright');
-	return path.join(home, '.cache', 'ms-playwright');
-}
-
-/** The binary inside one `chromium-<revision>` directory, per platform — Playwright's own
- * install layout, not this project's choice. */
-function chromiumBinaryIn(dir) {
-	if (process.platform === 'win32') return path.join(dir, 'chrome-win', 'chrome.exe');
-	if (process.platform === 'darwin') return path.join(dir, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium');
-	return path.join(dir, 'chrome-linux', 'chrome');
-}
-
-/** Every `chromium-<revision>` directory name under the browsers root, newest first —
- * there can be more than one once a machine has upgraded Playwright without clearing its
- * cache, and the newest is the one worth trying first. */
-function chromiumRevisionsIn(root) {
-	return readdirSync(root, { withFileTypes: true })
-		.filter((entry) => entry.isDirectory() && /^chromium-\d+$/.test(entry.name))
-		.map((entry) => Number(entry.name.slice('chromium-'.length)))
-		.toSorted((a, b) => b - a);
-}
-
-/** The first revision under `root` that actually has a binary on disk, or `undefined`. A
- * revision DIRECTORY existing is not the same as the browser being installed in it — an
- * interrupted `playwright install` can leave an empty one. */
-function findInstalledChromium(root) {
-	for (const revision of chromiumRevisionsIn(root)) {
-		const bin = chromiumBinaryIn(path.join(root, `chromium-${revision}`));
-
-		if (existsSync(bin)) return bin;
-	}
-
-	return undefined;
-}
-
-/**
- * Find an installed Chromium without hard-coding a revision. `chromium-1194` is what this
- * environment happens to have; the number changes with every Playwright browser release,
- * so this globs `chromium-<digits>` under the browsers root and takes the newest, rather
- * than trusting `playwright-core`'s own resolver — which is pinned to the revision its
- * `browsers.json` names and throws when the installed one is a different number, which is
- * exactly the mismatch a machine with an older or newer browser install would hit.
- */
-function resolveChromiumExecutable() {
-	const root = process.env.PLAYWRIGHT_BROWSERS_PATH || defaultBrowsersRoot();
-	const bin = existsSync(root) ? findInstalledChromium(root) : undefined;
-
-	if (bin) return bin;
-
-	throw new Error(
-		`No Chromium build found for headless capture (looked under ${root}).\n\n` +
-			'Install one with:\n' +
-			'  npx playwright install chromium\n\n' +
-			'Set PLAYWRIGHT_BROWSERS_PATH first if browsers should not live in the default cache.',
-	);
-}
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not

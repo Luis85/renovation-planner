@@ -19,9 +19,10 @@ export interface MountedHarness {
 }
 
 export function mountHarness(root: HTMLElement): MountedHarness {
-	// Obsidian's DOM prototype extensions (`createEl`, `createDiv`, `empty`, `setText`).
-	// The view calls them and a browser has none of them, so this is what makes the same
-	// code run on a plain page. Installed first, because everything below uses it.
+	// Obsidian's DOM prototype extensions (`createEl`, `createDiv`, `empty`, `setText`,
+	// `addClass`). The view calls them and a browser has none of them, so this is what
+	// makes the same code run on a plain page. Installed first, because everything below
+	// uses it.
 	installObsidianDom();
 	root.empty();
 

@@ -55,6 +55,11 @@ export class RenovationProjectView extends ItemView {
 	private vueApp: VueApp | null = null;
 
 	onOpen(): Promise<void> {
+		// The hook the stylesheet keys on to reset Obsidian's own pane paddings
+		// (styles/chrome.css) — on `containerEl`, because the padding lives on
+		// `.view-content`, a descendant of it. Idempotent across re-opens: Obsidian
+		// reuses this view, and `addClass` is set-membership.
+		this.containerEl.addClass('renovation-planner-container');
 		this.contentEl.empty();
 		// One isolated app per ItemView with its OWN Pinia (ADR-004, SDD §12) rather than a
 		// shared singleton. Mounted onto `contentEl` directly — not `containerEl`, which

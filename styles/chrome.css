@@ -12,3 +12,14 @@
 .workspace-leaf-content[data-type="renovation-project"] .view-header {
 	display: none;
 }
+
+/*
+ * The full-bleed surface continues below the header: Obsidian pads `.view-content` for
+ * document-style panes, and the planner draws edge-to-edge instead. Keyed on the class
+ * `RenovationProjectView.onOpen` adds to `containerEl` — the same pairing shape as the
+ * selector above, with `tests/presentation/views/renovationProjectView.test.ts` holding
+ * both ends together.
+ */
+.renovation-planner-container .view-content {
+	padding: 0;
+}

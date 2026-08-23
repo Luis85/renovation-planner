@@ -138,15 +138,30 @@ describe('the renovation project view', () => {
 	});
 
 	/**
-	 * `styles/chrome.css` hides Obsidian's view header for THIS view only, keyed on the
-	 * persisted type — a string CSS cannot import. This is the check that pairs the
-	 * selector to the constant, so renaming the type cannot silently leave the header
-	 * visible (or, worse, hide some other plugin's).
+	 * The container class is what `styles/chrome.css` keys its `.view-content` padding
+	 * reset on, so it must be present after an open. Obsidian reuses the view, so a
+	 * second open must not have to depend on the class being added twice — `addClass`
+	 * is set-membership, and that is what survives here.
+	 */
+	it('marks its container for the padding reset', async () => {
+		await subject.onOpen();
+		await subject.onOpen();
+
+		expect(subject.containerEl.classList.contains('renovation-planner-container')).toBe(true);
+	});
+
+	/**
+	 * `styles/chrome.css` hides Obsidian's view header and resets the content pane's
+	 * padding for THIS view only — one selector keyed on the persisted type, one on the
+	 * class `onOpen` adds to `containerEl`. Both are strings CSS cannot import. This is
+	 * the check that pairs each selector to its constant, so renaming either cannot
+	 * silently leave chrome visible (or, worse, restyle some other plugin's pane).
 	 */
 	it('keys the hidden view header on this view type', () => {
 		const chrome = readFileSync('styles/chrome.css', 'utf8');
 
 		expect(chrome).toContain(`[data-type="${RENOVATION_PROJECT_VIEW}"]`);
+		expect(chrome).toContain('.renovation-planner-container .view-content');
 	});
 });
 

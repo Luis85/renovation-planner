@@ -1,7 +1,7 @@
 /**
  * Installs the Obsidian DOM prototype extensions the code here actually calls —
- * `createEl`, `createDiv`, `empty`, `setText` — before constructing any view. Call once
- * per jsdom test file.
+ * `createEl`, `createDiv`, `empty`, `setText`, `addClass` — before constructing any
+ * view. Call once per jsdom test file.
  *
  * Nothing more is installed on purpose: a fake nobody exercises cannot be caught
  * drifting from the real API, so every further helper arrives with its first consumer —
@@ -47,5 +47,9 @@ export function installObsidianDom(): void {
 	};
 	proto.setText = function (this: HTMLElement, text: string): void {
 		this.textContent = text;
+	};
+	proto.addClass = function (this: HTMLElement, classes: string | string[]): void {
+		const list = Array.isArray(classes) ? classes : classes.split(/\s+/);
+		this.classList.add(...list.filter((c) => c.length > 0));
 	};
 }

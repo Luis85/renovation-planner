@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { transform } from 'lightningcss';
 
 /**
  * Assemble `styles/index.css` and its partials into the single stylesheet Obsidian
@@ -46,180 +47,198 @@ function countLines(body) {
 // already claims none exist here. This is what makes that claim checked rather than
 // merely believed.
 //
-// What this SEES: a hex colour — `#fff`, `#a1b2c3`, `#a1b2c3d4` — EXACTLY 3, 4, 6 or 8
-// hex digits (RGB / RGBA / RRGGBB / RRGGBBAA, the only lengths CSS accepts; 5 and 7 are
-// not a colour and are not matched) — or a call to one of CSS Color's colour functions:
-// `rgb()` / `rgba()` / `hsl()` / `hsla()` / `hwb()` / `lab()` / `lch()` / `oklab()` /
-// `oklch()` / `color()`. That list is the complete set the CSS Color spec defines as of
-// this writing — a CLOSED, spec-named vocabulary, unlike a bare colour word (see below).
-// `\bcolor\(` requires the literal word immediately followed by `(`, which is what tells
-// the `color` FUNCTION apart from the `color` PROPERTY (`color: var(--text-normal);` —
-// followed by `:`, never matched) and from a custom property merely named after it
-// (`--my-color: …`, `--color-scheme: …` — followed by `-` or `:`, never `(`).
+// Three earlier approaches to this check — a per-line regex, then a brace-depth counter,
+// then a quote/paren-aware declaration walk — were each defeated by CSS content that
+// looks like syntax: an at-rule-nested selector, a quoted `}`, a `/*` inside a string
+// bridging to a real comment elsewhere, an unterminated string, a colour function the
+// word-list hadn't named, an escaped `)` inside `url()`. Every one of those is a class of
+// mistake a REAL CSS parser does not make, so this check is no longer hand-rolled lexing:
+// it runs `lightningcss` — already a devDependency, already imported by
+// `scripts/vite-assembled-styles.mjs` to minify this very stylesheet — and inspects the
+// same parsed structure Vite's own build does. Comments, strings and escapes are handled
+// by a conformant tokenizer before this code ever sees a declaration; there is no text
+// left to be fooled by.
 //
-// Both spellings above are recognised ONLY inside a declaration's value — `property:
-// value;` — never inside a selector or an at-rule prelude, AT ANY NESTING DEPTH.
-// `forEachDeclaration` below is a small hand-rolled walk, not a depth counter: it
-// classifies each chunk of text between structural characters by which one ends it —
-// `{` means the chunk was a selector or prelude (discarded, unscanned) and `;` or `}`
-// means it was a declaration (scanned) — which is what makes `@media (…) { #fade { … }
-// }` correct without tracking brace depth at all: `#fade` still ends in `{`, so it is
-// still a selector, no matter how many blocks it is nested inside.
+// What this SEES: every literal colour value lightningcss's own parser resolves into a
+// `CssColor` node — hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, `hwb()`, `lab()`, `lch()`,
+// `oklab()`, `oklch()`, `color()`, a literal-only `color-mix()` (lightningcss computes
+// the blended result, which is itself a `CssColor`), and `light-dark()` — found by
+// walking each declaration's parsed VALUE recursively, at any nesting depth (a gradient
+// colour-stop, a `var()` fallback, an otherwise-unresolved function's own arguments — see
+// `color-contrast()` in the test file for that last one). Because detection reads the
+// PARSED tree rather than source text, it is correct regardless of what a selector, an
+// at-rule prelude, a comment or a quoted string contains: those are never declaration
+// VALUES, so they are never visited, by construction — not by a rule that excludes them.
 //
-// The walk also tracks CSS's other two structural exceptions, because a scan blind to
-// either gets real stylesheets wrong: a `{`, `}`, `;` or `(`/`)` inside a QUOTED STRING
-// (`'`/`"`, with `\` escapes) is literal text, not structure, so `content: "}";` cannot
-// end a block early — and the quoted text itself is masked out of the scan, since a CSS
-// colour is never legitimately written as a quoted string (`content: "#fff";` is a
-// label). And a `;` inside PARENTHESES — a colour function's own arguments, a `url()`
-// argument, a `data:` URI's `;base64,` — belongs to that call, not to the declaration
-// that contains it. `url(...)` itself is blanked before matching: it holds a URL or a
-// same-document fragment reference, never a colour, however hex-shaped its argument
-// reads (`url(#fade)`).
+// A caveat every earlier round of this check carried and had to repeat is gone, not
+// narrowed: CSS NAMED colours (`red`, `rebeccapurple`, …) ARE now caught. `red` and
+// `#ff0000` parse to the identical `CssColor` node — lightningcss does not keep the
+// keyword spelling any more than it keeps a hex literal's — so the ambiguity that made a
+// bare word unsafe to flag under a source-text scan (indistinguishable from a class name
+// or a custom-property name) does not exist here: `Declaration.value` only ever holds a
+// `CssColor` node where the CSS value grammar put a literal colour, never a selector or a
+// property name. See 'refuses a CSS named colour' in the test file.
 //
-// What this does NOT see, and why each is a deliberate line, not an oversight:
-//  - CSS NAMED colours (`red`, `rebeccapurple`, …). Unlike a function name, a bare word
-//    is not self-marking — nothing distinguishes it from a class name, a custom-property
-//    name or comment prose without parsing the declaration around it — and this project
-//    has decided not to add a CSS parser for one check.
-//  - A colour function the CSS Color spec adds AFTER this list was written. The function
-//    set is closed and spec-named, not inferred, so a future spec addition needs a
-//    one-line update here — the same maintenance any enumerated vocabulary carries.
-//  - Anything outside plain, hand-authored CSS syntax this project's own partials use —
-//    no Sass/Less nesting shorthand, no `@supports selector(...)`-style constructs this
-//    walk cannot already parse as ordinary parens. Every construct actually exercised by
-//    `styles/` today (nested rules, `@media`, `@keyframes`, quoted `content`, `url()`,
-//    custom properties) was traced by hand against this walk before it shipped.
-// `currentColor`, `transparent` and `inherit` need no exemption logic: none of them is a
-// hex or a function-call spelling, so the pattern below simply never matches them.
-const HARDCODED_COLOR =
-	/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/i;
+// What this does NOT see, and why it is a deliberate, narrow line: `device-cmyk()` is the
+// one CSS Color function lightningcss's parser (1.33) does not fold into a `CssColor`
+// node — its four arguments are bare percentages, so nothing about a literal
+// `device-cmyk(0% 81% 81% 30%)` is ever colour-SHAPED in the parsed tree, unlike every
+// other named colour function this project checked by hand against this version of
+// lightningcss (including an entirely unresolved one, `color-contrast()`, whose literal
+// colour ARGUMENTS still surface as `CssColor` nodes). `UNRESOLVED_COLOR_FUNCTIONS` below
+// is that one-function list, named by lightningcss's own function-call shape rather than
+// inferred from source spelling — a future lightningcss version that resolves it removes
+// the need for this list without this check changing behaviour.
+//
+// `currentColor` and a CSS system-colour keyword (`Canvas`, `ButtonText`, …) both adapt
+// to the viewer's theme or OS colour scheme rather than encoding a fixed palette value,
+// so both are exempt — `currentcolor` by its own distinct `CssColor` type, and a system
+// colour because it parses to a bare STRING, never the object shape this check matches,
+// so it needs no exemption code at all. `transparent` earns the same exemption a
+// different way: lightningcss does not keep the keyword spelling, it resolves to
+// `rgb(0 0 0 / 0)` like any equivalent literal — so this check exempts alpha 0
+// GENERALLY, on any colour type, since a colour with no opacity never paints a hue in any
+// theme. `inherit` needs no exemption: it is not a colour value at all, so it is never a
+// `CssColor` node to begin with.
+//
+// One narrowing that follows from using the real parser rather than source text: the
+// LINE named in the error is the enclosing rule's own line, not necessarily the exact
+// declaration's line within a multi-line rule. lightningcss's public visitor API gives a
+// source location on a `Rule`, never on a `Declaration` — confirmed by inspecting what
+// the visitor actually receives, not assumed from the type definitions alone — so that is
+// the finest position this check can honestly report. A rule spanning many declarations
+// still points at ONE line for all of them; the file and the fact of the violation are
+// exact regardless.
+const COLOR_TYPE_TAGS = new Set([
+	'rgb',
+	'hsl',
+	'hwb',
+	'lab',
+	'lch',
+	'oklab',
+	'oklch',
+	'srgb',
+	'srgb-linear',
+	'display-p3',
+	'a98-rgb',
+	'prophoto-rgb',
+	'rec2020',
+	'xyz-d50',
+	'xyz-d65',
+	'light-dark',
+]);
 
-// A colour named only inside a `/* comment */` is not shipped as a rule. Blanking the
-// comment bodies (newlines kept, everything else spaced out) removes it from view while
-// leaving every other line's number exactly where it was — the same trade the entry-file
-// parser above makes by stripping comments before it looks for `@import` lines.
-function withoutComments(body) {
-	return body.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '));
+const UNRESOLVED_COLOR_FUNCTIONS = new Set(['device-cmyk']);
+
+function isPlainObject(value) {
+	return typeof value === 'object' && value !== null;
 }
 
-// `url(...)` holds a URL or, for an SVG filter, a same-document fragment reference — not
-// a colour, even when its argument happens to be a hex-shaped word. Blanking the whole
-// call (newlines kept) removes it from view the same way comments are removed above.
-function withoutUrlCalls(body) {
-	return body.replace(/url\(\s*[^)]*\)/gi, (call) => call.replace(/[^\n]/g, ' '));
+// A literal colour lightningcss resolved into its own `CssColor` shape — anything whose
+// `type` tag is in `COLOR_TYPE_TAGS` — EXCEPT one with alpha 0: see the header comment
+// above for why full transparency is exempt regardless of which colour type carries it.
+function isResolvedColor(node) {
+	return isPlainObject(node) && COLOR_TYPE_TAGS.has(node.type) && node.alpha !== 0;
 }
 
-const QUOTE_CHARS = new Set(['"', "'"]);
-
-/**
- * One character's worth of quote bookkeeping, split out of `forEachDeclaration` so that
- * function stays under this project's complexity budget. Handles both halves: opening a
- * quote (`quote` is null and `ch` is `"`/`'`) and advancing inside one (an escaped
- * character clears the escape flag, an unescaped `\` sets it, an unescaped matching quote
- * closes the string). `handled: true` means the caller should just append `append` and
- * move on — the character was quote punctuation or quoted content, masked (a literal
- * `\n` aside, kept for line-number math) because a quoted string is never a colour value.
- * `handled: false` means `ch` is untouched by quoting and still needs classifying.
- */
-function advanceQuoteState(ch, quote, escaped) {
-	if (quote) {
-		const append = ch === '\n' ? '\n' : ' ';
-		if (escaped) return { quote, escaped: false, append, handled: true };
-		if (ch === '\\') return { quote, escaped: true, append, handled: true };
-		if (ch === quote) return { quote: null, escaped: false, append, handled: true };
-		return { quote, escaped, append, handled: true };
-	}
-	if (QUOTE_CHARS.has(ch)) return { quote: ch, escaped: false, append: ch, handled: true };
-	return { quote, escaped, append: ch, handled: false };
-}
-
-// `(` opens one more level, `)` closes one, anything else leaves depth alone — split out
-// so `forEachDeclaration` tests depth once instead of branching on `(` and `)` separately.
-function nextParenDepth(ch, parenDepth) {
-	if (ch === '(') return parenDepth + 1;
-	if (ch === ')') return Math.max(0, parenDepth - 1);
-	return parenDepth;
-}
-
-// A `(`/`)` itself, or anything still inside one, owns its own `{`/`}`/`;` (a function
-// call's own parentheses — a data: URI's `;base64,` — not the declaration around it).
-function isInsideParens(ch, parenDepth) {
-	return ch === '(' || ch === ')' || parenDepth > 0;
-}
-
-// `;` ends a declaration outright; `}` ends one that was missing its trailing semicolon
-// AND closes the enclosing block — either way, what preceded it gets scanned.
-function endsADeclaration(ch) {
-	return ch === ';' || ch === '}';
+// The one function lightningcss's parser leaves unresolved that this project still needs
+// to name explicitly — see the header comment above `COLOR_TYPE_TAGS`.
+function isUnresolvedColorFunctionCall(node) {
+	return (
+		isPlainObject(node) &&
+		node.type === 'function' &&
+		isPlainObject(node.value) &&
+		typeof node.value.name === 'string' &&
+		UNRESOLVED_COLOR_FUNCTIONS.has(node.value.name.toLowerCase())
+	);
 }
 
 /**
- * Walks `body` once and calls `onDeclaration(text, startLine)` for every chunk of text
- * that a `;` or a block-closing `}` ends — a declaration's property and value — while
- * silently discarding every chunk a `{` ends — a selector or an at-rule prelude, at
- * whatever depth it sits. See the long comment above `HARDCODED_COLOR` for why this
- * classification, not brace depth, is what makes the caller correct.
+ * Walks a declaration's already-PARSED value — plain objects and arrays, the shape
+ * `JSON.parse(JSON.stringify(...))` would give it — for the first node that is a literal
+ * colour. Recurses into every field generically, by depth rather than by name, because a
+ * `CssColor` node appears in genuinely different shapes depending on context: wrapped as
+ * `{ type: 'color', value: CssColor }` inside a raw token stream (a custom property, an
+ * unresolved function's arguments), or as a bare `CssColor` object assigned directly to a
+ * named field of an already-typed value (`background`'s own `color`, a gradient
+ * colour-stop's `color`, `border`'s `color`). A name-based walk would have to enumerate
+ * both shapes at every property this project might ever use; a depth-based one does not
+ * need to know either exists.
  *
- * Must run on comment-stripped text: a stray `{`/`}` inside a comment would desynchronise
- * this walk from the real blocks the same way it would a depth counter.
+ * @returns {object | null} the offending node, or null if `value` holds no literal colour
  */
-function forEachDeclaration(body, onDeclaration) {
-	let chunk = '';
-	let chunkStartLine = 1;
-	let line = 1;
-	let quote = null;
-	let escaped = false;
-	let parenDepth = 0;
-
-	for (const ch of body) {
-		if (ch === '\n') line += 1;
-
-		const quoteState = advanceQuoteState(ch, quote, escaped);
-		quote = quoteState.quote;
-		escaped = quoteState.escaped;
-		if (quoteState.handled) {
-			chunk += quoteState.append;
-			continue;
+function findHardcodedColor(value) {
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			const found = findHardcodedColor(item);
+			if (found) return found;
 		}
-
-		parenDepth = nextParenDepth(ch, parenDepth);
-		if (isInsideParens(ch, parenDepth)) {
-			chunk += ch;
-			continue;
-		}
-
-		if (ch === '{') {
-			chunk = '';
-			chunkStartLine = line;
-			continue;
-		}
-		if (endsADeclaration(ch)) {
-			onDeclaration(chunk, chunkStartLine);
-			chunk = '';
-			chunkStartLine = line;
-			continue;
-		}
-		chunk += ch;
+		return null;
 	}
-	// A declaration missing its final semicolon, immediately before EOF, is still real.
-	if (chunk.trim() !== '') onDeclaration(chunk, chunkStartLine);
+	if (!isPlainObject(value)) return null;
+	if (isResolvedColor(value) || isUnresolvedColorFunctionCall(value)) return value;
+	for (const key of Object.keys(value)) {
+		const found = findHardcodedColor(value[key]);
+		if (found) return found;
+	}
+	return null;
+}
+
+// A short, human-readable label for the offending node — not a reconstruction of the
+// original source spelling, which the parser has already normalised away (`#fff` and
+// `rgb(255, 255, 255)` resolve to the identical `CssColor` node), so the message names
+// what lightningcss found rather than claiming to quote what the partial wrote.
+function describeColor(node) {
+	if (node.type === 'function') return `${node.value.name}(…)`;
+	// The common case — hex, rgb()/rgba(), a named colour, hwb() — all resolve to this
+	// one shape, so it earns real CSS syntax rather than a field dump.
+	if (node.type === 'rgb') {
+		return node.alpha === 1 ? `rgb(${node.r}, ${node.g}, ${node.b})` : `rgba(${node.r}, ${node.g}, ${node.b}, ${node.alpha})`;
+	}
+	const components = Object.entries(node)
+		.filter(([key]) => key !== 'type')
+		.map(([key, value]) => `${key}: ${value}`)
+		.join(', ');
+	return `${node.type}(${components})`;
 }
 
 // A partial with a hard-coded colour fails the build LOUDLY, naming the file and the
 // line — the one failure mode a shipped, themed-looking stylesheet cannot report for
-// itself the way a broken import can.
+// itself the way a broken import can. A partial lightningcss cannot PARSE at all fails
+// just as loudly, with whatever position lightningcss itself reports: silently ignoring
+// a parse error would be a worse failure than either.
 function checkForHardcodedColors(name, body) {
-	forEachDeclaration(withoutComments(body), (chunk, startLine) => {
-		const scanned = withoutUrlCalls(chunk);
-		const match = HARDCODED_COLOR.exec(scanned);
-		if (!match) return;
-		const before = scanned.slice(0, match.index);
-		const line = startLine + (before.match(/\n/g) ?? []).length;
-		throw new Error(
-			`styles/${name}:${line} hard-codes a colour (\`${match[0]}\`) — use an Obsidian CSS variable (e.g. var(--text-normal)) instead, so a themed vault stays themed.`,
-		);
-	});
+	let ruleLine = null;
+	let violation = null;
+
+	try {
+		transform({
+			filename: name,
+			code: Buffer.from(body),
+			visitor: {
+				Rule: {
+					style(rule) {
+						// 0-indexed in lightningcss's own AST; every message elsewhere in this
+						// file, and every editor, counts from 1.
+						ruleLine = rule.value.loc.line + 1;
+					},
+				},
+				Declaration(declaration) {
+					if (violation) return;
+					const found = findHardcodedColor(declaration.value);
+					if (found) violation = { found, line: ruleLine };
+				},
+			},
+		});
+	} catch (error) {
+		const at = error.loc ? ` (line ${error.loc.line}, column ${error.loc.column})` : '';
+		throw new Error(`styles/${name} could not be parsed as CSS${at}: ${error.message}`, { cause: error });
+	}
+
+	if (!violation) return;
+	throw new Error(
+		`styles/${name}:${violation.line} hard-codes a colour (\`${describeColor(violation.found)}\`) — use an Obsidian CSS variable (e.g. var(--text-normal)) instead, so a themed vault stays themed.`,
+	);
 }
 
 /**

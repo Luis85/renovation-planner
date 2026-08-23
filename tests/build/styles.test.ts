@@ -34,8 +34,8 @@ describe('assembling the stylesheet', () => {
 	it('concatenates the partials in the order index.css imports them', () => {
 		plant({
 			'index.css': '@import "./one.css";\n@import "./two.css";\n',
-			'one.css': '.one { color: red; }\n',
-			'two.css': '.two { color: blue; }\n',
+			'one.css': '.one { margin: 0; }\n',
+			'two.css': '.two { padding: 0; }\n',
 		});
 
 		const out = assembleStyles();
@@ -69,7 +69,7 @@ describe('assembling the stylesheet', () => {
 	it('accepts a partial of exactly the cap', () => {
 		plant({
 			'index.css': '@import "./big.css";\n',
-			'big.css': '.a { color: red; }\n'.repeat(400),
+			'big.css': '.a { margin: 0; }\n'.repeat(400),
 		});
 
 		expect(() => assembleStyles()).not.toThrow();
@@ -80,7 +80,7 @@ describe('assembling the stylesheet', () => {
 	it('assembles a hyphenated partial', () => {
 		plant({
 			'index.css': '@import "./work-package.css";\n',
-			'work-package.css': '.wp { color: red; }\n',
+			'work-package.css': '.wp { margin: 0; }\n',
 		});
 
 		expect(assembleStyles()).toContain('.wp');
@@ -91,7 +91,7 @@ describe('assembling the stylesheet', () => {
 	it('assembles a CRLF-saved entry file', () => {
 		plant({
 			'index.css': '@import "./one.css";\r\n',
-			'one.css': '.one { color: red; }\n',
+			'one.css': '.one { margin: 0; }\n',
 		});
 
 		expect(assembleStyles()).toContain('.one');
@@ -100,7 +100,7 @@ describe('assembling the stylesheet', () => {
 	it('tolerates comments in the entry file', () => {
 		plant({
 			'index.css': '/* order is load-bearing */\n@import "./one.css"; /* first */\n',
-			'one.css': '.one { color: red; }\n',
+			'one.css': '.one { margin: 0; }\n',
 		});
 
 		expect(assembleStyles()).toContain('.one');
@@ -147,10 +147,14 @@ describe('assembling the stylesheet', () => {
 
 	/**
 	 * A hard-coded colour looks correct in whichever theme authored it and wrong in every
-	 * other one (SDD §84). The check sees hex, `rgb()`/`rgba()` and `hsl()`/`hsla()` — the
-	 * spellings a string scan can find without a CSS parser this project has decided not
-	 * to add. CSS named colours are a deliberate scope decision, not an oversight: see the
-	 * 'does not flag a CSS named colour' test below for why.
+	 * other one (SDD §84). The check runs `lightningcss` — the real parser this stylesheet
+	 * is already minified with — and walks each declaration's PARSED value for a literal
+	 * colour, so it sees hex, every colour function the CSS Color spec resolves into a
+	 * structured colour (`rgb()`/`rgba()`/`hsl()`/`hsla()`/`hwb()`/`lab()`/`lch()`/
+	 * `oklab()`/`oklch()`/`color()`, a literal-only `color-mix()`, `light-dark()`) AND, as
+	 * a direct consequence of using a real parser rather than a source-text pattern, CSS
+	 * NAMED colours too — see 'refuses a CSS named colour' below for why that is now safe
+	 * to check, where three earlier rounds of this gate deliberately left it alone.
 	 */
 	describe('hard-coded colours', () => {
 		it('refuses a hex colour, naming the file and the line', () => {
@@ -159,7 +163,12 @@ describe('assembling the stylesheet', () => {
 				'one.css': '.one {\n\tcolor: #fff;\n}\n',
 			});
 
-			expect(() => assembleStyles()).toThrow(/one\.css:2/);
+			// The line named is the RULE's line, not the declaration's: lightningcss's
+			// visitor gives a source position on a `Rule`, never on a `Declaration` —
+			// confirmed by inspecting what the visitor actually receives, not assumed
+			// from its type definitions. `.one {` opens on line 1, so that is what a
+			// violation anywhere inside it is reported against.
+			expect(() => assembleStyles()).toThrow(/one\.css:1/);
 		});
 
 		it('refuses an rgb() colour', () => {
@@ -247,32 +256,40 @@ describe('assembling the stylesheet', () => {
 			expect(() => assembleStyles()).not.toThrow();
 		});
 
-		// A larger and more ambiguous set than hex/rgb()/hsl(): a bare word like `red` or
-		// `tan` cannot be told apart from a class name, a custom-property name or plain
-		// prose without parsing the declaration it sits in, and this project has decided
-		// not to add a CSS parser for one check. Excluded deliberately, not missed.
-		it('does not flag a CSS named colour', () => {
+		/**
+		 * The bare word `red` and the hex `#ff0000` become the SAME parsed `CssColor`
+		 * node — lightningcss does not keep the keyword spelling any more than it keeps
+		 * `#f00`'s. Earlier, string-scanning rounds of this gate excluded named colours
+		 * on purpose: a bare word cannot be told apart from a class name or a
+		 * custom-property name without parsing the declaration it sits in. A real parser
+		 * removes exactly that ambiguity — `Declaration.value` only ever holds a
+		 * `CssColor` node when the CSS value grammar put one there, never a selector or a
+		 * property name — so this is not a new feature bolted on, it is the same check
+		 * losing a caveat it no longer needs.
+		 */
+		it('refuses a CSS named colour', () => {
 			plant({
 				'index.css': '@import "./one.css";\n',
 				'one.css': '.one { color: red; }\n',
 			});
 
-			expect(() => assembleStyles()).not.toThrow();
+			expect(() => assembleStyles()).toThrow(/one\.css/);
 		});
 
 		/**
 		 * A selector is never a colour, however hex-shaped its name reads: `#fade`, `#dad`
 		 * and `#face-plate` are ID selectors, not colours, and every letter of `fade`,
-		 * `dad`, `face`, `cab`, `bad`, `beef`, `cafe` and `ace` is a valid hex digit —
-		 * chasing every hex-shaped English word one spelling at a time is a losing game,
-		 * so the check instead looks only at DECLARATION VALUES (`forEachDeclaration`),
-		 * never at a selector. `url(...)` is stripped for the same reason: `url(#fade)`
-		 * sits in VALUE position but holds a fragment reference, not a colour, and — at
-		 * every nesting depth, not just the top one — a selector inside `@media`/
-		 * `@supports`/`@container` is still a selector. This project forbids inline
-		 * suppressions, so a false positive here has
-		 * no escape hatch except editing this shared script under pressure — these are
-		 * regression tests, not exploratory ones.
+		 * `dad`, `face`, `cab`, `bad`, `beef`, `cafe` and `ace` is a valid hex digit. This
+		 * is no longer a scan the check has to steer around: `lightningcss` parses a
+		 * selector into a `SelectorList`, structurally separate from a declaration's
+		 * VALUE, and this check only ever calls `findHardcodedColor` on the latter — a
+		 * selector is never visited at all, regardless of nesting depth under `@media` /
+		 * `@supports` / `@container`. `url(#fade)` is the same story one level in: the
+		 * parser gives it `type: 'url'`, never the `CssColor` shape this check matches, so
+		 * a fragment reference is not a colour by construction, not by an exemption this
+		 * check has to remember to apply. This project forbids inline suppressions, so a
+		 * false positive here has no escape hatch except editing this shared script under
+		 * pressure — these are regression tests, not exploratory ones.
 		 */
 		it('does not flag a hex-shaped ID selector', () => {
 			plant({
@@ -471,6 +488,173 @@ describe('assembling the stylesheet', () => {
 			});
 
 			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		/**
+		 * Six bypasses were found across four rounds of hand-rolled string scanning, all
+		 * defeated content that LOOKED like syntax to a scan that could not actually
+		 * parse it: an at-rule-nested selector, a quoted brace, a modern colour function
+		 * missing from a word list, a `/*` inside a string bridging to a real comment
+		 * (two variants), a colour function (`device-cmyk()`) still missing from the
+		 * word list, and an escaped `)` inside `url()`. This project's own rule — an
+		 * invariant gets a test that fails without it — applies here at the scale of the
+		 * whole approach: `scripts/styles-assemble.mjs` now runs `lightningcss` instead
+		 * of scanning source text at all, and every case below is regression coverage
+		 * for one of the six, run against the real parser rather than patched string
+		 * logic.
+		 */
+		it('refuses a colour bridged by a string containing a comment-open delimiter', () => {
+			// Bypass 1: withoutComments() ran before any quote awareness, so `/*` inside
+			// this string paired with a LATER real `*/` and swallowed `color: #fff;`.
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { content: "/*"; color: #fff; content: "*/"; }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses a colour after a stray comment-open string bridges into a later rule', () => {
+			// Bypass 2 (variant): the stray `/*` need not close in the SAME rule — any
+			// real `*/` anywhere later in the file, even a genuine trailing comment on an
+			// unrelated rule, closed the false comment and hid everything between.
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.a { content: "oops /*"; }\n.b { color: #fff; } /* trailing */\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('reports a clear parse failure for an unterminated string, rather than silently masking what follows it', () => {
+			// Bypass 3: a string that never closes is not a scanning edge case to a real
+			// parser — CSS terminates a string at a bare newline (a "bad string" token)
+			// — so lightningcss throws, and this project's own rule ("a parse error must
+			// be reported clearly, not swallowed") is what turns that into a named build
+			// failure instead of a silently-passed partial.
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.a { content: "oops\ncolor: #fff;\n}\n.b { color: green; }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('still passes a real comment, unaffected by string-awareness', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { /* color: #fff; */ margin: 0; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('refuses device-cmyk(), the one colour function lightningcss leaves unresolved', () => {
+			// Bypass 5 (this round's report numbering): the closed-list residual this
+			// project documented and expected to keep growing. With a real parser, it is
+			// a list of one function, not an open-ended word list to maintain.
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { color: device-cmyk(0% 81% 81% 30%); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('does not flag an escaped close-paren inside a url()', () => {
+			// Bypass 6: `\)` is part of the URL per CSS's own escaping rules, so
+			// `#fade` here is never a separate token at all — a regex stopping at the
+			// raw `)` character does not know that; a conformant parser always does.
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { filter: url(icon\\)#fade); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// Backs the code comment's claim: a colour ARGUMENT inside an otherwise
+		// unresolved function call still surfaces as a real `CssColor` node, because
+		// lightningcss recognises a colour literal generically wherever one appears —
+		// not only on properties or functions it fully understands.
+		it('refuses a literal colour argument inside an unresolved function call', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { color: color-contrast(#fff vs #000, #ccc); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses the computed result of a literal-only color-mix()', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { color: color-mix(in srgb, #fff 50%, #000 50%); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('does not flag a color-mix() whose arguments are both Obsidian variables', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { color: color-mix(in srgb, var(--a) 50%, var(--b) 50%); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// `transparent` earns its exemption a different way than `currentColor` does:
+		// lightningcss does not keep the keyword spelling, resolving it to `rgb(0 0 0 /
+		// 0)` like any equivalent literal — so the exemption generalises to alpha 0 on
+		// ANY colour type, not only that one keyword.
+		it('does not flag transparent, spelled as the keyword', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { background: transparent; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag an explicit rgba() with alpha 0, the same as the keyword', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { background: rgba(0, 0, 0, 0); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// A CSS system-colour keyword (`Canvas`, `ButtonText`, …) adapts to the OS/browser
+		// colour scheme rather than encoding a fixed palette value, the same reasoning
+		// `currentColor` is exempt for — and it parses to a bare STRING, never the object
+		// shape this check matches, so no exemption code exists for it at all.
+		it('does not flag a CSS system-colour keyword', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { color: Canvas; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('refuses a hard-coded colour nested inside a gradient colour-stop', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { background: linear-gradient(#fff, blue); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses a hard-coded colour used as a var() fallback', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { color: var(--missing, #fff); }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
 		});
 	});
 });

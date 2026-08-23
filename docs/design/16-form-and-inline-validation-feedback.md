@@ -375,9 +375,9 @@ type RoutedError<TInput> =
 
 // Not under `presentation/composables/`: it is a pure function, and
 // `docs/setup/vue-conventions.md` §4 scopes that directory to `use*` composables —
-// things that bind reactivity or a lifecycle. `routeError` binds neither. Keeping it
-// out is also what keeps it node-testable rather than reached only through jsdom,
-// which is the return that convention is protecting.
+// things that bind reactivity or a lifecycle. `routeError` binds neither. That is the
+// whole reason; the directory has no bearing on how this is tested, which slice 12's
+// profiles decide (see File layout).
 function routeError<TInput>(
   error: AppError,               // slice 2 — consumed, not redefined
   map: FieldErrorMap<TInput>,

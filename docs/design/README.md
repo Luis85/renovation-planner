@@ -46,10 +46,21 @@ bug where they disagree). Two files under `docs/setup/` are narrower but binding
 own areas, and a slice that touches those areas is expected to have been read against
 them:
 
-- **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules the
-  presentation slices (5, 6, 13–17) are written against. Where a slice departs from it,
-  the departure is named in that slice's **References**, not left to be discovered.
-  Today there are **two**, both in slice 13 and both parts of one decision:
+- **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules every
+  slice that touches Vue is written against: **slice 1** (which adds Vue itself and owns
+  the arrival checklist in §1) and the presentation slices 5, 6 and 13–17. Where a slice
+  departs from it, the departure is named in that slice's **References**, not left to be
+  discovered.
+
+  A first draft of this bullet scoped the pass to "5, 6, 13–17" and left slice 1 out — the
+  slice that installs Vue, writes both build configs and ships the first `.vue` file, and
+  the one that turned out to be wrong. It claimed `@vitejs/plugin-vue` in `vite.config.ts`
+  and "nothing else about the build config changes", missing the harness config, `vue-tsc`,
+  the `tsconfig` include and the Vue ESLint setup. Scoping a conformance pass to the slices
+  that look like presentation, rather than to the ones that touch the thing, is how the
+  defect ends up outside the sweep.
+
+  The departures today are **two**, both in slice 13 and both parts of one decision:
   - **§5, one Pinia per view app** — `NotificationStore` is plugin-global.
   - **§6, apps created in a view's `onOpen` and unmounted in `onClose`** — the
     `NotificationHost` app is created in `RenovationPlannerPlugin.onload()` and

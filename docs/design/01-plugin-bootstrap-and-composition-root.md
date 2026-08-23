@@ -358,9 +358,34 @@ the mount point is `contentEl` (not `containerEl`, which carries Obsidian's own 
 — header and tab actions — and would be emptied along with it).
 
 Vue, Pinia, and `@vueuse/core` are added as dependencies in this slice (SDD §5 UI stack);
-`vue-konva` and Konva are not — those arrive with the canvas (slice 5, ADR-003). Adding Vue
-means Vite needs `@vitejs/plugin-vue` in `vite.config.ts`'s `plugins` array; nothing else
-about the build config changes.
+`vue-konva` and Konva are not — those arrive with the canvas (slice 5, ADR-003).
+
+Adding Vue is **not** one line in `vite.config.ts`. An earlier draft of this paragraph said
+`@vitejs/plugin-vue` goes into that file's `plugins` array and "nothing else about the build
+config changes", which is wrong twice over: `docs/setup/vue-conventions.md` §1 is the
+arrival checklist for exactly this moment, and CLAUDE.md states two of its items directly
+("`@vitejs/plugin-vue` is one line in **both** Vite configs, and `tsc` becomes `vue-tsc` in
+the same edit"). An implementer following the old sentence would ship a `ViewRoot.vue` the
+browser harness cannot compile and no type gate ever reads. The full edit, in this slice's
+own pull request:
+
+- **`@vitejs/plugin-vue` in BOTH Vite configs** — `vite.config.ts` and
+  `vite.harness.config.ts`. The harness renders the real view against the real stylesheet;
+  a plugin only the build knows about splits them, and the split is invisible until someone
+  runs `npm run harness` and gets a parse error.
+- **`tsc -noEmit` becomes `vue-tsc -noEmit`** in the `build` script, and `tsconfig.json`'s
+  `include` gains `src/**/*.vue`. Vite transpiles SFCs without type-checking them, so
+  `vue-tsc` in `build` is the only command-line type gate a `.vue` file gets — omit it and
+  `npm run check` reports success over code nothing type-checked.
+- **`eslint-plugin-vue`'s flat configs**, with `parserOptions.parser` set to the TypeScript
+  parser on the `**/*.vue` block so `<script setup lang="ts">` parses, alongside the glob
+  widening described under Lint below. Those are two separate needs met in one edit: the
+  Vue ruleset, and this project's own architecture blocks learning to match `.vue`.
+- **`@vue/test-utils`**, since the first component arrives with the first component test.
+
+`fallow` fails on an installed dependency nothing imports, so none of these can land ahead
+of the file that uses them — which is why they land here, with `ViewRoot.vue`, and not
+earlier.
 
 Vue components belong to `presentation/` only. Domain and Core must never depend on `vue` or
 `pinia` — enforced by the same lint rules described below, not by convention (ADR-004,
@@ -677,8 +702,16 @@ Module boundaries this slice fixes for every later one:
       reuses one leaf between them, and its type/display name/icon are all set.
 - [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
       `Pinia` instance) into `contentEl`; `onClose()` unmounts it and empties `contentEl`.
-      `vue`, `pinia`, and `@vueuse/core` are added as dependencies; `@vitejs/plugin-vue` is
-      wired into `vite.config.ts`.
+- [ ] The Vue arrival checklist (`docs/setup/vue-conventions.md` §1) is complete in this
+      slice's own pull request, because every item on it is a gate that silently does
+      nothing until it is wired: `vue`, `pinia`, `@vueuse/core` and `@vue/test-utils` added;
+      `@vitejs/plugin-vue` in **both** `vite.config.ts` and `vite.harness.config.ts`;
+      `tsc -noEmit` replaced by `vue-tsc -noEmit` with `src/**/*.vue` in `tsconfig.json`'s
+      `include`; `eslint-plugin-vue`'s flat configs added with the TypeScript parser on the
+      `**/*.vue` block. Each is asserted by its effect, not by reading the config: the
+      harness renders `ViewRoot.vue` (proving the second Vite config), a deliberate type
+      error in an SFC fails `npm run build` (proving `vue-tsc` and the `include`), and the
+      lint checks below cover the rest.
 - [ ] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
       renders from `getSettingDefinitions()` and both reads and writes go through
       `settingsFrom`.

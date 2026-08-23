@@ -386,10 +386,31 @@ export default defineConfig([
 			complexity: ['error', 16],
 			'max-depth': ['error', 4],
 			'max-params': ['error', 5],
-			// Debug logging has no other gate. console.error on a genuine failure path is
-			// the one console call to make on purpose.
-			'no-console': ['error', { allow: ['error'] }],
+			// Logging goes through the Logger port (application/ports/), which the
+			// composition root injects. No allowances, console.error included: the reason
+			// to permit that one was that there was nothing else to call, and the port is
+			// what removes it. The sink itself is carved out below.
+			'no-console': 'error',
 		},
+	},
+	{
+		// The one directory whose job IS the console. A per-directory block REPLACES this
+		// rule for these files rather than merging with it — the same flat-config
+		// behaviour `no-restricted-syntax` has to work around, wanted here — so this block
+		// sets that one rule and nothing else, leaving the budgets above in force.
+		// It matches no file yet — the console sink arrives with the Logger port — for the
+		// reason every other rule here predates its first violation: enforce before it can
+		// be broken.
+		//
+		// NOT a blanket permission, and the difference is measured rather than assumed:
+		// the obsidianmd ruleset carries its own console check for the marketplace's
+		// "avoid unnecessary logging" guideline, which fails `console.log` and
+		// `console.info` while passing `console.debug`, `console.warn` and `console.error`.
+		// That rule is not ours to switch off (the ruleset forbids disabling its own rules
+		// inline), so the sink maps `info` onto console.debug and carries the level in the
+		// line's own text. See design slice 1, "Logging, from the first line that can fail".
+		files: ['**/src/infrastructure/logging/**/*.ts'],
+		rules: { 'no-console': 'off' },
 	},
 	{
 		files: [`${TESTS}/*.ts`],

@@ -18,6 +18,14 @@ The blocking surface for a decision that cannot be deferred. PRD §64's deletion
 worked case, and **the confirmation dialog is a use of this component rather than a second
 one** — the four choices are content, not a variant.
 
+## Specimen
+
+![Modal, and the states it owes, in Obsidian's default light and dark](../concepts/shots/modal.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A title**, stating the decision rather than the category. *Delete Zone?* is a decision;

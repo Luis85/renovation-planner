@@ -19,6 +19,14 @@ stylesheet's only entry point into that view and the mount point the Vue app tak
 a layout — it is the boundary between Obsidian's leaf and everything this plugin draws, and
 the reason nothing outside the view knows the inside is Vue.
 
+## Specimen
+
+![View shell, and the states it owes, in Obsidian's default light and dark](../concepts/shots/view-shell.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **One root element**, carrying `.renovation-planner-view` and nothing else. A new surface

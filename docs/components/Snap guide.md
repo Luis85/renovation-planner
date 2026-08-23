@@ -18,6 +18,14 @@ The drawn feedback that a snap is in effect — the line or marker saying *this 
 that one*. The only component in this inventory that is pure output: it is never a target, it
 takes no input, and a user cannot interact with it at all.
 
+## Specimen
+
+![Snap guide, and the states it owes, in Obsidian's default light and dark](../concepts/shots/snap-guide.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **On SDD §19's InteractionLayer**, transient, alongside [[Selection handle]] and the drawing

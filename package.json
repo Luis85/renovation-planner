@@ -9,6 +9,7 @@
 		"test-build": "tsc -noEmit && vite build --mode development && node scripts/test-build.mjs",
 		"harness": "vite --config vite.harness.config.ts",
 		"harness-shot": "node scripts/harness-shot.mjs",
+		"concept-shots": "node scripts/concept-shots.mjs",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",

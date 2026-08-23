@@ -18,6 +18,14 @@ What a surface shows when it has nothing. PRD §94 is one sentence long — *eve
 should provide actionable empty states* — and the load-bearing word is **actionable**: a message
 alone is a dead end with better manners.
 
+## Specimen
+
+![Empty state, and the states it owes, in Obsidian's default light and dark](../concepts/shots/empty-state.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A line saying what is missing**, in the surface's own nouns. [[Information Architecture]]'s

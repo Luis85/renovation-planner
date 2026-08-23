@@ -25,6 +25,14 @@ Named **Plan canvas**, never `Plan`. [[Information Architecture]]'s register: [[
 entity, and a region named with a bare entity noun makes "open the plan" ambiguous between a
 note and a viewport.
 
+## Specimen
+
+![Plan canvas, and the states it owes, in Obsidian's default light and dark](../concepts/shots/plan-canvas.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 **The DOM half** — one host element that claims the remaining width and the full height of the

@@ -20,6 +20,14 @@ is neither transient (a [[Toast]]), nor blocking (a [[Modal]]), nor about one fi
 [[Inline field error]]) — which is a definition by exclusion, and that is deliberate: this
 component exists because slice 17 needed a fourth answer and the other three were all wrong.
 
+## Specimen
+
+![Status badge, and the states it owes, in Obsidian's default light and dark](../concepts/shots/status-badge.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A short label**, which is the component. `recalculationStatus` from slice 10 is the worked

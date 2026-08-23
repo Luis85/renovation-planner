@@ -22,6 +22,14 @@ The third section is named **Assets**, not `Library`. That is [[Information Arch
 naming register, not this note's choice: the entity is [[Asset]], and "asset library" is the
 catalogue *concept* of PRD Epic 6 rather than the panel showing it.
 
+## Specimen
+
+![Left rail, and the states it owes, in Obsidian's default light and dark](../concepts/shots/left-rail.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 Three sections, in SDD §60's order:

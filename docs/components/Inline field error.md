@@ -19,6 +19,14 @@ The message beside the field that caused it. The narrowest error surface in the 
 the one that keeps a validation failure from being escalated into a [[Toast]] a user has to
 translate back into which box they typed in wrong.
 
+## Specimen
+
+![Inline field error, and the states it owes, in Obsidian's default light and dark](../concepts/shots/inline-field-error.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A message adjacent to its control.** Adjacency is the whole design: a message in a summary at

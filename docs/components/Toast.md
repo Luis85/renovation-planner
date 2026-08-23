@@ -21,6 +21,14 @@ the user has to act on — those are [[Modal]]'s and [[Inline field error]]'s. T
 definition available is the useful one here, because a toast is what every other surface's
 failure gets routed to when nobody decided where it belonged.
 
+## Specimen
+
+![Toast, and the states it owes, in Obsidian's default light and dark](../concepts/shots/toast.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A message**, already translated and already user-facing.

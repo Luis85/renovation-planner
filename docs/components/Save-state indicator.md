@@ -19,6 +19,14 @@ Which of PRD §67's four states the document is in: **Saved**, **Saving**, **Uns
 **Save Error**. Four values, and they are the component's entire content — which is what makes
 it the canonical case for the rule that status is never colour alone.
 
+## Specimen
+
+![Save-state indicator, and the states it owes, in Obsidian's default light and dark](../concepts/shots/save-state-indicator.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 **A mark and a word.** Both, always, never one. The mark is what a user reads at a glance and

@@ -20,6 +20,14 @@ it owns which tools are present, their order, and which one is active — never 
 does. SDD §56 gives a tool `activate(context)`; the toolbar asks for that and does not perform
 it.
 
+## Specimen
+
+![Toolbar, and the states it owes, in Obsidian's default light and dark](../concepts/shots/toolbar.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A horizontal group of [[Tool button]]s**, in the order both received documents give:

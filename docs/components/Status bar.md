@@ -18,6 +18,14 @@ The bottom band: selection, measurements, save state — the three facts a renov
 rather than goes looking for. A readout, not a control, and the surface two canvas components
 depend on for the channel they cannot draw.
 
+## Specimen
+
+![Status bar, and the states it owes, in Obsidian's default light and dark](../concepts/shots/status-bar.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 Three regions, in the order both received documents give (PRD §39 as *Status / Selection /

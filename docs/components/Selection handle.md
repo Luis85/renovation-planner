@@ -20,6 +20,14 @@ grip. Purely drawn: it has no DOM node, no CSS, and no accessible name of its ow
 it the clearest case in this inventory of a component that inherits none of the machinery a
 control normally gets for free.
 
+## Specimen
+
+![Selection handle, and the states it owes, in Obsidian's default light and dark](../concepts/shots/selection-handle.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **On SDD §19's InteractionLayer**, which is transient-only. A handle is never persisted and is

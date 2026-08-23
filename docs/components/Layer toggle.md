@@ -17,6 +17,14 @@ The visibility and lock controls for a drawing layer. A DOM control whose **enti
 the canvas**, which is what makes it one of only two `both` components here — it is styled by
 CSS and it changes nothing a CSS rule can see.
 
+## Specimen
+
+![Layer toggle, and the states it owes, in Obsidian's default light and dark](../concepts/shots/layer-toggle.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 Per layer: a name, a visibility toggle, a lock toggle.

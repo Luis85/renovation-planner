@@ -12,13 +12,29 @@ Not backlog items and not implementations.
 | `settings.html` | The one setting that exists, and what a hand-edited `data.json` renders as |
 | `concept.css` | The **proposal** — the canvas visual language, and each component's rules |
 | `page.css` | The page's own furniture. Nothing here styles a component |
+| `shots/` | One PNG per specimen in `component-gallery.html`, light beside dark, embedded in the matching note in [`docs/components/`](../components/). Written by `npm run concept-shots`. **Nothing checks the pairing** — see below |
 
 ## What the mocks measured
 
-Five findings the pages produced rather than asserted. The last two came out of
-**screenshots** rather than out of reading the files, which is the argument for looking at
-a drawing as well as writing one.
+Six findings the pages produced rather than asserted. The last two came out of
+**screenshots** rather than out of reading the files, and the first came out of trying to
+CAPTURE one — which is the argument for looking at a drawing as well as writing one, and for
+looking at it twice.
 
+- **A theme class only works on `<body>`, and the both-schemes panel has been showing one
+  scheme twice.** Found while building `concept-shots`, whose first version cloned each
+  specimen into two nested frames carrying `.theme-light` and `.theme-dark` — the shape the
+  gallery's own last section uses. Both halves came out light. The vendored sheet declares
+  `--background-primary` **once**, as `var(--color-base-00)`, and redeclares only the BASE
+  variables per theme; a custom property substitutes at the element that DECLARES it, so
+  `--background-primary` computes on `<body>` in the body's scheme and inherits down already
+  resolved. Measured inside the gallery's `.theme-dark` panel: `--color-base-00` is `#1C1C1C`
+  while `--background-primary` is `#ffffff`, and the panel's computed background is white.
+  So the capture script sets the class where Obsidian sets it and shoots each specimen twice.
+  **The gallery's last section is still wrong** — its caption claims those two panels "differ
+  by nothing but the theme class", and in the body's own scheme they differ by nothing at all.
+  Recorded rather than fixed: nesting cannot produce it, so that section needs two documents
+  or a narrower caption, which is a design decision.
 - **A pane is not a page, and the rails now answer to it.** Fixed at 210 + 252px, the
   canvas got 67% of a 1440px pane and **29% of a 680px one** — the only region that matters
   paying for both rails, in a split pane that is routinely that narrow. A container ladder
@@ -80,7 +96,14 @@ a drawing as well as writing one.
 
 ## What these are not
 
-- **Not screenshots.** `src/` is a scaffold; none of this is built.
+- **Not screenshots of the product.** `shots/` does hold screenshots — of these mocks, which
+  is what the component notes embed. `src/` is a scaffold; none of this is built, and a PNG of
+  a drawing is still a drawing.
+- **Not a checked pairing.** `npm run concept-shots` shoots the specimens it finds and writes
+  what it shot. A note with no specimen, a specimen whose heading was renamed, an embed
+  pointing at a file that no longer exists, a PNG orphaned by a rename — nothing reports any
+  of them, here or in `npm run check`. Keeping the notes, the specimens and the files in step
+  is a reader's job at review time, deliberately.
 - **Not faithful about a themed vault.** They link `tests/harness/obsidian.css` — Obsidian's
   real app.css, *reduced* — so they show Obsidian's **default** appearance, not a community
   theme's, not a user's accent, and not an element default the reduction dropped.

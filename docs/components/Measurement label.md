@@ -20,6 +20,14 @@ The number drawn beside a measurement — the Measure tool's output, and the one
 reads more often than any other. It is a small component with the inventory's most consequential
 rule attached to it: it is the place a plugin most easily tells a confident lie.
 
+## Specimen
+
+![Measurement label, and the states it owes, in Obsidian's default light and dark](../concepts/shots/measurement-label.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **A value and a unit**, together. A bare number on a plan is ambiguous between millimetres and

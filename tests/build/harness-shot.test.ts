@@ -17,6 +17,13 @@ import { REPO } from '../helpers/oxlint';
 
 const PACKAGE_JSON = path.join(REPO, 'package.json');
 const SCRIPT = path.join(REPO, 'scripts', 'harness-shot.mjs');
+// Where the browser resolution actually lives, since `concept-shots.mjs` needs the same
+// answer and two copies of it is the shape of the defect the block below describes.
+const RESOLVER = path.join(REPO, 'scripts', 'chromium.mjs');
+// Every file that can name a Chromium. The literal ban applies to all of them, not only to
+// the one that happens to own the resolver today — a re-mirrored layout is just as wrong in
+// a caller as in the callee.
+const CHROMIUM_FILES = [RESOLVER, SCRIPT, path.join(REPO, 'scripts', 'concept-shots.mjs')];
 
 const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {
 	scripts: Record<string, string>;
@@ -58,18 +65,24 @@ describe('the headless harness capture script', () => {
 	 * that, and they are deliberately machine-independent: asserting the RESOLVED path would
 	 * need a Chromium installed, and CI has none — this script is outside `npm run check` for
 	 * exactly that reason. So the invariant checked is the one that caused the defect: no
-	 * browser-layout literal is written down here at all.
+	 * browser-layout literal is written down in any of these files at all.
+	 *
+	 * The resolution itself now lives in `scripts/chromium.mjs`, one file two capture scripts
+	 * import, because the alternative was a second copy of it in `concept-shots.mjs` — and a
+	 * copy that can disagree is precisely the failure the mirrored table already caused once.
 	 */
 	it('asks playwright-core for the executable path instead of constructing one', () => {
-		expect(readFileSync(SCRIPT, 'utf8')).toContain('chromium.executablePath()');
+		expect(readFileSync(RESOLVER, 'utf8')).toContain('chromium.executablePath()');
 	});
 
-	it('writes down no per-platform browser layout of its own', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+	it('resolves the browser through that one shared module rather than resolving its own', () => {
+		expect(readFileSync(SCRIPT, 'utf8')).toContain("from './chromium.mjs'");
+	});
 
+	it('writes down no per-platform browser layout of its own, in any file that names a browser', () => {
 		// Every directory name Playwright's own EXECUTABLE_PATHS table has used for a
-		// chromium build, current and superseded. A literal from either era in this file
-		// means the layout is being mirrored again.
+		// chromium build, current and superseded. A literal from either era in any of these
+		// files means the layout is being mirrored again.
 		const layouts = [
 			'chrome-win',
 			'chrome-linux',
@@ -80,6 +93,12 @@ describe('the headless harness capture script', () => {
 			'chrome-headless-shell',
 		];
 
-		expect(layouts.filter((name) => source.includes(name))).toEqual([]);
+		const offenders = CHROMIUM_FILES.flatMap((file) => {
+			const source = readFileSync(file, 'utf8');
+
+			return layouts.filter((name) => source.includes(name)).map((name) => `${path.basename(file)}: ${name}`);
+		});
+
+		expect(offenders).toEqual([]);
 	});
 });

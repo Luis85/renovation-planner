@@ -20,6 +20,14 @@ One control, one tool. The reusable half of the [[Toolbar]] row, and the compone
 most states in the whole inventory — which is why it is its own note rather than a column in
 its container's.
 
+## Specimen
+
+![Tool button, and the states it owes, in Obsidian's default light and dark](../concepts/shots/tool-button.png)
+
+A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
+Obsidian's **default** light and dark, so a themed vault differs; shot from
+[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+
 ## Anatomy
 
 - **An icon**, from Obsidian's own set via `setIcon`. Not a decoration: the icon is the button.

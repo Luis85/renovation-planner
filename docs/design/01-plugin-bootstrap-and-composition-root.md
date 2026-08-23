@@ -400,10 +400,24 @@ own pull request:
   do not move, and the gate passes over code it never measured. A gate that silently stops
   covering a whole file type is worse than one that never covered it, because the number
   still looks like an answer.
-- **`eslint-plugin-vue`'s flat configs**, with `parserOptions.parser` set to the TypeScript
-  parser on the `**/*.vue` block so `<script setup lang="ts">` parses, alongside the glob
-  widening described under Lint below. Those are two separate needs met in one edit: the
-  Vue ruleset, and this project's own architecture blocks learning to match `.vue`.
+- **`eslint-plugin-vue`'s flat configs, PLUS the named rules `flat/recommended` does not
+  turn on**, with `parserOptions.parser` set to the TypeScript parser on the `**/*.vue`
+  block so `<script setup lang="ts">` parses, alongside the glob widening described under
+  Lint below. Three separate needs met in one edit: the Vue ruleset, the project-specific
+  rules, and this project's own architecture blocks learning to match `.vue`.
+
+  The named rules are not decoration — each is the check under a rule in
+  `vue-conventions.md`, and `flat/recommended` enables none of them:
+  `vue/component-api-style` (`['script-setup']`) and `vue/block-lang`
+  (`script: { lang: 'ts' }`) for the one-API-style rule; `vue/define-props-declaration` and
+  `vue/define-emits-declaration` (both `'type-based'`); `vue/no-restricted-block`
+  (`'style'`) for this project's override of Vue's scoped-styles guidance, which the
+  marketplace's inline-style rejection makes more than a preference; and
+  `vue/component-name-in-template-casing` (`'PascalCase'`) alongside
+  `vue/multi-word-component-names`, which `flat/recommended` DOES carry in its essential
+  tier. §1's item 4 says to add these in the same edit and an earlier draft of this
+  checklist copied the sentence before it and stopped — leaving a gate that lints SFCs
+  while passing every convention it was installed to enforce.
 - **`@vue/test-utils`**, since the first component arrives with the first component test.
 
 `fallow` fails on an installed dependency nothing imports, so none of these can land ahead
@@ -734,7 +748,10 @@ Module boundaries this slice fixes for every later one:
       `tsc -noEmit` in **both** `build` and `test-build`, with `src/**/*.vue` in
       `tsconfig.json`'s `include`; `vitest.config.ts`'s `coverage.include` widened to
       `src/**/*.{ts,vue}`; `eslint-plugin-vue`'s flat configs added with the TypeScript
-      parser on the `**/*.vue` block.
+      parser on the `**/*.vue` block, **plus** `vue/component-api-style`,
+      `vue/block-lang`, `vue/define-props-declaration`, `vue/define-emits-declaration`,
+      `vue/no-restricted-block` and `vue/component-name-in-template-casing`, none of which
+      `flat/recommended` enables.
 
       Each is asserted by its **effect**, never by reading the config, because every one of
       these fails silently: the harness renders `ViewRoot.vue` (proving the second Vite
@@ -744,7 +761,11 @@ Module boundaries this slice fixes for every later one:
       `npm run build` **and** `npm run test-build` (proving both substitutions and the
       `include`); an SFC with an untaken branch moves the coverage numbers (proving the
       coverage include — a config assertion would pass while the file was invisible to the
-      gate); and the lint checks below cover the rest.
+      gate); and each named Vue rule is proven by a fixture that violates it failing
+      `npm run lint` — an Options-API component, a `<style>` block, a runtime-object
+      `defineProps`, a kebab-case component tag — since a rule present in the config but
+      scoped to files it never matches is the failure this whole list is about. The lint
+      checks below cover the architecture blocks.
 
       `docs/setup/vue-conventions.md` §1 is where this list comes from, and it is a
       superset of §1 rather than a copy: §1 was written against a generic project and names

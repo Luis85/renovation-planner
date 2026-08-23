@@ -345,13 +345,16 @@ and does not close the dialog:
 ```typescript
 // presentation/composables/use-form-commit.ts
 interface UseFormCommit<TInput> {
-  // `values` is a declared departure from vue-conventions.md §4 — see Interfaces &
-  // Contracts below for the reasoning. This interface is stated twice in this document
-  // (here and there); they must not drift, and any future edit changes both.
-  readonly values: Reactive<TInput>;                    // every field's current draft
+  // Read-only to the component: setField is the ONLY write path, and a mutable shape
+  // cannot enforce that (see Interfaces & Contracts below). This interface is stated
+  // twice in this document (here and there); they must not drift.
+  readonly values: Readonly<Ref<TInput>>;               // every field's current draft
   readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
   readonly banner: Ref<string | null>;
   readonly submitting: Ref<boolean>;
+  // Writes the field AND clears that field's entry in fieldErrors. Editing a field the
+  // server just rejected must retire its message: a form showing "must be positive"
+  // over a value the user has since corrected is telling them something untrue.
   setField<K extends keyof TInput>(key: K, value: TInput[K]): void;
   submit(): Promise<boolean>;   // true only on an ok Result; caller closes the dialog then
 }
@@ -404,9 +407,7 @@ interface UseFieldCommit<T> {
 
 // presentation/composables/use-form-commit.ts — creation dialog, per-form submit-commit
 interface UseFormCommit<TInput> {
-  // DEPARTURE from vue-conventions.md §4's "a plain object of refs, never reactive(…)",
-  // declared rather than argued away — see below.
-  readonly values: Reactive<TInput>;
+  readonly values: Readonly<Ref<TInput>>;
   // A Ref, not a bare ReadonlyMap. The bare form was not merely off-§4 — it does not
   // work: a plain Map handed out of a composable is a snapshot, so a form whose submit()
   // was rejected would compute its field errors and render none of them. `banner` and
@@ -568,17 +569,25 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   `presentation/errors/`, which this slice DOES add, for `route-error.ts` (see File
   layout).
 - `docs/setup/vue-conventions.md` §4 — the composable rules this slice's two `use*`
-  modules follow, the reason `route-error.ts` is not among them, and the one rule
-  `useFormCommit` departs from. §4 asks for "a plain object of refs, never `reactive(…)`",
-  and `values` is a `Reactive<TInput>`. The hazard §4 names — destructuring a reactive
-  return silently drops reactivity — does not apply here, since `values` is one named
-  member of a plain returned object and survives destructuring intact. But "the stated
-  hazard does not bite" is a weaker claim than "this conforms", and treating the first as
-  the second is how a departure stops being visible. So it is declared: a creation
-  dialog's field set is the one place a reactive object is the natural shape
-  (`v-model="values.unitCost"` against a per-field `Ref` map is worse to write and worse
-  to read), `setField` remains the only write path, and `useFieldCommit` — which has no
-  such shape — follows §4 exactly.
+  modules follow, and the reason `route-error.ts` is not among them. **Both conform; the
+  slice declares no departure.**
+
+  It briefly did. `values` was a `Reactive<TInput>`, declared as a departure on the
+  reasoning that a creation dialog's field set is the one place a mutable reactive object
+  is the natural shape, since `v-model="values.unitCost"` beats a per-field `Ref` map to
+  write and to read. That justification was self-defeating in its own sentence: `v-model`
+  on a mutable reactive property assigns to it directly, which walks straight past
+  `setField` — named as the sole write path in the same clause. Two mutation contracts,
+  and anything centralised in `setField` reachable only by the path nobody was told to
+  take.
+
+  So `values` is a `Readonly<Ref<TInput>>`, bound for reading and written only through
+  `setField` — `:model-value="values.unitCost"` with
+  `@update:model-value="v => setField('unitCost', v)"`, never `v-model`. `setField` now
+  earns the exclusivity by doing something with it: it clears that field's error, so a
+  message the user has already corrected stops being displayed. Conforming and behaving
+  turned out to be the same shape here, which is why the departure was withdrawn rather
+  than restated with a better argument.
 - `docs/design/12-testing-and-architecture-enforcement-infrastructure.md` — the node
   profile `routeError` is assigned to, which is where its test environment is decided and
   is unaffected by which directory it lives in.

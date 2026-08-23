@@ -74,8 +74,8 @@ them:
   ships. If a slice talks about Vue in any way, read it against the conventions.
 
   Where a slice departs from the conventions, the departure is named in that slice's
-  **References**, not left to be discovered. There are **three** today. Two are in slice
-  13 and are parts of one decision:
+  **References**, not left to be discovered. There are **two** today, both in slice 13 and
+  both parts of one decision:
   - **§5, one Pinia per view app** — `NotificationStore` is plugin-global.
   - **§6, apps created in a view's `onOpen` and unmounted in `onClose`** — the
     `NotificationHost` app is created in `RenovationPlannerPlugin.onload()` and
@@ -88,20 +88,21 @@ them:
   no inventory at all. The store cannot be plugin-global without an app to mount its host
   into, so listing one and not the other was never a defensible split.
 
-  The third is in slice 16:
-  - **§4, "a plain object of refs, never `reactive(…)`"** — `useFormCommit` exposes
-    `values` as a `Reactive<TInput>`. §4's stated hazard (destructuring a reactive return
-    drops reactivity) does not apply, since `values` is one named member of a plain
-    returned object. It is declared anyway, because "the stated hazard does not bite" is a
-    weaker claim than "this conforms", and quietly treating the first as the second is
-    exactly how a departure stops being visible. `useFieldCommit`, which has no such
-    shape, follows §4 exactly — including accepting `MaybeRefOrGetter`, which it was
-    changed to do rather than declare a second departure. `useFormCommit`'s `fieldErrors`
-    was likewise conformed rather than declared: it was a bare `ReadonlyMap`, which is not
-    a §4 departure so much as a defect — a plain Map handed out of a composable is a
-    snapshot, so a rejected `submit()` would have rendered no field errors at all. It is a
-    `Ref` now. Only the shape that both conforms and behaves is worth keeping, and a
-    departure is for the case where those two come apart.
+  Slice 16 briefly had a third and no longer does, which is worth recording because
+  withdrawing a departure is the outcome to prefer. `useFormCommit.values` was a
+  `Reactive<TInput>`, declared on the reasoning that `v-model="values.unitCost"` beats a
+  per-field `Ref` map — but `v-model` on a mutable reactive property assigns to it
+  directly, walking past the `setField` the same sentence called the sole write path. The
+  justification defeated itself, so `values` is a `Readonly<Ref<TInput>>` written only
+  through `setField`, and the slice conforms. Its two other §4 near-misses were likewise
+  conformed rather than declared: `useFieldCommit` now accepts `MaybeRefOrGetter`, and
+  `fieldErrors` — a bare `ReadonlyMap`, which is a defect rather than a style question,
+  since a plain Map out of a composable is a snapshot and a rejected `submit()` would have
+  rendered no errors at all — is a `Ref`.
+
+  The rule those four cases produced: **a departure is for when conforming and behaving
+  come apart.** Three of the four turned out not to be that, and the fourth (slice 13's)
+  genuinely is.
 - **`docs/setup/quality-harness.md`** — the harness's rationale: what each gate refuses
   and why, which is the reasoning a Definition of Done should be written in the spirit of.
   It is a **build-this-from-nothing guide describing a target**, not a description of the

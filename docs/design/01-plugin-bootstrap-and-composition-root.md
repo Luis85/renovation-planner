@@ -357,8 +357,16 @@ on open, unmount on close, one Pinia instance per view rather than a shared sing
 the mount point is `contentEl` (not `containerEl`, which carries Obsidian's own view chrome
 — header and tab actions — and would be emptied along with it).
 
-Vue, Pinia, and `@vueuse/core` are added as dependencies in this slice (SDD §5 UI stack);
-`vue-konva` and Konva are not — those arrive with the canvas (slice 5, ADR-003).
+Vue and Pinia are added as dependencies in this slice; `vue-konva` and Konva are not —
+those arrive with the canvas (slice 5, ADR-003).
+
+`@vueuse/core` is in the SDD's §5 UI stack and is **not** added here, because nothing in
+this slice or any later one imports it yet. CLAUDE.md's rule is unambiguous — installing a
+dependency nothing imports fails `npm run analyze`, so each arrives with its first real use
+— and an earlier draft of this paragraph listed `@vueuse/core` among the arrivals two lines
+above restating that very rule. The SDD names the stack this plugin is heading for; it does
+not schedule the install. When a composable reaches for `useEventListener` or
+`useResizeObserver`, it arrives in that slice's pull request.
 
 Adding Vue is **not** one line in `vite.config.ts`. An earlier draft of this paragraph said
 `@vitejs/plugin-vue` goes into that file's `plugins` array and "nothing else about the build
@@ -714,7 +722,9 @@ Module boundaries this slice fixes for every later one:
       `Pinia` instance) into `contentEl`; `onClose()` unmounts it and empties `contentEl`.
 - [ ] The Vue arrival checklist is complete in this slice's own pull request, because
       every item on it is a gate that silently does nothing until it is wired: `vue`,
-      `pinia`, `@vueuse/core` and `@vue/test-utils` added; `@vitejs/plugin-vue` in **both**
+      `pinia` and `@vue/test-utils` added (`@vueuse/core` is NOT — see Design; `fallow`
+      refuses a dependency with no importer, and this slice has none for it);
+      `@vitejs/plugin-vue` in **both**
       `vite.config.ts` and `vite.harness.config.ts`; `vue-tsc -noEmit` replacing
       `tsc -noEmit` in **both** `build` and `test-build`, with `src/**/*.vue` in
       `tsconfig.json`'s `include`; `vitest.config.ts`'s `coverage.include` widened to

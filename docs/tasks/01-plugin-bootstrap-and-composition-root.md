@@ -2,9 +2,9 @@
 type: Task
 parent: "[[Foundation and composition root]]"
 order: 10
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-23
+finished: 2026-08-23
 horizon: ""
 start: ""
 due: ""
@@ -314,8 +314,38 @@ choosing it, while code that needs a folder path cannot be handed a plausible wr
 
 The line at the boundary is sharp and worth stating, because the two look alike from
 inside `onload`: `loadData()` **resolving** `null` is a fresh install, not a failure —
-`settingsFrom(null)` returns defaults and the plugin is fully configured. Only a
-**rejection** is unrecovered.
+`settingsFrom(null)` returns defaults and the plugin is fully configured.
+
+**An earlier version of this section stopped there, saying "only a rejection is
+unrecovered", and that was wrong in the way that mattered most.** Walked in a real vault
+against a `data.json` containing `{`, Obsidian's `loadData()` does **not** reject: it
+catches the `JSON.parse` failure itself, logs `failed to read JSON …` on its own side, and
+**resolves empty**. So the commonest corruption there is — a hand-edited file — arrived
+wearing the fresh-install shape, the plugin loaded defaults, the settings pane offered a
+working dropdown, and the first change made through it replaced the user's file. The
+refusal this whole section describes never engaged. Every unit test passed throughout,
+because they drove the rejection the API does not perform.
+
+So the boundary needs **two** triggers, and the second one needs a question the plugin
+cannot answer by itself:
+
+| What `loadData()` did | The file on disk | Meaning | `root.settings` |
+| --- | --- | --- | --- |
+| resolved with data | present | normal | the stored settings |
+| resolved empty | **absent** | fresh install | `DEFAULT_SETTINGS` |
+| resolved empty | **present** | Obsidian could not parse it | `null` — `settings.load.unreadable` |
+| rejected | either | a read that failed outright | `null` — `settings.load.failed` |
+
+The file's existence is the only thing separating rows two and three, which is why
+`PluginDataProbe` (`application/ports/`) and its `adapter.exists` implementation
+(`infrastructure/obsidian/settings/`) exist. Two event names rather than one, because the
+rejection carries a `cause` and the unparseable file cannot — Obsidian swallowed the error
+before the plugin saw it.
+
+**This is the one place slice 1 reads from the vault adapter**, which the Persistence
+Impact section below would otherwise forbid. It reads no note: the path is
+`<configDir>/plugins/<id>/data.json`, plugin-local operational data rather than any part of
+the Markdown record, and the write boundary is untouched.
 
 Three rules follow, each a check rather than an intention:
 
@@ -323,10 +353,18 @@ Three rules follow, each a check rather than an intention:
   `settings === null` — it makes no `saveData` call — so a transient read failure cannot
   stamp defaults over a `data.json` that is sitting there intact. Bootstrap is not the only
   writer, though, and the other one is the trap: the settings tab writes on every control
-  change. While unrecovered it therefore offers no controls — `getSettingDefinitions()`
-  returns an empty array, which is exactly the case 1.13 falls back to `display()` for, and
-  that fallback renders what happened and what to do about it. Two independent guards, and
-  the second is what makes the first hold for a control nobody has written yet.
+  change. While unrecovered it therefore offers no CONTROL — `getSettingDefinitions()`
+  returns one text-only item (`SettingDefinitionEmpty`: a `name` and nothing to write
+  through) carrying what happened and what to do about it. Two independent guards, and the
+  second is what makes the first hold for a control nobody has written yet.
+
+  **Not the `display()` fallback**, which was the obvious shape and is refused on this
+  ruleset's own terms: `obsidianmd/settings-tab/no-deprecated-display` fails a tab that
+  implements both, and turning that rule off locally would not travel — the marketplace
+  review bot lints a submission with its own configuration, so the flag would arrive at
+  submission rather than at `npm run check`. A definition is independently the better
+  answer: it is what Obsidian's settings SEARCH indexes, which an imperatively drawn pane
+  is absent from.
 - **Nothing that reads or writes a configured location is composed.** The composition root
   is where those services are wired, so it is where they can be left unwired: while
   settings are unrecovered the root composes no repositories, no project index, and no
@@ -518,7 +556,9 @@ runtime involved.
 The settings tab (`SettingsTab`) is declarative — `getSettingDefinitions()`,
 `getControlValue()`, `setControlValue()` — which is what Obsidian 1.13+ renders from and
 indexes for the settings search; `display()` is called only when the definitions array is
-empty. It lives under `plugin/settings/`, not `presentation/`, because it needs the plugin
+empty, and this tab declares no `display()` at all — the definitions are never empty, since
+the unrecovered-settings case returns the reason as a text-only item. It lives under
+`plugin/settings/`, not `presentation/`, because it needs the plugin
 instance directly to read and write settings, and `presentation/` may not import `plugin/`.
 
 ### Build, lint, and test wiring
@@ -627,17 +667,19 @@ check — not a rule written ahead of a demonstrated hole.
 export default class RenovationPlannerPlugin extends Plugin {
   root: CompositionRoot;
   async onload(): Promise<void>;
-  saveSettings(): Promise<void>;
+  saveSettings(next: RenovationPlannerSettings): Promise<void>;
   private openProject(): Promise<void>;
 }
 
 // src/plugin/composition-root.ts
 export interface CompositionRoot {
-  readonly settings: RenovationPlannerSettings;
+  // null means could not be READ, never absent — a resolved null from loadData() is a
+  // fresh install and loads defaults. See the Design section above for why not defaults.
+  readonly settings: RenovationPlannerSettings | null;
   readonly logger: Logger;
 }
 export function createCompositionRoot(
-  settings: RenovationPlannerSettings,
+  settings: RenovationPlannerSettings | null,
   logger: Logger,
 ): CompositionRoot;
 
@@ -653,6 +695,21 @@ export interface Logger {
   error(event: string, context?: Record<string, unknown> & { cause?: unknown }): void;
 }
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+// src/application/ports/PluginDataProbe.ts — one question, and it exists because
+// loadData() resolves EMPTY rather than rejecting when data.json will not parse, so the
+// file's existence is the only thing separating a fresh install from an unreadable file.
+export interface PluginDataProbe {
+  dataFileExists(): Promise<boolean>;
+}
+
+// src/infrastructure/obsidian/settings/pluginDataFile.ts — adapter.exists() against
+// <configDir>/plugins/<pluginId>/data.json. The id is a parameter because infrastructure/
+// may not import plugin/ — the same reason revealView takes a view type as a string.
+export function createPluginDataProbe(app: App, pluginId: string): PluginDataProbe;
+
+// src/plugin/settings/settings.ts — whether loadData() gave anything to interpret.
+export function isDataAbsent(raw: unknown): boolean;
 
 // src/infrastructure/logging/consoleLogger.ts — the only implementation this slice builds.
 // Returns void and never throws: a call site that had to handle a logging failure would
@@ -687,6 +744,10 @@ export class RenovationProjectView extends ItemView {
 export function revealView(workspace: Workspace, type: string): Promise<void>;
 ```
 
+`saveSettings` takes the next settings rather than reading a mutable field: `CompositionRoot`'s
+members are `readonly`, so the tab cannot assign through the root, and the plugin replaces its
+root instead. One read path (`plugin.root.settings`), one write path (`plugin.saveSettings`).
+
 Module boundaries this slice fixes for every later one:
 
 - `plugin/` is the only directory allowed to import from every layer. Nothing else may
@@ -706,10 +767,20 @@ Module boundaries this slice fixes for every later one:
 - **Reads/writes:** plugin `data.json` only, via Obsidian's `loadData`/`saveData` — the
   settings object (`{ units: 'metric' | 'imperial' }`). No Vault files, no sidecars, no
   frontmatter.
-- **No Vault access of any kind** in this slice: no repositories exist, and the write-safety
-  lint rules (`no-restricted-syntax` on `vault.*`/`adapter.*` write methods and
-  `processFrontMatter`) apply from this slice onward even though nothing yet calls them —
-  the same "enforce before it can be broken" reasoning as the layer rule.
+- **No Vault WRITE of any kind, and exactly one adapter read** — narrowed from "no Vault
+  access of any kind", which this slice turned out to need an exception to. The read is
+  `adapter.exists()` on `<configDir>/plugins/<id>/data.json`
+  (`infrastructure/obsidian/settings/pluginDataFile.ts`), and it is not a convenience: it is
+  the only way to tell a fresh install from a `data.json` Obsidian could not parse, because
+  `loadData()` resolves empty for both (see the Design section's table). It touches no note
+  and no sidecar — the plugin's own folder is operational data, not part of the Markdown
+  record — and it reads rather than writes, so the write boundary is untouched.
+  No repositories exist, and the write-safety lint rules (`no-restricted-syntax` on
+  `vault.*`/`adapter.*` write methods and `processFrontMatter`) apply from this slice onward
+  even though nothing yet calls them — the same "enforce before it can be broken" reasoning
+  as the layer rule. **`exists` is deliberately not among the banned methods**: the ban is
+  about mutation, and a slice that could not ask a question about the filesystem would have
+  shipped the defect above.
 - **The logger persists nothing.** Its sink is the developer console, so this slice adds no
   file, no plugin-data key, and nothing to exclude from a project export. A file-backed
   sink is slice 11's call, and the constraint it inherits is already written there: a log
@@ -757,9 +828,10 @@ Module boundaries this slice fixes for every later one:
   slice 4. A companion case asserts the happy path logs nothing above `debug`, which is the
   shape of the console-noise rejection and is invisible to a test that only counts calls.
 - **Unrecovered settings** (`tests/plugin/settings/`): with `root.settings === null`,
-  `saveSettings()` makes no `saveData` call and `getSettingDefinitions()` returns `[]` —
-  the two writers, asserted independently, because either one alone still overwrites the
-  file the user still has. The `loadData()`-resolves-`null` case is asserted beside them as
+  `saveSettings()` makes no `saveData` call and `getSettingDefinitions()` declares no
+  CONTROL — the two writers, asserted independently, because either one alone still
+  overwrites the file the user still has. Asserted as "no item carries a control" rather
+  than as "the array is empty", because the array is not empty: it holds the reason. The `loadData()`-resolves-`null` case is asserted beside them as
   the opposite outcome: a fresh install loads `DEFAULT_SETTINGS`, saves normally, and
   renders its controls. A single test that only drove "no settings" would treat the two
   identically, which is the confusion the boundary exists to prevent.
@@ -795,30 +867,40 @@ Module boundaries this slice fixes for every later one:
 
 ## Definition of Done
 
-- [ ] `RenovationPlannerPlugin.onload()` loads settings, builds the composition root,
+- [x] `RenovationPlannerPlugin.onload()` loads settings, builds the composition root,
       registers the Renovation Project view, and wires both the ribbon icon and the command
       to the same `revealView` call — in the order SDD §9 states.
-- [ ] `src/plugin/composition-root.ts` exists, exporting `CompositionRoot` and
+- [x] `src/plugin/composition-root.ts` exists, exporting `CompositionRoot` and
       `createCompositionRoot`; the plugin holds one `root: CompositionRoot` field rather
       than a bare `settings` field.
-- [ ] `onload()` constructs exactly one `Logger` — before every other step, so the first
+- [x] `onload()` constructs exactly one `Logger` — before every other step, so the first
       step that can fail already has one — and hands it to `createCompositionRoot`;
       `plugin.root.logger` is that same object, asserted by identity. A successful load
       and unload emit nothing above `debug`, so a released build is silent unless
       something failed.
-- [ ] `createConsoleLogger('info')` emits `info`/`warn`/`error` and drops `debug`, with
+- [x] `createConsoleLogger('info')` emits `info`/`warn`/`error` and drops `debug`, with
       the level named in the emitted line; `warn`/`error` use `console.warn`/`console.error`
       and neither `console.log` nor `console.info` appears anywhere in `src/`, since the
       `obsidianmd` ruleset fails both and is deliberately left on inside the carve-out (the
       marketplace bot lints with its own config, so a local override would not travel).
       `error` forwards its `cause` untouched.
-- [ ] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
+- [x] **Two triggers, not one, because a real vault falsified the one-trigger version.**
+      Obsidian's `loadData()` does not reject on malformed JSON — it logs
+      `failed to read JSON …` itself and resolves EMPTY — so "resolved empty" is
+      disambiguated by whether the file exists (`PluginDataProbe`): absent is a fresh
+      install and loads defaults, present logs `settings.load.unreadable` and leaves
+      `root.settings` as `null`. Two event names because only the rejection has a `cause`
+      to forward. The suite reproduces the vault defect: the corrupt-file cases go red
+      against the version that returned defaults, including `plugin.saved` showing the
+      overwrite.
+- [x] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
       `null` — never `DEFAULT_SETTINGS` — with the view and command still registered. For
       as long as it stays null, `saveSettings()` makes no `saveData` call and
-      `getSettingDefinitions()` returns `[]` so the tab offers no control that could:
+      `getSettingDefinitions()` offers no control that could — it returns one text-only
+      definition carrying the reason, and the tab declares no deprecated `display()`:
       a failed read never becomes a write, at bootstrap or later in the session. A
       `loadData()` that *resolves* `null` is the fresh-install path and is unaffected.
-- [ ] `no-console` is an error across `src/` with **no** allowances, carved out only for
+- [x] `no-console` is an error across `src/` with **no** allowances, carved out only for
       `infrastructure/logging/**`; `npm run lint` passes, and a `console.error` added
       anywhere else fails it. **In both linters**: `eslint.config.mjs` and
       `.oxlintrc.json` each carry the rule and each carry the carve-out, so removing it
@@ -828,7 +910,16 @@ Module boundaries this slice fixes for every later one:
       fails `console.log`/`console.info` *inside* the carve-out, so that one case is
       caught by `npm run check` and `tests/build/logging-carve-out.test.ts`, never by the
       edit loop.
-- [ ] Every `src/` lint block matches `**/*.vue` as well as `**/*.ts`, wired with
+
+      **Measured while wiring Vue: oxlint DOES parse an SFC** — it reports `no-console`
+      inside a `<script setup lang="ts">` block, and `--debug=files` names `ViewRoot.vue`
+      among the files it lints. So `.vue` files are in the oxlint gate AND in the edit loop,
+      which needed two edits rather than a note: `vue` joined the extension list in
+      `tests/build/lint-scope.test.ts` (or that test would assert about a tree with the SFCs
+      cut out of it) and in `scripts/lint-edited.mjs`, whose own list was missing it — so an
+      SFC edit was silently skipped by the hook. Verified end to end: the hook exits 0 on a
+      clean SFC and 2 on one with a console call.
+- [x] Every `src/` lint block matches `**/*.vue` as well as `**/*.ts`, wired with
       `vue-eslint-parser`, in the same change that adds Vue — the layer bans, the
       write-boundary selectors, the DOM-globals ban, the size budgets, `no-console`,
       **and the logging carve-out block itself**, which is the one this checklist used to
@@ -839,11 +930,23 @@ Module boundaries this slice fixes for every later one:
       `console.warn` each failing `npm run lint`, and by a `.vue` file under
       `infrastructure/logging/` passing it — not by the config reading as though it
       covers them.
-- [ ] The Renovation Project view opens from both the ribbon icon and the command palette,
+- [x] The Renovation Project view opens from both the ribbon icon and the command palette,
       reuses one leaf between them, and its type/display name/icon are all set.
-- [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
+- [x] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
       `Pinia` instance) into `contentEl`; `onClose()` unmounts it and empties `contentEl`.
-- [ ] The Vue arrival checklist is complete in this slice's own pull request, because
+      The app is held in a field named `vueApp` and NOT `app`: `View.app` is Obsidian's own
+      member, so the shorter name shadows it with an incompatible type and makes the whole
+      class unassignable to `View` — `registerView`'s factory stops type-checking, three
+      files away from the declaration. Invisible to the suite, which does not type-check;
+      found by `vue-tsc`.
+      A `src/presentation/views/vue-shim.d.ts` declares what an SFC import means to tooling
+      that cannot parse one: ESLint's type-aware rules run on the TypeScript project
+      service — plain tsserver, with no Vue language plugin — so without it every use of an
+      imported component in a `.ts` file is an unsafe-any. Its docblock carries the four
+      measurements bounding what it does and does not blind, including that SFC-to-SFC prop
+      checking in templates is unaffected. **Trigger for deleting it:** the day a `.ts`
+      file needs a component's real props checked.
+- [x] The Vue arrival checklist is complete in this slice's own pull request, because
       every item on it is a gate that silently does nothing until it is wired: `vue`,
       `pinia` and `@vue/test-utils` added (`@vueuse/core` is NOT — see Design; `fallow`
       refuses a dependency with no importer, and this slice has none for it);
@@ -889,23 +992,80 @@ Module boundaries this slice fixes for every later one:
       neither `test-build` nor the coverage include, because neither exists in the shape it
       assumed. An imported checklist is scoped to what its author could see, so it is a
       starting point for this repository's own gates, not an inventory of them.
-- [ ] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
+
+      **Narrowed, and the narrowing is the guarantee.** The `.vue` block carries the
+      NON-type-aware rules only: the budgets, `no-console`, the layer bans, the write
+      boundary and the DOM-globals ban. `@typescript-eslint/no-floating-promises` remains
+      `.ts`-only, because type-aware linting of an SFC needs `extraFileExtensions` and a
+      file the project service can resolve, which the fixture technique above — linting
+      text at a path with no file on disk — cannot supply. **Trigger:** the first SFC with
+      an async call site is when the type-aware half gets wired, with `extraFileExtensions`
+      and a fixture that exists on disk.
+
+      Five further corrections, each measured while wiring this and each having changed the
+      edit rather than only the prose:
+
+      - `eslint-plugin-vue`'s flat configs carry **no `files` of their own**, so spreading
+        them as shipped points every Vue rule at every linted file — and
+        `vue/multi-word-component-names` loading against `package.json` throws
+        `Cannot read properties of undefined (reading 'getDocumentFragment')` and takes the
+        whole `npm run lint` run down with it. They are scoped to `src/`'s SFCs.
+      - `flat/recommended` brings `vue/html-indent`, which defaults to two SPACES while
+        this repository indents with tabs. It is configured to `'tab'` rather than
+        reformatting one file away from every other — and it therefore gets fixtures in
+        BOTH directions, so "we told it tabs" stays distinguishable from "we turned it off".
+      - `vue/component-api-style` reports on the Options API being **used**. An
+        `export default` carrying only a `name` property is not a use of it and reported
+        nothing, so that fixture was wrong rather than the scope; it uses `data()`.
+      - `vue/component-name-in-template-casing` defaults to `registeredComponentsOnly`, so
+        a bare unimported `<view-root />` reports nothing. The fixture imports the
+        component — the real case — and the rule stays at its default. The narrower
+        guarantee: an **unregistered** kebab-case tag is not caught.
+      - Two fixtures beyond the six, for `no-restricted-syntax` — the ban with the most to
+        lose from a `.ts`-only scope, and the one flat config OVERRIDES rather than merges
+        when two blocks match a file: a vault write and an untranslated `setText` literal,
+        both from a component.
+- [x] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
       renders from `getSettingDefinitions()` and both reads and writes go through
       `settingsFrom`.
-- [ ] `eslint.config.mjs` bans, per directory, every sibling layer above it in the
+- [x] `eslint.config.mjs` bans, per directory, every sibling layer above it in the
       dependency order and the packages `vue`/`pinia`/`konva`/`vue-konva`/`obsidian` for
       `core/`, `domain/`, and `application/` (and the first three of those five for
       `infrastructure/`); a DOM-globals ban applies to `core/` and `domain/`.
       `npm run lint` passes with zero warnings (`--max-warnings 0`) against an empty
       `core/`/`domain/` and an `application/` holding only `ports/Logger.ts`.
-- [ ] `npm run build` produces a single `dist/main.js` (CJS, named exports) with Obsidian,
+- [x] `npm run build` produces a single `dist/main.js` (CJS, named exports) with Obsidian,
       Electron, CodeMirror, and Node builtins external; `npm run test` and
       `npm run test:coverage` pass against the coverage floors recorded for this increment.
-- [ ] `npm run check` (build + lint + coverage-thresholded tests + `fallow`) passes on a
+- [x] `npm run check` (build + lint + coverage-thresholded tests + `fallow`) passes on a
       clean checkout, and is the CI gate on both Ubuntu and Windows.
-- [ ] Manually verified inside Obsidian (`npm run test-build`, a real vault): the plugin
+- [x] Manually verified inside Obsidian (`npm run test-build`, a real vault): the plugin
       loads, the ribbon icon and command both open the empty Renovation Project view, and
-      reloading Obsidian does not duplicate leaves or lose the settings value.
+      reloading Obsidian does not duplicate leaves or lose the settings value. Walked
+      2026-08-23 against Obsidian 1.13 with this repository as the vault.
+
+      **The walk earned its place rather than confirming what was already known.** It found
+      the defect no gate here could: `loadData()` does not reject on malformed JSON, so the
+      unrecovered-settings boundary never engaged for the commonest corruption there is, and
+      220 passing tests said otherwise. See the Design section's table and
+      `settings.load.unreadable`. That is the argument for this box existing, written down
+      where the next slice's author will read it.
+
+      It also corrected a checklist item rather than the code: the implementation plan
+      claimed two `debug` lines appear at the console's Verbose level. They do not, and
+      should not — `LOG_LEVEL` is `'info'`, so this slice's `debug` calls are dropped by the
+      threshold, which is what "compile and emit nothing" in `RenovationPlannerPlugin.ts`
+      means. A silent console at every filter level is the correct result.
+
+      Two IDE warnings were raised against `SettingsTab.ts` and dismissed with evidence, not
+      by inspection: `obsidianmd/settings-tab/require-display` claiming `minAppVersion` is
+      `1.12.0`, and `import/no-extraneous-dependencies` claiming `vue` is not a dependency.
+      Both are artifacts of an editor ESLint server whose working directory is not this
+      repository — the plugin reads `fs.readFileSync('manifest.json')` on a BARE RELATIVE
+      path into module-level cache, and from that cwd it resolved another plugin's manifest
+      inside `.obsidian/plugins/`. The CLI reports neither, and `npm run lint` runs
+      `--max-warnings 0`, so either firing for real would be a red build. `eslint.config.mjs`
+      already documents this failure mode above `projectService`.
 
 ## References
 

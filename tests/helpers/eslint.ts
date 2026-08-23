@@ -44,3 +44,60 @@ export interface ResolvedConfig {
 
 /** A rule's severity in a resolved config: 0 off, 1 warn, 2 error; `undefined` if absent. */
 export const severityOf = (config: ResolvedConfig, rule: string): unknown => config.rules[rule]?.[0];
+
+/**
+ * The rule ids ESLint reports for `code` treated as `filePath`.
+ *
+ * `lintText` resolves the REAL flat config for that path — the same globs, the same
+ * per-directory blocks, the same parser — without a file on disk, which is what makes a
+ * fixture possible at all: a conforming-except-one-rule `.vue` file committed under `src/`
+ * would fail `npm run lint` for the whole repository, and a fixture parked outside `src/`
+ * would be linted by different blocks than the ones under test.
+ *
+ * Rule IDS rather than the exit code, deliberately: a bare exit code cannot tell six rules
+ * apart, so a fixture that went red for its own unrelated reason would read as a pass.
+ *
+ * Three outcomes, kept distinct because they are three different defects and a caller
+ * reading only "the rule id is missing" would confuse them:
+ *
+ * - a rule id — that rule reported.
+ * - `PARSE_ERROR` — a message with no rule id, which is what a block whose parser cannot
+ *   read the file produces (an SFC lacking `vue-eslint-parser`, say).
+ * - `NOT_LINTED` — ESLint returned NO result for the path at all. Under flat config a file
+ *   matching no block's `files` is not linted rather than linted with no rules, so an empty
+ *   result means the extension is outside the config entirely. Named rather than left to
+ *   throw a `TypeError` on `undefined`, which is what the first version of this did and
+ *   which reads as a bug in the helper rather than a finding about the config.
+ */
+export const lintText = async (code: string, filePath: string): Promise<string[]> => {
+	const [result] = await eslint.lintText(code, { filePath, warnIgnored: false });
+
+	if (result === undefined) return ['NOT_LINTED'];
+
+	return result.messages.map((message) => message.ruleId ?? 'PARSE_ERROR');
+};
+
+/**
+ * Resolve the flat config once, so no TEST BODY pays for it.
+ *
+ * Measured, and the reason this exists rather than a raised global timeout: the first
+ * `lintText` or `resolveConfig` call in a worker costs ~3s idle and was seen at 17.8s under
+ * full-suite parallel load, while every call after it is 7–30ms. Vitest's default test
+ * timeout is 5s, so whichever test happened to be first in its file carried a cost that
+ * intermittently blew that budget — a green suite that goes red on whichever machine is
+ * busiest, which is the failure mode `suppressions.test.ts` was already one caller away
+ * from (its own heaviest case measures 3.0s) and which a third caller made real.
+ *
+ * A `beforeAll` is where a one-time toolchain boot belongs: it can be given a budget that
+ * says "this is slow on purpose" without also telling every test in the repository that
+ * five seconds of silence is acceptable. `logging-carve-out.test.ts` already did exactly
+ * this, with this number — the constant is here so the other two callers share it rather
+ * than each picking their own, and so raising it is one edit. Each file needs its own hook:
+ * vitest gives each test file its own module registry, so the instance above is per file,
+ * and a file that already resolves a config in a `beforeAll` needs no second warm-up.
+ */
+export const ESLINT_BOOT_MS = 60_000;
+
+export const warmUpEslint = async (): Promise<void> => {
+	await eslint.calculateConfigForFile('src/main.ts');
+};

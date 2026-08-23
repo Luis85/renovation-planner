@@ -19,6 +19,15 @@ import type RenovationPlannerPlugin from '../RenovationPlannerPlugin';
  * `display()` fallback for, and `eslint-plugin-obsidianmd` fails the build for a tab that
  * implements neither.
  *
+ * **There is no `display()` here at all**, and the unrecovered-settings message is a
+ * text-only DEFINITION (`SettingDefinitionEmpty` — a `name` with no control) rather than
+ * an imperative fallback. `display()` was the obvious shape and is wrong on this ruleset's
+ * own terms: `obsidianmd/settings-tab/no-deprecated-display` fails a tab that implements
+ * both, and switching that rule off would not travel — the marketplace review bot lints a
+ * submission with ITS OWN configuration, so the flag would arrive at submission instead of
+ * at `npm run check`. A definition is also the better answer independently: it is what
+ * Obsidian's settings SEARCH indexes, which an imperatively drawn pane is absent from.
+ *
  * There is no heading and no plugin name among the definitions: Obsidian draws the plugin's
  * name itself, and repeating it is a recurring marketplace review rejection.
  */
@@ -28,6 +37,13 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
+		// One text-only item while the settings could not be read — the reason, and NO
+		// control. The tab writes on every control change, so offering no control is what
+		// keeps a failed read from becoming a write through a control nobody has written yet,
+		// and a definition rather than a `display()` fallback is what keeps the message in
+		// the settings search index.
+		if (this.host.root.settings === null) return [{ name: tr('settings.unrecovered') }];
+
 		// `tr` resolves the language per call, and this runs on every render — which is
 		// what keeps the pane correct after Obsidian's own language setting changes.
 		return [
@@ -54,7 +70,7 @@ export class SettingsTab extends PluginSettingTab {
 	 * `RenovationPlannerSettings`, so a second setting needs no second branch here.
 	 */
 	getControlValue(key: string): unknown {
-		return this.host.settings[key as keyof RenovationPlannerSettings];
+		return this.host.root.settings?.[key as keyof RenovationPlannerSettings];
 	}
 
 	/**
@@ -64,7 +80,7 @@ export class SettingsTab extends PluginSettingTab {
 	 * declare is dropped rather than persisted forever.
 	 */
 	setControlValue(key: string, value: unknown): Promise<void> {
-		this.host.settings = settingsFrom({ ...this.host.settings, [key]: value });
-		return this.host.saveSettings();
+		return this.host.saveSettings(settingsFrom({ ...this.host.root.settings, [key]: value }));
 	}
+
 }

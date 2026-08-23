@@ -2,8 +2,22 @@ import { Plugin } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
-import { DEFAULT_SETTINGS, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
+import type { LogLevel, Logger } from '../application/ports/Logger';
+import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
+import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
+import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
+import { createCompositionRoot, type CompositionRoot } from './composition-root';
+import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
+
+/**
+ * The threshold is an argument to the adapter, not a setting: this slice's `debug` calls
+ * compile and emit nothing, while the levels slice 11 adds still reach a released build
+ * where they are worth having. A user-facing switch belongs with slice 11's diagnostics
+ * work — "copy diagnostics" and "turn on verbose logging" are the same conversation — and
+ * this slice does not add a settings field no feature reads yet.
+ */
+const LOG_LEVEL: LogLevel = 'info';
 
 /**
  * The plugin shell: the ONLY place anything is registered with Obsidian, and the only layer
@@ -27,13 +41,24 @@ import { SettingsTab } from './settings/SettingsTab';
  * trusting it.
  */
 export default class RenovationPlannerPlugin extends Plugin {
-	settings: RenovationPlannerSettings = DEFAULT_SETTINGS;
+	/**
+	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
+	 * state through `plugin.root.settings` — one path in, not two that could drift.
+	 * Definitely assigned in `onload`, which Obsidian calls before anything can read it.
+	 */
+	root!: CompositionRoot;
 
 	async onload(): Promise<void> {
-		// Settings first — the SDD's stated onload order (§10) — so everything registered
-		// below may read them. The merge is pure (`settingsFrom`); only the `loadData`
-		// call lives here, in the layer allowed to name it.
-		this.settings = settingsFrom(await this.loadData());
+		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
+		// it is not one of the things bootstrap sets up, it is what the setup steps report
+		// through, and the step below is the first one that can fail.
+		const logger = createConsoleLogger(LOG_LEVEL);
+		logger.debug('plugin.load.started');
+
+		// Settings first of the steps — the SDD's stated onload order (§9) — so everything
+		// registered below may read them. The merge is pure (`settingsFrom`); only the
+		// `loadData` call lives here, in the layer allowed to name it.
+		this.root = createCompositionRoot(await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id)), logger);
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
@@ -56,16 +81,72 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void this.openProject();
 			},
 		});
+
+		// A `debug` line rather than an `info` one, and that is the publishing guidance
+		// rather than taste: a plugin that announces itself on every start is the plainest
+		// instance of the "console noise" rejection. What survives as `info` is RARITY —
+		// something that happened once and would be worth having in a support thread.
+		logger.debug('plugin.loaded');
 	}
 
 	/**
-	 * The one write path for settings, so no control has to know how they are persisted —
-	 * and so a future migration or debounce has a single place to live. `saveData` replaces
-	 * the whole file, which is why the tab mutates `settings` and then calls this rather
-	 * than writing a patch.
+	 * Two ways `data.json` can be unreadable, and only one of them looks like a failure.
+	 *
+	 * A REJECTION is the obvious one. The other was found in a real vault and is the common
+	 * one: Obsidian's `loadData()` does **not** reject on malformed JSON. It catches the
+	 * `JSON.parse` failure itself, logs `failed to read JSON …` on its own side, and RESOLVES
+	 * EMPTY — so a corrupt file and a fresh install arrive here identically, and an earlier
+	 * version of this method handed back `DEFAULT_SETTINGS` for both. That left the settings
+	 * pane offering a control, and the first change written through it replaced the user's
+	 * file with defaults. The probe is the discriminator: nothing AND no file is a fresh
+	 * install; nothing AND a file present is a file nobody can read.
+	 *
+	 * Recovery is a reload rather than a repair UI — fixing or removing `data.json` and
+	 * toggling the plugin re-runs this. Nothing here re-reads on a timer and nothing writes a
+	 * replacement file, because both amount to guessing at data the user still has.
+	 *
+	 * A probe that THROWS lands in the same `catch` and is therefore unrecovered too, which
+	 * is deliberate and needs no branch of its own: if the vault cannot say whether the file
+	 * is there, refusing to write over it is the only safe answer.
 	 */
-	saveSettings(): Promise<void> {
-		return this.saveData(this.settings);
+	private async loadSettings(logger: Logger, probe: PluginDataProbe): Promise<RenovationPlannerSettings | null> {
+		try {
+			// Annotated `unknown` rather than inferred: `loadData()` is typed `Promise<any>`,
+			// and binding that to a local is the one place the `any` would escape into this
+			// file. `unknown` is also what it honestly is — `data.json` is user-editable, so
+			// both readers below take `unknown` and validate.
+			const raw: unknown = await this.loadData();
+
+			if (isDataAbsent(raw) && (await probe.dataFileExists())) {
+				// No `cause` to forward: Obsidian swallowed the error before this code saw it,
+				// so a `cause` key here would be an empty promise of detail. A DIFFERENT event
+				// name from the rejection below for the same reason — one name per thing that
+				// actually happened is what makes either of them greppable.
+				logger.error('settings.load.unreadable');
+				return null;
+			}
+
+			return settingsFrom(raw);
+		} catch (cause) {
+			logger.error('settings.load.failed', { cause });
+			return null;
+		}
+	}
+
+	/**
+	 * The one write path for settings, so no control has to know how they are persisted.
+	 * `saveData` replaces the whole file, which is why this takes the complete next settings
+	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
+	 * fields are readonly, so there is exactly one way state changes here.
+	 */
+	saveSettings(next: RenovationPlannerSettings): Promise<void> {
+		// Refused for the whole SESSION, not only at bootstrap: a transient read failure
+		// must not stamp defaults over a `data.json` that is sitting there intact. The tab
+		// is the other writer and is guarded independently (`getSettingDefinitions`).
+		if (this.root.settings === null) return Promise.resolve();
+
+		this.root = createCompositionRoot(next, this.root.logger);
+		return this.saveData(next);
 	}
 
 	private openProject(): Promise<void> {

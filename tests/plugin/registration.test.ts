@@ -7,7 +7,7 @@
  * is excluded), and "the ribbon opens the view, once" is exactly the wiring that breaks
  * silently — so it is driven here against the module mock rather than trusted.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
 import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 import {
@@ -18,6 +18,14 @@ import {
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
+import { levels, lines, recorder, resetRecorder } from '../helpers/logger';
+
+// Hoisted above the imports by vitest, which is why the factory imports the helper itself
+// rather than closing over a module-scope binding that would not exist yet. Measured, not
+// assumed: the static form fails with `Cannot access '__vi_import_5__' before
+// initialization` — vitest rewrites the import into a lazy binding the hoisted factory
+// reaches before it is initialised.
+vi.mock('../../src/infrastructure/logging/consoleLogger', async () => (await import('../helpers/logger')).consoleLoggerMock());
 
 installObsidianDom();
 
@@ -25,6 +33,7 @@ let plugin: RenovationPlannerPlugin;
 let workspace: FakeWorkspace;
 
 beforeEach(async () => {
+	resetRecorder();
 	({ plugin, workspace } = await loadedPlugin());
 });
 
@@ -67,13 +76,13 @@ describe('what onload registers', () => {
 	// SDD §10: settings load FIRST in onload, so everything registered below may read
 	// them. Driven for both halves of `settingsFrom`'s contract: absence and presence.
 	it('loads the default settings on a fresh install', () => {
-		expect(plugin.settings).toEqual({ units: 'metric' });
+		expect(plugin.root.settings).toEqual({ units: 'metric' });
 	});
 
 	it('loads stored settings over the defaults', async () => {
 		const { plugin: withStored } = await loadedPlugin({ units: 'imperial' });
 
-		expect(withStored.settings.units).toBe('imperial');
+		expect(withStored.root.settings).toEqual({ units: 'imperial' });
 	});
 });
 
@@ -105,5 +114,35 @@ describe('both ways in', () => {
 
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.revealed).toHaveLength(2);
+	});
+});
+
+describe('the composition root', () => {
+	/**
+	 * ONE logger, asserted by identity rather than by shape: two different loggers both
+	 * satisfy a shape assertion, and "one instance, reached through one path" is the
+	 * property every later slice inherits from this seam.
+	 */
+	it('holds the logger onload constructed', () => {
+		expect(levels).toEqual(['info']);
+		expect(plugin.root.logger).toBe(recorder);
+	});
+
+	/**
+	 * The threshold is an argument to the adapter, not a setting: `debug` compiles and emits
+	 * nothing in a released build, while the levels slice 11 adds still reach it.
+	 */
+	it('is reached through one field rather than a bare settings field', () => {
+		expect(plugin.root.settings).toEqual({ units: 'metric' });
+	});
+
+	/**
+	 * "Console noise: logging that is not an actual error path" is one of the marketplace
+	 * rejections only a human reviewer catches, so a released build must be silent unless
+	 * something failed. Invisible to a test that only counts calls, which is why the levels
+	 * are filtered rather than the length asserted.
+	 */
+	it('emits nothing above debug on a successful load', () => {
+		expect(lines.filter((line) => line.level !== 'debug')).toEqual([]);
 	});
 });

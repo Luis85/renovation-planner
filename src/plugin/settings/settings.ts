@@ -39,6 +39,28 @@ function unitsFrom(value: unknown): Units {
 	return UNITS.find((unit) => unit === value) ?? DEFAULT_SETTINGS.units;
 }
 
+/**
+ * Whether `loadData()` answered with nothing to interpret.
+ *
+ * This is not the same question as "is there a file", and the difference is the whole
+ * reason it exists. Obsidian's `loadData()` does NOT reject when `data.json` will not
+ * parse — it catches the `JSON.parse` failure itself, logs it on its own side, and resolves
+ * EMPTY — so a fresh install and a corrupt file arrive here wearing one shape. Pairing this
+ * with `PluginDataProbe` is what separates them: nothing AND no file is a fresh install,
+ * nothing AND a file is a file nobody can read.
+ *
+ * `{}` counts as nothing, and whether Obsidian answers `null` or `{}` for an unparseable
+ * file is undocumented, so both are treated alike. The cost, named: a `data.json` holding
+ * literally `{}` reads as unreadable. That is not a state this plugin produces —
+ * `saveSettings` always writes a complete settings object — and over-refusing a write is
+ * the safe direction where under-refusing one destroys what the user still has.
+ */
+export function isDataAbsent(raw: unknown): boolean {
+	if (raw === null || raw === undefined) return true;
+
+	return typeof raw === 'object' && Object.keys(raw).length === 0;
+}
+
 /** `loadData` answers whatever data.json holds: an object, null on a fresh install, or junk. */
 export function settingsFrom(raw: unknown): RenovationPlannerSettings {
 	const stored = typeof raw === 'object' && raw !== null ? (raw as Partial<RenovationPlannerSettings>) : {};

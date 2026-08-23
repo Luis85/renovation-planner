@@ -24,9 +24,11 @@ import path from "node:path";
  * violation's other end, a type error, a dead export or anything ESLint owns.
  */
 
-// The extensions oxlint parses. Everything else — a stylesheet, a manifest, Markdown — is
+// The extensions oxlint parses, `.vue` included: oxlint reports findings inside an SFC's
+// `<script setup lang="ts">` block (measured — `no-console` fires there), so an SFC edit
+// belongs in this loop like any other. Everything else — a stylesheet, a manifest, Markdown — is
 // somebody else's check, and running the linter on it would only produce noise.
-const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs)$/;
+const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs|vue)$/;
 
 /**
  * The exit code that routes stderr to the AGENT. This is the whole reason it is 2 and not

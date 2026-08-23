@@ -1,23 +1,59 @@
 {
 	"$schema": "./node_modules/fallow/schema.json",
+	// Process entry points, not import roots. `scripts/lint-edited.mjs` is the third
+	// kind: nothing imports it and no npm script runs it — Claude Code spawns it per edit,
+	// named in `.claude/settings.json`. Declared here rather than given a contrived npm
+	// script, and `tests/build/lint-edited.test.ts` is what checks the naming still resolves.
+	// `scripts/harness-shot.mjs` is the same shape from the other direction: an npm script
+	// (`harness-shot`) does run it, but fallow's import graph starts from `entry` and this
+	// file imports nothing under `src/` or `tests/` — nothing else in the graph reaches it
+	// either, so it needs the same declaration or fallow reports it dead.
+	// `scripts/concept-shots.mjs` is the same case as `harness-shot.mjs` and needs the same
+	// line. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
+	// reaches it through the graph — and it having to be reachable is the point of it being
+	// one file rather than a copy in each.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",
 		"scripts/lint-edited.mjs",
 		"scripts/harness-shot.mjs",
 		"scripts/concept-shots.mjs"
-	],"dynamicallyLoaded": [
+	],
+	// Loaded by a page, never imported by a module — which is what this key is for.
+	// `docs/concepts/*.css` are the concept mocks' sheets: two static HTML files in `docs/`
+	// link them, and those files are documentation rather than an entry point, so fallow's
+	// import graph cannot reach either sheet and reports both dead. Declared as the two
+	// files they are rather than as `docs/**/*.css`, so the next stylesheet somebody drops
+	// into `docs/` still has to be accounted for instead of being silently covered.
+	"dynamicallyLoaded": [
 		"styles/**/*.css",
 		"tests/harness/theme.css",
 		"tests/harness/obsidian.css",
 		"docs/concepts/concept.css",
 		"docs/concepts/page.css"
 	],
+	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
+	// every manual entry is otherwise treated as production-reachable code, so
+	// `scripts/harness-shot.mjs`'s own devDependency (`playwright-core`) reads as a
+	// devDependency imported by production code, which `dev-dependencies-in-production`
+	// exists to catch for a real case: an import a production-only install would break on.
+	// This is the opposite — the importing file IS the dev tooling — and fallow's own
+	// suggested fix for this exact finding is this key.
 	"ignoreDependencies": ["playwright-core"],
 	"duplicates": {
 		"ignore": ["tests/harness/obsidian.css"]
 	},
+	// The harness page's plugin stylesheet is SERVED, not imported: the dev server answers
+	// `/styles.css` from styles/ (scripts/vite-assembled-styles.mjs), so there is no file on
+	// disk for a static analyser to resolve — and there must not be one, or the page could
+	// show a stale build.
 	"ignoreUnresolvedImports": ["/styles.css"],
+	// One export, in one file, consumed only through a DYNAMIC import — which fallow's
+	// static graph cannot follow, and the dynamic import is not a style choice: `vi.mock` is
+	// hoisted above the test file's imports, and the static form fails at runtime with
+	// `Cannot access '__vi_import_5__' before initialization` (measured, not assumed). Named
+	// rather than globbed, so the next unused export in this helper is still a finding.
+	"ignoreExports": [{ "file": "tests/helpers/logger.ts", "exports": ["consoleLoggerMock"] }],
 	"health": {
 		"coverage": "coverage/coverage-final.json",
 		"ignore": ["tests/**"]
@@ -28,6 +64,10 @@
 		"unused-class-members": "error",
 		"private-type-leaks": "warn"
 	},
+	// Members a FRAMEWORK invokes — declared rather than suppressed inline, which is what
+	// keeps the rule able to report a genuinely dead one. A settings tab's contract is these
+	// three: what it declares, what it answers for a control key, and what it does with a new
+	// value. Obsidian calls all three; nothing in `src/` does.
 	"usedClassMembers": [
 		{ "extends": "Plugin", "members": ["onload", "onunload"] },
 		{ "extends": "PluginSettingTab", "members": ["getSettingDefinitions", "getControlValue", "setControlValue"] }

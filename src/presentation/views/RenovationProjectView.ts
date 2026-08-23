@@ -1,4 +1,7 @@
 import { ItemView } from 'obsidian';
+import { createApp, type App as VueApp } from 'vue';
+import { createPinia } from 'pinia';
+import ViewRoot from './ViewRoot.vue';
 import { tr } from '../i18n/strings';
 
 /**
@@ -18,11 +21,10 @@ export const RENOVATION_PROJECT_VIEW = 'renovation-project';
 export const RENOVATION_PROJECT_ICON = 'hammer';
 
 /**
- * Draws nothing yet, and the empty root div is the point: it is the mount point the SDD's
- * §12 asks for — one isolated Vue app per Obsidian view, created in `onOpen` and unmounted
- * in `onClose`. When Vue lands, `createApp(ViewRoot).mount(root)` goes where the comment
- * says and `app.unmount()` joins `onClose`; nothing else about this file changes, and
- * nothing outside it learns that a view is Vue.
+ * Draws nothing yet, and that is the increment's success criterion rather than an omission:
+ * what this proves is the LIFECYCLE the SDD's §12 asks for — one isolated Vue app per
+ * Obsidian view, created in `onOpen` and unmounted in `onClose` — before slice 5 gives the
+ * component a canvas to draw. Nothing outside this file learns that a view is Vue.
  *
  * `contentEl`, not `containerEl`: the outer element carries Obsidian's own view chrome —
  * the header and the tab actions — and emptying it takes those with it.
@@ -40,21 +42,41 @@ export class RenovationProjectView extends ItemView {
 		return RENOVATION_PROJECT_ICON;
 	}
 
+	/**
+	 * The Vue app this view mounted, held only so `onClose` can unmount the same one. `null`
+	 * between a close and the next open — Obsidian keeps the leaf and reuses the view.
+	 *
+	 * `vueApp` and not `app`: `View.app` is Obsidian's OWN member (the `App` instance), so
+	 * the shorter name shadows it with an incompatible type and makes the whole class
+	 * unassignable to `View` — `registerView`'s factory stops type-checking, three files
+	 * away from the declaration. Invisible to the suite, which does not type-check; found by
+	 * `vue-tsc` in `npm run build`.
+	 */
+	private vueApp: VueApp | null = null;
+
 	onOpen(): Promise<void> {
 		this.contentEl.empty();
-		// The mount point. One class, which is also the stylesheet's only entry point into
-		// this view — see styles/view.css.
-		this.contentEl.createDiv('renovation-planner-view');
+		// One isolated app per ItemView with its OWN Pinia (ADR-004, SDD §12) rather than a
+		// shared singleton. Mounted onto `contentEl` directly — not `containerEl`, which
+		// carries Obsidian's own view chrome — so the component's root element IS the
+		// `.renovation-planner-view` the stylesheet keys off, with no wrapper in the height
+		// chain.
+		const app = createApp(ViewRoot);
+		app.use(createPinia());
+		app.mount(this.contentEl);
+		this.vueApp = app;
 		return Promise.resolve();
 	}
 
 	/**
-	 * Obsidian keeps the leaf and reuses the view, so leaving the old tree behind would
-	 * draw it twice on the next open. It empties rather than detaching the leaf: detaching
-	 * in a close handler loses the user's layout, which is one of the recurring plugin
-	 * review rejections.
+	 * Obsidian keeps the leaf and reuses the view, so an app left mounted would keep its
+	 * effects alive against a detached tree and the next open would stack a second one.
+	 * Emptying afterwards is what makes a re-open start from a clean pane; detaching the
+	 * leaf instead would lose the user's layout, which is a recurring review rejection.
 	 */
 	onClose(): Promise<void> {
+		this.vueApp?.unmount();
+		this.vueApp = null;
 		this.contentEl.empty();
 		return Promise.resolve();
 	}

@@ -22,7 +22,13 @@ import { REPO, lintedFiles } from '../helpers/oxlint';
 // which passes. `.d.mts` and `.cts` match nothing on disk today and stay listed for that
 // reason — the cost of a spare extension is nothing, and the cost of a missing one is a
 // silent pass.
-const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs)$/;
+//
+// `vue` is here because oxlint DOES parse an SFC — measured, not assumed: it reported
+// `no-console` inside a `<script setup lang="ts">` block, and `--debug=files` names
+// `ViewRoot.vue` among the files it lints. So SFCs are in the oxlint gate and in the
+// edit-loop hook (`scripts/lint-edited.mjs`, which carries the same list), and leaving
+// `vue` out here would have made this test assert about a tree with the SFCs cut out of it.
+const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs|vue)$/;
 
 const walk = (dir: string): string[] =>
 	readdirSync(path.join(REPO, dir), { withFileTypes: true }).flatMap((entry) => {

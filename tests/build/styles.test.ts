@@ -221,6 +221,65 @@ describe('assembling the stylesheet', () => {
 		});
 
 		/**
+		 * Regression coverage for a bug the generic `Rule()`-based rewrite introduced and
+		 * a later wave shipped without catching: `@page`'s margin-box at-rules
+		 * (`@top-center`, `@top-left`, …) live under a field named `rules`, the SAME field
+		 * name a true container (`@media`, `@supports`, …) uses for its nested rules — but
+		 * lightningcss's visitor never calls `Rule()` for a margin box separately (checked
+		 * by hand against the parsed tree: a margin box is `{ marginBox, declarations,
+		 * loc }`, not the `{ type, value }` shape a container's own children have). A fix
+		 * that excluded the whole `rules` FIELD — reasonable for a container, wrong for
+		 * `@page` — silently dropped every margin-box declaration from the scan. These four
+		 * cases are the exact regression report: the first three must refuse, the fourth
+		 * (an Obsidian variable, not a literal) must not.
+		 */
+		it('refuses a hard-coded colour inside an @page margin box (@top-center)', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '@page { @top-center { color: #fff; } }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('refuses a hard-coded colour inside an @page :first margin box (@top-left)', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '@page :first { @top-left { background: #000; } }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('does not flag an Obsidian variable inside an @page margin box', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '@page { @top-center { color: var(--a); } }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		/**
+		 * The other half of the same regression: a TRUE container's nested rule must still
+		 * be reported exactly once, at its OWN (more precise) line — not the container's
+		 * coarser line, and not twice. A fix that stopped excluding `rules` entirely to
+		 * catch the `@page` case above, without judging each element's own shape, would
+		 * regress this the other direction (either a double report or the container's
+		 * blunter line). The nested `.x` rule sits on line 2; asserting THAT line, not
+		 * line 1, is what proves the container itself was skipped and only the nested
+		 * rule's own, more precise `Rule()` call reported it.
+		 */
+		it('reports a colour inside @media exactly once, at the nested rule line, not the container line', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '@media (width > 1px) {\n\t.x { color: #fff; }\n}\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css:2/);
+		});
+
+		/**
 		 * Everything below is regression coverage run against the real parser rather
 		 * than patched string logic — every colour function the CSS Color spec defines
 		 * (including the one, `device-cmyk()`, lightningcss's parser leaves unresolved

@@ -121,9 +121,15 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   form labels, heading order and ARIA attribute validity. Read its header before trusting
   the word "accessibility" any wider than that: it does NOT verify colour contrast, a
   visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
-  of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness
-  (it scans `contentEl`, the plugin's own subtree, not the whole document). A live vault
-  (`npm run test-build`) remains the only place appearance is verified.
+  of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
+  and those two are not the same mechanism: `duplicate-id` is deprecated and disabled by
+  default in this axe-core version, so it is invisible here independent of scope — it
+  fires correctly at BOTH `contentEl` and whole-document scope once force-enabled, so
+  scoping is not why it is missed today. The landmark rules (`region`, `document-title`,
+  `html-has-lang`, …) are the ones actually scope-dependent, needing whole-page context
+  this file cannot give them because it scans `contentEl`, the plugin's own subtree, not
+  the whole document. A live vault (`npm run test-build`) remains the only place
+  appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 

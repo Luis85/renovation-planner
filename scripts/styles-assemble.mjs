@@ -137,8 +137,11 @@ function countLines(body) {
 // runs the same recursive colour walk over EVERY rule's own `rule.value` — which, checked
 // by hand, already holds that rule's own content directly, for `style`, `font-face`,
 // `property`, `font-palette-values`, `keyframes`, `page` and `unknown` alike — with one
-// field excluded from the walk, `rules` (see `NESTED_RULES_KEY` below), which is what
-// closes the class rather than the two members of it a first pass happened to find.
+// field, `rules`, walked element-by-element rather than blindly (see `NESTED_RULES_KEY`
+// below): the SAME field name means genuinely different things on different rule kinds —
+// a container's nested rules versus `@page`'s margin boxes — so closing the class means
+// judging each element's own shape, not the field's name, which is what a place-list
+// (naming rule TYPES, or naming FIELD names) can never do for a case not yet found.
 //
 // `currentColor` and a CSS system-colour keyword (`Canvas`, `ButtonText`, …) both adapt
 // to the viewer's theme or OS colour scheme rather than encoding a fixed palette value,
@@ -163,9 +166,12 @@ function countLines(body) {
 // single style rule, but still a real, useful line, never the unnamed failure a missing
 // position would be. A colour nested inside a CONTAINER at-rule (`@media`, `@supports`,
 // `@layer`, `@container`, or nested CSS itself) is the one case this does NOT report
-// against the container's own line: `rules`, the field holding each nested rule, is
-// excluded from the walk specifically so the container's `Rule()` call finds nothing and
-// the NESTED rule's own, more precise `Rule()` call is what reports it instead.
+// against the container's own line: each element of `rules`, the field holding each
+// nested rule, is skipped from the walk exactly when it is itself a separately-visited
+// Rule node (see `isSeparatelyVisitedRule`), so the container's own `Rule()` call finds
+// nothing there and the NESTED rule's own, more precise `Rule()` call is what reports it
+// instead. `@page`'s margin boxes share the field name but not that shape, and so are
+// walked here rather than skipped — see `NESTED_RULES_KEY` for why.
 const COLOR_TYPE_TAGS = new Set([
 	'rgb',
 	'hsl',
@@ -189,12 +195,37 @@ const UNRESOLVED_COLOR_FUNCTIONS = new Set(['device-cmyk']);
 // The field lightningcss uses, on every CONTAINER rule kind checked by hand (`media`,
 // `supports`, `layer-block`, `container`, and `style` itself for CSS nesting), to hold its
 // nested child rules. `checkForHardcodedColors` walks a rule's own `rule.value` for a
-// colour, but must skip this one field: the visitor calls `Rule()` on each nested rule
-// separately too, with its own more precise line, so walking into `rules` from the
-// CONTAINER would just re-report the same colour against the container's coarser line
-// first. Excluding it is a structural exclusion, not a per-type one — it holds regardless
-// of which container rule carries it, including one this project does not use today.
+// colour, and must not re-walk a child the visitor already calls `Rule()` on separately —
+// that would re-report the same colour against the container's coarser line first.
+//
+// The field name alone does NOT decide this, and treating it as if it did is the exact
+// regression this comment now documents: `@page` also carries a field named `rules` — its
+// margin boxes (`@top-center`, `@top-left`, …) — but a margin box is not a nested Rule at
+// all. Confirmed by inspecting the parsed tree by hand: a container's `rules` array holds
+// full `{ type, value }` Rule nodes, the identical shape the visitor's own `Rule()`
+// callback receives (so the visitor DOES fire for each one, separately, which is what
+// makes re-walking it here redundant); `@page`'s `rules` array holds `{ marginBox,
+// declarations, loc }` objects with no `type` field at all, because the visitor has no
+// separate callback for a margin box — it never fires one. A version of this check that
+// excluded the whole `rules` FIELD, rather than judging each element's own shape, silently
+// dropped every margin-box declaration from the scan: `@page { @top-center { color: #fff;
+// } }` passed when it should have refused. So `rules` is not a key this walk skips; it is
+// a key whose ARRAY ELEMENTS are inspected one at a time by `isSeparatelyVisitedRule`
+// below, and only an element actually shaped like a Rule the visitor dispatches to on its
+// own is skipped — anything else under that name (a page's margin box) is walked as
+// ordinary data, the same as any other field. That is what makes this a class fix rather
+// than trading one place-list (`font-palette-values`, `unknown`) for another (`page`).
 const NESTED_RULES_KEY = 'rules';
+
+// Whether `node` is itself the shape lightningcss's visitor calls `Rule()` for separately:
+// every Rule variant is `{ type: string, value: ... }`. Used only while walking a `rules`
+// array (see `NESTED_RULES_KEY` above) to decide, element by element, whether THIS entry
+// is a nested rule the visitor already visits on its own (skip it here) or something else
+// entirely that happens to share the field name `rules` with a container (walk it, since
+// nothing else in the visitor ever will).
+function isSeparatelyVisitedRule(node) {
+	return isPlainObject(node) && typeof node.type === 'string' && 'value' in node;
+}
 
 function isPlainObject(value) {
 	return typeof value === 'object' && value !== null;
@@ -268,16 +299,32 @@ function isUnresolvedColorFunctionCall(node) {
  * `light`/`dark` fields are reached the same way — no special case, since the walk
  * already recurses into every field.
  *
- * `skipKey`, when given, is a field name the walk never descends into — used to keep a
- * container rule's own scan from re-visiting a nested rule the visitor already calls
- * `Rule()` on separately (see `NESTED_RULES_KEY`).
+ * A `rules` field (see `NESTED_RULES_KEY`) is handled specially, not skipped outright: each
+ * of its array elements is judged on its own shape by `isSeparatelyVisitedRule` — an
+ * element the visitor already calls `Rule()` on separately is skipped here (its own,
+ * more precise call reports it), while anything else under that name (a `@page` margin
+ * box) is walked exactly like any other field.
  *
  * @returns {object | null} the offending node, or null if `value` holds no literal colour
  */
-function findHardcodedColor(value, skipKey) {
+// The `rules`-array half of `findHardcodedColor`, split out so neither function carries
+// both kinds of branching (generic recursion, plus the per-element judgment call this one
+// field needs) at once. An element the visitor already calls `Rule()` on separately is
+// skipped — its own, more precise call reports it; anything else under that name (a
+// `@page` margin box) is walked exactly like any other field.
+function findHardcodedColorInNestedRules(rules) {
+	for (const item of rules) {
+		if (isSeparatelyVisitedRule(item)) continue;
+		const found = findHardcodedColor(item);
+		if (found) return found;
+	}
+	return null;
+}
+
+function findHardcodedColor(value) {
 	if (Array.isArray(value)) {
 		for (const item of value) {
-			const found = findHardcodedColor(item, skipKey);
+			const found = findHardcodedColor(item);
 			if (found) return found;
 		}
 		return null;
@@ -285,8 +332,10 @@ function findHardcodedColor(value, skipKey) {
 	if (!isPlainObject(value)) return null;
 	if (isResolvedColor(value) || isUnresolvedColorFunctionCall(value)) return value;
 	for (const key of Object.keys(value)) {
-		if (key === skipKey) continue;
-		const found = findHardcodedColor(value[key], skipKey);
+		const found =
+			key === NESTED_RULES_KEY && Array.isArray(value[key])
+				? findHardcodedColorInNestedRules(value[key])
+				: findHardcodedColor(value[key]);
 		if (found) return found;
 	}
 	return null;
@@ -331,7 +380,7 @@ function checkForHardcodedColors(name, body) {
 				// build, and a later rule need not be walked at all.
 				Rule(rule) {
 					if (violation) return;
-					const found = findHardcodedColor(rule.value, NESTED_RULES_KEY);
+					const found = findHardcodedColor(rule.value);
 					// 0-indexed in lightningcss's own AST; every message elsewhere in this
 					// file, and every editor, counts from 1.
 					if (found) violation = { found, line: rule.value.loc.line + 1 };

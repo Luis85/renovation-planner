@@ -373,10 +373,20 @@ own pull request:
   `vite.harness.config.ts`. The harness renders the real view against the real stylesheet;
   a plugin only the build knows about splits them, and the split is invisible until someone
   runs `npm run harness` and gets a parse error.
-- **`tsc -noEmit` becomes `vue-tsc -noEmit`** in the `build` script, and `tsconfig.json`'s
-  `include` gains `src/**/*.vue`. Vite transpiles SFCs without type-checking them, so
-  `vue-tsc` in `build` is the only command-line type gate a `.vue` file gets — omit it and
-  `npm run check` reports success over code nothing type-checked.
+- **`tsc -noEmit` becomes `vue-tsc -noEmit` in `build` AND in `test-build`**, and
+  `tsconfig.json`'s `include` gains `src/**/*.vue`. Vite transpiles SFCs without
+  type-checking them, so `vue-tsc` is the only command-line type gate a `.vue` file gets —
+  omit it and `npm run check` reports success over code nothing type-checked. `test-build`
+  needs the same substitution and is easy to miss because it is not in `check`: it opens
+  with its own `tsc -noEmit`, so changing only `build` leaves the one command that produces
+  a loadable vault build failing on the first SFC — an implementer green on `npm run check`
+  and blocked the moment they try to look at their work in Obsidian.
+- **`vitest.config.ts`'s `coverage.include` gains `.vue`** — `src/**/*.{ts,vue}`. The
+  coverage floors are ratcheted and they are one of the four gates, so an SFC outside the
+  include is a file whose untested branches cost nothing: component tests run, the numbers
+  do not move, and the gate passes over code it never measured. A gate that silently stops
+  covering a whole file type is worse than one that never covered it, because the number
+  still looks like an answer.
 - **`eslint-plugin-vue`'s flat configs**, with `parserOptions.parser` set to the TypeScript
   parser on the `**/*.vue` block so `<script setup lang="ts">` parses, alongside the glob
   widening described under Lint below. Those are two separate needs met in one edit: the
@@ -702,16 +712,28 @@ Module boundaries this slice fixes for every later one:
       reuses one leaf between them, and its type/display name/icon are all set.
 - [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
       `Pinia` instance) into `contentEl`; `onClose()` unmounts it and empties `contentEl`.
-- [ ] The Vue arrival checklist (`docs/setup/vue-conventions.md` §1) is complete in this
-      slice's own pull request, because every item on it is a gate that silently does
-      nothing until it is wired: `vue`, `pinia`, `@vueuse/core` and `@vue/test-utils` added;
-      `@vitejs/plugin-vue` in **both** `vite.config.ts` and `vite.harness.config.ts`;
-      `tsc -noEmit` replaced by `vue-tsc -noEmit` with `src/**/*.vue` in `tsconfig.json`'s
-      `include`; `eslint-plugin-vue`'s flat configs added with the TypeScript parser on the
-      `**/*.vue` block. Each is asserted by its effect, not by reading the config: the
-      harness renders `ViewRoot.vue` (proving the second Vite config), a deliberate type
-      error in an SFC fails `npm run build` (proving `vue-tsc` and the `include`), and the
-      lint checks below cover the rest.
+- [ ] The Vue arrival checklist is complete in this slice's own pull request, because
+      every item on it is a gate that silently does nothing until it is wired: `vue`,
+      `pinia`, `@vueuse/core` and `@vue/test-utils` added; `@vitejs/plugin-vue` in **both**
+      `vite.config.ts` and `vite.harness.config.ts`; `vue-tsc -noEmit` replacing
+      `tsc -noEmit` in **both** `build` and `test-build`, with `src/**/*.vue` in
+      `tsconfig.json`'s `include`; `vitest.config.ts`'s `coverage.include` widened to
+      `src/**/*.{ts,vue}`; `eslint-plugin-vue`'s flat configs added with the TypeScript
+      parser on the `**/*.vue` block.
+
+      Each is asserted by its **effect**, never by reading the config, because every one of
+      these fails silently: the harness renders `ViewRoot.vue` (proving the second Vite
+      config); a deliberate type error in an SFC fails `npm run build` **and**
+      `npm run test-build` (proving both substitutions and the `include`); an SFC with an
+      untaken branch moves the coverage numbers (proving the coverage include — a config
+      assertion would pass while the file was invisible to the gate); and the lint checks
+      below cover the rest.
+
+      `docs/setup/vue-conventions.md` §1 is where this list comes from, and it is a
+      superset of §1 rather than a copy: §1 was written against a generic project and names
+      neither `test-build` nor the coverage include, because neither exists in the shape it
+      assumed. An imported checklist is scoped to what its author could see, so it is a
+      starting point for this repository's own gates, not an inventory of them.
 - [ ] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
       renders from `getSettingDefinitions()` and both reads and writes go through
       `settingsFrom`.

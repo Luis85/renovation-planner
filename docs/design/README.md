@@ -85,7 +85,12 @@ them:
     weaker claim than "this conforms", and quietly treating the first as the second is
     exactly how a departure stops being visible. `useFieldCommit`, which has no such
     shape, follows §4 exactly — including accepting `MaybeRefOrGetter`, which it was
-    changed to do rather than declare a second departure.
+    changed to do rather than declare a second departure. `useFormCommit`'s `fieldErrors`
+    was likewise conformed rather than declared: it was a bare `ReadonlyMap`, which is not
+    a §4 departure so much as a defect — a plain Map handed out of a composable is a
+    snapshot, so a rejected `submit()` would have rendered no field errors at all. It is a
+    `Ref` now. Only the shape that both conforms and behaves is worth keeping, and a
+    departure is for the case where those two come apart.
 - **`docs/setup/quality-harness.md`** — the harness's rationale: what each gate refuses
   and why, which is the reasoning a Definition of Done should be written in the spirit of.
   It is a **build-this-from-nothing guide describing a target**, not a description of the

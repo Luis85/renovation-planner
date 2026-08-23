@@ -345,8 +345,11 @@ and does not close the dialog:
 ```typescript
 // presentation/composables/use-form-commit.ts
 interface UseFormCommit<TInput> {
+  // `values` is a declared departure from vue-conventions.md §4 — see Interfaces &
+  // Contracts below for the reasoning. This interface is stated twice in this document
+  // (here and there); they must not drift, and any future edit changes both.
   readonly values: Reactive<TInput>;                    // every field's current draft
-  readonly fieldErrors: ReadonlyMap<keyof TInput, string>;
+  readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
   readonly banner: Ref<string | null>;
   readonly submitting: Ref<boolean>;
   setField<K extends keyof TInput>(key: K, value: TInput[K]): void;
@@ -404,7 +407,13 @@ interface UseFormCommit<TInput> {
   // DEPARTURE from vue-conventions.md §4's "a plain object of refs, never reactive(…)",
   // declared rather than argued away — see below.
   readonly values: Reactive<TInput>;
-  readonly fieldErrors: ReadonlyMap<keyof TInput, string>;
+  // A Ref, not a bare ReadonlyMap. The bare form was not merely off-§4 — it does not
+  // work: a plain Map handed out of a composable is a snapshot, so a form whose submit()
+  // was rejected would compute its field errors and render none of them. `banner` and
+  // `submitting` beside it were already refs, which is what made the odd one out easy to
+  // miss and is also the reason it is not a departure worth declaring: the conforming
+  // shape is the one that behaves.
+  readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
   readonly banner: Ref<string | null>;
   readonly submitting: Ref<boolean>;
   setField<K extends keyof TInput>(key: K, value: TInput[K]): void;

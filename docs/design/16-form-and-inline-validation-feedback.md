@@ -321,7 +321,12 @@ interface UseFieldCommit<T> {
 }
 
 function useFieldCommit<T, TInput>(options: {
-  canonicalValue: Ref<T>;                       // sourced from InspectorDto, read-only here
+  // MaybeRefOrGetter, not Ref: `docs/setup/vue-conventions.md` §4 asks composables to
+  // accept a value, a ref OR a getter and normalize with toValue() inside the tracking
+  // context. The caller here is an Inspector panel reading one field off an InspectorDto,
+  // which is most naturally a computed getter — a Ref-only signature would have forced
+  // every call site to wrap one. Read-only in this composable either way.
+  canonicalValue: MaybeRefOrGetter<T>;          // sourced from InspectorDto, read-only here
   buildCommand: (value: T) => UndoableCommand;  // wraps whichever plain command owns
                                                 //   this entity's properties (slice 8)
   history: Pick<CommandHistory, 'run'>;         // the same instance EditorContext hands tools
@@ -396,6 +401,8 @@ interface UseFieldCommit<T> {
 
 // presentation/composables/use-form-commit.ts — creation dialog, per-form submit-commit
 interface UseFormCommit<TInput> {
+  // DEPARTURE from vue-conventions.md §4's "a plain object of refs, never reactive(…)",
+  // declared rather than argued away — see below.
   readonly values: Reactive<TInput>;
   readonly fieldErrors: ReadonlyMap<keyof TInput, string>;
   readonly banner: Ref<string | null>;
@@ -552,7 +559,17 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   `presentation/errors/`, which this slice DOES add, for `route-error.ts` (see File
   layout).
 - `docs/setup/vue-conventions.md` §4 — the composable rules this slice's two `use*`
-  modules follow, and the reason `route-error.ts` is not among them.
+  modules follow, the reason `route-error.ts` is not among them, and the one rule
+  `useFormCommit` departs from. §4 asks for "a plain object of refs, never `reactive(…)`",
+  and `values` is a `Reactive<TInput>`. The hazard §4 names — destructuring a reactive
+  return silently drops reactivity — does not apply here, since `values` is one named
+  member of a plain returned object and survives destructuring intact. But "the stated
+  hazard does not bite" is a weaker claim than "this conforms", and treating the first as
+  the second is how a departure stops being visible. So it is declared: a creation
+  dialog's field set is the one place a reactive object is the natural shape
+  (`v-model="values.unitCost"` against a per-field `Ref` map is worse to write and worse
+  to read), `setField` remains the only write path, and `useFieldCommit` — which has no
+  such shape — follows §4 exactly.
 - `docs/design/12-testing-and-architecture-enforcement-infrastructure.md` — the node
   profile `routeError` is assigned to, which is where its test environment is decided and
   is unaffected by which directory it lives in.

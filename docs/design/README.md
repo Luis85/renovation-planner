@@ -63,8 +63,8 @@ them:
   the config that builds one?
 
   Where a slice departs from the conventions, the departure is named in that slice's
-  **References**, not left to be discovered. The departures today are **two**, both in
-  slice 13 and both parts of one decision:
+  **References**, not left to be discovered. There are **three** today. Two are in slice
+  13 and are parts of one decision:
   - **§5, one Pinia per view app** — `NotificationStore` is plugin-global.
   - **§6, apps created in a view's `onOpen` and unmounted in `onClose`** — the
     `NotificationHost` app is created in `RenovationPlannerPlugin.onload()` and
@@ -76,6 +76,16 @@ them:
   wrong reports a nonconforming slice as conforming, and does it with more authority than
   no inventory at all. The store cannot be plugin-global without an app to mount its host
   into, so listing one and not the other was never a defensible split.
+
+  The third is in slice 16:
+  - **§4, "a plain object of refs, never `reactive(…)`"** — `useFormCommit` exposes
+    `values` as a `Reactive<TInput>`. §4's stated hazard (destructuring a reactive return
+    drops reactivity) does not apply, since `values` is one named member of a plain
+    returned object. It is declared anyway, because "the stated hazard does not bite" is a
+    weaker claim than "this conforms", and quietly treating the first as the second is
+    exactly how a departure stops being visible. `useFieldCommit`, which has no such
+    shape, follows §4 exactly — including accepting `MaybeRefOrGetter`, which it was
+    changed to do rather than declare a second departure.
 - **`docs/setup/quality-harness.md`** — the harness's rationale: what each gate refuses
   and why, which is the reasoning a Definition of Done should be written in the spirit of.
   It is a **build-this-from-nothing guide describing a target**, not a description of the

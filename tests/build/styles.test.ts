@@ -265,10 +265,12 @@ describe('assembling the stylesheet', () => {
 		 * and `#face-plate` are ID selectors, not colours, and every letter of `fade`,
 		 * `dad`, `face`, `cab`, `bad`, `beef`, `cafe` and `ace` is a valid hex digit —
 		 * chasing every hex-shaped English word one spelling at a time is a losing game,
-		 * so the check instead looks only INSIDE `{ }` declaration blocks
-		 * (`onlyInsideBraces`), never at a selector. `url(...)` is stripped for the same
-		 * reason: `url(#fade)` sits in VALUE position but holds a fragment reference, not
-		 * a colour. This project forbids inline suppressions, so a false positive here has
+		 * so the check instead looks only at DECLARATION VALUES (`forEachDeclaration`),
+		 * never at a selector. `url(...)` is stripped for the same reason: `url(#fade)`
+		 * sits in VALUE position but holds a fragment reference, not a colour, and — at
+		 * every nesting depth, not just the top one — a selector inside `@media`/
+		 * `@supports`/`@container` is still a selector. This project forbids inline
+		 * suppressions, so a false positive here has
 		 * no escape hatch except editing this shared script under pressure — these are
 		 * regression tests, not exploratory ones.
 		 */
@@ -363,6 +365,112 @@ describe('assembling the stylesheet', () => {
 			});
 
 			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		/**
+		 * Finding A: a selector nested inside an at-rule (`@media`, `@supports`,
+		 * `@container`) sits at brace depth >= 1 same as a declaration does — depth alone
+		 * cannot tell them apart. `#fade` here is a selector regardless of how many
+		 * blocks it sits inside, and must stay unscanned; the declaration nested one
+		 * level deeper than IT must still be scanned.
+		 */
+		it('does not flag a hex-shaped selector nested inside an at-rule', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '@media (width > 1px) { #fade { margin: 0; } }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('still refuses a hard-coded colour nested inside an at-rule', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '@media (width > 1px) { .x { color: #fff; } }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		/**
+		 * Finding B: a `}` (or `{`) inside a quoted CSS string is literal text, not
+		 * structure. The old depth counter read the quoted `"}"` as closing the block
+		 * early, so `color: #fff` that followed looked like it sat outside any block and
+		 * was silently skipped — a false NEGATIVE, worse than any false positive: the
+		 * gate stayed green while `styles/view.css`'s own comment ("every colour comes
+		 * from an Obsidian variable") went false underneath it.
+		 */
+		it('still refuses a colour after a quoted closing brace in the same block', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { content: "}"; color: #fff; }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		it('still refuses a colour after a quoted opening brace in the same block', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { content: "{"; color: #fff; }\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		// A colour is never legitimately written as a quoted string — `content: "#fff";`
+		// sets literal label text, not a palette value — so the quoted text is masked out
+		// of the scan entirely, the same fix that makes the two tests above correct.
+		it('does not flag a hex-shaped word inside a quoted content string', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.x { content: "#fff"; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		/**
+		 * Finding C: the function list only named `rgb`/`rgba`/`hsl`/`hsla`. Every other
+		 * CSS Color function — `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()`
+		 * — is exactly as hard-coded a palette value and passed the gate untouched.
+		 */
+		it.each([
+			['hwb', 'background: hwb(200 30% 20%);'],
+			['lab', 'color: lab(50% 20 -30);'],
+			['lch', 'color: lch(50% 40 30);'],
+			['oklab', 'color: oklab(0.5 0.1 -0.1);'],
+			['oklch', 'color: oklch(60% 0.2 30);'],
+			['color()', 'color: color(display-p3 1 0 0);'],
+		])('refuses a hard-coded %s() colour', (_name, declaration) => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': `.one { ${declaration} }\n`,
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		// The trap `color(` sets: `color` is both a CSS PROPERTY and, spelled with a
+		// trailing `(`, a colour FUNCTION. `\bcolor\(` requires the immediate `(` a
+		// property name never has (`color:` is followed by `:`), so the property itself,
+		// and a custom property merely named after it, must both still pass.
+		it('does not flag the color PROPERTY assigned an Obsidian variable', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: var(--text-normal); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag a custom property merely named after the colour function', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { --my-color: var(--text-normal); --color-scheme: dark; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
 		});
 	});
 });

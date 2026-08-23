@@ -891,39 +891,39 @@ repository implementation swaps at the composition root.
 
 ## Definition of Done
 
-- [ ] `Project`, `Plan`, `Zone` entities exist under `domain/project/`, `domain/plan/`,
+- [x] `Project`, `Plan`, `Zone` entities exist under `domain/project/`, `domain/plan/`,
       `domain/zone/` (SDD §78 pattern, `.schema.ts` deferred to Slice 4), each as
       immutable objects constructed via a `Result`-returning factory that enforces its
       invariants.
-- [ ] `CreateProjectCommand`, `CreatePlanCommand`, `CalibratePlanCommand`,
+- [x] `CreateProjectCommand`, `CreatePlanCommand`, `CalibratePlanCommand`,
       `CreateZoneCommand`, `MoveSpatialObjectCommand`, `DeleteZoneCommand` all
       implement `Command<TInput, TResult>` (SDD §29) — none implement
       `UndoableCommand`.
-- [ ] `ProjectCreated`, `PlanCreated`, `PlanCalibrated`, `ZoneCreated`,
+- [x] `ProjectCreated`, `PlanCreated`, `PlanCalibrated`, `ZoneCreated`,
       `ZoneGeometryChanged`, `ZoneDeleted` are defined and are published through
       Slice 2's `EventBus` on, and only on, each corresponding command's success path.
-- [ ] Every command inspects every `Result` a repository hands back — reads as well as
+- [x] Every command inspects every `Result` a repository hands back — reads as well as
       writes — and returns it unpublished on failure. A failing repository call can
       never be reported as success, produce an event, or be mistaken for `ok(null)`.
-- [ ] `GetProject`, `GetPlan`, `GetZone` are implemented against the repository *port*
+- [x] `GetProject`, `GetPlan`, `GetZone` are implemented against the repository *port*
       types only, with no reference to any concrete repository implementation, and
       return `Result<T | null, PersistenceError>` — "not found" is `ok(null)`.
-- [ ] `ProjectRepository`, `PlanRepository`, `ZoneRepository` ports are defined in
+- [x] `ProjectRepository`, `PlanRepository`, `ZoneRepository` ports are defined in
       `application/ports/`, with every method `Result`-returning, each with a passing
       `InMemory*Repository` implementation and a shared repository contract test suite
       that is written to be reusable, unmodified, by Slice 4 — no method signature
       changes when Slice 4 lands.
-- [ ] Every error and event value in this slice is built by a factory function
+- [x] Every error and event value in this slice is built by a factory function
       returning plain data; `new` appears nowhere in an error or event construction,
       and no file declares `class ReferenceError`.
-- [ ] A project can be created, a plan created under it and calibrated, and a zone
+- [x] A project can be created, a plan created under it and calibrated, and a zone
       created under the plan, moved, and deleted — all in a single Vitest file, using
       only `InMemory*Repository` instances, with zero Obsidian API surface touched.
       This is the concrete, scoped-down form of Increment 2's success criterion.
-- [ ] Every command's failure paths are covered by a test asserting a failed `Result` with
+- [x] Every command's failure paths are covered by a test asserting a failed `Result` with
       the correct SDD §64 error category, no repository mutation, and no event
       published.
-- [ ] The dependency-direction lint rule (ADR-006, SDD §76) passes for every file
+- [x] The dependency-direction lint rule (ADR-006, SDD §76) passes for every file
       introduced in this slice.
 
 ## References

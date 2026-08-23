@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "lib": ["DOM", "ES2020", "ES2021.Intl"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue"]
 }

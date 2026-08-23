@@ -2,11 +2,51 @@
  * @vitest-environment jsdom
  */
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../../helpers/dom';
 import { RENOVATION_PROJECT_VIEW, type RenovationProjectView } from '../../../src/presentation/views/RenovationProjectView';
 import { t } from '../../../src/presentation/i18n/strings';
 import { makeView } from '../../helpers/workspace';
+// Regular type imports rather than an inline dynamic-import type annotation: oxlint's
+// `consistent-type-imports` forbids that form, and `noInlineConfig` means there is no
+// suppression for it. These are the module SHAPES the two wrappers below spread.
+import type * as VueModule from 'vue';
+import type * as PiniaModule from 'pinia';
+
+/**
+ * Both modules are wrapped rather than replaced: the real `createApp` and `createPinia`
+ * run, and the wrapper records what they returned. That is what lets the two claims ADR-004
+ * actually makes be checked — that the app created on open is the one unmounted on close,
+ * and that each view gets its OWN Pinia rather than a shared singleton. Neither is visible
+ * in the DOM: an app left mounted and an app unmounted leave the same empty pane behind.
+ */
+const { apps, pinias } = vi.hoisted(() => ({ apps: [] as { unmount: () => void }[], pinias: [] as unknown[] }));
+
+vi.mock('vue', async (importOriginal) => {
+	const vue = await importOriginal<typeof VueModule>();
+
+	return {
+		...vue,
+		createApp: (...args: Parameters<typeof vue.createApp>) => {
+			const app = vue.createApp(...args);
+			apps.push(app);
+			return app;
+		},
+	};
+});
+
+vi.mock('pinia', async (importOriginal) => {
+	const pinia = await importOriginal<typeof PiniaModule>();
+
+	return {
+		...pinia,
+		createPinia: () => {
+			const store = pinia.createPinia();
+			pinias.push(store);
+			return store;
+		},
+	};
+});
 
 installObsidianDom();
 
@@ -14,6 +54,8 @@ describe('the renovation project view', () => {
 	let subject: RenovationProjectView;
 
 	beforeEach(() => {
+		apps.length = 0;
+		pinias.length = 0;
 		subject = makeView();
 	});
 
@@ -105,5 +147,54 @@ describe('the renovation project view', () => {
 		const chrome = readFileSync('styles/chrome.css', 'utf8');
 
 		expect(chrome).toContain(`[data-type="${RENOVATION_PROJECT_VIEW}"]`);
+	});
+});
+
+describe('the Vue lifecycle', () => {
+	let subject: RenovationProjectView;
+
+	beforeEach(() => {
+		apps.length = 0;
+		pinias.length = 0;
+		subject = makeView();
+	});
+
+	it('mounts one app into the content pane on open', async () => {
+		await subject.onOpen();
+
+		expect(apps).toHaveLength(1);
+		expect(subject.contentEl.querySelectorAll('.renovation-planner-view')).toHaveLength(1);
+	});
+
+	/**
+	 * ADR-004's actual claim: an isolated app per `ItemView`, not one long-lived app shared
+	 * across views. A shared Pinia would let two open leaves mutate each other's state,
+	 * which is invisible until the second leaf exists.
+	 */
+	it('gives each view its own Pinia instance', async () => {
+		await subject.onOpen();
+		await makeView().onOpen();
+
+		expect(pinias).toHaveLength(2);
+		expect(pinias[0]).not.toBe(pinias[1]);
+	});
+
+	// Unmount, not merely empty: an app left mounted keeps its effects and watchers alive
+	// against a tree nobody can see, and both outcomes leave the same empty pane.
+	it('unmounts the app it created on close', async () => {
+		await subject.onOpen();
+		const unmount = vi.spyOn(apps[0], 'unmount');
+
+		await subject.onClose();
+
+		expect(unmount).toHaveBeenCalledTimes(1);
+		expect(subject.contentEl.children).toHaveLength(0);
+	});
+
+	// Obsidian may close a leaf whose view never opened; nothing here may throw on it.
+	it('does nothing when closed without having opened', async () => {
+		await expect(subject.onClose()).resolves.toBeUndefined();
+
+		expect(apps).toEqual([]);
 	});
 });

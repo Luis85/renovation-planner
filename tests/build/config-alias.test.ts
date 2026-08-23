@@ -37,3 +37,32 @@ describe('the obsidian module alias', () => {
 		expect(existsSync(target)).toBe(true);
 	});
 });
+
+/**
+ * A TRIPWIRE, not a proof, and the label matters. `@vitejs/plugin-vue` has to be in every
+ * config that transforms source, and each omission is invisible in a different place: the
+ * `vite.config.ts` one at `npm run build`, the `vitest.config.ts` one at `npm test`, and
+ * the `vite.harness.config.ts` one at `npm run harness` — which is deliberately outside
+ * `npm run check`, so nothing in the gate would notice it going missing.
+ *
+ * What this checks is only that a plugin with that name is PRESENT. It does not check that
+ * the plugin works, which is what `tests/presentation/views/viewRoot.test.ts` proves by
+ * effect for the suite (an SFC import fails at parse without it) and what a screenshot
+ * proves for the harness. Reading a config is exactly what those two refuse to rely on;
+ * this exists because one of the three surfaces has no other watcher at all.
+ */
+const pluginNames = (config: { plugins?: unknown }): string[] =>
+	(Array.isArray(config.plugins) ? config.plugins.flat(Infinity) : [])
+		.map((plugin) => (typeof plugin === 'object' && plugin !== null && 'name' in plugin ? String(plugin.name) : ''))
+		.filter((name) => name !== '');
+
+describe('the Vue plugin, in every config that transforms source', () => {
+	it('is named by the suite config', () => {
+		expect(pluginNames(vitestConfig).join(' ')).toContain('vue');
+	});
+
+	// The one with no gate in `npm run check`, which is the whole reason this file says so.
+	it('is named by the harness config', () => {
+		expect(pluginNames(harnessConfig).join(' ')).toContain('vue');
+	});
+});

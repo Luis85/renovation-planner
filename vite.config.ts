@@ -1,5 +1,6 @@
 import { builtinModules } from 'node:module';
 import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 import { assembledStyles } from './scripts/vite-assembled-styles.mjs';
 
 /**
@@ -47,7 +48,7 @@ const OBSIDIAN_PROVIDED = [
  */
 
 export default defineConfig(({ mode }) => ({
-	plugins: [assembledStyles()],
+	plugins: [vue(), assembledStyles()],
 	build: {
 		/**
 		 * `dist/`, not the repository root.

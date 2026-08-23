@@ -1,7 +1,9 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+	plugins: [vue()],
 	resolve: {
 		alias: {
 			// The real 'obsidian' package is types-only; tests run against a small mock.
@@ -18,7 +20,11 @@ export default defineConfig({
 		include: ['tests/**/*.test.ts'],
 		coverage: {
 			provider: 'v8',
-			include: ['src/**/*.ts'],
+			// `.vue` as well as `.ts`: the floors are ratcheted and they are one of the four
+			// gates, so an SFC outside this include is a file whose untested branches cost
+			// nothing — component tests run, the numbers do not move, and the gate passes
+			// over code it never measured.
+			include: ['src/**/*.{ts,vue}'],
 			// Registration glue that needs the real Obsidian Plugin runtime.
 			exclude: ['src/main.ts'],
 			reporter: ['text-summary', 'json', 'lcov'],

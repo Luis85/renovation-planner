@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 import { assembledStyles } from './scripts/vite-assembled-styles.mjs';
 
 /**
@@ -51,5 +52,5 @@ export default defineConfig({
 		// read them.
 		fs: { allow: ['..', '../..'] },
 	},
-	plugins: [assembledStyles()],
+	plugins: [vue(), assembledStyles()],
 });

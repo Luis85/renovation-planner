@@ -346,9 +346,14 @@ and does not close the dialog:
 // presentation/composables/use-form-commit.ts
 interface UseFormCommit<TInput> {
   // Read-only to the component: setField is the ONLY write path, and a mutable shape
-  // cannot enforce that (see Interfaces & Contracts below). This interface is stated
-  // twice in this document (here and there); they must not drift.
-  readonly values: Readonly<Ref<TInput>>;               // every field's current draft
+  // cannot enforce that (see Interfaces & Contracts below). DEEP, not `Readonly<Ref<T>>`:
+  // that spelling freezes the binding and not the object, so it still permits both of
+  // the writes this shape exists to refuse — `values.value.unitCost = x` from script,
+  // and `v-model="values.unitCost"` from markup, since a ref unwraps in templates.
+  // This interface is stated twice in this document (here and there); they must not drift.
+  readonly values: DeepReadonly<Ref<TInput>>;           // every field's current draft
+  // Not deep, and does not need to be: `ReadonlyMap` already refuses `set`/`delete`, and
+  // its values are strings, so nothing below `.value` is left to freeze.
   readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
   readonly banner: Ref<string | null>;
   readonly submitting: Ref<boolean>;
@@ -407,7 +412,11 @@ interface UseFieldCommit<T> {
 
 // presentation/composables/use-form-commit.ts — creation dialog, per-form submit-commit
 interface UseFormCommit<TInput> {
-  readonly values: Readonly<Ref<TInput>>;
+  // `DeepReadonly`, not `Readonly` — see the Design section: `Readonly<Ref<TInput>>`
+  // freezes the binding and not the object, so it would permit exactly the two writes
+  // that walk past setField. Produced by Vue's own `readonly()`, which is also a runtime
+  // proxy: a bypass that evades the compiler (an `any`, a cast) still fails to write.
+  readonly values: DeepReadonly<Ref<TInput>>;
   // A Ref, not a bare ReadonlyMap. The bare form was not merely off-§4 — it does not
   // work: a plain Map handed out of a composable is a snapshot, so a form whose submit()
   // was rejected would compute its field errors and render none of them. `banner` and
@@ -552,6 +561,15 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 9. No user-facing literal appears under `presentation/components/` or
    `presentation/composables/` — every message a field or banner renders arrived through
    slice 11's `ToUserMessage`, which resolves it from the locale tables.
+10. `setField` is the sole write path to `values` **by type**, not by convention: with
+    `useFormCommit`'s result in hand, `values.value.unitCost = -5` and a component binding
+    `v-model="values.unitCost"` each fail `vue-tsc -noEmit`. Both spellings are checked,
+    because they fail for different reasons — the first is a property write through the
+    ref, the second is a property write through template unwrapping — and the shallow
+    `Readonly<Ref<TInput>>` this slice started with permits both while looking like it
+    forbids them. Proven by a fixture that stops failing if the type is widened back, in
+    the manner slice 1's Definition of Done requires of its Vue rules, never by the
+    interface reading as though it were read-only.
 
 ## References
 
@@ -581,13 +599,24 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   and anything centralised in `setField` reachable only by the path nobody was told to
   take.
 
-  So `values` is a `Readonly<Ref<TInput>>`, bound for reading and written only through
+  So `values` is a `DeepReadonly<Ref<TInput>>`, bound for reading and written only through
   `setField` — `:model-value="values.unitCost"` with
   `@update:model-value="v => setField('unitCost', v)"`, never `v-model`. `setField` now
   earns the exclusivity by doing something with it: it clears that field's error, so a
   message the user has already corrected stops being displayed. Conforming and behaving
   turned out to be the same shape here, which is why the departure was withdrawn rather
   than restated with a better argument.
+
+  The depth is the whole repair and not a detail of spelling. The first version of this
+  paragraph said `Readonly<Ref<TInput>>`, which is the shape that *reads* as read-only
+  while refusing only the one write nobody was going to attempt: `Readonly<T>` is a
+  shallow mapped type, so it marks `.value` immutable and stops there. `TInput`'s own
+  properties stay mutable, so `values.value.unitCost = -5` type-checks, and a ref unwraps
+  in templates, so `v-model="values.unitCost"` does too. That is the departure's original
+  self-defeating sentence surviving into the fix that was meant to retire it — the same
+  two write contracts, one of them reachable without saying so. `DeepReadonly` is Vue's
+  own type and what `readonly()` returns, so both spellings fail to compile and the proxy
+  refuses the write at runtime besides.
 - `docs/design/12-testing-and-architecture-enforcement-infrastructure.md` — the node
   profile `routeError` is assigned to, which is where its test environment is decided and
   is unaffected by which directory it lives in.

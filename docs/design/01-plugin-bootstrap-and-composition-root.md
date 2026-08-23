@@ -762,10 +762,23 @@ Module boundaries this slice fixes for every later one:
       `include`); an SFC with an untaken branch moves the coverage numbers (proving the
       coverage include — a config assertion would pass while the file was invisible to the
       gate); and each named Vue rule is proven by a fixture that violates it failing
-      `npm run lint` — an Options-API component, a `<style>` block, a runtime-object
-      `defineProps`, a kebab-case component tag — since a rule present in the config but
-      scoped to files it never matches is the failure this whole list is about. The lint
-      checks below cover the architecture blocks.
+      `npm run lint` — since a rule present in the config but scoped to files it never
+      matches is the failure this whole list is about. That is **six** fixtures, one per
+      rule, not four: an Options-API component (`vue/component-api-style`), a `<script>`
+      block without `lang="ts"` (`vue/block-lang`), a runtime-object `defineProps`
+      (`vue/define-props-declaration`), a runtime-array `defineEmits`
+      (`vue/define-emits-declaration`), a `<style>` block (`vue/no-restricted-block`) and
+      a kebab-case component tag (`vue/component-name-in-template-casing`).
+
+      Each fixture violates **exactly one** of the six and is otherwise conforming, and
+      the check reads the reported rule id rather than the exit code. Both halves are
+      load-bearing, and the four-fixture version of this list had neither. An Options-API
+      component is the natural place to write a plain `<script>` block, so one file lands
+      on `component-api-style` and `block-lang` together — and a fixture carrying two
+      violations still fails lint with either rule absent or misscoped, which is exactly
+      the silence being gated against. Overlap turns the suite into a lint run that goes
+      red for its own reasons; a bare exit code cannot tell the six rules apart even when
+      the fixtures can. The lint checks below cover the architecture blocks.
 
       `docs/setup/vue-conventions.md` §1 is where this list comes from, and it is a
       superset of §1 rather than a copy: §1 was written against a generic project and names

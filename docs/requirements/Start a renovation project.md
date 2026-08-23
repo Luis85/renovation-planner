@@ -136,7 +136,7 @@ Each of these is something this note decided that its sources did not settle.
    [[Project management]]'s definition of done requires downstream code to read them from the
    project rather than from a plugin default. The entity and the command have to gain them.
    That is an edit to a derived design document, which
-   [`docs/tasks/README.md`](../tasks/README.md) expects — but it is a change, not a reading
+   [`docs/requirements/Architecture and Software Design.md`](Architecture%20and%20Software%20Design.md) expects — but it is a change, not a reading
    of what is there today.
 2. **Tax defaults have no modelled shape anywhere.** PRD §83 names them; no slice types them.
    Criterion 2 is written so it becomes checkable once somebody decides what they are.

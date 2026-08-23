@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 100
+parent: "[[Plan editor and canvas]]"
+order: 40
+dependsOn:
+  - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
 status: ""
 started: ""
 finished: ""
@@ -962,4 +964,4 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
   Relationship Rules, §63 Reference Integrity, §64 Deletion Semantics (deferred
   aspect — see Out of scope), §68 Undo/Redo Architecture, §85 Command Model, §101
   E2E Tests.
-- `docs/tasks/README.md` — slice map and shared conventions.
+- `docs/requirements/Architecture and Software Design.md` — slice map and shared conventions.

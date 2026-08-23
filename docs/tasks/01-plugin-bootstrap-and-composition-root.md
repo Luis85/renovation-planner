@@ -1,7 +1,7 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 30
+parent: "[[Foundation and composition root]]"
+order: 10
 status: ""
 started: ""
 finished: ""
@@ -70,7 +70,7 @@ Maps to SDD Increment 1 — Plugin Foundation (§91). Its stated success criteri
 - The event bus's *implementation* (`core/events/`) and the domain event catalog — slice 2;
   this slice only reserves where the composition root will hold the bus once it exists.
 - Bases views (SDD §13) and any workspace view beyond the one named in Increment 1 — later
-  increments, explicitly deferred per `docs/tasks/README.md`.
+  increments, explicitly deferred per `docs/requirements/Architecture and Software Design.md`.
 - Everything about logging *except* the port, the console adapter and this slice's own
   calls — slice 11. What to log at which level across the codebase, the pairing with the
   Error Boundary (every mapped `AppError` logged with its cause), exception mapping,
@@ -932,5 +932,5 @@ Module boundaries this slice fixes for every later one:
   criterion, verbatim.
 - ADR-004 — Vue 3 for Plugin UI (`docs/adrs/0004-vue-3-for-plugin-ui.md`).
 - ADR-006 — Plain TypeScript Domain (`docs/adrs/0006-plain-typescript-domain.md`).
-- `docs/tasks/README.md` — shared conventions (repository structure, the dependency rule)
+- `docs/requirements/Architecture and Software Design.md` — shared conventions (repository structure, the dependency rule)
   applied here, and the slice map this document is slice 1 of.

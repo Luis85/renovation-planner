@@ -1,7 +1,10 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 130
+parent: "[[Errors, diagnostics and the test harness]]"
+order: 10
+dependsOn:
+  - "[[01-plugin-bootstrap-and-composition-root]]"
+  - "[[02-core-primitives]]"
 status: ""
 started: ""
 finished: ""
@@ -511,4 +514,4 @@ will run.)
 - PRD §63–64 Reference Integrity, Deletion Semantics — the source of Data Safety
   rule 5's Cancel/Remove-References/Reassign/Delete-Anyway flow (not to be confused
   with the SDD's own §64, Error Model).
-- `docs/tasks/README.md` — slice map and shared conventions.
+- `docs/requirements/Architecture and Software Design.md` — slice map and shared conventions.

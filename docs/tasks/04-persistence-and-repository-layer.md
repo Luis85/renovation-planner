@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 60
+parent: "[[Foundation and composition root]]"
+order: 40
+dependsOn:
+  - "[[03-domain-foundation-project-plan-zone]]"
 status: ""
 started: ""
 finished: ""
@@ -1072,7 +1074,7 @@ interface FindZonesByPlanQuery {
   neither survives contact with a file a user hand-edited. Concretely, the sidecar and
   frontmatter schemas reject a unit outside the persisted vocabulary and a calibration
   or viewport transform whose scale is zero, negative or non-finite, with the same
-  invalid fixtures as every other schema rule. See `docs/tasks/README.md`'s
+  invalid fixtures as every other schema rule. See `docs/requirements/Architecture and Software Design.md`'s
   shared-vocabulary entry for the split, and slice 2's Design for why `createPolygon`
   cannot take these two.
 - **Migration tests:** a synthetic `v0 → v1` fixture per migratable kind, asserting

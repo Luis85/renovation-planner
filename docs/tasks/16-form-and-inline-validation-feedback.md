@@ -1,7 +1,10 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 180
+parent: "[[Shared UI vocabulary]]"
+order: 40
+dependsOn:
+  - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
+  - "[[11-error-handling-diagnostics-and-data-safety]]"
 status: ""
 started: ""
 finished: ""
@@ -723,5 +726,5 @@ and a spec written in the template's spelling would not type-check as a test.
   example.
 - `docs/tasks/11-error-handling-diagnostics-and-data-safety.md` — `ToUserMessage`, reused
   rather than reimplemented.
-- `docs/tasks/README.md` — slice map; slices 13–16 as independent, parallel UI
+- `docs/requirements/Architecture and Software Design.md` — slice map; slices 13–16 as independent, parallel UI
   vocabulary; slice 17 as the integration point this slice does not preempt.

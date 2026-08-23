@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 40
+parent: "[[Foundation and composition root]]"
+order: 20
+dependsOn:
+  - "[[01-plugin-bootstrap-and-composition-root]]"
 status: ""
 started: ""
 finished: ""
@@ -205,7 +207,7 @@ neither a unit nor a transform — so a smart constructor over one structurally 
 check them, and this slice refines §26 by assigning them elsewhere rather than by
 leaving them unowned: slice 8's "Geometry validation (SDD §26)" table owns the editor
 boundary, and slice 4's schema validation owns the persistence boundary that §26's own
-"validate before persistence" framing is actually about. `docs/tasks/README.md`'s
+"validate before persistence" framing is actually about. `docs/requirements/Architecture and Software Design.md`'s
 shared-vocabulary entry states the split once; this paragraph is why it exists.
 
 What this slice does **not** own is §26's "Future" list (self-intersection
@@ -626,4 +628,4 @@ integration test vault (§75) — those exercise slice 4 and later.
 - SDD §91 — MVP Technical Increments (Increment 2)
 - ADR-006 — Plain TypeScript Domain
 - ADR-009 — World Coordinates in Millimeters
-- `docs/tasks/README.md` — shared conventions and the slice map
+- `docs/requirements/Architecture and Software Design.md` — shared conventions and the slice map

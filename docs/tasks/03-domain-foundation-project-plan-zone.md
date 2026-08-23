@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 50
+parent: "[[Foundation and composition root]]"
+order: 30
+dependsOn:
+  - "[[02-core-primitives]]"
 status: ""
 started: ""
 finished: ""
@@ -461,7 +463,7 @@ class CreateZoneCommand
 ```
 
 Two spellings in that example are load-bearing rather than stylistic, and are the
-shared vocabulary every other slice's examples follow (`docs/tasks/README.md`):
+shared vocabulary every other slice's examples follow (`docs/requirements/Architecture and Software Design.md`):
 
 - `isErr(result)` / `ok(...)` / `err(...)` are slice 2's free functions. `Result` is a
   plain discriminated union with an `.ok` field — it has no `.isErr()` method and no

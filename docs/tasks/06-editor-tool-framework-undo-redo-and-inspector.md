@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 80
+parent: "[[Plan editor and canvas]]"
+order: 20
+dependsOn:
+  - "[[05-canvas-rendering-and-editor-shell]]"
 status: ""
 started: ""
 finished: ""

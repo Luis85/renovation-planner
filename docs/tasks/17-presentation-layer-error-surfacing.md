@@ -1,7 +1,13 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 190
+parent: "[[Shared UI vocabulary]]"
+order: 50
+dependsOn:
+  - "[[11-error-handling-diagnostics-and-data-safety]]"
+  - "[[13-notifications-and-save-state-surfaces]]"
+  - "[[14-empty-states]]"
+  - "[[15-modals-and-confirmation-dialogs]]"
+  - "[[16-form-and-inline-validation-feedback]]"
 status: ""
 started: ""
 finished: ""
@@ -498,5 +504,5 @@ Contract notes:
   `AppError`/`Logger`/`ToUserMessage` contracts this slice consumes, and the
   deliberately unnamed `surfaceError(...)` container its illustrative code
   leaves for this slice's table to fill in.
-- `docs/tasks/README.md` — slice map, shared conventions, and the
+- `docs/requirements/Architecture and Software Design.md` — slice map, shared conventions, and the
   `§N`/`PRD §N` disambiguation this document follows throughout.

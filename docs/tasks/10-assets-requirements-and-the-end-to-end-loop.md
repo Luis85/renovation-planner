@@ -1,7 +1,11 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 120
+parent: "[[Quantity, cost and the end-to-end loop]]"
+order: 20
+dependsOn:
+  - "[[04-persistence-and-repository-layer]]"
+  - "[[08-zone-editing]]"
+  - "[[09-quantity-and-cost-engine]]"
 status: ""
 started: ""
 finished: ""

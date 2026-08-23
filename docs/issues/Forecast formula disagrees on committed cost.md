@@ -1,7 +1,7 @@
 ---
 type: Issue
 status: Open
-order: 10
+order: 60
 parent: "[[Architecture and Software Design]]"
 started: ""
 finished: ""
@@ -28,7 +28,7 @@ formulas for the same "Forecast" concept:
 Epic 17 lists its features as an unnumbered bullet list — *project health, budget
 overview, forecast, upcoming work, procurement overview, project summary* — so a
 feature-number citation resolves to nothing and cannot be checked against the source.
-Both sites are cited by PRD section number instead, per `docs/tasks/README.md`'s rule
+Both sites are cited by PRD section number instead, per `docs/requirements/Architecture and Software Design.md`'s rule
 that a PRD citation is written `PRD §N` and checked against the actual heading.)
 
 If §28's `Committed Cost` is read as the full committed amount, a commitment that has
@@ -56,7 +56,7 @@ separate, literal, full-committed-amount total.
 ## Where this gets applied
 
 Nothing in the sliced foundation computes a Forecast: the cost rollup this decision
-governs is feature work (PRD Epic 17), and `docs/tasks/README.md` puts everything from
+governs is feature work (PRD Epic 17), and `docs/requirements/Architecture and Software Design.md` puts everything from
 Epic 8 onward outside the slices. What the foundation does supply is the shape the rollup
 will be built on, so the two places to check when it arrives are named here rather than
 left to be rediscovered:

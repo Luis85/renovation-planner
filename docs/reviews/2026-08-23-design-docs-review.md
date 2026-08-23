@@ -6,9 +6,12 @@ angles, findings deduplicated and adversarially verified against the actual file
 Line numbers were verified at review time; re-locate by the quoted text if edits move them.
 
 **Paths in this ledger are the ones that existed at review time.** The slices have since
-moved from `docs/design/` to `docs/tasks/` and been typed as backlog `Task` items under the
-*Architecture and Software Design* Feature; `docs/design/README.md` is now
-`docs/tasks/README.md`. Every citation below resolves under that substitution. The old paths
+moved from `docs/design/` to `docs/tasks/` and been typed as backlog `Task` items, grouped
+under five PBIs beneath the *Architecture and Software Design* Feature. `docs/design/README.md`
+was retired rather than moved: its shared conventions, shared vocabulary, slice map and
+deferred list are sections of that Feature note, its per-group scheduling prose went to the
+PBI it argues about, and its dependency column became a `dependsOn` list on each slice. Items
+12, 13, 14, 16, 17 and 51 below cite it — read those against the Feature note. The old paths
 are left as written rather than rewritten, because a dated record of what was reviewed is
 worth more than one whose paths agree with today's tree.
 

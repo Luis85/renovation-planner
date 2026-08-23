@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 90
+parent: "[[Plan editor and canvas]]"
+order: 30
+dependsOn:
+  - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
 status: ""
 started: ""
 finished: ""

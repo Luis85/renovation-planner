@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 160
+parent: "[[Shared UI vocabulary]]"
+order: 20
+dependsOn:
+  - "[[05-canvas-rendering-and-editor-shell]]"
 status: ""
 started: ""
 finished: ""
@@ -501,5 +503,5 @@ export interface RenovationProjectQueryServices {
   strategy slice 1 and slice 5 established.
 - ADR-005 Pinia for Presentation State — both this slice's Pinia additions are cache
   only, rebuildable from the same queries.
-- `docs/tasks/README.md` — slice map, shared conventions, and the bare-§N-vs-PRD-§N
+- `docs/requirements/Architecture and Software Design.md` — slice map, shared conventions, and the bare-§N-vs-PRD-§N
   disambiguation this document follows throughout.

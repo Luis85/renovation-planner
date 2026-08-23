@@ -43,8 +43,8 @@ from that evidence, and the distinction is the one that decides whether a docume
 edited.** A received document is corrected only by receiving a new one; a derived document
 is expected to change as the design is refined, and a refinement that contradicts its source
 names the source section it refines and lands in a slice or an ADR, never in `prds/` or
-`sdds/`. `tasks/README.md` states that rule for the slices and is the place to read it in
-full.
+`sdds/`. `requirements/Architecture and Software Design.md` states that rule for the slices,
+and carries the conventions and vocabulary all seventeen share.
 
 **Derived and non-backlog are different axes, and the slices are the case that separates
 them.** They are typed `Task` under the *Architecture and Software Design* Feature, so they
@@ -144,7 +144,7 @@ What "says something" means, per kind:
 | `started` / `finished` | anything in flight | Dates, `YYYY-MM-DD` |
 | `horizon`, `start`, `due` | anything planned | The roadmap axes: a bucket, or a date pair |
 | `risk`, `priority`, `assignee` | optional | Labels. Absent means nobody has judged it |
-| `dependsOn` | optional | A quoted wikilink to what must land first |
+| `dependsOn` | optional | What must land first: a quoted wikilink, or a YAML list of them where there is more than one. The seventeen design slices under `tasks/` are the worked example |
 | `iteration`, `goal` | optional | The time box an item is scheduled into, and its goal |
 
 - **Every note states the evidence it rests on.** A note that cannot say what it observed is

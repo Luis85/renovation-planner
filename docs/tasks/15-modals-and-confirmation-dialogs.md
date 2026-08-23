@@ -1,7 +1,10 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 170
+parent: "[[Shared UI vocabulary]]"
+order: 30
+dependsOn:
+  - "[[05-canvas-rendering-and-editor-shell]]"
+  - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
 status: ""
 started: ""
 finished: ""
@@ -355,7 +358,7 @@ decision the non-zero branch makes, reached one round-trip later.
 PRD §64's own example lists four reference categories — Work Packages, Tasks, Cost
 Items, Documents. At the build stage slices 1–10 reach, only `Requirement` exists as an
 entity that can reference a `Zone`; Work Package, Task, and Document arrive in later,
-unsliced feature epics (see `docs/tasks/README.md`, "Explicitly deferred"). The worked
+unsliced feature epics (see `docs/requirements/Architecture and Software Design.md`, "Explicitly deferred"). The worked
 example's actual dialog therefore shows one row, `Requirements: N`, not the PRD's
 illustrative four. `DeleteReferenceDialog`'s `references` field is an arbitrary-length
 array precisely so each later epic's slice adds its own row (`Work Packages: N`,
@@ -792,7 +795,7 @@ contract ends at the typed result, before any write occurs.
   of this slice's focus-trap and focus-restoration requirements.
 - ADR-004 Vue 3 for Plugin UI.
 - ADR-005 Pinia for Presentation State — `DialogStore` as non-canonical UI state.
-- `docs/tasks/README.md` — slice map, shared conventions, and the `§N`/`PRD §N`
+- `docs/requirements/Architecture and Software Design.md` — slice map, shared conventions, and the `§N`/`PRD §N`
   disambiguation this document follows.
 - `docs/tasks/05-canvas-rendering-and-editor-shell.md` — the Pinia store scaffolding
   pattern (`defineStore`, one app instance per Plan Editor view) this slice follows.

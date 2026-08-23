@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 70
+parent: "[[Plan editor and canvas]]"
+order: 10
+dependsOn:
+  - "[[04-persistence-and-repository-layer]]"
 status: ""
 started: ""
 finished: ""
@@ -73,7 +75,7 @@ here can write, and no geometry is mutated in this slice at all.
 - Calibration (§25) — slice 7. Before slice 7 exists, a Plan's background renders at a
   placeholder scale (see Design → Background Layer).
 - Zone creation/editing/deletion via the UI (§26–28) — slice 8.
-- Bases views (§13) — explicitly deferred, per the SDD and `docs/tasks/README.md`.
+- Bases views (§13) — explicitly deferred, per the SDD and `docs/requirements/Architecture and Software Design.md`.
 - Writing anything new to the Vault, including a Plan's background reference — see
   Persistence Impact.
 
@@ -840,4 +842,4 @@ Per §73–74 (Vue component tests, canvas adapter tests):
 - ADR-005 Pinia for Presentation State
 - ADR-009 World Coordinates in Millimeters
 - ADR-011 Configurable Geometry Sidecar Folder and Dedicated File Extension
-- `docs/tasks/README.md` — slice map and shared conventions
+- `docs/requirements/Architecture and Software Design.md` — slice map and shared conventions

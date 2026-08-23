@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 140
+parent: "[[Errors, diagnostics and the test harness]]"
+order: 20
+dependsOn:
+  - "[[01-plugin-bootstrap-and-composition-root]]"
 status: ""
 started: ""
 finished: ""
@@ -84,7 +86,7 @@ noticed.
 
 ## Dependencies
 
-Per the slice map (`docs/tasks/README.md`), this slice's *completion* depends on every
+Per the slice map (`docs/requirements/Architecture and Software Design.md`), this slice's *completion* depends on every
 other slice — the Architecture Completion Criteria (§92) cannot be verified true until
 they all exist. But its *infrastructure* (directory layout, vitest config, lint rules)
 has no such ordering constraint and should be stood up as early as slice 1, so every
@@ -644,4 +646,4 @@ in full as the condition under which feature development may begin:
 - ADR-003 — Konva as Canvas Renderer (transform normalization; Konva as adapter)
 - ADR-006 — Plain TypeScript Domain (the layer-isolation rule this slice mechanizes)
 - ADR-010 — Decimal Money Arithmetic (why a Money unit category exists)
-- `docs/tasks/README.md` — slice map and shared conventions
+- `docs/requirements/Architecture and Software Design.md` — slice map and shared conventions

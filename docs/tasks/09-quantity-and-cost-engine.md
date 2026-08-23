@@ -1,7 +1,9 @@
 ---
 type: Task
-parent: "[[Architecture and Software Design]]"
-order: 110
+parent: "[[Quantity, cost and the end-to-end loop]]"
+order: 10
+dependsOn:
+  - "[[02-core-primitives]]"
 status: ""
 started: ""
 finished: ""

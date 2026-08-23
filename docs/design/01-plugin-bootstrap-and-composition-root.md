@@ -357,10 +357,72 @@ on open, unmount on close, one Pinia instance per view rather than a shared sing
 the mount point is `contentEl` (not `containerEl`, which carries Obsidian's own view chrome
 — header and tab actions — and would be emptied along with it).
 
-Vue, Pinia, and `@vueuse/core` are added as dependencies in this slice (SDD §5 UI stack);
-`vue-konva` and Konva are not — those arrive with the canvas (slice 5, ADR-003). Adding Vue
-means Vite needs `@vitejs/plugin-vue` in `vite.config.ts`'s `plugins` array; nothing else
-about the build config changes.
+Vue and Pinia are added as dependencies in this slice; `vue-konva` and Konva are not —
+those arrive with the canvas (slice 5, ADR-003).
+
+`@vueuse/core` is in the SDD's §5 UI stack and is **not** added here, because nothing in
+this slice or any later one imports it yet. CLAUDE.md's rule is unambiguous — installing a
+dependency nothing imports fails `npm run analyze`, so each arrives with its first real use
+— and an earlier draft of this paragraph listed `@vueuse/core` among the arrivals two lines
+above restating that very rule. The SDD names the stack this plugin is heading for; it does
+not schedule the install. When a composable reaches for `useEventListener` or
+`useResizeObserver`, it arrives in that slice's pull request.
+
+Adding Vue is **not** one line in `vite.config.ts`. An earlier draft of this paragraph said
+`@vitejs/plugin-vue` goes into that file's `plugins` array and "nothing else about the build
+config changes", which is wrong twice over: `docs/setup/vue-conventions.md` §1 is the
+arrival checklist for exactly this moment, and CLAUDE.md states two of its items directly
+("`@vitejs/plugin-vue` is one line in **both** Vite configs, and `tsc` becomes `vue-tsc` in
+the same edit"). An implementer following the old sentence would ship a `ViewRoot.vue` the
+browser harness cannot compile and no type gate ever reads. The full edit, in this slice's
+own pull request:
+
+- **`@vitejs/plugin-vue` in all THREE configs that transform source** — `vite.config.ts`,
+  `vite.harness.config.ts`, and `vitest.config.ts`. `vue-conventions.md` §1 says "both Vite
+  configs" because the project it was written for had two; this repository has a third
+  Vite-powered surface, and its own standalone `vitest.config.ts` (`defineConfig` from
+  `vitest/config`, no `mergeConfig`) is where every test runs. Without the plugin there,
+  importing an SFC fails at parse — before the lifecycle test executes and before coverage
+  can measure anything, so the failure is not even a red assertion, it is a file that will
+  not load. Each omission is invisible in a different place: the build one at `npm run
+  build`, the harness one at `npm run harness`, the Vitest one at `npm test`.
+- **`tsc -noEmit` becomes `vue-tsc -noEmit` in `build` AND in `test-build`**, and
+  `tsconfig.json`'s `include` gains `src/**/*.vue`. Vite transpiles SFCs without
+  type-checking them, so `vue-tsc` is the only command-line type gate a `.vue` file gets —
+  omit it and `npm run check` reports success over code nothing type-checked. `test-build`
+  needs the same substitution and is easy to miss because it is not in `check`: it opens
+  with its own `tsc -noEmit`, so changing only `build` leaves the one command that produces
+  a loadable vault build failing on the first SFC — an implementer green on `npm run check`
+  and blocked the moment they try to look at their work in Obsidian.
+- **`vitest.config.ts`'s `coverage.include` gains `.vue`** — `src/**/*.{ts,vue}`. The
+  coverage floors are ratcheted and they are one of the four gates, so an SFC outside the
+  include is a file whose untested branches cost nothing: component tests run, the numbers
+  do not move, and the gate passes over code it never measured. A gate that silently stops
+  covering a whole file type is worse than one that never covered it, because the number
+  still looks like an answer.
+- **`eslint-plugin-vue`'s flat configs, PLUS the named rules `flat/recommended` does not
+  turn on**, with `parserOptions.parser` set to the TypeScript parser on the `**/*.vue`
+  block so `<script setup lang="ts">` parses, alongside the glob widening described under
+  Lint below. Three separate needs met in one edit: the Vue ruleset, the project-specific
+  rules, and this project's own architecture blocks learning to match `.vue`.
+
+  The named rules are not decoration — each is the check under a rule in
+  `vue-conventions.md`, and `flat/recommended` enables none of them:
+  `vue/component-api-style` (`['script-setup']`) and `vue/block-lang`
+  (`script: { lang: 'ts' }`) for the one-API-style rule; `vue/define-props-declaration` and
+  `vue/define-emits-declaration` (both `'type-based'`); `vue/no-restricted-block`
+  (`'style'`) for this project's override of Vue's scoped-styles guidance, which the
+  marketplace's inline-style rejection makes more than a preference; and
+  `vue/component-name-in-template-casing` (`'PascalCase'`) alongside
+  `vue/multi-word-component-names`, which `flat/recommended` DOES carry in its essential
+  tier. §1's item 4 says to add these in the same edit and an earlier draft of this
+  checklist copied the sentence before it and stopped — leaving a gate that lints SFCs
+  while passing every convention it was installed to enforce.
+- **`@vue/test-utils`**, since the first component arrives with the first component test.
+
+`fallow` fails on an installed dependency nothing imports, so none of these can land ahead
+of the file that uses them — which is why they land here, with `ViewRoot.vue`, and not
+earlier.
 
 Vue components belong to `presentation/` only. Domain and Core must never depend on `vue` or
 `pinia` — enforced by the same lint rules described below, not by convention (ADR-004,
@@ -677,8 +739,52 @@ Module boundaries this slice fixes for every later one:
       reuses one leaf between them, and its type/display name/icon are all set.
 - [ ] `RenovationProjectView.onOpen()` mounts an isolated Vue app (its own `createApp()` +
       `Pinia` instance) into `contentEl`; `onClose()` unmounts it and empties `contentEl`.
-      `vue`, `pinia`, and `@vueuse/core` are added as dependencies; `@vitejs/plugin-vue` is
-      wired into `vite.config.ts`.
+- [ ] The Vue arrival checklist is complete in this slice's own pull request, because
+      every item on it is a gate that silently does nothing until it is wired: `vue`,
+      `pinia` and `@vue/test-utils` added (`@vueuse/core` is NOT — see Design; `fallow`
+      refuses a dependency with no importer, and this slice has none for it);
+      `@vitejs/plugin-vue` in **all three** of
+      `vite.config.ts`, `vite.harness.config.ts` and `vitest.config.ts`; `vue-tsc -noEmit` replacing
+      `tsc -noEmit` in **both** `build` and `test-build`, with `src/**/*.vue` in
+      `tsconfig.json`'s `include`; `vitest.config.ts`'s `coverage.include` widened to
+      `src/**/*.{ts,vue}`; `eslint-plugin-vue`'s flat configs added with the TypeScript
+      parser on the `**/*.vue` block, **plus** `vue/component-api-style`,
+      `vue/block-lang`, `vue/define-props-declaration`, `vue/define-emits-declaration`,
+      `vue/no-restricted-block` and `vue/component-name-in-template-casing`, none of which
+      `flat/recommended` enables.
+
+      Each is asserted by its **effect**, never by reading the config, because every one of
+      these fails silently: the harness renders `ViewRoot.vue` (proving the second Vite
+      config); the `ViewRoot.vue` mount test runs at all (proving the Vitest plugin — an
+      SFC import fails at parse without it, so this one is proven by the suite executing
+      rather than by an assertion inside it); a deliberate type error in an SFC fails
+      `npm run build` **and** `npm run test-build` (proving both substitutions and the
+      `include`); an SFC with an untaken branch moves the coverage numbers (proving the
+      coverage include — a config assertion would pass while the file was invisible to the
+      gate); and each named Vue rule is proven by a fixture that violates it failing
+      `npm run lint` — since a rule present in the config but scoped to files it never
+      matches is the failure this whole list is about. That is **six** fixtures, one per
+      rule, not four: an Options-API component (`vue/component-api-style`), a `<script>`
+      block without `lang="ts"` (`vue/block-lang`), a runtime-object `defineProps`
+      (`vue/define-props-declaration`), a runtime-array `defineEmits`
+      (`vue/define-emits-declaration`), a `<style>` block (`vue/no-restricted-block`) and
+      a kebab-case component tag (`vue/component-name-in-template-casing`).
+
+      Each fixture violates **exactly one** of the six and is otherwise conforming, and
+      the check reads the reported rule id rather than the exit code. Both halves are
+      load-bearing, and the four-fixture version of this list had neither. An Options-API
+      component is the natural place to write a plain `<script>` block, so one file lands
+      on `component-api-style` and `block-lang` together — and a fixture carrying two
+      violations still fails lint with either rule absent or misscoped, which is exactly
+      the silence being gated against. Overlap turns the suite into a lint run that goes
+      red for its own reasons; a bare exit code cannot tell the six rules apart even when
+      the fixtures can. The lint checks below cover the architecture blocks.
+
+      `docs/setup/vue-conventions.md` §1 is where this list comes from, and it is a
+      superset of §1 rather than a copy: §1 was written against a generic project and names
+      neither `test-build` nor the coverage include, because neither exists in the shape it
+      assumed. An imported checklist is scoped to what its author could see, so it is a
+      starting point for this repository's own gates, not an inventory of them.
 - [ ] Settings round-trip through `loadData`/`settingsFrom`/`saveData`; the settings tab
       renders from `getSettingDefinitions()` and both reads and writes go through
       `settingsFrom`.

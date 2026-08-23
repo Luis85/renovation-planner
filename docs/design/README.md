@@ -39,6 +39,116 @@ Each slice document follows the same shape:
   SDD's own MVP increment success criteria.
 - **References** — the SDD sections, PRD sections, and ADRs this slice derives from.
 
+## Repository conventions a slice must conform to
+
+The SDD is the architectural authority (CLAUDE.md says so, and says this folder is the
+bug where they disagree). Two files under `docs/setup/` are narrower but binding in their
+own areas, and a slice that touches those areas is expected to have been read against
+them:
+
+- **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules. It
+  binds **any slice that specifies a Vue surface at all** — a component (whether or not it
+  names an SFC file), a component test, a Pinia store, a composable, or the build or test
+  wiring for any of them. That is a rule rather than a list on purpose. Two drafts
+  of this bullet carried a list instead: the first was "the presentation slices (5, 6,
+  13–17)", which omitted slice 1 — the slice that installs Vue and writes the build configs,
+  and the one that was actually wrong. The second added slice 1 and still omitted slice 10,
+  which adds a Requirements panel to the Inspector and specifies its component tests.
+
+  Both misses have the same cause, and it is the reason the rule replaced the list: a
+  membership test you apply by recognising which documents are *about* Vue will keep
+  missing the ones that merely *touch* it, and it goes stale the moment a slice grows its
+  first component. CLAUDE.md states this directly — a table that enumerates code goes
+  stale, a table that states a rule does not — and it took two findings here to apply it.
+  The predicate had to be widened once more after that, and the reason is worth keeping.
+  The first mechanical version asked whether a slice names "a `.vue` file, a store, a
+  composable, or the config that builds one" — and slice 10 names none of those. It
+  specifies a Requirements panel and a component test without ever assigning an SFC
+  filename, so the rule written to stop excluding slice 10 went on excluding it. I had
+  drawn the test from the artifacts I happened to be looking at (filenames) rather than
+  from what the convention governs (Vue surfaces), which is the same scoping error in its
+  third costume.
+
+  So the test errs toward inclusion, which is the right direction for a conformance sweep:
+  a slice wrongly included costs a reading, a slice wrongly excluded costs a defect that
+  ships. If a slice talks about Vue in any way, read it against the conventions.
+
+  Where a slice departs from the conventions, the departure is named in that slice's
+  **References**, not left to be discovered. There are **two** today, both in slice 13 and
+  both parts of one decision:
+  - **§5, one Pinia per view app** — `NotificationStore` is plugin-global.
+  - **§6, apps created in a view's `onOpen` and unmounted in `onClose`** — the
+    `NotificationHost` app is created in `RenovationPlannerPlugin.onload()` and
+    unmounted in `onunload()`, so the composition root knows it is mounting Vue. That
+    also departs from CLAUDE.md's "nothing outside the view will know it is Vue."
+
+  A first draft of this section called the store the *one* departure and stopped there,
+  which is the failure this whole section is supposed to prevent: an inventory that is
+  wrong reports a nonconforming slice as conforming, and does it with more authority than
+  no inventory at all. The store cannot be plugin-global without an app to mount its host
+  into, so listing one and not the other was never a defensible split.
+
+  Slice 16 briefly had a third and no longer does, which is worth recording because
+  withdrawing a departure is the outcome to prefer. `useFormCommit.values` was a
+  `Reactive<TInput>`, declared on the reasoning that `v-model="values.unitCost"` beats a
+  per-field `Ref` map — but `v-model` on a mutable reactive property assigns to it
+  directly, walking past the `setField` the same sentence called the sole write path. The
+  justification defeated itself, so `values` is a `DeepReadonly<Ref<TInput>>` written only
+  through `setField`, and the slice conforms.
+
+  **Deep**, and the first repair was not. It said `Readonly<Ref<TInput>>`, which is a
+  shallow mapped type: it freezes `.value` and leaves every property under it writable, so
+  `values.value.unitCost = -5` and — since a ref unwraps in templates — the very
+  `v-model="values.unitCost"` the departure was withdrawn over both still type-checked.
+  The fix reproduced the defect it was closing, in a shape that reads as though it had
+  not. Recorded here because it is the fourth instance of this section's own subject: a
+  sentence describing a mechanism that is not there, this time carried by a type name that
+  sounded like the guarantee. Slice 16's Definition of Done now requires both writes to
+  fail `vue-tsc`, so the claim has a check under it rather than a plausible-looking type.
+
+  Its two other §4 near-misses were likewise
+  conformed rather than declared: `useFieldCommit` now accepts `MaybeRefOrGetter`, and
+  `fieldErrors` — a bare `ReadonlyMap`, which is a defect rather than a style question,
+  since a plain Map out of a composable is a snapshot and a rejected `submit()` would have
+  rendered no errors at all — is a `Ref`.
+
+  A fifth followed from the fourth and is a different lesson worth keeping. Giving
+  `setField` real behaviour — clearing the edited field's error, so a corrected value
+  stops carrying a stale message — established a rule on the form path and left the
+  Inspector's `onInput` without it, in a slice whose own text says the two composables
+  differ only in commit boundary. The types had been mirrored and the behaviour had not,
+  which is the harder half to notice: an Inspector field would have displayed "must be
+  zero or more" under a value the user had already fixed. Both composables now carry the
+  rule and each asserts it directly rather than inheriting it from the other. **When a
+  rule is established on one path, find its mirror in the same change** — nothing in a
+  document flags the half you did not write.
+
+  The rule those four cases produced: **a departure is for when conforming and behaving
+  come apart.** Three of the four turned out not to be that, and the fourth (slice 13's)
+  genuinely is.
+- **`docs/setup/quality-harness.md`** — the harness's rationale: what each gate refuses
+  and why, which is the reasoning a Definition of Done should be written in the spirit of.
+  It is a **build-this-from-nothing guide describing a target**, not a description of the
+  gate as it stands: it specifies five steps under `npm run check` including
+  `npm run docs`, and four of those five are live. There is no `docs` script and no
+  `scripts/docs-check.mjs` — CLAUDE.md lists that register gate under "Deliberately
+  absent", to arrive when `docs/` has a convention worth enforcing (the guide's §5 is what
+  to build then).
+
+  **A slice's Definition of Done is written against the four gates that exist**, which
+  are `package.json`'s `check` — build, lint, `test:coverage`, analyze — as CLAUDE.md's
+  "Definition of done" states them. A first draft of this bullet called the guide "what
+  `npm run check` refuses", which would have pointed a slice at a fifth gate nothing runs.
+  That is the same defect as the inventory above and as the testability claim in slice 16:
+  a sentence describing a mechanism that is not there. Three of them in one pull request
+  whose subject is documents disagreeing with each other is not an irony worth polishing
+  away — it is the measurement, and it is why the last paragraph of this section says what
+  it says.
+
+Neither is checked mechanically against these documents. That is worth stating rather
+than implying: a slice conforming is a review outcome, and the conformance a slice
+claims in prose is exactly as reliable as its Definition of Done makes it.
+
 ## Shared conventions
 
 These apply to every slice below and are not repeated in each one:

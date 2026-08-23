@@ -198,7 +198,7 @@ a small, per-form lookup that a form or Inspector panel declares alongside the f
 renders, and a pure function that applies it:
 
 ```typescript
-// presentation/composables/route-error.ts
+// presentation/errors/route-error.ts
 type FieldErrorMap<TInput> =
   Readonly<Record<string /* error code */, keyof TInput | readonly (keyof TInput)[]>>;
 // a code with no entry in the map is NOT an omission to fill in later — it is the
@@ -312,16 +312,28 @@ described above and dispatches through the same `CommandHistory` instance tools 
 ```typescript
 // presentation/composables/use-field-commit.ts
 interface UseFieldCommit<T> {
-  readonly draft: Ref<T>;
-  readonly error: Ref<string | null>;
-  readonly pending: Ref<boolean>;
-  onInput(value: T): void;    // every keystroke — draft only, per slice 6 never dispatches
+  // Read-only for the same reason as UseFormCommit below, and by the same rule: the
+  // composable owns this state and its three methods are the write paths. DeepReadonly
+  // on the draft because T may be an object field; see there for why Readonly is not
+  // enough when it is.
+  readonly draft: DeepReadonly<Ref<T>>;
+  readonly error: Readonly<Ref<string | null>>;
+  readonly pending: Readonly<Ref<boolean>>;
+  // Draft only — per slice 6 a keystroke never dispatches. It ALSO clears `error`, for
+  // exactly the reason setField does: a rejected commit's message must not outlive the
+  // user correcting the value it is about. Same rule, both commit boundaries.
+  onInput(value: T): void;
   onCommit(): Promise<void>;  // blur/enter — exactly one command dispatch
   onCancel(): void;           // Escape — discard draft, clear error, resync to canonical
 }
 
 function useFieldCommit<T, TInput>(options: {
-  canonicalValue: Ref<T>;                       // sourced from InspectorDto, read-only here
+  // MaybeRefOrGetter, not Ref: `docs/setup/vue-conventions.md` §4 asks composables to
+  // accept a value, a ref OR a getter and normalize with toValue() inside the tracking
+  // context. The caller here is an Inspector panel reading one field off an InspectorDto,
+  // which is most naturally a computed getter — a Ref-only signature would have forced
+  // every call site to wrap one. Read-only in this composable either way.
+  canonicalValue: MaybeRefOrGetter<T>;          // sourced from InspectorDto, read-only here
   buildCommand: (value: T) => UndoableCommand;  // wraps whichever plain command owns
                                                 //   this entity's properties (slice 8)
   history: Pick<CommandHistory, 'run'>;         // the same instance EditorContext hands tools
@@ -340,10 +352,21 @@ and does not close the dialog:
 ```typescript
 // presentation/composables/use-form-commit.ts
 interface UseFormCommit<TInput> {
-  readonly values: Reactive<TInput>;                    // every field's current draft
-  readonly fieldErrors: ReadonlyMap<keyof TInput, string>;
-  readonly banner: Ref<string | null>;
-  readonly submitting: Ref<boolean>;
+  // Read-only to the component: setField is the ONLY write path, and a mutable shape
+  // cannot enforce that (see Interfaces & Contracts below). DEEP, not `Readonly<Ref<T>>`:
+  // that spelling freezes the binding and not the object, so it still permits both of
+  // the writes this shape exists to refuse — `values.value.unitCost = x` from script,
+  // and `v-model="values.unitCost"` from markup, since a ref unwraps in templates.
+  // This interface is stated twice in this document (here and there); they must not drift.
+  readonly values: DeepReadonly<Ref<TInput>>;           // every field's current draft
+  // Not deep, and does not need to be: `ReadonlyMap` already refuses `set`/`delete`, and
+  // its values are strings, so nothing below `.value` is left to freeze.
+  readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
+  readonly banner: Readonly<Ref<string | null>>;
+  readonly submitting: Readonly<Ref<boolean>>;
+  // Writes the field AND clears that field's entry in fieldErrors. Editing a field the
+  // server just rejected must retire its message: a form showing "must be positive"
+  // over a value the user has since corrected is telling them something untrue.
   setField<K extends keyof TInput>(key: K, value: TInput[K]): void;
   submit(): Promise<boolean>;   // true only on an ok Result; caller closes the dialog then
 }
@@ -355,6 +378,26 @@ function useFormCommit<TInput, TResult>(options: {
 }): UseFormCommit<TInput>;
 ```
 
+**One rule covers both composables' returned state: the composable owns it, the component
+reads it, and the named methods are the only write paths.** Every member of both
+interfaces is therefore read-only to the caller — `draft`, `error`, `pending`, `values`,
+`fieldErrors`, `banner`, `submitting` — and this is stated once here rather than
+member-by-member, because deciding it per member is how the pair drifted in the first
+place. `vue-conventions.md` §4 is silent on read-only returns and asks only for a plain
+object of refs, which readonly refs still are: destructuring them preserves reactivity,
+so nothing here departs from §4.
+
+The rule has behaviour under it and not just types, and that behaviour is what makes the
+sole write path worth enforcing. `setField` clears the edited field's error; **`onInput`
+clears `error` for the same reason**. A first version of this slice gave the form path
+that behaviour and left the Inspector path without it, which contradicted the paragraph
+above — the two composables were supposed to differ only in commit boundary, and would
+instead have differed in whether editing a rejected field retires its stale message. An
+Inspector field would have gone on displaying "must be zero or more" under a value the
+user had already corrected, until they committed or pressed `Escape`. That is the exact
+untruth the form path names as its justification, so having it on one side only was the
+rule going unmirrored rather than a deliberate asymmetry.
+
 `submit()` returning `false` is the whole contract for "stay open": the dialog host
 (slice 15's modal, or a placeholder host) never inspects the error itself to decide
 whether to close — it only checks the boolean, keeping slice 15's container ignorant of
@@ -365,7 +408,7 @@ them is the commit boundary (one field vs. every field at once), not the vocabul
 ## Interfaces & Contracts
 
 ```typescript
-// presentation/composables/route-error.ts
+// presentation/errors/route-error.ts
 type FieldErrorMap<TInput> =
   Readonly<Record<string, keyof TInput | readonly (keyof TInput)[]>>;
 
@@ -373,6 +416,11 @@ type RoutedError<TInput> =
   | { readonly kind: 'field'; readonly fields: readonly (keyof TInput)[]; readonly message: string }
   | { readonly kind: 'banner'; readonly message: string };
 
+// Not under `presentation/composables/`: it is a pure function, and
+// `docs/setup/vue-conventions.md` §4 scopes that directory to `use*` composables —
+// things that bind reactivity or a lifecycle. `routeError` binds neither. That is the
+// whole reason; the directory has no bearing on how this is tested, which slice 12's
+// profiles decide (see File layout).
 function routeError<TInput>(
   error: AppError,               // slice 2 — consumed, not redefined
   map: FieldErrorMap<TInput>,
@@ -381,20 +429,30 @@ function routeError<TInput>(
 
 // presentation/composables/use-field-commit.ts — Inspector, per-field blur-commit
 interface UseFieldCommit<T> {
-  readonly draft: Ref<T>;
-  readonly error: Ref<string | null>;
-  readonly pending: Ref<boolean>;
-  onInput(value: T): void;
+  readonly draft: DeepReadonly<Ref<T>>;
+  readonly error: Readonly<Ref<string | null>>;
+  readonly pending: Readonly<Ref<boolean>>;
+  onInput(value: T): void;    // draft AND clears `error` — see the Design section
   onCommit(): Promise<void>;
   onCancel(): void;
 }
 
 // presentation/composables/use-form-commit.ts — creation dialog, per-form submit-commit
 interface UseFormCommit<TInput> {
-  readonly values: Reactive<TInput>;
-  readonly fieldErrors: ReadonlyMap<keyof TInput, string>;
-  readonly banner: Ref<string | null>;
-  readonly submitting: Ref<boolean>;
+  // `DeepReadonly`, not `Readonly` — see the Design section: `Readonly<Ref<TInput>>`
+  // freezes the binding and not the object, so it would permit exactly the two writes
+  // that walk past setField. Produced by Vue's own `readonly()`, which is also a runtime
+  // proxy: a bypass that evades the compiler (an `any`, a cast) still fails to write.
+  readonly values: DeepReadonly<Ref<TInput>>;
+  // A Ref, not a bare ReadonlyMap. The bare form was not merely off-§4 — it does not
+  // work: a plain Map handed out of a composable is a snapshot, so a form whose submit()
+  // was rejected would compute its field errors and render none of them. `banner` and
+  // `submitting` beside it were already refs, which is what made the odd one out easy to
+  // miss and is also the reason it is not a departure worth declaring: the conforming
+  // shape is the one that behaves.
+  readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
+  readonly banner: Readonly<Ref<string | null>>;
+  readonly submitting: Readonly<Ref<boolean>>;
   setField<K extends keyof TInput>(key: K, value: TInput[K]): void;
   submit(): Promise<boolean>;
 }
@@ -411,20 +469,41 @@ interface FormBannerProps {
 }
 ```
 
-File layout (SDD §77 already draws `presentation/components/` and
-`presentation/composables/`; this slice populates them, it does not add new top-level
-folders):
+File layout. SDD §77 already draws `presentation/components/` and
+`presentation/composables/`, which this slice populates rather than adds. It does add one
+sibling — `presentation/errors/` — for the one module here that is not a composable:
 
 ```text
 presentation/
 ├── components/
 │   ├── FieldError.vue
 │   └── FormBanner.vue
-└── composables/
-    ├── route-error.ts
-    ├── use-field-commit.ts
-    └── use-form-commit.ts
+├── composables/
+│   ├── use-field-commit.ts
+│   └── use-form-commit.ts
+└── errors/
+    └── route-error.ts
 ```
+
+`route-error.ts` sits outside `composables/` because
+`docs/setup/vue-conventions.md` §4 scopes that directory to `use*` composables — things
+that bind reactivity or a lifecycle — and `routeError` is a pure function that binds
+neither.
+
+That is the whole reason, and it is worth saying what the reason is **not**. A draft of
+this paragraph claimed the move is what keeps `routeError` node-testable rather than
+reachable only through jsdom. That is false, and slice 12 says so directly: the test
+environment is chosen by the test file's own profile, not by the directory the source
+sits in, and slice 12 already lists `routeError` among the node-profile pure functions —
+it did so while the file was still under `composables/`. Nothing about this move changes
+how it is tested. Left standing, that sentence would have taught an implementer that a
+pure helper under `composables/` needs jsdom, which would be a worse error than the
+misplacement it was justifying.
+
+`presentation/errors/` is a new top-level folder under `presentation/`, so this slice no
+longer claims to add none. Slice 11 owns error mapping but names no directory for it; if
+a later slice gives that mapping a home, this is the folder it joins rather than a second
+one beside it.
 
 ## Persistence Impact
 
@@ -441,6 +520,12 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 
 ## Testing Strategy
 
+Both composables return refs, so **test code dereferences `.value`** —
+`values.value.unitCost`, `fieldErrors.value.get('unitCost')`, `draft.value`. The
+unwrapping that lets a template write `values.unitCost` is a template feature and does
+not apply here. Stated once because every assertion below touches one of these members,
+and a spec written in the template's spelling would not type-check as a test.
+
 - **`routeError` unit tests** — pure-function, table-driven: a code present in the map
   routes to its field(s) with `toUserMessage(error)`'s exact text; a code absent from the
   map routes to a banner with the same text; a map entry naming multiple fields produces
@@ -448,17 +533,31 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 - **Field commit-rejection test** — drive `useFieldCommit` with a fake `buildCommand`
   whose `execute()` resolves a failed `Result` carrying a `ValidationError`; assert `draft` still holds
   the rejected value (not the pre-edit canonical one), `error` is non-null, and
-  `history.run()` was called exactly once. Then call `onCancel()` and assert `draft`
-  resets to `canonicalValue` and `error` clears.
+  `history.run()` was called exactly once. Then call `onInput` with a corrected value and
+  assert **both** halves: `draft.value` now holds that value — `onInput`'s primary job —
+  and `error` clears, with no further `history.run()`. Both, because an `onInput` that
+  cleared the error and never wrote the draft would satisfy the second alone; a method's
+  own job has to be asserted beside its side effect or the side effect becomes the whole
+  contract. Finally call `onCancel()` and assert `draft` resets to `canonicalValue` and
+  `error` clears. The mirror assertion belongs to the creation-dialog test below, since a
+  rule proven on one composable and assumed on the other is how this pair drifted.
 - **Field commit-success test** — same setup resolving `ok(...)`; assert `draft` clears and
   the field's displayed value tracks a subsequently updated `canonicalValue` (simulating
   the DTO refresh after a successful write).
 - **Creation-dialog rejection test (the worked example)** — drive `useFormCommit` with a
   `CreateAssetCommand`-shaped `dispatch` fixture returning
   `err(validationError({ code: 'asset.unit-cost.negative' }))` for
-  `{ unitCost: -5, ... }`; assert `submit()` resolves `false`, `fieldErrors` contains an
-  entry for `unitCost`, `values.unitCost` is still `-5`, and the fixture's underlying
-  repository/event-publish spies recorded zero calls (no `AssetCreated`, no write).
+  `{ unitCost: -5, ... }`. The order matters, because the last step changes what the
+  earlier ones assert. First: `submit()` resolves `false`; `fieldErrors.value` holds an
+  entry for `unitCost`; `values.value.unitCost` is still `-5` — draft preservation, which
+  is the point of the test; and the fixture's repository/event-publish spies recorded zero
+  calls (no `AssetCreated`, no write). **Then** call `setField('unitCost', 5)` and assert
+  all three: `values.value.unitCost` is now `5` — the write, which is `setField`'s primary
+  job — the `unitCost` entry is gone from `fieldErrors.value`, and any other field's entry
+  is untouched. The write is asserted for the same reason as on the field path above: a
+  `setField` that only cleared errors would pass a spec that checked only the clearing.
+  Asserting draft preservation after this call would instead be checking for `-5` in a
+  field just set to `5`, which is why it belongs in the block before it.
 - **Creation-dialog success test** — same fixture resolving `ok(...)`; assert `submit()`
   resolves `true` (the signal the dialog host uses to close, per slice 15's container
   contract) and `fieldErrors`/`banner` are empty.
@@ -509,6 +608,23 @@ reload, and none of it is the source of truth for anything — the DTO/query res
 9. No user-facing literal appears under `presentation/components/` or
    `presentation/composables/` — every message a field or banner renders arrived through
    slice 11's `ToUserMessage`, which resolves it from the locale tables.
+10. The composables' returned state is read-only to the component **by type**, not by
+    convention, so the named methods are the only write paths. With `useFormCommit`'s
+    result in hand, `values.value.unitCost = -5` and a component binding
+    `v-model="values.unitCost"` each fail `vue-tsc -noEmit`; the same holds for
+    `useFieldCommit`'s `draft` against `onInput`. Both spellings are checked on each,
+    because they fail for different reasons — one is a property write through the ref,
+    the other through template unwrapping — and the shallow `Readonly<Ref<TInput>>` this
+    slice started with permits both while looking like it forbids them. Proven by a
+    fixture that stops failing if the type is widened back, in the manner slice 1's
+    Definition of Done requires of its Vue rules, never by the interface reading as
+    though it were read-only.
+11. Editing a rejected field retires its message on **both** commit boundaries:
+    `setField` clears that field's entry in `fieldErrors`, and `onInput` clears `error`,
+    each asserted directly rather than inferred from the other. Neither dispatches a
+    command while doing it. This is the one behavioural rule the read-only types above
+    exist to protect, so a version of this slice that enforced the write path without it
+    would be guarding an entry point that does nothing worth guarding.
 
 ## References
 
@@ -522,7 +638,43 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   this slice consumes; this slice is the last stage, "User Message," applied specifically
   to a field.
 - SDD §77 Proposed Repository Structure — `presentation/components/` and
-  `presentation/composables/`, populated, not newly added, by this slice.
+  `presentation/composables/`, populated, not newly added, by this slice; plus
+  `presentation/errors/`, which this slice DOES add, for `route-error.ts` (see File
+  layout).
+- `docs/setup/vue-conventions.md` §4 — the composable rules this slice's two `use*`
+  modules follow, and the reason `route-error.ts` is not among them. **Both conform; the
+  slice declares no departure.**
+
+  It briefly did. `values` was a `Reactive<TInput>`, declared as a departure on the
+  reasoning that a creation dialog's field set is the one place a mutable reactive object
+  is the natural shape, since `v-model="values.unitCost"` beats a per-field `Ref` map to
+  write and to read. That justification was self-defeating in its own sentence: `v-model`
+  on a mutable reactive property assigns to it directly, which walks straight past
+  `setField` — named as the sole write path in the same clause. Two mutation contracts,
+  and anything centralised in `setField` reachable only by the path nobody was told to
+  take.
+
+  So `values` is a `DeepReadonly<Ref<TInput>>`, bound for reading and written only through
+  `setField` — `:model-value="values.unitCost"` with
+  `@update:model-value="v => setField('unitCost', v)"`, never `v-model`. `setField` now
+  earns the exclusivity by doing something with it: it clears that field's error, so a
+  message the user has already corrected stops being displayed. Conforming and behaving
+  turned out to be the same shape here, which is why the departure was withdrawn rather
+  than restated with a better argument.
+
+  The depth is the whole repair and not a detail of spelling. The first version of this
+  paragraph said `Readonly<Ref<TInput>>`, which is the shape that *reads* as read-only
+  while refusing only the one write nobody was going to attempt: `Readonly<T>` is a
+  shallow mapped type, so it marks `.value` immutable and stops there. `TInput`'s own
+  properties stay mutable, so `values.value.unitCost = -5` type-checks, and a ref unwraps
+  in templates, so `v-model="values.unitCost"` does too. That is the departure's original
+  self-defeating sentence surviving into the fix that was meant to retire it — the same
+  two write contracts, one of them reachable without saying so. `DeepReadonly` is Vue's
+  own type and what `readonly()` returns, so both spellings fail to compile and the proxy
+  refuses the write at runtime besides.
+- `docs/design/12-testing-and-architecture-enforcement-infrastructure.md` — the node
+  profile `routeError` is assigned to, which is where its test environment is decided and
+  is unaffected by which directory it lives in.
 - SDD §85 Accessibility — "semantic labels," "status not encoded only by color,"
   "visible focus," applied to `<FieldError>`.
 - PRD §39 (User Experience Requirements: Inspector actions, the `Escape` shortcut) — not

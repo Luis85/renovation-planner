@@ -259,5 +259,110 @@ describe('assembling the stylesheet', () => {
 
 			expect(() => assembleStyles()).not.toThrow();
 		});
+
+		/**
+		 * A selector is never a colour, however hex-shaped its name reads: `#fade`, `#dad`
+		 * and `#face-plate` are ID selectors, not colours, and every letter of `fade`,
+		 * `dad`, `face`, `cab`, `bad`, `beef`, `cafe` and `ace` is a valid hex digit —
+		 * chasing every hex-shaped English word one spelling at a time is a losing game,
+		 * so the check instead looks only INSIDE `{ }` declaration blocks
+		 * (`onlyInsideBraces`), never at a selector. `url(...)` is stripped for the same
+		 * reason: `url(#fade)` sits in VALUE position but holds a fragment reference, not
+		 * a colour. This project forbids inline suppressions, so a false positive here has
+		 * no escape hatch except editing this shared script under pressure — these are
+		 * regression tests, not exploratory ones.
+		 */
+		it('does not flag a hex-shaped ID selector', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '#dad { margin: 0; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag a hyphenated hex-shaped ID selector', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '#face-plate { color: var(--text-normal); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag a url() fragment reference on a hex-shaped selector', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '#fade { filter: url(#fade); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag a url() fragment reference inside a declaration value', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.icon { filter: url(#feed); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag an 8-digit url() fragment reference in a declaration value', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { background: url(#deadbeef-icon); }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// A real hex colour immediately followed by punctuation (not another identifier
+		// character, and not inside a url() call, and not in selector position) is still
+		// caught — the exemptions above narrow what the check looks at, they do not remove
+		// the check.
+		it('still refuses a hex colour immediately followed by a semicolon', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one{color:#fff;}\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
+
+		// Valid CSS hex colours are exactly 3, 4, 6 or 8 digits (RGB, RGBA, RRGGBB,
+		// RRGGBBAA) — 5 and 7 are not a spelling this pattern claims to see, and matching
+		// them anyway would be the pattern promising more than the comment above it says.
+		it('does not flag a 5-digit run, which is not a valid hex colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: #12345; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		it('does not flag a 7-digit run, which is not a valid hex colour', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one { color: #1234567; }\n',
+			});
+
+			expect(() => assembleStyles()).not.toThrow();
+		});
+
+		// A Windows editor can save a PARTIAL with CRLF before .gitattributes ever sees
+		// it, the same risk the entry-file CRLF test above guards against. The colour
+		// check splits on '\n' the same way assembleStyles does for the entry file, which
+		// leaves a trailing '\r' on each line — this pins that a hard-coded colour is
+		// still caught rather than trusted to argument alone.
+		it('refuses a hard-coded colour in a CRLF-saved partial', () => {
+			plant({
+				'index.css': '@import "./one.css";\n',
+				'one.css': '.one {\r\n\tcolor: #fff;\r\n}\r\n',
+			});
+
+			expect(() => assembleStyles()).toThrow(/one\.css/);
+		});
 	});
 });

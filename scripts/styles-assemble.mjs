@@ -46,19 +46,31 @@ function countLines(body) {
 // already claims none exist here. This is what makes that claim checked rather than
 // merely believed.
 //
-// What this SEES: hex (`#fff`, `#a1b2c3`, with or without an alpha channel) and
-// `rgb()` / `rgba()` / `hsl()` / `hsla()` — the spellings a plain string scan can find
-// without a CSS parser, which this project has decided not to add for one check (see
-// the header above: this file is string work on purpose).
+// What this SEES: a hex colour — `#fff`, `#a1b2c3`, `#a1b2c3d4` — EXACTLY 3, 4, 6 or 8
+// hex digits (RGB / RGBA / RRGGBB / RRGGBBAA, the only lengths CSS accepts; 5 and 7 are
+// not a colour and are not matched), or an `rgb()` / `rgba()` / `hsl()` / `hsla()` call —
+// and ONLY inside a declaration block (`selector { property: value; }`), never inside a
+// selector. A selector is never a colour however hex-shaped its name reads, and chasing
+// every hex-looking English word one spelling at a time (`fade`, `dad`, `face`, `cab`,
+// `bad`, `beef`, `cafe`, `ace`, …) is a losing game the block boundary avoids entirely —
+// `onlyInsideBraces` below blanks everything outside a `{ }` pair before the scan runs,
+// so `#fade { filter: url(#fade); }` and `#dad { margin: 0; }` are both selectors, not
+// colours, and neither is looked at.
 //
-// What this does NOT see, deliberately: CSS NAMED colours (`red`, `rebeccapurple`, …).
-// That set is larger and more ambiguous — a bare word cannot be told apart from a class
-// name, a custom-property name or prose in a comment without parsing the declaration it
-// sits in, and a false positive on a class named `.tan-line` would cost more than the
-// palette this catches. `currentColor`, `transparent` and `inherit` are not palettes and
-// need no exemption logic: neither is a hex or a function-call spelling, so the pattern
-// below simply never matches them.
-const HARDCODED_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\s*\(/i;
+// Inside a block, `url(...)` is stripped before the scan runs too: `url(#fade)` sits in
+// VALUE position but holds a same-document fragment reference, not a colour, and — same
+// reasoning as above — enumerating which functions are colours and which are not is the
+// same losing game as enumerating hex-shaped words.
+//
+// What this does NOT see, deliberately: CSS NAMED colours (`red`, `rebeccapurple`, …) —
+// a bare word cannot be told apart from a class name, a custom-property name or prose in
+// a comment without parsing the declaration it sits in, and this project has decided not
+// to add a CSS parser for one check. It also cannot see a colour that is not literally
+// wrapped in a `{ }` pair in this file's own text — no partial in this project writes one
+// outside a block, so this is a real narrowing, stated rather than hidden. `currentColor`,
+// `transparent` and `inherit` need no exemption logic: none of them is a hex or a
+// function-call spelling, so the pattern below simply never matches them.
+const HARDCODED_COLOR = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])|\b(?:rgba?|hsla?)\s*\(/i;
 
 // A colour named only inside a `/* comment */` is not shipped as a rule. Blanking the
 // comment bodies (newlines kept, everything else spaced out) removes it from view while
@@ -68,11 +80,45 @@ function withoutComments(body) {
 	return body.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '));
 }
 
+// Selectors and at-rule preludes come before `{`; a declaration's property and value come
+// after it. Blanking everything OUTSIDE a brace pair (newlines kept, so line numbers
+// survive) is how the scan tells `#fade { ... }` — a selector, ignored — apart from
+// `color: #fade;` — a value, checked — using nothing more than character counting. Must
+// run AFTER `withoutComments`: a stray `{` or `}` inside a comment would otherwise
+// desynchronise the depth count from the real blocks.
+function onlyInsideBraces(body) {
+	let depth = 0;
+	let out = '';
+	for (const ch of body) {
+		if (ch === '\n') {
+			out += '\n';
+		} else if (ch === '{') {
+			depth += 1;
+			out += ' ';
+		} else if (ch === '}') {
+			depth = Math.max(0, depth - 1);
+			out += ' ';
+		} else {
+			out += depth > 0 ? ch : ' ';
+		}
+	}
+	return out;
+}
+
+// `url(...)` holds a URL or, for an SVG filter, a same-document fragment reference — not
+// a colour, even when its argument happens to be a hex-shaped word. Blanking the whole
+// call (newlines kept) removes it from view the same way comments and selectors are
+// removed above.
+function withoutUrlCalls(body) {
+	return body.replace(/url\(\s*[^)]*\)/gi, (call) => call.replace(/[^\n]/g, ' '));
+}
+
 // A partial with a hard-coded colour fails the build LOUDLY, naming the file and the
 // line — the one failure mode a shipped, themed-looking stylesheet cannot report for
 // itself the way a broken import can.
 function checkForHardcodedColors(name, body) {
-	const lines = withoutComments(body).split('\n');
+	const scanned = withoutUrlCalls(onlyInsideBraces(withoutComments(body)));
+	const lines = scanned.split('\n');
 	for (const [index, line] of lines.entries()) {
 		const match = HARDCODED_COLOR.exec(line);
 		if (match) {

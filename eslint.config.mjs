@@ -154,6 +154,47 @@ const SVG_CLASS_TOKENS = [
 	},
 ];
 
+/**
+ * Obsidian is localized (`docs/requirements/Multilanguage.md`): every string this plugin
+ * shows has to reach `t`/`tr` in `src/presentation/i18n/`, because that is the one place
+ * German — or any locale added later — can answer it from. Nothing else refuses a
+ * hard-coded English literal in a new screen: it passes the build, the sentence-case lint
+ * on `locales/en.ts`, and the suite. Twenty product epics of screens are coming, so this
+ * is the cheapest point to put the rule at the forbidden call rather than in a paragraph,
+ * by the same argument that put `WRITE_BOUNDARY` above.
+ *
+ * The spellings these SEE: a string literal passed directly as the argument to
+ * `.setText(...)`, and a string literal under a `text` key (bare `key.name` or quoted
+ * `key.value`, same reason as `CLS_KEY`) inside an object argument to
+ * `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`. A call to `t`/`tr` is a
+ * CallExpression at that position, not a Literal, so `el.setText(tr('x'))` passes
+ * untouched — that is the whole mechanism.
+ *
+ * What they cannot see: a literal one hop away from the call (`const label = 'Cancel';
+ * el.setText(label)`), a template literal even with no interpolation — `setText(`Cancel`)`
+ * is a TemplateLiteral node, not a Literal — and a string built from a joined array
+ * (`parts.join(' ')` is a CallExpression). None of those are a Literal node at the
+ * position these selectors check. A reviewer who sees one is the backstop, the same as
+ * for the spellings `SVG_CLASS_TOKENS` cannot see.
+ *
+ * `[value=/\S/]` rather than bare `Literal`: an empty string or a whitespace-only one
+ * (`el.setText('')` to clear an element, or a padding space) carries no user-visible
+ * text, so it has nothing to translate and is exempt rather than flagged.
+ */
+const TEXT_KEY = ":matches(Property[key.name='text'], Property[key.value='text'])";
+const I18N_LITERAL_BAN = [
+	{
+		selector: "CallExpression[callee.property.name='setText'] > Literal[value=/\\S/]",
+		message:
+			"setText received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
+	},
+	{
+		selector: `CallExpression[callee.property.name=/^(createEl|createDiv|createSpan)$/] ${TEXT_KEY} Literal[value=/\\S/]`,
+		message:
+			"createEl/createDiv/createSpan's text option received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
+	},
+];
+
 export default defineConfig([
 	{
 		// Everything that is not this plugin's source. The build scripts are Node, not
@@ -259,13 +300,15 @@ export default defineConfig([
 		// every other block, for the base-path reason TESTS states.
 		files: ['**/src/**/*.ts'],
 		ignores: ['**/src/infrastructure/obsidian/**'],
-		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS] },
+		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
 	{
 		// The sanctioned writer. Vault writes are this directory's job; every OTHER
-		// shared ban still applies, restated per the override warning above.
+		// shared ban still applies, restated per the override warning above — including
+		// I18N_LITERAL_BAN: infrastructure/obsidian/ may show its own UI (a Notice, an
+		// error surface) and that text is exactly as translatable as a view's.
 		files: ['**/src/infrastructure/obsidian/**/*.ts'],
-		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS] },
+		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
 	{
 		// SDD §3.4 prohibits DOM APIs in domain/ and core/, not only the framework

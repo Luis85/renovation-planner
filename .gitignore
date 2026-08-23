@@ -10,6 +10,9 @@ dist/
 # dependencies
 node_modules/
 
+# scripts/harness-shot.mjs's PNGs — drawn for looking at, not for diffing against.
+/harness-shots/
+
 # misc — anchored to the root: an unanchored name would also swallow a future test
 # fixture of the same name anywhere in the tree, silently never staged. (.DS_Store is
 # the exception on purpose; macOS drops it everywhere.) The vault's data.json needs no

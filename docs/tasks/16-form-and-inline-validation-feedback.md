@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 16: Form & Inline Validation Feedback
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 2: Core Primitives
 
 ## Purpose

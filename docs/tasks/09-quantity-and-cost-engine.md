@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 9: Quantity & Cost Engine
 
 ## Purpose

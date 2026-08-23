@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 3: Domain Foundation — Project, Plan, Zone
 
 ## Purpose

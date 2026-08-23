@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 11: Error Handling, Diagnostics & Data Safety
 
 ## Purpose

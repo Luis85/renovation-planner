@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 10: Assets, Requirements & the End-to-End Loop
 
 ## Purpose

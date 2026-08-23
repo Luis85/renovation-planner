@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 6: Editor Tool Framework, Undo/Redo & Inspector
 
 ## Purpose

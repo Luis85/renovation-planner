@@ -1,3 +1,7 @@
+---
+type: Task
+parent: "[[Architecture and Software Design]]"
+---
 # Design Slice 5: Canvas Rendering & Editor Shell
 
 ## Purpose

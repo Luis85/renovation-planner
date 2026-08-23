@@ -33,7 +33,7 @@ some configuration is per project rather than global.
 
 One note at the root of the renovation folder, named after the project and deduplicated on
 collision like every other entity note
-([`docs/design/04-persistence-and-repository-layer.md`](../design/04-persistence-and-repository-layer.md)),
+([`docs/design/04-persistence-and-repository-layer.md`](04-persistence-and-repository-layer.md)),
 with a stable `id` independent of filename, title and path (PRD §60) and a `schema-version`
 (PRD §61).
 

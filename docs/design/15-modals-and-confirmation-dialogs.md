@@ -11,15 +11,15 @@ resolve-via-callback-prop plumbing; a second dialog built the same way by hand i
 inconsistent Escape handling and stranded focus enter a codebase.
 
 This slice defines that once: a generic, reusable dialog framework — how a dialog
-opens, traps focus, cancels on `Escape`, and resolves with a typed result — and two
+opens, traps focus, cancels on `Escape`, and resolves with a typed result — and three
 dialog KINDS built on it. It also walks through the delete-confirmation flow as the
 framework's canonical worked example, because that flow is the reason the richer kind
 exists and the clearest test of whether the boundary with slices 8/10 holds.
 
 This slice does not decide *which* actions need a confirmation dialog (slice 17), does
-not compute reference counts (slices 8/10 already do), and does not decide what
-happens after the user picks "Reassign" (slices 8/10 again). Its contract ends at "the
-dialog resolved with this typed value."
+not compute reference counts or reassignment candidates (slices 8/10 already do), and
+does not decide what happens once a target is chosen (slices 8/10 again). Its contract
+ends at "the dialog resolved with this typed value."
 
 ## Scope
 
@@ -36,6 +36,8 @@ dialog resolved with this typed value."
 - `ConfirmDialog` — a binary confirm/cancel dialog for low-stakes actions.
 - `DeleteReferenceDialog` — the four-mutually-exclusive-action dialog PRD §64
   specifies, modeled as a distinct kind rather than a variant of `ConfirmDialog`.
+- `EntityPickerDialog` — picks one entity from a caller-supplied candidate list,
+  supplying the Reassign target `DeleteReferenceDialog` deliberately does not carry.
 - The delete-confirmation flow as the canonical worked example: an Inspector "Delete"
   action opens `DeleteReferenceDialog`, which displays reference counts the caller
   already computed, and resolves to one of the four PRD §64 actions.
@@ -44,9 +46,11 @@ dialog resolved with this typed value."
 
 ### Out of scope (covered by other slices)
 
-- The reference-counting query itself (slice 10's `ListRequirementsReferencing`) —
-  slice 10. This slice renders whatever count it is given; nothing under
-  `presentation/dialogs/` calls a query, let alone a repository.
+- The reference-counting query itself (slice 10's `ListRequirementsReferencing`) and
+  the reassignment-candidate query (`ListReassignmentTargets`) — both slice 10. This
+  slice renders whatever count or candidate list it is given; nothing under
+  `presentation/dialogs/` calls a query, let alone a repository, and no dialog applies
+  an eligibility rule of its own.
 - What happens after the dialog resolves — the branching on `'remove-references'` /
   `'reassign'` / `'delete-anyway'`, and which concrete command runs for each — slice
   8's zone-delete command and slice 10's `DeleteAssetCommand`. This slice's contract
@@ -215,14 +219,23 @@ caller with zero references decides for itself whether to skip this dialog kind
 entirely, route through `ConfirmDialog` instead, or skip confirmation altogether — see
 the worked example below).
 
-**Reassign has no target picker here.** PRD §64 names "Reassign" as one of the four
-actions but does not specify what picking a reassignment target looks like — a
-zone-picker, an asset-picker, something else, and whether it is a second screen or a
-follow-up dialog. `DeleteReferenceDialog`'s result signals only *that* the user chose
-Reassign; it carries no target field. Sourcing and validating a target is left as a
-follow-up step for whichever of slice 8/10's commands needs it — an explicit gap this
-slice does not close, since neither the SDD nor the PRD says what that follow-up looks
-like.
+**`DeleteReferenceDialog` carries no target; a second dialog supplies one.**
+`DeleteReferenceDialog`'s result signals only *that* the user chose Reassign. PRD §64
+never says what picking a target looks like, so this slice adds the third dialog kind
+it needs:
+
+**`EntityPickerDialog`** — `{ title, candidates: readonly { id: string; label: string }[] }`,
+resolving to `{ id: string } | 'cancel'`. It renders the candidates it is handed, in the
+order given, and knows nothing about Zones, Assets, projects or unit kinds — the same
+display-only contract `DeleteReferenceDialog` has for its reference rows. Eligibility is
+slice 10's `ListReassignmentTargets` query, because deciding which targets are legal is
+a domain question and a dialog that answered it would be a second place those rules
+live.
+
+The caller opens it only when that query returns a non-empty list; with nothing eligible
+it reports Reassign as unavailable rather than opening a picker whose only action is
+Cancel. Two dialogs in sequence, never nested — the modal-stacking rule below holds,
+because the first has resolved and cleared `DialogStore.current` before the second opens.
 
 ### Worked example: Inspector Delete on a Zone
 
@@ -346,6 +359,13 @@ interface DeleteReferenceDescriptor {
   // `label` is resolved copy ("Requirements"), supplied by the caller from its own
   // StringKey — this dialog renders rows, it does not name entity types.
   references: readonly { label: string; count: number }[];
+} | {
+  // Supplies the Reassign target DeleteReferenceDialog deliberately does not carry.
+  // Candidates come from slice 10's ListReassignmentTargets — this dialog renders
+  // them in the order given and applies no eligibility rule of its own.
+  kind: 'entity-picker';
+  title: string;
+  candidates: readonly { id: string; label: string }[];
 }
 
 type DialogDescriptor = ConfirmDescriptor | DeleteReferenceDescriptor;
@@ -447,12 +467,24 @@ async function askThenDelete(
   if (result.action === 'cancel') return;
 
   // Every non-cancel branch dispatches — the resolution is the command's input, not a
-  // note the UI keeps to itself. `reassignTo` is sourced by the caller for the reassign
-  // case (slice 15's dialog deliberately carries no target; see "Reassign has no target
-  // picker here"), which is the one branch needing a step beyond this dispatch.
-  const reassignTo =
-    result.action === 'reassign' ? await pickReassignTarget(zoneId) : undefined;
-  if (result.action === 'reassign' && reassignTo === undefined) return; // target picker cancelled
+  // note the UI keeps to itself. Reassign is the one branch needing a step beyond this
+  // dispatch: DeleteReferenceDialog carries no target, so a second dialog supplies one.
+  let reassignTo: ZoneId | undefined;
+  if (result.action === 'reassign') {
+    const targets = await listReassignmentTargets({ kind: 'zone', zoneId }); // slice 10
+    if (isErr(targets)) return surfaceError(targets.error);
+    // Nothing eligible: say so, rather than opening a picker whose only action is
+    // Cancel. The first dialog has already resolved, so this is sequential, not nested.
+    if (targets.value.length === 0) return surfaceUnavailable('reassign.no-targets');
+
+    const picked = await dialogStore.openDialog({
+      kind: 'entity-picker',
+      title: t('dialog.reassign.title'),
+      candidates: targets.value,
+    });
+    if (picked === 'cancel') return;
+    reassignTo = picked.id as ZoneId;
+  }
 
   // `resolvedReferents` is what the user actually saw. The command re-reads the live set
   // and refuses if it moved, so a Requirement added in this window cannot be swept up by
@@ -543,7 +575,16 @@ contract ends at the typed result, before any write occurs.
   never recomputes or reorders what it is handed. Each of the four buttons, clicked
   independently, resolves the awaited Promise with the matching discriminated result
   exactly once (a double-click must not resolve twice).
-- **Focus-restoration test** for both kinds — focus a known element, open a dialog,
+- **`EntityPickerDialog` component test** — renders exactly the candidates supplied, in
+  the order given, with no filtering or sorting of its own; picking one resolves
+  `{ id }` for that candidate; `Escape` and the cancel control both resolve `'cancel'`.
+  A candidate list this dialog reordered or filtered would be applying an eligibility
+  rule that lives in slice 10.
+- **Reassign sequencing test** — `DeleteReferenceDialog` resolving `'reassign'` opens
+  `EntityPickerDialog` *after* the first has cleared `DialogStore.current`, never
+  nested (asserted against the stacking guard, which would throw). With an empty
+  candidate list, no second dialog opens at all and the caller reports unavailability.
+- **Focus-restoration test** for all three kinds — focus a known element, open a dialog,
   resolve it via each of its possible outcomes, and assert focus is back on the
   original element every time, not just on the cancel path.
 - **Architecture/contract test** (extends slice 12's suite) — `no-restricted-imports`

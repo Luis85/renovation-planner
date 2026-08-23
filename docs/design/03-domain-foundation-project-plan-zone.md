@@ -380,6 +380,11 @@ class Zone {
     readonly status: ZoneStatus,
     readonly geometry: Polygon,
     readonly domainNoteLink: string | null,
+    // Persistence concurrency, not domain state: assigned by the repository, never
+    // by a factory or a with* method, and never reasoned about by domain code. It is
+    // on the entity because a caller has to be able to hand it back — see "Writes are
+    // conditional". Project and Plan carry the same field for the same reason.
+    readonly revision: number,
   ) {}
 
   static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError>;
@@ -424,7 +429,9 @@ class CreateZoneCommand
     if (isErr(zoneResult)) return zoneResult;
 
     const zone = zoneResult.value;
-    const saveResult = await this.zones.save(zone);
+    // 'absent': this is a create, so a Zone already holding this ID is a conflict,
+    // not something to overwrite (see "Writes are conditional").
+    const saveResult = await this.zones.save(zone, 'absent');
     if (isErr(saveResult)) return saveResult; // never publish or report success on a failed write
 
     await this.events.publish(zoneCreated({
@@ -506,10 +513,14 @@ function zoneCreated(payload: ZoneEventPayload): ZoneCreated;
 // to a lookup, while `isErr` means the lookup itself did not happen. A command that
 // wants a missing parent to be a failure raises its own ReferenceError (see
 // CreateZoneCommand above); the repository does not decide that for it.
+// Every mutating method takes an `expected` version — see "Writes are conditional"
+// below. `Expected` is declared once and shared by all three ports.
+type Expected = number | 'absent';
+
 interface ZoneRepository {
   getById(id: ZoneId): Promise<Result<Zone | null, PersistenceError>>;
-  save(zone: Zone): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: ZoneId): Promise<Result<void, PersistenceError>>;
+  save(zone: Zone, expected: Expected): Promise<Result<Zone, PersistenceError | ValidationError>>;
+  delete(id: ZoneId, expected: number): Promise<Result<void, PersistenceError | ValidationError>>;
   listByProject(projectId: ProjectId): Promise<Result<Zone[], PersistenceError>>;
   listByPlan(planId: PlanId): Promise<Result<Zone[], PersistenceError>>;
 }
@@ -519,8 +530,8 @@ interface ZoneRepository {
 // consistent extension, not a sourced requirement.
 interface PlanRepository {
   getById(id: PlanId): Promise<Result<Plan | null, PersistenceError>>;
-  save(plan: Plan): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: PlanId): Promise<Result<void, PersistenceError>>;
+  save(plan: Plan, expected: Expected): Promise<Result<Plan, PersistenceError | ValidationError>>;
+  delete(id: PlanId, expected: number): Promise<Result<void, PersistenceError | ValidationError>>;
   listByProject(projectId: ProjectId): Promise<Result<Plan[], PersistenceError>>;
 }
 
@@ -529,11 +540,39 @@ interface PlanRepository {
 // now because the port is declared once, not grown one caller at a time.
 interface ProjectRepository {
   getById(id: ProjectId): Promise<Result<Project | null, PersistenceError>>;
-  save(project: Project): Promise<Result<void, PersistenceError | ValidationError>>;
-  delete(id: ProjectId): Promise<Result<void, PersistenceError>>;
+  save(project: Project, expected: Expected): Promise<Result<Project, PersistenceError | ValidationError>>;
+  delete(id: ProjectId, expected: number): Promise<Result<void, PersistenceError | ValidationError>>;
   listAll(): Promise<Result<Project[], PersistenceError>>;
 }
 ```
+
+### Writes are conditional
+
+Every entity carries a persisted `revision`, and every mutating repository method takes
+the `expected` value the caller believes is current. The repository compares and writes
+as **one** operation, serialized per entity ID, and refuses with a `ValidationError`
+(`<entity>.revision-conflict`) when the stored revision differs. `save` returns the
+written entity carrying its new revision; `'absent'` means "insert, and fail if
+something is already there", which is what makes restoring a deleted entity safe rather
+than a blind overwrite of whatever now holds that ID.
+
+This is declared here, in the port, for exactly the reason the `Result` wrapper is: a
+signature Slice 4 has to widen is one every caller has to be revisited for. It is not an
+Obsidian detail — an `InMemory*Repository` implements the same compare, and the contract
+suite (§72) tests both against it.
+
+Why it is needed at all, given commands are dispatched one at a time within a view: a
+command history is view-local (slice 6), two Plan Editors can be open at once, Obsidian
+syncs across devices, and a user can edit a note by hand. So "read, decide, write" is
+never safe across those boundaries — a snapshot-restoring undo is the sharpest case, but
+any read-modify-write has it. Making the comparison part of the write is the only place
+it can be made atomic; a caller cannot achieve it from outside no matter how carefully it
+re-reads.
+
+Two things deliberately do **not** get a revision: a plan's geometry sidecar, whose
+`objects[]` is already guarded by slice 4's per-plan `PlanGeometryStore.mutate` lock, and
+targeted single-field markers like `markStale` (slice 10) that move one field in one
+direction and cannot lose information by being applied twice.
 
 `save()` is an **ID-keyed upsert**, not insert-only, on every implementation. Slice 8's
 `ReversibleDeleteZoneCommand.undo()` restores a deleted entity by writing its captured
@@ -562,8 +601,24 @@ class GetZone implements Query<GetZoneInput, Result<Zone | null, PersistenceErro
 class InMemoryZoneRepository implements ZoneRepository {
   private readonly store = new Map<ZoneId, Zone>();
   async getById(id: ZoneId) { return ok(this.store.get(id) ?? null); }
-  async save(zone: Zone) { this.store.set(zone.id, zone); return ok(undefined); } // upsert by id
-  async delete(id: ZoneId) { this.store.delete(id); return ok(undefined); }
+  // Implements the same conditional contract as the Obsidian one — an in-memory
+  // repository that skipped the compare would let the contract suite (§72) pass
+  // against an implementation that cannot hold the invariant.
+  async save(zone: Zone, expected: Expected) {
+    const current = this.store.get(zone.id);
+    if (expected === 'absent' ? current !== undefined : current?.revision !== expected) {
+      return err(revisionConflict('zone', zone.id));
+    }
+    const written = { ...zone, revision: (current?.revision ?? 0) + 1 };
+    this.store.set(zone.id, written);
+    return ok(written);
+  }
+  async delete(id: ZoneId, expected: number) {
+    const current = this.store.get(id);
+    if (current?.revision !== expected) return err(revisionConflict('zone', id));
+    this.store.delete(id);
+    return ok(undefined);
+  }
   async listByProject(projectId: ProjectId) {
     return ok([...this.store.values()].filter((z) => z.projectId === projectId));
   }

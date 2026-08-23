@@ -356,8 +356,16 @@ otherwise take, and the Vault-file path covers the PRD's stated flow.
 Dispatched through `CommandHistory` like every other user-triggered mutation, with a
 `ReversibleSetPlanBackgroundCommand` adapter whose `undo()` restores the previous
 `PlanBackgroundRef` (or `null`, for the first import) — the same snapshot-and-restore
-shape slice 10's adapters use, and conditional on the Plan being unchanged since, for
-the reason set out there.
+shape slice 10's adapters use.
+
+That undo is conditional, and the mechanism is slice 3's: `PlanRepository.save` takes
+the `expected` revision and compares-and-writes as one operation, so an undo presenting
+the revision its own `execute()` produced refuses with `plan.revision-conflict` rather
+than overwriting a background someone set since — from another tab, another synced
+device, or by editing the note by hand. Undo passes the revision `execute()` returned;
+it does not re-read to find one, which would be the check-then-act this design rejects.
+An earlier draft of this section claimed the undo was conditional without naming any
+mechanism capable of enforcing it, which was a promise with nothing behind it.
 
 Slice 14's `noBackground` empty state dispatches exactly this, and slice 7's
 `CalibrateTool` requires it to have run — neither reimplements it, and neither is left

@@ -1071,18 +1071,54 @@ type DeleteWithReferencesResult = {
 `affectedAfter` carries `'deleted'` rather than omitting the entry, because "this
 Requirement is gone and I am the one who deleted it" and "I never touched it" are
 different claims and undo needs to distinguish them: the first restores from
-`affectedBefore` only if the Requirement is still absent, and a Requirement that
-reappeared under the same ID between the delete and the undo is someone else's, not
-this command's to overwrite.
+`affectedBefore`, the second touches nothing.
+
+Restoring a `'deleted'` entry uses `save(requirement, 'absent')` — slice 3's absence
+sentinel — so "there should be nothing here" is checked *inside* the write. A numeric
+revision cannot express that (the entity has none; it does not exist), and reading for
+absence and then inserting would reopen the window this payload exists to close: a
+Requirement that reappeared under the same ID between the delete and the undo is
+someone else's, and the insert must fail rather than overwrite it.
 
 `reassignTo` is where PRD §64's own gap shows through: it names "Reassign" as an action
-but never says how a target is picked. Slice 15 is explicit that its dialog resolves
-*that* the user chose Reassign and carries no target. Sourcing one is a follow-up step
-the caller performs before dispatching — a second picker — and neither the SDD nor the
-PRD specifies it, so this slice defines the command's contract for receiving a target
-without designing the UI that supplies it.
+but never says how a target is picked. Slice 15's dialog resolves *that* the user chose
+Reassign and carries no target, so a second step supplies one — and leaving that step
+unowned would ship a fourth button with nothing behind it, exactly as the background
+import did.
 
-What the command does **not** delegate to that unbuilt picker is validating what it is
+**This slice owns the candidate list; slice 15 owns the picking.** The split follows
+the same line as the delete dialog itself: eligibility is a domain question, and a
+dialog that computed it would be a second place the rules live.
+
+```typescript
+// application/queries — the eligible targets, already filtered by every rule the
+// command would otherwise reject the choice for, so the picker cannot offer one that
+// fails validation.
+function ListReassignmentTargets(
+  target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
+): Promise<Result<readonly ReassignmentTargetDto[], PersistenceError>>;
+// Zone case:  every other Zone in the same Project.
+// Asset case: every other Asset in the same Project whose unit is of `area` kind.
+// Both exclude the entity being deleted — the self-reference the command refuses.
+interface ReassignmentTargetDto { id: ZoneId | AssetId; label: string }
+```
+
+The picker itself is slice 15's `EntityPickerDialog`: one more `DialogDescriptor` kind
+taking `{ title, candidates: readonly { id: string; label: string }[] }` and resolving
+to `{ id } | 'cancel'`. It renders what it is handed and knows nothing about Zones,
+Assets or projects — the same contract `DeleteReferenceDialog` already has for its
+reference rows.
+
+An empty candidate list is a real outcome, not an edge case to ignore: a Project with
+one Zone, or one area-kind Asset, has nothing to reassign to. The caller checks the
+list before opening anything and reports that Reassign is unavailable rather than
+opening a picker with no options — a dialog whose only possible action is Cancel is a
+dead end presented as a choice.
+
+Validation still runs in the command regardless of where the target came from, for the
+reason below.
+
+What the command does **not** delegate to that picker is validating what it is
 handed. An Asset `reassignTo` goes through **both** of `AssignAssetCommand`'s checks —
 the same `UNIT_KIND` area check and the same `zone.projectId === asset.projectId`
 check — for the identical reason: a Zone's area is not an identity input for a `piece`
@@ -1130,7 +1166,12 @@ interface RequirementRepository {
   // the stored revision is not expectedRevision, and returns the saved Requirement
   // carrying its new revision. Serialized per RequirementId, so the compare and the
   // write are one operation — a caller cannot make them atomic from outside.
-  save(requirement: Requirement, expectedRevision: number): Promise<Result<Requirement, PersistenceError | ValidationError>>;
+  // `Expected` is slice 3's shared type: a revision number, or 'absent' meaning
+  // "insert, and fail if anything already holds this ID". The sentinel is what makes
+  // restoring a deleted Requirement atomic — a numeric revision cannot express "there
+  // should be nothing here", and reading for absence then inserting is the
+  // check-then-act this contract exists to remove.
+  save(requirement: Requirement, expected: Expected): Promise<Result<Requirement, PersistenceError | ValidationError>>;
   // Conditional for the same reason save() is, and it is NOT covered by save()'s CAS:
   // an assignment undo deletes the Requirement it created, and another tab may have
   // set an override or landed a recalculation on it since. Refuses with

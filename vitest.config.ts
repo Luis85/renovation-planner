@@ -55,22 +55,28 @@ export default defineConfig({
 			// `include` above: 92/92 statements, 34/34 branches, 33/33 functions, 81/81 lines —
 			// 100% of all four.
 			//
+			// Measured 2026-08-23 again at the end of design slice 2 — core primitives:
+			// geometry types and operations, the mm convention, ULID identity, Result,
+			// AppError and the event bus — 241/241 statements, 100/100 branches,
+			// 71/71 functions, 220/220 lines. Still 100% of all four.
+			//
 			// Which increment moved which figure, so git is not the only record:
 			//   - first measurement, 21 statements:  95 / 75 / 90 / 94
 			//   - the view, its activation, registration, i18n and the settings pane
 			//     (44 statements):                   97 / 91 / 95 / 97
-			//   - design slice 1 (92 statements):    98 / 97 / 96 / 98  ← this one
+			//   - design slice 1 (92 statements):    98 / 97 / 96 / 98
+			//   - design slice 2 (241 statements):   99 / 99 / 99 / 99  ← this one
 			//
-			// The floors are not 100. Rule 3 above wants one covered unit of headroom, and one
-			// unit is still large here: a statement is 1.1pp, a BRANCH 2.9pp. Pinning 100 would
-			// make the first genuinely unreachable defensive branch a choice between a test
-			// gymnastic and lowering a floor, and a floor never comes down. Whole numbers
-			// rather than decimals: precision at n=92 would be theatre.
+			// The floors are not 100. Rule 3 above wants one covered unit of headroom, and at
+			// n=241 a statement is 0.4pp and a BRANCH 1pp — a whole-number floor sits a
+			// couple of units under the measurement. Pinning 100 would make the first
+			// genuinely unreachable defensive branch a choice between a test gymnastic and
+			// lowering a floor, and a floor never comes down.
 			thresholds: {
-				statements: 98,
-				branches: 97,
-				functions: 96,
-				lines: 98,
+				statements: 99,
+				branches: 99,
+				functions: 99,
+				lines: 99,
 			},
 		},
 	},

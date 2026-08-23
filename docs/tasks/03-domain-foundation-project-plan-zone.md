@@ -4,9 +4,9 @@ parent: "[[Foundation and composition root]]"
 order: 30
 dependsOn:
   - "[[02-core-primitives]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-24
+finished: 2026-08-24
 horizon: ""
 start: ""
 due: ""

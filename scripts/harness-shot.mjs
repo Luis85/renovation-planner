@@ -133,19 +133,38 @@ async function captureOne(browser, baseUrl, { name, query }, errors) {
  * rather than spawning the CLI: `server: { open: false }` here overrides the config's own
  * `canOpenBrowser` unconditionally, so this never hits the `xdg-open ENOENT` the config's
  * comment describes for a display-less container — headless capture is exactly that case
- * on every platform, not only Linux. */
+ * on every platform, not only Linux.
+ *
+ * `host: '127.0.0.1'` is set explicitly rather than left to Vite's own default, which can
+ * resolve `localhost` to `::1` first on a machine with IPv6-first resolution — the address
+ * this function reports would then be a real, listening server that every `page.goto()`
+ * below is refused by, since `chromiumBinaryIn`'s browser and this URL would be talking to
+ * two different interfaces. Binding the host is simpler than reading `address.address` back
+ * and bracket-quoting it for an IPv6 literal, and it means the reported port is always on
+ * the same loopback interface the returned `baseUrl` names.
+ *
+ * Every exit out of this function past `createServer` succeeding closes the server it
+ * opened — `server.listen()` throwing, or the port check below throwing, would otherwise
+ * leave Vite's dev server listening with nothing left that can ever call `server.close()`,
+ * which is a hang indistinguishable from `chromium.launch()` failing the same way (see
+ * `run` below): the process never exits. */
 async function startHarnessServer() {
 	const server = await createServer({
 		configFile: path.resolve('vite.harness.config.ts'),
-		server: { open: false, port: 0 },
+		server: { open: false, port: 0, host: '127.0.0.1' },
 	});
 
-	await server.listen();
-	const address = server.httpServer?.address();
+	try {
+		await server.listen();
+		const address = server.httpServer?.address();
 
-	if (!address || typeof address === 'string') throw new Error('the harness dev server did not report a port');
+		if (!address || typeof address === 'string') throw new Error('the harness dev server did not report a port');
 
-	return { server, baseUrl: `http://127.0.0.1:${address.port}` };
+		return { server, baseUrl: `http://127.0.0.1:${address.port}` };
+	} catch (error) {
+		await server.close();
+		throw error;
+	}
 }
 
 /** All three shots, and the errors any of them raised — collected rather than thrown, so
@@ -173,18 +192,24 @@ async function run() {
 	mkdirSync(OUT_DIR, { recursive: true });
 
 	const { server, baseUrl } = await startHarnessServer();
-	const browser = await chromium.launch({ executablePath, headless: true });
 
-	let errors;
-
+	// `chromium.launch()` is INSIDE this try, not before it: a browser present on disk but
+	// unlaunchable (a missing shared library, an incompatible cached revision) rejects this
+	// call, and if that rejection happened above a try whose `finally` is what closes the
+	// dev server, the server would be left listening forever with nothing left to close it
+	// — Node never exits, and `npm run harness-shot` hangs instead of failing. Every path
+	// out of this function past `startHarnessServer` succeeding now closes the server.
 	try {
-		errors = await captureAll(browser, baseUrl);
+		const browser = await chromium.launch({ executablePath, headless: true });
+
+		try {
+			reportErrors(await captureAll(browser, baseUrl));
+		} finally {
+			await browser.close();
+		}
 	} finally {
-		await browser.close();
 		await server.close();
 	}
-
-	reportErrors(errors);
 }
 
 try {

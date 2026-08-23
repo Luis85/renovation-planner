@@ -233,7 +233,12 @@ describe('assembling the stylesheet', () => {
 		 * four rounds of hand-rolled scanning, each defeated by CSS content that LOOKED
 		 * like syntax to a scan that could not actually parse it — a quoted brace, a
 		 * `/*` inside a string bridging to a real comment (two variants), an escaped
-		 * `)` inside `url()`, an at-rule-nested selector.
+		 * `)` inside `url()`, an at-rule-nested selector; plus the whole-branch review's
+		 * two bypasses, both closed by the same generic fix (a rule kind lightningcss
+		 * structures with named fields instead of a `Declaration`-reachable list, and the
+		 * generic `unknown` type every at-rule lightningcss does not model parses as) —
+		 * see `NESTED_RULES_KEY` in the source file for what makes this a class fix
+		 * rather than one more name added to a list.
 		 */
 		it.each([
 			['an rgb() colour', '.one { color: rgb(0, 0, 0); }'],
@@ -264,6 +269,14 @@ describe('assembling the stylesheet', () => {
 				'a hard-coded colour as an @property initial-value',
 				'@property --accent {\n\tsyntax: "<color>";\n\tinherits: false;\n\tinitial-value: #fff;\n}',
 			],
+			[
+				'a hard-coded colour as an @font-palette-values override-colors, a rule kind lightningcss models with named fields rather than a generic declaration list, the same shape as @font-face and @property',
+				'@font-palette-values --theme {\n\tfont-family: X;\n\toverride-colors: 0 #fff;\n}',
+			],
+			[
+				'a hard-coded colour nested inside an at-rule lightningcss does not model at all, which parses generically as rule type "unknown" with its block left as a raw token stream',
+				'@unknown-thing {\n\t.a { color: #fff; }\n}',
+			],
 		])('refuses %s', (_label, css) => {
 			plant({
 				'index.css': '@import "./one.css";\n',
@@ -286,7 +299,10 @@ describe('assembling the stylesheet', () => {
 		 * `--accent: red;` documents the one residual this project has decided not to
 		 * chase (D4 in the task report): a named colour is caught on a typed property
 		 * but not inside a raw token stream, where only a literal hex or function call
-		 * is still recognised generically (`--accent: #fff;`, refused above).
+		 * is still recognised generically (`--accent: #fff;`, refused above); and
+		 * `device-cmyk()` gets the same variable and zero-alpha exemptions every other
+		 * colour type gets automatically, applied by hand since its arguments never
+		 * resolve into the typed shape those exemptions normally read off of.
 		 */
 		it.each([
 			['an Obsidian CSS variable', '.one { color: var(--text-normal); }'],
@@ -322,6 +338,14 @@ describe('assembling the stylesheet', () => {
 				'@property --accent {\n\tsyntax: "<color>";\n\tinherits: false;\n\tinitial-value: currentColor;\n}',
 			],
 			['a named colour inside a custom property, unlike a hex literal', '.x { --accent: red; }'],
+			[
+				'device-cmyk() whose arguments are all Obsidian variables, the same exemption rgb(var(...)) already gets',
+				'.b { color: device-cmyk(var(--c) var(--m) var(--y) var(--k)); }',
+			],
+			[
+				'device-cmyk() with a literal zero alpha, the same exemption rgba(0, 0, 0, 0) already gets',
+				'.c { color: device-cmyk(0% 81% 81% 30% / 0); }',
+			],
 		])('does not flag %s', (_label, css) => {
 			plant({
 				'index.css': '@import "./one.css";\n',

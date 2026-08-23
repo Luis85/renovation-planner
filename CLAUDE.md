@@ -64,10 +64,19 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   an identifier. `scripts/styles-assemble.mjs` carries the full account.
 - **lint** — TWO linters in one step, because they refuse different things and neither
   subsumes the other. **ESLint** is where the architecture lives: the layer rule below is
-  `no-restricted-imports`, and `no-restricted-syntax` carries the write boundary and the
-  require that every user-visible string route through `t`/`tr` (`I18N_LITERAL_BAN` in
-  `eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule, refused at the call
-  rather than left to a reviewer) — not prose. It also runs the Obsidian plugin guidelines
+  `no-restricted-imports`, and `no-restricted-syntax` carries the write boundary and
+  `I18N_LITERAL_BAN` (`eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule) —
+  not prose. `I18N_LITERAL_BAN` is narrower than "every user-visible string": it refuses a
+  literal at exactly FOUR call sites — `.setText(...)`, and the `text:` option of
+  `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
+  untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
+  It does not reach `new Notice('…')`, `addCommand({ name: '…' })`,
+  `addRibbonIcon(icon, 'title', …)`, a `title` or `attr:` value, `el.textContent = '…'`, or
+  a literal held in a variable first — today's actual UI text (settings `name`/`desc`, the
+  command name, the ribbon title, `getDisplayText`) reaches none of those four call sites,
+  so it is compliant by convention rather than by this gate — the same way the write
+  boundary below names the spellings its selectors see and the ones they cannot, rather
+  than claiming to see more. It also runs the Obsidian plugin guidelines
   and the size and complexity budgets. Warnings fail too (`--max-warnings 0`) — the
   mobile-safety rule reports as a warning, and `isDesktopOnly: false` is a promise.
   `manifest.json` itself is linted
@@ -106,14 +115,22 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
   metrics today; the floors sit a covered unit below that, which at this denominator is
   several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
-  policy: floors only rise, and they rise to what a FINISHED increment measures.
+  policy: floors only rise, and they rise to what a FINISHED increment measures. The suite
+  includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
+  real mounted view (`mountHarness`, not a fixture), checking roles, accessible names,
+  form labels, heading order and ARIA attribute validity. Read its header before trusting
+  the word "accessibility" any wider than that: it does NOT verify colour contrast, a
+  visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
+  of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness
+  (it scans `contentEl`, the plugin's own subtree, not the whole document). A live vault
+  (`npm run test-build`) remains the only place appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
 
-Obsidian itself cannot run here. Two commands stand in, and neither replaces the other:
+Obsidian itself cannot run here. Three commands stand in, and none replaces another:
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
   and **Obsidian's own app.css**, in a browser, with no Obsidian. Faithful about markup,
@@ -125,8 +142,7 @@ Obsidian itself cannot run here. Two commands stand in, and neither replaces the
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
   "faithful" read wider than it is.
-
-  `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
+- `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
   scheme plus `?phone` to a gitignored `harness-shots/` folder — a look at rendered layout,
   which jsdom cannot produce at all and which is how a real defect (the view collapsing to

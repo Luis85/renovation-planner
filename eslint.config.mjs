@@ -202,7 +202,15 @@ const SVG_CLASS_TOKENS = [
  * is a TemplateLiteral node, not a Literal — and a string built from a joined array
  * (`parts.join(' ')` is a CallExpression). None of those are a Literal node at the
  * position these selectors check. A reviewer who sees one is the backstop, the same as
- * for the spellings `SVG_CLASS_TOKENS` cannot see.
+ * for the spellings `SVG_CLASS_TOKENS` cannot see. `attr:` is the same blind spot in a
+ * different shape, deliberately: the accessibility gate
+ * (`tests/harness/accessibility.test.ts`) can push a literal like
+ * `createDiv({ attr: { 'aria-label': 'Cancel' } })` — real user-visible copy, read aloud by
+ * a screen reader — and this rule structurally cannot see it, since `attr`'s own contents
+ * are excluded above precisely so a genuine HTML attribute (`attr: { text: '…' }`) is not
+ * flagged. Widening the selector to reach inside `attr` would reintroduce that false
+ * positive; a reviewer satisfying the a11y gate with an `aria-label` literal is the
+ * backstop this rule does not have.
  *
  * `[value=/\S/]` rather than bare `Literal`: an empty string or a whitespace-only one
  * (`el.setText('')` to clear an element, or a padding space) carries no user-visible

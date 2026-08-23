@@ -107,19 +107,38 @@ function countLines(body) {
 // ARGUMENTS still surface as `CssColor` nodes generically). `UNRESOLVED_COLOR_FUNCTIONS`
 // below is that one-function list, named by lightningcss's own function-call shape rather
 // than inferred from source spelling — a future lightningcss version that resolves it
-// removes the need for this list without this check's behaviour changing.
+// removes the need for this list without this check's behaviour changing. Because a
+// `device-cmyk()` call is never parsed into a typed colour, it also never gets the `var()`
+// and zero-alpha exemptions every OTHER colour type gets automatically (a resolved
+// `CssColor` simply isn't produced when an argument is a variable, and alpha 0 is read off
+// the parsed node) — so `isUnresolvedColorFunctionCall` below reads its raw, unparsed
+// argument tokens by hand for the same two cases: `device-cmyk(var(--c) var(--m) var(--y)
+// var(--k))` holds a `{type:'var',...}` node among its arguments and is exempt for the
+// same reason `rgb(var(--r), var(--g), var(--b))` already was (a value lightningcss cannot
+// resolve to a literal is not a hard-coded palette entry); `device-cmyk(0% 81% 81% 30% /
+// 0)` has a literal `0` as the token immediately after its `/` separator and is exempt for
+// the same reason `rgba(0, 0, 0, 0)` already was. Neither exemption is new policy — both
+// are the SAME two rules every other colour type gets, applied by hand because this one
+// function's arguments never reach the shape where the generic rules already apply.
 //
-// This check also reaches TWO at-rules whose declarations never fire the `Declaration`
-// visitor at all — confirmed by inspecting what lightningcss's visitor actually calls,
-// not assumed: `@font-face { ... }` and `@property --x { ... }` structure their contents
-// as named fields directly on the RULE object (`properties`, `initialValue`) rather than
-// as a generic declaration list. `checkForHardcodedColors` below runs the SAME recursive
-// colour walk directly on the rule's own value for exactly these two rule types — found
-// by testing every rule kind used or plausible here, not guessed — which is how
-// `@property --accent { initial-value: #fff; }` is caught even though it never reaches a
-// `Declaration` callback. `@font-face` has no colour-typed descriptor in the CSS spec, so
-// this is closing a structural blind spot on principle rather than a real leak, but the
-// mechanism is identical and free once written for `@property`.
+// This check runs on EVERY rule kind lightningcss's visitor calls `Rule()` for, not a
+// hand-picked subset — the earlier version named `font-face` and `property` explicitly
+// because a review found their declarations never fire the `Declaration` visitor
+// (`properties`/`initialValue` are named fields on the RULE object, not a generic
+// declaration list), and doing the same for exactly those two rule TYPES is what let a
+// sibling case slip past: `@font-palette-values` structures its contents the same
+// undeclared way (confirmed by inspecting the parsed tree, not guessed) and was not on the
+// list, and `@unknown-thing { .a { color: #fff; } }` — any at-rule lightningcss does not
+// specifically model at all — parses generically as rule type `unknown`, with its whole
+// block turned into a raw, still colour-annotated token stream, and that was not on the
+// list either. Listing rule TYPES is listing places; the next at-rule lightningcss adds
+// support for tomorrow, or one it never models at all, is the next name this list would
+// have missed. So `checkForHardcodedColors` below does not special-case any rule type: it
+// runs the same recursive colour walk over EVERY rule's own `rule.value` — which, checked
+// by hand, already holds that rule's own content directly, for `style`, `font-face`,
+// `property`, `font-palette-values`, `keyframes`, `page` and `unknown` alike — with one
+// field excluded from the walk, `rules` (see `NESTED_RULES_KEY` below), which is what
+// closes the class rather than the two members of it a first pass happened to find.
 //
 // `currentColor` and a CSS system-colour keyword (`Canvas`, `ButtonText`, …) both adapt
 // to the viewer's theme or OS colour scheme rather than encoding a fixed palette value,
@@ -132,17 +151,21 @@ function countLines(body) {
 // theme. `inherit` needs no exemption: it is not a colour value at all, so it is never a
 // `CssColor` node to begin with.
 //
-// One narrowing that follows from using the real parser rather than source text: the
-// LINE named in the error is the enclosing rule's own line, not necessarily the exact
-// declaration's line within a multi-line rule — lightningcss's public visitor API gives a
-// source location on every `Rule` kind this check has checked (a plain style rule,
-// `@keyframes`, `@page`, `@font-face`, `@property`), never on a `Declaration`, confirmed
-// by inspecting what the visitor actually receives rather than assumed from the type
-// definitions alone. A `@keyframes` block reports its OWN line for a colour in any of its
-// keyframe selectors (`from`/`to`/a percentage), not the individual selector's line,
-// because lightningcss's visitor fires once for the whole `@keyframes` rule rather than
-// once per keyframe — coarser than a single style rule, but still a real, useful line,
-// never the unnamed failure a missing position would be.
+// One narrowing that follows from using the real parser rather than source text: the LINE
+// named in the error is the enclosing RULE's own line, always — never a declaration's own
+// line within a multi-line rule — because this check reads a source position only off
+// `rule.value.loc`, which every rule kind checked by hand carries (`style`, `keyframes`,
+// `page`, `font-face`, `property`, `font-palette-values`, `unknown`), and lightningcss's
+// visitor never hands a `Declaration` callback a position of its own. A `@keyframes` block
+// reports its OWN line for a colour in any of its keyframe selectors (`from`/`to`/a
+// percentage), not the individual selector's line, because lightningcss's visitor fires
+// once for the whole `@keyframes` rule rather than once per keyframe — coarser than a
+// single style rule, but still a real, useful line, never the unnamed failure a missing
+// position would be. A colour nested inside a CONTAINER at-rule (`@media`, `@supports`,
+// `@layer`, `@container`, or nested CSS itself) is the one case this does NOT report
+// against the container's own line: `rules`, the field holding each nested rule, is
+// excluded from the walk specifically so the container's `Rule()` call finds nothing and
+// the NESTED rule's own, more precise `Rule()` call is what reports it instead.
 const COLOR_TYPE_TAGS = new Set([
 	'rgb',
 	'hsl',
@@ -163,10 +186,15 @@ const COLOR_TYPE_TAGS = new Set([
 
 const UNRESOLVED_COLOR_FUNCTIONS = new Set(['device-cmyk']);
 
-// The two rule kinds whose own declarations never reach the `Declaration` visitor — see
-// the header comment above. Named explicitly rather than inferred, the same reasoning as
-// `UNRESOLVED_COLOR_FUNCTIONS`: found by testing, not guessed from the type definitions.
-const RULE_VALUE_FALLBACK_TYPES = new Set(['font-face', 'property']);
+// The field lightningcss uses, on every CONTAINER rule kind checked by hand (`media`,
+// `supports`, `layer-block`, `container`, and `style` itself for CSS nesting), to hold its
+// nested child rules. `checkForHardcodedColors` walks a rule's own `rule.value` for a
+// colour, but must skip this one field: the visitor calls `Rule()` on each nested rule
+// separately too, with its own more precise line, so walking into `rules` from the
+// CONTAINER would just re-report the same colour against the container's coarser line
+// first. Excluding it is a structural exclusion, not a per-type one — it holds regardless
+// of which container rule carries it, including one this project does not use today.
+const NESTED_RULES_KEY = 'rules';
 
 function isPlainObject(value) {
 	return typeof value === 'object' && value !== null;
@@ -179,38 +207,77 @@ function isResolvedColor(node) {
 	return isPlainObject(node) && COLOR_TYPE_TAGS.has(node.type) && node.alpha !== 0;
 }
 
-// The one function lightningcss's parser leaves unresolved that this project still needs
-// to name explicitly — see the header comment above `COLOR_TYPE_TAGS`.
+// Whether `arguments` (an unresolved function's raw, unparsed token list) contains a
+// `var()` reference anywhere — recursing the same way `findHardcodedColor` does, since a
+// variable can appear nested inside another function among the arguments. A function call
+// that references a variable is not a literal palette value, the same reasoning that
+// already lets `rgb(var(--r), var(--g), var(--b))` pass without any special case, because
+// it never resolves to a typed `CssColor` at all. `device-cmyk()` needs this spelled out
+// by hand because it never resolves either, for a different reason (see the header
+// comment), so it never gets the exemption automatically.
+function containsVarReference(value) {
+	if (Array.isArray(value)) return value.some((item) => containsVarReference(item));
+	if (!isPlainObject(value)) return false;
+	if (value.type === 'var') return true;
+	return Object.keys(value).some((key) => containsVarReference(value[key]));
+}
+
+// Whether `arguments` (an unresolved function's raw token list) spells a literal `0` as
+// the alpha component — the token immediately after a `/` separator, ignoring whitespace
+// tokens. The same full-transparency exemption `isResolvedColor` gives every resolved
+// colour type, applied by hand here because `device-cmyk()`'s arguments never resolve
+// into the typed `CssColor` shape that check reads `alpha` off of.
+function hasZeroAlphaArgument(args) {
+	const slashAt = args.findIndex((arg) => arg.type === 'token' && arg.value?.type === 'delim' && arg.value.value === '/');
+	if (slashAt === -1) return false;
+	const alpha = args.slice(slashAt + 1).find((arg) => !(arg.type === 'token' && arg.value?.type === 'white-space'));
+	return Boolean(alpha) && alpha.type === 'token' && (alpha.value.type === 'number' || alpha.value.type === 'percentage') && alpha.value.value === 0;
+}
+
+// A call to one of `UNRESOLVED_COLOR_FUNCTIONS` — named by lightningcss's own function-
+// call shape, not inferred from source spelling — EXCEPT one whose arguments hold a
+// `var()` reference or a literal zero alpha: see the two helpers above for why those two
+// cases need reading by hand for this function and not for any other colour type.
 function isUnresolvedColorFunctionCall(node) {
-	return (
-		isPlainObject(node) &&
-		node.type === 'function' &&
-		isPlainObject(node.value) &&
-		typeof node.value.name === 'string' &&
-		UNRESOLVED_COLOR_FUNCTIONS.has(node.value.name.toLowerCase())
-	);
+	if (
+		!isPlainObject(node) ||
+		node.type !== 'function' ||
+		!isPlainObject(node.value) ||
+		typeof node.value.name !== 'string' ||
+		!UNRESOLVED_COLOR_FUNCTIONS.has(node.value.name.toLowerCase())
+	) {
+		return false;
+	}
+	const args = node.value.arguments;
+	if (containsVarReference(args)) return false;
+	if (hasZeroAlphaArgument(args)) return false;
+	return true;
 }
 
 /**
- * Walks a declaration's (or a `@font-face`/`@property` rule's own) already-PARSED value —
- * plain objects and arrays, the shape `JSON.parse(JSON.stringify(...))` would give it —
- * for the first node that is a literal colour. Recurses into every field generically, by
- * depth rather than by name, because a `CssColor` node appears in genuinely different
- * shapes depending on context: wrapped as `{ type: 'color', value: CssColor }` inside a
- * raw token stream (a custom property, an unresolved function's arguments), or as a bare
- * `CssColor` object assigned directly to a named field of an already-typed value
- * (`background`'s own `color`, a gradient colour-stop's `color`, `@property`'s own
- * `initialValue`). A name-based walk would have to enumerate every such shape at every
- * property or descriptor this project might ever use; a depth-based one does not need to
- * know any of them exist. `light-dark`'s `light`/`dark` fields are reached the same way —
- * no special case, since the walk already recurses into every field.
+ * Walks a rule's own already-PARSED value — plain objects and arrays, the shape
+ * `JSON.parse(JSON.stringify(...))` would give it — for the first node that is a literal
+ * colour. Recurses into every field generically, by depth rather than by name, because a
+ * `CssColor` node appears in genuinely different shapes depending on context: wrapped as
+ * `{ type: 'color', value: CssColor }` inside a raw token stream (a custom property, an
+ * unresolved function's arguments), or as a bare `CssColor` object assigned directly to a
+ * named field of an already-typed value (`background`'s own `color`, a gradient
+ * colour-stop's `color`, `@property`'s own `initialValue`). A name-based walk would have
+ * to enumerate every such shape at every property or descriptor this project might ever
+ * use; a depth-based one does not need to know any of them exist. `light-dark`'s
+ * `light`/`dark` fields are reached the same way — no special case, since the walk
+ * already recurses into every field.
+ *
+ * `skipKey`, when given, is a field name the walk never descends into — used to keep a
+ * container rule's own scan from re-visiting a nested rule the visitor already calls
+ * `Rule()` on separately (see `NESTED_RULES_KEY`).
  *
  * @returns {object | null} the offending node, or null if `value` holds no literal colour
  */
-function findHardcodedColor(value) {
+function findHardcodedColor(value, skipKey) {
 	if (Array.isArray(value)) {
 		for (const item of value) {
-			const found = findHardcodedColor(item);
+			const found = findHardcodedColor(item, skipKey);
 			if (found) return found;
 		}
 		return null;
@@ -218,7 +285,8 @@ function findHardcodedColor(value) {
 	if (!isPlainObject(value)) return null;
 	if (isResolvedColor(value) || isUnresolvedColorFunctionCall(value)) return value;
 	for (const key of Object.keys(value)) {
-		const found = findHardcodedColor(value[key]);
+		if (key === skipKey) continue;
+		const found = findHardcodedColor(value[key], skipKey);
 		if (found) return found;
 	}
 	return null;
@@ -248,7 +316,6 @@ function describeColor(node) {
 // just as loudly, with whatever position lightningcss itself reports: silently ignoring
 // a parse error would be a worse failure than either.
 function checkForHardcodedColors(name, body) {
-	let ruleLine = null;
 	let violation = null;
 
 	try {
@@ -256,23 +323,18 @@ function checkForHardcodedColors(name, body) {
 			filename: name,
 			code: Buffer.from(body),
 			visitor: {
-				// Generic, not `{ style(rule) {...} }`: a per-type sub-visitor only fires for
-				// THAT type, which is why `ruleLine` used to stay `null` — and print as the
-				// literal text "null" in the error — for every declaration inside `@keyframes`
-				// or `@page`. Every rule kind carries its own `loc`, checked directly above.
+				// Generic, not `{ style(rule) {...} }` or a per-type allowlist: every rule
+				// kind's own `rule.value` is walked directly, minus `rules` (see
+				// `NESTED_RULES_KEY`), which is what makes this the class fix rather than a
+				// list of the at-rule types a first pass happened to test. Short-circuits once
+				// a violation is found — the first one in document order is enough to fail the
+				// build, and a later rule need not be walked at all.
 				Rule(rule) {
+					if (violation) return;
+					const found = findHardcodedColor(rule.value, NESTED_RULES_KEY);
 					// 0-indexed in lightningcss's own AST; every message elsewhere in this
 					// file, and every editor, counts from 1.
-					ruleLine = rule.value.loc.line + 1;
-					if (!violation && RULE_VALUE_FALLBACK_TYPES.has(rule.type)) {
-						const found = findHardcodedColor(rule.value);
-						if (found) violation = { found, line: ruleLine };
-					}
-				},
-				Declaration(declaration) {
-					if (violation) return;
-					const found = findHardcodedColor(declaration.value);
-					if (found) violation = { found, line: ruleLine };
+					if (found) violation = { found, line: rule.value.loc.line + 1 };
 				},
 			},
 		});

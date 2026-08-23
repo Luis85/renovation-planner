@@ -636,6 +636,33 @@ nothing in the pipeline could have produced, and one no badge would flag, since
 the entity puts both back at once and makes the pair a true inverse, which is what slice 8
 requires of every `execute()`/`undo()`.
 
+**Restoring the whole entity is right for consistency and wrong for concurrency unless
+undo checks first.** A command history is view-local (slice 6: one per open Plan
+Editor), and the reference lock deliberately does not cover ordinary Requirement writes,
+so another tab can edit the same Requirement between this command's `execute()` and its
+`undo()` — setting a cost override, or having a recalculation land on it. Writing the
+pre-edit snapshot back wholesale would erase that work silently, and the wider the
+snapshot the more it erases: the very breadth that makes the undo a true inverse of
+*this* command is what makes it a clobber of everyone else's.
+
+So undo is conditional on the entity still being what this command left. The adapter
+records both sides of its own edit — the pre-edit snapshot **and** the state its
+`execute()` produced — and `undo()` re-reads the current Requirement and compares it
+against that recorded "after" state. Equal means nothing else has touched it and the
+restore is safe. Different means a later edit exists that the snapshot does not know
+about, and undo returns a conflict `ValidationError` rather than writing: the command
+stays on `undoStack` (slice 6's stack-retention rule), nothing is lost, and the user is
+told their undo is out of date rather than having it silently take someone else's edit
+with it.
+
+Comparing against the *after* state rather than a version counter is deliberate: it
+needs no new persisted field, and it answers the exact question — "is the world still
+holding what I put there?" — rather than a proxy for it. It is the same test the
+assignment adapter's redo applies to its endpoints, in the other direction: an inverse
+is only valid against the state it was computed for. Every snapshot-restoring undo in
+this slice takes this check, not only these two adapters — the delete resolutions'
+`affectedBefore` restore included, since it has strictly more entities to clobber.
+
 The snapshot is taken on the first `execute()` only; redo re-applies the recorded new value
 rather than re-reading what undo just wrote — the same rule the assignment adapter follows,
 for the same reason. And `null` is a value in it, not an absence: "reset to calculated" *is*
@@ -652,12 +679,31 @@ did change.
 **Assignment's adapter carries something the override adapters do not** — PRD §68 names
 `AssignAssetCommand` undoable, and the funnel above already forces the wrapper, but what
 it has to remember is not a previous value.
-`ReversibleAssignAssetCommand` wraps it with one piece of state the plain command's
-payload cannot supply: whether this call created the Requirement or found an existing
-one. `AssignAssetCommand` is idempotent by design, so both return a Requirement, and an
-`undo()` that deleted unconditionally would destroy a link — with whatever overrides had
-been set on it — that the user's gesture never created. Undo deletes only what execute
-created, and is a no-op otherwise.
+`ReversibleAssignAssetCommand` needs one fact the Requirement alone does not carry:
+whether this call created it or found an existing one. `AssignAssetCommand` is
+idempotent by design, so both outcomes return a Requirement, and an `undo()` that
+deleted unconditionally would destroy a link — with whatever overrides had been set on
+it — that the user's gesture never created. Undo deletes only what execute created, and
+is a no-op otherwise.
+
+### Who knows whether a Requirement was created
+
+That fact is **returned by the command**, as `AssignAssetResult.created`. The adapter
+cannot derive it, and an adapter that tried — by reading the repository before
+dispatching, say — would be wrong precisely when it matters. Two Plan Editor tabs
+assigning the same Asset to the same Zone both look first, both see nothing, and then
+the reference lock serializes their wrapped commands: the first creates the Requirement,
+the second's idempotent path finds it and returns it. Both adapters concluded "I created
+this" from a read taken before either write, so the second tab's undo deletes the first
+tab's assignment — a link the user of that tab made deliberately, gone because someone
+else pressed undo in another view.
+
+Only the command can answer, because only the command holds both endpoint locks at the
+instant it decides, and the answer is true exactly for the window in which it was
+decided. This is the same rule the reference lock exists to enforce, applied to a
+*return value* rather than a write: a fact established under a lock has to be reported
+out of the locked region, not re-derived outside it, or the lock protected the decision
+and not the conclusion drawn from it.
 
 Redo restores that Requirement under its original ID rather than re-running assignment,
 for the reason slice 8 spells out for creation: `CommandHistory.redo()` calls `execute()`
@@ -1036,7 +1082,11 @@ type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationErro
 // must be inspected and returned, not discarded, before publishing any event or
 // reporting success.
 interface AssignAssetInput { zoneId: ZoneId; assetId: AssetId; }
-type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, ValidationError | DomainError | ReferenceError | PersistenceError>>;
+// `created` is reported BY the command, not inferred by its caller: the command is the
+// only thing holding both endpoint locks at the moment it decides, so it is the only
+// thing that can answer truthfully. See "Who knows whether a Requirement was created".
+interface AssignAssetResult { requirement: Requirement; created: boolean; }
+type AssignAssetCommand = Command<AssignAssetInput, Result<AssignAssetResult, ValidationError | DomainError | ReferenceError | PersistenceError>>;
 // idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one.
 // ValidationError if the Asset's unit is not area-kind, or if zone.projectId !==
 // asset.projectId — both checked before any Requirement is constructed, see
@@ -1051,15 +1101,18 @@ type AssignAssetCommand = Command<AssignAssetInput, Result<Requirement, Validati
 // repository, not just the plain command.
 class ReversibleAssignAssetCommand implements UndoableCommand {
   constructor(
-    private readonly assignCommand: Command<AssignAssetInput, Result<Requirement, ValidationError | DomainError | ReferenceError | PersistenceError>>,
+    private readonly assignCommand: Command<AssignAssetInput, Result<AssignAssetResult, ValidationError | DomainError | ReferenceError | PersistenceError>>,
     private readonly requirementRepository: RequirementRepository,
     private readonly input: AssignAssetInput,
   );
-  // First call dispatches assignCommand and records BOTH the Requirement and whether
-  // this call created it or found an existing one — AssignAssetCommand is idempotent,
-  // so the two are indistinguishable from its payload alone, and an undo that deleted
-  // a pre-existing Requirement would destroy a link (and its overrides) the user never
-  // made in this gesture.
+  // First call dispatches assignCommand and records its whole AssignAssetResult —
+  // the Requirement AND the command's own `created` flag. The flag is read from the
+  // result, never inferred from a read the adapter took itself: AssignAssetCommand is
+  // idempotent, so the two outcomes are indistinguishable from the Requirement alone,
+  // and an undo that deleted a pre-existing Requirement would destroy a link (and its
+  // overrides) the user never made in this gesture. See "Who knows whether a
+  // Requirement was created" for why two concurrent tabs make inference actively
+  // wrong rather than merely awkward.
   //
   // Redo restores the recorded snapshot UNDER ITS ORIGINAL ID, but it is a
   // create like any other and revalidates before saving: it re-acquires both
@@ -1436,6 +1489,12 @@ are additive, not breaking.
       not the validity: it re-acquires both endpoint locks and re-runs
       `AssignAssetCommand`'s existence, project and unit-kind checks against the
       current entities, refusing rather than recreating a link that is no longer legal.
+- [ ] The adapter reads `created` from `AssignAssetResult`, never from its own
+      pre-dispatch read: two adapters assigning the same (zone, asset) concurrently see
+      `created: true` and `created: false` respectively, and the second's undo deletes
+      nothing. Driven by interleaving two adapters against one repository — an adapter
+      that inferred creation from a read taken before dispatch fails this and passes
+      every single-tab test.
 - [ ] A Requirement left dangling by `delete-anyway` on its **Asset** is still readable:
       `GetRequirementsForZone` returns the row with `assetName: null`,
       `missingTarget: 'asset'` and `"stale"`. The query neither fails nor silently omits
@@ -1542,6 +1601,13 @@ are additive, not breaking.
       cleared). The third is the one an adapter treating `null` as "nothing to restore"
       fails while passing the first two, and the comparison covers `estimatedCost` as well
       as the field edited, since a quantity override rewrites both.
+- [ ] A snapshot-restoring undo refuses rather than clobbers when the entity moved
+      underneath it: edit a Requirement through a second adapter (or land a
+      recalculation on it) between the first command's `execute()` and its `undo()`,
+      then undo — assert a conflict `ValidationError`, that the second edit is still
+      present, and that the command stayed on `undoStack`. Asserted for the override
+      adapters and for the delete resolutions' `affectedBefore` restore, which has more
+      entities to lose.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
       (§92 #1–3).
 

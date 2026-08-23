@@ -270,8 +270,10 @@ written, in the same shape as this slice's other multi-file sequences:
 
 On failure at ANY of steps 3, 4 or 5: move every file already moved back to the
 original folder, rebuild the index against the original folder, leave the setting
-unchanged, clear the marker, and return a PersistenceError. A failed folder change
-changes nothing at all.
+unchanged, and return a PersistenceError. A failed folder change changes nothing at
+all. The marker is cleared ONLY once that rollback is verified complete — every
+sidecar accounted for in `from` and none left in `to`. If the rollback itself fails
+part-way, the marker stays, so the next load still has the signal it needs.
 ```
 
 Step 5 before 6 and after 3 is the whole point: the setting is the *record* of where
@@ -292,6 +294,18 @@ clears it. Completing forward rather than reversing is the safer of the two, bec
 run, and because the alternative would have to undo a settings write that may already
 have happened. A marker whose `from` and `to` folders are both empty of sidecars is
 cleared as a no-op.
+
+**A rollback is itself a multi-file operation, so it does not get to clear the marker
+on faith.** Moving files back can fail for the same reasons moving them forward can,
+and a rollback that failed half-way leaves the split state the marker exists to
+describe — so clearing it there would destroy the only record that a migration is
+outstanding, and the next load would build an index over whichever folder the setting
+happens to name and quietly lose the rest. The marker therefore outlives its own
+sequence: it is cleared on exactly two conditions, a completed forward move or a
+verified-complete rollback, and on nothing else. Recovery on load does not need to know
+which direction the interrupted attempt was going; it completes forward from whatever
+split it finds, and a marker left by a failed rollback resolves the same way as one
+left by a crash.
 
 If the folder is empty of sidecars — no Plans yet, the common case — steps 3–4 are
 no-ops and the change is a marker write, a setting write, and a marker clear.
@@ -891,6 +905,11 @@ interface FindZonesByPlanQuery {
   Assert the move completes forward, the setting ends at `to`, the marker is cleared,
   and `getGeometrySidecarPath` resolves for every Plan — the recovery no rollback can
   perform, since the process that would have rolled back is gone.
+- **Failed-rollback test:** fail a move *and* fail one of the move-backs. Assert the
+  marker is still present afterwards, and that a subsequent plugin load resolves the
+  split and clears it. An implementation that clears the marker at the end of its
+  rollback path passes every other test here and loses the recovery signal only in
+  this one.
 - **Concurrent-write test:** issue two `save()` calls for different Zones on the same
   Plan without awaiting the first, and assert both entries are present in the sidecar
   afterwards. Written against the repository, not a dispatcher — the guarantee has to
@@ -967,7 +986,10 @@ interface FindZonesByPlanQuery {
     written before the first move and cleared only after the setting is persisted lets
     the next plugin load complete the interrupted move and clear the marker, before
     the index is built. Asserted from a fixture with a marker and a half-moved folder,
-    since this is the failure a rollback cannot cover.
+    since this is the failure a rollback cannot cover. The marker is cleared on exactly
+    two conditions — a completed forward move, or a rollback verified complete — so a
+    rollback that itself fails part-way leaves the signal in place rather than
+    destroying the only record that a migration is outstanding.
 7. Two concurrent `save()` calls for different Zones on the same Plan both survive: a
    test issues them without awaiting the first, then asserts the sidecar contains both
    entries. Serialization lives in `PlanGeometryStore.mutate`, so the test drives the

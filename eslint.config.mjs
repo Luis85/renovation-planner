@@ -2,6 +2,8 @@ import tsparser from '@typescript-eslint/parser';
 import tseslint from 'typescript-eslint';
 import { defineConfig } from 'eslint/config';
 import obsidianmd from 'eslint-plugin-obsidianmd';
+import pluginVue from 'eslint-plugin-vue';
+import vueParser from 'vue-eslint-parser';
 
 /**
  * The layers the SDD declares (§8), innermost last. Each may reach anything below it and
@@ -29,6 +31,20 @@ import obsidianmd from 'eslint-plugin-obsidianmd';
 const TESTS = '**/tests/**';
 
 /**
+ * Both extensions for one `src/` subtree. A block widened to `.vue` on the ban but not on
+ * its carve-out fails INWARD — the sink's own `.vue` files would be the one place a `.vue`
+ * file could not use the console — so the two are spelled by the same function.
+ *
+ * What actually catches a forgotten block is `tests/build/vue-rules.test.ts`, which
+ * exercises a layer ban, `no-console` and the carve-out through real `.vue` paths. This
+ * helper only makes the two spellings impossible to write apart by hand.
+ */
+const srcFiles = (subtree) => [`**/src/${subtree}/**/*.ts`, `**/src/${subtree}/**/*.vue`];
+
+/** Every SFC under `src/`, and the only files any Vue rule may be pointed at. */
+const VUE_FILES = ['**/src/**/*.vue'];
+
+/**
  * `groups` are sibling LAYERS this one may not reach; `packages` are npm packages it may
  * not name at all. Both in one rule because both are the same statement — what this layer
  * is not allowed to know about — and because two `no-restricted-imports` entries for one
@@ -38,7 +54,7 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
 	// `**/`-anchored like TESTS above, and for the same reason: patterns match against
 	// the linter's base path, which an editor's ESLint server need not put where the
 	// CLI does.
-	files: [`**/src/${layer}/**/*.ts`],
+	files: srcFiles(layer),
 	rules: {
 		'no-restricted-imports': [
 			'error',
@@ -86,6 +102,16 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
 	...c,
 	ignores: [...(c.ignores ?? []), TESTS],
 }));
+
+/**
+ * `eslint-plugin-vue`'s flat configs carry NO `files` of their own, so spreading them as
+ * shipped applies every Vue rule to every linted file — and that is not a style objection:
+ * `vue/multi-word-component-names` loading against `package.json` throws
+ * `Cannot read properties of undefined (reading 'getDocumentFragment')` and takes the whole
+ * `npm run lint` run down with it, measured. Scoped to `src/`'s SFCs, the same way the
+ * obsidianmd ruleset above is scoped away from `tests/`.
+ */
+const vueRules = pluginVue.configs['flat/recommended'].map((c) => ({ ...c, files: VUE_FILES }));
 
 /**
  * Every mutation of the vault goes through `src/infrastructure/`, so the write-safety
@@ -333,7 +359,9 @@ export default defineConfig([
 		// rather than merging it: the block below repeats the shared SVG selectors for
 		// that reason, and any further carve-out must do the same. `**/`-anchored like
 		// every other block, for the base-path reason TESTS states.
-		files: ['**/src/**/*.ts'],
+		// Both globs literally rather than routed through `srcFiles`: `**/src/**/**/*.ts` is
+		// a needlessly clever spelling of the same set.
+		files: ['**/src/**/*.ts', '**/src/**/*.vue'],
 		ignores: ['**/src/infrastructure/obsidian/**'],
 		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
@@ -342,7 +370,7 @@ export default defineConfig([
 		// shared ban still applies, restated per the override warning above — including
 		// I18N_LITERAL_BAN: infrastructure/obsidian/ may show its own UI (a Notice, an
 		// error surface) and that text is exactly as translatable as a view's.
-		files: ['**/src/infrastructure/obsidian/**/*.ts'],
+		files: srcFiles('infrastructure/obsidian'),
 		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
 	{
@@ -350,7 +378,7 @@ export default defineConfig([
 		// packages: the host-free layers may not reach the browser either. A DIFFERENT
 		// rule key than the block above, so the two merge rather than override. Named
 		// globals rather than a category — this check sees exactly these spellings.
-		files: ['**/src/core/**/*.ts', '**/src/domain/**/*.ts'],
+		files: [...srcFiles('core'), ...srcFiles('domain')],
 		rules: {
 			'no-restricted-globals': [
 				'error',
@@ -393,6 +421,47 @@ export default defineConfig([
 			'no-console': 'error',
 		},
 	},
+	...vueRules,
+	{
+		files: VUE_FILES,
+		languageOptions: {
+			parser: vueParser,
+			// The TypeScript parser INSIDE the SFC, so `<script setup lang="ts">` parses.
+			// Deliberately without `projectService`: type-aware linting of SFCs needs
+			// `extraFileExtensions` and a file the project service can resolve, which the
+			// fixture technique in tests/build/vue-rules.test.ts cannot supply. So
+			// `@typescript-eslint/no-floating-promises` stays on `.ts` only, and the first
+			// SFC with an async call site is the trigger to wire the type-aware half.
+			parserOptions: { parser: tsparser },
+		},
+		rules: {
+			// Each of these six is the CHECK under a rule in docs/setup/vue-conventions.md,
+			// and `flat/recommended` enables none of them.
+			'vue/component-api-style': ['error', ['script-setup']],
+			'vue/block-lang': ['error', { script: { lang: 'ts' } }],
+			'vue/define-props-declaration': ['error', 'type-based'],
+			'vue/define-emits-declaration': ['error', 'type-based'],
+			// This project's override of Vue's scoped-styles guidance: the marketplace
+			// rejects inline styles and the plugin's CSS is assembled from `styles/`.
+			'vue/no-restricted-block': ['error', 'style'],
+			'vue/component-name-in-template-casing': ['error', 'PascalCase'],
+			// `flat/recommended` brings `vue/html-indent` defaulting to TWO SPACES, and this
+			// repository indents with tabs — `.ts`, `.vue`, `.json` and `.css` alike. Told the
+			// project's format rather than reformatting one file away from every other: a
+			// formatting rule has no opinion worth overriding the project's with. Checked by a
+			// fixture in tests/build/vue-rules.test.ts, so this is not a silencing.
+			'vue/html-indent': ['error', 'tab'],
+			// The budgets and the console ban the `**/*.ts` block gives every other file.
+			// Repeated rather than inherited: that block is `.ts`-scoped by design, since
+			// its parser options are.
+			'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }],
+			'max-lines-per-function': ['error', { max: 100, skipBlankLines: true, skipComments: true }],
+			complexity: ['error', 16],
+			'max-depth': ['error', 4],
+			'max-params': ['error', 5],
+			'no-console': 'error',
+		},
+	},
 	{
 		// The one directory whose job IS the console. A per-directory block REPLACES this
 		// rule for these files rather than merging with it — the same flat-config
@@ -423,7 +492,7 @@ export default defineConfig([
 		// that matches the built-in rule's rendered message against a literal and reports
 		// NOTHING on a miss. A reworded message would turn the marketplace check off here
 		// silently.
-		files: ['**/src/infrastructure/logging/**/*.ts'],
+		files: srcFiles('infrastructure/logging'),
 		rules: { 'no-console': 'off' },
 	},
 	{

@@ -44,3 +44,35 @@ export interface ResolvedConfig {
 
 /** A rule's severity in a resolved config: 0 off, 1 warn, 2 error; `undefined` if absent. */
 export const severityOf = (config: ResolvedConfig, rule: string): unknown => config.rules[rule]?.[0];
+
+/**
+ * The rule ids ESLint reports for `code` treated as `filePath`.
+ *
+ * `lintText` resolves the REAL flat config for that path — the same globs, the same
+ * per-directory blocks, the same parser — without a file on disk, which is what makes a
+ * fixture possible at all: a conforming-except-one-rule `.vue` file committed under `src/`
+ * would fail `npm run lint` for the whole repository, and a fixture parked outside `src/`
+ * would be linted by different blocks than the ones under test.
+ *
+ * Rule IDS rather than the exit code, deliberately: a bare exit code cannot tell six rules
+ * apart, so a fixture that went red for its own unrelated reason would read as a pass.
+ *
+ * Three outcomes, kept distinct because they are three different defects and a caller
+ * reading only "the rule id is missing" would confuse them:
+ *
+ * - a rule id — that rule reported.
+ * - `PARSE_ERROR` — a message with no rule id, which is what a block whose parser cannot
+ *   read the file produces (an SFC lacking `vue-eslint-parser`, say).
+ * - `NOT_LINTED` — ESLint returned NO result for the path at all. Under flat config a file
+ *   matching no block's `files` is not linted rather than linted with no rules, so an empty
+ *   result means the extension is outside the config entirely. Named rather than left to
+ *   throw a `TypeError` on `undefined`, which is what the first version of this did and
+ *   which reads as a bug in the helper rather than a finding about the config.
+ */
+export const lintText = async (code: string, filePath: string): Promise<string[]> => {
+	const [result] = await eslint.lintText(code, { filePath, warnIgnored: false });
+
+	if (result === undefined) return ['NOT_LINTED'];
+
+	return result.messages.map((message) => message.ruleId ?? 'PARSE_ERROR');
+};

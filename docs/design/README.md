@@ -46,21 +46,25 @@ bug where they disagree). Two files under `docs/setup/` are narrower but binding
 own areas, and a slice that touches those areas is expected to have been read against
 them:
 
-- **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules every
-  slice that touches Vue is written against: **slice 1** (which adds Vue itself and owns
-  the arrival checklist in §1) and the presentation slices 5, 6 and 13–17. Where a slice
-  departs from it, the departure is named in that slice's **References**, not left to be
-  discovered.
+- **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules. It
+  binds **any slice that specifies a `.vue` component, a Pinia store, a composable, or the
+  build wiring for any of them.** That is a rule rather than a list on purpose. Two drafts
+  of this bullet carried a list instead: the first was "the presentation slices (5, 6,
+  13–17)", which omitted slice 1 — the slice that installs Vue and writes the build configs,
+  and the one that was actually wrong. The second added slice 1 and still omitted slice 10,
+  which adds a Requirements panel to the Inspector and specifies its component tests.
 
-  A first draft of this bullet scoped the pass to "5, 6, 13–17" and left slice 1 out — the
-  slice that installs Vue, writes both build configs and ships the first `.vue` file, and
-  the one that turned out to be wrong. It claimed `@vitejs/plugin-vue` in `vite.config.ts`
-  and "nothing else about the build config changes", missing the harness config, `vue-tsc`,
-  the `tsconfig` include and the Vue ESLint setup. Scoping a conformance pass to the slices
-  that look like presentation, rather than to the ones that touch the thing, is how the
-  defect ends up outside the sweep.
+  Both misses have the same cause, and it is the reason the rule replaced the list: a
+  membership test you apply by recognising which documents are *about* Vue will keep
+  missing the ones that merely *touch* it, and it goes stale the moment a slice grows its
+  first component. CLAUDE.md states this directly — a table that enumerates code goes
+  stale, a table that states a rule does not — and it took two findings here to apply it.
+  The test is now mechanical: does this slice name a `.vue` file, a store, a composable, or
+  the config that builds one?
 
-  The departures today are **two**, both in slice 13 and both parts of one decision:
+  Where a slice departs from the conventions, the departure is named in that slice's
+  **References**, not left to be discovered. The departures today are **two**, both in
+  slice 13 and both parts of one decision:
   - **§5, one Pinia per view app** — `NotificationStore` is plugin-global.
   - **§6, apps created in a view's `onOpen` and unmounted in `onClose`** — the
     `NotificationHost` app is created in `RenovationPlannerPlugin.onload()` and

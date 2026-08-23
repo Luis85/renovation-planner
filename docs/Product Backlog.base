@@ -5,6 +5,11 @@ filters:
 views:
   - type: product-backlog
     name: Backlog
+    order:
+      - file.name
+      - horizon
+      - iteration
+      - status
     homeFolder: docs
     openIn: split
     stateProperty: note.status
@@ -19,6 +24,49 @@ views:
     dependsOnProperty: note.dependsOn
     iterationProperty: note.iteration
     iterationGoalProperty: note.goal
+    inferFolderHierarchy: false
+    hierarchyOnly: true
+    stateValues: New, Ready, Active, Resolved, Done
+    startedStates: Active
+    deliverableStateValues: New, Active, Done
+    iterationOpenStates: Ready
+    iterationResolvedStates: Resolved
+    iterationsOnTimeline: false
+    testStateValues: Draft, Ready, Approved
+    typeFolder.absence: docs/absences
+    stateColor.ready: "#e6cb1e"
+    stateColor.active: "#0e41b9"
+  - type: table
+    name: Business rules
+    filters:
+      and:
+        - file.inFolder("docs/business-rules")
+    groupBy:
+      property: area
+      direction: ASC
+    order:
+      - rule
+      - file.name
+      - kind
+      - area
+    columnSize:
+      file.name: 541
+  - type: table
+    name: ADRs
+    filters:
+      and:
+        - file.inFolder("docs/adrs")
+    groupBy:
+      property: area
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - area
+    columnSize:
+      file.name: 541
+      note.status: 99
+      note.area: 122
   - type: table
     name: Actors
     filters:
@@ -43,18 +91,3 @@ views:
       - layer
       - persistence
       - partOf
-  - type: table
-    name: Business rules
-    filters:
-      and:
-        - file.inFolder("docs/business-rules")
-    groupBy:
-      property: area
-      direction: ASC
-    order:
-      - rule
-      - file.name
-      - kind
-      - area
-    columnSize:
-      file.name: 541

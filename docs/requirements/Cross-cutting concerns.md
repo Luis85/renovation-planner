@@ -1,10 +1,10 @@
 ---
 type: Epic
 order: 10
-status: ""
-started: ""
+status: Active
+started: 2026-08-23
 finished: ""
-horizon: ""
+horizon: Now
 start: ""
 due: ""
 risk: ""

@@ -2,16 +2,15 @@
 type: PBI
 parent: "[[Architecture and Software Design]]"
 order: 40
-status: ""
+status: New
 started: ""
 finished: ""
-horizon: ""
-start: ""
-due: ""
+horizon: Now
+start: 2026-08-23
+due: 2026-09-05
 risk: ""
 priority: ""
 assignee: ""
-iteration: ""
 ---
 # Errors, diagnostics and the test harness
 

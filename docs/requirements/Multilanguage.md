@@ -5,7 +5,7 @@ order: 10
 status: ""
 started: ""
 finished: ""
-horizon: ""
+horizon: MVP
 start: ""
 due: ""
 risk: ""

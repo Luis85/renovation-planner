@@ -2,16 +2,15 @@
 type: PBI
 parent: "[[Architecture and Software Design]]"
 order: 30
-status: ""
+status: New
 started: ""
 finished: ""
-horizon: ""
-start: ""
-due: ""
+horizon: Now
+start: 2026-08-23
+due: 2026-09-05
 risk: ""
 priority: ""
 assignee: ""
-iteration: ""
 ---
 # Quantity, cost and the end-to-end loop
 

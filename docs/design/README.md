@@ -61,8 +61,24 @@ them:
   wrong reports a nonconforming slice as conforming, and does it with more authority than
   no inventory at all. The store cannot be plugin-global without an app to mount its host
   into, so listing one and not the other was never a defensible split.
-- **`docs/setup/quality-harness.md`** — what `npm run check` refuses, which is what a
-  slice's Definition of Done is ultimately asserting against.
+- **`docs/setup/quality-harness.md`** — the harness's rationale: what each gate refuses
+  and why, which is the reasoning a Definition of Done should be written in the spirit of.
+  It is a **build-this-from-nothing guide describing a target**, not a description of the
+  gate as it stands: it specifies five steps under `npm run check` including
+  `npm run docs`, and four of those five are live. There is no `docs` script and no
+  `scripts/docs-check.mjs` — CLAUDE.md lists that register gate under "Deliberately
+  absent", to arrive when `docs/` has a convention worth enforcing (the guide's §5 is what
+  to build then).
+
+  **A slice's Definition of Done is written against the four gates that exist**, which
+  are `package.json`'s `check` — build, lint, `test:coverage`, analyze — as CLAUDE.md's
+  "Definition of done" states them. A first draft of this bullet called the guide "what
+  `npm run check` refuses", which would have pointed a slice at a fifth gate nothing runs.
+  That is the same defect as the inventory above and as the testability claim in slice 16:
+  a sentence describing a mechanism that is not there. Three of them in one pull request
+  whose subject is documents disagreeing with each other is not an irony worth polishing
+  away — it is the measurement, and it is why the last paragraph of this section says what
+  it says.
 
 Neither is checked mechanically against these documents. That is worth stating rather
 than implying: a slice conforming is a review outcome, and the conformance a slice

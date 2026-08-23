@@ -51,19 +51,19 @@ jobs:
       # is plain expression text with no surrounding quotes, so it would be invisible to
       # that scan and would silently drop this job's floor pin from what the test can
       # see. Each leg's version is a literal quoted string for that reason.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: ${{ matrix.node == '22' }}
         with:
           node-version: "22"
           cache: npm
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: ${{ matrix.node == '24' }}
         with:
           node-version: "24"
           cache: npm
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: ${{ matrix.node == '26' }}
         with:
           node-version: "26"
@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 

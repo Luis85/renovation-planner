@@ -165,17 +165,37 @@ const SVG_CLASS_TOKENS = [
  *
  * The spellings these SEE: a string literal passed directly as the argument to
  * `.setText(...)`, and a string literal that IS the `value` field of a `text` property
- * (bare `key.name` or quoted `key.value`, same reason as `CLS_KEY`) inside an object
- * argument to `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`. `Literal.value`
- * pins the match to that specific AST field — not `Literal` alone, which is a descendant
- * search and would also match a Literal nested ANYWHERE under the property, including the
- * key string 'text' itself when the key is quoted, and including a string literal buried
- * inside a call sitting as the value. That last case is exactly `tr('some.key')`: without
- * the field pin, the selector matched the Literal argument INSIDE the `tr(...)` call and
- * rejected the idiomatic `{ text: tr('x') }`, which is the opposite of this rule's intent.
- * A call to `t`/`tr` is a CallExpression at the value position itself, not a Literal, so
+ * that is itself a DIRECT property of the options object — the actual DOM-info argument
+ * of `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`, not any object nested inside
+ * it. `createDiv(options)`/`createSpan(options)` take that object as the FIRST argument;
+ * `createEl(tag, options)` takes it as the SECOND. The selector does not hard-code either
+ * position — `CallExpression > ObjectExpression.arguments` matches whichever argument is
+ * the object literal, since a tag argument is a string and never an `ObjectExpression`,
+ * so at most one argument can ever match regardless of where it sits.
+ *
+ * Three combinators, each pinning one hop of that path, and each closes a real
+ * over-match this rule shipped with and a reviewer caught by building it:
+ *   - `CallExpression > ObjectExpression.arguments` — the options object must be a
+ *     direct ARGUMENT of the call. Without this, `el.createDiv(makeOptions({ text: … }))`
+ *     would still be reachable by the rest of the selector, and worse, a completely
+ *     unrelated call three levels down would be too.
+ *   - `> :matches(Property[key.name='text'], Property[key.value='text'])` — that `text`
+ *     key must be a direct PROPERTY of the options object, not of an object nested
+ *     inside it. Obsidian's `DomElementInfo.attr` is exactly that nesting:
+ *     `createDiv({ attr: { text: 'internal-token' } })` sets an HTML `text` ATTRIBUTE,
+ *     which is not rendered copy and has nothing to do with `t`/`tr` — the first shipped
+ *     version of this selector used a descendant combinator here and flagged it anyway,
+ *     with no inline-suppression escape available (`linterOptions.noInlineConfig`), which
+ *     is what made it a real defect rather than a false positive with a way out.
+ *   - `> Literal.value` — the literal must be the `value` FIELD of that property, not
+ *     something nested inside it. `Literal.value` is esquery's field selector: without
+ *     it, `{ text: tr('some.key') }` matched the string argument INSIDE the `tr(...)`
+ *     call and rejected the idiomatic form this rule exists to allow — the first
+ *     round's defect, fixed by this pin alone before the `attr` case above was found.
+ * A call to `t`/`tr` is a CallExpression at that `value` position, not a Literal, so
  * `el.setText(tr('x'))` and `createSpan({ text: tr('x') })` both pass untouched — that is
- * the whole mechanism, and it depends on checking that exact position and no other.
+ * the whole mechanism, and every hop above exists to keep it checking that exact
+ * position and nothing else nearby.
  *
  * What they cannot see: a literal one hop away from the call (`const label = 'Cancel';
  * el.setText(label)`), a template literal even with no interpolation — `setText(`Cancel`)`
@@ -196,7 +216,7 @@ const I18N_LITERAL_BAN = [
 			"setText received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
 	},
 	{
-		selector: `CallExpression[callee.property.name=/^(createEl|createDiv|createSpan)$/] ${TEXT_KEY} > Literal.value[value=/\\S/]`,
+		selector: `CallExpression[callee.property.name=/^(createEl|createDiv|createSpan)$/] > ObjectExpression.arguments > ${TEXT_KEY} > Literal.value[value=/\\S/]`,
 		message:
 			"createEl/createDiv/createSpan's text option received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
 	},

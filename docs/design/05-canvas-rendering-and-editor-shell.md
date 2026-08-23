@@ -434,18 +434,24 @@ otherwise take, and the Vault-file path covers the PRD's stated flow.
 
 Dispatched through `CommandHistory` like every other user-triggered mutation, with a
 `ReversibleSetPlanBackgroundCommand` adapter whose `undo()` restores the previous
-`PlanBackgroundRef` (or `null`, for the first import) — the same snapshot-and-restore
-shape slice 10's adapters use.
+`PlanBackgroundRef` (or `null`, for the first import). That is a **snapshot inverse**, and
+it takes slice 6's *snapshot-inverse contract* rather than restating its obligations —
+snapshot before the forward write, restore conditional on the version that write produced,
+and no event re-emitted, since a background reference is one field on one note with no
+cascade behind it. Obligation 3 (the compensated-sequence contract) does not apply: this
+is a single-file write.
 
-That undo is conditional, and the mechanism is slice 3's: `PlanRepository.save` takes the
-`expected` version and compares-and-writes as one operation, so an undo presenting the
-version its own `execute()` returned refuses with `plan.revision-conflict` — or
+The conditional half is worth naming concretely because this slice is where it first
+appears: the mechanism is slice 3's `PlanRepository.save` taking `expected` and
+comparing-and-writing as one operation, so an undo presenting the version its own
+`execute()` returned refuses with `plan.revision-conflict` — or
 `plan.external-modification`, if the note was changed outside the plugin — rather than
-overwriting a background someone set since, from another tab, another synced device, or
-by hand. Undo passes the version `execute()` returned; it does not re-read to find one,
-which would be the check-then-act this design rejects.
-An earlier draft of this section claimed the undo was conditional without naming any
-mechanism capable of enforcing it, which was a promise with nothing behind it.
+overwriting a background someone set since, from another tab, another synced device, or by
+hand. Undo passes the version `execute()` returned; it does not re-read to find one, which
+would be the check-then-act this design rejects. An earlier draft of this section claimed
+the undo was conditional without naming any mechanism capable of enforcing it, which was a
+promise with nothing behind it — and the shared contract exists so the next slice cannot
+make that promise without inheriting the mechanism.
 
 Slice 14's `noBackground` empty state dispatches exactly this, and slice 7's
 `CalibrateTool` requires it to have run — neither reimplements it, and neither is left

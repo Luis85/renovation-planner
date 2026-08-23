@@ -503,7 +503,7 @@ interface CalibratePlanInput {
   planId: PlanId;
   pointA: Point;
   pointB: Point;
-  knownDistance: number;
+  knownDistance: number; // world units (mm), like every length here — ADR-009
 }
 class CalibratePlanCommand
   implements Command<CalibratePlanInput, Result<{ plan: Plan }, ReferenceError | ValidationError | CalculationError | PersistenceError>> { /* … */ }

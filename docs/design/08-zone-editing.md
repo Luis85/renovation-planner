@@ -292,11 +292,15 @@ execute(): snapshot := read the full Zone entity + its sidecar geometry entry vi
            clear selection if it pointed at this zone
            return result
 
-undo():    this is a compensated multi-entity sequence, so it takes slice 10's contract
-                        for one whole — both lock levels, held through the compensation,
-                        and a durable marker. Not "the same idea as" the forward
-                        resolution: the same contract, because it is the same sequence
-                        run backwards
+undo():    a SNAPSHOT INVERSE, so it takes slice 6's snapshot-inverse contract whole,
+                        which for a multi-file restore includes slice 10's
+                        compensated-sequence contract — both lock levels, held through
+                        the compensation, and a durable marker. Not "the same idea as"
+                        the forward resolution: the same contract, because it is the
+                        same sequence run backwards. Obligation 4 lands on the other
+                        side here than in slice 7: this publishes NOTHING, because the
+                        Zone was restored rather than created (see "Not a domain-event
+                        subscriber" below for how the canvas still updates)
            level 1:  the Zone being restored, and every OTHER endpoint the restored
                         Requirements point at — one sorted batch
            level 2:  every Requirement in affectedBefore — one sorted batch, after
@@ -481,7 +485,9 @@ because a counter is a second thing to keep correct next to a queue this decorat
 anyway.
 
 **Not a domain-event subscriber**, which is the obvious alternative and the wrong one
-here: the undo paths in this slice deliberately publish nothing a `ZoneCreated`
+here — and it is slice 6's obligation 4 that says which side of the line these fall on: a
+lifecycle event is never re-emitted by a restore. The undo paths in this slice deliberately
+publish nothing a `ZoneCreated`
 subscriber would hear. `ReversibleDeleteZoneCommand.undo()` restores through the
 repository precisely so a restore is not announced as a creation, and
 `ReversibleCreateZoneCommand`'s redo restores the same way. A refresh keyed on events
@@ -614,30 +620,22 @@ class SelectTool implements EditorTool {
 ```
 
 ```typescript
-// application/commands/zone/CreateZone.ts (slice 3, consumed here verbatim —
-// geometry is already validated by the time DrawPolygonTool builds this input,
-// see Design/Validation)
-interface CreateZoneInput {
-  planId: PlanId;
-  name: string;
-  zoneType: ZoneType;
-  geometry: Polygon;
-  domainNoteLink?: string;
-}
-class CreateZoneCommand implements Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>> {
-  execute(input: CreateZoneInput): Promise<Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>>;
-}
-
-// application/commands/zone/MoveSpatialObject.ts (slice 3, consumed here
-// verbatim — a plain Command taking a full replacement geometry, not a delta;
-// this slice wraps it in slice 6's ReversibleMoveZoneCommand adapter rather
-// than making it implement UndoableCommand directly)
-// `expected` is slice 3's optional field — the whole EntityVersion; this slice's tools
-// leave it absent on the forward gesture and slice 6's adapters fill it in for every
-// inverse.
-interface MoveSpatialObjectInput { zoneId: ZoneId; geometry: Polygon; expected?: EntityVersion }
-class MoveSpatialObjectCommand
-  implements Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | PersistenceError>> { /* … */ }
+// Slice 3's commands are REFERENCED here, not redefined — slice 11's
+// `// (slice N, referenced here)` convention, adopted for the reason this document
+// itself demonstrates: a restated input silently loses a field the original carries, and
+// slice 10's copy of DeleteZoneInput dropped `expected`, un-specifying an undo in THIS
+// slice. Both restatements below were drift-free at the time of writing, which is not a
+// property a copy keeps.
+//
+// CreateZoneInput / CreateZoneCommand (slice 3) — consumed unchanged. Geometry is
+//   already validated by the time DrawPolygonTool builds an input, see
+//   Design/Validation.
+// MoveSpatialObjectInput / MoveSpatialObjectCommand (slice 3) — consumed unchanged. A
+//   plain Command taking a full replacement geometry, not a delta, which this slice
+//   wraps in slice 6's ReversibleMoveZoneCommand rather than making it implement
+//   UndoableCommand directly. Its optional `expected` field carries the whole
+//   EntityVersion: this slice's tools leave it absent on the forward gesture, and slice
+//   6's adapters fill it in for every inverse, from WriteLedger.
 
 // application/commands/zone/ReversibleCreateZoneCommand.ts (new) — beside the delete
 // adapter it mirrors, and for the same reason: both need the repository port, because
@@ -689,9 +687,11 @@ class ReversibleMoveZoneVertexCommand implements UndoableCommand {
   );
   // Both operations go through the same conditional dispatch slice 6 specifies:
   // the first execute() carries no expectation, and every operation after it presents
-  // the EntityVersion this adapter's own previous write returned. Sharing the mechanism
-  // rather than the words is the point — an adapter that re-derived it is where the
-  // unconditional replay comes back.
+  // the EntityVersion THIS EDITOR'S HISTORY last wrote for the entity, read from
+  // WriteLedger — not this adapter's own last write, which goes stale the moment a
+  // sibling command touches the same Zone. Sharing the mechanism rather than the words
+  // is the point — an adapter that re-derived it is where the unconditional replay
+  // comes back.
   execute(): Promise<Result<void, AppError>>;
   undo(): Promise<Result<void, AppError>>; // restores the prior point list, so only that vertex differs
 }

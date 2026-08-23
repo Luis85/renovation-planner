@@ -337,14 +337,13 @@ publishing the `ZoneGeometryChanged` slice 10's own subscriber already listens f
 never by publishing a Requirement-domain event Plan-calibration code has no business
 naming):
 
-```typescript
-interface CalibratePlanInput {
-  planId: PlanId;
-  pointA: Point;
-  pointB: Point;
-  knownDistance: number; // world units (mm)
-}
+`CalibratePlanInput` is slice 3's, consumed unchanged and **not restated here** —
+`{ planId, pointA, pointB, knownDistance }`, with `knownDistance` in world millimetres
+like every other length (ADR-009). It was written out twice in this document, and the two
+copies had already drifted on exactly that unit note, which is the one part of the shape a
+reader cannot infer from the field names.
 
+```typescript
 class ReversibleCalibratePlanCommand implements UndoableCommand {
   async execute(): Promise<Result<void, ReferenceError | ValidationError | CalibrationError | PersistenceError>> {
     // 1. load Plan (+ its spatial objects) via repositories (slice 3/4)
@@ -361,7 +360,10 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
     //    rather than duplicating it.
   }
 
-  async undo(): Promise<Result<void, CalibrationError | PersistenceError>> {
+  // A snapshot inverse: it takes slice 6's SNAPSHOT-INVERSE CONTRACT whole rather than
+  // re-deriving its obligations. What follows is that contract applied to this command,
+  // including obligation 4 — a change event is re-emitted, a lifecycle event would not be.
+  async undo(): Promise<Result<void, PersistenceError>> {
     // 0. present the sidecar EntityVersion that execute()'s own write returned, so the
     //    restore refuses — plan-geometry.revision-conflict for another writer,
     //    plan-geometry.external-modification for someone editing the .rpgeo file by
@@ -387,6 +389,10 @@ class ReversibleCalibratePlanCommand implements UndoableCommand {
     //    that skipped them would leave those quantities and costs describing
     //    geometry that no longer exists, marked "current". Bypassing the command
     //    layer for the WRITE does not license bypassing it for the CASCADE.
+    //    This is obligation 4's re-emit half, and it is not in tension with slice 8's
+    //    delete-undo publishing nothing: the geometry genuinely changed in both
+    //    directions, so ZoneGeometryChanged is TRUE both times, where a ZoneCreated on a
+    //    restore would be false. Change events are replayed; lifecycle events are not.
   }
 }
 ```
@@ -444,15 +450,18 @@ interface Plan {
 // CalibratePlan; named ReversibleCalibratePlanCommand here — see Design — to avoid
 // colliding with slice 3's plain, non-undoable CalibratePlanCommand)
 
-interface CalibratePlanInput {
-  planId: PlanId;
-  pointA: Point;
-  pointB: Point;
-  knownDistance: number;
-}
+// CalibratePlanInput — slice 3's, consumed unchanged, not redefined here.
+// `{ planId, pointA, pointB, knownDistance }`, knownDistance in world millimetres.
 
 class ReversibleCalibratePlanCommand implements UndoableCommand {
   execute(): Promise<Result<void, ReferenceError | ValidationError | CalibrationError | PersistenceError>>;
+  // Narrower than execute() on purpose, and this is the authoritative signature: undo
+  // restores a snapshot and reverses a multiplication it already computed. It derives no
+  // calibration, so no CalibrationError is reachable — its only failure is the write, or
+  // the version check refusing it (plan-geometry.revision-conflict /
+  // plan-geometry.external-modification, both PersistenceError). The Design section's
+  // sketch of undo() above carried the wider union; the body it sketches is what says
+  // otherwise, and the body is right.
   undo(): Promise<Result<void, PersistenceError>>;
 }
 ```

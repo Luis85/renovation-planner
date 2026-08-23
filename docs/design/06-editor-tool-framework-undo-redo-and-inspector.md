@@ -120,13 +120,11 @@ derived/working copies, never canonical data, but tools may read it).
 
 ### Undoable commands and command history
 
-Slice 3 defines the plain application command:
-
-```typescript
-interface Command<TInput, TResult> {
-  execute(input: TInput): Promise<TResult>;
-}
-```
+Slice 3 defines the plain application command — `Command<TInput, TResult>`, one
+`execute(input)` resolving `Promise<TResult>`. Referenced, not redeclared: slice 11's
+`// (slice N, referenced here) — not redefined` style is the convention across these
+documents, and a second declaration beside its consumers is how two versions of one port
+start drifting.
 
 Editor gestures need a reversible form. Per SDD §30, adapted to this codebase's
 `Result`-returning commands (SDD §30's own sketch predates slice 3's correction that
@@ -379,6 +377,51 @@ reaches redo except by being undone — and a dropped entry is dropped silently:
 user "your hundredth-from-last edit is no longer undoable" is a notification about a
 limit they have not hit and cannot act on.
 
+### The snapshot-inverse contract
+
+Some operations have no inverse to replay. A move does — the same command with the
+before-geometry — but a delete has no "delete the opposite thing", a background import has
+no "un-import", and a recalibration has no "recalibrate to the reciprocal scale" worth
+making. Those adapters capture a **snapshot** and restore it, bypassing the command layer
+and writing through the repository directly.
+
+That shape recurs across at least four slices (5's background import, 7's calibration, 8's
+delete and create, 10's assignment), and each one arriving with its own paragraph of
+obligations is how one of them ships missing one — slice 8's delete-undo shipped with
+endpoint locks and none of the compensation discipline, which slice 10 had already worked
+out. So the obligations are one contract, stated here because this is where
+`UndoableCommand` lives, and referenced rather than re-derived:
+
+1. **The snapshot is taken before the forward write**, not reconstructed after. Once the
+   delete succeeds the data is gone; once the rescale succeeds the original coordinates are
+   not recoverable from what is on disk.
+2. **The restore is conditional on the version the forward write produced**, presented
+   through `WriteLedger` per the section above. A snapshot inverse is valid only against
+   the state it was computed for, and a lock that orders the undo against a concurrent
+   write is what makes the hazard *reachable*, not what prevents it.
+3. **A restore that touches more than one file takes slice 10's compensated-sequence
+   contract whole** — both lock levels, held through the compensation, and a durable
+   marker. Not "the same idea as": the same contract, because a multi-file restore is a
+   multi-file sequence run backwards.
+4. **Events are re-emitted selectively, and the rule is the event's own meaning** — this
+   is the one obligation where the right answer differs per slice, so it is a rule rather
+   than an instruction:
+
+   > Re-emit the **change** events `execute()` emitted. Never re-emit a **lifecycle**
+   > event.
+
+   Slice 7's calibration undo re-emits `ZoneGeometryChanged` for every object it
+   un-rescaled, and must: `execute()`'s events drove slice 10 to recalculate every
+   Requirement against the rescaled areas, so an undo that skipped them leaves those
+   quantities describing geometry that no longer exists, marked `"current"`. The geometry
+   did change, both times, so the event is true both times. Slice 8's
+   `ReversibleDeleteZoneCommand.undo()` deliberately publishes **nothing**, and must not:
+   the Zone was restored, not created, so `ZoneCreated` would be false — and slice 8's
+   own editor-state refresh sits on `CommandHistory` rather than on events precisely so
+   the canvas still updates. Bypassing the command layer for the *write* never licenses
+   bypassing it for a *cascade*; it also never licenses inventing a cascade that did not
+   happen.
+
 ### Transaction boundary
 
 SDD §31's rule, generalized beyond the one example it gives:
@@ -622,10 +665,9 @@ interface SelectionStore {
   isSelected(id: EntityId<string>): boolean;
 }
 
-// application ports consumed here, defined in slice 3
-interface Command<TInput, TResult> {
-  execute(input: TInput): Promise<TResult>;
-}
+// application/commands — Command<TInput, TResult> (slice 3, referenced here) — not
+// redefined. One method, `execute(input: TInput): Promise<TResult>`. This is the one
+// declaration of it in this document; the Design section above points here.
 
 // presentation/editor/tools/undoable-command.ts
 interface UndoableCommand {

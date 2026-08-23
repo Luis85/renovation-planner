@@ -292,13 +292,27 @@ execute(): snapshot := read the full Zone entity + its sidecar geometry entry vi
            clear selection if it pointed at this zone
            return result
 
-undo():    acquire the reference locks for the Zone and for every endpoint the
-                        restored Requirements point at, as ONE sorted acquisition
-                        (slice 10's canonical order) — held through the whole restore
-           REVALIDATE against current state: every endpoint still exists, still shares
-                        the project, and still has a unit of the kind each restored
-                        Requirement's quantity was computed in. Refuse the whole undo
-                        if any check fails — see below
+undo():    this is a compensated multi-entity sequence, so it takes slice 10's contract
+                        for one whole — both lock levels, held through the compensation,
+                        and a durable marker. Not "the same idea as" the forward
+                        resolution: the same contract, because it is the same sequence
+                        run backwards
+           level 1:  the Zone being restored, and every OTHER endpoint the restored
+                        Requirements point at — one sorted batch
+           level 2:  every Requirement in affectedBefore — one sorted batch, after
+                        level 1. Endpoint locks alone do not exclude an ordinary
+                        override edit, and an override edit on an already-restored
+                        Requirement is what makes this undo's own compensation refuse
+           REVALIDATE against current state, EXCLUDING the Zone this undo is restoring:
+                        every other endpoint still exists, still shares the project, and
+                        still has a unit of the kind each restored Requirement's
+                        quantity was computed in. The Zone is deliberately absent — that
+                        is what "undo a delete" means — and it is restored first, so it
+                        exists by the time any Requirement referencing it is written.
+                        Requiring it to exist beforehand would refuse every undo that
+                        touched a Requirement, which is every undo this check was
+                        written for. Refuse the whole undo if any check fails — see below
+           write the marker (kind 'delete-undo') before the first write
            postDelete := read the CURRENT state of the Zone and of every entity in
                         affectedBefore, before overwriting any of them — absent is
                         a state, and here it is the usual one
@@ -324,8 +338,14 @@ Neither error is visible at the moment it is created: the Vault simply now conta
 Requirement that no invariant in this codebase would have allowed anyone to create.
 
 So `undo()` re-runs the checks `AssignAssetCommand` runs at creation — existence, same
-project, unit kind — against the endpoints as they are *now*, under the endpoint locks,
-before writing anything. This is the same correction `ReversibleAssignAssetCommand`'s
+project, unit kind — against the endpoints as they are *now*, under the locks, before
+writing anything. **Against every endpoint except the one it is restoring.** The Zone is
+absent by construction — the delete being undone is what made it absent — so a check
+requiring every endpoint to exist refuses unconditionally, and refuses hardest in exactly
+the case it was added for: any delete that touched a Requirement. Its own validity comes
+from the snapshot being written, and the restore order (Zone first, then Requirements) is
+what makes that sound rather than assumed. The live check is for the *opposite* endpoints,
+the Assets, which are the ones that can have moved. This is the same correction `ReversibleAssignAssetCommand`'s
 redo already carries (slice 10): **an inverse restores identity, never validity.** That
 this adapter needed it too, after the redo case had been fixed, is the shape worth
 naming — a rule established on one path and not carried to the symmetric one.
@@ -846,6 +866,19 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
    legal — so both need their own test; and each passes trivially against an
    unconditional restore, since every individual compare-and-swap succeeds while the
    Vault ends up in a state no command would have produced.
+3b. The **happy path** of that same undo still succeeds: a `remove-references` delete
+   with every other endpoint untouched restores the Zone and every Requirement. This is
+   a Definition of Done item rather than an obvious one because the first version of 3a
+   checked that *every* endpoint referenced by `affectedBefore` exists — including the
+   Zone it was about to restore, which is absent by construction — and so refused every
+   undo it was written to permit. A refusal test passes just as happily against a check
+   that refuses everything; only asserting the permitted case tells the two apart.
+3c. That undo is a compensated multi-entity sequence and takes slice 10's contract in
+   full: both lock levels held through the compensation, and a marker written before its
+   first write. Asserted the same two ways slice 10 asserts the forward path — an
+   ordinary override edit interleaved against an already-restored Requirement does not
+   block the compensation, and a marker left behind by a simulated process exit is
+   recovered at next load.
 4. Attempting to close a polygon with fewer than 3 vertices, or with any non-finite
    coordinate, is rejected before `CreateZoneCommand` is ever dispatched; no invalid
    geometry reaches the sidecar.

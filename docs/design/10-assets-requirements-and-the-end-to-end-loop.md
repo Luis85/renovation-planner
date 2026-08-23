@@ -999,9 +999,9 @@ inside a repository:
    `affectedBefore`, presenting the version step 2 recorded for each — so the rollback
    is as conditional as the write it undoes. Then return the error. A failing
    compensation is logged through the `Logger` (slice 1's port, slice 11's rules) rather
-   than swallowed, AND recorded in the resolution marker below, because a log entry is
-   not a recovery: the repository cannot promise multi-file atomicity and does not
-   pretend to.
+   than swallowed, AND left recorded in the sequence marker below for recovery at next
+   load, because a log entry is not a recovery: the repository cannot promise multi-file
+   atomicity and does not pretend to.
 5. On success, return `affectedBefore` in the command's payload. It is not
    bookkeeping: it is what makes the delete undoable (see below).
 ```
@@ -1153,18 +1153,80 @@ What the hierarchy forbids is the thing that would break it: a level-2 holder re
 back for a level-1 lock. Nothing in this design does — reference creation is decided
 before any Requirement is locked — and it is the rule to check any new command against.
 
-**A resolution marker, for the failure a lock cannot answer.** A lock keeps other writers
+**A sequence marker, for the failure a lock cannot answer.** A lock keeps other writers
 out; it does nothing about the compensating write failing on I/O, or the process exiting
-between step 2 and step 4 — and a compensation that can itself fail needs an answer, not
-a log line. So before step 2 writes anything, the resolution records a marker naming the
-entity, the resolution kind, and `affectedBefore` — the same shape and the same reasoning
-as slice 4's sidecar-folder migration marker, which exists because no rollback survives a
-process exit. The marker clears only when the sequence completes forward OR the
-compensation is verified complete. A marker found at load means a resolution was
-interrupted, and the recovery is to finish the rollback from the snapshot it carries.
+mid-sequence — and a compensation that can itself fail needs an answer, not a log line.
+So the sequence records a durable marker, on the same reasoning as slice 4's
+sidecar-folder migration marker: no rollback survives a process exit.
 
 So step 0 acquires level 1, step 1 reads under it and then acquires level 2, and step 2
 onward runs holding both.
+
+### Compensated multi-entity sequences
+
+The delete resolution is not the only sequence of this shape, and writing its discipline
+into its own section is what let the mirror image ship without any of it: slice 8's
+`ReversibleDeleteZoneCommand.undo()` is the *same* sequence run backwards — N+1 writes,
+across N+1 files, with a compensation — and it had endpoint locks and nothing else. So
+the rules are stated here once, as a contract every such sequence takes, rather than
+per sequence:
+
+1. **Both lock levels, per the hierarchy above.** Level 1 for the entity and any other
+   endpoint whose existence or unit the sequence relies on; level 2 for every Requirement
+   it will write. Endpoint locks alone do not exclude ordinary Requirement writers, so a
+   sequence holding only those can have its own compensation refused by a concurrent
+   override edit — which is precisely the failure this section was added to close on the
+   forward path.
+2. **Locks held through the compensation**, not released at the last forward write. A
+   rollback racing the writer who acquired the locks next undoes that writer's work
+   rather than its own.
+3. **A durable marker, written before the first mutation and carrying everything a cold
+   process would need**, since the process that would have rolled back is exactly the one
+   that is gone:
+
+```typescript
+type SequenceMarker = {
+  kind: 'delete-resolution' | 'delete-undo';
+  entityId: ZoneId | AssetId;
+  // The deleted entity in full, plus the version it was deleted at. A first draft
+  // recorded only the ID, which cannot recover the case it was written for: once step 3
+  // has deleted the entity, "roll back" means putting it back, and an ID is not a Zone.
+  // Recovery restores it with 'absent'.
+  entitySnapshot: Loaded<Zone> | Loaded<Asset>;
+  entityDeleted: boolean;              // did step 3 complete?
+  affectedBefore: readonly Loaded<Requirement>[];
+  // Appended after each completed write, so recovery can tell which writes landed
+  // rather than inferring it. Deliberately the SAME shape as the command payload's
+  // affectedAfter — one description of "what this sequence did", durable and in-memory,
+  // not two that can disagree.
+  progress: readonly (
+    | { id: RequirementId; outcome: 'written'; version: EntityVersion }
+    | { id: RequirementId; outcome: 'deleted' }
+  )[];
+};
+```
+
+4. **Recovery is conditional, and has a third outcome.** At load, a marker means a
+   sequence was interrupted. For each entry in `progress`, restore that Requirement from
+   `affectedBefore`, presenting the version `progress` recorded — and if
+   `entityDeleted`, restore the entity from `entitySnapshot` with `'absent'`. Where a
+   conditional restore refuses, recovery does **not** force it: the crash may have been
+   followed by a sync landing someone else's change, and unconditionally overwriting it
+   would be the lost update this whole design exists to prevent. It surfaces a
+   diagnostic instead (slice 11), because a crash plus an external change is genuinely
+   ambiguous and the user is the one who can resolve it. The marker clears when every
+   entry is either restored or surfaced.
+
+Recovery is also idempotent, because it has to be: a crash can land between a Requirement
+write and the `progress` append, so an entry may be missing for a write that happened, and
+an entry may be present for one that did not. Restoring from `affectedBefore` is
+idempotent in both directions — a Requirement already at its before-state is written back
+to the same content — so neither gap corrupts anything; the versions in `progress` are
+what make the *conditional* part meaningful, not what make the restore correct.
+
+This is deliberately not a transaction log, and it does not try to be. It carries exactly
+what a cold start needs to undo one interrupted sequence, and it is written by the two
+sequences that have this shape rather than by every write.
 
 Step 5 is the half that is easy to miss. Restoring the entity alone does not undo a
 resolution — a Zone brought back with its Requirements still deleted, or still repointed
@@ -1853,11 +1915,23 @@ are additive, not breaking.
       and *before* step 3 fails, the rollback still restores every Requirement and the
       command's failure leaves the Vault as it was. Interleaved without awaiting — a test
       that let the resolution finish first would pass with no level-2 lock at all.
-- [ ] A resolution interrupted by a process exit between step 2 and step 4 is recovered
-      at next load from its marker: the rollback completes from the snapshot the marker
-      carries. Simulated by leaving a marker and its `affectedBefore` behind, since the
-      process that would have rolled back is gone — the same way slice 4 tests its
-      interrupted folder change, and for the same reason a lock cannot cover this case.
+- [ ] A resolution interrupted by a process exit is recovered at next load from its
+      marker, **including an exit after step 3 has deleted the entity** — the case the
+      marker exists for and the one a marker carrying only an ID cannot serve, since
+      rolling back then means putting the entity back and an ID is not a Zone. Simulated
+      by leaving a marker behind, since the process that would have rolled back is gone —
+      the same way slice 4 tests its interrupted folder change, and for the same reason a
+      lock cannot cover this case.
+- [ ] Recovery is conditional and idempotent: a Requirement changed out of band while the
+      process was dead is NOT overwritten — recovery surfaces a diagnostic and leaves it
+      — and running recovery twice over the same marker produces the same Vault as
+      running it once. The idempotence case is not decoration: a crash can land between a
+      Requirement write and its `progress` append, so an entry can be missing for a write
+      that happened and present for one that did not, and both must be survivable.
+- [ ] `progress` and the payload's `affectedAfter` are one shape, asserted by a test that
+      builds a marker's `progress` from a completed resolution and compares it to the
+      returned `affectedAfter`. Two descriptions of what a sequence did are two things
+      that can disagree, and the disagreement would only surface during a recovery.
 - [ ] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
       the now-unreferenced Asset from `m2` to `m`, the redo resolves a
       `ValidationError` and creates nothing, rather than restoring a Requirement whose

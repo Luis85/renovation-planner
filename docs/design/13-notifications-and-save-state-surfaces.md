@@ -705,6 +705,14 @@ split slice 5 already established for that layer's own stores:
   notification wiring fits into, and the `onunload` it introduces.
 - SDD §12 Vue Mounting Strategy — "each Obsidian view receives an isolated Vue app,"
   and this slice's narrow, explicit exception for `NotificationHost`.
+- `docs/setup/vue-conventions.md` §5 — "One Pinia per view app… State shared BETWEEN
+  views is not Pinia's job." That is the rule `SaveStateStore` follows and the one
+  `NotificationStore` is the single stated exception to (Design §4). Naming it here
+  because the convention file states the rule without an exception, and a repository
+  where one document says "always" and another quietly says "except here" is the same
+  defect as an unchecked comment — a reader arriving from either side should find the
+  other. The exception is one store, one host component, one plugin-global app; it is
+  not a licence for a second.
 - SDD §29-31 Command Architecture, Undoable Editor Commands, Transaction Boundary
   (detailed in slice 6) — the rule this slice's save-state transitions are driven by
   and the reasoning behind `Unsaved Changes`'s unreachability (Design §8).

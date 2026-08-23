@@ -39,6 +39,24 @@ Each slice document follows the same shape:
   SDD's own MVP increment success criteria.
 - **References** — the SDD sections, PRD sections, and ADRs this slice derives from.
 
+## Repository conventions a slice must conform to
+
+The SDD is the architectural authority (CLAUDE.md says so, and says this folder is the
+bug where they disagree). Two files under `docs/setup/` are narrower but binding in their
+own areas, and a slice that touches those areas is expected to have been read against
+them:
+
+- **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules the
+  presentation slices (5, 6, 13–17) are written against. Where a slice departs from it,
+  the departure is named in that slice's **References**, not left to be discovered; the
+  one departure today is slice 13's plugin-global `NotificationStore`.
+- **`docs/setup/quality-harness.md`** — what `npm run check` refuses, which is what a
+  slice's Definition of Done is ultimately asserting against.
+
+Neither is checked mechanically against these documents. That is worth stating rather
+than implying: a slice conforming is a review outcome, and the conformance a slice
+claims in prose is exactly as reliable as its Definition of Done makes it.
+
 ## Shared conventions
 
 These apply to every slice below and are not repeated in each one:

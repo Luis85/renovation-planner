@@ -198,7 +198,7 @@ a small, per-form lookup that a form or Inspector panel declares alongside the f
 renders, and a pure function that applies it:
 
 ```typescript
-// presentation/composables/route-error.ts
+// presentation/errors/route-error.ts
 type FieldErrorMap<TInput> =
   Readonly<Record<string /* error code */, keyof TInput | readonly (keyof TInput)[]>>;
 // a code with no entry in the map is NOT an omission to fill in later — it is the
@@ -365,7 +365,7 @@ them is the commit boundary (one field vs. every field at once), not the vocabul
 ## Interfaces & Contracts
 
 ```typescript
-// presentation/composables/route-error.ts
+// presentation/errors/route-error.ts
 type FieldErrorMap<TInput> =
   Readonly<Record<string, keyof TInput | readonly (keyof TInput)[]>>;
 
@@ -373,6 +373,11 @@ type RoutedError<TInput> =
   | { readonly kind: 'field'; readonly fields: readonly (keyof TInput)[]; readonly message: string }
   | { readonly kind: 'banner'; readonly message: string };
 
+// Not under `presentation/composables/`: it is a pure function, and
+// `docs/setup/vue-conventions.md` §4 scopes that directory to `use*` composables —
+// things that bind reactivity or a lifecycle. `routeError` binds neither. Keeping it
+// out is also what keeps it node-testable rather than reached only through jsdom,
+// which is the return that convention is protecting.
 function routeError<TInput>(
   error: AppError,               // slice 2 — consumed, not redefined
   map: FieldErrorMap<TInput>,

@@ -48,12 +48,11 @@ that hands off to it.
 
 - **What the action actually does.** "Create a project" opens a project-creation
   modal (slice 15) that, on submit, dispatches `CreateProjectCommand` (slice 3).
-  "Import a plan" starts the background-import flow slice 5 flagged as unowned (its
-  Design → §5: *"setting it for the first time... is out of scope here... the SDD does
-  not say which later slice owns that write path"*) — this slice does not resolve that
-  ambiguity, it only calls into whichever single flow ends up owning it. "Draw a zone"
-  activates `DrawPolygonTool` (slice 6/8) by setting `EditorStore.activeToolId`. None of
-  the three flows are designed, redesigned, or reimplemented here.
+  "Import a plan" opens slice 5's Vault-file picker, which dispatches that slice's
+  `SetPlanBackgroundCommand` (slice 5, Design → §5) — this slice calls it and owns none
+  of it. "Draw a zone" activates `DrawPolygonTool` (slice 6/8) by setting
+  `EditorStore.activeToolId`. None of the three flows are designed, redesigned, or
+  reimplemented here.
 - **Modals themselves** — slice 15. An empty state's action *opens* one; it is not one.
 - **Loading states.** A query in flight (before its first result arrives) is not this
   slice's concern; neither the PRD nor any slice in this map currently asks for a
@@ -261,7 +260,7 @@ decision-maker.
 <EmptyState
   v-if="projectStore.emptyStateKey === 'noBackground'"
   v-bind="resolve(EMPTY_STATE_CONTENT.planEditor.noBackground)"
-  @action="startPlanBackgroundImport(planId)"   // the flow slice 5 flagged, unowned here
+  @action="openPlanBackgroundPicker(planId)"   // slice 5's picker → SetPlanBackgroundCommand
 />
 <EmptyState
   v-else-if="projectStore.emptyStateKey === 'noZones'"
@@ -277,7 +276,7 @@ Zone cannot be created with zero user-supplied geometry, so there is no
 same drawing mode a toolbar button would (slice 6/8), not fabricating an empty Zone.
 "Import a plan" and "Create a project," by contrast, do end in a command dispatch,
 just not one this slice performs directly — each hands off to exactly one place
-(a modal's submit handler, or the flagged import flow), matching the same rule.
+(a modal's submit handler, or slice 5's background picker), matching the same rule.
 
 ## Interfaces & Contracts
 
@@ -410,8 +409,8 @@ export interface RenovationProjectQueryServices {
   rather than trusted by inspection (per CLAUDE.md: "a category invariant is checked at
   the forbidden thing, not by listing the places").
 - **Action wiring tests**: clicking each of the three registry entries' action buttons
-  invokes the one expected handler (`openCreateProjectModal`, the flagged
-  background-import entry point, `activeToolId = 'draw-polygon'`) exactly once, and no
+  invokes the one expected handler (`openCreateProjectModal`,
+  `openPlanBackgroundPicker`, `activeToolId = 'draw-polygon'`) exactly once, and no
   test path calls a repository or a command directly from `EmptyState` itself.
 - **`ListProjectsQuery` test**: given a fixture `ProjectRepository` with zero, one, and
   several projects, asserts the query's `Result` matches `listAll()`'s own result

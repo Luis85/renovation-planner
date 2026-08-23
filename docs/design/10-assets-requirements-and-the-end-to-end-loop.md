@@ -691,6 +691,15 @@ which is the same lost update from a different direction. And every snapshot-res
 undo in this slice takes this path — the delete resolutions' `affectedBefore` restore
 included, since it has strictly more entities to clobber, each with its own revision.
 
+**Every conditional write, not only `save`.** `delete` takes an `expectedRevision` too:
+an assignment undo removes the Requirement its `execute()` created, and a CAS on `save`
+does nothing to stop that delete taking a later override or recalculation with it. And
+any command that hands work to an undo owes that undo the revisions **it** produced —
+see `affectedAfter` on the delete resolutions' payload — because pre-state revisions are
+already stale by the time the command returns, having been superseded by the command's
+own writes. An undo left to discover the current revision by reading is back to
+check-then-act.
+
 Why this is a `Requirement` concern and not a general one, stated so the scope is a
 decision rather than an oversight: the geometry-bearing undos are already covered by a
 different mechanism. Slice 8's zone-move undo writes through `PlanGeometryStore.mutate`,
@@ -1047,8 +1056,24 @@ command returns an error and stays on `undoStack` as if nothing had happened.
 type DeleteWithReferencesResult = {
   deletedId: ZoneId | AssetId;
   affectedBefore: readonly Requirement[]; // full pre-resolution state, for undo
+  // What THIS command left behind, per affected Requirement — the expectedRevision
+  // undo must present. Without it undo has only pre-resolution revisions, which the
+  // resolution's own writes already superseded: every restore would conflict against
+  // the command's own effect, and re-reading to find the current revision is the
+  // check-then-act this design refuses everywhere else.
+  affectedAfter: readonly (
+    | { id: RequirementId; outcome: 'written'; revision: number }
+    | { id: RequirementId; outcome: 'deleted' }   // remove-references: expect absence
+  )[];
 };
 ```
+
+`affectedAfter` carries `'deleted'` rather than omitting the entry, because "this
+Requirement is gone and I am the one who deleted it" and "I never touched it" are
+different claims and undo needs to distinguish them: the first restores from
+`affectedBefore` only if the Requirement is still absent, and a Requirement that
+reappeared under the same ID between the delete and the undo is someone else's, not
+this command's to overwrite.
 
 `reassignTo` is where PRD §64's own gap shows through: it names "Reassign" as an action
 but never says how a target is picked. Slice 15 is explicit that its dialog resolves
@@ -1106,7 +1131,11 @@ interface RequirementRepository {
   // carrying its new revision. Serialized per RequirementId, so the compare and the
   // write are one operation — a caller cannot make them atomic from outside.
   save(requirement: Requirement, expectedRevision: number): Promise<Result<Requirement, PersistenceError | ValidationError>>;
-  delete(id: RequirementId): Promise<Result<void, PersistenceError>>;
+  // Conditional for the same reason save() is, and it is NOT covered by save()'s CAS:
+  // an assignment undo deletes the Requirement it created, and another tab may have
+  // set an override or landed a recalculation on it since. Refuses with
+  // 'requirement.revision-conflict' when the stored revision is not expectedRevision.
+  delete(id: RequirementId, expectedRevision: number): Promise<Result<void, PersistenceError | ValidationError>>;
   listByZone(zoneId: ZoneId): Promise<Result<Requirement[], PersistenceError>>;
   listByAsset(assetId: AssetId): Promise<Result<Requirement[], PersistenceError>>;
   // Sets recalculationStatus: "stale" and persists it — one targeted-property
@@ -1166,7 +1195,11 @@ class ReversibleAssignAssetCommand implements UndoableCommand {
   // validity is re-established against the world as it is now.
   execute(): Promise<Result<void, AppError>>;
   undo(): Promise<Result<void, AppError>>;   // deletes only what execute() created; a
-                                             // no-op when it found one already there
+                                             // no-op when it found one already there.
+                                             // The delete is conditional on the
+                                             // revision execute() produced, so an
+                                             // override or recalculation landed since
+                                             // is a conflict, not a casualty.
 }
 
 interface RecalculateRequirementInput { requirementId: RequirementId; }
@@ -1656,9 +1689,18 @@ are additive, not breaking.
       by a repository double that lands a competing write *between* a caller's read and
       its save — the interleaving a compare-then-write implementation loses to, and the
       only one that distinguishes a real compare-and-swap from a narrowed window.
-- [ ] Every `save` call site passes an `expectedRevision`; none writes blind. Checked
-      by the type (there is no one-argument overload), so a last-write-wins caller
-      cannot compile rather than being caught by review.
+- [ ] Every `save` **and `delete`** call site passes an `expectedRevision`; none writes
+      or removes blind. Checked by the type (neither has a one-argument overload), so a
+      last-write-wins caller cannot compile rather than being caught by review.
+- [ ] An assignment undo whose Requirement was edited by another tab since `execute()`
+      returns `requirement.revision-conflict` and deletes nothing — the case a CAS on
+      `save` alone does not cover, since undo's write here is a delete.
+- [ ] A delete resolution returns `affectedAfter` revisions for every Requirement it
+      wrote and `'deleted'` for every one it removed, and its undo restores using
+      those — not the pre-resolution revisions, which the command's own writes already
+      superseded. Asserted by undoing a successful resolution with no concurrent edit
+      at all: an undo passing pre-state revisions conflicts against the command's own
+      effect and fails this without any race being involved.
 - [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
       (§92 #1–3).
 

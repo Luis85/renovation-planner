@@ -31,6 +31,10 @@ without a mutation path attached is the whole point of splitting these into two 
 - The render pipeline that turns a persisted `Zone` into a read-only Konva shape.
 - Background rendering: a PNG/JPEG rendered directly, a PDF page rendered via `pdfjs-dist`
   (§54), sourced from a Vault-relative path with no base64 embedding (§55).
+- Setting that background in the first place: the Vault-file picker and
+  `SetPlanBackgroundCommand` that produce a `PlanBackgroundRef` (see Design → §5). This
+  slice defines the type, so it owns the command that makes one; slice 7 and slice 14
+  both call it and neither reimplements it.
 - Pan and zoom of the viewport, as a baseline camera interaction.
 - Theme integration (Obsidian CSS variables, no hardcoded palettes, §84) and baseline
   accessibility (§85).
@@ -322,13 +326,42 @@ persists as `background-path`/`background-kind`/`background-page`. This slice re
 persisting the reference) is a user-triggered write and is out of scope here (see
 Persistence Impact).
 
-**Who owns that import flow is an open question this document does not close.** The SDD
-does not say, and neither does any slice: slice 7 is the natural host (it already needs a
-background to calibrate against) and slice 14's `noBackground` empty state already has an
-"Import a plan" button that will need somewhere to hand off to. Both those slices name
-the gap and defer to whoever resolves it. It is called out in all three places rather
-than silently assumed, because a gap three documents each expect another to close is
-exactly the kind that survives to implementation.
+**This slice owns that import flow.** It was previously left open across three
+documents, each naming the gap and deferring to the others — which is precisely the
+shape that survives to implementation, and did: slice 14 ships an "Import a plan" button
+with nothing behind it. Ownership lands here rather than on slice 7 or 14 by the rule
+that a type belongs with the code that produces it: this slice defines
+`PlanBackgroundRef` and everything that reads one, so it owns the command that makes
+one. Slice 7 *needs* a background; needing it is not owning it.
+
+```typescript
+// application/commands/plan/SetPlanBackground.ts
+interface SetPlanBackgroundInput { planId: PlanId; background: PlanBackgroundRef }
+type SetPlanBackgroundCommand = Command<SetPlanBackgroundInput,
+  Result<Plan, ValidationError | ReferenceError | PersistenceError>>;
+// Validates that the referenced file exists in the Vault and its kind is supported,
+// then writes background-path/background-kind/background-page through slice 4's
+// PlanRepository update path (frontmatter only — no sidecar write, so no barrier and
+// no compensation: one file, one write). Publishes PlanBackgroundChanged on success.
+```
+
+The picker selects a file **already in the Vault**, and the command stores a reference
+to it; nothing is copied. That keeps the whole flow inside `normalizePath` plus a
+`getAbstractFileByPath` existence check, and it matches how a Vault-native plugin is
+expected to behave — a user who wants a PDF in their vault puts it there, and Obsidian's
+own import affordances handle getting it in. Importing from outside the Vault is
+deliberately not in scope for any slice: it needs file-system access this plugin does not
+otherwise take, and the Vault-file path covers the PRD's stated flow.
+
+Dispatched through `CommandHistory` like every other user-triggered mutation, with a
+`ReversibleSetPlanBackgroundCommand` adapter whose `undo()` restores the previous
+`PlanBackgroundRef` (or `null`, for the first import) — the same snapshot-and-restore
+shape slice 10's adapters use, and conditional on the Plan being unchanged since, for
+the reason set out there.
+
+Slice 14's `noBackground` empty state dispatches exactly this, and slice 7's
+`CalibrateTool` requires it to have run — neither reimplements it, and neither is left
+holding an action with no command behind it.
 
 ### 6. Pan and zoom
 
@@ -605,6 +638,13 @@ Per §73–74 (Vue component tests, canvas adapter tests):
   scene against Obsidian's real `app.css` in light and dark — faithful to Obsidian's default
   themes only, per the harness's documented limits (`CLAUDE.md`), not a substitute for
   checking against a real, community-themed vault via `npm run test-build`.
+- **`SetPlanBackgroundCommand` tests** (application, in-memory repositories): a
+  supported Vault file sets `background-path`/`background-kind`/`background-page` and
+  publishes `PlanBackgroundChanged`; a path resolving to no Vault file is a
+  `ReferenceError` and an unsupported kind a `ValidationError`, with nothing written in
+  either case. Undo restores the previous `PlanBackgroundRef`, including `null` for the
+  first import — the case an adapter treating `null` as "nothing to restore" fails while
+  passing the replace-an-existing-background case.
 - Enforcement of the write boundary and layer-dependency lint rules (`WRITE_BOUNDARY`,
   `no-restricted-imports` in `eslint.config.mjs`) is exercised by `npm run lint` as part of
   `npm run check` — this slice adds no exception to either rule.

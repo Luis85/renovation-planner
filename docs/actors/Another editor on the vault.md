@@ -1,9 +1,18 @@
 ---
-kind: actor
+kind: system
 name: Another editor on the vault
-layer: system
 standing: adversarial
-sources: ["PRD §63", "PRD §65", "PRD §66", "PRD §69", "PRD §91", "PRD §92", "SDD §42", "SDD §46", "SDD §87"]
+sources:
+  - PRD §63
+  - PRD §65
+  - PRD §66
+  - PRD §69
+  - PRD §91
+  - PRD §92
+  - SDD §42
+  - SDD §46
+  - SDD §87
+type: actor
 ---
 
 # Another editor on the vault

@@ -88,7 +88,10 @@ onload()
  ├── initialize composition root      (createCompositionRoot(settings, logger))
  ├── register workspace views         (registerView)
  ├── register commands                (addCommand, addRibbonIcon)
- └── register vault listeners         (deferred — nothing reads the Vault yet)
+ ├── register vault listeners         (deferred — nothing reads the Vault yet)
+ └── schedule vault-wide work         (deferred — app.workspace.onLayoutReady(...);
+                                       see below. Nothing walks the Vault yet, and
+                                       when something does it goes HERE, not above)
 
 onunload()
  ├── flush pending writes             (deferred — nothing writes yet)
@@ -112,6 +115,31 @@ Bases-view registration and project-index initialization (also named in SDD §9'
 list) have nothing to register against yet — no Bases view and no index exist before slices
 4 and later — so they are not called out as separate steps here; they join the sequence
 when their slice lands.
+
+**When they do, they join it in two places, not one.** This is stated here rather than in
+slice 4 because it is a property of the bootstrap sequence, and stating it once is the
+only way it survives a slice that never reads this file:
+
+> **Registration goes in `onload`; anything that walks the vault goes in
+> `app.workspace.onLayoutReady(...)`.**
+
+Two independent reasons, and each is sufficient on its own. Obsidian's own plugin
+guidelines put vault-wide work after layout-ready, because `onload` runs while the
+workspace is still being restored and a scan there competes with startup for the main
+thread — on a large vault that is the difference between a plugin that loads and one that
+visibly hangs the window. And `MetadataCache` is **incomplete during startup**: a scan
+that reads it in `onload` sees a partial vault and builds a partial index, which is worse
+than a slow one because nothing about it looks wrong. Slice 4's index rebuild depends on
+exactly that cache.
+
+Concretely, for the two things slice 4 brings: `registerExtensions()` for `.rpgeo` and
+the vault-change listeners are registration and stay in `onload`; the geometry-folder
+**migration-marker recovery** and the **`ProjectIndexBuilder` scan** are vault walks and
+move to `onLayoutReady`, in that order — recovery still precedes the index build, since
+an index built over a half-migrated folder split is the defect the marker exists to
+prevent. What `onLayoutReady` changes is when that pair runs, not their order relative to
+each other. Slice 4's own text says "on plugin load" throughout and means this callback;
+it is not a second, earlier moment.
 
 ### Composition root
 
@@ -210,18 +238,35 @@ would be worth having in a support thread; a line that is always there tells a r
 nothing. Together with the threshold below, that leaves a released build printing nothing
 at all unless something actually failed.
 
-**`info` does not map to `console.info`, and that is a lint constraint rather than a
+**`info` does not map to `console.info`, and that is a marketplace constraint rather than a
 preference.** The `eslint-plugin-obsidianmd` ruleset carries its own console rule for the
-"avoid unnecessary logging to console" marketplace guideline, and it is narrower than it
-sounds: measured against this repository's own config, `console.log` and `console.info`
-fail it while `console.debug`, `console.warn` and `console.error` pass. The ban below on
-the rest of `src/` is ours and can be carved out; that one is the ruleset's, whose rules
-this project cannot disable inline (its own rule forbids that), so an adapter that reached
-for `console.info` would fail `npm run lint` no matter what our block said. `info` and
-`debug` therefore share a console method, and the level a line was written at is carried in
-the line's own prefix rather than by which function printed it — which is what a reader
-greps for anyway. `warn` and `error` keep their own methods, so the two levels a developer
-filters devtools by stay distinguishable there.
+"avoid unnecessary logging to console" guideline, and it is narrower than it sounds:
+measured against this repository's own config, `console.log` and `console.info` fail it
+while `console.debug`, `console.warn` and `console.error` pass.
+
+The reason that rule is not simply switched off for the sink's directory has to be stated
+exactly, because the plausible-sounding version is wrong: it is **not** that the ruleset
+forbids disabling its own rules. A config-level `'obsidianmd/rule-custom-message': 'off'`
+inside the carve-out block would work, and `noInlineConfig` already refuses the comment
+form for every rule repo-wide, so inline suppression is not the mechanism in play either.
+The real reason is that **the marketplace review bot lints a submission with its own
+configuration, not with this repository's.** An override here would not travel; it would
+buy `console.info` locally and hand the rejection to a human reviewer at submission time
+instead of to `npm run check`. Keeping the rule on is what makes the local gate agree with
+the reviewer, which is the only thing this constraint is for.
+
+So `info` and `debug` share a console method, and the level a line was written at is
+carried in the line's own prefix rather than by which function printed it — which is what a
+reader greps for anyway. `warn` and `error` keep their own methods, so the two levels a
+developer filters devtools by stay distinguishable there.
+
+**The cost, named rather than glossed:** `console.debug` lands in Chrome devtools' Verbose
+channel, which is hidden at the default filter level. An `info` line is therefore invisible
+to a user reading the console until they widen the filter, and a support request that says
+"nothing was logged" may mean exactly that. This is accepted rather than solved, because
+the alternatives are worse: `console.log` fails the marketplace check, and mapping `info`
+onto `console.warn` would misreport a routine transition as a problem. Slice 11's "copy
+diagnostics" work is where a channel that does not depend on a devtools filter belongs.
 
 The threshold is an argument to the adapter, not a setting: the composition root passes
 `'info'`, so this slice's `debug` calls compile and emit nothing, while the levels slice 11
@@ -606,6 +651,17 @@ Module boundaries this slice fixes for every later one:
   could not tell an `info` from a `debug` at all, and level filtering downstream would rest
   on nothing. `warn` and `error` additionally reach their own methods, and `error` passes
   `cause` through untouched rather than stringifying it at the boundary.
+
+  *Considered and declined: carrying the level structurally instead.* The port's four
+  methods already say the level, so the adapter could pass it as a field —
+  `console.debug(event, { level: 'info', ...context })` — and the test would assert on an
+  object rather than freezing a string format. Declined because the sink's consumer is a
+  person reading a devtools console, not a parser: a level in an object is collapsed
+  behind a disclosure triangle in exactly the case it is needed, scanning a run of lines.
+  What the test freezes is one prefix, and the assertion is on "the level appears in the
+  line", not on a full format — so a later change to spacing or ordering does not fail it.
+  Revisit if a log ever has a *machine* consumer: slice 11's "copy diagnostics" is the
+  candidate, and it would want the object.
 - **Bootstrap logging** (in `tests/plugin/registration.test.ts`, driven with a fake
   `Logger` — the assertions are on the port, never on a console, since what the adapter
   does with a call is the suite above's subject): the composition root exposes **the same
@@ -670,8 +726,9 @@ Module boundaries this slice fixes for every later one:
 - [ ] `createConsoleLogger('info')` emits `info`/`warn`/`error` and drops `debug`, with
       the level named in the emitted line; `warn`/`error` use `console.warn`/`console.error`
       and neither `console.log` nor `console.info` appears anywhere in `src/`, since the
-      `obsidianmd` ruleset fails both and cannot be suppressed inline. `error` forwards its
-      `cause` untouched.
+      `obsidianmd` ruleset fails both and is deliberately left on inside the carve-out (the
+      marketplace bot lints with its own config, so a local override would not travel).
+      `error` forwards its `cause` untouched.
 - [ ] A `loadData()` that rejects logs one `error` event and leaves `root.settings` as
       `null` — never `DEFAULT_SETTINGS` — with the view and command still registered. For
       as long as it stays null, `saveSettings()` makes no `saveData` call and

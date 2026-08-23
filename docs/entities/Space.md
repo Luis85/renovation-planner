@@ -1,10 +1,14 @@
 ---
-kind: entity
+kind:
 name: Space
 layer: domain
 persistence: note
 partOf: "[[Floor]]"
-sources: ["PRD §6", "PRD §58", "PRD §34"]
+sources:
+  - PRD §6
+  - PRD §58
+  - PRD §34
+type: entity
 ---
 
 # Space

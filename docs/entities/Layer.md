@@ -1,10 +1,18 @@
 ---
-kind: entity
+kind:
 name: Layer
 layer: domain
 persistence: sidecar
 partOf: "[[Plan]]"
-sources: ["PRD §6", "PRD §8", "PRD §13", "PRD §30", "PRD §37", "SDD §17", "SDD §18"]
+sources:
+  - PRD §6
+  - PRD §8
+  - PRD §13
+  - PRD §30
+  - PRD §37
+  - SDD §17
+  - SDD §18
+type: entity
 ---
 
 # Layer

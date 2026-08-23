@@ -1,9 +1,14 @@
 ---
-kind: entity
+kind:
 name: Order
 layer: domain
 persistence: note
-sources: ["PRD §24", "PRD §33", "PRD §37", "PRD §11"]
+sources:
+  - PRD §24
+  - PRD §33
+  - PRD §37
+  - PRD §11
+type: entity
 ---
 
 # Order

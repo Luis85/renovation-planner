@@ -1,9 +1,14 @@
 ---
-kind: entity
+kind:
 name: Decision
 layer: domain
 persistence: note
-sources: ["PRD §25", "PRD §58", "PRD §77", "PRD §29"]
+sources:
+  - PRD §25
+  - PRD §58
+  - PRD §77
+  - PRD §29
+type: entity
 ---
 
 # Decision

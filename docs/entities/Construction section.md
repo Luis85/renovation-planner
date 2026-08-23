@@ -1,10 +1,17 @@
 ---
-kind: entity
+kind:
 name: Construction section
 layer: domain
 persistence: note
 partOf: "[[Project]]"
-sources: ["PRD §8", "PRD §16", "PRD §10", "PRD §58", "PRD §59", "PRD §80"]
+sources:
+  - PRD §8
+  - PRD §16
+  - PRD §10
+  - PRD §58
+  - PRD §59
+  - PRD §80
+type: entity
 ---
 
 # Construction section

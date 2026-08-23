@@ -1,8 +1,8 @@
-import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { resolveConfig } from '../helpers/eslint';
 import { REPO, lintOne, lintedFiles } from '../helpers/oxlint';
 
 /**
@@ -82,18 +82,14 @@ describe('inline lint suppressions', () => {
 	 * reach anything. What this does NOT check is that ESLint honours its own setting;
 	 * that is ESLint's contract, and the measurement is in the comment beside it.
 	 */
-	it('cannot be re-enabled by a comment, because ESLint takes no inline configuration', () => {
-		// ESLint's own bin, under `process.execPath`, for the reason `tests/helpers/oxlint.ts`
-		// states: `node_modules/.bin/eslint` is a shell shim on Windows, and `npx` would
-		// need a shell to find it on one platform and not the other.
-		const eslint = path.join(REPO, 'node_modules', 'eslint', 'bin', 'eslint.js');
-		const printed = execFileSync(process.execPath, [eslint, '--print-config', 'src/main.ts'], {
-			cwd: REPO,
-			encoding: 'utf8',
-		});
-
-		const resolved = JSON.parse(printed) as { linterOptions: { noInlineConfig?: boolean } };
+	it('cannot be re-enabled by a comment, because ESLint takes no inline configuration', async () => {
+		// Asked through `tests/helpers/eslint.ts`, which is ESLint's own resolution in
+		// process. This used to spawn the bin for `--print-config` and spent 4.4 of
+		// vitest's 5-second default inside that one boot; the helper exists because a
+		// second caller of the same instrument would have made that a flake rather than a
+		// cost.
+		const resolved = await resolveConfig('src/main.ts');
 
 		expect(resolved.linterOptions.noInlineConfig).toBe(true);
-	});
+	}, 60_000);
 });

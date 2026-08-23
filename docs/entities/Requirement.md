@@ -1,9 +1,17 @@
 ---
-kind: entity
+kind:
 name: Requirement
 layer: domain
 persistence: note
-sources: ["PRD §32", "PRD §59", "PRD §75", "PRD §88", "PRD §89", "SDD §50", "SDD §51"]
+sources:
+  - PRD §32
+  - PRD §59
+  - PRD §75
+  - PRD §88
+  - PRD §89
+  - SDD §50
+  - SDD §51
+type: entity
 ---
 
 # Requirement

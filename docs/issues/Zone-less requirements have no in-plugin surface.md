@@ -2,6 +2,7 @@
 type: Issue
 status: Open
 order: 20
+parent: "[[Codebase health]]"
 ---
 
 # Zone-less requirements have no in-plugin surface

@@ -1,10 +1,17 @@
 ---
-kind: entity
+kind:
 name: Asset
 layer: domain
 persistence: note
 partOf: "[[Project]]"
-sources: ["PRD §8", "PRD §17", "PRD §32", "PRD §59", "PRD §84", "SDD §55"]
+sources:
+  - PRD §8
+  - PRD §17
+  - PRD §32
+  - PRD §59
+  - PRD §84
+  - SDD §55
+type: entity
 ---
 
 # Asset

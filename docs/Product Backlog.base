@@ -19,3 +19,27 @@ views:
     dependsOnProperty: note.dependsOn
     iterationProperty: note.iteration
     iterationGoalProperty: note.goal
+  - type: table
+    name: Actors
+    filters:
+      and:
+        - file.inFolder("docs/actors")
+    order:
+      - type
+      - kind
+      - file.name
+      - standing
+  - type: table
+    name: Entities
+    filters:
+      and:
+        - file.inFolder("docs/entities")
+    groupBy:
+      property: layer
+      direction: ASC
+    order:
+      - type
+      - file.name
+      - layer
+      - persistence
+      - partOf

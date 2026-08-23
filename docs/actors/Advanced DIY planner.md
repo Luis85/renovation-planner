@@ -1,10 +1,16 @@
 ---
-kind: actor
+kind: human
 name: Advanced DIY planner
-layer: human
 standing: secondary persona
 partOf: "[[Private renovator]]"
-sources: ["PRD §4", "PRD §24", "PRD §32", "PRD §75", "PRD §76", "PRD §88"]
+sources:
+  - PRD §4
+  - PRD §24
+  - PRD §32
+  - PRD §75
+  - PRD §76
+  - PRD §88
+type: actor
 ---
 
 # Advanced DIY planner

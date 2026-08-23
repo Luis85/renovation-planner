@@ -398,17 +398,31 @@ export default defineConfig([
 		// rule for these files rather than merging with it — the same flat-config
 		// behaviour `no-restricted-syntax` has to work around, wanted here — so this block
 		// sets that one rule and nothing else, leaving the budgets above in force.
-		// It matches no file yet — the console sink arrives with the Logger port — for the
-		// reason every other rule here predates its first violation: enforce before it can
-		// be broken.
+		// It matches nothing until slice 1's console sink lands there, for the reason every
+		// other rule here predates its first violation: enforce before it can be broken.
 		//
 		// NOT a blanket permission, and the difference is measured rather than assumed:
 		// the obsidianmd ruleset carries its own console check for the marketplace's
 		// "avoid unnecessary logging" guideline, which fails `console.log` and
 		// `console.info` while passing `console.debug`, `console.warn` and `console.error`.
-		// That rule is not ours to switch off (the ruleset forbids disabling its own rules
-		// inline), so the sink maps `info` onto console.debug and carries the level in the
-		// line's own text. See design slice 1, "Logging, from the first line that can fail".
+		// So the sink maps `info` onto console.debug and carries the level in the line's
+		// own text. See design slice 1, "Logging, from the first line that can fail".
+		//
+		// WHY that rule is not switched off here, since it plainly could be: a config-level
+		// `'obsidianmd/rule-custom-message': 'off'` in this very block would work, and
+		// `noInlineConfig` above already refuses the comment form repo-wide, so neither of
+		// those is the reason. The reason is that the marketplace review bot lints a
+		// submission with ITS OWN configuration, not with this file — an override here
+		// would not travel, and the rejection would arrive at submission instead of at
+		// `npm run check`. Keeping the rule on is what makes the gate agree with the
+		// reviewer.
+		//
+		// Both halves of the claim above are pinned by `tests/build/logging-carve-out.test.ts`,
+		// because both are one upstream release from being false: the glob is asked of
+		// ESLint's own resolution, and — the fragile one — the obsidianmd rule is a WRAPPER
+		// that matches the built-in rule's rendered message against a literal and reports
+		// NOTHING on a miss. A reworded message would turn the marketplace check off here
+		// silently.
 		files: ['**/src/infrastructure/logging/**/*.ts'],
 		rules: { 'no-console': 'off' },
 	},

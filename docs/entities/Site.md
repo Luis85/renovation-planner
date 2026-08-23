@@ -1,10 +1,14 @@
 ---
-kind: entity
+kind:
 name: Site
 layer: domain
 persistence: note
 partOf: "[[Project]]"
-sources: ["PRD §6", "PRD §58", "PRD §79"]
+sources:
+  - PRD §6
+  - PRD §58
+  - PRD §79
+type: entity
 ---
 
 # Site

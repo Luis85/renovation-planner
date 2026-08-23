@@ -1,9 +1,16 @@
 ---
-kind: entity
+kind:
 name: Procurement item
 layer: domain
 persistence: note
-sources: ["PRD §24", "PRD §32", "PRD §59", "PRD §75", "PRD §76", "PRD §77"]
+sources:
+  - PRD §24
+  - PRD §32
+  - PRD §59
+  - PRD §75
+  - PRD §76
+  - PRD §77
+type: entity
 ---
 
 # Procurement item

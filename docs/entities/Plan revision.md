@@ -1,10 +1,14 @@
 ---
-kind: entity
+kind:
 name: Plan revision
 layer: domain
 persistence: note
 partOf: "[[Plan]]"
-sources: ["PRD §31", "PRD §30", "PRD §61"]
+sources:
+  - PRD §31
+  - PRD §30
+  - PRD §61
+type: entity
 ---
 
 # Plan revision

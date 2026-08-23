@@ -1,9 +1,13 @@
 ---
-kind: entity
+kind:
 name: Constraint
 layer: domain
 persistence: note
-sources: ["PRD §26", "PRD §58", "PRD §25"]
+sources:
+  - PRD §26
+  - PRD §58
+  - PRD §25
+type: entity
 ---
 
 # Constraint

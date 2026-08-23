@@ -1,10 +1,19 @@
 ---
-kind: entity
+kind:
 name: Spatial object
 layer: domain
 persistence: sidecar
 partOf: "[[Plan]]"
-sources: ["PRD §7", "PRD §30", "PRD §34", "PRD §38", "PRD §59", "SDD §22", "SDD §26", "SDD §40"]
+sources:
+  - PRD §7
+  - PRD §30
+  - PRD §34
+  - PRD §38
+  - PRD §59
+  - SDD §22
+  - SDD §26
+  - SDD §40
+type: entity
 ---
 
 # Spatial object

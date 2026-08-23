@@ -128,10 +128,16 @@ subscribe to before opening. A caller that wants to act on the outcome simply
 
 ```typescript
 // No explicit type argument: `kind: 'confirm'` already determines the result type.
+// `title` and `message` are RESOLVED strings, and resolving them is the CALLER's job
+// (see Interfaces & Contracts) — so the canonical example resolves them, because this
+// is the example every call site will be copied from. An English literal here would
+// teach the one thing `docs/requirements/Multilanguage.md` forbids, and
+// I18N_LITERAL_BAN cannot catch it: its selectors see .setText() and the `text:`
+// option of createEl/createDiv/createSpan, not an object property in a call argument.
 const result = await dialogStore.openDialog({
   kind: 'confirm',
-  title: 'Duplicate this zone?',
-  message: 'A copy will be created in the same plan.',
+  title: t(lang, 'dialog.zone.duplicate.title'),
+  message: t(lang, 'dialog.zone.duplicate.message'),
 });
 if (result === 'cancel') return;
 ```
@@ -256,7 +262,8 @@ referents.length === 0?
   no  → dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zone.name,
-          references: [{ label: 'Requirements', count: referents.length }],
+          references: [{ label: t(lang, 'entity.requirement.plural'),
+                         count: referents.length }],
         })
   ↓
 await result
@@ -461,7 +468,9 @@ async function askThenDelete(
   const result: DeleteReferenceDialogResult = await dialogStore.openDialog({
     kind: 'delete-reference',
     entityLabel: zoneName,
-    references: [{ label: 'Requirements', count: referents.length }],
+    // Resolved by the caller from its own StringKey — the dialog renders rows, it does
+    // not name entity types (see ReferenceRow in Interfaces & Contracts).
+    references: [{ label: t(lang, 'entity.requirement.plural'), count: referents.length }],
   });
 
   if (result.action === 'cancel') return;
@@ -595,7 +604,7 @@ contract ends at the typed result, before any write occurs.
   than passing review by accident.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
-  `references: [{ label: 'Requirements', count: 2 }]` sourced from a fake
+  `references: [{ label: t(lang, 'entity.requirement.plural'), count: 2 }]` sourced from a fake
   `ListRequirementsReferencing` double, and that choosing each of the four actions
   resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
@@ -656,7 +665,23 @@ contract ends at the typed result, before any write occurs.
    12 already runs, not by convention alone.
 10. No user-facing English literal appears under `presentation/dialogs/`, including the
     `confirmLabel`/`cancelLabel` defaults; both dialog kinds' fixed copy lives in
-    `presentation/i18n/locales/` like every other string in the plugin.
+    `presentation/i18n/locales/` like every other string in the plugin. **The same
+    holds at every `openDialog` CALL SITE**, wherever it lives — `title`, `message`,
+    `entityLabel` and each `ReferenceRow.label` are resolved through `t()` by the
+    caller, since this module resolves nothing on its own behalf. Stated as its own
+    clause because the module-scoped half is the easy half: every string a user reads
+    in a dialog is authored outside `presentation/dialogs/`.
+
+    **Neither half is caught by lint, and the honest sentence is that both rest on
+    review.** `I18N_LITERAL_BAN` fires at exactly four call sites — `.setText(...)` and
+    the `text:` option of `.createEl`/`.createDiv`/`.createSpan` — and a descriptor's
+    `title:` or `label:` property is none of them; a Vue template's interpolation is not
+    either. What can be checked cheaply is the *inverse*: every `StringKey` the dialogs
+    and their call sites name exists in `en.ts`, which `tests/presentation/i18n/` already
+    does for the keys that exist. That catches a typo'd key, not a bypassed one. Adding
+    a fifth selector for these property positions is a real option and the trigger is a
+    second literal getting past review here; until then this box is ticked by reading
+    the diff, and saying so is better than implying a gate that does not exist.
 11. Each of `DeleteReferenceDialog`'s four buttons resolves the open Promise with its
     own distinct discriminated result exactly once; no button click leaves the Promise
     pending or resolves it twice.

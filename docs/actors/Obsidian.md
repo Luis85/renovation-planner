@@ -1,9 +1,16 @@
 ---
-kind: actor
+kind: system
 name: Obsidian
-layer: system
 standing: host application
-sources: ["PRD §3.6", "PRD §45", "SDD §4", "SDD §9", "SDD §11", "SDD §84", "SDD §96"]
+sources:
+  - PRD §3.6
+  - PRD §45
+  - SDD §4
+  - SDD §9
+  - SDD §11
+  - SDD §84
+  - SDD §96
+type: actor
 ---
 
 # Obsidian

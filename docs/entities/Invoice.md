@@ -1,9 +1,15 @@
 ---
-kind: entity
+kind:
 name: Invoice
 layer: domain
 persistence: note
-sources: ["PRD §33", "PRD §11", "PRD §37", "PRD §23", "PRD §73"]
+sources:
+  - PRD §33
+  - PRD §11
+  - PRD §37
+  - PRD §23
+  - PRD §73
+type: entity
 ---
 
 # Invoice

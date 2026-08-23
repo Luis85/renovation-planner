@@ -299,8 +299,10 @@ which quietly assumed the two steps after it could not fail.
 
 **The marker is what covers a process exit**, which no rollback can. Steps 3–5 are
 several writes with no atomicity between them, so a crash mid-move leaves files split
-across two folders with the setting pointing at one of them. On plugin load, before the
-index is built: if a marker is present, the plugin completes the interrupted move
+across two folders with the setting pointing at one of them. On plugin load — meaning
+inside `app.workspace.onLayoutReady`, per slice 1's bootstrap rule, since this walks the
+vault — and before the index is built: if a marker is present, the plugin completes the
+interrupted move
 (every `.rpgeo` still in `from` moves to `to`, and the setting is set to `to`) and then
 clears it. Completing forward rather than reversing is the safer of the two, because
 `to` is where the majority of files already are by the time most of the sequence has
@@ -768,13 +770,25 @@ interface PlanGeometryStore {
   // a read that did not hand one back would leave every caller unable to write
   // conditionally at all.
   read(planId: PlanId): Promise<Result<{ dto: PlanGeometryDTO; version: EntityVersion }, PersistenceError | ValidationError>>;
-  write(planId: PlanId, dto: PlanGeometryDTO): Promise<Result<void, PersistenceError>>;
   delete(planId: PlanId): Promise<Result<void, PersistenceError>>;
 
+  // There is deliberately NO `write(planId, dto)`. An earlier version of this port had
+  // one, with a comment beneath it forbidding the read()+write() composition it is the
+  // only way to perform — a method whose own documentation says not to call it, kept
+  // "available" for a caller that does not exist. create/mutate/delete cover every use
+  // in these slices, and the folder migration moves whole files under
+  // withGlobalBarrier rather than rewriting their contents. A public method with no
+  // caller and a documented prohibition is not an escape hatch, it is the lost update
+  // waiting for the first person who reads the signature and not the paragraph. If a
+  // whole-file replacement is ever genuinely needed, it arrives as a named operation
+  // with its own conditional-write contract, not as a bare setter.
+  //
+  // `read()` stays: hydration needs it, and it hands back the version a conditional
+  // write is built from.
+
   // The read-modify-write of one plan's sidecar, run under that plan's own lock.
-  // Callers use THIS rather than read()+write(), which is why the separate read/write
-  // pair stays available but is not the upsert path: a caller that composed its own
-  // read-then-write would reintroduce exactly the lost update this method prevents.
+  // Every content change goes through THIS — there is no read-then-write pair to
+  // compose an alternative out of, which is the point.
   //
   // `expected` is slice 3's conditional-write contract applied to the file this store
   // owns — the SAME EntityVersion the note-backed ports take, both halves. Omitted, the
@@ -908,10 +922,15 @@ interface FindZonesByPlanQuery {
 
 ## Persistence Impact
 
-- **Reads:** on plugin load, `ProjectIndexBuilder` scans the configured default
-  folder(s) for Project/Plan/Zone notes (via `MetadataCache`, not raw file parsing)
-  and the configured geometry folder for sidecars, populating the Project Index.
-  Every `getById` after that is a single file read, not a scan.
+- **Reads:** `ProjectIndexBuilder` scans the configured default folder(s) for
+  Project/Plan/Zone notes (via `MetadataCache`, not raw file parsing) and the configured
+  geometry folder for sidecars, populating the Project Index. Every `getById` after that
+  is a single file read, not a scan. **This runs from
+  `app.workspace.onLayoutReady`, not from `onload`** — slice 1's bootstrap rule, and it
+  is load-bearing twice here: a vault-wide scan in `onload` competes with workspace
+  restoration on the main thread, and `MetadataCache` is incomplete until layout-ready,
+  so a scan that ran earlier would build a partial index that looks complete. Marker
+  recovery (above) runs first inside the same callback.
 - **Writes:** `ObsidianProjectRepository`/`ObsidianPlanRepository` write Markdown
   frontmatter via `FileManager.processFrontMatter` (note body untouched).
   `ObsidianZoneRepository.save` additionally reads-modifies-writes one entry in its

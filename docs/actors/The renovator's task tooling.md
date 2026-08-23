@@ -1,9 +1,12 @@
 ---
-kind: actor
+kind: system
 name: The renovator's task tooling
-layer: system
 standing: user-chosen
-sources: ["PRD §3.6", "PRD §20", "PRD §65"]
+sources:
+  - PRD §3.6
+  - PRD §20
+  - PRD §65
+type: actor
 ---
 
 # The renovator's task tooling

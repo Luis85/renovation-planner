@@ -1,9 +1,15 @@
 ---
-kind: entity
+kind:
 name: Dependency
 layer: domain
 persistence: note
-sources: ["PRD §77", "PRD §78", "PRD §21", "PRD §19", "PRD §20"]
+sources:
+  - PRD §77
+  - PRD §78
+  - PRD §21
+  - PRD §19
+  - PRD §20
+type: entity
 ---
 
 # Dependency

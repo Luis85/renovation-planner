@@ -1,10 +1,15 @@
 ---
-kind: entity
+kind:
 name: Photo
 layer: domain
 persistence: note
 partOf: "[[Document]]"
-sources: ["PRD §23", "PRD §27", "PRD §30", "PRD §36"]
+sources:
+  - PRD §23
+  - PRD §27
+  - PRD §30
+  - PRD §36
+type: entity
 ---
 
 # Photo

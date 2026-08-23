@@ -1,10 +1,15 @@
 ---
-kind: entity
+kind:
 name: Floor
 layer: domain
 persistence: note
 partOf: "[[Building]]"
-sources: ["PRD §6", "PRD §58", "PRD §79", "PRD §8"]
+sources:
+  - PRD §6
+  - PRD §58
+  - PRD §79
+  - PRD §8
+type: entity
 ---
 
 # Floor

@@ -1,9 +1,13 @@
 ---
-kind: entity
+kind:
 name: Risk
 layer: domain
 persistence: note
-sources: ["PRD §26", "PRD §58", "PRD §28"]
+sources:
+  - PRD §26
+  - PRD §58
+  - PRD §28
+type: entity
 ---
 
 # Risk

@@ -1,9 +1,19 @@
 ---
-kind: actor
+kind: system
 name: The vault
-layer: system
 standing: canonical store
-sources: ["PRD §3.2", "PRD §36", "PRD §37", "PRD §60", "PRD §64", "PRD §88", "SDD §37", "SDD §43", "SDD §46", "SDD §47"]
+sources:
+  - PRD §3.2
+  - PRD §36
+  - PRD §37
+  - PRD §60
+  - PRD §64
+  - PRD §88
+  - SDD §37
+  - SDD §43
+  - SDD §46
+  - SDD §47
+type: actor
 ---
 
 # The vault

@@ -1,10 +1,20 @@
 ---
-kind: entity
+kind:
 name: Zone
 layer: domain
 persistence: note
 partOf: "[[Project]]"
-sources: ["PRD §8", "PRD §15", "PRD §34", "PRD §36", "PRD §60", "PRD §64", "PRD §84", "PRD §88", "SDD §38"]
+sources:
+  - PRD §8
+  - PRD §15
+  - PRD §34
+  - PRD §36
+  - PRD §60
+  - PRD §64
+  - PRD §84
+  - PRD §88
+  - SDD §38
+type: entity
 ---
 
 # Zone

@@ -1,10 +1,15 @@
 ---
-kind: entity
+kind:
 name: Supplier
 layer: domain
 persistence: note
 partOf: "[[Project]]"
-sources: ["PRD §22", "PRD §10", "PRD §59", "PRD §103"]
+sources:
+  - PRD §22
+  - PRD §10
+  - PRD §59
+  - PRD §103
+type: entity
 ---
 
 # Supplier

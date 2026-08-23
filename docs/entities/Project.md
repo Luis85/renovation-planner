@@ -1,9 +1,17 @@
 ---
-kind: entity
+kind:
 name: Project
 layer: domain
 persistence: note
-sources: ["PRD §8", "PRD §12", "PRD §58", "PRD §59", "PRD §72", "PRD §83", "SDD §47"]
+sources:
+  - PRD §8
+  - PRD §12
+  - PRD §58
+  - PRD §59
+  - PRD §72
+  - PRD §83
+  - SDD §47
+type: entity
 ---
 
 # Project
@@ -23,8 +31,17 @@ some configuration is per project rather than global.
 
 ## Identity and persistence
 
-A single `Project.md` at the root of the renovation folder (§36), with a stable `id`
-independent of filename, title and path (§60) and a `schema-version` (§61).
+One note at the root of the renovation folder, named after the project and deduplicated on
+collision like every other entity note
+([`docs/design/04-persistence-and-repository-layer.md`](../design/04-persistence-and-repository-layer.md)),
+with a stable `id` independent of filename, title and path (PRD §60) and a `schema-version`
+(PRD §61).
+
+PRD §36 draws this file as `Project.md`, and that is a recommendation rather than a rule: the
+section is headed "Recommended structure" and closes with "Paths must be configurable". An
+earlier version of this note hardened the drawing into identity, which would have made Project
+the one entity whose filename is fixed while every other is derived from its name.
+[[Start a renovation project]] is where that was noticed and settled.
 
 ## Relationships
 

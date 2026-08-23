@@ -1,9 +1,19 @@
 ---
-kind: entity
+kind:
 name: Cost item
 layer: domain
 persistence: note
-sources: ["PRD §9", "PRD §10", "PRD §11", "PRD §32", "PRD §33", "PRD §73", "PRD §74", "SDD §48", "SDD §51"]
+sources:
+  - PRD §9
+  - PRD §10
+  - PRD §11
+  - PRD §32
+  - PRD §33
+  - PRD §73
+  - PRD §74
+  - SDD §48
+  - SDD §51
+type: entity
 ---
 
 # Cost item

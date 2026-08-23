@@ -1,9 +1,13 @@
 ---
-kind: entity
+kind:
 name: Issue
 layer: domain
 persistence: note
-sources: ["PRD §26", "PRD §27", "PRD §58"]
+sources:
+  - PRD §26
+  - PRD §27
+  - PRD §58
+type: entity
 ---
 
 # Issue

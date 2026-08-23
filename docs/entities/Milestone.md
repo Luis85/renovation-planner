@@ -1,9 +1,14 @@
 ---
-kind: entity
+kind:
 name: Milestone
 layer: domain
 persistence: note
-sources: ["PRD §21", "PRD §58", "PRD §77", "PRD §28"]
+sources:
+  - PRD §21
+  - PRD §58
+  - PRD §77
+  - PRD §28
+type: entity
 ---
 
 # Milestone

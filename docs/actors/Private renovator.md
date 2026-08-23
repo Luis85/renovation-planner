@@ -1,9 +1,14 @@
 ---
-kind: actor
+kind: human
 name: Private renovator
-layer: human
 standing: primary persona
-sources: ["PRD §1", "PRD §3.7", "PRD §4", "PRD §5", "PRD §52"]
+sources:
+  - PRD §1
+  - PRD §3.7
+  - PRD §4
+  - PRD §5
+  - PRD §52
+type: actor
 ---
 
 # Private renovator

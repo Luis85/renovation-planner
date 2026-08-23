@@ -1,9 +1,14 @@
 ---
-kind: entity
+kind:
 name: Money
 layer: core
 persistence: none
-sources: ["PRD §72", "PRD §73", "SDD §49", "ADR-010"]
+sources:
+  - PRD §72
+  - PRD §73
+  - SDD §49
+  - ADR-010
+type: entity
 ---
 
 # Money

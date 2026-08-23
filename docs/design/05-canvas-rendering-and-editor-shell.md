@@ -231,10 +231,11 @@ rules, an inert hit graph on layers nothing yet interacts with is pure cost. Sli
 listening on selectively, per node, as tools arrive — it does not need to restructure this
 layer list to do so.
 
-`BackgroundLayer` "should redraw rarely" (§18): it is not touched by the pan/zoom
-transform's redraw path in the same way `ZoneLayer` is (its own `Layer` only needs a new
-`Stage` transform applied, not per-shape re-render), and is a natural candidate for Konva's
-`cache()` once a real background asset is in place.
+`BackgroundLayer` "should redraw rarely" (§18), and under the content-Group transform
+below that is true of **every** world-space layer, not just this one: a pan or zoom moves
+the Group and re-renders no shape's points. What still makes the background the special
+case is that its content changes only when the Plan's background does, so it is the
+natural candidate for Konva's `cache()` once a real background asset is in place.
 
 ### 4. Render pipeline: a persisted Zone on screen
 
@@ -246,12 +247,56 @@ Zone (domain entity, slice 3)
 ZoneDto (presentation read model)
         ↓  toZoneRenderModel()          — pure mapping, presentation-only, no mutation
 ZoneRenderModel
-        ↓  <ZoneShape :model :viewport> — Vue component
-        ↓  worldToScreen() per point    — this slice (§ Interfaces & Contracts)
-        ↓  <v-line :points :closed>     — vue-konva
+        ↓  <ZoneShape :model>           — Vue component; points passed through
+        ↓                                 UNCHANGED, still world millimetres
+        ↓  <v-line :points :closed>     — vue-konva, inside the content Group
         ↓
-Konva Node (canvas pixels only — never read back as a geometry source)
+Konva Node (world mm in its own coordinate space; the content Group's
+            position/scale is the whole pan/zoom/dpr transform — see below.
+            Never read back as a geometry source either way.)
 ```
+
+**Pan and zoom are the Stage's transform, not a per-point conversion.** An earlier
+version of this pipeline had `ZoneShape` convert every vertex through
+`worldToScreen()` with the reactive `Viewport` as an input. That is `O(total vertices)`
+of JavaScript on **every pan and zoom frame**, and it re-derives on each one the single
+affine transform Konva's own scene graph applies for free — a plan with a few hundred
+zones drops frames on a drag that should cost nothing. It also contradicted the
+concession two sections up, that `BackgroundLayer` "only needs a new `Stage` transform
+applied": a Stage transform is not something one layer can have, so either every layer
+got it and the zone points were transformed twice, or the background's exemption was
+fictional.
+
+So the transform is expressed **once**, on a single content `Group` that holds every
+world-space layer:
+
+```text
+Stage                                   ← size bound to the container (ResizeObserver)
+└── content Group
+      x, y     = pan, in screen pixels
+      scaleX/Y = zoom × devicePixelRatio
+      ├── BackgroundLayer   ← world mm
+      ├── ZoneLayer         ← world mm; ZoneShape hands ZoneRenderModel.points straight
+      │                       to <v-line>, no per-point math anywhere
+      └── … (transient/interaction layers, slice 6)
+```
+
+A `Group` rather than the `Stage` itself, because slice 6 needs somewhere to put nodes
+that must **not** scale — `Konva.Transformer` handles, snap guides, vertex handles are
+constant-size screen affordances — and that somewhere is a sibling of this Group, not a
+child. Naming it now costs one line; retrofitting it means moving every layer.
+
+Two consequences worth stating, since both are silent when got wrong:
+
+- **`strokeScaleEnabled: false`** on every stroked world-space shape. Konva scales
+  stroke width with the node, so a 1-pixel zone outline becomes 20 pixels at 20× zoom.
+- **`worldToScreen`/`screenToWorld` do not go away**, and this is not a retreat from
+  §24 — they are still the single declared home of the transform's math
+  (Interfaces & Contracts), still what slice 6's `EditorPointerEvent` uses to turn a
+  pointer's `ScreenPoint` into the `worldPoint` a tool reads, and still what anything
+  needing genuine pixels calls. What changed is that **rendering** is no longer one of
+  those callers. The Group's `x`/`y`/`scale` are derived from the same `Viewport` by the
+  same module, so there is one definition of the transform, not two that can disagree.
 
 ```typescript
 // presentation/editor/layers/zone/ZoneRenderModel.ts
@@ -269,9 +314,11 @@ function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel;
 `ZoneLayer.vue` iterates `ProjectStore.zones` and renders one `ZoneShape` per entry, keyed
 by `zone.id` — never by array index or Konva instance identity, so React/Vue-style
 reconciliation stays correct if the zone list changes shape later (slice 6). `ZoneShape`
-itself takes a `ZoneRenderModel` and the current `Viewport`, converts every point through
-`worldToScreen()`, and renders a closed `<v-line>` with fill/stroke resolved from theme
-tokens (§7 below) — nothing it does writes back to `ProjectStore` or to a repository.
+itself takes a `ZoneRenderModel` and renders a closed `<v-line>` from its world-millimetre
+points directly, with fill/stroke resolved from theme tokens (§7 below) and
+`strokeScaleEnabled: false`. It does **not** take a `Viewport` and does not call
+`worldToScreen()`: pan and zoom are the content Group's transform, so a pan re-renders
+nothing at all. Nothing it does writes back to `ProjectStore` or to a repository.
 
 ### 5. Background layer: images and PDF pages
 
@@ -690,6 +737,10 @@ Per §73–74 (Vue component tests, canvas adapter tests):
    rendered points for every Zone, with no residual state carried by Konva itself.
 5. Panning and zooming changes on-screen shape position/scale only; the Zone geometry in
    slice 4's repository/sidecar is byte-identical before and after a pan/zoom session.
+   **And it changes no shape's `points`**: a pan asserts that every `<v-line>`'s points
+   array is reference-identical before and after, so the transform demonstrably lives on
+   the content Group and not in a per-vertex conversion. Asserted this way rather than by
+   timing, because the defect is structural and a frame-rate assertion is flaky on CI.
 6. A background renders correctly from both a PNG/JPEG fixture and a PDF fixture (via
    `pdfjs-dist`), sourced by Vault-relative path, with no base64 string anywhere in the
    render path, a store, or persisted Plan data.

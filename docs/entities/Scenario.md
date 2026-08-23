@@ -1,9 +1,13 @@
 ---
-kind: entity
+kind:
 name: Scenario
 layer: domain
 persistence: note
-sources: ["PRD §29", "PRD §25", "PRD §50"]
+sources:
+  - PRD §29
+  - PRD §25
+  - PRD §50
+type: entity
 ---
 
 # Scenario

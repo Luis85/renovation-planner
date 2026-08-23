@@ -1,10 +1,16 @@
 ---
-kind: entity
+kind:
 name: Task
 layer: domain
 persistence: note
 partOf: "[[Work package]]"
-sources: ["PRD §8", "PRD §20", "PRD §58", "PRD §65", "PRD §77"]
+sources:
+  - PRD §8
+  - PRD §20
+  - PRD §58
+  - PRD §65
+  - PRD §77
+type: entity
 ---
 
 # Task

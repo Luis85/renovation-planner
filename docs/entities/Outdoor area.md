@@ -1,10 +1,15 @@
 ---
-kind: entity
+kind:
 name: Outdoor area
 layer: domain
 persistence: note
 partOf: "[[Site]]"
-sources: ["PRD §6", "PRD §58", "PRD §4", "PRD §8"]
+sources:
+  - PRD §6
+  - PRD §58
+  - PRD §4
+  - PRD §8
+type: entity
 ---
 
 # Outdoor area

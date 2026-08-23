@@ -1,9 +1,14 @@
 ---
-kind: entity
+kind:
 name: Quote
 layer: domain
 persistence: note
-sources: ["PRD §22", "PRD §11", "PRD §33", "PRD §23"]
+sources:
+  - PRD §22
+  - PRD §11
+  - PRD §33
+  - PRD §23
+type: entity
 ---
 
 # Quote

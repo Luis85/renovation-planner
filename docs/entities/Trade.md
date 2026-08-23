@@ -1,10 +1,16 @@
 ---
-kind: entity
+kind:
 name: Trade
 layer: domain
 persistence: note
 partOf: "[[Project]]"
-sources: ["PRD §8", "PRD §19", "PRD §10", "PRD §21", "PRD §84"]
+sources:
+  - PRD §8
+  - PRD §19
+  - PRD §10
+  - PRD §21
+  - PRD §84
+type: entity
 ---
 
 # Trade

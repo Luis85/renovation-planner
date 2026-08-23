@@ -1,9 +1,17 @@
 ---
-kind: entity
+kind:
 name: Quantity
 layer: core
 persistence: none
-sources: ["PRD §9", "PRD §70", "PRD §71", "PRD §75", "SDD §23", "SDD §50", "ADR-009"]
+sources:
+  - PRD §9
+  - PRD §70
+  - PRD §71
+  - PRD §75
+  - SDD §23
+  - SDD §50
+  - ADR-009
+type: entity
 ---
 
 # Quantity

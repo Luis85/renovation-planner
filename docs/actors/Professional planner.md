@@ -1,9 +1,14 @@
 ---
-kind: actor
+kind: human
 name: Professional planner
-layer: human
 standing: out of scope
-sources: ["PRD §4", "PRD §54", "PRD §57", "PRD §58", "PRD §73"]
+sources:
+  - PRD §4
+  - PRD §54
+  - PRD §57
+  - PRD §58
+  - PRD §73
+type: actor
 ---
 
 # Professional planner

@@ -1,9 +1,12 @@
 ---
-kind: actor
+kind: system
 name: Bases
-layer: system
 standing: host feature
-sources: ["PRD §40", "PRD §41", "SDD §13"]
+sources:
+  - PRD §40
+  - PRD §41
+  - SDD §13
+type: actor
 ---
 
 # Bases

@@ -48,8 +48,19 @@ them:
 
 - **`docs/setup/vue-conventions.md`** — the component, composable and Pinia rules the
   presentation slices (5, 6, 13–17) are written against. Where a slice departs from it,
-  the departure is named in that slice's **References**, not left to be discovered; the
-  one departure today is slice 13's plugin-global `NotificationStore`.
+  the departure is named in that slice's **References**, not left to be discovered.
+  Today there are **two**, both in slice 13 and both parts of one decision:
+  - **§5, one Pinia per view app** — `NotificationStore` is plugin-global.
+  - **§6, apps created in a view's `onOpen` and unmounted in `onClose`** — the
+    `NotificationHost` app is created in `RenovationPlannerPlugin.onload()` and
+    unmounted in `onunload()`, so the composition root knows it is mounting Vue. That
+    also departs from CLAUDE.md's "nothing outside the view will know it is Vue."
+
+  A first draft of this section called the store the *one* departure and stopped there,
+  which is the failure this whole section is supposed to prevent: an inventory that is
+  wrong reports a nonconforming slice as conforming, and does it with more authority than
+  no inventory at all. The store cannot be plugin-global without an app to mount its host
+  into, so listing one and not the other was never a defensible split.
 - **`docs/setup/quality-harness.md`** — what `npm run check` refuses, which is what a
   slice's Definition of Done is ultimately asserting against.
 

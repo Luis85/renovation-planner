@@ -435,8 +435,17 @@ presentation/
 `route-error.ts` sits outside `composables/` because
 `docs/setup/vue-conventions.md` §4 scopes that directory to `use*` composables — things
 that bind reactivity or a lifecycle — and `routeError` is a pure function that binds
-neither. The placement is not cosmetic: it is what keeps the routing logic node-testable
-instead of reachable only through jsdom, which is the return §4 exists to protect.
+neither.
+
+That is the whole reason, and it is worth saying what the reason is **not**. A draft of
+this paragraph claimed the move is what keeps `routeError` node-testable rather than
+reachable only through jsdom. That is false, and slice 12 says so directly: the test
+environment is chosen by the test file's own profile, not by the directory the source
+sits in, and slice 12 already lists `routeError` among the node-profile pure functions —
+it did so while the file was still under `composables/`. Nothing about this move changes
+how it is tested. Left standing, that sentence would have taught an implementer that a
+pure helper under `composables/` needs jsdom, which would be a worse error than the
+misplacement it was justifying.
 
 `presentation/errors/` is a new top-level folder under `presentation/`, so this slice no
 longer claims to add none. Slice 11 owns error mapping but names no directory for it; if
@@ -544,6 +553,9 @@ reload, and none of it is the source of truth for anything — the DTO/query res
   layout).
 - `docs/setup/vue-conventions.md` §4 — the composable rules this slice's two `use*`
   modules follow, and the reason `route-error.ts` is not among them.
+- `docs/design/12-testing-and-architecture-enforcement-infrastructure.md` — the node
+  profile `routeError` is assigned to, which is where its test environment is decided and
+  is unaffected by which directory it lives in.
 - SDD §85 Accessibility — "semantic labels," "status not encoded only by color,"
   "visible focus," applied to `<FieldError>`.
 - PRD §39 (User Experience Requirements: Inspector actions, the `Escape` shortcut) — not

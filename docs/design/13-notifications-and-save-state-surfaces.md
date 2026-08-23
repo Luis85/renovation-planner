@@ -707,12 +707,25 @@ split slice 5 already established for that layer's own stores:
   and this slice's narrow, explicit exception for `NotificationHost`.
 - `docs/setup/vue-conventions.md` §5 — "One Pinia per view app… State shared BETWEEN
   views is not Pinia's job." That is the rule `SaveStateStore` follows and the one
-  `NotificationStore` is the single stated exception to (Design §4). Naming it here
-  because the convention file states the rule without an exception, and a repository
-  where one document says "always" and another quietly says "except here" is the same
-  defect as an unchecked comment — a reader arriving from either side should find the
-  other. The exception is one store, one host component, one plugin-global app; it is
-  not a licence for a second.
+  `NotificationStore` departs from (Design §4). Naming it here because the convention
+  file states the rule without an exception, and a repository where one document says
+  "always" and another quietly says "except here" is the same defect as an unchecked
+  comment — a reader arriving from either side should find the other.
+- `docs/setup/vue-conventions.md` §6 — "`createApp(ViewRoot)` in the view's `onOpen`…
+  `app.unmount()` in `onClose`", and "Nothing outside the view knows it is Vue"
+  (CLAUDE.md says the same). This slice's `NotificationHost` app is created in
+  `RenovationPlannerPlugin.onload()` and unmounted in `onunload()`, so the composition
+  root does know it is mounting Vue. This is the SECOND departure, and it is listed
+  because an earlier draft named only the §5 one — which was not a defensible split:
+  a plugin-global store needs a plugin-global app to mount its host into, so the two
+  are halves of one decision and an inventory carrying one of them is simply wrong.
+  What §6's *reasoning* asks for is still honoured: the app is unmounted
+  unconditionally on `onunload`, which is what runs every `onUnmounted`/`onScopeDispose`
+  in the tree, and the plugin holds no reference to a view.
+
+  The whole exception is one store, one host component, one plugin-global app, created
+  and destroyed once per plugin lifecycle. It is not a licence for a second, and slice
+  15 states the same in the other direction — its dialog host is deliberately per-view.
 - SDD §29-31 Command Architecture, Undoable Editor Commands, Transaction Boundary
   (detailed in slice 6) — the rule this slice's save-state transitions are driven by
   and the reasoning behind `Unsaved Changes`'s unreachability (Design §8).

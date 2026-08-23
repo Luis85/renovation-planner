@@ -534,9 +534,11 @@ and a spec written in the template's spelling would not type-check as a test.
   whose `execute()` resolves a failed `Result` carrying a `ValidationError`; assert `draft` still holds
   the rejected value (not the pre-edit canonical one), `error` is non-null, and
   `history.run()` was called exactly once. Then call `onInput` with a corrected value and
-  assert `error` clears **without** a further `history.run()` — the stale-message rule,
-  asserted on the path that must PERFORM it rather than only on the paths that must not
-  dispatch. Finally call `onCancel()` and assert `draft` resets to `canonicalValue` and
+  assert **both** halves: `draft.value` now holds that value — `onInput`'s primary job —
+  and `error` clears, with no further `history.run()`. Both, because an `onInput` that
+  cleared the error and never wrote the draft would satisfy the second alone; a method's
+  own job has to be asserted beside its side effect or the side effect becomes the whole
+  contract. Finally call `onCancel()` and assert `draft` resets to `canonicalValue` and
   `error` clears. The mirror assertion belongs to the creation-dialog test below, since a
   rule proven on one composable and assumed on the other is how this pair drifted.
 - **Field commit-success test** — same setup resolving `ok(...)`; assert `draft` clears and
@@ -550,9 +552,12 @@ and a spec written in the template's spelling would not type-check as a test.
   entry for `unitCost`; `values.value.unitCost` is still `-5` — draft preservation, which
   is the point of the test; and the fixture's repository/event-publish spies recorded zero
   calls (no `AssetCreated`, no write). **Then** call `setField('unitCost', 5)` and assert
-  it removes that entry while leaving any other field's entry untouched — the
-  stale-message rule, mirroring the field test above. Asserting draft preservation after
-  that call would be checking for `-5` in a field just set to `5`.
+  all three: `values.value.unitCost` is now `5` — the write, which is `setField`'s primary
+  job — the `unitCost` entry is gone from `fieldErrors.value`, and any other field's entry
+  is untouched. The write is asserted for the same reason as on the field path above: a
+  `setField` that only cleared errors would pass a spec that checked only the clearing.
+  Asserting draft preservation after this call would instead be checking for `-5` in a
+  field just set to `5`, which is why it belongs in the block before it.
 - **Creation-dialog success test** — same fixture resolving `ok(...)`; assert `submit()`
   resolves `true` (the signal the dialog host uses to close, per slice 15's container
   contract) and `fieldErrors`/`banner` are empty.

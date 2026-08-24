@@ -744,7 +744,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 
 | id | finding |
 | --- | --- |
-| **v1** | `docs/user-experience/` holds 30 files, including four of the eight in-scope evidence bodies, and the folder table names no such folder. |
+| **v1** | `docs/user-experience/` holds 30 files, including six of the eight in-scope evidence bodies, and the folder table names no such folder. |
 | **v2** | `docs/product/` holds the user research synthesis and the competitive market landscape, and the table names no such folder. It arrived during the review of the spec that inventories it. |
 | **v3** | `docs/templates/` holds `jobs-to-be-done.md`, and the table names no such folder — the register omits a folder that is itself register machinery. `docs/README.md` contains no occurrence of the word "template". |
 | **v4** | **`PRODUCT.md` is cited as settled authority by six derived notes and `docs/README.md` mentions it zero times.** |
@@ -752,7 +752,9 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 546 findings carry `undetermined`.
+**v1 and v2 are the ones that gate this ledger** — they are why 550 findings carry `undetermined`:
+494 whose evidence side sits in `docs/user-experience/` and 56 in `docs/product/` — all of
+them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
 naming it in the table settles it outright, with no classification question behind it.
 
@@ -890,11 +892,6 @@ rows found 7. Replaying all 686 through the corrected lookup found 2 more going 
 parenthetical qualifier as part of the name while `entities/Decision.md` and `entities/Photo.md`
 sit right there. Net, the gap count rose from 772 to 777.
 
-The same check clears the reverse direction rather than assuming it: an evidence body has no note
-identities, so a mention *is* the test there, and re-running all 185 reverse named rows under
-word-boundary matching moved **none** — the three that looked like substring artefacts were
-alias-resolved.
-
 **A ninth correction, to the committed matrix rather than to a finding.** `rows.tsv`'s `pair`
 column still held the citations as first extracted, so all 49 disagreement rows then in it carried an
 evidence citation truncated at its first space and 11 carried the row's own id where the derived
@@ -903,6 +900,28 @@ else. A reader recomputing the finding set from the committed matrix would have 
 count with the wrong citations. The column is now backfilled from the corrected findings, and the
 recomputation is a check below: the finding set derived from `rows.tsv` and the one in
 `findings.tsv` agree as SETS, not merely in total.
+
+**A tenth correction, to that eighth one: the reverse direction was measured under the repair
+and never given it.** An evidence body has no note identities, so a mention *is* the test there,
+and re-running all 185 reverse named rows under word-boundary matching moved **none** — which is
+true, and is why the finding was recorded as cleared while `reverse` kept the literal `grep -F`
+the forward path had just lost. A check run beside the code is not a property of the code. Three
+rows did rest on a substring: `Order` on the prototype's `borders`, `Site` on jtbd's
+`prerequisite`, `Layer` on research's `layered`. None moved, because each is also named properly
+by another body — not, as this section previously claimed, because they were alias-resolved; only
+`Site` is in the alias table at all, and it never reached that branch. `reverse` now applies the
+same word-boundary, plural-tolerant test as the forward path, so the class is refused rather than
+re-measured.
+
+**`matched` names every body, not the first one grep walked into.** That is what made the
+substring rest invisible: `Order` recorded `gallery` alone, whose sole boundary-clean hit is
+`<!-- Order is load-bearing -->` — a comment about stacking order, not the commitment to buy the
+entity note defines. The row is right (`jtbd` §JTBD-041 *Track orders and deliveries* and the
+synthesis's "budget does not reflect committed orders" both name it) and its evidence read as
+though it were not. The report already makes this argument in the forward direction — "a single
+`matched` field would have recorded whichever note the reader opened first" — and the reverse
+column now follows it: 43 rows gained the bodies that were always there. **No state moved, in
+either repair**; `lookup.py --selftest` reproduces 686/686.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

@@ -43,3 +43,7 @@ node_modules/
 .impeccable/live/deferred-svelte-component-accepts.json
 .impeccable/live/*.png
 # impeccable-ignore-end
+
+# Python bytecode — `lookup.py` and `sections.py` in docs/reviews/ are run directly.
+__pycache__/
+*.pyc

@@ -23,6 +23,12 @@ different, and each was a defect before it was a rule:
   `retained`; they are one rename seen from two ends. The second pass re-resolves through
   `aliases.tsv` — and only inside the row's own target, because resolving through the table's
   note path without re-checking the target reintroduces the first defect after the fact.
+* **WORD-BOUNDED, IN BOTH DIRECTIONS.** A literal search reads a name inside a longer word as
+  a mention: `Order` on `borders`, `Layer` on `layered`. Forward, that let incidental prose
+  stand in for a note; reverse, it let a body it does not appear in stand in for evidence.
+  Three reverse rows rested on one such hit and none of the three moves state — each is named
+  properly by another body — so this refuses a class rather than repairing a count. What it
+  does NOT do is judge sense, which is why `matched` names every body rather than one.
 * **BACK-LINK-GUARDED, in reverse.** The gallery is HTML and links back into the corpus it is
   compared against: `<a href="../deliverables/Design%20System.md">Design System</a>`. A literal
   grep reads that as the evidence naming the thing. It is the evidence pointing AT the derived
@@ -171,16 +177,36 @@ def forward(target, subject):
     return "absent", "-"
 
 
+def bodies_naming(name, view):
+    """Every body naming `name`, at word boundaries and plural-tolerant — sorted.
+
+    The same test `names_it` applies forward, and for the same reason: a literal search reads
+    a name inside a longer word as a mention. Three reverse rows rested on one — `Order` on
+    the prototype's `borders`, `Site` on jtbd's `prerequisite`, `Layer` on research's `layered`.
+    """
+    pat = r"\b%ss?\b" % re.escape(name)
+    r = subprocess.run(["grep", "-rliE", "--", pat, view], capture_output=True, text=True)
+    return sorted(os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x)
+
+
 def reverse(subject, view):
-    r = subprocess.run(["grep", "-rliF", "--", subject, view], capture_output=True, text=True)
-    hits = [os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x]
+    """(state, every body naming it) for a reverse named row.
+
+    EVERY body, not the first one grep happened to walk into. A single field records whichever
+    file the reader opened first, and on a thing several bodies name that is an arbitrary
+    answer presented as the answer — the report makes this argument for the forward direction
+    and it holds here. It also bounds what word boundaries can do: they refuse a name inside a
+    longer word, they cannot judge SENSE. The gallery says `<!-- Order is load-bearing -->`
+    about stacking order, which is a boundary-clean hit on a thing that note does not mean;
+    listing jtbd and research beside it is what shows the row does not rest on that comment.
+    """
+    hits = bodies_naming(subject, view)
     if hits:
-        return "present", hits[0]
+        return "present", ",".join(hits)
     _, rev = aliases()
     ev = rev.get(norm(subject))
     if ev:
-        r = subprocess.run(["grep", "-rliF", "--", ev, view], capture_output=True, text=True)
-        hits = sorted(os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x)
+        hits = bodies_naming(ev, view)
         if hits:
             return "present", ",".join(hits)
     return "retained", "-"

@@ -10,33 +10,33 @@ f7	forward	named	Conceptual (fidelity level)	canvas§5	conceptual,fidelity level
 f8	forward	named	Approximate (fidelity level)	canvas§5	approximate,fidelity level	-	-	absent	-	entities
 f9	forward	named	Measured (fidelity level)	canvas§5	measured,fidelity level	-	-	absent	-	entities
 f10	forward	named	Precision on Demand	canvas§6	precision on demand	-	-	absent	-	entities
-f11	forward	named	Space	canvas§7	space	-	docs/entities/Constraint.md::Constraint[4]	present	-	entities
+f11	forward	named	Space	canvas§7	space	-	docs/entities/Space.md	present	-	entities
 f12	forward	named	Work	canvas§7	work	-	-	absent	-	entities
 f13	forward	named	Problem	canvas§7	problem	-	docs/entities/Issue.md	present	-	entities
-f14	forward	named	Decision	canvas§7	decision	-	docs/entities/Constraint.md	present	-	entities
+f14	forward	named	Decision	canvas§7	decision	-	docs/entities/Decision.md	present	-	entities
 f15	forward	named	Photo	canvas§7	photo	-	docs/entities/Photo.md	present	-	entities
 f16	forward	named	Measurement	canvas§7	measurement	-	-	absent	-	entities
-f17	forward	named	Material	canvas§7	material	-	docs/entities/Procurement item.md::Procurement item[4]	present	-	entities
-f18	forward	named	Product	canvas§7	product	-	docs/entities/Asset.md::Asset[1]	present	-	entities
-f19	forward	named	Trade	canvas§7	trade	-	docs/entities/Work package.md	present	-	entities
-f20	forward	named	Document	canvas§7	document	-	docs/entities/Photo.md	present	-	entities
-f21	forward	named	Milestone	canvas§7	milestone	-	docs/entities/Work package.md	present	-	entities
+f17	forward	named	Material	canvas§7	material	-	docs/entities/Asset.md	present	-	entities
+f18	forward	named	Product	canvas§7	product	-	docs/entities/Asset.md	present	-	entities
+f19	forward	named	Trade	canvas§7	trade	-	docs/entities/Trade.md	present	-	entities
+f20	forward	named	Document	canvas§7	document	-	docs/entities/Document.md	present	-	entities
+f21	forward	named	Milestone	canvas§7	milestone	-	docs/entities/Milestone.md	present	-	entities
 f22	forward	named	+ Add (control)	canvas§14	add,control	-	-	absent	-	components
-f23	forward	named	Room	canvas§14	room	-	docs/entities/Constraint.md	present	-	entities
-f24	forward	named	Outdoor Area	canvas§14	outdoor area	-	docs/entities/Zone.md::Relationships[2]	present	-	entities
+f23	forward	named	Room	canvas§14	room	-	docs/entities/Space.md	present	-	entities
+f24	forward	named	Outdoor Area	canvas§14	outdoor area	-	docs/entities/Outdoor area.md	present	-	entities
 f25	forward	named	Renovation Zone	canvas§14	renovation zone,zone	-	docs/entities/Zone.md	present	-	entities
 f26	forward	named	Note	canvas§14	note	-	-	absent	-	entities
 f27	forward	named	Wall	canvas§14	wall	-	-	absent	-	entities
 f28	forward	named	Door	canvas§14	door	-	-	absent	-	entities
 f29	forward	named	Window	canvas§14	window	-	-	absent	-	entities
-f30	forward	named	Task	canvas§15	task	-	docs/entities/Photo.md	present	-	entities
+f30	forward	named	Task	canvas§15	task	-	docs/entities/Task.md	present	-	entities
 f31	forward	named	Toolbar	canvas§16	toolbar	-	docs/components/Toolbar.md	present	-	components
 f32	forward	named	Select (tool)	canvas§16	select tool	-	-	absent	-	components
 f33	forward	named	Measure (tool)	canvas§16	measure tool	-	-	absent	-	components
 f34	forward	named	Floor selector	canvas§16	floor selector,toolbar	-	-	absent	-	components
 f35	forward	named	Selection Contract	canvas§17	selection contract	-	-	absent	-	entities
 f36	forward	named	Progressive Refinement	canvas§19	progressive refinement	-	-	absent	-	entities
-f37	forward	named	Zone	canvas§20	zone,renovation zone	-	docs/entities/Constraint.md::Relationships[1]	present	-	entities
+f37	forward	named	Zone	canvas§20	zone,renovation zone	-	docs/entities/Zone.md	present	-	entities
 f38	forward	named	Semantic Layers	canvas§21	semantic layer	-	-	absent	-	entities
 f39	forward	named	Property (layer)	canvas§21	property,layer	-	docs/entities/Site.md	present	-	entities
 f40	forward	named	Renovation (layer)	canvas§21	renovation,layer	-	-	absent	-	entities
@@ -196,23 +196,23 @@ f181	forward	behavioural	Design guardrail: the canvas visualizes the project, it
 f182	forward	behavioural	Design guardrail: open data remains more important than editor lock-in	canvas§37	open data,lock-in	20	docs/actors/The vault.md::Body[2]	present	-	-
 f183	forward	behavioural	Design guardrail: every added control must help a real renovation decision or action	canvas§37	control,decision,action	69	-	absent	-	-
 f184	forward	behavioural	The interaction promise is that the user always knows where they are, what is changing, what is known, what is unresolved, what it costs, what happened, and what to do next	canvas§38	interaction promise,awareness	0	-	absent	-	-
-f185	forward	named	View shell	gallery§ViewShell	view,shell	-	docs/components/Plan canvas.md	present	-	components
-f186	forward	named	Tool button	gallery§ToolButton	tool,button	-	docs/components/Toolbar.md	present	-	components
+f185	forward	named	View shell	gallery§ViewShell	view,shell	-	docs/components/View shell.md	present	-	components
+f186	forward	named	Tool button	gallery§ToolButton	tool,button	-	docs/components/Tool button.md	present	-	components
 f187	forward	named	Toolbar	gallery§Toolbar	toolbar	-	docs/components/Toolbar.md	present	-	components
-f188	forward	named	Status bar	gallery§StatusBar	status,bar	-	docs/components/Snap guide.md	present	-	components
-f189	forward	named	Save-state indicator	gallery§SaveStateIndicator	save,state,indicator	-	docs/components/Status bar.md	present	-	components
-f190	forward	named	Left rail	gallery§LeftRail	left,rail	-	docs/components/Empty state.md	present	-	components
+f188	forward	named	Status bar	gallery§StatusBar	status,bar	-	docs/components/Status bar.md	present	-	components
+f189	forward	named	Save-state indicator	gallery§SaveStateIndicator	save,state,indicator	-	docs/components/Save-state indicator.md	present	-	components
+f190	forward	named	Left rail	gallery§LeftRail	left,rail	-	docs/components/Left rail.md	present	-	components
 f191	forward	named	Layer toggle	gallery§LayerToggle	layer,toggle	-	docs/components/Layer toggle.md	present	-	components
-f192	forward	named	Inspector	gallery§Inspector	inspector	-	docs/components/Inline field error.md	present	-	components
-f193	forward	named	Plan canvas	gallery§PlanCanvas	plan,canvas	-	docs/components/Empty state.md	present	-	components
-f194	forward	named	Selection handle	gallery§SelectionHandle	selection,handle	-	docs/components/Snap guide.md	present	-	components
+f192	forward	named	Inspector	gallery§Inspector	inspector	-	docs/components/Inspector.md	present	-	components
+f193	forward	named	Plan canvas	gallery§PlanCanvas	plan,canvas	-	docs/components/Plan canvas.md	present	-	components
+f194	forward	named	Selection handle	gallery§SelectionHandle	selection,handle	-	docs/components/Selection handle.md	present	-	components
 f195	forward	named	Snap guide	gallery§SnapGuide	snap,guide	-	docs/components/Snap guide.md	present	-	components
-f196	forward	named	Measurement label	gallery§MeasurementLabel	measurement,label	-	docs/components/Status bar.md	present	-	components
-f197	forward	named	Empty state	gallery§EmptyState	empty,state	-	docs/components/Inline field error.md	present	-	components
+f196	forward	named	Measurement label	gallery§MeasurementLabel	measurement,label	-	docs/components/Measurement label.md	present	-	components
+f197	forward	named	Empty state	gallery§EmptyState	empty,state	-	docs/components/Empty state.md	present	-	components
 f198	forward	named	Inline field error	gallery§InlineFieldError	inline,field,error	-	docs/components/Inline field error.md	present	-	components
-f199	forward	named	Status badge	gallery§StatusBadge	status,badge	-	docs/components/Toast.md	present	-	components
-f200	forward	named	Toast	gallery§Toast	toast	-	docs/components/Inline field error.md	present	-	components
-f201	forward	named	Modal	gallery§Modal	modal	-	docs/components/Toast.md	present	-	components
+f199	forward	named	Status badge	gallery§StatusBadge	status,badge	-	docs/components/Status badge.md	present	-	components
+f200	forward	named	Toast	gallery§Toast	toast	-	docs/components/Toast.md	present	-	components
+f201	forward	named	Modal	gallery§Modal	modal	-	docs/components/Modal.md	present	-	components
 f202	forward	behavioural	View shell is given only the leaf, and nothing else	gallery§ViewShell	view,shell	55	docs/components/View shell.md::Contract[1]	present	-	-
 f203	forward	behavioural	View shell emits nothing	gallery§ViewShell	view,shell	55	docs/components/View shell.md::Contract[2]	present	-	-
 f204	forward	behavioural	View shell must own its own height, or it collapses to a sliver of the pane	gallery§ViewShell	view,shell,height	56	docs/components/View shell.md::Contract[3]	present	-	-
@@ -343,7 +343,7 @@ f327	forward	named	DIY (work mode/actor)	jtbd§JTBD-031	diy	-	-	absent	-	actors
 f328	forward	named	Building (spatial concept)	jtbd§JTBD-007	building	-	docs/entities/Building.md	present	-	entities
 f329	forward	named	Floor (spatial concept)	jtbd§JTBD-007	floor	-	docs/entities/Floor.md	present	-	entities
 f330	forward	named	Room (spatial concept)	jtbd§JTBD-007	room	-	docs/entities/Space.md	present	-	entities
-f331	forward	named	Outdoor area (spatial concept)	jtbd§JTBD-007	outdoor area, outdoor space	-	docs/entities/Outdoor area.md::Relationships[2]	present	-	entities
+f331	forward	named	Outdoor area (spatial concept)	jtbd§JTBD-007	outdoor area, outdoor space	-	docs/entities/Outdoor area.md	present	-	entities
 f332	forward	named	Defect (domain concept)	jtbd§JTBD-011	defect	-	docs/entities/Issue.md	present	-	entities
 f333	forward	named	Baseline (domain concept)	jtbd§JTBD-054	baseline	-	-	absent	-	entities
 f334	forward	named	As-built (domain concept)	jtbd§JTBD-061	as-built, as built	-	-	absent	-	entities
@@ -353,8 +353,8 @@ f337	forward	named	Blocker (domain concept)	jtbd§JTBD-050	blocker	-	-	absent	-	
 f338	forward	named	Shopping list / purchase list (domain concept)	jtbd§JTBD-039	shopping list, purchase list	-	docs/entities/Procurement item.md	present	-	entities
 f339	forward	named	Renovation lifecycle / landscape model	jtbd§landscape	renovation lifecycle, landscape, lifecycle	-	-	absent	-	entities
 f340	forward	named	Supplier (domain concept)	jtbd§JTBD-042	supplier	-	docs/entities/Supplier.md	present	-	entities
-f341	forward	named	Product (domain concept)	jtbd§JTBD-037	product	-	docs/entities/Asset.md::Asset[1]	present	-	entities
-f342	forward	named	Material (domain concept)	jtbd§JTBD-037	material	-	docs/entities/Asset.md::Asset[4]	present	-	entities
+f341	forward	named	Product (domain concept)	jtbd§JTBD-037	product	-	docs/entities/Asset.md	present	-	entities
+f342	forward	named	Material (domain concept)	jtbd§JTBD-037	material	-	docs/entities/Asset.md	present	-	entities
 f343	forward	named	Quantity (domain concept)	jtbd§JTBD-026	quantity	-	docs/entities/Quantity.md	present	-	entities
 f344	forward	named	Cost (domain concept)	jtbd§JTBD-028	cost	-	-	absent	-	entities
 f345	forward	named	Budget (domain concept)	jtbd§JTBD-023	budget	-	-	absent	-	entities
@@ -465,13 +465,13 @@ f429	forward	named	Renovation Project (domain concept)	prd§21	renovation projec
 f430	forward	named	Property (domain concept)	prd§21	property	-	docs/entities/Site.md	present	-	entities
 f431	forward	named	Building (domain concept)	prd§21	building	-	docs/entities/Building.md	present	-	entities
 f432	forward	named	Floor (domain concept)	prd§21	floor	-	docs/entities/Floor.md	present	-	entities
-f433	forward	named	Space (domain concept)	prd§21	space	-	docs/entities/Space.md::Relationships[1]	present	-	entities
+f433	forward	named	Space (domain concept)	prd§21	space	-	docs/entities/Space.md	present	-	entities
 f434	forward	named	Room (domain concept)	prd§21	room	-	docs/entities/Space.md	present	-	entities
-f435	forward	named	Outdoor Area (domain concept)	prd§21	outdoor area	-	docs/entities/Outdoor area.md::Relationships[2]	present	-	entities
-f436	forward	named	Zone (domain concept)	prd§21	zone	-	docs/entities/Zone.md::Zone[1]	present	-	entities
+f435	forward	named	Outdoor Area (domain concept)	prd§21	outdoor area	-	docs/entities/Outdoor area.md	present	-	entities
+f436	forward	named	Zone (domain concept)	prd§21	zone	-	docs/entities/Zone.md	present	-	entities
 f437	forward	named	Plan (domain concept)	prd§21	plan	-	docs/entities/Plan.md	present	-	entities
 f438	forward	named	Renovation Work (domain concept)	prd§21	renovation work	-	-	absent	-	entities
-f439	forward	named	Material (domain concept)	prd§21	material	-	docs/entities/Asset.md::Asset[4]	present	-	entities
+f439	forward	named	Material (domain concept)	prd§21	material	-	docs/entities/Asset.md	present	-	entities
 f440	forward	named	Cost (domain concept)	prd§21	cost	-	-	absent	-	entities
 f441	forward	named	Trade (domain concept)	prd§21	trade	-	docs/entities/Trade.md	present	-	entities
 f442	forward	named	Work Package (domain concept)	prd§21	work package	-	docs/entities/Work package.md	present	-	entities
@@ -1073,9 +1073,9 @@ f1012	forward	named	Recent Projects (portfolio-level navigation item)	uxd§5	rec
 f1013	forward	named	Navigation Model: three cooperating dimensions (project, spatial, context navigation)	uxd§7	navigation,project-navigation,spatial-navigation,context-navigation	-	-	absent	-	entities
 f1014	forward	named	Breadcrumbs (interactive location trail)	uxd§7	breadcrumb,navigation	-	-	absent	-	components
 f1015	forward	named	Project lifecycle states: Active, Completed, Archived	uxd§6	project,active,completed,archived,lifecycle-state	-	-	absent	-	entities
-f1016	forward	named	Zone (spatial hierarchy entity)	uxd§6	zone,spatial-hierarchy	-	docs/entities/Zone.md::Relationships[1]	present	-	entities
+f1016	forward	named	Zone (spatial hierarchy entity)	uxd§6	zone,spatial-hierarchy	-	docs/entities/Zone.md	present	-	entities
 f1017	forward	named	Garage (top-level space type)	uxd§6	garage,space-type	-	-	absent	-	entities
-f1018	forward	named	Outdoor Area (top-level space type: Garden, Terrace, Other Area)	uxd§6	outdoor-area,garden,terrace	-	docs/entities/Outdoor area.md::Relationships[1]	present	-	entities
+f1018	forward	named	Outdoor Area (top-level space type: Garden, Terrace, Other Area)	uxd§6	outdoor-area,garden,terrace	-	docs/entities/Outdoor area.md	present	-	entities
 f1019a	forward	named	Settings (global, top of app)	uxd§6	settings,global	-	-	absent	-	requirements
 f1019b	forward	named	Settings (global, top of app)	uxd§6	settings,global	-	-	absent	-	deliverables
 f1020a	forward	named	First-Use Empty State (screen)	uxd§28	first-use,empty-state,screen	-	-	absent	-	requirements
@@ -1085,7 +1085,7 @@ f1021b	forward	named	Renovation Planner Home (screen)	uxd§28	renovation-planner
 f1022a	forward	named	New Project Wizard (screen)	uxd§28	new-project-wizard,screen	-	-	absent	-	requirements
 f1022b	forward	named	New Project Wizard (screen)	uxd§28	new-project-wizard,screen	-	-	absent	-	deliverables
 f1023a	forward	named	Project Home (screen)	uxd§28	project-home,screen	-	-	absent	-	requirements
-f1023b	forward	named	Project Home (screen)	uxd§28	project-home,screen	-	-	present	-	deliverables
+f1023b	forward	named	Project Home (screen)	uxd§28	project-home,screen	-	docs/deliverables/MVP Prototype.md	present	-	deliverables
 f1024a	forward	named	Spaces View (screen)	uxd§28	spaces-view,screen	-	-	absent	-	requirements
 f1024b	forward	named	Spaces View (screen)	uxd§28	spaces-view,screen	-	-	absent	-	deliverables
 f1025a	forward	named	Space Detail (screen)	uxd§28	space-detail,screen	-	-	absent	-	requirements
@@ -1116,7 +1116,7 @@ f1039a	forward	named	Space-level context tabs: Overview, Plan, Work, Materials, 
 f1039b	forward	named	Space-level context tabs: Overview, Plan, Work, Materials, Costs, Documents	uxd§13	space-detail,tab,overview,plan,material,cost,document	-	-	absent	-	deliverables
 f1040	forward	named	Progressive Disclosure Levels: Level 1 Basic Planning, Level 2 Structured Planning, Level 3 Detailed Planning	uxd§22	progressive-disclosure,level,basic-planning,structured-planning,detailed-planning	-	-	absent	-	entities
 f1041	forward	named	Work Packages	uxd§22	work-package	-	docs/entities/Work package.md	present	-	entities
-f1042	forward	named	Trades	uxd§22	trade	-	docs/entities/Construction section.md	present	-	entities
+f1042	forward	named	Trades	uxd§22	trade	-	docs/entities/Trade.md	present	-	entities
 f1043	forward	named	Assemblies	uxd§22	assembly	-	-	absent	-	entities
 f1044	forward	named	Procurement	uxd§22	procurement	-	-	absent	-	entities
 f1045	forward	named	Estimated / Committed / Actual Cost (cost states)	uxd§17	estimated-cost,committed-cost,actual-cost	-	docs/entities/Cost item.md	present	-	entities
@@ -1272,7 +1272,7 @@ f1175b	forward	named	New Project Wizard: Initial Spaces (step screen)	wireframes
 f1176a	forward	named	New Project Wizard: Review (step screen)	wireframes§A.9	new project wizard,review,step	-	-	absent	-	requirements
 f1176b	forward	named	New Project Wizard: Review (step screen)	wireframes§A.9	new project wizard,review,step	-	-	absent	-	deliverables
 f1177a	forward	named	Project Home (screen)	wireframes§A.10	project home,screen	-	-	absent	-	requirements
-f1177b	forward	named	Project Home (screen)	wireframes§A.10	project home,screen	-	-	present	-	deliverables
+f1177b	forward	named	Project Home (screen)	wireframes§A.10	project home,screen	-	docs/deliverables/MVP Prototype.md	present	-	deliverables
 f1178	forward	named	Planning completeness (metric)	wireframes§A.10	planning completeness,metric	-	-	absent	-	entities
 f1179	forward	named	Next Step panel (component)	wireframes§A.10	next step,panel,component	-	-	absent	-	components
 f1180a	forward	named	Spaces (screen)	wireframes§A.11	spaces,screen	-	-	absent	-	requirements

@@ -1106,6 +1106,46 @@ fi
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
 python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py --selftest"; fail=1; }
+
+# Every id the CLUSTER BULLETS cite must exist and still be a disagreement. Two clusters were
+# found narrating rows the matrix does not contain — `f258` and `f967` reclassified to `present`,
+# and a split `f632a`/`f632b` that exists in no commit — while every count in the ledger was
+# correct, because the counts come from `findings.tsv` and the prose does not. Nothing connected
+# the two until this check.
+#
+# Scoped to BULLETED lines and their continuations: a bullet narrates a live finding, while the
+# prose paragraphs around it discuss withdrawn ones BY NAME and must stay able to. That is why
+# this reads structure rather than stripping known paragraphs — an exclusion list would need
+# editing every time a correction is written, which is the moment it would silently stop working.
+python3 - <<'PYC' || fail=1
+import io, re, sys
+D = "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"
+L = io.open(D + ".md", encoding="utf-8").read()
+rows = {r.split("\t")[0]: r.rstrip("\n").split("\t") for r in io.open(D + "/rows.tsv", encoding="utf-8")}
+finds = {f.split("\t")[0]: f.rstrip("\n").split("\t") for f in io.open(D + "/findings.tsv", encoding="utf-8")}
+body = L[L.index("## Contradictions, by cluster"):L.index("\n## Gaps")]
+bullets, cur = [], None
+for line in body.split("\n"):
+    if line.startswith("- "):
+        cur = line; bullets.append(cur)
+    elif cur is not None and line.startswith("  "):
+        bullets[-1] += " " + line.strip()
+    else:
+        cur = None
+ids = set()
+for b in bullets:
+    ids |= set(re.findall(r"`([fr]\d+[a-z]?|c\d+)`", b))
+bad = []
+for i in sorted(ids):
+    if i not in rows and i not in finds:
+        bad.append((i, "does not exist"))
+    elif i in rows and rows[i][8] not in ("contradictory", "superseded"):
+        bad.append((i, "state is " + rows[i][8]))
+print("  cluster bullets cite %d ids; not narratable as contradictions: %d" % (len(ids), len(bad)))
+for i, why in bad:
+    print("  FAIL cluster cites %s but %s" % (i, why))
+sys.exit(1 if bad else 0)
+PYC
 python3 "$SP/lookup.py" --selftest 2>/dev/null | tail -1
 
 # The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the

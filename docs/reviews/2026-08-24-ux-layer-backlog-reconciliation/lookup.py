@@ -258,17 +258,31 @@ def main():
         rows = [l.rstrip("\n").split("\t") for l in
                 io.open(os.path.join(HERE, "rows.tsv"), encoding="utf-8")][1:]
         named = [r for r in rows if r[2] == "named"]
+        fwd_named = [r for r in named if r[1] == "forward"]
         tmp = tempfile.mkdtemp()
         try:
             view = os.path.join(tmp, "bodies-search")
             search_view(view)
-            bad = judged = 0
+            bad = judged = stale = 0
             for r in named:
                 if r[1] == "forward":
                     st, m = forward(r[10], r[3])
                 else:
                     st, m = reverse(r[3], view)
                 if st == r[8]:
+                    # The STATE agreeing is not the row agreeing. `matched` is the citation a
+                    # reader follows, and a row can keep its state across a repair while its
+                    # citation goes stale — which is what happened when presence was split by
+                    # target type: 36 rows stayed `present` and went on citing the
+                    # incidental-prose note the old substring search had found, `Space` on
+                    # `Constraint.md` and `Trade` on `Work package.md`. A selftest comparing
+                    # only the state reports 686/686 over all of them, which is worse than no
+                    # check — it certifies the half it can see and is silent about the half a
+                    # reader actually follows.
+                    if r[1] == "forward" and m != r[7]:
+                        stale += 1
+                        print("  STALE CITATION %-7s %-28s committed=%-38s lookup=%s"
+                              % (r[0], r[3][:28], r[7][:38], m))
                     continue
                 # A row this lookup settles `present` may afterwards have been READ and found
                 # to disagree — both corpora name the thing and mean different things by it.
@@ -288,7 +302,9 @@ def main():
         print("  lookup.py reproduced the mechanical state on %d/%d named rows "
               "(%d moved onward by a reading, %d wrong)"
               % (len(named) - bad, len(named), judged, bad))
-        sys.exit(1 if bad else 0)
+        print("  forward named rows whose committed citation it also reproduces: %d/%d"
+              % (len(fwd_named) - stale, len(fwd_named)))
+        sys.exit(1 if (bad or stale) else 0)
 
     if len(args) == 3 and args[0] == "forward":
         print("\t".join(forward(args[1], args[2])))

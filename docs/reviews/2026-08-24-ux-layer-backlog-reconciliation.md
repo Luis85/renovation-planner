@@ -29,9 +29,11 @@ the useful half, and they concentrate rather than scatter — seven themed clust
 the 46, and `deliverables/Disclosure ladder.md` alone accounts for 7.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
-and its disagreements are not only with the new evidence: it contradicts its own sibling notes
-about whether costing requires a drawn plan. A note that disagrees with the new layer *and*
-with the backlog it belongs to is the most consequential thing this pass could have surfaced.
+with 7 of the 46. Beside those — and **not** among them, because no row in this instrument runs
+between two derived notes — it also disagrees with a sibling about whether costing requires a
+drawn plan: its own *What is open* admits rung 1 "forbids" pricing before drawing, while
+`requirements/Start a renovation project.md` creates no `Plans/` folder until something is drawn.
+Cluster E quotes both and says why the matrix cannot count it.
 
 **No orphans at all.** Across 3,070 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
@@ -385,40 +387,49 @@ Does a project open on Project Home, or on the plan once one is calibrated?
   Documentation) vs `Sitemap.md`'s exhaustive inventory, which has one `renovation-project` view
   plus Bases views and **no Spaces, Design or Documentation destinations at all**.
 
-### E. The Disclosure ladder contradicts the new evidence *and* its own siblings
+### E. The Disclosure ladder contradicts the new evidence
 
-**7 rows — the most contradicted note in the backlog.**
+**7 rows, 7 findings — the most contradicted note in the backlog**, counted directly against
+`findings.tsv` as the notes whose derived side is this file.
 
 Its rungs gate cost on "the first Zone existing" and Work behind cost, so Work is reachable only
 after a Zone and a cost. Against that:
 
-- `r1410` — `uxd§22`'s Progressive Disclosure Model puts Work and Budget together, **ungated, at
-  Level 1**, with Plans and Zones at Level 2.
-- `r1409` — `prototype§6`'s canonical fixture attaches a €2,500 estimate directly to Kitchen work
-  with **no Zone ever created**; `canvas§9` shows "Estimate Optional [€2,500]" on Work itself.
-- `r1408` — Rung 1's "measured plan" against `canvas§5` ("Level 1 — Conceptual: **No measurements
-  or drawing required**") and the prototype golden path, which runs Start Without a Plan →
-  Initial Spaces → Project Home with no measured-plan step.
-- `f610` — `prd§17` groups tasks with the *basic* capabilities; the ladder puts Task at rung 3
+- `c42`/`r1410` — `uxd§22`'s Progressive Disclosure Model puts Work and Budget together,
+  **ungated, at Level 1**, with Plans and Zones at Level 2.
+- `c41`/`r1409` — `prototype§6`'s canonical fixture attaches a €2,500 estimate directly to Kitchen
+  work with **no Zone ever created**; `canvas§9` shows "Estimate Optional [€2,500]" on Work itself.
+- `c40`/`r1408` — Rung 1's "measured plan" against `prototype§2`'s golden path, which runs Start
+  Without a Plan → Initial Spaces → Project Home with no measured-plan step.
+- `c5`/`f610` — `prd§17` groups tasks with the *basic* capabilities; the ladder puts Task at rung 3
   with Trade and Work package.
-- `f258`, `f632a`, `f967` — three separate evidence bodies asserting a floor plan is optional,
-  against the ladder's own admission in `What is open[4]`: "Someone pricing a renovation before
+- `c6`/`f632` — `prd§20.5` "No Mandatory Floor Plan", the disagreement the design spec named as
+  its own motivating example, against `Disclosure ladder.md::What is open[4]`.
+- `c1`/`f463` — `prd§3` makes the renovation project the primary UX object, against the ladder's
+  account of the home surface.
+- `c43`/`r1419` — the ladder's "Project-first to create, **plan-first thereafter**" against
+  `prototype§9`'s interaction contracts.
+
+**The ladder also disagrees with a sibling note, and that is reported here as a direct reading
+rather than as a matrix finding — because the matrix cannot produce one.** Every row in this
+instrument runs between the new evidence and a derived note; there is no row shape for
+derived-against-derived, so no count below includes this and none could. Both halves are quotable:
+
+- `deliverables/Disclosure ladder.md::What is open[4]` — "Someone pricing a renovation before
   drawing anything would want *Money* without *Place*, **which the ladder currently forbids by
-  making rung 1 universal**."
+  making rung 1 universal**." The note states the conflict against itself.
+- `requirements/Start a renovation project.md`, step 6 — the plugin writes one project note and
+  "**No other folder is created**: PRD §36's `Plans/`, `Zones/` and the rest appear when something
+  is first written." So a project exists, costable, with nothing drawn.
 
-**`f632` is the one row in the corpus that split**, and it is the sharpest result here. The claim
-is the workspace PRD's §20.5 "No Mandatory Floor Plan" — the disagreement the design spec named
-as its own motivating example. Two candidates address it with **opposite** verdicts:
+An earlier version of this section attributed that reading to a split row, `f632a` contradictory
+against the ladder and `f632b` present against `Start a renovation project.md`, and called `f632`
+"the one row in the corpus that split". **Neither id exists in the committed matrix, and 109 row
+groups split, not one.** The observation survives because both citations are real and checkable;
+the mechanism claimed for it did not. It is the clearest case in this ledger of a conclusion
+outliving the evidence it was first drawn from — which is why it now carries its own citations
+instead of a row id.
 
-- `f632a` `contradictory` against `deliverables/Disclosure ladder.md::What is open[4]`;
-- `f632b` `present` against `requirements/Start a renovation project.md`, which writes only a
-  project note and creates no `Plans/` folder until something is drawn, and
-  `issues/The plan editor is a mode, not a second view.md`: "A renovator with no plan is not
-  looking at a locked second view."
-
-**So the backlog disagrees with itself**, and the PRD agrees with one half of it. A single
-`matched` field would have recorded whichever note the reader opened first, and either answer
-alone would have misled.
 
 ### F. The delete rule's fourth resolution — three routes, one defect
 
@@ -446,9 +457,12 @@ match**, so nothing here is a vocabulary gap — it is same name, different beha
   renders two sections with `<h4 class="rp-section-head">` — the anti-pattern the note prohibits.
 - `r261` — `components/Tool button.md::States[2]` requires a distinct active/pressed state; the
   specimen enumerates Default, Hover, Focus, Selected, Disabled.
-- `f154`, `f647`, `f1115` — three evidence bodies specify empty states with **two** actions,
-  against `components/Empty state.md::Anatomy[2]`: "One action, not several. A surface with three
+- `c7`/`f647` and `c11`/`f1115` — two evidence bodies specify empty states with **two** actions,
+  against `components/Empty state.md::Anatomy[3]`: "One action, not several. A surface with three
   suggestions has not decided what a user should do first."
+
+A third row was listed in that bullet until review — `f154`, which is `present`, and citing it
+made the count read three rather than two.
 
 ### H. Individually consequential
 
@@ -878,7 +892,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Fourteen corrections, all from review of the committed matrix — which is the argument for
+Seventeen corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1035,6 +1049,40 @@ own citations.
 48 contradictions become **46**; 823 findings become **821**; `present` rises to 1,125. The
 decision-4 section was written while both still stood and asserted things about both; it now
 carries its own correction rather than the corrected text alone.
+
+**A fifteenth correction: the citation column went stale while the state stayed right.** Splitting
+presence by target type moved 36 forward named rows onto a different note without changing their
+state, and nothing rewrote `matched`. So the published matrix said `Space` is present *and cited
+`entities/Constraint.md`*, `Trade` cited `Work package.md`, `Zone` cited `Constraint.md` — every
+one of them the incidental-prose hit the old substring search had found, and every one checkable
+and wrong.
+
+**`lookup.py --selftest` reported 686/686 across all of them**, because it compared only the
+state. That is the defect worth recording rather than the 36 rows: a check that certifies the half
+it can see and is silent about the half a reader actually follows is worse than no check, because
+it is quoted as evidence. It now compares the citation too, and prints a second ratio for it.
+Watched failing first by reverting one citation; it names the row and exits non-zero.
+
+**A sixteenth correction: a cluster narrating rows the matrix does not contain.** Cluster E cited
+`f258` and `f967` as contradictions — both `present` — and built its sharpest paragraph on a split
+row, `f632a`/`f632b`, that **exists in no commit**. It also called `f632` "the one row in the
+corpus that split" when 109 row groups split and `f632` is not among them. The cluster is now
+generated from `findings.tsv`: 7 rows, 7 findings, each named with its own finding id.
+
+What survives is the observation, and it survives on different footing. The ladder does disagree
+with a sibling note, and both halves are quotable — `What is open[4]`'s admission that rung 1
+"forbids" pricing before drawing, and `Start a renovation project.md`'s step 6 creating no
+`Plans/` folder. But **the matrix cannot produce that finding**: every row runs between the new
+evidence and a derived note, and there is no row shape for derived-against-derived. It is
+therefore reported as a direct reading beside the counts, never inside them — the same footing as
+the convention audit. A conclusion outlived the evidence it was first drawn from, and the ledger's
+opening repeated it.
+
+**A seventeenth correction, and the reason the two above are numbered separately.** Neither was
+found by reading the narrative; both came from checking **every** id the clusters cite against the
+committed matrix — 59 distinct ids, for existence and for state. That check found two more the
+reviewer had not named: `f154`, which made the empty-state count read three when it is two, and
+confirmed the rest. Fixing the two reported instances and stopping would have left `f154` standing.
 
 **Net across the three: 777 gaps become 775, 47 contradictions become 48, and 824 findings become
 823.** `lookup.py --selftest` is back to 686/686.

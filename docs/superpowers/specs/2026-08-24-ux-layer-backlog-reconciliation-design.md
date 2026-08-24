@@ -12,25 +12,34 @@
 UX journey and interaction design document (682) and a JTBD research backlog (424) — plus
 HTML concept pages and seventeen screenshots.
 
-**Four files, but not four documents: three of them are nested.** Established by diff rather
-than by reading — the wireframes file's first 682 lines *are* the UXD file, and the prototype
-specification contains the whole wireframes file from its line 290 onward:
+`main` then gained three more documents (`db2222e`, `c57d444`, `db35815`): a canvas concept
+and interaction design specification under `docs/user-experience/`, and — in a **new
+`docs/product/` folder** — a user research synthesis and a competitive market landscape.
+
+**Files are not documents here: they nest, and they nest twice.** Established by diff rather
+than by reading:
 
 ```text
 PROTOTYPE-DESIGN-SPEC.md   §§1–16 of its own, then …
 └── the whole wireframes file
-    ├── UXD §§1–34          (identical to UXD.md)
-    └── Appendix A          the wireframe and screen reference
+    ├── UXD §§1–34                    (identical to UXD.md)
+    └── Appendix A                    the wireframe and screen reference
+
+renovation-canvas-concept-…-design.md   lines 1–783 of its own, then …
+└── product/…-user-research-synthesis.md   lines 784–2418, verbatim
 ```
 
-So the UX layer is **1,850 distinct lines**, not 3,681: the prototype's own §§1–16 (285), the
-UXD (682), the wireframe appendix (459) and the JTBD backlog (424). Adding the four file
-lengths counts the UXD three times and the appendix twice.
+So counting file lengths triple-counts the UXD, double-counts the wireframe appendix and
+double-counts the research synthesis. Counted **once each**, the in-scope evidence is
+**5,719 lines** of Markdown: the workspace PRD (1,451), the prototype's own §§1–16 (285), the
+UXD (682), the wireframe appendix (459), the JTBD backlog (424), the canvas concept's own
+§§1–783 (783) and the user research synthesis (1,635).
 
-That matters past the arithmetic. An extraction rule that treats the three files as
-independent contributors reads the same claims three times and reports the triplication as
-coverage — the failure this instrument exists to prevent, arriving through the corpus rather
-than through the method.
+That matters past the arithmetic. An extraction rule that treats nested files as independent
+contributors reads the same claims two or three times and reports the repetition as coverage
+— the failure this instrument exists to prevent, arriving through the corpus rather than
+through the method. It found the pattern once and the corpus produced it again, which is why
+the rule below is stated over *bodies* and not over files.
 
 They landed beside 19 Epics and 121 notes in `requirements/` that were derived from the
 *other* PRD. Nothing conflicted, because nothing ever does between two documents: a
@@ -106,10 +115,12 @@ the backlog moves and the PRD does not. No question needs asking about that one,
 **It is not settled for the rest of the evidence side, and an earlier draft of this section
 said it was.** `docs/README.md`'s folder table classifies `prds/` and `sdds/` as received, and
 `components/`, `entities/`, `actors/`, `business-rules/`, `deliverables/` and the design
-slices as derived. It does not name `docs/user-experience/` at all — which this spec already
-knew, since that absence is its worked `Convention` example. So **five of the six in-scope
-evidence bodies have no recorded status**, and "which side is received" is unanswerable for
-any finding drawn from them.
+slices as derived. It names neither `docs/user-experience/` nor the new `docs/product/` —
+the first of which this spec already knew, since that absence is its worked `Convention`
+example. So **seven of the eight in-scope evidence bodies have no recorded status**, and
+"which side is received" is unanswerable for any finding drawn from them. The proportion got
+worse rather than better while this spec was being reviewed: a second unregistered folder
+arrived carrying two documents.
 
 That is not academic, because the label is exactly what decides which document may change.
 The sharpest case is the component gallery against `components/`: the register says a
@@ -124,11 +135,11 @@ the others below rather than taken here.
 
 ## Scope
 
-**In**, on the evidence side, **six distinct bodies rather than six files** — the nesting
+**In**, on the evidence side, **eight distinct bodies rather than eight files** — the nesting
 above means a file is not the unit. They are: the workspace PRD; the prototype
-specification's own §§1–16; the UXD §§1–34; the wireframe appendix; the JTBD backlog; and
-`component-gallery.html`, read for component vocabulary **and for the behaviour it
-states**. Each is read once, at one location, whichever files repeat it. An earlier draft limited it to vocabulary while the `components/` comparison below
+specification's own §§1–16; the UXD §§1–34; the wireframe appendix; the JTBD backlog; the
+canvas concept's own §§1–783; the user research synthesis; and `component-gallery.html`, read
+for component vocabulary **and for the behaviour it states**. Each is read once, at one location, whichever files repeat it. An earlier draft limited it to vocabulary while the `components/` comparison below
 promised to catch "same name, different behaviour" — a promise nothing was allowed to feed.
 The gallery carries invariants and emit-contracts in as many words, as `<dt>`/`<dd>` pairs:
 *Invariant* — "exactly one button is active — no button can enforce this alone"; *Emits* —
@@ -136,9 +147,19 @@ The gallery carries invariants and emit-contracts in as many words, as `<dt>`/`<
 
 **In**, on the derived side: `requirements/` (121), `entities/` (34), `business-rules/` (27),
 `components/` (17), `actors/` (8), `deliverables/` (5), `adrs/` (12), `issues/` (3) —
-**227 notes, 11,336 lines.**
+**227 notes, 11,342 lines** — the count moved when `db35815` added six lines to
+`deliverables/MVP Prototype.md` linking the new research, which is the derived side of this
+corpus changing under the pass and the reason the ledger re-measures rather than quotes.
 
 **Out, deliberately:**
+
+- **`docs/product/…-competitive-market-landscape.md`** (873 lines). It is evidence about
+  *competitors*, not about this product's intended behaviour, so it cannot contradict a
+  derived note — it can only suggest notes that do not exist yet, which is a backlog-growing
+  pass and not a reconciliation. Excluded by decision rather than by oversight, and the
+  ledger says so where a reader meets the coverage claim. Its sibling, the user research
+  synthesis, is **in**: it is about this product's users, and it arrives in the pass whether
+  or not it is named, since the canvas concept file contains it verbatim.
 
 - **The 17 design slices in `tasks/`** (14,763 lines). They are SDD-derived architecture
   sitting one layer below this question, and whether any of them needs touching depends on
@@ -211,6 +232,8 @@ kinds:
   | `…-PROTOTYPE-DESIGN-SPEC.md`, §§1–16 only | Golden path, questions to answer, and the §§7–12 contracts: prototype state, visual, interaction, routing, required UI states, responsive and accessibility |
   | UXD §§1–34 (read once, at `…-UXD.md`) | Journeys, navigation model, next-best-action model, progressive disclosure, empty states, loading/validation/errors, destructive actions, cross-cutting interaction rules |
   | Wireframe appendix (read once, at `…-wireframes.md` §A.1 onward) | Every A-numbered screen section, each carrying its own states and rules — not only §§A.17–A.21's screen states, destructive-action pattern, responsive rules, keyboard/accessibility rules and golden-path acceptance criteria |
+  | Canvas concept, §§1–783 (`…-canvas-concept-interaction-design.md`) | Canvas interaction model, tool and layer behaviour, calibration and measurement rules, and §20 Renovation Zones — the first new-evidence section to speak directly to `Zone`, so a cell where both sides speak |
+  | User research synthesis (read once, at `product/…-user-research-synthesis.md`) | Segment definitions, problem clusters and the behaviours they assert users need |
   | `…-JTBD-research-backlog.md` | 63 job statements |
   | `concepts/component-gallery.html` | Component invariants and emit-contracts, as `<dt>`/`<dd>` pairs — e.g. *Invariant* "exactly one button is active — no button can enforce this alone", *Emits* "a retry request, in the error case only" |
 
@@ -346,7 +369,7 @@ documents that do not discuss the plugin's UI framework at all. It also reconcil
 `Orphan` definition on the same twelve notes.
 
 **`Convention` is a separate audit, and the ledger says so.** The register's own rules are
-real findings — `user-experience/` and `templates/` are absent from `docs/README.md`'s folder
+real findings — `user-experience/`, `product/` and `templates/` are absent from `docs/README.md`'s folder
 table, which claims to name every folder so the first note of a kind "has somewhere obvious to
 go" — and they **cannot come from the matrix**: `docs/README.md` is neither in-scope evidence
 nor one of the 227 derived notes, so no row in either direction can produce one. Listing it
@@ -370,11 +393,13 @@ revisions. Which findings meet the rule is otherwise an output of the pass — n
 member in advance is how an earlier draft of this section acquired its worst claim.
 
 One member is already established rather than predicted, because checking the register
-produced it: **`docs/user-experience/` has no recorded status.** The options are that it is
-received evidence like `prds/`, that it is derived and therefore editable like
-`components/`, or that it splits — the PRD-adjacent documents received, the concept HTML
-derived. Each answer moves a different document when a finding sets the gallery against a
-component note, which is why it is listed and not chosen here.
+produced it: **neither `docs/user-experience/` nor `docs/product/` has a recorded status.**
+The options are that they are received evidence like `prds/`, that they are derived and
+therefore editable like `components/`, or that they split — the PRD-adjacent documents
+received, the concept HTML and the research derived. Each answer moves a different document
+when a finding sets the gallery against a component note, which is why it is listed and not
+chosen here. Two folders now, not one: `docs/product/` arrived during this review carrying a
+user research synthesis and a market landscape, and the register does not name it either.
 
 The *shape* of the likeliest one can be stated in advance, because the backlog's position is
 already on record and the decision is narrower than it looks. `entities/Space.md` and
@@ -433,7 +458,7 @@ decision, and still not mine.
    comparison table has **5** note types consuming named-thing rows and the extraction rule
    names **5** targets (`entities/`, `requirements/`, `deliverables/`, `components/`,
    `actors/`); it has **6** consuming behavioural rows, fed by the pool the behavioural-rows
-   table builds from all **6** in-scope evidence bodies; and all **4** finding kinds —
+   table builds from all **8** in-scope evidence bodies; and all **4** finding kinds —
    `Contradiction`, `Gap`, `Orphan` and `Convention` — name the corpus they come from, the
    last by pointing outside the matrix entirely.
 
@@ -474,9 +499,16 @@ decision, and still not mine.
    (`d79e996`) was the last green one.
 
    None of it is this pass's to fix. What makes item 5 checkable rather than a promise is the
-   baseline: stash this branch's single document, re-run, compare. `lint` and `analyze` output
-   is **byte-identical** with the change and without — which is the only form of "introduced
-   nothing" a reader can verify. Writing "the gate passes" into a definition of done while the
+   baseline: stash this branch's single document, re-run, compare. `analyze` output is
+   byte-identical with the change and without, and `lint` reports **the same 27 errors across
+   the same 7 files** — which is the only form of "introduced nothing" a reader can verify.
+
+   Compare `lint` **sorted**. Its output order is not deterministic — oxlint walks files in
+   parallel, so the same 27 errors arrive in different sequence between runs, and a plain
+   `diff` of two identical results can show a moved line. An earlier version of this item said
+   `lint` was byte-identical; that was true of the runs it had seen and not a property of the
+   tool, which is the same defect as any other claim wider than its mechanism, in the sentence
+   describing how the mechanism works. Writing "the gate passes" into a definition of done while the
    gate is red would be the defect this repository's own guide names first: write the
    guarantee to the check, never ahead of it.
 6. **No derived note is edited.** The ledger is the whole deliverable; fixing is a separate

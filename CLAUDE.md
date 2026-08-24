@@ -7,12 +7,13 @@ and the product intent is in `docs/prds/`. **Read the SDD before proposing struc
 has already refused things that look obvious from the code alone, and where this guide and
 the SDD disagree, the SDD is the authority and this file is the bug.
 
-Today the repository is a scaffold with two surfaces wired: the build, the gates, the
-browser harness and the release pipeline work; the **Renovation project** view is
-registered with a ribbon button and a command opening it; and the settings pane offers the
-one setting there is. The view draws an empty mount point — that div is where the Vue app
-goes (SDD §12), and nothing outside the view will know it is Vue. Requires Obsidian
-1.13.0+.
+Today the build, the gates, the browser harness and the release pipeline work; the
+**Renovation project** view is registered with a ribbon button and a command opening it,
+and it mounts its own isolated Vue app (SDD §12) — nothing outside the view knows it is
+Vue; the settings pane offers the one setting there is; and the persistence layer of
+design slice 4 is in place — Obsidian repositories, the geometry sidecar store, the
+project index and its vault-change pipeline, and the migration runner. The Vue app still
+draws an empty root. Requires Obsidian 1.13.0+.
 
 **The settings pane is DECLARATIVE** (`getSettingDefinitions`, plus `getControlValue` /
 `setControlValue`), which is what 1.13 renders from and what it indexes for the settings
@@ -361,17 +362,23 @@ that was fixing the previous instance.
 
 Not oversights; each has a trigger.
 
-- **Vue, Pinia, Konva, zod, decimal.js, dayjs.** Installing a dependency nothing imports
-  fails `npm run analyze`, so each arrives with its first real use. `@vitejs/plugin-vue` is
+- **decimal.js and dayjs**, and nothing else on the SDD's stack. Installing a dependency
+  nothing imports fails `npm run analyze`, so each arrives with its first real use — money
+  arithmetic (ADR-010) and scheduling respectively, neither of which exists yet.
+
+  **Vue, Pinia and zod are NOT on this list any more**, and this paragraph is the record of
+  what their arrival cost, because the next arrival pays the same. `@vitejs/plugin-vue` is
   one line in EVERY config that transforms source — `vite.config.ts`,
   `vite.harness.config.ts` and the standalone `vitest.config.ts`, which is three here, not
-  the two a generic project has — and `tsc` becomes `vue-tsc` in the same edit.
+  the two a generic project has — and `tsc` became `vue-tsc` in the same edit.
   [`docs/setup/vue-conventions.md`](docs/setup/vue-conventions.md) carries the conventions
   and the lint rules that enforce them, but it was written against a project with two Vite
   surfaces and names neither `test-build` nor the coverage include. The full contract for
   that arrival, as a superset of it and scoped to the gates this repository actually has,
   is design slice 1's Vue arrival checklist
-  ([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](docs/tasks/01-plugin-bootstrap-and-composition-root.md)).
+  ([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](docs/tasks/01-plugin-bootstrap-and-composition-root.md)),
+  recorded there as complete. Read it as the reference for what a NEW dependency has to
+  wire, not as work still to do.
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
 - **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,

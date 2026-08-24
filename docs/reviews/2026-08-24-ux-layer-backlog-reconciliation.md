@@ -719,8 +719,40 @@ scope (`prd§35`, Slice 1).
   is revisited.
 - **Defer it** — the PRD's Epic 1 and Epic 4 move out of MVP.
 
-**No recommendation.** This one turns on delivery scope rather than on evidence, and the pass has
-nothing to add that the two documents do not already say plainly.
+**No recommendation from this pass.** It turns on delivery scope rather than on evidence, and the
+pass has nothing to add that the two documents do not already say plainly.
+
+**Decided by the repository owner, 2026-08-24: selection, not portfolio.** The vault holds many
+projects and a Home lists them so one can be opened; `Project` stays the sole root of the
+relationship model, SDD §47's per-project index is untouched, and cross-project aggregation stays
+later. That line is the PRD's own: `prd§8` asks for a `Project Selection` top-level context beside
+`Renovation Project`, and `prd§34` already places **cross-project dashboards** in Post-MVP scope.
+
+What it settles, checked against the finding set rather than asserted:
+
+- **`f500`** — "as a user, I want to see all renovation projects so I can choose what to work on"
+  (`prd§10`) is **in** scope. It is matched against `actors/Professional planner.md`'s
+  *"Cross-project work … A portfolio view is a second root"*, and separating selection from
+  portfolio is exactly what this decision does.
+- **`r1640`** — `requirements/Start a renovation project.md::Preconditions[2]`, "the vault must
+  hold no project yet", cannot stand beside a Home that lists projects.
+- **`c2`** — `entities/Project.md`'s *"Nothing here spans two projects … there is no portfolio"*
+  needs the distinction **drawn, not reversed**: many projects in a vault, still no aggregation
+  across them.
+
+What it does not settle, and one thing it must not be read as doing:
+
+- **`c49`** stays in the set. `prd§34` defers cross-project dashboards, which *agrees* with
+  `Project.md` — but **a ruling decides what to do, it does not unmake a finding.** The finding
+  records what the two corpora say today; this decision says which way it resolves.
+- **The `Professional planner`'s standing is untouched** (`r1335`, `r1341`). Selecting among your
+  own projects is not working on several projects on someone else's behalf.
+- Per the provenance trace, `entities/Project.md` **faithfully reflects** the original PRD §58 and
+  §72 and SDD §47. So this is a product decision superseding received material, not the correction
+  of a drift — which is why it had to be taken by the owner and could not be read off the corpus.
+
+**No derived note is edited here.** Making these three notes say it is the separate, separately
+approved work this ledger was scoped to precede.
 
 ### 5. Mobile: capture-first against read-only — received versus received
 

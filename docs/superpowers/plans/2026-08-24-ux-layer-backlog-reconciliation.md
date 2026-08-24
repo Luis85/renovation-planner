@@ -325,16 +325,40 @@ producing rule: **concepts** (→ `entities/`), **screens and views** (→ `requ
 `absent?` on none.
 
 **Reverse** — every named thing the 227 derived notes hold gets an `r<N>` row of
-`kind=named`: the `name` each note declares, checked against the evidence bodies. Provisional
-state is `present?` where the evidence uses the word, `retained?` where it does not. These are
-the rows Step 6's mirror branch resolves, and they must exist before it runs.
+`kind=named`, checked against the evidence bodies. Provisional state is `present?` where the
+evidence uses the word, `retained?` where it does not. These are the rows Step 6's mirror
+branch resolves, and they must exist before it runs.
+
+**Where a note's identity lives differs by type**, measured across the corpus rather than
+assumed:
+
+| note type | declares `name:` | identity comes from |
+| --- | --- | --- |
+| `entities/` (34), `actors/` (8), `components/` (17) | all of them | the `name:` frontmatter |
+| `requirements/` (121), `deliverables/` (5) | **none of them** | the H1 title, or the filename where a note has no H1 |
+
+Taking `name:` universally would produce reverse named rows for 59 notes and none for the 126
+that need them most — every screen and every artifact. The failure would be silent: the
+behavioural pass still reaches all 227 notes, so the coverage gate passes, while every reverse
+screen and artifact row, and any orphan among them, simply never exists.
+
+`deliverables/MVP Prototype.md` is the worked case for the fallback — it has neither `name:`
+frontmatter nor an H1, jumping straight from frontmatter to `## 1. Prototype Mission`, so its
+identity is its filename.
 
 Append one row per item:
 
 ```
-f1	forward	named	Planner Home	uxd§28	planner home	-	-	absent?	-
-r1	reverse	named	Private renovator	docs/actors/Private renovator.md::name	private renovator	-	-	retained?	-
+f1	forward	named	Planner Home	uxd§28	planner home	-	-	absent?	-	requirements
+r1	reverse	named	Private renovator	docs/actors/Private renovator.md::name	private renovator	-	-	retained?	-	actors
 ```
+
+Eleven fields, including `target`. **Write `-` for an empty field, never leave it blank**: a
+downstream shell pass read these rows with `IFS=$'\t' read`, and because tab is an IFS
+*whitespace* character bash collapses a run of tabs into one delimiter — so a blank field
+disappears and every field after it shifts left. It happened here: `pair` and `target` were
+silently emptied on all 2,364 behavioural rows, and one named row's target ended up in its pair.
+Subject, source and terms sit before any blank field, which is why nothing looked wrong.
 
 Write a **provisional** state only: a hit → `present?`, no hit → `absent?`, both with the
 question mark. Nothing is settled until Step 6 re-resolves through the aliases. Leave

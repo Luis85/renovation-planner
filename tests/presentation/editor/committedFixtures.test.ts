@@ -1,9 +1,18 @@
 /**
  * @vitest-environment jsdom
  *
- * The two background files in `docs/tests/fixtures/`, which exist for the manual smoke test
+ * The two background files in `tests/fixtures/`, which exist for the manual smoke test
  * (`docs/tests/cases/Editor Walkthrough.md`, steps 7 and 8) and are checked here so the
  * walkthrough never starts from a fixture that has quietly stopped working.
+ *
+ * **Read from `tests/`, not from `docs/`, and that is the point of there being two copies.**
+ * The walkthrough happens in the vault, so the files have to exist under `docs/` — which is
+ * USER LAND: a folder someone is free to rename, move or reorganise while working in
+ * Obsidian. A suite that read the vault copy would turn every documentation tidy-up into a
+ * build failure, which is the same mistake as a test that depends on a folder it does not
+ * own. `npm run background-fixture` writes the PNG to both, so neither copy is edited by
+ * hand and "which one is current" is never a question; the PDF is a captured
+ * printer-driver artifact with no generator, so it is simply tracked twice.
  *
  * These are DIFFERENT fixtures from `tests/helpers/backgroundFixtures.ts`, and both kinds
  * earn their place. The generated ones are four hand-written PDF objects and a canvas with
@@ -31,7 +40,7 @@ import { installObsidianDom } from '../../helpers/dom';
 installObsidianDom();
 installCanvas();
 
-const FIXTURES = 'docs/tests/fixtures';
+const FIXTURES = 'tests/fixtures';
 const PDF_PATH = `${FIXTURES}/editor-background-pdf-test.pdf`;
 const PNG_PATH = `${FIXTURES}/editor-background-png-test.png`;
 

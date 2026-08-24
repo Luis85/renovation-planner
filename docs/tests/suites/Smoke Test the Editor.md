@@ -35,7 +35,7 @@ npm run test-build      # builds into .obsidian/plugins/ — this repository IS 
 ```
 
 Then open this folder as a vault (or reload it if it is already open) and work through the
-cases below. Two of the steps need real files, both committed in
+cases below. Two of the steps need real files, both in
 [`docs/tests/fixtures/`](../fixtures/):
 
 - `editor-background-png-test.png` — redraw it with `npm run background-fixture`. It is
@@ -44,9 +44,16 @@ cases below. Two of the steps need real files, both committed in
 - `editor-background-pdf-test.pdf` — a real printer-driver PDF (Chrome's "Print to PDF"),
   carrying the compression, embedded fonts and image a minimal fixture does not.
 
-Both are also checked automatically, in
-`tests/presentation/editor/committedFixtures.test.ts` — not to replace the walkthrough, but
-so it never begins with a fixture that has quietly stopped decoding.
+**These are the vault's copies, and they are yours to move.** Both files also exist in
+`tests/fixtures/`, and that is where the automated check
+(`tests/presentation/editor/committedFixtures.test.ts`) reads them from — never from here.
+`docs/` is user land: reorganising it while working in Obsidian must not turn a test red,
+which it would if the suite depended on these paths. `npm run background-fixture` writes the
+PNG to both places, so the two cannot drift; the PDF has no generator, so it is simply
+tracked twice.
+
+The automated check does not replace the walkthrough. It exists so a walkthrough never
+begins with a fixture that has quietly stopped decoding.
 
 ## What to do with a failure
 

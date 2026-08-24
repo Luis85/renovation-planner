@@ -1,6 +1,17 @@
 /**
  * Draws the PNG background fixture the manual smoke test sets on a plan
- * (`docs/tests/cases/Editor Walkthrough.md`, step 7).
+ * (`docs/tests/cases/Editor Walkthrough.md`, step 7), into BOTH places it has to exist.
+ *
+ * **Two copies, and the split is deliberate.** `tests/fixtures/` is code land: the suite
+ * reads from there and nothing else. `docs/tests/fixtures/` is the VAULT — user land, a
+ * folder someone is free to rename, move or reorganise while working in Obsidian, and doing
+ * that must not turn a test red. A suite that read the vault copy would make every
+ * documentation tidy-up a build failure.
+ *
+ * Writing both from one script is what keeps them from drifting: neither is edited by hand,
+ * so "which copy is current" is never a question. The PDF beside them cannot work this way —
+ * it is a captured printer-driver artifact with no generator — so that one is two tracked
+ * binaries, and the same rule applies to it: the suite reads `tests/fixtures/`.
  *
  * **Why a generator and not just a committed PNG.** `tests/helpers/backgroundFixtures.ts`
  * makes the case against checked-in binaries — "a file nobody can read in a diff and nobody
@@ -173,6 +184,8 @@ for (let y = MAJOR_GRID; y < HEIGHT; y += MAJOR_GRID) {
 	context.fillText(`${y / 1000} m`, 16, y - 16);
 }
 
-const out = 'docs/tests/fixtures/editor-background-png-test.png';
-writeFileSync(out, canvas.encodeSync('png'));
-console.log(`${out} — ${WIDTH}x${HEIGHT} px (${WIDTH * MM_PER_PIXEL}x${HEIGHT * MM_PER_PIXEL} mm at 1 px = 1 mm)`);
+const png = canvas.encodeSync('png');
+const targets = ['tests/fixtures/editor-background-png-test.png', 'docs/tests/fixtures/editor-background-png-test.png'];
+for (const target of targets) writeFileSync(target, png);
+console.log(`${WIDTH}x${HEIGHT} px (${WIDTH * MM_PER_PIXEL}x${HEIGHT * MM_PER_PIXEL} mm at 1 px = 1 mm) written to:`);
+for (const target of targets) console.log(`  ${target}`);

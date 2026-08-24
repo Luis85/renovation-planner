@@ -235,6 +235,11 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   `npm run background-fixture` so that what it asserts is reviewable as code rather than
   buried in a binary.
 
+  **The suite reads those fixtures from `tests/fixtures/`, never from `docs/`.** `docs/` is
+  the vault — user land — and a test that depended on a path someone reorganises while
+  writing notes would make a documentation tidy-up a build failure. The generator writes the
+  PNG to both, so the copies cannot drift; the PDF has no generator and is tracked twice.
+
 ## Architecture
 
 The SDD's layers (§8), and each may reach anything below it and nothing above:

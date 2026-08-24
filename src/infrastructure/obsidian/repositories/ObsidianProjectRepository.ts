@@ -17,7 +17,7 @@ import {
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
-import { fileNameFor, normalizeFolder, projectNotePathFor } from './paths';
+import { freshNotePath, normalizeFolder } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import { fileAt } from './NoteVaultDeps';
@@ -77,7 +77,7 @@ export class ObsidianProjectRepository {
 				return err(persistenceError('project.write-failed', `Could not write the note for project ${project.id}.`, cause));
 			}
 		} else {
-			path = projectNotePathFor(this.folder, fileNameFor(project.name));
+			path = freshNotePath(this.deps.vault, this.folder, project.name, project.id);
 			try {
 				await ensureFolder(this.deps.vault, this.folder);
 				await this.deps.vault.create(path, serializeFrontmatter(dto));

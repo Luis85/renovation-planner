@@ -286,6 +286,42 @@ describe('zone repository failure branches', () => {
 		expect(new Set(paths).size).toBe(2);
 		expect(paths.map((p) => p?.includes('Hall'))).toEqual([true, true]);
 	});
+
+	/**
+	 * The same rule for the other two entity kinds, which had no collision fallback at all:
+	 * the plain path went straight to `vault.create`, so the SECOND plan a user named
+	 * "Ground floor" — or the second project named "Kitchen" — refused to save with a write
+	 * failure naming nothing they could act on. Filename is never identity (§83), so two
+	 * entities sharing a name is ordinary rather than a mistake to reject.
+	 */
+	it('a second plan with the same name gets an ID-suffixed filename instead of refusing', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const first = makePlanEntity({ id: createPlanId(), projectId, name: 'Ground floor' });
+		const second = makePlanEntity({ id: createPlanId(), projectId, name: 'Ground floor' });
+		expectOk(await stack.plans.save(first, 'absent'));
+		expectOk(await stack.plans.save(second, 'absent'));
+
+		const paths = [first.id, second.id].map((id) => stack.index.getPath(id));
+		expect(new Set(paths).size).toBe(2);
+		expect(paths.every((p) => p?.includes('Ground floor'))).toBe(true);
+
+		// Both readable afterwards — a free filename is not enough if the index lost one.
+		expect(expectOk(await stack.plans.getById(second.id))?.entity.name).toBe('Ground floor');
+	});
+
+	it('a second project with the same name gets an ID-suffixed filename instead of refusing', async () => {
+		const stack = createRepositoryStack();
+		const first = makeProjectEntity({ id: createProjectId(), name: 'Kitchen' });
+		const second = makeProjectEntity({ id: createProjectId(), name: 'Kitchen' });
+		expectOk(await stack.projects.save(first, 'absent'));
+		expectOk(await stack.projects.save(second, 'absent'));
+
+		const paths = [first.id, second.id].map((id) => stack.index.getPath(id));
+		expect(new Set(paths).size).toBe(2);
+		expect(expectOk(await stack.projects.getById(second.id))?.entity.name).toBe('Kitchen');
+	});
 });
 
 describe('the find-zones query', () => {

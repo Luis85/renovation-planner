@@ -1,5 +1,15 @@
+import type { TFile } from 'obsidian';
 import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
+import type { RepositoryStack } from './vault';
 import { FakeWorkspace } from './workspace';
+
+/**
+ * The three app members the persistence stack reads through. A suite passes a real
+ * `createRepositoryStack()` here when it needs the index scan to FIND something — the
+ * empty default proves wiring, not contents, and a scan over nothing cannot tell a rebuilt
+ * index from an untouched one.
+ */
+export type VaultSurface = Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>;
 
 /** The plugin id the manifest declares, and what the data-file path is built from. */
 const PLUGIN_ID = 'renovation-planner';
@@ -20,7 +30,12 @@ const PLUGIN_ID = 'renovation-planner';
  * has to be asked for explicitly — no data but a file present, which is what Obsidian hands
  * a plugin when `data.json` will not parse.
  */
-export async function loadedPlugin(stored: unknown = null, loadFailure?: unknown, dataFileExists = stored !== null) {
+export async function loadedPlugin(
+	stored: unknown = null,
+	loadFailure?: unknown,
+	dataFileExists = stored !== null,
+	surface?: VaultSurface,
+) {
 	const workspace = new FakeWorkspace();
 	const asked: string[] = [];
 	/** Vault event handlers the plugin registered — tests fire these directly. */
@@ -33,20 +48,20 @@ export async function loadedPlugin(stored: unknown = null, loadFailure?: unknown
 				return Promise.resolve(dataFileExists);
 			},
 		},
-		// The index scan iterates these; an empty vault is the honest default here —
-		// suites that need contents build a real stack (see tests/helpers/vault.ts).
-		getMarkdownFiles: (): never[] => [],
-		getFiles: (): never[] => [],
-		getAbstractFileByPath: (): null => null,
+		// The index scan iterates these. An empty vault is the honest default; a suite that
+		// needs the scan to find notes passes a real stack (see tests/helpers/vault.ts),
+		// and these three then read through IT rather than through a second copy.
+		getMarkdownFiles: (): TFile[] => surface?.vault.getMarkdownFiles() ?? [],
+		getFiles: (): TFile[] => surface?.vault.getFiles() ?? [],
+		getAbstractFileByPath: (path: string): TFile | null => surface?.vault.getAbstractFileByPath(path) ?? null,
 		on: (_event: string, handler: (...args: never[]) => void): { off(): void } => {
 			vaultHandlers.push(handler);
 			return { off: () => undefined };
 		},
 	};
-	// The persistence stack gathers these three from the app; nothing in this stub
-	// behaves, so empty collaborators are honest — a test that needs a real vault builds
-	// its own stack (see tests/helpers/vault.ts).
-	const app = { workspace, vault, fileManager: {}, metadataCache: {} };
+	// The persistence stack gathers these three from the app; with no surface passed
+	// nothing here behaves, which is honest — an empty collaborator answers no note.
+	const app = { workspace, vault, fileManager: surface?.fileManager ?? {}, metadataCache: surface?.metadataCache ?? {} };
 
 	const plugin = new RenovationPlannerPlugin(app as never, { id: PLUGIN_ID });
 	plugin.data = stored;

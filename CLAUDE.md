@@ -131,10 +131,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   nothing in ESLint's configuration reaches oxlint's directive handling. A rule that does
   not fit is turned off in `.oxlintrc.json`, where the reason is written down and review
   sees it.
-- **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
-  metrics today; the floors sit a covered unit below that, which at this denominator is
-  several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
-  policy: floors only rise, and they rise to what a FINISHED increment measures. The suite
+- **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
+  metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
+  reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
+  is 99.7/98.9/99.7/99.8 and the floors sit a covered unit or more below each. The exact
+  numbers and which increment moved them live in `vitest.config.ts`, which also carries the
+  ratchet policy: floors only rise, and they rise to what a FINISHED increment measures. The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted view (`mountHarness`, not a fixture), checking roles, accessible names,
   form labels, heading order and ARIA attribute validity. Read its header before trusting

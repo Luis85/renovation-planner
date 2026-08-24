@@ -81,11 +81,24 @@ export default defineConfig({
 			// artifact that no test can execute) plus deliberately-defensive double-fault
 			// logging arms, so the branch floor sits lower than the others per rule 1's
 			// headroom arithmetic: at n=628 a branch is 0.16pp.
+			//
+			// Measured 2026-08-24 again after slice 4's review fixes — the settings-save
+			// rewiring, the shared restore/path/version helpers, the duplicate-id
+			// diagnostics, and tests for the out-of-band sidecar removal and the zone
+			// delete compensation: 1294/1298 statements, 628/635 branches, 321/322
+			// functions, 1183/1185 lines. Every metric above the previous measurement, so
+			// BRANCHES ratchet 97 → 98: at n=635 a branch is 0.157pp, which leaves 0.89pp
+			// — about five branches — of rule-1 headroom under the 98.89 measured.
+			//
+			// The other three stay at 99 and that is not an oversight: they measure 99.68
+			// and up, and the only whole number above 99 is 100, which the paragraph above
+			// refuses on purpose. The remaining uncovered arms are the defensive ones named
+			// there plus `GeometrySidecarView`'s Obsidian-runtime callback.
 			thresholds: {
 				statements: 99,
 				functions: 99,
 				lines: 99,
-				branches: 97,
+				branches: 98,
 			},
 		},
 	},

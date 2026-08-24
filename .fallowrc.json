@@ -20,11 +20,12 @@
 		"scripts/concept-shots.mjs"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
-	// `docs/concepts/*.css` are the concept mocks' sheets: two static HTML files in `docs/`
-	// link them, and those files are documentation rather than an entry point, so fallow's
-	// import graph cannot reach either sheet and reports both dead. Declared as the two
-	// files they are rather than as `docs/**/*.css`, so the next stylesheet somebody drops
-	// into `docs/` still has to be accounted for instead of being silently covered.
+	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML
+	// files beside them link these, and those files are documentation rather than an entry
+	// point, so fallow's import graph cannot reach either sheet and reports both dead.
+	// Declared as the two files they are rather than as `docs/**/*.css`, so the next
+	// stylesheet somebody drops into `docs/` still has to be accounted for instead of being
+	// silently covered.
 	"dynamicallyLoaded": [
 		"styles/**/*.css",
 		"tests/harness/theme.css",

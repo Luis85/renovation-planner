@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
-import {
-	versionOfFrontmatter,
-	checkExpectedVersion,
-} from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
-import { fileNameFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { frontmatterOf, findNoteIdInFolder } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
-import { observeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/digest';
-import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { MigrationRunner } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
 
 /**
- * The long tail of slice 4's diagnostics: every remaining refusal path driven red here
- * so none of them can rot into an untested guess.
+ * Slice 4's refusal paths that are DRIVEN THROUGH A REPOSITORY against a behaving fake
+ * vault: read, trash and delete failures injected per path, plus the three small helpers
+ * whose empty-ish inputs have no repository to reach them through.
+ *
+ * The scope line matters, because this file and completion.test.ts opened with the same
+ * sentence about 'the long tail of slice 4's diagnostics' and accumulated NINE tests that
+ * were byte-for-byte the other file's — invisible precisely because neither header said
+ * which half of the tail it held. Pure-function edges (tokens, version arithmetic, path
+ * spelling) belong beside their unit; what is here needs a vault.
  */
 
 async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; planId: PlanId }> {
@@ -37,16 +37,6 @@ function notePathOf(stack: RepositoryStack, id: string): string {
 }
 
 describe('plan repository: update failures and listing', () => {
-	it('an update whose note write fails reports plan.write-failed', async () => {
-		const stack = createRepositoryStack();
-		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
-		stack.vault.failures.add(`modify:${notePathOf(stack, planId)}`);
-		expect(
-			expectErr(await stack.plans.save(makePlanEntity({ id: planId, projectId, name: 'X' }), read.version)).code,
-		).toBe('plan.write-failed');
-	});
-
 	it('delete refuses when snapshots cannot be taken or the trash fails', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
@@ -93,23 +83,6 @@ describe('project repository: delete and listing failures', () => {
 		stack.vault.failures.add(`delete:${notePathOf(stack, projectId)}`);
 		expect(expectErr(await stack.projects.delete(projectId, read.version)).code).toBe('project.delete-failed');
 		expect(expectOk(await stack.projects.getById(projectId))).not.toBeNull();
-	});
-
-	it('listAll propagates read failures', async () => {
-		const stack = createRepositoryStack();
-		const projectId = createProjectId();
-		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
-		const path = notePathOf(stack, projectId);
-		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: "junk"'));
-		expect((await stack.projects.listAll()).ok).toBe(false);
-	});
-
-	it('listAll skips a vanished note instead of failing the whole listing', async () => {
-		const stack = createRepositoryStack();
-		const projectId = createProjectId();
-		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
-		stack.vault.entries.delete(notePathOf(stack, projectId));
-		expect(expectOk(await stack.projects.listAll())).toEqual([]);
 	});
 });
 
@@ -163,27 +136,6 @@ describe('zone repository: remaining refusals', () => {
 });
 
 describe('small unit edges', () => {
-	it('versionOfFrontmatter falls back to revision 0 for junk values', () => {
-		for (const junk of [-1, 1.5, '3', null]) {
-			expect(versionOfFrontmatter({ revision: junk }).revision).toBe(0);
-		}
-	});
-
-	it('checkExpectedVersion distinguishes absent-refusal from stale-revision', () => {
-		const current = { revision: 2, observed: 't' as never };
-		expect(checkExpectedVersion('zone', 'z', current, 'absent')?.code).toBe('zone.revision-conflict');
-		expect(checkExpectedVersion('zone', 'z', current, { revision: 2, observed: 't' })).toBeNull();
-	});
-
-	it('fileNameFor trims forbidden characters and edge dots', () => {
-		expect(fileNameFor('  ..Kitchen: Renovation?  ')).toBe('Kitchen Renovation');
-		expect(fileNameFor('...')).toBe('untitled');
-	});
-
-	it('zones folder helper joins under the normalized folder', () => {
-		expect(zonesFolderFor('A/B')).toBe('A/B/Zones');
-	});
-
 	it('frontmatterOf answers empty for notes without a cache entry', () => {
 		const stack = createRepositoryStack();
 		const ghost = { path: 'ghost.md' } as never;
@@ -210,19 +162,6 @@ describe('small unit edges', () => {
 				'unknown-id',
 			),
 		).toBeNull();
-	});
-
-	it('observation tokens handle multibyte names deterministically', () => {
-		const a = observeFrontmatter({ name: 'Büro', id: 'x' });
-		expect(a).toBe(observeFrontmatter({ name: 'Büro', id: 'x' }));
-		expect(a).not.toBe(observeFrontmatter({ name: 'Buro', id: 'x' }));
-	});
-
-	it('index empties answer empty without error', () => {
-		const index = new InMemoryProjectIndex();
-		expect(index.getIdsByType('renovation-zone')).toEqual([]);
-		expect(index.getIdsByProject('project-x' as never)).toEqual([]);
-		expect(index.getSpatialObjectIdsByPlan('plan-x' as never)).toEqual([]);
 	});
 
 	it('registerAll chains every step of one kind', () => {

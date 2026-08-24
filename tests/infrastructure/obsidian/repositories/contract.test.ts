@@ -17,6 +17,8 @@ import { projectRepositoryContract } from '../../../contracts/project-repository
 import { planRepositoryContract } from '../../../contracts/plan-repository.contract';
 import { zoneRepositoryContract } from '../../../contracts/zone-repository.contract';
 import { normalizeFolder, plansFolderFor, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { projectToPersistence } from '../../../../src/infrastructure/persistence/mappers/projectMapper';
+import { planToPersistence } from '../../../../src/infrastructure/persistence/mappers/planMapper';
 
 /**
  * Slice 4's half of SDD §72: THE SAME suites slice 3 wrote against the in-memory
@@ -55,16 +57,6 @@ function plantNote(
 		projectId: owned['project'] as ProjectId | undefined,
 		planId: owned['plan'] as PlanId | undefined,
 	});
-}
-
-// Local helpers kept tiny and honest about what the storage shape is.
-function projectToStorage(project: Project): Record<string, unknown> {
-	return {
-		type: 'renovation-project',
-		'schema-version': 1,
-		revision: 1,
-		status: String(project.status).replace(/_/g, '-').toLowerCase(),
-	};
 }
 
 function fixEntry(
@@ -112,30 +104,17 @@ zoneRepositoryContract(() => {
 		const project: Project = makeProjectEntity({ id: projectId });
 		const plan: Plan = makePlanEntity({ id: planId, projectId });
 
+		// Through the REAL mappers, not a hand-copied shape. A hand-built record is a second
+		// answer to what a note holds: it drifts silently the day a mapper adds, renames or
+		// re-spells a key, and the Obsidian-side contract run then passes against a layout
+		// the repositories no longer write. `revision: 1` is what a first save records.
 		const projectPath = `${folder}/${project.name} ${project.id}.md`;
-		plantNote(stack, projectPath, 'renovation-project', {
-			...projectToStorage(project),
-			id: project.id,
-			name: project.name,
-			project: undefined,
-			plan: undefined,
-		});
+		plantNote(stack, projectPath, 'renovation-project', projectToPersistence(project, 1));
 
+		// `plantNote` reads `project` straight out of the record for the index entry, and
+		// the mapper puts it there — so no separate patch for `projectId` is needed.
 		const planPath = `${plansFolderFor(folder)}/${plan.name} ${plan.id}.md`;
-		plantNote(stack, planPath, 'renovation-plan', {
-			type: 'renovation-plan',
-			'schema-version': 1,
-			revision: 1,
-			id: plan.id,
-			name: plan.name,
-			project: plan.projectId,
-			plan: undefined,
-			'background-path': '',
-			'background-kind': 'image',
-			'background-page': null,
-			layers: [],
-		});
-		fixEntry(stack, plan.id, (entry) => ({ ...entry, projectId: plan.projectId }));
+		plantNote(stack, planPath, 'renovation-plan', planToPersistence(plan, 1));
 
 		const sidecarPath = sidecarPathFor(folder, plan.id);
 		stack.vault.entries.set(

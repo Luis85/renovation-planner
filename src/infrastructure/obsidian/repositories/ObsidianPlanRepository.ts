@@ -14,15 +14,15 @@ import {
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
+	restoreNoteText,
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import {
-	fileNameFor,
+	freshNotePath,
 	normalizeFolder,
-	planNotePathFor,
 	plansFolderFor,
 	sidecarPathFor,
 } from './paths';
@@ -47,11 +47,6 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
  *   "partly done".
  */
-function parentOf(path: string): string {
-	// slice(0, 0) when there is no slash — no branch needed for rootless paths.
-	return path.slice(0, Math.max(path.lastIndexOf('/'), 0));
-}
-
 function calibrationToDto(calibration: Plan['calibration']): PlanGeometryDTO['calibration'] {
 	if (!calibration) return null;
 	return {
@@ -130,7 +125,7 @@ export class ObsidianPlanRepository {
 			return err(persistenceError('plan.sidecar-create-failed', `Could not create the geometry sidecar for plan ${plan.id}.`, created.error));
 		}
 
-		const path = planNotePathFor(this.folder, fileNameFor(plan.name));
+		const path = freshNotePath(this.deps.vault, notesFolder, plan.name, plan.id);
 		try {
 			await ensureFolder(this.deps.vault, notesFolder);
 			await this.deps.vault.create(path, serializeFrontmatter(dto));
@@ -246,10 +241,13 @@ export class ObsidianPlanRepository {
 				return err(persistenceError('plan.delete-failed', `Could not delete plan note ${file.path}.`, cause));
 			}
 
-			const removedSidecar = await this.geometry.delete(id);
+			// The path is captured BEFORE the note is trashed: the note's own delete event
+			// can clear the index mapping mid-operation, and the store must still find the
+			// sidecar through the hint rather than reading absence as success.
+			const removedSidecar = await this.geometry.delete(id, sidecarFile?.path);
 			if (!removedSidecar.ok) {
 				// Compensate: restore the note byte-for-byte so nothing was deleted.
-				const restored = await this.restoreNote(file.path, noteText);
+				const restored = await restoreNoteText(this.deps.vault, 'plan', file.path, noteText);
 				if (!restored.ok) {
 					this.deps.logger.error('plan.delete-compensation-failed', { id, cause: restored.error });
 				}
@@ -275,21 +273,6 @@ export class ObsidianPlanRepository {
 		return Promise.resolve(ok(loaded));
 	}
 
-	/**
-	 * Byte-for-byte note restore inside the same queue section as the failed operation —
-	 * outside it, the restore would race the next writer and undo THAT writer's work.
-	 * Reached only after the note was successfully trashed, so this always CREATES.
-	 */
-	private async restoreNote(path: string, text: string): Promise<Result<void, PersistenceError>> {
-		const parent = parentOf(path);
-		try {
-			await ensureFolder(this.deps.vault, parent);
-			await this.deps.vault.create(path, text);
-			return ok(undefined);
-		} catch (cause) {
-			return err(persistenceError('plan.restore-failed', `Could not restore plan note ${path}.`, cause));
-		}
-	}
 
 	private locate(id: PlanId): TFile | null {
 		return fileAt(this.deps.vault, this.deps.index.getPath(id));

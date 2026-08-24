@@ -1,15 +1,10 @@
 import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
-import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import { ENTITY_TYPES, type EntityType, type ProjectIndex, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import { stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
-
-const OUR_NOTE_TYPES: readonly string[] = ['renovation-project', 'renovation-plan', 'renovation-zone'];
-
-function stringField(value: unknown): string | undefined {
-	return typeof value === 'string' && value ? value : undefined;
-}
 
 /**
  * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
@@ -58,17 +53,20 @@ export class VaultChangeAdapter {
 	onRename(file: TFileType, oldPath: string): void {
 		// A rename moves an EXISTING entry regardless of content echoes — the bytes did
 		// not change, so the digest still matches and a debounced re-add would drop the
-		// entry entirely. Re-point it here, carry the echo token to the new path.
+		// entry entirely. Re-point it here, carry the echo token to the new path, then
+		// re-evaluate content at the new path: a foreign edit that raced the rename is
+		// applied there (echo suppression only skips UNCHANGED bytes), with the entry —
+		// and any sidecar mapping — carried through.
 		const existing = this.findByPath(oldPath);
-		if (existing) {
-			this.deps.index.upsert({ ...existing, path: file.path });
-			this.deps.echo.move(oldPath, file.path);
+		if (!existing) {
 			this.pending.delete(oldPath);
-			this.pending.delete(file.path);
+			this.processPath(oldPath);
+			this.enqueue(file.path);
 			return;
 		}
+		this.deps.index.upsert({ ...existing, path: file.path });
+		this.deps.echo.move(oldPath, file.path);
 		this.pending.delete(oldPath);
-		this.processPath(oldPath);
 		this.enqueue(file.path);
 	}
 
@@ -123,7 +121,7 @@ export class VaultChangeAdapter {
 		const frontmatter: Record<string, unknown> | undefined = this.deps.metadataCache.getFileCache(file)?.frontmatter;
 		const type: unknown = frontmatter?.['type'];
 
-		if (!frontmatter || typeof type !== 'string' || !OUR_NOTE_TYPES.includes(type)) {
+		if (!frontmatter || typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) {
 			// Not ours — but if it USED to be, it changed into something we cannot index.
 			if (existing) {
 				this.deps.index.remove(existing.id);
@@ -145,6 +143,8 @@ export class VaultChangeAdapter {
 		// Echo suppression: the digest of what sits on disk now vs. what this plugin last
 		// wrote there. Equal means our own write echoed back through Obsidian's events.
 		if (this.deps.echo.matches(path, observeFrontmatter(frontmatter))) return;
+
+		this.warnOnDuplicateId(id, path);
 
 		this.deps.index.upsert({
 			id: id as ProjectIndexEntry['id'],
@@ -175,9 +175,44 @@ export class VaultChangeAdapter {
 			return;
 		}
 
+		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead
+		// of re-affirming a path that no longer exists — leaving it would break every
+		// Zone read on this Plan with no future event to repair it.
+		const file = this.deps.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) {
+			this.deps.echo.forget(path);
+			if (planEntry.geometrySidecarPath === path) {
+				this.deps.index.upsert({ ...planEntry, geometrySidecarPath: undefined });
+			}
+			return;
+		}
+
 		// A sidecar appearing or changing never moves the note entry itself — only the
 		// mapping this index exists to hold.
 		this.deps.index.upsert({ ...planEntry, geometrySidecarPath: path });
+	}
+
+	/**
+	 * The incremental half of the builder's duplicate-id diagnostic: a note arriving with an
+	 * id another note already holds takes the index entry over, and the loser then never
+	 * opens with nothing saying why. Semantics are untouched — last writer still wins.
+	 *
+	 * The existence check is what keeps this from crying wolf on a MOVE: a sync that
+	 * relocates a note without a `rename` event arrives as a create at the new path while
+	 * the index still points at the old one, which looks identical to a duplicate until you
+	 * ask whether a file is still sitting there.
+	 */
+	private warnOnDuplicateId(id: string, path: string): void {
+		const indexed = this.deps.index.getPath(id as never);
+		if (indexed === undefined || indexed === path) return;
+		if (!(this.deps.vault.getAbstractFileByPath(indexed) instanceof TFile)) return;
+
+		this.deps.logger.warn('persistence.pipeline.duplicate-id', {
+			id,
+			path,
+			otherPath: indexed,
+			reason: 'another note already declares this id; it is no longer reachable',
+		});
 	}
 
 	private findByPath(path: string): ProjectIndexEntry | undefined {

@@ -100,9 +100,12 @@ describe('compensated sequences', () => {
 		const projectId = createProjectId();
 		const planId = createPlanId();
 		const plan = makePlanEntity({ id: planId, projectId, name: 'Collision' });
-		// Force the note-create to fail: a file already occupies the derived path.
-		const collisionPath = `${plansFolderFor(normalizeFolder(stack.projectFolder))}/${plan.name}.md`;
-		stack.vault.entries.set(collisionPath, 'occupied');
+		// Force the note-create to fail. NOT by occupying the derived path any more: an
+		// insert now steps around a taken filename onto `<name> <id>.md` and succeeds, which
+		// is the point of that fallback — so this drives the failure at the `create` call
+		// itself, which is what the compensation is actually about.
+		const notePath = `${plansFolderFor(normalizeFolder(stack.projectFolder))}/${plan.name}.md`;
+		stack.vault.failures.add(`create:${notePath}`);
 
 		expect((await stack.plans.save(plan, 'absent')).ok).toBe(false);
 		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBeUndefined();
@@ -151,6 +154,41 @@ describe('conditional writes against real files', () => {
 		// The CURRENT reader may speak: B presents exactly what B saw.
 		const bVersion: Loaded<Zone>['version'] = secondRead.version;
 		expect((await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'B renames' }), bVersion)).ok).toBe(true);
+	});
+
+	/**
+	 * DoD 5b's other half, and the direction a digest drawn too WIDE gets wrong while
+	 * looking correct: body prose and frontmatter keys this version does not declare belong
+	 * to the user, sit outside the observation token, and must therefore neither refuse the
+	 * next save nor be erased by it.
+	 *
+	 * `tests/.../digest.test.ts` pins the token function against both; this drives the whole
+	 * repository, which is where the erasure would actually happen — the token could ignore
+	 * a key that `writeOwnedFrontmatter` then drops on its way past.
+	 */
+	it('a save after body prose and an undeclared key succeeds and preserves both', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		const written = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
+
+		// Both edits at once, out of band: prose appended after the frontmatter block, and a
+		// key no schema of this version declares.
+		const path = stack.index.getPath(zoneId) ?? '';
+		const parsed = parseFrontmatter(stack.vault.entries.get(path) ?? '');
+		parsed.frontmatter['my-own-key'] = 'kept by the user';
+		stack.vault.entries.set(path, `${serializeFrontmatter(parsed.frontmatter)}## My notes\n\nRetile before winter.\n`);
+
+		// Succeeds on the version the ORIGINAL save returned: neither edit moved the token.
+		const after = expectOk(
+			await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Renamed' }), written.version),
+		);
+		expect(after.version.revision).toBe(written.version.revision + 1);
+
+		const reparsed = parseFrontmatter(zoneNoteText(stack, zoneId) ?? '');
+		expect(reparsed.frontmatter['my-own-key']).toBe('kept by the user');
+		expect(reparsed.frontmatter['name']).toBe('Renamed');
+		expect(reparsed.body).toContain('Retile before winter.');
 	});
 
 	it('the sidecar honours expected versions: absent applies, stale refuses, hand edits refuse', async () => {
@@ -247,8 +285,17 @@ describe('immediate usability and location', () => {
 		expectOk(await stackA.plans.save(planA, 'absent'));
 		expectOk(await stackB.plans.save(planB, 'absent'));
 
-		expect(Object.keys(stackA.vault.entries).some((p) => p.includes(String(planB.id)))).toBe(false);
-		expect(Object.keys(stackB.vault.entries).some((p) => p.includes(String(planA.id)))).toBe(false);
+		// `entries` is a Map, so `Object.keys` over it answers `[]` and every `some` on that
+		// is false — an earlier version of these two assertions passed for that reason and
+		// would have passed with the isolation broken. Read the keys through the Map's own
+		// iterator, and prove the instrument SEES something before trusting what it denies.
+		const pathsA = [...stackA.vault.entries.keys()];
+		const pathsB = [...stackB.vault.entries.keys()];
+		expect(pathsA.some((p) => p.includes(String(planA.id)))).toBe(true);
+		expect(pathsB.some((p) => p.includes(String(planB.id)))).toBe(true);
+
+		expect(pathsA.some((p) => p.includes(String(planB.id)))).toBe(false);
+		expect(pathsB.some((p) => p.includes(String(planA.id)))).toBe(false);
 	});
 });
 

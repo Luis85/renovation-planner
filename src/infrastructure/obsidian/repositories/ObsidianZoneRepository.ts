@@ -24,13 +24,14 @@ import {
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
+	restoreNoteText,
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import { revisionConflict } from '../../../application/ports/versioning';
-import { fileNameFor, normalizeFolder, zonesFolderFor } from './paths';
+import { freshNotePath, normalizeFolder, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
@@ -154,7 +155,7 @@ export class ObsidianZoneRepository {
 				notePath = existing.path;
 				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto);
 			} else {
-				notePath = this.freshPath(notesFolder, zone);
+				notePath = freshNotePath(this.deps.vault, notesFolder, zone.name, zone.id);
 				await ensureFolder(this.deps.vault, notesFolder);
 				await this.deps.vault.create(notePath, serializeFrontmatter(dto));
 			}
@@ -199,7 +200,7 @@ export class ObsidianZoneRepository {
 		cause: PersistenceError | ValidationError,
 	): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>> {
 		const compensated = wasUpdate
-			? await this.restoreNote(notePath, snapshotText)
+			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
 			: await this.deleteCreatedNote(notePath);
 		if (!compensated.ok) {
 			this.deps.logger.error(wasUpdate ? 'zone.update-compensation-failed' : 'zone.insert-compensation-failed', {
@@ -261,7 +262,7 @@ export class ObsidianZoneRepository {
 			// Compensate so a failed delete leaves NOTHING deleted — a caller's failed
 			// Result must never mean "gone, and no undo entry for it".
 			if (!mutated.ok) {
-				const restored = await this.restoreNote(file.path, snapshotText);
+				const restored = await restoreNoteText(this.deps.vault, 'zone', file.path, snapshotText);
 				if (!restored.ok) {
 					this.deps.logger.error('zone.delete-compensation-failed', { id, cause: restored.error });
 				}
@@ -298,30 +299,6 @@ export class ObsidianZoneRepository {
 		return Promise.resolve(ok(loaded));
 	}
 
-	/** Name-derived filename, disambiguated by the entity ID when the name is taken. */
-	private freshPath(notesFolder: string, zone: Zone): string {
-		const plain = `${notesFolder}/${fileNameFor(zone.name)}.md`;
-		if (!this.deps.vault.getAbstractFileByPath(plain)) return plain;
-		return `${notesFolder}/${fileNameFor(zone.name)} ${zone.id}.md`;
-	}
-
-	private async restoreNote(path: string, text: string): Promise<Result<void, PersistenceError>> {
-		const parent = path.slice(0, Math.max(path.lastIndexOf('/'), 0));
-		const existing = this.deps.vault.getAbstractFileByPath(path);
-		try {
-			if (existing instanceof TFile) {
-				// Byte-for-byte: the echo window still holds the token for these bytes, so
-				// the pipeline correctly treats any event about them as an echo.
-				await this.deps.vault.modify(existing, text);
-			} else {
-				await ensureFolder(this.deps.vault, parent);
-				await this.deps.vault.create(path, text);
-			}
-			return ok(undefined);
-		} catch (cause) {
-			return err(persistenceError('zone.restore-failed', `Could not restore zone note ${path}.`, cause));
-		}
-	}
 
 	private async deleteCreatedNote(path: string): Promise<Result<void, PersistenceError>> {
 		const created = this.deps.vault.getAbstractFileByPath(path);

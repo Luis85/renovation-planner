@@ -83,6 +83,67 @@ describe('persistence composition', () => {
 		expect(plugin.root.persistence?.index.entries()).toHaveLength(0);
 	});
 
+	/**
+	 * `saveSettings` REPLACES the composition root — its fields are readonly, so that is the
+	 * only way state changes there. Two things have to survive the swap, and neither did:
+	 * the new root's index starts EMPTY (and `projectFolder` is itself a setting, so the
+	 * tree worth scanning may have moved), and the vault listeners registered at
+	 * layout-ready must end up maintaining the root the save installed rather than the one
+	 * they were registered beside.
+	 */
+	it('rebuilds the index into the fresh root when a setting is saved mid-session', async () => {
+		const stack = createRepositoryStack(DEFAULT_SETTINGS.projectFolder);
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+
+		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+		expect(plugin.root.persistence?.index.getPath(projectId)).toBeDefined();
+
+		const firstPersistence = plugin.root.persistence;
+		const refsAfterLoad = plugin.eventRefs.length;
+		const handlersAfterLoad = vaultHandlers.length;
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+
+		expect(plugin.root.settings?.units).toBe('imperial');
+		expect(plugin.root.persistence).not.toBe(firstPersistence);
+
+		// The rebuild is what makes the swap complete: without it this reads undefined and
+		// the session queries an index of nothing until the next reload.
+		expect(plugin.root.persistence?.index.getPath(projectId)).toBeDefined();
+
+		// And nothing registered a second time. `registerEvent` disposes at UNLOAD, so a
+		// duplicate is a second delivery of every event for the rest of the session, with
+		// nothing to take the first one back.
+		expect(plugin.eventRefs).toHaveLength(refsAfterLoad);
+		expect(vaultHandlers).toHaveLength(handlersAfterLoad);
+	});
+
+	it('keeps vault events feeding the root a settings save installed', async () => {
+		const stack = createRepositoryStack(DEFAULT_SETTINGS.projectFolder);
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+
+		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+
+		// A note that appears AFTER the save, delivered through the handler registered
+		// BEFORE it. A handler holding its adapter captured would file this into an index
+		// nothing reads any more, and the assertion below would find nothing.
+		const planId = createPlanId();
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+		const planPath = stack.index.getPath(planId);
+		expect(planPath).toBeDefined();
+
+		const [onCreate] = vaultHandlers;
+		onCreate(stack.vault.getAbstractFileByPath(planPath as string) as never);
+		plugin.root.persistence?.changeAdapter.flush();
+
+		expect(plugin.root.persistence?.index.getPath(planId)).toBe(planPath);
+	});
+
 	it('declares exactly one folder setting, and Geometry is not among them', async () => {
 		const { plugin } = await loadedPlugin(null);
 		void plugin;

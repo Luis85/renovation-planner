@@ -4,6 +4,7 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import { checkExpectedVersion } from './versionCheck';
+import { persistenceError } from './noteIo';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PlanGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
@@ -11,10 +12,6 @@ import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import { KeyedQueues } from './KeyedQueues';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import { observeSidecar } from './digest';
-
-function persistenceError(code: string, message: string, cause?: unknown): PersistenceError {
-	return { category: 'Persistence', code, message, ...(cause === undefined ? {} : { cause }) };
-}
 
 /** Key order follows construction order, which the schema fixes — deterministic writes. */
 function canonicalJson(dto: PlanGeometryDTO): string {

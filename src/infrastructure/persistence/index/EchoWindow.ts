@@ -7,10 +7,12 @@ import { observeFrontmatter } from '../../obsidian/repositories/digest';
  * cannot tell its own echo from a hand edit would race the writer it echoes.
  *
  * A path maps to the token of what THIS PLUGIN last wrote or last confirmed there.
- * `matches(path, token)` is the no-op test; `mark` records after a successful write;
- * `seed` records what a full scan saw. A change arriving whose freshly computed token
- * equals the recorded one is an echo; anything else — including a change that arrives
- * while the debounce window is still open from the write — is real and gets processed.
+ * `matches(path, token)` is the no-op test and `mark` records after a successful write;
+ * the full scan records what it saw through `markFrontmatter`, the same entry point the
+ * note writers use, rather than a `seed` of its own. A change arriving whose freshly
+ * computed token equals the recorded one is an echo; anything else — including a change
+ * that arrives while the debounce window is still open from the write — is real and gets
+ * processed.
  */
 export class EchoWindow {
 	private readonly tokens = new Map<string, ObservationToken>();

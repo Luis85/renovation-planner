@@ -8,6 +8,7 @@ import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
 import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
+import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import {
 	createCompositionRoot,
 	type CompositionRoot,
@@ -48,10 +49,15 @@ const LOG_LEVEL: LogLevel = 'info';
  */
 /**
  * Obsidian hands TAbstractFile to every vault event; only notes interest the pipeline.
+ *
+ * The adapter is resolved PER EVENT rather than captured: `saveSettings` replaces the
+ * composition root, so a handler closing over the adapter it was registered with would keep
+ * feeding a root nothing reads any more. Undefined resolves to a no-op — settings that
+ * could not be read compose no persistence at all.
  */
-function onNoteFile(adapter: { onCreate(file: TFile): void; onModify(file: TFile): void; onDelete(file: TFile): void }, method: 'onCreate' | 'onModify' | 'onDelete'): (file: TAbstractFile) => void {
+function onNoteFile(adapterOf: () => VaultChangeAdapter | undefined, method: 'onCreate' | 'onModify' | 'onDelete'): (file: TAbstractFile) => void {
 	return (file: TAbstractFile): void => {
-		if (file instanceof TFile) adapter[method](file);
+		if (file instanceof TFile) adapterOf()?.[method](file);
 	};
 }
 export default class RenovationPlannerPlugin extends Plugin {
@@ -181,16 +187,33 @@ export default class RenovationPlannerPlugin extends Plugin {
 		if (this.root.settings === null) return Promise.resolve();
 
 		this.root = createCompositionRoot(next, this.root.logger, this.vaultStack);
+		// The new root carries an EMPTY index — and `projectFolder` is a setting, so the
+		// tree worth scanning may have moved. Re-running the build is what makes the swap
+		// complete; without it the session reads an index of nothing until the next reload,
+		// and every already-registered listener maintains a root nobody consults.
+		this.startPersistence();
 		return this.saveData(next);
 	}
 
 	private vaultStack: VaultStack | null = null;
 
 	/**
-	 * The Project Index's initial build, plus the vault listeners that keep it current.
-	 * Everything here composes ONLY when settings were recovered — with the folder
-	 * unknown there is no correct tree to scan and no correct place to write, so no
+	 * Registered once per session, never per composition root — `registerEvent` hands
+	 * disposal to the base class at UNLOAD, so a second registration is a second delivery
+	 * of every event for the rest of the session and nothing takes the first one back.
+	 */
+	private listenersRegistered = false;
+
+	/**
+	 * The Project Index's build, plus — the first time only — the vault listeners that keep
+	 * it current. Everything here composes ONLY when settings were recovered: with the
+	 * folder unknown there is no correct tree to scan and no correct place to write, so no
 	 * repository, index or query service exists at all (`CompositionRoot.persistence`).
+	 *
+	 * Called from `onLayoutReady` and again from `saveSettings`, which is why the two halves
+	 * are guarded differently. The BUILD repeats, because a new root's index starts empty
+	 * and its folder may have changed. The REGISTRATION does not, because the handlers read
+	 * `this.root` at call time and therefore already follow the swap.
 	 */
 	private startPersistence(): void {
 		const persistence = this.root.persistence;
@@ -206,13 +229,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 			}),
 		);
 
-		const adapter = persistence.changeAdapter;
+		if (this.listenersRegistered) return;
+		this.listenersRegistered = true;
+
 		// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
-		this.registerEvent(this.app.vault.on('create', onNoteFile(adapter, 'onCreate')));
-		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapter, 'onModify')));
-		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapter, 'onDelete')));
+		const adapterOf = (): VaultChangeAdapter | undefined => this.root.persistence?.changeAdapter;
+		this.registerEvent(this.app.vault.on('create', onNoteFile(adapterOf, 'onCreate')));
+		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
+		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
 		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-			if (file instanceof TFile) adapter.onRename(file, oldPath);
+			if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
 		}));
 	}
 

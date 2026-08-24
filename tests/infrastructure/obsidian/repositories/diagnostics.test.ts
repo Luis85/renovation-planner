@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { versionOfFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
 
 /**
  * The error paths of the storage layer: every diagnostic the repositories and the
@@ -154,16 +155,29 @@ describe('repository diagnostics', () => {
 		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))?.includes(String(zoneId))).toBe(false);
 	});
 
-	it('zone delete reports a note that does not declare its plan', async () => {
+	/**
+	 * The `plan` key present but EMPTIED — the other half of the guard that
+	 * completion.test.ts drives with a note that never declared one.
+	 *
+	 * The expectation is recomputed from the edited note ON PURPOSE. Blanking the value
+	 * moves the observation token, so presenting the version the save returned refuses at
+	 * the compare-and-swap and never reaches the guard at all. That is what this test used
+	 * to do while asserting only `code.startsWith('zone.')`, which
+	 * `zone.external-modification` satisfies — so it passed without ever executing the
+	 * branch it is named after.
+	 */
+	it('zone delete reports a note whose plan reference was emptied', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		const zoneId = createZoneId();
-		const zone = makeZoneEntity({ id: zoneId, projectId, planId });
-		const written = expectOk(await stack.zones.save(zone, 'absent'));
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
 
 		const notePath = stack.index.getPath(zoneId) ?? '';
 		stack.vault.entries.set(notePath, stack.vault.entries.get(notePath)?.replace(/plan: "[^"]*"/, 'plan: ""') ?? '');
 
-		expect(expectErr(await stack.zones.delete(zoneId, written.version)).code.startsWith('zone.')).toBe(true);
+		const edited = parseFrontmatter(stack.vault.entries.get(notePath) ?? '').frontmatter;
+		const current = versionOfFrontmatter(edited);
+
+		expect(expectErr(await stack.zones.delete(zoneId, current)).code).toBe('zone.delete-failed');
 	});
 });

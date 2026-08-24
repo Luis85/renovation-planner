@@ -232,8 +232,13 @@ kinds:
   planner`. Two of the three share no name with their apparent counterpart and the third
   matches only if case is ignored, which is exactly the mix of rename, split and
   near-collision this row exists to catch and had no rows to catch it with.
-- **Behavioural claims.** Presence is "does any derived note assert, contradict, or ignore
-  this claim."
+- **Behavioural claims.** Presence is *does any derived note **address** this claim* — assert
+  it, qualify it, or contradict it. **Silence is not presence.** A note saying nothing about the
+  claim leaves the row for the ladder below: `absent` on a forward row, reported as a **Gap**;
+  `retained` on a reverse one, reported as nothing. An earlier wording counted "ignore" as
+  presence, which made a behavioural gap structurally unreportable — an evidence-only claim is
+  precisely one the derived corpus ignores, so the single state it needed to reach was the one
+  that definition denied it."
 
   **The rule, not a list: every behavioural claim in every in-scope evidence body becomes a
   row, wherever in that body it sits.** The table below says where the claims *concentrate*.
@@ -322,20 +327,67 @@ included them.
 
 ### The order
 
-1. **Extract** both row kinds from the new evidence, under the producing rules above.
-2. **Build the reverse inventory** from the derived corpus, **per claim rather than per
-   note**.
-3. **Establish presence mechanically** in both directions, per the table above.
-4. **Derive the finding set from the resulting matrix**, so absence is *counted* rather than
-   spotted, in both directions.
-5. **Read for contradiction only in cells where both sides speak.** This part is judgement,
-   and it is bounded to cells the matrix identified rather than applied to the whole corpus.
-6. **Run the convention audit separately**, against the register's own documents, and report
-   it apart from the matrix counts — it is not derived from them and must not borrow their
+1. **Extract named things** from the new evidence, under the producing rules above, and settle
+   their presence — a lookup, and the only wholly mechanical part of this pass.
+2. **Record the aliases that lookup exposes.** `Space` against `Outdoor area`, DIY Renovator
+   against `Private renovator`: the vocabulary collapses this pass exists to find are also the
+   normalisation the behavioural matcher needs, so they are produced before it runs rather than
+   improvised inside it.
+3. **Extract behavioural claims**, and **build the reverse inventory** from the derived corpus,
+   **per claim rather than per note**.
+4. **Match behavioural claims in two stages**, per the rule below — only the first is
+   mechanical.
+5. **Resolve every row through the five-state ladder**, in both directions.
+6. **Derive the finding set from the matrix**, so absence is *counted* rather than spotted, and
+   **coalesce mirrored rows** per the identity rule below.
+7. **Read for contradiction only in cells where both sides speak.** Judgement, bounded to the
+   cells the matrix identified rather than applied to the whole corpus.
+8. **Run the convention audit separately**, against the register's own documents, and report it
+   apart from the matrix counts — it is not derived from them and must not borrow their
    completeness.
 
-Absence is mechanical, in both directions. Contradiction is read, but only where reading is
-warranted.
+#### Matching a behavioural claim is two stages, and only the first is mechanical
+
+Presence for a **named thing** is a lookup: the name is in the corpus or it is not, and a
+command settles it. Presence for a **behavioural claim** is not, because the two corpora can
+state the same obligation in different words and no lookup decides whether they are the same
+obligation. An earlier version of this section said *absence is mechanical, in both directions*
+across both row kinds — true of one kind and asserted of two, which is the defect this document
+keeps producing, this time in the sentence describing its own mechanism.
+
+So the match runs in two stages and the ledger reports them separately:
+
+- **Candidate set — mechanical, reproducible by command.** A claim's *subject terms* are the
+  entity, screen, component and actor names it mentions, normalised by case-folding,
+  singular/plural, and the alias table from step 2. The candidate set is every derived note
+  mentioning any of them. Its size is recorded on the row and the command that produced it goes
+  in the ledger.
+- **Match — judged, bounded to that set.** Within the candidate set only, decide whether any
+  note addresses the claim. The row records which note, or none.
+
+What this buys and what it does not: a reader can re-run the first stage exactly and re-check
+the second within a bounded set rather than re-reading 227 notes. It does **not** make the match
+reproducible — two careful readers may still differ inside a candidate set. The one case where
+the mechanical half carries the whole answer is a claim whose subject terms are absent from the
+derived corpus entirely: the candidate set is empty, and the row lands at `absent` with no
+judgement involved.
+
+#### One disagreement is one finding, however many rows found it
+
+A disagreement between an evidence claim and a derived claim produces **two** rows — forward for
+the evidence item, reverse for the derived claim — and running the ladder on both emits the same
+finding twice. Left undefined, the finding total depends on whether whoever wrote the ledger
+happened to merge them.
+
+**Pair identity is the ordered pair of citations**: evidence body and section on one side, note
+and claim on the other. Two rows resolving to `contradictory` or `superseded` over the same pair
+are **one finding**. So the ledger reports **rows and findings as separate counts**, which are
+not expected to match: the difference between them is exactly the number of mirrored
+disagreements, and that number is worth printing rather than hiding.
+
+`Gap` cannot mirror — it has no derived claim to pair with, which is what makes it a gap.
+`Contradiction` and `Orphan` both have two speaking sides, so both coalesce; `retained` is not a
+finding and never reaches this step.
 
 ## The ledger
 
@@ -470,7 +522,9 @@ decision, and still not mine.
 1. Every inventory item, **in both directions and of both row kinds**, has a matrix row
    carrying **exactly one** of the five states — present, absent, contradictory, superseded or
    retained — resolved by the precedence above, and the ledger reports the counts rather than
-   describing them.
+   describing them. **Rows and findings are counted separately and both printed**, because a
+   mirrored disagreement is two rows and one finding; the gap between the totals is the number
+   of coalesced pairs, which is information rather than an error to hide.
 1a. Every one of the eight in-scope note types has been compared under its rule, and the
    ledger says how many notes of each type were covered. A type with no rule is a type that
    was not read, and a coverage claim including it would be false.

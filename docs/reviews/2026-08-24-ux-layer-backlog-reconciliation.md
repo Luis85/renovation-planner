@@ -24,29 +24,29 @@ than left to be noticed:**
 
 ## What was found
 
-**46 contradictions, 775 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+**47 contradictions, 776 gaps, 0 orphans, and 4 convention findings.** The contradictions are
 the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
-the 46, and `deliverables/Disclosure ladder.md` alone accounts for 7.
+the 47, and `deliverables/Disclosure ladder.md` alone accounts for 8.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
-with 7 of the 46. Beside those — and **not** among them, because no row in this instrument runs
+with 8 of the 47. Beside those — and **not** among them, because no row in this instrument runs
 between two derived notes — it also disagrees with a sibling about whether costing requires a
 drawn plan: its own *What is open* admits rung 1 "forbids" pricing before drawing, while
 `requirements/Start a renovation project.md` creates no `Plans/` folder until something is drawn.
 Cluster E quotes both and says why the matrix cannot count it.
 
-**No orphans at all.** Across 3,070 rows and eight evidence bodies, not one passage *replaces*
+**No orphans at all.** Across 3,077 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
-UX layer contradicts the backlog in 46 places and supersedes it nowhere.
+UX layer contradicts the backlog in 47 places and supersedes it nowhere.
 
-**And not one derived note has drifted.** 15 of the 46 contradictions come from evidence whose
-standing the register records; each of those 17 was traced back to the sections of the *original*
-PRD and SDD that its derived note cites, and all 17 read faithfully — the note asserts what its
+**And not one derived note has drifted.** 15 of the 47 contradictions come from evidence whose
+standing the register records; each of those 15 was traced back to the sections of the *original*
+PRD and SDD that its derived note cites, and all 15 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
 Every traced one is a received document disagreeing with a received document, which is a choice a
 person makes, not an error a reconciler repairs. The other 31 come from the two folders the
 register does not classify and cannot be traced until decision 1 is taken. `provenance.tsv` holds
-the 17 verdicts with the sections each was read against.
+the 15 verdicts with the sections each was read against.
 
 ## The counts
 
@@ -54,29 +54,29 @@ Rows and findings are different things and are counted separately.
 
 | | |
 | --- | --- |
-| matrix rows | **3,070** |
+| matrix rows | **3,077** |
 | ├ forward, named | 501 |
 | ├ forward, behavioural | 897 |
 | ├ reverse, named | 185 |
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
-| `present` | 1,125 |
-| `absent` | 775 |
-| `contradictory` | 46 |
+| `present` | 1,130 |
+| `absent` | 776 |
+| `contradictory` | 47 |
 | `superseded` | **0** |
 | **findings** | |
-| Contradiction | **46** |
-| Gap | **775** |
+| Contradiction | **47** |
+| Gap | **776** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
-**The coalesced-pair count is 0, counted directly.** 46 disagreement rows resolve to 46
+**The coalesced-pair count is 0, counted directly.** 47 disagreement rows resolve to 47
 findings. It was 1 until review checked the pair that produced it: `r519`'s `pair` field had been
 copied from `f494` instead of built from its own citations, which made two different pairs
 byte-identical and coalesced two findings into one — the twelfth correction below. The count is
 still reached by identifying pairs and checking them, never by subtracting findings from rows:
-1,125 `present` and 1,124 `retained` rows raise the row total while producing no finding, so that
+1,130 `present` and 1,124 `retained` rows raise the row total while producing no finding, so that
 subtraction would overstate coalescing by 2,249.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
@@ -100,7 +100,7 @@ exist for only the five note types that hold named things, so a single count wou
 | `deliverables/` | 5 | 5 |
 | `issues/` | 3 | 3 |
 
-All eight evidence bodies contributed forward rows: prd 434, canvas 197, prototype 177, uxd 163,
+All eight evidence bodies contributed forward rows: prd 434, canvas 197, prototype 177, uxd 170,
 wireframes 147, jtbd 99, research 117, gallery 64.
 
 ### Sections swept, beside sections contained — with the instrument's limits
@@ -122,7 +122,7 @@ it as the whole.
 | wireframes | 22 | 23 | §A.22 |
 | canvas | 37 | 38 | §35 |
 | prd | 38 | 39 | §37 |
-| uxd | 30 | 34 | §1, §4, §31, §33 |
+| uxd | 31 | 34 | §1, §31, §33 |
 | research | 23 | 33 | §2, §3, §5, §20, §26, §27, §28, §29, §32, §33 |
 | gallery | — | — | see limit below |
 | jtbd | — | — | see limit below |
@@ -142,7 +142,8 @@ enumeration that quietly drops a member is the defect this ledger is most prone 
   §§26–29 — interview prompts, behaviours to observe, sampling and the artifact model.
 - **Framing that indexes swept content.** research §5 is eleven one-line problem statements with
   "the following sections examine these in detail" under them, and §§6–19 are all swept; `uxd§1`
-  and `§4` are the document's purpose and its reading guide.
+  is the document's purpose, indexing what it goes on to define. **`uxd§4` was listed here too
+  and did not belong** — see the twentieth correction; it is now swept.
 - **Not about this product.** research §20 is a friction matrix whose subject is Excel, Notion,
   Trello and paper.
 - **One that is a genuine judgement rather than a category.** research §33, the strategic
@@ -278,7 +279,7 @@ it. The demonstrated instance is `f1284`, "show the user what they need to do no
 were `task, current, next-best-action`, and `docs/requirements/Reporting and project cockpit.md`
 — which asks the claim's own question in as many words, "what is next, what is blocked" — uses
 none of the three, so it was never a candidate. Two rows from adjacent wishes in the same
-section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 775
+section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 776
 gaps carry this limit in the same shape**, and it points one way only: it can invent a gap, never
 hide one.
 
@@ -389,7 +390,7 @@ Does a project open on Project Home, or on the plan once one is calibrated?
 
 ### E. The Disclosure ladder contradicts the new evidence
 
-**7 rows, 7 findings — the most contradicted note in the backlog**, counted directly against
+**8 rows, 8 findings — the most contradicted note in the backlog**, counted directly against
 `findings.tsv` as the notes whose derived side is this file.
 
 Its rungs gate cost on "the first Zone existing" and Work behind cost, so Work is reachable only
@@ -409,6 +410,17 @@ after a Zone and a cost. Against that:
   account of the home surface.
 - `c43`/`r1419` — the ladder's "Project-first to create, **plan-first thereafter**" against
   `prototype§9`'s interaction contracts.
+- `c50`/`f1009e` — `uxd§4`'s Primary User Journey runs **Plan Work → Estimate Costs**, against
+  `What each rung means concretely[2]`: costing "is deliberately rung 2 and not rung 4… burying it
+  behind trades and work packages would demonstrate it to nobody". The ladder pre-empts this
+  objection in the PRD's voice — it argues `prd§5` is "a list of everything in dependency order,
+  not a claim about when a surface should appear" — and that defence does not reach a document
+  whose section is titled *Primary User Journey* and whose content is a flowchart of user
+  sequence. **This is the same disagreement as `c42` from a second UXD section**, counted as its
+  own finding because the ledger's rule counts by pair, and neither the evidence section nor the
+  derived paragraph is shared; a reader weighing how much the UXD disagrees with the ladder should
+  read the two together rather than as independent confirmations. `uxd§22` softens itself with
+  "conceptual complexity levels rather than mandatory user modes"; `uxd§4` carries no such hedge.
 
 **The ladder also disagrees with a sibling note, and that is reported here as a direct reading
 rather than as a matrix finding — because the matrix cannot produce one.** Every row in this
@@ -560,10 +572,10 @@ counts rows rather than subjects throughout.
 
 ## Gaps
 
-**775**, of which 416 are named things the evidence names with no note behind them and 359 are
+**776**, of which 416 are named things the evidence names with no note behind them and 360 are
 behavioural claims no note addresses. The named/behavioural split and the per-body breakdown are in `findings.tsv`.
 
-They are not 775 separate problems. **Whole epics of the new PRD have no derived counterpart**,
+They are not 776 separate problems. **Whole epics of the new PRD have no derived counterpart**,
 and the reason is one measurement rather than a judgement — counted across all 227 notes:
 
 | term | derived notes containing it | times the workspace PRD uses it |
@@ -606,15 +618,15 @@ five deliverable notes is one.
 
 **A caveat a reader should apply to this number.** A gap is one forward row that no derived note
 addresses, and the same absence is reached from several bodies — `Project Home` alone produces
-rows from three. The 775 is a row-derived count, honestly produced and not deduplicated by
+rows from three. The 776 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
-**Every one of the 775 is re-runnable, and both commands are committed — two, because the two
+**Every one of the 776 is re-runnable, and both commands are committed — two, because the two
 row kinds are two mechanisms.** A named row is a *lookup* that settles the row on its own; a
 behavioural row is a *candidate set* that bounds a reading. One command cannot answer both, and
 publishing one and claiming both is the error this ledger keeps catching in itself.
 
-**359 behavioural gaps** — [`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh),
+**360 behavioural gaps** — [`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh),
 given the row's `direction` and `terms`:
 
 ```bash
@@ -659,7 +671,7 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 548 of the 821 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 550 of the 823 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 31 contradictions now carrying `undetermined` gain the
@@ -820,7 +832,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 548 findings carry `undetermined`:
+**v1 and v2 are the ones that gate this ledger** — they are why 550 findings carry `undetermined`:
 492 whose evidence side sits in `docs/user-experience/` and 56 in `docs/product/` — all of
 them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
@@ -875,8 +887,8 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 
 | file | rows | what it holds |
 | --- | --- | --- |
-| `rows.tsv` | 3,070 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 821 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `rows.tsv` | 3,077 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
+| `findings.tsv` | 823 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
@@ -1087,8 +1099,8 @@ read "Net across the three: 777 gaps become 775, 47 contradictions become 48, an
 become 823" — correct when it was written, for the **eleventh, twelfth and thirteenth**
 corrections, and stranded when the fourteenth through seventeenth were added *above* it. Sitting
 last, it read as this section's net, and it closed on 48 contradictions and 823 findings while the
-committed matrix holds **46** and **821** — the fourteenth correction, three paragraphs up, is what
-moved them.
+matrix at that point held **46** and **821** — the fourteenth correction, three paragraphs up, is
+what moved them.
 
 **The verifier could not have caught it, and that is the more useful half.** `lbl` asks whether the
 ledger prints each total *somewhere*; the Checks block prints all three correctly, so the gate is
@@ -1096,11 +1108,16 @@ satisfied no matter what any other paragraph says. A check for a number's presen
 against its contradiction. Numbers in prose are still read by a human here, and this one was
 missed on every pass that added a correction above it.
 
-**Net across every correction above that moved a count: 777 gaps become 775, 47 contradictions
-become 46, and 824 findings become 821** — the totals the Checks block and `findings.tsv` both
-carry. Stated as a span rather than as "the three" or "the eight", because the count of
-corrections is the thing that changes every time one is added, which is what stranded the
-sentence this replaces. `lookup.py --selftest` is back to 686/686.
+**Net as of this correction: 777 gaps become 775, 47 contradictions become 46, and 824 findings
+become 821.** `lookup.py --selftest` is back to 686/686.
+
+**Scoped to a moment rather than to a span, and the first draft got that wrong too.** It read "net
+across every correction above that moved a count" — which sounds durable and is not: "above" grows
+every time a correction is added below, so the sentence silently re-scopes itself onto work it was
+never checked against. That is the same defect as "the three", one level up, and it took writing
+the replacement to see it. A net figure is only ever true of a moment, so it now names its
+moment; the **current** totals live in the Checks block, which is generated, and nowhere else in
+this prose.
 
 **A nineteenth correction, and it is this ledger citing itself.** The paragraph beginning
 "`matched` names every body" used to carry its repair by quoting the report — "the report already
@@ -1122,9 +1139,60 @@ find several before that zero was believed — `Project` matches 29 notes in `re
 **What that leaves standing is the behavioural half, and it is a limit rather than a result.** A
 forward behavioural row records one `path::locator` chosen inside a candidate set that often holds
 many notes, so a reader who agrees while a second note in the same set disagrees is recorded as
-agreement. The mirror is what catches it, and this ledger's own count is the evidence that it
-does: **7 of the 46 contradictions were reached from the reverse direction only**. That is a
-mitigation with a number, not a proof of completeness, and it is stated here as the weaker thing.
+agreement. The mirror is what catches it, and a count from the matrix is the evidence that it
+does: **32 of the 47 contradictions rest on reverse rows alone**, against 15 on forward rows
+alone — partitioned mechanically by the direction of every row behind each finding, so it is
+re-derivable from `rows.tsv` and `findings.tsv` rather than asserted. That is a mitigation with a
+number, not a proof of completeness, and it is stated here as the weaker thing.
+
+The first draft of this paragraph said "7 of the 46", borrowed from the opening's *last 7 —
+reached from the reverse direction only*. That figure is a claim about the order things were
+**discovered** in — seven contradictions that appeared nowhere in the prose until late — and it is
+not a partition of the finding set. Quoting it here would have read as mechanical because
+everything around it is. Two different questions, and only one of them has an answer a reader can
+recompute.
+
+**A twentieth correction, and it is the biggest single omission review has found: `uxd§4` was
+never swept.** The unswept list dismissed it in one clause — "`uxd§1` and `§4` are the document's
+purpose and its reading guide" — and the classification was true of `§1` and simply carried across
+the `and`. `§1` is a purpose statement that indexes what the document defines. **`§4` is titled
+*Primary User Journey* and is a thirteen-node flowchart** running Open → existing project? → Create
+or Continue → Project Home → Model Property and Spaces → Define Renovation → Plan Work → Estimate
+Costs → Schedule → Execute → Track → Complete → Archive. Under this ledger's own extraction rule
+— assertive mood, product behaviour as subject — every edge of it is a claim, and **zero rows
+cited it**.
+
+Seven rows now do (`f1009a`–`f1009g`), and they are not decoration:
+
+- **One contradiction**, `c50`, narrated in cluster E above, which makes `Disclosure ladder.md` the
+  most contradicted note by 8 rather than 7.
+- **One gap**, `g778`: the journey terminates in **Complete** and **Archive**, and the backlog has
+  no project completion state and no archival at all. The only `archiv` match in the whole
+  backlog is `Spatial photo references.md`'s "photo archive" — incidental prose about a different
+  noun. A lifecycle the evidence ends with, that the backlog never begins.
+- Five `present`, which is the honest majority result and the reason the sweep was cheap.
+
+**The category, not the instance — because the instance was luck.** `sections.py` has always
+been able to see this: it reads which sections a body declares against which appear in a row's
+`source`, and it printed `uxd … not swept: §1, §4, §31, §33` on every run. The instrument was
+right and the prose beside it was wrong, and no check compared them, because the unswept list is
+a *justification* and justifications are read, not executed. The list is now correct and
+`sections.py` reports `uxd 31/34`; what has no gate is whether each remaining entry deserves its
+place. Three do, on the rule as written. That is a reading, and it is offered as one.
+
+**A twenty-first correction: the traced-contradiction count said 17 while its own artifacts said
+15.** The opening paragraph read "**15** of the 46 contradictions come from evidence whose
+standing the register records; each of those **17** was traced back … and all **17** read
+faithfully", and the Checks block printed `received contradictions 17` and `traced 17 / 17`. One
+sentence, two different answers to one question. `findings.tsv` holds **15** received
+contradictions and `provenance.tsv` holds **15** verdict rows — they always agreed with each
+other, and the fourteenth correction is what moved them: both rows it withdrew (`r519`, `r1640`)
+matched `prd`, so received went 17 → 15 while only the first number in the sentence was updated.
+
+**The verifier compares `provenance.tsv` against `findings.tsv` and never against the ledger**, so
+15 = 15 passed on every run while the page printed 17. That is the eighteenth correction's lesson
+arriving a second time in one round, in a different file: a gate that checks two artifacts against
+each other proves nothing about the prose that quotes them.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
@@ -1135,7 +1203,7 @@ and a reason to read the citations rather than the totals.
 ## Checks
 
 ```
-rows                                              3070
+rows                                              3077
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
@@ -1148,11 +1216,11 @@ candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
                                               included)
 lookup.py reproduces the committed named state   686 / 686 named rows (2 named,
                                               and moved onward by a reading)
-gap findings, by the row kind behind them        416 named + 359 behavioural
+gap findings, by the row kind behind them        416 named + 360 behavioural
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
-received contradictions                             17
-  traced to the sections their note cites           17 / 17
+received contradictions                             15
+  traced to the sections their note cites           15 / 15
   derived notes found to have drifted                0
 sections.py --selftest                        instrument agrees with a second
                                               implementation and three pinned counts

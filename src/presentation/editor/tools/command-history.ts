@@ -16,10 +16,12 @@ type VoidResult = Result<void, AppError>;
 
 /**
  * The undo/redo stack for one open Plan (SDD §30, design slice 6). Ephemeral by design
- * (SDD §15) and scoped per Plan — meant to live on `EditorStore` once a later task in this
- * slice wires it there, and to not survive a plugin reload or switching plans. Nothing in
- * `src/` constructs or holds an instance yet; this class is that wiring's target, not its
- * current state.
+ * (SDD §15) and scoped per Plan — meant to live on `EditorStore`, and to not survive a
+ * plugin reload or switching plans. Nothing in `src/` constructs or holds an instance yet:
+ * design slice 6 built this framework and wired none of it into the composition root, so
+ * giving `EditorStore` a home for it is later work for whichever task first constructs a
+ * `ToolManager`/`EditorContext` there — the same situation `./render-state.ts` describes
+ * for `hoveredObjectId`/`temporaryPolygon`, and not a task this slice left undone.
  *
  * Two things make this class more than "two arrays and three methods":
  *

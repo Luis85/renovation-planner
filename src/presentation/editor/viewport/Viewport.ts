@@ -10,7 +10,7 @@ import type { Point } from '../../../core/geometry/Point';
  * contribution, built on slice 2's `Point`. This module is their ONE declaration in
  * `src/`: slice 6 imports them from here and defines none of them, because two
  * structurally identical brands type-check everywhere and guarantee nothing
- * (`tests/presentation/editor/viewport/declarations.test.ts` is what checks that,
+ * (`tests/presentation/editor/declarations.test.ts` is what checks that,
  * rather than this paragraph).
  *
  * **Rendering is not a caller.** Pan and zoom are the content `Group`'s own transform

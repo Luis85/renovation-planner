@@ -29,8 +29,9 @@ import type { RenderState } from './render-state';
  *   on `provide`/`inject`.
  * They happen to share a name because the SDD and the design-slice-6 spec both call this
  * one `EditorContext`, and renaming it to dodge the collision would deviate from that
- * binding authority over a readability concern (see this slice's task-8 brief). Import the
- * one you mean from its own module; nothing re-exports either under the other's name.
+ * binding authority (`docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`)
+ * over a readability concern. Import the one you mean from its own module; nothing
+ * re-exports either under the other's name.
  */
 export interface EditorContext {
 	/** Read-only for every tool except `PanTool`, which mutates through `setPan`/`setZoom`
@@ -70,8 +71,11 @@ export interface EditorContext {
  * The binding this thunk performs closes over the live `useEditorStore()` Pinia instance's
  * `viewport` ref (current pan/zoom — see slice 5's `src/presentation/stores/EditorStore.ts`)
  * and applies `worldToScreen`/`screenToWorld`, the module functions declared in
- * `src/presentation/editor/viewport/Viewport.ts:104,109` (each taking `(point, viewport,
- * dpr)`), to it. `EditorStore` itself has no `screenToWorld`/`worldToScreen` or
+ * `src/presentation/editor/viewport/Viewport.ts` (each taking `(point, viewport, dpr)`),
+ * to it. Named rather than cited by line: those two numbers had already moved twice by the
+ * time slice 6 ended, and each name is unique in that module.
+ *
+ * `EditorStore` itself has no `screenToWorld`/`worldToScreen` or
  * `setPan(delta)` method of its own — it exposes `viewport`, `zoomAt`, `zoomByFactor`,
  * `beginPan`/`continuePan`/`endPan`, `setPointer`; the binding is what turns those
  * primitives into this interface's shape, and building it is not this task's job. A Pinia

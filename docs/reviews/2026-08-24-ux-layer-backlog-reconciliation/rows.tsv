@@ -1,7 +1,7 @@
 id	direction	kind	subject	source	terms	cand_n	matched	state	pair	target
-f1a	forward	named	Renovation Canvas	canvas§1	renovation canvas	-	docs/components/Plan canvas.md	present	-	requirements
-f1b	forward	named	Renovation Canvas	canvas§1	renovation canvas	-	docs/components/Plan canvas.md	present	-	deliverables
-f2	forward	named	Property (pane)	canvas§3	property,pane	-	docs/entities/Site.md	present	-	components
+f1a	forward	named	Renovation Canvas	canvas§1	renovation canvas	-	-	absent	-	requirements
+f1b	forward	named	Renovation Canvas	canvas§1	renovation canvas	-	-	absent	-	deliverables
+f2	forward	named	Property (pane)	canvas§3	property,pane	-	-	absent	-	components
 f3	forward	named	Renovation Canvas (pane)	canvas§3	canvas,pane	-	docs/components/Plan canvas.md	present	-	components
 f4	forward	named	Context Inspector	canvas§3	inspector,context inspector	-	docs/components/Inspector.md	present	-	components
 f5	forward	named	Core Interaction Loop	canvas§4	interaction loop	-	-	absent	-	entities
@@ -45,14 +45,14 @@ f42	forward	named	Problems (layer)	canvas§21	problem,layer	-	-	absent	-	entitie
 f43	forward	named	Decisions (layer)	canvas§21	decision,layer	-	-	absent	-	entities
 f44	forward	named	Materials (layer)	canvas§21	material,layer	-	-	absent	-	entities
 f45	forward	named	Costs (layer)	canvas§21	cost,layer	-	-	absent	-	entities
-f46	forward	named	Schedule (layer)	canvas§21	schedule,layer	-	docs/requirements/Schedule.md	present	-	entities
+f46	forward	named	Schedule (layer)	canvas§21	schedule,layer	-	-	absent	-	entities
 f47	forward	named	Photos (layer)	canvas§21	photo,layer	-	-	absent	-	entities
 f48a	forward	named	Cost View	canvas§22	cost view	-	-	absent	-	requirements
 f48b	forward	named	Cost View	canvas§22	cost view	-	-	absent	-	deliverables
 f49a	forward	named	Progress View	canvas§23	progress view	-	-	absent	-	requirements
 f49b	forward	named	Progress View	canvas§23	progress view	-	-	absent	-	deliverables
-f50a	forward	named	Problem View	canvas§24	problem view	-	docs/entities/Issue.md	present	-	requirements
-f50b	forward	named	Problem View	canvas§24	problem view	-	docs/entities/Issue.md	present	-	deliverables
+f50a	forward	named	Problem View	canvas§24	problem view	-	-	absent	-	requirements
+f50b	forward	named	Problem View	canvas§24	problem view	-	-	absent	-	deliverables
 f51a	forward	named	Phase / Schedule View	canvas§25	phase view,schedule view	-	-	absent	-	requirements
 f51b	forward	named	Phase / Schedule View	canvas§25	phase view,schedule view	-	-	absent	-	deliverables
 f52	forward	named	Existing (phase)	canvas§25	existing,phase	-	-	absent	-	entities
@@ -336,17 +336,17 @@ f321a	forward	named	Renovation Project Workspace (product surface)	jtbd§tier-1	
 f321b	forward	named	Renovation Project Workspace (product surface)	jtbd§tier-1	renovation project workspace, workspace	-	-	absent	-	deliverables
 f322	forward	named	Project to Space to Work structure (domain model)	jtbd§important-product-research-principle	project, space, work, structure	-	-	absent	-	entities
 f323	forward	named	JTBD note (JTBD-###-slug.md, named artifact/template)	jtbd§how-to-use	jtbd note, job note	-	-	absent	-	deliverables
-f324	forward	named	Trade (actor)	jtbd§JTBD-019	trade	-	docs/entities/Trade.md	present	-	actors
+f324	forward	named	Trade (actor)	jtbd§JTBD-019	trade	-	-	absent	-	actors
 f325	forward	named	Professional (actor)	jtbd§JTBD-032	professional	-	-	absent	-	actors
 f326	forward	named	Contractor (actor)	jtbd§JTBD-033	contractor	-	-	absent	-	actors
 f327	forward	named	DIY (work mode/actor)	jtbd§JTBD-031	diy	-	-	absent	-	actors
 f328	forward	named	Building (spatial concept)	jtbd§JTBD-007	building	-	docs/entities/Building.md	present	-	entities
 f329	forward	named	Floor (spatial concept)	jtbd§JTBD-007	floor	-	docs/entities/Floor.md	present	-	entities
 f330	forward	named	Room (spatial concept)	jtbd§JTBD-007	room	-	docs/entities/Space.md	present	-	entities
-f331	forward	named	Outdoor area (spatial concept)	jtbd§JTBD-007	outdoor area, outdoor space	-	docs/entities/Outdoor area.md::Relationships[2]	contradictory	jtbd§JTBD-007>>f331	entities
+f331	forward	named	Outdoor area (spatial concept)	jtbd§JTBD-007	outdoor area, outdoor space	-	docs/entities/Outdoor area.md::Relationships[2]	present	-	entities
 f332	forward	named	Defect (domain concept)	jtbd§JTBD-011	defect	-	docs/entities/Issue.md	present	-	entities
 f333	forward	named	Baseline (domain concept)	jtbd§JTBD-054	baseline	-	-	absent	-	entities
-f334	forward	named	As-built (domain concept)	jtbd§JTBD-061	as-built, as built	-	docs/requirements/As-built documentation.md	present	-	entities
+f334	forward	named	As-built (domain concept)	jtbd§JTBD-061	as-built, as built	-	-	absent	-	entities
 f335	forward	named	Quotation (domain concept)	jtbd§JTBD-034	quotation, quote	-	docs/entities/Quote.md	present	-	entities
 f336	forward	named	Phase (domain concept)	jtbd§JTBD-044	phase	-	-	absent	-	entities
 f337	forward	named	Blocker (domain concept)	jtbd§JTBD-050	blocker	-	-	absent	-	entities
@@ -358,7 +358,7 @@ f342	forward	named	Material (domain concept)	jtbd§JTBD-037	material	-	docs/enti
 f343	forward	named	Quantity (domain concept)	jtbd§JTBD-026	quantity	-	docs/entities/Quantity.md	present	-	entities
 f344	forward	named	Cost (domain concept)	jtbd§JTBD-028	cost	-	-	absent	-	entities
 f345	forward	named	Budget (domain concept)	jtbd§JTBD-023	budget	-	-	absent	-	entities
-f346	forward	named	Schedule (domain concept)	jtbd§JTBD-043	schedule	-	docs/requirements/Schedule.md	present	-	entities
+f346	forward	named	Schedule (domain concept)	jtbd§JTBD-043	schedule	-	-	absent	-	entities
 f347	forward	named	DIY Renovator persona	prd§6.1	diy renovator,persona,primary persona	-	docs/actors/Private renovator.md	present	-	actors
 f348	forward	named	Advanced Renovator persona	prd§6.2	advanced renovator,persona,secondary persona	-	docs/actors/Advanced DIY planner.md	present	-	actors
 f349	forward	named	Professional Planner persona	prd§6.3	professional planner,persona,secondary persona	-	docs/actors/Professional planner.md	present	-	actors
@@ -375,7 +375,7 @@ f354b	forward	named	Work (navigation area)	prd§8	work,navigation	-	-	absent	-	d
 f355a	forward	named	Budget (navigation area)	prd§8	budget,navigation	-	-	absent	-	requirements
 f355b	forward	named	Budget (navigation area)	prd§8	budget,navigation	-	-	absent	-	deliverables
 f356a	forward	named	Schedule (navigation area)	prd§8	schedule,navigation	-	docs/requirements/Schedule.md	present	-	requirements
-f356b	forward	named	Schedule (navigation area)	prd§8	schedule,navigation	-	docs/requirements/Schedule.md	present	-	deliverables
+f356b	forward	named	Schedule (navigation area)	prd§8	schedule,navigation	-	-	absent	-	deliverables
 f357a	forward	named	Documentation (navigation area)	prd§8	documentation,navigation	-	-	absent	-	requirements
 f357b	forward	named	Documentation (navigation area)	prd§8	documentation,navigation	-	-	absent	-	deliverables
 f358	forward	named	New lifecycle stage	prd§9	new,project status,lifecycle	-	-	absent	-	entities
@@ -465,9 +465,9 @@ f429	forward	named	Renovation Project (domain concept)	prd§21	renovation projec
 f430	forward	named	Property (domain concept)	prd§21	property	-	docs/entities/Site.md	present	-	entities
 f431	forward	named	Building (domain concept)	prd§21	building	-	docs/entities/Building.md	present	-	entities
 f432	forward	named	Floor (domain concept)	prd§21	floor	-	docs/entities/Floor.md	present	-	entities
-f433	forward	named	Space (domain concept)	prd§21	space	-	docs/entities/Space.md::Relationships[1]	contradictory	prd§21>>docs/entities/Space.md	entities
+f433	forward	named	Space (domain concept)	prd§21	space	-	docs/entities/Space.md::Relationships[1]	present	-	entities
 f434	forward	named	Room (domain concept)	prd§21	room	-	docs/entities/Space.md	present	-	entities
-f435	forward	named	Outdoor Area (domain concept)	prd§21	outdoor area	-	docs/entities/Outdoor area.md::Relationships[2]	contradictory	prd§21>>f435	entities
+f435	forward	named	Outdoor Area (domain concept)	prd§21	outdoor area	-	docs/entities/Outdoor area.md::Relationships[2]	present	-	entities
 f436	forward	named	Zone (domain concept)	prd§21	zone	-	docs/entities/Zone.md::Zone[1]	present	-	entities
 f437	forward	named	Plan (domain concept)	prd§21	plan	-	docs/entities/Plan.md	present	-	entities
 f438	forward	named	Renovation Work (domain concept)	prd§21	renovation work	-	-	absent	-	entities
@@ -476,7 +476,7 @@ f440	forward	named	Cost (domain concept)	prd§21	cost	-	-	absent	-	entities
 f441	forward	named	Trade (domain concept)	prd§21	trade	-	docs/entities/Trade.md	present	-	entities
 f442	forward	named	Work Package (domain concept)	prd§21	work package	-	docs/entities/Work package.md	present	-	entities
 f443	forward	named	Task (domain concept)	prd§21	task	-	docs/entities/Task.md	present	-	entities
-f444	forward	named	Schedule (domain concept)	prd§21	schedule	-	docs/requirements/Schedule.md	present	-	entities
+f444	forward	named	Schedule (domain concept)	prd§21	schedule	-	-	absent	-	entities
 f445	forward	named	Document (domain concept)	prd§21	document	-	docs/entities/Document.md	present	-	entities
 f446	forward	behavioural	workspace shall become the central interaction model of the plugin	prd§1	workspace,interaction model,plugin	68	docs/deliverables/Sitemap.md::The routes[1]	present	-	-
 f447	forward	behavioural	plugin shall organize UX around the mental model "I am planning and managing a renovation project"	prd§1	plugin,mental model,renovation project	110	docs/deliverables/Information Architecture.md::The grouping[1]	present	-	-
@@ -818,7 +818,7 @@ f771b	forward	named	Design (view)	prototype§4	design,view,screen	-	-	absent	-	d
 f772a	forward	named	Budget (view)	prototype§4	budget,view,screen	-	-	absent	-	requirements
 f772b	forward	named	Budget (view)	prototype§4	budget,view,screen	-	-	absent	-	deliverables
 f773a	forward	named	Schedule (view)	prototype§4	schedule,view,screen	-	docs/requirements/Schedule.md	present	-	requirements
-f773b	forward	named	Schedule (view)	prototype§4	schedule,view,screen	-	docs/requirements/Schedule.md	present	-	deliverables
+f773b	forward	named	Schedule (view)	prototype§4	schedule,view,screen	-	-	absent	-	deliverables
 f774a	forward	named	Documents (view)	prototype§4	documents,view,screen	-	-	absent	-	requirements
 f774b	forward	named	Documents (view)	prototype§4	documents,view,screen	-	-	absent	-	deliverables
 f775	forward	named	Canonical Fixture	prototype§6	canonical fixture,fixture	-	-	absent	-	deliverables
@@ -1097,7 +1097,7 @@ f1027b	forward	named	Work View (screen)	uxd§28	work-view,screen	-	-	absent	-	de
 f1028a	forward	named	Budget View (screen)	uxd§28	budget-view,screen	-	-	absent	-	requirements
 f1028b	forward	named	Budget View (screen)	uxd§28	budget-view,screen	-	-	absent	-	deliverables
 f1029a	forward	named	Schedule View (screen)	uxd§28	schedule-view,screen	-	docs/requirements/Schedule.md	present	-	requirements
-f1029b	forward	named	Schedule View (screen)	uxd§28	schedule-view,screen	-	docs/requirements/Schedule.md	present	-	deliverables
+f1029b	forward	named	Schedule View (screen)	uxd§28	schedule-view,screen	-	-	absent	-	deliverables
 f1030a	forward	named	Documentation View (screen)	uxd§28	documentation-view,screen	-	-	absent	-	requirements
 f1030b	forward	named	Documentation View (screen)	uxd§28	documentation-view,screen	-	-	absent	-	deliverables
 f1031a	forward	named	Project Completion Review (screen)	uxd§28	project-completion-review,screen	-	-	absent	-	requirements
@@ -1105,7 +1105,7 @@ f1031b	forward	named	Project Completion Review (screen)	uxd§28	project-completi
 f1032a	forward	named	Archived Projects (screen)	uxd§28	archived-project,screen	-	-	absent	-	requirements
 f1032b	forward	named	Archived Projects (screen)	uxd§28	archived-project,screen	-	-	absent	-	deliverables
 f1033a	forward	named	Project Settings (screen)	uxd§28	project-settings,screen	-	docs/requirements/Project settings.md	present	-	requirements
-f1033b	forward	named	Project Settings (screen)	uxd§28	project-settings,screen	-	docs/requirements/Project settings.md	present	-	deliverables
+f1033b	forward	named	Project Settings (screen)	uxd§28	project-settings,screen	-	-	absent	-	deliverables
 f1034a	forward	named	Wizard steps: Project Identity, Renovation Type, Property Scope, Starting Method, Initial Spaces, Review	uxd§9	wizard-step,project-identity,renovation-type,property-scope,starting-method	-	-	absent	-	requirements
 f1034b	forward	named	Wizard steps: Project Identity, Renovation Type, Property Scope, Starting Method, Initial Spaces, Review	uxd§9	wizard-step,project-identity,renovation-type,property-scope,starting-method	-	-	absent	-	deliverables
 f1035	forward	named	Starting Method options: Import a Floor Plan, Draw a Plan, Start Without a Plan	uxd§9	starting-method,floor-plan,import,draw,no-plan	-	-	absent	-	entities
@@ -1240,7 +1240,7 @@ f1157b	forward	named	Work (primary navigation section)	wireframes§A.2	work,navi
 f1158a	forward	named	Budget (primary navigation section)	wireframes§A.2	budget,navigation,section	-	-	absent	-	requirements
 f1158b	forward	named	Budget (primary navigation section)	wireframes§A.2	budget,navigation,section	-	-	absent	-	deliverables
 f1159a	forward	named	Schedule (primary navigation section)	wireframes§A.2	schedule,navigation,section	-	docs/requirements/Schedule.md	present	-	requirements
-f1159b	forward	named	Schedule (primary navigation section)	wireframes§A.2	schedule,navigation,section	-	docs/requirements/Schedule.md	present	-	deliverables
+f1159b	forward	named	Schedule (primary navigation section)	wireframes§A.2	schedule,navigation,section	-	-	absent	-	deliverables
 f1160a	forward	named	Documents (primary navigation section)	wireframes§A.2	documents,navigation,section	-	-	absent	-	requirements
 f1160b	forward	named	Documents (primary navigation section)	wireframes§A.2	documents,navigation,section	-	-	absent	-	deliverables
 f1161a	forward	named	First Launch (golden-path step)	wireframes§A.1	first launch	-	-	absent	-	requirements
@@ -1248,7 +1248,7 @@ f1161b	forward	named	First Launch (golden-path step)	wireframes§A.1	first launc
 f1162a	forward	named	First-Use Empty State (screen)	wireframes§A.3	first-use empty state,empty state,screen	-	-	absent	-	requirements
 f1162b	forward	named	First-Use Empty State (screen)	wireframes§A.3	first-use empty state,empty state,screen	-	-	absent	-	deliverables
 f1163a	forward	named	Start a Renovation Project (primary action)	wireframes§A.3	start a renovation project,action	-	docs/requirements/Start a renovation project.md	present	-	requirements
-f1163b	forward	named	Start a Renovation Project (primary action)	wireframes§A.3	start a renovation project,action	-	docs/requirements/Start a renovation project.md	present	-	deliverables
+f1163b	forward	named	Start a Renovation Project (primary action)	wireframes§A.3	start a renovation project,action	-	-	absent	-	deliverables
 f1164a	forward	named	Renovation Planner Home (screen)	wireframes§A.4	renovation planner home,planner home,screen	-	-	absent	-	requirements
 f1164b	forward	named	Renovation Planner Home (screen)	wireframes§A.4	renovation planner home,planner home,screen	-	-	absent	-	deliverables
 f1165a	forward	named	Continue (action, restores last meaningful context)	wireframes§A.4	continue,action	-	-	absent	-	requirements
@@ -1282,8 +1282,8 @@ f1181b	forward	named	Add Space (screen)	wireframes§A.12	add space,screen	-	-	ab
 f1182a	forward	named	Space Detail (screen)	wireframes§A.13	space detail,screen	-	-	absent	-	requirements
 f1182b	forward	named	Space Detail (screen)	wireframes§A.13	space detail,screen	-	-	absent	-	deliverables
 f1183	forward	named	Renovation Summary panel (component)	wireframes§A.13	renovation summary,panel,component	-	-	absent	-	components
-f1184a	forward	named	Plan (space-scoped tab)	wireframes§A.13	plan,tab,space detail	-	docs/entities/Plan.md	present	-	requirements
-f1184b	forward	named	Plan (space-scoped tab)	wireframes§A.13	plan,tab,space detail	-	docs/entities/Plan.md	present	-	deliverables
+f1184a	forward	named	Plan (space-scoped tab)	wireframes§A.13	plan,tab,space detail	-	-	absent	-	requirements
+f1184b	forward	named	Plan (space-scoped tab)	wireframes§A.13	plan,tab,space detail	-	-	absent	-	deliverables
 f1185a	forward	named	Materials (view)	wireframes§A.13	materials,view	-	-	absent	-	requirements
 f1185b	forward	named	Materials (view)	wireframes§A.13	materials,view	-	-	absent	-	deliverables
 f1186a	forward	named	Costs (tab)	wireframes§A.13	costs,tab	-	-	absent	-	requirements

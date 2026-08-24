@@ -17,11 +17,59 @@ They landed beside 19 Epics and 121 notes in `requirements/` that were derived f
 convention arriving next to documents that predate it clashes semantically or not at all,
 and never as a merge conflict. That is the entire reason this pass exists.
 
-The divergence is already visible without reading closely. `Space`, `Project Home` and
-`Planner Home` appear across the new documents and in **zero** requirement notes, while
-`Zone` — the backlog's central spatial concept — carries twenty. The new PRD's glossary
-lists Property, Building, Floor, Space, Room and Outdoor Area *alongside* Zone and Plan,
-where the backlog's model is Project → Plan → Zone.
+The divergence is real, and it is not the one a first reading finds — which matters, because
+the wrong version of it shapes the whole pass. **Every structural noun the new evidence
+speaks in already has an entity note**: Site, Building, Floor, Space, Outdoor area, Zone,
+Plan and Project, eight of eight. None of them is new. The *original* PRD's §6 domain model
+already draws the building hierarchy the new documents use:
+
+```text
+RenovationProject
+│
+├── Site
+│   ├── Building
+│   │   └── Floor
+│   │       └── Space
+│   └── OutdoorArea
+│
+├── Plan
+│   ├── Layer
+│   └── SpatialObject
+│
+├── Zone
+└── …          ← abridged here; §6's non-spatial branches are omitted, not absent
+```
+
+What is genuinely absent from the backlog is a different kind of thing — the new evidence's
+**screens and navigation**. `Planner Home`, `Spaces View` and `Space Detail` appear in zero
+of the 227 derived notes, and `Project Home` in exactly one, `deliverables/MVP Prototype.md`.
+
+What remains on the vocabulary side is a **collapse rather than a gap**: the new PRD uses
+"space" as an umbrella over distinctions the backlog holds apart. Feature 2.4's "initial
+spaces" offers *garden* and *terrace*, which `entities/Outdoor area.md` places under `Site`,
+while `entities/Zone.md` offers "the terrace, the front garden" as example **Zones**.
+
+Both counts are reproducible rather than asserted:
+
+```bash
+# every structural noun already has an entity note — prints 8
+for n in Site Building Floor Space "Outdoor area" Zone Plan Project; do
+  test -f "docs/entities/$n.md" && echo "$n"; done | wc -l
+
+# the screen and navigation concepts are the absent ones — prints 0, 0, 0, 1
+for n in "Planner Home" "Spaces View" "Space Detail" "Project Home"; do
+  printf '%s: ' "$n"
+  grep -rliF "$n" docs/requirements docs/entities docs/business-rules docs/components \
+    docs/actors docs/deliverables docs/adrs docs/issues | wc -l; done
+```
+
+An earlier draft of this section claimed the opposite — that `Space` was absent — on the
+strength of a real measurement: `Space` does appear in zero of the 121 requirement notes.
+The count was right and the inference was wrong, because `Space` has had an entity note the
+whole time. Counting requirement notes measures *behavioural* coverage; the presence of a
+named thing is a different lookup. That is precisely the two-kinds-of-row distinction below,
+which this spec had failed to apply to its own motivating example — the fourth instance of
+the defect the instrument exists to prevent, recorded here rather than quietly corrected.
 
 ## What is not in question
 
@@ -48,11 +96,12 @@ and `component-gallery.html` read for component vocabulary only.
 **Out, deliberately:**
 
 - **The 17 design slices in `tasks/`** (14,763 lines). They are SDD-derived architecture
-  sitting one layer below this question, and whether slices 3, 5 and 8 need touching depends
-  entirely on what `Space` turns out to be relative to `Zone` — which is the decision this
-  ledger exists to put in front of a human. Sweeping them first means reading fourteen
-  thousand lines to produce findings whose resolution is "depends". Named as a follow-on
-  that is blocked on that decision, not as an oversight.
+  sitting one layer below this question, and whether any of them needs touching depends on
+  how the user-facing spatial vocabulary resolves — the decision this ledger exists to put in
+  front of a human. Sweeping them first means reading fourteen thousand lines to produce
+  findings whose resolution is "depends". Named as a follow-on blocked on that decision, not
+  as an oversight. *Which* slices are affected is an output of that decision; an earlier
+  draft named 3, 5 and 8 without having read them.
 - **The HTML concept pages beyond the component gallery**, and **the seventeen screenshots**.
   A screenshot is not something a note can be checked against.
 
@@ -65,13 +114,15 @@ cannot state its own coverage. So the comparison is built on an enumerable inven
 
 ### Two kinds of row, because nouns are not the requirement
 
-A first draft inventoried only named *things*: glossary concepts, screens, components. That
-instrument cannot see a behavioural disagreement. It would report `Space` absent and never
-notice that the workspace PRD's "start a project without a plan" contradicts a Plan-editor
-Feature that assumes a plan exists — every row present, Definition of Done satisfied, the
-substantive clash unfound. So rows come in two kinds:
+A first draft inventoried only named *things*: concepts, screens, components. That instrument
+cannot see a behavioural disagreement. It scores `Space` **present** — there is an entity
+note — and thereby reports the spatial vocabulary reconciled, never noticing that the two
+corpora do not mean the same thing by the word, nor that the workspace PRD's "start a project
+without a plan" contradicts a Plan-editor Feature that assumes a plan exists. Every row
+present, Definition of Done satisfied, the substantive clash unfound. So rows come in two
+kinds:
 
-- **Named things.** Glossary concepts, screens and views, components. Presence is a lookup.
+- **Named things.** Concepts, screens and views, components. Presence is a lookup.
 - **Behavioural claims.** Presence is "does any derived note assert, contradict, or ignore
   this claim."
 
@@ -180,11 +231,28 @@ Ordered by consequence, not by effort:
 
 ### Findings that need a decision
 
-A separate section, and not a severity. `Space` versus `Zone` is the certain member: whether
-Space is a new entity, a parent of Zone, or a user-facing name for one is a **product
-decision with consequences for the domain model, and it is not mine to make**. Each such
-finding carries the options and a recommendation. None is resolved unilaterally, and the
-ledger says so where they are listed.
+A separate section, and not a severity. Each finding here carries its options and a
+recommendation; none is resolved unilaterally, and the ledger says so where they are listed.
+
+**The rule for membership, rather than a list of members: a finding whose resolution changes
+the domain model, or changes what a user-facing word means, is a product decision and is
+listed rather than settled.** Which findings meet it is an output of the pass — naming a
+certain member in advance is how an earlier draft of this section acquired its worst claim.
+
+The *shape* of the likeliest one can be stated in advance, because the backlog's position is
+already on record and the decision is narrower than it looks. `entities/Space.md` and
+`entities/Zone.md` each carry an explicit *Space versus Zone* section sourced to PRD §6, §34,
+§58 and §60: a space is a place in the building, a zone is a place with geometry that planning
+attaches to, and §34 keeps them in separate branches so that *this room is untouched* stays
+expressible. The new PRD does not contest it — §8 states that navigation "shall represent user
+concerns rather than technical domain entities" and that "the exact naming may evolve through
+UX validation."
+
+So the open question is not *what is Space*; received evidence answered that. It is whether
+the new evidence's umbrella use of the word should change the **user-facing** vocabulary over
+an unchanged domain model, and if so where the umbrella's members are separated for the user.
+That is a naming decision with a settled domain model underneath it — still a product
+decision, and still not mine.
 
 ## Definition of done
 
@@ -207,20 +275,29 @@ ledger says so where they are listed.
    settled in this pass.
 4. The coverage limits above appear in the ledger.
 5. `npm run check` shows **no failure this pass introduced**. It cannot be required to pass
-   outright: `main` is red today, before any of this work — `vue-tsc` rejects
-   `src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts:113`
-   (`Result<never, ValidationError>` returned where
-   `Promise<Result<Loaded<Plan>, …>>` is declared: the method is not `async`, so the
-   early `return err(conflict)` on the conflict path is a bare `Result` while the two
-   tail returns are genuine Promises).
+   outright, because `main` is red today, before any of this work — and redder than an
+   earlier draft of this item recorded. `npm run check` stops at its first failing step, so
+   it can only ever show one; run individually, **all four of its steps fail**:
 
-   It arrived in **`5c85a26`**, a commit titled *"move concept files into ux folder, add
-   prototype spec"* that also added 104 files of slice-4 implementation. CI never ran on
-   that commit alone, so the failure first *surfaced* on the next docs-only commit
-   (`7b53c6e`) and the run history attributes it to three documentation pushes — which is
-   most likely why it has stayed red across four commits without being noticed. Run 108
-   (`d79e996`) was the last green one. Not this pass's to fix, and confirmed pre-existing
-   by building a clean tree with this branch's single document stashed. Writing "the gate passes" into a definition of done while the
+   | Step | Fails with |
+   | --- | --- |
+   | `build` | `vue-tsc` rejects `src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts:113` — `Result<never, ValidationError>` where `Promise<Result<Loaded<Plan>, …>>` is declared: the method is not `async`, so the early `return err(conflict)` is a bare `Result` while the two tail returns are genuine Promises |
+   | `lint` | 27 errors across 7 files, all under `tests/` — mostly `no-use-before-define`, plus `import(no-duplicates)` |
+   | `test:coverage` | a **parse error**: `tests/infrastructure/obsidian/repositories/digest.test.ts:23` reads `Object.entries(base)undefined)` — a stray token where `)` belongs. 477 tests pass; that one file never transforms |
+   | `analyze` | 25 dead-code issues, 3 clone groups, 2 files above the health threshold |
+
+   **Every failing file in all four steps traces to `5c85a26`**, a commit titled *"move
+   concept files into ux folder, add prototype spec"* that also added 104 files of slice-4
+   implementation — checked by intersecting the failing paths with that commit's file list,
+   7 of 7. CI never ran on it alone, so the failure first *surfaced* on the next docs-only
+   commit (`7b53c6e`) and the run history attributes it to three documentation pushes, which
+   is most likely why it has stayed red across four commits without being noticed. Run 108
+   (`d79e996`) was the last green one.
+
+   None of it is this pass's to fix. What makes item 5 checkable rather than a promise is the
+   baseline: stash this branch's single document, re-run, compare. `lint` and `analyze` output
+   is **byte-identical** with the change and without — which is the only form of "introduced
+   nothing" a reader can verify. Writing "the gate passes" into a definition of done while the
    gate is red would be the defect this repository's own guide names first: write the
    guarantee to the check, never ahead of it.
 6. **No derived note is edited.** The ledger is the whole deliverable; fixing is a separate

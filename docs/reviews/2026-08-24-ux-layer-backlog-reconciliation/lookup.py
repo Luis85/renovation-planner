@@ -54,12 +54,16 @@ import io, os, re, subprocess, sys, tempfile, shutil
 # names it — the same variable `candidates.sh` takes, for the same reason. Unset it and this reads
 # the working tree, which is what a reader wants while the corpus has not moved.
 #
-# It had no such variable until main gained the plan-editor work, and the moment the corpus moved
-# the selftest reported `Design System` flipping `retained` -> `present` — correctly, because two
-# NEW evidence files (`concepts/renovation-canvas.html`, `concepts/canvas.css`) name it. The fix
-# is to pin the replay, never to restate the matrix: a reverse row records what the evidence said
-# WHEN THE COMPARISON RAN. This is the sibling defect to the one review found in `candidates.sh`,
-# in the other direction — one instrument was repaired and the other was not checked beside it.
+# It had no such variable until `candidates.sh` had had one for a while — the sibling defect to the
+# one review found there, in the other direction: one instrument was repaired and the other was not
+# checked beside it. The rule it serves: a reverse row records what the evidence said WHEN THE
+# COMPARISON RAN, so a replay is pinned rather than the matrix being restated.
+#
+# It arrived for the WRONG REASON, and the wrong reason is recorded here because it was written
+# into this file as fact. `Design System` flipping `retained` -> `present` was blamed on the corpus
+# moving — on two new evidence files naming it. Neither is in `BODIES`; this tool reads exactly one
+# file from that folder. The cause was `BACKLINK` below failing on a deeper path, and pinning the
+# replay made the gate green while leaving this tool wrong. **Pinning is not a fix for a parser.**
 ROOT = os.environ.get("RP_CORPUS_ROOT") or (
     subprocess.run(["git", "rev-parse", "--show-toplevel"],
                    capture_output=True, text=True).stdout.strip() or ".")

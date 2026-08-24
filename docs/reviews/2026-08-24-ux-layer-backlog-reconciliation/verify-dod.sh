@@ -650,10 +650,46 @@ checks=[
                              % ((dk[('forward','named')]+dk[('reverse','named')],)*2)),
  ("per-body forward rows",    r"prd %d, canvas %d, prototype %d, uxd %d,\nwireframes %d, jtbd %d, research %d, gallery %d\." % tuple(fwdbody[k] for k in ("prd","canvas","prototype","uxd","wireframes","jtbd","research","gallery"))),
 ]
+# EVERY COPY, not one of them. The sweep above uses re.search, so an entry is satisfied by a
+# single correct occurrence — which makes it structurally blind to the defect it exists to catch,
+# because every stale figure in this ledger has been a SECOND COPY of one that was right. Review
+# found the named-row count corrected in the Checks block while three other copies still read 682,
+# and the sweep passed clean on all three.
+#
+# These entries invert it: a SHAPE with a numeric group, where every match must equal the measured
+# value. One shape covers all copies of a figure, the ones written and the ones not yet written.
+#
+# The general version was measured and refused: scanning the live half for any "<number> <unit>"
+# and flagging a unit stated with two different values reports NINE units, essentially all
+# legitimate — "rows" alone correctly carries 2, 4, 6, 7, 37 and 66 across cluster sizes and
+# totals. Internal disagreement is not by itself a defect in a document that counts many things,
+# so this stays per-figure and says so.
+NAMED = dk[('forward','named')] + dk[('reverse','named')]
+everywhere = [
+ ("named-row count",       r"(\d+) named rows",                          NAMED),
+ ("named-row ratio",       r"(\d+) / (\d+) named rows",                  NAMED),
+ ("selftest N of N",       r"committed state: \*\*(\d+) of (\d+)\*\*",   NAMED),
+]
+# Scanned over the LIVE half only, and that bound was found by the check reporting a true hit it
+# should not have: correction 7 records that "18 named rows" were rescored, which is a count of
+# rows that correction moved, not the total. The historical half quotes superseded figures ON
+# PURPOSE, so a shape general enough to be useful there would fail on every correction record.
+_lb=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+_live = L[:_lb.start()] if _lb else L
+wrong=[]
+for label,shape,want in everywhere:
+    for m in re.finditer(shape,_live):
+        for g in m.groups():
+            if int(g)!=want:
+                wrong.append((label,_live[:m.start()].count("\n")+1,m.group(0).strip(),want))
+print("  restatements checked at every copy: %d shapes, disagreeing: %d" % (len(everywhere),len(wrong)))
+for label,line,txt,want in wrong:
+    print("  FAIL line %d: %r — every %s must read %d" % (line,txt,label,want))
+
 bad=[n for n,p in checks if not re.search(p,L)]
 print("  ledger figures swept against the committed data: %d, disagreeing: %d" % (len(checks),len(bad)))
 for n in bad: print("  FAIL ledger does not print the measured value for: %s" % n)
-sys.exit(1 if bad else 0)
+sys.exit(1 if (bad or wrong) else 0)
 PYS
 
 python3 - <<'PYC' || fail=1

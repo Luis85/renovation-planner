@@ -646,10 +646,10 @@ the row's `target` and `subject`. It is type-aware, alias-resolved and back-link
 python3 $D/lookup.py forward requirements  "Project Home"   # absent   -
 python3 $D/lookup.py forward deliverables  "Project Home"   # present  docs/deliverables/MVP Prototype.md
 python3 $D/lookup.py reverse               "Design System"  # retained -   (the back-link is stripped)
-python3 $D/lookup.py --selftest                             # replays all 682 named rows
+python3 $D/lookup.py --selftest                             # replays all 678 named rows
 ```
 
-`--selftest` replays every named row against its committed state: **682 of 682**, with the two
+`--selftest` replays every named row against its committed state: **678 of 678**, with the two
 rows a later reading moved from `present` to `contradictory` reported by name rather than
 tolerated silently. Judgement moving a row the lookup placed is the one legitimate divergence;
 the reverse of it is a failure, and the selftest treats it as one.
@@ -900,7 +900,7 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 | `provenance.tsv` | 13 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
 | `candidates.sh` | — | the candidate command for a BEHAVIOURAL row — the mechanical half of that match |
-| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 682 named rows |
+| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 678 named rows |
 
 The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
 spec authorises one output file — and flagged that as a question for the repository owner rather
@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-two corrections, all from review of the committed matrix — which is the argument for
+Forty-four corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1669,6 +1669,47 @@ a bash parser, and a gate that needs a parser it does not have is exactly the de
 keeps catching in itself. So the check covers the one variable whose ordering is load-bearing and
 says that, rather than claiming the class. Watched failing by putting the `sections.py` call back
 above the archive, which reproduced the original defect at the original line.
+
+**A forty-third correction, and it is about the sweep itself rather than a number.** Withdrawing
+`f412`–`f415` moved the named-row count to 678. The Checks block was updated and **three other
+copies were not** — the runnable example (`replays all 682 named rows`), the sentence beneath it
+(`682 of 682`), and the artifact table (`replaying all 682 named rows`). The targeted sweep passed
+clean on all three.
+
+**It passed because `re.search` is satisfied by ONE occurrence.** An entry asserts that the right
+value appears *somewhere*; it says nothing about the other copies. So the mechanism built to catch
+stale figures was structurally blind to the one thing every stale figure in this ledger has been —
+**a second copy of one that was right.** Ten rounds of that pattern, and the check could not see it
+by construction.
+
+**Inverted for the figures that get restated:** a *shape* with a numeric group, where every match
+in the live half must equal the measured value. One shape covers all copies of a figure, the ones
+written and the ones not yet written. Watched failing by restoring exactly one of the three — the
+new scan names it at its line, and the old `re.search` entry stays green, which is the whole
+demonstration.
+
+**The general version was measured and refused.** Scanning the live half for any *number + unit*
+and flagging a unit stated with two different values reports **nine** units, essentially all
+legitimate: `rows` alone correctly carries 2, 4, 6, 7, 37 and 66 across cluster sizes and totals.
+Internal disagreement is not by itself a defect in a document that counts many things, so this
+stays per-figure and says so rather than claiming the class.
+
+**Its bound came from the check reporting a hit it should not have.** Run over the whole document
+it flagged correction 7's own *"18 named rows"* — a count of the rows that correction moved, not
+the total. The historical half quotes superseded figures **on purpose**, so the scan is scoped to
+the live half, exactly as the labelled net and the superseded check already are.
+
+**A forty-fourth correction: the disproven explanation was still sitting in the tool.** The comment
+introducing `RP_CORPUS_ROOT` in `lookup.py` recorded the corpus-move diagnosis as fact — that two
+new evidence files had *"correctly"* flipped `Design System`, and that pinning was the fix. The
+forty-first correction disproved both, in the commit immediately after, and never went back to the
+file where the claim had been written down.
+
+**That is the unsolved class this ledger has named three times, now caught inside an instrument
+rather than in prose:** something written on top of a finding is not revisited when the finding
+moves. The comment now records the wrong reason *as* the wrong reason — because it was written
+into the file as fact, and a maintainer reading only that file would have been misdirected by it —
+and states the rule the episode actually established: **pinning is not a fix for a parser.**
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

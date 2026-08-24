@@ -223,7 +223,12 @@ break — one direction lower down.
 
 **Interfaces:**
 - Consumes: `corpus.sh body <name>` from Task 1.
-- Produces: `aliases.tsv` with columns `evidence_term	derived_term	note_path	relation` where `relation` ∈ `same|renamed|split|collapsed|absent`; named rows in `rows.tsv` with `state` set.
+- Produces: `aliases.tsv` with columns `evidence_term	derived_term	note_path	relation` where `relation` ∈ `same|renamed|split|collapsed`. **There is deliberately no `absent`
+  relation.** An alias row exists to say two names denote one thing; a row saying they do not
+  is not an alias, and the presence index is built from every row it is given — so an `absent`
+  row would add its evidence term to the index and flip the very forward row from `absent?` to
+  `present`, suppressing exactly the Gap it was recording. A thing with no counterpart gets no
+  alias row at all, and its `absent` state stands; named rows in `rows.tsv` with `state` set.
 
 - [ ] **Step 1: Write the presence lookup and its expected output for the known cases**
 
@@ -259,6 +264,45 @@ for n in "Planner Home" "Spaces View" "Space Detail" "Project Home"; do
   bash "$SP/lookup.sh" "$n" requirements,deliverables; done
 ```
 Expected: the first three print the term and an empty last field; `Project Home` prints `docs/deliverables/MVP Prototype.md`. This reproduces the spec's `0, 0, 0, 1` and proves the lookup before it is trusted on unknown terms. All four are screens, so `requirements,deliverables` is their mapped target — and the check must also be run once with no target argument, against all five, to confirm the two agree for these four. Where they ever DISAGREE, the type-aware answer is the right one and the difference is a gap the all-five search would have hidden.
+
+- [ ] **Step 2a: Strip repository back-links, BEFORE any presence is looked up**
+
+The materialised gallery is HTML and links back to the very notes it is being compared against:
+
+```html
+<a href="../deliverables/Design%20System.md">Design System</a>
+```
+
+A literal `grep` counts that as the evidence naming `Design System`. It is not — it is the
+evidence pointing AT the derived note, which is the one thing that cannot be evidence the note
+has a counterpart in the new layer. Scored naively, a deliverable with no standing in the new
+evidence comes back `present` on the strength of its own hyperlink.
+
+```bash
+mkdir -p "$SP/bodies-search"
+for f in "$SP"/bodies/*.txt; do
+  sed -E 's#<a href="\.\./(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>##g' \
+    "$f" > "$SP/bodies-search/$(basename "$f")"
+done
+```
+
+Reverse named presence is looked up in `bodies-search/`, never in `bodies/`. Behavioural
+candidate sets keep using `bodies/` — a back-link is not a behavioural claim either way, and
+narrowing the guard to the lookup it was measured against is the point.
+
+**Narrow by measurement, not by taste.** Exactly three lines in the whole corpus match, all in
+`gallery.txt`, and exactly one row changes: `Design System`, whose only hit was its own link.
+`Disclosure ladder` KEEPS its hit — it appears in the gallery's own navigation as a link to a
+sibling concept page, which is the evidence genuinely using the term. A guard that had removed
+both would have manufactured a `retained` as surely as the missing guard manufactured a
+`present`.
+
+**Order is the whole point of this step, and it was wrong once.** This used to sit at Step 4a,
+after Step 3 had already looked up every reverse name and Step 4 had verified their provisional
+states — and nothing re-ran them. `Design System` would have stayed `present?` on the strength
+of its own hyperlink, and Step 6 would merely have removed the question mark, laundering a
+false positive into a settled state. A sanitising step placed after the thing it sanitises is
+not a guard; it is a comment. It runs before Step 3 now.
 
 - [ ] **Step 3: Extract named things in both directions and append rows**
 
@@ -305,38 +349,6 @@ awk -F'\t' 'NR>1 && $3=="named" {n[$9]++} END{for (s in n) print s, n[s]}' "$SP/
 ```
 Expected: `0` missing, and every state still carrying its `?`. A named row without a question
 mark at this point is one that skipped the alias pass.
-
-- [ ] **Step 4a: Strip repository back-links before resolving reverse named presence**
-
-The materialised gallery is HTML and links back to the very notes it is being compared against:
-
-```html
-<a href="../deliverables/Design%20System.md">Design System</a>
-```
-
-A literal `grep` counts that as the evidence naming `Design System`. It is not — it is the
-evidence pointing AT the derived note, which is the one thing that cannot be evidence the note
-has a counterpart in the new layer. Scored naively, a deliverable with no standing in the new
-evidence comes back `present` on the strength of its own hyperlink.
-
-```bash
-mkdir -p "$SP/bodies-search"
-for f in "$SP"/bodies/*.txt; do
-  sed -E 's#<a href="\.\./(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>##g' \
-    "$f" > "$SP/bodies-search/$(basename "$f")"
-done
-```
-
-Reverse named presence is looked up in `bodies-search/`, never in `bodies/`. Behavioural
-candidate sets keep using `bodies/` — a back-link is not a behavioural claim either way, and
-narrowing the guard to the lookup it was measured against is the point.
-
-**Narrow by measurement, not by taste.** Exactly three lines in the whole corpus match, all in
-`gallery.txt`, and exactly one row changes: `Design System`, whose only hit was its own link.
-`Disclosure ladder` KEEPS its hit — it appears in the gallery's own navigation as a link to a
-sibling concept page, which is the evidence genuinely using the term. A guard that had removed
-both would have manufactured a `retained` as surely as the missing guard manufactured a
-`present`.
 
 - [ ] **Step 5: Write the alias table from what the lookup exposed**
 
@@ -507,15 +519,58 @@ expand() {
   }' "$SP/aliases.tsv"
 }
 
+# A term is matched as a PHRASE first; if the phrase appears nowhere, fall back to requiring
+# every significant word of it to appear in the same file.
+#
+# The fallback is not a nicety. Extractors produce terms like `cost impact` and `scope change`
+# — noun phrases rather than the entity/screen/component/actor names the method asks for — and
+# a phrase-only match returns nothing for them. That is not an absent claim, it is an absent
+# PHRASE, and the difference matters because an empty candidate set is resolved with NO
+# judgement, straight to `absent`, and reported as a Gap. Measured on this corpus: JTBD-030
+# ("see cost and schedule consequences of a considered change") had an empty candidate set
+# while `docs/requirements/Impact analysis.md` says "showing that a change costs three weeks"
+# in as many words. Phrase-only matching left 172 rows with empty candidate sets; with the
+# fallback, 37. The 135 difference is the number of findings a phrase-only match would have
+# invented.
+#
+# Widening is MONOTONE — it can only add candidates, never remove one — so it cannot hide a
+# disagreement the narrow match would have found. It costs a larger set to read, not accuracy.
+STOP=" the and for with from that this when what which into over must should shall have has are its their been than then them not but all any one two per via use used using "
+words_of() {
+  # `printf '%s\n'`, not `printf '%s'`. Without the trailing newline `tr` emits a last word
+  # with no terminator, `read` returns non-zero on it, and the while loop exits BEFORE the
+  # body runs — silently dropping the final word of every term. Measured: `scope change`
+  # yielded only `scope`, so the intersection degenerated to the first word's hits and this
+  # command returned 22 candidates where the true intersection is 8. Caught only because the
+  # cached implementation and this one are checked against each other.
+  printf '%s\n' "$1" | tr -cs 'A-Za-z' '\n' | while read -r w; do
+    [ ${#w} -gt 3 ] || continue
+    case "$STOP" in *" $(printf '%s' "$w" | tr 'A-Z' 'a-z') "*) continue ;; esac
+    printf '%s\n' "$w"
+  done
+}
+one_term() {
+  local t="$1" out
+  out="$(grep -rliE "\b${t}s?\b" "${corpus[@]}" 2>/dev/null || true)"
+  if [ -n "$out" ]; then printf '%s\n' "$out"; return; fi
+  local first=1 acc="" cur
+  while IFS= read -r w; do
+    cur="$(grep -rliE "\b${w}s?\b" "${corpus[@]}" 2>/dev/null || true)"
+    if [ $first = 1 ]; then acc="$cur"; first=0
+    else acc="$(comm -12 <(printf '%s\n' "$acc" | sort -u) <(printf '%s\n' "$cur" | sort -u))"; fi
+  done < <(words_of "$t")
+  [ $first = 0 ] && printf '%s\n' "$acc" || true
+}
+
 IFS=',' read -ra terms <<< "${2:-}"
 { for t in "${terms[@]}"; do
     t="$(printf '%s' "$t" | sed 's/^ *//; s/ *$//')"
     [ -n "$t" ] || continue
     while IFS= read -r x; do
       [ -n "$x" ] || continue
-      grep -rliE "\b${x}s?\b" "${corpus[@]}" 2>/dev/null || true
+      one_term "$x"
     done < <(expand "$t" | sort -u)
-  done; } | sort -u
+  done; } | grep -v '^$' | sort -u
 EOF
 chmod +x "$SP/candidates.sh"
 ```
@@ -820,6 +875,20 @@ echo "1  rows and findings both printed: $(grep -cE 'rows|findings' "$L")  (must
 echo "1b notes reached:           $(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')  / 227"
 echo "1a note types covered:      $(grep -cE 'requirements/|entities/|business-rules/|components/|actors/|deliverables/|adrs/|issues/' "$L")  (all 8 must appear)"
 echo "6  derived notes edited:    $(git status --porcelain docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | wc -l | tr -d ' ')  (must be 0)"
+
+# ASSERT, do not merely print. A verifier that reports its own violations and still exits 0
+# is the same defect as a check whose mechanism cannot fail: a worker runs the advertised
+# gate, sees the bad numbers scroll past, and proceeds. Every measurement above is restated
+# here as a condition, and the script exits non-zero if any of them is wrong.
+fail=0
+chk(){ [ "$2" = "$3" ] || { echo "  FAIL $1: expected $2, measured $3"; fail=1; }; }
+chk "rows with no state" 0 "$(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')"
+chk "notes reached by a reverse row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
+chk "notes reached by a reverse BEHAVIOURAL row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse" && $3=="behavioural"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
+chk "derived notes edited" 0 "$(git status --porcelain docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | wc -l | tr -d ' ')"
+chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
+chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
+exit $fail
 EOF
 chmod +x "$SP/verify-dod.sh"
 ```

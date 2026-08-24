@@ -14,13 +14,20 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
+	// `tests/presentation/editor/type-safety.test-d.ts` is a fourth kind, next to
+	// `scripts/lint-edited.mjs` above: nothing imports it and no npm script runs it either
+	// — `vue-tsc -noEmit` type-checks it because `tsconfig.json`'s `include` names it
+	// directly, and its two `@ts-expect-error` directives are the whole point (an unused
+	// one is a compile error), so the file's job is to fail to compile in two spots, never
+	// to be imported or executed.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",
 		"scripts/lint-edited.mjs",
 		"scripts/harness-shot.mjs",
 		"scripts/concept-shots.mjs",
-		"scripts/background-fixture.mjs"
+		"scripts/background-fixture.mjs",
+		"tests/presentation/editor/type-safety.test-d.ts"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML

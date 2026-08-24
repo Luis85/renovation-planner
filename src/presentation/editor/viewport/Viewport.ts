@@ -26,7 +26,12 @@ export type { Point } from '../../../core/geometry/Point';
  * A coordinate in the stage's pixel space. Deliberately incompatible with `Point`,
  * which is always world millimetres: the two are the same shape and mean opposite
  * things, and a codebase that lets one be passed where the other is expected has no
- * coordinate system at all.
+ * coordinate system at all. The incompatibility runs both ways only because `Point`
+ * carries a phantom `__brand?: undefined` field of its own
+ * (`../../../core/geometry/Point.ts`) — without it, a value merely ADDING this
+ * `__brand` property would still satisfy `Point` structurally.
+ * `tests/presentation/editor/type-safety.test-d.ts` is what checks that, rather than
+ * this paragraph.
  */
 export interface ScreenPoint {
 	readonly x: number;

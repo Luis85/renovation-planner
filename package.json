@@ -10,6 +10,7 @@
 		"harness": "vite --config vite.harness.config.ts",
 		"harness-shot": "node scripts/harness-shot.mjs",
 		"concept-shots": "node scripts/concept-shots.mjs",
+		"background-fixture": "node scripts/background-fixture.mjs",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",

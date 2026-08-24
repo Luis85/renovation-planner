@@ -9,7 +9,9 @@
 	// file imports nothing under `src/` or `tests/` — nothing else in the graph reaches it
 	// either, so it needs the same declaration or fallow reports it dead.
 	// `scripts/concept-shots.mjs` is the same case as `harness-shot.mjs` and needs the same
-	// line. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
+	// line, and so is `scripts/background-fixture.mjs` — an npm script runs it
+	// (`background-fixture`) to redraw the PNG the manual smoke test uses as a plan
+	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
 	"entry": [
@@ -17,7 +19,8 @@
 		"tests/harness/page.ts",
 		"scripts/lint-edited.mjs",
 		"scripts/harness-shot.mjs",
-		"scripts/concept-shots.mjs"
+		"scripts/concept-shots.mjs",
+		"scripts/background-fixture.mjs"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML
@@ -39,7 +42,9 @@
 	// devDependency imported by production code, which `dev-dependencies-in-production`
 	// exists to catch for a real case: an import a production-only install would break on.
 	// This is the opposite — the importing file IS the dev tooling — and fallow's own
-	// suggested fix for this exact finding is this key.
+	// suggested fix for this exact finding is this key. `@napi-rs/canvas` is the second
+	// instance of exactly that shape: `scripts/background-fixture.mjs` draws the smoke
+	// test's PNG background with it, and that script is dev tooling declared as an entry.
 	//
 	// `konva` is `vue-konva`'s PEER dependency, and fallow's advice for it — "test-only
 	// production dependency, consider moving to devDependencies" — would be wrong: a peer
@@ -49,7 +54,7 @@
 	// `konva` directly to inspect the scene it built, which is the only DIRECT import there
 	// is. Moving it to devDependencies would produce a plugin that loads in this repository
 	// and fails in a vault.
-	"ignoreDependencies": ["playwright-core", "konva"],
+	"ignoreDependencies": ["playwright-core", "@napi-rs/canvas", "konva"],
 	"duplicates": {
 		"ignore": ["tests/harness/obsidian.css"]
 	},

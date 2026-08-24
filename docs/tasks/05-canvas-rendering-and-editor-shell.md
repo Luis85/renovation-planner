@@ -974,28 +974,10 @@ Closed in the increment after this slice by two things: `create-sample-project`
 zones through the real commands and then opening the editor on them — and `open-plan-editor`
 becoming a plan picker over the Project Index with no active-file precondition.
 
-**The walkthrough, which only a human in a vault can run.** `npm run test-build`, then in
-Obsidian:
-
-1. Create a project, a plan and at least two zones from inside Obsidian
-   (`Create sample renovation project` does all three).
-2. Open the Plan Editor for that plan (`Open plan editor` → pick it).
-3. See §60's five shell regions: toolbar, layers panel, canvas, inspector, status bar.
-4. See the zones drawn, each with its name and a status caption, with fills that differ by
-   zone type and dash patterns that differ by status.
-5. Toggle a layer off in the Layers panel and watch it disappear.
-6. Pan by dragging; zoom by wheel **and** by `+`/`-`; watch the zoom percentage and the
-   world-millimetre pointer readout in the status bar.
-7. Set a **PNG** background through `Set plan background` and see it under the zones.
-8. Set a **PDF** background and see the page rendered — the one thing only a vault can
-   prove, now that production uses Obsidian's pdf.js and the suite uses ours.
-9. Switch Obsidian's theme and confirm the zone colours follow **without a reload**.
-10. Open two different plans in two tabs at once; confirm each has its own camera, and that
-    opening the same plan twice reveals one leaf rather than two.
-11. Close a Plan Editor tab and reopen it; confirm the zones render identically.
-12. Restart Obsidian and confirm each Plan Editor leaf reopens onto the plan it was showing.
-
-Anything on that list which does not work is a slice 5 defect, not a later slice's work.
+**The walkthrough is `docs/tests/cases/Editor Walkthrough.md`**, under the
+`Smoke Test the Editor` suite, and it is deliberately NOT restated here: two copies of a
+twelve-step list are two things to keep correct. What belongs in this file is what the runs
+found.
 
 **Walked by hand on 2026-08-24. Items 1–11 passed; item 12 failed and is fixed.** Two Plan
 Editor tabs were open across a restart and the first of them showed "This plan no longer

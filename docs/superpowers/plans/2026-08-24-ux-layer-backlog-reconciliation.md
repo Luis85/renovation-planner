@@ -773,17 +773,40 @@ chmod +x "$SP/verify-dod.sh"
 Run: `bash "$SP/verify-dod.sh"`
 Expected: rows with no state `0`; notes reached `227 / 227`; derived notes edited `0`.
 
-- [ ] **Step 3: Establish the gate baseline and compare**
+- [ ] **Step 3: Require the gate to pass**
 
 ```bash
-npm run lint > "$SP/lint-after.log" 2>&1; npm run analyze > "$SP/analyze-after.log" 2>&1
+npm run check
+```
+Expected: **exit 0**, all four steps.
+
+**This step used to be a stash-and-compare baseline, and it no longer is.** The spec's
+Definition of Done item 5 was written when `main` was red in all four gate steps, every failing
+file tracing to `5c85a26`; it could only ask for "no failure this pass introduced", and it
+spelled out how to prove that by stashing this branch's document and diffing.
+
+`f15909c` fixed both defects — `ObsidianPlanRepository.ts:113` returns `Promise.resolve(err(conflict))`
+and `digest.test.ts:23` reads `Object.entries(base).toReversed()` — and the merged tree measures
+green: `npm run check` exits 0, `0 above threshold · 388 analyzed · maintainability 91.7`. The
+repository owner chose to hold this work to that higher bar.
+
+So item 5 is **retired, not reinterpreted**. Its paragraph describes a tree that no longer
+exists, and the ledger says so where a reader meets it rather than quoting four red steps at
+them. A findings ledger is a Markdown file that no gate step reads, so it cannot plausibly turn
+the tree red — which is exactly why "it passes" is a cheap guarantee to give and a dishonest one
+to withhold once it is true.
+
+The baseline procedure is kept below for one case only: if the gate is red at this point,
+`main` has regressed again, and stash-and-compare is how to show the red is not this pass's.
+
+```bash
+npm run lint > "$SP/lint-after.log" 2>&1
 git stash push -q -- docs/reviews/2026-08-24-ux-layer-backlog-reconciliation.md
-npm run lint > "$SP/lint-base.log" 2>&1; npm run analyze > "$SP/analyze-base.log" 2>&1
+npm run lint > "$SP/lint-base.log" 2>&1
 git stash pop -q
 diff <(sort "$SP/lint-after.log") <(sort "$SP/lint-base.log") && echo "lint: same errors ✓"
-diff "$SP/analyze-after.log" "$SP/analyze-base.log" && echo "analyze: identical ✓"
 ```
-Expected: both identical. `lint` is compared **sorted** — oxlint's output order is nondeterministic and a plain diff of two identical results can show a moved line.
+Compare `lint` **sorted** — oxlint's output order is nondeterministic, so a plain diff of two identical results can show a moved line. `analyze` reads `coverage/coverage-final.json` and is downstream of `test:coverage`, so compare it like-for-like or not at all.
 
 - [ ] **Step 4: Push and update the PR**
 

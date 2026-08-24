@@ -1,7 +1,10 @@
 # Reconciling the UX layer with the backlog — design
 
 **Date:** 2026-08-24
-**Status:** Approved, not yet executed
+**Status:** Approved and **frozen** for execution, 2026-08-24, at eight review rounds and
+twenty findings. Further review findings are logged against this document rather than folded
+into it: the rounds stopped tapering, each was critiquing the previous round's fix, and the
+ledger will test this instrument against 227 notes harder than another round can.
 **Output:** one findings ledger in `docs/reviews/`. No derived note is edited by this work.
 
 ## Why
@@ -238,7 +241,7 @@ kinds:
   `retained` on a reverse one, reported as nothing. An earlier wording counted "ignore" as
   presence, which made a behavioural gap structurally unreportable — an evidence-only claim is
   precisely one the derived corpus ignores, so the single state it needed to reach was the one
-  that definition denied it."
+  that definition denied it.
 
   **The rule, not a list: every behavioural claim in every in-scope evidence body becomes a
   row, wherever in that body it sits.** The table below says where the claims *concentrate*.
@@ -406,7 +409,7 @@ inferred:**
 Every finding states the standing of each side — **received, derived, or undetermined** —
 since that decides what may change, and a reader must be able to check it against
 `docs/README.md` without trusting the ledger. `undetermined` is not a hedge: it is the honest
-answer for the five evidence bodies the register does not classify, and a finding carrying it
+answer for the seven evidence bodies the register does not classify, and a finding carrying it
 proposes no edit. An earlier draft offered only received-or-derived, which would have made the
 ledger assert a standing the register never granted.
 

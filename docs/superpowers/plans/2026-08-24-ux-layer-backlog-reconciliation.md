@@ -334,7 +334,24 @@ Do **not** stop at the terms the spec already names. `Screen Component & Interac
 
 - [ ] **Step 3a: Give every named row its target type**
 
-A named row cannot be looked up until it is known which note type would hold it. Forward rows take their target from the extraction rule that produced them — concepts → `entities`, screens and views → `requirements,deliverables`, components → `components`, actors and personas → `actors`, named artifacts → `deliverables`. Reverse rows take the directory of the note they came from. Verify none is missing:
+A named row cannot be looked up until it is known which note type would hold it, and **each row carries exactly one target**. Forward rows take theirs from the extraction rule that produced them:
+
+| The extraction rule maps… | to target(s) |
+| --- | --- |
+| concepts | `entities` |
+| components | `components` |
+| actors and personas | `actors` |
+| named artifacts | `deliverables` |
+| **screens and views** | **`requirements` AND `deliverables` — emit TWO rows**, ids suffixed `a` and `b` |
+
+Reverse rows take the directory of the note they came from, which is always one type.
+
+**A screen becomes two rows here, not one row with two targets.** The two consumers are not alternatives, and writing them into one field re-creates the union lookup by the back door: a screen present in `deliverables/` and absent from `requirements/` scores `present` and its missing Feature never becomes a `Gap`. That is the spec's own worked example — `Project Home`, 0 notes in `requirements/`, 1 in `deliverables/`. Verify no row carries a union, and none is missing a target:
+
+```bash
+awk -F'\t' 'NR>1 && $3=="named" && $11 ~ /,/ {n++} END{print "named rows carrying a union target (must be 0):", n+0}' "$SP/rows.tsv"
+```
+
 
 ```bash
 awk -F'\t' 'NR>1 && $3=="named" && ($11=="" || $11=="-") {n++} END{print "named rows with no target (must be 0):", n+0}' "$SP/rows.tsv"
@@ -550,9 +567,17 @@ words_of() {
   done
 }
 one_term() {
+  # PHRASE hits UNION word-intersection hits — always both, never one instead of the other.
+  #
+  # An earlier version returned early when the phrase matched anywhere, and claimed three
+  # lines above that widening "can only add candidates, never remove one". That claim was
+  # wider than the mechanism under it: a phrase occurring incidentally in one file suppressed
+  # the fallback entirely, so a note addressing the same behaviour in different words was
+  # excluded from the candidate set and the row could still become a false Gap. Selecting one
+  # strategy is not widening; unioning them is.
   local t="$1" out
   out="$(grep -rliE "\b${t}s?\b" "${corpus[@]}" 2>/dev/null || true)"
-  if [ -n "$out" ]; then printf '%s\n' "$out"; return; fi
+  [ -n "$out" ] && printf '%s\n' "$out"
   local first=1 acc="" cur
   while IFS= read -r w; do
     cur="$(grep -rliE "\b${w}s?\b" "${corpus[@]}" 2>/dev/null || true)"
@@ -680,8 +705,22 @@ Rung 1 first: does the evidence explicitly supersede, in a citable passage? → 
 
 - [ ] **Step 4: Fill `pair` on every `contradictory` and `superseded` row**
 
-`pair` = `EVIDENCE>>DERIVED`, where `EVIDENCE` is the row's `source` and `DERIVED` is
-`<path>::<locator>`. The delimiter is **exactly two** `>` characters. A forward row and its
+`pair` = `EVIDENCE>>DERIVED`, and **which field supplies which half depends on the row's
+direction** — that is the whole point of a pair key, and getting it backwards defeats it:
+
+| direction | `EVIDENCE` half | `DERIVED` half |
+| --- | --- | --- |
+| `forward` | the row's `source` (`body§section`) | the row's `matched` (`path::locator`) |
+| `reverse` | the row's `matched` (`body§section`) | the row's `source` (`path::locator`) |
+
+A forward row holds the evidence citation in `source`; a reverse row holds the DERIVED citation
+there and the evidence citation in `matched`. Building `source>>matched` for both produces
+`EVIDENCE>>DERIVED` on one and `DERIVED>>EVIDENCE` on the other, so the two halves of a single
+disagreement carry different keys, never coalesce, and are counted as two findings — inflating
+both the finding total and the directly-counted coalesced-pair number that is supposed to
+prove the coalescing happened.
+
+The delimiter is **exactly two** `>` characters. A forward row and its
 mirrored reverse row produce the **same** key — that is what makes them one finding.
 
 Written without placeholder brackets on purpose. An earlier version read
@@ -888,6 +927,23 @@ chk "notes reached by a reverse BEHAVIOURAL row" 227 "$(awk -F'\t' 'NR>1 && $2==
 chk "derived notes edited" 0 "$(git status --porcelain docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | wc -l | tr -d ' ')"
 chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
+chk "named rows carrying a union target" 0 "$(awk -F'\t' 'NR>1 && $3=="named" && $11 ~ /,/' "$SP/rows.tsv" | wc -l | tr -d ' ')"
+
+# The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the
+# ledger's text, so it is checked against the ledger's text: all eight note types named, and
+# both counts present. Counted as DISTINCT types, never as a raw matching-line total — a
+# single line mentioning `requirements/` eight times would satisfy a line count and prove
+# nothing about the other seven.
+[ -f "$L" ] || { echo "  FAIL ledger missing: $L"; fail=1; }
+if [ -f "$L" ]; then
+  types=0
+  for t in requirements entities business-rules components actors deliverables adrs issues; do
+    grep -q "$t/" "$L" && types=$((types+1)) || echo "  FAIL ledger never names $t/"
+  done
+  chk "note types named in the ledger" 8 "$types"
+  grep -qi 'rows' "$L" || { echo "  FAIL ledger does not print a row count"; fail=1; }
+  grep -qi 'findings' "$L" || { echo "  FAIL ledger does not print a finding count"; fail=1; }
+fi
 exit $fail
 EOF
 chmod +x "$SP/verify-dod.sh"

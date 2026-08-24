@@ -27,9 +27,16 @@ import io, os, re, sys, collections, subprocess
 # bodies the plan-editor merge also touched, so the agreement is the current state of the corpus
 # and not a property of this instrument. It had no such variable until the check for it was run
 # with the variable ignored — which is why "identical both ways" proved nothing the first time.
-ROOT = os.environ.get("RP_CORPUS_ROOT") or (
-    subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                   capture_output=True, text=True).stdout.strip() or ".")
+# A RELATIVE override is resolved against the repository root, not the caller's directory, which
+# is what `candidates.sh` already does by `cd`-ing to the top level before it reads the variable.
+# Without that, `RP_CORPUS_ROOT=.` from `docs/` looked for `docs/docs/prds/...` and traced back —
+# against a docstring three lines up that promises this runs from anywhere in the repository.
+_TOP = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                      capture_output=True, text=True).stdout.strip() or "."
+_CORPUS = os.environ.get("RP_CORPUS_ROOT")
+ROOT = (_CORPUS if _CORPUS and os.path.isabs(_CORPUS)
+        else os.path.normpath(os.path.join(_TOP, _CORPUS)) if _CORPUS
+        else _TOP)
 UX = os.path.join(ROOT, "docs/user-experience")
 PR = os.path.join(ROOT, "docs/prds")
 PD = os.path.join(ROOT, "docs/product")

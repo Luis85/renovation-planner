@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-four corrections, all from review of the committed matrix — which is the argument for
+Forty-five corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1710,6 +1710,29 @@ rather than in prose:** something written on top of a finding is not revisited w
 moves. The comment now records the wrong reason *as* the wrong reason — because it was written
 into the file as fact, and a maintainer reading only that file would have been misdirected by it —
 and states the rule the episode actually established: **pinning is not a fix for a parser.**
+
+**A forty-fifth correction, and it is the cost of the variable that fixed the last one.**
+`lookup.py`'s docstring promises *"Run from anywhere in the repository"*, and adding
+`RP_CORPUS_ROOT` made that false: a **relative** override was resolved against the caller's
+directory, so `RP_CORPUS_ROOT=. lookup.py` run from `docs/` looked for `docs/docs/prds/…` and
+traced back. `sections.py` had the identical code, having been given the variable in the same
+commit.
+
+**`candidates.sh` never had it**, because it `cd`s to the repository top level before it reads the
+variable — so the three instruments disagreed about what a relative root means, and two of them
+disagreed silently. Both now resolve a relative override against the top level, which is what
+`candidates.sh` already did; an absolute override is taken as given.
+
+**The gate runs them the way the claim says they can be run** — from a subdirectory, in both the
+unset and relative forms. A promise in a docstring is worth exactly what exercises it, and this one
+had been false since the commit that made it, two commits ago.
+
+**Its first version reported the tool broken when the tool was fine.** The check passed the
+subject's arguments through an unquoted variable, so `Design System` split into two words, the CLI
+printed its usage and exited non-zero, and the gate announced a failure that did not exist. Caught
+by watching it — the run that was supposed to be green was red, against a manual run that was
+green. *Measure with an instrument that can see the thing, and test the instrument first*: the
+second time in three corrections that the check, not the subject, was the defect.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

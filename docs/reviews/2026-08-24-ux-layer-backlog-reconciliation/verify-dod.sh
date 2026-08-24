@@ -212,6 +212,41 @@ fi
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
 # ---------------------------------------------------------------------------------------------
+# THE INSTRUMENTS RUN FROM ANYWHERE, INCLUDING WITH A RELATIVE CORPUS ROOT.
+#
+# `lookup.py`'s docstring promises "Run from anywhere in the repository", and it stopped being
+# true the moment `RP_CORPUS_ROOT` arrived: a RELATIVE override was resolved against the caller's
+# directory, so `RP_CORPUS_ROOT=. lookup.py` from `docs/` looked for `docs/docs/prds/...` and
+# traced back. `candidates.sh` never had the bug because it `cd`s to the top level before reading
+# the variable — the three instruments have to agree, and two of them silently did not.
+#
+# Checked by running them the way the claim says they can be run, from a subdirectory that is not
+# the repository root, in both the unset and relative-override forms. A claim in a docstring is
+# worth exactly what exercises it.
+# The first version of this check was itself wrong, which is the reason it is written out rather
+# than compressed: it passed the tool's arguments through an unquoted variable, so "Design System"
+# split into two words, the CLI printed its usage, and the check reported the TOOL as broken while
+# the tool was fine. Test the instrument before believing what it says about the subject.
+_probe=0
+_run_from_docs() {  # $1 = RP_CORPUS_ROOT value ("" means unset), rest = command
+  local root="$1"; shift
+  if [ -n "$root" ]; then
+    ( cd docs && RP_CORPUS_ROOT="$root" "$@" ) >/dev/null 2>&1
+  else
+    ( cd docs && "$@" ) >/dev/null 2>&1
+  fi
+}
+for _mode in "" "."; do
+  _label="${_mode:+relative}"; _label="${_label:-unset}"
+  _run_from_docs "$_mode" python3 "../$SP/lookup.py" reverse "Design System" \
+    || { echo "  FAIL lookup.py fails from docs/ with RP_CORPUS_ROOT $_label — 'run from anywhere' is false"; _probe=1; }
+  _run_from_docs "$_mode" python3 "../$SP/sections.py" --selftest \
+    || { echo "  FAIL sections.py fails from docs/ with RP_CORPUS_ROOT $_label — 'run from anywhere' is false"; _probe=1; }
+done
+[ "$_probe" = 0 ] && echo "  instruments run from a subdirectory, unset and relative corpus root: ok"
+fail=$(( fail || _probe ))
+
+# ---------------------------------------------------------------------------------------------
 # NOTHING EXPANDS $PINNED BEFORE THE ARCHIVE EXISTS.
 #
 # The invariant this file's own prose asserts: a replay described as pinned reads the pinned tree.

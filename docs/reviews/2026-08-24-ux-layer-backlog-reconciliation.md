@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-nine corrections, all from review of the committed matrix — which is the argument for
+Fifty corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1814,6 +1814,41 @@ fails outright rather than passing quietly.
 now specific enough to name: a gate written in the same sitting as the fix it guards inherits the
 author's understanding of the failure, including whatever was too narrow about it. None of the six
 was caught by a gate. Every one was caught by review, or by watching a gate fail and seeing it not.
+
+**A fiftieth correction, and it ends a class rather than another instance of it.** The back-link
+guard was a regex, and review named a valid form it missed on three consecutive rounds: a deeper
+`../` path, then an attribute before `href` and a `<span>`-wrapped label, then an **unquoted** href
+and a label **spanning lines**. Each fix enumerated the forms someone had thought of. **That is the
+defect this ledger names as the one it is most prone to, committed three times in a row inside the
+repair for the previous instance.**
+
+**HTML has a parser in the standard library, so the enumeration stops.** `lookup.py` now removes
+backlinks with `html.parser.HTMLParser`: it reads the tag structurally, asks `is_backlink` of the
+`href`, and cuts the span. `convert_charrefs=False` and slicing the **original** text mean the
+parser's leniency on Markdown costs nothing — it supplies positions, never reconstructed content.
+
+**The gate moved from the mechanism to the RESULT, which is what finally makes it independent.**
+Two rounds were spent broadening a detector to match whatever the stripper matched; a detector that
+must enumerate the same forms will always trail it by one round. It now asks the invariant of the
+output: *after the real strip runs, no anchor pointing into a derived folder may remain in the text
+that gets searched.* It shares the **scope** rule with the tool — both must agree what a backlink
+is — and shares nothing about structure.
+
+**Measured on both forms review named.** With the gallery footer written as
+`<a href=…>Design System</a>` and again with its label split across three lines: the previous regex
+strips **neither**; the parser strips **both**, and `reverse "Design System"` stays `retained`.
+Watched failing by putting the old regex back with the unquoted form in place — the gate reports
+`3 in the bodies, 1 surviving`, and the lookup answers **`present gallery`**.
+
+**It also reports what went IN, not only what is left.** *"0 surviving"* and *"there were none"*
+printed the same line, which is how a check goes silently blind; it now prints `3 in the bodies, 0
+surviving`, and finding none fails outright.
+
+**Sixth time in seven corrections that the check, rather than the subject, was the defect.** The
+lesson is narrower than "write better gates": **when a check has to recognise the same thing its
+subject recognises, it inherits the subject's blind spot** — so either check the RESULT instead of
+re-recognising the input, or use an instrument that was not written by the person who wrote the
+bug.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

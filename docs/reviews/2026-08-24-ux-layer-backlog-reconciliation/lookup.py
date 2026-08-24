@@ -49,6 +49,7 @@ different, and each was a defect before it was a rule:
 matrix is a citation to something that no longer exists.
 """
 import io, os, re, subprocess, sys, tempfile, shutil
+from html.parser import HTMLParser
 
 # The matrix was computed against ONE state of the corpus, and `RP_CORPUS_ROOT` is how a replay
 # names it — the same variable `candidates.sh` takes, for the same reason. Unset it and this reads
@@ -99,17 +100,61 @@ BODIES = [
 # The guard stopped matching, the anchor TEXT survived into the body, and `reverse "Design System"`
 # answered `present gallery` against a link that means the opposite. Any run of `./` or `../`, with
 # or without a `docs/` prefix, now counts — the folder is what identifies a backlink, not the route.
-# Written to ANCHOR STRUCTURE rather than to one spelling of it: attributes may precede `href`,
-# either quote style is accepted, the relative prefix is optional, and the label may contain
-# nested markup. The first version required `<a href="` literally with a bare text label, so an
-# ordinary `<a class="…" href="…">` or a `<span>`-wrapped label would have survived into the
-# searched body and made a reverse lookup answer `present` from a link that means the opposite —
-# the same failure the depth assumption already caused once. A scheme-bearing href is excluded:
-# `https://…/deliverables/x` is an external link, not a backlink into this vault.
-BACKLINK = re.compile(
-    r'<a\b[^>]*\bhref\s*=\s*["\'](?!\w+:)(?:\.{1,2}/)*(?:docs/)?'
-    r'(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/'
-    r'[^"\']*["\'][^>]*>(?:(?!</a>).)*?</a>')
+# An evidence document linking BACK to a derived note is not the evidence naming the thing — it is
+# the evidence pointing AT it — so the anchor is removed before the body is searched.
+#
+# PARSED, not pattern-matched, and that is the third attempt. A regex assumed one `../`; broadened,
+# it still assumed a quoted href and a single-line label. Each round review named another valid
+# form — `<a class=… href=…>`, `<span>`-wrapped labels, an UNQUOTED href, a label spanning lines —
+# and each fix enumerated the forms someone had thought of, which is the defect this ledger names
+# as the one it is most prone to. HTML has a parser in the standard library; the enumeration ends
+# by using it. `convert_charrefs=False` and slicing the ORIGINAL text mean the parser's leniency
+# on Markdown costs nothing: it supplies positions, never reconstructed content.
+DERIVED_FOLDERS = ("deliverables", "components", "entities", "requirements",
+                   "actors", "business-rules", "adrs", "issues")
+
+
+def is_backlink(href):
+    """A link into the derived corpus. A scheme makes it an external link, not a backlink."""
+    if not href or re.match(r"\w+:", href):
+        return False
+    p = re.sub(r"^docs/", "", re.sub(r"^(?:\.{1,2}/)+", "", href.split("#")[0].split("?")[0]))
+    return p.split("/")[0] in DERIVED_FOLDERS
+
+
+class _BacklinkStripper(HTMLParser):
+    def __init__(self, text):
+        super().__init__(convert_charrefs=False)
+        self.text, self._lines, self._cuts, self._open = text, text.split("\n"), [], None
+        self.feed(text)
+        self.close()
+
+    def _offset(self, pos):
+        line, col = pos
+        return sum(len(l) + 1 for l in self._lines[:line - 1]) + col
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a" and is_backlink(dict(attrs).get("href")):
+            self._open = self._offset(self.getpos())
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._open is not None:
+            end = self.text.find(">", self._offset(self.getpos()))
+            self._cuts.append((self._open, len(self.text) if end < 0 else end + 1))
+            self._open = None
+
+    def result(self):
+        out, last = [], 0
+        for a, b in self._cuts:
+            out.append(self.text[last:a])
+            last = b
+        out.append(self.text[last:])
+        return "".join(out)
+
+
+def strip_backlinks(text):
+    return _BacklinkStripper(text).result()
+
 
 ROLE = (r"(persona|command|screen|view|pane|tab|section|component|actor|entity|concept"
         r"|feature|artifact|deliverable|layer|tool|mode|state)")
@@ -132,7 +177,7 @@ def search_view(dst):
         src = io.open(path, encoding="utf-8", errors="replace").read().split("\n")
         text = "\n".join(src[a - 1:] if b is None else src[a - 1:b])
         io.open(os.path.join(dst, name + ".txt"), "w", encoding="utf-8").write(
-            BACKLINK.sub("", text))
+            strip_backlinks(text))
 
 
 def aliases():

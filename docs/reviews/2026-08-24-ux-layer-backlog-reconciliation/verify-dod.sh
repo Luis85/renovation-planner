@@ -326,67 +326,61 @@ sys.exit(1 if early else 0)
 PYP
 
 # ---------------------------------------------------------------------------------------------
-# THE BACK-LINK GUARD MUST MATCH EVERY BACKLINK IN TODAY'S CORPUS.
+# NO BACKLINK SURVIVES THE STRIP.
 #
-# This exists because pinning the selftest HID a defect instead of fixing one. `lookup.py`'s
-# `BACKLINK` assumed a fixed depth (`../deliverables/...`); the gallery moved a directory deeper,
-# its footer became `../../deliverables/Design%20System.md`, the guard stopped matching, the anchor
-# TEXT survived into the searched body, and `reverse "Design System"` answered `present gallery`
-# from a link that means the opposite. Pinning the replay made the verifier green while the
-# published lookup stayed wrong on the corpus a reader actually has — which is the one repair this
-# harness must never accept, and it was committed here by the previous commit.
+# This exists because pinning the selftest HID a defect instead of fixing one: the back-link
+# guard assumed a fixed depth, the gallery moved a directory deeper, the anchor TEXT survived
+# into the searched body, and `reverse "Design System"` answered `present gallery` from a link
+# that means the opposite. Pinning made the verifier green while the published lookup stayed
+# wrong on the corpus a reader actually has.
 #
-# So the two checks are split by what each can guarantee, and neither is described as covering the
-# other. The PINNED selftest guarantees the published matrix reproduces against the corpus it
-# compared. THIS check guarantees the parser is correct on the corpus that exists NOW, and it is
-# corpus-INDEPENDENT: it asks the forbidden thing directly — every `<a href>` pointing into a
-# derived folder, in any body `lookup.py` reads, must be matched by `BACKLINK`. A new path
-# spelling fails it whether or not any row's state happens to move.
+# The two checks are split by what each can guarantee, and neither covers the other. The PINNED
+# selftest guarantees the published matrix reproduces against the corpus it compared. THIS check
+# guarantees the stripper is correct on the corpus that exists NOW.
+# Checked on the RESULT, not on the mechanism, which is what finally makes it independent.
+# Two rounds were spent broadening a detector to match whatever the stripper's pattern matched —
+# attributes, quote styles, nested labels — and review named another valid form each time: an
+# UNQUOTED href, a label spanning lines. A detector that has to enumerate the same forms as the
+# thing it checks will always trail it by one round.
+#
+# So this asks the invariant directly of the OUTPUT: after the real strip runs, no anchor pointing
+# into a derived folder may remain in the text that gets searched. If the stripper misses a form,
+# the anchor is still there and this fails — whatever form it was. It shares the SCOPE rule with
+# the tool (`is_backlink`, so both agree what a backlink is) and shares nothing about structure.
+#
+# It counts what went IN as well as what is left: "0 remaining" and "there were none" print the
+# same line otherwise, which is how a check goes silently blind — twice already here.
 python3 - <<'PYB' || fail=1
 import io,os,re,sys
-sys.path.insert(0,"docs/reviews/2026-08-24-ux-layer-backlog-reconciliation")
 import importlib.util
 spec=importlib.util.spec_from_file_location(
     "lk","docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/lookup.py")
 lk=importlib.util.module_from_spec(spec); spec.loader.exec_module(lk)
-# Detected INDEPENDENTLY of how `BACKLINK` is written, which is the whole value of the check.
-# The first version copied the parser's own assumptions — `<a href="` literally, double quotes,
-# a bare text label — so any anchor the parser could not strip was also an anchor this gate
-# could not see, and it reported zero while the surviving label made a reverse lookup answer
-# `present`. A gate that shares the blind spot of the thing it checks is not a second opinion.
-#
-# This finds any `<a>` element at all, reads its `href` in either quote style from any attribute
-# position, and asks one question of it: does that href point into a derived folder? The two
-# agree on SCOPE — a scheme-bearing href is an external link, not a backlink — and disagree on
-# STRUCTURE, which is where the independence has to live.
-DERIVED=r"(?:deliverables|components|entities|requirements|actors|business-rules|adrs|issues)"
-ANY=re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?</a>')
-HREF=re.compile(r"""\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')""")
-missed=[]; seen=0
+ATAG=re.compile(r'<a\b[^>]*>', re.S)
+HREF=re.compile(r"""\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""", re.S)
+def backlinks_in(text):
+    out=[]
+    for m in ATAG.finditer(text):
+        h=HREF.search(m.group(0))
+        if not h: continue
+        href=next((g for g in h.groups() if g is not None), "")
+        if lk.is_backlink(href): out.append(href)
+    return out
+went_in=0; left=[]
 for name,path,a,b in lk.BODIES:
     if not os.path.exists(path): continue
     src=io.open(path,encoding="utf-8",errors="replace").read().split("\n")
     text="\n".join(src[a-1:] if b is None else src[a-1:b])
-    for m in ANY.finditer(text):
-        h=HREF.search(m.group(0))
-        href=(h.group(1) or h.group(2)) if h else ""
-        if re.match(r'\w+:', href) or not re.search(DERIVED + r'/', href):
-            continue
-        seen += 1
-        if not lk.BACKLINK.match(m.group(0)):
-            missed.append((name,href))
-# It reports what it EXAMINED, not only what it rejected. "0 missed" and "found nothing at all"
-# print the same line otherwise, and a detector broken into silence is exactly how a gate stops
-# gating — twice already in this ledger. A corpus with no backlinks would be a finding in itself.
-if seen == 0:
-    print("  FAIL the back-link detector found no anchors at all; it has stopped seeing the corpus")
+    went_in += len(backlinks_in(text))
+    left += [(name,h) for h in backlinks_in(lk.strip_backlinks(text))]
+if went_in == 0:
+    print("  FAIL the back-link check found no backlinks at all; it has stopped seeing the corpus")
     sys.exit(1)
-print("  backlinks into a derived folder: %d examined, not stripped by the guard: %d"
-      % (seen, len(missed)))
-for name,href in missed:
-    print("  FAIL %s carries %r, which BACKLINK does not match — its anchor text is searched as evidence"
+print("  backlinks into a derived folder: %d in the bodies, %d surviving the strip" % (went_in,len(left)))
+for name,href in left:
+    print("  FAIL %s still carries %r after stripping — its anchor text is searched as evidence"
           % (name,href))
-sys.exit(1 if missed else 0)
+sys.exit(1 if left else 0)
 PYB
 
 # Replayed against the PINNED corpus, exactly as candidates.sh is. Against the working tree it

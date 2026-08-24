@@ -32,6 +32,32 @@ echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z
 # gate, sees the bad numbers scroll past, and proceeds. Every measurement above is restated
 # here as a condition, and the script exits non-zero if any of them is wrong.
 fail=0
+
+# ---------------------------------------------------------------------------------------------
+# THE PINNED CORPUS, MATERIALISED ABOVE ITS FIRST USE.
+#
+# This matrix compares against the derived backlog AS IT STOOD, and `MATRIX_BASE` pins that state.
+# The multi-project decision has since edited four notes, and those four edits moved the candidate
+# set of 1,205 behavioural rows — a fifth of the matrix — so replaying against the working tree
+# measures a different corpus and reports the committed `cand_n` as wrong. The findings are not
+# invalidated by that: a gap says the backlog had no note for something WHEN THE COMPARISON RAN,
+# and the backlog gaining one afterwards is the finding being RESOLVED, recorded in `remedy`
+# rather than by moving the row.
+#
+# It lives HERE, at the top, because it did not: the `sections.py` selftest sat above the archive
+# and expanded `${PINNED:-.}` to the working tree on every run, so a check this file described as
+# pinned was not. That is the third ordering defect in this harness — after an allowlist helper
+# defined below its own first use — and the instance fix (move the one call down) leaves the next
+# `${PINNED}` added above this point silently unpinned. Defining above every use is what stops
+# the class, and the check below is what proves it rather than trusting the layout.
+MATRIX_BASE=2253cea3e2d2b4b5285f41b4066137f810ff3ad6
+PINNED=""
+if git cat-file -e "$MATRIX_BASE^{commit}" 2>/dev/null; then
+  PINNED="$(mktemp -d)"; trap 'rm -rf "$PINNED"' EXIT
+  git archive "$MATRIX_BASE" docs | tar -x -C "$PINNED" 2>/dev/null || PINNED=""
+fi
+[ -n "$PINNED" ] || echo "  NOTE matrix base $MATRIX_BASE unavailable; replaying against the working tree"
+
 chk(){ [ "$2" = "$3" ] || { echo "  FAIL $1: expected $2, measured $3"; fail=1; }; }
 chk "rows with no state" 0 "$(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 # Definition-of-Done item 1 says every row holds exactly ONE OF FIVE states. Checking only for
@@ -158,13 +184,6 @@ RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/sections.py" --selftest >/dev/null \
 # The findings are not invalidated by that: a gap says the backlog had no note for something when
 # the comparison ran, and the backlog gaining one afterwards is the finding being RESOLVED, which
 # is recorded in `remedy` rather than by moving the row.
-MATRIX_BASE=2253cea3e2d2b4b5285f41b4066137f810ff3ad6
-PINNED=""
-if git cat-file -e "$MATRIX_BASE^{commit}" 2>/dev/null; then
-  PINNED="$(mktemp -d)"; trap 'rm -rf "$PINNED"' EXIT
-  git archive "$MATRIX_BASE" docs | tar -x -C "$PINNED" 2>/dev/null || PINNED=""
-fi
-[ -n "$PINNED" ] || echo "  NOTE matrix base $MATRIX_BASE unavailable; replaying against the working tree"
 if [ -x "$SP/candidates.sh" ]; then
   python3 - "$SP" > "$SP/.sample.tsv" <<'PYS'
 import io, random, sys
@@ -192,6 +211,38 @@ fi
 # type-aware, alias-resolved, back-link-guarded — so it needs its own published command and its
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
+# ---------------------------------------------------------------------------------------------
+# NOTHING EXPANDS $PINNED BEFORE THE ARCHIVE EXISTS.
+#
+# The invariant this file's own prose asserts: a replay described as pinned reads the pinned tree.
+# It was false — `sections.py --selftest` sat above the `git archive` and expanded `${PINNED:-.}`
+# to the working tree on every run, so the check ran against a corpus the matrix never compared,
+# while the ledger and this script both called it pinned. Review found it; nothing here could.
+#
+# Scoped to $PINNED deliberately, and the wider version was measured rather than dismissed: a
+# general "no variable used before it is assigned" scan reports SEVEN hits on this script and all
+# seven are false — a function's own loop variable, an assignment following a `;`, and a mention
+# inside a comment. Getting those right needs a bash parser, and a gate that needs a parser it
+# does not have is the defect this harness keeps catching in itself. So this checks the one
+# variable whose ordering is load-bearing, and says so instead of claiming the class.
+python3 - <<'PYP' || fail=1
+import io,re,sys
+P="docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/verify-dod.sh"
+lines=io.open(P,encoding="utf-8").read().split("\n")
+define=None
+for i,l in enumerate(lines,1):
+    if re.match(r'^\s*PINNED=', l):
+        define=i; break
+if define is None:
+    print("  FAIL verify-dod.sh no longer assigns PINNED at all"); sys.exit(1)
+early=[(i,l.strip()[:78]) for i,l in enumerate(lines,1)
+       if i < define and not l.lstrip().startswith("#") and re.search(r'\$\{?PINNED\b', l)]
+print("  $PINNED expanded before the pinned archive is built: %d" % len(early))
+for i,l in early:
+    print("  FAIL line %d expands $PINNED, but it is assigned at line %d — %s" % (i,define,l))
+sys.exit(1 if early else 0)
+PYP
+
 # ---------------------------------------------------------------------------------------------
 # THE BACK-LINK GUARD MUST MATCH EVERY BACKLINK IN TODAY'S CORPUS.
 #

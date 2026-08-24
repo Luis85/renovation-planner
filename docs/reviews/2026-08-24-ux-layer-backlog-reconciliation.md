@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-one corrections, all from review of the committed matrix — which is the argument for
+Forty-two corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1645,6 +1645,30 @@ the agreement measured nothing. It now honours the variable, and the comparison 
 appeared to mean. *Measure a set with an instrument that can see all of it, and test the
 instrument first* — recorded here because this ledger states that rule and then broke it while
 checking the repair for a different instance of it.
+
+**A forty-second correction, and it is the third ordering defect in this harness.** The
+`sections.py` selftest expanded `${PINNED:-.}` **above** the `git archive` that creates the pinned
+tree, so it resolved to `.` on every run: a check this script and this ledger both described as
+pinned read the working tree instead. Review found it; nothing here could, because every gate that
+looks at pinning asks what the *tools* accept rather than what the *script* passes.
+
+**Its consequence today is nil, and saying so is the point.** `sections.py` agrees pinned and
+unpinned on the current corpus — the numbered headings it counts have not moved. So this corrects
+a false *claim*, not a wrong *number*, and it would have become a wrong number the first time an
+evidence body gained or lost a heading, failing for a change that had nothing to do with it.
+
+**Fixed by moving the definition above every use rather than the one call below it.** Review's
+remedy — move the invocation after the archive — repairs the instance and leaves the next
+`${PINNED}` added above that point silently unpinned. The same distinction settled the allowlist
+helper that was defined below its own first use, which is the ordering defect this one repeats.
+
+**And the general check was measured, then refused.** A "no variable used before it is assigned"
+scan over this script reports **seven** hits and all seven are false: a function's own loop
+variable, an assignment following a `;`, and a mention inside a comment. Getting those right needs
+a bash parser, and a gate that needs a parser it does not have is exactly the defect this harness
+keeps catching in itself. So the check covers the one variable whose ordering is load-bearing and
+says that, rather than claiming the class. Watched failing by putting the `sections.py` call back
+above the archive, which reproduced the original defect at the original line.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

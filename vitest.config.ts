@@ -155,6 +155,15 @@ export default defineConfig({
 			// Measured 2026-08-24 again after the restored-leaf fix (`ProjectIndexRebuilt`):
 			// 1843/1849 statements, 816/827 branches, 486/487 functions, 1685/1688 lines —
 			// 99.67 / 98.66 / 99.79 / 99.82, the same four again. NOTHING RATCHETS.
+			// Measured 2026-08-25 at the end of design slice 6 — the editor tool framework:
+			// serialized CommandHistory, the reversible move-zone adapter, transformer scale
+			// normalization, the injectable SnapService, the selection store, the
+			// EditorContext facade and render state, the tool registry, and the Inspector's
+			// selection-to-DTO-to-command pipeline: 2043/2049 statements, 908/919 branches,
+			// 543/544 functions, 1867/1870 lines — 99.70 / 98.80 / 99.81 / 99.83. NOTHING
+			// RATCHETS: rounded down, statements/functions/lines still sit at 99 (100 is
+			// refused above) and branches still sit at 98 (98.80 does not reach 99) — the
+			// same four floors already in force.
 			thresholds: {
 				statements: 99,
 				functions: 99,

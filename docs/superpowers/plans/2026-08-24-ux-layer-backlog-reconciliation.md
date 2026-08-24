@@ -155,6 +155,17 @@ body() { case "$1" in
   gallery)    echo "$UX/concepts/component-gallery.html:1:$(wc -l < "$UX/concepts/component-gallery.html" | tr -d ' ')" ;;
   *) echo "unknown body: $1" >&2; exit 2 ;; esac }
 nesting() {
+  # The prototype nests TWO bodies, not one: the UXD at 290-971, and the WHOLE wireframes file
+  # at 290-1432 (of which the UXD is itself the first part). Verifying only the inner one left
+  # the outer claim unchecked — and it is the outer one deduplication depends on, because
+  # materialisation takes the wireframe appendix from the standalone file. If the two copies
+  # ever diverged, `nesting` would still pass while the pass silently read one version and
+  # claimed to have deduplicated the other. Measured today: identical, and 285 + 4 + 1143 =
+  # 1432 accounts for every line of the prototype file.
+  diff <(sed -n '290,1432p' "$UX/renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md") \
+       "$UX/renovation-project-workspace-wireframes.md" >/dev/null \
+    && echo "  ok   prototype contains the WHOLE wireframes file verbatim" \
+    || { echo "  FAIL prototype/wireframes nesting"; return 1; }
   diff <(sed -n '290,971p' "$UX/renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md") \
        "$UX/renovation-project-workspace-UXD.md" >/dev/null \
     && echo "  ok   prototype contains UXD verbatim" || { echo "  FAIL prototype/UXD nesting"; return 1; }
@@ -800,9 +811,29 @@ awk -F'\t' -v OFS='\t' 'NR==1{print;next}
   "$SP/findings.tsv" > "$SP/f.next" && mv "$SP/f.next" "$SP/findings.tsv"
 ```
 
+- [ ] **Step 1a: Special-case the Gaps — they have no derived side to trace**
+
+A `Gap` is a finding whose whole content is that **no derived note exists**. It therefore has
+no `derived_cite`, no `sources:` frontmatter to read, and nothing to trace. Treating it as a
+two-sided finding breaks the next step: the provenance trace visits every `received` finding
+and tries to read a derived note that by definition is not there, so a PRD-backed Gap can never
+complete tracing and keeps a blank `remedy` — which the verifier does not reject, because its
+check only fires on `undetermined`.
+
+```bash
+awk -F'\t' -v OFS='\t' 'NR==1{print;next}
+  $2=="Gap" { $4="n/a"                                    # there is no derived side
+              $8=($3=="received" ? "backlog gains a note" : "none") }
+  {print}' "$SP/findings.tsv" > "$SP/f.next" && mv "$SP/f.next" "$SP/findings.tsv"
+```
+
+`n/a` rather than `derived`, because claiming a standing for a document that does not exist is
+the same error one layer down. And a received-evidence Gap needs no trace to know its remedy:
+there is no derived claim that could have drifted, so the backlog simply gains a note.
+
 - [ ] **Step 2: Trace provenance before setting the derived standing**
 
-For each finding whose evidence side is `received` (the PRD), read the derived note's `sources:` frontmatter and check the cited section in the **original** PRD or SDD:
+For each finding whose evidence side is `received` (the PRD) **and which has a derived side at all** — that is, every `Contradiction` and `Orphan`, and no `Gap` — read the derived note's `sources:` frontmatter and check the cited section in the **original** PRD or SDD:
 
 ```bash
 sed -n '/^sources:/,/^[a-z]/p' "docs/entities/Space.md"

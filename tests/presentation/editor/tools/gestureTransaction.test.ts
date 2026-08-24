@@ -36,12 +36,16 @@ import type { SelectionStore } from '../../../../src/presentation/editor/selecti
  *    after the whole gesture completes cannot tell "one dispatch at pointerUp" apart from
  *    "one dispatch during move 12 and none at pointerUp".
  * 2. The Escape path: `cancelGesture()` mid-gesture produces zero dispatches and resets
- *    `renderState`. **Honesty note**: the test-double tool below is what calls
- *    `context.renderState.reset()` from its `cancel()`. This proves `ToolManager` routes
- *    `cancelGesture()` to the active tool's `cancel()`, and that a tool *can* clear render
- *    state on cancellation — it does NOT prove any real tool does, because no concrete
- *    `EditorTool` exists yet (that is slices 7 and 8's job). Read the assertion no wider
- *    than that.
+ *    `renderState`. The test-double tool dirties all FOUR `RenderState` fields during the
+ *    gesture (`hoveredObjectId`, `previewPolygon`, `marquee`, `snapGuides`), not just one,
+ *    so `reset()` clearing each of them is actually observable — an assertion that a field
+ *    is empty is worthless if the double never dirtied it in the first place, since it
+ *    would then pass whether or not `cancel()` ran at all. **Honesty note**: the
+ *    test-double tool below is what calls `context.renderState.reset()` from its
+ *    `cancel()`. This proves `ToolManager` routes `cancelGesture()` to the active tool's
+ *    `cancel()`, and that a tool *can* clear render state on cancellation — it does NOT
+ *    prove any real tool does, because no concrete `EditorTool` exists yet (that is
+ *    slices 7 and 8's job). Read the assertion no wider than that.
  * 3. (DoD 3) A new `run()` dispatched through a second gesture, after `undo()`, clears the
  *    redo stack — driven through the same gesture path as 1 and 2, not `CommandHistory`
  *    directly.
@@ -133,7 +137,13 @@ function fakeCommand(execute: () => Promise<Result<void, AppError>>): UndoableCo
  * `context.commandDispatcher.run`. That call is never awaited inline — a real tool
  * wouldn't await it either — so the returned promise is stashed on `pendingRun` purely so
  * a test can synchronize with it; a real tool built in a later slice has no reason to
- * expose this. `cancel()` resets `renderState` (see file header note 2 above).
+ * expose this.
+ *
+ * `pointerDown`/`pointerMove` dirty all four `RenderState` fields — `hoveredObjectId` on
+ * `pointerDown`, as a tool tracking what is under the cursor would; `previewPolygon`,
+ * `marquee` and `snapGuides` on each `pointerMove`, as a tool accumulating a preview shape,
+ * a marquee rectangle and snap guides would — so `cancel()`'s `context.renderState.reset()`
+ * (see file header note 2 above) has something real to clear in every field, not just one.
  */
 function fakeGestureTool(
 	context: EditorContext,
@@ -145,12 +155,16 @@ function fakeGestureTool(
 		moveCount: 0,
 		activate: (): void => undefined,
 		deactivate: (): void => undefined,
-		pointerDown: (): void => {
-			// Capture "before" state here in a real tool; nothing to dispatch yet.
+		pointerDown: (event: EditorPointerEvent): void => {
+			// Capture "before" state here in a real tool; nothing to dispatch yet. Also
+			// record what is under the cursor, as a real tool would.
+			context.renderState.hoveredObjectId = event.targetId ?? 'fake-hover-target';
 		},
 		pointerMove: (event: EditorPointerEvent): void => {
 			tool.moveCount += 1;
 			context.renderState.previewPolygon = [event.worldPoint];
+			context.renderState.marquee = { min: event.worldPoint, max: event.worldPoint };
+			context.renderState.snapGuides = [{ start: event.worldPoint, end: event.worldPoint }];
 		},
 		pointerUp: (): void => {
 			tool.pendingRun = context.commandDispatcher.run(buildCommand());
@@ -205,15 +219,20 @@ describe('gesture -> command transaction (design slice 6)', () => {
 
 		manager.pointerDown(pointerEvent());
 		manager.pointerMove(pointerEvent());
-		expect(renderState.previewPolygon).not.toBeNull(); // something for cancel() to clear
+		// All four fields dirtied — otherwise the corresponding post-cancel assertion below
+		// would pass whether or not cancel() ran at all.
+		expect(renderState.hoveredObjectId).not.toBeNull();
+		expect(renderState.previewPolygon).not.toBeNull();
+		expect(renderState.marquee).not.toBeNull();
+		expect(renderState.snapGuides).not.toEqual([]);
 
 		manager.cancelGesture();
 
 		expect(runSpy).not.toHaveBeenCalled();
 		expect(command.execute).not.toHaveBeenCalled();
 		expect(tool.pendingRun).toBeNull();
-		expect(renderState.previewPolygon).toBeNull();
 		expect(renderState.hoveredObjectId).toBeNull();
+		expect(renderState.previewPolygon).toBeNull();
 		expect(renderState.marquee).toBeNull();
 		expect(renderState.snapGuides).toEqual([]);
 	});

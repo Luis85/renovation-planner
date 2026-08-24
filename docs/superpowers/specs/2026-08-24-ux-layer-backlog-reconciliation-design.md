@@ -72,10 +72,24 @@ Feature that assumes a plan exists — every row present, Definition of Done sat
 substantive clash unfound. So rows come in two kinds:
 
 - **Named things.** Glossary concepts, screens and views, components. Presence is a lookup.
-- **Behavioural claims.** The workspace PRD's user stories, functional and acceptance
-  requirements; the UXD's interaction rules, journey steps and accessibility rules; the
-  prototype spec's error contracts and golden path; the 63 JTBD job statements. Presence is
-  "does any derived note assert, contradict, or ignore this claim."
+- **Behavioural claims.** Presence is "does any derived note assert, contradict, or ignore
+  this claim."
+
+  **The rule, not a list: every in-scope evidence document contributes behavioural rows,
+  and a document contributing none must say why.** A first draft listed four sources and
+  omitted the wireframes — 1,143 lines whose §§A.17–A.21 are Screen States, Destructive
+  Interaction Pattern, Responsive Rules, Keyboard and Accessibility Rules, and Golden-Path
+  Acceptance Criteria, which is to say the densest concentration of behavioural rules in the
+  corpus. The table below exists so that omission is visible rather than inferred:
+
+  | Evidence document | Behavioural rows it contributes |
+  | --- | --- |
+  | `prds/renovation-project-workspace.md` | User stories, functional and acceptance requirements, lifecycle rules |
+  | `user-experience/…-UXD.md` | Interaction rules, journey steps, progressive-disclosure and continuity rules, accessibility rules |
+  | `user-experience/…-wireframes.md` | §§A.17–A.21: screen states, destructive-action pattern, responsive rules, keyboard/accessibility rules, golden-path acceptance criteria |
+  | `user-experience/…-PROTOTYPE-DESIGN-SPEC.md` | Golden path, error contracts, the questions the prototype must answer |
+  | `user-experience/…-JTBD-research-backlog.md` | 63 job statements |
+  | `concepts/component-gallery.html` | None — named-thing rows only, per the coverage limit above |"
 
 ### Two directions, because Orphan is otherwise undiscoverable
 
@@ -85,9 +99,15 @@ concept structurally invisible: it has no row, and the reading is bounded to row
 one of the four things it reports. So the inventory runs both ways:
 
 - **Forward** — each item extracted from the new evidence, checked against the derived notes.
-- **Reverse** — each Epic and Feature in `requirements/`, each entity, business rule, actor,
-  deliverable and ADR, checked against the new evidence: does it speak to this, contradict
-  it, or ignore it? Orphans come from this pass and are counted like everything else.
+- **Reverse** — **every note in the 227-note scope gets a row**, checked against the new
+  evidence: does it speak to this, contradict it, or ignore it? Orphans come from this pass
+  and are counted like everything else.
+
+  Stated as a rule over the whole scope rather than as a list of kinds, because the list
+  form failed here too: a draft enumerated Epics and Features and thereby dropped the 10
+  PBIs, the 17 components and the 3 issues — 30 notes structurally invisible to the very
+  pass added to make orphans discoverable. The reverse row count must equal the scope count,
+  which is a check anyone can run; a list of kinds is a claim nobody can.
 
 ### Every in-scope note type has a comparison rule
 
@@ -174,6 +194,13 @@ ledger says so where they are listed.
 1a. Every one of the eight in-scope note types has been compared under its rule, and the
    ledger says how many notes of each type were covered. A type with no rule is a type that
    was not read, and a coverage claim including it would be false.
+1b. **The reverse-inventory row count equals the scope count (227), and the ledger prints
+   both.** This is the check that catches the failure this spec produced three times: an
+   enumeration that silently omits a member. `requirements/` is 19 Epics + 92 Features +
+   10 PBIs; a reverse pass over "Epics and Features" scores 111 and reads as complete.
+   Comparing two numbers is something a reader can do without trusting any list.
+1c. Every in-scope evidence document appears in the behavioural-rows table with either rows
+   or a stated reason for none.
 2. Every finding is checkable on the terms above: both sides for a disagreement, the extant
    side plus a reproducible absence check for a gap or an orphan.
 3. Decision-needing findings are listed apart, with options and a recommendation, and none is

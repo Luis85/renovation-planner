@@ -1085,7 +1085,7 @@ f1021b	forward	named	Renovation Planner Home (screen)	uxd§28	renovation-planner
 f1022a	forward	named	New Project Wizard (screen)	uxd§28	new-project-wizard,screen	-	-	absent	-	requirements
 f1022b	forward	named	New Project Wizard (screen)	uxd§28	new-project-wizard,screen	-	-	absent	-	deliverables
 f1023a	forward	named	Project Home (screen)	uxd§28	project-home,screen	-	-	absent	-	requirements
-f1023b	forward	named	Project Home (screen)	uxd§28	project-home,screen	-	-	absent	-	deliverables
+f1023b	forward	named	Project Home (screen)	uxd§28	project-home,screen	-	-	present	-	deliverables
 f1024a	forward	named	Spaces View (screen)	uxd§28	spaces-view,screen	-	-	absent	-	requirements
 f1024b	forward	named	Spaces View (screen)	uxd§28	spaces-view,screen	-	-	absent	-	deliverables
 f1025a	forward	named	Space Detail (screen)	uxd§28	space-detail,screen	-	-	absent	-	requirements
@@ -1272,7 +1272,7 @@ f1175b	forward	named	New Project Wizard: Initial Spaces (step screen)	wireframes
 f1176a	forward	named	New Project Wizard: Review (step screen)	wireframes§A.9	new project wizard,review,step	-	-	absent	-	requirements
 f1176b	forward	named	New Project Wizard: Review (step screen)	wireframes§A.9	new project wizard,review,step	-	-	absent	-	deliverables
 f1177a	forward	named	Project Home (screen)	wireframes§A.10	project home,screen	-	-	absent	-	requirements
-f1177b	forward	named	Project Home (screen)	wireframes§A.10	project home,screen	-	-	absent	-	deliverables
+f1177b	forward	named	Project Home (screen)	wireframes§A.10	project home,screen	-	-	present	-	deliverables
 f1178	forward	named	Planning completeness (metric)	wireframes§A.10	planning completeness,metric	-	-	absent	-	entities
 f1179	forward	named	Next Step panel (component)	wireframes§A.10	next step,panel,component	-	-	absent	-	components
 f1180a	forward	named	Spaces (screen)	wireframes§A.11	spaces,screen	-	-	absent	-	requirements
@@ -1915,7 +1915,7 @@ r515	reverse	behavioural	Delivered and consumed quantities are recorded separate
 r516	reverse	behavioural	Partially-delivered is a real state, not a rounding of ordered or delivered	docs/entities/Procurement item.md::Rules[3]	procurement item,partially-delivered	5	-	retained	-	-
 r517	reverse	behavioural	Cancelled procurement items are kept, not deleted; it is why something was not bought	docs/entities/Procurement item.md::Rules[4]	procurement item,cancelled,delete	8	-	retained	-	-
 r518	reverse	named	Project	docs/entities/Project.md::name	project	-	canvas,jtbd,prd,prototype,research,uxd,wireframes	present	-	entities
-r519	reverse	behavioural	Project is a root rather than a container; nothing spans two projects, since the index is scoped to one, the currency is defined once per project, and there is no portfolio	docs/entities/Project.md::Description[1]	project,root,currency	7	prd§34	contradictory	prd§8>>docs/entities/Project.md::Project[2]	-
+r519	reverse	behavioural	Project is a root rather than a container; nothing spans two projects, since the index is scoped to one, the currency is defined once per project, and there is no portfolio	docs/entities/Project.md::Description[1]	project,root,currency	7	prd§34	contradictory	prd§34>>docs/entities/Project.md::Description[1]	-
 r520	reverse	behavioural	Project is one note at the root of the renovation folder, named after the project and deduplicated on collision, with a stable id independent of filename/title/path and a schema-version	docs/entities/Project.md::Identity and persistence[1]	project,note,id,filename,schema-version	8	-	retained	-	-
 r521	reverse	behavioural	The recommended filename Project.md is a recommendation rather than a rule; paths must be configurable, so Project's filename is not fixed while every other entity's is derived from its name	docs/entities/Project.md::Identity and persistence[2]	project,filename,recommendation	7	-	retained	-	-
 r522	reverse	behavioural	A project owns plan, construction section, work package, asset, supplier and document, zero or more each	docs/entities/Project.md::Relationships[1]	project,plan,construction section,work package,asset,supplier,document	8	-	retained	-	-
@@ -2422,18 +2422,18 @@ r1022	reverse	behavioural	A renovator can see what a proposed change would do to
 r1023	reverse	named	Import and export	docs/requirements/Import and export.md::name	import,export	-	-	retained	-	requirements
 r1024	reverse	behavioural	Supported import/export formats are fixed to Markdown, YAML, JSON, PNG, JPEG, PDF and CSV	docs/requirements/Import and export.md::Body[1]	import,export,format,csv	7	prd.txt§Feature-2.3	present	-	-
 r1025	reverse	behavioural	A renovator can get their quantities, costs and plans into and out of the plugin in formats other tools already read	docs/requirements/Import and export.md::Outcome[1]	import,export	7	research.txt§7	present	-	-
-r1026	reverse	named	Issues	docs/requirements/Issues.md::name	issue	-	-	retained	-	requirements
+r1026	reverse	named	Issues	docs/requirements/Issues.md::name	issue	-	canvas,research	present	-	requirements
 r1027	reverse	behavioural	An issue is distinct from a risk by tense: a risk might happen, an issue already has	docs/requirements/Issues.md::Body[1]	issue,risk,distinction	6	-	retained	-	-
 r1028	reverse	behavioural	A renovator has one place for problems that are currently live	docs/requirements/Issues.md::Outcome[1]	issue,live,single place	6	canvas.txt§24	present	-	-
 r1029	reverse	behavioural	An issue is attached to the work it is holding up	docs/requirements/Issues.md::Outcome[2]	issue,link,work	8	canvas.txt§10	present	-	-
-r1030	reverse	named	Layers	docs/requirements/Layers.md::name	layer	-	canvas,gallery	present	-	requirements
+r1030	reverse	named	Layers	docs/requirements/Layers.md::name	layer	-	canvas,gallery,prd	present	-	requirements
 r1031	reverse	behavioural	The plan editor has six initial layers: background, areas, construction sections, assets, work, annotation	docs/requirements/Layers.md::Body[1]	layer,background,construction section,asset,work,annotation	8	-	retained	-	-
 r1032	reverse	behavioural	Layer visibility state is sidecar data, a per-plan editor setting rather than domain data, and does not belong in frontmatter a user reads	docs/requirements/Layers.md::Body[2]	layer,sidecar,frontmatter	4	-	retained	-	-
 r1033	reverse	behavioural	A renovator can look at one aspect of a busy plan without deleting or moving anything	docs/requirements/Layers.md::Outcome[1]	layer,visibility	3	canvas.txt§21	present	-	-
 r1034	reverse	named	Measurement annotations	docs/requirements/Measurement annotations.md::name	measurement annotation	-	-	retained	-	requirements
 r1035	reverse	behavioural	Each measurement annotation carries its own unit, so an exported or plain-Markdown plan still states what it meant	docs/requirements/Measurement annotations.md::Body[1]	measurement annotation,unit,export	4	gallery.txt§Measurement-label	present	-	-
 r1036	reverse	behavioural	A renovator can put the dimensions that matter onto the plan and hand it to somebody else	docs/requirements/Measurement annotations.md::Outcome[1]	measurement annotation,dimension	6	-	retained	-	-
-r1037	reverse	named	Milestones	docs/requirements/Milestones.md::name	milestone	-	uxd	present	-	requirements
+r1037	reverse	named	Milestones	docs/requirements/Milestones.md::name	milestone	-	canvas,prd,uxd	present	-	requirements
 r1038	reverse	behavioural	A milestone holds no work and states only a date, and other work can depend on it	docs/requirements/Milestones.md::Body[1]	milestone,date,dependency	5	-	retained	-	-
 r1039	reverse	behavioural	A renovator can put the fixed dates of their renovation on the plan	docs/requirements/Milestones.md::Outcome[1]	milestone,date	5	-	retained	-	-
 r1040	reverse	behavioural	A renovator can see what is at risk against a milestone date	docs/requirements/Milestones.md::Outcome[2]	milestone,risk	5	-	retained	-	-
@@ -2530,7 +2530,7 @@ r1130	reverse	named	Revisions and metadata	docs/requirements/Revisions and metad
 r1131	reverse	behavioural	A revision carries who, when and why metadata	docs/requirements/Revisions and metadata.md::Body[1]	revision,metadata,author,date,reason	6	-	retained	-	-
 r1132	reverse	behavioural	A revision is a named, immutable version of a plan that other records (a quote, an award, an argument) can reference without it moving underneath them	docs/requirements/Revisions and metadata.md::Body[2]	revision,plan,immutable,reference	8	-	retained	-	-
 r1133	reverse	behavioural	A renovator can point at a specific version of a plan and say what changed in it and why	docs/requirements/Revisions and metadata.md::Outcome[1]	revision,plan,change	8	-	retained	-	-
-r1134	reverse	named	Risks	docs/requirements/Risks.md::name	risk	-	jtbd,prd	present	-	requirements
+r1134	reverse	named	Risks	docs/requirements/Risks.md::name	risk	-	jtbd,prd,research	present	-	requirements
 r1135	reverse	behavioural	A risk record has probability, impact, exposure, mitigation, owner and affected-area properties	docs/requirements/Risks.md::Body[1]	risk,probability,impact,exposure,mitigation,owner	7	-	retained	-	-
 r1136	reverse	behavioural	Risk exposure is derived from probability and impact rather than being directly typed in	docs/requirements/Risks.md::Body[2]	risk,exposure,derived	5	-	retained	-	-
 r1137	reverse	behavioural	A renovator can see which of the things that might go wrong are worth spending money on now	docs/requirements/Risks.md::Outcome[1]	risk,mitigation	3	-	retained	-	-
@@ -2544,7 +2544,7 @@ r1144	reverse	behavioural	Scenario comparison covers cost, duration, material, e
 r1145	reverse	behavioural	Selecting a scenario is a recorded decision with a date and a reason, never a silent overwrite	docs/requirements/Scenario comparison and selection.md::Body[2]	scenario,selection,decision,record	7	canvas.txt§11	present	-	-
 r1146	reverse	behavioural	Unselected scenarios are kept as the evidence for the choice, not deleted	docs/requirements/Scenario comparison and selection.md::Body[3]	scenario,unselected,retained	4	canvas.txt§11	present	-	-
 r1147	reverse	behavioural	A renovator can put their options side by side on the terms that matter and commit to one without losing the others	docs/requirements/Scenario comparison and selection.md::Outcome[1]	scenario,comparison,selection	6	canvas.txt§11	present	-	-
-r1148	reverse	named	Scenarios	docs/requirements/Scenarios.md::name	scenario	-	-	retained	-	requirements
+r1148	reverse	named	Scenarios	docs/requirements/Scenarios.md::name	scenario	-	canvas,prototype	present	-	requirements
 r1149	reverse	behavioural	A scenario is a variant of plan data, not a copy of the vault: unchanged parts stay shared so a price correction reaches every scenario at once	docs/requirements/Scenarios.md::Body[1]	scenario,variant,shared data	5	-	retained	-	-
 r1150	reverse	behavioural	Nothing in an unselected scenario may reach a committed/aggregate budget total	docs/requirements/Scenarios.md::Body[2]	scenario,unselected,budget,aggregate	8	-	retained	-	-
 r1151	reverse	behavioural	A renovator can plan the same room two or three ways at once without maintaining two or three plans	docs/requirements/Scenarios.md::Outcome[1]	scenario,plan	8	-	retained	-	-
@@ -2593,7 +2593,7 @@ r1193	reverse	named	State visualization	docs/requirements/State visualization.md
 r1194	reverse	behavioural	State visualization shows six existing/planned/as-built states on the plan (presupposes an existing plan)	docs/requirements/State visualization.md::Body[1]	state visualization,plan,existing,planned,as-built	8	-	retained	-	-
 r1195	reverse	behavioural	States must be distinguished by hatching, outline weight and labels, with colour applied only on top of those	docs/requirements/State visualization.md::Body[2]	state visualization,hatching,outline,label,colour	7	gallery.txt§CanvasLanguage	present	-	-
 r1196	reverse	behavioural	A renovator can look at a plan and see what is being kept, removed and added, without relying on telling colours apart	docs/requirements/State visualization.md::Outcome[1]	state visualization,plan,colour	8	gallery.txt§CanvasLanguage	present	-	-
-r1197	reverse	named	Suppliers	docs/requirements/Suppliers.md::name	supplier	-	jtbd	present	-	requirements
+r1197	reverse	named	Suppliers	docs/requirements/Suppliers.md::name	supplier	-	jtbd,research	present	-	requirements
 r1198	reverse	behavioural	A supplier is modelled as a note with a stable ID	docs/requirements/Suppliers.md::Body[1]	supplier,note,stable id	7	-	retained	-	-
 r1199	reverse	behavioural	A renovator keeps one record per supplier and everything bought from them points at it	docs/requirements/Suppliers.md::Outcome[1]	supplier,record	4	research.txt§16	present	-	-
 r1200	reverse	named	Task lifecycle and dates	docs/requirements/Task lifecycle and dates.md::name	task lifecycle,task,date	-	-	retained	-	requirements

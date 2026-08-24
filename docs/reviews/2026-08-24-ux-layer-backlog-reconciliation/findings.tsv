@@ -1,6 +1,6 @@
 finding_id	kind	standing_evidence	standing_derived	evidence_cite	derived_cite	rows	remedy
 c1	Contradiction	received	derived	prd§3	docs/deliverables/Disclosure ladder.md::The home surface, and IA's first open question answered[1]	f463	none
-c2	Contradiction	received	derived	prd§8	docs/entities/Project.md::Project[2]	f494 r519	none
+c2	Contradiction	received	derived	prd§8	docs/entities/Project.md::Project[2]	f494	none
 c3	Contradiction	received	derived	prd§10	docs/actors/Professional planner.md::What admitting this actor would change[2]	f500	none
 c4	Contradiction	received	derived	prd§13	docs/deliverables/Sitemap.md::The inventory[1]	f574	none
 c5	Contradiction	received	derived	prd§17	docs/deliverables/Disclosure ladder.md::What each rung means concretely[3]	f610	none
@@ -615,7 +615,6 @@ g566	Gap	undetermined	n/a	uxd§28	-	f1021b	none
 g567	Gap	undetermined	n/a	uxd§28	-	f1022a	none
 g568	Gap	undetermined	n/a	uxd§28	-	f1022b	none
 g569	Gap	undetermined	n/a	uxd§28	-	f1023a	none
-g570	Gap	undetermined	n/a	uxd§28	-	f1023b	none
 g571	Gap	undetermined	n/a	uxd§28	-	f1024a	none
 g572	Gap	undetermined	n/a	uxd§28	-	f1024b	none
 g573	Gap	undetermined	n/a	uxd§28	-	f1025a	none
@@ -749,7 +748,6 @@ g700	Gap	undetermined	n/a	wireframes§A.8	-	f1175b	none
 g701	Gap	undetermined	n/a	wireframes§A.9	-	f1176a	none
 g702	Gap	undetermined	n/a	wireframes§A.9	-	f1176b	none
 g703	Gap	undetermined	n/a	wireframes§A.10	-	f1177a	none
-g704	Gap	undetermined	n/a	wireframes§A.10	-	f1177b	none
 g705	Gap	undetermined	n/a	wireframes§A.10	-	f1178	none
 g706	Gap	undetermined	n/a	wireframes§A.10	-	f1179	none
 g707	Gap	undetermined	n/a	wireframes§A.11	-	f1180a	none
@@ -823,3 +821,5 @@ g774	Gap	undetermined	n/a	wireframes§A.21	-	f1262	none
 g775	Gap	undetermined	n/a	wireframes§A.21	-	f1264	none
 g776	Gap	undetermined	n/a	wireframes§A.23	-	f1266	none
 g777	Gap	undetermined	n/a	wireframes§A.23	-	f1267	none
+
+c49	Contradiction	received	derived	prd§34	docs/entities/Project.md::Description[1]	r519	none

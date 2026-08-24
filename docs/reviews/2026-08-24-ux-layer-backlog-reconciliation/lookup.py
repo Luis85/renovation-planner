@@ -29,6 +29,15 @@ different, and each was a defect before it was a rule:
   Three reverse rows rested on one such hit and none of the three moves state — each is named
   properly by another body — so this refuses a class rather than repairing a count. What it
   does NOT do is judge sense, which is why `matched` names every body rather than one.
+* **PLURAL-TOLERANT IN BOTH DIRECTIONS TOO, which `s?` alone is not.** Appending it to a name
+  that already ends in `s` asks for `\bIssuess?\b`, which matches neither `Issue` nor
+  anything else the row means; `Issues` and `Scenarios` read `retained` against bodies that
+  name both. The name is reduced to its singular BEFORE the optional `s` is added, so the
+  tolerance runs both ways instead of only from singular to plural.
+* **ANNOTATION-STRIPPED, within bounds.** The extractor wrote `Project Home (screen)`, and
+  searching that literally is what made the header's own worked example come back with the
+  wrong answer. `annotation_stripped` says when the parenthetical may be dropped and why the
+  bound is not optional.
 * **BACK-LINK-GUARDED, in reverse.** The gallery is HTML and links back into the corpus it is
   compared against: `<a href="../deliverables/Design%20System.md">Design System</a>`. A literal
   grep reads that as the evidence naming the thing. It is the evidence pointing AT the derived
@@ -149,10 +158,40 @@ def identity_index(kind):
     return out
 
 
+def annotation_stripped(subject):
+    """`Project Home (screen)` -> `Project Home`, when what is left is still a NAME.
+
+    The parenthetical is the extractor's note about the ROLE, not part of what the thing is
+    called, so searching for it literally makes an annotated row `absent` unless the alias
+    table happens to rescue it. `Project Home` against `deliverables/` was exactly that:
+    `absent`, while `MVP Prototype.md` names it — the row this module's own header uses as the
+    worked example of the opposite answer.
+
+    Stripping is bounded, because unbounded it is the mirror defect. 33 annotated rows have an
+    unannotated twin naming the same thing at the same target; 31 already agree, and the two
+    that disagree are the two this repairs. Dropping the annotation unconditionally moves 57
+    rows instead, nearly all onto a common word — `Open` on the verb, `Tasks` on a `../tasks/`
+    link path — hiding 55 gaps to fix 2. Two bounds keep it to the repair:
+
+    * **TWO WORDS OR MORE.** One word left over is not a name, it is a word.
+    * **AS WRITTEN.** The annotation was the disambiguator; without it, require the proper
+      noun. `MVP Prototype.md` names `Project Home`; `add renovation work` in that same
+      sentence is prose about an action, and `[[Start a renovation project]]` is a link to a
+      requirement rather than a deliverable naming a screen.
+
+    Its limit, stated because the check cannot reach it: a genuinely one-word screen name, or
+    one an inventory writes in lower case, still reads `absent`.
+    """
+    bare = re.sub(r"\s+", " ", re.sub(r"\([^)]*\)", " ", subject)).strip()
+    return bare if bare != subject and len(bare.split()) >= 2 else ""
+
+
 def names_it(subject, kind):
     """First note in `kind` that NAMES the subject, at word boundaries and plural-tolerant."""
-    r = subprocess.run(["grep", "-rliE", r"\b%ss?\b" % re.escape(subject), "docs/" + kind],
-                       cwd=ROOT, capture_output=True, text=True)
+    bare = annotation_stripped(subject)
+    flag, name = ("-rlE", bare) if bare else ("-rliE", subject)
+    r = subprocess.run(["grep", flag, "--", r"\b%ss?\b" % re.escape(singular(name)),
+                        "docs/" + kind], cwd=ROOT, capture_output=True, text=True)
     out = [x for x in r.stdout.split("\n") if x]
     return out[0] if out else ""
 
@@ -184,7 +223,7 @@ def bodies_naming(name, view):
     a name inside a longer word as a mention. Three reverse rows rested on one — `Order` on
     the prototype's `borders`, `Site` on jtbd's `prerequisite`, `Layer` on research's `layered`.
     """
-    pat = r"\b%ss?\b" % re.escape(name)
+    pat = r"\b%ss?\b" % re.escape(singular(name))
     r = subprocess.run(["grep", "-rliE", "--", pat, view], capture_output=True, text=True)
     return sorted(os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x)
 

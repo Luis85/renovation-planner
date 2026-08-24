@@ -4,9 +4,9 @@ parent: "[[Quantity, cost and the end-to-end loop]]"
 order: 10
 dependsOn:
   - "[[02-core-primitives]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-24
+finished: 2026-08-24
 horizon: ""
 start: ""
 due: ""
@@ -427,14 +427,14 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
 
 ## Definition of Done
 
-- [ ] `Money.of("0.10","USD")` added to `Money.of("0.20","USD")` produces exactly
+- [x] `Money.of("0.10","USD")` added to `Money.of("0.20","USD")` produces exactly
       `Money.of("0.30","USD")` — verified without ever converting to a native `number`
       mid-calculation (demonstrates the ADR-010 rationale: `0.1 + 0.2 !== 0.3` in
       native floats, but is exact here).
-- [ ] Adding `Money` values of different currencies resolves a `CalculationError` in
+- [x] Adding `Money` values of different currencies resolves a `CalculationError` in
       every arithmetic function that takes two `Money` operands (add, subtract,
       compare).
-- [ ] End-to-end worked example, Quantity Engine → Cost Pipeline, produces the
+- [x] End-to-end worked example, Quantity Engine → Cost Pipeline, produces the
       following exact values (all in `decimal.js`, asserted as such):
       - Geometry input: `12,345,678 mm²` → Measured Quantity: `12.345678 m²`.
       - Requirement Rule (1:1 coverage) → Required Quantity: `12.345678 m²`.
@@ -447,22 +447,22 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
       - Shipping `$25.00` flat → After Shipping: `$203.125`.
       - Tax `8.25%` → `$219.8828125`, rounded `ROUND_HALF_UP` to the currency's
         2 decimal places → **Estimated Cost: `$219.88`**.
-- [ ] Overriding the Purchase Quantity `DerivedValue` (e.g. `calculated: 15 m²`,
+- [x] Overriding the Purchase Quantity `DerivedValue` (e.g. `calculated: 15 m²`,
       `override: 18 m²`) changes the Cost Pipeline's result deterministically
       (`18 × $12.50 = $225.00` subtotal onward) — proving effective-value resolution
       flows forward through the pipeline, not just at the point of override.
-- [ ] `applyPackaging` with `packaging: undefined` returns the waste-adjusted quantity
+- [x] `applyPackaging` with `packaging: undefined` returns the waste-adjusted quantity
       unchanged (no error, no silent default lot size).
-- [ ] `surcharge` omitted leaves the post-shipping total unchanged, and a supplied
+- [x] `surcharge` omitted leaves the post-shipping total unchanged, and a supplied
       `surcharge` is added **before** tax is computed (ADR-012). Asserted with a case where
       the two orders differ, so a reordering cannot pass silently: on the worked example
       above, a `$25.00` surcharge gives `($203.125 + $25.00) × 1.0825 = $246.9453125`, while
       applying it after tax would give `$203.125 × 1.0825 + $25.00 = $244.8828125` — a
       `$2.0625` difference, which is the tax on the surcharge.
-- [ ] All SDD §70 Money and Quantity unit test bullets (addition, tax, discounts,
+- [x] All SDD §70 Money and Quantity unit test bullets (addition, tax, discounts,
       rounding, currency safety, length requirements, area requirements, waste,
       packaging, manual overrides) have a corresponding passing `vitest` test.
-- [ ] No file under `core/money`, `core/units`, `core/derived`, or `domain/cost`
+- [x] No file under `core/money`, `core/units`, `core/derived`, or `domain/cost`
       imports from `obsidian`, `vue`, `pinia`, or `konva`. This needs no new check and
       no manual verification: slice 1 committed the per-directory
       `no-restricted-imports` bans for `core/**` and `domain/**` before any file existed

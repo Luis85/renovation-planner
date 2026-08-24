@@ -155,6 +155,23 @@ export default defineConfig({
 			// Measured 2026-08-24 again after the restored-leaf fix (`ProjectIndexRebuilt`):
 			// 1843/1849 statements, 816/827 branches, 486/487 functions, 1685/1688 lines —
 			// 99.67 / 98.66 / 99.79 / 99.82, the same four again. NOTHING RATCHETS.
+			//
+			// Measured 2026-08-24 at the end of design slice 9 — the quantity and cost
+			// engine (`core/money` arithmetic over decimal.js, `core/units`, `core/derived`,
+			// `domain/cost`), including the review pass that Result-typed `applyPackaging`
+			// and added the pricing-basis/negative-percent/coverage-sign guards:
+			// 1946/1954 statements, 893/906 branches, 508/509 functions, 1771/1774 lines —
+			// 99.59 / 98.56 / 99.80 / 99.83. Rounded down these are 99 / 98 / 99 / 99 —
+			// exactly the floors in force, so NOTHING RATCHETS; statements and branches
+			// gained new covered units but not enough to move a whole-number floor.
+			//
+			// What slice 9 adds to the uncovered set: the two `Result` propagation guards in
+			// `costPipeline.ts` (the discount-stage `subtract` and the final tax `add`). Both
+			// guard an operation whose operands derive from `unitPrice` itself — the parts
+			// are `percentageOf` of values already in that currency — so the mismatch arm is
+			// unreachable by construction and kept only because the callee's `Result` cannot
+			// be honestly discarded. Every guard the review pass ADDED is covered: driven
+			// through both `runQuantityEngine` and its stages, and both sides of each arm.
 			thresholds: {
 				statements: 99,
 				functions: 99,

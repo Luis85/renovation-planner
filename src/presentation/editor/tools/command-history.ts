@@ -15,8 +15,11 @@ export const UNDO_DEPTH = 100;
 type VoidResult = Result<void, AppError>;
 
 /**
- * The undo/redo stack for one open Plan (SDD §30, design slice 6). Ephemeral — it lives on
- * `EditorStore`, is scoped per Plan and does not survive a plugin reload or switching plans.
+ * The undo/redo stack for one open Plan (SDD §30, design slice 6). Ephemeral by design
+ * (SDD §15) and scoped per Plan — meant to live on `EditorStore` once a later task in this
+ * slice wires it there, and to not survive a plugin reload or switching plans. Nothing in
+ * `src/` constructs or holds an instance yet; this class is that wiring's target, not its
+ * current state.
  *
  * Two things make this class more than "two arrays and three methods":
  *

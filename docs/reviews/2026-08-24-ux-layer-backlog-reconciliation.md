@@ -986,9 +986,7 @@ substring rest invisible: `Order` recorded `gallery` alone, whose sole boundary-
 `<!-- Order is load-bearing -->` — a comment about stacking order, not the commitment to buy the
 entity note defines. The row is right (`jtbd` §JTBD-041 *Track orders and deliveries* and the
 synthesis's "budget does not reflect committed orders" both name it) and its evidence read as
-though it were not. The report already makes this argument in the forward direction — "a single
-`matched` field would have recorded whichever note the reader opened first" — and the reverse
-column now follows it: 43 rows gained the bodies that were always there. **No state moved, in
+though it were not. 43 rows gained the bodies that were always there. **No state moved, in
 either repair**; `lookup.py --selftest` reproduces 686/686.
 
 **An eleventh correction, and it is the eighth one's third visit: `s?` is not plural tolerance.**
@@ -1084,8 +1082,49 @@ committed matrix — 59 distinct ids, for existence and for state. That check fo
 reviewer had not named: `f154`, which made the empty-state count read three when it is two, and
 confirmed the rest. Fixing the two reported instances and stopping would have left `f154` standing.
 
-**Net across the three: 777 gaps become 775, 47 contradictions become 48, and 824 findings become
-823.** `lookup.py --selftest` is back to 686/686.
+**An eighteenth correction, to this section's own closing total.** The paragraph that stood here
+read "Net across the three: 777 gaps become 775, 47 contradictions become 48, and 824 findings
+become 823" — correct when it was written, for the **eleventh, twelfth and thirteenth**
+corrections, and stranded when the fourteenth through seventeenth were added *above* it. Sitting
+last, it read as this section's net, and it closed on 48 contradictions and 823 findings while the
+committed matrix holds **46** and **821** — the fourteenth correction, three paragraphs up, is what
+moved them.
+
+**The verifier could not have caught it, and that is the more useful half.** `lbl` asks whether the
+ledger prints each total *somewhere*; the Checks block prints all three correctly, so the gate is
+satisfied no matter what any other paragraph says. A check for a number's presence is not a check
+against its contradiction. Numbers in prose are still read by a human here, and this one was
+missed on every pass that added a correction above it.
+
+**Net across every correction above that moved a count: 777 gaps become 775, 47 contradictions
+become 46, and 824 findings become 821** — the totals the Checks block and `findings.tsv` both
+carry. Stated as a span rather than as "the three" or "the eight", because the count of
+corrections is the thing that changes every time one is added, which is what stranded the
+sentence this replaces. `lookup.py --selftest` is back to 686/686.
+
+**A nineteenth correction, and it is this ledger citing itself.** The paragraph beginning
+"`matched` names every body" used to carry its repair by quoting the report — "the report already
+makes this argument in the forward direction", followed by a sentence in quotation marks — and
+that sentence appears nowhere in this report. Its only copy in the repository is the `reverse` docstring in `lookup.py`, which is the
+very repair the citation was offered as precedent *for*. A fix presented as the application of an
+existing principle, resting on a quotation of itself.
+
+**Measured instead, and the answer is not the one the citation implied.** The forward direction
+does not name every note — it records one — and in this corpus it never had a second to choose
+between. All **268** forward named rows targeting a names-it directory were replayed against
+`lookup.py`'s own search: **262 match no note at all** and **6 match exactly one**, so `names_it`'s
+`out[0]` was never a choice. The other 73 matched named rows target `entities/`, `components/` or
+`actors/`, where the identity index is one note per thing by construction. **Zero forward named
+rows had more than one addressing note**, and the instrument was tested against probes that do
+find several before that zero was believed — `Project` matches 29 notes in `requirements/`, `Plan`
+4 in `deliverables/`.
+
+**What that leaves standing is the behavioural half, and it is a limit rather than a result.** A
+forward behavioural row records one `path::locator` chosen inside a candidate set that often holds
+many notes, so a reader who agrees while a second note in the same set disagrees is recorded as
+agreement. The mirror is what catches it, and this ledger's own count is the evidence that it
+does: **7 of the 46 contradictions were reached from the reverse direction only**. That is a
+mitigation with a number, not a proof of completeness, and it is stated here as the weaker thing.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

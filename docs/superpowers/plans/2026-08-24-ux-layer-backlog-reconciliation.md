@@ -25,7 +25,7 @@ Copied verbatim from the spec. Every task's requirements implicitly include this
 - **Rows and findings are counted separately.** A mirrored disagreement is two rows and one finding.
 - **Direction/standing** per finding is `received`, `derived`, or `undetermined`. Seven of the eight evidence bodies are `undetermined` until the owner classifies `docs/user-experience/` **and** `docs/product/`; a finding carrying `undetermined` proposes no edit.
 - **The original PRD and the SDD are a reference corpus**, never evidence bodies: read where a finding cites them, never swept for rows, contributing to no count.
-- **`npm run check` must show no failure this pass introduced.** `main` is red in all four steps. Baseline by stashing and re-running; compare `lint` **sorted** (oxlint's order is nondeterministic) and compare `analyze` like-for-like (it reads `coverage/coverage-final.json`, so it is downstream of `test:coverage`).
+- **`npm run check` must exit 0, all four steps.** This invariant used to read "no failure this pass introduced", because `main` was red in all four and the only provable claim was a differential one. `f15909c` — the merge base — fixed both defects, so the bar is now the plain one and Task 9 step 4 records the retirement and why. Do not reinstate the stash-and-compare baseline described there: it is retired, not merely unused, and a stale invariant here contradicting its own task is the defect this line was rewritten to remove.
 
 ## Working files
 
@@ -1014,16 +1014,52 @@ chk "rows with no state" 0 "$(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l
 chk "rows whose state is outside the five" 0 "$(awk -F'\t' 'NR>1 && $9!="" && $9!="present" && $9!="absent" && $9!="contradictory" && $9!="superseded" && $9!="retained"' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 chk "notes reached by a reverse row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
 chk "notes reached by a reverse BEHAVIOURAL row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse" && $3=="behavioural"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
+# The FORWARD side had no coverage gate at all, and every check above would survive losing a
+# whole evidence body. The two reverse checks measure the derived side — they ask whether all
+# 227 notes were read — and the per-type ledger check measures the same side again. Drop the
+# gallery extraction, or the research one, and 227/227 still passes, every per-type covered
+# count still matches, the totals still reconcile against a matrix that simply has fewer rows,
+# and every Gap and Contradiction originating in that body is silently gone. Nothing named a
+# body anywhere in this verifier before this line.
+#
+# Asserted as CLOSURE in both directions rather than as eight counts: every body contributes at
+# least one forward row, and no forward row cites a body outside the eight. Pinning the counts
+# themselves would fail on any legitimate row a later pass adds, which is how a gate gets
+# relaxed instead of fixed. Watched failing by deleting one body's rows from a copy.
+FWD_BODIES="canvas gallery jtbd prd prototype research uxd wireframes"
+seen="$(awk -F'\t' 'NR>1 && $2=="forward"{split($5,a,"§"); print a[1]}' "$SP/rows.tsv" | sort -u)"
+for b in $FWD_BODIES; do
+  echo "$seen" | grep -qx "$b" || { echo "  FAIL no forward row cites evidence body '$b'"; fail=1; }
+done
+chk "forward rows citing a body outside the eight" "" "$(echo "$seen" | grep -vxE "$(echo $FWD_BODIES | tr ' ' '|')" | tr -d ' \n')"
+chk "forward rows whose source carries no section locator" 0 "$(awk -F'\t' 'NR>1 && $2=="forward" && $5 !~ /§/' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 # Compare against the MERGE BASE, not the working tree. Task 8 commits the ledger before this
 # verifier runs, so a derived-note edit committed alongside it leaves `git status` clean and
 # the gate passes while the pass's single most important constraint is violated. The working
 # tree cannot answer "did this branch change a derived note"; only the diff against the base
 # can. Both are checked — an uncommitted edit is caught too — but the second is the one that
 # can actually fail.
-MB="$(git merge-base origin/main HEAD)"
+#
+# And it must FAIL CLOSED when it cannot resolve that base. `git merge-base origin/main HEAD`
+# leaves `MB` empty in any checkout without that ref — a clone with no configured remote, a
+# fetch of this branch alone, the reviewer's own supplied tree. `git diff ""...HEAD` then fails,
+# its error is swallowed by the `wc` pipeline, the count reads 0, and `chk` reports the pass's
+# single most important constraint as SATISFIED because it could not be tested. A gate that
+# answers "no derived note was edited" when what happened is "no comparison ran" is worse than
+# no gate, for the same reason `--selftest` comparing only the state was: it gets quoted.
+# Watched failing by pointing it at a ref that does not exist.
+MB=""
+for base in origin/main main "$(git rev-parse HEAD~1 2>/dev/null)"; do
+  [ -n "$base" ] || continue
+  MB="$(git merge-base "$base" HEAD 2>/dev/null)" && [ -n "$MB" ] && break
+  MB=""
+done
+[ -n "$MB" ] || { echo "  FAIL cannot resolve a review base; the derived-note gate did not run"; fail=1; }
 DERIVED="docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues"
 chk "derived notes edited (uncommitted)" 0 "$(git status --porcelain $DERIVED | wc -l | tr -d ' ')"
-chk "derived notes edited (vs merge base $MB)" 0 "$(git diff --name-only "$MB"...HEAD -- $DERIVED | wc -l | tr -d ' ')"
+if [ -n "$MB" ]; then
+  chk "derived notes edited (vs merge base $MB)" 0 "$(git diff --name-only "$MB"...HEAD -- $DERIVED | wc -l | tr -d ' ')"
+fi
 chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "named rows carrying a union target" 0 "$(awk -F'\t' 'NR>1 && $3=="named" && $11 ~ /,/' "$SP/rows.tsv" | wc -l | tr -d ' ')"

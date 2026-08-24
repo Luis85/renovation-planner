@@ -59,6 +59,15 @@ export class SettingsTab extends PluginSettingTab {
 					defaultValue: DEFAULT_SETTINGS.units,
 				},
 			},
+			{
+				name: tr('settings.project-folder.name'),
+				desc: tr('settings.project-folder.desc'),
+				control: {
+					type: 'text',
+					key: 'projectFolder',
+					defaultValue: DEFAULT_SETTINGS.projectFolder,
+				},
+			},
 		];
 	}
 

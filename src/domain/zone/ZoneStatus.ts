@@ -4,8 +4,8 @@
  */
 export type ZoneStatus = 'Planned' | 'InProgress' | 'Complete';
 
-const VALUES: readonly ZoneStatus[] = ['Planned', 'InProgress', 'Complete'];
+export const ZONE_STATUSES: readonly ZoneStatus[] = ['Planned', 'InProgress', 'Complete'];
 
 export function isZoneStatus(value: unknown): value is ZoneStatus {
-	return typeof value === 'string' && VALUES.includes(value as ZoneStatus);
+	return typeof value === 'string' && ZONE_STATUSES.includes(value as ZoneStatus);
 }

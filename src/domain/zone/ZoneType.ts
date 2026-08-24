@@ -12,7 +12,7 @@ export type ZoneType =
 	| 'ConstructionArea'
 	| 'Custom';
 
-const VALUES: readonly ZoneType[] = [
+export const ZONE_TYPES: readonly ZoneType[] = [
 	'Room',
 	'Garden',
 	'Terrace',
@@ -23,5 +23,5 @@ const VALUES: readonly ZoneType[] = [
 ];
 
 export function isZoneType(value: unknown): value is ZoneType {
-	return typeof value === 'string' && VALUES.includes(value as ZoneType);
+	return typeof value === 'string' && ZONE_TYPES.includes(value as ZoneType);
 }

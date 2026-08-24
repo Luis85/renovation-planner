@@ -103,6 +103,20 @@ export class Plugin {
 		this.views.set(type, factory);
 	}
 
+	/** Registered custom file extensions — recorded, never interpreted. */
+	readonly extensions = new Map<string[], string>();
+
+	registerExtensions(extensions: string[], viewType: string): void {
+		this.extensions.set(extensions, viewType);
+	}
+
+	/** Every `registerEvent` ask; the base class unregisters these itself in real Obsidian. */
+	readonly eventRefs: unknown[] = [];
+
+	registerEvent(_ref: unknown): void {
+		this.eventRefs.push(_ref);
+	}
+
 	addRibbonIcon(icon: string, title: string, click: () => void): HTMLElement {
 		this.ribbon.push({ icon, title, click });
 		// The real call returns the element it added, and a plugin may style it. A detached

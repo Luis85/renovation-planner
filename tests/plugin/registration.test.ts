@@ -15,6 +15,8 @@ import {
 	RENOVATION_PROJECT_VIEW,
 	RenovationProjectView,
 } from '../../src/presentation/views/RenovationProjectView';
+import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../../src/presentation/views/GeometrySidecarView';
+import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
@@ -39,7 +41,7 @@ beforeEach(async () => {
 
 describe('what onload registers', () => {
 	it('registers the project view under its persisted type', () => {
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW]);
+		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, GEOMETRY_SIDECAR_VIEW]);
 	});
 
 	// A factory that returns the wrong thing registers fine and fails when a user clicks.
@@ -70,19 +72,26 @@ describe('what onload registers', () => {
 	 */
 	it('adds the open command with an unprefixed id', () => {
 		expect(plugin.commands.map((c) => c.id)).toEqual(['open-project']);
+	});
+
+	// Sidecars are registered as visible, openable files (ADR-011), wired to their viewer.
+	it('registers the rpgeo extension to its viewer view', () => {
+		expect([...plugin.extensions.entries()]).toEqual([[['rpgeo'], GEOMETRY_SIDECAR_VIEW]]);
+		const built = plugin.views.get(GEOMETRY_SIDECAR_VIEW)?.(new FakeLeaf() as never);
+		expect(built).toBeInstanceOf(GeometrySidecarView);
 		expect(plugin.commands[0].name).toBe(t('en', 'command.open-project'));
 	});
 
 	// SDD §10: settings load FIRST in onload, so everything registered below may read
 	// them. Driven for both halves of `settingsFrom`'s contract: absence and presence.
 	it('loads the default settings on a fresh install', () => {
-		expect(plugin.root.settings).toEqual({ units: 'metric' });
+		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
 	});
 
 	it('loads stored settings over the defaults', async () => {
-		const { plugin: withStored } = await loadedPlugin({ units: 'imperial' });
+		const { plugin: withStored } = await loadedPlugin({ ...DEFAULT_SETTINGS, units: 'imperial' });
 
-		expect(withStored.root.settings).toEqual({ units: 'imperial' });
+		expect(withStored.root.settings).toEqual({ ...DEFAULT_SETTINGS, units: 'imperial' });
 	});
 });
 
@@ -133,7 +142,7 @@ describe('the composition root', () => {
 	 * nothing in a released build, while the levels slice 11 adds still reach it.
 	 */
 	it('is reached through one field rather than a bare settings field', () => {
-		expect(plugin.root.settings).toEqual({ units: 'metric' });
+		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
 	});
 
 	/**

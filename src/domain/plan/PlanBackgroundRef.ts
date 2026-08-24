@@ -5,6 +5,8 @@
  */
 export type PlanBackgroundKind = 'image' | 'pdf';
 
+export const PLAN_BACKGROUND_KINDS: readonly PlanBackgroundKind[] = ['image', 'pdf'];
+
 export interface PlanBackgroundRef {
 	readonly path: string;
 	readonly kind: PlanBackgroundKind;

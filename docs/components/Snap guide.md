@@ -21,11 +21,11 @@ takes no input, and a user cannot interact with it at all.
 
 ## Specimen
 
-![Snap guide, and the states it owes, in Obsidian's default light and dark](../concepts/shots/snap-guide.png)
+![Snap guide, and the states it owes, in Obsidian's default light and dark](snap-guide.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 

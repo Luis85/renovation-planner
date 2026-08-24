@@ -14,7 +14,7 @@ export type ProjectStatus =
 	| 'COMPLETE'
 	| 'AS_BUILT';
 
-const VALUES: readonly ProjectStatus[] = [
+export const PROJECT_STATUSES: readonly ProjectStatus[] = [
 	'IDEA',
 	'SURVEY',
 	'DESIGN',
@@ -28,5 +28,5 @@ const VALUES: readonly ProjectStatus[] = [
 ];
 
 export function isProjectStatus(value: unknown): value is ProjectStatus {
-	return typeof value === 'string' && VALUES.includes(value as ProjectStatus);
+	return typeof value === 'string' && PROJECT_STATUSES.includes(value as ProjectStatus);
 }

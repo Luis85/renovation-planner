@@ -11,6 +11,9 @@ export const en = {
 	'settings.units.desc': 'Measurement system for quantities and dimensions.',
 	'settings.units.metric': 'Metric',
 	'settings.units.imperial': 'Imperial',
+	'settings.project-folder.name': 'Project folder',
+	'settings.project-folder.desc': 'Vault folder where project, plan and zone notes are stored. Geometry sidecars live in a Geometry folder inside it.',
+	'view.geometry.name': 'Geometry sidecar',
 	'settings.unrecovered': 'Settings could not be read. Fix or remove data.json in the plugin folder, then reload the app.',
 } as const;
 

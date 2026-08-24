@@ -12,7 +12,20 @@ describe('resolving settings from stored data', () => {
 	});
 
 	it('keeps a stored choice over the default', () => {
-		expect(settingsFrom({ units: 'imperial' })).toEqual({ units: 'imperial' });
+		expect(settingsFrom({ units: 'imperial' })).toEqual({ units: 'imperial', projectFolder: DEFAULT_SETTINGS.projectFolder });
+	});
+
+	it('keeps a stored folder over the default', () => {
+		expect(settingsFrom({ projectFolder: 'Renovations/Main' })).toEqual({
+			units: DEFAULT_SETTINGS.units,
+			projectFolder: 'Renovations/Main',
+		});
+	});
+
+	it('falls back to the default folder for an empty or junk path', () => {
+		expect(settingsFrom({ projectFolder: '' }).projectFolder).toBe(DEFAULT_SETTINGS.projectFolder);
+		expect(settingsFrom({ projectFolder: '   ' }).projectFolder).toBe(DEFAULT_SETTINGS.projectFolder);
+		expect(settingsFrom({ projectFolder: 42 }).projectFolder).toBe(DEFAULT_SETTINGS.projectFolder);
 	});
 
 	it('fills what the stored object does not say', () => {
@@ -43,7 +56,10 @@ describe('resolving settings from stored data', () => {
 	 * which also means `saveData` never writes back something no code reads.
 	 */
 	it('drops keys it does not declare', () => {
-		expect(settingsFrom({ units: 'imperial', currency: 'EUR' })).toEqual({ units: 'imperial' });
+		expect(settingsFrom({ units: 'imperial', currency: 'EUR' })).toEqual({
+			units: 'imperial',
+			projectFolder: DEFAULT_SETTINGS.projectFolder,
+		});
 	});
 
 	it('answers the same shape as the defaults', () => {

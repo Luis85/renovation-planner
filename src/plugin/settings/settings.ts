@@ -20,13 +20,23 @@
 export const UNITS = ['metric', 'imperial'] as const;
 export type Units = (typeof UNITS)[number];
 
+/** Where entity notes live; `Geometry/` is derived inside it, never configured (ADR-011). */
+export const DEFAULT_PROJECT_FOLDER = 'Renovation';
+
 export interface RenovationPlannerSettings {
-	/** Measurement system for quantities and dimensions (SDD §15: default units). */
+	/** Measurement system for quantities and dimensions (SDD A§15: default units). */
 	units: Units;
+	/**
+	 * The folder every Project/Plan/Zone note lives under — THE one location field
+	 * (ADR-011). A path is not a preference: with settings unrecovered there is no
+	 * correct default, which is why nothing composes against one.
+	 */
+	projectFolder: string;
 }
 
 export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
 	units: 'metric',
+	projectFolder: DEFAULT_PROJECT_FOLDER,
 };
 
 /**
@@ -61,8 +71,17 @@ export function isDataAbsent(raw: unknown): boolean {
 	return typeof raw === 'object' && Object.keys(raw).length === 0;
 }
 
+/**
+ * Whether a folder path is usable as one. Empty after trimming is the only refusal: a
+ * path is user text, `normalizePath` is applied where it meets the Vault, and anything
+ * non-empty is a place.
+ */
+function projectFolderFrom(value: unknown): string {
+	return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_SETTINGS.projectFolder;
+}
+
 /** `loadData` answers whatever data.json holds: an object, null on a fresh install, or junk. */
 export function settingsFrom(raw: unknown): RenovationPlannerSettings {
 	const stored = typeof raw === 'object' && raw !== null ? (raw as Partial<RenovationPlannerSettings>) : {};
-	return { units: unitsFrom(stored.units) };
+	return { units: unitsFrom(stored.units), projectFolder: projectFolderFrom(stored.projectFolder) };
 }

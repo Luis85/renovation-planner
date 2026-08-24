@@ -31,9 +31,19 @@ export async function loadedPlugin(stored: unknown = null, loadFailure?: unknown
 				return Promise.resolve(dataFileExists);
 			},
 		},
+		// The index scan iterates these; an empty vault is the honest default here —
+		// suites that need contents build a real stack (tests/helpers/vault.ts).
+		getMarkdownFiles: (): never[] => [],
+		getFiles: (): never[] => [],
+		getAbstractFileByPath: (): null => null,
+		on: (): { off(): void } => ({ off: () => undefined }),
 	};
+	// The persistence stack gathers these three from the app; nothing in this stub
+	// behaves, so empty collaborators are honest — a test that needs a real vault builds
+	// its own stack (see tests/helpers/vault.ts).
+	const app = { workspace, vault, fileManager: {}, metadataCache: {} };
 
-	const plugin = new RenovationPlannerPlugin({ workspace, vault } as never, { id: PLUGIN_ID });
+	const plugin = new RenovationPlannerPlugin(app as never, { id: PLUGIN_ID });
 	plugin.data = stored;
 	plugin.loadFailure = loadFailure;
 	await plugin.onload();

@@ -1,12 +1,18 @@
-import { Plugin } from 'obsidian';
+import { Plugin, type TFile } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
+import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
 import type { LogLevel, Logger } from '../application/ports/Logger';
 import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
 import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
-import { createCompositionRoot, type CompositionRoot } from './composition-root';
+import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
+import {
+	createCompositionRoot,
+	type CompositionRoot,
+	type VaultStack,
+} from './composition-root';
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 
@@ -55,16 +61,32 @@ export default class RenovationPlannerPlugin extends Plugin {
 		const logger = createConsoleLogger(LOG_LEVEL);
 		logger.debug('plugin.load.started');
 
+		// The raw app surface the persistence stack reads and writes through — gathered
+		// once here, because `plugin/` is where Obsidian's own objects are handed out.
+		this.vaultStack = {
+			vault: this.app.vault,
+			fileManager: this.app.fileManager,
+			metadataCache: this.app.metadataCache,
+		};
+
 		// Settings first of the steps — the SDD's stated onload order (§9) — so everything
 		// registered below may read them. The merge is pure (`settingsFrom`); only the
 		// `loadData` call lives here, in the layer allowed to name it.
-		this.root = createCompositionRoot(await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id)), logger);
+		this.root = createCompositionRoot(
+			await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id)),
+			logger,
+			this.vaultStack,
+		);
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
 		this.addSettingTab(new SettingsTab(this));
 
 		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf));
+		// Sidecars are visible, openable files (ADR-011): without the extension
+		// registration they render as unsupported attachments in the explorer.
+		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
+		this.registerView(GEOMETRY_SIDECAR_VIEW, (leaf) => new GeometrySidecarView(leaf));
 
 		// Two ways in, one behaviour: both call the same function, so neither can grow its
 		// own idea of what opening the view means. `void` rather than an async handler —
@@ -81,6 +103,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void this.openProject();
 			},
 		});
+
+		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
+		// competes with workspace restoration, and `MetadataCache` is incomplete until
+		// layout-ready — an earlier scan would build a partial index that looks complete.
+		this.app.workspace.onLayoutReady(() => this.startPersistence());
 
 		// A `debug` line rather than an `info` one, and that is the publishing guidance
 		// rather than taste: a plugin that announces itself on every start is the plainest
@@ -145,8 +172,37 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// is the other writer and is guarded independently (`getSettingDefinitions`).
 		if (this.root.settings === null) return Promise.resolve();
 
-		this.root = createCompositionRoot(next, this.root.logger);
+		this.root = createCompositionRoot(next, this.root.logger, this.vaultStack);
 		return this.saveData(next);
+	}
+
+	private vaultStack: VaultStack | null = null;
+
+	/**
+	 * The Project Index's initial build, plus the vault listeners that keep it current.
+	 * Everything here composes ONLY when settings were recovered — with the folder
+	 * unknown there is no correct tree to scan and no correct place to write, so no
+	 * repository, index or query service exists at all (`CompositionRoot.persistence`).
+	 */
+	private startPersistence(): void {
+		const persistence = this.root.persistence;
+		if (!persistence || !this.vaultStack) return;
+
+		persistence.index.rebuild(
+			buildProjectIndexEntries({
+				vault: this.vaultStack.vault,
+				metadataCache: this.vaultStack.metadataCache,
+				echo: persistence.vaultDeps.echo,
+				logger: this.root.logger,
+				projectFolder: this.root.settings?.projectFolder ?? '',
+			}),
+		);
+
+		const adapter = persistence.changeAdapter;
+		this.registerEvent(this.app.vault.on('create', (file) => adapter.onCreate(file as TFile)));
+		this.registerEvent(this.app.vault.on('modify', (file) => adapter.onModify(file as TFile)));
+		this.registerEvent(this.app.vault.on('delete', (file) => adapter.onDelete(file as TFile)));
+		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => adapter.onRename(file as TFile, oldPath)));
 	}
 
 	private openProject(): Promise<void> {

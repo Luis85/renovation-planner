@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 /**
  * @vitest-environment jsdom
  *
@@ -62,7 +63,7 @@ describe('the settings pane', () => {
 	});
 
 	it('answers the stored value for the control key', async () => {
-		const { tab } = await withStored({ units: 'imperial' });
+		const { tab } = await withStored({ ...DEFAULT_SETTINGS, units: 'imperial' });
 
 		expect(tab.getControlValue('units')).toBe('imperial');
 	});
@@ -80,8 +81,8 @@ describe('the settings pane', () => {
 
 		await tab.setControlValue('units', 'imperial');
 
-		expect(plugin.root.settings).toEqual({ units: 'imperial' });
-		expect(plugin.saved).toEqual([{ units: 'imperial' }]);
+		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS, units: 'imperial' }]);
 	});
 
 	/**
@@ -94,8 +95,8 @@ describe('the settings pane', () => {
 
 		await tab.setControlValue('units', 'furlongs');
 
-		expect(plugin.root.settings).toEqual({ units: 'metric' });
-		expect(plugin.saved).toEqual([{ units: 'metric' }]);
+		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS }]);
 	});
 
 	/** And a key this version does not declare is dropped rather than persisted forever. */
@@ -104,7 +105,7 @@ describe('the settings pane', () => {
 
 		await tab.setControlValue('currency', 'EUR');
 
-		expect(plugin.saved).toEqual([{ units: 'metric' }]);
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS }]);
 	});
 
 	/**
@@ -113,10 +114,10 @@ describe('the settings pane', () => {
 	 * here now rather than after the second setting arrives and nobody thinks to add it.
 	 */
 	it('keeps the other settings when one is written', async () => {
-		const { plugin, tab } = await withStored({ units: 'imperial' });
+		const { plugin, tab } = await withStored({ ...DEFAULT_SETTINGS, units: 'imperial' });
 
 		await tab.setControlValue('currency', 'EUR');
 
-		expect(plugin.root.settings).toEqual({ units: 'imperial' });
+		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS, units: 'imperial' });
 	});
 });

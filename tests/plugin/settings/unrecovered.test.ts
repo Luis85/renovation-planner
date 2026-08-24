@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 /**
  * @vitest-environment jsdom
  *
@@ -13,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../../helpers/dom';
 import { lines, resetRecorder } from '../../helpers/logger';
 import { loadedPlugin } from '../../helpers/plugin';
+import { GEOMETRY_SIDECAR_VIEW } from '../../../src/presentation/views/GeometrySidecarView';
 import { RENOVATION_PROJECT_VIEW } from '../../../src/presentation/views/RenovationProjectView';
 import { t } from '../../../src/presentation/i18n/strings';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
@@ -65,7 +67,7 @@ describe('a read that failed', () => {
 	it('registers the view and the command anyway', async () => {
 		const { plugin } = await unrecovered();
 
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW]);
+		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, GEOMETRY_SIDECAR_VIEW]);
 		expect(plugin.commands.map((command) => command.id)).toEqual(['open-project']);
 	});
 });
@@ -74,7 +76,7 @@ describe('the two writers, refused independently', () => {
 	it('makes no saveData call for the whole session', async () => {
 		const { plugin } = await unrecovered();
 
-		await plugin.saveSettings({ units: 'imperial' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
 
 		expect(plugin.saved).toEqual([]);
 	});
@@ -173,7 +175,7 @@ describe('a file Obsidian could not parse, which it reports by resolving empty',
 	it('refuses both writers, exactly as a rejection does', async () => {
 		const { plugin, tab } = await unparseable();
 
-		await plugin.saveSettings({ units: 'imperial' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
 		await tab.setControlValue('units', 'imperial');
 
 		expect(plugin.saved).toEqual([]);
@@ -208,7 +210,7 @@ describe('a file Obsidian could not parse, which it reports by resolving empty',
 	 * no filesystem question, and asking one anyway would be a vault read on every load.
 	 */
 	it('does not ask when loadData answered with data', async () => {
-		const { asked } = await loadedPlugin({ units: 'imperial' });
+		const { asked } = await loadedPlugin({ ...DEFAULT_SETTINGS, units: 'imperial' });
 
 		expect(asked).toEqual([]);
 	});
@@ -219,12 +221,13 @@ describe('a fresh install, which is the opposite outcome', () => {
 		const { plugin } = await loadedPlugin(null);
 		const tab = plugin.settingTabs[0] as unknown as SettingsTab;
 
-		expect(plugin.root.settings).toEqual({ units: 'metric' });
-		expect(tab.getSettingDefinitions()).toHaveLength(1);
+		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
+		// Two controls now: units, and the slice-4 project folder (the one location field).
+		expect(tab.getSettingDefinitions()).toHaveLength(2);
 
-		await plugin.saveSettings({ units: 'imperial' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
 
-		expect(plugin.saved).toEqual([{ units: 'imperial' }]);
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS, units: 'imperial' }]);
 	});
 
 	it('logs no error', async () => {

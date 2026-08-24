@@ -1,0 +1,66 @@
+import type { CalculationError, ValidationError } from '../../../core/errors/AppError';
+import type { Result } from '../../../core/result/Result';
+import { Plan } from '../../../domain/plan/Plan';
+import { PlanFrontmatterSchemaV1, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
+import { parsePersisted } from './parse';
+
+/**
+ * The Plan mapper: frontmatter DTO ↔ domain entity, never partial (SDD §37). The
+ * revision is an argument on the way down — persistence bookkeeping, not domain state
+ * (see projectMapper).
+ *
+ * `background` lowers into three flat frontmatter keys; a page number is meaningful only
+ * for a pdf background and persists as null otherwise. Calibration is NOT frontmatter:
+ * it travels in the plan's sidecar, and the repository hands the parsed value in here.
+ */
+export function planToPersistence(plan: Plan, revision: number): Record<string, unknown> {
+	const background = plan.background;
+	return {
+		type: PLAN_TYPE,
+		'schema-version': 1,
+		id: plan.id,
+		revision,
+		project: plan.projectId,
+		name: plan.name,
+		'background-path': background?.path ?? '',
+		'background-kind': background?.kind ?? 'image',
+		'background-page': background?.kind === 'pdf' ? (background.page ?? 1) : null,
+		layers: [...plan.layers],
+	};
+}
+
+function fromDto(
+	dto: PlanFrontmatterDTO,
+	calibration: Plan['calibration'],
+): Result<Plan, ValidationError | CalculationError> {
+	const path = dto['background-path'];
+	const constructed = Plan.create({
+		id: dto.id as Plan['id'],
+		projectId: dto.project as Plan['projectId'],
+		name: dto.name,
+		background: path
+			? {
+					path,
+					kind: dto['background-kind'],
+					page: dto['background-kind'] === 'pdf' ? (dto['background-page'] ?? 1) : undefined,
+				}
+			: null,
+		layers: dto.layers,
+	});
+	if (!constructed.ok) {
+		return constructed;
+	}
+	if (calibration === null) {
+		return constructed;
+	}
+	return constructed.value.withCalibration(calibration);
+}
+
+export function planFromPersistence(
+	raw: unknown,
+	calibration: Plan['calibration'],
+): Result<Plan, ValidationError | CalculationError> {
+	const parsed = parsePersisted(PlanFrontmatterSchemaV1, raw, 'plan.frontmatter-invalid', 'Plan note');
+	if (!parsed.ok) return parsed;
+	return fromDto(parsed.value, calibration);
+}

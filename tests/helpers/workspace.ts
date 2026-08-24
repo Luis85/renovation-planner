@@ -34,6 +34,8 @@ export const makeView = (): RenovationProjectView => new RenovationProjectView(n
 export class FakeWorkspace {
 	readonly leaves: FakeLeaf[] = [];
 	readonly revealed: FakeLeaf[] = [];
+	/** Callbacks handed to `onLayoutReady`, fired explicitly by a test. */
+	readonly layoutReadyCallbacks: (() => void)[] = [];
 
 	getLeavesOfType(type: string): FakeLeaf[] {
 		return this.leaves.filter((leaf) => leaf.state?.type === type);
@@ -48,6 +50,15 @@ export class FakeWorkspace {
 	revealLeaf(leaf: FakeLeaf): Promise<void> {
 		this.revealed.push(leaf);
 		return Promise.resolve();
+	}
+
+	onLayoutReady(callback: () => void): void {
+		this.layoutReadyCallbacks.push(callback);
+	}
+
+	/** Simulates the workspace having finished restoring — what the index scan waits for. */
+	layoutReady(): void {
+		for (const callback of this.layoutReadyCallbacks) callback();
 	}
 
 	/** A leaf already showing `type`, as a vault reopened onto the view would have. */

@@ -15,4 +15,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.units.imperial': 'Imperial',
 	'settings.unrecovered':
 		'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
+	'settings.project-folder.name': 'Projektordner',
+	'settings.project-folder.desc': 'Tresnornder, in dem Projekt-, Grundriss- und Zonennotizen liegen. Geometrie-Seitendateien liegen in einem Geometry-Ordner darin.',
+	'view.geometry.name': 'Geometrie-Seitendatei',
 };

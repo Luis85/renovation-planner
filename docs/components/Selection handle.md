@@ -23,11 +23,11 @@ control normally gets for free.
 
 ## Specimen
 
-![Selection handle, and the states it owes, in Obsidian's default light and dark](../concepts/shots/selection-handle.png)
+![Selection handle, and the states it owes, in Obsidian's default light and dark](selection-handle.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](../concepts/component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 

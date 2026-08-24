@@ -10,7 +10,8 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["DOM", "ES2020", "ES2021.Intl"]
+    "lib": ["DOM", "ES2020", "ES2021.Intl", "ES2023.Array"],
+    "types": ["node"]
   },
   "include": ["src/**/*.ts", "src/**/*.vue"]
 }

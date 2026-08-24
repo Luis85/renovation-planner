@@ -29,8 +29,8 @@
 		"styles/**/*.css",
 		"tests/harness/theme.css",
 		"tests/harness/obsidian.css",
-		"docs/concepts/concept.css",
-		"docs/concepts/page.css"
+		"docs/user-experience/concepts/concept.css",
+		"docs/user-experience/concepts/page.css"
 	],
 	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
 	// every manual entry is otherwise treated as production-reachable code, so

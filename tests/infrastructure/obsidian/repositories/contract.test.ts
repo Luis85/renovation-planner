@@ -1,4 +1,3 @@
-import { describe } from 'vitest';
 import {
 	createRepositoryStack,
 	serializeFrontmatter,
@@ -56,6 +55,32 @@ function plantNote(
 		projectId: owned['project'] as ProjectId | undefined,
 		planId: owned['plan'] as PlanId | undefined,
 	});
+}
+
+// Local helpers kept tiny and honest about what the storage shape is.
+function projectToStorage(project: Project): Record<string, unknown> {
+	return {
+		type: 'renovation-project',
+		'schema-version': 1,
+		revision: 1,
+		status: String(project.status).replace(/_/g, '-').toLowerCase(),
+	};
+}
+
+function fixEntry(
+	stack: RepositoryStack,
+	id: EntityId<string>,
+	patch: (entry: { id: EntityId<string>; type: string; path: string; projectId?: ProjectId; planId?: PlanId; geometrySidecarPath?: string }) => {
+		id: EntityId<string>;
+		type: string;
+		path: string;
+		projectId?: ProjectId;
+		planId?: PlanId;
+		geometrySidecarPath?: string;
+	},
+): void {
+	const entry = stack.index.entries().find((candidate) => candidate.id === id);
+	if (entry) stack.index.upsert(patch(entry) as never);
 }
 
 projectRepositoryContract(() => {
@@ -134,29 +159,3 @@ zoneRepositoryContract(() => {
 		otherProject: () => createProjectId(),
 	};
 });
-
-// Local helpers kept tiny and honest about what the storage shape is.
-function projectToStorage(project: Project): Record<string, unknown> {
-	return {
-		type: 'renovation-project',
-		'schema-version': 1,
-		revision: 1,
-		status: String(project.status).replace(/_/g, '-').toLowerCase(),
-	};
-}
-
-function fixEntry(
-	stack: RepositoryStack,
-	id: EntityId<string>,
-	patch: (entry: { id: EntityId<string>; type: string; path: string; projectId?: ProjectId; planId?: PlanId; geometrySidecarPath?: string }) => {
-		id: EntityId<string>;
-		type: string;
-		path: string;
-		projectId?: ProjectId;
-		planId?: PlanId;
-		geometrySidecarPath?: string;
-	},
-): void {
-	const entry = stack.index.entries().find((candidate) => candidate.id === id);
-	if (entry) stack.index.upsert(patch(entry) as never);
-}

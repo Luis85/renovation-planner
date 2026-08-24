@@ -4,11 +4,13 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { Project } from '../../../domain/project/Project';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
+import { revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
 	ensureFolder,
 	findNoteIdInFolder,
 	frontmatterOf,
+	migrateNote,
 	persistenceError,
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
@@ -18,7 +20,7 @@ import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import { fileNameFor, normalizeFolder, projectNotePathFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
-import { fileAt, schemaVersionIn } from './NoteVaultDeps';
+import { fileAt } from './NoteVaultDeps';
 
 /**
  * The Obsidian-backed ProjectRepository (SDD §36–38): one Markdown note per Project
@@ -93,17 +95,18 @@ export class ObsidianProjectRepository {
 	delete(id: ProjectId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
 		return this.queues.run(`project:${id}`, async () => {
 			const file = this.locate(id);
+			// A vanished or unindexed note refuses exactly like a stale expectation.
+			if (!file) return err(revisionConflict('project', id));
 			const conflict = checkExpectedVersion(
 				'project',
 				id,
-				file ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)) : undefined,
+				versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)),
 				expected,
 			);
 			if (conflict) return err(conflict);
-			if (!file) return err(persistenceError('project.delete-failed', `No note holds project ${id}.`));
 
 			try {
-				await this.deps.vault.delete(file);
+				await this.deps.fileManager.trashFile(file);
 			} catch (cause) {
 				return err(persistenceError('project.delete-failed', `Could not delete project note ${file.path}.`, cause));
 			}
@@ -129,13 +132,9 @@ export class ObsidianProjectRepository {
 
 	private readEntity(file: TFile): Result<Loaded<Project>, PersistenceError> {
 		const raw = frontmatterOf(this.deps.metadataCache, file);
-		let migrated: unknown;
-		try {
-			migrated = this.deps.migrations.migrateToLatest('project', raw, schemaVersionIn(raw));
-		} catch (cause) {
-			return err(persistenceError('project.migration-failed', 'Migrating the project note failed.', cause));
-		}
-		const entity = projectFromPersistence(migrated);
+		const migrated = migrateNote(this.deps.migrations, 'project', raw);
+		if (!migrated.ok) return migrated;
+		const entity = projectFromPersistence(migrated.value);
 		if (!entity.ok) {
 			return err(persistenceError('project.frontmatter-invalid', entity.error.message));
 		}

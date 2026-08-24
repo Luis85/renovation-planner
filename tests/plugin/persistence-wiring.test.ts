@@ -21,10 +21,20 @@ installObsidianDom();
  */
 describe('persistence composition', () => {
 	it('composes no repositories, index or queries while settings are unrecovered', async () => {
-		const { plugin } = await loadedPlugin(null, new Error('unreadable'), true);
+		const { plugin, workspace } = await loadedPlugin(null, new Error('unreadable'), true);
 
 		expect(plugin.root.settings).toBeNull();
 		expect(plugin.root.persistence).toBeNull();
+
+		// Layout-ready with no stack is a no-op: no scan, no listeners, no crash.
+		workspace.layoutReady();
+		expect(plugin.eventRefs).toHaveLength(0);
+	});
+
+	it('composes nothing when the vault collaborators are missing even if settings exist', async () => {
+		const { createCompositionRoot } = await import('../../src/plugin/composition-root');
+		const root = createCompositionRoot(DEFAULT_SETTINGS, { debug() {}, info() {}, warn() {}, error() {} }, null);
+		expect(root.persistence).toBeNull();
 	});
 
 	it('composes the stack on a fresh install, whose defaults ARE the chosen location', async () => {
@@ -58,6 +68,19 @@ describe('persistence composition', () => {
 
 		// And vault listeners are registered for the change pipeline.
 		expect(plugin.eventRefs.length).toBeGreaterThanOrEqual(4);
+	});
+
+	it('vault listeners tolerate events that are not notes', async () => {
+		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS);
+		workspace.layoutReady();
+		expect(plugin.root.persistence).not.toBeNull();
+
+		// Obsidian hands TAbstractFile to every event; folders and unknown shapes must
+		// pass through the instanceof guard without touching the pipeline.
+		for (const handler of vaultHandlers) {
+			handler({ path: 'Renovation/a-folder' });
+		}
+		expect(plugin.root.persistence?.index.entries()).toHaveLength(0);
 	});
 
 	it('declares exactly one folder setting, and Geometry is not among them', async () => {

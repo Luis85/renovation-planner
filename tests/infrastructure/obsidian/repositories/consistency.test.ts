@@ -46,11 +46,9 @@ describe('compensated sequences', () => {
 		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
 
 		const result = await stack.zones.save(moved, written.version);
-		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.error.code.startsWith('zone.sidecar-')).toBe(true);
-			expect(result.error.category).toBe('Persistence');
-		}
+		const failure = expectErr(result);
+		expect(failure.code.startsWith('zone.sidecar-')).toBe(true);
+		expect(failure.category).toBe('Persistence');
 		expect(zoneNoteText(stack, zoneId)).toBe(before);
 
 		// The queue survives the injected failure: the next save gets through — presenting
@@ -120,8 +118,7 @@ describe('compensated sequences', () => {
 		const read = expectOk(await stack.plans.getById(planId));
 		const result = await stack.plans.delete(planId, read.version);
 
-		expect(result.ok).toBe(false);
-		if (!result.ok) expect(result.error.code).toBe('plan.delete-failed');
+		expect(expectErr(result).code).toBe('plan.delete-failed');
 		expect(planNotePath ? stack.vault.entries.get(planNotePath) : undefined).toBe(before);
 	});
 });
@@ -148,8 +145,7 @@ describe('conditional writes against real files', () => {
 			makeZoneEntity({ id: zoneId, projectId, planId, name: 'A speaks anyway' }),
 			firstRead.version,
 		);
-		expect(stale.ok).toBe(false);
-		if (!stale.ok) expect(stale.error.code).toBe('zone.external-modification');
+		expect(expectErr(stale).code).toBe('zone.external-modification');
 		expect(expectOk(await stack.zones.getById(zoneId))?.entity.name).toBe('Hand edited');
 
 		// The CURRENT reader may speak: B presents exactly what B saw.
@@ -172,8 +168,7 @@ describe('conditional writes against real files', () => {
 		stack.vault.entries.set(sidecarPath, `${before}\n`);
 		const snapshotBefore = stack.vault.entries.get(sidecarPath);
 		const refused = await stack.store.mutate(planId, (dto) => dto, first.version);
-		expect(refused.ok).toBe(false);
-		if (!refused.ok) expect(refused.error.code).toBe('plan-geometry.external-modification');
+		expect(expectErr(refused).code).toBe('plan-geometry.external-modification');
 		expect(stack.vault.entries.get(sidecarPath)).toBe(snapshotBefore);
 
 		// Without an expectation, the change applies to whatever is current.

@@ -1,9 +1,11 @@
-import type { MetadataCache, TFile, Vault } from 'obsidian';
+import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
+
+const OUR_NOTE_TYPES: readonly string[] = ['renovation-project', 'renovation-plan', 'renovation-zone'];
 
 function stringField(value: unknown): string | undefined {
 	return typeof value === 'string' && value ? value : undefined;
@@ -23,7 +25,7 @@ function stringField(value: unknown): string | undefined {
  */
 export class VaultChangeAdapter {
 	private readonly pending = new Set<string>();
-	private timer: ReturnType<typeof setTimeout> | null = null;
+	private timer: number | null = null;
 
 	constructor(
 		private readonly deps: {
@@ -39,23 +41,24 @@ export class VaultChangeAdapter {
 	) {}
 
 	/** The four handlers a plugin registers its vault events with. */
-	onCreate(file: TFile): void {
+	onCreate(file: TFileType): void {
 		this.enqueue(file.path);
 	}
 
-	onModify(file: TFile): void {
+	onModify(file: TFileType): void {
 		this.enqueue(file.path);
 	}
 
-	onDelete(file: TFile): void {
-		this.flushPath(file.path);
+	onDelete(file: TFileType): void {
+		// Renames and deletes apply immediately, in order against pending writes.
+		this.pending.delete(file.path);
+		this.processPath(file.path);
 	}
 
-	onRename(file: TFile, oldPath: string): void {
+	onRename(file: TFileType, oldPath: string): void {
 		// A rename moves an EXISTING entry regardless of content echoes — the bytes did
 		// not change, so the digest still matches and a debounced re-add would drop the
-		// entry entirely. Re-point it here, carry the echo token to the new path, then
-		// let any pending writes for either path settle.
+		// entry entirely. Re-point it here, carry the echo token to the new path.
 		const existing = this.findByPath(oldPath);
 		if (existing) {
 			this.deps.index.upsert({ ...existing, path: file.path });
@@ -64,47 +67,47 @@ export class VaultChangeAdapter {
 			this.pending.delete(file.path);
 			return;
 		}
-		this.flushPath(oldPath);
+		this.pending.delete(oldPath);
+		this.processPath(oldPath);
 		this.enqueue(file.path);
 	}
 
 	flush(): void {
 		if (this.timer !== null) {
-			clearTimeout(this.timer);
+			window.clearTimeout(this.timer);
 			this.timer = null;
 		}
 		for (const path of Array.from(this.pending)) {
 			this.pending.delete(path);
-			this.process(path);
+			this.processPath(path);
 		}
 	}
 
 	private enqueue(path: string): void {
-		this.pending.add(path);
-		if (this.timer === null) {
-			this.timer = setTimeout(() => this.flush(), this.deps.debounceMs ?? 500);
-		}
-	}
-
-	private flushPath(path: string): void {
-		// Renames and deletes must apply in order relative to pending writes.
-		this.pending.delete(path);
-		this.process(path);
-	}
-
-	private process(path: string): void {
-		const folder = normalizeFolder(this.deps.projectFolder);
-
-		if (path.endsWith('.rpgeo')) {
-			this.processSidecar(path, folder);
+		// A zero debounce means "process synchronously" — what tests use, and what keeps
+		// this module free of timer APIs when it runs outside a browser window.
+		if ((this.deps.debounceMs ?? 500) <= 0) {
+			this.processPath(path);
 			return;
 		}
+		this.pending.add(path);
+		if (this.timer === null) {
+			this.timer = window.setTimeout(() => this.flush(), this.deps.debounceMs);
+		}
+	}
+
+	private processPath(path: string): void {
+		if (path.endsWith('.rpgeo')) {
+			this.processSidecar(path);
+			return;
+		}
+		const folder = normalizeFolder(this.deps.projectFolder);
 		if (!path.startsWith(`${folder}/`)) return;
 
-		const file = this.deps.vault.getAbstractFileByPath(path) as TFile | null;
+		const abstractFile = this.deps.vault.getAbstractFileByPath(path);
 		const existing = this.findByPath(path);
 
-		if (!file || !file.path.endsWith('.md')) {
+		if (!(abstractFile instanceof TFile)) {
 			// Deleted (or replaced by something that is not a note).
 			if (existing) {
 				this.deps.index.remove(existing.id);
@@ -112,14 +115,15 @@ export class VaultChangeAdapter {
 			}
 			return;
 		}
+		this.processNote(abstractFile, existing);
+	}
 
-		const frontmatter = this.deps.metadataCache.getFileCache(file)?.frontmatter;
-		const type = frontmatter?.['type'];
-		if (
-			!frontmatter ||
-			typeof type !== 'string' ||
-			!['renovation-project', 'renovation-plan', 'renovation-zone'].includes(type)
-		) {
+	private processNote(file: TFile, existing: ProjectIndexEntry | undefined): void {
+		const path = file.path;
+		const frontmatter: Record<string, unknown> | undefined = this.deps.metadataCache.getFileCache(file)?.frontmatter;
+		const type: unknown = frontmatter?.['type'];
+
+		if (!frontmatter || typeof type !== 'string' || !OUR_NOTE_TYPES.includes(type)) {
 			// Not ours — but if it USED to be, it changed into something we cannot index.
 			if (existing) {
 				this.deps.index.remove(existing.id);
@@ -128,7 +132,7 @@ export class VaultChangeAdapter {
 			return;
 		}
 
-		const id = frontmatter['id'];
+		const id: unknown = frontmatter['id'];
 		if (typeof id !== 'string' || !id) {
 			this.deps.logger.warn('persistence.pipeline.note-excluded', {
 				path,
@@ -140,8 +144,7 @@ export class VaultChangeAdapter {
 
 		// Echo suppression: the digest of what sits on disk now vs. what this plugin last
 		// wrote there. Equal means our own write echoed back through Obsidian's events.
-		const token = observeFrontmatter(frontmatter);
-		if (this.deps.echo.matches(path, token)) return;
+		if (this.deps.echo.matches(path, observeFrontmatter(frontmatter))) return;
 
 		this.deps.index.upsert({
 			id: id as ProjectIndexEntry['id'],
@@ -158,8 +161,8 @@ export class VaultChangeAdapter {
 		});
 	}
 
-	private processSidecar(path: string, folder: string): void {
-		const geometryPrefix = `${folder}/${GEOMETRY_FOLDER}/`;
+	private processSidecar(path: string): void {
+		const geometryPrefix = `${normalizeFolder(this.deps.projectFolder)}/${GEOMETRY_FOLDER}/`;
 		if (!path.startsWith(geometryPrefix)) return;
 
 		const planId = path.slice(geometryPrefix.length).replace(/\.rpgeo$/, '');

@@ -21,5 +21,3 @@ export const ZoneFrontmatterSchemaV1 = z.object({
 	'zone-type': kebabEnum(ZONE_TYPES),
 	status: kebabEnum(ZONE_STATUSES),
 });
-
-export type ZoneFrontmatterDTO = z.infer<typeof ZoneFrontmatterSchemaV1>;

@@ -1,5 +1,3 @@
-import type { MigrationError } from '../../../core/errors/AppError';
-
 /**
  * The latest known version per migratable kind. A schema bump edits its DTO module AND
  * this table in the same change — the table is what tells the runner when to stop.
@@ -11,8 +9,10 @@ export const LATEST_VERSIONS: Record<string, number> = {
 	'plan-geometry': 1,
 };
 
-function migrationError(code: string, message: string): MigrationError {
-	return { category: 'Migration', code, message };
+function migrationError(code: string, message: string): Error & { readonly code: string; readonly category: 'Migration' } {
+	// An ERROR instance rather than a bare object: the runner THROWS (its contract has no
+	// Result channel), and a thrown non-Error loses its stack at every catch site.
+	return Object.assign(new Error(message), { code, category: 'Migration' as const });
 }
 
 /**
@@ -45,6 +45,11 @@ export class MigrationRunner {
 		}
 	}
 
+	/** Registers every migration of one kind, oldest first — what the composition root calls. */
+	registerAll(kind: string, migrations: readonly Migration[]): void {
+		for (const migration of migrations) this.register(kind, migration);
+	}
+
 	migrateToLatest(kind: string, raw: unknown, fromVersion: number): unknown {
 		let current = raw;
 		let version = fromVersion;
@@ -59,4 +64,13 @@ export class MigrationRunner {
 		}
 		return current;
 	}
+}
+
+/** The one registration table, built once at the composition root (or in its test double). */
+export function createMigrationRunner(
+	registrations: Readonly<Record<string, readonly Migration[]>>,
+): MigrationRunner {
+	const runner = new MigrationRunner();
+	for (const [kind, migrations] of Object.entries(registrations)) runner.registerAll(kind, migrations);
+	return runner;
 }

@@ -20,7 +20,7 @@ describe('observation tokens', () => {
 	};
 
 	it('is stable across key order and repeated minting', () => {
-		const reordered = Object.fromEntries(Object.entries(base)undefined);
+		const reordered = Object.fromEntries(Object.entries(base).toReversed());
 		expect(observeFrontmatter(reordered)).toBe(observeFrontmatter(base));
 	});
 

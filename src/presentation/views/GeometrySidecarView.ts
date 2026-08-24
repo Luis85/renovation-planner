@@ -1,4 +1,4 @@
-import { ItemView, normalizePath, type TFile, type ViewStateResult } from 'obsidian';
+import { ItemView, normalizePath, TFile, type ViewStateResult } from 'obsidian';
 import { tr } from '../i18n/strings';
 
 /**
@@ -36,18 +36,18 @@ export class GeometrySidecarView extends ItemView {
 		if (!this.filePath) return Promise.resolve();
 
 		const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(this.filePath));
-		if (!abstractFile || !('stat' in abstractFile)) return Promise.resolve();
-		const file = abstractFile as TFile;
+		if (!(abstractFile instanceof TFile)) return Promise.resolve();
 
 		const pre = this.contentEl.createEl('pre', { cls: 'renovation-geometry-source' });
 		void this.app.vault
-			.cachedRead(file)
+			.cachedRead(abstractFile)
 			.then((text) => {
 				pre.setText(text);
 				return undefined;
 			})
 			.catch(() => {
 				pre.setText('');
+				return undefined;
 			});
 		return Promise.resolve();
 	}

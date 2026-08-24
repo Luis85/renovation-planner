@@ -12,7 +12,7 @@ export const en = {
 	'settings.units.metric': 'Metric',
 	'settings.units.imperial': 'Imperial',
 	'settings.project-folder.name': 'Project folder',
-	'settings.project-folder.desc': 'Vault folder where project, plan and zone notes are stored. Geometry sidecars live in a Geometry folder inside it.',
+	'settings.project-folder.desc': 'Vault folder where project, plan and zone notes are stored, each with its geometry file beside it.',
 	'view.geometry.name': 'Geometry sidecar',
 	'settings.unrecovered': 'Settings could not be read. Fix or remove data.json in the plugin folder, then reload the app.',
 } as const;

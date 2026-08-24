@@ -45,7 +45,7 @@ export function buildProjectIndexEntries(input: {
 
 	for (const file of input.vault.getMarkdownFiles()) {
 		if (!file.path.startsWith(`${folder}/`)) continue;
-		const frontmatter = input.metadataCache.getFileCache(file)?.frontmatter;
+		const frontmatter: Record<string, unknown> | undefined = input.metadataCache.getFileCache(file)?.frontmatter;
 		if (!frontmatter) continue;
 
 		const type = frontmatter['type'];

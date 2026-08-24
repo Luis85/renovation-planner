@@ -1,16 +1,22 @@
 # concepts — HTML mocks
 
-Drawings of the design in [`docs/components/`](../components/), openable in a browser.
-Not backlog items and not implementations.
+Drawings of the design, openable in a browser. Not backlog items and not implementations.
+
+Most of them draw [`docs/components/`](../components/) and SDD §60. `renovation-canvas.html`
+draws [the concept & interaction design spec](../renovation-canvas-concept-interaction-design.md)
+instead, and proposes a **different shell for the same view** — see *Two shells* below before
+reading the two against each other.
 
 | File | Shows |
 | --- | --- |
 | `plan-editor.html` | SDD §60's layout assembled: working, first run, trouble, and German. Each editor is a **draggable pane** with a live readout |
 | `plan-editor-solo.html` | The same editor, scenario 1 only, **filling the window** and nothing else — no banner, no nav, no toggle, no way back but the browser's. The page for looking rather than for reading. Scheme follows the OS |
+| `renovation-canvas.html` | The **other** shell: [the concept & interaction design spec](../renovation-canvas-concept-interaction-design.md)'s property tree, canvas and context inspector, in four scenarios. It **disagrees** with `plan-editor.html` on purpose — see below |
 | `component-gallery.html` | One specimen per component note, with every state it owes |
 | `disclosure-ladder.html` | The six rungs as six surfaces, plus the order as a matrix |
 | `settings.html` | The one setting that exists, and what a hand-edited `data.json` renders as |
 | `concept.css` | The **proposal** — the canvas visual language, and each component's rules |
+| `canvas.css` | What the renovation-canvas concept adds and `concept.css` has no answer for: property tree, `+ Add` menu, canvas pins, guidance block, planning meter, decision card, precision chooser. A second sheet, not more of the first — its header says why |
 | `page.css` | The page's own furniture. Nothing here styles a component |
 | `shots/` | One PNG per specimen in `component-gallery.html`, light beside dark, embedded in the matching note in [`docs/components/`](../components/). Written by `npm run concept-shots`. **Nothing checks the pairing** — see below |
 
@@ -94,6 +100,80 @@ looking at it twice.
   and that plan has none; and scenario 2's first-run canvas is clean ground rather than a
   lattice sitting behind *No plan imported*.
 
+## Two shells, and which is which
+
+`plan-editor.html` draws **SDD §60**: a layers rail, a row of drawing tools, an inspector.
+`renovation-canvas.html` draws the **concept spec**: a property tree where the layers were, one
+`+ Add` where the tools were, and Work, Problem and Decision as objects that live on the canvas.
+They are two answers to the same view and they cannot both be built.
+
+The SDD is the authority, so §60 is the RECORD and the canvas page is the PROPOSAL. Neither page
+changes the other and neither changes the SDD. Keeping both is the point: a proposal that replaced
+what it wants to succeed leaves a reviewer nothing to compare it against.
+
+## What the canvas mock measured
+
+Six more findings, and five came out of a **screenshot** rather than out of reading the file —
+the same argument the six above make, made again by a page written by someone who had just read
+them.
+
+- **A flex child was crushed, and the container reported itself as fitting.** `.rp-inspector` is a
+  flex column, so `.rc-calc` shrank below its content and its own `overflow: hidden` clipped the
+  labour line and the total out of the middle of a cost breakdown. The inspector's `scrollHeight`
+  still equalled its `clientHeight` throughout — the instrument being used to check for clipping
+  could not see this kind of clipping. `flex: 0 0 auto`, on every block the concept adds.
+- **`text-align` was not the problem; `align-items` was.** The count grid and the level-1 space
+  blocks rendered CENTRED with `text-align` computing to `left` — measured. app.css sets
+  `align-items: center` on every `button`, and on a `flex-direction: column` button that is the
+  horizontal axis, so the spans were centred as flex items before their own text-align was
+  consulted. Third instance of the trap `concept.css`'s button reset documents, and the first the
+  reset does not cover.
+- **Selection lost to kind, because it was declared first.** A selected problem pin kept the
+  warning rim and lost the accent — both rules are (0,3,0), so source order decided, and the bold
+  label still applied because nothing competed for it, which made it look deliberate. Measured as
+  `rgb(224, 172, 0)` on the one pin its whole frame is about. The rule is now an ORDER: whatever a
+  pin's kind says, selection is declared afterwards.
+- **The comment explained the failure the rule beside it was committing.** `+ Add` carried a
+  paragraph on why a filled accent button fails AA — and then set an accent LABEL on the page
+  ground, which axe measured at 3.42:1 light and 4.00:1 dark. Same defect class as an unchecked
+  invariant in a comment, in a stylesheet. The label is `--text-normal` now and the accent rides
+  the border and the icon. `.rp-empty .rp-action` in `concept.css` still does the original thing
+  and measures the same 3.42:1 — recorded, not edited, because it belongs to the other proposal.
+- **A drawing refused the argument it was drawn to make.** Scenario 3 exists to argue that a
+  decision belongs docked over the plan rather than in a modal. At a real pane width the canvas is
+  about 456px and the card is 248 of them, and the first placement — bottom right, written down as
+  "the emptiest corner" — landed on the Hallway and clipped the very pin the card belongs to. It
+  now sits in the emptiest corner it actually has, and the underlying question, whether a decision
+  is an inspector surface, is left open on the page rather than quietly settled.
+- **Chip widths were guessed, and one state hid the miss.** Three of ten pin labels overflowed
+  their chip, and the SELECTED one overflowed by more than the rest because selection makes it
+  bold — a defect present in exactly one state. The authored widths are now what `getBBox`
+  measured, and the page re-fits every chip to its own text at load, so an edited label cannot
+  reintroduce it.
+
+## Accessibility, and what it is worth here
+
+`renovation-canvas.html` is the first of these pages run through **axe-core**, in both schemes.
+That found and fixed four things: an `<svg role="img">` whose pins were focusable — a graphic
+announced as one atomic image with a tab order running through it — `aria-selected` on a
+`role="button"` and on a bare `<div>`, and a `<ul>` carrying `role="none"` children. The property
+tree is now a real ARIA tree (`role="tree"`, `role="treeitem"`, `aria-level`, `aria-expanded`, one
+tab stop), which is also what makes `aria-selected` legal on those rows.
+
+Three contrast pairs survive and **none is this concept's**: `--interactive-accent` as a link
+colour and as `.rp-empty .rp-action`'s label, and `--text-faint` on a hidden layer's name. All
+three are host tokens on components that already existed, and the section above records the
+figures.
+
+What axe cannot see in a headless shot is what it cannot see in jsdom either — a visible focus
+indicator, hit-target size, and the landmark rules that need whole-page context. And `npm run
+check` reads no file in `docs/`, so **none of this is a gate**: it was run by hand, once, and
+rerunning it is a reader's job at review time.
+
+`plan-editor.html` and `component-gallery.html` have **not** been through it, and they carry the
+same `aria-selected`-on-a-`<div>` pattern the canvas page had to fix. That is a known finding about
+the existing pages, deliberately left rather than fixed in the change that found it.
+
 ## What these are not
 
 - **Not screenshots of the product.** `shots/` does hold screenshots — of these mocks, which
@@ -122,10 +202,20 @@ Generated, never hand-drawn. The first draft of these pages approximated the pat
 memory and `eye-off` came out as bare lash-marks with no crossed eye — a fake kinder than
 the real thing, invisible until someone looked at it at 14px.
 
-One sprite, 31 icons, substituted into all five pages from a single generated file, so no
-page can carry a copy that drifts from the others. `plan-editor-solo.html` carries it **whole**
-rather than subset to the icons it happens to use, for the same reason: a trimmed copy is a
-copy that can disagree.
+One sprite, **45 icons**, substituted into all six pages from a single generated file, so no page
+can carry a copy that drifts from the others — checked by hashing the block in each file, which is
+also how the fourteen the canvas concept needed (house, chevrons, hammer, camera, signpost,
+brick-wall, door, blinds, trees, sticky-note, euro, square-dashed, ellipsis) were confirmed to be
+ADDITIONS: regenerating produced a pure insertion and the existing 31 came back byte-for-byte.
+
+That check earned its keep immediately. Four of those 31 lucide names, guessed from the glyph, were
+wrong — `asset` is `package`, `box` is `box`, `annotate` is `type`, `derived` is `sigma` — and the
+diff is what said so, rather than a reading of the paths. Guessing them right was never the point;
+having an instrument that could tell was.
+
+`plan-editor-solo.html` carries the sprite **whole** rather than subset to the icons it happens to
+use, for the same reason: a trimmed copy is a copy that can disagree. So does every other page —
+`renovation-canvas.html` uses 29 of the 45.
 
 ## Contrast
 

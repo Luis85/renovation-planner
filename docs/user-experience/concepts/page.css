@@ -223,6 +223,18 @@ html.pg-doc { height: auto; }
 .pg-editor-tall { height: 660px; }
 
 /*
+ * A third height, for `renovation-canvas.html`'s two densest inspectors. Its context
+ * inspector carries a heading, a meter, a count grid, fields, a guidance block AND an
+ * action set, and at 660px the last ~74px of two of them scrolled out of sight —
+ * measured, then given room rather than trimmed, because what got cut was the frame's own
+ * subject both times.
+ *
+ * This is the mock being generous, not the inspector being short: a real Obsidian pane is
+ * routinely 500-600px tall and that inspector genuinely scrolls. The page says so.
+ */
+.pg-editor-taller { height: 740px; }
+
+/*
  * A PANE, not a page — and this is the fix for the way these mocks used to mislead.
  *
  * The editor frames used to span the whole page, so a 1440px window drew a 1394px editor
@@ -614,3 +626,34 @@ html.pg-doc { height: auto; }
 	.pg-editor, .pg-editor-tall { height: 560px; }
 	.pg-state-name { flex-basis: 100%; }
 }
+
+/*
+ * ── Two frames in one section, and a subheading inside one. ──
+ *
+ * Added for `renovation-canvas.html`, whose scenarios come in pairs — being asked for
+ * precision and then having answered, an empty property and then a populated one. The
+ * pair is the content, so the gap between them is page furniture and belongs here rather
+ * than on the element.
+ */
+.pg-frame + .pg-frame { margin-top: 20px; }
+
+.pg-section > h3 {
+	margin: 34px 0 4px;
+	font-size: 1rem;
+	font-weight: 620;
+	letter-spacing: -0.01em;
+}
+
+/*
+ * An overlay stage that IS the view, inside a leaf — `renovation-canvas.html`'s
+ * precision-on-demand frame, where the modal is drawn over the plugin's own pane rather
+ * than on a bare specimen card.
+ *
+ * The rule above sheds `.renovation-planner-view`'s `height: 100%` so a stage on a
+ * specimen card sizes to its content. Inside a leaf that is exactly wrong: the scrim
+ * covered 378px of a 600px leaf and the frame rendered as a dimmed top half over a bright
+ * bottom one. Measured, then fixed here rather than by nesting another element — the
+ * nesting IS what caused it.
+ */
+.pg-editor > .pg-leaf .pg-overlay-stage.renovation-planner-view,
+.pg-editor-tall > .pg-leaf .pg-overlay-stage.renovation-planner-view { height: 100%; }

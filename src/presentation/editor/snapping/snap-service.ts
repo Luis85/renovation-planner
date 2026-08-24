@@ -55,8 +55,10 @@ type BoxEdge = 'minX' | 'minY' | 'maxX' | 'maxY';
  * translates the origin; its sign changes neither that multiplication nor the
  * direction relationship. So increasing world Y always maps to increasing screen Y,
  * making "north" `min.y` and "south" `max.y` — the opposite of a screen-up mental
- * model. This mapping is a resolution made for this task (see task-5-report.md), not
- * something the brief or the SDD states outright.
+ * model. This mapping is a resolution made for this task — the reasoning above is
+ * the whole of it — not something
+ * `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md` or the SDD states
+ * outright.
  */
 const HANDLE_EDGES: Readonly<Record<TransformerHandle, readonly BoxEdge[]>> = {
 	nw: ['minX', 'minY'],
@@ -182,6 +184,16 @@ export class SnapService {
 	 * Snaps only the handle-moved edges of `box` to the grid — a corner handle moves two
 	 * edges, an edge handle moves one — via `HANDLE_EDGES`. Every other edge is copied
 	 * through unchanged.
+	 *
+	 * The returned box is **always ordered** (`min <= max` on both axes), which rounding
+	 * alone does not guarantee: a box already narrower than one grid step can have its moved
+	 * edge rounded PAST the opposite one — handle `'e'` on a box 30mm wide under a 100mm
+	 * grid rounds `max.x` down toward `min.x` and through it — leaving `max < min`.
+	 * `BoundingBox` carries no invariant that refuses that and `createPolygon` accepts the
+	 * inverted polygon it becomes, so the inversion would survive all the way to a persisted,
+	 * mirrored zone. Ordering here is the same answer
+	 * `selection/normalize-transform.ts` gives a flipped Transformer scale, for the same
+	 * reason.
 	 */
 	snapResize(box: BoundingBox, handle: TransformerHandle): BoundingBox {
 		const min = { x: box.min.x, y: box.min.y };
@@ -202,6 +214,12 @@ export class SnapService {
 					break;
 			}
 		}
-		return { min, max };
+		// Ordered rather than returned as rounded — see this method's doc comment. `Math.min`/
+		// `Math.max` rather than a sign test, so the ordinary case and the collapsed one run
+		// exactly the same code.
+		return {
+			min: { x: Math.min(min.x, max.x), y: Math.min(min.y, max.y) },
+			max: { x: Math.max(min.x, max.x), y: Math.max(min.y, max.y) },
+		};
 	}
 }

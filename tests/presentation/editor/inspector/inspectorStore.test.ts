@@ -27,7 +27,7 @@ function makeFields(id: ZoneId, overrides: Partial<ZoneInspectorFields> = {}): Z
  * spy, not inferred from the resulting DTO. */
 function stubDeps(initialAnswer: QueryAnswer) {
 	let answer = initialAnswer;
-	const queryExecute = vi.fn<(input: { id: ZoneId }) => Promise<QueryAnswer>>(() => Promise.resolve(answer));
+	const queryExecute = vi.fn<(input: { zoneId: ZoneId }) => Promise<QueryAnswer>>(() => Promise.resolve(answer));
 	const commandRun = vi.fn<(command: UndoableCommand) => Promise<Result<void, AppError>>>(() =>
 		Promise.resolve(ok(undefined)),
 	);
@@ -51,6 +51,39 @@ function stubDeps(initialAnswer: QueryAnswer) {
 	};
 }
 
+/**
+ * A deps stub whose query answers are resolved BY THIS TEST FILE, one deferred per call,
+ * so a LATER request can be made to resolve before an earlier one. That interleaving is
+ * the ordinary case — click a zone, click another — and nothing about a repository, a
+ * vault read, or Obsidian's `MetadataCache` promises the answers come back in order.
+ * `stubDeps` above cannot express it: its query resolves inline, so every call resolves in
+ * the order it was made and a store with no staleness guard would pass every test there.
+ */
+function deferredDeps() {
+	const pending: ((answer: QueryAnswer) => void)[] = [];
+	const queryExecute = vi.fn<(input: { zoneId: ZoneId }) => Promise<QueryAnswer>>(
+		() =>
+			new Promise<QueryAnswer>((resolve) => {
+				pending.push(resolve);
+			}),
+	);
+	const deps: InspectorDeps = {
+		query: { execute: queryExecute },
+		dispatcher: { run: () => Promise.resolve(ok(undefined)) },
+		toCommand: () => ({
+			execute: () => Promise.resolve(ok(undefined)),
+			undo: () => Promise.resolve(ok(undefined)),
+		}),
+	};
+	/** Answers the nth query call (0-based, in the order the calls were made). */
+	function answer(nth: number, value: QueryAnswer): void {
+		const resolve = pending[nth];
+		if (resolve === undefined) throw new Error(`no query call ${nth} to answer`);
+		resolve(value);
+	}
+	return { deps, queryExecute, answer };
+}
+
 describe('InspectorStore', () => {
 	beforeEach(() => {
 		setActivePinia(createPinia());
@@ -65,7 +98,7 @@ describe('InspectorStore', () => {
 			await store.hydrateFrom([id]);
 
 			expect(queryExecute).toHaveBeenCalledTimes(1);
-			expect(queryExecute).toHaveBeenCalledWith({ id });
+			expect(queryExecute).toHaveBeenCalledWith({ zoneId: id });
 			expect(store.dto).toEqual({ kind: 'zone', id, name: 'Living room', areaMm2: 100 });
 		});
 
@@ -177,10 +210,9 @@ describe('InspectorStore', () => {
 		});
 
 		it('on a genuine not-found (ok(null)) — distinct from a failed query — transitions to `empty` rather than keeping a deleted zone on display forever', async () => {
-			// This is the case Finding 1 (fix round 1) exists for: ok(null) is DEFINITIVE
-			// evidence the zone is gone (GetZoneInspector's own "not found is ok(null), never
-			// an error" contract), not a transient read failure — so unlike the case above,
-			// the stale dto must NOT be kept.
+			// ok(null) is DEFINITIVE evidence the zone is gone (GetZoneInspector's own
+			// "not found is ok(null), never an error" contract), not a transient read
+			// failure — so unlike the case above, the stale dto must NOT be kept.
 			const id = zoneId(1);
 			const { deps, setAnswer } = stubDeps(ok(makeFields(id)));
 			const store = createInspectorStoreDefinition(deps)();
@@ -204,6 +236,65 @@ describe('InspectorStore', () => {
 			await store.refresh();
 
 			expect(selection.selectedIds).toEqual([id]);
+		});
+	});
+
+	describe('out-of-order query answers', () => {
+		// The panel's own doc argues at length about a STALE dto and never names this source
+		// of one: two selections in flight at once. Each of these three fails without the
+		// request token in `inspector-store.ts` — the earlier read's answer lands last and
+		// overwrites the current selection's, leaving `dto` describing one entity while
+		// `lastSelection` names another, with nothing anywhere reporting a problem.
+
+		it('two rapid selection changes: the later selection wins, even when the earlier query answers last', async () => {
+			const { deps, answer } = deferredDeps();
+			const store = createInspectorStoreDefinition(deps)();
+
+			const firstSelection = store.hydrateFrom([zoneId(1)]);
+			const secondSelection = store.hydrateFrom([zoneId(2)]);
+			// Deliberately the wrong way round: the newer request answers first, the older
+			// one last, so the last write to `dto` would be the stale one.
+			answer(1, ok(makeFields(zoneId(2), { name: 'Second' })));
+			answer(0, ok(makeFields(zoneId(1), { name: 'First' })));
+			await Promise.all([firstSelection, secondSelection]);
+
+			expect(store.dto).toEqual({ kind: 'zone', id: zoneId(2), name: 'Second', areaMm2: 100 });
+		});
+
+		it('a refresh superseded by a new selection does not overwrite the new selection’s dto', async () => {
+			const { deps, answer } = deferredDeps();
+			const store = createInspectorStoreDefinition(deps)();
+			const hydrated = store.hydrateFrom([zoneId(1)]);
+			answer(0, ok(makeFields(zoneId(1), { name: 'One' })));
+			await hydrated;
+
+			const refreshing = store.refresh(); // query call 1, for zone 1
+			const reselected = store.hydrateFrom([zoneId(2)]); // query call 2, for zone 2
+			answer(2, ok(makeFields(zoneId(2), { name: 'Two' })));
+			await reselected;
+			expect(store.dto).toEqual({ kind: 'zone', id: zoneId(2), name: 'Two', areaMm2: 100 });
+
+			answer(1, ok(makeFields(zoneId(1), { name: 'One, refreshed' })));
+			await refreshing;
+
+			expect(store.dto).toEqual({ kind: 'zone', id: zoneId(2), name: 'Two', areaMm2: 100 });
+		});
+
+		it('selecting several zones invalidates a single-zone query still in flight', async () => {
+			// The synchronous branches of hydrateFrom take a ticket too, which is what makes
+			// this case work: `multiple` is assigned without awaiting anything, so only the
+			// token stops the in-flight single-zone read from replacing it afterwards.
+			const { deps, answer } = deferredDeps();
+			const store = createInspectorStoreDefinition(deps)();
+			const single = store.hydrateFrom([zoneId(1)]);
+
+			await store.hydrateFrom([zoneId(1), zoneId(2)]);
+			expect(store.dto).toEqual({ kind: 'multiple', ids: [zoneId(1), zoneId(2)] });
+
+			answer(0, ok(makeFields(zoneId(1))));
+			await single;
+
+			expect(store.dto).toEqual({ kind: 'multiple', ids: [zoneId(1), zoneId(2)] });
 		});
 	});
 

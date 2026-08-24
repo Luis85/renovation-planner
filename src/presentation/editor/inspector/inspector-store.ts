@@ -32,20 +32,22 @@ export type InspectorDto =
  * What the composition root hands `createInspectorStoreDefinition`.
  *
  * **The query-input-shape resolution.** The task brief declares `GetZoneInspector` as
- * `implements Query<{ id: ZoneId }, …>` (an object input, mirroring `GetZone`'s
- * `{ zoneId }`) but sketches this port's `execute` as taking a bare `id: EntityId<string>`
- * — the two do not agree, and the brief leaves resolving that to this file. Resolved here
- * as: **the port takes the same object shape the query does.** `GetZoneInspector` already
- * takes `{ id: ZoneId }` (see that file), so this port matches it exactly rather than
- * inventing an adapter at some future composition root to paper over a difference that
- * does not need to exist. The alternative — a bare-id port with an adapter wrapping
- * `GetZoneInspector` — would add a translation this slice cannot test (no composition root
- * wiring lands until a later slice), for no benefit: nothing else consumes this port's
- * shape, so there is no second caller for a bare id to serve.
+ * `implements Query<{ id: ZoneId }, …>` (an object input) but sketches this port's
+ * `execute` as taking a bare `id: EntityId<string>` — the two do not agree, and the brief
+ * leaves resolving that to this file. Resolved here as: **the port takes the same object
+ * shape the query does**, so this port matches it exactly rather than inventing an adapter
+ * at some future composition root to paper over a difference that does not need to exist.
+ * The key is `zoneId`, not the brief's `id`: every other query in
+ * `application/queries/` names its input key after the entity (`GetZone`'s `zoneId`,
+ * `GetPlan`'s `planId`, `GetProject`'s `projectId`), and a query reading "the odd one out"
+ * is a difference a reader has to stop and check. The alternative — a bare-id port with an
+ * adapter wrapping `GetZoneInspector` — would add a translation this slice cannot test (no
+ * composition root wiring lands until a later slice), for no benefit: nothing else consumes
+ * this port's shape, so there is no second caller for a bare id to serve.
  */
 export interface InspectorDeps {
 	readonly query: {
-		execute(input: { id: ZoneId }): Promise<Result<ZoneInspectorFields | null, PersistenceError | GeometryError>>;
+		execute(input: { zoneId: ZoneId }): Promise<Result<ZoneInspectorFields | null, PersistenceError | GeometryError>>;
 	};
 	readonly dispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
 	toCommand(edit: Record<string, unknown>): UndoableCommand;
@@ -80,6 +82,28 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		// `SelectionStore`, so this is the only way `refresh()` can re-read for the
 		// CURRENT selection rather than re-selecting (see that function below).
 		const lastSelection = ref<readonly EntityId<string>[]>([]);
+		/**
+		 * The stale-response guard. Every operation that can end up assigning `dto` takes a
+		 * ticket from this counter BEFORE it awaits, and assigns only while its ticket is
+		 * still the newest one issued.
+		 *
+		 * Two rapid selection changes — click, click; the ordinary case, not a contrived one
+		 * — start two queries, and nothing makes a repository, a vault read or an Obsidian
+		 * `MetadataCache` resolve them in the order they were asked. Without this, the
+		 * SLOWER of the two wins `dto` while `lastSelection` names the other entity, and the
+		 * panel shows one zone's name and area under another zone's selection with no error
+		 * anywhere to notice. `refresh()` interleaving with `hydrateFrom` is the same hazard
+		 * from the other direction. This is the same class of defect `CommandHistory`'s
+		 * serialization queue exists for, and it is answered more cheaply here because a
+		 * superseded read has nothing to preserve: the newest request's answer is the only
+		 * one anybody wants, so a loser is simply dropped rather than ordered.
+		 *
+		 * The counter is bumped by the SYNCHRONOUS branches of `hydrateFrom` too (`empty`,
+		 * `multiple`), which is load-bearing rather than tidy: selecting two zones while a
+		 * single-zone query is still in flight must invalidate that query, or its late answer
+		 * replaces `multiple` with one zone's DTO.
+		 */
+		let latestRequest = 0;
 
 		/**
 		 * Re-runs the query for a single id, preserving — not collapsing — the distinction
@@ -92,8 +116,8 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		 * the success value onto a DTO, and lets each caller decide what its own two
 		 * failure cases mean.
 		 */
-		async function queryZone(id: ZoneId): Promise<Result<InspectorDto | null, PersistenceError | GeometryError>> {
-			const result = await deps.query.execute({ id });
+		async function queryZone(zoneId: ZoneId): Promise<Result<InspectorDto | null, PersistenceError | GeometryError>> {
+			const result = await deps.query.execute({ zoneId });
 			if (isErr(result)) return result;
 			return ok(result.value === null ? null : zoneDto(result.value));
 		}
@@ -116,6 +140,7 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		 * `InspectorDto`, or surfaces it elsewhere (e.g. a toast, a log).
 		 */
 		async function hydrateFrom(selectedIds: readonly EntityId<string>[]): Promise<void> {
+			const request = ++latestRequest;
 			lastSelection.value = [...selectedIds];
 			if (selectedIds.length === 0) {
 				dto.value = { kind: 'empty' };
@@ -126,6 +151,7 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 				return;
 			}
 			const result = await queryZone(selectedIds[0] as ZoneId);
+			if (request !== latestRequest) return; // a newer selection has superseded this read
 			dto.value = !isErr(result) && result.value !== null ? result.value : { kind: 'empty' };
 		}
 
@@ -157,13 +183,21 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		 *   area forever, which is the same "silently wrong panel" defect the spec's whole
 		 *   cached-read argument exists to prevent, reintroduced one branch over.
 		 *
+		 * Like `hydrateFrom`, it takes a ticket from `latestRequest` before awaiting and
+		 * assigns nothing if a newer request was issued meanwhile — a re-read of the
+		 * selection the user has already moved off is exactly as stale as an out-of-order
+		 * hydrate, and the "keep the previous dto" rule above is about a failed read, not
+		 * about a superseded one.
+		 *
 		 * Never mutates what is selected — it holds no reference to a `SelectionStore` at
 		 * all, so there is nothing here that could. Its caller is slice 8's post-command
 		 * funnel, not each edit site; this slice declares and tests the operation only.
 		 */
 		async function refresh(): Promise<void> {
 			if (lastSelection.value.length !== 1) return;
+			const request = ++latestRequest;
 			const result = await queryZone(lastSelection.value[0] as ZoneId);
+			if (request !== latestRequest) return; // a newer selection has superseded this read
 			if (isErr(result)) return;
 			dto.value = result.value ?? { kind: 'empty' };
 		}

@@ -89,13 +89,13 @@ describe('GetZoneInspector', () => {
 		});
 		await zones.save(zone, 'absent');
 
-		const found = await new GetZoneInspector(zones).execute({ id: zone.id });
+		const found = await new GetZoneInspector(zones).execute({ zoneId: zone.id });
 
 		expect(expectOk(found)).toEqual({ id: zone.id, name: 'Kitchen', areaMm2: 100 });
 	});
 
 	it('answers ok(null) — not an error — for a missing id, like GetZone', async () => {
-		const found = await new GetZoneInspector(new InMemoryZoneRepository()).execute({ id: 'zone-x' as never });
+		const found = await new GetZoneInspector(new InMemoryZoneRepository()).execute({ zoneId: 'zone-x' as never });
 
 		expect(found).toEqual({ ok: true, value: null });
 	});
@@ -107,7 +107,7 @@ describe('GetZoneInspector', () => {
 			}
 		}
 
-		const found = await new GetZoneInspector(new FailingZones()).execute({ id: 'zone-y' as never });
+		const found = await new GetZoneInspector(new FailingZones()).execute({ zoneId: 'zone-y' as never });
 
 		expect(expectErr(found).code).toBe('test.injected-failure');
 	});
@@ -149,7 +149,7 @@ describe('GetZoneInspector', () => {
 			}
 		}
 
-		const found = await new GetZoneInspector(new GeometryFailingZones()).execute({ id: zone.id });
+		const found = await new GetZoneInspector(new GeometryFailingZones()).execute({ zoneId: zone.id });
 
 		expect(expectErr(found)).toEqual(geometryFailure);
 	});

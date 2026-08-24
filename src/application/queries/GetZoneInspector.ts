@@ -6,7 +6,7 @@ import type { Query } from './Query';
 import type { ZoneRepository } from '../ports/ZoneRepository';
 
 export interface GetZoneInspectorInput {
-	readonly id: ZoneId;
+	readonly zoneId: ZoneId;
 }
 
 /**
@@ -45,8 +45,8 @@ export class GetZoneInspector
 {
 	constructor(private readonly zones: ZoneRepository) {}
 
-	async execute({ id }: GetZoneInspectorInput): Promise<Result<ZoneInspectorFields | null, PersistenceError | GeometryError>> {
-		const loaded = await this.zones.getById(id);
+	async execute({ zoneId }: GetZoneInspectorInput): Promise<Result<ZoneInspectorFields | null, PersistenceError | GeometryError>> {
+		const loaded = await this.zones.getById(zoneId);
 		if (isErr(loaded)) return loaded;
 		if (loaded.value === null) return ok(null);
 

@@ -164,6 +164,13 @@ export default defineConfig({
 			// RATCHETS: rounded down, statements/functions/lines still sit at 99 (100 is
 			// refused above) and branches still sit at 98 (98.80 does not reach 99) — the
 			// same four floors already in force.
+			// Measured 2026-08-25 again after slice 6's whole-branch review fixes — an ordered
+			// Transformer/snap-resize box, the Inspector's stale-response token, and the
+			// tests that make the undo cap, the gesture's persistence write and DoD 12
+			// discriminate: 2052/2058 statements, 912/923 branches, 543/544 functions,
+			// 1874/1877 lines — 99.70 / 98.81 / 99.81 / 99.84. The UNCOVERED sets are
+			// unchanged (the same six statements, eleven branches, one function and three
+			// lines enumerated above); only the denominators grew. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

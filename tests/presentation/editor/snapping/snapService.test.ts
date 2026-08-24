@@ -290,4 +290,20 @@ describe('SnapService.snapResize', () => {
 		const service = makeService();
 		expect(service.snapResize(box, 'w')).toEqual({ min: { x: 0, y: 37 }, max: { x: 230, y: 172 } });
 	});
+
+	it('orders a box the rounding would otherwise turn inside out', () => {
+		// A box narrower than one grid step: dragging its `e` handle rounds `max.x` (30)
+		// down to 0, past `min.x` (20). Returned as rounded that is `max < min` — an
+		// inverted box `BoundingBox` carries no invariant against and `createPolygon`
+		// accepts as an inverted-winding polygon, so it would reach a persisted zone.
+		// It collapses to a zero-width box at the grid line instead, which is the same
+		// answer `selection/normalize-transform.ts` gives a flipped Transformer scale.
+		const service = makeService();
+		const narrow: BoundingBox = { min: { x: 20, y: 37 }, max: { x: 30, y: 172 } };
+
+		const result = service.snapResize(narrow, 'e');
+
+		expect(result).toEqual({ min: { x: 0, y: 37 }, max: { x: 20, y: 172 } });
+		expect(result.min.x).toBeLessThanOrEqual(result.max.x);
+	});
 });

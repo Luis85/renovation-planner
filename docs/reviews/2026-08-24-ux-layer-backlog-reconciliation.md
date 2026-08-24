@@ -42,7 +42,7 @@ standing the register records; each of those 16 was traced back to the sections 
 PRD and SDD that its derived note cites, and all 16 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
 Every traced one is a received document disagreeing with a received document, which is a choice a
-person makes, not an error a reconciler repairs. The other 32 come from the two folders the
+person makes, not an error a reconciler repairs. The other 31 come from the two folders the
 register does not classify and cannot be traced until decision 1 is taken. `provenance.tsv` holds
 the 16 verdicts with the sections each was read against.
 
@@ -589,10 +589,13 @@ addresses, and the same absence is reached from several bodies — `Project Home
 rows from three. The 772 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
-**Every one of the 772 is re-runnable, and the command is committed.** A Gap names its row; that
-row carries its `direction` and its `terms`; and
-[`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh) turns those into the
-candidate set the row was judged inside:
+**Every one of the 772 is re-runnable, and both commands are committed — two, because the two
+row kinds are two mechanisms.** A named row is a *lookup* that settles the row on its own; a
+behavioural row is a *candidate set* that bounds a reading. One command cannot answer both, and
+publishing one and claiming both is the error this ledger keeps catching in itself.
+
+**359 behavioural gaps** — [`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh),
+given the row's `direction` and `terms`:
 
 ```bash
 D=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation
@@ -603,8 +606,23 @@ bash $D/candidates.sh forward "interaction promise,awareness" # prints nothing: 
 
 `g92` is the worked example because it is the hardest case to take on trust: `cand_n` is **0**,
 so no judgement was involved at all — the ladder resolved it to `absent` mechanically. The
-command above is the whole of that decision, and it either prints nothing today or the finding
-is wrong.
+command is the whole of that decision, and it either prints nothing today or the finding is wrong.
+
+**413 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
+the row's `target` and `subject`. It is type-aware, alias-resolved and back-link-guarded, which
+`candidates.sh` is none of, so it prints `Project Home`'s two answers rather than their union:
+
+```bash
+python3 $D/lookup.py forward requirements  "Project Home"   # absent   -
+python3 $D/lookup.py forward deliverables  "Project Home"   # present  docs/deliverables/MVP Prototype.md
+python3 $D/lookup.py reverse               "Design System"  # retained -   (the back-link is stripped)
+python3 $D/lookup.py --selftest                             # replays all 686 named rows
+```
+
+`--selftest` replays every named row against its committed state: **686 of 686**, with the two
+rows a later reading moved from `present` to `contradictory` reported by name rather than
+tolerated silently. Judgement moving a row the lookup placed is the one legitimate divergence;
+the reverse of it is a failure, and the selftest treats it as one.
 
 The script needs nothing but the repository: it carries `aliases.tsv` beside it and materialises
 the eight evidence bodies from their own line ranges. `wc -l` on its output is the row's
@@ -793,13 +811,14 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
-| `candidates.sh` | — | the published candidate command — the mechanical half of the match, re-runnable per row |
+| `candidates.sh` | — | the candidate command for a BEHAVIOURAL row — the mechanical half of that match |
+| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 686 named rows |
 
 The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
 spec authorises one output file — and flagged that as a question for the repository owner rather
 than a settled call. It was the wrong default and the question should have been asked: a ledger
 whose central number cannot be inspected is a ledger asking to be trusted, which is the one
-thing this instrument was built not to do. Seven files, additive, no derived note touched.
+thing this instrument was built not to do. Eight files, additive, no derived note touched.
 
 ## Findings withdrawn after review
 
@@ -878,6 +897,8 @@ finding set recomputed from rows.tsv          identical as a SET to findings.tsv
 candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
                                               seed, both directions, empty sets
                                               included)
+lookup.py reproduces the committed named state   686 / 686 named rows (2 named,
+                                              and moved onward by a reading)
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
 received contradictions                             16

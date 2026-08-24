@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""The named-thing lookup: the mechanical half of the match for a NAMED row.
+
+Run from anywhere in the repository.
+
+    lookup.py forward requirements "Cost View"
+    lookup.py forward requirements,deliverables "Project Home"
+    lookup.py reverse "Design System"
+    lookup.py --selftest
+
+`candidates.sh` is the companion for BEHAVIOURAL rows and does not answer this question. A
+named row is not a candidate set narrowed by judgement — it is a lookup that settles the row
+on its own, so it is a different mechanism and needs its own command. Three things make it
+different, and each was a defect before it was a rule:
+
+* **TYPE-AWARE.** A forward named row carries a `target` — the note type that would hold the
+  thing — and is searched only there. Searching all five hides a gap: a component named
+  incidentally in a requirement, with no component note, comes back `present`. `Project Home`
+  is the worked example: `absent` against `requirements/`, `present` against `deliverables/`,
+  and a union of the two scores it present and the missing Feature never becomes a Gap.
+* **ALIAS-RESOLVED, IN TWO PASSES.** The alias table is an output of this lookup and an input
+  to it. `DIY Renovator` files as `absent` on the first pass and `Private renovator` as
+  `retained`; they are one rename seen from two ends. The second pass re-resolves through
+  `aliases.tsv` — and only inside the row's own target, because resolving through the table's
+  note path without re-checking the target reintroduces the first defect after the fact.
+* **BACK-LINK-GUARDED, in reverse.** The gallery is HTML and links back into the corpus it is
+  compared against: `<a href="../deliverables/Design%20System.md">Design System</a>`. A literal
+  grep reads that as the evidence naming the thing. It is the evidence pointing AT the derived
+  note, which is the one thing that cannot show the note has a counterpart. Exactly three lines
+  in the corpus match; only `Design System` loses its sole hit.
+
+`--selftest` replays every one of the 686 named rows against the states committed in
+`rows.tsv`. That is the whole point of publishing it: a command that no longer reproduces the
+matrix is a citation to something that no longer exists.
+"""
+import io, os, re, subprocess, sys, tempfile, shutil
+
+ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                      capture_output=True, text=True).stdout.strip() or "."
+HERE = os.path.dirname(os.path.abspath(__file__))
+UX = os.path.join(ROOT, "docs/user-experience")
+PR = os.path.join(ROOT, "docs/prds")
+PD = os.path.join(ROOT, "docs/product")
+
+# Same ranges as candidates.sh and the plan's corpus.sh: the bodies NEST, so each is read once
+# over its own range and never through its container.
+BODIES = [
+    ("prd",        os.path.join(PR, "renovation-project-workspace.md"), 1, 1451),
+    ("prototype",  os.path.join(UX, "renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"), 1, 285),
+    ("uxd",        os.path.join(UX, "renovation-project-workspace-UXD.md"), 1, 682),
+    ("wireframes", os.path.join(UX, "renovation-project-workspace-wireframes.md"), 685, 1143),
+    ("canvas",     os.path.join(UX, "renovation-canvas-concept-interaction-design.md"), 1, 783),
+    ("research",   os.path.join(PD, "renovation-planner-user-research-synthesis.md"), 1, 1635),
+    ("jtbd",       os.path.join(UX, "renovation-planner-JTBD-research-backlog.md"), 1, 424),
+    ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
+]
+BACKLINK = re.compile(
+    r'<a href="\.\./(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>')
+
+ROLE = (r"(persona|command|screen|view|pane|tab|section|component|actor|entity|concept"
+        r"|feature|artifact|deliverable|layer|tool|mode|state)")
+
+
+def norm(s):
+    """Extractors wrote `DIY Renovator persona`, `Property (pane)`. The alias table holds bare
+    names, so exact matching on the raw subject missed the rename this lookup exists to catch."""
+    s = s.strip().lower()
+    s = re.sub(r"\([^)]*\)", " ", s)
+    s = re.sub(r"[:—–-]+\s*$", " ", s)
+    s = re.sub(r"\s+%s\s*$" % ROLE, " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def search_view(dst):
+    """The eight bodies with back-links into the derived corpus stripped."""
+    os.makedirs(dst, exist_ok=True)
+    for name, path, a, b in BODIES:
+        src = io.open(path, encoding="utf-8", errors="replace").read().split("\n")
+        text = "\n".join(src[a - 1:] if b is None else src[a - 1:b])
+        io.open(os.path.join(dst, name + ".txt"), "w", encoding="utf-8").write(
+            BACKLINK.sub("", text))
+
+
+def aliases():
+    fwd, rev = {}, {}
+    for i, line in enumerate(io.open(os.path.join(HERE, "aliases.tsv"), encoding="utf-8")):
+        if i == 0:
+            continue
+        p = line.rstrip("\n").split("\t")
+        if len(p) < 4:
+            continue
+        ev, der, note, _ = p
+        fwd[norm(ev)] = note
+        for d in der.split("|"):
+            if d.strip():
+                rev[norm(d)] = ev
+    return fwd, rev
+
+
+def grep_first(subject, dirs, cwd):
+    r = subprocess.run(["grep", "-rliF", "--", subject] + dirs, cwd=cwd,
+                       capture_output=True, text=True)
+    out = [x for x in r.stdout.split("\n") if x]
+    return out[0] if out else ""
+
+
+def forward(target, subject):
+    """(state, matched) for a forward named row with this target and subject."""
+    dirs = ["docs/" + t for t in target.split(",") if t and t != "-"]
+    hit = grep_first(subject, dirs, ROOT)
+    if hit:
+        return "present", hit
+    fwd, _ = aliases()
+    note = fwd.get(norm(subject))
+    # Resolve through the alias table ONLY inside the row's own target. Taking the table's
+    # note path unconditionally is how 18 rows came back `present` on a note outside the type
+    # they were looking for, which is the defect the target exists to prevent.
+    if note and any(note.startswith(d + "/") for d in dirs):
+        return "present", note
+    return "absent", "-"
+
+
+def reverse(subject, view):
+    r = subprocess.run(["grep", "-rliF", "--", subject, view], capture_output=True, text=True)
+    hits = [os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x]
+    if hits:
+        return "present", hits[0]
+    _, rev = aliases()
+    ev = rev.get(norm(subject))
+    if ev:
+        r = subprocess.run(["grep", "-rliF", "--", ev, view], capture_output=True, text=True)
+        hits = sorted(os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x)
+        if hits:
+            return "present", ",".join(hits)
+    return "retained", "-"
+
+
+def main():
+    args = [a for a in sys.argv[1:] if a != "--selftest"]
+
+    if "--selftest" in sys.argv:
+        rows = [l.rstrip("\n").split("\t") for l in
+                io.open(os.path.join(HERE, "rows.tsv"), encoding="utf-8")][1:]
+        named = [r for r in rows if r[2] == "named"]
+        tmp = tempfile.mkdtemp()
+        try:
+            view = os.path.join(tmp, "bodies-search")
+            search_view(view)
+            bad = judged = 0
+            for r in named:
+                if r[1] == "forward":
+                    st, m = forward(r[10], r[3])
+                else:
+                    st, m = reverse(r[3], view)
+                if st == r[8]:
+                    continue
+                # A row this lookup settles `present` may afterwards have been READ and found
+                # to disagree — both corpora name the thing and mean different things by it.
+                # That is the one legitimate divergence: judgement moving a row the mechanical
+                # stage placed, never the mechanical stage being irreproducible. Every other
+                # difference is a failure, including the reverse of this one.
+                if st == "present" and r[8] == "contradictory":
+                    judged += 1
+                    print("  judged onward %-7s %-9s %-30s present -> contradictory"
+                          % (r[0], r[1], r[3][:30]))
+                    continue
+                bad += 1
+                print("  MISMATCH %-7s %-9s %-34s committed=%-9s reproduced=%s"
+                      % (r[0], r[1], r[3][:34], r[8], st))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        print("  lookup.py reproduced the mechanical state on %d/%d named rows "
+              "(%d moved onward by a reading, %d wrong)"
+              % (len(named) - bad, len(named), judged, bad))
+        sys.exit(1 if bad else 0)
+
+    if len(args) == 3 and args[0] == "forward":
+        print("\t".join(forward(args[1], args[2])))
+    elif len(args) == 2 and args[0] == "reverse":
+        tmp = tempfile.mkdtemp()
+        try:
+            view = os.path.join(tmp, "bodies-search")
+            search_view(view)
+            print("\t".join(reverse(args[1], view)))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    else:
+        print('usage: lookup.py forward <target[,target]> "<subject>"\n'
+              '       lookup.py reverse "<subject>"\n'
+              '       lookup.py --selftest', file=sys.stderr)
+        sys.exit(2)
+
+
+main()

@@ -1101,6 +1101,13 @@ else
   echo "  FAIL candidates.sh missing or not executable"; fail=1
 fi
 
+# `candidates.sh` answers a BEHAVIOURAL row only. A named row is a different mechanism —
+# type-aware, alias-resolved, back-link-guarded — so it needs its own published command and its
+# own check, and a gate that covered one while the ledger claimed both would be the exact
+# defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
+python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py --selftest"; fail=1; }
+python3 "$SP/lookup.py" --selftest 2>/dev/null | tail -1
+
 # The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the
 # ledger's text, so it is checked against the ledger's text: all eight note types named, and
 # both counts present. Counted as DISTINCT types, never as a raw matching-line total — a

@@ -349,17 +349,40 @@ import importlib.util
 spec=importlib.util.spec_from_file_location(
     "lk","docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/lookup.py")
 lk=importlib.util.module_from_spec(spec); spec.loader.exec_module(lk)
-DERIVED=r"(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)"
-ANY=re.compile(r'<a href="([^"]*\b' + DERIVED + r'/[^"]*)">[^<]*</a>')
-missed=[]
+# Detected INDEPENDENTLY of how `BACKLINK` is written, which is the whole value of the check.
+# The first version copied the parser's own assumptions — `<a href="` literally, double quotes,
+# a bare text label — so any anchor the parser could not strip was also an anchor this gate
+# could not see, and it reported zero while the surviving label made a reverse lookup answer
+# `present`. A gate that shares the blind spot of the thing it checks is not a second opinion.
+#
+# This finds any `<a>` element at all, reads its `href` in either quote style from any attribute
+# position, and asks one question of it: does that href point into a derived folder? The two
+# agree on SCOPE — a scheme-bearing href is an external link, not a backlink — and disagree on
+# STRUCTURE, which is where the independence has to live.
+DERIVED=r"(?:deliverables|components|entities|requirements|actors|business-rules|adrs|issues)"
+ANY=re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?</a>')
+HREF=re.compile(r"""\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+missed=[]; seen=0
 for name,path,a,b in lk.BODIES:
     if not os.path.exists(path): continue
     src=io.open(path,encoding="utf-8",errors="replace").read().split("\n")
     text="\n".join(src[a-1:] if b is None else src[a-1:b])
     for m in ANY.finditer(text):
+        h=HREF.search(m.group(0))
+        href=(h.group(1) or h.group(2)) if h else ""
+        if re.match(r'\w+:', href) or not re.search(DERIVED + r'/', href):
+            continue
+        seen += 1
         if not lk.BACKLINK.match(m.group(0)):
-            missed.append((name,m.group(1)))
-print("  backlinks into a derived folder the guard does not strip: %d" % len(missed))
+            missed.append((name,href))
+# It reports what it EXAMINED, not only what it rejected. "0 missed" and "found nothing at all"
+# print the same line otherwise, and a detector broken into silence is exactly how a gate stops
+# gating — twice already in this ledger. A corpus with no backlinks would be a finding in itself.
+if seen == 0:
+    print("  FAIL the back-link detector found no anchors at all; it has stopped seeing the corpus")
+    sys.exit(1)
+print("  backlinks into a derived folder: %d examined, not stripped by the guard: %d"
+      % (seen, len(missed)))
 for name,href in missed:
     print("  FAIL %s carries %r, which BACKLINK does not match — its anchor text is searched as evidence"
           % (name,href))

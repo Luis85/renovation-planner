@@ -99,9 +99,17 @@ BODIES = [
 # The guard stopped matching, the anchor TEXT survived into the body, and `reverse "Design System"`
 # answered `present gallery` against a link that means the opposite. Any run of `./` or `../`, with
 # or without a `docs/` prefix, now counts — the folder is what identifies a backlink, not the route.
+# Written to ANCHOR STRUCTURE rather than to one spelling of it: attributes may precede `href`,
+# either quote style is accepted, the relative prefix is optional, and the label may contain
+# nested markup. The first version required `<a href="` literally with a bare text label, so an
+# ordinary `<a class="…" href="…">` or a `<span>`-wrapped label would have survived into the
+# searched body and made a reverse lookup answer `present` from a link that means the opposite —
+# the same failure the depth assumption already caused once. A scheme-bearing href is excluded:
+# `https://…/deliverables/x` is an external link, not a backlink into this vault.
 BACKLINK = re.compile(
-    r'<a href="(?:\.{1,2}/)+(?:docs/)?'
-    r'(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>')
+    r'<a\b[^>]*\bhref\s*=\s*["\'](?!\w+:)(?:\.{1,2}/)*(?:docs/)?'
+    r'(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/'
+    r'[^"\']*["\'][^>]*>(?:(?!</a>).)*?</a>')
 
 ROLE = (r"(persona|command|screen|view|pane|tab|section|component|actor|entity|concept"
         r"|feature|artifact|deliverable|layer|tool|mode|state)")

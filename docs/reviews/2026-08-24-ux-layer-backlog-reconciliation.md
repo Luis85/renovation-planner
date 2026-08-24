@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-eight corrections, all from review of the committed matrix — which is the argument for
+Forty-nine corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1785,6 +1785,35 @@ construction lines to expand `$PINNED` before it. Watched failing by inserting a
 `PINNED=""` and `git archive`: the new anchor names it at line 55, and the old anchor reports zero.
 **Fourth time in five corrections that the check, rather than the subject, was the defect** — and
 this one was a gate written to catch an ordering defect, holding an ordering defect.
+
+**A forty-ninth correction, and it is the deepest version of a shape this ledger keeps hitting:
+the gate had copied the blind spot of the thing it checks.** The back-link contract check was added
+one commit earlier to catch what the parser misses — and it detected anchors with the parser's own
+assumptions: `<a href="` literally, double quotes, a bare text label. So an anchor the parser could
+not strip was an anchor the gate could not see. It reported zero and meant nothing.
+
+**Both halves were wrong, and both are fixed.** `BACKLINK` now matches anchor STRUCTURE — attributes
+may precede `href`, either quote style, an optional relative prefix, a label containing nested
+markup — while excluding a scheme-bearing href, because `https://…/deliverables/x` is an external
+link and not a backlink. The gate now finds **any** `<a>` element, reads its `href` from any
+attribute position, and asks one question: does it point into a derived folder? The two agree on
+**scope** and disagree on **structure**, which is where independence has to live.
+
+**Watched failing on the form review named.** With the gallery footer rewritten as
+`<a class="ref" href='…'><span>Design System</span></a>` — valid HTML, identical meaning — the
+broadened guard strips it and `reverse "Design System"` stays `retained`. Reverting the guard to
+its rigid form: the gate reports **1 not stripped**, and the lookup answers **`present gallery`**,
+the false positive review predicted. The old detector reported zero on that same file.
+
+**And it now prints what it EXAMINED, not only what it rejected.** *"0 missed"* and *"found nothing
+at all"* printed the same line, which is how a detector broken into silence stops gating — twice
+already in this ledger. It reports `3 examined, 0 not stripped`, and a corpus where it finds none
+fails outright rather than passing quietly.
+
+**Fifth time in six corrections that the check, not the subject, was the defect.** The pattern is
+now specific enough to name: a gate written in the same sitting as the fix it guards inherits the
+author's understanding of the failure, including whatever was too narrow about it. None of the six
+was caught by a gate. Every one was caught by review, or by watching a gate fail and seeing it not.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

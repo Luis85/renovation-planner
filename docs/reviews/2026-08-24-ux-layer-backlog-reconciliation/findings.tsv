@@ -44,7 +44,6 @@ c43	Contradiction	undetermined	derived	prototype§9 Interaction Contracts	docs/d
 c44	Contradiction	undetermined	derived	canvas§10 Problem	docs/deliverables/Information Architecture.md::The grouping[6]	r1433	none
 c45	Contradiction	undetermined	derived	prototype§9 Interaction Contracts	docs/deliverables/Information Architecture.md::Answered since, and by whom[1]	r1442	none
 c46	Contradiction	undetermined	derived	uxd§5 Experience Architecture	docs/deliverables/Sitemap.md::The inventory[14]	r1463	none
-c47	Contradiction	received	derived	prd§35 (Slice 1 — Project Foundation)	docs/requirements/Start a renovation project.md::Preconditions[2]	r1640	none
 c48	Contradiction	received	derived	prd§9 (Project Lifecycle)	docs/requirements/Start a renovation project.md::Assumptions[4]	r1668	none
 g1	Gap	undetermined	n/a	canvas§1	-	f1a	none
 g2	Gap	undetermined	n/a	canvas§1	-	f1b	none
@@ -821,4 +820,3 @@ g774	Gap	undetermined	n/a	wireframes§A.21	-	f1262	none
 g775	Gap	undetermined	n/a	wireframes§A.21	-	f1264	none
 g776	Gap	undetermined	n/a	wireframes§A.23	-	f1266	none
 g777	Gap	undetermined	n/a	wireframes§A.23	-	f1267	none
-c49	Contradiction	received	derived	prd§34	docs/entities/Project.md::Description[1]	r519	none

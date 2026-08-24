@@ -24,9 +24,9 @@ than left to be noticed:**
 
 ## What was found
 
-**48 contradictions, 775 gaps, 0 orphans, and 4 convention findings.** The contradictions are
-the useful half, and they concentrate rather than scatter — seven themed clusters carry 30 of
-the 48, and `deliverables/Disclosure ladder.md` alone accounts for 7.
+**46 contradictions, 775 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
+the 46, and `deliverables/Disclosure ladder.md` alone accounts for 7.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
 and its disagreements are not only with the new evidence: it contradicts its own sibling notes
@@ -35,9 +35,9 @@ with the backlog it belongs to is the most consequential thing this pass could h
 
 **No orphans at all.** Across 3,070 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
-UX layer contradicts the backlog in 48 places and supersedes it nowhere.
+UX layer contradicts the backlog in 46 places and supersedes it nowhere.
 
-**And not one derived note has drifted.** 17 of the 48 contradictions come from evidence whose
+**And not one derived note has drifted.** 15 of the 46 contradictions come from evidence whose
 standing the register records; each of those 17 was traced back to the sections of the *original*
 PRD and SDD that its derived note cites, and all 17 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
@@ -59,22 +59,22 @@ Rows and findings are different things and are counted separately.
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
-| `present` | 1,123 |
+| `present` | 1,125 |
 | `absent` | 775 |
-| `contradictory` | 48 |
+| `contradictory` | 46 |
 | `superseded` | **0** |
 | **findings** | |
-| Contradiction | **48** |
+| Contradiction | **46** |
 | Gap | **775** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
-**The coalesced-pair count is 0, counted directly.** 48 disagreement rows resolve to 48
+**The coalesced-pair count is 0, counted directly.** 46 disagreement rows resolve to 46
 findings. It was 1 until review checked the pair that produced it: `r519`'s `pair` field had been
 copied from `f494` instead of built from its own citations, which made two different pairs
 byte-identical and coalesced two findings into one — the twelfth correction below. The count is
 still reached by identifying pairs and checking them, never by subtracting findings from rows:
-1,123 `present` and 1,124 `retained` rows raise the row total while producing no finding, so that
+1,125 `present` and 1,124 `retained` rows raise the row total while producing no finding, so that
 subtraction would overstate coalescing by 2,247.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
@@ -282,7 +282,7 @@ hide one.
 
 ## Contradictions, by cluster
 
-**All 47 appear below**, and every one cites both sides. Seven themed clusters carry 30, section
+**All 46 appear below**, and every one cites both sides. Seven themed clusters carry 29, section
 H carries 10 that are individually consequential and share no theme, and section I carries the
 last 7 — reached from the reverse direction only, which is why they were the last to be written
 up rather than the least important. Counted directly against `findings.tsv`, not assumed: an
@@ -341,8 +341,6 @@ evidence does not have that level.
 - `r462` `entities/Outdoor area.md::Relationships[1]` "belongs to exactly one site" vs `prd§19`.
 - `r523` `entities/Project.md::Relationships[2]` "a project owns at most one site, which is where
   the physical hierarchy starts" vs `prd§19`, where it starts at Project.
-- `r519` `entities/Project.md::Description[1]` "no portfolio, nothing spans two projects" vs
-  `prd§34`, which lists cross-project dashboards as a later increment.
 
 **This cluster is why the two-kinds-of-row split exists.** The spec's own opening states that
 every structural noun in the new evidence already has an entity note — "Site, Building, Floor,
@@ -353,21 +351,24 @@ reconciled.
 
 ### C. Multi-project: the backlog names this as a change it has not made
 
-**4 rows, 4 findings.** Reached from both directions, which is what made it look like the one
-mirrored finding in the corpus — until the pair that said so turned out to be copied rather than
-derived. `f494` and `r519` disagree with the same paragraph from two different PRD sections, so
-they are two findings, not one seen twice.
+**2 rows, 2 findings**, both reached from the evidence side. This cluster started at four and
+lost half of them to review, which is worth stating plainly: it was the most over-claimed cluster
+in the ledger.
 
 - `f494` — `prd§8` requires two top-level contexts, "Project Selection" and "Renovation Project",
   against `entities/Project.md`: "It is a root rather than a container… there is no portfolio.
   **Admitting a second root is one of the changes**…"
-- `c49`/`r519` — `prd§34` puts "cross-project dashboards" in Post-MVP Scope, against that same
-  paragraph. Same derived claim, different evidence section, and therefore a separate finding.
 - `f500` — `prd§10`'s user story "see all renovation projects so I can choose what to work on",
   against `actors/Professional planner.md`: "the project index (SDD §47) is scoped to one.
   **A portfolio view is a second root**" — and that persona is marked out of scope.
-- `r1640` — `requirements/Start a renovation project.md::Preconditions[2]` requires "the vault
-  must hold no project yet", against `prd§35`'s "create and reopen multiple renovation projects".
+
+**`r519` and `r1640` were withdrawn**, and both for the same reason: a difference of *scope* read
+as a disagreement. `prd§34` puts cross-project dashboards in Post-MVP, which **anticipates** the
+change `Project.md` names rather than denying it; and `Start a renovation project.md`'s
+"the vault holds no project yet" is a precondition for **that flow**, whose own next sentence says
+the second-project case is not settled anywhere in the register. The fourteenth correction carries
+both. Their withdrawal is also what emptied the reverse half of this cluster — the direction that
+made it look mirrored in the first place.
 
 ### D. The landing surface — five routes to one question
 
@@ -644,12 +645,12 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 548 of the 823 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 546 of the 821 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 31 contradictions now carrying `undetermined` gain the
   standing the other 16 already have, and each becomes a question someone is entitled to answer.
-  **It is not a licence to edit the backlog.** All 17 already-received contradictions were traced
+  **It is not a licence to edit the backlog.** All 15 already-received contradictions were traced
   to the sections their derived note cites, and all 16 came back faithful: the note says what its
   source says, so the disagreement is between two received documents and no derived note is at
   fault. Classifying these folders received extends that shape rather than escaping it.
@@ -734,17 +735,33 @@ What it settles, checked against the finding set rather than asserted:
   (`prd§10`) is **in** scope. It is matched against `actors/Professional planner.md`'s
   *"Cross-project work … A portfolio view is a second root"*, and separating selection from
   portfolio is exactly what this decision does.
-- **`r1640`** — `requirements/Start a renovation project.md::Preconditions[2]`, "the vault must
-  hold no project yet", cannot stand beside a Home that lists projects.
 - **`c2`** — `entities/Project.md`'s *"Nothing here spans two projects … there is no portfolio"*
   needs the distinction **drawn, not reversed**: many projects in a vault, still no aggregation
   across them.
 
-What it does not settle, and one thing it must not be read as doing:
+**Two claims this section made when the decision was first recorded were wrong, and review
+caught both.** They are corrected here rather than quietly edited out, because both were errors
+of the same kind — reading a *scope* difference as a disagreement.
 
-- **`c49`** stays in the set. `prd§34` defers cross-project dashboards, which *agrees* with
-  `Project.md` — but **a ruling decides what to do, it does not unmake a finding.** The finding
-  records what the two corpora say today; this decision says which way it resolves.
+- **`r1640` was never a contradiction, so the decision does not settle it.** The first version of
+  this section said the precondition "cannot stand beside a Home that lists projects". It can.
+  `Start a renovation project.md::Preconditions[2]` reads: "The vault holds no project yet.
+  Creating a second project alongside a first raises questions this note does not answer … and
+  none of them are settled anywhere in this register." That is a precondition scoped to **this
+  flow**, plus an explicit refusal to answer the second-project case. A note that declines to
+  answer a question cannot be contradicted by a document that answers it. Withdrawn to `present`.
+  This ledger's own provenance trace had already said as much about the same passage, and the
+  section was written without checking it.
+- **`c49` is withdrawn too, and the reason given for keeping it was aimed at the wrong
+  question.** The first version noted that `prd§34` defers cross-project dashboards, "which
+  *agrees* with `Project.md`", and then kept the finding on the principle that **a ruling decides
+  what to do and does not unmake a finding.** That principle is sound and still holds. It was
+  simply not what was at issue: if the two passages agree, the row was never `contradictory` at
+  rung 2 in the first place. `Project.md` says a portfolio is "one of the changes" admitting
+  another root would force; `prd§34` lists that change among "likely later increments". Same
+  timeframe, not opposed. Withdrawn to `present`.
+
+Net for this decision: **48 contradictions become 46**, and 823 findings become 821.
 - **The `Professional planner`'s standing is untouched** (`r1335`, `r1341`). Selecting among your
   own projects is not working on several projects on someone else's behalf.
 - Per the provenance trace, `entities/Project.md` **faithfully reflects** the original PRD §58 and
@@ -789,7 +806,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 548 findings carry `undetermined`:
+**v1 and v2 are the ones that gate this ledger** — they are why 546 findings carry `undetermined`:
 492 whose evidence side sits in `docs/user-experience/` and 56 in `docs/product/` — all of
 them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
@@ -845,7 +862,7 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 | file | rows | what it holds |
 | --- | --- | --- |
 | `rows.tsv` | 3,070 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 823 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `findings.tsv` | 821 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
@@ -861,7 +878,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirteen corrections, all from review of the committed matrix — which is the argument for
+Fourteen corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -996,6 +1013,29 @@ sections, which the ledger's own rule counts as two findings. `c49` carries the 
 §59, §72 and SDD §47, all four of which `Project.md` lists as its own sources — against different
 evidence. Received contradictions go from 16 to 17, traced 17 of 17.
 
+**A fourteenth correction: two rows where a difference of SCOPE was read as a disagreement.**
+Both were reverse rows against `prd`, both withdrawn to `present`, and both are the same mistake
+seen twice.
+
+`r1640` set `requirements/Start a renovation project.md::Preconditions[2]` — "The vault holds no
+project yet" — against `prd§35`'s multi-project slice. But the precondition is scoped to **that
+flow**, and its own next sentence says the second-project case "raises questions this note does
+not answer … and none of them are settled anywhere in this register". **A note that declines to
+answer cannot be contradicted by a document that answers.** This ledger's provenance trace had
+already reached that conclusion about the same passage, and neither the original judgement nor
+the decision section written on top of it consulted it.
+
+`r519` set `entities/Project.md::Description[1]` against `prd§34`. The note says a portfolio is
+"one of the changes" admitting another root would force; §34 lists cross-project dashboards among
+"likely later increments". The roadmap **anticipates** the change the note names rather than
+denying it. Notably this row had just been split out of the coalesced pair one correction
+earlier — the split was right, and it exposed that the row had never been a contradiction on its
+own citations.
+
+48 contradictions become **46**; 823 findings become **821**; `present` rises to 1,125. The
+decision-4 section was written while both still stood and asserted things about both; it now
+carries its own correction rather than the corrected text alone.
+
 **Net across the three: 777 gaps become 775, 47 contradictions become 48, and 824 findings become
 823.** `lookup.py --selftest` is back to 686/686.
 
@@ -1012,8 +1052,8 @@ rows                                              3070
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
-disagreement rows                                   48
-disagreement findings                               48
+disagreement rows                                   46
+disagreement findings                               46
 coalesced pairs, counted directly                    0
 finding set recomputed from rows.tsv          identical as a SET to findings.tsv
 candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed

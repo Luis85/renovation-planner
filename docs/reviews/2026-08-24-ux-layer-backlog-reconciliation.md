@@ -44,7 +44,7 @@ standing the register records; each of those 15 was traced back to the sections 
 PRD and SDD that its derived note cites, and all 15 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
 Every traced one is a received document disagreeing with a received document, which is a choice a
-person makes, not an error a reconciler repairs. The other 31 come from the two folders the
+person makes, not an error a reconciler repairs. The other 32 come from the two folders the
 register does not classify and cannot be traced until decision 1 is taken. `provenance.tsv` holds
 the 15 verdicts with the sections each was read against.
 
@@ -640,7 +640,7 @@ bash $D/candidates.sh forward "interaction promise,awareness" # prints nothing: 
 so no judgement was involved at all — the ladder resolved it to `absent` mechanically. The
 command is the whole of that decision, and it either prints nothing today or the finding is wrong.
 
-**416 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
+**412 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
 the row's `target` and `subject`. It is type-aware, alias-resolved and back-link-guarded, which
 `candidates.sh` is none of, so it prints `Project Home`'s two answers rather than their union:
 
@@ -904,7 +904,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Seventeen corrections, all from review of the committed matrix — which is the argument for
+Twenty-four corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1243,6 +1243,31 @@ The four sub-rows then summed to 3,066 against a printed total of 3,073, and eve
 `lbl` asks whether each headline number appears *somewhere*, which says nothing about the rows
 underneath it that are supposed to add up to it.
 
+**A twenty-fourth correction, and the one that should have come first: the prose was never
+compared to the artifacts.** Three more figures were found stale in a single round — the
+undetermined contradictions reading 31 against a measured 32, the named-gap heading reading 416
+against 412, and the Checks block reading 46 disagreement rows and findings against 47.
+
+That is the sixth round in which review has found a number in this ledger disagreeing with
+`rows.tsv` or `findings.tsv`: 546 against 548, 416 against 412, 46 against 47, 31 against 32, 17
+against 15, and 2,247 against 2,249. Every one was fixed on its own, and every one was found by a
+reader.
+
+**The counts were never wrong.** They are computed from the committed data, and the recomputation
+gate has agreed on every run. What drifted was the PROSE quoting them, and nothing in this
+harness compared the two — the verifier checked the artifacts against each other and the ledger
+against nothing. Six rounds of the same defect is a statement about the check, not about the
+numbers.
+
+All twenty headline figures are now swept against the artifacts on every run: the four
+direction/kind sub-rows and their total, all five states, both finding kinds, the finding-set
+size, received contradictions and their traced ratio, undetermined contradictions, the named-gap
+heading, the gap split, both Checks disagreement lines, and the undetermined-findings sentence.
+Keyed off what the data measures rather than pinned values, so a legitimate change updates what
+is checked instead of failing — a pinned table would need editing on exactly the change it exists
+to catch, which is the moment somebody edits it to whatever makes it pass. Watched failing by
+moving one state count by one.
+
 **Both breakdowns are now gated**, each required to sum to the total it sits under, and both
 watched failing — reverting the one cell reports `expected 3073, measured 3066`, and breaking a
 state cell instead reports `3076`. The first version of that gate failed for the wrong reason:
@@ -1265,8 +1290,8 @@ rows                                              3073
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
-disagreement rows                                   46
-disagreement findings                               46
+disagreement rows                                   47
+disagreement findings                               47
 coalesced pairs, counted directly                    0
 finding set recomputed from rows.tsv          identical as a SET to findings.tsv
 candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed

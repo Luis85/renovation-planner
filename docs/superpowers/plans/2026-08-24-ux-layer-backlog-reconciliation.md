@@ -1153,6 +1153,62 @@ python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py -
 # prose paragraphs around it discuss withdrawn ones BY NAME and must stay able to. That is why
 # this reads structure rather than stripping known paragraphs — an exclusion list would need
 # editing every time a correction is written, which is the moment it would silently stop working.
+# EVERY headline figure in the ledger, swept against the committed artifacts. Six separate
+# review rounds have now found a number in the prose disagreeing with `rows.tsv` or
+# `findings.tsv` — 546/548, 416/412, 46/47, 31/32, 17/15, 2,247/2,249 — each fixed one at a
+# time, each found by a reader rather than a check. The counts were never wrong; they are
+# computed. The PROSE quoting them drifted, and nothing compared the two.
+#
+# Keyed off the DATA, not pinned values: each pattern is built from what the artifacts measure,
+# so a legitimate change updates what is checked instead of failing. A pinned table would need
+# editing on every real change, which is the moment it would be edited to whatever makes it pass.
+python3 - <<'PYS' || fail=1
+import io,re,collections,sys
+D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
+L=io.open(D+'.md',encoding='utf-8').read()
+rows=[r.rstrip('\n').split('\t') for r in io.open(D+'/rows.tsv',encoding='utf-8')][1:]
+rows=[r for r in rows if len(r)==11]
+f=[x.rstrip('\n').split('\t') for x in io.open(D+'/findings.tsv',encoding='utf-8')][1:]
+f=[x for x in f if len(x)==8]
+byid={r[0]:r for r in rows}
+st=collections.Counter(r[8] for r in rows)
+dk=collections.Counter((r[1],r[2]) for r in rows)
+kd=collections.Counter(x[1] for x in f)
+cs=collections.Counter(x[2] for x in f if x[1]=='Contradiction')
+gk=collections.Counter(byid[x[6]][2] for x in f if x[1]=='Gap')
+und=sum(1 for x in f if x[2]=='undetermined')
+def c(n): return "{:,}".format(n)
+# Each entry: label, and a template whose {} is filled FROM THE DATA. The gate therefore
+# tracks the artifacts rather than a pinned number, so a legitimate change updates what is
+# checked instead of failing.
+checks=[
+ ("matrix rows",             r"\| matrix rows \| \*\*%s\*\* \|" % c(len(rows))),
+ ("forward, named",          r"\| ├ forward, named \| %s \|" % c(dk[('forward','named')])),
+ ("forward, behavioural",    r"\| ├ forward, behavioural \| %s \|" % c(dk[('forward','behavioural')])),
+ ("reverse, named",          r"\| ├ reverse, named \| %s \|" % c(dk[('reverse','named')])),
+ ("reverse, behavioural",    r"\| └ reverse, behavioural \| %s \|" % c(dk[('reverse','behavioural')])),
+ ("retained",                r"\| `retained` \| %s \|" % c(st['retained'])),
+ ("present",                 r"\| `present` \| %s \|" % c(st['present'])),
+ ("absent",                  r"\| `absent` \| %s \|" % c(st['absent'])),
+ ("contradictory",           r"\| `contradictory` \| %s \|" % c(st['contradictory'])),
+ ("Contradiction findings",  r"\| Contradiction \| \*\*%s\*\* \|" % c(kd['Contradiction'])),
+ ("Gap findings",            r"\| Gap \| \*\*%s\*\* \|" % c(kd['Gap'])),
+ ("findings.tsv size",       r"\| `findings\.tsv` \| %s \|" % c(len(f))),
+ ("received contradictions", r"received contradictions\s+%d" % cs['received']),
+ ("traced n of n",           r"traced to the sections their note cites\s+%d / %d" % (cs['received'],cs['received'])),
+ ("undetermined contras",    r"The other %d come from the two folders" % cs['undetermined']),
+ ("named gaps heading",      r"\*\*%d named gaps\*\*" % gk['named']),
+ ("gap split in Checks",     r"%d named \+ %d behavioural" % (gk['named'],gk['behavioural'])),
+ ("disagreement rows",       r"disagreement rows\s+%d" % st['contradictory']),
+ ("disagreement findings",   r"disagreement findings\s+%d" % kd['Contradiction']),
+ ("undetermined findings",   r"%d of the %d matrix findings" % (und,len(f))),
+]
+bad=[n for n,p in checks if not re.search(p,L)]
+print("  ledger figures swept against the committed data: %d, disagreeing: %d" % (len(checks),len(bad)))
+for n in bad: print("  FAIL ledger does not print the measured value for: %s" % n)
+sys.exit(1 if bad else 0)
+PYS
+
 python3 - <<'PYC' || fail=1
 import io, re, sys
 D = "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"

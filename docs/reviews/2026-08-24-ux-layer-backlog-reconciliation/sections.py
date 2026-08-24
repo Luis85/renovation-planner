@@ -54,7 +54,17 @@ BODIES = [
     ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
 ]
 
-ROWS = os.path.join(ROOT, "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/rows.tsv")
+# The CORPUS is pinnable; the MATRIX is not. `ROOT` moves with `RP_CORPUS_ROOT` so the evidence
+# bodies can be read as they stood, but `rows.tsv` is the artifact under test and must always be
+# the committed one — read from beside this script, exactly as `lookup.py` reads its own.
+#
+# It resolved through `ROOT` until review caught it, which meant the pinned replay measured the
+# pinned evidence against the ARCHIVE'S rows.tsv — a matrix four rows out of date, still holding
+# the empty-state rows withdrawn since. It happened not to change the answer, because those four
+# removed no section's last row; the first correction that did would have made the published
+# pinned command report the old matrix and say nothing.
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROWS = os.path.join(HERE, "rows.tsv")
 
 # A heading at ANY level, because the bodies do not share one: prd, uxd and research number at
 # `#`, canvas, prototype and wireframes at `##`. Any route that fixes a level measures a subset

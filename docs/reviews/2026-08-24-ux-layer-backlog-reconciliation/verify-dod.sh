@@ -212,6 +212,45 @@ fi
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
 # ---------------------------------------------------------------------------------------------
+# THE CORPUS OVERRIDE MUST NOT REACH THE MATRIX.
+#
+# `RP_CORPUS_ROOT` pins the EVIDENCE, so a replay can read the bodies as they stood. It must not
+# also redirect `rows.tsv`: that is the artifact under test, and it is always the committed one.
+# `sections.py` resolved both through the same root, so the pinned replay measured pinned evidence
+# against the ARCHIVE'S matrix — four rows out of date, still holding the empty-state rows
+# withdrawn since. It happened not to change the answer, because those four removed no section's
+# last row, and the first correction that did would have made the published pinned command report
+# the old matrix silently. `lookup.py` never had it: its artifacts hang off the script's directory.
+#
+# Checked behaviourally, not by reading the source: run the instrument against two roots that
+# differ ONLY in `rows.tsv` — one the pinned tree, one the same tree with `rows.tsv` emptied — and
+# require identical output. Pre-fix the swept column collapses to 0 for every body; post-fix the
+# two runs are byte-identical.
+#
+# It exercises the DEFAULT invocation, and that bound was found the hard way: the first probe used
+# `--selftest`, which exits before `swept()` is ever called, so it passed against both the fixed
+# and the broken instrument and proved nothing. A probe that cannot tell the two apart is not
+# evidence, and this one was watched telling them apart before it was believed.
+if [ -n "$PINNED" ]; then
+  _probe_root="$(mktemp -d)"
+  mkdir -p "$_probe_root/docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"
+  for _d in user-experience prds product; do
+    cp -r "$PINNED/docs/$_d" "$_probe_root/docs/$_d" 2>/dev/null
+  done
+  : > "$_probe_root/docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/rows.tsv"
+  if ! diff -q <(RP_CORPUS_ROOT="$PINNED" python3 "$SP/sections.py" 2>&1) \
+                <(RP_CORPUS_ROOT="$_probe_root" python3 "$SP/sections.py" 2>&1) >/dev/null; then
+    echo "  FAIL RP_CORPUS_ROOT reaches rows.tsv — sections.py measured the override's matrix, not the committed one"
+    fail=1
+  else
+    echo "  corpus override does not reach the matrix: ok"
+  fi
+  rm -rf "$_probe_root"
+else
+  echo "  NOTE matrix base unavailable; skipped the corpus-override/matrix separation check"
+fi
+
+# ---------------------------------------------------------------------------------------------
 # THE INSTRUMENTS RUN FROM ANYWHERE, INCLUDING WITH A RELATIVE CORPUS ROOT.
 #
 # `lookup.py`'s docstring promises "Run from anywhere in the repository", and it stopped being

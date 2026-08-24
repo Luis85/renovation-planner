@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-five corrections, all from review of the committed matrix — which is the argument for
+Forty-six corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1733,6 +1733,30 @@ printed its usage and exited non-zero, and the gate announced a failure that did
 by watching it — the run that was supposed to be green was red, against a manual run that was
 green. *Measure with an instrument that can see the thing, and test the instrument first*: the
 second time in three corrections that the check, not the subject, was the defect.
+
+**A forty-sixth correction, and it draws a line the last three corrections kept blurring: the
+CORPUS is pinnable, the MATRIX is not.** `RP_CORPUS_ROOT` exists so a replay can read the evidence
+bodies as they stood. `sections.py` resolved `rows.tsv` through the same root, so a pinned run
+measured pinned evidence against **the archive's matrix** — four rows out of date, still holding
+the empty-state rows withdrawn since. `lookup.py` never had it, because its artifacts hang off the
+script's own directory; `sections.py` now does the same.
+
+**It happened not to change the answer, and that is the whole danger.** Those four rows removed no
+section's last row, so the coverage table was identical either way. The first correction that
+removed one would have made the published pinned command report the old matrix and say nothing
+about it.
+
+**Checked behaviourally rather than by reading the source:** run the instrument against two roots
+differing *only* in `rows.tsv` — the pinned tree, and the same tree with `rows.tsv` emptied — and
+require identical output. Pre-fix the swept column collapses to **0** for every body; post-fix the
+two runs are byte-identical.
+
+**The first probe proved nothing, and finding that out is the lesson worth keeping.** It used
+`--selftest`, which exits before `swept()` is ever called — so it passed against the broken
+instrument and the fixed one alike. A probe that cannot tell the two apart is not evidence. It was
+only caught by watching it fail and seeing it *not* fail. **Third time in four corrections that the
+check, rather than the subject, was the defect** — and the first two were caught the same way,
+which is the argument for never trusting a green gate that has not been watched red.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

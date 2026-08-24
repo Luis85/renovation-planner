@@ -48,10 +48,15 @@ Committed: `docs/reviews/2026-08-24-ux-layer-backlog-reconciliation.md` — and 
 Tab-separated, one header line:
 
 ```
-id	direction	kind	subject	source	terms	cand_n	matched	state	pair
+id	direction	kind	subject	source	terms	cand_n	matched	state	pair	target
 ```
 
 - `id` — `f<N>` forward, `r<N>` reverse
+- `target` — named rows only: which derived note type would hold this thing —
+  `entities|requirements|components|actors|deliverables`. A forward row may carry more than
+  one, comma-separated, where the extraction rule maps it to more than one (a screen goes to
+  `requirements` **and** `deliverables`). Reverse rows take the type of the note they came
+  from. `-` on behavioural rows
 - `direction` — `forward` | `reverse`
 - `kind` — `named` | `behavioural`
 - `subject` — the item or claim, one line, no tabs
@@ -80,7 +85,7 @@ id	direction	kind	subject	source	terms	cand_n	matched	state	pair
 mkdir -p "$SP" && cat > "$SP/check-corpus.sh" <<'EOF'
 #!/usr/bin/env bash
 # Every number here is quoted from the frozen spec. Measured must equal claimed.
-cd /home/user/renovation-planner
+cd "$(git rev-parse --show-toplevel)"
 fail=0; chk(){ [ "$2" = "$3" ] && echo "  ok   $1: $3" || { echo "  FAIL $1: claimed $2, measured $3"; fail=1; }; }
 chk "derived notes"  227   "$(find docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues -type f | wc -l | tr -d ' ')"
 chk "derived lines"  11342 "$(find docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues -type f -exec cat {} + | wc -l | tr -d ' ')"
@@ -117,7 +122,7 @@ Expected: FAIL on nothing yet — this one should already pass, and that is the 
 cat > "$SP/corpus.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-R=/home/user/renovation-planner
+R="$(git rev-parse --show-toplevel)"
 UX="$R/docs/user-experience"; PR="$R/docs/prds"; PD="$R/docs/product"
 body() { case "$1" in
   prd)        echo "$PR/renovation-project-workspace.md:1:1451" ;;
@@ -205,11 +210,22 @@ break — one direction lower down.
 ```bash
 cat > "$SP/lookup.sh" <<'EOF'
 #!/usr/bin/env bash
-# presence of a named thing across the five named-thing target types
-cd /home/user/renovation-planner
-n="$1"
-printf '%s\t' "$n"
-grep -rliF "$n" docs/entities docs/requirements docs/deliverables docs/components docs/actors 2>/dev/null | tr '\n' ',' | sed 's/,$//'
+# Presence of a named thing in the note type that WOULD hold it.
+#
+#   lookup.sh "<name>" "<target[,target...]>"
+#
+# Searching all five types for every category is what makes a gap invisible. The extraction
+# rule maps concepts to entities/, components to components/, actors to actors/, screens to
+# requirements/ and deliverables/, artifacts to deliverables/ — so a component the new
+# evidence names, with no note in components/, is a GAP even though a requirement mentions it
+# in passing. Measured, not hypothetical: `Toolbar` and `Inspector` each appear in
+# requirements/ as well as components/, so an all-five search would settle such a row
+# `present` on the strength of a note that is not the one the thing is missing from.
+cd "$(git rev-parse --show-toplevel)"
+n="$1"; IFS=',' read -ra tg <<< "${2:-entities,requirements,deliverables,components,actors}"
+dirs=(); for t in "${tg[@]}"; do dirs+=("docs/$t"); done
+printf '%s\t%s\t' "$n" "$2"
+grep -rliF -- "$n" "${dirs[@]}" 2>/dev/null | tr '\n' ',' | sed 's/,$//'
 echo
 EOF
 chmod +x "$SP/lookup.sh"
@@ -219,9 +235,10 @@ chmod +x "$SP/lookup.sh"
 
 Run:
 ```bash
-for n in "Planner Home" "Spaces View" "Space Detail" "Project Home"; do bash "$SP/lookup.sh" "$n"; done
+for n in "Planner Home" "Spaces View" "Space Detail" "Project Home"; do
+  bash "$SP/lookup.sh" "$n" requirements,deliverables; done
 ```
-Expected: the first three print the term and an empty second field; `Project Home` prints `docs/deliverables/MVP Prototype.md`. This reproduces the spec's `0, 0, 0, 1` and proves the lookup before it is trusted on unknown terms.
+Expected: the first three print the term and an empty last field; `Project Home` prints `docs/deliverables/MVP Prototype.md`. This reproduces the spec's `0, 0, 0, 1` and proves the lookup before it is trusted on unknown terms. All four are screens, so `requirements,deliverables` is their mapped target — and the check must also be run once with no target argument, against all five, to confirm the two agree for these four. Where they ever DISAGREE, the type-aware answer is the right one and the difference is a gap the all-five search would have hidden.
 
 - [ ] **Step 3: Extract named things in both directions and append rows**
 
@@ -250,6 +267,14 @@ question mark. Nothing is settled until Step 6 re-resolves through the aliases. 
 behaviour is read.
 
 Do **not** stop at the terms the spec already names. `Screen Component & Interaction State Specification` (wireframes §A.23) is a named artifact with no deliverable note, and it is in the plan because the spec found it, not because it is the only one.
+
+- [ ] **Step 3a: Give every named row its target type**
+
+A named row cannot be looked up until it is known which note type would hold it. Forward rows take their target from the extraction rule that produced them — concepts → `entities`, screens and views → `requirements,deliverables`, components → `components`, actors and personas → `actors`, named artifacts → `deliverables`. Reverse rows take the directory of the note they came from. Verify none is missing:
+
+```bash
+awk -F'\t' 'NR>1 && $3=="named" && ($11=="" || $11=="-") {n++} END{print "named rows with no target (must be 0):", n+0}' "$SP/rows.tsv"
+```
 
 - [ ] **Step 4: Verify every named row has a state and the known cases match**
 
@@ -321,11 +346,18 @@ Implements spec order step 3.
 ```bash
 cat > "$SP/check-coverage.sh" <<'EOF'
 #!/usr/bin/env bash
-cd /home/user/renovation-planner
+cd "$(git rev-parse --show-toplevel)"
 SP="$(dirname "$0")"
-reached=$(awk -F'\t' 'NR>1 && $2=="reverse" {split($5,a,"::"); print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')
-echo "notes reached by a reverse row: $reached  /  227"
-[ "$reached" = "227" ]
+# TWO numbers, because one cannot carry both jobs and the first is already satisfied
+# before this task runs. Task 2 now writes a reverse NAMED row per note, so counting every
+# reverse row reports 227/227 before a single behavioural claim has been extracted — the
+# check would pass at the moment it is written to fail, and would go on certifying coverage
+# with the whole behavioural inventory missing.
+any=$(awk -F'\t' 'NR>1 && $2=="reverse" {split($5,a,"::"); print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')
+beh=$(awk -F'\t' 'NR>1 && $2=="reverse" && $3=="behavioural" {split($5,a,"::"); print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')
+echo "notes reached by ANY reverse row:         $any  /  227   <- DoD 1b"
+echo "notes reached by a reverse BEHAVIOURAL row: $beh  /  227   <- what THIS task builds"
+[ "$any" = "227" ] && [ "$beh" = "227" ]
 EOF
 chmod +x "$SP/check-coverage.sh"
 ```
@@ -333,7 +365,7 @@ chmod +x "$SP/check-coverage.sh"
 - [ ] **Step 2: Run it to see it fail**
 
 Run: `bash "$SP/check-coverage.sh"`
-Expected: `notes reached by a reverse row: 0 / 227`, exit 1. This is DoD 1b, and it is written before the inventory exists so it cannot be retrofitted to whatever the inventory happened to produce.
+Expected: the ANY line already reads `227 / 227` — Task 2's reverse named rows reach every note — and the BEHAVIOURAL line reads `0 / 227`, so the check **fails**. That split is the point. DoD 1b asks whether every note was read; this task asks whether every note's *claims* were extracted, and a single number that answers the first cannot be trusted to answer the second.
 
 - [ ] **Step 3: Extract forward behavioural claims from all eight bodies**
 
@@ -360,7 +392,7 @@ The `locator` after `::` must be stable and re-findable — a heading plus an in
 - [ ] **Step 5: Run the coverage check again**
 
 Run: `bash "$SP/check-coverage.sh"`
-Expected: `notes reached by a reverse row: 227 / 227`, exit 0.
+Expected: both lines read `227 / 227`, exit 0.
 
 If it prints fewer, the missing notes are listed by:
 ```bash
@@ -399,7 +431,7 @@ cat > "$SP/candidates.sh" <<'EOF'
 # extracted from, so the row matches itself, rung 4 never fires, and `retained` and
 # `superseded` are unreachable for every one of the 227 notes' reverse rows.
 set -euo pipefail
-cd /home/user/renovation-planner
+cd "$(git rev-parse --show-toplevel)"
 SP="$(dirname "$0")"
 case "${1:-}" in
   forward) corpus=(docs/requirements docs/entities docs/business-rules docs/components
@@ -448,9 +480,17 @@ For each behavioural row, run `candidates.sh` **with that row's own direction** 
 
 A forward row's candidate set is a set of derived notes; a reverse row's is a set of evidence bodies. Feeding every row the same corpus is what made `retained` unreachable, and the row's `direction` field is the only thing that decides it.
 
-- [ ] **Step 4: Judge the match within each candidate set**
+- [ ] **Step 4: Judge the match within each candidate set — one row per ADDRESSING member**
 
-Read only the members of the candidate set — derived notes for a forward row, evidence bodies for a reverse one. Decide whether any addresses the claim; write its path into `matched`, or `-`. **Silence is not a match** — a candidate that mentions the term but says nothing about the claim leaves `matched` as `-`.
+Read only the members of the candidate set — derived notes for a forward row, evidence bodies for a reverse one. Decide which of them **address** the claim. **Silence is not a match**: a candidate that mentions the term but says nothing about the claim does not count.
+
+- none addresses it → leave the row as it is, `matched` = `-`.
+- exactly one addresses it → write its path into `matched`.
+- **more than one addresses it → split the row**, one copy per addressing member, each carrying that member in `matched` and keeping the original `subject`, `source` and `terms`. Suffix the ids `f92a`, `f92b`, …
+
+The split is not bookkeeping. Two notes can address the same claim and *disagree with each other about it* — one restating it, one contradicting it. A single `matched` field records whichever the reader looked at first; if that is the agreeing note the row lands `present`, the contradicting pair never gets a `pair` key, and it cannot be coalesced into a finding because it was never a row. Splitting is also what keeps DoD 1 true: a row holds **exactly one** of five states, and a row matching two notes with opposite verdicts cannot.
+
+The reverse pass gives that contradiction a second route — the contradicting note's own claim has a reverse row, checked against the evidence — so this is not the only thing standing between the corpus and a lost finding. It is the thing that stops the forward matrix from *asserting agreement that was never checked*, and one route is not a reason to leave the other broken.
 
 A reverse row must never match the note it was extracted from. That is not a judgement call the reader has to make: the reverse corpus contains no derived notes at all, so the case cannot arise.
 
@@ -486,7 +526,16 @@ why Step 1 below fills exactly that and stops.
 
 **Interfaces:**
 - Consumes: matched rows from Task 4.
-- Produces: `findings.tsv` with `finding_id	kind	standing_evidence	standing_derived	evidence_cite	derived_cite	rows`.
+- Produces: `findings.tsv` with `finding_id	kind	standing_evidence	standing_derived	evidence_cite	derived_cite	rows	remedy`.
+
+`standing_derived` and `remedy` answer different questions and an earlier version made one
+field do both. **Standing** is what `docs/README.md` says a document is — and the register
+DOES classify every one of the eight derived note types as derived, whatever it fails to say
+about the evidence side. **Remedy** is whether this finding may propose an edit, which is the
+thing an unclassified evidence body blocks. Blanking `standing_derived` to signal "no edit"
+threw away a fact the register states plainly, and left most findings unable to satisfy the
+ledger's own requirement that each side carry `received`, `derived` or `undetermined`.
+`remedy` is `none` wherever `standing_evidence` is `undetermined`.
 
 - [ ] **Step 1: Write the ladder as a script over the rows you can decide mechanically**
 
@@ -520,7 +569,16 @@ Rung 1 first: does the evidence explicitly supersede, in a citable passage? → 
 
 - [ ] **Step 4: Fill `pair` on every `contradictory` and `superseded` row**
 
-`pair` = `<evidence_source>>><derived_path>::<locator>`. A forward row and its mirrored reverse row produce the **same** key — that is what makes them one finding.
+`pair` = `EVIDENCE>>DERIVED`, where `EVIDENCE` is the row's `source` and `DERIVED` is
+`<path>::<locator>`. The delimiter is **exactly two** `>` characters. A forward row and its
+mirrored reverse row produce the **same** key — that is what makes them one finding.
+
+Written without placeholder brackets on purpose. An earlier version read
+`<evidence_source>>><derived_path>::<locator>`, which is the two-character delimiter wearing
+angle brackets — but it reads as three, and a reader who copies it leaves a stray `>` at the
+head of every `derived_cite`, so the ledger cites `>docs/entities/Space.md::…` and no consumer
+expecting a repository path can resolve it. The formatter below advances exactly two
+characters past `index(p,">>")`; the definition and the parser now say the same thing.
 
 - [ ] **Step 5: Coalesce and verify rows ≠ findings by exactly the mirror count**
 
@@ -538,7 +596,7 @@ echo "disagreement rows: $rows   findings: $finds   coalesced pairs: $(( rows - 
 Expected: `coalesced pairs` equals the number of disagreements both directions found.
 
 **The pair key is split back into its two citations here, not carried whole.** `pair` is
-`<evidence_source>>><derived_path>::<locator>`; `findings.tsv` declares field 5 as
+`EVIDENCE>>DERIVED`, two `>` characters; `findings.tsv` declares field 5 as
 `evidence_cite` and field 6 as `derived_cite`. Writing the undivided key into field 6 leaves
 field 5 empty, and Task 6 sets the evidence standing by testing `$5 ~ /^prd/` — so every
 finding, the PRD-backed ones included, would come back `undetermined`, and the provenance
@@ -589,8 +647,13 @@ For each finding whose evidence side is `received` (the PRD), read the derived n
 sed -n '/^sources:/,/^[a-z]/p' "docs/entities/Space.md"
 ```
 
-- The note has **drifted** from what it cites → `standing_derived=derived`, the backlog moves.
-- The note **faithfully reflects** its source → this is received-vs-received. Mark the finding for the decisions section; it proposes no edit.
+`standing_derived` is `derived` for every one of these — the register classifies all eight note
+types. What the trace decides is the **remedy**, not the standing:
+
+- The note has **drifted** from what it cites → `remedy=backlog moves`.
+- The note **faithfully reflects** its source → this is received-vs-received. Moving the backlog
+  would silently pick one received document over another. `remedy=none`; mark the finding for
+  the decisions section.
 
 The original PRD and SDD are read **here only**, per finding, and contribute no rows and no counts.
 
@@ -598,7 +661,8 @@ The original PRD and SDD are read **here only**, per finding, and contribute no 
 
 Run:
 ```bash
-awk -F'\t' 'NR>1 && $3=="undetermined" && $4!="" {n++} END{print "undetermined findings carrying an edit direction (must be 0):", n+0}' "$SP/findings.tsv"
+awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none" {n++} END{print "undetermined findings proposing an edit (must be 0):", n+0}' "$SP/findings.tsv"
+awk -F'\t' 'NR>1 && ($3=="" || $4=="") {n++} END{print "findings missing a standing on either side (must be 0):", n+0}' "$SP/findings.tsv"
 ```
 Expected: `0`.
 
@@ -620,7 +684,7 @@ Implements spec order step 8. Separate task because it is derived from a differe
 - [ ] **Step 1: Check every folder that exists against the register's folder table**
 
 ```bash
-cd /home/user/renovation-planner
+cd "$(git rev-parse --show-toplevel)"
 comm -13 <(sed -n '/^| Folder/,/^$/p' docs/README.md | grep -oE '`[a-z-]+/`' | tr -d '`/' | sort -u) \
          <(find docs -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort -u)
 ```
@@ -693,7 +757,7 @@ git commit -m "Reconcile the UX layer with the backlog: findings ledger"
 ```bash
 cat > "$SP/verify-dod.sh" <<'EOF'
 #!/usr/bin/env bash
-cd /home/user/renovation-planner
+cd "$(git rev-parse --show-toplevel)"
 SP="$(dirname "$0")"; L=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation.md
 echo "1  rows with no state:      $(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')  (must be 0)"
 echo "1  rows and findings both printed: $(grep -cE 'rows|findings' "$L")  (must be >0)"

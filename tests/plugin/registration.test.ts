@@ -72,7 +72,14 @@ describe('what onload registers', () => {
 	 * it — so renaming one costs them the binding.
 	 */
 	it('adds every command with an unprefixed id', () => {
-		expect(plugin.commands.map((c) => c.id)).toEqual(['open-project', 'open-plan-editor', 'set-plan-background']);
+		expect(plugin.commands.map((c) => c.id)).toEqual([
+			'open-project',
+			'open-plan-editor',
+			'set-plan-background',
+			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to
+			// it has bound it to this string. `sampleProject.ts` names what deletes it.
+			'create-sample-project',
+		]);
 	});
 
 	// Sidecars are registered as visible, openable files (ADR-011), wired to their viewer.

@@ -2,6 +2,9 @@ import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Logger } from '../application/ports/Logger';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
+import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
+import { CreateProjectCommand } from '../application/commands/project/CreateProject';
+import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
@@ -110,6 +113,20 @@ export interface PersistenceServices {
 	 */
 	readonly planEditorQueries: PlanEditorQueryServices;
 	/**
+	 * The three creates, which existed with full test coverage and NO caller outside
+	 * `application/` until something in the app asked for one — so a vault contained no
+	 * project, plan or zone note and slices 3, 4 and 5 were unreachable from inside
+	 * Obsidian. Composed here for the same reason every other service is: the write side a
+	 * command or a view consumes is an interface handed to it, never a repository it built.
+	 *
+	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
+	 * empty-state actions and slice 15's creation dialogs are what give them product-real
+	 * ones; neither needs a second wiring point, only a second call.
+	 */
+	readonly createProject: CreateProjectCommand;
+	readonly createPlan: CreatePlanCommand;
+	readonly createZone: CreateZoneCommand;
+	/**
 	 * Slice 5's one write, in both faces: the plain command, and the undoable adapter
 	 * slice 6's `CommandHistory` will hold. The adapter WRAPS the command rather than
 	 * duplicating it, so there is one forward write however it is dispatched.
@@ -205,6 +222,9 @@ export function createCompositionRoot(
 			zones,
 			queries,
 			files,
+			createProject: new CreateProjectCommand(projects, eventBus),
+			createPlan: new CreatePlanCommand(plans, projects, eventBus),
+			createZone: new CreateZoneCommand(zones, plans, eventBus),
 			planEditorQueries: createPlanEditorQueries(queries),
 			setPlanBackground,
 			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),

@@ -32,7 +32,14 @@ export class CreatePlanCommand
 		private readonly events: EventBus,
 	) {}
 
-	async execute(input: CreatePlanInput) {
+	// The return type is ANNOTATED, not inferred, for the reason `SetPlanBackground` states
+	// at length: inference produces a union of `Result`s — one arm per error type the body
+	// returns — which is not the same type as one `Result` over a union of errors, and the
+	// difference only shows up in a caller. This command had no production caller until the
+	// sample-project seed became one, and `isErr` could not narrow the union it got.
+	async execute(
+		input: CreatePlanInput,
+	): Promise<Result<{ plan: Loaded<Plan> }, ValidationError | ReferenceError | PersistenceError>> {
 		const found = await this.projects.getById(input.projectId);
 		if (isErr(found)) {
 			return found;

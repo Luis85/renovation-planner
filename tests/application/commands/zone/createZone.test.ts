@@ -137,4 +137,37 @@ describe('CreateZoneCommand', () => {
 		expect(error.code).toBe('test.injected-failure');
 		expect(events.published).toHaveLength(0);
 	});
+
+	// `status` is OPTIONAL and it defaults, so the two arms are one test rather than two:
+	// what matters is that the command FORWARDS what it was given instead of dropping it.
+	// It dropped it until the sample-project seed needed a plan showing all three statuses
+	// — `Zone.create` has always accepted one, and this input is what could not express it.
+	it('forwards an explicit status and defaults to Planned without one', async () => {
+		const { plans, zones, command } = wired();
+		const plan = await seedPlan(plans);
+
+		const explicit = expectOk(
+			await command.execute({
+				planId: plan.id,
+				name: 'Bathroom',
+				zoneType: 'Room',
+				status: 'InProgress',
+				geometry: squareAt(),
+			}),
+		);
+		const defaulted = expectOk(
+			await command.execute({
+				planId: plan.id,
+				name: 'Kitchen',
+				zoneType: 'Room',
+				geometry: squareAt(9000, 9000),
+			}),
+		);
+
+		expect(explicit.zone.entity.status).toBe('InProgress');
+		expect(defaulted.zone.entity.status).toBe('Planned');
+		// Persisted, not merely returned: a status the repository never saw would read back
+		// as `Planned` the moment the editor hydrated from the vault.
+		expect(expectOk(await zones.getById(explicit.zone.entity.id))?.entity.status).toBe('InProgress');
+	});
 });

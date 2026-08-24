@@ -8,6 +8,9 @@ import { createRepositoryStack } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
 import { expectOk } from '../helpers/domain';
 import { FindZonesByPlan } from '../../src/application/queries/FindZonesByPlan';
+import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
+import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
+import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { createPlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -45,6 +48,12 @@ describe('persistence composition', () => {
 		expect(plugin.root.persistence?.plans).toBeDefined();
 		expect(plugin.root.persistence?.zones).toBeDefined();
 		expect(plugin.root.persistence?.queries.findZonesByPlan).toBeInstanceOf(FindZonesByPlan);
+		// The three creates, composed here since the sample-project seed became their first
+		// caller. Named individually rather than asserted as a count: a missing one is a
+		// command family that silently cannot create one of the three entity kinds.
+		expect(plugin.root.persistence?.createProject).toBeInstanceOf(CreateProjectCommand);
+		expect(plugin.root.persistence?.createPlan).toBeInstanceOf(CreatePlanCommand);
+		expect(plugin.root.persistence?.createZone).toBeInstanceOf(CreateZoneCommand);
 
 		// Nothing scanned yet: the index is empty until layout-ready.
 		expect(plugin.root.persistence.index.entries()).toEqual([]);

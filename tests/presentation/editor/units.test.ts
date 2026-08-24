@@ -1,14 +1,16 @@
 /**
  * @vitest-environment jsdom
  *
- * The small pieces around the editor whose contract is one function: the file picker's
- * three overrides, the injection guard, and the PDF adapter's own precondition.
+ * The small pieces around the editor whose contract is one function: the two pickers'
+ * three overrides each, the injection guard, and the PDF adapter's own precondition.
  */
 import { describe, expect, it } from 'vitest';
 import { TFile } from 'obsidian';
 import { defineComponent, h, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 import { PlanBackgroundSuggestModal } from '../../../src/presentation/modals/PlanBackgroundSuggestModal';
+import { PlanSuggestModal } from '../../../src/presentation/modals/PlanSuggestModal';
+import type { ProjectIndexEntry } from '../../../src/application/ports/ProjectIndex';
 import { EDITOR_CONTEXT, useEditorContext } from '../../../src/presentation/editor/EditorContext';
 import { useThemeTokens } from '../../../src/presentation/editor/theme/useThemeTokens';
 import { renderPdfPage } from '../../../src/presentation/editor/layers/background/pdfRaster';
@@ -66,6 +68,49 @@ describe('the background file picker', () => {
 		const picker = new PlanBackgroundSuggestModal({} as never, files, () => undefined);
 
 		expect(picker.placeholder).toBe(t('en', 'command.set-plan-background'));
+	});
+});
+
+/**
+ * The plan picker, whose three overrides are the same contract as its sibling's above —
+ * and which is what makes the Plan Editor reachable at all, since `open-plan-editor` no
+ * longer requires a plan note to be the active file.
+ */
+describe('the plan picker', () => {
+	const plans: ProjectIndexEntry[] = [
+		{ id: 'plan-a' as never, type: 'renovation-plan', path: 'Renovation/Plans/Ground floor.md' },
+		{ id: 'plan-b' as never, type: 'renovation-plan', path: 'Renovation/Plans/First floor.md' },
+	];
+
+	it('offers exactly the plans it was given, and not the array itself', () => {
+		const picker = new PlanSuggestModal({} as never, plans, () => undefined);
+
+		expect(picker.getItems()).toEqual(plans);
+		// A COPY: Obsidian holds this list while the picker is open, and a shared reference
+		// would let a later index change rewrite what the user is looking at.
+		expect(picker.getItems()).not.toBe(plans);
+	});
+
+	/** The index holds a path, not a name — labelling a row with anything else is a read. */
+	it('labels a row with the note path the index holds', () => {
+		const picker = new PlanSuggestModal({} as never, plans, () => undefined);
+
+		expect(picker.getItemText(plans[1])).toBe('Renovation/Plans/First floor.md');
+	});
+
+	it('hands the chosen plan to its caller and decides nothing itself', () => {
+		const chosen: ProjectIndexEntry[] = [];
+		const picker = new PlanSuggestModal({} as never, plans, (one) => chosen.push(one));
+
+		picker.onChooseItem(plans[0]);
+
+		expect(chosen).toEqual([plans[0]]);
+	});
+
+	it('names itself from the string table', () => {
+		const picker = new PlanSuggestModal({} as never, plans, () => undefined);
+
+		expect(picker.placeholder).toBe(t('en', 'command.open-plan-editor'));
 	});
 });
 

@@ -3,14 +3,19 @@
  *
  * The two Plan Editor commands: when they appear in the palette, and what they do.
  *
- * `checkCallback`, not `callback` — Obsidian asks first and acts second, which is how a
- * command stays out of the palette when its context is absent. Both halves are driven,
- * because a command that answered `true` to the question and did nothing on the act would
- * pass a test that only ran one of them.
+ * They activate DIFFERENTLY, and the difference is the subject of half this file.
+ * `set-plan-background` uses `checkCallback` — Obsidian asks first and acts second, which
+ * is how a command stays out of the palette when its context is absent — and both halves
+ * are driven, because a command that answered `true` to the question and did nothing on the
+ * act would pass a test that only ran one of them. `open-plan-editor` is a plain
+ * `callback`: it used to demand a plan note be the active file, which kept it out of the
+ * palette in every vault that had no plan notes, and a picker over the Project Index has no
+ * such precondition.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FuzzySuggestModal, Notice, TFile, type Command } from 'obsidian';
-import { registerPlanEditorCommands, type PlanEditorCommandHost } from '../../src/plugin/planEditorCommands';
+import { registerPlanEditorCommands } from '../../src/plugin/planEditorCommands';
+import type { PluginCommandHost } from '../../src/plugin/commandHost';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { SetPlanBackgroundCommand } from '../../src/application/commands/plan/SetPlanBackground';
 import { ReversibleSetPlanBackgroundCommand } from '../../src/application/commands/plan/ReversibleSetPlanBackground';
@@ -31,7 +36,7 @@ function file(path: string): TFile {
 }
 
 interface Wired {
-	readonly host: PlanEditorCommandHost;
+	readonly host: PluginCommandHost;
 	readonly workspace: FakeWorkspace;
 	readonly commands: Command[];
 	readonly plans: InMemoryPlanRepository;
@@ -39,14 +44,21 @@ interface Wired {
 	readonly vaultFiles: TFile[];
 }
 
-async function wired(options: { withPersistence?: boolean; files?: string[] } = {}): Promise<Wired> {
+async function wired(
+	options: { withPersistence?: boolean; files?: string[]; indexed?: boolean } = {},
+): Promise<Wired> {
 	const plans = new InMemoryPlanRepository();
 	const projectId = createProjectId();
 	const plan = makePlan({ projectId });
 	expectOk(await plans.save(plan, 'absent'));
 
 	const index = new InMemoryProjectIndex();
-	index.upsert({ id: plan.id, type: 'renovation-plan', path: PLAN_NOTE, projectId });
+	// A PROJECT entry as well as the plan, so the picker's filter is asked to reject
+	// something: an unfiltered `entries()` would pass every assertion about the plan row.
+	index.upsert({ id: projectId, type: 'renovation-project', path: 'Renovation/Sample.md' });
+	if (options.indexed !== false) {
+		index.upsert({ id: plan.id, type: 'renovation-plan', path: PLAN_NOTE, projectId });
+	}
 
 	const workspace = new FakeWorkspace();
 	const commands: Command[] = [];
@@ -58,7 +70,7 @@ async function wired(options: { withPersistence?: boolean; files?: string[] } = 
 		new RecordingEventBus(),
 	);
 
-	const host: PlanEditorCommandHost = {
+	const host: PluginCommandHost = {
 		app: {
 			workspace,
 			vault: { getFiles: () => vaultFiles },
@@ -103,40 +115,63 @@ beforeEach(() => {
 });
 
 describe('open plan editor', () => {
-	it('stays out of the palette when no file is open', async () => {
+	/**
+	 * The whole point of the change: NO precondition. The previous version answered `false`
+	 * to `checkCallback` unless a plan note was the active file, which is why the command was
+	 * invisible in a vault whose plan notes nothing could create — so this asserts the
+	 * ABSENCE of the gate, not the presence of a callback.
+	 */
+	it('is a plain callback with no active-file precondition', async () => {
 		const { commands } = await wired();
 
-		expect(commands[0].checkCallback?.(true)).toBe(false);
+		expect(commands[0].checkCallback).toBeUndefined();
+		expect(typeof commands[0].callback).toBe('function');
 	});
 
-	it('stays out of the palette when the open file is not a plan note', async () => {
-		const { commands, workspace } = await wired();
-		workspace.activeFile = { path: 'Notes/readme.md' };
+	it('offers every plan the index holds, and nothing that is not one', async () => {
+		const { commands } = await wired();
 
-		expect(commands[0].checkCallback?.(true)).toBe(false);
+		commands[0].callback?.();
+
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<{ path: string }>;
+		expect(picker.getItems().map((item) => item.path)).toEqual([PLAN_NOTE]);
+		expect(picker.getItemText(picker.getItems()[0])).toBe(PLAN_NOTE);
+		// The placeholder is the command's own name, translated — not a literal.
+		expect(picker.placeholder).toBe(t('en', 'command.open-plan-editor'));
 	});
 
-	it('stays out of the palette when settings were never recovered', async () => {
-		const { commands, workspace } = await wired({ withPersistence: false });
-		workspace.activeFile = { path: PLAN_NOTE };
-
-		expect(commands[0].checkCallback?.(true)).toBe(false);
-	});
-
-	it('appears, and opens the editor for the plan that note IS', async () => {
+	it('opens the editor for the plan the user picks', async () => {
 		const { commands, workspace, planId } = await wired();
-		workspace.activeFile = { path: PLAN_NOTE };
 
-		expect(commands[0].checkCallback?.(true)).toBe(true);
-		// Asking must not act: a palette that opened a tab while the user was still scrolling
-		// past the entry is the defect `checking` exists to prevent.
+		commands[0].callback?.();
+		// Opening the picker must not open a leaf: choosing is what acts.
 		expect(workspace.leaves).toHaveLength(0);
 
-		commands[0].checkCallback?.(false);
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
 		await flush();
 
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.leaves[0].state?.state).toEqual({ planId });
+	});
+
+	it('says so rather than opening an empty picker when the vault has no plans', async () => {
+		const { commands } = await wired({ indexed: false });
+
+		commands[0].callback?.();
+
+		expect(FuzzySuggestModal.opened).toHaveLength(0);
+		expect(Notice.shown).toEqual([t('en', 'plan.none')]);
+	});
+
+	/** Settings that could not be read compose no index at all, which is the same answer. */
+	it('says so when settings were never recovered', async () => {
+		const { commands } = await wired({ withPersistence: false });
+
+		commands[0].callback?.();
+
+		expect(FuzzySuggestModal.opened).toHaveLength(0);
+		expect(Notice.shown).toEqual([t('en', 'plan.none')]);
 	});
 
 	it('carries an unprefixed id and a translated name', async () => {

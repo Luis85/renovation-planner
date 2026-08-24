@@ -11,6 +11,7 @@ import { buildProjectIndexEntries } from '../infrastructure/persistence/index/bu
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { registerPlanEditorCommands } from './planEditorCommands';
+import { registerSampleProjectCommand } from './sampleProject';
 import {
 	createCompositionRoot,
 	planEditorDeps,
@@ -133,6 +134,12 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// one; the `addCommand` calls still happen here, so this file remains the only place
 		// anything is registered with Obsidian.
 		registerPlanEditorCommands(this);
+
+		// SCAFFOLDING, and its own module says so at length: one command that seeds a
+		// project, a plan and five zones through the real create commands, so slice 5's
+		// canvas can be looked at in a vault at all. Slice 14's empty states and slice 15's
+		// dialogs are what remove it.
+		registerSampleProjectCommand(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
 		// competes with workspace restoration, and `MetadataCache` is incomplete until

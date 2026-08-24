@@ -125,6 +125,15 @@ export default defineConfig({
 			// 99.81, the same four figures as slice 5 on a denominator two statements and
 			// one function smaller (`installWorker` and the worker import are gone).
 			// NOTHING RATCHETS, for the reason the slice 5 paragraph gives.
+			//
+			// Measured 2026-08-24 again after the reviewability work — the three create
+			// commands wired into the composition root, the sample-project seed and its
+			// command, the plan picker, and `open-plan-editor` losing its active-file
+			// precondition: 1809/1815 statements, 806/817 branches, 477/478 functions,
+			// 1657/1660 lines — 99.66 / 98.65 / 99.79 / 99.81. The same four rounded figures
+			// again, so NOTHING RATCHETS again; the uncovered set is unchanged from the list
+			// above, and the seed's three early returns are each driven by their own injected
+			// failure rather than left as the increment's new uncovered arms.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -1,52 +1,37 @@
-import type { App, Command, TFile } from 'obsidian';
+import type { App, TFile } from 'obsidian';
 import { isErr } from '../core/result/Result';
-import type { ProjectIndex } from '../application/ports/ProjectIndex';
+import type { ProjectIndex, ProjectIndexEntry } from '../application/ports/ProjectIndex';
 import type { PlanId } from '../domain/plan/PlanId';
 import type { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
+import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
 import { notify } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
-import type { CompositionRoot } from './composition-root';
+import type { PluginCommandHost } from './commandHost';
 
 /**
  * The Plan Editor's two commands, kept out of the plugin shell so that file stays what it
  * says it is: registration and nothing else. What is here is the BEHAVIOUR behind two
  * `addCommand` calls; the calls themselves still happen in `onload`.
- */
-export interface PlanEditorCommandHost {
-	readonly app: App;
-	readonly root: CompositionRoot;
-	addCommand(command: Command): unknown;
-}
-
-/**
- * Which Plan a note IS, if it is one.
  *
- * Through the Project Index (§47) rather than by reading the note's frontmatter: the index
- * is the single answer to "where is entity X", and asking the vault again here would be a
- * second, slower one that can disagree with it. A linear scan because the index is keyed
- * id → path and this is the one place the question is asked in reverse — a reverse map
- * maintained for a single command palette check would be state to keep correct for no gain.
+ * `sampleProject.ts` is the sibling module with the same shape, and both take the same
+ * `PluginCommandHost` — which is why that interface is its own file rather than declared
+ * here.
  */
-function planIdForPath(index: ProjectIndex, path: string): PlanId | null {
-	for (const entry of index.entries()) {
-		if (entry.type === 'renovation-plan' && entry.path === path) return entry.id as PlanId;
-	}
-	return null;
-}
 
 /**
- * The active Plan note, or `null`. Both halves have to hold: a file has to be open, and it
- * has to be one of ours.
+ * Every Plan the Project Index knows about (§47) — the index rather than the vault,
+ * because it is the single answer to where an entity is and a second scan here could
+ * disagree with it.
+ *
+ * A filter over `entries()` because the question is asked once, when a palette command
+ * runs: `getIdsByType` would answer ids alone, and a picker needs the PATH to render a row.
  */
-function activePlanId(host: PlanEditorCommandHost): PlanId | null {
-	const index = host.root.persistence?.index;
-	const file = host.app.workspace.getActiveFile();
-	if (index === undefined || file === null) return null;
-	return planIdForPath(index, file.path);
+function planEntries(index: ProjectIndex | undefined): ProjectIndexEntry[] {
+	return (index?.entries() ?? []).filter((entry) => entry.type === 'renovation-plan');
 }
 
 /**
@@ -64,7 +49,7 @@ function backgroundCandidates(app: App): TFile[] {
  * history rather than also re-pointing this call — and the snapshot it records is correct
  * from the first import either way.
  */
-async function applyBackground(host: PlanEditorCommandHost, planId: PlanId, file: TFile): Promise<void> {
+async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TFile): Promise<void> {
 	// ANNOTATED, not inferred: fallow resolves a class's members through an explicit type
 	// annotation, and without one it reports `execute`/`undo` as dead members of a class
 	// this file is the only production caller of.
@@ -90,18 +75,36 @@ async function applyBackground(host: PlanEditorCommandHost, planId: PlanId, file
 	// open Plan Editor re-hydrates off that. This code does not know a canvas exists.
 }
 
-export function registerPlanEditorCommands(host: PlanEditorCommandHost): void {
-	// `checkCallback`, not `callback`: a command that is only meaningful with a Plan note
-	// open should not APPEAR in the palette otherwise. Obsidian calls it twice — once to
-	// ask, once to do — and the `checking` early return is that contract.
+/**
+ * Ask which Plan, then open it.
+ *
+ * A plain `callback` and a picker, where this used to be a `checkCallback` requiring the
+ * ACTIVE FILE to be a plan note. That precondition made the command invisible in the
+ * palette for any vault without plan notes — which, with nothing in the app able to create
+ * one, was every vault. One activation rule instead of two, available from anywhere, and a
+ * plan note being open is a fuzzy match rather than a requirement.
+ *
+ * The command ID is unchanged on purpose: Obsidian binds a user's hotkey to it, so it is
+ * DATA. What changed is behaviour behind the same name.
+ */
+function openPlanPicker(host: PluginCommandHost): void {
+	const plans = planEntries(host.root.persistence?.index);
+	if (plans.length === 0) {
+		notify(tr('plan.none'));
+		return;
+	}
+	const picker = new PlanSuggestModal(host.app, plans, (plan) => {
+		void revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, plan.id);
+	});
+	picker.open();
+}
+
+export function registerPlanEditorCommands(host: PluginCommandHost): void {
 	host.addCommand({
 		id: 'open-plan-editor',
 		name: tr('command.open-plan-editor'),
-		checkCallback: (checking: boolean) => {
-			const planId = activePlanId(host);
-			if (planId === null) return false;
-			if (!checking) void revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, planId);
-			return true;
+		callback: () => {
+			openPlanPicker(host);
 		},
 	});
 

@@ -21,6 +21,20 @@ persisted Zones of one Plan rendered read-only, an image or PDF background, and 
 pan/zoom camera. Nothing on that canvas is editable — slice 6 adds the tools — and the one
 thing slice 5 writes is which document a Plan's background IS.
 
+**Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
+`checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
+every vault that had no plan notes — and nothing in the app could create one, so that was
+every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
+entries now. The command ID did not change, because a user's hotkey is bound to it.
+
+**`create-sample-project` is SCAFFOLDING and says so in its name.** One command seeds a
+project, a plan and five zones through the real `CreateProjectCommand` /
+`CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
+vault-side equivalent of `npm run harness`, and the only way zones exist at all before
+slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it (slice
+14's empty-state actions and slice 15's creation dialogs) and why the partial notes a
+failed seed leaves behind are deliberate.
+
 Requires Obsidian 1.13.0+.
 
 **The settings pane is DECLARATIVE** (`getSettingDefinitions`, plus `getControlValue` /

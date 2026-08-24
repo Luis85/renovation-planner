@@ -195,10 +195,7 @@ g151	Gap	received	n/a	prd§8	-	f352b	backlog gains a note
 g152	Gap	received	n/a	prd§8	-	f353a	backlog gains a note
 g153	Gap	received	n/a	prd§8	-	f353b	backlog gains a note
 g154	Gap	received	n/a	prd§8	-	f354a	backlog gains a note
-g155	Gap	received	n/a	prd§8	-	f354b	backlog gains a note
 g156	Gap	received	n/a	prd§8	-	f355a	backlog gains a note
-g157	Gap	received	n/a	prd§8	-	f355b	backlog gains a note
-g158	Gap	received	n/a	prd§8	-	f356b	backlog gains a note
 g159	Gap	received	n/a	prd§8	-	f357a	backlog gains a note
 g160	Gap	received	n/a	prd§8	-	f357b	backlog gains a note
 g161	Gap	received	n/a	prd§9	-	f358	backlog gains a note
@@ -253,7 +250,6 @@ g209	Gap	received	n/a	prd§18	-	f401b	backlog gains a note
 g210	Gap	received	n/a	prd§18	-	f402	backlog gains a note
 g211	Gap	received	n/a	prd§18	-	f403	backlog gains a note
 g212	Gap	received	n/a	prd§19	-	f404a	backlog gains a note
-g213	Gap	received	n/a	prd§19	-	f404b	backlog gains a note
 g214	Gap	received	n/a	prd§22	-	f405	backlog gains a note
 g215	Gap	received	n/a	prd§22	-	f406	backlog gains a note
 g216	Gap	received	n/a	prd§23	-	f407a	backlog gains a note
@@ -465,8 +461,6 @@ g421	Gap	undetermined	n/a	prototype§4	-	f770b	none
 g422	Gap	undetermined	n/a	prototype§4	-	f771a	none
 g423	Gap	undetermined	n/a	prototype§4	-	f771b	none
 g424	Gap	undetermined	n/a	prototype§4	-	f772a	none
-g425	Gap	undetermined	n/a	prototype§4	-	f772b	none
-g426	Gap	undetermined	n/a	prototype§4	-	f773b	none
 g427	Gap	undetermined	n/a	prototype§4	-	f774a	none
 g428	Gap	undetermined	n/a	prototype§4	-	f774b	none
 g429	Gap	undetermined	n/a	prototype§6	-	f775	none
@@ -602,7 +596,6 @@ g558	Gap	undetermined	n/a	uxd§7	-	f1014	none
 g559	Gap	undetermined	n/a	uxd§6	-	f1015	none
 g560	Gap	undetermined	n/a	uxd§6	-	f1017	none
 g561	Gap	undetermined	n/a	uxd§6	-	f1019a	none
-g562	Gap	undetermined	n/a	uxd§6	-	f1019b	none
 g563	Gap	undetermined	n/a	uxd§28	-	f1020a	none
 g564	Gap	undetermined	n/a	uxd§28	-	f1020b	none
 g565	Gap	undetermined	n/a	uxd§28	-	f1021a	none
@@ -709,10 +702,7 @@ g666	Gap	undetermined	n/a	wireframes§A.2	-	f1155b	none
 g667	Gap	undetermined	n/a	wireframes§A.2	-	f1156a	none
 g668	Gap	undetermined	n/a	wireframes§A.2	-	f1156b	none
 g669	Gap	undetermined	n/a	wireframes§A.2	-	f1157a	none
-g670	Gap	undetermined	n/a	wireframes§A.2	-	f1157b	none
 g671	Gap	undetermined	n/a	wireframes§A.2	-	f1158a	none
-g672	Gap	undetermined	n/a	wireframes§A.2	-	f1158b	none
-g673	Gap	undetermined	n/a	wireframes§A.2	-	f1159b	none
 g674	Gap	undetermined	n/a	wireframes§A.2	-	f1160a	none
 g675	Gap	undetermined	n/a	wireframes§A.2	-	f1160b	none
 g676	Gap	undetermined	n/a	wireframes§A.1	-	f1161a	none

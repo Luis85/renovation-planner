@@ -183,15 +183,35 @@ def annotation_stripped(subject):
     one an inventory writes in lower case, still reads `absent`.
     """
     bare = re.sub(r"\s+", " ", re.sub(r"\([^)]*\)", " ", subject)).strip()
-    return bare if bare != subject and len(bare.split()) >= 2 else ""
+    return bare if bare != subject else ""
 
 
 def names_it(subject, kind):
-    """First note in `kind` that NAMES the subject, at word boundaries and plural-tolerant."""
+    """First note in `kind` that NAMES the subject, at word boundaries and plural-tolerant.
+
+    Three cases, because what counts as *naming* depends on how much of a name survives the
+    annotation. The two-word bound this used to carry was too strong in one direction: review
+    found `Settings (IA top-level area)` reading `absent` against `deliverables/` while
+    `Sitemap.md` inventories it as `| Settings | Settings tab | PRD §83 … | MVP |` — a false gap
+    whose remedy said "backlog gains a note" about a note the backlog has.
+
+    Dropping the bound outright is the mirror defect, and measured rather than argued: it moves
+    41 rows, most onto a word used in prose — `Work` on the Disclosure ladder's rung group,
+    `Costs` inside a Feature's body. What separates the two is the SHAPE of the hit, not the
+    length of the name. An inventory lists a surface in its identity column; prose merely uses
+    the word. So a one-word name must appear as the LEADING CELL of a table row. That moves 10
+    rows, every one of them into `deliverables/`, every one matched by `Sitemap.md` or
+    `Information Architecture.md` — the two notes that exist to inventory surfaces.
+    """
     bare = annotation_stripped(subject)
-    flag, name = ("-rlE", bare) if bare else ("-rliE", subject)
-    r = subprocess.run(["grep", flag, "--", r"\b%ss?\b" % re.escape(singular(name)),
-                        "docs/" + kind], cwd=ROOT, capture_output=True, text=True)
+    if not bare:
+        flag, pat = "-rliE", r"\b%ss?\b" % re.escape(singular(subject))
+    elif len(bare.split()) >= 2:
+        flag, pat = "-rlE", r"\b%ss?\b" % re.escape(singular(bare))
+    else:
+        flag, pat = "-rlE", r"^\| *\*{0,2}%ss?\*{0,2} *\|" % re.escape(singular(bare))
+    r = subprocess.run(["grep", flag, "--", pat, "docs/" + kind],
+                       cwd=ROOT, capture_output=True, text=True)
     out = [x for x in r.stdout.split("\n") if x]
     return out[0] if out else ""
 

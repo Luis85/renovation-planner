@@ -367,11 +367,11 @@ f352b	forward	named	Spaces (navigation area)	prd§8	spaces,navigation	-	-	absent
 f353a	forward	named	Design (navigation area)	prd§8	design,navigation	-	-	absent	-	requirements
 f353b	forward	named	Design (navigation area)	prd§8	design,navigation	-	-	absent	-	deliverables
 f354a	forward	named	Work (navigation area)	prd§8	work,navigation	-	-	absent	-	requirements
-f354b	forward	named	Work (navigation area)	prd§8	work,navigation	-	-	absent	-	deliverables
+f354b	forward	named	Work (navigation area)	prd§8	work,navigation	-	docs/deliverables/Information Architecture.md	present	-	deliverables
 f355a	forward	named	Budget (navigation area)	prd§8	budget,navigation	-	-	absent	-	requirements
-f355b	forward	named	Budget (navigation area)	prd§8	budget,navigation	-	-	absent	-	deliverables
+f355b	forward	named	Budget (navigation area)	prd§8	budget,navigation	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f356a	forward	named	Schedule (navigation area)	prd§8	schedule,navigation	-	docs/requirements/Schedule.md	present	-	requirements
-f356b	forward	named	Schedule (navigation area)	prd§8	schedule,navigation	-	-	absent	-	deliverables
+f356b	forward	named	Schedule (navigation area)	prd§8	schedule,navigation	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f357a	forward	named	Documentation (navigation area)	prd§8	documentation,navigation	-	-	absent	-	requirements
 f357b	forward	named	Documentation (navigation area)	prd§8	documentation,navigation	-	-	absent	-	deliverables
 f358	forward	named	New lifecycle stage	prd§9	new,project status,lifecycle	-	-	absent	-	entities
@@ -427,7 +427,7 @@ f401b	forward	named	Completion Review	prd§18	completion review,project completi
 f402	forward	named	Mark Completed action	prd§18	mark completed,project completion	-	-	absent	-	components
 f403	forward	named	Preservation (archive requirement)	prd§18	preservation,archive	-	-	absent	-	entities
 f404a	forward	named	Settings (IA top-level area)	prd§19	settings,information architecture	-	-	absent	-	requirements
-f404b	forward	named	Settings (IA top-level area)	prd§19	settings,information architecture	-	-	absent	-	deliverables
+f404b	forward	named	Settings (IA top-level area)	prd§19	settings,information architecture	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f405	forward	named	RenovationProject interface	prd§22	renovationproject,state model	-	-	absent	-	entities
 f406	forward	named	ProjectSession interface	prd§22	projectsession,session state	-	-	absent	-	entities
 f407a	forward	named	"Renovation Planner: Open" command	prd§23	renovation planner open,command	-	-	absent	-	requirements
@@ -812,9 +812,9 @@ f770b	forward	named	Add Space	prototype§4	add space,screen,action	-	-	absent	-	
 f771a	forward	named	Design (view)	prototype§4	design,view,screen	-	-	absent	-	requirements
 f771b	forward	named	Design (view)	prototype§4	design,view,screen	-	-	absent	-	deliverables
 f772a	forward	named	Budget (view)	prototype§4	budget,view,screen	-	-	absent	-	requirements
-f772b	forward	named	Budget (view)	prototype§4	budget,view,screen	-	-	absent	-	deliverables
+f772b	forward	named	Budget (view)	prototype§4	budget,view,screen	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f773a	forward	named	Schedule (view)	prototype§4	schedule,view,screen	-	docs/requirements/Schedule.md	present	-	requirements
-f773b	forward	named	Schedule (view)	prototype§4	schedule,view,screen	-	-	absent	-	deliverables
+f773b	forward	named	Schedule (view)	prototype§4	schedule,view,screen	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f774a	forward	named	Documents (view)	prototype§4	documents,view,screen	-	-	absent	-	requirements
 f774b	forward	named	Documents (view)	prototype§4	documents,view,screen	-	-	absent	-	deliverables
 f775	forward	named	Canonical Fixture	prototype§6	canonical fixture,fixture	-	-	absent	-	deliverables
@@ -1080,7 +1080,7 @@ f1016	forward	named	Zone (spatial hierarchy entity)	uxd§6	zone,spatial-hierarch
 f1017	forward	named	Garage (top-level space type)	uxd§6	garage,space-type	-	-	absent	-	entities
 f1018	forward	named	Outdoor Area (top-level space type: Garden, Terrace, Other Area)	uxd§6	outdoor-area,garden,terrace	-	docs/entities/Outdoor area.md	present	-	entities
 f1019a	forward	named	Settings (global, top of app)	uxd§6	settings,global	-	-	absent	-	requirements
-f1019b	forward	named	Settings (global, top of app)	uxd§6	settings,global	-	-	absent	-	deliverables
+f1019b	forward	named	Settings (global, top of app)	uxd§6	settings,global	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f1020a	forward	named	First-Use Empty State (screen)	uxd§28	first-use,empty-state,screen	-	-	absent	-	requirements
 f1020b	forward	named	First-Use Empty State (screen)	uxd§28	first-use,empty-state,screen	-	-	absent	-	deliverables
 f1021a	forward	named	Renovation Planner Home (screen)	uxd§28	renovation-planner-home,screen	-	-	absent	-	requirements
@@ -1239,11 +1239,11 @@ f1155b	forward	named	Overview (primary navigation section)	wireframes§A.2	overv
 f1156a	forward	named	Design (primary navigation section)	wireframes§A.2	design,navigation,section	-	-	absent	-	requirements
 f1156b	forward	named	Design (primary navigation section)	wireframes§A.2	design,navigation,section	-	-	absent	-	deliverables
 f1157a	forward	named	Work (primary navigation section)	wireframes§A.2	work,navigation,section	-	-	absent	-	requirements
-f1157b	forward	named	Work (primary navigation section)	wireframes§A.2	work,navigation,section	-	-	absent	-	deliverables
+f1157b	forward	named	Work (primary navigation section)	wireframes§A.2	work,navigation,section	-	docs/deliverables/Information Architecture.md	present	-	deliverables
 f1158a	forward	named	Budget (primary navigation section)	wireframes§A.2	budget,navigation,section	-	-	absent	-	requirements
-f1158b	forward	named	Budget (primary navigation section)	wireframes§A.2	budget,navigation,section	-	-	absent	-	deliverables
+f1158b	forward	named	Budget (primary navigation section)	wireframes§A.2	budget,navigation,section	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f1159a	forward	named	Schedule (primary navigation section)	wireframes§A.2	schedule,navigation,section	-	docs/requirements/Schedule.md	present	-	requirements
-f1159b	forward	named	Schedule (primary navigation section)	wireframes§A.2	schedule,navigation,section	-	-	absent	-	deliverables
+f1159b	forward	named	Schedule (primary navigation section)	wireframes§A.2	schedule,navigation,section	-	docs/deliverables/Sitemap.md	present	-	deliverables
 f1160a	forward	named	Documents (primary navigation section)	wireframes§A.2	documents,navigation,section	-	-	absent	-	requirements
 f1160b	forward	named	Documents (primary navigation section)	wireframes§A.2	documents,navigation,section	-	-	absent	-	deliverables
 f1161a	forward	named	First Launch (golden-path step)	wireframes§A.1	first launch	-	-	absent	-	requirements

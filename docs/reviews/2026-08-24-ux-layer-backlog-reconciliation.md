@@ -24,7 +24,7 @@ than left to be noticed:**
 
 ## What was found
 
-**47 contradictions, 773 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+**47 contradictions, 763 gaps, 0 orphans, and 4 convention findings.** The contradictions are
 the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
 the 47, and `deliverables/Disclosure ladder.md` alone accounts for 8.
 
@@ -61,13 +61,13 @@ Rows and findings are different things and are counted separately.
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
-| `present` | 1,132 |
-| `absent` | 773 |
+| `present` | 1,142 |
+| `absent` | 763 |
 | `contradictory` | 47 |
 | `superseded` | **0** |
 | **findings** | |
 | Contradiction | **47** |
-| Gap | **773** |
+| Gap | **763** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
@@ -283,7 +283,7 @@ it. The demonstrated instance is `f1284`, "show the user what they need to do no
 were `task, current, next-best-action`, and `docs/requirements/Reporting and project cockpit.md`
 — which asks the claim's own question in as many words, "what is next, what is blocked" — uses
 none of the three, so it was never a candidate. Two rows from adjacent wishes in the same
-section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 773
+section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 763
 gaps carry this limit in the same shape**, and it points one way only: it can invent a gap, never
 hide one.
 
@@ -576,10 +576,10 @@ counts rows rather than subjects throughout.
 
 ## Gaps
 
-**773**, of which 412 are named things the evidence names with no note behind them and 361 are
+**763**, of which 402 are named things the evidence names with no note behind them and 361 are
 behavioural claims no note addresses. The named/behavioural split and the per-body breakdown are in `findings.tsv`.
 
-They are not 773 separate problems. **Whole epics of the new PRD have no derived counterpart**,
+They are not 763 separate problems. **Whole epics of the new PRD have no derived counterpart**,
 and the reason is one measurement rather than a judgement — counted across all 227 notes:
 
 | term | derived notes containing it | times the workspace PRD uses it |
@@ -622,10 +622,10 @@ five deliverable notes is one.
 
 **A caveat a reader should apply to this number.** A gap is one forward row that no derived note
 addresses, and the same absence is reached from several bodies — `Project Home` alone produces
-rows from three. The 773 is a row-derived count, honestly produced and not deduplicated by
+rows from three. The 763 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
-**Every one of the 773 is re-runnable, and both commands are committed — two, because the two
+**Every one of the 763 is re-runnable, and both commands are committed — two, because the two
 row kinds are two mechanisms.** A named row is a *lookup* that settles the row on its own; a
 behavioural row is a *candidate set* that bounds a reading. One command cannot answer both, and
 publishing one and claiming both is the error this ledger keeps catching in itself.
@@ -644,7 +644,7 @@ bash $D/candidates.sh forward "interaction promise,awareness" # prints nothing: 
 so no judgement was involved at all — the ladder resolved it to `absent` mechanically. The
 command is the whole of that decision, and it either prints nothing today or the finding is wrong.
 
-**412 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
+**402 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
 the row's `target` and `subject`. It is type-aware, alias-resolved and back-link-guarded, which
 `candidates.sh` is none of, so it prints `Project Home`'s two answers rather than their union:
 
@@ -675,7 +675,7 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 547 of the 820 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 541 of the 810 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
@@ -839,8 +839,8 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 547 findings carry `undetermined`:
-490 whose evidence side sits in `docs/user-experience/` and 57 in `docs/product/` — all of
+**v1 and v2 are the ones that gate this ledger** — they are why 541 findings carry `undetermined`:
+484 whose evidence side sits in `docs/user-experience/` and 57 in `docs/product/` — all of
 them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
 naming it in the table settles it outright, with no classification question behind it.
@@ -888,14 +888,14 @@ to be typing.
 ## The finding set, as data
 
 The narrative above cites the contradictions in full and characterises the gaps by cluster. It
-does not print 773 gap citations, and a reader is entitled to check the totals rather than take
+does not print 763 gap citations, and a reader is entitled to check the totals rather than take
 them. **The matrix and the finding set are committed beside this ledger**, in
 [`2026-08-24-ux-layer-backlog-reconciliation/`](2026-08-24-ux-layer-backlog-reconciliation/):
 
 | file | rows | what it holds |
 | --- | --- | --- |
 | `rows.tsv` | 3,076 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 820 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `findings.tsv` | 810 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 15 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
@@ -911,7 +911,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty corrections, all from review of the committed matrix — which is the argument for
+Thirty-one corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1370,6 +1370,40 @@ genuinely joined were read: `Information Architecture.md` groups `Space` and `Zo
 per-trade meeting records. So the instrument was wrong, the published `cand_n` was wrong on 38 rows,
 and no finding changes.
 
+**A thirtieth correction: the two-word bound was too strong, and the shape of the hit is what
+separates the cases.** Review found `Settings (IA top-level area)` reading `absent` against
+`deliverables/` while `Sitemap.md` inventories it — `| Settings | Settings tab | PRD §83,
+declarative | MVP | read | **yes** — one setting |`. A false gap, and its remedy said "backlog
+gains a note" about a note the backlog has.
+
+The bound was introduced two rounds earlier with its limit stated in this file: *"a genuinely
+one-word screen name … still reads `absent`"*. Stating a limit is not the same as it being
+acceptable, and review has now produced the instance. Ten of them.
+
+Dropping the bound outright is the mirror defect, measured rather than argued: **41 rows move**,
+most onto a word merely used in prose — `Work` on the Disclosure ladder's rung group, `Costs`
+inside a Feature's body, `Tasks` on the title of `Task management.md`. The twin invariant that
+settled the two-word case is **silent** here: all 14 one-word annotated rows carrying an
+unannotated twin target `entities/` or `components/`, where the annotation never mattered, and the
+corpus holds only two unannotated one-word rows into a names-it directory.
+
+So the discriminator is not the length of the name but **the shape of the hit**. An inventory
+lists a surface in its identity column; prose uses the word. A one-word name must now appear as
+the **leading cell of a table row**. That moves **10 rows, every one into `deliverables/`, every
+one matched by `Sitemap.md` or `Information Architecture.md`** — the two notes that exist to
+inventory surfaces. Each was read: `| Budget | Bases view | PRD §41, SDD §13 | V1 |`,
+`| Schedule | Bases view |`, and IA's grouping table `| **Work** | What has to be done, in what
+order? |`.
+
+**763 gaps, 810 findings, 402 named gaps**, `present` 1,142. Ten `Gap` findings withdrawn:
+`g155`, `g157`, `g158`, `g213`, `g425`, `g426`, `g562`, `g670`, `g672`, `g673`.
+
+**A thirty-first correction, and it is the gate working.** Restating the ten counts by hand missed
+one — a `773` wrapped across a line break from the word `gaps` it labels. The labelled-total net
+caught it on the same run, naming the line. That is twice now that this net has caught a **failed
+repair** rather than the original drift, which is the case a human reader is least likely to
+catch: the number looks attended-to because everything around it was.
+
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking, while a fifty-third was found hiding inside another — a
@@ -1392,7 +1426,7 @@ candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
                                               included)
 lookup.py reproduces the committed named state   682 / 682 named rows (2 named,
                                               and moved onward by a reading)
-gap findings, by the row kind behind them        412 named + 361 behavioural
+gap findings, by the row kind behind them        402 named + 361 behavioural
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
 received contradictions                             15

@@ -115,11 +115,62 @@ DERIVED_FOLDERS = ("deliverables", "components", "entities", "requirements",
 
 
 def is_backlink(href):
-    """A link into the derived corpus. A scheme makes it an external link, not a backlink."""
-    if not href or re.match(r"\w+:", href):
+    """A link into the derived corpus.
+
+    A SCHEME makes it external, and so does a protocol-relative `//host/...`. Everything else is
+    normalised to a vault-relative path before the folder is read: surrounding whitespace, a
+    ROOT-RELATIVE leading slash, any run of `./` or `../`, and a `docs/` prefix, in that order.
+
+    The leading slash was missing, so `/docs/components/Toast.md` — a valid repository-root URL —
+    read as external and its label survived into the searched body. This is the SCOPE rule, the
+    one thing the output gate shares with this function by design, so a defect here is invisible
+    to it. That is why the rule is exercised directly, form by form, in `scope_selftest`.
+    """
+    if not href:
         return False
-    p = re.sub(r"^docs/", "", re.sub(r"^(?:\.{1,2}/)+", "", href.split("#")[0].split("?")[0]))
+    h = href.strip()
+    if re.match(r"\w+:", h) or h.startswith("//"):
+        return False
+    p = h.split("#")[0].split("?")[0]
+    p = re.sub(r"^/", "", p)
+    p = re.sub(r"^(?:\.{1,2}/)+", "", p)
+    p = re.sub(r"^docs/", "", p)
     return p.split("/")[0] in DERIVED_FOLDERS
+
+
+# The scope rule is a pure function, so it is checked against forms written out by hand from the
+# rule's definition rather than by a second implementation that could share its assumptions. Each
+# entry is a URL a real document could carry; three of them were false before review named the
+# first. A table is the right instrument here precisely because enumeration is the WEAKNESS
+# elsewhere in this file — for a pure predicate over a small, stable input space it is the
+# strength, and the parser above is what stops the enumeration where it does not belong.
+SCOPE_CASES = [
+    ("../deliverables/Design System.md",       True,  "one level up"),
+    ("../../deliverables/Design System.md",    True,  "two levels up"),
+    ("./components/Toast.md",                  True,  "explicit same-directory"),
+    ("components/Toast.md",                    True,  "bare relative"),
+    ("docs/entities/Plan.md",                  True,  "docs-prefixed"),
+    ("/docs/components/Toast.md",              True,  "repository-root URL"),
+    ("/deliverables/x.md",                     True,  "root URL without docs/"),
+    ("  ../deliverables/x.md  ",               True,  "surrounded by whitespace"),
+    ("../deliverables/x.md#anatomy",           True,  "with a fragment"),
+    ("../deliverables/x.md?v=2",               True,  "with a query"),
+    ("https://example.com/deliverables/x",     False, "external, http"),
+    ("mailto:someone@example.com",             False, "external, mailto"),
+    ("//host/deliverables/x",                  False, "protocol-relative"),
+    ("../tasks/05-canvas.md",                  False, "a folder that is not derived"),
+    ("../deliverablesX/x.md",                  False, "a folder that merely starts the same"),
+    ("",                                       False, "empty"),
+    (None,                                     False, "absent"),
+]
+
+
+def scope_selftest():
+    bad = [(h, want, why) for h, want, why in SCOPE_CASES if is_backlink(h) is not want]
+    for h, want, why in bad:
+        print("  FAIL is_backlink(%r) is %s, expected %s — %s" % (h, not want, want, why))
+    print("  back-link scope rule: %d forms checked, %d wrong" % (len(SCOPE_CASES), len(bad)))
+    return not bad
 
 
 class _BacklinkStripper(HTMLParser):

@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Fifty corrections, all from review of the committed matrix — which is the argument for
+Fifty-one corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1849,6 +1849,32 @@ lesson is narrower than "write better gates": **when a check has to recognise th
 subject recognises, it inherits the subject's blind spot** — so either check the RESULT instead of
 re-recognising the input, or use an instrument that was not written by the person who wrote the
 bug.
+
+**A fifty-first correction, and it landed in the one place the previous correction had said the
+gate could not reach.** `is_backlink` normalised `./`, `../` and a `docs/` prefix, but not a
+**leading slash** — so `/docs/components/Toast.md`, an ordinary repository-root URL, read as
+*external*, its label survived into the searched body, and a reverse lookup could answer `present`
+from a link meaning the opposite. Surrounding whitespace failed the same way.
+
+**The output gate could not see it, exactly as designed.** That gate deliberately shares the SCOPE
+rule with the tool — both must agree what a backlink *is* — and checks only structure. So a defect
+in the shared premise is invisible to it. The limit was stated one commit earlier; review supplied
+the instance the same day.
+
+**A shared premise cannot be checked by the thing that shares it, so the rule is now exercised
+directly.** `is_backlink` is a pure predicate over a small, stable input space, so it is checked
+against **17 forms written out by hand from the rule's definition** — one and two levels up, bare
+relative, `docs/`-prefixed, root-relative with and without `docs/`, whitespace-padded, fragment,
+query, http, mailto, protocol-relative, a non-derived folder, a folder that merely starts the same,
+empty, absent. Watched failing by reverting the leading-slash normalisation: **2 of 17 wrong**,
+named by form.
+
+**Enumeration is the weakness elsewhere in this file and the strength here, and the difference is
+worth stating** rather than looking like a contradiction. Enumerating the *syntactic forms an
+anchor can take* failed three rounds running, because HTML's space of valid spellings is open —
+that is why the stripper is now a parser. Enumerating the *cases of a pure predicate* is different:
+the input space is a URL shape, small and closed enough to write down, and a hand-written table is
+independent of the implementation in a way a second implementation would not be.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

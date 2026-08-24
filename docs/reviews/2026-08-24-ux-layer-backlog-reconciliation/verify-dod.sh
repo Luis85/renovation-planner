@@ -366,6 +366,12 @@ def backlinks_in(text):
         href=next((g for g in h.groups() if g is not None), "")
         if lk.is_backlink(href): out.append(href)
     return out
+# The SCOPE rule is the one thing this gate shares with the tool by design, so a defect in it is
+# invisible here — `/docs/components/Toast.md` read as external, and the anchor survived while
+# this check reported a clean strip. A shared premise cannot be checked by the thing that shares
+# it, so the rule is exercised directly against forms written out from its definition.
+if not lk.scope_selftest():
+    sys.exit(1)
 went_in=0; left=[]
 for name,path,a,b in lk.BODIES:
     if not os.path.exists(path): continue

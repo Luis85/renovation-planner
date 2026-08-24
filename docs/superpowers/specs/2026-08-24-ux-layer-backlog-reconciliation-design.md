@@ -60,19 +60,65 @@ and `component-gallery.html` read for component vocabulary only.
 
 The risk in a sweep this size is that "read one corpus against another" is a disposition
 rather than a method, and a finding set assembled from what the reader happened to notice
-cannot state its own coverage. So the comparison is built on an enumerable inventory:
+cannot state its own coverage. So the comparison is built on an enumerable inventory —
+**of two kinds, in two directions.**
 
-1. **Extract** every named thing from the new evidence — the workspace PRD's glossary
-   concepts, every named screen and view, and the component names in the gallery.
-2. **Establish presence mechanically** for each: is there an `entities/` note, a
-   `components/` note, a Feature or PBI in `requirements/`.
-3. **Derive the finding set from the resulting matrix**, so absence is *counted* rather than
-   spotted.
-4. **Read for contradiction only in the cells where both sides speak** — same name with a
-   different meaning, or different names for one thing. This part is judgement, and it is
-   bounded to cells the matrix identified rather than applied to the whole corpus.
+### Two kinds of row, because nouns are not the requirement
 
-Absence is mechanical. Contradiction is read, but only where reading is warranted.
+A first draft inventoried only named *things*: glossary concepts, screens, components. That
+instrument cannot see a behavioural disagreement. It would report `Space` absent and never
+notice that the workspace PRD's "start a project without a plan" contradicts a Plan-editor
+Feature that assumes a plan exists — every row present, Definition of Done satisfied, the
+substantive clash unfound. So rows come in two kinds:
+
+- **Named things.** Glossary concepts, screens and views, components. Presence is a lookup.
+- **Behavioural claims.** The workspace PRD's user stories, functional and acceptance
+  requirements; the UXD's interaction rules, journey steps and accessibility rules; the
+  prototype spec's error contracts and golden path; the 63 JTBD job statements. Presence is
+  "does any derived note assert, contradict, or ignore this claim."
+
+### Two directions, because Orphan is otherwise undiscoverable
+
+Every row in the first draft originated from the new evidence, which makes a backlog-only
+concept structurally invisible: it has no row, and the reading is bounded to rows. The
+`Orphan` category was therefore promised and unreachable — an instrument that cannot find
+one of the four things it reports. So the inventory runs both ways:
+
+- **Forward** — each item extracted from the new evidence, checked against the derived notes.
+- **Reverse** — each Epic and Feature in `requirements/`, each entity, business rule, actor,
+  deliverable and ADR, checked against the new evidence: does it speak to this, contradict
+  it, or ignore it? Orphans come from this pass and are counted like everything else.
+
+### Every in-scope note type has a comparison rule
+
+The scope claims 227 notes, so all 227 need a rule saying what they are compared against.
+Naming only `entities/`, `components/` and `requirements/` would have left 55 notes —
+business rules, actors, deliverables, ADRs, issues — unread beneath a coverage claim that
+included them.
+
+| Derived notes | Compared against | Looking for |
+| --- | --- | --- |
+| `entities/` (34) | Named-thing rows | A concept with no entity note; an entity the new model renames, splits or absorbs |
+| `components/` (17) | Named-thing rows, from the gallery | A component named in one and not the other; same name, different behaviour |
+| `requirements/` (121) | Behavioural rows | A requirement the new evidence contradicts; a claim with no Feature or PBI behind it |
+| `business-rules/` (27) | Behavioural rows | A rule the new evidence violates or supersedes |
+| `actors/` (8) | Named-thing rows | An actor the UX layer introduces, renames or stops needing |
+| `deliverables/` (5) | Both kinds | Design System, Sitemap, Information Architecture, Disclosure ladder and MVP Prototype are *about* this UX layer, so they are the likeliest and most consequential disagreements |
+| `adrs/` (12) | Behavioural rows | A recorded decision the new evidence contradicts |
+| `issues/` (3) | Behavioural rows | An open question the new evidence answers, or reopens |
+
+### The order
+
+1. **Extract** both row kinds from the new evidence.
+2. **Build the reverse inventory** from the derived corpus.
+3. **Establish presence mechanically** in both directions, per the table above.
+4. **Derive the finding set from the resulting matrix**, so absence is *counted* rather than
+   spotted, in both directions.
+5. **Read for contradiction only in cells where both sides speak.** This part is judgement,
+   and it is bounded to cells the matrix identified rather than applied to the whole corpus.
+
+Absence is mechanical, in both directions. Contradiction is read, but only where reading is
+warranted.
 
 ## The ledger
 
@@ -88,9 +134,18 @@ inferred:**
 - It states its own coverage limits — the slices, the HTML, the screenshots — where a reader
   meets them, rather than letting "reconciled" read wider than it is.
 
-Every finding names **both sides with file and section**, and says which side is received and
-which is derived, since that already decides what may change. A reader must be able to check
-a finding without trusting the ledger.
+Every finding says which side is received and which is derived, since that already decides
+what may change, and a reader must be able to check it without trusting the ledger. What
+"checkable" means depends on whether the finding is a disagreement or an absence — a first draft
+required **both** sides by file and section, which is unsatisfiable for exactly the two
+kinds that matter most: a `Gap` has no derived note to cite, and an `Orphan` the evidence
+ignores has no received section. That rule would have forced the ledger to drop valid
+findings or invent locations for them.
+
+- **A disagreement** (`Contradiction`) cites both sides by file and section.
+- **An absence** (`Gap`, `Orphan`) cites the side that exists by file and section, plus **the
+  corpus that was searched and the command that reproduces the absence** — so a reader can
+  re-run it rather than take the word for it.
 
 ### Finding kinds
 
@@ -113,9 +168,14 @@ ledger says so where they are listed.
 
 ## Definition of done
 
-1. Every inventory item has a matrix row carrying a state — present, absent, or contradictory
-   — and the ledger reports the counts rather than describing them.
-2. Every finding is checkable: file and section on both sides.
+1. Every inventory item, **in both directions and of both row kinds**, has a matrix row
+   carrying a state — present, absent, or contradictory — and the ledger reports the counts
+   rather than describing them.
+1a. Every one of the eight in-scope note types has been compared under its rule, and the
+   ledger says how many notes of each type were covered. A type with no rule is a type that
+   was not read, and a coverage claim including it would be false.
+2. Every finding is checkable on the terms above: both sides for a disagreement, the extant
+   side plus a reproducible absence check for a gap or an orphan.
 3. Decision-needing findings are listed apart, with options and a recommendation, and none is
    settled in this pass.
 4. The coverage limits above appear in the ledger.

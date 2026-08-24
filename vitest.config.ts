@@ -118,6 +118,13 @@ export default defineConfig({
 			// re-validation of a snapshot that was valid when it was taken. Every one is
 			// either unreachable by construction or an arm whose whole purpose is to not
 			// happen.
+			//
+			// Measured 2026-08-24 again after the pdf.js swap — `pdfRaster.ts` asking
+			// Obsidian for its own pdf.js instead of bundling one: 1781/1787 statements,
+			// 802/813 branches, 467/468 functions, 1631/1634 lines — 99.66 / 98.64 / 99.78 /
+			// 99.81, the same four figures as slice 5 on a denominator two statements and
+			// one function smaller (`installWorker` and the worker import are gone).
+			// NOTHING RATCHETS, for the reason the slice 5 paragraph gives.
 			thresholds: {
 				statements: 99,
 				functions: 99,

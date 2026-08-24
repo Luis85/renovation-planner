@@ -880,9 +880,14 @@ flat-points defect below.
   a second member and `npm run analyze` reported the nine duplicated lines. `loadZone` had
   been the Zone side's version of the first since slice 3.
 
-### What pdf.js actually cost
+### What pdf.js actually cost — and why it was replaced immediately after
 
-Three facts, all measured, all recorded in `pdfRaster.ts`:
+This slice bundled `pdfjs-dist` as a production dependency. **It no longer does**, and the
+measurement is kept rather than deleted because the next dependency should be able to read
+what this one cost.
+
+Three facts held while the copy was ours, all measured, all recorded in `pdfRaster.ts` at
+the time:
 
 - The **legacy** build is required. The standard one constructs a `DOMMatrix` at module
   scope, so importing it under jsdom throws before a line of this plugin runs; the legacy
@@ -895,7 +900,25 @@ Three facts, all measured, all recorded in `pdfRaster.ts`:
 - `useWasm: false`, because pdf.js 6 loads its WebAssembly from a URL a bundled plugin has
   none of. The cost is decoding speed on image-heavy PDFs; vector floor plans use none of it.
 
-The bundle went from roughly 60 KB to **2.3 MB**. That is what ADR-003 and §54 cost.
+The bundle went from roughly 60 KB to **2216 KB**, of which pdf.js alone was **1728 KB —
+78%**. Because a plugin is one bundled `main.js`, that is parse cost on every Obsidian start
+for every user, whether they ever open a PDF or not. That is what ADR-003 and §54 cost as
+this slice built them.
+
+**What replaced it**, in the increment straight after this slice was marked done: Obsidian's
+own pdf.js, via the `@public` `loadPdfJs()`. The `obsidian` devDependency is pinned to
+exactly `minAppVersion`, so the compiler gate already proved the API is promised at the
+floor, and the library it answers is the same version this slice bundled (6.2.108, verified
+against the installed app). The bundle is **488 KB**. `pdfjs-dist` moved to devDependencies,
+where the legacy-build constraint still applies and the other two facts do not: the module
+mock hands the suite a real pdf.js and pdf.js's own node path finds its worker beside
+itself, while in Obsidian a real worker thread does the parsing — so §63's future-worker
+note no longer has PDF rasterization as its motivating case. `useWasm: false` survived with
+a different reason, written down where the flag is.
+
+The gap that swap opens, and it cannot be closed here: the suite runs OUR pdf.js, production
+runs Obsidian's. Same version today; nothing keeps them so. A live vault is the only place
+the production path exists at all.
 
 ### Testing the canvas at all
 

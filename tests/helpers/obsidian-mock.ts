@@ -52,6 +52,30 @@ export function normalizePath(path: string): string {
 		.normalize('NFC');
 }
 
+/**
+ * Obsidian's pdf.js loader — and what it hands back here is a REAL pdf.js, the
+ * `pdfjs-dist` devDependency, not a stub.
+ *
+ * Not kinder than the real thing, which for this member means genuinely working: the real
+ * call resolves the library the app's own PDF viewer uses, so
+ * `tests/presentation/editor/background.test.ts` keeps rasterizing a real page and
+ * asserting sampled pixels. A fake `getDocument` answering a blank canvas would pass every
+ * assertion about the pipeline's SHAPE and nothing about whether a PDF renders — which is
+ * the defect this repository has already paid for once (`tests/helpers/canvas.ts`).
+ *
+ * The **legacy** build specifically: the standard one constructs a `DOMMatrix` at module
+ * scope and therefore cannot be imported under jsdom at all. That constraint now applies
+ * only to the suite — production imports no pdf.js, it asks Obsidian for one.
+ *
+ * `import()` rather than a top-level import, which also matches the real call's shape:
+ * Obsidian injects its script on the first `loadPdfJs()` and caches it. Here it keeps a
+ * half-megabyte module out of every test file that touches this mock, which is nearly all
+ * of them.
+ */
+export async function loadPdfJs(): Promise<unknown> {
+	return await import('pdfjs-dist/legacy/build/pdf.mjs');
+}
+
 export type ViewFactory = (leaf: WorkspaceLeaf) => unknown;
 
 /**

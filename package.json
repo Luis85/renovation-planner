@@ -45,6 +45,7 @@
 		"mdast-util-from-markdown": "^2.0.3",
 		"obsidian": "1.13.0",
 		"oxlint": "^1.79.0",
+		"pdfjs-dist": "^6.2.108",
 		"playwright-core": "^1.62.1",
 		"semver": "^7.8.5",
 		"typescript": "~6.0.3",
@@ -59,7 +60,6 @@
 	},
 	"dependencies": {
 		"konva": "^10.3.1",
-		"pdfjs-dist": "^6.2.108",
 		"pinia": "^4.0.3",
 		"ulid": "^3.0.2",
 		"vue": "^3.5.41",

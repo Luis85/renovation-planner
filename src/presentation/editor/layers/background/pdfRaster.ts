@@ -1,54 +1,71 @@
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { loadPdfJs } from 'obsidian';
 
 /**
  * One PDF page, rasterized (SDD §54): `PDF → PDF.js → rendered page → plan background`.
  *
  * Isolated in its own module so `BackgroundRenderModel` reads as the two-format pipeline
- * it is, and so everything peculiar to pdf.js — which build, which worker, which scale —
+ * it is, and so everything peculiar to pdf.js — whose copy, which options, which scale —
  * is in one place with the reasons attached.
  *
- * **The LEGACY build, on purpose.** `pdfjs-dist`'s standard build constructs a `DOMMatrix`
- * at module scope, so importing it under jsdom throws before a single line of this
- * plugin's code runs — the whole background suite would be untestable, and the failure
- * would be an import error rather than anything about a PDF. The legacy build carries
- * pdf.js's own Node polyfill hook, which is what lets ONE import path serve both the
- * suite and the plugin. In Obsidian the polyfill branch never executes: pdf.js's
- * `isNodeJS` is false inside an Electron renderer, where `DOMMatrix` is native.
+ * **Obsidian's pdf.js, not a bundled one.** `loadPdfJs()` is `@public` in `obsidian.d.ts`,
+ * and the `obsidian` devDependency is pinned to exactly the `minAppVersion` this plugin
+ * declares (`tests/release/manifest.test.ts` holds that pairing) — so the compiler gate
+ * already proves the API is promised at the floor. What it answers, measured in the
+ * installed app's `resources/obsidian.asar` rather than assumed: a lazily injected
+ * `/lib/pdfjs/pdf.min.mjs`, with `GlobalWorkerOptions.workerSrc` pointed at a real
+ * `/lib/pdfjs/pdf.worker.min.mjs`, resolving `window.pdfjsLib`. Lazy and cached on
+ * Obsidian's side, so awaiting it per render costs a promise rather than a load.
+ *
+ * Two things a bundled copy forced, both now gone: the `globalThis.pdfjsWorker`
+ * single-bundle escape hatch and the main-thread parsing it forced (Obsidian's worker is a
+ * real one, so a large PDF no longer blocks the UI), and 1728 KB of a 2216 KB plugin —
+ * 78% of the bundle, parsed on every Obsidian start by every user whether they ever open a
+ * PDF or not.
+ *
+ * **The residual gap, stated because nothing here can close it.** The suite runs the
+ * `pdfjs-dist` devDependency, handed back by the module mock's `loadPdfJs`; production runs
+ * Obsidian's. They are the same version today — 6.2.108 on both sides, verified against
+ * the installed app — and nothing guarantees they stay that way. That is the same class of
+ * gap as the pinned `obsidian` devDependency, and `npm run test-build` in a live vault is
+ * the only thing that closes it.
  */
 
 /**
- * pdf.js's documented single-bundle escape hatch.
+ * The pdf.js surface this module actually calls, and no more.
  *
- * An Obsidian plugin ships ONE file, so there is no separate `pdf.worker.js` for
- * `GlobalWorkerOptions.workerSrc` to point at and no URL a fake-worker fallback could
- * fetch. pdf.js checks `globalThis.pdfjsWorker` FIRST and uses its `WorkerMessageHandler`
- * in-process when it finds one, which is exactly the shape a bundled plugin can offer.
- *
- * The cost, stated rather than discovered later: parsing runs on the main thread, so a
- * very large PDF blocks the UI while its page renders. §63 lists PDF rasterization among
- * the plausible future worker workloads, and this is the constraint that would motivate
- * it.
- *
- * Installed on the FIRST render rather than at module scope, and that is not a style
- * choice: a module-scope `window` reference makes merely IMPORTING anything that
- * transitively reaches this file throw `window is not defined` outside a DOM — which is
- * every node-environment test whose import graph touches a component, and which is how
- * this was found. Rendering a PDF already needs a document; importing the module that can
- * do so does not.
- *
- * Idempotent, and it has to be: reassigning between two concurrent loads would swap the
- * handler out from under one of them.
- *
- * On `window` and not `globalThis`: they are the same object in every environment this
- * runs in, and the obsidianmd ruleset refuses the second spelling outright. Its stated
- * reason is popout-window compatibility, which is about which DOCUMENT a call reaches and
- * is not what this does — but the rule is a marketplace gate the review bot runs with its
- * own configuration, so it is not a suggestion here.
+ * `loadPdfJs()` is typed `Promise<any>` — Obsidian promises the object, not its shape — so
+ * something has to state what is being relied on. A narrow local interface, cast ONCE at
+ * the boundary in `renderPdfPage`, is that statement: the `any` stops at one expression,
+ * which is what leaves the type-aware `no-unsafe-*` rules nothing to bite. A fuller
+ * declaration would be a hand-written copy of upstream's types with nothing to keep it
+ * honest — the same reason the `pdf-worker.d.ts` this replaces declared exactly one export.
  */
-function installWorker(): void {
-	const host = window as unknown as Record<string, unknown>;
-	host.pdfjsWorker ??= { WorkerMessageHandler };
+interface PdfViewport {
+	readonly width: number;
+	readonly height: number;
+}
+
+interface PdfPage {
+	getViewport(parameters: { scale: number }): PdfViewport;
+	render(parameters: {
+		canvas: HTMLCanvasElement;
+		canvasContext: CanvasRenderingContext2D;
+		viewport: PdfViewport;
+	}): { readonly promise: Promise<void> };
+}
+
+interface PdfDocument {
+	getPage(pageNumber: number): Promise<PdfPage>;
+}
+
+/** The loading TASK, which is what owns `destroy` — see the `finally` in `renderPdfPage`. */
+interface PdfLoadingTask {
+	readonly promise: Promise<PdfDocument>;
+	destroy(): Promise<void>;
+}
+
+interface PdfJs {
+	getDocument(parameters: { data: Uint8Array; useWasm: boolean }): PdfLoadingTask;
 }
 
 /**
@@ -90,19 +107,22 @@ function createCanvas(width: number, height: number): HTMLCanvasElement {
  * opens at roughly life size instead of at an arbitrary one.
  */
 export async function renderPdfPage(bytes: ArrayBuffer, pageNumber: number): Promise<RasterizedPage> {
-	installWorker();
+	// The one cast, at the one boundary, for the reason `PdfJs` above states.
+	const pdfjs = (await loadPdfJs()) as PdfJs;
 	// A COPY of the caller's buffer: pdf.js transfers ownership of the array it is given
 	// and detaches it, so handing over a buffer Obsidian may still hold — or one this code
 	// might retry with — leaves a zero-length ArrayBuffer behind.
 	//
-	// `useWasm: false` because there is nowhere to fetch the module FROM. pdf.js 6 defaults
-	// it on and loads its WebAssembly from a `wasmUrl`, and a plugin that ships one bundled
-	// file has no URL to offer — the same reason `cMapUrl` and `standardFontDataUrl` are not
-	// set either. The cost is decoding speed on image-heavy PDFs and a few exotic codecs;
-	// vector floor plans, which is what this renders, use none of it. Shipping the `.wasm`,
-	// the cmaps and the standard fonts as plugin assets is the upgrade path if a real PDF
-	// ever needs them.
-	const task = getDocument({ data: new Uint8Array(bytes.slice(0)), useWasm: false });
+	// `useWasm: false` survives the move to Obsidian's copy, but its REASON changed and the
+	// comment has to say which. It used to be that a bundled plugin had no URL to fetch the
+	// module from at all. Obsidian does ship the WebAssembly — `/lib/pdfjs/wasm/` is in
+	// `obsidian.asar`, measured — but `wasmUrl` is a `getDocument` PARAMETER and Obsidian
+	// sets it only in its own viewer's options, which do not reach this call. Passing it
+	// here would mean hard-coding an internal asset path that no public API promises and
+	// that would break silently the day it moves. pdf.js wants the module for JPEG 2000 and
+	// a few other exotic codecs, which vector floor plans use none of; `wasmUrl` stays the
+	// documented upgrade path if a real PDF ever needs one.
+	const task = pdfjs.getDocument({ data: new Uint8Array(bytes.slice(0)), useWasm: false });
 	const document_ = await task.promise;
 	try {
 		const page = await document_.getPage(pageNumber);
@@ -120,10 +140,9 @@ export async function renderPdfPage(bytes: ArrayBuffer, pageNumber: number): Pro
 			height: canvas.height,
 		};
 	} finally {
-		// Always, including on the throw above: the loading task holds the parsed document
-		// and its transport, and — with the worker running IN PROCESS, per the note at the
-		// top of this file — nothing else ever collects them. An unreleased one is a leak
-		// that survives the view being closed.
+		// Always, including on the throw above: the loading task holds the parsed document,
+		// its transport, and the worker thread behind them, and nothing else ever collects
+		// them. An unreleased one is a leak that survives the view being closed.
 		//
 		// The TASK's `destroy`, not the document proxy's: `PDFDocumentProxy` has no such
 		// method in pdf.js 6, so `document_.destroy()` throws `is not a function` — which,

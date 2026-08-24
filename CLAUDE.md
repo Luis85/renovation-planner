@@ -391,7 +391,7 @@ Not oversights; each has a trigger.
   nothing imports fails `npm run analyze`, so each arrives with its first real use — money
   arithmetic (ADR-010) and scheduling respectively, neither of which exists yet.
 
-  **Vue, Pinia, zod, konva, vue-konva and pdfjs-dist are NOT on this list any more**, and
+  **Vue, Pinia, zod, konva and vue-konva are NOT on this list any more**, and
   this paragraph is the record of what their arrival cost, because the next arrival pays
   the same. `@vitejs/plugin-vue` is
   one line in EVERY config that transforms source — `vite.config.ts`,
@@ -410,15 +410,26 @@ Not oversights; each has a trigger.
   `konva` is `vue-konva`'s PEER dependency: `src/` never names it (the components use
   `<VStage>` and friends), so `npm run analyze` reads it as test-only and would have it
   moved to devDependencies — which would build here and fail in a vault. It is in
-  `.fallowrc.json`'s `ignoreDependencies` with that reason. `pdfjs-dist` is imported from
-  its **legacy** build, because the standard one constructs a `DOMMatrix` at module scope
-  and therefore cannot even be IMPORTED under jsdom, and because a plugin ships one file
-  and so has no `pdf.worker.js` to point `GlobalWorkerOptions` at — it uses pdf.js's own
-  `globalThis.pdfjsWorker` escape hatch and parses on the main thread. Both facts, and the
-  refusal of pdf.js 6's WebAssembly path (there is no URL to fetch it from), are written
-  down in `src/presentation/editor/layers/background/pdfRaster.ts`. The bundle went from
-  about 60 KB to **2.3 MB** as a result; that is what ADR-003 and §54 cost, and it is worth
-  knowing before the next dependency.
+  `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
+  60 KB to **488 KB**; that is what ADR-003 and §54 cost, and it is worth knowing before
+  the next dependency.
+
+  **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
+  production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —
+  78%, parsed on every Obsidian start by every user whether they ever opened a PDF. What
+  replaced it is Obsidian's own copy, through the `@public` `loadPdfJs()` the pinned
+  `obsidian` devDependency already proves is promised at `minAppVersion`. Three facts went
+  with it, all of them now TEST-only: the **legacy** build, because the standard one
+  constructs a `DOMMatrix` at module scope and cannot be imported under jsdom at all; the
+  `globalThis.pdfjsWorker` escape hatch, which a one-file plugin needed because it had no
+  `pdf.worker.js` to point `GlobalWorkerOptions` at, and which the suite turns out not to
+  need either (pdf.js's own node path resolves the worker beside itself); and main-thread
+  parsing, since Obsidian's copy runs a real worker. `useWasm: false` survives with a new
+  reason — Obsidian ships the WebAssembly but `wasmUrl` is a `getDocument` parameter its
+  viewer sets only for itself. The residual gap is that the suite runs OUR pdf.js and
+  production runs Obsidian's — the same version today, verified, and nothing keeping them
+  so. All of it is written down in
+  `src/presentation/editor/layers/background/pdfRaster.ts` and in the mock's `loadPdfJs`.
 
   The suite paid too: jsdom implements no canvas, no `DOMMatrix`, no `Path2D` and loads no
   images, so `tests/helpers/canvas.ts` puts a REAL rasterizer (`@napi-rs/canvas`, prebuilt

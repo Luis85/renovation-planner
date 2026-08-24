@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty corrections, all from review of the committed matrix — which is the argument for
+Forty-one corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1588,22 +1588,55 @@ selftest rather than by any gate. Now computed from the matrix, taking the targe
 this says is that every figure below totals scale has to be named, and the way they keep being
 found is by running the instrument rather than by reading the page.
 
-**A fortieth correction, and it took the corpus actually moving to expose it.** `main` gained the
-plan-editor work while this pass was in flight, which added two evidence files —
-`concepts/renovation-canvas.html` and `concepts/canvas.css` — and modified seven more. On the
-merged tree `lookup.py --selftest` immediately reported `r1366` flipping `retained` → `present`,
-because the new files name *Design System* and the old ones did not.
-
-**The reproduction was right and the matrix is not wrong.** A reverse row records what the
-evidence said *when the comparison ran*, which is the same rule that keeps a backlog edit from
-moving a gap. What was wrong is that `lookup.py` had no way to be told which corpus to read:
-`candidates.sh` takes `RP_CORPUS_ROOT` and the verifier hands it the pinned tree, and the sibling
-instrument beside it silently read the working tree. **That is the same defect review found in
+**A fortieth correction: both instruments now take `RP_CORPUS_ROOT`.** `candidates.sh` took it and
+`lookup.py` did not, so a replay of the named half silently read the working tree while the
+behavioural half read the corpus the matrix compared. **That is the same defect review found in
 `candidates.sh`, in the other direction** — one instrument repaired, the other not checked beside
-it, which is now the second time this pair has done exactly that to itself.
+it, which is now the second time this pair has done exactly that to itself. `sections.py` has it
+too.
 
-Both selftests are now replayed against the pinned tree, and the pin is doing work rather than
-decorating: unpinned the run reports **677/678**, pinned it reports **678/678**.
+**The reason given for that change was WRONG, and the correction is the more important half.**
+It said `main`'s plan-editor work had moved the corpus — that two new evidence files,
+`concepts/renovation-canvas.html` and `concepts/canvas.css`, name *Design System* where the old
+ones did not, so `r1366` legitimately flipped `retained` → `present`. **Neither file is in
+`BODIES`.** `lookup.py` reads exactly one file from that folder, `component-gallery.html`, so
+neither could have moved anything. The claim was checked against the wrong thing: the corpus
+directory was compared, and the instrument's own body list was not.
+
+**A forty-first correction, and it is the one that matters: the fix in the previous commit made
+the gate green while leaving the tool wrong.** The real cause of `r1366` is that `lookup.py`'s
+back-link guard assumed a fixed depth. An evidence document linking BACK to a derived note is not
+the evidence naming the thing, so the anchor is stripped before the body is searched — and
+`BACKLINK` matched exactly one `../`. The gallery moved a directory deeper, its footer became
+`../../deliverables/Design%20System.md`, the guard stopped matching, the anchor *text* survived
+into the searched body, and `reverse "Design System"` answered **`present gallery` from a link
+that means the opposite**.
+
+**Pinning the replay is right and was not the fix.** It made `verify-dod.sh` green while the
+published command a reader actually runs stayed wrong on the corpus a reader actually has. That is
+the one repair this harness must never accept, and it was committed here — one commit after the
+ledger recorded that two of four gates unable to fail had been *introduced by repairing another
+one*.
+
+The guard now accepts any run of `./` or `../`, with or without a `docs/` prefix: **the folder is
+what identifies a backlink, not the route.** `reverse "Design System"` answers `retained` on the
+working tree again, and the unpinned selftest is back to **678/678** — so the corpus had never
+moved in a way the matrix depended on, and the 677/678 quoted in the fortieth correction was the
+parser being broken, not the corpus having changed.
+
+**The new gate asks the forbidden thing directly rather than watching for a symptom.** Every
+`<a href>` pointing into a derived folder, in any body `lookup.py` reads, must be matched by
+`BACKLINK` — corpus-independent, so a new path spelling fails it whether or not any row's state
+happens to move. Watched failing by restoring the fixed-depth regex, and it named **three**
+backlinks where the row-state selftest had noticed one: the two `../../components/` links moved no
+state at all and were invisible to every check this ledger had. It reads `BODIES` and `BACKLINK`
+by importing `lookup.py`, which needed a `__main__` guard, because a gate holding its own copy of
+the thing it checks is a gate that drifts.
+
+**The two checks are now split by what each can guarantee, and neither is described as covering
+the other.** The pinned selftest guarantees the published matrix reproduces against the corpus it
+compared. The back-link contract guarantees the parser is correct on the corpus that exists now.
+Pinning without the second is how a green gate hides a broken tool.
 
 **And the check on the second instrument was worthless the first time it was run.** `sections.py`
 agreed with itself pinned and unpinned, which looked like evidence it was safe — until reading the

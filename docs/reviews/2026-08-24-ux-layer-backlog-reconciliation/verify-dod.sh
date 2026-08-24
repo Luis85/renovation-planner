@@ -192,6 +192,47 @@ fi
 # type-aware, alias-resolved, back-link-guarded — so it needs its own published command and its
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
+# ---------------------------------------------------------------------------------------------
+# THE BACK-LINK GUARD MUST MATCH EVERY BACKLINK IN TODAY'S CORPUS.
+#
+# This exists because pinning the selftest HID a defect instead of fixing one. `lookup.py`'s
+# `BACKLINK` assumed a fixed depth (`../deliverables/...`); the gallery moved a directory deeper,
+# its footer became `../../deliverables/Design%20System.md`, the guard stopped matching, the anchor
+# TEXT survived into the searched body, and `reverse "Design System"` answered `present gallery`
+# from a link that means the opposite. Pinning the replay made the verifier green while the
+# published lookup stayed wrong on the corpus a reader actually has — which is the one repair this
+# harness must never accept, and it was committed here by the previous commit.
+#
+# So the two checks are split by what each can guarantee, and neither is described as covering the
+# other. The PINNED selftest guarantees the published matrix reproduces against the corpus it
+# compared. THIS check guarantees the parser is correct on the corpus that exists NOW, and it is
+# corpus-INDEPENDENT: it asks the forbidden thing directly — every `<a href>` pointing into a
+# derived folder, in any body `lookup.py` reads, must be matched by `BACKLINK`. A new path
+# spelling fails it whether or not any row's state happens to move.
+python3 - <<'PYB' || fail=1
+import io,os,re,sys
+sys.path.insert(0,"docs/reviews/2026-08-24-ux-layer-backlog-reconciliation")
+import importlib.util
+spec=importlib.util.spec_from_file_location(
+    "lk","docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/lookup.py")
+lk=importlib.util.module_from_spec(spec); spec.loader.exec_module(lk)
+DERIVED=r"(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)"
+ANY=re.compile(r'<a href="([^"]*\b' + DERIVED + r'/[^"]*)">[^<]*</a>')
+missed=[]
+for name,path,a,b in lk.BODIES:
+    if not os.path.exists(path): continue
+    src=io.open(path,encoding="utf-8",errors="replace").read().split("\n")
+    text="\n".join(src[a-1:] if b is None else src[a-1:b])
+    for m in ANY.finditer(text):
+        if not lk.BACKLINK.match(m.group(0)):
+            missed.append((name,m.group(1)))
+print("  backlinks into a derived folder the guard does not strip: %d" % len(missed))
+for name,href in missed:
+    print("  FAIL %s carries %r, which BACKLINK does not match — its anchor text is searched as evidence"
+          % (name,href))
+sys.exit(1 if missed else 0)
+PYB
+
 # Replayed against the PINNED corpus, exactly as candidates.sh is. Against the working tree it
 # measures whatever the backlog and the evidence hold TODAY, which stopped being the corpus the
 # matrix compared the moment main gained the plan-editor work.

@@ -80,8 +80,17 @@ BODIES = [
     ("jtbd",       os.path.join(UX, "renovation-planner-JTBD-research-backlog.md"), 1, 424),
     ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
 ]
+# A link from an evidence document BACK to a derived note is not the evidence naming the thing —
+# it is the evidence pointing AT it — so the anchor is stripped before the body is searched.
+#
+# The depth is not fixed, and assuming it was is what broke: this matched exactly one `../`, and
+# when the gallery moved a directory deeper its footer became `../../deliverables/Design%20System.md`.
+# The guard stopped matching, the anchor TEXT survived into the body, and `reverse "Design System"`
+# answered `present gallery` against a link that means the opposite. Any run of `./` or `../`, with
+# or without a `docs/` prefix, now counts — the folder is what identifies a backlink, not the route.
 BACKLINK = re.compile(
-    r'<a href="\.\./(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>')
+    r'<a href="(?:\.{1,2}/)+(?:docs/)?'
+    r'(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>')
 
 ROLE = (r"(persona|command|screen|view|pane|tab|section|component|actor|entity|concept"
         r"|feature|artifact|deliverable|layer|tool|mode|state)")
@@ -362,4 +371,8 @@ def main():
         sys.exit(2)
 
 
-main()
+# Guarded so the module can be IMPORTED, which is what lets the back-link contract gate check
+# `BODIES` and `BACKLINK` as this tool actually defines them rather than re-declaring them
+# beside it. A gate holding its own copy of the thing it checks is a gate that drifts.
+if __name__ == "__main__":
+    main()

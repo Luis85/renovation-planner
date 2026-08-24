@@ -971,7 +971,16 @@ chk "rows with no state" 0 "$(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l
 chk "rows whose state is outside the five" 0 "$(awk -F'\t' 'NR>1 && $9!="" && $9!="present" && $9!="absent" && $9!="contradictory" && $9!="superseded" && $9!="retained"' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 chk "notes reached by a reverse row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
 chk "notes reached by a reverse BEHAVIOURAL row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse" && $3=="behavioural"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
-chk "derived notes edited" 0 "$(git status --porcelain docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | wc -l | tr -d ' ')"
+# Compare against the MERGE BASE, not the working tree. Task 8 commits the ledger before this
+# verifier runs, so a derived-note edit committed alongside it leaves `git status` clean and
+# the gate passes while the pass's single most important constraint is violated. The working
+# tree cannot answer "did this branch change a derived note"; only the diff against the base
+# can. Both are checked — an uncommitted edit is caught too — but the second is the one that
+# can actually fail.
+MB="$(git merge-base origin/main HEAD)"
+DERIVED="docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues"
+chk "derived notes edited (uncommitted)" 0 "$(git status --porcelain $DERIVED | wc -l | tr -d ' ')"
+chk "derived notes edited (vs merge base $MB)" 0 "$(git diff --name-only "$MB"...HEAD -- $DERIVED | wc -l | tr -d ' ')"
 chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "named rows carrying a union target" 0 "$(awk -F'\t' 'NR>1 && $3=="named" && $11 ~ /,/' "$SP/rows.tsv" | wc -l | tr -d ' ')"
@@ -983,11 +992,18 @@ chk "named rows carrying a union target" 0 "$(awk -F'\t' 'NR>1 && $3=="named" &&
 # nothing about the other seven.
 [ -f "$L" ] || { echo "  FAIL ledger missing: $L"; fail=1; }
 if [ -f "$L" ]; then
-  types=0
-  for t in requirements entities business-rules components actors deliverables adrs issues; do
-    grep -q "$t/" "$L" && types=$((types+1)) || echo "  FAIL ledger never names $t/"
+  # Definition-of-Done item 1a: "the ledger says how many notes of each type were covered".
+  # Grepping for the directory NAME is satisfied by scope prose and coverage-limit prose that
+  # mention every folder while counting none, so the check passed on a ledger that reported no
+  # coverage at all. Parse the number the ledger prints beside each type and compare it with
+  # the corpus.
+  for pair in requirements:121 entities:34 business-rules:27 components:17 actors:8 \
+              deliverables:5 adrs:12 issues:3; do
+    t="${pair%%:*}"; want="${pair##*:}"
+    got="$(grep -oE "\`?$t/\`?[^0-9]{0,40}[0-9]+" "$L" | grep -oE '[0-9]+$' | head -1)"
+    [ -n "$got" ] || { echo "  FAIL ledger prints no covered count for $t/"; fail=1; continue; }
+    chk "notes covered, $t/" "$want" "$got"
   done
-  chk "note types named in the ledger" 8 "$types"
   # Parse the THREE numeric totals item 1 demands, and check them against the matrix.
   # Grepping for the bare words `rows` and `findings` is satisfied by the sentence "rows and
   # findings are counted separately" — prose about counting, with nothing counted. A check
@@ -1042,11 +1058,19 @@ The baseline procedure is kept below for one case only: if the gate is red at th
 
 ```bash
 npm run lint > "$SP/lint-after.log" 2>&1
-git stash push -q -- docs/reviews/2026-08-24-ux-layer-backlog-reconciliation.md
-npm run lint > "$SP/lint-base.log" 2>&1
-git stash pop -q
+git stash list > "$SP/stash-before.txt"
+git worktree add -q "$SP/base-tree" "$(git rev-parse HEAD~1)"
+( cd "$SP/base-tree" && npm ci --silent && npm run lint ) > "$SP/lint-base.log" 2>&1
+git worktree remove --force "$SP/base-tree"
 diff <(sort "$SP/lint-after.log") <(sort "$SP/lint-base.log") && echo "lint: same errors ✓"
 ```
+
+**Baseline from a REVISION, not from a stash.** Task 8 commits the ledger before this step, so
+`git stash push -- <the ledger>` has no local modification to save: git prints "No local changes
+to save", both runs then lint the identical committed tree, and the comparison shows they match
+for a reason that has nothing to do with the ledger. A check that passes because it compared
+something with itself is worse than no check. `HEAD~1` is the commit before the ledger landed,
+so the two trees genuinely differ by exactly the ledger.
 Compare `lint` **sorted** — oxlint's output order is nondeterministic, so a plain diff of two identical results can show a moved line. `analyze` reads `coverage/coverage-final.json` and is downstream of `test:coverage`, so compare it like-for-like or not at all.
 
 - [ ] **Step 4: Push and update the PR**

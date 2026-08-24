@@ -674,10 +674,10 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 no recorded standing**, and 546 of the 819 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
-- **Received, like `prds/`** — the 31 contradictions now carrying `undetermined` gain the
-  standing the other 16 already have, and each becomes a question someone is entitled to answer.
+- **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
+  standing the other 15 already have, and each becomes a question someone is entitled to answer.
   **It is not a licence to edit the backlog.** All 15 already-received contradictions were traced
-  to the sections their derived note cites, and all 16 came back faithful: the note says what its
+  to the sections their derived note cites, and all 15 came back faithful: the note says what its
   source says, so the disagreement is between two received documents and no derived note is at
   fault. Classifying these folders received extends that shape rather than escaping it.
 - **Derived, like `components/`** — the UX documents move instead, and the component-gallery
@@ -1267,6 +1267,15 @@ Keyed off what the data measures rather than pinned values, so a legitimate chan
 is checked instead of failing — a pinned table would need editing on exactly the change it exists
 to catch, which is the moment somebody edits it to whatever makes it pass. Watched failing by
 moving one state count by one.
+
+**Immediately, and this is the part worth keeping.** The sweep as first written covered twenty
+figures and missed the decision-1 summary, which restates BOTH halves of the partition in prose —
+"the 31 contradictions now carrying `undetermined` gain the standing the other 16 already have …
+and all 16 came back faithful". Three stale numbers in one sentence, directly beneath a table that
+was correct. Extending the sweep to four more figures caught all three **as a failing gate rather
+than as a reading**, on the same run in which the edit meant to fix them had silently not applied.
+That is the first time in this ledger a numeric drift was caught by a check instead of a reviewer,
+and it happened within minutes of the check existing.
 
 **Both breakdowns are now gated**, each required to sum to the total it sits under, and both
 watched failing — reverting the one cell reports `expected 3073, measured 3066`, and breaking a

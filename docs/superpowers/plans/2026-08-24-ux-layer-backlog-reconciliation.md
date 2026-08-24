@@ -1202,6 +1202,12 @@ checks=[
  ("disagreement rows",       r"disagreement rows\s+%d" % st['contradictory']),
  ("disagreement findings",   r"disagreement findings\s+%d" % kd['Contradiction']),
  ("undetermined findings",   r"%d of the %d matrix findings" % (und,len(f))),
+ # The decision-1 summary restates BOTH halves of the partition in prose. Review found all
+ # three of its numbers stale in one sentence while the table above it was correct.
+ ("decision-1 undetermined",  r"the %d contradictions now carrying `undetermined`" % cs['undetermined']),
+ ("decision-1 received",      r"standing the other %d already have" % cs['received']),
+ ("decision-1 traced",        r"All %d already-received contradictions were traced" % cs['received']),
+ ("decision-1 faithful",      r"and all %d came back faithful" % cs['received']),
 ]
 bad=[n for n,p in checks if not re.search(p,L)]
 print("  ledger figures swept against the committed data: %d, disagreeing: %d" % (len(checks),len(bad)))

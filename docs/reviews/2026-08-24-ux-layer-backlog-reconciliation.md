@@ -24,7 +24,7 @@ than left to be noticed:**
 
 ## What was found
 
-**47 contradictions, 772 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+**47 contradictions, 773 gaps, 0 orphans, and 4 convention findings.** The contradictions are
 the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
 the 47, and `deliverables/Disclosure ladder.md` alone accounts for 8.
 
@@ -54,20 +54,20 @@ Rows and findings are different things and are counted separately.
 
 | | |
 | --- | --- |
-| matrix rows | **3,073** |
+| matrix rows | **3,076** |
 | ├ forward, named | 497 |
-| ├ forward, behavioural | 904 |
+| ├ forward, behavioural | 907 |
 | ├ reverse, named | 185 |
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
-| `present` | 1,130 |
-| `absent` | 772 |
+| `present` | 1,132 |
+| `absent` | 773 |
 | `contradictory` | 47 |
 | `superseded` | **0** |
 | **findings** | |
 | Contradiction | **47** |
-| Gap | **772** |
+| Gap | **773** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
@@ -123,7 +123,7 @@ it as the whole.
 | canvas | 37 | 38 | §35 |
 | prd | 38 | 39 | §37 |
 | uxd | 31 | 34 | §1, §31, §33 |
-| research | 23 | 33 | §2, §3, §5, §20, §26, §27, §28, §29, §32, §33 |
+| research | 24 | 33 | §2, §3, §5, §20, §26, §27, §28, §29, §32 |
 | gallery | — | — | see limit below |
 | jtbd | — | — | see limit below |
 
@@ -146,12 +146,16 @@ enumeration that quietly drops a member is the defect this ledger is most prone 
   and did not belong** — see the twentieth correction; it is now swept.
 - **Not about this product.** research §20 is a friction matrix whose subject is Excel, Notion,
   Trello and paper.
-- **One that is a genuine judgement rather than a category.** research §33, the strategic
-  conclusion, does assert — "the product should help the user move from *I have information
-  everywhere* to *I know what we are doing*" — but it summarises §§6–19, which are swept, and its
-  own last line calls itself "the research hypothesis Renovation Planner should now validate".
-  It is left out on those two grounds, not on the rule alone. `uxd§33` is the same shape: the
-  document's own definition of done.
+- **`uxd§33` — the document's own definition of done.** Its subject is the document rather than
+  the product.
+
+**`research §33` was listed here and did not belong** — see the twenty-fifth correction; it is now
+swept, and it is the second entry this accounting has lost to review. The paragraph conceded the
+section "does assert" and excluded it anyway on two further grounds, and both fail against this
+ledger's own precedent: that it summarises swept sections is not a reason, because the rule counts
+by pair and duplicated claims from distinct passages are counted separately elsewhere (`c50`
+against `c42` is the worked example); and that its last line calls itself a hypothesis does not
+reach the assertive sentences above that line.
 
 **A swept section is not a fully-read section, and this table cannot tell the difference.** It
 measures *reach* — did anything come out of this section — not *depth*. Research §21 is the
@@ -285,7 +289,7 @@ hide one.
 
 ## Contradictions, by cluster
 
-**All 46 appear below**, and every one cites both sides. Seven themed clusters carry 29, section
+**All 47 appear below**, and every one cites both sides. Seven themed clusters carry 29, section
 H carries 10 that are individually consequential and share no theme, and section I carries the
 last 7 — reached from the reverse direction only, which is why they were the last to be written
 up rather than the least important. Counted directly against `findings.tsv`, not assumed: an
@@ -333,7 +337,7 @@ PRD carries **0**.
 
 ### B. Site has quietly lost a level
 
-**5 rows.** The entity notes model `Site` as the container of Building and Outdoor area. The new
+**4 rows, 4 findings.** The entity notes model `Site` as the container of Building and Outdoor area. The new
 evidence does not have that level.
 
 - `r592` `entities/Site.md::Description[2]` "the garden and the kitchen need a common parent that
@@ -671,7 +675,7 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 546 of the 819 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 547 of the 820 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
@@ -881,17 +885,17 @@ to be typing.
 ## The finding set, as data
 
 The narrative above cites the contradictions in full and characterises the gaps by cluster. It
-does not print 775 gap citations, and a reader is entitled to check the totals rather than take
+does not print 773 gap citations, and a reader is entitled to check the totals rather than take
 them. **The matrix and the finding set are committed beside this ledger**, in
 [`2026-08-24-ux-layer-backlog-reconciliation/`](2026-08-24-ux-layer-backlog-reconciliation/):
 
 | file | rows | what it holds |
 | --- | --- | --- |
 | `rows.tsv` | 3,073 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 819 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `findings.tsv` | 820 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
-| `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
+| `provenance.tsv` | 15 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
 | `candidates.sh` | — | the candidate command for a BEHAVIOURAL row — the mechanical half of that match |
 | `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 682 named rows |
@@ -904,7 +908,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Twenty-four corrections, all from review of the committed matrix — which is the argument for
+Twenty-six corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1286,6 +1290,39 @@ been "fixed" by loosening the check it was supposed to be tightening. **A check 
 not the same as a check watched failing for the right reason**, and only running the drill
 separates them.
 
+**A twenty-fifth correction: the unswept accounting lost a second entry.** `research §33`, the
+strategic conclusion, is now swept — three forward behavioural rows, one of them a gap.
+
+The paragraph excluding it conceded in its own words that the section "does assert", then excluded
+it on two further grounds. Both fail against this ledger's own precedent. That it summarises
+§§6–19 is not a reason: the rule counts by PAIR, and duplicated claims from distinct passages are
+counted separately elsewhere — `c50` against `c42` is the worked example, added in this same round
+of review. And that its last line calls itself "the research hypothesis" does not reach the
+assertive sentences above that line, which are ordinary product statements.
+
+What the sweep found. Two are `present`: "remembers relationships and history so the homeowner does
+not have to" is what `business-rules/A change is a state on an object, not a second object.md`
+argues at length, and the six things the user should know map onto `Task`, `Decision`, `Space`,
+`Cost item`, `Change history` and `Schedule`. **One is a gap** — `g779`, "the winning experience
+should make this feel simpler than the improvised tool stack, **not more sophisticated**". Five
+backlog notes contrast the product with a spreadsheet and every one argues greater *capability*: a
+spreadsheet "is a place to record a number somebody worked out; this is a place" that derives it.
+Nothing in the backlog adopts feeling simpler as a constraint, and `research §33` is the only
+evidence asking for it.
+
+**This is the second entry that accounting has lost** — `uxd§4` was the first, in the twentieth
+correction. Both were dismissed in prose beside an instrument that could see them, and the shape is
+now twice-confirmed: a justification is read, not executed. `sections.py` reports `research 24/33`.
+
+**A twenty-sixth correction, and the one that undercut the whole harness: the verifier was never
+committed.** Every gate this ledger advertises — the finding-set recomputation, the candidate
+replay, the provenance join, the citation check, the 28-figure sweep — lived only inside a code
+block in the plan, written out to a scratchpad to run. **A clean checkout could run none of them.**
+For the whole pass, the ledger's claims about its own checkability were exactly the defect the pass
+exists to find: a claim wider than its mechanism. It is now committed at `verify-dod.sh` beside the
+data it checks, and the plan points at that one copy rather than carrying a second that would drift
+the way every duplicated count here has.
+
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking, while a fifty-third was found hiding inside another — a
@@ -1295,7 +1332,7 @@ and a reason to read the citations rather than the totals.
 ## Checks
 
 ```
-rows                                              3073
+rows                                              3076
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
@@ -1308,7 +1345,7 @@ candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
                                               included)
 lookup.py reproduces the committed named state   682 / 682 named rows (2 named,
                                               and moved onward by a reading)
-gap findings, by the row kind behind them        412 named + 360 behavioural
+gap findings, by the row kind behind them        412 named + 361 behavioural
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
 received contradictions                             15

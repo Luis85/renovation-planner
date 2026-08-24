@@ -40,6 +40,18 @@ export class EchoWindow {
 	}
 
 	/**
+	 * Has this plugin written at `path` at all — the question `matches` answers precisely
+	 * and this one answers cheaply.
+	 *
+	 * For a caller that cannot compute a digest: the geometry sidecars are JSON in a FILE,
+	 * so digesting one means reading it, and `VaultChangeAdapter` is synchronous. It is a
+	 * weaker claim and the caller says what the weakness costs it.
+	 */
+	knows(path: string): boolean {
+		return this.tokens.has(path);
+	}
+
+	/**
 	 * `mark` for note-shaped content, retaining the frontmatter as well as its token. Not
 	 * a mere convenience wrapper any more, which is why the sidecar writers still call
 	 * `mark`: a `.rpgeo` document is not frontmatter and nothing reads one back through

@@ -65,6 +65,14 @@ function stagePoint(event: { clientX: number; clientY: number }) {
 function onWheel(event: WheelEvent): void {
 	// The pane scrolls otherwise, and a plan editor that scrolls its own leaf away on the
 	// first zoom is the defect this one line prevents.
+	//
+	// It is also why Chrome logs `[Violation] Added non-passive event listener to a
+	// scroll-blocking 'wheel' event` when this canvas mounts. That line is the cost of this
+	// one, not a defect to clear: `preventDefault()` is INERT in a passive listener, so
+	// marking the handler passive — which is what the message suggests — would trade the
+	// console line for a plan editor that scrolls itself away on every zoom. Declaring
+	// `{ passive: false }` explicitly does not silence it either; Chrome reports the
+	// listener being non-passive at all.
 	event.preventDefault();
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
 }

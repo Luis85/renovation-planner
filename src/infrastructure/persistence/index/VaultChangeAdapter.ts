@@ -173,23 +173,42 @@ export class VaultChangeAdapter {
 
 		const planId = path.slice(geometryPrefix.length).replace(/\.rpgeo$/, '');
 		const planEntry = this.findByPath(this.deps.index.getPath(planId as never) ?? '');
+
+		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead
+		// of re-affirming a path that no longer exists — leaving it would break every
+		// Zone read on this Plan with no future event to repair it. Ahead of every other
+		// question, including whether a plan claims it: a delete needs no plan entry to be
+		// handled, and an unindexed plan is not a reason to leave a stale mapping behind.
+		const file = this.deps.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) {
+			this.deps.echo.forget(path);
+			if (planEntry?.geometrySidecarPath === path) {
+				this.deps.index.upsert({ ...planEntry, geometrySidecarPath: undefined });
+			}
+			return;
+		}
+
+		// Echo suppression, which `processNote` has always had and this path had NONE of —
+		// the asymmetry that made a correct save log a warning. `insertNew` writes the
+		// sidecar, THEN the note, THEN upserts the index, so between the first write and the
+		// last step the plan is not indexed yet; a debounce landing in that window found our
+		// own sidecar and reported "no indexed plan carries this id" on a save that was
+		// working perfectly. The writer owns the mapping in that case, so there is nothing
+		// here to do and nothing to say.
+		//
+		// COARSER than the note path's check, and the sentence has to admit it: notes
+		// compare a digest of what is on disk against what was written, while this asks only
+		// whether this plugin has written here at all — computing a sidecar's digest means
+		// READING the file, and this pipeline is synchronous. What the coarseness costs is
+		// one idempotent `upsert` skipped when someone edits a sidecar we wrote earlier in
+		// the session; the mapping it would have re-affirmed is already the one it holds.
+		if (this.deps.echo.knows(path)) return;
+
 		if (!planEntry || planEntry.type !== 'renovation-plan') {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,
 				reason: 'no indexed plan carries this id',
 			});
-			return;
-		}
-
-		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead
-		// of re-affirming a path that no longer exists — leaving it would break every
-		// Zone read on this Plan with no future event to repair it.
-		const file = this.deps.vault.getAbstractFileByPath(path);
-		if (!(file instanceof TFile)) {
-			this.deps.echo.forget(path);
-			if (planEntry.geometrySidecarPath === path) {
-				this.deps.index.upsert({ ...planEntry, geometrySidecarPath: undefined });
-			}
 			return;
 		}
 

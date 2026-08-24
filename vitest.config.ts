@@ -145,6 +145,13 @@ export default defineConfig({
 			// Measured 2026-08-24 again after the sidecar folder fix and the real-PDF test:
 			// 1835/1841 statements, 814/825 branches, 482/483 functions, 1679/1682 lines —
 			// 99.67 / 98.66 / 99.79 / 99.82. Unchanged rounded down, so NOTHING RATCHETS.
+			// Measured 2026-08-24 again after the sidecar echo-suppression fix: 1838/1844
+			// statements, 816/827 branches, 483/484 functions, 1681/1684 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82, the same four as before it. Worth recording
+			// because the fix briefly LOWERED branches to 98.42: suppressing our own writes
+			// left the mapping upsert reachable only by a sidecar this session did not write,
+			// which is a real scenario that had been riding on our own writes for its
+			// coverage and now has a test of its own. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

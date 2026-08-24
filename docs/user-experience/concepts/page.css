@@ -628,14 +628,30 @@ html.pg-doc { height: auto; }
 }
 
 /*
- * ── Two frames in one section, and a subheading inside one. ──
+ * ── Two frames STACKED in one section, and a subheading inside one. ──
  *
  * Added for `renovation-canvas.html`, whose scenarios come in pairs — being asked for
  * precision and then having answered, an empty property and then a populated one. The
  * pair is the content, so the gap between them is page furniture and belongs here rather
  * than on the element.
+ *
+ * The CHILD combinator is the whole rule, and it is here because the first version was
+ * `.pg-frame + .pg-frame` and regressed three other pages. That selector also matches the
+ * frames inside a `.pg-schemes` grid — four of them across `component-gallery.html`,
+ * `plan-editor.html` and `settings.html` — and a margin on a grid item pushes it down
+ * inside its own cell. Measured: the second frame sat exactly 20px below the first in all
+ * four, at every column count rather than only at the narrow ones.
+ *
+ * Those grids are the BOTH-SCHEMES panels, whose entire claim is that the two halves
+ * differ by nothing but the theme. A vertical offset between them is the one thing that
+ * comparison cannot afford, and it would have been invisible to anyone not looking at
+ * those pages — a shared stylesheet is exactly where a rule added for one page has to name
+ * the shape it applies to.
+ *
+ * `> ` means a frame the section stacks itself. A frame inside `.pg-schemes` has the grid
+ * as its parent, so it is not matched and is laid out by the grid's own `gap`.
  */
-.pg-frame + .pg-frame { margin-top: 20px; }
+.pg-section > .pg-frame + .pg-frame { margin-top: 20px; }
 
 .pg-section > h3 {
 	margin: 34px 0 4px;

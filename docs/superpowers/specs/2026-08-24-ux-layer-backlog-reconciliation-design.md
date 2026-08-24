@@ -98,11 +98,29 @@ has a technically sound foundation for spatial planning, zones, assets, quantiti
 work packages, scheduling, and project documentation. The purpose of this PRD is to define
 the user-facing product layer."* This is not an adjudication between two specifications.
 
-The **direction is already settled by the register's own rules.** Both PRDs sit in
-`docs/prds/`, which `docs/README.md` defines as received evidence kept verbatim — "corrected
-only by receiving a new one". Reconciliation can therefore only ever change *derived*
-documents. The backlog moves; the PRDs do not. No question needs to be asked about this and
-none is.
+The **direction is settled by the register's own rules — for the PRD.** Both PRDs sit in
+`docs/prds/`, which `docs/README.md` defines as received evidence kept verbatim, "corrected
+only by receiving a new one". Where a finding sets the workspace PRD against a derived note,
+the backlog moves and the PRD does not. No question needs asking about that one, and none is.
+
+**It is not settled for the rest of the evidence side, and an earlier draft of this section
+said it was.** `docs/README.md`'s folder table classifies `prds/` and `sdds/` as received, and
+`components/`, `entities/`, `actors/`, `business-rules/`, `deliverables/` and the design
+slices as derived. It does not name `docs/user-experience/` at all — which this spec already
+knew, since that absence is its worked `Convention` example. So **five of the six in-scope
+evidence bodies have no recorded status**, and "which side is received" is unanswerable for
+any finding drawn from them.
+
+That is not academic, because the label is exactly what decides which document may change.
+The sharpest case is the component gallery against `components/`: the register says a
+component note is *derived* and says nothing at all about the gallery. Treating the gallery as
+received because it happens to be newer would move the component note on the strength of an
+assumption this spec had not noticed it was making.
+
+So until the repository owner classifies `docs/user-experience/`, a finding drawn from those
+five bodies carries its direction as **undetermined**, says so in the ledger, and proposes no
+edit. The classification is itself a `Convention` finding and a decision, and is listed with
+the others below rather than taken here.
 
 ## Scope
 
@@ -275,9 +293,14 @@ inferred:**
 - It states its own coverage limits — the slices, the HTML, the screenshots — where a reader
   meets them, rather than letting "reconciled" read wider than it is.
 
-Every finding says which side is received and which is derived, since that already decides
-what may change, and a reader must be able to check it without trusting the ledger. What
-"checkable" means depends on the kind — a first draft required **both** sides by file and
+Every finding states the standing of each side — **received, derived, or undetermined** —
+since that decides what may change, and a reader must be able to check it against
+`docs/README.md` without trusting the ledger. `undetermined` is not a hedge: it is the honest
+answer for the five evidence bodies the register does not classify, and a finding carrying it
+proposes no edit. An earlier draft offered only received-or-derived, which would have made the
+ledger assert a standing the register never granted.
+
+What "checkable" means depends on the kind — a first draft required **both** sides by file and
 section, which is unsatisfiable for a `Gap`, since a gap has no derived note to cite. That
 rule would have forced the ledger to drop valid findings or invent locations for them.
 
@@ -299,6 +322,20 @@ Ordered by consequence, not by effort:
 | **Gap** | The new evidence names something with no note behind it. |
 | **Orphan** | The backlog holds something the new evidence **supersedes**. Requires a citable passage that supersedes it — silence alone is `Retained`. |
 | **Retained** | The backlog holds something the new evidence is simply not about. |
+
+**Supersession is a state of its own, checked before contradiction.** A supersession
+satisfies both definitions above at once — both sides speak and disagree, *and* the backlog
+claim is superseded — so with no exclusive state the same row could be counted a
+`Contradiction` by one reading and an `Orphan` by another, which a ledger promising
+reproducible counts cannot afford. The matrix therefore carries **five** states —
+`present`, `absent`, `contradictory`, `superseded`, `retained` — resolved in a fixed order so
+every row lands in exactly one:
+
+1. Does the evidence explicitly supersede the derived claim, in a passage that can be cited?
+   → `superseded`, reported as an **Orphan**.
+2. Otherwise, do both sides speak and disagree? → `contradictory`, reported as a
+   **Contradiction**.
+3. Otherwise, is the evidence simply not about it? → `retained`, reported as neither.
 
 `Retained` is not a finding and not a defect; it is the state the reverse pass needs so that
 silence stops manufacturing orphans. The UX layer is additive and never mentions Vue — the
@@ -326,9 +363,18 @@ A separate section, and not a severity. Each finding here carries its options an
 recommendation; none is resolved unilaterally, and the ledger says so where they are listed.
 
 **The rule for membership, rather than a list of members: a finding whose resolution changes
-the domain model, or changes what a user-facing word means, is a product decision and is
-listed rather than settled.** Which findings meet it is an output of the pass — naming a
-certain member in advance is how an earlier draft of this section acquired its worst claim.
+the domain model, changes what a user-facing word means, or changes which documents may be
+edited, is a decision and is listed rather than settled.** The third clause was missing, and
+its absence is what let the register-classification question below go unasked for four
+revisions. Which findings meet the rule is otherwise an output of the pass — naming a certain
+member in advance is how an earlier draft of this section acquired its worst claim.
+
+One member is already established rather than predicted, because checking the register
+produced it: **`docs/user-experience/` has no recorded status.** The options are that it is
+received evidence like `prds/`, that it is derived and therefore editable like
+`components/`, or that it splits — the PRD-adjacent documents received, the concept HTML
+derived. Each answer moves a different document when a finding sets the gallery against a
+component note, which is why it is listed and not chosen here.
 
 The *shape* of the likeliest one can be stated in advance, because the backlog's position is
 already on record and the decision is narrower than it looks. `entities/Space.md` and
@@ -348,8 +394,9 @@ decision, and still not mine.
 ## Definition of done
 
 1. Every inventory item, **in both directions and of both row kinds**, has a matrix row
-   carrying a state — present, absent, contradictory or retained — and the ledger reports the
-   counts rather than describing them.
+   carrying **exactly one** of the five states — present, absent, contradictory, superseded or
+   retained — resolved by the precedence above, and the ledger reports the counts rather than
+   describing them.
 1a. Every one of the eight in-scope note types has been compared under its rule, and the
    ledger says how many notes of each type were covered. A type with no rule is a type that
    was not read, and a coverage claim including it would be false.

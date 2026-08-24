@@ -933,6 +933,11 @@ echo "6  derived notes edited:    $(git status --porcelain docs/requirements doc
 fail=0
 chk(){ [ "$2" = "$3" ] || { echo "  FAIL $1: expected $2, measured $3"; fail=1; }; }
 chk "rows with no state" 0 "$(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')"
+# Definition-of-Done item 1 says every row holds exactly ONE OF FIVE states. Checking only for
+# emptiness accepts `contradiction`, `Present`, `present?` — a typo or a leftover provisional
+# marker — and the finding derivation then silently ignores the row, so an unrecognised
+# disagreement disappears without any check failing. Validate against the vocabulary.
+chk "rows whose state is outside the five" 0 "$(awk -F'\t' 'NR>1 && $9!="" && $9!="present" && $9!="absent" && $9!="contradictory" && $9!="superseded" && $9!="retained"' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 chk "notes reached by a reverse row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
 chk "notes reached by a reverse BEHAVIOURAL row" 227 "$(awk -F'\t' 'NR>1 && $2=="reverse" && $3=="behavioural"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')"
 chk "derived notes edited" 0 "$(git status --porcelain docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | wc -l | tr -d ' ')"
@@ -952,8 +957,21 @@ if [ -f "$L" ]; then
     grep -q "$t/" "$L" && types=$((types+1)) || echo "  FAIL ledger never names $t/"
   done
   chk "note types named in the ledger" 8 "$types"
-  grep -qi 'rows' "$L" || { echo "  FAIL ledger does not print a row count"; fail=1; }
-  grep -qi 'findings' "$L" || { echo "  FAIL ledger does not print a finding count"; fail=1; }
+  # Parse the THREE numeric totals item 1 demands, and check them against the matrix.
+  # Grepping for the bare words `rows` and `findings` is satisfied by the sentence "rows and
+  # findings are counted separately" — prose about counting, with nothing counted. A check
+  # that passes on a description of itself is not a check.
+  want_rows=$(awk -F'\t' 'NR>1' "$SP/rows.tsv" | wc -l | tr -d ' ')
+  want_find=$(awk -F'\t' 'NR>1' "$SP/findings.tsv" | wc -l | tr -d ' ')
+  dis=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded")' "$SP/rows.tsv" | wc -l | tr -d ' ')
+  distinct=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded"){print $10}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')
+  want_coal=$(( dis - distinct ))
+  for n in "$want_rows" "$want_find" "$want_coal"; do
+    grep -qE "(^|[^0-9,])$(printf '%s' "$n" | sed 's/\(.\)\([0-9]\{3\}\)$/\1,\2/')([^0-9]|$)" "$L" \
+      || grep -qE "(^|[^0-9])$n([^0-9]|$)" "$L" \
+      || { echo "  FAIL ledger never prints the number $n"; fail=1; }
+  done
+  echo "  (ledger must print: rows=$want_rows findings=$want_find coalesced-pairs=$want_coal)"
 fi
 exit $fail
 EOF

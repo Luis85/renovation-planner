@@ -53,17 +53,37 @@ id	direction	kind	subject	source	terms	cand_n	matched	state	pair	target
 
 - `id` — `f<N>` forward, `r<N>` reverse
 - `target` — named rows only: which derived note type would hold this thing —
-  `entities|requirements|components|actors|deliverables`. A forward row may carry more than
-  one, comma-separated, where the extraction rule maps it to more than one (a screen goes to
-  `requirements` **and** `deliverables`). Reverse rows take the type of the note they came
-  from. `-` on behavioural rows
+  exactly ONE of `entities|requirements|components|actors|deliverables`. Reverse rows take the
+  type of the note they came from. `-` on behavioural rows.
+
+  **A thing the extraction rule maps to two consumers becomes two rows, one per consumer**,
+  ids suffixed `f376a`, `f376b`. A screen goes to `requirements` **and** `deliverables`, and
+  those are not alternatives: searching their union settles the row `present` on a hit in
+  either, so a screen with a deliverable mention and no Feature or PBI behind it can never
+  become a `Gap`.
+
+  That is not hypothetical — it silently defeated the spec's own worked example. `Project
+  Home` appears in **0** notes under `requirements/` and **1** under `deliverables/`
+  (`MVP Prototype.md`). The union lookup scored it `present`; the spec built the
+  `requirements/` × named-thing cell precisely so that "a screen the new evidence names with no
+  Feature or PBI behind it" would surface, and named `Project Home` as the example. Split by
+  consumer it reads `absent` against `requirements` and `present` against `deliverables`, which
+  is the finding. Three rows in this corpus were affected, all of them `Project Home`.
 - `direction` — `forward` | `reverse`
 - `kind` — `named` | `behavioural`
 - `subject` — the item or claim, one line, no tabs
 - `source` — `body§section` (forward) or `path::locator` (reverse)
 - `terms` — normalised subject terms, comma-separated
 - `cand_n` — candidate-set size; `-` for named rows
-- `matched` — note path that addresses it, or `-`
+- `matched` — **the addressing claim's full citation**, not merely its file: `<path>::<locator>`
+  on a forward row, `<body>§<section>` on a reverse one. Or `-`.
+
+  The path alone cannot build a pair key. Pair identity is the ordered pair of *citations*, and
+  Task 5 needs a forward row and its mirrored reverse row to produce byte-identical
+  `EVIDENCE>>DERIVED` strings. A forward row holding only `docs/entities/Space.md` and a reverse
+  row holding `docs/entities/Space.md::Rules[1]` never collide, so the two halves of one
+  disagreement are counted as two findings and the coalesced-pair count — which the ledger
+  prints as a directly-counted number — is wrong by however many mirrors failed to meet.
 - `state` — `present|absent|contradictory|superseded|retained`
 - `pair` — pair-identity key `evidence_source>>derived_path::locator`, or `-`
 
@@ -162,7 +182,7 @@ case "${1:-}" in
 esac
 EOF
 chmod +x "$SP/corpus.sh"
-printf 'id\tdirection\tkind\tsubject\tsource\tterms\tcand_n\tmatched\tstate\tpair\n' > "$SP/rows.tsv"
+printf 'id\tdirection\tkind\tsubject\tsource\tterms\tcand_n\tmatched\tstate\tpair\ttarget\n' > "$SP/rows.tsv"
 ```
 
 - [ ] **Step 4: Run all four subcommands**
@@ -286,6 +306,38 @@ awk -F'\t' 'NR>1 && $3=="named" {n[$9]++} END{for (s in n) print s, n[s]}' "$SP/
 Expected: `0` missing, and every state still carrying its `?`. A named row without a question
 mark at this point is one that skipped the alias pass.
 
+- [ ] **Step 4a: Strip repository back-links before resolving reverse named presence**
+
+The materialised gallery is HTML and links back to the very notes it is being compared against:
+
+```html
+<a href="../deliverables/Design%20System.md">Design System</a>
+```
+
+A literal `grep` counts that as the evidence naming `Design System`. It is not — it is the
+evidence pointing AT the derived note, which is the one thing that cannot be evidence the note
+has a counterpart in the new layer. Scored naively, a deliverable with no standing in the new
+evidence comes back `present` on the strength of its own hyperlink.
+
+```bash
+mkdir -p "$SP/bodies-search"
+for f in "$SP"/bodies/*.txt; do
+  sed -E 's#<a href="\.\./(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>##g' \
+    "$f" > "$SP/bodies-search/$(basename "$f")"
+done
+```
+
+Reverse named presence is looked up in `bodies-search/`, never in `bodies/`. Behavioural
+candidate sets keep using `bodies/` — a back-link is not a behavioural claim either way, and
+narrowing the guard to the lookup it was measured against is the point.
+
+**Narrow by measurement, not by taste.** Exactly three lines in the whole corpus match, all in
+`gallery.txt`, and exactly one row changes: `Design System`, whose only hit was its own link.
+`Disclosure ladder` KEEPS its hit — it appears in the gallery's own navigation as a link to a
+sibling concept page, which is the evidence genuinely using the term. A guard that had removed
+both would have manufactured a `retained` as surely as the missing guard manufactured a
+`present`.
+
 - [ ] **Step 5: Write the alias table from what the lookup exposed**
 
 ```bash
@@ -365,7 +417,11 @@ chmod +x "$SP/check-coverage.sh"
 - [ ] **Step 2: Run it to see it fail**
 
 Run: `bash "$SP/check-coverage.sh"`
-Expected: the ANY line already reads `227 / 227` — Task 2's reverse named rows reach every note — and the BEHAVIOURAL line reads `0 / 227`, so the check **fails**. That split is the point. DoD 1b asks whether every note was read; this task asks whether every note's *claims* were extracted, and a single number that answers the first cannot be trusted to answer the second.
+Expected: the ANY line reads **`185 / 227`** and the BEHAVIOURAL line `0 / 227`, so the check **fails**. Both numbers are meant to be short here, and the first one's value is exact rather than approximate: Task 2 emits reverse named rows for the **five** note types that hold named things — entities 34 + requirements 121 + components 17 + actors 8 + deliverables 5 = **185** — and deliberately none for `business-rules/` (27), `adrs/` (12) or `issues/` (3), which consume behavioural rows only. Those 42 notes are reached for the first time by this task.
+
+Do not write `227` here. An earlier version did, and it was wrong in the direction that causes damage: a worker who sees `185 / 227` where the plan promised 227 concludes the named pass under-produced, and the obvious repair is to fabricate named rows for the three note types the instrument specifically excludes — inventing a consumer no producer feeds, which is the exact hole the closure check exists to catch.
+
+That split is the point of having two numbers at all. DoD 1b asks whether every note was read; this task asks whether every note's *claims* were extracted, and a single number that answers the first cannot be trusted to answer the second.
 
 - [ ] **Step 3: Extract forward behavioural claims from all eight bodies**
 
@@ -583,10 +639,10 @@ characters past `index(p,">>")`; the definition and the parser now say the same 
 - [ ] **Step 5: Coalesce and verify rows ≠ findings by exactly the mirror count**
 
 ```bash
-printf 'finding_id\tkind\tstanding_evidence\tstanding_derived\tevidence_cite\tderived_cite\trows\n' > "$SP/findings.tsv"
+printf 'finding_id\tkind\tstanding_evidence\tstanding_derived\tevidence_cite\tderived_cite\trows\tremedy\n' > "$SP/findings.tsv"
 awk -F'\t' 'NR>1 && ($9=="contradictory" || $9=="superseded") {c[$10]=c[$10]" "$1; k[$10]=$9}
   END{i=0; for (p in c){i++; n=index(p,">>");
-       printf "c%d\t%s\t\t\t%s\t%s\t%s\n", i, (k[p]=="superseded"?"Orphan":"Contradiction"),
+       printf "c%d\t%s\t\t\t%s\t%s\t%s\t\n", i, (k[p]=="superseded"?"Orphan":"Contradiction"),
               substr(p,1,n-1), substr(p,n+2), c[p]}}' \
   "$SP/rows.tsv" >> "$SP/findings.tsv"
 rows=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded")' "$SP/rows.tsv" | wc -l | tr -d ' ')

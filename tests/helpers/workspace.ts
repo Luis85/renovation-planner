@@ -15,11 +15,20 @@ import { RenovationProjectView } from '../../src/presentation/views/RenovationPr
 // src/ only), so drift past the editor is the reviewer's to catch; the root CLAUDE.md's
 // Testing section names this limit.
 export class FakeLeaf implements WorkspaceLeaf {
-	state: { type: string; active?: boolean } | undefined;
+	state: { type: string; active?: boolean; state?: Record<string, unknown> } | undefined;
 
-	setViewState(state: { type: string; active?: boolean }): Promise<void> {
+	setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
 		this.state = state;
 		return Promise.resolve();
+	}
+
+	/**
+	 * The real call answers `{}` for a leaf nothing has been set on, not `undefined` — and
+	 * `revealPlanEditor` reads `.state?.planId` straight off it, so a fake returning
+	 * `undefined` would throw there while the app returned a plain miss.
+	 */
+	getViewState(): { type?: string; state?: Record<string, unknown> } {
+		return this.state ?? {};
 	}
 }
 
@@ -62,10 +71,29 @@ export class FakeWorkspace {
 	}
 
 	/** A leaf already showing `type`, as a vault reopened onto the view would have. */
-	withOpen(type: string): FakeLeaf {
+	withOpen(type: string, state?: Record<string, unknown>): FakeLeaf {
 		const leaf = new FakeLeaf();
-		leaf.state = { type };
+		leaf.state = { type, state };
 		this.leaves.push(leaf);
 		return leaf;
+	}
+
+	/** The active file, for a command whose availability depends on one. */
+	activeFile: { path: string } | null = null;
+
+	getActiveFile(): { path: string } | null {
+		return this.activeFile;
+	}
+
+	/**
+	 * Recorded, never resolved by type: the real call walks the workspace looking for an
+	 * active leaf whose view is an instance of the class it was given, and a fake that
+	 * reimplemented that search would be asserting on its own guess at Obsidian's traversal.
+	 * A test plants the answer instead.
+	 */
+	activeView: unknown = null;
+
+	getActiveViewOfType(_type: unknown): unknown {
+		return this.activeView;
 	}
 }

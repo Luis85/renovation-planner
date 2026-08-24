@@ -8,12 +8,20 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-**Renovation project** view is registered with a ribbon button and a command opening it,
-and it mounts its own isolated Vue app (SDD §12) — nothing outside the view knows it is
-Vue; the settings pane offers the one setting there is; and the persistence layer of
-design slice 4 is in place — Obsidian repositories, the geometry sidecar store, the
-project index and its vault-change pipeline, and the migration runner. The Vue app still
-draws an empty root. Requires Obsidian 1.13.0+.
+settings pane offers the one setting there is; and the persistence layer of design slice 4
+is in place — Obsidian repositories, the geometry sidecar store, the project index and its
+vault-change pipeline, and the migration runner.
+
+There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
+nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
+a ribbon button and a command, and still draws an empty root. The **Plan editor** is
+per-plan (several leaves coexist, keyed by a plan id in Obsidian's own view state) and is
+design slice 5: §60's five shell regions around a Konva stage of §17's seven layers, the
+persisted Zones of one Plan rendered read-only, an image or PDF background, and a
+pan/zoom camera. Nothing on that canvas is editable — slice 6 adds the tools — and the one
+thing slice 5 writes is which document a Plan's background IS.
+
+Requires Obsidian 1.13.0+.
 
 **The settings pane is DECLARATIVE** (`getSettingDefinitions`, plus `getControlValue` /
 `setControlValue`), which is what 1.13 renders from and what it indexes for the settings
@@ -135,12 +143,18 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
-  is 99.7/98.9/99.7/99.8 and the floors sit a covered unit or more below each. The exact
-  numbers and which increment moved them live in `vitest.config.ts`, which also carries the
-  ratchet policy: floors only rise, and they rise to what a FINISHED increment measures. The suite
+  is 99.7/98.6/99.8/99.8 and the floors sit a covered unit or more below each. The exact
+  numbers, which increment moved them, and what every remaining uncovered arm IS live in
+  `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
+  rise to what a FINISHED increment measures — so an increment whose rounded-down figures
+  equal the floors already in force ratchets NOTHING, which is what slice 5 did.
+  The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
-  real mounted view (`mountHarness`, not a fixture), checking roles, accessible names,
-  form labels, heading order and ARIA attribute validity. Read its header before trusting
+  real mounted views (`mountHarness` and the real Plan Editor, never a fixture), checking
+  roles, accessible names, form labels, heading order and ARIA attribute validity. It
+  earns its place rather than merely running: pointed at the Plan Editor — the first
+  surface here that draws anything — it immediately found three `aria-label`s on role-less
+  `<div>`s, which is a real violation and one no other gate can see. Read its header before trusting
   the word "accessibility" any wider than that: it does NOT verify colour contrast, a
   visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
   of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
@@ -161,7 +175,10 @@ nobody can clear, and a gate people learn to ignore protects nothing. It is its 
 Obsidian itself cannot run here. Three commands stand in, and none replaces another:
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
-  and **Obsidian's own app.css**, in a browser, with no Obsidian. Faithful about markup,
+  and **Obsidian's own app.css**, in a browser, with no Obsidian. `?view=plan-editor` draws
+  the Plan Editor instead of the project surface, `?theme=light` and `?phone` are the other
+  two knobs, and all three exist so a headless capture needs a URL and nothing to click.
+  Faithful about markup,
   spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
   nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
   `.view-content`), which the fake `ItemView` in `tests/helpers/obsidian-mock.ts` nests the
@@ -172,11 +189,19 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   "faithful" read wider than it is.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
-  scheme plus `?phone` to a gitignored `harness-shots/` folder — a look at rendered layout,
-  which jsdom cannot produce at all and which is how a real defect (the view collapsing to
-  a sliver of its pane, invisible to a suite that draws nothing) was found in this plan.
+  scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
+  folder — a look at rendered layout, which jsdom cannot produce at all.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
+
+  **It has now caught four defects the whole of `npm run check` could not**, which is the
+  argument for running it on anything that draws: the view collapsing to a sliver of its
+  pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
+  clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
+  over, putting three of four names off the top of the pane, and every zone type drawn in
+  the same grey because the harness page applied its theme class AFTER mounting, so the
+  editor resolved its palette when no `--color-*` existed. Every one passed the suite:
+  jsdom lays nothing out, and the tests set the theme variables themselves.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.
@@ -366,8 +391,9 @@ Not oversights; each has a trigger.
   nothing imports fails `npm run analyze`, so each arrives with its first real use — money
   arithmetic (ADR-010) and scheduling respectively, neither of which exists yet.
 
-  **Vue, Pinia and zod are NOT on this list any more**, and this paragraph is the record of
-  what their arrival cost, because the next arrival pays the same. `@vitejs/plugin-vue` is
+  **Vue, Pinia, zod, konva, vue-konva and pdfjs-dist are NOT on this list any more**, and
+  this paragraph is the record of what their arrival cost, because the next arrival pays
+  the same. `@vitejs/plugin-vue` is
   one line in EVERY config that transforms source — `vite.config.ts`,
   `vite.harness.config.ts` and the standalone `vitest.config.ts`, which is three here, not
   the two a generic project has — and `tsc` became `vue-tsc` in the same edit.
@@ -379,6 +405,27 @@ Not oversights; each has a trigger.
   ([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](docs/tasks/01-plugin-bootstrap-and-composition-root.md)),
   recorded there as complete. Read it as the reference for what a NEW dependency has to
   wire, not as work still to do.
+
+  **What the canvas stack cost, since it is the newest bill and none of it was obvious.**
+  `konva` is `vue-konva`'s PEER dependency: `src/` never names it (the components use
+  `<VStage>` and friends), so `npm run analyze` reads it as test-only and would have it
+  moved to devDependencies — which would build here and fail in a vault. It is in
+  `.fallowrc.json`'s `ignoreDependencies` with that reason. `pdfjs-dist` is imported from
+  its **legacy** build, because the standard one constructs a `DOMMatrix` at module scope
+  and therefore cannot even be IMPORTED under jsdom, and because a plugin ships one file
+  and so has no `pdf.worker.js` to point `GlobalWorkerOptions` at — it uses pdf.js's own
+  `globalThis.pdfjsWorker` escape hatch and parses on the main thread. Both facts, and the
+  refusal of pdf.js 6's WebAssembly path (there is no URL to fetch it from), are written
+  down in `src/presentation/editor/layers/background/pdfRaster.ts`. The bundle went from
+  about 60 KB to **2.3 MB** as a result; that is what ADR-003 and §54 cost, and it is worth
+  knowing before the next dependency.
+
+  The suite paid too: jsdom implements no canvas, no `DOMMatrix`, no `Path2D` and loads no
+  images, so `tests/helpers/canvas.ts` puts a REAL rasterizer (`@napi-rs/canvas`, prebuilt
+  per platform — no build toolchain, which is what makes it viable on all four CI legs)
+  behind jsdom's `<canvas>` and `<img>`. An inert stub was built first and is refused in
+  that file's header for the reason this project already knows: a fake kinder than the real
+  thing turns a shipped crash into a green suite.
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
 - **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,

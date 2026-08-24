@@ -9,8 +9,11 @@ import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
 import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
+import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
+import { registerPlanEditorCommands } from './planEditorCommands';
 import {
 	createCompositionRoot,
+	planEditorDeps,
 	type CompositionRoot,
 	type VaultStack,
 } from './composition-root';
@@ -97,6 +100,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.addSettingTab(new SettingsTab(this));
 
 		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf));
+		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
+		// view many times — the dependencies are resolved PER CALL from the current root, not
+		// captured, because `saveSettings` replaces that root and a view built against the old
+		// one would read through query services pointed at the previous project folder.
+		this.registerView(
+			PLAN_EDITOR_VIEW,
+			(leaf) => new PlanEditorView(leaf, planEditorDeps(this.root, this.app.workspace, this.app.vault)),
+		);
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
@@ -117,6 +128,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void this.openProject();
 			},
 		});
+
+		// The Plan Editor's two commands. Their BEHAVIOUR lives in one module beside this
+		// one; the `addCommand` calls still happen here, so this file remains the only place
+		// anything is registered with Obsidian.
+		registerPlanEditorCommands(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
 		// competes with workspace restoration, and `MetadataCache` is incomplete until

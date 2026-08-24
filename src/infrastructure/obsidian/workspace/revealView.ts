@@ -1,4 +1,5 @@
 import type { Workspace } from 'obsidian';
+import { revealCandidate } from './reveal';
 
 /**
  * Show the view of `type`, reusing the leaf it is already in.
@@ -15,9 +16,9 @@ import type { Workspace } from 'obsidian';
  * `setViewState` only on a leaf this call created — setting it on an existing leaf would
  * rebuild a view the user has already scrolled and filtered.
  */
-export async function revealView(workspace: Workspace, type: string): Promise<void> {
-	const open = workspace.getLeavesOfType(type);
-	const leaf = open[0] ?? workspace.getLeaf('tab');
-	if (open.length === 0) await leaf.setViewState({ type, active: true });
-	await workspace.revealLeaf(leaf);
+export function revealView(workspace: Workspace, type: string): Promise<void> {
+	// Every leaf of the type is a candidate, which is what makes this the SINGLETON case:
+	// there is at most one, and the first is it. `revealPlanEditor` is the same mechanism
+	// over a narrower candidate set — see `revealCandidate`.
+	return revealCandidate(workspace, type, workspace.getLeavesOfType(type));
 }

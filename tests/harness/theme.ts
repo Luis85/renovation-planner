@@ -52,6 +52,17 @@ export function applyPlatform(search: string): void {
 function applyScheme(scheme: Scheme): void {
 	document.body.classList.toggle('theme-dark', scheme === 'dark');
 	document.body.classList.toggle('theme-light', scheme === 'light');
+	// What Obsidian's own `css-change` means: the variables under the body just changed. A
+	// Konva canvas cannot read a CSS variable, so the Plan Editor resolves the palette into
+	// plain colour strings once and has to be told when to do it again.
+	//
+	// Fired HERE rather than only from the toggle's click handler, because the FIRST call is
+	// the one that matters: `page.ts` mounts the view before `drawSchemeToggle` puts any
+	// scheme class on the body, so an editor that resolved at mount saw no `--color-*` at
+	// all and fell back to the theme's ink for every zone type. Four differently-typed zones
+	// drawn in the same grey is what that looks like, and `npm run harness-shot` is what
+	// showed it — jsdom draws nothing and the suite sets the variables itself.
+	window.dispatchEvent(new Event('rp-harness-theme'));
 }
 
 /**

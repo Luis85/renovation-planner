@@ -27,20 +27,29 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 
 const OUT_DIR = 'harness-shots';
 const VIEWPORT = { width: 1280, height: 800 };
-// The view's own mount point (`RenovationProjectView`'s `contentEl.createDiv`), which is
-// what "the view has drawn" means here — not merely that the page loaded.
-const VIEW_SELECTOR = '.renovation-planner-view';
+// Each surface's own mount point, which is what "the view has drawn" means here — not
+// merely that the page loaded. Per shot rather than one constant, because the two
+// surfaces draw different elements and a shot that waited for the WRONG one would time
+// out on a page that had rendered perfectly.
+const PROJECT_VIEW = '.renovation-planner-view';
+const PLAN_EDITOR_VIEW = '.renovation-plan-editor-view';
 
 const SHOTS = [
-	{ name: 'dark', query: '' },
-	{ name: 'light', query: '?theme=light' },
-	{ name: 'phone', query: '?phone' },
+	{ name: 'dark', query: '', selector: PROJECT_VIEW },
+	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
+	{ name: 'phone', query: '?phone', selector: PROJECT_VIEW },
+	// The Plan Editor in both schemes: it is the first surface with real content, and the
+	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
+	// SDD §61 scopes the MVP to desktop, and a canvas editor is the least mobile of the
+	// surfaces; add one when §61 changes.
+	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
+	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
 ];
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not
  * cost the other two their PNGs. */
-async function captureOne(browser, baseUrl, { name, query }, errors) {
+async function captureOne(browser, baseUrl, { name, query, selector }, errors) {
 	const page = await browser.newPage({ viewport: VIEWPORT });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
@@ -52,7 +61,7 @@ async function captureOne(browser, baseUrl, { name, query }, errors) {
 		// 'load', not 'networkidle': Vite's dev server keeps an HMR websocket open, which
 		// networkidle waits forever for.
 		await page.goto(`${baseUrl}/${query}`, { waitUntil: 'load' });
-		await page.waitForSelector(VIEW_SELECTOR, { state: 'attached' });
+		await page.waitForSelector(selector, { state: 'attached' });
 
 		const file = path.join(OUT_DIR, `${name}.png`);
 

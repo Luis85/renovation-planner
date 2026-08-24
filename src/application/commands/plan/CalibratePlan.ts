@@ -1,4 +1,4 @@
-import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import { isErr, ok, type Result } from '../../../core/result/Result';
 import type {
 	CalculationError,
 	PersistenceError,
@@ -10,7 +10,8 @@ import type { EventBus } from '../../../core/events/EventBus';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { planCalibrated } from '../../../domain/plan/Plan.events';
 import type { Plan } from '../../../domain/plan/Plan';
-import { referenceError } from '../../errors';
+import { loadPlan } from './loadPlan';
+import { savePlan } from './savePlan';
 import type { Command } from '../Command';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { Loaded } from '../../ports/versioning';
@@ -44,12 +45,9 @@ export class CalibratePlanCommand
 	) {}
 
 	async execute(input: CalibratePlanInput) {
-		const found = await this.plans.getById(input.planId);
+		const found = await loadPlan(this.plans, input.planId);
 		if (isErr(found)) {
 			return found;
-		}
-		if (found.value === null) {
-			return err(referenceError('plan.plan-not-found', `Plan ${input.planId} not found.`));
 		}
 		const loaded = found.value;
 		const plan: Plan = loaded.entity;
@@ -61,14 +59,13 @@ export class CalibratePlanCommand
 		if (isErr(updated)) {
 			return updated;
 		}
-		// Conditional on the version THIS read returned — see "Writes are conditional".
-		const saved = await this.plans.save(updated.value, loaded.version);
+		// Conditional on the version THIS read returned — the compare-and-write that makes a
+		// second writer's edit a refusal rather than a silent overwrite — and one event, on
+		// the success path only.
+		const saved = await savePlan(this.plans, this.events, updated.value, loaded.version, planCalibrated);
 		if (isErr(saved)) {
 			return saved;
 		}
-		await this.events.publish(
-			planCalibrated({ planId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
-		);
 		return ok({ plan: saved.value });
 	}
 }

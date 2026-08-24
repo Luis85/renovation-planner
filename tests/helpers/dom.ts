@@ -33,6 +33,16 @@ export function installObsidianDom(): void {
 	if (proto.__obsidianDomInstalled) return;
 	proto.__obsidianDomInstalled = true;
 
+	// Obsidian's GLOBAL `createEl`, which is a different function from the prototype method
+	// below: with no parent to append to, it makes a detached element. The marketplace
+	// ruleset requires it over `document.createElement` (`obsidianmd/prefer-create-el`), so
+	// src/ calls it and the suite has to supply it — `pdfRaster.ts` is the first caller.
+	(globalThis as unknown as Record<string, unknown>).createEl = (tag: string, options?: CreateOptions | string): HTMLElement => {
+		const el = document.createElement(tag);
+		applyOptions(el, options);
+		return el;
+	};
+
 	proto.createEl = function (this: HTMLElement, tag: string, options?: CreateOptions | string): HTMLElement {
 		const el = document.createElement(tag);
 		applyOptions(el, options);

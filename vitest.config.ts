@@ -94,6 +94,30 @@ export default defineConfig({
 			// and up, and the only whole number above 99 is 100, which the paragraph above
 			// refuses on purpose. The remaining uncovered arms are the defensive ones named
 			// there plus `GeometrySidecarView`'s Obsidian-runtime callback.
+			//
+			// Measured 2026-08-24 at the end of design slice 5 — the canvas and editor shell:
+			// the viewport transform, the three Pinia stores, the presentation read models,
+			// the Konva scene and its seven layers, the image/PDF background pipeline,
+			// `SetPlanBackgroundCommand` and its snapshot inverse, the Plan Editor view and
+			// its two commands: 1783/1789 statements, 802/813 branches, 468/469 functions,
+			// 1633/1636 lines — 99.66 / 98.64 / 99.78 / 99.81.
+			//
+			// NOTHING RATCHETS, and that is the policy working rather than an omission:
+			// rounded down, this increment measures exactly the floors already in force.
+			// Branches gained the most room (97 → 98 was slice 4's rise; 98.64 now leaves
+			// about five branches of headroom at 0.123pp each), and the next whole number
+			// is 99, which 98.64 does not reach. The other three sit between 99 and 100,
+			// and 100 is refused above.
+			//
+			// What the six uncovered statements and eleven branches are, so the next
+			// increment does not go hunting: slice 4's defensive double-fault logging in
+			// `ObsidianZoneRepository`, `GeometrySidecarView`'s Obsidian-runtime callback,
+			// the ~4 phantom `import` branches this file already names, the plugin's
+			// non-`TFile` vault-event arm, `PlanCanvas`'s null-container guards (a template
+			// ref is never null once mounted), and `ReversibleSetPlanBackground`'s
+			// re-validation of a snapshot that was valid when it was taken. Every one is
+			// either unreachable by construction or an arm whose whole purpose is to not
+			// happen.
 			thresholds: {
 				statements: 99,
 				functions: 99,

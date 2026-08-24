@@ -12,10 +12,18 @@
  * ask rather than on a guess about what Obsidian does with it.
  */
 
+/**
+ * `callback` and `checkCallback` are alternatives, never both: Obsidian calls the second
+ * one twice — once with `checking: true` to ask whether the command applies right now, and
+ * again to run it — which is how a command stays out of the palette when its context is
+ * absent. Both are optional here for that reason, and a test drives whichever the command
+ * under test declared.
+ */
 export interface Command {
 	id: string;
 	name: string;
 	callback?: () => void;
+	checkCallback?: (checking: boolean) => boolean;
 }
 
 /**
@@ -66,9 +74,78 @@ export class TFolder {
 	children: unknown[] = [];
 }
 
-/** What a leaf must be for the code under test; `tests/helpers/workspace.ts` supplies one. */
+/**
+ * What a leaf must be for the code under test; `tests/helpers/workspace.ts` supplies one.
+ *
+ * `getViewState` is here because `revealPlanEditor` matches candidate leaves on the plan
+ * id the LEAF carries — not on the view, which Obsidian may not have constructed yet for a
+ * restored leaf. A fake without it would make the multiplicity that view exists for
+ * untestable.
+ */
 export interface WorkspaceLeaf {
-	setViewState(state: { type: string; active?: boolean }): Promise<void>;
+	setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void>;
+	getViewState(): { type?: string; state?: Record<string, unknown> };
+}
+
+/**
+ * Obsidian's transient message. It RECORDS rather than draws, like everything else here —
+ * `notify()` is the only thing in `src/` that constructs one, and what a test wants to
+ * know is that a failure reached the user, not what the toast looked like.
+ */
+export class Notice {
+	static readonly shown: string[] = [];
+
+	constructor(readonly message: string) {
+		Notice.shown.push(message);
+	}
+}
+
+/**
+ * The fuzzy file picker. Obsidian owns the rendering and the fuzzy matching; what a
+ * subclass supplies is the three methods below, so those are the whole contract and this
+ * fake exercises exactly them.
+ *
+ * `open()` records rather than drawing, and `choose()` is the fake's own affordance for
+ * driving what a user selecting an item does — without it a test could assert that a
+ * picker was opened and nothing about what choosing does.
+ */
+export class FuzzySuggestModal<T> {
+	static readonly opened: FuzzySuggestModal<unknown>[] = [];
+
+	placeholder = '';
+	isOpen = false;
+
+	constructor(readonly app: unknown) {}
+
+	setPlaceholder(placeholder: string): void {
+		this.placeholder = placeholder;
+	}
+
+	open(): void {
+		this.isOpen = true;
+		FuzzySuggestModal.opened.push(this as FuzzySuggestModal<unknown>);
+	}
+
+	close(): void {
+		this.isOpen = false;
+	}
+
+	/** Stand-in for a user picking a row; the real class routes this through its list. */
+	choose(item: T): void {
+		this.onChooseItem(item);
+	}
+
+	getItems(): T[] {
+		throw new Error('FuzzySuggestModal.getItems must be implemented by a subclass');
+	}
+
+	getItemText(_item: T): string {
+		throw new Error('FuzzySuggestModal.getItemText must be implemented by a subclass');
+	}
+
+	onChooseItem(_item: T): void {
+		throw new Error('FuzzySuggestModal.onChooseItem must be implemented by a subclass');
+	}
 }
 
 export class Plugin {

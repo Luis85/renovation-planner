@@ -81,15 +81,16 @@
  * duplicate ids or landmark uniqueness. The word "accessibility" in this filename should
  * be read no wider than that.
  *
- * The view today draws one empty mount div, so the real-view check below reports nothing
- * — that is this project's own stated adoption window ("a rule is adopted while it
- * reports nothing", CLAUDE.md): the payoff is that the first surface actually drawn into
- * that div meets this from its first commit, instead of an accessibility pass arriving
- * once twenty views already don't.
+ * The Renovation Project view still draws one empty mount div, so its case below reports
+ * nothing — that was this project's stated adoption window ("a rule is adopted while it
+ * reports nothing", CLAUDE.md), and the Plan Editor is the payoff arriving: the first
+ * surface with real content in it is graded from its first commit, rather than an
+ * accessibility pass arriving once twenty views already fail one.
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mountHarness } from './mount';
+import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -148,5 +149,28 @@ describe('axe against the mounted view', () => {
 		const results = await axe.run(view.contentEl, runOptions);
 
 		expect(results.violations).toEqual([]);
+	});
+
+	/**
+	 * The Plan Editor, which unlike the project surface actually draws something: five §60
+	 * regions, seven labelled layer checkboxes, two panel headings and a focusable canvas.
+	 * Every one of those is a thing axe CAN grade under this file ceiling — roles,
+	 * accessible names, form labels, heading order — so this is the first case here that is
+	 * a real check rather than an adoption placeholder.
+	 *
+	 * Mounted through the same harness the editor suites use, so it grades what
+	 *  actually renders and not a fixture typed into this file.
+	 */
+	it('reports no semantic violations on the plan editor', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
 	});
 });

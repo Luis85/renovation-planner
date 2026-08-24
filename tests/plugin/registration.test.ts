@@ -16,6 +16,7 @@ import {
 	RenovationProjectView,
 } from '../../src/presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../../src/presentation/views/GeometrySidecarView';
+import { PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../helpers/plugin';
@@ -40,8 +41,8 @@ beforeEach(async () => {
 });
 
 describe('what onload registers', () => {
-	it('registers the project view under its persisted type', () => {
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, GEOMETRY_SIDECAR_VIEW]);
+	it('registers each view under its persisted type', () => {
+		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, GEOMETRY_SIDECAR_VIEW]);
 	});
 
 	// A factory that returns the wrong thing registers fine and fails when a user clicks.
@@ -70,8 +71,8 @@ describe('what onload registers', () => {
 	 * produces in the palette. It is also a persisted identifier — a user's hotkey binds to
 	 * it — so renaming one costs them the binding.
 	 */
-	it('adds the open command with an unprefixed id', () => {
-		expect(plugin.commands.map((c) => c.id)).toEqual(['open-project']);
+	it('adds every command with an unprefixed id', () => {
+		expect(plugin.commands.map((c) => c.id)).toEqual(['open-project', 'open-plan-editor', 'set-plan-background']);
 	});
 
 	// Sidecars are registered as visible, openable files (ADR-011), wired to their viewer.

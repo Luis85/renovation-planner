@@ -15,6 +15,7 @@ import { installObsidianDom } from '../../helpers/dom';
 import { lines, resetRecorder } from '../../helpers/logger';
 import { loadedPlugin } from '../../helpers/plugin';
 import { GEOMETRY_SIDECAR_VIEW } from '../../../src/presentation/views/GeometrySidecarView';
+import { PLAN_EDITOR_VIEW } from '../../../src/presentation/views/PlanEditorView';
 import { RENOVATION_PROJECT_VIEW } from '../../../src/presentation/views/RenovationProjectView';
 import { t } from '../../../src/presentation/i18n/strings';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
@@ -67,8 +68,8 @@ describe('a read that failed', () => {
 	it('registers the view and the command anyway', async () => {
 		const { plugin } = await unrecovered();
 
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, GEOMETRY_SIDECAR_VIEW]);
-		expect(plugin.commands.map((command) => command.id)).toEqual(['open-project']);
+		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, GEOMETRY_SIDECAR_VIEW]);
+		expect(plugin.commands.map((command) => command.id)).toEqual(['open-project', 'open-plan-editor', 'set-plan-background']);
 	});
 });
 

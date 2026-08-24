@@ -40,7 +40,16 @@
 	// exists to catch for a real case: an import a production-only install would break on.
 	// This is the opposite — the importing file IS the dev tooling — and fallow's own
 	// suggested fix for this exact finding is this key.
-	"ignoreDependencies": ["playwright-core"],
+	//
+	// `konva` is `vue-konva`'s PEER dependency, and fallow's advice for it — "test-only
+	// production dependency, consider moving to devDependencies" — would be wrong: a peer
+	// dependency is the importing package's requirement on ITS host, so this project has to
+	// declare it and ship it, while `src/` never names it (the components use `<VStage>` and
+	// friends, which `vue-konva` registers). What fallow sees is the test suite importing
+	// `konva` directly to inspect the scene it built, which is the only DIRECT import there
+	// is. Moving it to devDependencies would produce a plugin that loads in this repository
+	// and fails in a vault.
+	"ignoreDependencies": ["playwright-core", "konva"],
 	"duplicates": {
 		"ignore": ["tests/harness/obsidian.css"]
 	},

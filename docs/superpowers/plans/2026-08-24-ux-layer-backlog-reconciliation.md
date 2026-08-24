@@ -988,7 +988,12 @@ git commit -m "Reconcile the UX layer with the backlog: findings ledger"
 cat > "$SP/verify-dod.sh" <<'EOF'
 #!/usr/bin/env bash
 cd "$(git rev-parse --show-toplevel)"
-SP="$(dirname "$0")"; L=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation.md
+# Read the COMMITTED data, not the scratchpad copies. Once the matrix and the finding set
+# are committed beside the ledger, the scratchpad is a working copy that can drift from what
+# a reader will actually check; a verifier reading the copy nobody ships proves nothing about
+# the artifact that shipped.
+D=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation
+SP="$D"; L="$D.md"
 echo "1  rows with no state:      $(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')  (must be 0)"
 echo "1  rows and findings both printed: $(grep -cE 'rows|findings' "$L")  (must be >0)"
 echo "1b notes reached:           $(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')  / 227"
@@ -1023,6 +1028,50 @@ chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/f
 chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "named rows carrying a union target" 0 "$(awk -F'\t' 'NR>1 && $3=="named" && $11 ~ /,/' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 
+# The finding set must be RECOMPUTABLE from the committed matrix, and identical as a SET —
+# not merely equal in total. Totals agreed while every one of the 48 contradiction citations
+# differed between the two files, because `rows.tsv`'s pair column was never updated when the
+# citations were corrected. A count check cannot see that; a set check is the only thing that
+# can, and it is what makes the committed matrix worth committing.
+python3 - "$SP" <<'PYCHK' || fail=1
+import csv, collections, io, sys
+d = sys.argv[1]
+rows = [l.rstrip("\n").split("\t") for l in io.open(d + "/rows.tsv", encoding="utf-8")][1:]
+dis = [r for r in rows if r[8] in ("contradictory", "superseded")]
+pairs = collections.defaultdict(list)
+for r in dis: pairs[r[9]].append(r)
+rec = {(("Orphan" if any(x[8] == "superseded" for x in rs) else "Contradiction"),)
+       + tuple(k.split(">>", 1)) for k, rs in pairs.items()}
+gr = collections.Counter(("Gap", r[4], r[0]) for r in rows if r[1] == "forward" and r[8] == "absent")
+f = list(csv.DictReader(open(d + "/findings.tsv"), delimiter="\t"))
+have = {(r["kind"], r["evidence_cite"], r["derived_cite"]) for r in f if r["kind"] != "Gap"}
+hg = collections.Counter((r["kind"], r["evidence_cite"], r["rows"]) for r in f if r["kind"] == "Gap")
+bad = 0
+for label, a, b in (("contradictions", rec, have), ("gaps", set(gr), set(hg))):
+    if a != b:
+        print("  FAIL finding set recomputed from rows.tsv differs from findings.tsv (%s): %d only in rows, %d only in findings"
+              % (label, len(a - b), len(b - a)))
+        bad = 1
+print("  finding set recomputed from rows.tsv: %d contradictions + %d gaps%s"
+      % (len(rec), sum(gr.values()), ", identical as a set" if not bad else " — SET MISMATCH above"))
+sys.exit(bad)
+PYCHK
+
+# Every RECEIVED contradiction must carry a provenance verdict, and the join is checked in
+# both directions: a trace row naming a finding that is not a received contradiction is as
+# wrong as a received contradiction with no trace row.
+if [ -f "$SP/provenance.tsv" ]; then
+  recv="$(awk -F'\t' 'NR>1 && $2=="Contradiction" && $3=="received"{print $1}' "$SP/findings.tsv" | sort)"
+  trac="$(awk -F'\t' 'NR>1{print $1}' "$SP/provenance.tsv" | sort)"
+  chk "received contradictions with no provenance row" "" "$(comm -23 <(echo "$recv") <(echo "$trac") | tr -d ' \n')"
+  chk "provenance rows naming a non-received contradiction" "" "$(comm -13 <(echo "$recv") <(echo "$trac") | tr -d ' \n')"
+  chk "provenance verdicts outside the vocabulary" 0 "$(awk -F'\t' 'NR>1 && $2!="none" && $2!="backlog moves"' "$SP/provenance.tsv" | wc -l | tr -d ' ')"
+fi
+
+# The coverage table's instrument, checked against a second implementation and pinned counts
+# before any number it produces is believed.
+python3 "$SP/sections.py" --selftest >/dev/null || { echo "  FAIL sections.py --selftest"; fail=1; }
+
 # The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the
 # ledger's text, so it is checked against the ledger's text: all eight note types named, and
 # both counts present. Counted as DISTINCT types, never as a raw matching-line total — a
@@ -1038,7 +1087,10 @@ if [ -f "$L" ]; then
   for pair in requirements:121 entities:34 business-rules:27 components:17 actors:8 \
               deliverables:5 adrs:12 issues:3; do
     t="${pair%%:*}"; want="${pair##*:}"
-    got="$(grep -oE "\`?$t/\`?[^0-9]{0,40}[0-9]+" "$L" | grep -oE '[0-9]+$' | head -1)"
+    # Parse the table COLUMNS. Taking the first number after the directory name reads the
+    # `notes` column, not `covered` — so `| requirements/ | 121 | 0 |` passed a check whose
+    # whole purpose is to catch exactly that. Match the row and take the third cell.
+    got="$(grep -E "^\|[^|]*\`?$t/\`?[^|]*\|" "$L" | head -1 | awk -F'|' '{gsub(/[^0-9]/,"",$4); print $4}')"
     [ -n "$got" ] || { echo "  FAIL ledger prints no covered count for $t/"; fail=1; continue; }
     chk "notes covered, $t/" "$want" "$got"
   done

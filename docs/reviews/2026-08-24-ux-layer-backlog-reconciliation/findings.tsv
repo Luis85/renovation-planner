@@ -1,11 +1,11 @@
 finding_id	kind	standing_evidence	standing_derived	evidence_cite	derived_cite	rows	remedy
-c1	Contradiction	received	derived	prd§3	docs/deliverables/Disclosure ladder.md::The home surface, and IA's first open question answered[1]	f463	
-c2	Contradiction	received	derived	prd§8	docs/entities/Project.md::Project[2]	f494 r519	
-c3	Contradiction	received	derived	prd§10	docs/actors/Professional planner.md::What admitting this actor would change[2]	f500	
-c4	Contradiction	received	derived	prd§13	docs/deliverables/Sitemap.md::The inventory[1]	f574	
-c5	Contradiction	received	derived	prd§17	docs/deliverables/Disclosure ladder.md::What each rung means concretely[3]	f610	
-c6	Contradiction	received	derived	prd§20.5	docs/deliverables/Disclosure ladder.md::What is open[4]	f632	
-c7	Contradiction	received	derived	prd§24	docs/components/Empty state.md::Anatomy[3]	f647	
+c1	Contradiction	received	derived	prd§3	docs/deliverables/Disclosure ladder.md::The home surface, and IA's first open question answered[1]	f463	none
+c2	Contradiction	received	derived	prd§8	docs/entities/Project.md::Project[2]	f494 r519	none
+c3	Contradiction	received	derived	prd§10	docs/actors/Professional planner.md::What admitting this actor would change[2]	f500	none
+c4	Contradiction	received	derived	prd§13	docs/deliverables/Sitemap.md::The inventory[1]	f574	none
+c5	Contradiction	received	derived	prd§17	docs/deliverables/Disclosure ladder.md::What each rung means concretely[3]	f610	none
+c6	Contradiction	received	derived	prd§20.5	docs/deliverables/Disclosure ladder.md::What is open[4]	f632	none
+c7	Contradiction	received	derived	prd§24	docs/components/Empty state.md::Anatomy[3]	f647	none
 c8	Contradiction	undetermined	derived	uxd§16	docs/entities/Work package.md::Relationships[2]	f1099	none
 c9	Contradiction	undetermined	derived	uxd§17	docs/business-rules/A cost rollup is derived along its axis, never stored.md::The rule[1]	f1100	none
 c10	Contradiction	undetermined	derived	uxd§21	docs/deliverables/Sitemap.md::The routes[1]	f1109	none
@@ -14,19 +14,19 @@ c12	Contradiction	undetermined	derived	uxd§27	docs/issues/The alternative list 
 c13	Contradiction	undetermined	derived	wireframes§A.11	docs/issues/The alternative list route is a Bases view.md::Alternatives rejected[2]	f1220	none
 c14	Contradiction	undetermined	derived	wireframes§A.19	docs/issues/The alternative list route is a Bases view.md::Alternatives rejected[3]	f1246	none
 c15	Contradiction	undetermined	derived	gallery§Shared vocabulary > Modal	docs/business-rules/A delete reports what references it and offers four choices.md::Rule[2]	r6	none
-c16	Contradiction	undetermined	derived	gallery§Inspector Anatomy (Properties + Actions sections only, no Relations se	docs/components/Inspector.md::Anatomy[2]	r110	none
-c17	Contradiction	undetermined	derived	gallery§Inspector Actions (Edit, Duplicate, Link note, Delete — 4 shown, not 7	docs/components/Inspector.md::Anatomy[3]	r111	none
-c18	Contradiction	undetermined	derived	gallery§Left rail Anatomy (shows only Objects and Assets sections; Layer toggl	docs/components/Left rail.md::Anatomy[1]	r138	none
-c19	Contradiction	undetermined	derived	gallery§Left rail (only two sections rendered — Objects populated, Assets empt	docs/components/Left rail.md::States[2]	r141	none
-c20	Contradiction	undetermined	derived	gallery§Left rail (section headers rendered as `<h4 class="rp-section-head">`,	docs/components/Left rail.md::Accessibility[1]	r145	none
-c21	Contradiction	undetermined	derived	gallery§Modal Anatomy (actions shown: Cancel, Reassign, Delete anyway — 3, not	docs/components/Modal.md::Anatomy[3]	r161	none
+c16	Contradiction	undetermined	derived	gallery§Inspector Anatomy (Properties + Actions sections only, no Relations section)	docs/components/Inspector.md::Anatomy[2]	r110	none
+c17	Contradiction	undetermined	derived	gallery§Inspector Actions (Edit, Duplicate, Link note, Delete — 4 shown, not 7; missing Create Work Package, Add Cost, Add Task)	docs/components/Inspector.md::Anatomy[3]	r111	none
+c18	Contradiction	undetermined	derived	gallery§Left rail Anatomy (shows only Objects and Assets sections; Layer toggle is a separate standalone specimen "the only note of the seventeen with no slice that builds it")	docs/components/Left rail.md::Anatomy[1]	r138	none
+c19	Contradiction	undetermined	derived	gallery§Left rail (only two sections rendered — Objects populated, Assets empty — no Layers section to have its own empty state)	docs/components/Left rail.md::States[2]	r141	none
+c20	Contradiction	undetermined	derived	gallery§Left rail (section headers rendered as `<h4 class="rp-section-head">`, not h2)	docs/components/Left rail.md::Accessibility[1]	r145	none
+c21	Contradiction	undetermined	derived	gallery§Modal Anatomy (actions shown: Cancel, Reassign, Delete anyway — 3, not 4; "Remove References" missing)	docs/components/Modal.md::Anatomy[3]	r161	none
 c22	Contradiction	undetermined	derived	gallery§Chrome/Tool button	docs/components/Tool button.md::States[2]	r261	none
-c23	Contradiction	received	derived	prd§Feature 2.4 (Initial Areas)	docs/entities/Outdoor area.md::name	r459	
-c24	Contradiction	received	derived	prd§19	docs/entities/Outdoor area.md::Relationships[1]	r462	
-c25	Contradiction	received	derived	prd§19	docs/entities/Project.md::Relationships[2]	r523	
-c26	Contradiction	received	derived	prd§19	docs/entities/Site.md::Description[2]	r592	
+c23	Contradiction	received	derived	prd§Feature 2.4 (Initial Areas): "create initial spaces such as: kitchen, bathroom, living room, bedroom, hallway, garden, terrace."	docs/entities/Outdoor area.md::name	r459	none
+c24	Contradiction	received	derived	prd§19	docs/entities/Outdoor area.md::Relationships[1]	r462	none
+c25	Contradiction	received	derived	prd§19	docs/entities/Project.md::Relationships[2]	r523	none
+c26	Contradiction	received	derived	prd§19	docs/entities/Site.md::Description[2]	r592	none
 c27	Contradiction	undetermined	derived	uxd§6	docs/entities/Site.md::Relationships[2]	r595	none
-c28	Contradiction	received	derived	prd§Feature 5.2 (Space Detail)	docs/entities/Space.md::name	r599	
+c28	Contradiction	received	derived	prd§Feature 5.2 (Space Detail): "Every relevant space...Examples: kitchen, bathroom, garden, terrace, garage."	docs/entities/Space.md::name	r599	none
 c29	Contradiction	undetermined	derived	gallery§Shared vocabulary/Modal	docs/entities/Zone.md::Relationships[5]	r674	none
 c30	Contradiction	undetermined	derived	gallery§Shared vocabulary/Modal	docs/entities/Zone.md::Rules[4]	r678	none
 c31	Contradiction	undetermined	derived	canvas§36. Success Criteria	docs/requirements/Onboarding and example project.md::Outcome[1]	r1063	none
@@ -36,8 +36,8 @@ c34	Contradiction	undetermined	derived	canvas§17	docs/requirements/Selection.md
 c35	Contradiction	undetermined	derived	wireframes§A.5 New Project Wizard: Identity	docs/requirements/User Experience.md::Why this is cross-cutting rather than one epic's work[1]	r1227	none
 c36	Contradiction	undetermined	derived	wireframes§A.5 New Project Wizard: Identity	docs/requirements/User Experience.md::Why this is cross-cutting rather than one epic's work[2]	r1228	none
 c37	Contradiction	undetermined	derived	canvas§5. Progressive Spatial Fidelity	docs/actors/Private renovator.md::What it does to the plugin[1]	r1326	none
-c38	Contradiction	received	derived	prd§6.3 Secondary Persona — Professional Planner	docs/actors/Professional planner.md::Summary[1]	r1335	
-c39	Contradiction	received	derived	prd§6.3 Secondary Persona — Professional Planner	docs/actors/Professional planner.md::What the plugin owes it today[1]	r1341	
+c38	Contradiction	received	derived	prd§6.3 Secondary Persona — Professional Planner	docs/actors/Professional planner.md::Summary[1]	r1335	none
+c39	Contradiction	received	derived	prd§6.3 Secondary Persona — Professional Planner	docs/actors/Professional planner.md::What the plugin owes it today[1]	r1341	none
 c40	Contradiction	undetermined	derived	prototype§2 Golden Path	docs/deliverables/Disclosure ladder.md::The ladder[1]	r1408	none
 c41	Contradiction	undetermined	derived	prototype§6 Canonical Fixture	docs/deliverables/Disclosure ladder.md::The ladder[2]	r1409	none
 c42	Contradiction	undetermined	derived	uxd§22 Progressive Disclosure Model	docs/deliverables/Disclosure ladder.md::The ladder[3]	r1410	none
@@ -45,8 +45,8 @@ c43	Contradiction	undetermined	derived	prototype§9 Interaction Contracts	docs/d
 c44	Contradiction	undetermined	derived	canvas§10 Problem	docs/deliverables/Information Architecture.md::The grouping[6]	r1433	none
 c45	Contradiction	undetermined	derived	prototype§9 Interaction Contracts	docs/deliverables/Information Architecture.md::Answered since, and by whom[1]	r1442	none
 c46	Contradiction	undetermined	derived	uxd§5 Experience Architecture	docs/deliverables/Sitemap.md::The inventory[14]	r1463	none
-c47	Contradiction	received	derived	prd§35 (Slice 1 — Project Foundation)	docs/requirements/Start a renovation project.md::Preconditions[2]	r1640	
-c48	Contradiction	received	derived	prd§9 (Project Lifecycle)	docs/requirements/Start a renovation project.md::Assumptions[4]	r1668	
+c47	Contradiction	received	derived	prd§35 (Slice 1 — Project Foundation)	docs/requirements/Start a renovation project.md::Preconditions[2]	r1640	none
+c48	Contradiction	received	derived	prd§9 (Project Lifecycle)	docs/requirements/Start a renovation project.md::Assumptions[4]	r1668	none
 g1	Gap	undetermined	n/a	canvas§1	-	f1a	none
 g2	Gap	undetermined	n/a	canvas§1	-	f1b	none
 g3	Gap	undetermined	n/a	canvas§3	-	f2	none

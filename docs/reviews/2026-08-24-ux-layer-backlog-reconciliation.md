@@ -25,17 +25,26 @@ than left to be noticed:**
 ## What was found
 
 **48 contradictions, 772 gaps, 0 orphans, and 4 convention findings.** The contradictions are
-the useful half, and they concentrate rather than scatter — seven clusters carry 27 of the 48,
-and one derived note appears in seven of them.
+the useful half, and they concentrate rather than scatter — seven themed clusters carry 30 of
+the 48, and `deliverables/Disclosure ladder.md` alone accounts for 7.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
 and its disagreements are not only with the new evidence: it contradicts its own sibling notes
 about whether costing requires a drawn plan. A note that disagrees with the new layer *and*
 with the backlog it belongs to is the most consequential thing this pass could have surfaced.
 
-**No orphans at all.** Across 3,050 rows and eight evidence bodies, not one passage *replaces*
+**No orphans at all.** Across 3,070 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
 UX layer contradicts the backlog in 48 places and supersedes it nowhere.
+
+**And not one derived note has drifted.** 16 of the 48 contradictions come from evidence whose
+standing the register records; each of those 16 was traced back to the sections of the *original*
+PRD and SDD that its derived note cites, and all 16 read faithfully — the note asserts what its
+source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
+Every traced one is a received document disagreeing with a received document, which is a choice a
+person makes, not an error a reconciler repairs. The other 32 come from the two folders the
+register does not classify and cannot be traced until decision 1 is taken. `provenance.tsv` holds
+the 16 verdicts with the sections each was read against.
 
 ## The counts
 
@@ -43,14 +52,14 @@ Rows and findings are different things and are counted separately.
 
 | | |
 | --- | --- |
-| matrix rows | **3,050** |
+| matrix rows | **3,070** |
 | ├ forward, named | 501 |
-| ├ forward, behavioural | 877 |
+| ├ forward, behavioural | 897 |
 | ├ reverse, named | 185 |
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,126 |
-| `present` | 1,103 |
+| `present` | 1,123 |
 | `absent` | 772 |
 | `contradictory` | 49 |
 | `superseded` | **0** |
@@ -64,8 +73,8 @@ Rows and findings are different things and are counted separately.
 findings. The one coalesced pair is `f494` ↔ `r519`: the workspace PRD requiring a Project
 Selection context, and `entities/Project.md` stating there is no portfolio — the same
 disagreement reached from both directions. It is counted by identifying that pair and checking
-it, never by subtracting findings from rows: 1,103 `present` and 1,126 `retained` rows raise the
-row total while producing no finding, so that subtraction would overstate coalescing by 2,229.
+it, never by subtracting findings from rows: 1,123 `present` and 1,126 `retained` rows raise the
+row total while producing no finding, so that subtraction would overstate coalescing by 2,249.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
 vocabulary.
@@ -89,34 +98,74 @@ exist for only the five note types that hold named things, so a single count wou
 | `issues/` | 3 | 3 |
 
 All eight evidence bodies contributed forward rows: prd 434, canvas 197, prototype 177, uxd 163,
-wireframes 147, jtbd 99, research 97, gallery 64.
+wireframes 147, jtbd 99, research 117, gallery 64.
 
 ### Sections swept, beside sections contained — with the instrument's limits
+
+**Measured, at one unit, by a committed instrument.** Both columns count **top-level numbered
+sections**: what the body's headings declare, against what appears in a forward row's `source`.
+An earlier version of this table mixed two units inside one row — `contains` counted subsection
+headings, `swept` counted distinct source strings — and got `prd` and `research` wrong in the
+flattering direction. The instrument is
+[`sections.py`](2026-08-24-ux-layer-backlog-reconciliation/sections.py); `--selftest` checks its
+heading reader against a second implementation in shell and against three counts pinned by hand,
+because the bodies do not share a heading level (prd, uxd and research number at `#`, canvas,
+prototype and wireframes at `##`) and any route that fixes a level measures a subset and reports
+it as the whole.
 
 | body | swept | contains | not swept |
 | --- | --- | --- | --- |
 | prototype | 16 | 16 | — |
 | wireframes | 22 | 23 | §A.22 |
 | canvas | 37 | 38 | §35 |
-| prd | 48 | 51 | §37 and two others |
+| prd | 38 | 39 | §37 |
 | uxd | 30 | 34 | §1, §4, §31, §33 |
-| research | 27 | 38 | §§2–3, 20–21, 25–29, 32 |
-| gallery | 21 | 23 | see limit below |
-| jtbd | 6 | — | see limit below |
+| research | 23 | 33 | §2, §3, §5, §20, §26, §27, §28, §29, §32, §33 |
+| gallery | — | — | see limit below |
+| jtbd | — | — | see limit below |
 
-The unswept sections are overwhelmingly one thing: **open questions and research methodology.**
-`wireframes§A.22` is "Design Questions to Validate", `canvas§35` is "Prototype Questions",
-`prd§37` is "Open Product Questions", `uxd§31` and `§33` are validation questions and the
-document's own definition of done, and research §§2–3 and 26–29 are interview prompts and
-observation guidance. The extraction rule excludes claims with no obligation in them, and four
-extractors reached that boundary independently.
+The boundary the extractors applied, stated as the rule rather than as the list it produced:
+**a statement whose subject is the product's behaviour and whose mood is assertive is a claim; a
+statement asking whether something works, or naming a hypothesis to validate, is not.** Four
+extractors reached it independently.
 
-**Two rows of that table are measured by an instrument that cannot see them properly, and the
-ratio is withheld rather than averaged away.** `jtbd` numbers its content `JTBD-001`…`JTBD-063`
-rather than `§N`, so the section counter reads a meaningless 6; the body *was* swept, producing
-99 forward rows, and all 63 job statements were counted and match the document's own claim of
-63. `gallery` is HTML, so its "sections" are `<h2>`/`<h3>` headings — a different unit from a
-numbered section, not comparable with the Markdown rows.
+Every unswept section above, against that rule — the list is accounted for in full, because an
+enumeration that quietly drops a member is the defect this ledger is most prone to:
+
+- **Open questions.** `wireframes§A.22` "Design Questions to Validate", `canvas§35` "Prototype
+  Questions", `prd§37` "Open Product Questions", `uxd§31`, and research §32, whose eight items
+  are all interrogative.
+- **Research methodology.** research §2 "Research Method", §3 "Key Research Sources", and
+  §§26–29 — interview prompts, behaviours to observe, sampling and the artifact model.
+- **Framing that indexes swept content.** research §5 is eleven one-line problem statements with
+  "the following sections examine these in detail" under them, and §§6–19 are all swept; `uxd§1`
+  and `§4` are the document's purpose and its reading guide.
+- **Not about this product.** research §20 is a friction matrix whose subject is Excel, Notion,
+  Trello and paper.
+- **One that is a genuine judgement rather than a category.** research §33, the strategic
+  conclusion, does assert — "the product should help the user move from *I have information
+  everywhere* to *I know what we are doing*" — but it summarises §§6–19, which are swept, and its
+  own last line calls itself "the research hypothesis Renovation Planner should now validate".
+  It is left out on those two grounds, not on the rule alone. `uxd§33` is the same shape: the
+  document's own definition of done.
+
+**A swept section is not a fully-read section, and this table cannot tell the difference.** It
+measures *reach* — did anything come out of this section — not *depth*. Research §21 is the
+worked example and the reason the caveat is here rather than implied: it was counted swept on
+three rows, and it holds 23 consolidated user wishes. The other 20 were recovered in a late pass
+and are in the counts above. Nothing in this instrument would have found that; a reader who wants
+depth has to read a section against its rows.
+
+**Two rows of that table have no number, and the ratio is withheld rather than invented.** `jtbd`
+numbers its content `JTBD-001`…`JTBD-063` rather than `§N`, so a section counter reads 0 against a
+body that *was* swept, producing 99 forward rows — all 63 job statements were counted and match
+the document's own claim of 63. `gallery` is HTML, so its "sections" are `<h2>`/`<h3>` headings,
+a different unit from a numbered section: it holds 23 of them and produced rows under 21 distinct
+labels. Those two numbers are not a coverage ratio and are not offered as one — the labels are
+PascalCase component ids (`SnapGuide`, `ViewShell`) and the headings are sentence-case prose, so
+they do not join by name; normalising case and spacing still leaves four headings and two labels
+unmatched. What is checkable is that all 17 component notes were reached from the reverse
+direction, which is the row of the coverage table above.
 
 ## The corpus, and what it does not include
 
@@ -219,11 +268,28 @@ judgement, and a second careful reader would differ on a meaningful minority. Ev
 contradiction carries both citations precisely so that a reader can check the ones that matter
 rather than trust the aggregate.
 
+**And the mechanical half is soft in a way the judged half cannot repair: a gap can be an
+artefact of the candidate set.** A row whose set never contained the answering note is judged
+`absent` correctly and reported as a Gap falsely, and no amount of care inside the set will find
+it. The demonstrated instance is `f1284`, "show the user what they need to do now": its terms
+were `task, current, next-best-action`, and `docs/requirements/Reporting and project cockpit.md`
+— which asks the claim's own question in as many words, "what is next, what is blocked" — uses
+none of the three, so it was never a candidate. Two rows from adjacent wishes in the same
+section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 772
+gaps carry this limit in the same shape**, and it points one way only: it can invent a gap, never
+hide one.
+
 ## Contradictions, by cluster
 
-Every one cites both sides. Standing is stated because it decides what may change: the workspace
-PRD is **received** (`docs/prds/` is received evidence per `docs/README.md`); the other seven
-bodies are **undetermined**, because the register classifies neither `docs/user-experience/` nor
+**All 48 appear below**, and every one cites both sides. Seven themed clusters carry 30, section
+H carries 10 that are individually consequential and share no theme, and section I carries the
+last 8 — reached from the reverse direction only, which is why they were the last to be written
+up rather than the least important. Counted directly against `findings.tsv`, not assumed: an
+earlier version of this ledger narrated 40 of the 48 and said nothing about the other 8.
+
+Standing is stated because it decides what may change: the workspace PRD is **received**
+(`docs/prds/` is received evidence per `docs/README.md`); the other seven bodies are
+**undetermined**, because the register classifies neither `docs/user-experience/` nor
 `docs/product/` — see the Convention section. A finding whose evidence side is `undetermined`
 **proposes no edit**.
 
@@ -400,6 +466,78 @@ match**, so nothing here is a vocabulary gap — it is same name, different beha
   `entities/Work package.md::Relationships[2]` states "Has exactly one `[[Trade]]`"
   unconditionally, while the same note makes Construction section explicitly optional.
 
+### I. Reached from the reverse direction only
+
+**8 rows.** These come from a derived note's claim finding a disagreeing passage in the new
+evidence, rather than the other way round — which is why they were the last to be written up and
+not why they matter least. `c33` and `c34` are the same clash seen from a note's Body and its
+Outcome; they are two findings because they are two rows against two passages, and the ledger
+counts rows rather than subjects throughout.
+
+- **`c29` — Zone's referrer list versus the delete-modal's reference set.**
+  `entities/Zone.md::Relationships[5]` says a zone is "Referenced by [[Task]], [[Cost item]],
+  [[Document]] and [[Photo]]." `gallery§Shared vocabulary/Modal`'s delete-confirmation specimen
+  says "Four kinds of thing point at it" and lists only "work packages", "tasks" and "cost
+  items" — naming a referrer (work package) Zone.md never lists, while Document and Photo, which
+  Zone.md does list, are missing from the warning. Real disagreement: the two name different sets
+  of things that reference a Zone.
+
+- **`c31` — a "measured" onboarding outcome versus success criteria that need no floor plan.**
+  `requirements/Onboarding and example project.md::Outcome[1]` says the renovator "gets to a
+  measured plan with a cost on it without reading anything." `canvas§36. Success Criteria` lists
+  success as being able to "start without a floor plan" and "attach a rough cost" —
+  "progressively add precision" is a separate, later criterion. Real disagreement: the outcome
+  promises measured geometry at onboarding; the canvas's own criteria treat measurement as
+  something added afterward and the attached cost as rough, not exact.
+
+- **`c32` — "only subject and date" versus four inherited fields plus an optional taxonomy.**
+  `requirements/Photo documentation.md::Body[1]` says "Photos stay ordinary files in the vault in
+  the open formats §44 names. What this feature adds is the subject and the date." `canvas§12.
+  Photo` has photos "inherit context automatically: project, space, selected object, date," plus
+  an "Optional type" drawn from "Before, During, After, Issue, Hidden Infrastructure, Receipt,
+  Reference." Real disagreement: the requirement's "only" claims two added fields; the canvas
+  attaches at least four automatically, plus an optional seven-value vocabulary.
+
+- **`c33` — multi-selection as a precondition versus "single primary selection... sufficient
+  initially."** `requirements/Selection.md::Body[1]` says "Single and multi-selection (§13). It
+  is the precondition for every editing command and for every bulk operation later…" `canvas§17.
+  Selection Contract` says "Single primary selection is sufficient initially." Real disagreement:
+  the requirement makes multi-select foundational to the feature itself; the canvas's own
+  contract defers it, scoping selection to one object at a time for now.
+
+- **`c34` — "pick one or many" versus "single primary selection... sufficient initially."**
+  `requirements/Selection.md::Outcome[1]` says "A renovator can pick one object or many and act
+  on them together." `canvas§17. Selection Contract` says "Single primary selection is sufficient
+  initially." Same clash as c33 seen from the outcome side: the promised outcome requires acting
+  on many objects together, which the canvas's own contract explicitly scopes out for now.
+
+- **`c37` — planning follows geometry versus planning attached with no geometry at all.**
+  `actors/Private renovator.md::What it does to the plugin[1]` says the renovator "Draws on a
+  [[Plan]], which is where geometry originates — §3.4 has planning follow from geometry rather
+  than from a form beside it." `canvas§5. Progressive Spatial Fidelity`'s Level 1 — Conceptual
+  says "No measurements or drawing required. Work, costs, photos, problems and decisions can
+  already be attached." Real disagreement: the actor note makes geometry the origin planning
+  follows from; the canvas's own entry level attaches work, cost, photos, problems and decisions
+  to a purely conceptual hierarchy with zero drawing.
+
+- **`c44` — a three-entity Watch group versus one first-class "Problem."**
+  `deliverables/Information Architecture.md::The grouping[6]` groups "What could go wrong?" under
+  "[[Risk]], [[Issue]], [[Constraint]]." `canvas§10. Problem` makes "Problem" the sole first-class
+  canvas object for that question, with its own inspector fields and lifecycle ("Observed →
+  Investigating → Decision Needed → Work Created → Resolved"); Risk and Constraint never appear
+  anywhere in the document (confirmed by §7's object vocabulary too). Real disagreement: the
+  architecture's three-way taxonomy has no counterpart on the canvas, which names one concept
+  where the architecture names three.
+
+- **`c46` — Budget deferred behind a trigger versus Budget already in the workspace tree.**
+  `deliverables/Sitemap.md::The inventory[14]` says a workspace view for Budget, Schedule or
+  Procurement "arrives only with a named trigger" and that, unlike Schedule's, "Budget's and
+  Procurement's do not" exist yet. `uxd§5. Experience Architecture`'s tree lists "Budget" and
+  "Schedule" as children of "Project Context," siblings of Spaces, Design, Work and
+  Documentation, with no Bases-view/trigger distinction drawn between them. Real disagreement,
+  specific to Budget: the UXD's own information architecture already treats it as a workspace
+  destination on par with the others, which the Sitemap says has no trigger yet.
+
 ## Gaps
 
 **772**, of which 413 are named things the evidence names with no note behind them and 359 are
@@ -461,8 +599,12 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 no recorded standing**, and 546 of the 820 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
-- **Received, like `prds/`** — the backlog moves wherever it disagrees, and 48 contradictions
-  become actionable at once.
+- **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
+  standing the other 16 already have, and each becomes a question someone is entitled to answer.
+  **It is not a licence to edit the backlog.** All 16 already-received contradictions were traced
+  to the sections their derived note cites, and all 16 came back faithful: the note says what its
+  source says, so the disagreement is between two received documents and no derived note is at
+  fault. Classifying these folders received extends that shape rather than escaping it.
 - **Derived, like `components/`** — the UX documents move instead, and the component-gallery
   findings in cluster G invert: the gallery is corrected to match the notes.
 - **Split** — the PRD-adjacent documents received, the concept HTML and research derived.
@@ -620,20 +762,22 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 
 | file | rows | what it holds |
 | --- | --- | --- |
-| `rows.tsv` | 3,050 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
+| `rows.tsv` | 3,070 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
 | `findings.tsv` | 820 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
+| `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
+| `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
 
 The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
 spec authorises one output file — and flagged that as a question for the repository owner rather
 than a settled call. It was the wrong default and the question should have been asked: a ledger
 whose central number cannot be inspected is a ledger asking to be trusted, which is the one
-thing this instrument was built not to do. Four files, additive, no derived note touched.
+thing this instrument was built not to do. Six files, additive, no derived note touched.
 
 ## Findings withdrawn after review
 
-Four corrections, all from review of the committed matrix — which is the argument for committing
+Seven corrections, all from review of the committed matrix — which is the argument for committing
 it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -652,13 +796,31 @@ structure; `prd§21` lists concepts to expose, keeping `Space` and `Outdoor Area
 asserts parentage, and the Feature 2.4 / 5.2 passages that do belong to two other rows. Withdrawn
 and reclassified `present`.
 
-**A fifth correction, mechanical rather than judged.** 18 named rows were scored `present` on a
+**5. `f1284` — a gap the candidate set invented.** "Show the user what they need to do now",
+from `research§21`, was judged `absent` on a set of 49 notes, correctly: none of them addresses
+it. `docs/requirements/Reporting and project cockpit.md` does — "the question a private renovator
+has on a Sunday evening is short — am I over budget, **what is next, what is blocked** … and
+answering it by opening eleven notes is the same as not answering it" — and it was never in the
+set, because it contains none of the row's three terms. Withdrawn and reclassified `present`
+against that note. The mechanism, and why it can only invent a gap and never hide one, is under
+*Where the judged half is soft* above.
+
+**A sixth correction, mechanical rather than judged.** 18 named rows were scored `present` on a
 note **outside the type the row targets** — a `deliverables` row matched by
 `docs/requirements/Schedule.md`, an `entities` row by a requirement. The alias pass resolved
 presence through the alias table's note path without re-checking the target, so the type-aware
 lookup that exists to stop a gap hiding behind a passing mention was bypassed after the fact. All
 18 were re-resolved within their target; those with no match there are now `absent`, which is why
 the gap count rose from 754 to 772.
+
+**A seventh correction, to the committed matrix rather than to a finding.** `rows.tsv`'s `pair`
+column still held the citations as first extracted, so all 49 disagreement rows carried an
+evidence citation truncated at its first space and 11 carried the row's own id where the derived
+citation had failed to parse — both fixed in `findings.tsv` at the time and in neither place
+else. A reader recomputing the finding set from the committed matrix would have got the right
+count with the wrong citations. The column is now backfilled from the corrected findings, and the
+recomputation is a check below: the finding set derived from `rows.tsv` and the one in
+`findings.tsv` agree as SETS, not merely in total.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and four of the 52 originally claimed
@@ -669,18 +831,24 @@ totals.
 ## Checks
 
 ```
-rows                                    3050
-  every row holds exactly one of five states   yes (0 blank, 0 outside the vocabulary)
-notes reached by any reverse row         227 / 227
-notes reached by a reverse behavioural   227 / 227
-disagreement rows                          49
-disagreement findings                      48
-coalesced pairs, counted directly           1
-findings with no evidence citation           0
-undetermined findings proposing an edit      0
-derived notes edited, uncommitted            0
-derived notes edited, vs merge base          0
-npm run check                            passes all four steps
+rows                                              3070
+  every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
+notes reached by any reverse row                  227 / 227
+notes reached by a reverse behavioural            227 / 227
+disagreement rows                                   49
+disagreement findings                               48
+coalesced pairs, counted directly                    1
+finding set recomputed from rows.tsv          identical as a SET to findings.tsv
+findings with no evidence citation                   0
+undetermined findings proposing an edit              0
+received contradictions                             16
+  traced to the sections their note cites           16 / 16
+  derived notes found to have drifted                0
+sections.py --selftest                        instrument agrees with a second
+                                              implementation and three pinned counts
+derived notes edited, uncommitted                    0
+derived notes edited, vs merge base                  0
+npm run check                                 passes all four steps
 ```
 
 **No derived note was edited.** Checked against the merge base, not the working tree — the ledger

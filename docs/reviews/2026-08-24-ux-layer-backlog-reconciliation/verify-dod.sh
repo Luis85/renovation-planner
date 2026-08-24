@@ -303,17 +303,25 @@ python3 - <<'PYP' || fail=1
 import io,re,sys
 P="docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/verify-dod.sh"
 lines=io.open(P,encoding="utf-8").read().split("\n")
-define=None
-for i,l in enumerate(lines,1):
-    if re.match(r'^\s*PINNED=', l):
-        define=i; break
-if define is None:
-    print("  FAIL verify-dod.sh no longer assigns PINNED at all"); sys.exit(1)
+# Anchored on where the archive is COMPLETE, not on the first assignment. `PINNED=""` is an
+# initialiser three lines above `git archive`, so anchoring there declared the variable ready
+# while it still held the empty string — and an expansion inserted in the gap, the exact
+# regression this gate exists to prevent, would have passed. Review caught that.
+_start = next((i for i,l in enumerate(lines,1) if re.match(r'^\s*MATRIX_BASE=', l)), None)
+_ready = next((i for i,l in enumerate(lines,1)
+               if _start and i > _start and l.rstrip() == "fi"), None)
+if _start is None or _ready is None:
+    print("  FAIL verify-dod.sh no longer materialises PINNED in a recognisable block"); sys.exit(1)
+define = _ready
+# The block's OWN construction lines are the only legitimate expansions before completion.
+_BUILD = re.compile(r'mktemp -d|trap |git archive ')
 early=[(i,l.strip()[:78]) for i,l in enumerate(lines,1)
-       if i < define and not l.lstrip().startswith("#") and re.search(r'\$\{?PINNED\b', l)]
+       if i < define and not l.lstrip().startswith("#")
+       and re.search(r'\$\{?PINNED\b', l) and not _BUILD.search(l)]
 print("  $PINNED expanded before the pinned archive is built: %d" % len(early))
 for i,l in early:
-    print("  FAIL line %d expands $PINNED, but it is assigned at line %d — %s" % (i,define,l))
+    print("  FAIL line %d expands $PINNED, but the archive is not complete until line %d — %s"
+          % (i,define,l))
 sys.exit(1 if early else 0)
 PYP
 

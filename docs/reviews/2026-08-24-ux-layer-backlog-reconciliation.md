@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Forty-six corrections, all from review of the committed matrix — which is the argument for
+Forty-eight corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1546,10 +1546,16 @@ read each heading as the name of a separate component and filed four `absent` ro
 
 **The backlog already has the note.** `components/Empty state.md` models exactly one component and
 says so twice: *"It is a state, so it has none of its own. What varies is the cause"*, and a
-Contract reading *"Given a message and at most one action."* A message and at most one action is
-precisely what each of §24's four blocks contains. They are four configurations of one component,
-and §24's own opening sentence — *"Every major view must define an actionable empty state"* — is
-singular.
+Contract reading *"Given a message and at most one action."* What each of §24's four blocks
+contains is a message and its actions — **the inputs that Contract says are passed IN**, not a
+component definition. That is what makes them four configurations of one component, and §24's own
+opening sentence — *"Every major view must define an actionable empty state"* — is singular.
+
+**Deliberately not "each block satisfies the one-action contract", because one does not.** *No
+Spaces* offers `[Add Space]` and `[Import Floor Plan]`, which is the disagreement `f647` records
+and which survives this correction. Being a configuration of a component and being a *conforming*
+one are different claims, and the first draft of this paragraph asserted the second — eight lines
+above the sentence that contradicts it.
 
 **The rows were removed rather than moved to `present`, and the reason is that they were already
 counted.** `f646`–`f649` read the same four passages behaviourally and are still in the matrix, so
@@ -1757,6 +1763,28 @@ instrument and the fixed one alike. A probe that cannot tell the two apart is no
 only caught by watching it fail and seeing it *not* fail. **Third time in four corrections that the
 check, rather than the subject, was the defect** — and the first two were caught the same way,
 which is the argument for never trusting a green gate that has not been watched red.
+
+**A forty-seventh correction, and it was inside the correction that repaired something else.**
+The thirty-ninth said *"a message and at most one action is precisely what each of §24's four
+blocks contains"* — and one does not. *No Spaces* offers `[Add Space]` and `[Import Floor Plan]`,
+which is the disagreement `f647` records, **stated eight lines further down the same correction.**
+
+**The argument never needed that claim.** What makes the four blocks configurations rather than
+components is that each is a message and its actions — the inputs the Contract says are passed IN.
+Whether a given block *conforms* to the one-action rule is a separate question, and for one of them
+the answer is no. Being a configuration and being a conforming one are different claims; the draft
+asserted the second while the correction's own conclusion depended only on the first.
+
+**A forty-eighth correction: the ordering gate was anchored three lines early.** It took the first
+`PINNED=` match as the point the variable becomes usable — but that is `PINNED=""`, an initialiser
+sitting above the `git archive` that fills it. An expansion inserted in that gap, **the exact
+regression this gate exists to prevent**, would have been judged late enough and passed.
+
+It now anchors on the `fi` that closes the materialisation block, and allows only the block's own
+construction lines to expand `$PINNED` before it. Watched failing by inserting an expansion between
+`PINNED=""` and `git archive`: the new anchor names it at line 55, and the old anchor reports zero.
+**Fourth time in five corrections that the check, rather than the subject, was the defect** — and
+this one was a gate written to catch an ordering defect, holding an ordering defect.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

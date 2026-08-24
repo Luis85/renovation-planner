@@ -89,7 +89,7 @@ substantive clash unfound. So rows come in two kinds:
   | `user-experience/…-wireframes.md` | §§A.17–A.21: screen states, destructive-action pattern, responsive rules, keyboard/accessibility rules, golden-path acceptance criteria |
   | `user-experience/…-PROTOTYPE-DESIGN-SPEC.md` | Golden path, error contracts, the questions the prototype must answer |
   | `user-experience/…-JTBD-research-backlog.md` | 63 job statements |
-  | `concepts/component-gallery.html` | None — named-thing rows only, per the coverage limit above |"
+  | `concepts/component-gallery.html` | None — named-thing rows only, per the coverage limit above |
 
 ### Two directions, because Orphan is otherwise undiscoverable
 

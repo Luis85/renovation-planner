@@ -30,7 +30,7 @@ the useful half, and they concentrate rather than scatter — seven themed clust
 the 45, and `deliverables/Disclosure ladder.md` alone accounts for 6.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
-with 8 of the 47. Beside those — and **not** among them, because no row in this instrument runs
+with 6 of the 45. Beside those — and **not** among them, because no row in this instrument runs
 between two derived notes — it also disagrees with a sibling about whether costing requires a
 drawn plan: its own *What is open* admits rung 1 "forbids" pricing before drawing, while
 `requirements/Start a renovation project.md` creates no `Plans/` folder until something is drawn.
@@ -38,16 +38,16 @@ Cluster E quotes both and says why the matrix cannot count it.
 
 **No orphans at all.** Across 3,076 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
-UX layer contradicts the backlog in 47 places and supersedes it nowhere.
+UX layer contradicts the backlog in 45 places and supersedes it nowhere.
 
 **And not one derived note has drifted.** 13 of the 45 contradictions come from evidence whose
-standing the register records; each of those 15 was traced back to the sections of the *original*
-PRD and SDD that its derived note cites, and all 15 read faithfully — the note asserts what its
+standing the register records; each of those 13 was traced back to the sections of the *original*
+PRD and SDD that its derived note cites, and all 13 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
 Every traced one is a received document disagreeing with a received document, which is a choice a
 person makes, not an error a reconciler repairs. The other 32 come from the two folders the
 register does not classify and cannot be traced until decision 1 is taken. `provenance.tsv` holds
-the 15 verdicts with the sections each was read against.
+the 13 verdicts with the sections each was read against.
 
 ## The counts
 
@@ -72,7 +72,7 @@ Rows and findings are different things and are counted separately.
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
-**The coalesced-pair count is 0, counted directly.** 47 disagreement rows resolve to 47
+**The coalesced-pair count is 0, counted directly.** 45 disagreement rows resolve to 45
 findings. It was 1 until review checked the pair that produced it: `r519`'s `pair` field had been
 copied from `f494` instead of built from its own citations, which made two different pairs
 byte-identical and coalesced two findings into one — the twelfth correction below. The count is
@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty-seven corrections, all from review of the committed matrix — which is the argument for
+Thirty-eight corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1146,7 +1146,7 @@ find several before that zero was believed — `Project` matches 29 notes in `re
 forward behavioural row records one `path::locator` chosen inside a candidate set that often holds
 many notes, so a reader who agrees while a second note in the same set disagrees is recorded as
 agreement. The mirror is what catches it, and a count from the matrix is the evidence that it
-does: **32 of the 47 contradictions rest on reverse rows alone**, against 15 on forward rows
+does: **32 of the 45 contradictions rest on reverse rows alone**, against 13 on forward rows
 alone — partitioned mechanically by the direction of every row behind each finding, so it is
 re-derivable from `rows.tsv` and `findings.tsv` rather than asserted. That is a mitigation with a
 number, not a proof of completeness, and it is stated here as the weaker thing.
@@ -1498,6 +1498,45 @@ above both say **95**. The labelled-total net could not see it — at 95 it sits
 floor that exists to skip cluster sizes, so the floor that keeps the net quiet is exactly what hid
 this one. Now in the targeted sweep, which is what that sweep is for, at 36 figures. Watched
 failing.
+
+**A thirty-eighth correction, and it is the first one where looking for the class found more than
+the review reported.** Six restatements of a total, in five sections, all stale after `c1` and `c6`
+were withdrawn: the most-contradicted note as "8 of the 47", the orphans sentence as "47 places",
+the received-standing sentence twice as "15", the provenance line as "the 15 verdicts", the
+coalesced-pair paragraph as "47 disagreement rows resolve to 47 findings", and the direction
+partition as "32 of the 47 … against 15". Review named four; the last two were found by asking what
+the four had in common.
+
+**What they have in common is that the labelled-total net finds a number by the word beside it.**
+Three of these name a total with a word that is not a metric word — *places*, *verdicts*, and a
+bare *8 of the 47* with no noun at all — and two sit below the `findings` floor. None was reachable
+by the mechanism that exists to find drifting totals, and all six were **second copies of a figure
+stated correctly elsewhere in the same document**. That is now true of every stale number this
+ledger has produced: the computed counts have never been wrong, and the duplicates have never all
+been updated together.
+
+**So there is a check that runs the other way round.** Instead of asking whether a number is right,
+it asks whether a number is one this ledger has *already moved past* — and the set of those is
+harvested from the corrections section by the same METRICS the net uses, so it is keyed off this
+document's own history rather than a list of places, and it holds for figures not yet written.
+Three exclusions were measured rather than assumed, costing four false positives and no true ones:
+a table cell counts something else, a locator is not a total, and one live sentence deliberately
+quotes stale figures to explain why it stopped printing them. Watched failing on the two
+restatements review had not named.
+
+**Its limit, stated because the measurement showed it rather than because it sounds careful:** the
+small superseded values collide with legitimate counts of other things — 17 component notes, 16
+prototype sections — so the harvest keeps the METRICS floors and this check sees **totals only**.
+The received-contradiction restatements corrected here are below that scale and stay in the
+targeted sweep, now at 43 figures. Two mechanisms, neither covering the other, and that is why
+both are described.
+
+**One of the six lives below the corrections heading**, inside correction 19, and states a
+present-tense fact re-derivable from the artifacts. The live half is bounded by *position*, and
+position turned out to be a proxy for liveness that fails on a correction which explains a figure
+by restating it. Running the net over the whole document was measured instead of assumed: **21
+hits, 20 of them legitimate history** — deltas, quotations and per-correction snapshots that must
+stay stale. So the boundary is right and that paragraph was misfiled; it is checked by name.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

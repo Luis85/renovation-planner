@@ -323,6 +323,72 @@ for line,txt,word,ok in bad:
 sys.exit(1 if bad else 0)
 PYL
 
+# ---------------------------------------------------------------------------------------------
+# NO SUPERSEDED TOTAL SURVIVES IN THE LIVE HALF.
+#
+# The labelled net finds a number by the word beside it, so a total restated with a word that is
+# not a metric word is invisible to it — "in 47 places", "the 15 verdicts", "8 of the 47". Round
+# eleven found six such restatements and named four; the other two were found by looking for the
+# CLASS rather than for the instances, which is what this check is.
+#
+# It runs the other way round: instead of asking whether a number is right, it asks whether a
+# number is one this ledger has ALREADY MOVED PAST. The set is harvested from the corrections
+# section by the same METRICS above — every value some metric once held and no longer holds —
+# so it is keyed off this document's own history and needs no maintenance when a total changes.
+# It therefore holds for figures not yet written, which a list of places never does.
+#
+# Three exclusions, each measured rather than assumed (they cost 4 false positives and no true
+# ones): a table CELL counts something else (`| uxd | 31 | 34 |`), a locator is not a total
+# (`docs/README.md:31-32`), and one live sentence deliberately quotes stale figures to explain
+# why it no longer prints them. Watched failing by restoring the line-41 and line-75 figures.
+#
+# What it cannot do, stated because the measurement showed it: the small superseded values
+# (14–17) collide with legitimate counts of other things — 17 component notes, 16 prototype
+# sections — so the harvest keeps the METRICS floors and this check sees TOTALS only. The
+# received-contradiction restatements this round are below that scale and stay in the targeted
+# sweep, which is why both mechanisms are needed and neither is described as covering the other.
+python3 - <<'PYX' || fail=1
+import io,re,collections,sys
+D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
+L=io.open(D+'.md',encoding='utf-8').read()
+_b=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+if not _b:
+    print("  FAIL cannot locate the corrections heading that bounds the live half"); sys.exit(1)
+live, hist = L[:_b.start()], L[_b.start():]
+rows=[r.rstrip('\n').split('\t') for r in io.open(D+'/rows.tsv',encoding='utf-8')][1:]
+rows=[r for r in rows if len(r)==11]
+f=[x.rstrip('\n').split('\t') for x in io.open(D+'/findings.tsv',encoding='utf-8')][1:]
+f=[x for x in f if len(x)==8]
+byid={r[0]:r for r in rows}
+st=collections.Counter(r[8] for r in rows); dk=collections.Counter((r[1],r[2]) for r in rows)
+kd=collections.Counter(x[1] for x in f); gk=collections.Counter(byid[x[6]][2] for x in f if x[1]=='Gap')
+cs=collections.Counter(x[2] for x in f if x[1]=='Contradiction')
+METRICS = {
+ "rows":           (1000, {len(rows), st['present'], st['retained'], st['absent'],
+                           dk[('forward','behavioural')], dk[('reverse','behavioural')]}),
+ "gaps?":          (300,  {kd['Gap'], gk['named'], gk['behavioural']}),
+ "findings":       (300,  {len(f), kd['Gap'], sum(1 for x in f if x[2]=='undetermined')}),
+ "contradictions": (10,   {kd['Contradiction'], cs['received'], cs['undetermined']}),
+}
+sup=set()
+for word,(floor,ok) in METRICS.items():
+    for m in re.finditer(r"([\d][\d,]*)\s*(?:\*\*)?\s*"+word+r"\b", hist):
+        n=int(m.group(1).replace(",",""))
+        if n>=floor and n not in ok: sup.add(n)
+QUOTING=re.compile(r'came to print|used to (?:read|say)|(?:read|said|reading) "')
+bad=[]
+for i,src in enumerate(live.split("\n")):
+    if src.lstrip().startswith("|") or QUOTING.search(src): continue
+    for m in re.finditer(r"(?<![\d,.:\u00a7#/`c-])([\d][\d,]*)(?![\d,.]*[\d%/])(?!-\d)", src):
+        n=int(m.group(1).replace(",",""))
+        if n in sup: bad.append((i+1,n,src.strip()))
+print("  superseded totals surviving in the live half: %d  (harvested set: %s)"
+      % (len(bad), ",".join(str(x) for x in sorted(sup))))
+for line,n,src in bad:
+    print("  FAIL line %d: %d is a total this ledger has already moved past — %s" % (line,n,src[:90]))
+sys.exit(1 if bad else 0)
+PYX
+
 python3 - <<'PYS' || fail=1
 import io,re,collections,sys
 D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
@@ -342,6 +408,11 @@ nprov=len([l for l in io.open(D+'/provenance.tsv',encoding='utf-8').read().rstri
 nsite=len([x for x in f if x[1]=='Contradiction' and ('Site.md' in x[5] or 'Outdoor area.md::Relationships' in x[5] or 'Project.md::Relationships' in x[5])])
 fwdbody=collections.Counter(r[4].split('\u00a7')[0].strip('"').strip() for r in rows if r[1]=='forward')
 ndl=len([x for x in f if x[1]=='Contradiction' and 'Disclosure ladder' in x[5]])
+# Every finding maps to exactly one row (measured: no finding's `rows` field carries a separator),
+# so the direction partition is a count of those rows, not a set union over several.
+_dirof={r[0]:r[1] for r in rows}
+crev=len([x for x in f if x[1]=='Contradiction' and _dirof[x[6]]=='reverse'])
+cfwd=len([x for x in f if x[1]=='Contradiction' and _dirof[x[6]]=='forward'])
 _rowof={}
 for _x in f:
     for _r in _x[6].split(): _rowof[_r]=_x[0]
@@ -402,6 +473,20 @@ checks=[
  ("gap section headline",     r"## Gaps\n\n\*\*%d\*\*, of which %d are named" % (kd['Gap'], gk['named'])),
  ("behavioural gaps heading", r"\*\*%d behavioural gaps\*\*" % gk['behavioural']),
  ("rows.tsv size",            r"\| `rows\.tsv` \| %s \|" % c(len(rows))),
+ # Round eleven. Six more restatements, in FIVE sections, none of them reachable by the labelled
+ # net: three name the total with a word that is not a metric word ("places", "verdicts", a bare
+ # "of the N"), two sit below the `findings` floor, and one lives beneath the corrections heading
+ # that bounds the live half. Every one was a SECOND COPY of a figure stated correctly elsewhere.
+ ("most-contradicted restated", r"with %d of the %d\. Beside those" % (ndl,kd['Contradiction'])),
+ ("orphans sentence",         r"contradicts the backlog in %d places" % kd['Contradiction']),
+ ("received restated",        r"each of those %d was traced back" % cs['received']),
+ ("faithful restated",        r"and all %d read faithfully" % cs['received']),
+ ("provenance restated",      r"the %d verdicts with the sections" % nprov),
+ ("coalesced-pair paragraph", r"%d disagreement rows resolve to %d\nfindings" % (st['contradictory'],kd['Contradiction'])),
+ # This one is BELOW the corrections heading, inside correction 19, yet states a present-tense fact
+ # re-derivable from the artifacts. The live/historical split is positional, and position turned
+ # out to be a proxy for liveness that fails on a correction which explains a figure by restating it.
+ ("direction partition",      r"\*\*%d of the %d contradictions rest on reverse rows alone\*\*, against %d on forward rows" % (crev,kd['Contradiction'],cfwd)),
  ("per-body forward rows",    r"prd %d, canvas %d, prototype %d, uxd %d,\nwireframes %d, jtbd %d, research %d, gallery %d\." % tuple(fwdbody[k] for k in ("prd","canvas","prototype","uxd","wireframes","jtbd","research","gallery"))),
 ]
 bad=[n for n,p in checks if not re.search(p,L)]

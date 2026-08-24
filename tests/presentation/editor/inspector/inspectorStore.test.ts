@@ -1,0 +1,206 @@
+// @vitest-environment jsdom
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { err, ok, type Result } from '../../../../src/core/result/Result';
+import type { AppError, GeometryError, PersistenceError } from '../../../../src/core/errors/AppError';
+import type { EntityId } from '../../../../src/core/identity/EntityId';
+import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
+import type { ZoneInspectorFields } from '../../../../src/application/queries/GetZoneInspector';
+import {
+	createInspectorStoreDefinition,
+	type InspectorDeps,
+} from '../../../../src/presentation/editor/inspector/inspector-store';
+import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
+import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
+
+type QueryAnswer = Result<ZoneInspectorFields | null, PersistenceError | GeometryError>;
+
+const zoneId = (n: number): ZoneId => `zone-${n}` as ZoneId;
+
+function makeFields(id: ZoneId, overrides: Partial<ZoneInspectorFields> = {}): ZoneInspectorFields {
+	return { id, name: 'Living room', areaMm2: 100, ...overrides };
+}
+
+/** A stub `InspectorDeps` whose query answer can be changed between calls (`setAnswer`),
+ * whose `dispatcher.run` and `toCommand` are spies, and whose call counts this suite
+ * asserts against directly — the DoD 10 rule that "not called" must be checked against a
+ * spy, not inferred from the resulting DTO. */
+function stubDeps(initialAnswer: QueryAnswer) {
+	let answer = initialAnswer;
+	const queryExecute = vi.fn<(input: { id: ZoneId }) => Promise<QueryAnswer>>(() => Promise.resolve(answer));
+	const commandRun = vi.fn<(command: UndoableCommand) => Promise<Result<void, AppError>>>(() =>
+		Promise.resolve(ok(undefined)),
+	);
+	const toCommand = vi.fn<(edit: Record<string, unknown>) => UndoableCommand>(() => ({
+		execute: () => Promise.resolve(ok(undefined)),
+		undo: () => Promise.resolve(ok(undefined)),
+	}));
+	const deps: InspectorDeps = {
+		query: { execute: queryExecute },
+		dispatcher: { run: commandRun },
+		toCommand,
+	};
+	return {
+		deps,
+		queryExecute,
+		commandRun,
+		toCommand,
+		setAnswer: (next: QueryAnswer) => {
+			answer = next;
+		},
+	};
+}
+
+describe('InspectorStore', () => {
+	beforeEach(() => {
+		setActivePinia(createPinia());
+	});
+
+	describe('hydrateFrom — selection to DTO', () => {
+		it('a single-id selection produces a zone DTO sourced from the query', async () => {
+			const id = zoneId(1);
+			const { deps, queryExecute } = stubDeps(ok(makeFields(id)));
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([id]);
+
+			expect(queryExecute).toHaveBeenCalledTimes(1);
+			expect(queryExecute).toHaveBeenCalledWith({ id });
+			expect(store.dto).toEqual({ kind: 'zone', id, name: 'Living room', areaMm2: 100 });
+		});
+
+		it('several ids produce `multiple`, and the query is never called', async () => {
+			const ids = [zoneId(1), zoneId(2)] as readonly EntityId<string>[];
+			const { deps, queryExecute } = stubDeps(ok(null));
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom(ids);
+
+			expect(queryExecute).not.toHaveBeenCalled();
+			expect(store.dto).toEqual({ kind: 'multiple', ids });
+		});
+
+		it('an empty selection produces `empty`, and the query is never called', async () => {
+			const { deps, queryExecute } = stubDeps(ok(null));
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([]);
+
+			expect(queryExecute).not.toHaveBeenCalled();
+			expect(store.dto).toEqual({ kind: 'empty' });
+		});
+
+		it('a single id the query cannot find falls back to `empty` rather than throwing', async () => {
+			const { deps } = stubDeps(ok(null));
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([zoneId(1)]);
+
+			expect(store.dto).toEqual({ kind: 'empty' });
+		});
+
+		it('a failed query on hydrate falls back to `empty` rather than throwing', async () => {
+			const failure: PersistenceError = { category: 'Persistence', code: 'test.injected', message: 'x' };
+			const { deps } = stubDeps(err(failure));
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([zoneId(1)]);
+
+			expect(store.dto).toEqual({ kind: 'empty' });
+		});
+	});
+
+	describe('commit — edit to command', () => {
+		it('dispatches exactly one command through toCommand and the dispatcher, per call', async () => {
+			const { deps, commandRun, toCommand } = stubDeps(ok(null));
+			const store = createInspectorStoreDefinition(deps)();
+			const edit = { name: 'New name' };
+
+			const result = await store.commit(edit);
+
+			expect(toCommand).toHaveBeenCalledTimes(1);
+			expect(toCommand).toHaveBeenCalledWith(edit);
+			expect(commandRun).toHaveBeenCalledTimes(1);
+			expect(result).toEqual(ok(undefined));
+		});
+
+		it('two commit calls dispatch exactly two commands, one each', async () => {
+			const { deps, commandRun } = stubDeps(ok(null));
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.commit({ name: 'First' });
+			await store.commit({ name: 'Second' });
+
+			expect(commandRun).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	describe('refresh — the cached read’s invalidation', () => {
+		it('on an empty selection, resolves with zero query calls', async () => {
+			const { deps, queryExecute } = stubDeps(ok(null));
+			const store = createInspectorStoreDefinition(deps)();
+			await store.hydrateFrom([]);
+
+			await store.refresh();
+
+			expect(queryExecute).not.toHaveBeenCalled();
+		});
+
+		it('on success, replaces dto with the new answer', async () => {
+			const id = zoneId(1);
+			const { deps, queryExecute, setAnswer } = stubDeps(ok(makeFields(id, { name: 'Old name' })));
+			const store = createInspectorStoreDefinition(deps)();
+			await store.hydrateFrom([id]);
+			expect(store.dto).toEqual({ kind: 'zone', id, name: 'Old name', areaMm2: 100 });
+
+			setAnswer(ok(makeFields(id, { name: 'New name' })));
+			await store.refresh();
+
+			expect(queryExecute).toHaveBeenCalledTimes(2);
+			expect(store.dto).toEqual({ kind: 'zone', id, name: 'New name', areaMm2: 100 });
+		});
+
+		it('on a failed query, keeps the previous dto rather than blanking the panel', async () => {
+			const id = zoneId(1);
+			const { deps, setAnswer } = stubDeps(ok(makeFields(id)));
+			const store = createInspectorStoreDefinition(deps)();
+			await store.hydrateFrom([id]);
+			const before = store.dto;
+
+			setAnswer(err({ category: 'Persistence', code: 'test.injected', message: 'x' }));
+			await store.refresh();
+
+			expect(store.dto).toEqual(before);
+		});
+
+		it('never mutates what is selected', async () => {
+			const id = zoneId(1);
+			const selection = useSelectionStore();
+			selection.select([id]);
+			const { deps } = stubDeps(ok(makeFields(id)));
+			const store = createInspectorStoreDefinition(deps)();
+			await store.hydrateFrom(selection.selectedIds);
+
+			await store.refresh();
+
+			expect(selection.selectedIds).toEqual([id]);
+		});
+	});
+
+	describe('createInspectorStoreDefinition against a single Pinia instance', () => {
+		it('registering the store id twice keeps the FIRST deps bound — a fresh Pinia is required to rebind', () => {
+			const { deps: depsA } = stubDeps(ok(null));
+			const { deps: depsB } = stubDeps(ok(null));
+
+			const storeA = createInspectorStoreDefinition(depsA)();
+			const storeB = createInspectorStoreDefinition(depsB)();
+
+			// Pinia dedupes by the string id passed to defineStore ('inspector'), not by
+			// which definition function produced it — the second registration under one
+			// active Pinia instance is a no-op, and useB() returns storeA. See this
+			// module's own comment on createInspectorStoreDefinition for what that means
+			// for callers.
+			expect(storeB).toBe(storeA);
+		});
+	});
+});

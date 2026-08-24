@@ -24,8 +24,8 @@ than left to be noticed:**
 
 ## What was found
 
-**52 contradictions, 754 gaps, 0 orphans, and 4 convention findings.** The contradictions are
-the useful half, and they concentrate rather than scatter — seven clusters carry 30 of the 52,
+**51 contradictions, 754 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+the useful half, and they concentrate rather than scatter — seven clusters carry 30 of the 51,
 and one derived note appears in seven of them.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
@@ -35,7 +35,7 @@ with the backlog it belongs to is the most consequential thing this pass could h
 
 **No orphans at all.** Across 3,050 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
-UX layer contradicts the backlog in 52 places and supersedes it nowhere.
+UX layer contradicts the backlog in 51 places and supersedes it nowhere.
 
 ## The counts
 
@@ -50,22 +50,22 @@ Rows and findings are different things and are counted separately.
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,126 |
-| `present` | 1,117 |
+| `present` | 1,118 |
 | `absent` | 754 |
-| `contradictory` | 53 |
+| `contradictory` | 52 |
 | `superseded` | **0** |
 | **findings** | |
-| Contradiction | **52** |
+| Contradiction | **51** |
 | Gap | **754** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
-**The coalesced-pair count is 1, counted directly.** 53 disagreement rows resolve to 52
+**The coalesced-pair count is 1, counted directly.** 52 disagreement rows resolve to 51
 findings. The one coalesced pair is `f494` ↔ `r519`: the workspace PRD requiring a Project
 Selection context, and `entities/Project.md` stating there is no portfolio — the same
 disagreement reached from both directions. It is counted by identifying that pair and checking
 it, never by subtracting findings from rows: 1,117 `present` and 1,126 `retained` rows raise the
-row total while producing no finding, so that subtraction would overstate coalescing by 2,243.
+row total while producing no finding, so that subtraction would overstate coalescing by 2,244.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
 vocabulary.
@@ -391,9 +391,6 @@ match**, so nothing here is a vocabulary gap — it is same name, different beha
   in four steps"; `wireframes§A.5` labels the New Project Wizard "**Step 1 of 5**".
 - `r1668` — the project status "defaults to IDEA"; `prd§9`'s lifecycle is New → Planning → Ready →
   In Progress → Completing → Completed → Archived, with no IDEA state.
-- `r1448` — `deliverables/MVP Prototype.md` states the deliverable is "HTML, CSS and JS in one
-  self-contained deliverable"; `prototype§7` specifies Pinia, localStorage and Vue-style
-  components.
 - `f1099` — the UXD says a trade is never required for a first work item;
   `entities/Work package.md::Relationships[2]` states "Has exactly one `[[Trade]]`"
   unconditionally, while the same note makes Construction section explicitly optional.
@@ -457,10 +454,10 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 532 of the 806 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 531 of the 805 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
-- **Received, like `prds/`** — the backlog moves wherever it disagrees, and 52 contradictions
+- **Received, like `prds/`** — the backlog moves wherever it disagrees, and 51 contradictions
   become actionable at once.
 - **Derived, like `components/`** — the UX documents move instead, and the component-gallery
   findings in cluster G invert: the gallery is corrected to match the notes.
@@ -566,7 +563,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 532 findings carry `undetermined`.
+**v1 and v2 are the ones that gate this ledger** — they are why 531 findings carry `undetermined`.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
 naming it in the table settles it outright, with no classification question behind it.
 
@@ -610,6 +607,43 @@ a follow-on this ledger exists to make answerable, and any of them started here 
 piece of work smuggled into the first — with the decision underneath it taken by whoever happened
 to be typing.
 
+## The finding set, as data
+
+The narrative above cites the contradictions in full and characterises the gaps by cluster. It
+does not print 754 gap citations, and a reader is entitled to check the totals rather than take
+them. **The matrix and the finding set are committed beside this ledger**, in
+[`2026-08-24-ux-layer-backlog-reconciliation/`](2026-08-24-ux-layer-backlog-reconciliation/):
+
+| file | rows | what it holds |
+| --- | --- | --- |
+| `rows.tsv` | 3,050 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
+| `findings.tsv` | 805 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
+| `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
+
+The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
+spec authorises one output file — and flagged that as a question for the repository owner rather
+than a settled call. It was the wrong default and the question should have been asked: a ledger
+whose central number cannot be inspected is a ledger asking to be trusted, which is the one
+thing this instrument was built not to do. Four files, additive, no derived note touched.
+
+## A finding withdrawn after review
+
+**`r1448` was reported as a contradiction and is not one.** It set
+`deliverables/MVP Prototype.md`'s techstack line — "HTML, CSS, JS in one self-contained
+deliverable" — against `prototype§7`'s "Pinia plus localStorage" and its Vue-style component
+list. Those are compatible: the deliverable names no prohibition on libraries, does not require
+vanilla JavaScript, and does not require separate files, and a Pinia/Vue prototype bundles into
+exactly HTML, CSS and JS. `prototype§7` is permissive in its own words — "or an equally
+lightweight mock repository".
+
+Withdrawn, `r1448` reclassified `present`, and every affected count in this ledger reduced by
+one: 52 disagreement rows, 51 contradictions, 805 matrix findings, 1,118 `present` rows. It is
+recorded here rather than quietly removed, because a finding set that reports its own false
+positives is worth more than one that reports only successes — and because it is the single
+demonstrated instance in this pass of the judged half producing a disagreement that does not
+survive checking.
+
 ## Checks
 
 ```
@@ -617,8 +651,8 @@ rows                                    3050
   every row holds exactly one of five states   yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row         227 / 227
 notes reached by a reverse behavioural   227 / 227
-disagreement rows                          53
-disagreement findings                      52
+disagreement rows                          52
+disagreement findings                      51
 coalesced pairs, counted directly           1
 findings with no evidence citation           0
 undetermined findings proposing an edit      0

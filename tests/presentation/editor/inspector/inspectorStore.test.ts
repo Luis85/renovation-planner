@@ -121,6 +121,9 @@ describe('InspectorStore', () => {
 			expect(toCommand).toHaveBeenCalledTimes(1);
 			expect(toCommand).toHaveBeenCalledWith(edit);
 			expect(commandRun).toHaveBeenCalledTimes(1);
+			// Not just "a command was built" and "the dispatcher ran once" separately —
+			// the exact object toCommand returned is the one the dispatcher received.
+			expect(commandRun).toHaveBeenCalledWith(toCommand.mock.results[0]?.value);
 			expect(result).toEqual(ok(undefined));
 		});
 
@@ -160,7 +163,7 @@ describe('InspectorStore', () => {
 			expect(store.dto).toEqual({ kind: 'zone', id, name: 'New name', areaMm2: 100 });
 		});
 
-		it('on a failed query, keeps the previous dto rather than blanking the panel', async () => {
+		it('on a failed query (a transient read failure), keeps the previous dto rather than blanking the panel', async () => {
 			const id = zoneId(1);
 			const { deps, setAnswer } = stubDeps(ok(makeFields(id)));
 			const store = createInspectorStoreDefinition(deps)();
@@ -171,6 +174,23 @@ describe('InspectorStore', () => {
 			await store.refresh();
 
 			expect(store.dto).toEqual(before);
+		});
+
+		it('on a genuine not-found (ok(null)) — distinct from a failed query — transitions to `empty` rather than keeping a deleted zone on display forever', async () => {
+			// This is the case Finding 1 (fix round 1) exists for: ok(null) is DEFINITIVE
+			// evidence the zone is gone (GetZoneInspector's own "not found is ok(null), never
+			// an error" contract), not a transient read failure — so unlike the case above,
+			// the stale dto must NOT be kept.
+			const id = zoneId(1);
+			const { deps, setAnswer } = stubDeps(ok(makeFields(id)));
+			const store = createInspectorStoreDefinition(deps)();
+			await store.hydrateFrom([id]);
+			expect(store.dto).toEqual({ kind: 'zone', id, name: 'Living room', areaMm2: 100 });
+
+			setAnswer(ok(null));
+			await store.refresh();
+
+			expect(store.dto).toEqual({ kind: 'empty' });
 		});
 
 		it('never mutates what is selected', async () => {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { isErr, type Result } from '../../../core/result/Result';
+import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { AppError, GeometryError, PersistenceError } from '../../../core/errors/AppError';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
@@ -81,21 +81,40 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		// CURRENT selection rather than re-selecting (see that function below).
 		const lastSelection = ref<readonly EntityId<string>[]>([]);
 
-		/** Re-runs the query for a single id, answering `null` on "not found" or a failed
-		 * read alike — both cases where this function has nothing to build a fresh DTO
-		 * from, and the two callers below decide differently what to do with `null`. */
-		async function queryZone(id: ZoneId): Promise<InspectorDto | null> {
+		/**
+		 * Re-runs the query for a single id, preserving — not collapsing — the distinction
+		 * `GetZoneInspector` (mirroring `GetZone`) states as its own contract: `ok(null)` is
+		 * a DEFINITIVE "no such zone", never an error; `err(...)` is a transient read
+		 * failure that says nothing about whether the zone still exists. Folding both into
+		 * one `null` (an earlier version of this function did) erases exactly the signal
+		 * `refresh()` below needs to tell "the entity is genuinely gone" apart from "this
+		 * read didn't land" — so this returns the query's own `Result` shape, mapping only
+		 * the success value onto a DTO, and lets each caller decide what its own two
+		 * failure cases mean.
+		 */
+		async function queryZone(id: ZoneId): Promise<Result<InspectorDto | null, PersistenceError | GeometryError>> {
 			const result = await deps.query.execute({ id });
-			if (isErr(result) || result.value === null) return null;
-			return zoneDto(result.value);
+			if (isErr(result)) return result;
+			return ok(result.value === null ? null : zoneDto(result.value));
 		}
 
-		/** Selection → DTO (SDD §59's first arrow). A single id queries and answers a zone
+		/**
+		 * Selection → DTO (SDD §59's first arrow). A single id queries and answers a zone
 		 * DTO; several ids answer `multiple` without ever calling the query (DoD 10); an
-		 * empty selection answers `empty`, also without calling the query. A single id the
-		 * query cannot resolve — not found, or a failed read — falls back to `empty`: unlike
-		 * `refresh()` below, there is no PREVIOUS dto worth keeping here, since the selection
-		 * itself just changed and any prior dto belongs to a different entity. */
+		 * empty selection answers `empty`, also without calling the query. A single id that
+		 * the query cannot resolve — not found, or a failed read — falls back to `empty`
+		 * either way: unlike `refresh()` below, there is no PREVIOUS dto worth keeping here,
+		 * since the selection itself just changed and any prior dto belongs to a different
+		 * entity.
+		 *
+		 * **Known gap, not fixed here:** a genuine "no such zone" and a transient read
+		 * failure both land on `{ kind: 'empty' }` — `InspectorDto` has no error variant for
+		 * a fresh selection to fall back to, and this slice does not get to widen a union
+		 * the spec fixes the shape of. A real read failure on a fresh selection is therefore
+		 * silently indistinguishable from an empty selection, with no signal surfaced
+		 * anywhere in this layer. Left for whichever later slice adds error signalling to
+		 * `InspectorDto`, or surfaces it elsewhere (e.g. a toast, a log).
+		 */
 		async function hydrateFrom(selectedIds: readonly EntityId<string>[]): Promise<void> {
 			lastSelection.value = [...selectedIds];
 			if (selectedIds.length === 0) {
@@ -106,13 +125,15 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 				dto.value = { kind: 'multiple', ids: [...selectedIds] };
 				return;
 			}
-			dto.value = (await queryZone(selectedIds[0] as ZoneId)) ?? { kind: 'empty' };
+			const result = await queryZone(selectedIds[0] as ZoneId);
+			dto.value = !isErr(result) && result.value !== null ? result.value : { kind: 'empty' };
 		}
 
 		/** Edit → Command (SDD §59's last arrow), through the same single choke point tools
 		 * use — the Inspector gets no separate dispatch path. One `commit` call means
-		 * exactly one `toCommand` call and one `dispatcher.run` call; keystroke-coalescing
-		 * on blur/enter is the future Vue UI's job, not this store's. */
+		 * exactly one `toCommand` call and one `dispatcher.run` call, dispatching the exact
+		 * command `toCommand` built; keystroke-coalescing on blur/enter is the future Vue
+		 * UI's job, not this store's. */
 		function commit(edit: Record<string, unknown>): Promise<Result<void, AppError>> {
 			return deps.dispatcher.run(deps.toCommand(edit));
 		}
@@ -123,18 +144,28 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		 * selected entity leaves it stale; this re-runs the query for the selection
 		 * `hydrateFrom` last recorded and replaces `dto` with the answer. A no-op — zero
 		 * query calls — when that selection is not exactly one id, since neither `empty`
-		 * nor `multiple` was ever sourced from the query in the first place. On a failed
-		 * or not-found re-read, the previous `dto` is kept rather than blanked: a refresh
-		 * that cannot confirm a change is not evidence the entity is gone, and blanking the
-		 * panel on every transient read failure would be a worse UI than a one-edit-stale
-		 * DTO. Never mutates what is selected — it holds no reference to a `SelectionStore`
-		 * at all, so there is nothing here that could. Its caller is slice 8's post-command
+		 * nor `multiple` was ever sourced from the query in the first place.
+		 *
+		 * The re-read's two failure shapes are handled differently, and the difference is
+		 * the whole point of keeping them apart in `queryZone`:
+		 * - **A transient read failure (`err(...)`)** says nothing about whether the entity
+		 *   still exists, so the previous `dto` is kept rather than blanked — a refresh that
+		 *   cannot confirm a change is not evidence the entity is gone.
+		 * - **A genuine not-found (`ok(null)`)** is exactly that evidence — `GetZoneInspector`
+		 *   states `ok(null)` as DEFINITIVE "no such zone" — so `dto` transitions to
+		 *   `{ kind: 'empty' }` rather than going on showing a deleted zone's stale name and
+		 *   area forever, which is the same "silently wrong panel" defect the spec's whole
+		 *   cached-read argument exists to prevent, reintroduced one branch over.
+		 *
+		 * Never mutates what is selected — it holds no reference to a `SelectionStore` at
+		 * all, so there is nothing here that could. Its caller is slice 8's post-command
 		 * funnel, not each edit site; this slice declares and tests the operation only.
 		 */
 		async function refresh(): Promise<void> {
 			if (lastSelection.value.length !== 1) return;
-			const fresh = await queryZone(lastSelection.value[0] as ZoneId);
-			if (fresh !== null) dto.value = fresh;
+			const result = await queryZone(lastSelection.value[0] as ZoneId);
+			if (isErr(result)) return;
+			dto.value = result.value ?? { kind: 'empty' };
 		}
 
 		return { dto, hydrateFrom, commit, refresh };

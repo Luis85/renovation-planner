@@ -79,6 +79,32 @@ export async function settle(): Promise<void> {
 	});
 }
 
+/** How many `settle()` rounds `settleUntil` will spend before giving up. */
+const SETTLE_ROUNDS = 50;
+
+/**
+ * `settle()` until something is TRUE, rather than a fixed number of times.
+ *
+ * `settle()` alone is a fixed four microtasks and one macrotask, which is enough for Vue
+ * and for a resolved query but NOT for a real image decode: `tests/helpers/canvas.ts` puts
+ * `@napi-rs/canvas` behind `<img>.decode()`, so a background landing is real work whose
+ * duration depends on the machine. That made "the fast load has landed" a race — it failed
+ * once in a full-suite run while a PDF test was rasterizing two million pixels beside it,
+ * and passed on every isolated run, which is the signature of a fixed-tick wait rather than
+ * of a defect in the code under test.
+ *
+ * Bounded and NAMED on failure, both deliberately: an unbounded loop turns a real
+ * regression into a hung suite, and "condition never held" with no subject is the least
+ * useful failure a test can produce.
+ */
+export async function settleUntil(condition: () => boolean, what: string): Promise<void> {
+	for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
+		if (condition()) return;
+		await settle();
+	}
+	if (!condition()) throw new Error(`Timed out after ${SETTLE_ROUNDS} settle rounds waiting for: ${what}`);
+}
+
 export function installEditorEnvironment(): void {
 	installObsidianDom();
 	installCanvas();

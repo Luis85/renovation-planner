@@ -37,8 +37,9 @@ failed seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
-asynchronously-populated `MetadataCache`, and toggling the plugin off and on logged
-`Several Konva instances detected`. `npm run check` was green for both.
+asynchronously-populated `MetadataCache`, then on a missing `Geometry/` folder, and toggling
+the plugin off and on logged `Several Konva instances detected`. `npm run check` was green
+for all three, and each one was a FAKE that accepted what Obsidian refuses.
 
 Requires Obsidian 1.13.0+.
 
@@ -345,6 +346,15 @@ only), so an `implements` there binds the editor, not the gate.
   a note whose frontmatter was deleted is served this plugin's own stale bytes forever. The
   fake states what it models and what it still does not: the create window, not the parse lag
   after a modify, where Obsidian holds a STALE entry rather than none.
+  **Third instance, same shape, found the same way — by running the plugin.** `FakeVault`'s
+  `create` accepted a path whose PARENT FOLDER did not exist; Obsidian refuses one. So
+  `PlanGeometryStore` had no `ensureFolder` in front of the geometry sidecar — the project,
+  plans and zones folders each get one from the repository that writes into them, and
+  ADR-011's `Geometry/` is a folder no note ever lands in — and on a fresh vault the first
+  write of the first plan ever saved failed with "the geometry sidecar could not be
+  created". Making the fake refuse turned **86 tests** red. The lesson that generalises: when
+  a fake stands in for something that ENFORCES a precondition, the fake has to enforce it
+  too, or the precondition is only ever checked in production.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`

@@ -4,7 +4,8 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import { checkExpectedVersion } from './versionCheck';
-import { persistenceError } from './noteIo';
+import { ensureFolder, persistenceError } from './noteIo';
+import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PlanGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
@@ -124,6 +125,15 @@ export class PlanGeometryStore {
 			objects: [],
 		});
 		try {
+			// The FOLDER first, and this is not belt-and-braces: `vault.create` refuses when
+			// its parent does not exist, and `Geometry/` is a folder nothing else creates —
+			// the project, plans and zones folders each get an `ensureFolder` from the
+			// repository that writes into them, and ADR-011 puts the sidecars in a folder of
+			// their own that no note ever lands in. So on a fresh vault this was the first
+			// write of the first plan ever saved, and it failed with "the geometry sidecar
+			// could not be created". Reported from a real vault; invisible here until
+			// `FakeVault.create` started refusing a missing parent the way Obsidian does.
+			await ensureFolder(this.vault, parentOf(path));
 			await this.vault.create(path, document);
 		} catch (cause) {
 			return err(persistenceError('plan-geometry.create-failed', `Could not create sidecar ${path}.`, cause));

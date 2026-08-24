@@ -55,9 +55,28 @@ class FakeVault {
 
 	// The fake mirrors Obsidian's async API: failures REJECT, never throw synchronously,
 	// which is what callers' try/catch blocks are written against.
+	/**
+	 * A folder Obsidian would know about: one that was created, or one something already
+	 * lives in. The second half is what keeps a planted note (`entries.set`, the suite's way
+	 * of saying "this was already in the vault") from needing its folders declared too.
+	 */
+	private folderExists(folder: string): boolean {
+		if (folder === '') return true;
+		if (this.folders.has(folder)) return true;
+		const prefix = `${folder}/`;
+		for (const path of this.entries.keys()) if (path.startsWith(prefix)) return true;
+		return false;
+	}
+
 	create(path: string, data: string): Promise<TFile> {
 		try {
 			this.op('create', path);
+			// Obsidian REFUSES a create whose parent folder does not exist, and this fake used
+			// to accept it — which is how the geometry sidecar shipped with no `ensureFolder`
+			// in front of it: every test passed and a real vault answered "the sidecar could
+			// not be created" on the first plan ever saved.
+			const parent = path.slice(0, Math.max(path.lastIndexOf('/'), 0));
+			if (!this.folderExists(parent)) throw new Error(`Folder does not exist: ${parent}`);
 			if (this.entries.has(path)) throw new Error(`File already exists: ${path}`);
 			this.entries.set(path, data);
 			this.unparsed.set(path, data);

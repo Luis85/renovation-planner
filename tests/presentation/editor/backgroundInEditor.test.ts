@@ -14,7 +14,7 @@ import type { BackgroundVault } from '../../../src/presentation/editor/layers/ba
 import type { PlanDto } from '../../../src/presentation/read-models/PlanDto';
 import { clearResources, registerResource, releaseResource } from '../../helpers/canvas';
 import { pngFixture } from '../../helpers/backgroundFixtures';
-import { mountPlanEditor, settle, type EditorHarness } from '../../helpers/editor';
+import { mountPlanEditor, settle, settleUntil, type EditorHarness } from '../../helpers/editor';
 import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 
 let harness: EditorHarness | null = null;
@@ -157,11 +157,16 @@ describe('two background loads racing', () => {
 
 		plan = planWith({ path: 'Plans/fast.png', kind: 'image' });
 		harness.changePlan();
-		await settle();
-		expect(backgroundImage(harness)?.width()).toBe(100);
+		// Condition, not a fixed number of ticks: the decode behind `<img>` is a REAL one
+		// (`tests/helpers/canvas.ts`), so how long it takes depends on the machine. A bare
+		// `settle()` here failed once in a full-suite run and never in isolation.
+		await settleUntil(() => backgroundImage(harness)?.width() === 100, 'the fast background to land');
 
 		releaseResource('app://fake/Plans/slow.png');
-		await settle();
+		// The remaining assertion is that something did NOT happen, which no condition can
+		// wait for — so the slow decode is given several rounds to land and win before being
+		// asked whether it did.
+		for (let round = 0; round < 5; round += 1) await settle();
 
 		expect(backgroundImage(harness)?.width()).toBe(100);
 	});

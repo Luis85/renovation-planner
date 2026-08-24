@@ -206,3 +206,52 @@ describe('reading a note back inside Obsidian’s parse window', () => {
 		expect((await stack.projects.getById(project.id)).ok).toBe(false);
 	});
 });
+
+/**
+ * The second defect a live vault found, on the very next command after the parse-window one
+ * was fixed: "the geometry sidecar could not be created".
+ *
+ * ADR-011 puts a Plan's sidecar in a `Geometry/` folder of its own, and `PlanGeometryStore`
+ * went straight to `vault.create` for it. The project, plans and zones folders each get an
+ * `ensureFolder` from the repository that writes into them; `Geometry/` had none, and no
+ * note ever lands there to create it as a side effect. Obsidian refuses a create whose
+ * parent does not exist, so on a fresh vault the FIRST write of the FIRST plan failed — and
+ * because the sidecar is written before the note, the plan save failed outright.
+ *
+ * `FakeVault.create` accepted a missing parent, which is why 869 green tests said nothing.
+ * It refuses now, and making it refuse turned 86 tests red at once.
+ */
+describe('writing into a folder nothing has created yet', () => {
+	it('creates a plan into an empty vault, geometry folder and all', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+
+		// The sidecar exists, at the path the index maps the plan to — not merely "the save
+		// returned ok", which is what a fake with no folders would have allowed.
+		const sidecarPath = stack.index.getGeometrySidecarPath(plan.id);
+		expect(sidecarPath).toBe(sidecarPathFor(normalizeFolder(stack.projectFolder), plan.id));
+		expect(stack.vault.entries.has(sidecarPath as string)).toBe(true);
+	});
+
+	/**
+	 * The whole sequence the sample project runs, into a vault with nothing in it — the one
+	 * that failed in Obsidian twice for two different reasons. A zone as well as a plan,
+	 * because the Zones folder is a third folder and the sidecar MUTATION path is the one
+	 * that reads the file back.
+	 */
+	it('creates a project, a plan and a zone with no folders in place', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+		const zone = makeZoneEntity({ projectId: project.id, planId: plan.id });
+		expectOk(await stack.zones.save(zone, 'absent'));
+
+		expect(expectOk(await stack.zones.listByPlan(plan.id))).toHaveLength(1);
+	});
+});

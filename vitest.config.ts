@@ -142,6 +142,9 @@ export default defineConfig({
 			// measurement, and NOTHING RATCHETS again for the same reason: rounded down these
 			// are the floors already in force, and the next whole number up is 100 for three
 			// of them and 99 for branches, which 98.66 does not reach.
+			// Measured 2026-08-24 again after the sidecar folder fix and the real-PDF test:
+			// 1835/1841 statements, 814/825 branches, 482/483 functions, 1679/1682 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82. Unchanged rounded down, so NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

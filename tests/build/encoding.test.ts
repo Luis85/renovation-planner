@@ -49,7 +49,9 @@ describe('file encoding', () => {
 		expect(files).toContain('styles/index.css');
 	});
 
-	it('finds no UTF-8 BOM in any file git sees', () => {
+	// Scanning every file git sees takes longer than the 5s default once the tree grows
+	// past a few hundred files — the timeout is about I/O volume, not correctness.
+	it('finds no UTF-8 BOM in any file git sees', { timeout: 30_000 }, () => {
 		expect(files.filter((file) => startsWithBom(file))).toEqual([]);
 	});
 });

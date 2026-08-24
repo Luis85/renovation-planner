@@ -1,10 +1,10 @@
-import type { TFile } from 'obsidian';
+import { TFile as MockTFile, type TFile } from 'obsidian';
 import type { LogLevel } from '../../src/application/ports/Logger';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { MigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
+import { createMigrationRunner, type MigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
 import { PLAN_MIGRATIONS } from '../../src/infrastructure/persistence/migration/entities/plan/plan.migrations';
 import { ZONE_MIGRATIONS } from '../../src/infrastructure/persistence/migration/entities/zone/zone.migrations';
 import { PROJECT_MIGRATIONS } from '../../src/infrastructure/persistence/migration/project/project.migrations';
@@ -21,7 +21,7 @@ import type { Line, Logger } from './logger';
  * every operation is observable through `files`. Not kinder than the real thing — that
  * is the point.
  */
-export class FakeVault {
+class FakeVault {
 	readonly entries = new Map<string, string>();
 	private readonly folders = new Set<string>();
 
@@ -32,47 +32,71 @@ export class FakeVault {
 	getAbstractFileByPath(path: string): TFile | null {
 		if (!this.entries.has(path)) return null;
 		const segments = path.split('/');
-		return {
-			path,
-			name: segments.at(-1),
-			basename: (segments.at(-1) ?? '').replace(/\.[^.]+$/, ''),
-			extension: path.includes('.') ? path.split('.').at(-1) : '',
-			stat: { mtime: 0, size: this.entries.get(path)?.length ?? 0 },
-		} as unknown as TFile;
+		const file = new MockTFile();
+		file.path = path;
+		file.name = segments.at(-1) ?? '';
+		file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
+		file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+		return file;
 	}
 
-	async create(path: string, data: string): Promise<TFile> {
-		this.op('create', path);
-		if (this.entries.has(path)) throw new Error(`File already exists: ${path}`);
-		this.entries.set(path, data);
-		return this.getAbstractFileByPath(path) as TFile;
+	// The fake mirrors Obsidian's async API: failures REJECT, never throw synchronously,
+	// which is what callers' try/catch blocks are written against.
+	create(path: string, data: string): Promise<TFile> {
+		try {
+			this.op('create', path);
+			if (this.entries.has(path)) throw new Error(`File already exists: ${path}`);
+			this.entries.set(path, data);
+			return Promise.resolve(this.getAbstractFileByPath(path) as TFile);
+		} catch (cause) {
+			return Promise.reject(cause);
+		}
 	}
 
-	async modify(file: TFile, data: string): Promise<void> {
-		this.op('modify', file.path);
-		if (!this.entries.has(file.path)) throw new Error(`No file to modify: ${file.path}`);
-		this.entries.set(file.path, data);
+	modify(file: TFile, data: string): Promise<void> {
+		try {
+			this.op('modify', file.path);
+			if (!this.entries.has(file.path)) throw new Error(`No file to modify: ${file.path}`);
+			this.entries.set(file.path, data);
+			return Promise.resolve();
+		} catch (cause) {
+			return Promise.reject(cause);
+		}
 	}
 
-	async delete(file: TFile): Promise<void> {
-		this.op('delete', file.path);
-		if (!this.entries.has(file.path)) throw new Error(`No file to delete: ${file.path}`);
-		this.entries.delete(file.path);
+	delete(file: TFile): Promise<void> {
+		try {
+			this.op('delete', file.path);
+			if (!this.entries.has(file.path)) throw new Error(`No file to delete: ${file.path}`);
+			this.entries.delete(file.path);
+			return Promise.resolve();
+		} catch (cause) {
+			return Promise.reject(cause);
+		}
 	}
 
-	async createFolder(path: string): Promise<void> {
-		this.op('createFolder', path);
-		this.folders.add(path);
+	createFolder(path: string): Promise<void> {
+		try {
+			this.op('createFolder', path);
+			this.folders.add(path);
+			return Promise.resolve();
+		} catch (cause) {
+			return Promise.reject(cause);
+		}
 	}
 
-	async read(file: TFile): Promise<string> {
-		this.op('read', file.path);
-		const data = this.entries.get(file.path);
-		if (data === undefined) throw new Error(`No file to read: ${file.path}`);
-		return data;
+	read(file: TFile): Promise<string> {
+		try {
+			this.op('read', file.path);
+			const data = this.entries.get(file.path);
+			if (data === undefined) throw new Error(`No file to read: ${file.path}`);
+			return Promise.resolve(data);
+		} catch (cause) {
+			return Promise.reject(cause);
+		}
 	}
 
-	async cachedRead(file: TFile): Promise<string> {
+	cachedRead(file: TFile): Promise<string> {
 		return this.read(file);
 	}
 
@@ -132,7 +156,7 @@ export function parseFrontmatter(text: string): { frontmatter: Record<string, un
 		}
 		const cut = line.indexOf(':');
 		if (cut === -1) continue;
-		const key = line.slice(0, cut);
+		const key = line.slice(0, cut).replace(/^"|"$/g, '');
 		currentKey = key;
 		const raw = line.slice(cut + 1).trim();
 		if (raw === '') frontmatter[key] = [];
@@ -146,7 +170,7 @@ export function parseFrontmatter(text: string): { frontmatter: Record<string, un
 	return { frontmatter, body };
 }
 
-export class FakeFileManager {
+class FakeFileManager {
 	constructor(private readonly vault: FakeVault) {}
 
 	/**
@@ -163,9 +187,13 @@ export class FakeFileManager {
 		update(frontmatter);
 		await this.vault.modify(file, `${serializeFrontmatter(frontmatter)}${body}`);
 	}
+
+	trashFile(file: TFile): Promise<void> {
+		return this.vault.delete(file);
+	}
 }
 
-export class FakeMetadataCache {
+class FakeMetadataCache {
 	constructor(private readonly vault: FakeVault) {}
 
 	getFileCache(file: TFile): { frontmatter: Record<string, unknown> } | null {
@@ -193,6 +221,8 @@ export interface RepositoryStack {
 	rebuildIndex(): void;
 }
 
+export type { FakeVault, FakeFileManager, FakeMetadataCache };
+
 export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryStack {
 	const vault = new FakeVault();
 	const fileManager = new FakeFileManager(vault);
@@ -210,11 +240,12 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		};
 	const logger: Logger = { debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error') };
 
-	const migrations = new MigrationRunner();
-	for (const migration of PROJECT_MIGRATIONS) migrations.register('project', migration);
-	for (const migration of PLAN_MIGRATIONS) migrations.register('plan', migration);
-	for (const migration of ZONE_MIGRATIONS) migrations.register('zone', migration);
-	for (const migration of PLAN_GEOMETRY_MIGRATIONS) migrations.register('plan-geometry', migration);
+	const migrations = createMigrationRunner({
+		project: PROJECT_MIGRATIONS,
+		plan: PLAN_MIGRATIONS,
+		zone: ZONE_MIGRATIONS,
+		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
+	});
 
 	const deps = {
 		vault: vault as never,
@@ -226,7 +257,7 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		logger,
 		projectFolder,
 	};
-	const store = new PlanGeometryStore(vault as never, index, migrations, echo);
+	const store = new PlanGeometryStore(vault as never, fileManager as never, index, migrations, echo);
 
 	return {
 		vault,

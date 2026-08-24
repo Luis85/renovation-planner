@@ -12,15 +12,16 @@ import type { PlanId } from '../../../domain/plan/PlanId';
  */
 
 export const GEOMETRY_FOLDER = 'Geometry';
-export const PLANS_FOLDER = 'Plans';
-export const ZONES_FOLDER = 'Zones';
+
+const PLANS_FOLDER = 'Plans';
+const ZONES_FOLDER = 'Zones';
 
 /** The user-editable setting passes through `normalizePath` before any Vault call. */
 export function normalizeFolder(raw: string): string {
 	return normalizePath(raw.trim());
 }
 
-export function geometryFolderFor(projectFolder: string): string {
+function geometryFolderFor(projectFolder: string): string {
 	return `${projectFolder}/${GEOMETRY_FOLDER}`;
 }
 
@@ -60,8 +61,4 @@ export function projectNotePathFor(projectFolder: string, name: string): string 
 
 export function planNotePathFor(projectFolder: string, name: string): string {
 	return `${plansFolderFor(projectFolder)}/${fileNameFor(name)}.md`;
-}
-
-export function zoneNotePathFor(projectFolder: string, name: string): string {
-	return `${zonesFolderFor(projectFolder)}/${fileNameFor(name)}.md`;
 }

@@ -1,5 +1,67 @@
-import type { FileManager, MetadataCache, TFile, TFolder, Vault } from 'obsidian';
+import { TFile as TFileValue, TFolder, type FileManager, type MetadataCache, type TFile, type Vault } from 'obsidian';
 import type { PersistenceError } from '../../../core/errors/AppError';
+import { ok, type Result } from '../../../core/result/Result';
+import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
+import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
+
+/**
+ * The migration half of a note read (SDD §44): chain `(kind, schema-version)` up to
+ * latest BEFORE the Zod parse. A gap throws inside the runner; here it becomes the same
+ * `PersistenceError` shape every other read failure takes.
+ */
+export function migrateNote(
+	migrations: MigrationRunner,
+	kind: string,
+	raw: Record<string, unknown>,
+): Result<unknown, PersistenceError> {
+	const version = raw['schema-version'];
+	const fromVersion = typeof version === 'number' ? version : 0;
+	try {
+		return ok(migrations.migrateToLatest(kind, raw, fromVersion));
+	} catch (cause) {
+		return {
+			ok: false,
+			error: { category: 'Persistence', code: `${kind}.migration-failed`, message: `Migrating the ${kind} note failed.`, ...(cause === undefined ? {} : { cause }) },
+		};
+	}
+}
+
+/** The three ways "open this entity's note and read its migrated frontmatter" can land. */
+export type OpenedNote =
+	| { readonly status: 'missing' }
+	| { readonly status: 'error'; error: PersistenceError }
+	| { readonly status: 'ok'; file: TFile; raw: Record<string, unknown>; migrated: unknown };
+
+/**
+ * Resolves an entity's note through the index and reads its cached frontmatter plus the
+ * migrated document — the identical preamble of all three repositories' `getById`. A
+ * missing note is 'missing', never an error ("not found" is ok(null), §36).
+ */
+/** The cached frontmatter of a note — via `MetadataCache`, not raw parsing. A file with
+ * no cache entry yet reads as no frontmatter, which callers surface as their own error. */
+export function frontmatterOf(metadataCache: MetadataCache, file: TFile): Record<string, unknown> {
+	return metadataCache.getFileCache(file)?.frontmatter ?? {};
+}
+
+export function openNoteById(
+	deps: {
+		vault: Vault;
+		metadataCache: MetadataCache;
+		index: ProjectIndex;
+		migrations: MigrationRunner;
+	},
+	kind: string,
+	id: string,
+): OpenedNote {
+	const path = deps.index.getPath(id as never);
+	if (!path) return { status: 'missing' };
+	const abstractFile = deps.vault.getAbstractFileByPath(path);
+	if (!(abstractFile instanceof TFileValue)) return { status: 'missing' };
+	const raw = frontmatterOf(deps.metadataCache, abstractFile);
+	const migrated = migrateNote(deps.migrations, kind, raw);
+	if (!migrated.ok) return { status: 'error', error: migrated.error };
+	return { status: 'ok', file: abstractFile, raw, migrated: migrated.value };
+}
 
 /**
  * The one module the repositories read and write notes through. Everything above
@@ -50,7 +112,7 @@ export function serializeFrontmatter(dto: Record<string, unknown>): string {
 
 
 export function isTFolder(file: unknown): file is TFolder {
-	return !!file && typeof file === 'object' && Array.isArray((file as TFolder).children);
+	return file instanceof TFolder;
 }
 
 /** Creates each missing folder segment; existing non-folder at a segment is an error. */
@@ -72,9 +134,6 @@ export async function ensureFolder(vault: Vault, folder: string): Promise<void> 
  * The cached frontmatter of a note — via `MetadataCache`, not raw parsing. A file with
  * no cache entry yet reads as no frontmatter, which callers surface as their own error.
  */
-export function frontmatterOf(metadataCache: MetadataCache, file: TFile): Record<string, unknown> {
-	return metadataCache.getFileCache(file)?.frontmatter ?? {};
-}
 
 /** Merges the plugin-owned keys into an existing note without touching body or extras. */
 export async function writeOwnedFrontmatter(
@@ -100,7 +159,7 @@ export function findNoteIdInFolder(
 	id: string,
 ): TFile | null {
 	for (const file of vault.getMarkdownFiles()) {
-		if (!file.path.startsWith(folder.startsWith('/') ? folder : `${folder}/`)) continue;
+		if (!file.path.startsWith(`${folder}/`)) continue;
 		const cached = metadataCache.getFileCache(file)?.frontmatter;
 		if (cached && cached['id'] === id) return file;
 	}

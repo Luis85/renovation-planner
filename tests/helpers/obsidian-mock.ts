@@ -46,6 +46,26 @@ export function normalizePath(path: string): string {
 
 export type ViewFactory = (leaf: WorkspaceLeaf) => unknown;
 
+/**
+ * The real `TFile`/`TFolder` are CLASSES, and slice 4's repositories narrow with
+ * `instanceof` — so the fake must export constructible classes, not plain shapes, or
+ * every instanceof check would be false in tests while true in the app.
+ */
+export class TFile {
+	path = '';
+	name = '';
+	basename = '';
+	extension = '';
+	stat = { mtime: 0, size: 0 };
+	parent?: unknown;
+}
+
+export class TFolder {
+	path = '';
+	name = '';
+	children: unknown[] = [];
+}
+
 /** What a leaf must be for the code under test; `tests/helpers/workspace.ts` supplies one. */
 export interface WorkspaceLeaf {
 	setViewState(state: { type: string; active?: boolean }): Promise<void>;
@@ -179,6 +199,18 @@ export class ItemView {
 			this.containerElNode.dataset.type = this.getViewType();
 		}
 		return this.containerElNode;
+	}
+
+	/** The leaf's view state, as the real base class stores it for `setState`/`getState`. */
+	private viewState: Record<string, unknown> = {};
+
+	getState(): Record<string, unknown> {
+		return this.viewState;
+	}
+
+	setState(state: Record<string, unknown> | null): Promise<void> {
+		this.viewState = state ?? {};
+		return Promise.resolve();
 	}
 
 	/** Every real subclass overrides this; a fake with no subclass has no type to carry. */

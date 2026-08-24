@@ -13,6 +13,17 @@ import { ZoneFrontmatterSchemaV1 } from '../../../../src/infrastructure/persiste
  * REFUSED HERE, at the door — which is the only place a hand-edited file can be caught,
  * because nothing downstream ever sees raw frontmatter again.
  */
+
+function parseProjectFrontmatterWith(status: string) {
+	return ProjectFrontmatterSchemaV1.safeParse({
+		type: 'renovation-project',
+		'schema-version': 1,
+		id: 'project-x',
+		name: 'Riverside',
+		status,
+	});
+}
+
 describe('persisted schemas', () => {
 	const zoneValid = {
 		type: 'renovation-zone',
@@ -51,18 +62,9 @@ describe('persisted schemas', () => {
 	});
 
 	it('maps every kebab-case project status back to its domain value', () => {
-		const parseWith = (status: string) =>
-			ProjectFrontmatterSchemaV1.safeParse({
-				type: 'renovation-project',
-				'schema-version': 1,
-				id: 'project-x',
-				name: 'Riverside',
-				status,
-			});
-
-		expect(parseWith('idea')).toMatchObject({ success: true, data: expect.objectContaining({ status: 'IDEA' }) });
-		expect(parseWith('as-built')).toMatchObject({ success: true, data: expect.objectContaining({ status: 'AS_BUILT' }) });
-		expect(parseWith('in-progress').success).toBe(false); // a zone value, not a project one
+		expect(parseProjectFrontmatterWith('idea')).toMatchObject({ success: true, data: expect.objectContaining({ status: 'IDEA' }) });
+		expect(parseProjectFrontmatterWith('as-built')).toMatchObject({ success: true, data: expect.objectContaining({ status: 'AS_BUILT' }) });
+		expect(parseProjectFrontmatterWith('in-progress').success).toBe(false); // a zone value, not a project one
 	});
 
 	it('round-trips the plan background reference through three flat keys', () => {

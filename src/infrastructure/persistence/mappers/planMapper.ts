@@ -50,7 +50,7 @@ function fromDto(
 	if (!constructed.ok) {
 		return constructed;
 	}
-	if (calibration === null) {
+	if (calibration === null || calibration === undefined) {
 		return constructed;
 	}
 	return constructed.value.withCalibration(calibration);

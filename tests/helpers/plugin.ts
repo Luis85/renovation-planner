@@ -23,6 +23,8 @@ const PLUGIN_ID = 'renovation-planner';
 export async function loadedPlugin(stored: unknown = null, loadFailure?: unknown, dataFileExists = stored !== null) {
 	const workspace = new FakeWorkspace();
 	const asked: string[] = [];
+	/** Vault event handlers the plugin registered — tests fire these directly. */
+	const vaultHandlers: ((...args: never[]) => void)[] = [];
 	const vault = {
 		configDir: '.obsidian',
 		adapter: {
@@ -32,11 +34,14 @@ export async function loadedPlugin(stored: unknown = null, loadFailure?: unknown
 			},
 		},
 		// The index scan iterates these; an empty vault is the honest default here —
-		// suites that need contents build a real stack (tests/helpers/vault.ts).
+		// suites that need contents build a real stack (see tests/helpers/vault.ts).
 		getMarkdownFiles: (): never[] => [],
 		getFiles: (): never[] => [],
 		getAbstractFileByPath: (): null => null,
-		on: (): { off(): void } => ({ off: () => undefined }),
+		on: (_event: string, handler: (...args: never[]) => void): { off(): void } => {
+			vaultHandlers.push(handler);
+			return { off: () => undefined };
+		},
 	};
 	// The persistence stack gathers these three from the app; nothing in this stub
 	// behaves, so empty collaborators are honest — a test that needs a real vault builds
@@ -47,5 +52,5 @@ export async function loadedPlugin(stored: unknown = null, loadFailure?: unknown
 	plugin.data = stored;
 	plugin.loadFailure = loadFailure;
 	await plugin.onload();
-	return { plugin, workspace, asked };
+	return { plugin, workspace, asked, vaultHandlers };
 }

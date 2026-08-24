@@ -25,6 +25,35 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>): VaultChange
 	});
 }
 
+async function seed(stack: ReturnType<typeof createRepositoryStack>) {
+	const projectId = createProjectId();
+	const planId = createPlanId();
+	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+	expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+	return { projectId, planId };
+}
+
+function sorted(entry: { id: string }): string {
+	return String(entry.id);
+}
+
+function serializeZoneNote(fields: { id: string; projectId: ProjectId; planId: string }): string {
+	return [
+		'---',
+		'type: "renovation-zone"',
+		'schema-version: 1',
+		`"id": "${fields.id}"`,
+		'revision: 1',
+		`project: "${fields.projectId}"`,
+		`plan: "${fields.planId}"`,
+		'name: "Hand made"',
+		'"zone-type": "room"',
+		'status: "planned"',
+		'---',
+		'',
+	].join('\n');
+}
+
 describe('vault change detection', () => {
 	it('an incremental sequence converges to the same index as a full rebuild', async () => {
 		const stack = createRepositoryStack();
@@ -33,26 +62,23 @@ describe('vault change detection', () => {
 		// A hand-made zone note arrives through events, not through a repository.
 		const zoneId = createZoneId();
 		const zonePath = `Renovation/Zones/Hand made ${zoneId}.md`;
-		stack.vault.entries.set(
-			zonePath,
-			serializeZoneNote({ id: zoneId, projectId, planId }),
-		);
+		stack.vault.entries.set(zonePath, serializeZoneNote({ id: zoneId, projectId, planId }));
 		const file = stack.vault.getAbstractFileByPath(zonePath) as never;
 		const adapter = adapterOf(stack);
 		adapter.onCreate(file);
 		adapter.flush();
 
-		const incremental = stack.index.entries();
+		const incremental = stack.index.entries().map((entry) => sorted(entry));
 
 		// A rebuild over the same final contents must answer identically.
 		stack.index.rebuild([]);
 		stack.rebuildIndex();
-		expect(stack.index.entries().map(sorted)).toEqual(incremental.map(sorted));
+		expect(stack.index.entries().map((entry) => sorted(entry))).toEqual(incremental);
 	});
 
 	it('ignores its own echoes but processes foreign edits', async () => {
 		const stack = createRepositoryStack();
-		const { planId, projectId } = await seed(stack);
+		const { planId } = await seed(stack);
 		const adapter = adapterOf(stack);
 
 		// The repository write marked the echo window; replaying Obsidian's modify event
@@ -72,7 +98,6 @@ describe('vault change detection', () => {
 
 		const entry = stack.index.entries().find((candidate) => candidate.id === planId);
 		expect(entry?.path).toBe(path);
-		void projectId;
 	});
 
 	it('excludes a malformed note with a diagnostic and keeps the rest of the vault', async () => {
@@ -85,7 +110,9 @@ describe('vault change detection', () => {
 
 		const indexedIds = stack.index.entries().map((entry) => String(entry.id));
 		expect(indexedIds.some((id) => id.startsWith('plan-') || id.startsWith('project-'))).toBe(true);
-		const warns = stack.logged.filter((line) => line.level === 'warn' && line.event.startsWith('persistence.'));
+		const warns = stack.logged.filter(
+			(line) => line.level === 'warn' && line.event.startsWith('persistence.'),
+		);
 		expect(warns.length).toBeGreaterThanOrEqual(1);
 	});
 
@@ -101,8 +128,8 @@ describe('vault change detection', () => {
 		adapter.onRename(stack.vault.getAbstractFileByPath(newPath) as never, oldPath);
 		adapter.flush();
 
-		// A rename of UNCHANGED bytes is processed for the path move even though the
-		// content digest matches — renames are flushed directly, never debounced into an echo.
+		// A rename of UNCHANGED bytes still moves the entry — renames are applied
+		// directly, never debounced into an echo drop.
 		expect(stack.index.getPath(planId)).toBe(newPath);
 		expect(stack.index.getGeometrySidecarPath(planId)).toContain('.rpgeo');
 
@@ -112,32 +139,3 @@ describe('vault change detection', () => {
 		expect(stack.index.getPath(planId)).toBeUndefined();
 	});
 });
-
-function sorted(entry: { id: string }): string {
-	return String(entry.id);
-}
-
-async function seed(stack: ReturnType<typeof createRepositoryStack>) {
-	const projectId = createProjectId();
-	const planId = createPlanId();
-	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
-	expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
-	return { projectId, planId };
-}
-
-function serializeZoneNote(fields: { id: string; projectId: ProjectId; planId: string }): string {
-	return [
-		'---',
-		'type: "renovation-zone"',
-		'schema-version: 1',
-		`"id": "${fields.id}"`,
-		'revision: 1',
-		`project: "${fields.projectId}"`,
-		`plan: "${fields.planId}"`,
-		'name: "Hand made"',
-		'"zone-type": "room"',
-		'status: "planned"',
-		'---',
-		'',
-	].join('\n');
-}

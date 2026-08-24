@@ -13,7 +13,7 @@ import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/Note
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
-import { MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
+import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
 import { PLAN_MIGRATIONS } from '../infrastructure/persistence/migration/entities/plan/plan.migrations';
 import { ZONE_MIGRATIONS } from '../infrastructure/persistence/migration/entities/zone/zone.migrations';
 import { PROJECT_MIGRATIONS } from '../infrastructure/persistence/migration/project/project.migrations';
@@ -107,11 +107,12 @@ export function createCompositionRoot(
 	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
 
-	const migrations = new MigrationRunner();
-	for (const migration of PROJECT_MIGRATIONS) migrations.register('project', migration);
-	for (const migration of PLAN_MIGRATIONS) migrations.register('plan', migration);
-	for (const migration of ZONE_MIGRATIONS) migrations.register('zone', migration);
-	for (const migration of PLAN_GEOMETRY_MIGRATIONS) migrations.register('plan-geometry', migration);
+	const migrations = createMigrationRunner({
+		project: PROJECT_MIGRATIONS,
+		plan: PLAN_MIGRATIONS,
+		zone: ZONE_MIGRATIONS,
+		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
+	});
 
 	const deps: NoteVaultDeps = {
 		vault: vault.vault,
@@ -124,7 +125,7 @@ export function createCompositionRoot(
 		projectFolder: settings.projectFolder,
 	};
 
-	const geometryStore = new PlanGeometryStore(vault.vault, index, migrations, echo);
+	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
 	const projects = new ObsidianProjectRepository(deps);
 	const plans = new ObsidianPlanRepository(deps, geometryStore);
 	const zones = new ObsidianZoneRepository(deps, geometryStore);

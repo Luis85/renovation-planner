@@ -1,4 +1,4 @@
-import type { TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -16,20 +16,23 @@ import {
 	zoneToPersistence,
 } from '../../persistence/mappers/zoneMapper';
 import { ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
+import { SpatialObjectGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
 	findNoteIdInFolder,
 	frontmatterOf,
+	openNoteById,
 	persistenceError,
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
+import { revisionConflict } from '../../../application/ports/versioning';
 import { fileNameFor, normalizeFolder, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
-import { fileAt, schemaVersionIn } from './NoteVaultDeps';
+import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 
@@ -72,17 +75,11 @@ export class ObsidianZoneRepository {
 	}
 
 	async getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, PersistenceError>> {
-		const file = this.locate(id);
-		if (!file) return Promise.resolve(ok(null));
+		const opened = openNoteById(this.deps, 'zone', id);
+		if (opened.status === 'missing') return Promise.resolve(ok(null));
+		if (opened.status === 'error') return Promise.resolve(err(opened.error));
 
-		const raw = frontmatterOf(this.deps.metadataCache, file);
-		let migrated: unknown;
-		try {
-			migrated = this.deps.migrations.migrateToLatest('zone', raw, schemaVersionIn(raw));
-		} catch (cause) {
-			return Promise.resolve(err(persistenceError('zone.migration-failed', 'Migrating the zone note failed.', cause)));
-		}
-		const parsed = parsePersisted(ZoneFrontmatterSchemaV1, migrated, 'zone.frontmatter-invalid', 'Zone note');
+		const parsed = parsePersisted(ZoneFrontmatterSchemaV1, opened.migrated, 'zone.frontmatter-invalid', 'Zone note');
 		if (!parsed.ok) return Promise.resolve(err(persistenceError('zone.frontmatter-invalid', parsed.error.message)));
 
 		// The sidecar half. A live note whose plan's sidecar cannot be read is a broken
@@ -101,11 +98,11 @@ export class ObsidianZoneRepository {
 			);
 		}
 
-		const entity = zoneFromPersistence(migrated, entry);
+		const entity = zoneFromPersistence(opened.migrated, entry);
 		if (!entity.ok) {
 			return Promise.resolve(err(persistenceError('zone.entity-invalid', entity.error.message)));
 		}
-		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(raw) }));
+		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(opened.raw) }));
 	}
 
 	save(
@@ -139,10 +136,14 @@ export class ObsidianZoneRepository {
 		if (conflict) return err(conflict);
 
 		// Step 1's other half: lower through the mapper, then prove BOTH halves pass their
-		// schemas before anything touches disk — a NaN vertex dies here, not half-written.
+		// schemas before anything touches disk — a NaN vertex dies here, not half-written
+		// into the sidecar as a null coordinate.
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...zoneToPersistence(zone, nextRevision) };
-		if (!ZoneFrontmatterSchemaV1.safeParse(dto).success) {
+		const geometryEntry = zoneToGeometryEntry(zone);
+		const frontmatterOk = ZoneFrontmatterSchemaV1.safeParse(dto).success;
+		const geometryOk = SpatialObjectGeometrySchemaV1.safeParse(geometryEntry).success;
+		if (!frontmatterOk || !geometryOk) {
 			return err(validationFailure('The zone failed pre-write validation.'));
 		}
 
@@ -164,27 +165,12 @@ export class ObsidianZoneRepository {
 		// Step 4.
 		const mutated = await this.geometry.mutate(zone.planId, (sidecarDto) => ({
 			...sidecarDto,
-			objects: [...sidecarDto.objects.filter((object) => object.id !== zone.id), zoneToGeometryEntry(zone)],
+			objects: [...sidecarDto.objects.filter((object) => object.id !== zone.id), geometryEntry],
 		}));
 
 		// Step 5.
 		if (!mutated.ok) {
-			const compensated = existing
-				? await this.restoreNote(notePath, snapshotText ?? '')
-				: await this.deleteCreatedNote(notePath);
-			if (!compensated.ok) {
-				this.deps.logger.error(existing ? 'zone.update-compensation-failed' : 'zone.insert-compensation-failed', {
-					id: zone.id,
-					cause: compensated.error,
-				});
-			}
-			return err(
-				persistenceError(
-					existing ? 'zone.sidecar-update-failed' : 'zone.sidecar-insert-failed',
-					`The geometry entry for zone ${zone.id} could not be written; the note was compensated.`,
-					mutated.error,
-				),
-			);
+			return this.compensateFailedSidecarWrite(zone.id, existing !== null, notePath, snapshotText ?? '', mutated.error);
 		}
 
 		// Step 6.
@@ -200,17 +186,48 @@ export class ObsidianZoneRepository {
 		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}
 
+	/**
+	 * Step 5: compensate according to what step 2 recorded — restore the snapshot for an
+	 * update, DELETE the created note for an insert — then fail honestly. Runs INSIDE the
+	 * entity queue (its caller holds it), so a restore cannot race the next writer.
+	 */
+	private async compensateFailedSidecarWrite(
+		zoneId: ZoneId,
+		wasUpdate: boolean,
+		notePath: string,
+		snapshotText: string,
+		cause: PersistenceError | ValidationError,
+	): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>> {
+		const compensated = wasUpdate
+			? await this.restoreNote(notePath, snapshotText)
+			: await this.deleteCreatedNote(notePath);
+		if (!compensated.ok) {
+			this.deps.logger.error(wasUpdate ? 'zone.update-compensation-failed' : 'zone.insert-compensation-failed', {
+				id: zoneId,
+				cause: compensated.error,
+			});
+		}
+		return err(
+			persistenceError(
+				wasUpdate ? 'zone.sidecar-update-failed' : 'zone.sidecar-insert-failed',
+				`The geometry entry for zone ${zoneId} could not be written; the note was compensated.`,
+				cause,
+			),
+		);
+	}
+
 	delete(id: ZoneId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
 		return this.queues.run(`zone:${id}`, async () => {
 			const file = this.locate(id);
+			// A vanished or unindexed note refuses exactly like a stale expectation.
+			if (!file) return err(revisionConflict('zone', id));
 			const conflict = checkExpectedVersion(
 				'zone',
 				id,
-				file ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)) : undefined,
+				versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)),
 				expected,
 			);
 			if (conflict) return err(conflict);
-			if (!file) return err(persistenceError('zone.delete-failed', `No note holds zone ${id}.`));
 
 			// Delete's mirror of step 2: the full restore snapshot before ANY deletion.
 			let snapshotText: string;
@@ -220,12 +237,17 @@ export class ObsidianZoneRepository {
 				return err(persistenceError('zone.delete-failed', `Could not read zone note ${file.path}.`, cause));
 			}
 			const cachedPlan = frontmatterOf(this.deps.metadataCache, file)['plan'] as PlanId | undefined;
-			if (!cachedPlan) return err(persistenceError('zone.delete-failed', `Zone note ${file.path} does not declare its plan.`));
+			if (!cachedPlan) {
+				// A note of ours always declares its plan (the schema demands it); a hand
+				// edit that removed it leaves us unable to locate the geometry entry.
+				return err(persistenceError('zone.delete-failed', `Zone note ${file.path} does not declare its plan.`));
+			}
 
 			// Note FIRST: removing the sidecar entry first could leave a LIVE zone note
-			// with no geometry, the worse and more confusing failure mode.
+			// with no geometry, the worse and more confusing failure mode. Trash, not
+			// deletion — a user's system setting decides whether a delete is recoverable.
 			try {
-				await this.deps.vault.delete(file);
+				await this.deps.fileManager.trashFile(file);
 			} catch (cause) {
 				return err(persistenceError('zone.delete-failed', `Could not delete zone note ${file.path}.`, cause));
 			}
@@ -284,15 +306,14 @@ export class ObsidianZoneRepository {
 	}
 
 	private async restoreNote(path: string, text: string): Promise<Result<void, PersistenceError>> {
-		const cut = path.lastIndexOf('/');
-		const parent = cut === -1 ? '' : path.slice(0, cut);
+		const parent = path.slice(0, Math.max(path.lastIndexOf('/'), 0));
 		const existing = this.deps.vault.getAbstractFileByPath(path);
 		try {
-			if (existing) {
+			if (existing instanceof TFile) {
 				// Byte-for-byte: the echo window still holds the token for these bytes, so
 				// the pipeline correctly treats any event about them as an echo.
-				await this.deps.vault.modify(existing as TFile, text);
-			} else if (text) {
+				await this.deps.vault.modify(existing, text);
+			} else {
 				await ensureFolder(this.deps.vault, parent);
 				await this.deps.vault.create(path, text);
 			}
@@ -304,9 +325,9 @@ export class ObsidianZoneRepository {
 
 	private async deleteCreatedNote(path: string): Promise<Result<void, PersistenceError>> {
 		const created = this.deps.vault.getAbstractFileByPath(path);
-		if (!created) return ok(undefined);
+		if (!(created instanceof TFile)) return ok(undefined);
 		try {
-			await this.deps.vault.delete(created);
+			await this.deps.fileManager.trashFile(created);
 			this.deps.echo.forget(path);
 			return ok(undefined);
 		} catch (cause) {

@@ -4,9 +4,9 @@ parent: "[[Foundation and composition root]]"
 order: 40
 dependsOn:
   - "[[03-domain-foundation-project-plan-zone]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-24
+finished: 2026-08-24
 horizon: ""
 start: ""
 due: ""

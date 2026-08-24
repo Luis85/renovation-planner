@@ -1,4 +1,4 @@
-import type { Vault, TFile } from 'obsidian';
+import { TFile, type FileManager, type Vault } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -23,7 +23,7 @@ function canonicalJson(dto: PlanGeometryDTO): string {
 
 function schemaVersionOf(parsed: unknown): number {
 	if (typeof parsed === 'object' && parsed !== null && 'schemaVersion' in parsed) {
-		const value = (parsed as { schemaVersion: unknown }).schemaVersion;
+		const value: unknown = parsed['schemaVersion'];
 		if (typeof value === 'number') return value;
 	}
 	return 0;
@@ -33,6 +33,8 @@ function schemaVersionOf(parsed: unknown): number {
 export interface SidecarSnapshot {
 	readonly dto: PlanGeometryDTO;
 	readonly version: EntityVersion;
+	readonly file: TFile;
+	readonly path: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export class PlanGeometryStore {
 
 	constructor(
 		private readonly vault: Vault,
+		private readonly fileManager: FileManager,
 		private readonly index: ProjectIndex,
 		private readonly migrations: MigrationRunner,
 		private readonly echo: EchoWindow,
@@ -72,10 +75,10 @@ export class PlanGeometryStore {
 		return this.queues.run(`plan:${planId}`, async () => {
 			const path = this.index.getGeometrySidecarPath(planId) ?? pathHint;
 			if (!path) return ok(undefined);
-			const file = this.vault.getAbstractFileByPath(path) as TFile | null;
-			if (!file) return ok(undefined);
+			const file = this.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) return ok(undefined);
 			try {
-				await this.vault.delete(file);
+				await this.fileManager.trashFile(file);
 			} catch (cause) {
 				return err(persistenceError('plan-geometry.delete-failed', `Could not delete sidecar ${path}.`, cause));
 			}
@@ -107,11 +110,10 @@ export class PlanGeometryStore {
 			const written = { ...nextDto, revision: nextRevision };
 			const text = canonicalJson(written);
 
-			const writeResult = await this.writeText(planId, text);
+			const writeResult = await this.writeText(current.value.file, current.value.path, text);
 			if (!writeResult.ok) return writeResult;
 
-			const version: EntityVersion = { revision: nextRevision, observed: observeSidecar(text) };
-			return ok({ version });
+			return ok({ version: { revision: nextRevision, observed: observeSidecar(text) } });
 		});
 	}
 
@@ -141,13 +143,13 @@ export class PlanGeometryStore {
 		if (!path) {
 			return err(persistenceError('plan-geometry.path-unresolved', `No sidecar path is indexed for plan ${planId}.`));
 		}
-		const file = this.vault.getAbstractFileByPath(path) as TFile | null;
-		if (!file) {
+		const abstractFile = this.vault.getAbstractFileByPath(path);
+		if (!(abstractFile instanceof TFile)) {
 			return err(persistenceError('plan-geometry.missing', `Sidecar ${path} does not exist.`));
 		}
 		let rawText: string;
 		try {
-			rawText = await this.vault.read(file);
+			rawText = await this.vault.read(abstractFile);
 		} catch (cause) {
 			return err(persistenceError('plan-geometry.unreadable', `Could not read sidecar ${path}.`, cause));
 		}
@@ -184,21 +186,14 @@ export class PlanGeometryStore {
 		return ok({
 			dto: validated.data,
 			version: { revision: validated.data.revision, observed: observeSidecar(rawText) },
+			file: abstractFile,
+			path,
 		});
 	}
 
-	private async writeText(planId: PlanId, text: string): Promise<Result<void, PersistenceError>> {
-		const path = this.index.getGeometrySidecarPath(planId);
-		if (!path) {
-			return err(persistenceError('plan-geometry.path-unresolved', `No sidecar path is indexed for plan ${planId}.`));
-		}
-		const file = this.vault.getAbstractFileByPath(path) as TFile | null;
+	private async writeText(file: TFile, path: string, text: string): Promise<Result<void, PersistenceError>> {
 		try {
-			if (file) {
-				await this.vault.modify(file, text);
-			} else {
-				await this.vault.create(path, text);
-			}
+			await this.vault.modify(file, text);
 		} catch (cause) {
 			return err(persistenceError('plan-geometry.write-failed', `Could not write sidecar ${path}.`, cause));
 		}

@@ -22,12 +22,6 @@ export interface NoteVaultDeps {
 	readonly projectFolder: string;
 }
 
-/** The stored schema version, or 0 when absent — where migration chains start. */
-export function schemaVersionIn(raw: Record<string, unknown>, key = 'schema-version'): number {
-	const value = raw[key];
-	return typeof value === 'number' ? value : 0;
-}
-
 export function fileAt(vault: Vault, path: string | undefined): TFile | null {
 	return path ? (vault.getAbstractFileByPath(path) as TFile | null) : null;
 }

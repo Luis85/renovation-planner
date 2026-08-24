@@ -27,8 +27,8 @@ export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchem
 export const CalibrationSchemaV1 = z.object({
 	pointA: z.object({ x: z.number(), y: z.number() }),
 	pointB: z.object({ x: z.number(), y: z.number() }),
-	knownDistance: z.number().finite().positive(),
-	pixelsPerWorldUnit: z.number().finite().positive(),
+	knownDistance: z.number().positive(),
+	pixelsPerWorldUnit: z.number().positive(),
 });
 
 /**

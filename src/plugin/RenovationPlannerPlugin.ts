@@ -1,4 +1,4 @@
-import { Plugin, type TFile } from 'obsidian';
+import { Plugin, TFile, type TAbstractFile } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
@@ -46,6 +46,14 @@ const LOG_LEVEL: LogLevel = 'info';
  * `tests/plugin/registration.test.ts` drives it against the module mock rather than
  * trusting it.
  */
+/**
+ * Obsidian hands TAbstractFile to every vault event; only notes interest the pipeline.
+ */
+function onNoteFile(adapter: { onCreate(file: TFile): void; onModify(file: TFile): void; onDelete(file: TFile): void }, method: 'onCreate' | 'onModify' | 'onDelete'): (file: TAbstractFile) => void {
+	return (file: TAbstractFile): void => {
+		if (file instanceof TFile) adapter[method](file);
+	};
+}
 export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
@@ -194,15 +202,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 				metadataCache: this.vaultStack.metadataCache,
 				echo: persistence.vaultDeps.echo,
 				logger: this.root.logger,
-				projectFolder: this.root.settings?.projectFolder ?? '',
+				projectFolder: persistence.vaultDeps.projectFolder,
 			}),
 		);
 
 		const adapter = persistence.changeAdapter;
-		this.registerEvent(this.app.vault.on('create', (file) => adapter.onCreate(file as TFile)));
-		this.registerEvent(this.app.vault.on('modify', (file) => adapter.onModify(file as TFile)));
-		this.registerEvent(this.app.vault.on('delete', (file) => adapter.onDelete(file as TFile)));
-		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => adapter.onRename(file as TFile, oldPath)));
+		// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
+		this.registerEvent(this.app.vault.on('create', onNoteFile(adapter, 'onCreate')));
+		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapter, 'onModify')));
+		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapter, 'onDelete')));
+		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+			if (file instanceof TFile) adapter.onRename(file, oldPath);
+		}));
 	}
 
 	private openProject(): Promise<void> {

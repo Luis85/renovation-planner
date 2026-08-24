@@ -21,7 +21,7 @@ export const UNITS = ['metric', 'imperial'] as const;
 export type Units = (typeof UNITS)[number];
 
 /** Where entity notes live; `Geometry/` is derived inside it, never configured (ADR-011). */
-export const DEFAULT_PROJECT_FOLDER = 'Renovation';
+const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
 export interface RenovationPlannerSettings {
 	/** Measurement system for quantities and dimensions (SDD A§15: default units). */

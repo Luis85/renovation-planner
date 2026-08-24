@@ -1,4 +1,3 @@
-import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 /**
  * @vitest-environment jsdom
  *
@@ -13,7 +12,7 @@ import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
  */
 import { describe, expect, it } from 'vitest';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
-import { UNITS } from '../../../src/plugin/settings/settings';
+import { DEFAULT_SETTINGS, UNITS } from '../../../src/plugin/settings/settings';
 import { t } from '../../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../../helpers/plugin';
 

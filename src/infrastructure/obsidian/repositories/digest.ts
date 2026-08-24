@@ -1,10 +1,15 @@
-import { createHash } from 'node:crypto';
 import type { ObservationToken } from '../../../application/ports/versioning';
 
 /**
  * How an observation token is minted, and therefore what "external modification" MEANS
  * — this implementation's business, and nothing above `infrastructure/` knows it
  * (slice 3's contract).
+ *
+ * The hash itself is deliberately NOT node:crypto: the plugin runs on mobile too, where
+ * Node built-ins do not exist, and these tokens are never persisted or compared across
+ * machines — they are recomputed from disk content on every read and compared against
+ * tokens minted the same way in this session. A wide, well-mixed 64-bit FNV-style digest
+ * is deterministic, dependency-free, and fully sufficient for that job.
  *
  * Two scopes, because the two file kinds are exposed differently:
  *
@@ -33,8 +38,26 @@ const OWNED_KEYS = [
 	'layers',
 ] as const;
 
+/** 64-bit FNV-1a over UTF-8 bytes, hex-encoded — stable across sessions and platforms. */
 function digest(text: string): ObservationToken {
-	return createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 32) as ObservationToken;
+	let high = 0x9e3779b9;
+	let low = 0x85ebca6b;
+	for (let index = 0; index < text.length; index += 1) {
+		const codeUnit = text.charCodeAt(index);
+		const bytes = codeUnit < 0x80
+			? [codeUnit]
+			: codeUnit < 0x800
+				? [0xc0 | (codeUnit >> 6), 0x80 | (codeUnit & 0x3f)]
+				: [0xe0 | (codeUnit >> 12), 0x80 | ((codeUnit >> 6) & 0x3f), 0x80 | (codeUnit & 0x3f)];
+		for (const byte of bytes) {
+			high = (high ^ byte) >>> 0;
+			high = Math.imul(high, 0x01000193) >>> 0;
+			low = (low ^ byte) >>> 0;
+			low = Math.imul(low, 0x1000193d) >>> 0;
+			low = ((low << 1) | (high >>> 31)) >>> 0;
+		}
+	}
+	return `${high.toString(16).padStart(8, '0')}${low.toString(16).padStart(8, '0')}` as ObservationToken;
 }
 
 /** The token for a note, over its plugin-owned frontmatter keys alone. */

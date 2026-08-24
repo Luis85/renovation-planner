@@ -5,12 +5,14 @@ import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
+import { revisionConflict } from '../../../application/ports/versioning';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
 import { planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
 	ensureFolder,
 	findNoteIdInFolder,
 	frontmatterOf,
+	openNoteById,
 	persistenceError,
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
@@ -25,7 +27,7 @@ import {
 	sidecarPathFor,
 } from './paths';
 import { KeyedQueues } from './KeyedQueues';
-import { fileAt, schemaVersionIn } from './NoteVaultDeps';
+import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 
@@ -45,6 +47,11 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
  *   "partly done".
  */
+function parentOf(path: string): string {
+	// slice(0, 0) when there is no slash — no branch needed for rootless paths.
+	return path.slice(0, Math.max(path.lastIndexOf('/'), 0));
+}
+
 function calibrationToDto(calibration: Plan['calibration']): PlanGeometryDTO['calibration'] {
 	if (!calibration) return null;
 	return {
@@ -67,16 +74,9 @@ export class ObsidianPlanRepository {
 	}
 
 	async getById(id: PlanId): Promise<Result<Loaded<Plan> | null, PersistenceError>> {
-		const file = this.locate(id);
-		if (!file) return Promise.resolve(ok(null));
-
-		const raw = frontmatterOf(this.deps.metadataCache, file);
-		let migrated: unknown;
-		try {
-			migrated = this.deps.migrations.migrateToLatest('plan', raw, schemaVersionIn(raw));
-		} catch (cause) {
-			return Promise.resolve(err(persistenceError('plan.migration-failed', 'Migrating the plan note failed.', cause)));
-		}
+		const opened = openNoteById(this.deps, 'plan', id);
+		if (opened.status === 'missing') return Promise.resolve(ok(null));
+		if (opened.status === 'error') return Promise.resolve(err(opened.error));
 
 		// Calibration lives in the sidecar; the entity carries it merged in.
 		const sidecar = await this.geometry.read(id);
@@ -85,11 +85,11 @@ export class ObsidianPlanRepository {
 				err(persistenceError('plan.sidecar-unreadable', `The geometry sidecar for plan ${id} could not be read.`, sidecar.error)),
 			);
 		}
-		const entity = planFromPersistence(migrated, sidecar.value.dto.calibration);
+		const entity = planFromPersistence(opened.migrated, sidecar.value.dto.calibration);
 		if (!entity.ok) {
 			return Promise.resolve(err(persistenceError('plan.frontmatter-invalid', entity.error.message)));
 		}
-		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(raw) }));
+		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(opened.raw) }));
 	}
 
 	save(
@@ -110,7 +110,7 @@ export class ObsidianPlanRepository {
 			existing ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, existing)) : undefined;
 
 		const conflict = checkExpectedVersion('plan', plan.id, currentVersion, expected);
-		if (conflict) return err(conflict);
+		if (conflict) return Promise.resolve(err(conflict));
 
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...planToPersistence(plan, nextRevision) };
@@ -183,10 +183,10 @@ export class ObsidianPlanRepository {
 			type: 'renovation-plan',
 			path: note.path,
 			projectId: plan.projectId,
-			// Through-unchanged, or derived ONCE here as the repair path for an index that
-			// somehow lost the mapping — reads themselves never derive (ADR-011).
-			geometrySidecarPath:
-				this.deps.index.getGeometrySidecarPath(plan.id) ?? sidecarPathFor(this.folder, plan.id),
+			// Through-unchanged from what the index holds. Writers never derive a sidecar
+			// path on UPDATE: if the mapping was lost, surfacing the break beats inventing
+			// a location behind the index's back (ADR-011) — the rebuild is the repair.
+			geometrySidecarPath: this.deps.index.getGeometrySidecarPath(plan.id),
 		});
 		this.deps.echo.markFrontmatter(note.path, dto);
 
@@ -212,14 +212,16 @@ export class ObsidianPlanRepository {
 	delete(id: PlanId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
 		return this.queues.run(`plan-note:${id}`, async () => {
 			const file = this.locate(id);
+			// A vanished or unindexed note refuses exactly like a stale expectation: there
+			// is nothing at this id to delete.
+			if (!file) return err(revisionConflict('plan', id));
 			const conflict = checkExpectedVersion(
 				'plan',
 				id,
-				file ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)) : undefined,
+				versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)),
 				expected,
 			);
 			if (conflict) return err(conflict);
-			if (!file) return err(persistenceError('plan.delete-failed', `No note holds plan ${id}.`));
 
 			// Snapshots BEFORE deleting anything: once both files are gone there is nothing
 			// left to compensate with.
@@ -239,7 +241,7 @@ export class ObsidianPlanRepository {
 			}
 
 			try {
-				await this.deps.vault.delete(file);
+				await this.deps.fileManager.trashFile(file);
 			} catch (cause) {
 				return err(persistenceError('plan.delete-failed', `Could not delete plan note ${file.path}.`, cause));
 			}
@@ -276,20 +278,13 @@ export class ObsidianPlanRepository {
 	/**
 	 * Byte-for-byte note restore inside the same queue section as the failed operation —
 	 * outside it, the restore would race the next writer and undo THAT writer's work.
-	 * The echo window keeps its previous token for the path: the restored bytes are the
-	 * ones it recorded, so the pipeline correctly treats any event for them as an echo.
+	 * Reached only after the note was successfully trashed, so this always CREATES.
 	 */
 	private async restoreNote(path: string, text: string): Promise<Result<void, PersistenceError>> {
-		const cut = path.lastIndexOf('/');
-		const parent = cut === -1 ? '' : path.slice(0, cut);
-		const existing = this.deps.vault.getAbstractFileByPath(path);
+		const parent = parentOf(path);
 		try {
-			if (existing) {
-				await this.deps.vault.modify(existing as TFile, text);
-			} else {
-				await ensureFolder(this.deps.vault, parent);
-				await this.deps.vault.create(path, text);
-			}
+			await ensureFolder(this.deps.vault, parent);
+			await this.deps.vault.create(path, text);
 			return ok(undefined);
 		} catch (cause) {
 			return err(persistenceError('plan.restore-failed', `Could not restore plan note ${path}.`, cause));

@@ -75,7 +75,7 @@ copied from `f494` instead of built from its own citations, which made two diffe
 byte-identical and coalesced two findings into one — the twelfth correction below. The count is
 still reached by identifying pairs and checking them, never by subtracting findings from rows:
 1,125 `present` and 1,124 `retained` rows raise the row total while producing no finding, so that
-subtraction would overstate coalescing by 2,247.
+subtraction would overstate coalescing by 2,249.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
 vocabulary.
@@ -645,7 +645,7 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 546 of the 821 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 548 of the 821 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 31 contradictions now carrying `undetermined` gain the
@@ -806,7 +806,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 546 findings carry `undetermined`:
+**v1 and v2 are the ones that gate this ledger** — they are why 548 findings carry `undetermined`:
 492 whose evidence side sits in `docs/user-experience/` and 56 in `docs/product/` — all of
 them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so

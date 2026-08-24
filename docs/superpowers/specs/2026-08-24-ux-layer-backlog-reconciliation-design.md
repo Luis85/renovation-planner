@@ -123,9 +123,17 @@ ledger says so where they are listed.
    outright: `main` is red today, before any of this work — `vue-tsc` rejects
    `src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts:113`
    (`Result<never, ValidationError>` returned where
-   `Promise<Result<Loaded<Plan>, …>>` is declared), which is another session's in-flight
-   implementation of slice 4 and not this pass's to fix. Confirmed pre-existing by running
-   the build on a clean tree. Writing "the gate passes" into a definition of done while the
+   `Promise<Result<Loaded<Plan>, …>>` is declared: the method is not `async`, so the
+   early `return err(conflict)` on the conflict path is a bare `Result` while the two
+   tail returns are genuine Promises).
+
+   It arrived in **`5c85a26`**, a commit titled *"move concept files into ux folder, add
+   prototype spec"* that also added 104 files of slice-4 implementation. CI never ran on
+   that commit alone, so the failure first *surfaced* on the next docs-only commit
+   (`7b53c6e`) and the run history attributes it to three documentation pushes — which is
+   most likely why it has stayed red across four commits without being noticed. Run 108
+   (`d79e996`) was the last green one. Not this pass's to fix, and confirmed pre-existing
+   by building a clean tree with this branch's single document stashed. Writing "the gate passes" into a definition of done while the
    gate is red would be the defect this repository's own guide names first: write the
    guarantee to the check, never ahead of it.
 6. **No derived note is edited.** The ledger is the whole deliverable; fixing is a separate

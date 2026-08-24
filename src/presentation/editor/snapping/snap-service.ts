@@ -8,11 +8,29 @@ import type { Point } from '../../../core/geometry/Point';
  * Editor preferences (SDD §15 — settings, not persistent domain data) that parameterize
  * snapping. Injected once through the constructor, which is what makes `SnapService`
  * unit-testable without a live canvas, a store, or a Konva node.
+ *
+ * `gridSpacingMm` and `angleStepRadians` are divisors inside `SnapService` (every
+ * "round to nearest step" call is `Math.round(value / step) * step`), so the
+ * constructor enforces both positive and finite — a zero or non-finite step would
+ * otherwise silently produce `NaN`/`Infinity` coordinates out of every method that
+ * touches the grid or rotation. `toleranceMm` is not enforced the same way: it is only
+ * ever compared (`d <= tolerance`), never divided by, so a zero or negative value is
+ * merely "snap nothing," not a NaN hazard, and is left as the caller's choice.
  */
 export interface SnapServiceConfig {
 	readonly gridSpacingMm: number;
 	readonly toleranceMm: number;
 	readonly angleStepRadians: number;
+}
+
+/** Throws for a value that would divide as zero, negative, `NaN`, or `Infinity`. */
+function requirePositiveFinite(value: number, field: string): void {
+	if (!Number.isFinite(value)) {
+		throw new TypeError(`SnapServiceConfig.${field} must be finite; got ${value}.`);
+	}
+	if (value <= 0) {
+		throw new RangeError(`SnapServiceConfig.${field} must be positive; got ${value}.`);
+	}
 }
 
 /**
@@ -31,10 +49,14 @@ type BoxEdge = 'minX' | 'minY' | 'maxX' | 'maxY';
 
 /**
  * Which axis-aligned edges of a `BoundingBox` each Transformer handle moves. World Y
- * increases downward in this codebase (`worldToScreen` is `(p - pan) * scale`, and the
- * default pan is negative — slice 5), so "north" is `min.y` and "south" is `max.y`, the
- * opposite of a screen-up mental model. This mapping is a resolution made for this task
- * (see task-5-report.md), not something the brief or the SDD states outright.
+ * increases downward in this codebase: `Viewport.ts`'s `worldToScreen` computes
+ * `screen.y = (point.y - pan.y) * scale` with no sign flip on the Y term, and `scale`
+ * (`zoom * dpr`) is always positive — `zoom` is clamped to `[0.01, 20]`. Pan only
+ * translates the origin; its sign changes neither that multiplication nor the
+ * direction relationship. So increasing world Y always maps to increasing screen Y,
+ * making "north" `min.y` and "south" `max.y` — the opposite of a screen-up mental
+ * model. This mapping is a resolution made for this task (see task-5-report.md), not
+ * something the brief or the SDD states outright.
  */
 const HANDLE_EDGES: Readonly<Record<TransformerHandle, readonly BoxEdge[]>> = {
 	nw: ['minX', 'minY'],
@@ -97,7 +119,10 @@ function nearestWithinTolerance<T>(
  * argument on every call.
  */
 export class SnapService {
-	constructor(private readonly config: SnapServiceConfig) {}
+	constructor(private readonly config: SnapServiceConfig) {
+		requirePositiveFinite(config.gridSpacingMm, 'gridSpacingMm');
+		requirePositiveFinite(config.angleStepRadians, 'angleStepRadians');
+	}
 
 	snapToGrid(point: Point): Point {
 		return {

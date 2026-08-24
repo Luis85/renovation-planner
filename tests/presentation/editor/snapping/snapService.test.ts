@@ -20,6 +20,29 @@ function makeService(overrides: Partial<{ gridSpacingMm: number; toleranceMm: nu
 	});
 }
 
+describe('SnapService construction', () => {
+	it('rejects a non-finite gridSpacingMm', () => {
+		expect(() => makeService({ gridSpacingMm: Infinity })).toThrow(/gridSpacingMm must be finite/);
+	});
+
+	it('rejects a non-positive gridSpacingMm', () => {
+		expect(() => makeService({ gridSpacingMm: 0 })).toThrow(/gridSpacingMm must be positive/);
+	});
+
+	it('rejects a non-finite angleStepRadians', () => {
+		expect(() => makeService({ angleStepRadians: Number.NaN })).toThrow(/angleStepRadians must be finite/);
+	});
+
+	it('rejects a non-positive angleStepRadians', () => {
+		expect(() => makeService({ angleStepRadians: -1 })).toThrow(/angleStepRadians must be positive/);
+	});
+
+	it('does not restrict toleranceMm the same way — zero and negative both construct', () => {
+		expect(() => makeService({ toleranceMm: 0 })).not.toThrow();
+		expect(() => makeService({ toleranceMm: -5 })).not.toThrow();
+	});
+});
+
 describe('SnapService.snapToGrid', () => {
 	it('leaves a point already on the grid unchanged', () => {
 		const service = makeService();
@@ -119,6 +142,16 @@ describe('SnapService.snapToEdge', () => {
 		expect(service.snapToEdge({ x: 105, y: 5 }, [horizontal])).toEqual({ x: 100, y: 0 });
 	});
 
+	it('clamps the projection to the nearer endpoint on the START side too', () => {
+		// Mirror of the end-side clamping test above: the unclamped foot of the
+		// perpendicular from (-5, 5) onto the LINE through (0,0)-(100,0) is (-5, 0) — off
+		// the segment on the start side, and 5mm from the probe (would wrongly pass
+		// tolerance). The correct, clamped answer is the start endpoint (0, 0), 7.07mm
+		// away. Without this case, only t > 1 clamping is exercised by this file.
+		const service = makeService();
+		expect(service.snapToEdge({ x: -5, y: 5 }, [horizontal])).toEqual({ x: 0, y: 0 });
+	});
+
 	it('rejects a point whose clamped nearest point falls outside tolerance', () => {
 		// Same segment, further along: the clamped nearest point is still (100, 0), but
 		// now 30mm+ from the probe — outside tolerance even though the unclamped,
@@ -132,7 +165,6 @@ describe('SnapService.snapToEdge', () => {
 		const degenerate: LineSegment = { start: { x: 5, y: 5 }, end: { x: 5, y: 5 } };
 		const result = service.snapToEdge({ x: 5, y: 6 }, [degenerate]);
 		expect(result).toBeNull();
-		expect(result === null || (Number.isFinite(result.x) && Number.isFinite(result.y))).toBe(true);
 	});
 
 	it('skips a degenerate segment and still snaps to a valid one in the same list', () => {

@@ -7,10 +7,30 @@
 ## Why
 
 `main` gained a user-experience layer written after the backlog it describes: a second PRD
-(`docs/prds/renovation-project-workspace.md`, 1,451 lines) and four documents under
+(`docs/prds/renovation-project-workspace.md`, 1,451 lines) and four files under
 `docs/user-experience/` — a prototype design specification (1,432), wireframes (1,143), a
 UX journey and interaction design document (682) and a JTBD research backlog (424) — plus
 HTML concept pages and seventeen screenshots.
+
+**Four files, but not four documents: three of them are nested.** Established by diff rather
+than by reading — the wireframes file's first 682 lines *are* the UXD file, and the prototype
+specification contains the whole wireframes file from its line 290 onward:
+
+```text
+PROTOTYPE-DESIGN-SPEC.md   §§1–16 of its own, then …
+└── the whole wireframes file
+    ├── UXD §§1–34          (identical to UXD.md)
+    └── Appendix A          the wireframe and screen reference
+```
+
+So the UX layer is **1,850 distinct lines**, not 3,681: the prototype's own §§1–16 (285), the
+UXD (682), the wireframe appendix (459) and the JTBD backlog (424). Adding the four file
+lengths counts the UXD three times and the appendix twice.
+
+That matters past the arithmetic. An extraction rule that treats the three files as
+independent contributors reads the same claims three times and reports the triplication as
+coverage — the failure this instrument exists to prevent, arriving through the corpus rather
+than through the method.
 
 They landed beside 19 Epics and 121 notes in `requirements/` that were derived from the
 *other* PRD. Nothing conflicted, because nothing ever does between two documents: a
@@ -86,9 +106,11 @@ none is.
 
 ## Scope
 
-**In**, on the evidence side: the workspace PRD, all four `docs/user-experience/` documents,
-and `component-gallery.html`, read for component vocabulary **and for the behaviour it
-states**. An earlier draft limited it to vocabulary while the `components/` comparison below
+**In**, on the evidence side, **six distinct bodies rather than six files** — the nesting
+above means a file is not the unit. They are: the workspace PRD; the prototype
+specification's own §§1–16; the UXD §§1–34; the wireframe appendix; the JTBD backlog; and
+`component-gallery.html`, read for component vocabulary **and for the behaviour it
+states**. Each is read once, at one location, whichever files repeat it. An earlier draft limited it to vocabulary while the `components/` comparison below
 promised to catch "same name, different behaviour" — a promise nothing was allowed to feed.
 The gallery carries invariants and emit-contracts in as many words, as `<dt>`/`<dd>` pairs:
 *Invariant* — "exactly one button is active — no button can enforce this alone"; *Emits* —
@@ -130,7 +152,16 @@ kinds:
 - **Named things.** Presence is a lookup. **The rule, not a list: every derived note type
   the comparison table checks against named-thing rows has a producing extraction rule
   here.** Today that is concepts (→ `entities/`), screens and views (→ `requirements/`,
-  `deliverables/`), components (→ `components/`), and **actors and personas** (→ `actors/`).
+  `deliverables/`), components (→ `components/`), **actors and personas** (→ `actors/`), and
+  **named artifacts** (→ `deliverables/`).
+
+  Named artifacts are the second omission of this kind, and **the closure check did not catch
+  it**, which is worth stating as a limit rather than leaving to be found again: `deliverables/`
+  already had a producer — screens and views — so the pair counted as covered. An artifact is
+  not a screen. Wireframes §A.23 requires a **Screen Component & Interaction State
+  Specification**, and none of the five deliverable notes is one, so the gap is real and no
+  forward row could have reached it. The check verifies that every consumer has *a* producer;
+  it cannot verify that every kind of thing the evidence names has one.
 
   Personas are the omission that rule is written against. The comparison table has always
   checked `actors/` against named-thing rows while the extraction produced none, so all
@@ -143,21 +174,27 @@ kinds:
 - **Behavioural claims.** Presence is "does any derived note assert, contradict, or ignore
   this claim."
 
-  **The rule, not a list: every in-scope evidence document contributes behavioural rows,
-  and a document contributing none must say why.** A first draft listed four sources and
-  omitted the wireframes — 1,143 lines whose §§A.17–A.21 are Screen States, Destructive
-  Interaction Pattern, Responsive Rules, Keyboard and Accessibility Rules, and Golden-Path
-  Acceptance Criteria, which is to say the densest concentration of behavioural rules in the
-  corpus. The table below exists so that omission is visible rather than inferred:
+  **The rule, not a list: every behavioural claim in every in-scope evidence body becomes a
+  row, wherever in that body it sits.** The table below says where the claims *concentrate*.
+  It bounds nothing and is not an extraction list, and the column is titled so.
 
-  | Evidence document | Behavioural rows it contributes |
+  That distinction is the fifth instance of this spec's recurring defect and the subtlest,
+  because the previous fix looked complete. A draft listed four sources and omitted the
+  wireframes; the fix replaced the list of *documents* with a rule about documents — and then
+  re-enumerated *sections* inside the table cells, bounding the wireframes to §§A.17–A.21 and
+  the prototype to its golden path and error contracts. The wireframes hold fourteen
+  A-numbered screen sections before A.17, and the prototype's §§7–12 are its state, visual,
+  interaction, routing, UI-state and accessibility contracts. **The enumeration moved down one
+  level and survived**, under a rule written to abolish it.
+
+  | Evidence body | Where its behavioural claims concentrate (not a boundary) |
   | --- | --- |
   | `prds/renovation-project-workspace.md` | User stories, functional and acceptance requirements, lifecycle rules |
-  | `user-experience/…-UXD.md` | Interaction rules, journey steps, progressive-disclosure and continuity rules, accessibility rules |
-  | `user-experience/…-wireframes.md` | §§A.17–A.21: screen states, destructive-action pattern, responsive rules, keyboard/accessibility rules, golden-path acceptance criteria |
-  | `user-experience/…-PROTOTYPE-DESIGN-SPEC.md` | Golden path, error contracts, the questions the prototype must answer |
-  | `user-experience/…-JTBD-research-backlog.md` | 63 job statements |
-  | `concepts/component-gallery.html` | Component invariants and emit-contracts, stated as `<dt>`/`<dd>` pairs — e.g. *Invariant* "exactly one button is active — no button can enforce this alone", *Emits* "a retry request, in the error case only" |
+  | `…-PROTOTYPE-DESIGN-SPEC.md`, §§1–16 only | Golden path, questions to answer, and the §§7–12 contracts: prototype state, visual, interaction, routing, required UI states, responsive and accessibility |
+  | UXD §§1–34 (read once, at `…-UXD.md`) | Journeys, navigation model, next-best-action model, progressive disclosure, empty states, loading/validation/errors, destructive actions, cross-cutting interaction rules |
+  | Wireframe appendix (read once, at `…-wireframes.md` §A.1 onward) | Every A-numbered screen section, each carrying its own states and rules — not only §§A.17–A.21's screen states, destructive-action pattern, responsive rules, keyboard/accessibility rules and golden-path acceptance criteria |
+  | `…-JTBD-research-backlog.md` | 63 job statements |
+  | `concepts/component-gallery.html` | Component invariants and emit-contracts, as `<dt>`/`<dd>` pairs — e.g. *Invariant* "exactly one button is active — no button can enforce this alone", *Emits* "a retry request, in the error case only" |
 
 ### Two directions, because Orphan is otherwise undiscoverable
 
@@ -328,8 +365,11 @@ decision, and still not mine.
    row-per-claim is for. An earlier draft made one number carry both jobs, and the
    container-level version would have passed while a contradicted claim inside a Feature went
    unrecorded.
-1c. Every in-scope evidence document appears in the behavioural-rows table with either rows
-   or a stated reason for none.
+1c. Every in-scope evidence body appears in the behavioural-rows table, and **the ledger
+   reports, per body, the sections it swept beside the sections that body contains** — two
+   lists a reader can set side by side. "Contributes some rows" was the weaker version, and it
+   is what let the table bound the wireframe appendix to five of its twenty-three sections and
+   the prototype to two of its sixteen while still passing.
 1d. **The instrument is closed, and the ledger prints the two numbers that show it: every
    (note type × row kind) pair the comparison table names has a producing extraction rule,
    and every finding kind names the corpus it is derived from.** Review found four holes
@@ -346,8 +386,15 @@ decision, and still not mine.
    comparison table has **5** note types consuming named-thing rows and the extraction rule
    names **5** targets (`entities/`, `requirements/`, `deliverables/`, `components/`,
    `actors/`); it has **6** consuming behavioural rows, fed by the pool the behavioural-rows
-   table builds from all **6** in-scope evidence documents; and all **5** finding kinds name
-   the corpus they come from, `Convention` by pointing outside the matrix entirely.
+   table builds from all **6** in-scope evidence bodies; and all **4** finding kinds —
+   `Contradiction`, `Gap`, `Orphan` and `Convention` — name the corpus they come from, the
+   last by pointing outside the matrix entirely.
+
+   `Retained` is deliberately not in that count: it is a state the reverse pass records, not a
+   finding, and this page says so where it is defined. An earlier version of this sentence
+   said **5**, having counted the kinds table's four rows plus `Convention` — so the one
+   number offered as the *proof* of closure was itself unreproducible against the page
+   printing it. A count a reader is told to check has to survive their checking it.
 
    The fifth hole was real and this check is how it was found. Admitting the gallery's
    behaviour to the scope, adding it to the evidence table and leaving `components/` consuming

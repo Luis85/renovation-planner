@@ -630,7 +630,13 @@ IFS=',' read -ra terms <<< "${2:-}"
       [ -n "$x" ] || continue
       one_term "$x"
     done < <(expand "$t" | sort -u)
-  done; } | grep -v '^$' | sort -u
+  done; } | awk 'NF' | sort -u
+# `awk 'NF'` rather than `grep -v '^$'`. grep exits 1 when it selects no lines, and with
+# `set -euo pipefail` that turns a legitimately EMPTY candidate set into a script failure —
+# for exactly the rows where the empty set IS the answer, the ones that resolve straight to
+# `absent`/`retained` with no judgement. Measured before the fix: this command exited 1 on a
+# term matching nothing and 0 on a term matching something, so the one case a caller most
+# needs to distinguish was reported as an error. awk exits 0 either way.
 EOF
 chmod +x "$SP/candidates.sh"
 ```

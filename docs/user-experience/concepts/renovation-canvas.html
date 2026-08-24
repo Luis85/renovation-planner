@@ -1729,8 +1729,13 @@
 				room it will not always have.
 			</li>
 			<li>
-				<b>Not a check.</b> <code>npm run check</code> reads no file in <code>docs/</code>.
-				Contrast, focus visibility and hit-target size are verified in a live vault
+				<b>Not a check, with one exception this page discovered by tripping over it.</b>
+				Nothing in <code>npm run check</code> reads what is <em>in</em> these files — no
+				linter, no test, no renderer. But <code>npm run analyze</code> walks the whole
+				repository for unreachable files, so a stylesheet <code>.fallowrc.json</code> does
+				not declare is a dead file: <code>canvas.css</code> arrived undeclared and took all
+				four CI legs red on a commit that touched nothing but <code>docs/</code>. Contrast,
+				focus visibility and hit-target size are still verified in a live vault
 				(<code>npm run test-build</code>) and nowhere else.
 			</li>
 		</ul>

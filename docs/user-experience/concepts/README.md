@@ -173,9 +173,10 @@ three are host tokens on components that already existed, and the section above 
 figures.
 
 What axe cannot see in a headless shot is what it cannot see in jsdom either — a visible focus
-indicator, hit-target size, and the landmark rules that need whole-page context. And `npm run
-check` reads no file in `docs/`, so **none of this is a gate**: it was run by hand, once, and
-rerunning it is a reader's job at review time.
+indicator, hit-target size, and the landmark rules that need whole-page context. And nothing in
+`npm run check` reads what is *in* these files, so **none of this is a gate**: it was run by hand,
+once, and rerunning it is a reader's job at review time. (`npm run analyze` does see the files
+themselves — see *What these are not* below.)
 
 `plan-editor.html` and `component-gallery.html` have **not** been through it, and they carry the
 same `aria-selected`-on-a-`<div>` pattern the canvas page had to fix. That is a known finding about
@@ -194,8 +195,18 @@ the existing pages, deliberately left rather than fixed in the change that found
 - **Not faithful about a themed vault.** They link `tests/harness/obsidian.css` — Obsidian's
   real app.css, *reduced* — so they show Obsidian's **default** appearance, not a community
   theme's, not a user's accent, and not an element default the reduction dropped.
-- **Not a check.** `npm run check` reads no file in `docs/`. Contrast, focus visibility and
-  hit-target size are verified in a live vault (`npm run test-build`) and nowhere else.
+- **Not a check — with ONE exception, and it was found the hard way.** Nothing in
+  `npm run check` reads what is *in* these files: no linter, no test, no renderer. But
+  `npm run analyze` walks the whole repository for unreachable files, so a stylesheet added
+  here that `.fallowrc.json` does not declare is a **dead file**, and the gate goes red on a
+  change that touched nothing but `docs/`. That is exactly what happened when `canvas.css`
+  arrived — all four CI legs, on a documentation-only commit. The sentence used to read
+  "`npm run check` reads no file in `docs/`" and it was simply false; a claim that survives
+  because nobody has yet done the thing that disproves it is the defect this README is
+  otherwise about.
+
+  Contrast, focus visibility and hit-target size are still verified in a live vault
+  (`npm run test-build`) and nowhere else.
 - **Not real data.** Every room, area, price and supplier is invented, per `PRODUCT.md` —
   there is no real renovation project. Each page carries that label in its banner.
 

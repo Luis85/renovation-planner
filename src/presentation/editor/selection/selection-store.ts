@@ -25,3 +25,15 @@ export const useSelectionStore = defineStore('editor-selection', () => {
 
 	return { selectedIds, select, clear, isSelected };
 });
+
+/**
+ * The store's own type, exported for a consumer outside the `useSelectionStore()` call
+ * site — `EditorContext.selection` (design slice 6, Task 8). Declared here rather than
+ * beside that consumer: "a type belongs with the code that PRODUCES it" (CLAUDE.md), and
+ * this file is what produces it. It carries only domain IDs and Pinia's own store
+ * machinery — no Konva node, ref, or shape type is reachable from it, since nothing in
+ * this module imports `konva`/`vue-konva` or names anything from either
+ * (`tests/presentation/editor/tools/editorContext.test.ts` checks that claim at this
+ * file, not merely asserts it).
+ */
+export type SelectionStore = ReturnType<typeof useSelectionStore>;

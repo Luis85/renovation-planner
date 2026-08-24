@@ -87,7 +87,12 @@ none is.
 ## Scope
 
 **In**, on the evidence side: the workspace PRD, all four `docs/user-experience/` documents,
-and `component-gallery.html` read for component vocabulary only.
+and `component-gallery.html`, read for component vocabulary **and for the behaviour it
+states**. An earlier draft limited it to vocabulary while the `components/` comparison below
+promised to catch "same name, different behaviour" — a promise nothing was allowed to feed.
+The gallery carries invariants and emit-contracts in as many words, as `<dt>`/`<dd>` pairs:
+*Invariant* — "exactly one button is active — no button can enforce this alone"; *Emits* —
+"a retry request, in the error case only".
 
 **In**, on the derived side: `requirements/` (121), `entities/` (34), `business-rules/` (27),
 `components/` (17), `actors/` (8), `deliverables/` (5), `adrs/` (12), `issues/` (3) —
@@ -122,7 +127,19 @@ without a plan" contradicts a Plan-editor Feature that assumes a plan exists. Ev
 present, Definition of Done satisfied, the substantive clash unfound. So rows come in two
 kinds:
 
-- **Named things.** Concepts, screens and views, components. Presence is a lookup.
+- **Named things.** Presence is a lookup. **The rule, not a list: every derived note type
+  the comparison table checks against named-thing rows has a producing extraction rule
+  here.** Today that is concepts (→ `entities/`), screens and views (→ `requirements/`,
+  `deliverables/`), components (→ `components/`), and **actors and personas** (→ `actors/`).
+
+  Personas are the omission that rule is written against. The comparison table has always
+  checked `actors/` against named-thing rows while the extraction produced none, so all
+  eight actor notes sat behind a coverage claim with nothing to compare them to. The new
+  PRD's §6 names three personas — DIY Renovator, Advanced Renovator, Professional Planner —
+  against the backlog's `Private renovator`, `Advanced DIY planner` and `Professional
+  planner`. Two of the three share no name with their apparent counterpart and the third
+  matches only if case is ignored, which is exactly the mix of rename, split and
+  near-collision this row exists to catch and had no rows to catch it with.
 - **Behavioural claims.** Presence is "does any derived note assert, contradict, or ignore
   this claim."
 
@@ -140,7 +157,7 @@ kinds:
   | `user-experience/…-wireframes.md` | §§A.17–A.21: screen states, destructive-action pattern, responsive rules, keyboard/accessibility rules, golden-path acceptance criteria |
   | `user-experience/…-PROTOTYPE-DESIGN-SPEC.md` | Golden path, error contracts, the questions the prototype must answer |
   | `user-experience/…-JTBD-research-backlog.md` | 63 job statements |
-  | `concepts/component-gallery.html` | None — named-thing rows only, per the coverage limit above |
+  | `concepts/component-gallery.html` | Component invariants and emit-contracts, stated as `<dt>`/`<dd>` pairs — e.g. *Invariant* "exactly one button is active — no button can enforce this alone", *Emits* "a retry request, in the error case only" |
 
 ### Two directions, because Orphan is otherwise undiscoverable
 
@@ -150,15 +167,27 @@ concept structurally invisible: it has no row, and the reading is bounded to row
 one of the four things it reports. So the inventory runs both ways:
 
 - **Forward** — each item extracted from the new evidence, checked against the derived notes.
-- **Reverse** — **every note in the 227-note scope gets a row**, checked against the new
-  evidence: does it speak to this, contradict it, or ignore it? Orphans come from this pass
-  and are counted like everything else.
+- **Reverse** — **every named thing and every behavioural claim in the 227-note scope gets a
+  row**, checked against the new evidence: does it speak to this, supersede it, contradict
+  it, or is it simply not about this layer? Orphans come from this pass and are counted like
+  everything else.
 
-  Stated as a rule over the whole scope rather than as a list of kinds, because the list
-  form failed here too: a draft enumerated Epics and Features and thereby dropped the 10
-  PBIs, the 17 components and the 3 issues — 30 notes structurally invisible to the very
-  pass added to make orphans discoverable. The reverse row count must equal the scope count,
-  which is a check anyone can run; a list of kinds is a claim nobody can.
+  Stated as a rule over the whole scope rather than as a list of kinds, because the list form
+  failed here: a draft enumerated Epics and Features and thereby dropped the 10 PBIs, the 17
+  components and the 3 issues — 30 notes structurally invisible to the very pass added to make
+  orphans discoverable.
+
+  **The row is a claim, not a note**, which is the second correction this direction has needed
+  and the deeper one. A note is a container: a Feature carries several acceptance criteria, a
+  component note several states. One row per note yields one state per container, so evidence
+  that addresses one claim and contradicts another scores the container *present* and the
+  contradiction is never recorded — while a completeness check of 227 rows against 227 notes
+  passes clean. The granularity of the two directions has to match, and forward rows were
+  always per item.
+
+  **The note count survives as a separate corpus-coverage check**, not as the completeness
+  claim it cannot support: every one of the 227 notes must contribute at least one row, which
+  is what "the whole corpus was read" actually means. One number cannot carry both jobs.
 
 ### Every in-scope note type has a comparison rule
 
@@ -170,23 +199,27 @@ included them.
 | Derived notes | Compared against | Looking for |
 | --- | --- | --- |
 | `entities/` (34) | Named-thing rows | A concept with no entity note; an entity the new model renames, splits or absorbs |
-| `components/` (17) | Named-thing rows, from the gallery | A component named in one and not the other; same name, different behaviour |
-| `requirements/` (121) | Behavioural rows | A requirement the new evidence contradicts; a claim with no Feature or PBI behind it |
+| `components/` (17) | Named-thing rows **and the gallery's behavioural rows** | A component named in one and not the other; same name, different behaviour — the second half needs the behavioural rows, and admitting the gallery to the scope without adding it here would have left this row exactly as unfeedable as before |
+| `requirements/` (121) | Behavioural rows **and screen/view named-thing rows** | A requirement the new evidence contradicts; a claim with no Feature or PBI behind it; **a screen the new evidence names with no Feature or PBI behind it**. `Project Home` is the worked example, and against behavioural rows alone it had no cell that could ever become a `Gap` |
 | `business-rules/` (27) | Behavioural rows | A rule the new evidence violates or supersedes |
 | `actors/` (8) | Named-thing rows | An actor the UX layer introduces, renames or stops needing |
 | `deliverables/` (5) | Both kinds | Design System, Sitemap, Information Architecture, Disclosure ladder and MVP Prototype are *about* this UX layer, so they are the likeliest and most consequential disagreements |
-| `adrs/` (12) | Behavioural rows | A recorded decision the new evidence contradicts |
+| `adrs/` (12) | Behavioural rows | A recorded decision the new evidence contradicts. Silence here is `Retained`, never `Orphan` — see the states below |
 | `issues/` (3) | Behavioural rows | An open question the new evidence answers, or reopens |
 
 ### The order
 
-1. **Extract** both row kinds from the new evidence.
-2. **Build the reverse inventory** from the derived corpus.
+1. **Extract** both row kinds from the new evidence, under the producing rules above.
+2. **Build the reverse inventory** from the derived corpus, **per claim rather than per
+   note**.
 3. **Establish presence mechanically** in both directions, per the table above.
 4. **Derive the finding set from the resulting matrix**, so absence is *counted* rather than
    spotted, in both directions.
 5. **Read for contradiction only in cells where both sides speak.** This part is judgement,
    and it is bounded to cells the matrix identified rather than applied to the whole corpus.
+6. **Run the convention audit separately**, against the register's own documents, and report
+   it apart from the matrix counts — it is not derived from them and must not borrow their
+   completeness.
 
 Absence is mechanical, in both directions. Contradiction is read, but only where reading is
 warranted.
@@ -207,16 +240,17 @@ inferred:**
 
 Every finding says which side is received and which is derived, since that already decides
 what may change, and a reader must be able to check it without trusting the ledger. What
-"checkable" means depends on whether the finding is a disagreement or an absence — a first draft
-required **both** sides by file and section, which is unsatisfiable for exactly the two
-kinds that matter most: a `Gap` has no derived note to cite, and an `Orphan` the evidence
-ignores has no received section. That rule would have forced the ledger to drop valid
-findings or invent locations for them.
+"checkable" means depends on the kind — a first draft required **both** sides by file and
+section, which is unsatisfiable for a `Gap`, since a gap has no derived note to cite. That
+rule would have forced the ledger to drop valid findings or invent locations for them.
 
 - **A disagreement** (`Contradiction`) cites both sides by file and section.
-- **An absence** (`Gap`, `Orphan`) cites the side that exists by file and section, plus **the
-  corpus that was searched and the command that reproduces the absence** — so a reader can
-  re-run it rather than take the word for it.
+- **A supersession** (`Orphan`) cites both sides too: the derived note, and the passage that
+  supersedes it. Requiring the second citation is what keeps `Orphan` distinct from
+  `Retained` — an orphan that cannot name what replaced it is a retained note.
+- **An absence** (`Gap`) cites the side that exists by file and section, plus **the corpus
+  that was searched and the command that reproduces the absence** — so a reader can re-run it
+  rather than take the word for it.
 
 ### Finding kinds
 
@@ -226,8 +260,28 @@ Ordered by consequence, not by effort:
 | --- | --- |
 | **Contradiction** | Both sides speak and disagree. Worst: one of them is misleading a reader today. |
 | **Gap** | The new evidence names something with no note behind it. |
-| **Orphan** | The backlog holds something the new evidence supersedes or ignores. |
-| **Convention** | The register's own rules — e.g. `user-experience/` and `templates/` are absent from `docs/README.md`'s folder table, which claims to name every folder so the first note of a kind "has somewhere obvious to go". |
+| **Orphan** | The backlog holds something the new evidence **supersedes**. Requires a citable passage that supersedes it — silence alone is `Retained`. |
+| **Retained** | The backlog holds something the new evidence is simply not about. |
+
+`Retained` is not a finding and not a defect; it is the state the reverse pass needs so that
+silence stops manufacturing orphans. The UX layer is additive and never mentions Vue — the
+word appears in **zero** of the in-scope evidence documents — so under "supersedes *or
+ignores*", ADR-004 (*Vue 3 for Plugin UI*) would have been reported as superseded by four
+documents that do not discuss the plugin's UI framework at all. It also reconciles the
+`adrs/` rule above, which looks only for contradiction and would have disagreed with the
+`Orphan` definition on the same twelve notes.
+
+**`Convention` is a separate audit, and the ledger says so.** The register's own rules are
+real findings — `user-experience/` and `templates/` are absent from `docs/README.md`'s folder
+table, which claims to name every folder so the first note of a kind "has somewhere obvious to
+go" — and they **cannot come from the matrix**: `docs/README.md` is neither in-scope evidence
+nor one of the 227 derived notes, so no row in either direction can produce one. Listing it
+beside three matrix-derived kinds implied a mechanism it never had, and left the worked
+example above underivable by the very method stated to derive it. It is therefore a named
+third input with its own rule — **the register's own documents (`docs/README.md`,
+`templates/`) checked against the folders and note types that actually exist** — reported in
+its own section and excluded from the matrix counts, so neither claim borrows the other's
+completeness.
 
 ### Findings that need a decision
 
@@ -257,20 +311,51 @@ decision, and still not mine.
 ## Definition of done
 
 1. Every inventory item, **in both directions and of both row kinds**, has a matrix row
-   carrying a state — present, absent, or contradictory — and the ledger reports the counts
-   rather than describing them.
+   carrying a state — present, absent, contradictory or retained — and the ledger reports the
+   counts rather than describing them.
 1a. Every one of the eight in-scope note types has been compared under its rule, and the
    ledger says how many notes of each type were covered. A type with no rule is a type that
    was not read, and a coverage claim including it would be false.
-1b. **The reverse-inventory row count equals the scope count (227), and the ledger prints
-   both.** This is the check that catches the failure this spec produced three times: an
-   enumeration that silently omits a member. `requirements/` is 19 Epics + 92 Features +
-   10 PBIs; a reverse pass over "Epics and Features" scores 111 and reads as complete.
-   Comparing two numbers is something a reader can do without trusting any list.
+1b. **Every one of the 227 in-scope notes contributed at least one reverse row, and the
+   ledger prints the number of notes reached beside 227.** This is the check that catches the
+   failure this spec produced three times: an enumeration that silently omits a member.
+   `requirements/` is 19 Epics + 92 Features + 10 PBIs; a reverse pass over "Epics and
+   Features" scores 111 and reads as complete. Comparing two numbers is something a reader can
+   do without trusting any list.
+
+   It is a **corpus-coverage** check and is labelled as one. It proves every note was read and
+   deliberately proves nothing about whether every claim inside them got a row — that is what
+   row-per-claim is for. An earlier draft made one number carry both jobs, and the
+   container-level version would have passed while a contradicted claim inside a Feature went
+   unrecorded.
 1c. Every in-scope evidence document appears in the behavioural-rows table with either rows
    or a stated reason for none.
-2. Every finding is checkable on the terms above: both sides for a disagreement, the extant
-   side plus a reproducible absence check for a gap or an orphan.
+1d. **The instrument is closed, and the ledger prints the two numbers that show it: every
+   (note type × row kind) pair the comparison table names has a producing extraction rule,
+   and every finding kind names the corpus it is derived from.** Review found four holes
+   behind the earlier version of this instrument and all four were one shape — a consumer
+   expecting rows no producer emitted. `actors/` was compared against named-thing rows that
+   nothing produced; `requirements/` could not receive a screen row, so the spec's own
+   `Project Home` example had no cell; `components/` promised a behavioural comparison the
+   gallery was barred from feeding; `Convention` was derived from a corpus in neither
+   inventory. Patching the four instances is what this spec did three times already, each fix
+   producing the next one. Two numbers is what makes the fifth hole fail loudly instead of
+   reading as coverage.
+
+   **As this spec now stands it closes**, which is checkable from the tables above: the
+   comparison table has **5** note types consuming named-thing rows and the extraction rule
+   names **5** targets (`entities/`, `requirements/`, `deliverables/`, `components/`,
+   `actors/`); it has **6** consuming behavioural rows, fed by the pool the behavioural-rows
+   table builds from all **6** in-scope evidence documents; and all **5** finding kinds name
+   the corpus they come from, `Convention` by pointing outside the matrix entirely.
+
+   The fifth hole was real and this check is how it was found. Admitting the gallery's
+   behaviour to the scope, adding it to the evidence table and leaving `components/` consuming
+   named-thing rows only would have fixed the two visible halves and left the row as unfeedable
+   as the review found it — a fix that satisfies the demonstrated instance and not the
+   property, which is the failure mode this document has now hit four times.
+2. Every finding is checkable on the terms above: both sides for a disagreement or a
+   supersession, the extant side plus a reproducible absence check for a gap.
 3. Decision-needing findings are listed apart, with options and a recommendation, and none is
    settled in this pass.
 4. The coverage limits above appear in the ledger.
@@ -284,7 +369,7 @@ decision, and still not mine.
    | `build` | `vue-tsc` rejects `src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts:113` — `Result<never, ValidationError>` where `Promise<Result<Loaded<Plan>, …>>` is declared: the method is not `async`, so the early `return err(conflict)` is a bare `Result` while the two tail returns are genuine Promises |
    | `lint` | 27 errors across 7 files, all under `tests/` — mostly `no-use-before-define`, plus `import(no-duplicates)` |
    | `test:coverage` | a **parse error**: `tests/infrastructure/obsidian/repositories/digest.test.ts:23` reads `Object.entries(base)undefined)` — a stray token where `)` belongs. 477 tests pass; that one file never transforms |
-   | `analyze` | 25 dead-code issues, 3 clone groups, 2 files above the health threshold |
+   | `analyze` | 25 dead-code issues, 3 clone groups, 2 files above the health threshold — measured with coverage artefacts present. `fallow` reads `coverage/coverage-final.json`, so it is downstream of `test:coverage`: after that step fails there is no coverage file and `analyze` cannot run at all |
 
    **Every failing file in all four steps traces to `5c85a26`**, a commit titled *"move
    concept files into ux folder, add prototype spec"* that also added 104 files of slice-4

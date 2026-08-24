@@ -25,16 +25,20 @@
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML
 	// files beside them link these, and those files are documentation rather than an entry
-	// point, so fallow's import graph cannot reach either sheet and reports both dead.
-	// Declared as the two files they are rather than as `docs/**/*.css`, so the next
+	// point, so fallow's import graph cannot reach any of them and reports them dead.
+	// Declared as the three files they are rather than as `docs/**/*.css`, so the next
 	// stylesheet somebody drops into `docs/` still has to be accounted for instead of being
-	// silently covered.
+	// silently covered. That is not a hypothetical: `canvas.css` arrived, this list was not
+	// updated, and all four CI legs went red on a change that touched nothing but `docs/`.
+	// The paragraph above predicted it exactly, which is the argument FOR the named list —
+	// a glob would have absorbed the new file and told nobody.
 	"dynamicallyLoaded": [
 		"styles/**/*.css",
 		"tests/harness/theme.css",
 		"tests/harness/obsidian.css",
 		"docs/user-experience/concepts/concept.css",
-		"docs/user-experience/concepts/page.css"
+		"docs/user-experience/concepts/page.css",
+		"docs/user-experience/concepts/canvas.css"
 	],
 	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
 	// every manual entry is otherwise treated as production-reachable code, so

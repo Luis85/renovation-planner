@@ -1,0 +1,1862 @@
+<!doctype html>
+<html lang="en" class="pg-doc">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Renovation canvas — concept mock</title>
+<link rel="icon" href="data:," />
+<!--
+	The ORDER is load-bearing, the same way it is in tests/harness/index.html and in
+	plan-editor.html.
+
+	Obsidian's real app.css first, so the palette, the element defaults and `color-scheme`
+	all come from the host. Then the page's own furniture. Then §60's proposal. Then this
+	concept's additions, which read §60's tokens and never restate one.
+
+	canvas.css is LAST and it is a second sheet rather than more of concept.css. Its header
+	says why at length: the two sheets draw two different shells for the same view, and one
+	file holding both would leave the next reader guessing which rule belongs to which.
+-->
+<link rel="stylesheet" href="../../../tests/harness/obsidian.css" />
+<link rel="stylesheet" href="page.css" />
+<link rel="stylesheet" href="concept.css" />
+<link rel="stylesheet" href="canvas.css" />
+</head>
+<body class="pg theme-light">
+
+<!-- Icons: Lucide 1.33.0, the set Obsidian itself ships and `setIcon` resolves
+     against. Vendored verbatim (generated, not hand-drawn) for the same reason
+     tests/harness/obsidian.css is vendored: an approximation from memory is a fake that
+     is kinder than the real thing, and one of these was visibly wrong at 14px.
+     24x24 box, 2px stroke, round caps — set on each referencing <svg>. -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute" focusable="false"><defs>
+<g id="i-select"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z" /></g>
+<g id="i-pan"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></g>
+<g id="i-area"><path d="M10.83 2.38a2 2 0 0 1 2.34 0l8 5.74a2 2 0 0 1 .73 2.25l-3.04 9.26a2 2 0 0 1-1.9 1.37H7.04a2 2 0 0 1-1.9-1.37L2.1 10.37a2 2 0 0 1 .73-2.25z" /></g>
+<g id="i-asset"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="M12 22V12" /><polyline points="3.29 7 12 12 20.71 7" /><path d="m7.5 4.27 9 5.15" /></g>
+<g id="i-measure"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" /><path d="m14.5 12.5 2-2" /><path d="m11.5 9.5 2-2" /><path d="m8.5 6.5 2-2" /><path d="m17.5 15.5 2-2" /></g>
+<g id="i-annotate"><path d="M12 4v16" /><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /><path d="M9 20h6" /></g>
+<g id="i-undo"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></g>
+<g id="i-redo"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" /></g>
+<g id="i-fit"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></g>
+<g id="i-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></g>
+<g id="i-eye-off"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" /><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" /><path d="m2 2 20 20" /></g>
+<g id="i-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>
+<g id="i-unlock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></g>
+<g id="i-layers"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></g>
+<g id="i-box"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></g>
+<g id="i-check"><path d="M20 6 9 17l-5-5" /></g>
+<g id="i-spinner"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></g>
+<g id="i-dot"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="1" /></g>
+<g id="i-warn"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></g>
+<g id="i-info"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></g>
+<g id="i-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></g>
+<g id="i-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></g>
+<g id="i-plus"><path d="M5 12h14" /><path d="M12 5v14" /></g>
+<g id="i-trash"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></g>
+<g id="i-edit"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></g>
+<g id="i-derived"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2" /></g>
+<g id="i-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></g>
+<g id="i-map"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /><path d="M15 5.764v15" /><path d="M9 3.236v15" /></g>
+<g id="i-calibrate"><circle cx="12" cy="12" r="10" /><line x1="22" x2="18" y1="12" y2="12" /><line x1="6" x2="2" y1="12" y2="12" /><line x1="12" x2="12" y1="6" y2="2" /><line x1="12" x2="12" y1="22" y2="18" /></g>
+<g id="i-flag"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" /></g>
+<g id="i-search"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></g>
+<g id="i-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></g>
+<g id="i-chevron-right"><path d="m9 18 6-6-6-6" /></g>
+<g id="i-chevron-down"><path d="m6 9 6 6 6-6" /></g>
+<g id="i-work"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9" /><path d="m18 15 4-4" /><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" /></g>
+<g id="i-photo"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></g>
+<g id="i-decision"><path d="M12 13v8" /><path d="M12 3v3" /><path d="M2.354 10.354a1.207 1.207 0 0 1 0-1.708l2.06-2.06A2 2 0 0 1 5.828 6h12.344a2 2 0 0 1 1.414.586l2.06 2.06a1.207 1.207 0 0 1 0 1.708l-2.06 2.06a2 2 0 0 1-1.414.586H5.828a2 2 0 0 1-1.414-.586z" /></g>
+<g id="i-wall"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 9v6" /><path d="M16 15v6" /><path d="M16 3v6" /><path d="M3 15h18" /><path d="M3 9h18" /><path d="M8 15v6" /><path d="M8 3v6" /></g>
+<g id="i-door"><path d="M11 20H2" /><path d="M11 4.562v16.157a1 1 0 0 0 1.242.97L19 20V5.562a2 2 0 0 0-1.515-1.94l-4-1A2 2 0 0 0 11 4.561z" /><path d="M11 4H8a2 2 0 0 0-2 2v14" /><path d="M14 12h.01" /><path d="M22 20h-3" /></g>
+<g id="i-window"><path d="M3 3h18" /><path d="M20 7H8" /><path d="M20 11H8" /><path d="M10 19h10" /><path d="M8 15h12" /><path d="M4 3v14" /><circle cx="4" cy="19" r="2" /></g>
+<g id="i-outdoor"><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z" /><path d="M7 16v6" /><path d="M13 19v3" /><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5" /></g>
+<g id="i-note"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" /><path d="M15 3v5a1 1 0 0 0 1 1h5" /></g>
+<g id="i-cost"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2" /></g>
+<g id="i-room"><path d="M5 3a2 2 0 0 0-2 2" /><path d="M19 3a2 2 0 0 1 2 2" /><path d="M21 19a2 2 0 0 1-2 2" /><path d="M5 21a2 2 0 0 1-2-2" /><path d="M9 3h1" /><path d="M9 21h1" /><path d="M14 3h1" /><path d="M14 21h1" /><path d="M3 9v1" /><path d="M21 9v1" /><path d="M3 14v1" /><path d="M21 14v1" /></g>
+<g id="i-more"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></g>
+</defs></svg>
+
+<header class="pg-banner">
+	<span class="pg-banner-mark">
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-area"/></svg>
+		Renovation Planner — concept mock
+	</span>
+	<span class="pg-invented">
+		<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flag"/></svg>
+		Invented sample data
+	</span>
+	<nav class="pg-nav" aria-label="Concept mocks">
+		<a href="plan-editor.html">Plan editor</a>
+		<a href="plan-editor-solo.html">Editor, alone</a>
+		<a href="renovation-canvas.html" aria-current="page">Renovation canvas</a>
+		<a href="component-gallery.html">Component gallery</a>
+		<a href="disclosure-ladder.html">Disclosure ladder</a>
+		<a href="settings.html">Settings</a>
+	</nav>
+	<div class="pg-controls">
+		<button type="button" class="pg-btn" id="scheme" aria-pressed="false">
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye"/></svg>
+			<span id="scheme-label">Dark</span>
+		</button>
+	</div>
+</header>
+
+<main class="pg-main">
+
+	<div class="pg-lede">
+		<h1>The renovation canvas, in four scenarios</h1>
+		<p>
+			<a href="../renovation-canvas-concept-interaction-design.md">The concept &amp; interaction design spec</a>,
+			drawn. Property tree, canvas, context inspector — §3's three panes — at the two
+			spatial fidelities §5 says must both work, and at the two moments §6 and §11 say
+			are the hard ones: being asked for precision, and having to decide something.
+		</p>
+		<p>
+			<b>This shell disagrees with <a href="plan-editor.html">the plan editor</a>, and the
+			disagreement is the point.</b> That page draws SDD §60 — a layers rail, a row of
+			drawing tools, an inspector. This one draws the concept's answer: a property tree
+			where the layers were, one <code>+ Add</code> where the tools were, and Work,
+			Problem and Decision as things that live on the canvas rather than in a side
+			panel. Both are proposals. Neither is built. Caveats in <a href="README.md">README</a>.
+		</p>
+	</div>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     SCENARIO 1 — the reference frame: three panes, a room selected
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>Working: level 2 fidelity, Kitchen selected</h2>
+		<p>
+			§3 assembled. The plan is <b>approximate</b> — rooms have positions and rough
+			adjacency, and no measurement anywhere, which is the fidelity §5 says must already
+			carry work, cost, problems and decisions. So there is <b>no grid</b>: a grid is a
+			measurement, and this plan has none. Drawn at a <b>pane</b> width rather than a
+			page width — <b>drag the right edge</b> and watch what the rails cost.
+		</p>
+
+		<div class="pg-frame pg-pane" id="s1-pane">
+			<div class="pg-frame-label">Scenario 1 · working</div>
+			<div class="pg-editor-taller">
+			<div class="pg-leaf">
+			<div class="workspace-leaf-content" data-type="renovation-project">
+				<div class="view-header">
+					<div class="view-header-title-container">
+						<div class="view-header-title">Hollerweg 12 — renovation 2026</div>
+					</div>
+				</div>
+				<div class="view-content">
+
+					<div class="renovation-planner-view">
+
+						<!-- Toolbar — §16. Four controls and a readout, against §60's eleven.
+						     "Avoid a CAD-style icon wall" is the whole rule, so Select and
+						     Measure are the only two tools that survive and + Add is the one
+						     weighted thing in the row. -->
+						<div class="rp-toolbar" role="toolbar" aria-label="Canvas" aria-orientation="horizontal">
+							<button type="button" class="rc-scope" aria-haspopup="menu" aria-expanded="false">
+								Ground floor
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-action rc-add" aria-haspopup="menu" aria-expanded="false" tabindex="-1">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+								Add
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-tool" aria-pressed="true" aria-label="Select" title="Select" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-select"/></svg>
+								<span class="rp-tool-label">Select</span>
+							</button>
+							<button type="button" class="rp-tool" aria-pressed="false" aria-label="Measure" title="Measure" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+								<span class="rp-tool-label">Measure</span>
+							</button>
+							<span class="rp-toolbar-spacer"></span>
+							<!-- No scale and no grid pitch, because there is no scale and no grid.
+							     The readout says what is TRUE of this plan instead. -->
+							<span class="rp-readout">Not measured</span>
+							<button type="button" class="rp-tool" aria-label="Fit to screen" title="Fit to screen" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-fit"/></svg>
+							</button>
+							<button type="button" class="rp-tool" aria-label="More" title="More" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-more"/></svg>
+							</button>
+						</div>
+
+						<div class="rp-body">
+
+							<!-- ── PROPERTY — §3's left pane. "Where am I?" ── -->
+							<div class="rp-rail">
+								<section class="rp-section">
+									<h2 class="rp-section-head">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+										Property
+									</h2>
+									<ul class="rc-tree" role="tree" aria-label="Property">
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1" aria-expanded="true">
+											<span class="rc-twisty" data-expanded="true" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+											<span class="rp-row-name" title="Hollerweg 12">Hollerweg 12</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2" aria-expanded="true">
+											<span class="rc-twisty" data-expanded="true" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>
+											<span class="rp-row-name" title="Ground floor">Ground floor</span>
+										</div></li>
+										<li role="none"><div class="rp-row" aria-selected="true" style="--rc-depth:2" role="treeitem" tabindex="0" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Kitchen">Kitchen</span>
+											<!-- The count is of what is UNRESOLVED, never of what exists. A bare
+											     "1" beside a room name could be anything. -->
+											<span class="rc-row-flag" title="1 unresolved problem">
+												<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+												1
+											</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Living room">Living room</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Bathroom">Bathroom</span>
+											<span class="rc-row-flag" title="1 unresolved problem">
+												<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+												1
+											</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Hallway">Hallway</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2" aria-expanded="false">
+											<span class="rc-twisty" data-expanded="false" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>
+											<span class="rp-row-name" title="Upper floor">Upper floor</span>
+											<span class="rp-row-meta">3</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-outdoor"/></svg>
+											<span class="rp-row-name" title="Garden">Garden</span>
+										</div></li>
+									</ul>
+								</section>
+
+								<!-- ── Semantic layers — §21. "What aspect of the renovation do I
+								     want to understand?" Not drawing layers: every row here is a
+								     kind of MEANING, and the four that are off are the ones this
+								     project has no data for yet. ── -->
+								<section class="rp-section">
+									<h2 class="rp-section-head">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-layers"/></svg>
+										Show
+									</h2>
+									<ul class="rp-list">
+										<li><div class="rp-row" data-hidden="false">
+											<span class="rp-row-name" title="Work">Work</span>
+											<span class="rp-row-meta">15</span>
+											<button type="button" class="rp-toggle" aria-pressed="true" aria-label="Work is shown" title="Work is shown">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye"/></svg>
+											</button>
+										</div></li>
+										<li><div class="rp-row" data-hidden="false">
+											<span class="rp-row-name" title="Problems">Problems</span>
+											<span class="rp-row-meta">2</span>
+											<button type="button" class="rp-toggle" aria-pressed="true" aria-label="Problems are shown" title="Problems are shown">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye"/></svg>
+											</button>
+										</div></li>
+										<li><div class="rp-row" data-hidden="false">
+											<span class="rp-row-name" title="Decisions">Decisions</span>
+											<span class="rp-row-meta">3</span>
+											<button type="button" class="rp-toggle" aria-pressed="true" aria-label="Decisions are shown" title="Decisions are shown">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye"/></svg>
+											</button>
+										</div></li>
+										<li><div class="rp-row" data-hidden="true">
+											<span class="rp-row-name" title="Photos">Photos</span>
+											<span class="rp-row-meta">14</span>
+											<button type="button" class="rp-toggle" aria-pressed="false" aria-label="Photos are hidden" title="Photos are hidden">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye-off"/></svg>
+											</button>
+										</div></li>
+										<li><div class="rp-row" data-hidden="true">
+											<span class="rp-row-name" title="Costs">Costs</span>
+											<button type="button" class="rp-toggle" aria-pressed="false" aria-label="Costs are hidden" title="Costs are hidden">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye-off"/></svg>
+											</button>
+										</div></li>
+										<!-- Materials and Schedule are in §21's list and have no data in this
+										     project. They are drawn DISABLED rather than omitted: a row that
+										     appears the day the first material is added is a menu that changes
+										     shape under the user, and §7 says the vocabulary is deliberately
+										     small and stated up front. -->
+										<li><div class="rp-row" data-hidden="true">
+											<span class="rp-row-name" title="Materials — nothing added yet">Materials</span>
+											<span class="rp-row-meta">0</span>
+											<button type="button" class="rp-toggle" aria-pressed="false" aria-disabled="true" aria-label="Materials are hidden — nothing added yet" title="Nothing added yet">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye-off"/></svg>
+											</button>
+										</div></li>
+										<li><div class="rp-row" data-hidden="true">
+											<span class="rp-row-name" title="Schedule — nothing added yet">Schedule</span>
+											<span class="rp-row-meta">0</span>
+											<button type="button" class="rp-toggle" aria-pressed="false" aria-disabled="true" aria-label="Schedule is hidden — nothing added yet" title="Nothing added yet">
+												<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-eye-off"/></svg>
+											</button>
+										</div></li>
+									</ul>
+								</section>
+							</div>
+
+							<!-- ── CANVAS — §3's middle pane. "What does this place look like /
+							     what is happening here?" ── -->
+							<div class="rp-canvas">
+								<!-- viewBox 420x300 against a canvas of roughly 456x556 at the default
+								     pane, so the drawing renders at about 1.09:1 and the 10.5px pin text
+								     lands near 11px. A 720x420 viewBox — the shape plan-editor.html
+								     uses — would scale to 0.63 and render the same text at 6.6px. -->
+								<svg viewBox="0 0 420 300" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Ground floor: four rooms, approximate layout, with work and problems attached">
+
+									<!-- No grid. §5 level 2 is approximate and a grid is a measurement;
+									     drawing one over a plan that has none is the fixed-pitch-lattice
+									     defect the README recorded, in a different costume. -->
+
+									<!-- The four rooms. Rectangles with no dimensions and no areas: they
+									     carry position and adjacency, which is all this fidelity claims. -->
+									<g>
+										<polygon class="rp-zone" aria-selected="true" points="28,28 200,28 200,150 28,150"/>
+										<polygon class="rp-zone" points="200,28 392,28 392,150 200,150"/>
+										<polygon class="rp-zone" points="28,150 160,150 160,272 28,272"/>
+										<polygon class="rp-zone" points="160,150 392,150 392,272 160,272"/>
+									</g>
+
+									<g>
+										<text class="rp-zone-label" x="38" y="44">Kitchen</text>
+										<text class="rp-zone-sub" x="38" y="57">€14,200</text>
+										<text class="rp-zone-label" x="210" y="44">Living room</text>
+										<text class="rp-zone-sub" x="210" y="57">€4,200</text>
+										<text class="rp-zone-label" x="38" y="166">Bathroom</text>
+										<text class="rp-zone-sub" x="38" y="179">€8,400</text>
+										<text class="rp-zone-label" x="170" y="166">Hallway</text>
+										<text class="rp-zone-sub" x="170" y="179">€1,850</text>
+									</g>
+
+									<!-- Objects attached to places — §7's vocabulary on the canvas. A pin
+									     is a chip, an icon and a word; the four kinds differ by icon and
+									     word before any hue is involved. -->
+									<g class="rc-pin" role="button" tabindex="0" data-kind="work">
+										<title>Work: Replace floor, estimated €2,500</title>
+										<rect class="rc-pin-chip" x="38" y="76" width="141" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-work" x="0" y="0" width="24" height="24" transform="translate(43.5 81.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="89.5">Replace floor<tspan class="rc-pin-cost" dx="9">€2,500</tspan></text>
+									</g>
+									<g class="rc-pin" role="button" tabindex="0" data-kind="problem" data-resolved="false">
+										<title>Problem: Unknown cable, unresolved</title>
+										<rect class="rc-pin-chip" x="38" y="101" width="107" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-warn" x="0" y="0" width="24" height="24" transform="translate(43.5 106.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="114.5">Unknown cable</text>
+									</g>
+									<g class="rc-pin" role="button" tabindex="0" data-kind="decision" data-resolved="false">
+										<title>Decision: Kitchen layout, open</title>
+										<rect class="rc-pin-chip" x="38" y="126" width="102" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-decision" x="0" y="0" width="24" height="24" transform="translate(43.5 131.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="139.5">Kitchen layout</text>
+									</g>
+
+									<g class="rc-pin" role="button" tabindex="0" data-kind="work">
+										<title>Work: Paint walls, estimated €900</title>
+										<rect class="rc-pin-chip" x="210" y="76" width="118" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-work" x="0" y="0" width="24" height="24" transform="translate(215.5 81.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="229" y="89.5">Paint walls<tspan class="rc-pin-cost" dx="9">€900</tspan></text>
+									</g>
+
+									<g class="rc-pin" role="button" tabindex="0" data-kind="problem" data-resolved="false">
+										<title>Problem: Damp wall, unresolved</title>
+										<rect class="rc-pin-chip" x="38" y="198" width="82" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-warn" x="0" y="0" width="24" height="24" transform="translate(43.5 203.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="211.5">Damp wall</text>
+									</g>
+
+									<g class="rc-pin" role="button" tabindex="0" data-kind="work">
+										<title>Work: New flooring, estimated €1,850</title>
+										<rect class="rc-pin-chip" x="170" y="198" width="138" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-work" x="0" y="0" width="24" height="24" transform="translate(175.5 203.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="189" y="211.5">New flooring<tspan class="rc-pin-cost" dx="9">€1,850</tspan></text>
+									</g>
+								</svg>
+							</div>
+
+							<!-- ── CONTEXT INSPECTOR — §3's right pane. "What do I know and what
+							     should I do next?" ── -->
+							<div class="rp-inspector">
+								<div class="rc-head">
+									<h2 class="rc-head-title">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+										Kitchen
+									</h2>
+									<!-- The crumb is not decoration. §33 recovers a lost selection by
+									     falling back Object → Space → Floor → Project, and a user cannot
+									     use a ladder they have never been shown. -->
+									<p class="rc-crumb">Ground floor · Hollerweg 12</p>
+								</div>
+
+								<!-- §23: progress derives from explicit state. So the meter states the
+								     fraction it came from and a reader can check the percentage. -->
+								<div class="rc-meter">
+									<div class="rc-meter-line">
+										<span>Planning</span>
+										<strong>60%</strong>
+									</div>
+									<div class="rc-meter-track">
+										<div class="rc-meter-fill" style="width:60%"></div>
+									</div>
+									<p class="rc-meter-note">6 of 10 work items and decisions settled</p>
+								</div>
+
+								<div class="rc-counts">
+									<button type="button" class="rc-count">
+										<span class="rc-count-value">8</span>
+										<span class="rc-count-label">Work</span>
+									</button>
+									<button type="button" class="rc-count">
+										<span class="rc-count-value">1</span>
+										<span class="rc-count-label">Problem</span>
+									</button>
+									<button type="button" class="rc-count">
+										<span class="rc-count-value">2</span>
+										<span class="rc-count-label">Decisions</span>
+									</button>
+									<button type="button" class="rc-count">
+										<span class="rc-count-value">6</span>
+										<span class="rc-count-label">Photos</span>
+									</button>
+								</div>
+
+								<div class="rp-field">
+									<span class="rp-field-label">Estimate</span>
+									<span class="rp-field-value" data-readonly="true">
+										€14,200
+										<span class="rp-derived">
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-derived"/></svg>
+											8 items
+										</span>
+									</span>
+								</div>
+
+								<div class="rp-field">
+									<span class="rp-field-label">Area</span>
+									<!-- Not "0 m²" and not blank. §5's whole argument is that a space is
+									     allowed to have no geometry, so the honest display of an
+									     unmeasured area is the sentence saying so — and concept.css
+									     already has the component for a value that is not known. -->
+									<span class="rp-badge" data-health="unknown">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-info"/></svg>
+										Not measured
+									</span>
+								</div>
+
+								<!-- §18's NEXT, and §29's rule that guidance explains value rather than
+								     demanding completeness. One action, because two would be a menu. -->
+								<div class="rc-next">
+									<span class="rc-next-label">Next</span>
+									<p class="rc-next-text">
+										Choose flooring.
+										<span class="rc-next-why">Two of the eight work items are still rough
+										estimates, and both are waiting on this one.</span>
+									</p>
+									<button type="button" class="rp-action">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+										Continue
+									</button>
+								</div>
+
+								<!-- §15's contextual Add for a selected room, as the inspector's own
+								     actions. §17's contract: selection updates the contextual actions. -->
+								<section class="rp-section">
+									<h2 class="rp-section-head">Add to Kitchen</h2>
+									<div class="rp-actions">
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											Work
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+											Problem
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+											Decision
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+											Measurement
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-photo"/></svg>
+											Photo
+										</button>
+									</div>
+								</section>
+							</div>
+						</div>
+
+						<div class="rp-statusbar">
+							<span class="rp-status-item">Ground floor · <strong>4</strong> spaces</span>
+							<span class="rp-status-item">Work <strong>15</strong></span>
+							<span class="rp-status-item">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-cost"/></svg>
+								<strong>28,650</strong>
+							</span>
+							<span class="rp-status-item">Planning <strong>32%</strong></span>
+							<span class="rp-savestate" data-state="saved">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+								Saved
+							</span>
+						</div>
+
+					</div>
+
+				</div>
+			</div>
+			</div>
+			</div>
+		</div>
+
+		<p class="pg-pane-readout" id="pane-readout">
+			<span>Pane <b id="ro-pane">—</b>px</span>
+			<span>Rails <b id="ro-rails">—</b>px</span>
+			<span>Canvas <b id="ro-canvas">—</b>px</span>
+			<span>Canvas share <b id="ro-share">—</b>%</span>
+			<em id="ro-note"></em>
+		</p>
+
+		<p>
+			<b>The numbers are checkable, and that is deliberate.</b> The four room estimates sum
+			to the status bar's €28,650. Planning 32% is 8 settled of 25, and the Kitchen's 60%
+			is the 6 of 10 the meter names underneath itself. The README records what happened
+			the last time a mock displayed a derived value that nothing derived: four zones
+			implying four different scales, invisible because nobody multiplies a polygon by hand.
+		</p>
+	</section>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     SCENARIO 2 — the first ten minutes
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>First run: nothing, then level 1</h2>
+		<p>
+			§27's success criterion is <b>a useful renovation model within ten minutes</b>, and
+			§28 says teach through doing. Two frames, because the interesting part is the
+			transition: an empty property, then the same three panes carrying a property with
+			<b>no geometry at all</b> — §5's level 1, where work and cost already attach and
+			nothing has been drawn.
+		</p>
+
+		<div class="pg-frame">
+			<div class="pg-frame-label">Scenario 2a · no property yet</div>
+			<div class="pg-editor">
+			<div class="pg-leaf">
+			<div class="workspace-leaf-content" data-type="renovation-project">
+				<div class="view-header">
+					<div class="view-header-title-container">
+						<div class="view-header-title">Hollerweg 12 — renovation 2026</div>
+					</div>
+				</div>
+				<div class="view-content">
+					<div class="renovation-planner-view">
+
+						<div class="rp-toolbar" role="toolbar" aria-label="Canvas" aria-orientation="horizontal">
+							<!-- No floor to switch to, so the scope control names the project and the
+							     chevron is gone. A disabled dropdown over a list of one is a control
+							     that exists to be refused. -->
+							<span class="rc-scope" role="presentation">Hollerweg 12</span>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-action rc-add" aria-haspopup="menu" aria-expanded="false">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+								Add
+							</button>
+							<span class="rp-toolbar-spacer"></span>
+							<span class="rp-readout">Empty</span>
+						</div>
+
+						<div class="rp-body">
+							<div class="rp-rail">
+								<section class="rp-section">
+									<h2 class="rp-section-head">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+										Property
+									</h2>
+									<div class="rp-empty">
+										<strong>No spaces yet</strong>
+										A space is a room, a floor, a garden — anywhere work happens.
+									</div>
+								</section>
+							</div>
+
+							<div class="rp-canvas">
+								<!-- §32's no-property state, and §28's two doors. Both are offered:
+								     "already have a plan?" is a second path, not a second-class one. -->
+								<div class="rp-empty rp-empty-canvas">
+									<svg class="rp-empty-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+									<strong>Start with your property</strong>
+									Add the rooms or areas you want to renovate.<br />
+									You can make the layout more accurate later.
+									<div class="rp-actions">
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+											Add first space
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>
+											Import a plan
+										</button>
+									</div>
+								</div>
+							</div>
+
+							<div class="rp-inspector">
+								<!-- §33's fallback, doing its job on the very first screen: with no
+								     object, no space and no floor to select, the inspector shows the
+								     PROJECT rather than going blank. An empty right pane on first run
+								     is the moment a user decides the product is not for them. -->
+								<div class="rc-head">
+									<h2 class="rc-head-title">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+										Hollerweg 12
+									</h2>
+									<p class="rc-crumb">Project · nothing selected</p>
+								</div>
+
+								<div class="rc-counts">
+									<button type="button" class="rc-count" data-empty="true">
+										<span class="rc-count-value">0</span>
+										<span class="rc-count-label">Spaces</span>
+									</button>
+									<button type="button" class="rc-count" data-empty="true">
+										<span class="rc-count-value">0</span>
+										<span class="rc-count-label">Work</span>
+									</button>
+								</div>
+
+								<div class="rc-next">
+									<span class="rc-next-label">Next</span>
+									<p class="rc-next-text">
+										Add the first room.
+										<span class="rc-next-why">Everything else attaches to a place, so
+										one room is enough to start costing work.</span>
+									</p>
+									<button type="button" class="rp-action">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+										Add a room
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="rp-statusbar">
+							<span class="rp-status-item"><strong>0</strong> spaces</span>
+							<span class="rp-status-item">No geometry</span>
+							<span class="rp-savestate" data-state="saved">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+								Saved
+							</span>
+						</div>
+
+					</div>
+				</div>
+			</div>
+			</div>
+			</div>
+		</div>
+
+		<div class="pg-frame">
+			<div class="pg-frame-label">Scenario 2b · level 1, four rooms, nothing drawn</div>
+			<div class="pg-editor">
+			<div class="pg-leaf">
+			<div class="workspace-leaf-content" data-type="renovation-project">
+				<div class="view-header">
+					<div class="view-header-title-container">
+						<div class="view-header-title">Hollerweg 12 — renovation 2026</div>
+					</div>
+				</div>
+				<div class="view-content">
+					<div class="renovation-planner-view">
+
+						<div class="rp-toolbar" role="toolbar" aria-label="Canvas" aria-orientation="horizontal">
+							<button type="button" class="rc-scope" aria-haspopup="menu" aria-expanded="false">
+								Ground floor
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-action rc-add" aria-haspopup="menu" aria-expanded="false" tabindex="-1">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+								Add
+							</button>
+							<span class="rp-toolbar-spacer"></span>
+							<!-- The measure tool is not offered, because there is nothing drawn to
+							     measure. §6's rule pointed at the toolbar: precision is offered where
+							     it buys something, not as a permanent invitation. -->
+							<span class="rp-readout">No layout yet</span>
+							<button type="button" class="rp-tool" aria-label="Arrange rooms" title="Arrange rooms" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>
+							</button>
+						</div>
+
+						<div class="rp-body">
+							<div class="rp-rail">
+								<section class="rp-section">
+									<h2 class="rp-section-head">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+										Property
+									</h2>
+									<ul class="rc-tree" role="tree" aria-label="Property">
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1" aria-expanded="true">
+											<span class="rc-twisty" data-expanded="true" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+											<span class="rp-row-name" title="Hollerweg 12">Hollerweg 12</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2" aria-expanded="true">
+											<span class="rc-twisty" data-expanded="true" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>
+											<span class="rp-row-name" title="Ground floor">Ground floor</span>
+										</div></li>
+										<li role="none"><div class="rp-row" aria-selected="true" style="--rc-depth:2" role="treeitem" tabindex="0" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Kitchen">Kitchen</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Living room">Living room</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Bathroom">Bathroom</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Hallway">Hallway</span>
+										</div></li>
+									</ul>
+								</section>
+							</div>
+
+							<div class="rp-canvas">
+								<!-- §5 level 1: the canvas is USEFUL before geometry exists, which is
+								     prototype question 3. Blocks, not rectangles pretending to be rooms
+								     — nothing here claims a size, an adjacency or a shape, and the
+								     layout is a flow so that no reader can measure it. -->
+								<div class="rc-blocks">
+									<button type="button" class="rc-block" aria-current="true">
+										<span class="rc-block-name">Kitchen</span>
+										<span class="rc-block-meta">Nothing planned yet</span>
+									</button>
+									<button type="button" class="rc-block">
+										<span class="rc-block-name">Living room</span>
+										<span class="rc-block-meta">Nothing planned yet</span>
+									</button>
+									<button type="button" class="rc-block">
+										<span class="rc-block-name">Bathroom</span>
+										<span class="rc-block-meta">Nothing planned yet</span>
+									</button>
+									<button type="button" class="rc-block">
+										<span class="rc-block-name">Hallway</span>
+										<span class="rc-block-meta">Nothing planned yet</span>
+									</button>
+									<button type="button" class="rc-block" data-add="true">
+										<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+										<span class="rc-block-name">Add a space</span>
+									</button>
+								</div>
+							</div>
+
+							<div class="rp-inspector">
+								<div class="rc-head">
+									<h2 class="rc-head-title">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+										Kitchen
+									</h2>
+									<p class="rc-crumb">Ground floor · Hollerweg 12</p>
+								</div>
+
+								<!-- §32's space-without-work state. One line, one action — and the
+								     three §28 offers are the section below, so the empty state does not
+								     have to be a menu. -->
+								<div class="rp-empty">
+									<strong>Nothing is planned for Kitchen yet</strong>
+									Say what you want to change. A rough price is enough.
+								</div>
+
+								<section class="rp-section">
+									<h2 class="rp-section-head">Add to Kitchen</h2>
+									<div class="rp-actions">
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											Work
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+											Problem
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+											Decision
+										</button>
+									</div>
+								</section>
+							</div>
+						</div>
+
+						<div class="rp-statusbar">
+							<span class="rp-status-item">Ground floor · <strong>4</strong> spaces</span>
+							<span class="rp-status-item">No geometry</span>
+							<span class="rp-status-item">Work <strong>0</strong></span>
+							<span class="rp-savestate" data-state="saved">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+								Saved
+							</span>
+						</div>
+
+					</div>
+				</div>
+			</div>
+			</div>
+			</div>
+		</div>
+
+		<p>
+			<b>What 2b is for.</b> Prototype question 3 asks whether the canvas is useful before
+			accurate geometry exists, and the only way to answer it is to draw the canvas with
+			none. Nothing in this frame is a floor plan: five blocks in a flow, in the order they
+			were typed. The estimate readout in the status bar is <em>absent</em> rather than
+			<code>€0</code> — a project with no work has no estimate, and a zero is a number
+			somebody could believe.
+		</p>
+	</section>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     SCENARIO 3 — a problem, and the decision it forced
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>Reality diverges: a problem selected, its decision open</h2>
+		<p>
+			Guardrails 5 and 6 — reality may diverge from plan, and problems and decisions are
+			first-class. §10's Damp wall is selected on the canvas, its wall is marked where it
+			was found, and the decision it forced is open beside it with <b>all three
+			alternatives and their prices preserved</b>, which is the entire reason §11 makes a
+			decision an object rather than a field.
+		</p>
+
+		<div class="pg-frame pg-pane">
+			<div class="pg-frame-label">Scenario 3 · problem and decision</div>
+			<div class="pg-editor-tall">
+			<div class="pg-leaf">
+			<div class="workspace-leaf-content" data-type="renovation-project">
+				<div class="view-header">
+					<div class="view-header-title-container">
+						<div class="view-header-title">Hollerweg 12 — renovation 2026</div>
+					</div>
+				</div>
+				<div class="view-content">
+					<div class="renovation-planner-view">
+
+						<div class="rp-toolbar" role="toolbar" aria-label="Canvas" aria-orientation="horizontal">
+							<button type="button" class="rc-scope" aria-haspopup="menu" aria-expanded="false">
+								Ground floor
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-action rc-add" aria-haspopup="menu" aria-expanded="false" tabindex="-1">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+								Add
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-tool" aria-pressed="true" aria-label="Select" title="Select" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-select"/></svg>
+								<span class="rp-tool-label">Select</span>
+							</button>
+							<button type="button" class="rp-tool" aria-pressed="false" aria-label="Measure" title="Measure" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+								<span class="rp-tool-label">Measure</span>
+							</button>
+							<span class="rp-toolbar-spacer"></span>
+							<span class="rp-readout">Not measured</span>
+						</div>
+
+						<div class="rp-body">
+							<div class="rp-rail">
+								<section class="rp-section">
+									<h2 class="rp-section-head">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+										Property
+									</h2>
+									<!-- §17: selection SYNCHRONIZES the property tree. A problem is not a
+									     space, so the tree expands the space that holds it and shows what
+									     is attached — which is also how a user finds the thing again
+									     after §33 has dropped them back to the floor. §3's tree is
+									     spaces only; this is that tree one level deeper, under the
+									     selected space alone. -->
+									<ul class="rc-tree" role="tree" aria-label="Property">
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1" aria-expanded="true">
+											<span class="rc-twisty" data-expanded="true" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>
+											<span class="rp-row-name" title="Ground floor">Ground floor</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Kitchen">Kitchen</span>
+											<span class="rc-row-flag" title="1 unresolved problem">
+												<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+												1
+											</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2" aria-expanded="true">
+											<span class="rc-twisty" data-expanded="true" aria-hidden="true">
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+											</span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Bathroom">Bathroom</span>
+										</div></li>
+										<li role="none"><div class="rp-row" aria-selected="true" style="--rc-depth:2" role="treeitem" tabindex="0" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+											<span class="rp-row-name" title="Damp wall">Damp wall</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+											<span class="rp-row-name" title="Repair or replace?">Repair or replace?</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:2" role="treeitem" tabindex="-1" aria-level="3">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											<span class="rp-row-name" title="Replace tiles">Replace tiles</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Living room">Living room</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:1" role="treeitem" tabindex="-1" aria-level="2">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+											<span class="rp-row-name" title="Hallway">Hallway</span>
+										</div></li>
+									</ul>
+								</section>
+							</div>
+
+							<div class="rp-canvas">
+								<svg viewBox="0 0 420 300" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Ground floor with the bathroom's north wall marked as damp">
+									<g>
+										<polygon class="rp-zone" points="28,28 200,28 200,150 28,150"/>
+										<polygon class="rp-zone" points="200,28 392,28 392,150 200,150"/>
+										<polygon class="rp-zone" points="28,150 160,150 160,272 28,272"/>
+										<polygon class="rp-zone" points="160,150 392,150 392,272 160,272"/>
+									</g>
+
+									<g>
+										<text class="rp-zone-label" x="38" y="44">Kitchen</text>
+										<text class="rp-zone-label" x="210" y="44">Living room</text>
+										<text class="rp-zone-label" x="38" y="166">Bathroom</text>
+										<text class="rp-zone-label" x="170" y="166">Hallway</text>
+									</g>
+
+									<!-- The wall itself, marked. §12: evidence belongs where it happened,
+									     and a problem attached to a ROOM loses the half of the fact that
+									     tells a plasterer where to stand. -->
+									<path class="rc-wall-flag" d="M30 150 H158"/>
+
+									<g class="rc-pin" role="button" tabindex="0" data-kind="problem" data-resolved="false" aria-current="true">
+										<title>Problem: Damp wall, investigating — selected</title>
+										<rect class="rc-pin-chip" x="38" y="176" width="88" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-warn" x="0" y="0" width="24" height="24" transform="translate(43.5 181.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="189.5">Damp wall</text>
+									</g>
+									<g class="rc-pin" role="button" tabindex="0" data-kind="decision" data-resolved="false">
+										<title>Decision: Repair or replace?, open</title>
+										<rect class="rc-pin-chip" x="38" y="201" width="122" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-decision" x="0" y="0" width="24" height="24" transform="translate(43.5 206.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="214.5">Repair or replace?</text>
+									</g>
+									<g class="rc-pin" role="button" tabindex="0" data-kind="photo">
+										<title>Photos: 4 attached to this wall</title>
+										<rect class="rc-pin-chip" x="38" y="226" width="72" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-photo" x="0" y="0" width="24" height="24" transform="translate(43.5 231.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="239.5">4 photos</text>
+									</g>
+
+									<g class="rc-pin" role="button" tabindex="0" data-kind="problem" data-resolved="false">
+										<title>Problem: Unknown cable, unresolved</title>
+										<rect class="rc-pin-chip" x="38" y="76" width="107" height="19" rx="9.5"/>
+										<use class="rc-pin-icon" href="#i-warn" x="0" y="0" width="24" height="24" transform="translate(43.5 81.5) scale(0.42)"/>
+										<text class="rc-pin-text" x="57" y="89.5">Unknown cable</text>
+									</g>
+								</svg>
+
+								<!-- The decision, open over the plan it is about. A modal would hide the
+								     wall; §33's rule that context is never destroyed applies to a panel
+								     as much as to an error. -->
+								<div class="rc-decision-dock">
+									<div class="rc-decision" role="group" aria-labelledby="s3-dec">
+										<div class="rc-decision-head" id="s3-dec">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+											Damp wall — repair or replace?
+										</div>
+										<fieldset class="rc-options">
+											<label class="rc-option">
+												<input type="radio" name="s3-fix" />
+												<span class="rc-option-name">Dry and repaint</span>
+												<span class="rc-option-price">€340</span>
+												<span class="rc-option-delta">−€910</span>
+											</label>
+											<label class="rc-option" data-chosen="true">
+												<input type="radio" name="s3-fix" checked />
+												<span class="rc-option-name">Strip, treat, re-plaster</span>
+												<span class="rc-option-price">€1,250</span>
+												<span class="rc-option-delta">chosen</span>
+											</label>
+											<label class="rc-option">
+												<input type="radio" name="s3-fix" />
+												<span class="rc-option-name">Tank the wall</span>
+												<span class="rc-option-price">€2,900</span>
+												<span class="rc-option-delta">+€1,650</span>
+											</label>
+										</fieldset>
+										<div class="rc-reason">
+											<span>Reason · 24 Aug 2026</span>
+											Meter readings are still rising after two weeks, so drying alone
+											is a guess.
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="rp-inspector">
+								<div class="rc-head">
+									<h2 class="rc-head-title">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+										Damp wall
+									</h2>
+									<p class="rc-crumb">Bathroom · north wall</p>
+									<!-- §10's lifecycle: Observed → Investigating → Decision needed →
+									     Work created → Resolved. The badge names the rung. -->
+									<span class="rp-badge" data-health="stale">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+										Investigating
+									</span>
+								</div>
+
+								<div class="rp-field">
+									<span class="rp-field-label">Discovered</span>
+									<span class="rp-field-value" data-readonly="true">24 Aug 2026</span>
+								</div>
+								<div class="rp-field">
+									<span class="rp-field-label">Photos</span>
+									<span class="rp-field-value" data-readonly="true">4</span>
+								</div>
+								<div class="rp-field">
+									<span class="rp-field-label">Cost impact</span>
+									<!-- Unknown, and it renders as ITSELF rather than as €0 or as the
+									     open decision's €1,250. §10 says Impact: Unknown, and that is
+									     also why the Bathroom's €8,400 has not moved: nothing is
+									     committed until the decision closes. -->
+									<span class="rp-badge" data-health="unknown">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-info"/></svg>
+										Unknown
+									</span>
+								</div>
+
+								<div class="rc-next">
+									<span class="rc-next-label">Next</span>
+									<p class="rc-next-text">
+										Close the decision.
+										<span class="rc-next-why">The three options are €2,560 apart, and
+										the tiling behind this wall is waiting on which one wins.</span>
+									</p>
+									<button type="button" class="rp-action">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+										Open decision
+									</button>
+								</div>
+
+								<!-- §15's contextual Add for a selected PROBLEM: three entries, not the
+								     room's five. The menu is shorter because the object is narrower,
+								     which is prototype question 6. -->
+								<section class="rp-section">
+									<h2 class="rp-section-head">Add to this problem</h2>
+									<div class="rp-actions">
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-photo"/></svg>
+											Photo
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+											Decision
+										</button>
+										<button type="button" class="rp-action">
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											Work
+										</button>
+									</div>
+								</section>
+							</div>
+						</div>
+
+						<div class="rp-statusbar">
+							<span class="rp-status-item">Bathroom</span>
+							<span class="rp-status-item">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-cost"/></svg>
+								<strong>8,400</strong>
+							</span>
+							<span class="rp-status-item"><strong>1</strong> decision open</span>
+							<span class="rp-savestate" data-state="unsaved">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-dot"/></svg>
+								Unsaved changes
+							</span>
+						</div>
+
+					</div>
+				</div>
+			</div>
+			</div>
+			</div>
+		</div>
+
+		<p>
+			<b>Three numbers that had to agree.</b> The rejected options stay on screen with their
+			prices, so the €2,560 the guidance quotes is the spread a reader can compute
+			(€2,900 − €340). The Bathroom's estimate does not include the €1,250, because the
+			decision is open and §10 says the impact is unknown — the alternative would be a
+			total that moves every time somebody clicks a radio button they have not committed to.
+		</p>
+		<p>
+			<b>And one the drawing refused.</b> This frame was built to argue that a decision
+			belongs over the plan rather than in a modal, and drawing it argued the opposite. At
+			the pane width above the canvas is about 456px and the card is 248 of them: docked
+			anywhere it covers more than half the plan, and the first placement — bottom right,
+			written down as "the emptiest corner" — landed on top of the Hallway and clipped the
+			very pin the card belongs to. It now sits top right, over the one room in this
+			scenario that carries nothing, and the underlying question is open rather than
+			quietly half-solved: a decision may simply be an inspector surface, and a canvas
+			that has to dodge its own panel is evidence for that.
+		</p>
+	</section>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     SCENARIO 4 — precision on demand, and contextual Add
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>Precision on demand, and what Add offers where</h2>
+		<p>
+			§6's argument is that a product must never ask for precision without saying what the
+			precision buys. Two frames — the ask, and what answering it produced — and then §14
+			and §15's menus, which are the other half of the same claim: the vocabulary is small,
+			renovation words come before CAD words, and the list gets shorter as the selection
+			gets narrower.
+		</p>
+
+		<div class="pg-frame">
+			<div class="pg-frame-label">Scenario 4a · being asked</div>
+			<div class="pg-editor">
+			<div class="pg-leaf">
+			<div class="workspace-leaf-content" data-type="renovation-project">
+				<div class="view-header">
+					<div class="view-header-title-container">
+						<div class="view-header-title">Hollerweg 12 — renovation 2026</div>
+					</div>
+				</div>
+				<div class="view-content">
+					<!-- The stage IS the view here, not a child of one. The first version nested
+					     `.pg-overlay-stage` inside a second `.renovation-planner-view`, which is a
+					     flex column, so the stage sized to its content and the scrim covered 378px
+					     of a 600px leaf — a dimmed top half over a bright bottom one. -->
+					<div class="pg-overlay-stage renovation-planner-view">
+						<div class="pg-scrim" aria-hidden="true"></div>
+						<div class="rp-modal" role="dialog" aria-modal="true" aria-labelledby="s4-title">
+								<h2 class="rp-modal-title" id="s4-title">Replace kitchen floor</h2>
+								<div class="rp-modal-body">
+									How would you like to estimate this?
+									<fieldset class="rc-choices">
+										<label class="rc-choice" data-chosen="true">
+											<input type="radio" name="s4-precision" checked />
+											<span>
+												<span class="rc-choice-name">Rough estimate</span>
+												<span class="rc-choice-note">A number you type. Change it any
+												time, and refine it later without starting again.</span>
+											</span>
+										</label>
+										<!-- The option that cannot be taken YET, kept visible. Hiding it
+										     would answer the user's obvious question — why is there no
+										     "use the room area" — by never letting them ask it. -->
+										<label class="rc-choice" data-blocked="true">
+											<input type="radio" name="s4-precision" disabled />
+											<span>
+												<span class="rc-choice-name">Use room area</span>
+												<span class="rc-choice-note">Kitchen does not have a measured
+												area yet.</span>
+											</span>
+										</label>
+										<label class="rc-choice">
+											<input type="radio" name="s4-precision" />
+											<span>
+												<span class="rc-choice-name">Measure on plan</span>
+												<!-- The VALUE, stated. This sentence is the whole of §6:
+												     not "calibrate your floor plan" but what calibrating
+												     buys, in the units the user came here for. -->
+												<span class="rc-choice-note">Draw the floor once. The
+												quantity, the waste allowance and the material estimate
+												follow from it, and stay right when the price changes.</span>
+											</span>
+										</label>
+									</fieldset>
+								</div>
+								<div class="rp-modal-actions">
+									<button type="button" class="rp-action" data-default="true">Enter rough estimate</button>
+									<button type="button" class="rp-action">Measure kitchen</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			</div>
+			</div>
+		</div>
+
+		<div class="pg-frame pg-pane">
+			<div class="pg-frame-label">Scenario 4b · having answered — level 3, measured</div>
+			<div class="pg-editor-taller">
+			<div class="pg-leaf">
+			<div class="workspace-leaf-content" data-type="renovation-project">
+				<div class="view-header">
+					<div class="view-header-title-container">
+						<div class="view-header-title">Hollerweg 12 — renovation 2026</div>
+					</div>
+				</div>
+				<div class="view-content">
+					<div class="renovation-planner-view">
+
+						<div class="rp-toolbar" role="toolbar" aria-label="Canvas" aria-orientation="horizontal">
+							<button type="button" class="rc-scope" aria-haspopup="menu" aria-expanded="false">
+								Kitchen
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-action rc-add" aria-haspopup="menu" aria-expanded="false" tabindex="-1">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>
+								Add
+							</button>
+							<span class="rp-toolbar-divider" aria-hidden="true"></span>
+							<button type="button" class="rp-tool" aria-pressed="true" aria-label="Select" title="Select" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-select"/></svg>
+								<span class="rp-tool-label">Select</span>
+							</button>
+							<button type="button" class="rp-tool" aria-pressed="false" aria-label="Measure" title="Measure" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+								<span class="rp-tool-label">Measure</span>
+							</button>
+							<span class="rp-toolbar-spacer"></span>
+							<!-- The grid PITCH rather than a scale ratio. A "1 : 50" on a screen is a
+							     claim about physical size that nothing here can honour; the metre
+							     pitch is a fact about the lattice actually drawn, and the README's own
+							     finding is that a grid must obey the number printed beside it. -->
+							<span class="rp-readout">Grid 1 m</span>
+							<button type="button" class="rp-tool" aria-label="Fit to screen" title="Fit to screen" tabindex="-1">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-fit"/></svg>
+							</button>
+						</div>
+
+						<div class="rp-body">
+							<div class="rp-rail">
+								<section class="rp-section">
+									<h2 class="rp-section-head">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-house"/></svg>
+										Kitchen
+									</h2>
+									<ul class="rc-tree" role="tree" aria-label="Kitchen work">
+										<li role="none"><div class="rp-row" aria-selected="true" style="--rc-depth:0" role="treeitem" tabindex="0" aria-level="1">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<span class="rp-swatch" aria-hidden="true"></span>
+											<span class="rp-row-name" title="Replace floor">Replace floor</span>
+											<span class="rp-row-meta">€2,576</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											<span class="rp-row-name" title="Paint walls">Paint walls</span>
+											<span class="rp-row-meta">€600</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											<span class="rp-row-name" title="New kitchen units">New kitchen units</span>
+											<span class="rp-row-meta">€7,400</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											<span class="rp-row-name" title="Move sink">Move sink</span>
+											<span class="rp-row-meta">€1,150</span>
+										</div></li>
+										<li role="none"><div class="rp-row" style="--rc-depth:0" role="treeitem" tabindex="-1" aria-level="1">
+											<span class="rc-twisty" data-leaf="true" aria-hidden="true"></span>
+											<svg class="rc-tree-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+											<span class="rp-row-name" title="Replace window">Replace window</span>
+											<span class="rp-row-meta">€1,300</span>
+										</div></li>
+									</ul>
+								</section>
+							</div>
+
+							<div class="rp-canvas">
+								<svg viewBox="0 0 420 300" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Kitchen floor zone, measured: 4.60 by 4.00 metres less a 1.50 metre notch, 16.15 square metres">
+									<!-- The grid is drawn in PLAN space at the plan's own scale — 1 unit
+									     = 20mm, so 50 units is a metre and a major line every 5m. The
+									     pattern origins are offset so a line lands ON the kitchen's
+									     inside corner at (60,50) rather than wherever the tiling
+									     happened to start, which is what the README's grid finding is
+									     about: a lattice that disagrees with the number beside it is
+									     decoration in a ruler's clothes. -->
+									<defs>
+										<pattern id="rp-grid-m" x="35" y="25" width="50" height="50" patternUnits="userSpaceOnUse">
+											<path class="rp-grid-line" d="M25 0 V50 M0 25 H50"/>
+										</pattern>
+										<pattern id="rp-grid-5m" x="-65" y="-75" width="250" height="250" patternUnits="userSpaceOnUse">
+											<path class="rp-grid-line-major" d="M125 0 V250 M0 125 H250"/>
+										</pattern>
+									</defs>
+									<!-- Larger than the viewBox on purpose: `meet` letterboxes the plan,
+									     so a grid sized to the viewBox stops short of the pane. -->
+									<rect class="rp-grid" x="-400" y="-350" width="1220" height="1000"/>
+									<rect class="rp-grid-major" x="-400" y="-350" width="1220" height="1000"/>
+
+									<!-- The imported plan underneath: the kitchen's own walls. -->
+									<g class="rp-scene-wall">
+										<path d="M60 50 H215 V125 H290 V250 H60 Z"/>
+									</g>
+
+									<!-- The renovation zone — §20. Its area is not asserted: 230 x 200
+									     units less a 75 x 75 notch is 40,375 units², and at 400 mm² per
+									     unit² that is 16.15 m² exactly. Every number in the inspector
+									     to the right is that one multiplied. -->
+									<polygon class="rp-zone" aria-selected="true" points="60,50 215,50 215,125 290,125 290,250 60,250"/>
+									<text class="rp-zone-label" x="72" y="182">Kitchen floor</text>
+									<text class="rp-zone-sub" x="72" y="195">16.15 m²</text>
+
+									<!-- Two dimensions, drawn the way a dimension has been drawn on paper
+									     for a century: a hairline, slash ticks, and the chip BREAKING
+									     the line rather than floating beside it. -->
+									<g>
+										<path class="rp-measure-line" d="M60 268 H290 M56 272 L64 264 M286 272 L294 264"/>
+										<rect class="rp-measure-chip" x="149" y="260" width="52" height="16" rx="3"/>
+										<text class="rp-measure-text" x="175" y="271.5" text-anchor="middle">4.60 m</text>
+									</g>
+									<g>
+										<path class="rp-measure-line" d="M42 50 V250 M38 54 L46 46 M38 254 L46 246"/>
+										<rect class="rp-measure-chip" x="16" y="142" width="52" height="16" rx="3"/>
+										<text class="rp-measure-text" x="42" y="153.5" text-anchor="middle">4.00 m</text>
+									</g>
+									<g>
+										<path class="rp-measure-line" d="M215 40 H290 M211 44 L219 36 M286 44 L294 36"/>
+										<rect class="rp-measure-chip" x="228" y="32" width="50" height="16" rx="3"/>
+										<text class="rp-measure-text" x="253" y="43.5" text-anchor="middle">1.50 m</text>
+									</g>
+								</svg>
+							</div>
+
+							<div class="rp-inspector">
+								<div class="rc-head">
+									<h2 class="rc-head-title">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+										Replace floor
+									</h2>
+									<p class="rc-crumb">Kitchen · Ground floor</p>
+									<span class="rp-badge">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+										Planned
+									</span>
+								</div>
+
+								<!-- §19's third rung, Detailed. Every line names what it was computed
+								     from, so a reader with a calculator can check the total rather than
+								     trusting it. That is the difference between a derived value and a
+								     value that merely looks derived. -->
+								<div class="rc-calc">
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Zone area</span>
+										<span class="rc-calc-value">16.15 m²</span>
+									</div>
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Waste allowance</span>
+										<span class="rc-calc-value">10%</span>
+									</div>
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Material required</span>
+										<span class="rc-calc-value">17.77 m²</span>
+									</div>
+								</div>
+
+								<div class="rc-calc">
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Tiles · €38.90/m²</span>
+										<span class="rc-calc-value">€691.25</span>
+									</div>
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Adhesive · €7.60/m²</span>
+										<span class="rc-calc-value">€135.05</span>
+									</div>
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Grout · €3.50/m²</span>
+										<span class="rc-calc-value">€62.20</span>
+									</div>
+									<div class="rc-calc-row">
+										<span class="rc-calc-label">Labour · €104.50/m²</span>
+										<span class="rc-calc-value">€1,687.68</span>
+									</div>
+									<!-- The two denominators differ and the note says so, because
+									     nobody pays a tiler to lay the offcuts — and a homeowner
+									     multiplying by one number throughout is exactly the
+									     spreadsheet error this product exists to remove. -->
+									<div class="rc-calc-row" data-note="true">
+										<span class="rc-calc-label">Material on 17.77 m², labour on 16.15 m²</span>
+									</div>
+									<div class="rc-calc-row" data-total="true">
+										<span class="rc-calc-label">Estimate</span>
+										<span class="rc-calc-value">€2,576.18</span>
+									</div>
+								</div>
+
+								<div class="rp-field">
+									<span class="rp-field-label">Before measuring</span>
+									<span class="rp-field-value" data-readonly="true">
+										€2,500
+										<span class="rp-derived">
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-info"/></svg>
+											rough
+										</span>
+									</span>
+								</div>
+
+								<div class="rc-next">
+									<span class="rc-next-label">Next</span>
+									<p class="rc-next-text">
+										Confirm the tile price.
+										<span class="rc-next-why">€38.90 came from a catalogue in March. The
+										quantity will not change again; the price still can.</span>
+									</p>
+									<button type="button" class="rp-action">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-cost"/></svg>
+										Check price
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="rp-statusbar">
+							<span class="rp-status-item">Kitchen</span>
+							<span class="rp-status-item">Grid <strong>1 m</strong></span>
+							<span class="rp-status-item">Area <strong>16.15 m²</strong></span>
+							<span class="rp-status-item">Perimeter <strong>17.20 m</strong></span>
+							<span class="rp-savestate" data-state="saved">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+								Saved
+							</span>
+						</div>
+
+					</div>
+				</div>
+			</div>
+			</div>
+			</div>
+		</div>
+
+		<p>
+			<b>The arithmetic, so it can be checked rather than believed.</b> The polygon is
+			230 × 200 units less a 75 × 75 notch at 20&nbsp;mm per unit — 40,375 units², 16.15 m².
+			Waste at 10% gives 17.77 m². The three material rates apply to that 17.77; labour's
+			€104.50 applies to the 16.15, on the laid area rather than the ordered one, which is
+			the note under them. They sum to €2,576.18, and the notch is 1.50 m on both sides,
+			which is the third dimension on the plan. The rough estimate this replaced was €2,500 — <b>measuring moved the
+			number</b>, which is the only honest reason to have asked for the measurement.
+		</p>
+
+		<h3>What <code>+ Add</code> offers, and where</h3>
+		<p>
+			§14's full menu beside §15's two contextual ones. The rule the three of them encode:
+			<b>renovation concepts appear before CAD primitives</b>, and the list gets shorter as
+			the selection gets narrower — which is what prototype question 6 asks about.
+		</p>
+
+		<div class="pg-grid">
+			<article class="pg-specimen renovation-planner-view">
+				<div class="pg-specimen-head">
+					<h3>Nothing selected — §14</h3>
+					<span class="pg-keys"><span class="pg-key">12 items</span></span>
+				</div>
+				<div class="pg-stage">
+					<div class="rc-menu" role="menu" aria-label="Add">
+						<div class="rc-menu-group">
+							<div class="rc-menu-label">Property</div>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-room"/></svg>
+								Room
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-outdoor"/></svg>
+								Outdoor area
+							</button>
+						</div>
+						<div class="rc-menu-group">
+							<div class="rc-menu-label">Renovation</div>
+							<button type="button" class="rc-menu-item" role="menuitem" data-demo="hover">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+								Work
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-area"/></svg>
+								Renovation zone
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+								Problem
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+								Measurement
+							</button>
+						</div>
+						<div class="rc-menu-group">
+							<div class="rc-menu-label">Planning</div>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+								Decision
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-photo"/></svg>
+								Photo
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-note"/></svg>
+								Note
+							</button>
+						</div>
+						<!-- Last, and that ordering is guardrail 1 — renovation before CAD — expressed
+						     as a sort order rather than as a sentence in a document. -->
+						<div class="rc-menu-group">
+							<div class="rc-menu-label">Building</div>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-wall"/></svg>
+								Wall
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-door"/></svg>
+								Door
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-window"/></svg>
+								Window
+							</button>
+						</div>
+					</div>
+				</div>
+			</article>
+
+			<article class="pg-specimen renovation-planner-view">
+				<div class="pg-specimen-head">
+					<h3>Room selected — §15</h3>
+					<span class="pg-keys"><span class="pg-key">5 items</span></span>
+				</div>
+				<div class="pg-stage">
+					<div class="rc-menu" role="menu" aria-label="Add to Kitchen">
+						<div class="rc-menu-group">
+							<div class="rc-menu-label">Add to Kitchen</div>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+								Work
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+								Problem
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-decision"/></svg>
+								Decision
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+								Measurement
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-photo"/></svg>
+								Photo
+							</button>
+						</div>
+					</div>
+				</div>
+			</article>
+
+			<article class="pg-specimen renovation-planner-view">
+				<div class="pg-specimen-head">
+					<h3>Wall selected — §15</h3>
+					<span class="pg-keys"><span class="pg-key">5 items</span></span>
+				</div>
+				<div class="pg-stage">
+					<div class="rc-menu" role="menu" aria-label="Add to north wall">
+						<div class="rc-menu-group">
+							<div class="rc-menu-label">Add to north wall</div>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-work"/></svg>
+								Work
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-warn"/></svg>
+								Problem
+							</button>
+							<!-- Door and Window appear HERE and only here: a wall is the only thing
+							     either can be cut into, so the CAD primitives arrive attached to the
+							     one selection that makes them mean something. -->
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-door"/></svg>
+								Door
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-window"/></svg>
+								Window
+							</button>
+							<button type="button" class="rc-menu-item" role="menuitem">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-measure"/></svg>
+								Measurement
+							</button>
+						</div>
+					</div>
+				</div>
+			</article>
+		</div>
+	</section>
+
+	<!-- ══════════════════════════════════════════════════════════════════════════
+	     What this page does not settle
+	     ══════════════════════════════════════════════════════════════════════════ -->
+	<section class="pg-section">
+		<h2>What this page does not settle</h2>
+		<p>
+			Written down rather than left to be discovered, because a drawing that reads as
+			settled is worse than one that admits what it skipped.
+		</p>
+		<ul class="pg-spec">
+			<li>
+				<b>Which shell wins.</b> This page and <a href="plan-editor.html">the plan editor</a>
+				propose two different left rails, two different toolbars and two different answers
+				to what a canvas object is. The SDD is the authority and §60 is what it currently
+				says, so <em>this</em> page is the proposal and that one is the record. Nothing here
+				changes the SDD.
+			</li>
+			<li>
+				<b>Nothing collapses a rail.</b> The container ladder concept.css documents narrows
+				the inspector and then the tree, and below roughly 620px the three panes still crowd
+				each other. Adding a third pane's worth of content did not make that easier, and this
+				page does not answer it either.
+			</li>
+			<li>
+				<b>Where a decision lives.</b> Scenario 3 docks it over the canvas and the
+				measurement above says that costs more than half the plan at pane width. The
+				alternative — a decision is what the inspector shows when a decision is selected —
+				is not drawn here, so this page raises the question and answers it badly on
+				purpose rather than answering it silently.
+			</li>
+			<li>
+				<b>The pins scale with the plan.</b> They are svg, in plan coordinates, so a deep
+				zoom grows the labels. canvas.css explains why the HTML alternative was worse — it
+				drifts from the drawing at every pane width — but "the other option was worse" is not
+				the same as "this one is right".
+			</li>
+			<li>
+				<b>The tree is one level deeper in scenario 3 than §3 draws it.</b> §3's tree is
+				spaces only; §17 requires the tree to synchronise with the selection, and a problem
+				is not a space. Showing objects under the selected space is one reading of that, and
+				there are others — a separate object list, or a "contains the selection" state on the
+				room row.
+			</li>
+			<li>
+				<b>No German.</b> The plan editor's German scenario is what produced the rail-width
+				finding, and every label here is English. <em>Renovierungsbereich</em>,
+				<em>Entscheidung erforderlich</em> and <em>Materialbedarf</em> have not been near this
+				layout, and the <code>+ Add</code> menu's four group headings are the obvious place
+				for it to break.
+			</li>
+			<li>
+				<b>Three contrast failures survive, and none of them is this concept's.</b> Run
+				through axe-core in both schemes, the page reports exactly three distinct failing
+				pairs, all of them host tokens on components §60's sheet or the page furniture
+				already owned: <code>--interactive-accent</code> as a link colour and as
+				<code>.rp-empty .rp-action</code>'s label (3.42:1 light, 4.00:1 dark), and
+				<code>--text-faint</code> on a hidden layer's name (2.12:1 light, 2.56:1 dark) —
+				the figure the README already records. A fourth was this concept's, on
+				<code>+ Add</code>'s accent label, and it is fixed: the label takes
+				<code>--text-normal</code> and the accent rides the border and the icon. What axe
+				cannot see here is the same list it cannot see anywhere in jsdom or a headless
+				shot — focus-indicator visibility and hit-target size are verified in a live vault
+				and nowhere else.
+			</li>
+			<li>
+				<b>The frames are taller than a real pane.</b> Two of them are 740px so their
+				inspectors fit, and a real Obsidian pane is routinely 500–600px tall. At that
+				height the context inspector scrolls — a heading, a meter, a count grid, fields,
+				guidance and an action set is a lot for one column, and this page shows it with
+				room it will not always have.
+			</li>
+			<li>
+				<b>Not a check, with one exception this page discovered by tripping over it.</b>
+				Nothing in <code>npm run check</code> reads what is <em>in</em> these files — no
+				linter, no test, no renderer. But <code>npm run analyze</code> walks the whole
+				repository for unreachable files, so a stylesheet <code>.fallowrc.json</code> does
+				not declare is a dead file: <code>canvas.css</code> arrived undeclared and took all
+				four CI legs red on a commit that touched nothing but <code>docs/</code>. Contrast,
+				focus visibility and hit-target size are still verified in a live vault
+				(<code>npm run test-build</code>) and nowhere else.
+			</li>
+		</ul>
+	</section>
+
+	<footer class="pg-foot">
+		Drawings of <a href="../renovation-canvas-concept-interaction-design.md">the concept
+		&amp; interaction design spec</a>. Not implementations, not screenshots of the product,
+		and not real data — <code>src/</code> is a scaffold and there is no renovation project.
+	</footer>
+
+</main>
+
+<script>
+/*
+ * The scheme toggle. Obsidian's app.css declares the whole palette under `.theme-light` /
+ * `.theme-dark`, so swapping the class on <body> is the entire mechanism — nothing here
+ * restates a colour. And it has to be <body>: the README records why, at length.
+ */
+(function () {
+	var body = document.body;
+	var btn = document.getElementById('scheme');
+	var label = document.getElementById('scheme-label');
+
+	function apply(dark) {
+		body.classList.toggle('theme-dark', dark);
+		body.classList.toggle('theme-light', !dark);
+		btn.setAttribute('aria-pressed', String(dark));
+		label.textContent = dark ? 'Light' : 'Dark';
+	}
+
+	apply(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+	btn.addEventListener('click', function () {
+		apply(!body.classList.contains('theme-dark'));
+	});
+})();
+
+/*
+ * The pane readout, on scenario 1. Same instrument plan-editor.html carries, scoped to
+ * this page's first pane: it measures the RENDERED boxes rather than restating the CSS,
+ * so it cannot report a share the layout is not actually giving.
+ *
+ * The question is Design System's open question 2 — what the three-column editor costs at
+ * a real pane width — and this concept adds a THIRD pane's worth of content to the same
+ * three columns, so the answer matters here at least as much as it did there.
+ */
+/*
+ * Fit every canvas pin's chip to its own label.
+ *
+ * A pin is a rect and a text at authored coordinates, and the first version guessed the
+ * rect's width: three of ten labels overflowed their chip, and the selected pin overflowed
+ * by more than the others because `aria-selected` makes it bold — a defect that only exists
+ * in ONE state, which is the kind a static drawing hides best.
+ *
+ * The authored widths are now what the browser measured, so this page is correct with
+ * scripting off. This loop is what keeps it correct after somebody edits a label, changes
+ * the interface font, or adds a pin: it asks the text how wide it actually is rather than
+ * trusting a number in the markup. `getBBox` is the instrument that decides this in
+ * reality, so it is the instrument that decides it here.
+ */
+(function () {
+	var PAD = 7;
+	[].forEach.call(document.querySelectorAll('.rc-pin'), function (pin) {
+		var text = pin.querySelector('.rc-pin-text');
+		var chip = pin.querySelector('.rc-pin-chip');
+		if (!text || !chip) { return; }
+
+		var box;
+		/* getBBox throws on a node that has never been laid out — a pin inside a hidden
+		   frame, a page shot mid-load. Failing open leaves the authored width, which is
+		   the measured one anyway. */
+		try { box = text.getBBox(); } catch (e) { return; }
+		if (!box || !box.width) { return; }
+
+		var needed = Math.ceil(box.x + box.width - Number(chip.getAttribute('x')) + PAD);
+		if (needed > 0) { chip.setAttribute('width', String(needed)); }
+	});
+})();
+
+(function () {
+	var pane = document.getElementById('s1-pane');
+	if (!pane || typeof ResizeObserver === 'undefined') { return; }
+
+	var editor = pane.querySelector('.rp-body');
+	var canvas = pane.querySelector('.rp-canvas');
+	var rail = pane.querySelector('.rp-rail');
+	var inspector = pane.querySelector('.rp-inspector');
+	if (!editor || !canvas || !rail || !inspector) { return; }
+
+	var out = {
+		pane: document.getElementById('ro-pane'),
+		rails: document.getElementById('ro-rails'),
+		canvas: document.getElementById('ro-canvas'),
+		share: document.getElementById('ro-share'),
+		note: document.getElementById('ro-note'),
+		row: document.getElementById('pane-readout'),
+	};
+
+	function measure() {
+		var w = Math.round(editor.getBoundingClientRect().width);
+		var c = Math.round(canvas.getBoundingClientRect().width);
+		var r = Math.round(rail.getBoundingClientRect().width + inspector.getBoundingClientRect().width);
+
+		out.pane.textContent = String(Math.round(pane.getBoundingClientRect().width));
+		out.rails.textContent = String(r);
+		out.canvas.textContent = String(c);
+
+		var share = w ? Math.round((c / w) * 100) : 0;
+		out.share.textContent = String(share);
+
+		/* Half the editor is the threshold, because below it the region the whole product
+		   is about is the minority of its own view. */
+		var tight = share < 50;
+		out.row.setAttribute('data-tight', String(tight));
+		out.note.textContent = tight ? 'the canvas is now the smaller half' : '';
+	}
+
+	new ResizeObserver(measure).observe(pane);
+	measure();
+})();
+</script>
+
+</body>
+</html>

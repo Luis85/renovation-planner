@@ -16,8 +16,14 @@ The prototype must prove that a user can start a project, establish spaces, unde
 
 - HTML, CSS, JS in one self-contained deliverable
 
+## Research
+
+- [[renovation-planner-competitive-market-landscape]]
+- [[renovation-planner-user-research-synthesis]]
+
 ## Related Specs and concepts
 
 - [[renovation-project-workspace-UXD]]
+- [[renovation-canvas-concept-interaction-design]]
 - [[renovation-project-workspace-PROTOTYPE-DESIGN-SPEC]]
 - [[renovation-project-workspace-wireframes]]

@@ -1043,11 +1043,14 @@ if [ -f "$L" ]; then
   dis=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded")' "$SP/rows.tsv" | wc -l | tr -d ' ')
   distinct=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded"){print $10}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')
   want_coal=$(( dis - distinct ))
-  for n in "$want_rows" "$want_find" "$want_coal"; do
-    grep -qE "(^|[^0-9,])$(printf '%s' "$n" | sed 's/\(.\)\([0-9]\{3\}\)$/\1,\2/')([^0-9]|$)" "$L" \
-      || grep -qE "(^|[^0-9])$n([^0-9]|$)" "$L" \
-      || { echo "  FAIL ledger never prints the number $n"; fail=1; }
-  done
+  # Look for each number NEXT TO ITS LABEL, not loose in the prose. A bare numeric grep is
+  # satisfied by any incidental digit — `4` matches "§34", "4 convention findings", a date —
+  # so the check passed on a ledger that never printed the coalesced-pair total at all.
+  lbl(){ grep -qiE "$2[^0-9]{0,60}$1|$1[^0-9]{0,60}$2" "$L" \
+           || { echo "  FAIL ledger does not print $2 = $1"; fail=1; }; }
+  lbl "$want_rows"  "rows"
+  lbl "$want_find"  "findings"
+  lbl "$want_coal"  "coalesced"
   echo "  (ledger must print: rows=$want_rows findings=$want_find coalesced-pairs=$want_coal)"
 fi
 exit $fail

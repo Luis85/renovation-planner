@@ -44,9 +44,13 @@ without thought and a path that can be overridden.
   [`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](../tasks/01-plugin-bootstrap-and-composition-root.md)
   — and what the plugin should do about that belongs to
   [[Error handling and diagnostics]], not here.
-- The vault holds no project yet. Creating a second project alongside a first raises
-  questions this note does not answer — how projects are told apart, whether one is active —
-  and none of them are settled anywhere in this register.
+- The vault holds no project yet. **This is the first-run case, not the only one**: a vault may
+  hold several projects, decided in
+  [[The vault holds many projects, and selecting one is not a portfolio]]. Creating a second
+  project alongside a first still raises questions this note does not answer — how projects are
+  told apart, whether one is active — and the Home surface that answers them is owed and unbuilt.
+  The main flow below describes the empty vault; it does not yet describe arriving at a Home that
+  already lists projects.
 
 ## Main flow
 

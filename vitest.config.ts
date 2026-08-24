@@ -152,6 +152,9 @@ export default defineConfig({
 			// left the mapping upsert reachable only by a sidecar this session did not write,
 			// which is a real scenario that had been riding on our own writes for its
 			// coverage and now has a test of its own. NOTHING RATCHETS.
+			// Measured 2026-08-24 again after the restored-leaf fix (`ProjectIndexRebuilt`):
+			// 1843/1849 statements, 816/827 branches, 486/487 functions, 1685/1688 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82, the same four again. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -17,6 +17,18 @@ import type { PlanEventPayload } from '../../domain/plan/Plan.events';
 const PLAN_CHANGE_EVENTS = ['PlanBackgroundChanged', 'PlanCalibrated'] as const;
 
 /**
+ * Events that mean "re-read, whichever plan you are showing" — a SECOND list rather than a
+ * hole in the filter below.
+ *
+ * `ProjectIndexRebuilt` carries no plan id because a rebuild says nothing about which
+ * entities changed, so it cannot be matched against a leaf's plan and must reach every
+ * leaf. Handling that by letting an unmatched event through would have delivered every
+ * future payload-less event to every listener by accident; naming the category is what
+ * makes "applies to all plans" a decision instead of a side effect of the guard.
+ */
+const EVERY_PLAN_EVENTS = ['ProjectIndexRebuilt'] as const;
+
+/**
  * `DomainEvent` carries only a `type`; every event in the list above adds a
  * `PlanEventPayload`. Narrowed with a guard rather than a cast so that an event added to
  * the list WITHOUT that payload is simply never delivered, instead of comparing
@@ -31,11 +43,14 @@ export function createPlanChangeSource(
 	events: EventBus,
 ): (planId: string, listener: () => void) => () => void {
 	return (planId: string, listener: () => void) => {
-		const subscriptions = PLAN_CHANGE_EVENTS.map((type) =>
-			events.subscribe(type, (event) => {
-				if (planIdOf(event) === planId) listener();
-			}),
-		);
+		const subscriptions = [
+			...PLAN_CHANGE_EVENTS.map((type) =>
+				events.subscribe(type, (event) => {
+					if (planIdOf(event) === planId) listener();
+				}),
+			),
+			...EVERY_PLAN_EVENTS.map((type) => events.subscribe(type, () => listener())),
+		];
 		return () => {
 			for (const subscription of subscriptions) subscription.dispose();
 		};

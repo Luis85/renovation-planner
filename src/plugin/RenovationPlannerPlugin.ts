@@ -8,6 +8,7 @@ import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
 import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
+import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { registerPlanEditorCommands } from './planEditorCommands';
@@ -264,6 +265,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 				projectFolder: persistence.vaultDeps.projectFolder,
 			}),
 		);
+
+		// Announced, because a surface that already read through the index has read a
+		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
+		// Editor reopened with the app hydrated against an empty one and said "this plan no
+		// longer exists" about a plan that does — reported from a real vault. The `void` is
+		// deliberate: publishing awaits its subscribers, and nothing here needs to.
+		void this.root.eventBus.publish(projectIndexRebuilt());
 
 		if (this.listenersRegistered) return;
 		this.listenersRegistered = true;

@@ -997,6 +997,23 @@ Obsidian:
 
 Anything on that list which does not work is a slice 5 defect, not a later slice's work.
 
+**Walked by hand on 2026-08-24. Items 1–11 passed; item 12 failed and is fixed.** Two Plan
+Editor tabs were open across a restart and the first of them showed "This plan no longer
+exists". The cause is an ordering fact about Obsidian that no gate here can see: leaves are
+restored BEFORE `onLayoutReady`, and the index scan runs FROM `onLayoutReady` (a scan in
+`onload` builds a partial index that looks complete, §47) — so a restored view hydrates
+against an empty index, reads a legitimate `ok(null)`, and reports the plan missing
+permanently, because nothing tells it to look again. Only the FIRST tab broke because
+Obsidian defers a non-active leaf's view until it is activated, by which time the scan has
+run. `startPersistence` now publishes `ProjectIndexRebuilt` and `createPlanChangeSource`
+delivers it to every open editor regardless of plan id; `tests/plugin/restoredPlanEditor.test.ts`
+drives the whole ordering through the plugin's own view factory.
+
+Three further defects came out of the same walkthrough, all of them a test fake accepting
+what Obsidian refuses, and each is recorded where its code is: a note read back in the tick
+it was created (Obsidian's `MetadataCache` is asynchronous), a `vault.create` into a folder
+nothing had created (`Geometry/`), and `window.Konva` never released on unload.
+
 ### Coverage
 
 Measured 99.66 / 98.64 / 99.78 / 99.81. **Nothing ratcheted**, and that is the policy

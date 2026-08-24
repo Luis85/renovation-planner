@@ -494,17 +494,25 @@ Every behavioural claim in every body, **wherever in that body it sits** — the
 One row per claim:
 
 ```
-f92	forward	behavioural	a user can start a project without a plan	prd§11.2.3	project,plan	-	-		-
+f92	forward	behavioural	a user can start a project without a plan	prd§11.2.3	project,plan	-	-		-	-
 ```
 
-Leave `cand_n`, `matched` and `state` empty.
+Leave `cand_n`, `matched` and `state` empty — but **write the tabs**. Every row is eleven
+fields, and the trailing `pair` and `target` are `-`, not nothing.
+
+A row that ends early is not merely untidy. It is the exact shape that corrupted this matrix
+once: a downstream pass read rows with `IFS=$'\t' read`, tab is an IFS *whitespace* character,
+bash collapsed the run of tabs around the empty fields into one delimiter, and `pair` and
+`target` were silently emptied on every behavioural row. The verifier checks `target` only on
+named rows, so a short behavioural row survives every gate. Count the tabs: **ten of them,
+eleven fields, always.**
 
 - [ ] **Step 4: Build the reverse behavioural inventory, per claim rather than per note**
 
 Every behavioural claim in all 227 notes gets a row. A note is a container: a Feature with four acceptance criteria yields four rows, not one. The reverse **named** rows already exist — Task 2 built them, because the alias pass needs both sides of a rename at once — so this step adds the behavioural half and the two together are the reverse inventory the spec asks for.
 
 ```
-r418	reverse	behavioural	carries no geometry	docs/entities/Space.md::Rules[1]	space,zone,geometry	-	-		-
+r418	reverse	behavioural	carries no geometry	docs/entities/Space.md::Rules[1]	space,zone,geometry	-	-		-	-
 ```
 
 The `locator` after `::` must be stable and re-findable — a heading plus an index, never a line number.

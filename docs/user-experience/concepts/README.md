@@ -2,7 +2,7 @@
 
 Drawings of the design, openable in a browser. Not backlog items and not implementations.
 
-Most of them draw [`docs/components/`](../components/) and SDD §60. `renovation-canvas.html`
+Most of them draw [`docs/components/`](../../components/) and SDD §60. `renovation-canvas.html`
 draws [the concept & interaction design spec](../renovation-canvas-concept-interaction-design.md)
 instead, and proposes a **different shell for the same view** — see *Two shells* below before
 reading the two against each other.
@@ -18,7 +18,7 @@ reading the two against each other.
 | `concept.css` | The **proposal** — the canvas visual language, and each component's rules |
 | `canvas.css` | What the renovation-canvas concept adds and `concept.css` has no answer for: property tree, `+ Add` menu, canvas pins, guidance block, planning meter, decision card, precision chooser. A second sheet, not more of the first — its header says why |
 | `page.css` | The page's own furniture. Nothing here styles a component |
-| `shots/` | One PNG per specimen in `component-gallery.html`, light beside dark, embedded in the matching note in [`docs/components/`](../components/). Written by `npm run concept-shots`. **Nothing checks the pairing** — see below |
+| `shots/` | One PNG per specimen in `component-gallery.html`, light beside dark, embedded in the matching note in [`docs/components/`](../../components/). Written by `npm run concept-shots`. **Nothing checks the pairing** — see below |
 
 ## What the mocks measured
 
@@ -192,6 +192,20 @@ the existing pages, deliberately left rather than fixed in the change that found
   pointing at a file that no longer exists, a PNG orphaned by a rename — nothing reports any
   of them, here or in `npm run check`. Keeping the notes, the specimens and the files in step
   is a reader's job at review time, deliberately.
+
+  **And "nothing reports it" reached the script itself.** Moving these files from
+  `docs/concepts/` left `concept-shots.mjs` pointing at the old path, so every run died
+  navigating to a page that no longer existed. Nothing caught it, because nothing runs it:
+  it is deliberately outside `npm run check` and outside CI, which is the same property that
+  makes it cheap and makes it rot. Fixed, and verified by watching it fail on the old path
+  and then write all 17 specimens on the new one.
+
+  The PNGs in `shots/` were last written by the commit that MOVED these files — the same one
+  that broke the script — so nothing has regenerated them since. The only change to
+  `component-gallery.html` after that point added icons to the shared sprite without
+  altering any specimen, so they are believed current; that is an argument, not a
+  measurement, and the first person with the pinned Chromium should re-run the script and
+  see whether anything moves.
 - **Not faithful about a themed vault.** They link `tests/harness/obsidian.css` — Obsidian's
   real app.css, *reduced* — so they show Obsidian's **default** appearance, not a community
   theme's, not a user's accent, and not an element default the reduction dropped.

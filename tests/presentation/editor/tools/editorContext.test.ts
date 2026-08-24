@@ -1,7 +1,7 @@
 /**
  * `EditorContext` (SDD §58, design slice 6): the entire API a tool gets. Two things this
  * suite pins beyond plain wiring, because they are both project Definition-of-Done items
- * routed here (see the task-8 brief and progress.md Ruling 13):
+ * routed here (see `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`):
  *
  * - **DoD 11** — the facade's own type surface is exactly the seven spec members, and no
  *   member (at any depth) exposes a function shaped like a repository method
@@ -91,7 +91,7 @@ function stubSelection(): SelectionStore {
 		select: () => undefined,
 		clear: () => undefined,
 		isSelected: () => false,
-	} as unknown as SelectionStore;
+	};
 }
 
 function stubViewport(): EditorContext['viewport'] {

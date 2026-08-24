@@ -17,9 +17,10 @@
 	// `tests/presentation/editor/type-safety.test-d.ts` is a fourth kind, next to
 	// `scripts/lint-edited.mjs` above: nothing imports it and no npm script runs it either
 	// — `vue-tsc -noEmit` type-checks it because `tsconfig.json`'s `include` names it
-	// directly, and its two `@ts-expect-error` directives are the whole point (an unused
-	// one is a compile error), so the file's job is to fail to compile in two spots, never
-	// to be imported or executed.
+	// directly, and compiling is the whole point: its two `@ts-expect-error` directives have
+	// to fail to compile (an unused one is a compile error) and its `SelectionStore`
+	// assignability check has to succeed. The file's job is to be type-checked, never to be
+	// imported or executed.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",

@@ -334,9 +334,12 @@ behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`
 nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
 only) **except one file**: `tests/presentation/editor/type-safety.test-d.ts` is named
 alongside `src/**` in `tsconfig.json`'s `include`, because slice 6's screen/world brand
-separation is a claim only a compiler can settle, and `vue-tsc --noEmit` in `npm run build`
-is the whole mechanism by which a compile-time proof exists here — a `// @ts-expect-error`
-that goes unenforced is just a comment. Outside that one file, an `implements` still binds
+separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
+hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
+`npm run build` is the whole mechanism by which a compile-time proof exists here — a
+`// @ts-expect-error` that goes unenforced is just a comment. It carries both directions:
+what must NOT compile (the two brand mixes) and what must (the live Pinia store still
+satisfying that four-member contract). Outside that one file, an `implements` still binds
 the editor, not the gate.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is

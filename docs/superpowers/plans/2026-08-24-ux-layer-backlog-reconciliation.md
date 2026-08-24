@@ -144,7 +144,13 @@ Expected: two `ok` nesting lines; three `ok` count lines; `…/renovation-canvas
 
 ### Task 2: Named-thing rows, presence by lookup, and the alias table
 
-Implements spec order steps 1–2. These are one task because the alias table is an *output* of the lookup, not a separate activity: you learn that `DIY Renovator` has no note while `Private renovator` does by doing the lookup, and inventing the alias table separately would mean guessing it.
+Implements spec order steps 1–2. One task because the alias table is both an **output** of the
+lookup and an **input** to it, and that circularity is the point: you learn `DIY Renovator` has
+no note while `Private renovator` does *by doing the lookup*, and you cannot settle either row
+until you know they are the same actor. So the lookup runs **twice** — provisional, then
+re-resolved through the aliases. Settling presence in one pass would file `DIY Renovator` as a
+**Gap** and `Private renovator` as `retained`: two fabricated findings that are really one
+rename.
 
 **Files:**
 - Modify: `$SP/rows.tsv` (append `f<N>` rows with `kind=named`)
@@ -185,7 +191,10 @@ Read each body over its range from `corpus.sh body`. Extract, per the spec's pro
 f1	forward	named	Planner Home	uxd§28	planner home	-	-	absent	-
 ```
 
-Set `state` by running `lookup.sh` on the term: a hit whose note agrees → `present`; no hit → `absent`. Leave `contradictory`/`superseded` for Task 6 — a named row can still turn out to disagree once its behaviour is read.
+Write a **provisional** state only: a hit → `present?`, no hit → `absent?`, both with the
+question mark. Nothing is settled until Step 6 re-resolves through the aliases. Leave
+`contradictory`/`superseded` for Task 5 — a named row can still turn out to disagree once its
+behaviour is read.
 
 Do **not** stop at the terms the spec already names. `Screen Component & Interaction State Specification` (wireframes §A.23) is a named artifact with no deliverable note, and it is in the plan because the spec found it, not because it is the only one.
 
@@ -193,10 +202,11 @@ Do **not** stop at the terms the spec already names. `Screen Component & Interac
 
 Run:
 ```bash
-awk -F'\t' 'NR>1 && $3=="named" && $9=="" {bad++} END{print "named rows missing a state:", bad+0}' "$SP/rows.tsv"
+awk -F'\t' 'NR>1 && $3=="named" && $9=="" {bad++} END{print "named rows missing a provisional state:", bad+0}' "$SP/rows.tsv"
 awk -F'\t' 'NR>1 && $3=="named" {n[$9]++} END{for (s in n) print s, n[s]}' "$SP/rows.tsv"
 ```
-Expected: `named rows missing a state: 0`, and a state breakdown you can sanity-check against the four known cases.
+Expected: `0` missing, and every state still carrying its `?`. A named row without a question
+mark at this point is one that skipped the alias pass.
 
 - [ ] **Step 5: Write the alias table from what the lookup exposed**
 
@@ -210,7 +220,29 @@ printf 'space\tSpace|Outdoor area|Zone\tdocs/entities/Space.md\tcollapsed\n' >> 
 
 Those four are established by the spec. Add every further alias the Step 3 lookup exposed. `collapsed` is the important relation: it is what makes the behavioural matcher in Task 4 able to find a derived note that uses the backlog's word for the evidence's umbrella term.
 
-- [ ] **Step 6: Commit** — scratchpad only, nothing to commit. Record the named-row count and the alias count in the task log.
+- [ ] **Step 6: Re-resolve named presence through the alias table**
+
+For every row still marked `absent?`, check its term against `aliases.tsv`. A `renamed`, `same`
+or `collapsed` relation means the thing **is** present under another name: set `present`, and
+record the alias in `matched`. Only a term with no alias and no hit becomes `absent`.
+
+Then do the mirror, which is the half that is easy to forget: a **reverse** named row sitting at
+`retained?` because the evidence never used its word is `present` if an alias says the evidence
+used a different one. `Private renovator` is exactly that row.
+
+```bash
+awk -F'\t' -v OFS='\t' 'NR==FNR{if(FNR>1){a[tolower($1)]=$3; b[tolower($2)]=$3} next}
+  FNR==1{print;next}
+  $3=="named" && $9=="absent?"  && (tolower($4) in a){$9="present"; $8=a[tolower($4)]; print; next}
+  $3=="named" && $9=="retained?" && (tolower($4) in b){$9="present"; $8=b[tolower($4)]; print; next}
+  {sub(/\?$/,"",$9); print}' "$SP/aliases.tsv" "$SP/rows.tsv" > "$SP/rows.next" && mv "$SP/rows.next" "$SP/rows.tsv"
+awk -F'\t' 'NR>1 && $9 ~ /\?$/ {n++} END{print "rows still provisional (must be 0):", n+0}' "$SP/rows.tsv"
+```
+
+Expected: `0` provisional rows, and `DIY Renovator` now `present` against
+`docs/actors/Private renovator.md` rather than standing as a fabricated `Gap`.
+
+- [ ] **Step 7: Commit** — scratchpad only, nothing to commit. Record the named-row count, the alias count, and how many rows the alias pass moved off `absent?`/`retained?` — that number is the count of findings a single-pass lookup would have invented.
 
 ---
 
@@ -353,7 +385,14 @@ Expected: `0` unmatched; the empty-candidate-set count is information for the le
 
 ### Task 5: Resolve the ladder, derive findings, coalesce mirrored rows
 
-Implements spec order steps 5–6. One task: coalescing needs the states, and a reviewer rejecting the ladder would reject the findings derived from it.
+Implements spec order steps 5–7 — **read, then ladder, then findings, in that order.** One
+task: coalescing needs the states, and a reviewer rejecting the ladder would reject the findings
+derived from it.
+
+The order matters and was wrong in the spec until review found it. The ladder's first three
+rungs *are* the reading: nothing is `superseded`, `contradictory` or `present` until the two
+sides have been compared. Only rung 4 — one side silent — is decidable without reading, which is
+why Step 1 below fills exactly that and stops.
 
 **Files:**
 - Modify: `$SP/rows.tsv` (fill `state` and `pair`)
@@ -408,7 +447,14 @@ rows=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded")' "$SP/rows.ts
 finds=$(( $(wc -l < "$SP/findings.tsv") - 1 ))
 echo "disagreement rows: $rows   findings: $finds   coalesced pairs: $(( rows - finds ))"
 ```
-Expected: `coalesced pairs` equals the number of disagreements both directions found. That number goes in the ledger — the spec requires the gap between the totals to be printed, not hidden.
+Expected: `coalesced pairs` equals the number of disagreements both directions found.
+
+Note what this computes and what it must not: the count is `disagreement rows − distinct pairs`,
+over `contradictory` and `superseded` rows **only**. It is *not* total rows minus total findings
+— `present` and `retained` rows raise the row total while producing no finding, so that delta
+would overstate coalescing by the size of the agreeing set. The spec said otherwise until round
+nine; this script was already right, which is why the check is written as a script and not as a
+sentence.
 
 - [ ] **Step 6: Add `Gap` findings from forward `absent` rows**
 
@@ -588,7 +634,7 @@ Then update PR #8's body: the ledger now exists, and the PR is no longer "one do
 
 ## Self-review
 
-**Spec coverage.** Order steps 1–8 → Tasks 2, 2, 3, 4, 5, 5, 5–6, 7. DoD 1 → Task 5 + Task 9; 1a → Task 8 step 3; 1b → Task 3 step 5 and Task 9; 1c → Task 8 step 3; 1d → Task 8 step 3; 2 → Task 8 step 4; 3 → Task 8 step 5; 4 → Task 8 step 2; 5 → Task 9 step 3; 6 → Global Constraints and Task 9 step 1. The two-stage matcher → Task 4. Pair identity → Task 5 steps 4–5. Provenance tracing → Task 6 step 2. Reference corpus limit → Task 6 step 2.
+**Spec coverage.** Order steps 1–8 → Tasks 2, 2, 3, 4, 5, 5, 5, 7 (the order was renumbered in round nine: reading is now step 5, the ladder 6, findings 7). DoD 1 → Task 5 + Task 9; 1a → Task 8 step 3; 1b → Task 3 step 5 and Task 9; 1c → Task 8 step 3; 1d → Task 8 step 3; 2 → Task 8 step 4; 3 → Task 8 step 5; 4 → Task 8 step 2; 5 → Task 9 step 3; 6 → Global Constraints and Task 9 step 1. The two-stage matcher → Task 4. Pair identity → Task 5 steps 4–5. Provenance tracing → Task 6 step 2. Reference corpus limit → Task 6 step 2.
 
 **Known gaps, stated rather than hidden.** Task 3's extraction is reading, not scripting — its volume (5,719 evidence lines, 11,342 derived lines) is the real cost of this plan and no step makes it cheaper. Tasks 4 step 4 and 5 step 3 are judgement bounded by mechanically-produced sets, exactly as the spec requires, and neither is reproducible in the strong sense.
 

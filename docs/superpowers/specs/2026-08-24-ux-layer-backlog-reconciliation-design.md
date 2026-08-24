@@ -5,6 +5,15 @@
 twenty findings. Further review findings are logged against this document rather than folded
 into it: the rounds stopped tapering, each was critiquing the previous round's fix, and the
 ledger will test this instrument against 227 notes harder than another round can.
+
+**One exception has been taken to that freeze, and its boundary is stated so the next one is
+argued rather than assumed.** Round nine found three defects that are not refinements: two
+circular orderings that would have *fabricated* findings — a false `Gap`/`retained` pair from
+settling named presence before aliases were known, and a ladder asked to assign states before
+the reading that decides them — and one arithmetic claim that was simply false. The freeze
+exists to stop polishing a working instrument, not to execute a broken one. **The line: a
+finding is folded in only if executing the method as written would produce a wrong or invented
+result. Everything else is logged.**
 **Output:** one findings ledger in `docs/reviews/`. No derived note is edited by this work.
 
 ## Why
@@ -330,24 +339,40 @@ included them.
 
 ### The order
 
-1. **Extract named things** from the new evidence, under the producing rules above, and settle
-   their presence — a lookup, and the only wholly mechanical part of this pass.
-2. **Record the aliases that lookup exposes.** `Space` against `Outdoor area`, DIY Renovator
-   against `Private renovator`: the vocabulary collapses this pass exists to find are also the
-   normalisation the behavioural matcher needs, so they are produced before it runs rather than
-   improvised inside it.
+1. **Extract named things** and take a **provisional** presence by exact lookup — mechanical,
+   and not yet an answer.
+2. **Record the aliases that lookup exposes, and re-resolve named presence through them.**
+   `Space` against `Outdoor area`, DIY Renovator against `Private renovator`.
 3. **Extract behavioural claims**, and **build the reverse inventory** from the derived corpus,
    **per claim rather than per note**.
 4. **Match behavioural claims in two stages**, per the rule below — only the first is
    mechanical.
-5. **Resolve every row through the five-state ladder**, in both directions.
-6. **Derive the finding set from the matrix**, so absence is *counted* rather than spotted, and
+5. **Read every matched pair**: does the evidence supersede it, disagree with it, or agree?
+   Judgement, bounded to the pairs the match identified rather than applied to the corpus.
+6. **Resolve every row through the five-state ladder**, in both directions — every rung now has
+   the answer it needs.
+7. **Derive the finding set from the matrix**, so absence is *counted* rather than spotted, and
    **coalesce mirrored rows** per the identity rule below.
-7. **Read for contradiction only in cells where both sides speak.** Judgement, bounded to the
-   cells the matrix identified rather than applied to the whole corpus.
 8. **Run the convention audit separately**, against the register's own documents, and report it
    apart from the matrix counts — it is not derived from them and must not borrow their
    completeness.
+
+**Two orderings here were wrong until review found them, and both were circular rather than
+merely awkward** — worth recording, because each would have produced *fabricated* findings
+rather than missing ones, which is the harder failure to notice in a finished ledger.
+
+The reading used to sit at step 7, after the ladder at 5 and the finding set at 6. But the
+ladder's first three rungs *are* that reading: nothing can be called `superseded`,
+`contradictory` or `present` before the two sides have been compared. The ladder would have had
+to guess, or the finding set would have been derived before any contradiction could enter it.
+Reading now precedes both.
+
+And named presence used to be settled at step 1 by exact lookup, with aliases recorded at step 2
+from what that lookup exposed. `DIY Renovator` would have been settled `absent` — a **Gap** —
+and `Private renovator` `retained`, before anything knew they were the same actor. The alias
+table is an output of the lookup *and* an input to it, so the lookup runs twice: provisional,
+then re-resolved. Naming that circularity is the fix; pretending it is a straight line is what
+produced a false gap and a false retention as a matched pair.
 
 #### Matching a behavioural claim is two stages, and only the first is mechanical
 
@@ -385,8 +410,16 @@ happened to merge them.
 **Pair identity is the ordered pair of citations**: evidence body and section on one side, note
 and claim on the other. Two rows resolving to `contradictory` or `superseded` over the same pair
 are **one finding**. So the ledger reports **rows and findings as separate counts**, which are
-not expected to match: the difference between them is exactly the number of mirrored
-disagreements, and that number is worth printing rather than hiding.
+not expected to match — and **the coalesced-pair count is counted directly, never inferred from
+the difference between them.**
+
+An earlier version said the difference *was* the number of mirrored disagreements. That is
+arithmetically false and this corpus is already known to break it: every `present` and every
+`retained` row raises the row total while producing no finding at all, so the delta overstates
+coalescing by however many rows agreed or were simply not spoken to. The number to print is
+`disagreement rows − distinct pairs`, computed over the `contradictory` and `superseded` rows
+alone. A closure check that can be wrong by the size of the agreeing set is not a closure
+check.
 
 `Gap` cannot mirror — it has no derived claim to pair with, which is what makes it a gap.
 `Contradiction` and `Orphan` both have two speaking sides, so both coalesce; `retained` is not a
@@ -525,9 +558,11 @@ decision, and still not mine.
 1. Every inventory item, **in both directions and of both row kinds**, has a matrix row
    carrying **exactly one** of the five states — present, absent, contradictory, superseded or
    retained — resolved by the precedence above, and the ledger reports the counts rather than
-   describing them. **Rows and findings are counted separately and both printed**, because a
-   mirrored disagreement is two rows and one finding; the gap between the totals is the number
-   of coalesced pairs, which is information rather than an error to hide.
+   describing them. **Rows and findings are counted separately and both printed**, and the
+   **coalesced-pair count is printed as its own directly-counted number** — `disagreement rows
+   − distinct pairs`, over the `contradictory` and `superseded` rows alone. Not the difference
+   between the two totals: `present` and `retained` rows raise the row count while producing no
+   finding, so that delta overstates coalescing by the size of the agreeing set.
 1a. Every one of the eight in-scope note types has been compared under its rule, and the
    ledger says how many notes of each type were covered. A type with no rule is a type that
    was not read, and a coverage claim including it would be false.

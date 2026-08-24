@@ -12,6 +12,7 @@ import type { VaultChangeAdapter } from '../infrastructure/persistence/index/Vau
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
+import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import {
 	createCompositionRoot,
 	planEditorDeps,
@@ -41,10 +42,14 @@ const LOG_LEVEL: LogLevel = 'info';
  * index, and `onunload` is its reverse: flush pending writes, stop listeners, dispose
  * services.
  *
- * There is no `onunload` here, deliberately. `registerView`, `addRibbonIcon` and
- * `addCommand` are all registered through the `Plugin` base class, which unregisters them
- * itself; a handler that only repeats what the base class already does is a place for a
- * future mistake to hide. It arrives with the first thing that genuinely needs disposing.
+ * `onunload` exists now, and it took the FIRST thing that genuinely needs disposing to earn
+ * it — which was not one of this plugin's own registrations. `registerView`,
+ * `addRibbonIcon` and `addCommand` are still unregistered by the `Plugin` base class and
+ * are still deliberately absent from it, because a handler that only repeats what the base
+ * class already does is a place for a future mistake to hide. What IS there is
+ * `window.Konva`: Konva assigns it at module scope on every load and nothing took it back
+ * off, so reactivating the plugin logged "Several Konva instances detected" and the previous
+ * load's whole bundle stayed reachable from `window`.
  *
  * Measured by coverage like everything else in `src/` — only `src/main.ts` is excluded
  * (`vitest.config.ts`). The wiring here is exactly what breaks silently, so
@@ -72,7 +77,15 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	root!: CompositionRoot;
 
+	/** What `onunload` has to undo, in the order it was claimed. */
+	private readonly disposers: (() => void)[] = [];
+
 	async onload(): Promise<void> {
+		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
+		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
+		// moment at which that global is provably this load's own and safe to claim.
+		this.disposers.push(claimKonvaGlobal());
+
 		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
 		// it is not one of the things bootstrap sets up, it is what the setup steps report
 		// through, and the step below is the first one that can fail.
@@ -263,6 +276,25 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
 			if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
 		}));
+	}
+
+	/**
+	 * §9's reverse order, of which there is exactly one step today.
+	 *
+	 * Each disposer is independent and none may stop the next from running, so a throwing
+	 * one is caught rather than allowed to abandon the rest of the teardown: an unload that
+	 * stops halfway leaves the plugin partly resident with nothing that will try again.
+	 * `splice(0)` empties the list as it reads it, so a second `onunload` — Obsidian does
+	 * not promise to call it once — cannot release the same thing twice.
+	 */
+	onunload(): void {
+		for (const dispose of this.disposers.splice(0)) {
+			try {
+				dispose();
+			} catch (cause) {
+				this.root.logger.error('plugin.unload.disposer-failed', { cause });
+			}
+		}
 	}
 
 	private openProject(): Promise<void> {

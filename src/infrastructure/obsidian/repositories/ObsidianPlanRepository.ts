@@ -100,9 +100,9 @@ export class ObsidianPlanRepository {
 	): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>> {
 		// Existence before writes — the fork the conditional-write comparison needs.
 		const notesFolder = plansFolderFor(this.folder);
-		const existing = findNoteIdInFolder(this.deps.vault, this.deps.metadataCache, notesFolder, plan.id);
+		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, plan.id);
 		const currentVersion =
-			existing ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, existing)) : undefined;
+			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
 		const conflict = checkExpectedVersion('plan', plan.id, currentVersion, expected);
 		if (conflict) return Promise.resolve(err(conflict));
@@ -213,7 +213,7 @@ export class ObsidianPlanRepository {
 			const conflict = checkExpectedVersion(
 				'plan',
 				id,
-				versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)),
+				versionOfFrontmatter(frontmatterOf(this.deps, file)),
 				expected,
 			);
 			if (conflict) return err(conflict);

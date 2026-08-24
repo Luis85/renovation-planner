@@ -35,6 +35,11 @@ slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it
 14's empty-state actions and slice 15's creation dialogs) and why the partial notes a
 failed seed leaves behind are deliberate.
 
+Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
+each is written up where the code is: the seed's first run failed on Obsidian's
+asynchronously-populated `MetadataCache`, and toggling the plugin off and on logged
+`Several Konva instances detected`. `npm run check` was green for both.
+
 Requires Obsidian 1.13.0+.
 
 **The settings pane is DECLARATIVE** (`getSettingDefinitions`, plus `getControlValue` /
@@ -324,6 +329,31 @@ only), so an `implements` there binds the editor, not the gate.
   that shape. Where a fake is too thin, the fix is a fake that actually nests what the real
   thing nests — `ItemView` in `tests/helpers/obsidian-mock.ts`, since the harness-collapse
   fix.
+
+  **The most expensive instance so far, because it hid a shipped defect behind 860 green
+  tests:** `FakeMetadataCache` parsed the vault's own text SYNCHRONOUSLY, while Obsidian
+  populates `MetadataCache` asynchronously — so a note read back in the tick it was created
+  has no cache entry at all. Every read-after-write passed here and failed in a vault, where
+  `create-sample-project` reported "Migrating the project note failed" on a note it had just
+  written correctly (an absent `schema-version` reads as version 0, and there is no migration
+  step from 0). Making the fake honest turned **65 tests across 12 files** red at once, which
+  is the measure of what a kind fake was concealing. Two things came out of it and both are
+  load-bearing: `frontmatterOf` falls back to `EchoWindow` — already "what this plugin last
+  wrote here" — when there is NO cache entry, and it keys on the cache ENTRY rather than on
+  `entry?.frontmatter`, because `getFileCache` answers `null` for "never parsed" but an
+  object with no `frontmatter` for "parsed, and the user deleted it". Collapse those two and
+  a note whose frontmatter was deleted is served this plugin's own stale bytes forever. The
+  fake states what it models and what it still does not: the create window, not the parse lag
+  after a modify, where Obsidian holds a STALE entry rather than none.
+- **A global a dependency installs is a global this plugin has to remove.** Konva assigns
+  `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
+  deactivating and reactivating logged `Several Konva instances detected` at `console.error`
+  and kept the previous load's whole bundle reachable from `window`. That is what finally
+  earned `onunload` an existence — it releases the global, and only while it is still the one
+  that load claimed, since another Konva-bundling plugin may have replaced it since.
+  `pdfjs-dist` had the same shape (`globalThis.pdfjsWorker`) and lost it by ceasing to be
+  bundled. Check what a new dependency writes to `window`, and check it in the BUILT bundle
+  rather than in the dependency's docs.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 

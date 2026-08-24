@@ -25,6 +25,19 @@ class FakeVault {
 	readonly entries = new Map<string, string>();
 	private readonly folders = new Set<string>();
 
+	/**
+	 * Paths this fake has created and Obsidian has not parsed yet, mapped to the exact text
+	 * that was written — see `FakeMetadataCache`, which is where this is the difference
+	 * between the suite and a real vault.
+	 *
+	 * The TEXT and not just the path, because that is what bounds the window honestly: a
+	 * note whose bytes have changed since we created it is a note something else touched,
+	 * and anything the outside world does to a file is something Obsidian has parsed. So
+	 * the cache goes blind for exactly one thing — a file this plugin just created and
+	 * nobody has looked at since — which is the case that produced a real defect.
+	 */
+	readonly unparsed = new Map<string, string>();
+
 	/** Injected failures, keyed `<op>:<path>` — how compensation paths are driven red. */
 	readonly failures = new Set<string>();
 	failedOps: string[] = [];
@@ -47,6 +60,7 @@ class FakeVault {
 			this.op('create', path);
 			if (this.entries.has(path)) throw new Error(`File already exists: ${path}`);
 			this.entries.set(path, data);
+			this.unparsed.set(path, data);
 			return Promise.resolve(this.getAbstractFileByPath(path) as TFile);
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -58,6 +72,11 @@ class FakeVault {
 			this.op('modify', file.path);
 			if (!this.entries.has(file.path)) throw new Error(`No file to modify: ${file.path}`);
 			this.entries.set(file.path, data);
+			// A modify makes the path CACHE-VISIBLE, and that is where this fake is still
+			// kinder than Obsidian — see `FakeMetadataCache`. It models the create window,
+			// which is the one that produced a real defect, and not the parse lag after
+			// every write.
+			this.unparsed.delete(file.path);
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -196,10 +215,35 @@ class FakeFileManager {
 class FakeMetadataCache {
 	constructor(private readonly vault: FakeVault) {}
 
-	getFileCache(file: TFile): { frontmatter: Record<string, unknown> } | null {
+	getFileCache(file: TFile): { frontmatter?: Record<string, unknown> } | null {
+		// NOT kinder than the real thing, and this is the half that used to be. Obsidian
+		// parses a new file into its metadata cache ASYNCHRONOUSLY, so a note read back in
+		// the same tick it was created has NO cache entry at all. Parsing the vault's own
+		// text synchronously made every read-after-write succeed in the suite and fail in a
+		// vault — which is exactly what `create-sample-project` did on its first run in
+		// Obsidian: the project note was written, `CreatePlanCommand` read it back to
+		// validate the reference, got no frontmatter, and reported a migration failure.
+		// What this models and what it does NOT, because the second half matters: it models
+		// the window after a CREATE, where Obsidian has no entry for the file at all. It
+		// does not model the parse lag after a MODIFY, where Obsidian has a STALE entry
+		// rather than none — a different failure, which `frontmatterOf`'s echo fallback
+		// cannot detect and does not claim to.
+		const asCreated = this.vault.unparsed.get(file.path);
+		if (asCreated !== undefined && asCreated === this.vault.entries.get(file.path)) return null;
 		const text = this.vault.entries.get(file.path);
-		if (text === undefined || !text.startsWith('---\n')) return null;
+		// `CachedMetadata | null`, as the real signature says, and the two are NOT the same
+		// answer: null means Obsidian has no entry for the file, while a file it parsed and
+		// found no frontmatter in answers an OBJECT whose `frontmatter` is undefined. This
+		// fake used to answer null for both, which made "never seen" and "frontmatter
+		// deleted" indistinguishable — the exact conflation `frontmatterOf` must not make.
+		if (text === undefined) return null;
+		if (!text.startsWith('---\n')) return {};
 		return { frontmatter: parseFrontmatter(text).frontmatter };
+	}
+
+	/** What Obsidian eventually does on its own, once its parse queue drains. */
+	catchUp(): void {
+		this.vault.unparsed.clear();
 	}
 }
 

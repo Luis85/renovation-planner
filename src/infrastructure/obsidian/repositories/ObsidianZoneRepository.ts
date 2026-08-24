@@ -119,9 +119,9 @@ export class ObsidianZoneRepository {
 	): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>> {
 		// Step 2: existence and snapshots BEFORE any write.
 		const notesFolder = zonesFolderFor(this.folder);
-		const existing = findNoteIdInFolder(this.deps.vault, this.deps.metadataCache, notesFolder, zone.id);
+		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, zone.id);
 		const currentVersion =
-			existing ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, existing)) : undefined;
+			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
 		let snapshotText: string | null = null;
 		if (existing) {
@@ -225,7 +225,7 @@ export class ObsidianZoneRepository {
 			const conflict = checkExpectedVersion(
 				'zone',
 				id,
-				versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)),
+				versionOfFrontmatter(frontmatterOf(this.deps, file)),
 				expected,
 			);
 			if (conflict) return err(conflict);
@@ -237,7 +237,7 @@ export class ObsidianZoneRepository {
 			} catch (cause) {
 				return err(persistenceError('zone.delete-failed', `Could not read zone note ${file.path}.`, cause));
 			}
-			const cachedPlan = frontmatterOf(this.deps.metadataCache, file)['plan'] as PlanId | undefined;
+			const cachedPlan = frontmatterOf(this.deps, file)['plan'] as PlanId | undefined;
 			if (!cachedPlan) {
 				// A note of ours always declares its plan (the schema demands it); a hand
 				// edit that removed it leaves us unable to locate the geometry entry.

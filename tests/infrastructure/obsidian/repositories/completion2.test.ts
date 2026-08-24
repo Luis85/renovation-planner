@@ -136,32 +136,37 @@ describe('zone repository: remaining refusals', () => {
 });
 
 describe('small unit edges', () => {
-	it('frontmatterOf answers empty for notes without a cache entry', () => {
+	/**
+	 * Three answers, not two, and the middle one is the reason this test exists: a file
+	 * Obsidian has NO cache entry for falls back to what this plugin last wrote there,
+	 * because Obsidian populates its cache asynchronously and a note read back in the tick
+	 * it was created has no entry at all. A file it HAS parsed and found no frontmatter in
+	 * answers empty — never the fallback, or a note whose frontmatter a user deleted would
+	 * be served our own stale bytes forever.
+	 */
+	it('frontmatterOf falls back to the echo window only when there is no cache entry', () => {
 		const stack = createRepositoryStack();
 		const ghost = { path: 'ghost.md' } as never;
-		expect(frontmatterOf(stack.metadataCache as never, ghost)).toEqual({});
+
+		// No cache entry, nothing written: empty.
+		expect(frontmatterOf(stack, ghost)).toEqual({});
+
+		// No cache entry, but this plugin wrote here: what it wrote.
+		stack.echo.markFrontmatter('ghost.md', { id: 'p1', 'schema-version': 1 });
+		expect(frontmatterOf(stack, ghost)).toEqual({ id: 'p1', 'schema-version': 1 });
+
+		// A PARSED note with no frontmatter: empty, even though the echo has a record. The
+		// fake answers a cache object with no `frontmatter` for this, exactly as Obsidian does.
+		stack.vault.entries.set('ghost.md', 'plain text, no frontmatter');
+		expect(frontmatterOf(stack, ghost)).toEqual({});
 	});
 
 	it('findNoteIdInFolder skips files without cached frontmatter', async () => {
 		const stack = createRepositoryStack();
 		const { projectId } = await seed(stack);
 		stack.vault.entries.set(`${stack.projectFolder}/plain.md`, 'plain text');
-		expect(
-			findNoteIdInFolder(
-				stack.vault as never,
-				stack.metadataCache as never,
-				stack.projectFolder,
-				String(projectId),
-			),
-		).not.toBeNull();
-		expect(
-			findNoteIdInFolder(
-				stack.vault as never,
-				stack.metadataCache as never,
-				stack.projectFolder,
-				'unknown-id',
-			),
-		).toBeNull();
+		expect(findNoteIdInFolder(stack, stack.vault as never, stack.projectFolder, String(projectId))).not.toBeNull();
+		expect(findNoteIdInFolder(stack, stack.vault as never, stack.projectFolder, 'unknown-id')).toBeNull();
 	});
 
 	it('registerAll chains every step of one kind', () => {

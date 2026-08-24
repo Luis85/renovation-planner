@@ -104,6 +104,11 @@ describe('persistence composition', () => {
 		const stack = createRepositoryStack(DEFAULT_SETTINGS.projectFolder);
 		const projectId = createProjectId();
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		// This test is about the settings-save swap, so the vault it starts from is one
+		// Obsidian has already parsed. Without saying so the note stays inside the fake's
+		// create window, where a plugin holding its OWN echo window cannot read it — which
+		// is a faithful model of two sessions, and not what this test is asking about.
+		stack.metadataCache.catchUp();
 
 		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
 		workspace.layoutReady();
@@ -133,6 +138,7 @@ describe('persistence composition', () => {
 		const stack = createRepositoryStack(DEFAULT_SETTINGS.projectFolder);
 		const projectId = createProjectId();
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		stack.metadataCache.catchUp();
 
 		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
 		workspace.layoutReady();
@@ -143,6 +149,11 @@ describe('persistence composition', () => {
 		// nothing reads any more, and the assertion below would find nothing.
 		const planId = createPlanId();
 		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+		// Parsed too: the note reaches the plugin through a vault EVENT, and the writer here
+		// is a stack whose echo window the plugin does not share. In the app they are one
+		// object (`NoteVaultDeps.echo` and the change adapter's are the same), which is what
+		// makes the same event safe inside the parse window there.
+		stack.metadataCache.catchUp();
 		const planPath = stack.index.getPath(planId);
 		expect(planPath).toBeDefined();
 

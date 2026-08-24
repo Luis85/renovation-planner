@@ -1,9 +1,11 @@
+import { describe, expect, it } from 'vitest';
 import {
 	createRepositoryStack,
 	serializeFrontmatter,
 	parseFrontmatter,
 	type RepositoryStack,
 } from '../../../helpers/vault';
+import { expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import {
 	createPlanId,
@@ -137,4 +139,70 @@ zoneRepositoryContract(() => {
 		otherParents: () => provision(),
 		otherProject: () => createProjectId(),
 	};
+});
+
+/**
+ * The defect that shipped with slice 4 and was found by running slice 5's
+ * `create-sample-project` in a real vault for the first time.
+ *
+ * Obsidian populates its `MetadataCache` ASYNCHRONOUSLY, so a note read back in the same
+ * tick it was created has no cache entry at all. `frontmatterOf` answered `{}` for that,
+ * every caller read the missing `schema-version` as version 0, and the migration runner —
+ * which has no step from 0, because schema 1 is the first — threw `chain-gap`. So the read
+ * failed with "Migrating the project note failed" on a note that had just been written
+ * perfectly well, and `CreatePlanCommand`, which reads its Project back to validate the
+ * reference, could never create a Plan.
+ *
+ * Driven through the REPOSITORIES rather than through the seed, because the defect is
+ * theirs: any create-then-read pays it, and slice 15's creation dialogs would have paid it
+ * next. `FakeMetadataCache` is what makes this reachable — it used to parse the vault's own
+ * text synchronously, which is why 860 green tests said nothing about it.
+ */
+describe('reading a note back inside Obsidian’s parse window', () => {
+	it('reads a project the repository has only just created', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+
+		expectOk(await stack.projects.save(project, 'absent'));
+		// No `catchUp()`: this is the window, and the assertion is that it works IN it.
+		expect(stack.metadataCache.getFileCache(stack.vault.getAbstractFileByPath(stack.index.getPath(project.id) as string) as never)).toBeNull();
+
+		const read = expectOk(await stack.projects.getById(project.id));
+
+		expect(read?.entity.name).toBe(project.name);
+		// The revision too: it comes from the same frontmatter, and a fallback that answered
+		// the entity but not its version would refuse the next conditional write.
+		expect(read?.version.revision).toBe(1);
+	});
+
+	it('creates a plan under a project created in the same tick', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+
+		// Both readable, both still inside the window — the exact sequence the sample
+		// project performs, and the one that failed in the vault.
+		expect(expectOk(await stack.plans.getById(plan.id))?.entity.projectId).toBe(project.id);
+		expect(expectOk(await stack.projects.getById(project.id))?.entity.id).toBe(project.id);
+	});
+
+	/**
+	 * The other half of the same fix, and the reason `frontmatterOf` keys on the cache
+	 * ENTRY rather than on its `frontmatter` field: a note Obsidian HAS parsed and found no
+	 * frontmatter in must not be answered from what this plugin last wrote there, or a user
+	 * deleting a note's frontmatter would be served stale bytes for the rest of the session.
+	 */
+	it('does not serve its own last write for a note whose frontmatter was deleted', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const path = stack.index.getPath(project.id) as string;
+
+		stack.vault.entries.set(path, 'someone deleted the frontmatter');
+
+		expect((await stack.projects.getById(project.id)).ok).toBe(false);
+	});
 });

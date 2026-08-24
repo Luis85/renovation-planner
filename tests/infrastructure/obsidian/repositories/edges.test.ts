@@ -46,8 +46,9 @@ describe('noteIo edges', () => {
 
 	it('findNoteIdInFolder ignores files outside the folder', () => {
 		const vault = { getMarkdownFiles: (): { path: string }[] => [{ path: 'Elsewhere/a.md' }] };
-		const cache = { getFileCache: (): { frontmatter: Record<string, unknown> } => ({ frontmatter: { id: 'z1' } }) };
-		expect(findNoteIdInFolder(vault as never, cache as never, 'Renovation/Zones', 'z1')).toBeNull();
+		const metadataCache = { getFileCache: (): { frontmatter: Record<string, unknown> } => ({ frontmatter: { id: 'z1' } }) };
+		const source = { metadataCache, echo: new EchoWindow() };
+		expect(findNoteIdInFolder(source as never, vault as never, 'Renovation/Zones', 'z1')).toBeNull();
 	});
 });
 

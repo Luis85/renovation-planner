@@ -59,8 +59,8 @@ export class ObsidianProjectRepository {
 	): Promise<Result<Loaded<Project>, PersistenceError | ValidationError>> {
 		// Existence is established BEFORE anything is written — the insert/update fork the
 		// conditional-write comparison needs (SDD §42's rule, applied to a single file).
-		const existing = findNoteIdInFolder(this.deps.vault, this.deps.metadataCache, this.folder, project.id);
-		const currentVersion = existing ? versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, existing)) : undefined;
+		const existing = findNoteIdInFolder(this.deps, this.deps.vault, this.folder, project.id);
+		const currentVersion = existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
 		const conflict = checkExpectedVersion('project', project.id, currentVersion, expected);
 		if (conflict) return err(conflict);
@@ -100,7 +100,7 @@ export class ObsidianProjectRepository {
 			const conflict = checkExpectedVersion(
 				'project',
 				id,
-				versionOfFrontmatter(frontmatterOf(this.deps.metadataCache, file)),
+				versionOfFrontmatter(frontmatterOf(this.deps, file)),
 				expected,
 			);
 			if (conflict) return err(conflict);
@@ -131,7 +131,7 @@ export class ObsidianProjectRepository {
 	}
 
 	private readEntity(file: TFile): Result<Loaded<Project>, PersistenceError> {
-		const raw = frontmatterOf(this.deps.metadataCache, file);
+		const raw = frontmatterOf(this.deps, file);
 		const migrated = migrateNote(this.deps.migrations, 'project', raw);
 		if (!migrated.ok) return migrated;
 		const entity = projectFromPersistence(migrated.value);

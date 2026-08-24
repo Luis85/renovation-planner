@@ -163,3 +163,47 @@ describe('the composition root', () => {
 		expect(lines.filter((line) => line.level !== 'debug')).toEqual([]);
 	});
 });
+
+/**
+ * `onunload` is not symmetry for its own sake: the base class already unregisters views,
+ * commands and the ribbon, and repeating that would only be somewhere for a mistake to
+ * hide. What it exists for is `window.Konva`, which Konva assigns at module scope on every
+ * load and nothing removed — so reactivating the plugin logged "Several Konva instances
+ * detected" and the previous load's bundle stayed reachable from `window`.
+ */
+describe('what onunload disposes', () => {
+	const host = window as unknown as Record<string, unknown>;
+
+	it('releases the global Konva installed, so a reload has nothing to warn about', async () => {
+		// Konva's own module scope has already run for real by the time the plugin loads in
+		// this suite, so the global is genuinely there rather than planted.
+		host['Konva'] = { version: 'test' };
+		const { plugin: loaded } = await loadedPlugin(DEFAULT_SETTINGS);
+
+		loaded.onunload();
+
+		expect('Konva' in host).toBe(false);
+	});
+
+	/**
+	 * One disposer must not be able to abandon the rest of the teardown. Driven by pushing a
+	 * throwing one onto the list, because the alternative — waiting until a real disposer can
+	 * throw — is how this arm would stay untested until it mattered.
+	 */
+	it('logs a failing disposer and keeps disposing', async () => {
+		const { plugin: loaded } = await loadedPlugin(DEFAULT_SETTINGS);
+		const ran: string[] = [];
+		const disposers = (loaded as unknown as { disposers: (() => void)[] }).disposers;
+		disposers.push(() => {
+			throw new Error('disposer exploded');
+		});
+		disposers.push(() => ran.push('after'));
+
+		loaded.onunload();
+
+		expect(ran).toEqual(['after']);
+		expect(lines.some((line) => line.event === 'plugin.unload.disposer-failed')).toBe(true);
+		// And nothing is disposed twice: a second call has an empty list to walk.
+		expect(() => loaded.onunload()).not.toThrow();
+	});
+});

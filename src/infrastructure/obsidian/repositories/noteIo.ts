@@ -3,6 +3,7 @@ import type { PersistenceError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
+import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import { parentOf } from './paths';
 
 /**
@@ -52,12 +53,47 @@ export type OpenedNote =
 	| { readonly status: 'error'; error: PersistenceError }
 	| { readonly status: 'ok'; file: TFile; raw: Record<string, unknown>; migrated: unknown };
 
+/** What reading a note's frontmatter needs: Obsidian's cache, and our own last write. */
+export interface FrontmatterSource {
+	readonly metadataCache: MetadataCache;
+	readonly echo: EchoWindow;
+}
+
 /**
- * The cached frontmatter of a note — via `MetadataCache`, not raw parsing. A file with
- * no cache entry yet reads as no frontmatter, which callers surface as their own error.
+ * The frontmatter of a note — via `MetadataCache`, not raw parsing, with `EchoWindow` as
+ * the fallback for the one case the cache cannot answer.
+ *
+ * **Obsidian populates its `MetadataCache` asynchronously.** A note read back in the same
+ * tick it was created has NO cache entry, and this function used to answer `{}` for it —
+ * which every caller then read as a version-0 document, so the migration runner threw
+ * `chain-gap` and the read failed with "Migrating the … note failed". That is not a
+ * hypothetical: it is what `create-sample-project` did on its first run in a real vault,
+ * where `CreatePlanCommand` reads back the Project it had just created to validate the
+ * reference. The suite could not see it, because `FakeMetadataCache` parsed the vault's own
+ * text synchronously — a fake kinder than the real thing, which now models the delay.
+ *
+ * The cache is still PREFERRED and the fallback is consulted only when there is no cache
+ * entry at all. That ordering is deliberate: the echo record is what this plugin last
+ * wrote, so preferring it would mean serving our own bytes over a hand edit for as long as
+ * the debounced change pipeline had not run. A path that has ever been parsed always has a
+ * cache entry, so the fallback answers exactly the window it exists for.
+ *
+ * What this still does NOT fix, so the sentence stays narrower than the function: a cache
+ * entry that is STALE — present but parsed from an earlier version of the file — is
+ * returned as-is, exactly as before. That window belongs to Obsidian's parse queue and no
+ * fallback here can detect it.
  */
-export function frontmatterOf(metadataCache: MetadataCache, file: TFile): Record<string, unknown> {
-	return metadataCache.getFileCache(file)?.frontmatter ?? {};
+export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<string, unknown> {
+	// On the CACHE ENTRY, not on `.frontmatter`, and that distinction is the whole
+	// correctness of the fallback. `getFileCache` answers `CachedMetadata | null`: null
+	// means Obsidian has no entry for this file AT ALL, while a file it has parsed and
+	// found no frontmatter in answers an object whose `frontmatter` is undefined. Reading
+	// `getFileCache(file)?.frontmatter` collapses the two — and then a note whose
+	// frontmatter a user DELETED would be answered from the echo record, so the change
+	// pipeline would never drop it from the index. Only the first case may fall back.
+	const cached = source.metadataCache.getFileCache(file);
+	if (cached === null) return source.echo.frontmatterAt(file.path) ?? {};
+	return cached.frontmatter ?? {};
 }
 
 /**
@@ -66,9 +102,8 @@ export function frontmatterOf(metadataCache: MetadataCache, file: TFile): Record
  * missing note is 'missing', never an error ("not found" is ok(null), §36).
  */
 export function openNoteById(
-	deps: {
+	deps: FrontmatterSource & {
 		vault: Vault;
-		metadataCache: MetadataCache;
 		index: ProjectIndex;
 		migrations: MigrationRunner;
 	},
@@ -79,7 +114,7 @@ export function openNoteById(
 	if (!path) return { status: 'missing' };
 	const abstractFile = deps.vault.getAbstractFileByPath(path);
 	if (!(abstractFile instanceof TFileValue)) return { status: 'missing' };
-	const raw = frontmatterOf(deps.metadataCache, abstractFile);
+	const raw = frontmatterOf(deps, abstractFile);
 	const migrated = migrateNote(deps.migrations, kind, raw);
 	if (!migrated.ok) return { status: 'error', error: migrated.error };
 	return { status: 'ok', file: abstractFile, raw, migrated: migrated.value };
@@ -193,15 +228,17 @@ export async function writeOwnedFrontmatter(
  * holds.
  */
 export function findNoteIdInFolder(
+	source: FrontmatterSource,
 	vault: Vault,
-	metadataCache: MetadataCache,
 	folder: string,
 	id: string,
 ): TFile | null {
 	for (const file of vault.getMarkdownFiles()) {
 		if (!file.path.startsWith(`${folder}/`)) continue;
-		const cached = metadataCache.getFileCache(file)?.frontmatter;
-		if (cached && cached['id'] === id) return file;
+		// Through `frontmatterOf` rather than the cache directly, so a note this plugin
+		// created moments ago is found here too. Without it a second save of the same
+		// entity takes the INSERT path and creates a duplicate note beside the first.
+		if (frontmatterOf(source, file)['id'] === id) return file;
 	}
 	return null;
 }

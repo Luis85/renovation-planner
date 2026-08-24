@@ -134,6 +134,14 @@ export default defineConfig({
 			// again, so NOTHING RATCHETS again; the uncovered set is unchanged from the list
 			// above, and the seed's three early returns are each driven by their own injected
 			// failure rather than left as the increment's new uncovered arms.
+			// Measured 2026-08-24 again after the two defects a live vault found — the
+			// metadata-cache parse window (`frontmatterOf`'s echo fallback, and the fake that
+			// now models the delay) and the leaked `window.Konva` (`onunload`): 1834/1840
+			// statements, 814/825 branches, 482/483 functions, 1678/1681 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82. Every metric at or above the previous
+			// measurement, and NOTHING RATCHETS again for the same reason: rounded down these
+			// are the floors already in force, and the next whole number up is 100 for three
+			// of them and 99 for branches, which 98.66 does not reach.
 			thresholds: {
 				statements: 99,
 				functions: 99,

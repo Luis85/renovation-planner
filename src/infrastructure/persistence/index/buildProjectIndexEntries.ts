@@ -5,6 +5,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import { ENTITY_TYPES, type EntityType, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { Logger } from '../../../application/ports/Logger';
 import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
+import { frontmatterOf } from '../../obsidian/repositories/noteIo';
 import type { EchoWindow } from './EchoWindow';
 
 function listSidecars(vault: Vault, geometryPrefix: string): TFile[] {
@@ -53,8 +54,13 @@ function warnOnDuplicate(logger: Logger, previous: ProjectIndexEntry | undefined
 function collectNotes(input: ScanInput, folder: string, entries: Map<string, ProjectIndexEntry>): void {
 	for (const file of input.vault.getMarkdownFiles()) {
 		if (!file.path.startsWith(`${folder}/`)) continue;
-		const frontmatter: Record<string, unknown> | undefined = input.metadataCache.getFileCache(file)?.frontmatter;
-		if (!frontmatter) continue;
+		// Through `frontmatterOf`, so a note whose cache entry Obsidian has not produced yet
+		// is still scanned from what this plugin last wrote there. At `onLayoutReady` the
+		// echo is empty and this is exactly the cache read it always was; it earns its keep
+		// on the RE-scan `saveSettings` triggers mid-session, where notes written moments
+		// ago would otherwise be dropped from the index they had just been added to.
+		const frontmatter = frontmatterOf(input, file);
+		if (Object.keys(frontmatter).length === 0) continue;
 
 		const type = frontmatter['type'];
 		if (typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) continue;

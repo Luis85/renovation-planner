@@ -4,6 +4,7 @@ import { ENTITY_TYPES, type EntityType, type ProjectIndex, type ProjectIndexEntr
 import { stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
+import { frontmatterOf } from '../../obsidian/repositories/noteIo';
 import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
 
 /**
@@ -118,10 +119,15 @@ export class VaultChangeAdapter {
 
 	private processNote(file: TFile, existing: ProjectIndexEntry | undefined): void {
 		const path = file.path;
-		const frontmatter: Record<string, unknown> | undefined = this.deps.metadataCache.getFileCache(file)?.frontmatter;
-		const type: unknown = frontmatter?.['type'];
+		// Through `frontmatterOf`, and this one is a RACE rather than a nicety: Obsidian
+		// raises `create` for this plugin's own writes, and if that event is processed
+		// before Obsidian has parsed the new file, a direct cache read answers nothing —
+		// so a note we had just indexed would be read as "not ours" and REMOVED from the
+		// index below, with no future event to put it back.
+		const frontmatter = frontmatterOf(this.deps, file);
+		const type: unknown = frontmatter['type'];
 
-		if (!frontmatter || typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) {
+		if (Object.keys(frontmatter).length === 0 || typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) {
 			// Not ours — but if it USED to be, it changed into something we cannot index.
 			if (existing) {
 				this.deps.index.remove(existing.id);

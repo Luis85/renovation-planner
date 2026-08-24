@@ -1072,6 +1072,35 @@ fi
 # before any number it produces is believed.
 python3 "$SP/sections.py" --selftest >/dev/null || { echo "  FAIL sections.py --selftest"; fail=1; }
 
+# The MECHANICAL half of the match must be reproducible from the committed tree — that is what
+# makes an `absent` verdict, and so every one of the 772 Gap findings, checkable rather than
+# asserted. A published command that no longer reproduces the committed `cand_n` is a citation
+# to something that no longer exists. Sampled with a fixed seed so the check is deterministic,
+# and deliberately including rows whose candidate set is EMPTY: those resolve straight to
+# `absent` with no judgement, so they are the ones a reader most needs to be able to re-run.
+if [ -x "$SP/candidates.sh" ]; then
+  python3 - "$SP" > "$SP/.sample.tsv" <<'PYS'
+import io, random, sys
+d = sys.argv[1]
+rows = [l.rstrip("\n").split("\t") for l in io.open(d + "/rows.tsv", encoding="utf-8")][1:]
+beh = [r for r in rows if r[2] == "behavioural" and r[6] not in ("", "-")]
+random.seed(7)
+pick = random.sample([r for r in beh if r[6] != "0"], 12) + [r for r in beh if r[6] == "0"][:3]
+for r in pick:
+    print("\t".join([r[0], r[1], r[6], r[5]]))
+PYS
+  miss=0
+  while IFS="$(printf '\t')" read -r id dir want terms; do
+    got="$(bash "$SP/candidates.sh" "$dir" "$terms" | awk 'NF' | wc -l | tr -d ' ')"
+    [ "$got" = "$want" ] || { echo "  FAIL candidates.sh $dir: row $id committed cand_n=$want, reproduced $got"; miss=$((miss+1)); }
+  done < "$SP/.sample.tsv"
+  echo "  candidates.sh reproduced the committed cand_n on $(( $(wc -l < "$SP/.sample.tsv" | tr -d ' ') - miss ))/$(wc -l < "$SP/.sample.tsv" | tr -d ' ') sampled rows"
+  rm -f "$SP/.sample.tsv"
+  chk "sampled rows whose cand_n candidates.sh fails to reproduce" 0 "$miss"
+else
+  echo "  FAIL candidates.sh missing or not executable"; fail=1
+fi
+
 # The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the
 # ledger's text, so it is checked against the ledger's text: all eight note types named, and
 # both counts present. Counted as DISTINCT types, never as a raw matching-line total — a

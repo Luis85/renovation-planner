@@ -24,9 +24,9 @@ than left to be noticed:**
 
 ## What was found
 
-**48 contradictions, 772 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+**47 contradictions, 772 gaps, 0 orphans, and 4 convention findings.** The contradictions are
 the useful half, and they concentrate rather than scatter — seven themed clusters carry 30 of
-the 48, and `deliverables/Disclosure ladder.md` alone accounts for 7.
+the 47, and `deliverables/Disclosure ladder.md` alone accounts for 7.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
 and its disagreements are not only with the new evidence: it contradicts its own sibling notes
@@ -35,9 +35,9 @@ with the backlog it belongs to is the most consequential thing this pass could h
 
 **No orphans at all.** Across 3,070 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
-UX layer contradicts the backlog in 48 places and supersedes it nowhere.
+UX layer contradicts the backlog in 47 places and supersedes it nowhere.
 
-**And not one derived note has drifted.** 16 of the 48 contradictions come from evidence whose
+**And not one derived note has drifted.** 16 of the 47 contradictions come from evidence whose
 standing the register records; each of those 16 was traced back to the sections of the *original*
 PRD and SDD that its derived note cites, and all 16 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
@@ -59,22 +59,22 @@ Rows and findings are different things and are counted separately.
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,126 |
-| `present` | 1,123 |
+| `present` | 1,124 |
 | `absent` | 772 |
-| `contradictory` | 49 |
+| `contradictory` | 48 |
 | `superseded` | **0** |
 | **findings** | |
-| Contradiction | **48** |
+| Contradiction | **47** |
 | Gap | **772** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
-**The coalesced-pair count is 1, counted directly.** 49 disagreement rows resolve to 48
+**The coalesced-pair count is 1, counted directly.** 48 disagreement rows resolve to 47
 findings. The one coalesced pair is `f494` ↔ `r519`: the workspace PRD requiring a Project
 Selection context, and `entities/Project.md` stating there is no portfolio — the same
 disagreement reached from both directions. It is counted by identifying that pair and checking
-it, never by subtracting findings from rows: 1,123 `present` and 1,126 `retained` rows raise the
-row total while producing no finding, so that subtraction would overstate coalescing by 2,249.
+it, never by subtracting findings from rows: 1,124 `present` and 1,126 `retained` rows raise the
+row total while producing no finding, so that subtraction would overstate coalescing by 2,250.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
 vocabulary.
@@ -281,11 +281,11 @@ hide one.
 
 ## Contradictions, by cluster
 
-**All 48 appear below**, and every one cites both sides. Seven themed clusters carry 30, section
+**All 47 appear below**, and every one cites both sides. Seven themed clusters carry 30, section
 H carries 10 that are individually consequential and share no theme, and section I carries the
-last 8 — reached from the reverse direction only, which is why they were the last to be written
+last 7 — reached from the reverse direction only, which is why they were the last to be written
 up rather than the least important. Counted directly against `findings.tsv`, not assumed: an
-earlier version of this ledger narrated 40 of the 48 and said nothing about the other 8.
+earlier version of this ledger narrated 40 of them and said nothing about the rest.
 
 Standing is stated because it decides what may change: the workspace PRD is **received**
 (`docs/prds/` is received evidence per `docs/README.md`); the other seven bodies are
@@ -456,8 +456,16 @@ match**, so nothing here is a vocabulary gap — it is same name, different beha
   surface.**"
 - `f1220`, `f1246` — the wireframes require the Spaces screen to become a tree/list at narrow
   widths; the same issue note records that alternative as considered and **rejected**.
-- `r1335`, `r1341` — `actors/Professional planner.md` marks the persona out of scope and owed
-  nothing today; `prd§6.3` lists it as a co-equal Secondary Persona with a stated primary need.
+- `r1335`, `r1341` — `actors/Professional planner.md` sets `standing: out of scope` and says the
+  plugin owes it "**Nothing** … if this actor is ever admitted"; `prd§6.3` admits it, under
+  **§6 Target Users**, at the same tier as §6.2's Advanced Renovator, with a stated primary need
+  written in the same form as the primary persona's. **This is about standing, not about MVP
+  features**, and the distinction is worth stating because the obvious objection attacks the
+  other claim: `prd§33`'s MVP list names no professional-planner capability, and the ledger does
+  not say it does. What makes it a contradiction is that the workspace PRD has **no** future,
+  deferred or out-of-scope persona category anywhere — the word does not appear in it — so
+  naming this persona a Target User is the only classification it gives, and "out of scope" is
+  the opposite one.
 - `r1227`, `r1228` — `requirements/User Experience.md` guarantees "first useful result reachable
   in four steps"; `wireframes§A.5` labels the New Project Wizard "**Step 1 of 5**".
 - `r1668` — the project status "defaults to IDEA"; `prd§9`'s lifecycle is New → Planning → Ready →
@@ -468,7 +476,7 @@ match**, so nothing here is a vocabulary gap — it is same name, different beha
 
 ### I. Reached from the reverse direction only
 
-**8 rows.** These come from a derived note's claim finding a disagreeing passage in the new
+**7 rows.** These come from a derived note's claim finding a disagreeing passage in the new
 evidence, rather than the other way round — which is why they were the last to be written up and
 not why they matter least. `c33` and `c34` are the same clash seen from a note's Body and its
 Outcome; they are two findings because they are two rows against two passages, and the ledger
@@ -481,14 +489,6 @@ counts rows rather than subjects throughout.
   items" — naming a referrer (work package) Zone.md never lists, while Document and Photo, which
   Zone.md does list, are missing from the warning. Real disagreement: the two name different sets
   of things that reference a Zone.
-
-- **`c31` — a "measured" onboarding outcome versus success criteria that need no floor plan.**
-  `requirements/Onboarding and example project.md::Outcome[1]` says the renovator "gets to a
-  measured plan with a cost on it without reading anything." `canvas§36. Success Criteria` lists
-  success as being able to "start without a floor plan" and "attach a rough cost" —
-  "progressively add precision" is a separate, later criterion. Real disagreement: the outcome
-  promises measured geometry at onboarding; the canvas's own criteria treat measurement as
-  something added afterward and the attached cost as rough, not exact.
 
 - **`c32` — "only subject and date" versus four inherited fields plus an optional taxonomy.**
   `requirements/Photo documentation.md::Body[1]` says "Photos stay ordinary files in the vault in
@@ -589,6 +589,31 @@ addresses, and the same absence is reached from several bodies — `Project Home
 rows from three. The 772 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
+**Every one of the 772 is re-runnable, and the command is committed.** A Gap names its row; that
+row carries its `direction` and its `terms`; and
+[`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh) turns those into the
+candidate set the row was judged inside:
+
+```bash
+D=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation
+awk -F'\t' '$7=="f184"' $D/findings.tsv                       # g92, a Gap, from row f184
+awk -F'\t' '$1=="f184"{print $2, $6, $7}' $D/rows.tsv         # forward · terms · cand_n = 0
+bash $D/candidates.sh forward "interaction promise,awareness" # prints nothing: the set is empty
+```
+
+`g92` is the worked example because it is the hardest case to take on trust: `cand_n` is **0**,
+so no judgement was involved at all — the ladder resolved it to `absent` mechanically. The
+command above is the whole of that decision, and it either prints nothing today or the finding
+is wrong.
+
+The script needs nothing but the repository: it carries `aliases.tsv` beside it and materialises
+the eight evidence bodies from their own line ranges. `wc -l` on its output is the row's
+`cand_n`, and a check below re-runs a fixed sample of rows against their committed counts — a
+published command that no longer reproduces them is a citation to something that no longer
+exists. **What it cannot do is make the second stage mechanical**: the set bounds the reading,
+and whether a note inside it *addresses* the claim is judgement, measured above at a quarter of
+verdicts moving.
+
 ## Findings that need a decision
 
 Listed, not settled. Each carries options and a recommendation; none is resolved in this pass.
@@ -596,10 +621,10 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 546 of the 820 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 545 of the 819 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
-- **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
+- **Received, like `prds/`** — the 31 contradictions now carrying `undetermined` gain the
   standing the other 16 already have, and each becomes a question someone is entitled to answer.
   **It is not a licence to edit the backlog.** All 16 already-received contradictions were traced
   to the sections their derived note cites, and all 16 came back faithful: the note says what its
@@ -763,21 +788,22 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 | file | rows | what it holds |
 | --- | --- | --- |
 | `rows.tsv` | 3,070 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 820 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `findings.tsv` | 819 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
+| `candidates.sh` | — | the published candidate command — the mechanical half of the match, re-runnable per row |
 
 The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
 spec authorises one output file — and flagged that as a question for the repository owner rather
 than a settled call. It was the wrong default and the question should have been asked: a ledger
 whose central number cannot be inspected is a ledger asking to be trusted, which is the one
-thing this instrument was built not to do. Six files, additive, no derived note touched.
+thing this instrument was built not to do. Seven files, additive, no derived note touched.
 
 ## Findings withdrawn after review
 
-Seven corrections, all from review of the committed matrix — which is the argument for committing
+Eight corrections, all from review of the committed matrix — which is the argument for committing
 it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -805,7 +831,17 @@ set, because it contains none of the row's three terms. Withdrawn and reclassifi
 against that note. The mechanism, and why it can only invent a gap and never hide one, is under
 *Where the judged half is soft* above.
 
-**A sixth correction, mechanical rather than judged.** 18 named rows were scored `present` on a
+**6. `c31` — compatible stages read as a disagreement.** It set
+`requirements/Onboarding and example project.md::Outcome[1]` — "gets to a measured plan with a
+cost on it without reading anything" — against `canvas§36`'s success criteria, which include
+"start without a floor plan" and "attach a rough cost". Those are not opposed. §36 is a list of
+eleven things a validated concept lets a user do, and one of them is "**progressively add
+precision**"; the requirement names an end state reached without reading documentation, not a
+first usable state. Neither says measurement comes first and neither forbids reaching it during
+onboarding. Withdrawn and reclassified `present`, which is why the contradiction count is 47
+rather than 48.
+
+**A seventh correction, mechanical rather than judged.** 18 named rows were scored `present` on a
 note **outside the type the row targets** — a `deliverables` row matched by
 `docs/requirements/Schedule.md`, an `entities` row by a requirement. The alias pass resolved
 presence through the alias table's note path without re-checking the target, so the type-aware
@@ -813,8 +849,8 @@ lookup that exists to stop a gap hiding behind a passing mention was bypassed af
 18 were re-resolved within their target; those with no match there are now `absent`, which is why
 the gap count rose from 754 to 772.
 
-**A seventh correction, to the committed matrix rather than to a finding.** `rows.tsv`'s `pair`
-column still held the citations as first extracted, so all 49 disagreement rows carried an
+**An eighth correction, to the committed matrix rather than to a finding.** `rows.tsv`'s `pair`
+column still held the citations as first extracted, so all 49 disagreement rows then in it carried an
 evidence citation truncated at its first space and 11 carried the row's own id where the derived
 citation had failed to parse — both fixed in `findings.tsv` at the time and in neither place
 else. A reader recomputing the finding set from the committed matrix would have got the right
@@ -823,7 +859,7 @@ recomputation is a check below: the finding set derived from `rows.tsv` and the 
 `findings.tsv` agree as SETS, not merely in total.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
-positives is worth more than one reporting only successes, and four of the 52 originally claimed
+positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking — a rate consistent with the 25% verdict movement this
 ledger already reports for the judged half, and a reason to read the citations rather than the
 totals.
@@ -835,10 +871,13 @@ rows                                              3070
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
-disagreement rows                                   49
-disagreement findings                               48
+disagreement rows                                   48
+disagreement findings                               47
 coalesced pairs, counted directly                    1
 finding set recomputed from rows.tsv          identical as a SET to findings.tsv
+candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
+                                              seed, both directions, empty sets
+                                              included)
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
 received contradictions                             16

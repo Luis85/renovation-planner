@@ -16,20 +16,19 @@ c14	Contradiction	undetermined	derived	wireframes§A.19	docs/issues/The alternat
 c15	Contradiction	undetermined	derived	gallery§Shared vocabulary > Modal	docs/business-rules/A delete reports what references it and offers four choices.md::Rule[2]	r6	none
 c16	Contradiction	undetermined	derived	gallery§Inspector Anatomy (Properties + Actions sections only, no Relations section)	docs/components/Inspector.md::Anatomy[2]	r110	none
 c17	Contradiction	undetermined	derived	gallery§Inspector Actions (Edit, Duplicate, Link note, Delete — 4 shown, not 7; missing Create Work Package, Add Cost, Add Task)	docs/components/Inspector.md::Anatomy[3]	r111	none
-c18	Contradiction	undetermined	derived	gallery§Left rail Anatomy (shows only Objects and Assets sections; Layer toggle is a separate standalone specimen "the only note of the seventeen with no slice that builds it")	docs/components/Left rail.md::Anatomy[1]	r138	none
+c18	Contradiction	undetermined	derived	"gallery§Left rail Anatomy (shows only Objects and Assets sections; Layer toggle is a separate standalone specimen ""the only note of the seventeen with no slice that builds it"")"	docs/components/Left rail.md::Anatomy[1]	r138	none
 c19	Contradiction	undetermined	derived	gallery§Left rail (only two sections rendered — Objects populated, Assets empty — no Layers section to have its own empty state)	docs/components/Left rail.md::States[2]	r141	none
-c20	Contradiction	undetermined	derived	gallery§Left rail (section headers rendered as `<h4 class="rp-section-head">`, not h2)	docs/components/Left rail.md::Accessibility[1]	r145	none
-c21	Contradiction	undetermined	derived	gallery§Modal Anatomy (actions shown: Cancel, Reassign, Delete anyway — 3, not 4; "Remove References" missing)	docs/components/Modal.md::Anatomy[3]	r161	none
+c20	Contradiction	undetermined	derived	"gallery§Left rail (section headers rendered as `<h4 class=""rp-section-head"">`, not h2)"	docs/components/Left rail.md::Accessibility[1]	r145	none
+c21	Contradiction	undetermined	derived	"gallery§Modal Anatomy (actions shown: Cancel, Reassign, Delete anyway — 3, not 4; ""Remove References"" missing)"	docs/components/Modal.md::Anatomy[3]	r161	none
 c22	Contradiction	undetermined	derived	gallery§Chrome/Tool button	docs/components/Tool button.md::States[2]	r261	none
-c23	Contradiction	received	derived	prd§Feature 2.4 (Initial Areas): "create initial spaces such as: kitchen, bathroom, living room, bedroom, hallway, garden, terrace."	docs/entities/Outdoor area.md::name	r459	none
+c23	Contradiction	received	derived	"prd§Feature 2.4 (Initial Areas): ""create initial spaces such as: kitchen, bathroom, living room, bedroom, hallway, garden, terrace."""	docs/entities/Outdoor area.md::name	r459	none
 c24	Contradiction	received	derived	prd§19	docs/entities/Outdoor area.md::Relationships[1]	r462	none
 c25	Contradiction	received	derived	prd§19	docs/entities/Project.md::Relationships[2]	r523	none
 c26	Contradiction	received	derived	prd§19	docs/entities/Site.md::Description[2]	r592	none
 c27	Contradiction	undetermined	derived	uxd§6	docs/entities/Site.md::Relationships[2]	r595	none
-c28	Contradiction	received	derived	prd§Feature 5.2 (Space Detail): "Every relevant space...Examples: kitchen, bathroom, garden, terrace, garage."	docs/entities/Space.md::name	r599	none
+c28	Contradiction	received	derived	"prd§Feature 5.2 (Space Detail): ""Every relevant space...Examples: kitchen, bathroom, garden, terrace, garage."""	docs/entities/Space.md::name	r599	none
 c29	Contradiction	undetermined	derived	gallery§Shared vocabulary/Modal	docs/entities/Zone.md::Relationships[5]	r674	none
 c30	Contradiction	undetermined	derived	gallery§Shared vocabulary/Modal	docs/entities/Zone.md::Rules[4]	r678	none
-c31	Contradiction	undetermined	derived	canvas§36. Success Criteria	docs/requirements/Onboarding and example project.md::Outcome[1]	r1063	none
 c32	Contradiction	undetermined	derived	canvas§12	docs/requirements/Photo documentation.md::Body[1]	r1068	none
 c33	Contradiction	undetermined	derived	canvas§17	docs/requirements/Selection.md::Body[1]	r1168	none
 c34	Contradiction	undetermined	derived	canvas§17	docs/requirements/Selection.md::Outcome[1]	r1170	none

@@ -439,10 +439,6 @@ f409b	forward	named	"Renovation Planner: Open Recent Project" command	prd§23	op
 f410a	forward	named	"Renovation Planner: Continue Project" command	prd§23	continue project,command	-	-	absent	-	requirements
 f410b	forward	named	"Renovation Planner: Continue Project" command	prd§23	continue project,command	-	-	absent	-	deliverables
 f411	forward	named	Ribbon icon (opens Renovation Planner Home)	prd§23	ribbon icon,entry point	-	-	absent	-	components
-f412	forward	named	No Projects empty state	prd§24	no projects,empty state	-	-	absent	-	components
-f413	forward	named	No Spaces empty state	prd§24	no spaces,empty state	-	-	absent	-	components
-f414	forward	named	No Work empty state	prd§24	no work,empty state	-	-	absent	-	components
-f415	forward	named	No Costs empty state	prd§24	no costs,empty state	-	-	absent	-	components
 f416a	forward	named	Room/Area Detail (MVP scope item)	prd§33	room area detail,mvp	-	-	absent	-	requirements
 f416b	forward	named	Room/Area Detail (MVP scope item)	prd§33	room area detail,mvp	-	-	absent	-	deliverables
 f417	forward	named	Slice 1 - Project Foundation	prd§35	project foundation,delivery slice	-	-	absent	-	deliverables

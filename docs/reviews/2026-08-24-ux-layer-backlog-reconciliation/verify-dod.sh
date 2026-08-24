@@ -219,6 +219,65 @@ python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py -
 # above a floor that separates a total from a cluster size. It caught three more the review had
 # not named. Its own limit, stated because it cannot reach it: a BARE number under a heading has
 # no metric word beside it and is invisible here — those stay in the targeted sweep below.
+# ---------------------------------------------------------------------------------------------
+# A NAMED IDENTITY ROW MUST NOT BE A QUALIFIED FORM OF A NOTE THE BACKLOG ALREADY HAS.
+#
+# `components/`, `entities/` and `actors/` are IDENTITY targets: a thing is present iff a note IS
+# it, so an `absent` named row into one of them asserts the backlog is MISSING A THING. Review
+# found four rows where that was a category error — PRD §24 heads four worked EXAMPLES of one
+# empty state ("No Projects", "No Spaces", "No Work", "No Costs"), and the extractor read each
+# heading as the name of a separate component. `components/Empty state.md` already models exactly
+# one component whose cause and message vary, so those four rows demanded four notes for four
+# configurations of a note that exists, and produced four false gaps.
+#
+# Checked at the forbidden SHAPE rather than by listing the four: a named identity row whose
+# subject ends in the full title of a note in its own target directory is a qualified form of
+# that note, not a new thing. Run over all 48 absent named component rows it returned exactly the
+# four review named and nothing else, which is what made it safe to adopt as a gate rather than
+# a cleanup. It reads the PINNED tree, because it is a claim about the corpus the matrix measured.
+#
+# SCOPED BY MEASUREMENT, not by taste. `components/` and `actors/` report zero. `entities/` was
+# tried and reports ELEVEN, and reading them is what settled it: the shape does not transfer,
+# because an entity subject is frequently a VERB PHRASE that merely ends in an entity name —
+# "Start with a Blank Plan (starting method)", "Import Plan (project entry mode)", "Starting
+# Method options: Import a Floor Plan, Draw a Plan, Start Without a Plan". None is `Plan`
+# configured; each is a choice a wizard offers. The tail test cannot tell an adjectival qualifier
+# ("No Projects" + "empty state") from a verb phrase's object, so `entities/` stays out rather
+# than the gate being loosened until it passes. Excluding a directory to make a gate quiet is the
+# move this ledger warns about, so the reason is the reading, not the count.
+#
+# ONE of those eleven may be the real thing and is deliberately NOT actioned here: `f389`, which
+# asks `entities/` for a "Last Project" note when `Project.md` exists. It is an adjectival
+# qualifier and fits the shape. Re-judging a row the review did not raise, on a pinned matrix,
+# belongs to its own pass with its own reading — not to the commit that repairs a different row.
+#
+# What it cannot see, stated because the shape is narrower than the defect: a qualified form
+# whose subject does not END in the note's title ("empty state for No Projects"), and a category
+# error against a note the backlog does NOT have, which no lookup can distinguish from a real gap.
+python3 - "${PINNED:-.}" <<'PYQ' || fail=1
+import io,os,re,sys,csv
+D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
+root=sys.argv[1]
+rows=list(csv.DictReader(io.open(D+'/rows.tsv',encoding='utf-8'),delimiter='\t'))
+bad=[]
+for tgt in ('components','actors'):
+    d=os.path.join(root,'docs',tgt)
+    if not os.path.isdir(d): continue
+    titles={p[:-3].lower() for p in os.listdir(d) if p.endswith('.md')}
+    for r in rows:
+        if not(r['kind']=='named' and r['target']==tgt and r['state']=='absent'): continue
+        subj=re.sub(r'\s*\([^)]*\)\s*$','',r['subject']).strip()
+        w=subj.split()
+        for n in (3,2,1):
+            if len(w)<=n: continue
+            if ' '.join(w[-n:]).lower() in titles:
+                bad.append((r['id'],tgt,r['subject'],' '.join(w[-n:]))); break
+print("  absent named identity rows that are a qualified form of an existing note: %d" % len(bad))
+for rid,tgt,subj,tail in bad:
+    print("  FAIL %s asks %s/ for %r, which is %r configured — not a missing thing" % (rid,tgt,subj,tail))
+sys.exit(1 if bad else 0)
+PYQ
+
 # The ledger's ONE executable worked example must actually be true. It printed a finding id
 # (`g92`) that belongs to a different row than the one its own commands select — a reader running
 # the block would have seen `g96` come back and the label contradict it. Nothing checked it: the
@@ -487,6 +546,11 @@ checks=[
  # re-derivable from the artifacts. The live/historical split is positional, and position turned
  # out to be a proxy for liveness that fails on a correction which explains a figure by restating it.
  ("direction partition",      r"\*\*%d of the %d contradictions rest on reverse rows alone\*\*, against %d on forward rows" % (crev,kd['Contradiction'],cfwd)),
+ # The Checks block's selftest ratio is the NAMED ROW COUNT, and at 678 it sits below the `rows`
+ # floor exactly as the jtbd per-body count did — the same blind spot, found the same way, one
+ # round later. Computed from the matrix rather than pinned.
+ ("lookup selftest ratio",   r"lookup\.py reproduces the committed named state\s+%d / %d named rows"
+                             % ((dk[('forward','named')]+dk[('reverse','named')],)*2)),
  ("per-body forward rows",    r"prd %d, canvas %d, prototype %d, uxd %d,\nwireframes %d, jtbd %d, research %d, gallery %d\." % tuple(fwdbody[k] for k in ("prd","canvas","prototype","uxd","wireframes","jtbd","research","gallery"))),
 ]
 bad=[n for n,p in checks if not re.search(p,L)]

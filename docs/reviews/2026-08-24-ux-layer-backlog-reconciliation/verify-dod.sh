@@ -393,6 +393,10 @@ checks=[
  ("Disclosure ladder count",  r"`deliverables/Disclosure ladder\.md` alone accounts for %d\." % ndl),
  ("cluster E size",           r"\*\*%d rows, %d findings — the most contradicted note" % (ndl,ndl)),
  ("clusters A-G total",       r"[Ss]even themed clusters carry %d" % nag),
+ # A PER-BODY row count restated outside the summary table. The labelled net cannot see it: at 95
+ # it sits below the `rows` floor that exists to skip cluster sizes, so the floor that keeps the
+ # net quiet is exactly what hides this one. That is what the targeted sweep is for.
+ ("jtbd forward rows in prose", r"producing %d forward rows" % fwdbody["jtbd"]),
  # A BARE number under a heading has no metric word beside it, so the labelled-total net below
  # cannot see it. The gap section opens with one, and it was stale for three rounds.
  ("gap section headline",     r"## Gaps\n\n\*\*%d\*\*, of which %d are named" % (kd['Gap'], gk['named'])),

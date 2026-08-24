@@ -27,12 +27,21 @@ create and reopen multiple renovation projects", §8 asks for a `Project Selecti
 context beside `Renovation Project`, and §10's Epic 1 is a "Renovation Planner Home" that lists
 them.
 
-Three derived notes said the opposite, and one of them **named the change it had not made**:
+**Two derived notes said the opposite**, and one of them **named the change it had not made**:
 [[Project]]'s "Nothing here spans two projects… there is no portfolio. Admitting a second root is
-one of the changes [[Professional planner]] would force."
+one of the changes [[Professional planner]] would force." The other is
+[[Professional planner]]'s own *Cross-project work* non-goal. They are the reconciliation's `c2`
+and `c3`.
 
-The reconciliation traced all three back to the original PRD and SDD sections they cite — §58,
-§72 and SDD §47 — and found them **faithful**. So this is not a drift to repair. It is a product
+A third note is affected without having contradicted anything.
+[[Start a renovation project]]'s preconditions record "the vault holds no project yet" and then
+say the second-project case "raises questions this note does not answer … and none of them are
+settled anywhere in this register". **A note that declines to answer cannot contradict a document
+that answers**, so the reconciliation withdrew that row to `present`. It is edited here because
+this decision *settles* the question it flagged as open — not because it opposed anything.
+
+Both contradictions were traced back to the original PRD and SDD sections their notes cite — §58,
+§72 and SDD §47 — and found **faithful**. So this is not a drift to repair. It is a product
 decision superseding received material, which is why it could not be read off the corpus and had
 to be taken.
 

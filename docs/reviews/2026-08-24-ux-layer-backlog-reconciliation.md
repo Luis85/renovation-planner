@@ -167,7 +167,7 @@ depth has to read a section against its rows.
 
 **Two rows of that table have no number, and the ratio is withheld rather than invented.** `jtbd`
 numbers its content `JTBD-001`…`JTBD-063` rather than `§N`, so a section counter reads 0 against a
-body that *was* swept, producing 99 forward rows — all 63 job statements were counted and match
+body that *was* swept, producing 95 forward rows — all 63 job statements were counted and match
 the document's own claim of 63. `gallery` is HTML, so its "sections" are `<h2>`/`<h3>` headings,
 a different unit from a numbered section: it holds 23 of them and produced rows under 21 distinct
 labels. Those two numbers are not a coverage ratio and are not offered as one — the labels are
@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty-five corrections, all from review of the committed matrix — which is the argument for
+Thirty-seven corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1475,6 +1475,29 @@ Withdrawing those would have deleted the finding class the pass exists to report
 13/13. Cluster E drops to **6**, and with it the most-contradicted-note figure. The sweep caught
 four Checks-block lines I missed restating by hand, and the cluster gate caught two bullets still
 citing the withdrawn `c6`.
+
+**A thirty-sixth correction, and it is in the decision record written one commit earlier.** The
+new `issues/` note opened by saying **three** derived notes opposed multiple projects and that the
+reconciliation "traced all three … and found them faithful". Only **two** did. `r1640` — the
+`Start a renovation project` precondition — was withdrawn to `present` by the thirty-fourth
+correction's own rule: a note that declines to answer cannot be contradicted by a document that
+answers.
+
+So a decision record written to settle a disagreement **reintroduced a premise this ledger had
+already retired**, three commits after retiring it. That is the same shape as the Disclosure
+ladder's split row — a conclusion outliving the evidence it was drawn from — committed this time
+inside the artifact meant to be the authority on it.
+
+The record now names `c2` and `c3` as the two contradictions, and describes the third note
+separately and accurately: it is edited because this decision **settles the question it flagged as
+open**, not because it opposed anything.
+
+**A thirty-seventh correction: a per-body row count restated outside its table.** The coverage
+paragraph said `jtbd` produced **99** forward rows; the matrix and the summary table three sections
+above both say **95**. The labelled-total net could not see it — at 95 it sits below the `rows`
+floor that exists to skip cluster sizes, so the floor that keeps the net quiet is exactly what hid
+this one. Now in the targeted sweep, which is what that sweep is for, at 36 figures. Watched
+failing.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

@@ -8,22 +8,33 @@ type VoidResult = Result<void, AppError>;
 type ResultThunk = () => Promise<VoidResult>;
 
 let seq = 0;
-const delay = (ms: number): Promise<void> =>
-	new Promise((resolve) => {
-		setTimeout(resolve, ms);
+
+/**
+ * A promise this file resolves by hand. It stands in for a command's event cascade (slice
+ * 10) wherever a test needs one operation to still be in flight while it asserts something
+ * about the next — with no wall clock involved, so nothing here can be raced by a slow CI
+ * runner. `gestureTransaction.test.ts` proves the same technique against the same
+ * guarantee, one level up.
+ */
+function deferred(): { cascade: Promise<void>; release: () => void } {
+	let release!: () => void;
+	const cascade = new Promise<void>((resolve) => {
+		release = resolve;
 	});
-const okCommand = (cascadeMs = 0): UndoableCommand & { id: number } => {
+	return { cascade, release };
+}
+
+/** A command that succeeds, optionally not until `cascade` resolves. */
+const okCommand = (cascade?: Promise<void>): UndoableCommand & { id: number } => {
 	const id = ++seq;
+	const succeed = async (): Promise<VoidResult> => {
+		if (cascade !== undefined) await cascade;
+		return ok(undefined);
+	};
 	return {
 		id,
-		execute: vi.fn<ResultThunk>(async () => {
-			await delay(cascadeMs);
-			return ok(undefined);
-		}),
-		undo: vi.fn<ResultThunk>(async () => {
-			await delay(cascadeMs);
-			return ok(undefined);
-		}),
+		execute: vi.fn<ResultThunk>(succeed),
+		undo: vi.fn<ResultThunk>(succeed),
 	};
 };
 // Pinned to one object identity so the "returns that SAME Result" half of the
@@ -87,32 +98,60 @@ describe('CommandHistory', () => {
 		// Spec (docs/tasks/06-...): "assert undoStack holds them in dispatch order and
 		// that the second's execute() does not begin until the first's has resolved" — and
 		// warns that a test whose two fakes resolve in dispatch order anyway would pass
-		// against an unserialized implementation. `slow` (30ms cascade) is dispatched
-		// first and resolves last; `fast` (no cascade) is dispatched second and would
-		// resolve first if the two ran independently.
+		// against an unserialized implementation. `slow` is dispatched first and resolves
+		// only when this test says so; `fast` is dispatched second and resolves the instant
+		// it is invoked, so completion order disagrees with dispatch order by construction.
+		//
+		// **No wall clock.** An earlier version of this test used a real 30ms cascade with a
+		// `delay(10)` checkpoint inside it, which asks a CI runner — Windows is one of the
+		// four legs — not to stall for 20ms at the wrong moment. `slow`'s promise is
+		// unresolved because nothing has resolved it, not because a timer has not fired yet.
 		const h = new CommandHistory();
-		const slow = okCommand(30);
-		const fast = okCommand(0);
-		const slowRun = h.run(slow);
+		const slow = deferred();
+		const slowCommand = okCommand(slow.cascade);
+		const fast = okCommand();
+		const slowRun = h.run(slowCommand);
 		const fastRun = h.run(fast);
-		// Checkpoint well inside slow's 30ms cascade, before its own setTimeout fires: an
-		// unserialized `run` would have already invoked BOTH executes synchronously at
-		// dispatch time, so this is where the bug shows.
-		await delay(10);
-		expect(slow.execute).toHaveBeenCalledTimes(1); // slow's operation is under way
+		// One microtask tick, which is all the queued first operation needs to start (its
+		// `execute()` runs synchronously inside that operation). An unserialized `run` would
+		// have invoked BOTH executes by now, so this is where the bug shows.
+		await Promise.resolve();
+		expect(slowCommand.execute).toHaveBeenCalledTimes(1); // slow's operation is under way
 		expect(fast.execute).not.toHaveBeenCalled(); // fast is still queued behind it
+		slow.release();
 		await slowRun;
 		await fastRun;
 		expect(fast.execute).toHaveBeenCalledTimes(1); // began only once slow had resolved
 		const stack = (h as never as { undoStack: { id: number }[] }).undoStack;
-		expect(stack.map((c) => c.id)).toEqual([slow.id, fast.id]); // dispatch order, not completion order
+		expect(stack.map((c) => c.id)).toEqual([slowCommand.id, fast.id]); // dispatch order, not completion order
 	});
-	it(`caps the undo stack at UNDO_DEPTH (${UNDO_DEPTH}) and still reports canUndo`, async () => {
+	it(`caps the undo stack at UNDO_DEPTH (${UNDO_DEPTH}) by dropping the OLDEST, still reports canUndo, and leaves redoStack alone`, async () => {
+		// DoD 13 in full: "pushing one entry past the cap drops the oldest, `canUndo` still
+		// reports true, and `redoStack` is unaffected."
+		//
+		// The length alone proves none of that. `undoStack.shift()` (drop the oldest) and
+		// `undoStack.pop()` (drop the one just pushed) both leave exactly UNDO_DEPTH
+		// entries, and only the second is a bug — it would leave `undo()` replaying the
+		// hundredth command forever while every newer gesture vanished. So this reads the
+		// IDENTITIES back: the surviving stack must be the last UNDO_DEPTH commands
+		// dispatched, in order. Five past the cap rather than one, so a drop-from-the-wrong-
+		// end is visible at both ends of the array rather than at a single boundary.
 		const h = new CommandHistory();
-		for (let i = 0; i < UNDO_DEPTH + 5; i++) await h.run(okCommand());
-		const stack = (h as never as { undoStack: unknown[] }).undoStack;
+		const dispatched: (UndoableCommand & { id: number })[] = [];
+		for (let i = 0; i < UNDO_DEPTH + 5; i++) {
+			const command = okCommand();
+			dispatched.push(command);
+			await h.run(command);
+		}
+		const stack = (h as never as { undoStack: { id: number }[] }).undoStack;
 		expect(stack).toHaveLength(UNDO_DEPTH);
+		expect(stack.map((command) => command.id)).toEqual(
+			dispatched.slice(-UNDO_DEPTH).map((command) => command.id),
+		);
 		expect(h.canUndo).toBe(true);
+		// `redoStack` is unaffected: overflowing the cap is not an undo, so nothing the cap
+		// discards may turn up as something to redo.
+		expect(h.canRedo).toBe(false);
 	});
 	it('clear() empties both stacks', async () => {
 		const h = new CommandHistory();

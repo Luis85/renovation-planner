@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { ToolManager } from '../../../../src/presentation/editor/tools/tool-manager';
 import type { EditorTool, EditorPointerEvent, ToolId } from '../../../../src/presentation/editor/tools/editor-tool';
@@ -261,5 +264,108 @@ describe('ToolManager', () => {
 		expect(() => {
 			manager.cancelGesture();
 		}).not.toThrow();
+	});
+});
+
+/**
+ * DoD 12 — "No tool-specific branching exists inside `ToolManager` or `EditorContext`" —
+ * as a check rather than as the sentence `tool-manager.ts`'s own header states ("There is
+ * no `if (tool.id === '...')` anywhere in this file, and there must never be one").
+ *
+ * This is a category invariant: "nothing in these two files special-cases a tool." Driving
+ * the paths somebody thought of cannot establish it, because the next branch is the one
+ * that breaks it — so the check goes at the forbidden thing, and holds for code not yet
+ * written (CLAUDE.md, "A category invariant is checked at the forbidden thing").
+ *
+ * **What it looks for, and why that rather than the `if` shape.** Not a pattern for
+ * `if (tool.id === '…')`: a special case can be a `switch`, a ternary, an `includes`, a
+ * lookup table, or an early return, and a matcher for one spelling would report nothing
+ * about the other five while reading as though it covered them. What every one of them
+ * MUST do is name a tool — and the only way to name one in these files is a `ToolId`
+ * string literal. So the check is: **no `ToolId` literal appears in either file's code.**
+ * The roster is read out of `editor-tool.ts`'s own union rather than copied here, so a
+ * seventh tool is covered the day it is declared.
+ *
+ * **What it cannot see**, stated rather than implied:
+ * - a tool id reached through an imported constant (`TOOL_IDS.select`) or a variable, so
+ *   that the literal never appears in these files at all;
+ * - a branch keyed on something that merely CORRELATES with one tool — a field only one
+ *   tool sets, say — since nothing about that names a tool;
+ * - a `//` sequence inside a string literal, which the comment stripper below removes as
+ *   though it were a comment. No such string exists in either file today.
+ *
+ * Comments are stripped before the search, and that is load-bearing rather than tidy:
+ * `tool-manager.ts`'s header exists precisely to talk about tool ids, so a matcher run
+ * over raw text would flag the paragraph asserting the rule as though it broke it — the
+ * same false positive `editorContext.test.ts`'s Konva check already records hitting.
+ *
+ * The instrument is tested before it is trusted (first `describe` below): a regex matching
+ * nothing would make every assertion here pass while proving the opposite.
+ */
+const SRC = fileURLToPath(new URL('../../../../src/', import.meta.url));
+const EDITOR_TOOL_MODULE = 'presentation/editor/tools/editor-tool.ts';
+/** The two modules DoD 12 names. */
+const FRAMEWORK_MODULES = [
+	'presentation/editor/tools/tool-manager.ts',
+	'presentation/editor/tools/editor-context.ts',
+];
+
+function readSource(relative: string): string {
+	return readFileSync(join(SRC, relative), 'utf8');
+}
+
+/** Block and line comments removed. The `[^:]` guard keeps a `://` inside a URL from
+ * reading as a line comment; a `//` inside any other string literal still would. */
+function withoutComments(source: string): string {
+	return source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+/** Every member of `editor-tool.ts`'s `ToolId` union, read from the union itself. */
+function toolIds(): string[] {
+	const declaration = /export type ToolId =([^;]+);/.exec(readSource(EDITOR_TOOL_MODULE));
+	if (declaration === null) throw new Error('ToolId union not found — this instrument is pointed at the wrong thing');
+	return [...declaration[1].matchAll(/'([^']+)'/g)].map((match) => match[1] as string);
+}
+
+/** Every `ToolId` string literal appearing in `source`'s code. */
+function toolIdLiterals(source: string, ids: readonly string[]): string[] {
+	const code = withoutComments(source);
+	return ids.filter((id) => code.includes(`'${id}'`));
+}
+
+describe('the tool-specific-branching instrument', () => {
+	it('reads the whole ToolId roster out of the union that declares it', () => {
+		const ids = toolIds();
+
+		// A roster that came back empty or short would make every assertion below vacuous.
+		expect(ids.length).toBeGreaterThanOrEqual(6);
+		expect(ids).toContain('select');
+		expect(ids).toContain('calibrate');
+	});
+
+	it('finds a planted special case, in each shape one could take', () => {
+		const ids = toolIds();
+
+		expect(toolIdLiterals("if (tool.id === 'select') { return; }", ids)).toEqual(['select']);
+		expect(toolIdLiterals("switch (tool.id) { case 'pan': break; }", ids)).toEqual(['pan']);
+		expect(toolIdLiterals("const x = tool.id === 'measure' ? a : b;", ids)).toEqual(['measure']);
+		expect(toolIdLiterals("if (['pan', 'select'].includes(tool.id)) return;", ids)).toEqual(['select', 'pan']);
+	});
+
+	it('does not flag prose that merely NAMES a tool id in a comment', () => {
+		const ids = toolIds();
+
+		// The real false positive: `tool-manager.ts`'s own header states this rule, so a
+		// matcher over raw text would report the sentence asserting the invariant as a
+		// violation of it.
+		expect(toolIdLiterals("// never write if (tool.id === 'select')", ids)).toEqual([]);
+		expect(toolIdLiterals("/**\n * Knows nothing about 'select' or 'pan'.\n */", ids)).toEqual([]);
+		expect(toolIdLiterals('const registered = this.tools.get(id);', ids)).toEqual([]);
+	});
+});
+
+describe('DoD 12: the framework knows no tool by name', () => {
+	it.each(FRAMEWORK_MODULES)('%s names no ToolId in its code', (module) => {
+		expect(toolIdLiterals(readSource(module), toolIds())).toEqual([]);
 	});
 });

@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError } from '../../../../src/core/errors/AppError';
-import { createPlanId } from '../../../../src/domain/plan/PlanId';
+import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
+import type { ProjectId } from '../../../../src/domain/project/ProjectId';
 import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
+import { MoveSpatialObjectCommand } from '../../../../src/application/commands/zone/MoveSpatialObject';
+import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
+import { ReversibleMoveZoneCommand } from '../../../../src/presentation/editor/tools/reversible-move-zone-command';
+import { expectOk, RecordingEventBus } from '../../../helpers/domain';
+import { makeZone, squareAt } from '../../../helpers/entities';
 import { SnapService } from '../../../../src/presentation/editor/snapping/snap-service';
 import { RenderState } from '../../../../src/presentation/editor/tools/render-state';
 import { CommandHistory } from '../../../../src/presentation/editor/tools/command-history';
@@ -31,10 +37,21 @@ import type { SelectionStore } from '../../../../src/presentation/editor/selecti
  * Four things this file checks, each traceable to a Definition-of-Done item in that spec:
  *
  * 1. (DoD 2) `pointerDown` → 25×`pointerMove` → `pointerUp` produces exactly one
- *    `CommandHistory.run()`, one wrapped-command `execute()`, and zero dispatches during
- *    the moves — checked BEFORE `pointerUp`, not only at the end, since a count read only
- *    after the whole gesture completes cannot tell "one dispatch at pointerUp" apart from
- *    "one dispatch during move 12 and none at pointerUp".
+ *    `CommandHistory.run()`, one wrapped-command `execute()`, **one persistence write**,
+ *    and zero of each during the moves — checked BEFORE `pointerUp`, not only at the end,
+ *    since a count read only after the whole gesture completes cannot tell "one dispatch at
+ *    pointerUp" apart from "one dispatch during move 12 and none at pointerUp".
+ *
+ *    The write half is why that one test does not use a fake command like the three below
+ *    it. DoD 2 names three things — one execution, one history entry, and "(through slice
+ *    4's handler) one persistence write" — and a fake `UndoableCommand` can only ever
+ *    demonstrate the first two: it writes nothing, so a design that wrote once per
+ *    `pointerMove` would pass it. So that test wires the real chain a gesture actually ends
+ *    in — `ReversibleMoveZoneCommand` over `MoveSpatialObjectCommand` over a real
+ *    `InMemoryZoneRepository` — and counts `zones.save`. `reversibleMoveZoneCommand.test.ts`
+ *    drives that same chain against a real repository too, but never through a gesture, so
+ *    the seam between the two was the one thing this slice's headline claim rested on and
+ *    nothing asserted.
  * 2. The Escape path: `cancelGesture()` mid-gesture produces zero dispatches and resets
  *    `renderState`. The test-double tool dirties all FOUR `RenderState` fields during the
  *    gesture (`hoveredObjectId`, `previewPolygon`, `marquee`, `snapGuides`), not just one,
@@ -53,14 +70,16 @@ import type { SelectionStore } from '../../../../src/presentation/editor/selecti
  *    `undoStack` in DISPATCH order even though the second command would resolve first if
  *    the two ran independently. `tests/presentation/editor/tools/commandHistory.test.ts`
  *    ("serializes: two commands dispatched without awaiting the first…") already asserts
- *    this exact guarantee, but at `CommandHistory` directly and with a real 30ms/0ms
- *    wall-clock cascade (`delay(10)` mid-cascade) — a mechanism a reviewer already flagged
- *    in this slice as a flakiness surface on a slower CI runner (Windows is one of the
- *    four legs). This test adds the INTEGRATION-level statement instead of repeating that
- *    unit-level one: the same ordering guarantee survives being reached through
- *    `ToolManager`, a tool, and `EditorContext.commandDispatcher`, and it does so with a
- *    manually-resolved deferred promise rather than any timer, so there is no wall clock
- *    to be slow against.
+ *    this exact guarantee, but at `CommandHistory` directly. This test adds the
+ *    INTEGRATION-level statement instead of repeating that unit-level one: the same
+ *    ordering guarantee survives being reached through `ToolManager`, a tool, and
+ *    `EditorContext.commandDispatcher`.
+ *
+ *    Both use a manually-resolved deferred promise rather than a timer, so neither has a
+ *    wall clock to be slow against. That was this file's technique first: the unit-level
+ *    test used a real 30ms/0ms cascade with a `delay(10)` checkpoint inside it, which a
+ *    reviewer flagged as a flakiness surface on a slower CI runner (Windows is one of the
+ *    four legs), and it was ported to this one afterwards.
  *
  * Production code: none of this required touching `src/`. Everything the test-double
  * tool needs — building a command only at `pointerUp`, writing only to `renderState`
@@ -84,7 +103,7 @@ function stubSelection(): SelectionStore {
 		select: () => undefined,
 		clear: () => undefined,
 		isSelected: () => false,
-	} as unknown as SelectionStore;
+	};
 }
 
 function stubViewport(): EditorContext['viewport'] {
@@ -101,8 +120,13 @@ function stubViewport(): EditorContext['viewport'] {
  * — the one dep that matters for this file, since every assertion here is really about
  * what reaches (or does not reach) that `CommandHistory` instance.
  */
-function buildContext(history: CommandHistory): { context: EditorContext; renderState: RenderState } {
+function buildContext(history: CommandHistory): {
+	context: EditorContext;
+	renderState: RenderState;
+	writeLedger: SessionWriteLedger;
+} {
 	const renderState = new RenderState();
+	const writeLedger = new SessionWriteLedger();
 	const deps: EditorContextDeps = {
 		bindViewport: stubViewport,
 		selection: stubSelection(),
@@ -110,11 +134,26 @@ function buildContext(history: CommandHistory): { context: EditorContext; render
 		commandDispatcher: {
 			run: (command: UndoableCommand): Promise<Result<void, AppError>> => history.run(command),
 		},
-		writeLedger: new SessionWriteLedger(),
+		writeLedger,
 		renderState,
 		activePlan: { id: createPlanId(), calibration: null },
 	};
-	return { context: createEditorContext(deps), renderState };
+	return { context: createEditorContext(deps), renderState, writeLedger };
+}
+
+/**
+ * A real zone in a real repository, at the origin. Returned alongside the repository and
+ * the move command so a gesture can end in a genuine persistence write rather than in a
+ * fake that records a call and writes nothing.
+ */
+function seededZone() {
+	const zones = new InMemoryZoneRepository();
+	const zone = makeZone({
+		projectId: 'project-gesture' as ProjectId,
+		planId: 'plan-gesture' as PlanId,
+		geometry: squareAt(0, 0),
+	});
+	return { zones, zone, move: new MoveSpatialObjectCommand(zones, new RecordingEventBus()) };
 }
 
 let cmdSeq = 0;
@@ -177,11 +216,19 @@ function fakeGestureTool(
 }
 
 describe('gesture -> command transaction (design slice 6)', () => {
-	it('DoD 2: pointerDown -> 25x pointerMove -> pointerUp dispatches exactly one command', async () => {
+	it('DoD 2: pointerDown -> 25x pointerMove -> pointerUp dispatches exactly one command and writes exactly once', async () => {
 		const history = new CommandHistory();
 		const runSpy = vi.spyOn(history, 'run');
-		const { context } = buildContext(history);
-		const command = fakeCommand(() => Promise.resolve(ok(undefined)));
+		const { context, writeLedger } = buildContext(history);
+		const { zones, zone, move } = seededZone();
+		// The seed is not the gesture's write, so it happens before the spy exists rather
+		// than being subtracted from the count afterwards.
+		expectOk(await zones.save(zone, 'absent'));
+		const saveSpy = vi.spyOn(zones, 'save');
+		// The real chain a gesture ends in: the reversible adapter this slice added, over
+		// slice 3's move command, over a real repository (file header, item 1).
+		const command = new ReversibleMoveZoneCommand(move, writeLedger, zone.id, squareAt(10, 10), squareAt(0, 0));
+		const executeSpy = vi.spyOn(command, 'execute');
 		const tool = fakeGestureTool(context, () => command);
 		const manager = new ToolManager(() => context);
 		manager.register(tool);
@@ -192,19 +239,26 @@ describe('gesture -> command transaction (design slice 6)', () => {
 			manager.pointerMove(pointerEvent());
 		}
 
-		// The zero-check belongs HERE, before pointerUp: read only after the gesture ends,
-		// it could not distinguish "one dispatch at pointerUp" from "one dispatch during a
-		// move and none at pointerUp" (see file header, item 1).
+		// The zero-checks belong HERE, before pointerUp: read only after the gesture ends,
+		// they could not distinguish "one dispatch at pointerUp" from "one dispatch during a
+		// move and none at pointerUp" (see file header, item 1). The write is the one that
+		// matters most — a tool dispatching per `pointerMove` would already have written 25
+		// times by now.
 		expect(runSpy).not.toHaveBeenCalled();
-		expect(command.execute).not.toHaveBeenCalled();
+		expect(executeSpy).not.toHaveBeenCalled();
+		expect(saveSpy).not.toHaveBeenCalled();
 		expect(tool.moveCount).toBe(25);
 
 		manager.pointerUp(pointerEvent());
 		await tool.pendingRun;
 
 		expect(runSpy).toHaveBeenCalledTimes(1);
-		expect(command.execute).toHaveBeenCalledTimes(1);
+		expect(executeSpy).toHaveBeenCalledTimes(1);
+		expect(saveSpy).toHaveBeenCalledTimes(1);
 		expect(history.canUndo).toBe(true);
+		// And the one write actually landed the gesture's geometry, so "one write" is not
+		// satisfied by one write of the wrong thing.
+		expect(expectOk(await zones.getById(zone.id))?.entity.geometry).toEqual(squareAt(10, 10));
 	});
 
 	it('the Escape path: cancelGesture() mid-gesture dispatches nothing and resets renderState', () => {

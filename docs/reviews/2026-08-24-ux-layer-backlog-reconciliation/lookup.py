@@ -50,8 +50,19 @@ matrix is a citation to something that no longer exists.
 """
 import io, os, re, subprocess, sys, tempfile, shutil
 
-ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                      capture_output=True, text=True).stdout.strip() or "."
+# The matrix was computed against ONE state of the corpus, and `RP_CORPUS_ROOT` is how a replay
+# names it — the same variable `candidates.sh` takes, for the same reason. Unset it and this reads
+# the working tree, which is what a reader wants while the corpus has not moved.
+#
+# It had no such variable until main gained the plan-editor work, and the moment the corpus moved
+# the selftest reported `Design System` flipping `retained` -> `present` — correctly, because two
+# NEW evidence files (`concepts/renovation-canvas.html`, `concepts/canvas.css`) name it. The fix
+# is to pin the replay, never to restate the matrix: a reverse row records what the evidence said
+# WHEN THE COMPARISON RAN. This is the sibling defect to the one review found in `candidates.sh`,
+# in the other direction — one instrument was repaired and the other was not checked beside it.
+ROOT = os.environ.get("RP_CORPUS_ROOT") or (
+    subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                   capture_output=True, text=True).stdout.strip() or ".")
 HERE = os.path.dirname(os.path.abspath(__file__))
 UX = os.path.join(ROOT, "docs/user-experience")
 PR = os.path.join(ROOT, "docs/prds")

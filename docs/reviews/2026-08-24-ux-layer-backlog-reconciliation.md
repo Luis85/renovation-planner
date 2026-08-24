@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty-nine corrections, all from review of the committed matrix — which is the argument for
+Forty corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1587,6 +1587,31 @@ selftest rather than by any gate. Now computed from the matrix, taking the targe
 **44 figures**. The general net's floor is not the defect and lowering it is still refused; what
 this says is that every figure below totals scale has to be named, and the way they keep being
 found is by running the instrument rather than by reading the page.
+
+**A fortieth correction, and it took the corpus actually moving to expose it.** `main` gained the
+plan-editor work while this pass was in flight, which added two evidence files —
+`concepts/renovation-canvas.html` and `concepts/canvas.css` — and modified seven more. On the
+merged tree `lookup.py --selftest` immediately reported `r1366` flipping `retained` → `present`,
+because the new files name *Design System* and the old ones did not.
+
+**The reproduction was right and the matrix is not wrong.** A reverse row records what the
+evidence said *when the comparison ran*, which is the same rule that keeps a backlog edit from
+moving a gap. What was wrong is that `lookup.py` had no way to be told which corpus to read:
+`candidates.sh` takes `RP_CORPUS_ROOT` and the verifier hands it the pinned tree, and the sibling
+instrument beside it silently read the working tree. **That is the same defect review found in
+`candidates.sh`, in the other direction** — one instrument repaired, the other not checked beside
+it, which is now the second time this pair has done exactly that to itself.
+
+Both selftests are now replayed against the pinned tree, and the pin is doing work rather than
+decorating: unpinned the run reports **677/678**, pinned it reports **678/678**.
+
+**And the check on the second instrument was worthless the first time it was run.** `sections.py`
+agreed with itself pinned and unpinned, which looked like evidence it was safe — until reading the
+file showed it never consulted `RP_CORPUS_ROOT` at all, so both runs had read the working tree and
+the agreement measured nothing. It now honours the variable, and the comparison means what it
+appeared to mean. *Measure a set with an instrument that can see all of it, and test the
+instrument first* — recorded here because this ledger states that rule and then broke it while
+checking the repair for a different instance of it.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

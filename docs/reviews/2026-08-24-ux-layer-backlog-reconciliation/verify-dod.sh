@@ -142,7 +142,8 @@ fi
 
 # The coverage table's instrument, checked against a second implementation and pinned counts
 # before any number it produces is believed.
-python3 "$SP/sections.py" --selftest >/dev/null || { echo "  FAIL sections.py --selftest"; fail=1; }
+RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/sections.py" --selftest >/dev/null \
+  || { echo "  FAIL sections.py --selftest"; fail=1; }
 
 # The MECHANICAL half of the match must be reproducible from the committed tree — that is what
 # makes an `absent` verdict, and so every one of the 772 Gap findings, checkable rather than
@@ -191,7 +192,11 @@ fi
 # type-aware, alias-resolved, back-link-guarded — so it needs its own published command and its
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
-python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py --selftest"; fail=1; }
+# Replayed against the PINNED corpus, exactly as candidates.sh is. Against the working tree it
+# measures whatever the backlog and the evidence hold TODAY, which stopped being the corpus the
+# matrix compared the moment main gained the plan-editor work.
+RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 \
+  || { echo "  FAIL lookup.py --selftest"; fail=1; }
 
 # Every id the CLUSTER BULLETS cite must exist and still be a disagreement. Two clusters were
 # found narrating rows the matrix does not contain — `f258` and `f967` reclassified to `present`,
@@ -588,7 +593,7 @@ for i, why in bad:
     print("  FAIL cluster cites %s but %s" % (i, why))
 sys.exit(1 if bad else 0)
 PYC
-python3 "$SP/lookup.py" --selftest 2>/dev/null | tail -1
+RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/lookup.py" --selftest 2>/dev/null | tail -1
 
 # The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the
 # ledger's text, so it is checked against the ledger's text: all eight note types named, and

@@ -97,25 +97,76 @@ def aliases():
     return fwd, rev
 
 
-def grep_first(subject, dirs, cwd):
-    r = subprocess.run(["grep", "-rliF", "--", subject] + dirs, cwd=cwd,
-                       capture_output=True, text=True)
+# Presence means two different things in the two kinds of target directory, and the corpus
+# itself says which — measured, not assumed. `entities/`, `components/` and `actors/` are
+# ONE NOTE PER THING: all 59 of them have an H1 identical to their filename, so a thing is
+# present there iff a note IS it. `requirements/` (121 Features and PBIs) and `deliverables/`
+# (5 inventories — Sitemap, Information Architecture, MVP Prototype …) are the opposite: no
+# screen in this corpus is the identity of a note in either, so a screen is present there iff
+# a note NAMES it.
+#
+# Testing both with one substring grep is what let incidental prose stand in for a note. `Wall`
+# scored present on `entities/Photo.md`'s "the wall went up"; `Work` on `Constraint.md`'s
+# "worked on" and "[[Work package]]". Seven forward rows were present on text like that, and
+# each is a real gap: the canvas names Work, Measurement, Note, Wall, Door and Window as
+# entities the backlog has no note for, and the UXD names Procurement against a backlog that
+# has `Procurement item`.
+#
+# Applying identity everywhere would have been the mirror defect, fabricating gaps instead of
+# hiding them: `Work Packages` and `Trades` are `Work package.md` and `Trade.md` under a
+# plural, and all three `Project Home` rows are named inside deliverables that are inventories
+# by construction. Hence plural tolerance, and hence the split.
+IDENTITY_TYPES = {"entities", "components", "actors"}
+
+
+def singular(s):
+    return s[:-1] if s.endswith("s") and not s.endswith("ss") else s
+
+
+def identity_index(kind):
+    """{normalised name: path} over one directory's note identities — filename stem and H1."""
+    out, d = {}, os.path.join(ROOT, "docs", kind)
+    if not os.path.isdir(d):
+        return out
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith(".md"):
+            continue
+        names = {norm(fn[:-3])}
+        for line in io.open(os.path.join(d, fn), encoding="utf-8", errors="replace"):
+            m = re.match(r"^#\s+(.+?)\s*$", line)
+            if m:
+                names.add(norm(m.group(1)))
+                break
+        for n in names:
+            if n:
+                out.setdefault(singular(n), "docs/%s/%s" % (kind, fn))
+    return out
+
+
+def names_it(subject, kind):
+    """First note in `kind` that NAMES the subject, at word boundaries and plural-tolerant."""
+    r = subprocess.run(["grep", "-rliE", r"\b%ss?\b" % re.escape(subject), "docs/" + kind],
+                       cwd=ROOT, capture_output=True, text=True)
     out = [x for x in r.stdout.split("\n") if x]
     return out[0] if out else ""
 
 
 def forward(target, subject):
     """(state, matched) for a forward named row with this target and subject."""
-    dirs = ["docs/" + t for t in target.split(",") if t and t != "-"]
-    hit = grep_first(subject, dirs, ROOT)
-    if hit:
-        return "present", hit
+    kinds = [t for t in target.split(",") if t and t != "-"]
+    for k in kinds:
+        if k in IDENTITY_TYPES:
+            hit = identity_index(k).get(singular(norm(subject)))
+        else:
+            hit = names_it(subject, k)
+        if hit:
+            return "present", hit
     fwd, _ = aliases()
     note = fwd.get(norm(subject))
     # Resolve through the alias table ONLY inside the row's own target. Taking the table's
     # note path unconditionally is how 18 rows came back `present` on a note outside the type
     # they were looking for, which is the defect the target exists to prevent.
-    if note and any(note.startswith(d + "/") for d in dirs):
+    if note and any(note.startswith("docs/" + k + "/") for k in kinds):
         return "present", note
     return "absent", "-"
 

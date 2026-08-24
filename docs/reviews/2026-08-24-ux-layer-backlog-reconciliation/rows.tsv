@@ -11,11 +11,11 @@ f8	forward	named	Approximate (fidelity level)	canvas§5	approximate,fidelity lev
 f9	forward	named	Measured (fidelity level)	canvas§5	measured,fidelity level	-	-	absent	-	entities
 f10	forward	named	Precision on Demand	canvas§6	precision on demand	-	-	absent	-	entities
 f11	forward	named	Space	canvas§7	space	-	docs/entities/Constraint.md::Constraint[4]	present	-	entities
-f12	forward	named	Work	canvas§7	work	-	docs/entities/Constraint.md	present	-	entities
+f12	forward	named	Work	canvas§7	work	-	-	absent	-	entities
 f13	forward	named	Problem	canvas§7	problem	-	docs/entities/Issue.md	present	-	entities
 f14	forward	named	Decision	canvas§7	decision	-	docs/entities/Constraint.md	present	-	entities
 f15	forward	named	Photo	canvas§7	photo	-	docs/entities/Photo.md	present	-	entities
-f16	forward	named	Measurement	canvas§7	measurement	-	docs/entities/Plan.md	present	-	entities
+f16	forward	named	Measurement	canvas§7	measurement	-	-	absent	-	entities
 f17	forward	named	Material	canvas§7	material	-	docs/entities/Procurement item.md::Procurement item[4]	present	-	entities
 f18	forward	named	Product	canvas§7	product	-	docs/entities/Asset.md::Asset[1]	present	-	entities
 f19	forward	named	Trade	canvas§7	trade	-	docs/entities/Work package.md	present	-	entities
@@ -25,10 +25,10 @@ f22	forward	named	+ Add (control)	canvas§14	add,control	-	-	absent	-	components
 f23	forward	named	Room	canvas§14	room	-	docs/entities/Constraint.md	present	-	entities
 f24	forward	named	Outdoor Area	canvas§14	outdoor area	-	docs/entities/Zone.md::Relationships[2]	present	-	entities
 f25	forward	named	Renovation Zone	canvas§14	renovation zone,zone	-	docs/entities/Zone.md	present	-	entities
-f26	forward	named	Note	canvas§14	note	-	docs/entities/Constraint.md	present	-	entities
-f27	forward	named	Wall	canvas§14	wall	-	docs/entities/Photo.md	present	-	entities
-f28	forward	named	Door	canvas§14	door	-	docs/entities/Constraint.md	present	-	entities
-f29	forward	named	Window	canvas§14	window	-	docs/entities/Asset.md	present	-	entities
+f26	forward	named	Note	canvas§14	note	-	-	absent	-	entities
+f27	forward	named	Wall	canvas§14	wall	-	-	absent	-	entities
+f28	forward	named	Door	canvas§14	door	-	-	absent	-	entities
+f29	forward	named	Window	canvas§14	window	-	-	absent	-	entities
 f30	forward	named	Task	canvas§15	task	-	docs/entities/Photo.md	present	-	entities
 f31	forward	named	Toolbar	canvas§16	toolbar	-	docs/components/Toolbar.md	present	-	components
 f32	forward	named	Select (tool)	canvas§16	select tool	-	-	absent	-	components
@@ -42,11 +42,11 @@ f39	forward	named	Property (layer)	canvas§21	property,layer	-	docs/entities/Sit
 f40	forward	named	Renovation (layer)	canvas§21	renovation,layer	-	-	absent	-	entities
 f41	forward	named	Work (layer)	canvas§21	work,layer	-	-	absent	-	entities
 f42	forward	named	Problems (layer)	canvas§21	problem,layer	-	-	absent	-	entities
-f43	forward	named	Decisions (layer)	canvas§21	decision,layer	-	-	absent	-	entities
+f43	forward	named	Decisions (layer)	canvas§21	decision,layer	-	docs/entities/Decision.md	present	-	entities
 f44	forward	named	Materials (layer)	canvas§21	material,layer	-	-	absent	-	entities
 f45	forward	named	Costs (layer)	canvas§21	cost,layer	-	-	absent	-	entities
 f46	forward	named	Schedule (layer)	canvas§21	schedule,layer	-	-	absent	-	entities
-f47	forward	named	Photos (layer)	canvas§21	photo,layer	-	-	absent	-	entities
+f47	forward	named	Photos (layer)	canvas§21	photo,layer	-	docs/entities/Photo.md	present	-	entities
 f48a	forward	named	Cost View	canvas§22	cost view	-	-	absent	-	requirements
 f48b	forward	named	Cost View	canvas§22	cost view	-	-	absent	-	deliverables
 f49a	forward	named	Progress View	canvas§23	progress view	-	-	absent	-	requirements
@@ -1118,7 +1118,7 @@ f1040	forward	named	Progressive Disclosure Levels: Level 1 Basic Planning, Level
 f1041	forward	named	Work Packages	uxd§22	work-package	-	docs/entities/Work package.md	present	-	entities
 f1042	forward	named	Trades	uxd§22	trade	-	docs/entities/Construction section.md	present	-	entities
 f1043	forward	named	Assemblies	uxd§22	assembly	-	-	absent	-	entities
-f1044	forward	named	Procurement	uxd§22	procurement	-	docs/entities/Work package.md	present	-	entities
+f1044	forward	named	Procurement	uxd§22	procurement	-	-	absent	-	entities
 f1045	forward	named	Estimated / Committed / Actual Cost (cost states)	uxd§17	estimated-cost,committed-cost,actual-cost	-	docs/entities/Cost item.md	present	-	entities
 f1046a	forward	named	Continue (project entry action, distinct from Open)	uxd§21	continue,project,entry-action	-	-	absent	-	requirements
 f1046b	forward	named	Continue (project entry action, distinct from Open)	uxd§21	continue,project,entry-action	-	-	absent	-	deliverables

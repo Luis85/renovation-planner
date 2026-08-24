@@ -40,8 +40,18 @@ materialise() {
 }
 
 case "${1:-}" in
-  forward) corpus=(docs/requirements docs/entities docs/business-rules docs/components
-                   docs/actors docs/deliverables docs/adrs docs/issues) ;;
+  # The forward corpus is the DERIVED BACKLOG, and this matrix is a comparison against it as it
+  # stood when the reconciliation ran. That state is pinned by `MATRIX_BASE` below, because the
+  # multi-project decision has since edited four notes — and four edits moved the candidate set of
+  # 1,205 behavioural rows, a fifth of the matrix. Replaying against the working tree would measure
+  # a different corpus and quietly report the committed `cand_n` as wrong.
+  #
+  # `RP_CORPUS_ROOT` lets the verifier point this at a materialised copy of the pinned state. Unset,
+  # it reads the working tree, which is what a reader wants when the backlog has not moved.
+  forward) R="${RP_CORPUS_ROOT:-.}"
+           corpus=("$R/docs/requirements" "$R/docs/entities" "$R/docs/business-rules"
+                   "$R/docs/components" "$R/docs/actors" "$R/docs/deliverables"
+                   "$R/docs/adrs" "$R/docs/issues") ;;
   reverse) BODIES="$(mktemp -d)"; trap 'rm -rf "$BODIES"' EXIT
            materialise "$BODIES"; corpus=("$BODIES") ;;
   *) echo 'usage: candidates.sh {forward|reverse} "<terms>"' >&2; exit 2 ;;

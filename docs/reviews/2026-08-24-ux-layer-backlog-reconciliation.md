@@ -16,7 +16,8 @@ than left to be noticed:**
 - Both of those open with "All findings below are fixed." **Nothing below is fixed.** This work
   was scoped findings-first on purpose: the pass reads two corpora against each other and
   produces the disagreements; deciding what to do about them is separate work, separately
-  approved. **No derived note was edited** — the check is in the last section.
+  approved. **The reconciliation edited no derived note**; four were edited afterwards, under the
+  multi-project decision and only under it — the check is in the last section.
 - It states its own coverage limits where a reader meets them, and its instrument's limits
   beside the numbers those limits qualify, rather than letting "reconciled" read wider than it is.
 
@@ -801,8 +802,13 @@ had changed.
   §72 and SDD §47. So this is a product decision superseding received material, not the correction
   of a drift — which is why it had to be taken by the owner and could not be read off the corpus.
 
-**No derived note is edited here.** Making these three notes say it is the separate, separately
-approved work this ledger was scoped to precede.
+**The reconciliation edited no derived note.** Making the notes say it was separate work, and the
+repository owner has since approved it: `entities/Project.md`, `actors/Professional planner.md` and
+`requirements/Start a renovation project.md` now draw the distinction, and the decision itself is
+recorded as
+[[The vault holds many projects, and selecting one is not a portfolio]]. `c2` and `c3` carry it as
+their remedy. They are **decided, not withdrawn** — a finding records what two corpora said, and a
+ruling says which way it resolves.
 
 ### 5. Mobile: capture-first against read-only — received versus received
 
@@ -911,7 +917,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty-one corrections, all from review of the committed matrix — which is the argument for
+Thirty-two corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1404,6 +1410,18 @@ caught it on the same run, naming the line. That is twice now that this net has 
 repair** rather than the original drift, which is the case a human reader is least likely to
 catch: the number looks attended-to because everything around it was.
 
+**A thirty-second correction, found by testing the gate written in this same change.** Lifting the
+freeze for the multi-project decision meant rescoping the derived-note gate to an allowlist. Its
+informational line reported **0 edits outside the allowlist while a fifth note was edited** — the
+allowlist and its helper were defined further down the file than the line that used them, so the
+helper was undefined at that point and the count silently read zero.
+
+The `chk` further down caught it, so the verifier still exited non-zero; but the line a reader
+looks at said the constraint held. That is the third gate in this ledger found unable to fail —
+after the derived-note gate that could not resolve a base, and the forward side with no coverage
+gate at all — and the only one caught by deliberately breaking a rule to watch the gate refuse it,
+rather than by review. Definition moved above first use; watched failing and passing.
+
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking, while a fifty-third was found hiding inside another — a
@@ -1434,14 +1452,32 @@ received contradictions                             15
   derived notes found to have drifted                0
 sections.py --selftest                        instrument agrees with a second
                                               implementation and three pinned counts
-derived notes edited, uncommitted                    0
-derived notes edited, vs merge base                  0
+derived notes edited outside the allowlist            0
+  (the allowlist is the 4 notes the multi-project
+   decision authorises; the other 223 stay frozen)
 npm run check                                 passes all four steps
 ```
 
-**No derived note was edited.** Checked against the merge base, not the working tree — the ledger
-is committed before the check runs, so a derived-note edit committed alongside it would leave
-`git status` clean:
+**The reconciliation edited no derived note, and four have been edited since — under the
+multi-project decision and only under it.** Checked against the merge base, not the working tree,
+and as an **allowlist rather than a removal**: `entities/Project.md`,
+`actors/Professional planner.md`, `requirements/Start a renovation project.md` and the decision
+record `issues/The vault holds many projects, and selecting one is not a portfolio.md` may differ;
+the other 223 may not. Deleting the gate to permit four edits would have retired this pass's
+central guarantee, and nothing would then notice the fifth.
+
+**The matrix is pinned to the corpus it compared against**, commit `2253cea`. That is not
+bookkeeping: those four edits move the candidate set of **1,205 behavioural rows**, a fifth of the
+matrix, because a new note and three edited ones enter sets that `cand_n` counted without them.
+Replaying `candidates.sh` against the working tree would measure a different corpus and report the
+committed numbers as wrong. `verify-dod.sh` materialises the pinned tree and replays against it;
+`candidates.sh` takes `RP_CORPUS_ROOT` for the same reason, and reads the working tree when it is
+unset, which is what a reader wants while the backlog has not moved.
+
+**No finding was moved by the edits.** A gap says the backlog had no note for something *when the
+comparison ran*; the backlog gaining one afterwards is that finding being resolved, and resolution
+is recorded in `remedy`. Moving the rows instead would erase the disagreement the decision was
+taken to settle.
 
 ```bash
 git diff --name-only "$(git merge-base origin/main HEAD)"...HEAD -- \

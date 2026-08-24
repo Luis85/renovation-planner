@@ -6,11 +6,26 @@ cd "$(git rev-parse --show-toplevel)"
 # the artifact that shipped.
 D=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation
 SP="$D"; L="$D.md"
+# The freeze had ONE exception, taken by the repository owner and recorded in
+# `docs/issues/The vault holds many projects, and selecting one is not a portfolio.md`. The gate
+# is therefore an ALLOWLIST, not a removal: these four notes may change, the other 223 may not.
+# Deleting the gate instead would have retired the pass's central guarantee to permit four edits,
+# and there would then be nothing to notice the fifth.
+ALLOWED_DERIVED="docs/issues/The vault holds many projects, and selecting one is not a portfolio.md
+docs/entities/Project.md
+docs/actors/Professional planner.md
+docs/requirements/Start a renovation project.md"
+not_allowed() {  # reads NUL-safe paths on stdin, prints the ones outside the allowlist
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    printf '%s\n' "$ALLOWED_DERIVED" | grep -qxF "$f" || printf '%s\n' "$f"
+  done
+}
 echo "1  rows with no state:      $(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')  (must be 0)"
 echo "1  rows and findings both printed: $(grep -cE 'rows|findings' "$L")  (must be >0)"
 echo "1b notes reached:           $(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')  / 227"
 echo "1a note types covered:      $(grep -cE 'requirements/|entities/|business-rules/|components/|actors/|deliverables/|adrs/|issues/' "$L")  (all 8 must appear)"
-echo "6  derived notes edited:    $(git status --porcelain docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | wc -l | tr -d ' ')  (must be 0)"
+echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')  (must be 0)"
 
 # ASSERT, do not merely print. A verifier that reports its own violations and still exits 0
 # is the same defect as a check whose mechanism cannot fail: a worker runs the advertised
@@ -68,9 +83,9 @@ for base in origin/main main "$(git rev-parse HEAD~1 2>/dev/null)"; do
 done
 [ -n "$MB" ] || { echo "  FAIL cannot resolve a review base; the derived-note gate did not run"; fail=1; }
 DERIVED="docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues"
-chk "derived notes edited (uncommitted)" 0 "$(git status --porcelain $DERIVED | wc -l | tr -d ' ')"
+chk "derived notes edited outside the allowlist (uncommitted)" 0 "$(git status --porcelain -z $DERIVED | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')"
 if [ -n "$MB" ]; then
-  chk "derived notes edited (vs merge base $MB)" 0 "$(git diff --name-only "$MB"...HEAD -- $DERIVED | wc -l | tr -d ' ')"
+  chk "derived notes edited outside the allowlist (vs merge base $MB)" 0 "$(git diff --name-only -z "$MB"...HEAD -- $DERIVED | tr '\0' '\n' | not_allowed | wc -l | tr -d ' ')"
 fi
 chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
@@ -126,6 +141,20 @@ python3 "$SP/sections.py" --selftest >/dev/null || { echo "  FAIL sections.py --
 # to something that no longer exists. Sampled with a fixed seed so the check is deterministic,
 # and deliberately including rows whose candidate set is EMPTY: those resolve straight to
 # `absent` with no judgement, so they are the ones a reader most needs to be able to re-run.
+# The forward corpus is the derived backlog, and this matrix compares against it AS IT STOOD.
+# `MATRIX_BASE` pins that state. The multi-project decision has since edited four notes, and four
+# edits moved the candidate set of 1,205 behavioural rows — a fifth of the matrix — so replaying
+# against the working tree measures a different corpus and reports the committed `cand_n` as wrong.
+# The findings are not invalidated by that: a gap says the backlog had no note for something when
+# the comparison ran, and the backlog gaining one afterwards is the finding being RESOLVED, which
+# is recorded in `remedy` rather than by moving the row.
+MATRIX_BASE=2253cea3e2d2b4b5285f41b4066137f810ff3ad6
+PINNED=""
+if git cat-file -e "$MATRIX_BASE^{commit}" 2>/dev/null; then
+  PINNED="$(mktemp -d)"; trap 'rm -rf "$PINNED"' EXIT
+  git archive "$MATRIX_BASE" docs | tar -x -C "$PINNED" 2>/dev/null || PINNED=""
+fi
+[ -n "$PINNED" ] || echo "  NOTE matrix base $MATRIX_BASE unavailable; replaying against the working tree"
 if [ -x "$SP/candidates.sh" ]; then
   python3 - "$SP" > "$SP/.sample.tsv" <<'PYS'
 import io, random, sys
@@ -139,7 +168,7 @@ for r in pick:
 PYS
   miss=0
   while IFS="$(printf '\t')" read -r id dir want terms; do
-    got="$(bash "$SP/candidates.sh" "$dir" "$terms" | awk 'NF' | wc -l | tr -d ' ')"
+    got="$(RP_CORPUS_ROOT="${PINNED:-.}" bash "$SP/candidates.sh" "$dir" "$terms" | awk 'NF' | wc -l | tr -d ' ')"
     [ "$got" = "$want" ] || { echo "  FAIL candidates.sh $dir: row $id committed cand_n=$want, reproduced $got"; miss=$((miss+1)); }
   done < "$SP/.sample.tsv"
   echo "  candidates.sh reproduced the committed cand_n on $(( $(wc -l < "$SP/.sample.tsv" | tr -d ' ') - miss ))/$(wc -l < "$SP/.sample.tsv" | tr -d ' ') sampled rows"

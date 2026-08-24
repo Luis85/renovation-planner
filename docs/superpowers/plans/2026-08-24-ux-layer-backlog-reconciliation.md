@@ -34,7 +34,8 @@ Scratchpad (`$SP` = `/tmp/claude-0/-home-user-renovation-planner/eb9111e3-de19-4
 | File | Responsibility |
 | --- | --- |
 | `corpus.sh` | Emits the eight body ranges; verifies both nestings by diff; prints the scope counts |
-| `candidates.sh` | Given subject terms, prints the candidate-set note paths and its size |
+| `candidates.sh` | Given a direction and subject terms, prints the candidate-set paths and its size |
+| `bodies/` | The eight evidence bodies materialised once over their ranges — what makes "read once, at one location" mechanical, and the corpus a reverse row is matched against |
 | `rows.tsv` | Every row, both directions, both kinds — the matrix |
 | `aliases.tsv` | The alias table, output of Task 2, input to Task 4 |
 | `findings.tsv` | Coalesced findings with pair identity |
@@ -83,7 +84,23 @@ cd /home/user/renovation-planner
 fail=0; chk(){ [ "$2" = "$3" ] && echo "  ok   $1: $3" || { echo "  FAIL $1: claimed $2, measured $3"; fail=1; }; }
 chk "derived notes"  227   "$(find docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues -type f | wc -l | tr -d ' ')"
 chk "derived lines"  11342 "$(find docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues -type f -exec cat {} + | wc -l | tr -d ' ')"
-chk "evidence lines" 5719  "$(( 1451 + 285 + 682 + 459 + 424 + 783 + 1635 ))"
+# Measured from the tree, never from a sum of the same constants it is checked against.
+# Each sub-range is anchored to the structural heading that ends it, so a body that grows
+# moves the measurement instead of agreeing with it.
+ln(){ grep -n "$2" "$1" | head -1 | cut -d: -f1; }
+UX=docs/user-experience; PR=docs/prds; PD=docs/product
+proto="$UX/renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"
+wf="$UX/renovation-project-workspace-wireframes.md"
+cv="$UX/renovation-canvas-concept-interaction-design.md"
+chk "evidence lines" 5719 "$((
+    $(wc -l < "$PR/renovation-project-workspace.md")
+  + $(( $(ln "$proto" '^# Appendix A') - 1 ))
+  + $(wc -l < "$UX/renovation-project-workspace-UXD.md")
+  + $(( $(wc -l < "$wf") - $(ln "$wf" '^# Appendix A') + 1 ))
+  + $(wc -l < "$UX/renovation-planner-JTBD-research-backlog.md")
+  + $(( $(ln "$cv" '^# Comprehensive User Research Synthesis') - 1 ))
+  + $(wc -l < "$PD/renovation-planner-user-research-synthesis.md") ))"
+chk "gallery lines"  842  "$(wc -l < "$UX/concepts/component-gallery.html" | tr -d ' ')"
 exit $fail
 EOF
 chmod +x "$SP/check-corpus.sh"
@@ -110,7 +127,7 @@ body() { case "$1" in
   jtbd)       echo "$UX/renovation-planner-JTBD-research-backlog.md:1:424" ;;
   canvas)     echo "$UX/renovation-canvas-concept-interaction-design.md:1:783" ;;
   research)   echo "$PD/renovation-planner-user-research-synthesis.md:1:1635" ;;
-  gallery)    echo "$UX/concepts/component-gallery.html:1:0" ;;
+  gallery)    echo "$UX/concepts/component-gallery.html:1:$(wc -l < "$UX/concepts/component-gallery.html" | tr -d ' ')" ;;
   *) echo "unknown body: $1" >&2; exit 2 ;; esac }
 nesting() {
   diff <(sed -n '290,971p' "$UX/renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md") \
@@ -120,21 +137,35 @@ nesting() {
        "$PD/renovation-planner-user-research-synthesis.md" >/dev/null \
     && echo "  ok   canvas contains research synthesis verbatim" || { echo "  FAIL canvas/research nesting"; return 1; }
 }
+# Write each body ONCE to $SP/bodies/<name>.txt over its own range. This is what makes
+# "each body read once, at one location" mechanical rather than a promise, and it is the
+# corpus a reverse row is matched against — see candidates.sh.
+materialise() {
+  local d; d="$(dirname "$0")/bodies"; mkdir -p "$d"
+  for n in prd prototype uxd wireframes jtbd canvas research gallery; do
+    IFS=: read -r f a b <<< "$(body "$n")"
+    sed -n "${a},${b}p" "$f" > "$d/$n.txt"
+    printf '  %-11s %6s lines\n' "$n" "$(wc -l < "$d/$n.txt" | tr -d ' ')"
+  done
+}
 case "${1:-}" in
   body) body "$2" ;;
   nesting) nesting ;;
   counts) bash "$(dirname "$0")/check-corpus.sh" ;;
-  *) echo "usage: corpus.sh {body <name>|nesting|counts}" >&2; exit 2 ;;
+  materialise) materialise ;;
+  *) echo "usage: corpus.sh {body <name>|nesting|counts|materialise}" >&2; exit 2 ;;
 esac
 EOF
 chmod +x "$SP/corpus.sh"
 printf 'id\tdirection\tkind\tsubject\tsource\tterms\tcand_n\tmatched\tstate\tpair\n' > "$SP/rows.tsv"
 ```
 
-- [ ] **Step 4: Run all three subcommands**
+- [ ] **Step 4: Run all four subcommands**
 
-Run: `bash "$SP/corpus.sh" nesting && bash "$SP/corpus.sh" counts && bash "$SP/corpus.sh" body canvas`
-Expected: two `ok` nesting lines; three `ok` count lines; `…/renovation-canvas-concept-interaction-design.md:1:783`.
+Run: `bash "$SP/corpus.sh" nesting && bash "$SP/corpus.sh" counts && bash "$SP/corpus.sh" body canvas && bash "$SP/corpus.sh" materialise`
+Expected: two `ok` nesting lines; **four** `ok` count lines (the fourth is the gallery at 842); `…/renovation-canvas-concept-interaction-design.md:1:783`; and eight body files whose lengths are `1451 285 682 459 424 783 1635 842` — the seven Markdown bodies summing to the 5,719 the counts check measured, plus the gallery, which is HTML and is deliberately outside that Markdown total.
+
+**The gallery's range is measured, not written down.** An earlier version of this harness returned `1:0` for it — an empty range, from which Task 3 would sweep nothing while the plan went on claiming all eight bodies covered. That is this project's recurring defect in its purest form: a claim wider than the mechanism under it. The range is now `wc -l` of the file, so a gallery that grows is swept whole.
 
 **Why the nesting check is a gate and not a note:** the corpus has produced this defect twice. If a third nested file arrives, this check fails loudly instead of the pass reading the same claims twice and reporting the repetition as coverage.
 
@@ -153,8 +184,17 @@ re-resolved through the aliases. Settling presence in one pass would file `DIY R
 rename.
 
 **Files:**
-- Modify: `$SP/rows.tsv` (append `f<N>` rows with `kind=named`)
+- Modify: `$SP/rows.tsv` (append **both** `f<N>` and `r<N>` rows with `kind=named`)
 - Create: `$SP/aliases.tsv`
+
+**Named rows are created in both directions in this task, not just forward.** Step 6 below
+re-resolves a *reverse* named row sitting at `retained?` when an alias says the evidence used
+a different word — `Private renovator` is the worked example. If reverse named rows are not
+built until Task 3, that branch has nothing to act on and no later step re-runs it, so
+`Private renovator` stays `retained` while `DIY Renovator` is already `present` against it:
+half of the rename resolved, the other half fabricating a state. The alias pass has to see
+both sides of a rename at once, which is the same circularity the two-pass lookup exists to
+break — one direction lower down.
 
 **Interfaces:**
 - Consumes: `corpus.sh body <name>` from Task 1.
@@ -183,12 +223,25 @@ for n in "Planner Home" "Spaces View" "Space Detail" "Project Home"; do bash "$S
 ```
 Expected: the first three print the term and an empty second field; `Project Home` prints `docs/deliverables/MVP Prototype.md`. This reproduces the spec's `0, 0, 0, 1` and proves the lookup before it is trusted on unknown terms.
 
-- [ ] **Step 3: Extract named things from all eight bodies and append rows**
+- [ ] **Step 3: Extract named things in both directions and append rows**
 
-Read each body over its range from `corpus.sh body`. Extract, per the spec's producing rule: **concepts** (→ `entities/`), **screens and views** (→ `requirements/`, `deliverables/`), **components** (→ `components/`), **actors and personas** (→ `actors/`), **named artifacts** (→ `deliverables/`). Append one row per item:
+**Forward** — read each body over its range from `corpus.sh body` (use the materialised
+`$SP/bodies/<name>.txt`, which is that range and nothing else). Extract, per the spec's
+producing rule: **concepts** (→ `entities/`), **screens and views** (→ `requirements/`,
+`deliverables/`), **components** (→ `components/`), **actors and personas** (→ `actors/`),
+**named artifacts** (→ `deliverables/`). Provisional state is `present?` on a hit,
+`absent?` on none.
+
+**Reverse** — every named thing the 227 derived notes hold gets an `r<N>` row of
+`kind=named`: the `name` each note declares, checked against the evidence bodies. Provisional
+state is `present?` where the evidence uses the word, `retained?` where it does not. These are
+the rows Step 6's mirror branch resolves, and they must exist before it runs.
+
+Append one row per item:
 
 ```
-f1	forward	named	Planner Home	uxd§28	planner home	-	-	absent	-
+f1	forward	named	Planner Home	uxd§28	planner home	-	-	absent?	-
+r1	reverse	named	Private renovator	docs/actors/Private renovator.md::name	private renovator	-	-	retained?	-
 ```
 
 Write a **provisional** state only: a hit → `present?`, no hit → `absent?`, both with the
@@ -231,7 +284,7 @@ Then do the mirror, which is the half that is easy to forget: a **reverse** name
 used a different one. `Private renovator` is exactly that row.
 
 ```bash
-awk -F'\t' -v OFS='\t' 'NR==FNR{if(FNR>1){a[tolower($1)]=$3; b[tolower($2)]=$3} next}
+awk -F'\t' -v OFS='\t' 'NR==FNR{if(FNR>1){a[tolower($1)]=$3; nb=split($2,B,"|"); for(j=1;j<=nb;j++) b[tolower(B[j])]=$3} next}
   FNR==1{print;next}
   $3=="named" && $9=="absent?"  && (tolower($4) in a){$9="present"; $8=a[tolower($4)]; print; next}
   $3=="named" && $9=="retained?" && (tolower($4) in b){$9="present"; $8=b[tolower($4)]; print; next}
@@ -239,8 +292,14 @@ awk -F'\t' -v OFS='\t' 'NR==FNR{if(FNR>1){a[tolower($1)]=$3; b[tolower($2)]=$3} 
 awk -F'\t' 'NR>1 && $9 ~ /\?$/ {n++} END{print "rows still provisional (must be 0):", n+0}' "$SP/rows.tsv"
 ```
 
-Expected: `0` provisional rows, and `DIY Renovator` now `present` against
-`docs/actors/Private renovator.md` rather than standing as a fabricated `Gap`.
+Expected: `0` provisional rows; `DIY Renovator` now `present` against
+`docs/actors/Private renovator.md` rather than standing as a fabricated `Gap`; and the mirror
+of it, the reverse row for `Private renovator`, `present` rather than a fabricated `retained`.
+
+The reverse index is built by **splitting `derived_term` on `|`**, not by using the field
+whole. The `collapsed` row's derived side is `Space|Outdoor area|Zone` — three terms in one
+field — and keying on the unsplit string produces a key no row's subject can ever equal, so
+every collapsed alias would resolve forward and silently fail to resolve in reverse.
 
 - [ ] **Step 7: Commit** — scratchpad only, nothing to commit. Record the named-row count, the alias count, and how many rows the alias pass moved off `absent?`/`retained?` — that number is the count of findings a single-pass lookup would have invented.
 
@@ -288,9 +347,9 @@ f92	forward	behavioural	a user can start a project without a plan	prd§11.2.3	pr
 
 Leave `cand_n`, `matched` and `state` empty.
 
-- [ ] **Step 4: Build the reverse inventory, per claim rather than per note**
+- [ ] **Step 4: Build the reverse behavioural inventory, per claim rather than per note**
 
-Every named thing and every behavioural claim in all 227 notes gets a row. A note is a container: a Feature with four acceptance criteria yields four rows, not one.
+Every behavioural claim in all 227 notes gets a row. A note is a container: a Feature with four acceptance criteria yields four rows, not one. The reverse **named** rows already exist — Task 2 built them, because the alias pass needs both sides of a rename at once — so this step adds the behavioural half and the two together are the reverse inventory the spec asks for.
 
 ```
 r418	reverse	behavioural	carries no geometry	docs/entities/Space.md::Rules[1]	space,zone,geometry	-	-		-
@@ -330,43 +389,70 @@ Implements spec order step 4. **Only stage one is mechanical, and the ledger wil
 
 ```bash
 cat > "$SP/candidates.sh" <<'EOF'
-#!/usr/bin/env bash
-# Stage one: mechanical, reproducible. Prints candidate notes for comma-separated subject terms.
+# Stage one of the two-stage match: mechanical, reproducible by command.
+#   candidates.sh forward "<terms>"   -> searches the 227 derived notes
+#   candidates.sh reverse "<terms>"   -> searches the eight materialised evidence bodies
+#
+# The direction is not cosmetic. A forward row asks "does any derived note address this
+# evidence claim"; a reverse row asks "does the new evidence speak to this derived claim".
+# Searching the derived corpus for a reverse row returns the very note the claim was
+# extracted from, so the row matches itself, rung 4 never fires, and `retained` and
+# `superseded` are unreachable for every one of the 227 notes' reverse rows.
 set -euo pipefail
 cd /home/user/renovation-planner
 SP="$(dirname "$0")"
-IFS=',' read -ra terms <<< "$1"
+case "${1:-}" in
+  forward) corpus=(docs/requirements docs/entities docs/business-rules docs/components
+                   docs/actors docs/deliverables docs/adrs docs/issues) ;;
+  reverse) corpus=("$SP/bodies") ;;   # written by `corpus.sh materialise`, one file per body
+  *) echo 'usage: candidates.sh {forward|reverse} "<terms>"' >&2; exit 2 ;;
+esac
+
+# A term expands to itself plus every alias counterpart, matched on EITHER side of the
+# alias table so the expansion works whichever way the row runs. `derived_term` is split
+# on `|`: the `collapsed` row holds three terms in one field.
+expand() {
+  printf '%s\n' "$1"
+  awk -F'\t' -v t="$(printf '%s' "$1" | tr 'A-Z' 'a-z')" 'NR>1{
+    if (tolower($1)==t) { n=split($2,B,"|"); for(i=1;i<=n;i++) print B[i] }
+    n=split($2,B,"|"); for(i=1;i<=n;i++) if (tolower(B[i])==t) print $1
+  }' "$SP/aliases.tsv"
+}
+
+IFS=',' read -ra terms <<< "${2:-}"
 { for t in "${terms[@]}"; do
-    t="$(echo "$t" | sed 's/^ *//; s/ *$//')"
-    [ -z "$t" ] && continue
-    grep -rliE "\b${t}s?\b" docs/requirements docs/entities docs/business-rules docs/components \
-      docs/actors docs/deliverables docs/adrs docs/issues 2>/dev/null || true
-    while IFS=$'\t' read -r ev der note rel; do
-      [ "$ev" = "evidence_term" ] && continue
-      if [ "$(echo "$ev" | tr 'A-Z' 'a-z')" = "$(echo "$t" | tr 'A-Z' 'a-z')" ]; then
-        echo "$der" | tr '|' '\n' | while read -r d; do
-          [ -n "$d" ] && grep -rliE "\b${d}s?\b" docs/requirements docs/entities docs/business-rules \
-            docs/components docs/actors docs/deliverables docs/adrs docs/issues 2>/dev/null || true
-        done
-      fi
-    done < "$SP/aliases.tsv"
+    t="$(printf '%s' "$t" | sed 's/^ *//; s/ *$//')"
+    [ -n "$t" ] || continue
+    while IFS= read -r x; do
+      [ -n "$x" ] || continue
+      grep -rliE "\b${x}s?\b" "${corpus[@]}" 2>/dev/null || true
+    done < <(expand "$t" | sort -u)
   done; } | sort -u
 EOF
 chmod +x "$SP/candidates.sh"
 ```
 
-- [ ] **Step 2: Verify it on a claim whose answer is known**
+- [ ] **Step 2: Verify it on a claim whose answer is known, in both directions**
 
-Run: `bash "$SP/candidates.sh" "space,zone" | wc -l`
-Expected: a non-zero count that includes `docs/entities/Space.md` and `docs/entities/Zone.md`. Check the alias expansion works by confirming `docs/entities/Outdoor area.md` appears — it is reached only through the `collapsed` alias row, not through the literal term.
+Run:
+```bash
+bash "$SP/candidates.sh" forward "space,zone" | wc -l
+bash "$SP/candidates.sh" forward "space,zone" | grep -c 'Outdoor area'
+bash "$SP/candidates.sh" reverse "space,zone"
+```
+Expected: forward, a non-zero count including `docs/entities/Space.md` and `docs/entities/Zone.md`, and `docs/entities/Outdoor area.md` present — it is reached only through the `collapsed` alias row, not through the literal term, so a `1` there is the alias expansion proving itself. Reverse, a list of `$SP/bodies/*.txt` files and **no** path under `docs/` — a reverse row that returns a derived note is the direction bug, and this is the check that catches it.
 
 - [ ] **Step 3: Fill `cand_n` for every behavioural row**
 
-For each behavioural row, run `candidates.sh` on its `terms`, write the count into `cand_n`. Record the command in the ledger later; it is stage one and must be re-runnable verbatim.
+For each behavioural row, run `candidates.sh` **with that row's own direction** on its `terms`, and write the count into `cand_n`. Record the command in the ledger later; it is stage one and must be re-runnable verbatim.
+
+A forward row's candidate set is a set of derived notes; a reverse row's is a set of evidence bodies. Feeding every row the same corpus is what made `retained` unreachable, and the row's `direction` field is the only thing that decides it.
 
 - [ ] **Step 4: Judge the match within each candidate set**
 
-Read only the notes in the candidate set. Decide whether any addresses the claim; write its path into `matched`, or `-`. **Silence is not a match** — a candidate note that mentions the term but says nothing about the claim leaves `matched` as `-`.
+Read only the members of the candidate set — derived notes for a forward row, evidence bodies for a reverse one. Decide whether any addresses the claim; write its path into `matched`, or `-`. **Silence is not a match** — a candidate that mentions the term but says nothing about the claim leaves `matched` as `-`.
+
+A reverse row must never match the note it was extracted from. That is not a judgement call the reader has to make: the reverse corpus contains no derived notes at all, so the case cannot arise.
 
 A row with `cand_n=0` is the one case needing no judgement: nothing to read, `matched=-`.
 
@@ -441,13 +527,26 @@ Rung 1 first: does the evidence explicitly supersede, in a citable passage? → 
 ```bash
 printf 'finding_id\tkind\tstanding_evidence\tstanding_derived\tevidence_cite\tderived_cite\trows\n' > "$SP/findings.tsv"
 awk -F'\t' 'NR>1 && ($9=="contradictory" || $9=="superseded") {c[$10]=c[$10]" "$1; k[$10]=$9}
-  END{i=0; for (p in c){i++; printf "c%d\t%s\t\t\t\t%s\t%s\n", i, (k[p]=="superseded"?"Orphan":"Contradiction"), p, c[p]}}' \
+  END{i=0; for (p in c){i++; n=index(p,">>");
+       printf "c%d\t%s\t\t\t%s\t%s\t%s\n", i, (k[p]=="superseded"?"Orphan":"Contradiction"),
+              substr(p,1,n-1), substr(p,n+2), c[p]}}' \
   "$SP/rows.tsv" >> "$SP/findings.tsv"
 rows=$(awk -F'\t' 'NR>1 && ($9=="contradictory"||$9=="superseded")' "$SP/rows.tsv" | wc -l | tr -d ' ')
 finds=$(( $(wc -l < "$SP/findings.tsv") - 1 ))
 echo "disagreement rows: $rows   findings: $finds   coalesced pairs: $(( rows - finds ))"
 ```
 Expected: `coalesced pairs` equals the number of disagreements both directions found.
+
+**The pair key is split back into its two citations here, not carried whole.** `pair` is
+`<evidence_source>>><derived_path>::<locator>`; `findings.tsv` declares field 5 as
+`evidence_cite` and field 6 as `derived_cite`. Writing the undivided key into field 6 leaves
+field 5 empty, and Task 6 sets the evidence standing by testing `$5 ~ /^prd/` — so every
+finding, the PRD-backed ones included, would come back `undetermined`, and the provenance
+trace the received-evidence findings exist to get would be skipped entirely. Verify with:
+
+```bash
+awk -F'\t' 'NR>1 && $5=="" {n++} END{print "findings with no evidence citation (must be 0):", n+0}' "$SP/findings.tsv"
+```
 
 Note what this computes and what it must not: the count is `disagreement rows − distinct pairs`,
 over `contradictory` and `superseded` rows **only**. It is *not* total rows minus total findings
@@ -633,6 +732,8 @@ Then update PR #8's body: the ledger now exists, and the PR is no longer "one do
 ---
 
 ## Self-review
+
+**Round ten, and what it changed.** Four P1 findings arrived against this plan after the spec was frozen, and all four were verified against the tree before being accepted. None of them is a finding against the spec — each is a place where this plan's *implementation* of a frozen method contradicted the method: the gallery given an empty `1:0` range while the spec admits it as one of eight bodies; named rows built forward-only while the spec's reverse rule covers "every named thing **and** every behavioural claim"; a candidate corpus that searched the derived notes in both directions while the spec defines the reverse direction as "checked against the new evidence"; and a shell formatter that left `evidence_cite` blank. Two more came from the pre-flight scan: an evidence-line check that compared a constant against a sum of the same constants, and an alias index keyed on an unsplit `derived_term`. The spec was not reopened for any of them.
 
 **Spec coverage.** Order steps 1–8 → Tasks 2, 2, 3, 4, 5, 5, 5, 7 (the order was renumbered in round nine: reading is now step 5, the ladder 6, findings 7). DoD 1 → Task 5 + Task 9; 1a → Task 8 step 3; 1b → Task 3 step 5 and Task 9; 1c → Task 8 step 3; 1d → Task 8 step 3; 2 → Task 8 step 4; 3 → Task 8 step 5; 4 → Task 8 step 2; 5 → Task 9 step 3; 6 → Global Constraints and Task 9 step 1. The two-stage matcher → Task 4. Pair identity → Task 5 steps 4–5. Provenance tracing → Task 6 step 2. Reference corpus limit → Task 6 step 2.
 

@@ -35,7 +35,7 @@ drawn plan: its own *What is open* admits rung 1 "forbids" pricing before drawin
 `requirements/Start a renovation project.md` creates no `Plans/` folder until something is drawn.
 Cluster E quotes both and says why the matrix cannot count it.
 
-**No orphans at all.** Across 3,073 rows and eight evidence bodies, not one passage *replaces*
+**No orphans at all.** Across 3,076 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
 UX layer contradicts the backlog in 47 places and supersedes it nowhere.
 
@@ -101,7 +101,7 @@ exist for only the five note types that hold named things, so a single count wou
 | `issues/` | 3 | 3 |
 
 All eight evidence bodies contributed forward rows: prd 434, canvas 197, prototype 177, uxd 170,
-wireframes 147, jtbd 99, research 117, gallery 64.
+wireframes 147, jtbd 95, research 120, gallery 64.
 
 ### Sections swept, beside sections contained — with the instrument's limits
 
@@ -283,7 +283,7 @@ it. The demonstrated instance is `f1284`, "show the user what they need to do no
 were `task, current, next-best-action`, and `docs/requirements/Reporting and project cockpit.md`
 — which asks the claim's own question in as many words, "what is next, what is blocked" — uses
 none of the three, so it was never a candidate. Two rows from adjacent wishes in the same
-section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 772
+section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 773
 gaps carry this limit in the same shape**, and it points one way only: it can invent a gap, never
 hide one.
 
@@ -576,10 +576,10 @@ counts rows rather than subjects throughout.
 
 ## Gaps
 
-**772**, of which 412 are named things the evidence names with no note behind them and 360 are
+**773**, of which 412 are named things the evidence names with no note behind them and 361 are
 behavioural claims no note addresses. The named/behavioural split and the per-body breakdown are in `findings.tsv`.
 
-They are not 772 separate problems. **Whole epics of the new PRD have no derived counterpart**,
+They are not 773 separate problems. **Whole epics of the new PRD have no derived counterpart**,
 and the reason is one measurement rather than a judgement — counted across all 227 notes:
 
 | term | derived notes containing it | times the workspace PRD uses it |
@@ -622,25 +622,25 @@ five deliverable notes is one.
 
 **A caveat a reader should apply to this number.** A gap is one forward row that no derived note
 addresses, and the same absence is reached from several bodies — `Project Home` alone produces
-rows from three. The 772 is a row-derived count, honestly produced and not deduplicated by
+rows from three. The 773 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
-**Every one of the 772 is re-runnable, and both commands are committed — two, because the two
+**Every one of the 773 is re-runnable, and both commands are committed — two, because the two
 row kinds are two mechanisms.** A named row is a *lookup* that settles the row on its own; a
 behavioural row is a *candidate set* that bounds a reading. One command cannot answer both, and
 publishing one and claiming both is the error this ledger keeps catching in itself.
 
-**360 behavioural gaps** — [`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh),
+**361 behavioural gaps** — [`candidates.sh`](2026-08-24-ux-layer-backlog-reconciliation/candidates.sh),
 given the row's `direction` and `terms`:
 
 ```bash
 D=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation
-awk -F'\t' '$7=="f184"' $D/findings.tsv                       # g92, a Gap, from row f184
+awk -F'\t' '$7=="f184"' $D/findings.tsv                       # g96, a Gap, from row f184
 awk -F'\t' '$1=="f184"{print $2, $6, $7}' $D/rows.tsv         # forward · terms · cand_n = 0
 bash $D/candidates.sh forward "interaction promise,awareness" # prints nothing: the set is empty
 ```
 
-`g92` is the worked example because it is the hardest case to take on trust: `cand_n` is **0**,
+`g96` is the worked example because it is the hardest case to take on trust: `cand_n` is **0**,
 so no judgement was involved at all — the ladder resolved it to `absent` mechanically. The
 command is the whole of that decision, and it either prints nothing today or the finding is wrong.
 
@@ -791,7 +791,10 @@ of the same kind — reading a *scope* difference as a disagreement.
   another root would force; `prd§34` lists that change among "likely later increments". Same
   timeframe, not opposed. Withdrawn to `present`.
 
-Net for this decision: **48 contradictions become 46**, and 823 findings become 821.
+Net for this decision: **two contradictions withdrawn.** Stated as a delta rather than as
+totals, because a per-decision note that quotes the running totals goes stale the moment any
+other round moves them — which is how this sentence came to print 48 and 823 long after both
+had changed.
 - **The `Professional planner`'s standing is untouched** (`r1335`, `r1341`). Selecting among your
   own projects is not working on several projects on someone else's behalf.
 - Per the provenance trace, `entities/Project.md` **faithfully reflects** the original PRD §58 and
@@ -836,8 +839,8 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 546 findings carry `undetermined`:
-492 whose evidence side sits in `docs/user-experience/` and 56 in `docs/product/` — all of
+**v1 and v2 are the ones that gate this ledger** — they are why 547 findings carry `undetermined`:
+490 whose evidence side sits in `docs/user-experience/` and 57 in `docs/product/` — all of
 them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
 naming it in the table settles it outright, with no classification question behind it.
@@ -891,7 +894,7 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 
 | file | rows | what it holds |
 | --- | --- | --- |
-| `rows.tsv` | 3,073 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
+| `rows.tsv` | 3,076 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
 | `findings.tsv` | 820 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
@@ -908,7 +911,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Twenty-six corrections, all from review of the committed matrix — which is the argument for
+Thirty corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1322,6 +1325,50 @@ For the whole pass, the ledger's claims about its own checkability were exactly 
 exists to find: a claim wider than its mechanism. It is now committed at `verify-dod.sh` beside the
 data it checks, and the plan points at that one copy rather than carrying a second that would drift
 the way every duplicated count here has.
+
+**A twenty-seventh correction: the sweep was built by enumeration, which is the defect it exists
+to stop.** The 28-figure gate written one round earlier covered the places its author remembered.
+Review found **nine more** across five sections it had never looked at — the orphans sentence, the
+per-body forward list, the gap section's own headline and four restatements of its total, the
+behavioural-gaps heading and the `rows.tsv` row of the artifact table. A gate assembled from a list
+of known places has the weakness of any enumeration: the next member is the one nobody adds.
+
+It is two mechanisms now. The targeted sweep stays, at **32** figures, for the places a bare number
+sits under a heading with no word beside it to key on. Beside it runs a **net that finds the
+numbers rather than remembering them**: every integer adjacent to a metric word — rows, gaps,
+findings, contradictions — above a floor separating a total from a cluster size, checked against
+the artifacts. It caught **three more the review had not named**, including a decision-summary
+split reading `492 + 56` against a stated 546 when the measured answer was `490 + 57` of 547.
+
+One consequence worth keeping: the per-decision note reading "48 contradictions become 46, and 823
+findings become 821" is now a **delta** — *two contradictions withdrawn*. A running total quoted
+inside a note about one decision goes stale the moment any other round moves it, and that sentence
+had been wrong for four rounds.
+
+**A twenty-eighth correction: the one worked example was not true.** The ledger prints a runnable
+block offering `g92` as "the hardest case to take on trust", `cand_n` **0**, the command printing
+nothing. Every mechanic in it is right — row `f184` does have an empty candidate set and the command
+does print nothing — but `f184` belongs to **`g96`**. A reader running the block would have watched
+`g96` come back and the label contradict it, in the one place the ledger asks to be taken literally.
+Relabelled, and now gated: the finding id, the row it selects and the `cand_n` it states are checked
+against `findings.tsv` and `rows.tsv` on every run.
+
+**A twenty-ninth correction: `candidates.sh` carried `lookup.py`'s plural defect.** It built
+`\b<term>s?\b` without stripping a trailing plural first, so a term arriving already plural got
+`\bexampless?\b` — matching `examples` and never `example`. The candidate set silently narrowed,
+and a candidate set is what bounds a reading, so an `absent` verdict could be certified against
+fewer notes than the rule promises. `lookup.py` was repaired for this earlier in the same review;
+the sibling instrument was never checked.
+
+Measured rather than assumed: **38 rows carry a corrected `cand_n`** — 20 gaps, 10 present, 4
+contradictory, 4 retained. The 18 non-gaps cannot move, because a wider set cannot unmake a match
+already found. **All 20 gaps were re-judged against their corrected sets and none moved.** The
+additions are overwhelmingly notes matching a generic word — fourteen ADRs joining on `examples` →
+`example`, `components/Selection handle.md` on `spaces` → `space`. The five where an inventory note
+genuinely joined were read: `Information Architecture.md` groups `Space` and `Zone` as nouns under
+*Place* and names no Spaces View; the `Sitemap` has no next-actions entry; nothing addresses
+per-trade meeting records. So the instrument was wrong, the published `cand_n` was wrong on 38 rows,
+and no finding changes.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

@@ -79,13 +79,19 @@ words_of() {
     printf '%s\n' "$w"
   done
 }
+# Strip a trailing plural BEFORE the optional `s?` is appended. Without this the tolerance runs
+# one way only: a term arriving already plural gets `\bexampless?\b`, which matches `examples`
+# and `exampless` and NOT `example` — so the candidate set silently narrows and the reading that
+# set bounds is done against fewer notes than the rule promises. `lookup.py` had the identical
+# defect in its own matcher; this is the same repair in the other instrument.
+sing() { printf '%s' "$1" | sed -E 's/([^s])s$/\1/'; }
 one_term() {
   local t="$1" out
-  out="$(grep -rliE "\b${t}s?\b" "${corpus[@]}" 2>/dev/null || true)"
+  out="$(grep -rliE "\b$(sing "$t")s?\b" "${corpus[@]}" 2>/dev/null || true)"
   [ -n "$out" ] && printf '%s\n' "$out"
   local first=1 acc="" cur
   while IFS= read -r w; do
-    cur="$(grep -rliE "\b${w}s?\b" "${corpus[@]}" 2>/dev/null || true)"
+    cur="$(grep -rliE "\b$(sing "$w")s?\b" "${corpus[@]}" 2>/dev/null || true)"
     if [ $first = 1 ]; then acc="$cur"; first=0
     else acc="$(comm -12 <(printf '%s\n' "$acc" | sort -u) <(printf '%s\n' "$cur" | sort -u))"; fi
   done < <(words_of "$t")

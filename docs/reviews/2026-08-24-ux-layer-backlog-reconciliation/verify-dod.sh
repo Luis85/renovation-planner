@@ -174,6 +174,85 @@ python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py -
 # Keyed off the DATA, not pinned values: each pattern is built from what the artifacts measure,
 # so a legitimate change updates what is checked instead of failing. A pinned table would need
 # editing on every real change, which is the moment it would be edited to whatever makes it pass.
+# EVERY labelled total in the live half, not the ones this file remembered to list. The sweep
+# below was built by enumerating known places and missed nine figures across five sections —
+# which is the defect the ledger names as the one it is most prone to, committed inside the gate
+# written to stop it. This one FINDS the numbers instead: any integer adjacent to a metric word,
+# above a floor that separates a total from a cluster size. It caught three more the review had
+# not named. Its own limit, stated because it cannot reach it: a BARE number under a heading has
+# no metric word beside it and is invisible here — those stay in the targeted sweep below.
+# The ledger's ONE executable worked example must actually be true. It printed a finding id
+# (`g92`) that belongs to a different row than the one its own commands select — a reader running
+# the block would have seen `g96` come back and the label contradict it. Nothing checked it: the
+# sampled candidates.sh gate replays 15 rows chosen by seed, and the figure sweeps look at totals.
+python3 - <<'PYW' || fail=1
+import io, re, sys
+D = "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"
+L = io.open(D + ".md", encoding="utf-8").read()
+finds = [f.rstrip("\n").split("\t") for f in io.open(D + "/findings.tsv", encoding="utf-8")][1:]
+rows = {r.split("\t")[0]: r.rstrip("\n").split("\t")
+        for r in io.open(D + "/rows.tsv", encoding="utf-8")}
+m = re.search(r'\$7=="(f\d+[a-z]?)".*?#\s*(g\d+), a Gap, from row (f\d+[a-z]?)', L)
+bad = []
+if not m:
+    bad.append("the worked-example block is gone or reworded")
+else:
+    sel, label, stated = m.group(1), m.group(2), m.group(3)
+    if sel != stated:
+        bad.append("block selects %s but says 'from row %s'" % (sel, stated))
+    owner = [f[0] for f in finds if len(f) > 6 and sel in f[6].split()]
+    if owner != [label]:
+        bad.append("row %s belongs to %s, not %s" % (sel, owner or "no finding", label))
+    cn = rows.get(sel, [""] * 7)[6]
+    if not re.search(r"cand_n = %s\b" % re.escape(cn), L):
+        bad.append("block does not state cand_n = %s for %s" % (cn, sel))
+print("  worked example checked against the artifacts: %s" % ("ok" if not bad else "WRONG"))
+for b in bad:
+    print("  FAIL worked example: %s" % b)
+sys.exit(1 if bad else 0)
+PYW
+
+python3 - <<'PYL' || fail=1
+import io,re,sys,collections
+D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
+L=io.open(D+'.md',encoding='utf-8').read()
+# Find the history boundary by PATTERN, not by its current wording — the heading counts the
+# corrections, so it is renamed by every round, and hard-coding it made this gate crash the
+# first time the count moved.
+_b=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+if not _b:
+    print("  FAIL cannot locate the corrections heading that bounds the live half"); sys.exit(1)
+live=L[:_b.start()]
+rows=[l.rstrip('\n').split('\t') for l in io.open(D+'/rows.tsv',encoding='utf-8')][1:]
+rows=[r for r in rows if len(r)==11]
+f=[x.rstrip('\n').split('\t') for x in io.open(D+'/findings.tsv',encoding='utf-8')][1:]
+f=[x for x in f if len(x)==8]
+byid={r[0]:r for r in rows}
+st=collections.Counter(r[8] for r in rows); dk=collections.Counter((r[1],r[2]) for r in rows)
+kd=collections.Counter(x[1] for x in f); gk=collections.Counter(byid[x[6]][2] for x in f if x[1]=='Gap')
+cs=collections.Counter(x[2] for x in f if x[1]=='Contradiction')
+# A number next to a metric word is a TOTAL when it is large enough to be one; below the floor
+# it is a cluster size or a subset ("7 rows", "4 rows, 4 findings") and is not this check's business.
+METRICS = {
+ "rows":           (1000, {len(rows), st['present'], st['retained'], st['absent'],
+                           dk[('forward','behavioural')], dk[('reverse','behavioural')]}),
+ "gaps?":          (300,  {kd['Gap'], gk['named'], gk['behavioural']}),
+ "findings":       (300,  {len(f), kd['Gap'], sum(1 for x in f if x[2]=="undetermined")}),
+ "contradictions": (10,   {kd['Contradiction'], cs['received'], cs['undetermined']}),
+}
+bad=[]
+for word,(floor,ok) in METRICS.items():
+    for m in re.finditer(r"([\d][\d,]*)\s*(?:\*\*)?\s*" + word + r"\b", live):
+        n=int(m.group(1).replace(",",""))
+        if n>=floor and n not in ok:
+            line=live[:m.start()].count("\n")+1
+            bad.append((line,m.group(0).strip(),word,sorted(ok)))
+print("  labelled totals in the live half checked against the artifacts; wrong: %d" % len(bad))
+for line,txt,word,ok in bad:
+    print("  FAIL line %d: %r — %s must be one of %s" % (line,txt,word,ok))
+sys.exit(1 if bad else 0)
+PYL
+
 python3 - <<'PYS' || fail=1
 import io,re,collections,sys
 D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
@@ -191,6 +270,7 @@ gk=collections.Counter(byid[x[6]][2] for x in f if x[1]=='Gap')
 und=sum(1 for x in f if x[2]=='undetermined')
 nprov=len([l for l in io.open(D+'/provenance.tsv',encoding='utf-8').read().rstrip('\n').split('\n')[1:] if l.strip()])
 nsite=len([x for x in f if x[1]=='Contradiction' and ('Site.md' in x[5] or 'Outdoor area.md::Relationships' in x[5] or 'Project.md::Relationships' in x[5])])
+fwdbody=collections.Counter(r[4].split('\u00a7')[0].strip('"').strip() for r in rows if r[1]=='forward')
 def c(n): return "{:,}".format(n)
 # Each entry: label, and a template whose {} is filled FROM THE DATA. The gate therefore
 # tracks the artifacts rather than a pinned number, so a legitimate change updates what is
@@ -230,6 +310,12 @@ checks=[
  ("provenance.tsv size",      r"\| `provenance\.tsv` \| %d \|" % nprov),
  ("gap citations in prose",   r"does not print %d gap citations" % kd['Gap']),
  ("cluster B size",           r"\*\*%d rows, %d findings\.\*\* The entity notes model" % (nsite,nsite)),
+ # A BARE number under a heading has no metric word beside it, so the labelled-total net below
+ # cannot see it. The gap section opens with one, and it was stale for three rounds.
+ ("gap section headline",     r"## Gaps\n\n\*\*%d\*\*, of which %d are named" % (kd['Gap'], gk['named'])),
+ ("behavioural gaps heading", r"\*\*%d behavioural gaps\*\*" % gk['behavioural']),
+ ("rows.tsv size",            r"\| `rows\.tsv` \| %s \|" % c(len(rows))),
+ ("per-body forward rows",    r"prd %d, canvas %d, prototype %d, uxd %d,\nwireframes %d, jtbd %d, research %d, gallery %d\." % tuple(fwdbody[k] for k in ("prd","canvas","prototype","uxd","wireframes","jtbd","research","gallery"))),
 ]
 bad=[n for n,p in checks if not re.search(p,L)]
 print("  ledger figures swept against the committed data: %d, disagreeing: %d" % (len(checks),len(bad)))

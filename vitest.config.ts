@@ -81,11 +81,85 @@ export default defineConfig({
 			// artifact that no test can execute) plus deliberately-defensive double-fault
 			// logging arms, so the branch floor sits lower than the others per rule 1's
 			// headroom arithmetic: at n=628 a branch is 0.16pp.
+			//
+			// Measured 2026-08-24 again after slice 4's review fixes — the settings-save
+			// rewiring, the shared restore/path/version helpers, the duplicate-id
+			// diagnostics, and tests for the out-of-band sidecar removal and the zone
+			// delete compensation: 1294/1298 statements, 628/635 branches, 321/322
+			// functions, 1183/1185 lines. Every metric above the previous measurement, so
+			// BRANCHES ratchet 97 → 98: at n=635 a branch is 0.157pp, which leaves 0.89pp
+			// — about five branches — of rule-1 headroom under the 98.89 measured.
+			//
+			// The other three stay at 99 and that is not an oversight: they measure 99.68
+			// and up, and the only whole number above 99 is 100, which the paragraph above
+			// refuses on purpose. The remaining uncovered arms are the defensive ones named
+			// there plus `GeometrySidecarView`'s Obsidian-runtime callback.
+			//
+			// Measured 2026-08-24 at the end of design slice 5 — the canvas and editor shell:
+			// the viewport transform, the three Pinia stores, the presentation read models,
+			// the Konva scene and its seven layers, the image/PDF background pipeline,
+			// `SetPlanBackgroundCommand` and its snapshot inverse, the Plan Editor view and
+			// its two commands: 1783/1789 statements, 802/813 branches, 468/469 functions,
+			// 1633/1636 lines — 99.66 / 98.64 / 99.78 / 99.81.
+			//
+			// NOTHING RATCHETS, and that is the policy working rather than an omission:
+			// rounded down, this increment measures exactly the floors already in force.
+			// Branches gained the most room (97 → 98 was slice 4's rise; 98.64 now leaves
+			// about five branches of headroom at 0.123pp each), and the next whole number
+			// is 99, which 98.64 does not reach. The other three sit between 99 and 100,
+			// and 100 is refused above.
+			//
+			// What the six uncovered statements and eleven branches are, so the next
+			// increment does not go hunting: slice 4's defensive double-fault logging in
+			// `ObsidianZoneRepository`, `GeometrySidecarView`'s Obsidian-runtime callback,
+			// the ~4 phantom `import` branches this file already names, the plugin's
+			// non-`TFile` vault-event arm, `PlanCanvas`'s null-container guards (a template
+			// ref is never null once mounted), and `ReversibleSetPlanBackground`'s
+			// re-validation of a snapshot that was valid when it was taken. Every one is
+			// either unreachable by construction or an arm whose whole purpose is to not
+			// happen.
+			//
+			// Measured 2026-08-24 again after the pdf.js swap — `pdfRaster.ts` asking
+			// Obsidian for its own pdf.js instead of bundling one: 1781/1787 statements,
+			// 802/813 branches, 467/468 functions, 1631/1634 lines — 99.66 / 98.64 / 99.78 /
+			// 99.81, the same four figures as slice 5 on a denominator two statements and
+			// one function smaller (`installWorker` and the worker import are gone).
+			// NOTHING RATCHETS, for the reason the slice 5 paragraph gives.
+			//
+			// Measured 2026-08-24 again after the reviewability work — the three create
+			// commands wired into the composition root, the sample-project seed and its
+			// command, the plan picker, and `open-plan-editor` losing its active-file
+			// precondition: 1809/1815 statements, 806/817 branches, 477/478 functions,
+			// 1657/1660 lines — 99.66 / 98.65 / 99.79 / 99.81. The same four rounded figures
+			// again, so NOTHING RATCHETS again; the uncovered set is unchanged from the list
+			// above, and the seed's three early returns are each driven by their own injected
+			// failure rather than left as the increment's new uncovered arms.
+			// Measured 2026-08-24 again after the two defects a live vault found — the
+			// metadata-cache parse window (`frontmatterOf`'s echo fallback, and the fake that
+			// now models the delay) and the leaked `window.Konva` (`onunload`): 1834/1840
+			// statements, 814/825 branches, 482/483 functions, 1678/1681 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82. Every metric at or above the previous
+			// measurement, and NOTHING RATCHETS again for the same reason: rounded down these
+			// are the floors already in force, and the next whole number up is 100 for three
+			// of them and 99 for branches, which 98.66 does not reach.
+			// Measured 2026-08-24 again after the sidecar folder fix and the real-PDF test:
+			// 1835/1841 statements, 814/825 branches, 482/483 functions, 1679/1682 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82. Unchanged rounded down, so NOTHING RATCHETS.
+			// Measured 2026-08-24 again after the sidecar echo-suppression fix: 1838/1844
+			// statements, 816/827 branches, 483/484 functions, 1681/1684 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82, the same four as before it. Worth recording
+			// because the fix briefly LOWERED branches to 98.42: suppressing our own writes
+			// left the mapping upsert reachable only by a sidecar this session did not write,
+			// which is a real scenario that had been riding on our own writes for its
+			// coverage and now has a test of its own. NOTHING RATCHETS.
+			// Measured 2026-08-24 again after the restored-leaf fix (`ProjectIndexRebuilt`):
+			// 1843/1849 statements, 816/827 branches, 486/487 functions, 1685/1688 lines —
+			// 99.67 / 98.66 / 99.79 / 99.82, the same four again. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,
 				lines: 99,
-				branches: 97,
+				branches: 98,
 			},
 		},
 	},

@@ -1,8 +1,29 @@
 import { TFile as TFileValue, TFolder, type FileManager, type MetadataCache, type TFile, type Vault } from 'obsidian';
 import type { PersistenceError } from '../../../core/errors/AppError';
-import { ok, type Result } from '../../../core/result/Result';
+import { err, ok, type Result } from '../../../core/result/Result';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
+import type { EchoWindow } from '../../persistence/index/EchoWindow';
+import { parentOf } from './paths';
+
+/**
+ * The one module the repositories read and write notes through. Everything above
+ * `infrastructure/` sees ports; everything inside the repositories calls these helpers,
+ * so there is no second place that decides how frontmatter is serialized or how a note
+ * is created.
+ *
+ * The write boundary (`WRITE_BOUNDARY` in eslint.config.mjs) is why this file lives
+ * where it does: every vault mutation in the plugin is reachable from one directory.
+ */
+
+/**
+ * Every `PersistenceError` this layer produces, from one place — the geometry store and
+ * the three repositories all call THIS rather than each keeping a copy, and the `cause`
+ * spread is the reason it is worth a function at all.
+ */
+export function persistenceError(code: string, message: string, cause?: unknown): PersistenceError {
+	return { category: 'Persistence', code, message, ...(cause === undefined ? {} : { cause }) };
+}
 
 /**
  * The migration half of a note read (SDD §44): chain `(kind, schema-version)` up to
@@ -19,10 +40,10 @@ export function migrateNote(
 	try {
 		return ok(migrations.migrateToLatest(kind, raw, fromVersion));
 	} catch (cause) {
-		return {
-			ok: false,
-			error: { category: 'Persistence', code: `${kind}.migration-failed`, message: `Migrating the ${kind} note failed.`, ...(cause === undefined ? {} : { cause }) },
-		};
+		// Through the factory below rather than a literal of the same shape: the `cause`
+		// spread is the fiddly half, and a second hand-written copy of it is a second place
+		// for `cause: undefined` to start appearing on the error.
+		return err(persistenceError(`${kind}.migration-failed`, `Migrating the ${kind} note failed.`, cause));
 	}
 }
 
@@ -32,21 +53,57 @@ export type OpenedNote =
 	| { readonly status: 'error'; error: PersistenceError }
 	| { readonly status: 'ok'; file: TFile; raw: Record<string, unknown>; migrated: unknown };
 
+/** What reading a note's frontmatter needs: Obsidian's cache, and our own last write. */
+export interface FrontmatterSource {
+	readonly metadataCache: MetadataCache;
+	readonly echo: EchoWindow;
+}
+
+/**
+ * The frontmatter of a note — via `MetadataCache`, not raw parsing, with `EchoWindow` as
+ * the fallback for the one case the cache cannot answer.
+ *
+ * **Obsidian populates its `MetadataCache` asynchronously.** A note read back in the same
+ * tick it was created has NO cache entry, and this function used to answer `{}` for it —
+ * which every caller then read as a version-0 document, so the migration runner threw
+ * `chain-gap` and the read failed with "Migrating the … note failed". That is not a
+ * hypothetical: it is what `create-sample-project` did on its first run in a real vault,
+ * where `CreatePlanCommand` reads back the Project it had just created to validate the
+ * reference. The suite could not see it, because `FakeMetadataCache` parsed the vault's own
+ * text synchronously — a fake kinder than the real thing, which now models the delay.
+ *
+ * The cache is still PREFERRED and the fallback is consulted only when there is no cache
+ * entry at all. That ordering is deliberate: the echo record is what this plugin last
+ * wrote, so preferring it would mean serving our own bytes over a hand edit for as long as
+ * the debounced change pipeline had not run. A path that has ever been parsed always has a
+ * cache entry, so the fallback answers exactly the window it exists for.
+ *
+ * What this still does NOT fix, so the sentence stays narrower than the function: a cache
+ * entry that is STALE — present but parsed from an earlier version of the file — is
+ * returned as-is, exactly as before. That window belongs to Obsidian's parse queue and no
+ * fallback here can detect it.
+ */
+export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<string, unknown> {
+	// On the CACHE ENTRY, not on `.frontmatter`, and that distinction is the whole
+	// correctness of the fallback. `getFileCache` answers `CachedMetadata | null`: null
+	// means Obsidian has no entry for this file AT ALL, while a file it has parsed and
+	// found no frontmatter in answers an object whose `frontmatter` is undefined. Reading
+	// `getFileCache(file)?.frontmatter` collapses the two — and then a note whose
+	// frontmatter a user DELETED would be answered from the echo record, so the change
+	// pipeline would never drop it from the index. Only the first case may fall back.
+	const cached = source.metadataCache.getFileCache(file);
+	if (cached === null) return source.echo.frontmatterAt(file.path) ?? {};
+	return cached.frontmatter ?? {};
+}
+
 /**
  * Resolves an entity's note through the index and reads its cached frontmatter plus the
  * migrated document — the identical preamble of all three repositories' `getById`. A
  * missing note is 'missing', never an error ("not found" is ok(null), §36).
  */
-/** The cached frontmatter of a note — via `MetadataCache`, not raw parsing. A file with
- * no cache entry yet reads as no frontmatter, which callers surface as their own error. */
-export function frontmatterOf(metadataCache: MetadataCache, file: TFile): Record<string, unknown> {
-	return metadataCache.getFileCache(file)?.frontmatter ?? {};
-}
-
 export function openNoteById(
-	deps: {
+	deps: FrontmatterSource & {
 		vault: Vault;
-		metadataCache: MetadataCache;
 		index: ProjectIndex;
 		migrations: MigrationRunner;
 	},
@@ -57,24 +114,14 @@ export function openNoteById(
 	if (!path) return { status: 'missing' };
 	const abstractFile = deps.vault.getAbstractFileByPath(path);
 	if (!(abstractFile instanceof TFileValue)) return { status: 'missing' };
-	const raw = frontmatterOf(deps.metadataCache, abstractFile);
+	const raw = frontmatterOf(deps, abstractFile);
 	const migrated = migrateNote(deps.migrations, kind, raw);
 	if (!migrated.ok) return { status: 'error', error: migrated.error };
 	return { status: 'ok', file: abstractFile, raw, migrated: migrated.value };
 }
 
-/**
- * The one module the repositories read and write notes through. Everything above
- * `infrastructure/` sees ports; everything inside the repositories calls these helpers,
- * so there is no second place that decides how frontmatter is serialized or how a note
- * is created.
- *
- * The write boundary (`WRITE_BOUNDARY` in eslint.config.mjs) is why this file lives
- * where it does: every vault mutation in the plugin is reachable from one directory.
- */
-
-export function persistenceError(code: string, message: string, cause?: unknown): PersistenceError {
-	return { category: 'Persistence', code, message, ...(cause === undefined ? {} : { cause }) };
+function yamlScalar(value: unknown): string {
+	return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
 /**
@@ -85,11 +132,6 @@ export function persistenceError(code: string, message: string, cause?: unknown)
  * Strings are JSON-quoted, which is valid YAML and immune to names containing `:` or
  * `#`; sequences are block-style. Key order follows construction order (the schema's).
  */
-function yamlScalar(value: unknown): string {
-	return typeof value === 'string' ? JSON.stringify(value) : String(value);
-}
-
-
 export function serializeFrontmatter(dto: Record<string, unknown>): string {
 	const lines: string[] = ['---'];
 	for (const [key, value] of Object.entries(dto)) {
@@ -131,9 +173,42 @@ export async function ensureFolder(vault: Vault, folder: string): Promise<void> 
 }
 
 /**
- * The cached frontmatter of a note — via `MetadataCache`, not raw parsing. A file with
- * no cache entry yet reads as no frontmatter, which callers surface as their own error.
+ * Byte-for-byte note restore — the compensating write of a failed two-file sequence, for
+ * whichever entity is compensating. `entity` names the caller only so the refusal reads as
+ * its own (`plan.restore-failed`, `zone.restore-failed`).
+ *
+ * MODIFY when a file is still at the path, CREATE when it is not, because both happen: a
+ * failed sidecar write after an UPDATE leaves the note in place, while one after a DELETE
+ * has already trashed it. The Plan repository reaches only the second case and previously
+ * had a create-only copy of this; the two drifted into a clone group the day a path helper
+ * made them line up, which is the argument for one function rather than two that agree.
+ *
+ * Byte-for-byte matters beyond tidiness: the echo window still holds the token for these
+ * exact bytes, so the vault-change pipeline correctly reads any event about them as an echo
+ * of this plugin's own write rather than as a foreign edit.
+ *
+ * The CALLER must hold the entity's queue section — outside it, a restore races the next
+ * writer and undoes that writer's work instead of its own.
  */
+export async function restoreNoteText(
+	vault: Vault,
+	entity: string,
+	path: string,
+	text: string,
+): Promise<Result<void, PersistenceError>> {
+	const existing = vault.getAbstractFileByPath(path);
+	try {
+		if (existing instanceof TFileValue) {
+			await vault.modify(existing, text);
+		} else {
+			await ensureFolder(vault, parentOf(path));
+			await vault.create(path, text);
+		}
+		return ok(undefined);
+	} catch (cause) {
+		return err(persistenceError(`${entity}.restore-failed`, `Could not restore ${entity} note ${path}.`, cause));
+	}
+}
 
 /** Merges the plugin-owned keys into an existing note without touching body or extras. */
 export async function writeOwnedFrontmatter(
@@ -153,15 +228,17 @@ export async function writeOwnedFrontmatter(
  * holds.
  */
 export function findNoteIdInFolder(
+	source: FrontmatterSource,
 	vault: Vault,
-	metadataCache: MetadataCache,
 	folder: string,
 	id: string,
 ): TFile | null {
 	for (const file of vault.getMarkdownFiles()) {
 		if (!file.path.startsWith(`${folder}/`)) continue;
-		const cached = metadataCache.getFileCache(file)?.frontmatter;
-		if (cached && cached['id'] === id) return file;
+		// Through `frontmatterOf` rather than the cache directly, so a note this plugin
+		// created moments ago is found here too. Without it a second save of the same
+		// entity takes the INSERT path and creates a duplicate note beside the first.
+		if (frontmatterOf(source, file)['id'] === id) return file;
 	}
 	return null;
 }

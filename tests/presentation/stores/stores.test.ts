@@ -1,0 +1,301 @@
+/**
+ * The three Pinia stores this slice owns (SDD §14–15).
+ *
+ * Node, not jsdom: a store is plain reactive state, and needing a DOM to test one would
+ * mean the persistent/ephemeral split had leaked into a component.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { err, ok } from '../../../src/core/result/Result';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
+import { KONVA_LAYER_IDS } from '../../../src/presentation/editor/scene/KonvaLayers';
+import {
+	DEFAULT_VIEWPORT,
+	MAX_ZOOM,
+	screenPoint,
+	screenToWorld,
+	STAGE_PIXELS,
+} from '../../../src/presentation/editor/viewport/Viewport';
+import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
+import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+
+const READ_FAILED = { category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const;
+
+function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQueryServices {
+	return {
+		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
+		findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
+		...overrides,
+	};
+}
+
+beforeEach(() => {
+	setActivePinia(createPinia());
+});
+
+describe('ProjectStore hydration', () => {
+	it('starts idle, holding nothing', () => {
+		const store = useProjectStore();
+
+		expect(store.status).toBe('idle');
+		expect(store.plan).toBeNull();
+		expect(store.zones.size).toBe(0);
+	});
+
+	it('loads the plan and keys its zones by domain id', async () => {
+		const store = useProjectStore();
+
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+
+		expect(store.status).toBe('ready');
+		expect(store.plan).toEqual(FIXTURE_PLAN);
+		expect([...store.zones.keys()]).toEqual(FIXTURE_ZONES.map((zone) => zone.id));
+	});
+
+	/**
+	 * The distinction the query services exist to preserve. `missing` and `failed` are
+	 * different states because slice 14 branches on the first and slice 17 on the second,
+	 * and a store that collapsed them would make that impossible downstream.
+	 */
+	it('reports a plan that does not exist as missing', async () => {
+		const store = useProjectStore();
+
+		await store.hydrate(queries({ getPlan: () => Promise.resolve(ok(null)) }), 'nope');
+
+		expect(store.status).toBe('missing');
+		expect(store.error).toBeNull();
+	});
+
+	it('reports a failed plan read as failed, carrying the error', async () => {
+		const store = useProjectStore();
+
+		await store.hydrate(queries({ getPlan: () => Promise.resolve(err(READ_FAILED)) }), FIXTURE_PLAN.id);
+
+		expect(store.status).toBe('failed');
+		expect(store.error).toEqual(READ_FAILED);
+	});
+
+	it('reports a failed ZONE read as failed too, and keeps no half-loaded plan', async () => {
+		const store = useProjectStore();
+
+		await store.hydrate(
+			queries({ findZonesByPlan: () => Promise.resolve(err(READ_FAILED)) }),
+			FIXTURE_PLAN.id,
+		);
+
+		expect(store.status).toBe('failed');
+		// The plan read SUCCEEDED here. Keeping it would draw a canvas that looks current
+		// beside an error saying it is not — the worse of the two wrong answers.
+		expect(store.plan).toBeNull();
+		expect(store.zones.size).toBe(0);
+	});
+
+	/** Listing the zones of a plan that does not exist is a vault read with one answer. */
+	it('does not ask for zones when the plan is absent', async () => {
+		const findZonesByPlan = vi.fn<PlanEditorQueryServices['findZonesByPlan']>();
+		const store = useProjectStore();
+
+		await store.hydrate(queries({ getPlan: () => Promise.resolve(ok(null)), findZonesByPlan }), 'nope');
+
+		expect(findZonesByPlan).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A re-hydration must not blank a working editor: the root mounts its canvas on `ready`,
+	 * so a drop to `loading` tears the Konva stage down and rebuilds it — the whole canvas
+	 * flashing because one field changed. Asserted by watching the status THROUGH the call
+	 * rather than after it, since after it the value is `ready` either way.
+	 */
+	it('stays ready while re-reading a plan it is already showing', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+
+		const seen: string[] = [];
+		const watched = queries({
+			getPlan: () => {
+				seen.push(store.status);
+				return Promise.resolve(ok(FIXTURE_PLAN));
+			},
+		});
+		await store.hydrate(watched, FIXTURE_PLAN.id);
+
+		expect(seen).toEqual(['ready']);
+	});
+
+	it('does go through loading on a first load, and after a failure', async () => {
+		const store = useProjectStore();
+		const seen: string[] = [];
+		const watched = queries({
+			getPlan: () => {
+				seen.push(store.status);
+				return Promise.resolve(err(READ_FAILED));
+			},
+		});
+
+		await store.hydrate(watched, FIXTURE_PLAN.id);
+		await store.hydrate(watched, FIXTURE_PLAN.id);
+
+		expect(seen).toEqual(['loading', 'loading']);
+	});
+
+	it('is fully rebuildable — a reset returns it to its opening state', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+
+		store.reset();
+
+		expect({ status: store.status, plan: store.plan, zones: store.zones.size, error: store.error }).toEqual({
+			status: 'idle',
+			plan: null,
+			zones: 0,
+			error: null,
+		});
+	});
+});
+
+describe('EditorStore, the ephemeral half', () => {
+	it('opens at the default viewport with no tool, hover, drag or draft polygon', () => {
+		const store = useEditorStore();
+
+		expect(store.viewport).toEqual(DEFAULT_VIEWPORT);
+		expect({
+			tool: store.activeToolId,
+			hover: store.hoveredObjectId,
+			drag: store.dragState,
+			draft: store.temporaryPolygon,
+		}).toEqual({ tool: null, hover: null, drag: null, draft: null });
+	});
+
+	it('zooms about an anchor through the shared transform, not arithmetic of its own', () => {
+		const store = useEditorStore();
+		const anchor = screenPoint(120, 90);
+		const worldBefore = screenToWorld(anchor, store.viewport, STAGE_PIXELS);
+
+		store.zoomAt(anchor, 2);
+
+		expect(store.viewport.zoom).toBe(2);
+		expect(screenToWorld(anchor, store.viewport, STAGE_PIXELS)).toEqual(worldBefore);
+	});
+
+	it('clamps a keyboard zoom at the ceiling', () => {
+		const store = useEditorStore();
+		for (let press = 0; press < 100; press += 1) store.zoomByFactor(screenPoint(0, 0), 1.2);
+
+		expect(store.viewport.zoom).toBe(MAX_ZOOM);
+	});
+
+	/**
+	 * A pan is computed from the viewport the GESTURE started at plus the total pointer
+	 * displacement — never accumulated per move. Driven by comparing a drag delivered in two
+	 * steps against the same drag delivered in one: they land in the same place only if each
+	 * move is measured against the gesture's origin. An accumulating implementation passes
+	 * every single-move test and drifts on a real drag, which is a slow, unattributable bug.
+	 */
+	it('pans from where the gesture started, so a long drag does not drift', () => {
+		const store = useEditorStore();
+
+		store.beginPan(screenPoint(100, 100));
+		store.continuePan(screenPoint(150, 100));
+		store.continuePan(screenPoint(200, 100));
+		const inTwoSteps = store.viewport.pan;
+
+		// A FRESH pinia, so the second gesture starts from the same camera as the first. There
+		// is deliberately no `setViewport` action to reset with: an exported setter nothing in
+		// src/ calls is dead code by this project own gate.
+		setActivePinia(createPinia());
+		const second = useEditorStore();
+		second.beginPan(screenPoint(100, 100));
+		second.continuePan(screenPoint(200, 100));
+
+		expect(second.viewport.pan).toEqual(inTwoSteps);
+		expect(second.dragState).not.toBeNull();
+	});
+
+	it('forgets the gesture when it ends', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(0, 0));
+
+		store.endPan();
+
+		expect(store.dragState).toBeNull();
+	});
+
+	it('ignores a move with no gesture running, and says so', () => {
+		const store = useEditorStore();
+		const before = store.viewport;
+
+		expect(store.continuePan(screenPoint(10, 10))).toBe(false);
+		expect(store.viewport).toBe(before);
+	});
+
+	it('reports a move as consumed while a gesture is running', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(0, 0));
+
+		expect(store.continuePan(screenPoint(10, 10))).toBe(true);
+	});
+
+	it('translates the pointer into world millimetres, and blanks it on leave', () => {
+		const store = useEditorStore();
+		// Zoomed about the stage origin, which leaves the pan alone — so the viewport below is
+		// the default pan at zoom 2, and the expected world position is arithmetic a reader can
+		// do rather than a second call to the function under test.
+		store.zoomAt(screenPoint(0, 0), 2);
+
+		store.setPointer(screenPoint(40, 60));
+		expect(store.pointerWorld).toEqual({
+			x: 40 / 2 + DEFAULT_VIEWPORT.pan.x,
+			y: 60 / 2 + DEFAULT_VIEWPORT.pan.y,
+		});
+
+		store.setPointer(null);
+		expect(store.pointerWorld).toBeNull();
+	});
+});
+
+describe('WorkspaceStore, the editor chrome', () => {
+	it('opens with both panels open and every layer visible', () => {
+		const store = useWorkspaceStore();
+
+		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([true, true]);
+		expect(Object.keys(store.layerVisibility)).toEqual([...KONVA_LAYER_IDS]);
+		expect(Object.values(store.layerVisibility).every(Boolean)).toBe(true);
+	});
+
+	it('toggles a layer without touching its siblings', () => {
+		const store = useWorkspaceStore();
+
+		store.toggleLayer('zone');
+
+		expect(store.layerVisibility.zone).toBe(false);
+		expect(store.layerVisibility.background).toBe(true);
+	});
+
+	/**
+	 * The record is REPLACED rather than written into, so anything watching the whole map
+	 * sees one reactive event per change. Checked by identity, which is the only way to tell
+	 * a replacement from a mutation.
+	 */
+	it('replaces the visibility record rather than mutating it', () => {
+		const store = useWorkspaceStore();
+		const before = store.layerVisibility;
+
+		store.toggleLayer('asset');
+
+		expect(store.layerVisibility).not.toBe(before);
+	});
+
+	it('toggles each panel independently', () => {
+		const store = useWorkspaceStore();
+
+		store.toggleLayersPanel();
+
+		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, true]);
+
+		store.toggleInspectorPanel();
+
+		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, false]);
+	});
+});

@@ -16,6 +16,7 @@ import {
 	RenovationProjectView,
 } from '../../src/presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../../src/presentation/views/GeometrySidecarView';
+import { PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../helpers/plugin';
@@ -40,8 +41,8 @@ beforeEach(async () => {
 });
 
 describe('what onload registers', () => {
-	it('registers the project view under its persisted type', () => {
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, GEOMETRY_SIDECAR_VIEW]);
+	it('registers each view under its persisted type', () => {
+		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, GEOMETRY_SIDECAR_VIEW]);
 	});
 
 	// A factory that returns the wrong thing registers fine and fails when a user clicks.
@@ -70,8 +71,15 @@ describe('what onload registers', () => {
 	 * produces in the palette. It is also a persisted identifier — a user's hotkey binds to
 	 * it — so renaming one costs them the binding.
 	 */
-	it('adds the open command with an unprefixed id', () => {
-		expect(plugin.commands.map((c) => c.id)).toEqual(['open-project']);
+	it('adds every command with an unprefixed id', () => {
+		expect(plugin.commands.map((c) => c.id)).toEqual([
+			'open-project',
+			'open-plan-editor',
+			'set-plan-background',
+			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to
+			// it has bound it to this string. `sampleProject.ts` names what deletes it.
+			'create-sample-project',
+		]);
 	});
 
 	// Sidecars are registered as visible, openable files (ADR-011), wired to their viewer.
@@ -153,5 +161,49 @@ describe('the composition root', () => {
 	 */
 	it('emits nothing above debug on a successful load', () => {
 		expect(lines.filter((line) => line.level !== 'debug')).toEqual([]);
+	});
+});
+
+/**
+ * `onunload` is not symmetry for its own sake: the base class already unregisters views,
+ * commands and the ribbon, and repeating that would only be somewhere for a mistake to
+ * hide. What it exists for is `window.Konva`, which Konva assigns at module scope on every
+ * load and nothing removed — so reactivating the plugin logged "Several Konva instances
+ * detected" and the previous load's bundle stayed reachable from `window`.
+ */
+describe('what onunload disposes', () => {
+	const host = window as unknown as Record<string, unknown>;
+
+	it('releases the global Konva installed, so a reload has nothing to warn about', async () => {
+		// Konva's own module scope has already run for real by the time the plugin loads in
+		// this suite, so the global is genuinely there rather than planted.
+		host['Konva'] = { version: 'test' };
+		const { plugin: loaded } = await loadedPlugin(DEFAULT_SETTINGS);
+
+		loaded.onunload();
+
+		expect('Konva' in host).toBe(false);
+	});
+
+	/**
+	 * One disposer must not be able to abandon the rest of the teardown. Driven by pushing a
+	 * throwing one onto the list, because the alternative — waiting until a real disposer can
+	 * throw — is how this arm would stay untested until it mattered.
+	 */
+	it('logs a failing disposer and keeps disposing', async () => {
+		const { plugin: loaded } = await loadedPlugin(DEFAULT_SETTINGS);
+		const ran: string[] = [];
+		const disposers = (loaded as unknown as { disposers: (() => void)[] }).disposers;
+		disposers.push(() => {
+			throw new Error('disposer exploded');
+		});
+		disposers.push(() => ran.push('after'));
+
+		loaded.onunload();
+
+		expect(ran).toEqual(['after']);
+		expect(lines.some((line) => line.event === 'plugin.unload.disposer-failed')).toBe(true);
+		// And nothing is disposed twice: a second call has an empty list to walk.
+		expect(() => loaded.onunload()).not.toThrow();
 	});
 });

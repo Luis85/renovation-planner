@@ -9,4 +9,5 @@
  * soon as one is.
  */
 @import "./view.css";
+@import "./editor.css";
 @import "./chrome.css";

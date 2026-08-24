@@ -1,4 +1,4 @@
-import { normalizePath } from 'obsidian';
+import { normalizePath, type Vault } from 'obsidian';
 import type { PlanId } from '../../../domain/plan/PlanId';
 
 /**
@@ -19,6 +19,16 @@ const ZONES_FOLDER = 'Zones';
 /** The user-editable setting passes through `normalizePath` before any Vault call. */
 export function normalizeFolder(raw: string): string {
 	return normalizePath(raw.trim());
+}
+
+/**
+ * The folder a path sits in — what a compensating `create` has to `ensureFolder` first.
+ * Here rather than in either repository: the Plan and Zone restore paths both need it,
+ * and this module is the one place a path is taken apart or put together.
+ */
+export function parentOf(path: string): string {
+	// slice(0, 0) when there is no slash — no branch needed for rootless paths.
+	return path.slice(0, Math.max(path.lastIndexOf('/'), 0));
 }
 
 function geometryFolderFor(projectFolder: string): string {
@@ -55,10 +65,22 @@ export function fileNameFor(name: string): string {
 	return clean || 'untitled';
 }
 
-export function projectNotePathFor(projectFolder: string, name: string): string {
-	return `${projectFolder}/${fileNameFor(name)}.md`;
-}
-
-export function planNotePathFor(projectFolder: string, name: string): string {
-	return `${plansFolderFor(projectFolder)}/${fileNameFor(name)}.md`;
+/**
+ * The path an INSERT creates its note at: the name-derived filename, or that name plus the
+ * entity id when a file already sits there.
+ *
+ * This is the "deduplicated on collision" half the comment above hands to the caller, and
+ * all three repositories are that caller — so it lives here once rather than as a private
+ * copy per repository. Two of them had no copy at all and simply built the plain path,
+ * which makes `vault.create` reject on any second entity named like the first: two Plans
+ * both called "Ground floor" is a thing a user does on purpose, and the second one refused
+ * to save with a write failure that named no cause a user could act on.
+ *
+ * The id suffix is not a uniqueness LOOP — one collision check, then a name carrying an id
+ * that is unique by construction. Filename is never identity (§83), so this only has to
+ * produce a free path, not a predictable one.
+ */
+export function freshNotePath(vault: Vault, folder: string, name: string, id: string): string {
+	const base = `${folder}/${fileNameFor(name)}`;
+	return vault.getAbstractFileByPath(`${base}.md`) ? `${base} ${id}.md` : `${base}.md`;
 }

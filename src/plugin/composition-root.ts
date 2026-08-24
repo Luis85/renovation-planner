@@ -1,5 +1,21 @@
-import type { FileManager, MetadataCache, Vault } from 'obsidian';
+import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
+import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Logger } from '../application/ports/Logger';
+import { createPlanChangeSource } from '../application/events/planChangeSource';
+import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
+import { CreateProjectCommand } from '../application/commands/project/CreateProject';
+import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
+import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
+import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
+import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
+import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
+import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
+import {
+	createPlanEditorQueries,
+	unavailablePlanEditorQueries,
+	type PlanEditorQueryServices,
+} from '../presentation/read-models/planEditorQueries';
+import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
 import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
@@ -53,7 +69,14 @@ export interface CompositionRoot {
 	 * have to MOVE later — and this seam is extended by a field, never relocated.
 	 */
 	readonly logger: Logger;
-	// readonly eventBus: EventBus;                — arrives with slice 5's first publishing command
+	/**
+	 * §10's event bus, which arrived with slice 5's first publishing command
+	 * (`SetPlanBackgroundCommand`). Held at the TOP level rather than inside
+	 * `persistence`, because it is not about persistence: a bus with no subscribers is
+	 * still a correct bus, and a session whose settings could not be read has to be able
+	 * to publish and hear events that have nothing to do with the vault.
+	 */
+	readonly eventBus: EventBus;
 	/**
 	 * Everything slice 4 persists through — repositories, the index, the geometry store,
 	 * the read-side queries, and the vault-change pipeline. `null` exactly when `settings`
@@ -81,6 +104,35 @@ export interface PersistenceServices {
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
 	readonly queries: QueryServices;
+	/** Does a raw Vault file exist — what `SetPlanBackgroundCommand` validates through. */
+	readonly files: VaultFileProbe;
+	/**
+	 * The read side the Plan Editor actually consumes: slice 4's queries mapped into
+	 * presentation read models. Composed here rather than in the view, so the view is handed
+	 * an interface and never a repository.
+	 */
+	readonly planEditorQueries: PlanEditorQueryServices;
+	/**
+	 * The three creates, which existed with full test coverage and NO caller outside
+	 * `application/` until something in the app asked for one — so a vault contained no
+	 * project, plan or zone note and slices 3, 4 and 5 were unreachable from inside
+	 * Obsidian. Composed here for the same reason every other service is: the write side a
+	 * command or a view consumes is an interface handed to it, never a repository it built.
+	 *
+	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
+	 * empty-state actions and slice 15's creation dialogs are what give them product-real
+	 * ones; neither needs a second wiring point, only a second call.
+	 */
+	readonly createProject: CreateProjectCommand;
+	readonly createPlan: CreatePlanCommand;
+	readonly createZone: CreateZoneCommand;
+	/**
+	 * Slice 5's one write, in both faces: the plain command, and the undoable adapter
+	 * slice 6's `CommandHistory` will hold. The adapter WRAPS the command rather than
+	 * duplicating it, so there is one forward write however it is dispatched.
+	 */
+	readonly setPlanBackground: SetPlanBackgroundCommand;
+	readonly reversibleSetPlanBackground: ReversibleSetPlanBackgroundCommand;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -100,8 +152,15 @@ export function createCompositionRoot(
 	logger: Logger,
 	vault: VaultStack | null = null,
 ): CompositionRoot {
+	// Wired to the logger from its first line: `createEventBus`'s `onError` is where a
+	// throwing subscriber goes, and a bus built without one loses those failures silently
+	// — which the bus's own docblock names as the thing to fix as soon as a logger exists.
+	const eventBus = createEventBus((error, event) => {
+		logger.error('events.subscriber.failed', { cause: error, event: event.type });
+	});
+
 	if (settings === null || vault === null) {
-		return { settings, logger, persistence: null };
+		return { settings, logger, eventBus, persistence: null };
 	}
 
 	const index = new InMemoryProjectIndex();
@@ -137,6 +196,9 @@ export function createCompositionRoot(
 		findZonesByPlan: new FindZonesByPlan(zones),
 	};
 
+	const files = createVaultFileProbe(vault.vault);
+	const setPlanBackground = new SetPlanBackgroundCommand(plans, files, eventBus);
+
 	const changeAdapter = new VaultChangeAdapter({
 		vault: vault.vault,
 		metadataCache: vault.metadataCache,
@@ -149,6 +211,7 @@ export function createCompositionRoot(
 	return {
 		settings,
 		logger,
+		eventBus,
 		persistence: {
 			index,
 			vaultDeps: deps,
@@ -158,7 +221,43 @@ export function createCompositionRoot(
 			plans,
 			zones,
 			queries,
+			files,
+			createProject: new CreateProjectCommand(projects, eventBus),
+			createPlan: new CreatePlanCommand(plans, projects, eventBus),
+			createZone: new CreateZoneCommand(zones, plans, eventBus),
+			planEditorQueries: createPlanEditorQueries(queries),
+			setPlanBackground,
+			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),
 			changeAdapter,
 		},
+	};
+}
+
+/**
+ * The Plan Editor's own dependency bundle, assembled from a composed root.
+ *
+ * A function rather than another `CompositionRoot` field, because it needs the
+ * `Workspace` — which is not part of the vault stack the persistence layer reads through —
+ * and because it answers `null` for a session with no persistence at all: with settings
+ * unrecovered there is no query service to hand a view, so registering one that would
+ * draw an empty pane is worse than not being able to open it.
+ */
+export function planEditorDeps(
+	root: CompositionRoot,
+	workspace: Workspace,
+	vault: Vault,
+): PlanEditorDeps {
+	const persistence = root.persistence;
+	return {
+		// TOTAL rather than nullable, and that is the point: with settings unrecovered there
+		// is no query service to hand over, so the view is handed one that REFUSES and shows
+		// the same failed state it shows for any unreadable plan. The alternatives were a
+		// nullable dependency every caller has to branch on, or not registering the view at
+		// all — which would leave a restored Plan Editor leaf pointing at a view type
+		// Obsidian does not know.
+		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
+		vault,
+		onThemeChange: createThemeChangeSource(workspace),
+		onPlanChanged: createPlanChangeSource(root.eventBus),
 	};
 }

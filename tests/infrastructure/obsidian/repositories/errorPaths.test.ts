@@ -34,10 +34,16 @@ describe('project repository failure branches', () => {
 		expect(expectErr(await stack.projects.save(makeProjectEntity({ id: projectId }), written.version)).code).toBe('project.write-failed');
 	});
 
-	it('an insert colliding with an occupied filename reports write-failed', async () => {
+	/**
+	 * An occupied filename is no longer the way to drive this: the insert steps around a
+	 * taken name onto `<name> <id>.md` (see the collision tests in completion.test.ts), so
+	 * the refusal this asserts has to come from the `create` call failing, which is the only
+	 * thing `project.write-failed` was ever meant to report.
+	 */
+	it('an insert whose note create fails reports write-failed', async () => {
 		const stack = createRepositoryStack();
 		const project = makeProjectEntity({ name: 'Collision' });
-		stack.vault.entries.set(`${stack.projectFolder}/${project.name}.md`, 'occupied');
+		stack.vault.failures.add(`create:${stack.projectFolder}/${project.name}.md`);
 		expect(expectErr(await stack.projects.save(project, 'absent')).code).toBe('project.write-failed');
 	});
 
@@ -105,11 +111,44 @@ describe('plan repository failure branches', () => {
 		const planId = createPlanId();
 		const plan = makePlanEntity({ id: planId, projectId, name: 'Blocked' });
 		const notePath = `${stack.projectFolder}/Plans/${plan.name}.md`;
-		stack.vault.entries.set(notePath, 'occupied');
+		// The note create fails, and the sidecar rollback that should follow fails too.
+		stack.vault.failures.add(`create:${notePath}`);
 		stack.vault.failures.add(`delete:${sidecarPathOf(stack, planId)}`);
 
 		expect((await stack.plans.save(plan, 'absent')).ok).toBe(false);
 		expect(stack.logged.some((line) => line.event === 'plan.insert-compensation-failed')).toBe(true);
+	});
+});
+
+describe('zone repository failure branches', () => {
+	/**
+	 * The delete arm of `compensateFailedSidecarWrite`'s sibling in `delete`: the note is
+	 * already trashed, the sidecar entry cannot be removed, and the restore that should put
+	 * the note back refuses as well. The original failure is what the caller sees — the
+	 * compensation failure is a DIAGNOSTIC, and an unasserted log line is a log line nobody
+	 * would notice disappearing.
+	 *
+	 * The update-path twin (`zone.update-compensation-failed`) is deliberately not driven
+	 * here: step 3 and the restore both write the note through `modify`, so one injected
+	 * failure cannot hit the second without having already failed the first, and the branch
+	 * is unreachable through this mechanism rather than merely untested.
+	 */
+	it('a delete whose note restore also fails reports the sidecar failure and logs the compensation', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
+		const read = expectOk(await stack.zones.getById(zoneId));
+		const notePath = stack.index.getPath(zoneId) ?? '';
+
+		// The sidecar mutation fails, so the trashed note must come back; `restoreNote`
+		// finds nothing at the path and takes its CREATE branch, which fails too.
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`create:${notePath}`);
+		const result = await stack.zones.delete(zoneId, read?.version);
+
+		expect(expectErr(result).code).toBe('zone.sidecar-remove-failed');
+		expect(stack.logged.some((line) => line.event === 'zone.delete-compensation-failed')).toBe(true);
 	});
 });
 

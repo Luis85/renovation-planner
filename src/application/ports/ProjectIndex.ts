@@ -6,8 +6,15 @@ import type { ProjectId } from '../../domain/project/ProjectId';
  * The persisted discriminators, as they appear in frontmatter and in the sidecar's
  * sibling index entries. Declared beside the port that indexes by them; the frontmatter
  * schemas restate each one as a literal because Zod cannot import application types.
+ *
+ * The ARRAY is the declaration and the union is derived from it, rather than the two
+ * being written out separately: both the index builder and the vault-change pipeline need
+ * to ask "is this string one of ours?" at runtime, and each previously kept its own copy
+ * of the list — three spellings of one vocabulary, with nothing to notice them drifting.
+ * Same shape as `UNITS`/`Units` in the settings module.
  */
-export type EntityType = 'renovation-project' | 'renovation-plan' | 'renovation-zone';
+export const ENTITY_TYPES = ['renovation-project', 'renovation-plan', 'renovation-zone'] as const;
+export type EntityType = (typeof ENTITY_TYPES)[number];
 
 /**
  * The single answer to "where is entity X" (SDD §47): no code path ever rescans the

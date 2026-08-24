@@ -5,7 +5,8 @@ import { chromium } from 'playwright-core';
 import { resolveChromiumExecutable } from './chromium.mjs';
 
 /**
- * One PNG per component specimen out of `docs/concepts/component-gallery.html`, each showing
+ * One PNG per component specimen out of `docs/user-experience/concepts/component-gallery.html`,
+ * each showing
  * that specimen twice — light beside dark — for embedding in the matching note under
  * `docs/components/`.
  *
@@ -37,7 +38,7 @@ import { resolveChromiumExecutable } from './chromium.mjs';
  * the PNGs. A note with no specimen, a specimen whose heading was renamed, an embed pointing
  * at a file that no longer exists, a PNG orphaned by a rename — this script reports none of
  * them. It shoots the specimens it finds and writes what it shot. Keeping the three sets in
- * step is a reader's job at review time, deliberately, and `docs/concepts/README.md` says so
+ * step is a reader's job at review time, deliberately, and the concepts `README.md` says so
  * in the same words.
  *
  * Like `harness-shot.mjs` it is outside `npm run check`: it draws, and asserts no
@@ -51,8 +52,8 @@ import { resolveChromiumExecutable } from './chromium.mjs';
  * document is its own origin.
  */
 
-const GALLERY = path.join('docs', 'concepts', 'component-gallery.html');
-const OUT_DIR = path.join('docs', 'concepts', 'shots');
+const GALLERY = path.join('docs', 'user-experience', 'concepts', 'component-gallery.html');
+const OUT_DIR = path.join('docs', 'user-experience', 'concepts', 'shots');
 
 /* The width each specimen is shot at — wider than the ~350px column the same specimen gets
    in the gallery's four-up grid, since here it has a note to itself. */

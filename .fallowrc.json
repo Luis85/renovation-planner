@@ -9,7 +9,9 @@
 	// file imports nothing under `src/` or `tests/` — nothing else in the graph reaches it
 	// either, so it needs the same declaration or fallow reports it dead.
 	// `scripts/concept-shots.mjs` is the same case as `harness-shot.mjs` and needs the same
-	// line. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
+	// line, and so is `scripts/background-fixture.mjs` — an npm script runs it
+	// (`background-fixture`) to redraw the PNG the manual smoke test uses as a plan
+	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
 	"entry": [
@@ -17,20 +19,26 @@
 		"tests/harness/page.ts",
 		"scripts/lint-edited.mjs",
 		"scripts/harness-shot.mjs",
-		"scripts/concept-shots.mjs"
+		"scripts/concept-shots.mjs",
+		"scripts/background-fixture.mjs"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
-	// `docs/concepts/*.css` are the concept mocks' sheets: two static HTML files in `docs/`
-	// link them, and those files are documentation rather than an entry point, so fallow's
-	// import graph cannot reach either sheet and reports both dead. Declared as the two
-	// files they are rather than as `docs/**/*.css`, so the next stylesheet somebody drops
-	// into `docs/` still has to be accounted for instead of being silently covered.
+	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML
+	// files beside them link these, and those files are documentation rather than an entry
+	// point, so fallow's import graph cannot reach any of them and reports them dead.
+	// Declared as the three files they are rather than as `docs/**/*.css`, so the next
+	// stylesheet somebody drops into `docs/` still has to be accounted for instead of being
+	// silently covered. That is not a hypothetical: `canvas.css` arrived, this list was not
+	// updated, and all four CI legs went red on a change that touched nothing but `docs/`.
+	// The paragraph above predicted it exactly, which is the argument FOR the named list —
+	// a glob would have absorbed the new file and told nobody.
 	"dynamicallyLoaded": [
 		"styles/**/*.css",
 		"tests/harness/theme.css",
 		"tests/harness/obsidian.css",
 		"docs/user-experience/concepts/concept.css",
-		"docs/user-experience/concepts/page.css"
+		"docs/user-experience/concepts/page.css",
+		"docs/user-experience/concepts/canvas.css"
 	],
 	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
 	// every manual entry is otherwise treated as production-reachable code, so
@@ -38,8 +46,19 @@
 	// devDependency imported by production code, which `dev-dependencies-in-production`
 	// exists to catch for a real case: an import a production-only install would break on.
 	// This is the opposite — the importing file IS the dev tooling — and fallow's own
-	// suggested fix for this exact finding is this key.
-	"ignoreDependencies": ["playwright-core"],
+	// suggested fix for this exact finding is this key. `@napi-rs/canvas` is the second
+	// instance of exactly that shape: `scripts/background-fixture.mjs` draws the smoke
+	// test's PNG background with it, and that script is dev tooling declared as an entry.
+	//
+	// `konva` is `vue-konva`'s PEER dependency, and fallow's advice for it — "test-only
+	// production dependency, consider moving to devDependencies" — would be wrong: a peer
+	// dependency is the importing package's requirement on ITS host, so this project has to
+	// declare it and ship it, while `src/` never names it (the components use `<VStage>` and
+	// friends, which `vue-konva` registers). What fallow sees is the test suite importing
+	// `konva` directly to inspect the scene it built, which is the only DIRECT import there
+	// is. Moving it to devDependencies would produce a plugin that loads in this repository
+	// and fails in a vault.
+	"ignoreDependencies": ["playwright-core", "@napi-rs/canvas", "konva"],
 	"duplicates": {
 		"ignore": ["tests/harness/obsidian.css"]
 	},

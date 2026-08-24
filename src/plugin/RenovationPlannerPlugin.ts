@@ -8,8 +8,15 @@ import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
 import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
+import { projectIndexRebuilt } from '../application/events/projectIndex.events';
+import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
+import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
+import { registerPlanEditorCommands } from './planEditorCommands';
+import { registerSampleProjectCommand } from './sampleProject';
+import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import {
 	createCompositionRoot,
+	planEditorDeps,
 	type CompositionRoot,
 	type VaultStack,
 } from './composition-root';
@@ -36,10 +43,14 @@ const LOG_LEVEL: LogLevel = 'info';
  * index, and `onunload` is its reverse: flush pending writes, stop listeners, dispose
  * services.
  *
- * There is no `onunload` here, deliberately. `registerView`, `addRibbonIcon` and
- * `addCommand` are all registered through the `Plugin` base class, which unregisters them
- * itself; a handler that only repeats what the base class already does is a place for a
- * future mistake to hide. It arrives with the first thing that genuinely needs disposing.
+ * `onunload` exists now, and it took the FIRST thing that genuinely needs disposing to earn
+ * it — which was not one of this plugin's own registrations. `registerView`,
+ * `addRibbonIcon` and `addCommand` are still unregistered by the `Plugin` base class and
+ * are still deliberately absent from it, because a handler that only repeats what the base
+ * class already does is a place for a future mistake to hide. What IS there is
+ * `window.Konva`: Konva assigns it at module scope on every load and nothing took it back
+ * off, so reactivating the plugin logged "Several Konva instances detected" and the previous
+ * load's whole bundle stayed reachable from `window`.
  *
  * Measured by coverage like everything else in `src/` — only `src/main.ts` is excluded
  * (`vitest.config.ts`). The wiring here is exactly what breaks silently, so
@@ -48,10 +59,15 @@ const LOG_LEVEL: LogLevel = 'info';
  */
 /**
  * Obsidian hands TAbstractFile to every vault event; only notes interest the pipeline.
+ *
+ * The adapter is resolved PER EVENT rather than captured: `saveSettings` replaces the
+ * composition root, so a handler closing over the adapter it was registered with would keep
+ * feeding a root nothing reads any more. Undefined resolves to a no-op — settings that
+ * could not be read compose no persistence at all.
  */
-function onNoteFile(adapter: { onCreate(file: TFile): void; onModify(file: TFile): void; onDelete(file: TFile): void }, method: 'onCreate' | 'onModify' | 'onDelete'): (file: TAbstractFile) => void {
+function onNoteFile(adapterOf: () => VaultChangeAdapter | undefined, method: 'onCreate' | 'onModify' | 'onDelete'): (file: TAbstractFile) => void {
 	return (file: TAbstractFile): void => {
-		if (file instanceof TFile) adapter[method](file);
+		if (file instanceof TFile) adapterOf()?.[method](file);
 	};
 }
 export default class RenovationPlannerPlugin extends Plugin {
@@ -62,7 +78,15 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	root!: CompositionRoot;
 
+	/** What `onunload` has to undo, in the order it was claimed. */
+	private readonly disposers: (() => void)[] = [];
+
 	async onload(): Promise<void> {
+		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
+		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
+		// moment at which that global is provably this load's own and safe to claim.
+		this.disposers.push(claimKonvaGlobal());
+
 		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
 		// it is not one of the things bootstrap sets up, it is what the setup steps report
 		// through, and the step below is the first one that can fail.
@@ -91,6 +115,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.addSettingTab(new SettingsTab(this));
 
 		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf));
+		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
+		// view many times — the dependencies are resolved PER CALL from the current root, not
+		// captured, because `saveSettings` replaces that root and a view built against the old
+		// one would read through query services pointed at the previous project folder.
+		this.registerView(
+			PLAN_EDITOR_VIEW,
+			(leaf) => new PlanEditorView(leaf, planEditorDeps(this.root, this.app.workspace, this.app.vault)),
+		);
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
@@ -111,6 +143,17 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void this.openProject();
 			},
 		});
+
+		// The Plan Editor's two commands. Their BEHAVIOUR lives in one module beside this
+		// one; the `addCommand` calls still happen here, so this file remains the only place
+		// anything is registered with Obsidian.
+		registerPlanEditorCommands(this);
+
+		// SCAFFOLDING, and its own module says so at length: one command that seeds a
+		// project, a plan and five zones through the real create commands, so slice 5's
+		// canvas can be looked at in a vault at all. Slice 14's empty states and slice 15's
+		// dialogs are what remove it.
+		registerSampleProjectCommand(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
 		// competes with workspace restoration, and `MetadataCache` is incomplete until
@@ -181,16 +224,33 @@ export default class RenovationPlannerPlugin extends Plugin {
 		if (this.root.settings === null) return Promise.resolve();
 
 		this.root = createCompositionRoot(next, this.root.logger, this.vaultStack);
+		// The new root carries an EMPTY index — and `projectFolder` is a setting, so the
+		// tree worth scanning may have moved. Re-running the build is what makes the swap
+		// complete; without it the session reads an index of nothing until the next reload,
+		// and every already-registered listener maintains a root nobody consults.
+		this.startPersistence();
 		return this.saveData(next);
 	}
 
 	private vaultStack: VaultStack | null = null;
 
 	/**
-	 * The Project Index's initial build, plus the vault listeners that keep it current.
-	 * Everything here composes ONLY when settings were recovered — with the folder
-	 * unknown there is no correct tree to scan and no correct place to write, so no
+	 * Registered once per session, never per composition root — `registerEvent` hands
+	 * disposal to the base class at UNLOAD, so a second registration is a second delivery
+	 * of every event for the rest of the session and nothing takes the first one back.
+	 */
+	private listenersRegistered = false;
+
+	/**
+	 * The Project Index's build, plus — the first time only — the vault listeners that keep
+	 * it current. Everything here composes ONLY when settings were recovered: with the
+	 * folder unknown there is no correct tree to scan and no correct place to write, so no
 	 * repository, index or query service exists at all (`CompositionRoot.persistence`).
+	 *
+	 * Called from `onLayoutReady` and again from `saveSettings`, which is why the two halves
+	 * are guarded differently. The BUILD repeats, because a new root's index starts empty
+	 * and its folder may have changed. The REGISTRATION does not, because the handlers read
+	 * `this.root` at call time and therefore already follow the swap.
 	 */
 	private startPersistence(): void {
 		const persistence = this.root.persistence;
@@ -206,14 +266,43 @@ export default class RenovationPlannerPlugin extends Plugin {
 			}),
 		);
 
-		const adapter = persistence.changeAdapter;
+		// Announced, because a surface that already read through the index has read a
+		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
+		// Editor reopened with the app hydrated against an empty one and said "this plan no
+		// longer exists" about a plan that does — reported from a real vault. The `void` is
+		// deliberate: publishing awaits its subscribers, and nothing here needs to.
+		void this.root.eventBus.publish(projectIndexRebuilt());
+
+		if (this.listenersRegistered) return;
+		this.listenersRegistered = true;
+
 		// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
-		this.registerEvent(this.app.vault.on('create', onNoteFile(adapter, 'onCreate')));
-		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapter, 'onModify')));
-		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapter, 'onDelete')));
+		const adapterOf = (): VaultChangeAdapter | undefined => this.root.persistence?.changeAdapter;
+		this.registerEvent(this.app.vault.on('create', onNoteFile(adapterOf, 'onCreate')));
+		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
+		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
 		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-			if (file instanceof TFile) adapter.onRename(file, oldPath);
+			if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
 		}));
+	}
+
+	/**
+	 * §9's reverse order, of which there is exactly one step today.
+	 *
+	 * Each disposer is independent and none may stop the next from running, so a throwing
+	 * one is caught rather than allowed to abandon the rest of the teardown: an unload that
+	 * stops halfway leaves the plugin partly resident with nothing that will try again.
+	 * `splice(0)` empties the list as it reads it, so a second `onunload` — Obsidian does
+	 * not promise to call it once — cannot release the same thing twice.
+	 */
+	onunload(): void {
+		for (const dispose of this.disposers.splice(0)) {
+			try {
+				dispose();
+			} catch (cause) {
+				this.root.logger.error('plugin.unload.disposer-failed', { cause });
+			}
+		}
 	}
 
 	private openProject(): Promise<void> {

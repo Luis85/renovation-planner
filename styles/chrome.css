@@ -23,3 +23,22 @@
 .renovation-planner-container .view-content {
 	padding: 0;
 }
+
+/*
+ * The Plan Editor is the same full-bleed case, and it KEEPS its view header: unlike the
+ * project surface it is per-plan, so the tab title is the only thing saying which plan a
+ * leaf is showing — hiding it would leave two Plan Editor tabs indistinguishable, which is
+ * the exact scenario the view exists to support. Only the pane padding goes, and that is
+ * already handled by `.renovation-planner-container` above, whose class this view adds
+ * too. The selector below therefore states the ONE thing that is specific to this view
+ * type: its content area must not scroll, because the canvas manages its own viewport and
+ * a scrollbar over it would pan two things at once.
+ *
+ * Keyed on the view TYPE, the persisted identifier, so no other pane is touched —
+ * `tests/presentation/views/planEditorView.test.ts` holds this selector and
+ * PLAN_EDITOR_VIEW together, so renaming the type fails the suite rather than silently
+ * leaving the rule matching nothing.
+ */
+.workspace-leaf-content[data-type="renovation-plan-editor"] .view-content {
+	overflow: hidden;
+}

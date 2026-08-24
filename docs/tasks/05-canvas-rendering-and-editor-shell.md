@@ -4,9 +4,9 @@ parent: "[[Plan editor and canvas]]"
 order: 10
 dependsOn:
   - "[[04-persistence-and-repository-layer]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-24
+finished: 2026-08-24
 horizon: ""
 start: ""
 due: ""
@@ -816,6 +816,191 @@ Per §73–74 (Vue component tests, canvas adapter tests):
     unconditional restore passes every single-writer test.
 13. `npm run check` (build, lint including the write-boundary and layer-dependency rules,
     coverage-thresholded tests, fallow) passes with this slice's code included.
+
+## Implementation Notes
+
+Written after the fact, and only where the built thing differs from the design above or
+where building it turned up something the design could not have known. Where this section
+and the Design section disagree, **this one is what the code does**.
+
+### Where Konva refused the design
+
+The scene is not `Stage → content Group → layers`, because Konva will not build it:
+`group.add(layer)` throws *"You may only add groups and shapes to groups"* — measured, not
+reasoned — since a `Layer` owns a canvas and only a `Stage` may parent one.
+
+So the viewport transform is bound to **each world-space layer's own config**, still from
+one function (`viewportTransform`), still derived from `worldToScreen` so the scene and the
+transform cannot drift, and still costing no per-vertex math. What the content Group was
+actually FOR survives intact: slice 6 needs somewhere for nodes that must not scale, and
+that somewhere is the `InteractionLayer`, which is deliberately the one layer the transform
+is NOT bound to. `tests/presentation/editor/scene.test.ts` asserts exactly that split.
+
+Konva also warns that a stage with seven layers exceeds its recommended 3–5. §17's list is
+kept as-is: it is the SDD's structure, and §62's first performance rule ("separate static
+and dynamic layers") is the reason to want real layers rather than groups. `Konva.showWarnings`
+was considered and refused — it would also have hidden the warning that caught the
+flat-points defect below.
+
+### Deviations from the declared interfaces
+
+- **`BackgroundRenderModel` has a third arm**, `{ kind: 'unavailable', reason }`, beside
+  `none` and `raster`. A plan whose background file was deleted or is corrupt has to draw
+  something honest, and one union renders all three states without a second error channel
+  beside it — the same argument that keeps `ok(null)` and `isErr` apart in the queries.
+- **`loadBackground` takes `BackgroundVault`**, spelled `Pick<Vault, 'getAbstractFileByPath'
+  | 'getResourcePath' | 'readBinary'>`, rather than the whole `Vault`. A real `Vault`
+  satisfies it, the contract cannot drift from Obsidian's own API, and a test supplies three
+  members instead of a hundred.
+- **`PlanEditorQueryServices` and its adapter live in `presentation/read-models/`**, not in
+  the view file: the adapter PRODUCES the DTOs, and the rule is that a type belongs with the
+  code that produces it. It gained a sibling the design did not foresee —
+  `unavailablePlanEditorQueries()`, which REFUSES both reads. With settings unrecovered
+  there is no query service to hand over, and the alternatives were a nullable dependency
+  every caller branches on, or not registering the view at all — which would leave a
+  restored Plan Editor leaf pointing at a view type Obsidian does not know.
+- **`ToolId`, `DragState`, `ProjectStoreStatus` and `PlanEditorViewState` are declared but
+  not EXPORTED.** The shapes are defined as the design asks; the exports are not, because an
+  export with no consumer is dead code by this repository's own gate and "slice 6 will want
+  it" is exactly the argument that gate refuses. Slice 6 exports each in the change that
+  gives it a caller.
+- **The stores expose less than they hold.** `setViewport` and `setLayerVisible` were built,
+  used only by tests, and removed; `toggleLayer` is the Layers panel's whole surface. The
+  four §15 slots that ARE exposed with no reader (`activeToolId`, `hoveredObjectId`,
+  `dragState`, `temporaryPolygon`) carry per-line `fallow-ignore` comments, the same
+  treatment `Zone.area()` gets in slice 3 and for the same reason.
+- **`EditorContext` is one `app.provide`**, carrying the plan id, the query services, the
+  vault slice, a theme-change subscription and a plan-change subscription. The last is what
+  makes `SetPlanBackgroundCommand` visible on the canvas without the command knowing a
+  canvas exists: it publishes `PlanBackgroundChanged`, the composition root turns the event
+  bus into a per-plan callback (`createPlanChangeSource`), and the root re-runs the SAME
+  hydrate routine that ran at open. Slice 8's "re-hydrate after every committed command" is
+  this seam widened, not a second mechanism.
+- **`loadPlan` and `savePlan` were extracted** once this slice gave the Plan command family
+  a second member and `npm run analyze` reported the nine duplicated lines. `loadZone` had
+  been the Zone side's version of the first since slice 3.
+
+### What pdf.js actually cost — and why it was replaced immediately after
+
+This slice bundled `pdfjs-dist` as a production dependency. **It no longer does**, and the
+measurement is kept rather than deleted because the next dependency should be able to read
+what this one cost.
+
+Three facts held while the copy was ours, all measured, all recorded in `pdfRaster.ts` at
+the time:
+
+- The **legacy** build is required. The standard one constructs a `DOMMatrix` at module
+  scope, so importing it under jsdom throws before a line of this plugin runs; the legacy
+  build carries pdf.js's own Node polyfill hook, which lets one import path serve the suite
+  and the plugin. In Obsidian the polyfill branch never executes.
+- A plugin ships **one file**, so there is no `pdf.worker.js` for `GlobalWorkerOptions` to
+  point at. pdf.js's documented escape hatch is `globalThis.pdfjsWorker`, which means parsing
+  runs on the main thread — §63 lists PDF rasterization among the future worker workloads,
+  and this is the constraint that would motivate it.
+- `useWasm: false`, because pdf.js 6 loads its WebAssembly from a URL a bundled plugin has
+  none of. The cost is decoding speed on image-heavy PDFs; vector floor plans use none of it.
+
+The bundle went from roughly 60 KB to **2216 KB**, of which pdf.js alone was **1728 KB —
+78%**. Because a plugin is one bundled `main.js`, that is parse cost on every Obsidian start
+for every user, whether they ever open a PDF or not. That is what ADR-003 and §54 cost as
+this slice built them.
+
+**What replaced it**, in the increment straight after this slice was marked done: Obsidian's
+own pdf.js, via the `@public` `loadPdfJs()`. The `obsidian` devDependency is pinned to
+exactly `minAppVersion`, so the compiler gate already proved the API is promised at the
+floor, and the library it answers is the same version this slice bundled (6.2.108, verified
+against the installed app). The bundle is **488 KB**. `pdfjs-dist` moved to devDependencies,
+where the legacy-build constraint still applies and the other two facts do not: the module
+mock hands the suite a real pdf.js and pdf.js's own node path finds its worker beside
+itself, while in Obsidian a real worker thread does the parsing — so §63's future-worker
+note no longer has PDF rasterization as its motivating case. `useWasm: false` survived with
+a different reason, written down where the flag is.
+
+The gap that swap opens, and it cannot be closed here: the suite runs OUR pdf.js, production
+runs Obsidian's. Same version today; nothing keeps them so. A live vault is the only place
+the production path exists at all.
+
+### Testing the canvas at all
+
+jsdom implements no canvas, no `DOMMatrix`, no `Path2D`, and loads no images, so
+`tests/helpers/canvas.ts` puts `@napi-rs/canvas` — prebuilt per platform, no build
+toolchain, and the same package pdf.js's own Node support reaches for — behind jsdom's
+`<canvas>` and `<img>`. An inert stub was built first and refused: a fake that accepts every
+call and draws nothing is the fake kinder than the real thing this project has already paid
+for once. What runs instead is real Konva building a real scene graph and real pdf.js
+rasterizing a real page, and the background tests assert on **sampled pixels**.
+
+Its honest limit, stated in the file: the pixels live in a backing canvas, not in the jsdom
+element, so a test that wants to look at them asks `backingCanvas(el)`.
+
+### Defects this slice's own checks caught
+
+Recorded because each one shows which gate is load-bearing.
+
+- `PDFDocumentProxy.destroy` does not exist in pdf.js 6; the loading TASK owns it. Called
+  wrongly it threw inside `loadBackground`'s catch, turning **every successful PDF render
+  into `unavailable/unreadable`**. Found by the test that asserts a sampled pixel rather
+  than "it did not throw".
+- Konva's `points` is a flat number array, not `Point[]`. Handed the latter it warns per
+  vertex and draws nothing.
+- Re-hydration dropped the store to `loading`, which unmounted the Konva stage and rebuilt
+  it — the whole canvas flashing, and the camera position lost, because one background
+  reference changed.
+- `backgroundKindFor` treated `Plans/.pdf` as a PDF: the dotfile guard compared against the
+  whole path's first character rather than the filename's.
+- Three found only by **looking** (`npm run harness-shot`), every one of them green in the
+  suite: the layers panel sized with `--size-4-18`, which is 72 pixels; a caption offset
+  multiplied by the scale twice, putting three of four zone names off the top of the pane;
+  and every zone type drawn the same grey, because the harness page applied its theme class
+  after mounting and the editor resolved its palette when no `--color-*` existed.
+- Three `aria-label`s on role-less `<div>`s in the status bar — a real
+  `aria-prohibited-attr` violation, caught the first time
+  `tests/harness/accessibility.test.ts` was pointed at a surface that actually draws
+  something.
+
+### Reviewing it inside Obsidian — the gap this slice shipped with
+
+Every item in the Definition of Done above was verified by the suite and by
+`npm run harness-shot`, and **none of them had been seen inside Obsidian**, because slices
+3, 4 and 5 were all unreachable from the app: `CreateProjectCommand`, `CreatePlanCommand`
+and `CreateZoneCommand` had no caller outside `application/`, so a vault held no project,
+plan or zone note; `open-plan-editor`'s `checkCallback` required a plan note to be the
+active file and therefore never appeared in the palette; and `set-plan-background` required
+a Plan Editor that could not be opened. A human could install the plugin and see a settings
+pane and one empty pane. The suite passing is exactly why that went unnoticed.
+
+Closed in the increment after this slice by two things: `create-sample-project`
+(`src/plugin/sampleProject.ts`) — scaffolding, loudly, seeding a project, a plan and five
+zones through the real commands and then opening the editor on them — and `open-plan-editor`
+becoming a plan picker over the Project Index with no active-file precondition.
+
+**The walkthrough is `docs/tests/cases/Editor Walkthrough.md`**, under the
+`Smoke Test the Editor` suite, and it is deliberately NOT restated here: two copies of a
+twelve-step list are two things to keep correct. What belongs in this file is what the runs
+found.
+
+**Walked by hand on 2026-08-24. Items 1–11 passed; item 12 failed and is fixed.** Two Plan
+Editor tabs were open across a restart and the first of them showed "This plan no longer
+exists". The cause is an ordering fact about Obsidian that no gate here can see: leaves are
+restored BEFORE `onLayoutReady`, and the index scan runs FROM `onLayoutReady` (a scan in
+`onload` builds a partial index that looks complete, §47) — so a restored view hydrates
+against an empty index, reads a legitimate `ok(null)`, and reports the plan missing
+permanently, because nothing tells it to look again. Only the FIRST tab broke because
+Obsidian defers a non-active leaf's view until it is activated, by which time the scan has
+run. `startPersistence` now publishes `ProjectIndexRebuilt` and `createPlanChangeSource`
+delivers it to every open editor regardless of plan id; `tests/plugin/restoredPlanEditor.test.ts`
+drives the whole ordering through the plugin's own view factory.
+
+Three further defects came out of the same walkthrough, all of them a test fake accepting
+what Obsidian refuses, and each is recorded where its code is: a note read back in the tick
+it was created (Obsidian's `MetadataCache` is asynchronous), a `vault.create` into a folder
+nothing had created (`Geometry/`), and `window.Konva` never released on unload.
+
+### Coverage
+
+Measured 99.66 / 98.64 / 99.78 / 99.81. **Nothing ratcheted**, and that is the policy
+working: rounded down, this increment measures exactly the floors already in force.
+`vitest.config.ts` carries the numbers and names every remaining uncovered arm.
 
 ## References
 

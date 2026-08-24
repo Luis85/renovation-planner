@@ -7,12 +7,41 @@ and the product intent is in `docs/prds/`. **Read the SDD before proposing struc
 has already refused things that look obvious from the code alone, and where this guide and
 the SDD disagree, the SDD is the authority and this file is the bug.
 
-Today the repository is a scaffold with two surfaces wired: the build, the gates, the
-browser harness and the release pipeline work; the **Renovation project** view is
-registered with a ribbon button and a command opening it; and the settings pane offers the
-one setting there is. The view draws an empty mount point — that div is where the Vue app
-goes (SDD §12), and nothing outside the view will know it is Vue. Requires Obsidian
-1.13.0+.
+Today the build, the gates, the browser harness and the release pipeline work; the
+settings pane offers the one setting there is; and the persistence layer of design slice 4
+is in place — Obsidian repositories, the geometry sidecar store, the project index and its
+vault-change pipeline, and the migration runner.
+
+There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
+nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
+a ribbon button and a command, and still draws an empty root. The **Plan editor** is
+per-plan (several leaves coexist, keyed by a plan id in Obsidian's own view state) and is
+design slice 5: §60's five shell regions around a Konva stage of §17's seven layers, the
+persisted Zones of one Plan rendered read-only, an image or PDF background, and a
+pan/zoom camera. Nothing on that canvas is editable — slice 6 adds the tools — and the one
+thing slice 5 writes is which document a Plan's background IS.
+
+**Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
+`checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
+every vault that had no plan notes — and nothing in the app could create one, so that was
+every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
+entries now. The command ID did not change, because a user's hotkey is bound to it.
+
+**`create-sample-project` is SCAFFOLDING and says so in its name.** One command seeds a
+project, a plan and five zones through the real `CreateProjectCommand` /
+`CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
+vault-side equivalent of `npm run harness`, and the only way zones exist at all before
+slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it (slice
+14's empty-state actions and slice 15's creation dialogs) and why the partial notes a
+failed seed leaves behind are deliberate.
+
+Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
+each is written up where the code is: the seed's first run failed on Obsidian's
+asynchronously-populated `MetadataCache`, then on a missing `Geometry/` folder, and toggling
+the plugin off and on logged `Several Konva instances detected`. `npm run check` was green
+for all three, and each one was a FAKE that accepted what Obsidian refuses.
+
+Requires Obsidian 1.13.0+.
 
 **The settings pane is DECLARATIVE** (`getSettingDefinitions`, plus `getControlValue` /
 `setControlValue`), which is what 1.13 renders from and what it indexes for the settings
@@ -131,13 +160,21 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   nothing in ESLint's configuration reaches oxlint's directive handling. A rule that does
   not fit is turned off in `.oxlintrc.json`, where the reason is written down and review
   sees it.
-- **test:coverage** — the suite plus the coverage floors. `src/` measures 100% of all four
-  metrics today; the floors sit a covered unit below that, which at this denominator is
-  several percentage points. `vitest.config.ts` carries the arithmetic and the ratchet
-  policy: floors only rise, and they rise to what a FINISHED increment measures. The suite
+- **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
+  metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
+  reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
+  is 99.7/98.6/99.8/99.8 and the floors sit a covered unit or more below each. The exact
+  numbers, which increment moved them, and what every remaining uncovered arm IS live in
+  `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
+  rise to what a FINISHED increment measures — so an increment whose rounded-down figures
+  equal the floors already in force ratchets NOTHING, which is what slice 5 did.
+  The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
-  real mounted view (`mountHarness`, not a fixture), checking roles, accessible names,
-  form labels, heading order and ARIA attribute validity. Read its header before trusting
+  real mounted views (`mountHarness` and the real Plan Editor, never a fixture), checking
+  roles, accessible names, form labels, heading order and ARIA attribute validity. It
+  earns its place rather than merely running: pointed at the Plan Editor — the first
+  surface here that draws anything — it immediately found three `aria-label`s on role-less
+  `<div>`s, which is a real violation and one no other gate can see. Read its header before trusting
   the word "accessibility" any wider than that: it does NOT verify colour contrast, a
   visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
   of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
@@ -158,7 +195,10 @@ nobody can clear, and a gate people learn to ignore protects nothing. It is its 
 Obsidian itself cannot run here. Three commands stand in, and none replaces another:
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
-  and **Obsidian's own app.css**, in a browser, with no Obsidian. Faithful about markup,
+  and **Obsidian's own app.css**, in a browser, with no Obsidian. `?view=plan-editor` draws
+  the Plan Editor instead of the project surface, `?theme=light` and `?phone` are the other
+  two knobs, and all three exist so a headless capture needs a URL and nothing to click.
+  Faithful about markup,
   spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
   nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
   `.view-content`), which the fake `ItemView` in `tests/helpers/obsidian-mock.ts` nests the
@@ -169,14 +209,36 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   "faithful" read wider than it is.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
-  scheme plus `?phone` to a gitignored `harness-shots/` folder — a look at rendered layout,
-  which jsdom cannot produce at all and which is how a real defect (the view collapsing to
-  a sliver of its pane, invisible to a suite that draws nothing) was found in this plan.
+  scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
+  folder — a look at rendered layout, which jsdom cannot produce at all.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
+
+  **It has now caught four defects the whole of `npm run check` could not**, which is the
+  argument for running it on anything that draws: the view collapsing to a sliver of its
+  pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
+  clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
+  over, putting three of four names off the top of the pane, and every zone type drawn in
+  the same grey because the harness page applied its theme class AFTER mounting, so the
+  editor resolved its palette when no `--color-*` existed. Every one passed the suite:
+  jsdom lays nothing out, and the tests set the theme variables themselves.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.
+
+  **What to run in it is written down**: `docs/tests/suites/Smoke Test the Editor.md` and
+  the cases under it. That suite is not a nicety — the first walkthrough of design slice 5
+  found FOUR defects in a row that all four gates passed, three of them a test fake
+  accepting what Obsidian refuses. Its header tabulates them, which is the fastest way to
+  know what to suspect when a manual case fails and the suite disagrees. The fixtures the
+  cases need live in `docs/tests/fixtures/`; the PNG is generated by
+  `npm run background-fixture` so that what it asserts is reviewable as code rather than
+  buried in a binary.
+
+  **The suite reads those fixtures from `tests/fixtures/`, never from `docs/`.** `docs/` is
+  the vault — user land — and a test that depended on a path someone reorganises while
+  writing notes would make a documentation tidy-up a build failure. The generator writes the
+  PNG to both, so the copies cannot drift; the PDF has no generator and is tracked twice.
 
 ## Architecture
 
@@ -282,6 +344,40 @@ only), so an `implements` there binds the editor, not the gate.
   that shape. Where a fake is too thin, the fix is a fake that actually nests what the real
   thing nests — `ItemView` in `tests/helpers/obsidian-mock.ts`, since the harness-collapse
   fix.
+
+  **The most expensive instance so far, because it hid a shipped defect behind 860 green
+  tests:** `FakeMetadataCache` parsed the vault's own text SYNCHRONOUSLY, while Obsidian
+  populates `MetadataCache` asynchronously — so a note read back in the tick it was created
+  has no cache entry at all. Every read-after-write passed here and failed in a vault, where
+  `create-sample-project` reported "Migrating the project note failed" on a note it had just
+  written correctly (an absent `schema-version` reads as version 0, and there is no migration
+  step from 0). Making the fake honest turned **65 tests across 12 files** red at once, which
+  is the measure of what a kind fake was concealing. Two things came out of it and both are
+  load-bearing: `frontmatterOf` falls back to `EchoWindow` — already "what this plugin last
+  wrote here" — when there is NO cache entry, and it keys on the cache ENTRY rather than on
+  `entry?.frontmatter`, because `getFileCache` answers `null` for "never parsed" but an
+  object with no `frontmatter` for "parsed, and the user deleted it". Collapse those two and
+  a note whose frontmatter was deleted is served this plugin's own stale bytes forever. The
+  fake states what it models and what it still does not: the create window, not the parse lag
+  after a modify, where Obsidian holds a STALE entry rather than none.
+  **Third instance, same shape, found the same way — by running the plugin.** `FakeVault`'s
+  `create` accepted a path whose PARENT FOLDER did not exist; Obsidian refuses one. So
+  `PlanGeometryStore` had no `ensureFolder` in front of the geometry sidecar — the project,
+  plans and zones folders each get one from the repository that writes into them, and
+  ADR-011's `Geometry/` is a folder no note ever lands in — and on a fresh vault the first
+  write of the first plan ever saved failed with "the geometry sidecar could not be
+  created". Making the fake refuse turned **86 tests** red. The lesson that generalises: when
+  a fake stands in for something that ENFORCES a precondition, the fake has to enforce it
+  too, or the precondition is only ever checked in production.
+- **A global a dependency installs is a global this plugin has to remove.** Konva assigns
+  `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
+  deactivating and reactivating logged `Several Konva instances detected` at `console.error`
+  and kept the previous load's whole bundle reachable from `window`. That is what finally
+  earned `onunload` an existence — it releases the global, and only while it is still the one
+  that load claimed, since another Konva-bundling plugin may have replaced it since.
+  `pdfjs-dist` had the same shape (`globalThis.pdfjsWorker`) and lost it by ceasing to be
+  bundled. Check what a new dependency writes to `window`, and check it in the BUILT bundle
+  rather than in the dependency's docs.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 
@@ -359,17 +455,56 @@ that was fixing the previous instance.
 
 Not oversights; each has a trigger.
 
-- **Vue, Pinia, Konva, zod, decimal.js, dayjs.** Installing a dependency nothing imports
-  fails `npm run analyze`, so each arrives with its first real use. `@vitejs/plugin-vue` is
+- **decimal.js and dayjs**, and nothing else on the SDD's stack. Installing a dependency
+  nothing imports fails `npm run analyze`, so each arrives with its first real use — money
+  arithmetic (ADR-010) and scheduling respectively, neither of which exists yet.
+
+  **Vue, Pinia, zod, konva and vue-konva are NOT on this list any more**, and
+  this paragraph is the record of what their arrival cost, because the next arrival pays
+  the same. `@vitejs/plugin-vue` is
   one line in EVERY config that transforms source — `vite.config.ts`,
   `vite.harness.config.ts` and the standalone `vitest.config.ts`, which is three here, not
-  the two a generic project has — and `tsc` becomes `vue-tsc` in the same edit.
+  the two a generic project has — and `tsc` became `vue-tsc` in the same edit.
   [`docs/setup/vue-conventions.md`](docs/setup/vue-conventions.md) carries the conventions
   and the lint rules that enforce them, but it was written against a project with two Vite
   surfaces and names neither `test-build` nor the coverage include. The full contract for
   that arrival, as a superset of it and scoped to the gates this repository actually has,
   is design slice 1's Vue arrival checklist
-  ([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](docs/tasks/01-plugin-bootstrap-and-composition-root.md)).
+  ([`docs/tasks/01-plugin-bootstrap-and-composition-root.md`](docs/tasks/01-plugin-bootstrap-and-composition-root.md)),
+  recorded there as complete. Read it as the reference for what a NEW dependency has to
+  wire, not as work still to do.
+
+  **What the canvas stack cost, since it is the newest bill and none of it was obvious.**
+  `konva` is `vue-konva`'s PEER dependency: `src/` never names it (the components use
+  `<VStage>` and friends), so `npm run analyze` reads it as test-only and would have it
+  moved to devDependencies — which would build here and fail in a vault. It is in
+  `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
+  60 KB to **488 KB**; that is what ADR-003 and §54 cost, and it is worth knowing before
+  the next dependency.
+
+  **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
+  production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —
+  78%, parsed on every Obsidian start by every user whether they ever opened a PDF. What
+  replaced it is Obsidian's own copy, through the `@public` `loadPdfJs()` the pinned
+  `obsidian` devDependency already proves is promised at `minAppVersion`. Three facts went
+  with it, all of them now TEST-only: the **legacy** build, because the standard one
+  constructs a `DOMMatrix` at module scope and cannot be imported under jsdom at all; the
+  `globalThis.pdfjsWorker` escape hatch, which a one-file plugin needed because it had no
+  `pdf.worker.js` to point `GlobalWorkerOptions` at, and which the suite turns out not to
+  need either (pdf.js's own node path resolves the worker beside itself); and main-thread
+  parsing, since Obsidian's copy runs a real worker. `useWasm: false` survives with a new
+  reason — Obsidian ships the WebAssembly but `wasmUrl` is a `getDocument` parameter its
+  viewer sets only for itself. The residual gap is that the suite runs OUR pdf.js and
+  production runs Obsidian's — the same version today, verified, and nothing keeping them
+  so. All of it is written down in
+  `src/presentation/editor/layers/background/pdfRaster.ts` and in the mock's `loadPdfJs`.
+
+  The suite paid too: jsdom implements no canvas, no `DOMMatrix`, no `Path2D` and loads no
+  images, so `tests/helpers/canvas.ts` puts a REAL rasterizer (`@napi-rs/canvas`, prebuilt
+  per platform — no build toolchain, which is what makes it viable on all four CI legs)
+  behind jsdom's `<canvas>` and `<img>`. An inert stub was built first and is refused in
+  that file's header for the reason this project already knows: a fake kinder than the real
+  thing turns a shipped crash into a green suite.
 - **The empty layer directories the SDD draws.** Git cannot hold them and lint already
   guards them; create one when a module goes into it.
 - **`eslint-plugin-oxlint`.** It switches off the ESLint rules oxlint already covers,

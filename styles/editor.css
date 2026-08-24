@@ -1,0 +1,164 @@
+/*
+ * The Plan Editor shell — SDD §60's five regions, as ordinary DOM around a canvas.
+ *
+ * Only the CANVAS is Konva. The toolbar, the two side panels and the status bar are
+ * regular elements styled the way `view.css` styles the project surface: Obsidian
+ * variables only, so a themed vault stays themed (§84), and no colour literal anywhere —
+ * `scripts/styles-assemble.mjs` fails the build on one.
+ *
+ * The height chain is the load-bearing part and the part that broke in this repository
+ * once already: every ancestor from the leaf down to the canvas needs `min-height: 0`, or
+ * a flex child refuses to shrink below its content and the canvas collapses to a sliver of
+ * its pane. `npm run harness-shot` is what shows that; jsdom draws nothing and cannot.
+ */
+
+.renovation-plan-editor-view,
+.renovation-plan-editor {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+}
+
+.rp-editor-toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	/* A fixed height even while empty: slice 6 fills it with buttons, and a toolbar that
+	   appeared later would resize every region below it on the day it did. */
+	min-height: var(--size-4-8);
+	padding: 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-editor-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+/*
+ * A real width, not `--size-4-18`. Obsidian's `--size-4-N` scale is N × 4px, so that token
+ * is 72 pixels — which clipped every layer label to "Backg", "Archit", "Constr" in the
+ * first browser capture, while every jsdom test passed. jsdom lays nothing out and cannot
+ * see it; `npm run harness-shot` is what did.
+ */
+.rp-editor-layers,
+.rp-editor-inspector {
+	flex: 0 0 auto;
+	width: 12rem;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
+}
+
+.rp-editor-layers {
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.rp-editor-inspector {
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.rp-editor-panel-title {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	/* Obsidian's own h2 rules would otherwise give a panel heading document proportions. */
+	line-height: var(--line-height-tight);
+}
+
+.rp-editor-layer-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rp-editor-layer-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) 0;
+	font-size: var(--font-ui-small);
+}
+
+.rp-editor-layer-row label {
+	/* The whole row is the hit target, not just the box — §85 asks for adequate ones. */
+	flex: 1;
+	cursor: pointer;
+}
+
+/*
+ * The canvas fills whatever the two panels leave. `min-width: 0` beside `min-height: 0`
+ * because this is a row: without it the flex item refuses to shrink below the stage's own
+ * width and the inspector is pushed out of the pane.
+ */
+.rp-plan-canvas {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background-color: var(--background-primary);
+}
+
+.rp-editor-canvas-message {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	padding: var(--size-4-4);
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.rp-editor-notice {
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+	background-color: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-editor-status-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-4);
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * §60 names three status regions and slice 13 mounts its indicator into the third BY NAME,
+ * so the middle one takes the slack and the outer two keep their own ends. A single
+ * `flex: 1` on all three would move the save-state indicator every time the measurements
+ * readout changed width, which it does on every pointer move.
+ */
+.rp-editor-status {
+	flex: 0 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.rp-editor-measurements {
+	display: flex;
+	flex: 1;
+	gap: var(--size-4-3);
+	justify-content: center;
+	/* Tabular figures, so a coordinate readout does not jitter as digits change width. */
+	font-variant-numeric: tabular-nums;
+}
+
+.rp-editor-save-state {
+	flex: 0 0 auto;
+	min-width: var(--size-4-8);
+	text-align: right;
+}

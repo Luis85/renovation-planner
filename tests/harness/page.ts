@@ -1,5 +1,13 @@
-/** The bundle's entry point. Everything real is in `mount.ts`, which a test can drive. */
+/**
+ * The bundle's entry point. Everything real is in `mount.ts` and `planEditor.ts`, both of
+ * which a test can drive.
+ *
+ * `?view=plan-editor` opens the Plan Editor instead of the project surface. A query
+ * parameter rather than a second page, for the same reason `?theme` and `?phone` are ones:
+ * a headless screenshot needs a URL and nothing to click.
+ */
 import { mountHarness } from './mount';
+import { mountPlanEditorHarness } from './planEditor';
 import { applyPlatform, drawSchemeToggle } from './theme';
 
 // Before the mount: `is-phone` is a body class that a toolbar's own fit measurement can
@@ -7,7 +15,8 @@ import { applyPlatform, drawSchemeToggle } from './theme';
 // layout.
 applyPlatform(window.location.search);
 
-const { view } = mountHarness(document.body);
+const wantsPlanEditor = new URLSearchParams(window.location.search).get('view') === 'plan-editor';
+const { view } = wantsPlanEditor ? mountPlanEditorHarness(document.body) : mountHarness(document.body);
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,
 // which `mountHarness` empties.

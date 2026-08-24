@@ -1220,6 +1220,22 @@ if [ -f "$L" ]; then
   # so the check passed on a ledger that never printed the coalesced-pair total at all.
   lbl(){ grep -qiE "$2[^0-9]{0,60}$1|$1[^0-9]{0,60}$2" "$L" \
            || { echo "  FAIL ledger does not print $2 = $1"; fail=1; }; }
+  # The BREAKDOWN tables, not just the totals. `lbl` asks whether each headline number appears
+  # somewhere; it says nothing about the rows that are supposed to add up to it. The ledger prints
+  # matrix rows split two ways — by direction/kind and by state — and a pass that adds rows to one
+  # kind updates the total and the state it lands in while the direction/kind sub-row keeps its old
+  # value. That happened: seven forward behavioural rows were added and `forward, behavioural`
+  # stayed at 897 against a total of 3,073, so the four sub-rows summed to 3,066 and every existing
+  # check still passed. Parse both breakdowns out of the ledger and require each to sum to the
+  # total it sits under. Watched failing by reverting that one cell.
+  # Matched WITHOUT the leading box-drawing character: `[\u251c\u2514]` is a bracket expression over
+  # multi-byte UTF-8 and matches nothing under this locale, so a pattern anchored on it measures 0
+  # and the check fails for a reason that has nothing to do with the ledger. Found by watching it
+  # fail wrongly, which is why the drill is run before the check is believed.
+  chk "ledger's direction/kind rows sum to the row total" "$want_rows" \
+      "$(grep -E '(forward|reverse), (named|behavioural) \|' "$L" | awk -F'|' '{gsub(/[^0-9]/,"",$3); s+=$3} END{print s+0}')"
+  chk "ledger's state rows sum to the row total" "$want_rows" \
+      "$(grep -E '^\| .?(retained|present|absent|contradictory|superseded).? \|' "$L" | awk -F'|' '{gsub(/[^0-9]/,"",$3); s+=$3} END{print s+0}')"
   lbl "$want_rows"  "rows"
   lbl "$want_find"  "findings"
   lbl "$want_coal"  "coalesced"

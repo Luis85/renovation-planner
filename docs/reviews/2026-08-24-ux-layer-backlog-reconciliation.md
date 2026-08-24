@@ -24,7 +24,7 @@ than left to be noticed:**
 
 ## What was found
 
-**47 contradictions, 776 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+**47 contradictions, 772 gaps, 0 orphans, and 4 convention findings.** The contradictions are
 the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
 the 47, and `deliverables/Disclosure ladder.md` alone accounts for 8.
 
@@ -35,7 +35,7 @@ drawn plan: its own *What is open* admits rung 1 "forbids" pricing before drawin
 `requirements/Start a renovation project.md` creates no `Plans/` folder until something is drawn.
 Cluster E quotes both and says why the matrix cannot count it.
 
-**No orphans at all.** Across 3,077 rows and eight evidence bodies, not one passage *replaces*
+**No orphans at all.** Across 3,073 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
 UX layer contradicts the backlog in 47 places and supersedes it nowhere.
 
@@ -54,20 +54,20 @@ Rows and findings are different things and are counted separately.
 
 | | |
 | --- | --- |
-| matrix rows | **3,077** |
-| ├ forward, named | 501 |
-| ├ forward, behavioural | 897 |
+| matrix rows | **3,073** |
+| ├ forward, named | 497 |
+| ├ forward, behavioural | 904 |
 | ├ reverse, named | 185 |
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
 | `present` | 1,130 |
-| `absent` | 776 |
+| `absent` | 772 |
 | `contradictory` | 47 |
 | `superseded` | **0** |
 | **findings** | |
 | Contradiction | **47** |
-| Gap | **776** |
+| Gap | **772** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
@@ -279,7 +279,7 @@ it. The demonstrated instance is `f1284`, "show the user what they need to do no
 were `task, current, next-best-action`, and `docs/requirements/Reporting and project cockpit.md`
 — which asks the claim's own question in as many words, "what is next, what is blocked" — uses
 none of the three, so it was never a candidate. Two rows from adjacent wishes in the same
-section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 776
+section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 772
 gaps carry this limit in the same shape**, and it points one way only: it can invent a gap, never
 hide one.
 
@@ -572,10 +572,10 @@ counts rows rather than subjects throughout.
 
 ## Gaps
 
-**776**, of which 416 are named things the evidence names with no note behind them and 360 are
+**772**, of which 412 are named things the evidence names with no note behind them and 360 are
 behavioural claims no note addresses. The named/behavioural split and the per-body breakdown are in `findings.tsv`.
 
-They are not 776 separate problems. **Whole epics of the new PRD have no derived counterpart**,
+They are not 772 separate problems. **Whole epics of the new PRD have no derived counterpart**,
 and the reason is one measurement rather than a judgement — counted across all 227 notes:
 
 | term | derived notes containing it | times the workspace PRD uses it |
@@ -618,10 +618,10 @@ five deliverable notes is one.
 
 **A caveat a reader should apply to this number.** A gap is one forward row that no derived note
 addresses, and the same absence is reached from several bodies — `Project Home` alone produces
-rows from three. The 776 is a row-derived count, honestly produced and not deduplicated by
+rows from three. The 772 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
-**Every one of the 776 is re-runnable, and both commands are committed — two, because the two
+**Every one of the 772 is re-runnable, and both commands are committed — two, because the two
 row kinds are two mechanisms.** A named row is a *lookup* that settles the row on its own; a
 behavioural row is a *candidate set* that bounds a reading. One command cannot answer both, and
 publishing one and claiming both is the error this ledger keeps catching in itself.
@@ -648,10 +648,10 @@ the row's `target` and `subject`. It is type-aware, alias-resolved and back-link
 python3 $D/lookup.py forward requirements  "Project Home"   # absent   -
 python3 $D/lookup.py forward deliverables  "Project Home"   # present  docs/deliverables/MVP Prototype.md
 python3 $D/lookup.py reverse               "Design System"  # retained -   (the back-link is stripped)
-python3 $D/lookup.py --selftest                             # replays all 686 named rows
+python3 $D/lookup.py --selftest                             # replays all 682 named rows
 ```
 
-`--selftest` replays every named row against its committed state: **686 of 686**, with the two
+`--selftest` replays every named row against its committed state: **682 of 682**, with the two
 rows a later reading moved from `present` to `contradictory` reported by name rather than
 tolerated silently. Judgement moving a row the lookup placed is the one legitimate divergence;
 the reverse of it is a failure, and the selftest treats it as one.
@@ -671,7 +671,7 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 550 of the 823 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 546 of the 819 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 31 contradictions now carrying `undetermined` gain the
@@ -832,7 +832,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 The register's claim is that its table names every folder "so the first note of that kind has
 somewhere obvious to go rather than a decision to make".
 
-**v1 and v2 are the ones that gate this ledger** — they are why 550 findings carry `undetermined`:
+**v1 and v2 are the ones that gate this ledger** — they are why 546 findings carry `undetermined`:
 492 whose evidence side sits in `docs/user-experience/` and 56 in `docs/product/` — all of
 them, which is why neither folder can be classified alone.
 **v3 is the cheapest**: a note template is neither received evidence nor a derived note, so
@@ -887,14 +887,14 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 
 | file | rows | what it holds |
 | --- | --- | --- |
-| `rows.tsv` | 3,077 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 823 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `rows.tsv` | 3,073 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
+| `findings.tsv` | 819 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 16 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
 | `candidates.sh` | — | the candidate command for a BEHAVIOURAL row — the mechanical half of that match |
-| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 686 named rows |
+| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 682 named rows |
 
 The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
 spec authorises one output file — and flagged that as a question for the repository owner rather
@@ -1194,6 +1194,64 @@ matched `prd`, so received went 17 → 15 while only the first number in the sen
 arriving a second time in one round, in a different file: a gate that checks two artifacts against
 each other proves nothing about the prose that quotes them.
 
+**A twenty-second correction: four actor rows the evidence never named.** Review reported one —
+`f325`, `Professional (actor)`, extracted from `JTBD-032`'s *"I want to identify **professional
+needs** early"*, where the word is an adjective modifying a noun and names nobody. It was
+`absent` against `actors/` because no note has that identity, so it became gap `g135` while
+`f280` already carried the same job statement as a behavioural row: one source claim, counted
+twice, the second time as a defect.
+
+**The instance was right and the category was larger.** All four named rows this ledger derived
+from JTBD job statements are the same mistake, and checking only the reported one would have left
+three standing — which is the seventeenth correction's lesson, arriving again:
+
+| row | from | the word, in context | why it is not an actor |
+| --- | --- | --- | --- |
+| `f324` | `JTBD-019` | "group work by **trade**" | a work category — and `Trade` is an **entity** here, already `present` on `f19`, `f441` and `r640` |
+| `f325` | `JTBD-032` | "identify **professional** needs" | an adjective |
+| `f326` | `JTBD-033` | "Prepare **contractor** scope" | an adjective, in the same construction |
+| `f327` | `JTBD-031` | "Decide what to **DIY**" | a mode of work — the row's own subject hedged it as "(work mode/actor)" |
+
+**One test, applied to all four rather than four judgements.** Does the passage name the term as an
+identity the document declares, or use it as a common noun? The evidence *does* declare actors
+elsewhere and those were extracted correctly — `prd§6.1`–`6.3`'s three personas, `research§4.1`–`4.5`'s
+five segments, all `present` or `absent` on their own merits. The JTBD job statements are the only
+place where a common noun was promoted to an identity, and the theme heading above them reads
+*DIY & professionals* — plural, generic, and not a cast list.
+
+**This is the `Wall` defect running backwards.** There, incidental prose (*"the wall went up"*)
+produced a false **presence**; here, generic nouns produce false **gaps**. Same root — a string
+match standing in for a thing — and the mirror image is worth naming because the earlier fix
+looked complete and only addressed one direction of it.
+
+**Removed rather than re-stated, and that is a departure worth defending.** The precedent in this
+section is `f1284`: withdrawn by moving its state, never deleted. That was right there, because
+`f1284` is a real claim that was judged wrongly. These four are not claims — the evidence does not
+assert that a `Professional` exists — so no state in the five-state vocabulary is true of them.
+`present` would be a lie, `retained` is for backlog things the evidence ignores, and a sixth state
+meaning "should not have been extracted" is a vocabulary change to launder four bad rows. The
+reasoning is what this section preserves; the rows go. Every source claim behind them survives as
+the behavioural row it always had: `f267` (present), `f279`, `f280`, `f281`.
+
+**Net: 776 gaps become 772, 823 findings become 819, and the matrix holds 3,073 rows.** Named gaps
+go 416 → 412; behavioural gaps are untouched at 360.
+
+**A twenty-third correction, which the twentieth caused and the twenty-second exposed.** The row
+table splits the matrix two ways — by direction and kind, and by state. Adding `uxd§4`'s seven
+rows updated the total and the states they landed in, and left `forward, behavioural` at **897**.
+The four sub-rows then summed to 3,066 against a printed total of 3,073, and every check passed:
+`lbl` asks whether each headline number appears *somewhere*, which says nothing about the rows
+underneath it that are supposed to add up to it.
+
+**Both breakdowns are now gated**, each required to sum to the total it sits under, and both
+watched failing — reverting the one cell reports `expected 3073, measured 3066`, and breaking a
+state cell instead reports `3076`. The first version of that gate failed for the wrong reason:
+the pattern was anchored on the table's `├` box-drawing character, which is multi-byte UTF-8
+inside a bracket expression and matches nothing under this locale, so it measured 0 and would have
+been "fixed" by loosening the check it was supposed to be tightening. **A check watched failing is
+not the same as a check watched failing for the right reason**, and only running the drill
+separates them.
+
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking, while a fifty-third was found hiding inside another — a
@@ -1203,7 +1261,7 @@ and a reason to read the citations rather than the totals.
 ## Checks
 
 ```
-rows                                              3077
+rows                                              3073
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
@@ -1214,9 +1272,9 @@ finding set recomputed from rows.tsv          identical as a SET to findings.tsv
 candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
                                               seed, both directions, empty sets
                                               included)
-lookup.py reproduces the committed named state   686 / 686 named rows (2 named,
+lookup.py reproduces the committed named state   682 / 682 named rows (2 named,
                                               and moved onward by a reading)
-gap findings, by the row kind behind them        416 named + 360 behavioural
+gap findings, by the row kind behind them        412 named + 360 behavioural
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
 received contradictions                             15

@@ -336,10 +336,6 @@ f321a	forward	named	Renovation Project Workspace (product surface)	jtbd§tier-1	
 f321b	forward	named	Renovation Project Workspace (product surface)	jtbd§tier-1	renovation project workspace, workspace	-	-	absent	-	deliverables
 f322	forward	named	Project to Space to Work structure (domain model)	jtbd§important-product-research-principle	project, space, work, structure	-	-	absent	-	entities
 f323	forward	named	JTBD note (JTBD-###-slug.md, named artifact/template)	jtbd§how-to-use	jtbd note, job note	-	-	absent	-	deliverables
-f324	forward	named	Trade (actor)	jtbd§JTBD-019	trade	-	-	absent	-	actors
-f325	forward	named	Professional (actor)	jtbd§JTBD-032	professional	-	-	absent	-	actors
-f326	forward	named	Contractor (actor)	jtbd§JTBD-033	contractor	-	-	absent	-	actors
-f327	forward	named	DIY (work mode/actor)	jtbd§JTBD-031	diy	-	-	absent	-	actors
 f328	forward	named	Building (spatial concept)	jtbd§JTBD-007	building	-	docs/entities/Building.md	present	-	entities
 f329	forward	named	Floor (spatial concept)	jtbd§JTBD-007	floor	-	docs/entities/Floor.md	present	-	entities
 f330	forward	named	Room (spatial concept)	jtbd§JTBD-007	room	-	docs/entities/Space.md	present	-	entities

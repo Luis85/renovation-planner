@@ -112,8 +112,27 @@ The **direction is settled by the register's own rules — for the PRD.** Both P
 only by receiving a new one". Where a finding sets the workspace PRD against a derived note,
 the backlog moves and the PRD does not. No question needs asking about that one, and none is.
 
-**It is not settled for the rest of the evidence side, and an earlier draft of this section
-said it was.** `docs/README.md`'s folder table classifies `prds/` and `sdds/` as received, and
+**And even for the PRD, "the backlog moves" needs one check first.** A derived note carries
+`sources:` naming the received sections it came from — `entities/Space.md` cites PRD §6, §34,
+§58 and §60 of the *original* PRD, and the Space-versus-Zone distinction this spec leans on in
+its own opening comes from there. So when the workspace PRD contradicts such a note there are
+two possibilities, and they have opposite remedies:
+
+- the note has **drifted** from the source it cites → a stale derivation, and the backlog
+  moves, as the rule says;
+- the note **faithfully reflects** its source → the disagreement is really between the
+  workspace PRD and the original PRD or SDD, which are *both* received. Moving the backlog
+  would silently pick one received document over another, and the register's own rule is that
+  a received document is corrected only by receiving a new one. That is a decision, listed and
+  not taken.
+
+A conflicting derived claim is therefore traced to its cited sources before any direction is
+assigned. **The original PRD and the SDD are a reference corpus for that trace, not evidence
+bodies**: they are read where a finding cites them and are not swept for rows, so they add no
+rows and appear in no count. Stated as a limit rather than left implicit, because it is the
+one place this pass reads a document it does not inventory.
+
+**Beyond the PRD it is not settled at all, and an earlier draft of this section said it was.** `docs/README.md`'s folder table classifies `prds/` and `sdds/` as received, and
 `components/`, `entities/`, `actors/`, `business-rules/`, `deliverables/` and the design
 slices as derived. It names neither `docs/user-experience/` nor the new `docs/product/` —
 the first of which this spec already knew, since that absence is its worked `Convention`
@@ -128,9 +147,12 @@ component note is *derived* and says nothing at all about the gallery. Treating 
 received because it happens to be newer would move the component note on the strength of an
 assumption this spec had not noticed it was making.
 
-So until the repository owner classifies `docs/user-experience/`, a finding drawn from those
-five bodies carries its direction as **undetermined**, says so in the ledger, and proposes no
-edit. The classification is itself a `Convention` finding and a decision, and is listed with
+So until the repository owner classifies **both** `docs/user-experience/` and `docs/product/`,
+a finding drawn from any of those **seven** bodies carries its direction as **undetermined**,
+says so in the ledger, and proposes no edit. Both folders, not one: classifying only the first
+would leave the research synthesis able to move a derived note on the same unrecorded standing
+this rule exists to refuse, and an earlier version of this sentence — written before
+`docs/product/` existed — waited on one folder and covered five bodies. The classification is itself a `Convention` finding and a decision, and is listed with
 the others below rather than taken here.
 
 ## Scope
@@ -269,6 +291,19 @@ one of the four things it reports. So the inventory runs both ways:
 
 ### Every in-scope note type has a comparison rule
 
+**Every note type consumes behavioural rows, because every note type carries rules.**
+`entities/Space.md` states "carries no geometry" and "existing without any planned work … must
+stay expressible"; component notes carry states and contracts; an ADR is a decision, which is
+a behavioural claim about the product. An earlier version compared `entities/` against
+named-thing rows only and `components/` against the gallery's behaviour only, so a per-claim
+reverse row for one of those rules had no cell it could ever become a contradiction in — the
+reverse pass produced the row and the matrix had nowhere to put it.
+
+Named-thing rows are consumed by the five types that hold named things, which is not
+symmetry-for-its-own-sake: a business rule, an ADR and an issue are not things the evidence
+*names*, so pairing them with named-thing rows would invent a consumer no producer could feed
+— the defect the closure check exists to catch, introduced by over-correcting for this one.
+
 The scope claims 227 notes, so all 227 need a rule saying what they are compared against.
 Naming only `entities/`, `components/` and `requirements/` would have left 55 notes —
 business rules, actors, deliverables, ADRs, issues — unread beneath a coverage claim that
@@ -276,11 +311,11 @@ included them.
 
 | Derived notes | Compared against | Looking for |
 | --- | --- | --- |
-| `entities/` (34) | Named-thing rows | A concept with no entity note; an entity the new model renames, splits or absorbs |
-| `components/` (17) | Named-thing rows **and the gallery's behavioural rows** | A component named in one and not the other; same name, different behaviour — the second half needs the behavioural rows, and admitting the gallery to the scope without adding it here would have left this row exactly as unfeedable as before |
-| `requirements/` (121) | Behavioural rows **and screen/view named-thing rows** | A requirement the new evidence contradicts; a claim with no Feature or PBI behind it; **a screen the new evidence names with no Feature or PBI behind it**. `Project Home` is the worked example, and against behavioural rows alone it had no cell that could ever become a `Gap` |
+| `entities/` (34) | Both kinds | A concept with no entity note; an entity the new model renames, splits or absorbs |
+| `components/` (17) | Both kinds |  A component named in one and not the other; same name, different behaviour — the second half needs the behavioural rows, and admitting the gallery to the scope without adding it here would have left this row exactly as unfeedable as before |
+| `requirements/` (121) | Both kinds | A requirement the new evidence contradicts; a claim with no Feature or PBI behind it; **a screen the new evidence names with no Feature or PBI behind it**. `Project Home` is the worked example, and against behavioural rows alone it had no cell that could ever become a `Gap` |
 | `business-rules/` (27) | Behavioural rows | A rule the new evidence violates or supersedes |
-| `actors/` (8) | Named-thing rows | An actor the UX layer introduces, renames or stops needing |
+| `actors/` (8) | Both kinds | An actor the UX layer introduces, renames or stops needing; a standing or capability the new evidence changes |
 | `deliverables/` (5) | Both kinds | Design System, Sitemap, Information Architecture, Disclosure ladder and MVP Prototype are *about* this UX layer, so they are the likeliest and most consequential disagreements |
 | `adrs/` (12) | Behavioural rows | A recorded decision the new evidence contradicts. Silence here is `Retained`, never `Orphan` — see the states below |
 | `issues/` (3) | Behavioural rows | An open question the new evidence answers, or reopens |
@@ -352,13 +387,27 @@ claim is superseded — so with no exclusive state the same row could be counted
 `Contradiction` by one reading and an `Orphan` by another, which a ledger promising
 reproducible counts cannot afford. The matrix therefore carries **five** states —
 `present`, `absent`, `contradictory`, `superseded`, `retained` — resolved in a fixed order so
-every row lands in exactly one:
+every row lands in exactly one. The ladder is the same in both directions; only its last rung
+differs, because a row with one silent side means opposite things depending on which side
+spoke:
 
 1. Does the evidence explicitly supersede the derived claim, in a passage that can be cited?
    → `superseded`, reported as an **Orphan**.
 2. Otherwise, do both sides speak and disagree? → `contradictory`, reported as a
    **Contradiction**.
-3. Otherwise, is the evidence simply not about it? → `retained`, reported as neither.
+3. Otherwise, do both sides speak and agree? → `present`, reported as nothing.
+4. Otherwise exactly one side spoke, and the direction decides what that means:
+   - a **forward** row — the evidence names it and no derived note answers → `absent`,
+     reported as a **Gap**;
+   - a **reverse** row — a derived claim the evidence is simply not about → `retained`,
+     reported as nothing.
+
+An earlier version of this ladder had three rungs for five states, listing only supersession,
+contradiction and retention. A matching pair that agreed never reached `present` and an
+unmatched forward claim never reached `absent`, while definition-of-done item 1 demanded that
+every row hold exactly one of the five. Adding a state without extending the ladder that
+assigns it is a consumer with no producer, one layer down from where the closure check
+looks.
 
 `Retained` is not a finding and not a defect; it is the state the reverse pass needs so that
 silence stops manufacturing orphans. The UX layer is additive and never mentions Vue — the
@@ -457,7 +506,8 @@ decision, and still not mine.
    **As this spec now stands it closes**, which is checkable from the tables above: the
    comparison table has **5** note types consuming named-thing rows and the extraction rule
    names **5** targets (`entities/`, `requirements/`, `deliverables/`, `components/`,
-   `actors/`); it has **6** consuming behavioural rows, fed by the pool the behavioural-rows
+   `actors/`); it has **8** consuming behavioural rows — every note type, since every note type
+   carries rules — fed by the pool the behavioural-rows
    table builds from all **8** in-scope evidence bodies; and all **4** finding kinds —
    `Contradiction`, `Gap`, `Orphan` and `Convention` — name the corpus they come from, the
    last by pointing outside the matrix entirely.

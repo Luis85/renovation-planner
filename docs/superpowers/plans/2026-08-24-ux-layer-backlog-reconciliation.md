@@ -671,7 +671,14 @@ about the evidence side. **Remedy** is whether this finding may propose an edit,
 thing an unclassified evidence body blocks. Blanking `standing_derived` to signal "no edit"
 threw away a fact the register states plainly, and left most findings unable to satisfy the
 ledger's own requirement that each side carry `received`, `derived` or `undetermined`.
-`remedy` is `none` wherever `standing_evidence` is `undetermined`.
+`remedy` is `none` wherever `standing_evidence` is `undetermined`, and **it is written at the
+moment the standing is assigned, not left for a later step to fill.** The provenance trace two
+steps below only visits findings whose evidence side is `received` — the workspace PRD — so a
+finding from any of the seven unclassified bodies is never revisited. Leaving its `remedy`
+blank would make the verifier's `$3=="undetermined" && $8!="none"` fire on every one of them,
+reporting the whole majority of the finding set as proposing edits it explicitly does not
+propose. The same pass sets `standing_derived=derived`, because the register classifies all
+eight derived note types whatever it fails to say about the evidence side.
 
 - [ ] **Step 1: Write the ladder as a script over the rows you can decide mechanically**
 
@@ -785,7 +792,11 @@ Every forward row at `absent` is a `Gap`. It cannot mirror — there is no deriv
 Only the workspace PRD is `received`. The other seven bodies are `undetermined`:
 
 ```bash
-awk -F'\t' -v OFS='\t' 'NR==1{print;next} {$3 = ($5 ~ /^prd/) ? "received" : "undetermined"; print}' \
+awk -F'\t' -v OFS='\t' 'NR==1{print;next}
+  { if ($5 ~ /^prd/) { $3="received" }
+    else            { $3="undetermined"; $8="none" }   # <- remedy, set HERE and not left blank
+    $4="derived"                                        # every derived note type IS classified
+    print }' \
   "$SP/findings.tsv" > "$SP/f.next" && mv "$SP/f.next" "$SP/findings.tsv"
 ```
 

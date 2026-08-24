@@ -223,6 +223,38 @@ python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py -
 # (`g92`) that belongs to a different row than the one its own commands select — a reader running
 # the block would have seen `g96` come back and the label contradict it. Nothing checked it: the
 # sampled candidates.sh gate replays 15 rows chosen by seed, and the figure sweeps look at totals.
+# A provenance verdict that says the two passages DO NOT CONFLICT, on a finding still filed as a
+# Contradiction. This has happened three times — `c47`/`r1640`, `c49`/`r519`, and `c6` — and each
+# time the refutation was already written down in this ledger's own materials and nobody read it
+# back. The trace was run to answer a different question (did the derived note drift from its
+# sources?) and its prose kept answering a second one nothing consumed.
+#
+# Its limit, stated because the check cannot reach past it: this matches a PHRASING, not a meaning.
+# It is deliberately narrow — "new evidence, not a drift" is the NORMAL case and must not trip it,
+# because that says the note is faithful while the disagreement stands between two received
+# documents, which is what most of these findings are. `c2` and `c7` say exactly that and stay.
+python3 - <<'PYP' || fail=1
+import io, re, sys
+D = "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"
+prov = [l.rstrip("\n").split("\t") for l in io.open(D + "/provenance.tsv", encoding="utf-8")][1:]
+finds = {f.split("\t")[0]: f.rstrip("\n").split("\t")
+         for f in io.open(D + "/findings.tsv", encoding="utf-8")}
+NO_CONFLICT = re.compile(r"rather than contradicting a claim|settles a question the note already"
+                         r"|is not a contradiction|do(es)? not contradict", re.I)
+bad = []
+for r in prov:
+    if len(r) < 4:
+        continue
+    f = finds.get(r[0])
+    if f and len(f) > 1 and f[1] == "Contradiction" and NO_CONFLICT.search(r[3]):
+        bad.append(r[0])
+print("  provenance verdicts saying the passages do not conflict, still filed as Contradiction: %d"
+      % len(bad))
+for b in bad:
+    print("  FAIL %s: its own trace says the evidence does not contradict a claim" % b)
+sys.exit(1 if bad else 0)
+PYP
+
 python3 - <<'PYW' || fail=1
 import io, re, sys
 D = "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"

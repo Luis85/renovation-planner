@@ -3,7 +3,6 @@ c2	Contradiction	received	derived	prd§8	docs/entities/Project.md::Project[2]	f4
 c3	Contradiction	received	derived	prd§10	docs/actors/Professional planner.md::What admitting this actor would change[2]	f500	decided: selection, not portfolio (issues/The vault holds many projects, and selecting one is not a portfolio)
 c4	Contradiction	received	derived	prd§13	docs/deliverables/Sitemap.md::The inventory[1]	f574	none
 c5	Contradiction	received	derived	prd§17	docs/deliverables/Disclosure ladder.md::What each rung means concretely[3]	f610	none
-c6	Contradiction	received	derived	prd§20.5	docs/deliverables/Disclosure ladder.md::What is open[4]	f632	none
 c7	Contradiction	received	derived	prd§24	docs/components/Empty state.md::Anatomy[3]	f647	none
 c8	Contradiction	undetermined	derived	uxd§16	docs/entities/Work package.md::Relationships[2]	f1099	none
 c9	Contradiction	undetermined	derived	uxd§17	docs/business-rules/A cost rollup is derived along its axis, never stored.md::The rule[1]	f1100	none

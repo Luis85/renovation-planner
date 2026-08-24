@@ -233,8 +233,16 @@ def reverse(subject, view):
 
     EVERY body, not the first one grep happened to walk into. A single field records whichever
     file the reader opened first, and on a thing several bodies name that is an arbitrary
-    answer presented as the answer — the report makes this argument for the forward direction
-    and it holds here. It also bounds what word boundaries can do: they refuse a name inside a
+    answer presented as the answer.
+
+    This docstring used to offer the forward direction as precedent for that, citing a sentence
+    from the report. **The sentence was only ever here** — in the repair it was being offered as
+    precedent for — and the report has never contained it. Measured instead of cited: of the 268
+    forward named rows searching a names-it directory, 262 match no note and 6 match exactly one,
+    so the forward side never had a second note to choose between. It is not precedent, and the
+    instrument was checked against a probe that does find several (`Project` matches 29 notes in
+    `requirements/`) before that zero was believed. The argument for listing every body stands on
+    the reverse direction alone, where bodies routinely name the same thing. It also bounds what word boundaries can do: they refuse a name inside a
     longer word, they cannot judge SENSE. The gallery says `<!-- Order is load-bearing -->`
     about stacking order, which is a boundary-clean hit on a thing that note does not mean;
     listing jtbd and research beside it is what shows the row does not rest on that comment.

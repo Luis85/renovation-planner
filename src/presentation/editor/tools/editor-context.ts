@@ -67,15 +67,21 @@ export interface EditorContext {
  * passed straight in — the one piece of indirection here that looks pointless until it
  * is not.
  *
- * The binding this thunk performs closes over the live `useEditorStore()` Pinia instance
- * (its current pan/zoom, its `screenToWorld`/`worldToScreen`) — see slice 5's
- * `src/presentation/stores/EditorStore.ts`. A Pinia store may not be touched before its
- * instance is active (`setActivePinia`/the app's own Pinia plugin), so if `createEditorContext`
- * took a `viewport` object directly, the composition root would have to construct that
- * object — and therefore call `useEditorStore()` — before it necessarily could. A thunk
- * defers that call to the moment `createEditorContext` actually invokes it, which is what
- * lets the composition root assemble this whole deps object first and bring the store up
- * after. `createEditorContext` calls it exactly once.
+ * The binding this thunk performs closes over the live `useEditorStore()` Pinia instance's
+ * `viewport` ref (current pan/zoom — see slice 5's `src/presentation/stores/EditorStore.ts`)
+ * and applies `worldToScreen`/`screenToWorld`, the module functions declared in
+ * `src/presentation/editor/viewport/Viewport.ts:104,109` (each taking `(point, viewport,
+ * dpr)`), to it. `EditorStore` itself has no `screenToWorld`/`worldToScreen` or
+ * `setPan(delta)` method of its own — it exposes `viewport`, `zoomAt`, `zoomByFactor`,
+ * `beginPan`/`continuePan`/`endPan`, `setPointer`; the binding is what turns those
+ * primitives into this interface's shape, and building it is not this task's job. A Pinia
+ * store may not be touched before its instance is active (`setActivePinia`/the app's own
+ * Pinia plugin), so if `createEditorContext` took a `viewport` object directly, the
+ * composition root would have to construct that object — and therefore call
+ * `useEditorStore()` — before it necessarily could. A thunk defers that call to the moment
+ * `createEditorContext` actually invokes it, which is what lets the composition root
+ * assemble this whole deps object first and bring the store up after. `createEditorContext`
+ * calls it exactly once.
  */
 export interface EditorContextDeps {
 	bindViewport(): EditorContext['viewport'];

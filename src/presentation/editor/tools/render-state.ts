@@ -15,14 +15,10 @@ import type { Point } from '../../../core/geometry/Point';
  * and those two slots are left exactly as they are. The reason: nothing in design slice 6
  * is wired into the composition root yet (no `ToolManager`, no concrete tool constructs an
  * `EditorContext`), so there is no seam at which `EditorStore` could actually own this
- * state today — reaching for the store anyway would mean constructing a Pinia instance
- * (`setActivePinia`) just to unit-test a tool or a reversible-command adapter, which is
- * exactly the jsdom dependency a plain class avoids. A Pinia store is not usable outside a
- * DOM-adjacent test environment in this codebase; `RenderState` is, in plain node. Wiring
- * these two homes for "hovered object id" together — by retiring `EditorStore`'s slots, by
- * having it delegate to an instance of this class, or some other seam — is later work for
- * whichever task first constructs a `ToolManager`/`EditorContext` at the composition root,
- * not this one.
+ * state today. Wiring these two homes for "hovered object id" together — by retiring
+ * `EditorStore`'s slots, by having it delegate to an instance of this class, or some other
+ * seam — is later work for whichever task first constructs a `ToolManager`/`EditorContext`
+ * at the composition root, not this one.
  */
 export class RenderState {
 	hoveredObjectId: string | null = null;

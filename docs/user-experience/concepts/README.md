@@ -113,7 +113,7 @@ what it wants to succeed leaves a reviewer nothing to compare it against.
 
 ## What the canvas mock measured
 
-Six more findings, and five came out of a **screenshot** rather than out of reading the file —
+Seven more findings. Five came out of a **screenshot** rather than out of reading the file —
 the same argument the six above make, made again by a page written by someone who had just read
 them.
 
@@ -145,6 +145,13 @@ them.
   "the emptiest corner" — landed on the Hallway and clipped the very pin the card belongs to. It
   now sits in the emptiest corner it actually has, and the underlying question, whether a decision
   is an inspector surface, is left open on the page rather than quietly settled.
+- **A side-tab accent border, and the host had already answered it.** The guidance block was
+  a card with a 2px accent border down its left edge — the design hook named it as the
+  most recognisable tell of a generated interface. Checking beat arguing: Obsidian's own
+  `.callout`, in the vendored app.css, sets `--callout-border-width: 0px` and carries its
+  emphasis in `color-mix(in oklch, var(--callout-color) 10%, transparent)`. No border at
+  all, let alone one on a single side. So the block is a 10% tint now, which is both the
+  fix and the more faithful drawing — rule 1 reaching a SHAPE rather than a value.
 - **Chip widths were guessed, and one state hid the miss.** Three of ten pin labels overflowed
   their chip, and the SELECTED one overflowed by more than the rest because selection makes it
   bold — a defect present in exactly one state. The authored widths are now what `getBBox`

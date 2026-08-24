@@ -474,14 +474,26 @@
    demanding completeness. So the component has room for a reason and exactly one
    action — a second action here would be a menu, and a menu is not guidance.
    ───────────────────────────────────────────────────────────────────────────── */
+/* ── A tint, not a side tab, and the host is what decided it ──
+ *
+ * The first version was a card with a 2px accent border down its left edge. The design
+ * hook flagged it as the side-tab tell, and checking rather than arguing settled it:
+ * Obsidian's OWN highlighted block, `.callout` in the vendored app.css, sets
+ * `--callout-border-width: 0px` and carries its emphasis in
+ * `background-color: color-mix(in oklch, var(--callout-color) 10%, transparent)`. No
+ * border at all, let alone one on a single side.
+ *
+ * So the host's answer to "this block matters" is a 10% tint, and a plugin that wants to
+ * look native should give the same answer. This is that rule with the accent as the
+ * colour — read from Obsidian, not restated: rule 1 of the README, applied to a shape
+ * rather than to a value. The uppercase label is the second channel, so the tint
+ * reinforces something it never has to carry alone. */
 .renovation-planner-view .rc-next {
 	flex: 0 0 auto;
 	margin: 0 var(--rp-gutter) 10px;
-	padding: 8px 9px 9px;
-	border: 1px solid var(--background-modifier-border);
-	border-left: 2px solid var(--interactive-accent);
+	padding: 9px 10px 10px;
 	border-radius: var(--radius-s);
-	background: var(--background-primary);
+	background: color-mix(in oklch, var(--interactive-accent) 10%, transparent);
 }
 
 .renovation-planner-view .rc-next-label {

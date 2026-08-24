@@ -25,9 +25,9 @@ than left to be noticed:**
 
 ## What was found
 
-**47 contradictions, 763 gaps, 0 orphans, and 4 convention findings.** The contradictions are
-the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
-the 47, and `deliverables/Disclosure ladder.md` alone accounts for 8.
+**46 contradictions, 763 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+the useful half, and they concentrate rather than scatter — seven themed clusters carry 30 of
+the 46, and `deliverables/Disclosure ladder.md` alone accounts for 7.
 
 The single most contradicted document in the backlog is **`deliverables/Disclosure ladder.md`**,
 with 8 of the 47. Beside those — and **not** among them, because no row in this instrument runs
@@ -40,7 +40,7 @@ Cluster E quotes both and says why the matrix cannot count it.
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
 UX layer contradicts the backlog in 47 places and supersedes it nowhere.
 
-**And not one derived note has drifted.** 15 of the 47 contradictions come from evidence whose
+**And not one derived note has drifted.** 14 of the 46 contradictions come from evidence whose
 standing the register records; each of those 15 was traced back to the sections of the *original*
 PRD and SDD that its derived note cites, and all 15 read faithfully — the note asserts what its
 source asserts. **No contradiction in this ledger authorises correcting the backlog on its own.**
@@ -62,12 +62,12 @@ Rows and findings are different things and are counted separately.
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
-| `present` | 1,142 |
+| `present` | 1,143 |
 | `absent` | 763 |
-| `contradictory` | 47 |
+| `contradictory` | 46 |
 | `superseded` | **0** |
 | **findings** | |
-| Contradiction | **47** |
+| Contradiction | **46** |
 | Gap | **763** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
@@ -290,7 +290,7 @@ hide one.
 
 ## Contradictions, by cluster
 
-**All 47 appear below**, and every one cites both sides. Seven themed clusters carry 29, section
+**All 46 appear below**, and every one cites both sides. Seven themed clusters carry 30, section
 H carries 10 that are individually consequential and share no theme, and section I carries the
 last 7 — reached from the reverse direction only, which is why they were the last to be written
 up rather than the least important. Counted directly against `findings.tsv`, not assumed: an
@@ -382,9 +382,6 @@ made it look mirrored in the first place.
 
 Does a project open on Project Home, or on the plan once one is calibrated?
 
-- `f463` — `prd§3` "the renovation project is the primary UX object" vs
-  `deliverables/Disclosure ladder.md`: "Project-first to create, **plan-first thereafter**… the
-  home surface is the plan from the moment a calibrated one exists."
 - `f1109` — `uxd` "Open Project always opens Project Home" vs `deliverables/Sitemap.md::The
   routes[1]`: opens "in `editor` once a calibrated Plan exists, and in `project` before that".
 - `r1419`, `r1442` — the same two deliverable claims, reached from the derived side against
@@ -395,7 +392,7 @@ Does a project open on Project Home, or on the plan once one is calibrated?
 
 ### E. The Disclosure ladder contradicts the new evidence
 
-**8 rows, 8 findings — the most contradicted note in the backlog**, counted directly against
+**7 rows, 7 findings — the most contradicted note in the backlog**, counted directly against
 `findings.tsv` as the notes whose derived side is this file.
 
 Its rungs gate cost on "the first Zone existing" and Work behind cost, so Work is reachable only
@@ -411,8 +408,6 @@ after a Zone and a cost. Against that:
   with Trade and Work package.
 - `c6`/`f632` — `prd§20.5` "No Mandatory Floor Plan", the disagreement the design spec named as
   its own motivating example, against `Disclosure ladder.md::What is open[4]`.
-- `c1`/`f463` — `prd§3` makes the renovation project the primary UX object, against the ladder's
-  account of the home surface.
 - `c43`/`r1419` — the ladder's "Project-first to create, **plan-first thereafter**" against
   `prototype§9`'s interaction contracts.
 - `c50`/`f1009e` — `uxd§4`'s Primary User Journey runs **Plan Work → Estimate Costs**, against
@@ -676,13 +671,13 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 541 of the 810 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 541 of the 809 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
-  standing the other 15 already have, and each becomes a question someone is entitled to answer.
-  **It is not a licence to edit the backlog.** All 15 already-received contradictions were traced
-  to the sections their derived note cites, and all 15 came back faithful: the note says what its
+  standing the other 14 already have, and each becomes a question someone is entitled to answer.
+  **It is not a licence to edit the backlog.** All 14 already-received contradictions were traced
+  to the sections their derived note cites, and all 14 came back faithful: the note says what its
   source says, so the disagreement is between two received documents and no derived note is at
   fault. Classifying these folders received extends that shape rather than escaping it.
 - **Derived, like `components/`** — the UX documents move instead, and the component-gallery
@@ -901,10 +896,10 @@ them. **The matrix and the finding set are committed beside this ledger**, in
 | file | rows | what it holds |
 | --- | --- | --- |
 | `rows.tsv` | 3,076 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 810 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `findings.tsv` | 809 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
-| `provenance.tsv` | 15 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
+| `provenance.tsv` | 14 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
 | `candidates.sh` | — | the candidate command for a BEHAVIOURAL row — the mechanical half of that match |
 | `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 682 named rows |
@@ -917,7 +912,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty-two corrections, all from review of the committed matrix — which is the argument for
+Thirty-four corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1422,6 +1417,38 @@ after the derived-note gate that could not resolve a base, and the forward side 
 gate at all — and the only one caught by deliberately breaking a rule to watch the gate refuse it,
 rather than by review. Definition moved above first use; watched failing and passing.
 
+**A thirty-third correction: the branch-base fallback ran the gate against the wrong base.** The
+derived-note gate resolves a base from `origin/main`, then `main`, and — until now — fell back to
+`HEAD~1`. That fallback was added to stop the gate passing when it could resolve nothing, and it
+replaced *a gate that did not run* with *a gate that ran against the wrong thing*, which is worse
+because it prints a number. In a workspace with neither ref, the diff examines only the tip commit
+and misses a derived-note edit made in any earlier commit of the branch. This branch contains a
+merge commit, so `HEAD~1` is demonstrably not its base here.
+
+It now requires a real base — `origin/main`, `main`, or an explicit `REVIEW_BASE` — and fails
+closed otherwise. Watched both ways in a clone with no remote and no `main`: without a base it
+prints `FAIL cannot resolve the branch base` and exits 1; with `REVIEW_BASE` set to the root
+commit it reports 224 notes edited, which is correct against that base and proves the diff is
+branch-wide rather than tip-only.
+
+**That is the fourth gate in this ledger found unable to fail**, and the second of the four to
+have been *introduced by the repair of another one*.
+
+**A thirty-fourth correction: `c1` was not a contradiction.** It set `prd§3` — "the renovation
+project is the primary UX object" — against `Disclosure ladder.md`'s "Project-first to create,
+**plan-first thereafter**". Those are **two different surfaces sharing the word *home***. `prd§3`
+lists what a user should understand *on opening the plugin*: which projects exist, which was
+recent, its state, what needs attention. The ladder answers
+[[Information Architecture]]'s open question 1, which is about the landing surface *inside* a
+project once a plan is calibrated. A plan-first mode within a project does not stop the project
+being the primary object, and the multi-project decision has since made the two surfaces
+explicitly distinct.
+
+46 contradictions, 809 findings, `present` 1,143, received contradictions 14 traced 14/14. Cluster
+D loses a row and cluster E goes to **7**, which also corrects the most-contradicted-note figure
+from 8 back to 7 — a number the sweep did not cover and which was stale in three places. It does
+now, along with the A–G cluster total, at 35 swept figures.
+
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking, while a fifty-third was found hiding inside another — a
@@ -1435,8 +1462,8 @@ rows                                              3076
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
-disagreement rows                                   47
-disagreement findings                               47
+disagreement rows                                   46
+disagreement findings                               46
 coalesced pairs, counted directly                    0
 finding set recomputed from rows.tsv          identical as a SET to findings.tsv
 candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
@@ -1447,8 +1474,8 @@ lookup.py reproduces the committed named state   682 / 682 named rows (2 named,
 gap findings, by the row kind behind them        402 named + 361 behavioural
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
-received contradictions                             15
-  traced to the sections their note cites           15 / 15
+received contradictions                             14
+  traced to the sections their note cites           14 / 14
   derived notes found to have drifted                0
 sections.py --selftest                        instrument agrees with a second
                                               implementation and three pinned counts

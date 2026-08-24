@@ -75,13 +75,22 @@ chk "forward rows whose source carries no section locator" 0 "$(awk -F'\t' 'NR>1
 # answers "no derived note was edited" when what happened is "no comparison ran" is worse than
 # no gate, for the same reason `--selftest` comparing only the state was: it gets quoted.
 # Watched failing by pointing it at a ref that does not exist.
+# The base must be the BRANCH's base, and `HEAD~1` is not it. That was the previous fallback,
+# added to stop this gate passing when it could resolve nothing — and it replaced a gate that did
+# not run with one that ran against the wrong thing, which is worse, because it reports a number.
+# In a workspace with neither `origin/main` nor `main` the diff would then examine only the tip
+# commit and miss a derived-note edit made in any earlier commit of the pull request, while still
+# printing "0 outside the allowlist". This branch has a merge commit in it, so `HEAD~1` is
+# demonstrably not its base here.
+#
+# So: a real base, or fail closed. `REVIEW_BASE` lets a reviewer supply one when the workspace has
+# no main — an explicit answer rather than a guess that looks like one.
 MB=""
-for base in origin/main main "$(git rev-parse HEAD~1 2>/dev/null)"; do
-  [ -n "$base" ] || continue
+for base in origin/main main ${REVIEW_BASE:-}; do
   MB="$(git merge-base "$base" HEAD 2>/dev/null)" && [ -n "$MB" ] && break
   MB=""
 done
-[ -n "$MB" ] || { echo "  FAIL cannot resolve a review base; the derived-note gate did not run"; fail=1; }
+[ -n "$MB" ] || { echo "  FAIL cannot resolve the branch base (tried origin/main, main, \$REVIEW_BASE); the derived-note gate did not run"; fail=1; }
 DERIVED="docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues"
 chk "derived notes edited outside the allowlist (uncommitted)" 0 "$(git status --porcelain -z $DERIVED | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')"
 if [ -n "$MB" ]; then
@@ -300,6 +309,15 @@ und=sum(1 for x in f if x[2]=='undetermined')
 nprov=len([l for l in io.open(D+'/provenance.tsv',encoding='utf-8').read().rstrip('\n').split('\n')[1:] if l.strip()])
 nsite=len([x for x in f if x[1]=='Contradiction' and ('Site.md' in x[5] or 'Outdoor area.md::Relationships' in x[5] or 'Project.md::Relationships' in x[5])])
 fwdbody=collections.Counter(r[4].split('\u00a7')[0].strip('"').strip() for r in rows if r[1]=='forward')
+ndl=len([x for x in f if x[1]=='Contradiction' and 'Disclosure ladder' in x[5]])
+_rowof={}
+for _x in f:
+    for _r in _x[6].split(): _rowof[_r]=_x[0]
+    _rowof[_x[0]]=_x[0]
+_cs=L.index("## Contradictions, by cluster"); _ce=L.index("\n## Gaps")
+_parts=re.split(r"\n### ([A-I])\. ", L[_cs:_ce])
+nag=sum(len({_rowof[y] for y in re.findall(r"`([fr]\d+[a-z]?|c\d+)`", _parts[i+1]) if y in _rowof})
+        for i in range(1,len(_parts),2) if _parts[i] not in ("H","I"))
 def c(n): return "{:,}".format(n)
 # Each entry: label, and a template whose {} is filled FROM THE DATA. The gate therefore
 # tracks the artifacts rather than a pinned number, so a legitimate change updates what is
@@ -339,6 +357,10 @@ checks=[
  ("provenance.tsv size",      r"\| `provenance\.tsv` \| %d \|" % nprov),
  ("gap citations in prose",   r"does not print %d gap citations" % kd['Gap']),
  ("cluster B size",           r"\*\*%d rows, %d findings\.\*\* The entity notes model" % (nsite,nsite)),
+ # The cluster tallies and the most-contradicted-note figure are derived, and were stale twice.
+ ("Disclosure ladder count",  r"`deliverables/Disclosure ladder\.md` alone accounts for %d\." % ndl),
+ ("cluster E size",           r"\*\*%d rows, %d findings — the most contradicted note" % (ndl,ndl)),
+ ("clusters A-G total",       r"[Ss]even themed clusters carry %d" % nag),
  # A BARE number under a heading has no metric word beside it, so the labelled-total net below
  # cannot see it. The gap section opens with one, and it was stale for three rounds.
  ("gap section headline",     r"## Gaps\n\n\*\*%d\*\*, of which %d are named" % (kd['Gap'], gk['named'])),

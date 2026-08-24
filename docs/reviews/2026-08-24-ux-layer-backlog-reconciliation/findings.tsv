@@ -1,5 +1,4 @@
 finding_id	kind	standing_evidence	standing_derived	evidence_cite	derived_cite	rows	remedy
-c1	Contradiction	received	derived	prd§3	docs/deliverables/Disclosure ladder.md::The home surface, and IA's first open question answered[1]	f463	none
 c2	Contradiction	received	derived	prd§8	docs/entities/Project.md::Project[2]	f494	decided: selection, not portfolio (issues/The vault holds many projects, and selecting one is not a portfolio)
 c3	Contradiction	received	derived	prd§10	docs/actors/Professional planner.md::What admitting this actor would change[2]	f500	decided: selection, not portfolio (issues/The vault holds many projects, and selecting one is not a portfolio)
 c4	Contradiction	received	derived	prd§13	docs/deliverables/Sitemap.md::The inventory[1]	f574	none

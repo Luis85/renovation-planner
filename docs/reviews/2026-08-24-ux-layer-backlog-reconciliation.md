@@ -64,7 +64,7 @@ Rows and findings are different things and are counted separately.
 findings. The one coalesced pair is `f494` ↔ `r519`: the workspace PRD requiring a Project
 Selection context, and `entities/Project.md` stating there is no portfolio — the same
 disagreement reached from both directions. It is counted by identifying that pair and checking
-it, never by subtracting findings from rows: 1,117 `present` and 1,126 `retained` rows raise the
+it, never by subtracting findings from rows: 1,103 `present` and 1,126 `retained` rows raise the
 row total while producing no finding, so that subtraction would overstate coalescing by 2,229.
 
 Every row carries exactly one of the five states; none is blank and none is outside the
@@ -405,7 +405,7 @@ match**, so nothing here is a vocabulary gap — it is same name, different beha
 **772**, of which 413 are named things the evidence names with no note behind them and 359 are
 behavioural claims no note addresses. The named/behavioural split and the per-body breakdown are in `findings.tsv`.
 
-They are not 754 separate problems. **Whole epics of the new PRD have no derived counterpart**,
+They are not 772 separate problems. **Whole epics of the new PRD have no derived counterpart**,
 and the reason is one measurement rather than a judgement — counted across all 227 notes:
 
 | term | derived notes containing it | times the workspace PRD uses it |
@@ -448,7 +448,7 @@ five deliverable notes is one.
 
 **A caveat a reader should apply to this number.** A gap is one forward row that no derived note
 addresses, and the same absence is reached from several bodies — `Project Home` alone produces
-rows from three. The 754 is a row-derived count, honestly produced and not deduplicated by
+rows from three. The 772 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
 ## Findings that need a decision
@@ -614,7 +614,7 @@ to be typing.
 ## The finding set, as data
 
 The narrative above cites the contradictions in full and characterises the gaps by cluster. It
-does not print 754 gap citations, and a reader is entitled to check the totals rather than take
+does not print 772 gap citations, and a reader is entitled to check the totals rather than take
 them. **The matrix and the finding set are committed beside this ledger**, in
 [`2026-08-24-ux-layer-backlog-reconciliation/`](2026-08-24-ux-layer-backlog-reconciliation/):
 

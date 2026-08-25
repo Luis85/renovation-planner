@@ -204,6 +204,15 @@ worse than one that says it is doing it.
 6. **[[Measurement label]]'s Given gains a unit.** Its rule — "it displays precision; it never
    decides it" — is untouched, and is why this works: the label already refuses to invent a
    precision, so one more input changes nothing about who owns the decision.
+7. **[`07-calibration`](../tasks/07-calibration.md) owes a corrected mechanism.** It says the
+   presentation layer converts the typed distance from the plan's display unit into mm "using
+   slice 2's unit conversion" — but slice 2 says `core/units/` holds the world-unit fact and
+   explicitly "does not hold the measurement vocabulary", and
+   [`Architecture and Software Design`](Architecture%20and%20Software%20Design.md) assigns units
+   to slice 9. So that sentence names a thing that does not exist where it points. The **layer**
+   it names is right and the **module** is not: calibration's input conversion is the same
+   presentation-layer conversion criterion 5 places there, run inverse. One module, used both
+   ways; `core/units/` gains nothing.
 
 ## Out of scope
 
@@ -296,7 +305,9 @@ worse than one that says it is doing it.
 17. A known distance typed during calibration is interpreted in the unit the picker shows, and the
     resulting scale is identical to the equivalent value in any other unit. `5` in metres, `500`
     in centimetres and `5000` in millimetres produce the same calibration — a node test on the
-    conversion, not a walkthrough.
+    conversion, not a walkthrough. **It is the same presentation-layer conversion as criterion 5,
+    run inverse**, and the test drives one module in both directions rather than two that can
+    drift apart. Nothing about the display vocabulary reaches `core/units/`.
 18. Switching the unit while the calibration prompt is open **visibly converts** the typed value
     **without rounding it**: `1` in millimetres becomes `0.001` in metres, not `0.00`. Round-
     tripping through every unit returns the value it started with. Disabling the control is not an

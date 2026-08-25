@@ -3222,9 +3222,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-eight review rounds — sixty-eight findings. Sixty-six were real and are
-fixed above rather than noted; two were not, and each is recorded as declined with the measurement
-that declined it.**
+**Revised across thirty review rounds — seventy-two findings. Seventy were real and are fixed
+above rather than noted; two were not, and each is recorded as declined with the measurement that
+declined it.**
 
 Round one, on the shape of the harness:
 
@@ -3418,6 +3418,38 @@ not reproduce:
 | **A stylesheet can `@import` a stylesheet** | The fourth route, and the first that involves no JavaScript at all: `@import '…/concept.css';` in `tests/harness/theme.css` loads the proposal sheet with the page's three links unchanged, no module importing a `.css`, and no template rendering a `<link>`. The walker excludes `.css` files entirely, so all three lists stay empty | Task 5: a case refusing `@import` in `tests/harness/*.css`, planted before being trusted. Scoped there deliberately — `styles/index.css` uses `@import` to assemble the shipped sheet from its partials, and `scripts/styles-assemble.mjs` already fails the build on one it cannot resolve, so refusing it there would refuse the mechanism the plugin's own stylesheet is built from. What that leaves — an `@import` inside a `styles/` partial pointing outside `styles/` — belongs to the assembler, and the test says so rather than reaching into it |
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
+
+Round thirty, on the two actors rather than on the machinery:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The seeded world was never reseeded between entries** | `page.ts` calls `seedFixture()` ONCE for the lifetime of the index app, so every entry opened afterwards inherits whatever the previous one did to the stores — and `PlanEditorRoot` mutates the editor store on pan and zoom, which makes it reachable by ordinary use. `fixture.ts`'s headline claim is that what the designer sees is REPRODUCIBLE, and this is exactly the property that leaks: an entry's rendering depends on which entries were opened before it. Its `setActivePinia` paragraph also states the invariant the code beside it breaks — "one fixture call per mounted entry, immediately consumed", when Task 4 calls it once per app | Task 4, as a follow-up round: a RESET on the same Pinia at the top of `open()` — replacing the instance is not available, since `app.use()` installs one for the app's lifetime — covering every store an entry can dirty rather than only the one `seedFixture` writes, with `fixture.ts`'s false sentence corrected in the same commit |
+| **The address bar did not follow the opened entry** | `@click.prevent` cancels navigation and `open()` never touches history, so refreshing or copying the URL opens the wrong screen — while `hrefFor` exists precisely so a copied link survives `&` and `#` in an id, and says so in a comment. `.prevent` also fires on MODIFIED clicks, so Cmd/Ctrl-click does not open a new tab | Task 4, same round: `history.replaceState` (not `push` — back should leave the harness, not walk backwards through every entry glanced at) plus a modifier guard |
+
+Both land on the **Designer** actor rather than the agent one, and that is the observation worth
+keeping. Twenty-nine rounds of review went almost entirely into the agent-facing half — what
+`harness-shot` captures, what it exits non-zero on, what a gate can see — because that half has
+instruments pointed at it. `npm run check` cannot see a URL that failed to update, a new tab that
+did not open, or a component drawing against a world the previous entry moved. The half of the spec
+with no gate watching it is the half that accumulated defects quietly.
+
+Round twenty-nine, on the plan itself rather than on the code:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The executable snippet still carried the allowlist round twenty-three removed** | Task 4's prescribed code declared `const FATAL_WARNINGS = ['Failed to resolve component', 'Missing required prop']` and filtered through it, while the committed `IndexPage.vue` had inverted the classification six rounds earlier. Following the plan rebuilds the exact `Invalid prop: type check failed` hole the inversion closed. Worse, and this is where the cost was: **Task 6's test pinned both strings as SOURCE TEXT** — `expect(index).toContain("'Failed to resolve component'")` — and the committed file spells them only inside a comment, with backticks rather than single quotes. Task 6 was unrunnable as written, and Task 6 had not run yet | The plan, in four places: the declaration and its rationale, the handler's filter, Task 6's assertion (now pinning `renderDefects.push(message)` — the collection being unconditional at the point it is written — with the behavioural proof left in `indexPage.test.ts`, which drives a real missing prop, a real wrong prop and a real unresolved tag), and two Self-Review rows, one of which had recorded the inversion as "the third string joins the list" |
+| **Warning ownership keyed by id, A -> B -> A** | The same defect as round twenty-eight, one channel over: `warningOwner` and `mountedId` both hold `'A'` for two different mounts, so a delayed warning from the first A is accepted and `reportLateDefect()` pulls the healthy second A off the stage | Folded into round twenty-eight's shape fix as a second RED case rather than answered separately — see below |
+
+The first is the fifth instance on this branch of one shape, and the most expensive kind of it. The
+recurring failure has been a fix that leaves a sibling stale; here the stale sibling was an
+**instruction for work not yet done** rather than a description of work already finished, so it
+would have been executed rather than merely read. The pre-flight scan could not have caught it: at
+scan time the plan agreed with itself, and it was the CODE that moved afterwards. The generalisable
+rule is that a plan under execution is not a static document — every fix to committed code has to
+be checked against the tasks still ahead of it, not only against the tasks behind.
+
+The second is why round twenty-eight's ruling was made on the shape rather than on the case. Two of
+the four guards, caught by the same navigation, found independently.
 
 Round twenty-eight, on the key the previous two rounds were both written in:
 

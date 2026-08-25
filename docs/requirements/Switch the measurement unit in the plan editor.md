@@ -85,12 +85,17 @@ the preconditions and omit the behaviour the uncalibrated state actually owes.
 - **4a** — A second editor leaf is open on the same plan. It follows immediately, because the
   unit belongs to the plan and not to the leaf. Reading one plan in two units at once is not
   something this use case serves — it is the thing the renovator complained about.
-- **5a** — Nothing has ever been stored for this plan. It opens in millimetres, which is the
-  world unit and therefore the one default that cannot be wrong.
-- **5b** — What was stored is unreadable, or names a unit this version does not know. It falls
-  back to millimetres and the bad value is dropped, exactly as `settingsFrom` treats a
-  `data.json` the user has edited: a store outside the plugin's control is a trust boundary,
-  and a unit it cannot vouch for is not one to render figures with.
+- **5a** — Nothing has ever been stored for this plan. It opens at the first level of the
+  precedence chain that answers — project unit, then plugin default, then millimetres — per
+  *Deliberately out of scope*. Neither surface is built yet, so today the chain falls through to
+  millimetres, the world unit and therefore the one default that cannot be wrong.
+- **5b** — What was stored is unreadable, or names a unit this version does not know. The bad
+  value is dropped and that level is treated as **absent**, so the chain continues to the
+  project unit and onward rather than jumping to the floor. This is exactly how `settingsFrom`
+  treats a `data.json` the user has edited: a store outside the plugin's control is a trust
+  boundary, and a unit it cannot vouch for is not one to render figures with. Dropping to
+  millimetres directly would be the subtler bug — it would silently override a project that had
+  legitimately stated its units, on the strength of one corrupt byte in a cache.
 - **5c** — The store cannot be written to. The switch still applies to the open editor; only
   the remembering is lost. A cosmetic preference is not worth an error dialog, and it is not
   worth refusing the switch either.
@@ -203,12 +208,27 @@ Named rather than left looking forgotten.
   requirement for a different canonical unit emerges, for example inches for a specific
   locale") will need when somebody asks. Note that even then the *canonical* unit stays the
   millimetre; only the display list grows.
-- **Default units at project or plugin level.** PRD §83 assigns "units" to both scopes, and
-  those belong to [[Project settings]] and [[Settings and configuration]]. This note
-  deliberately does not read either: the picker starts at millimetres when a plan has no
-  remembered unit, which keeps the two mechanisms from having to be reconciled before either
-  exists. Seeding the picker from a project default is a later refinement and a one-line change
-  to step 5a.
+- **Setting** a default unit at project or plugin level. Those surfaces belong to
+  [[Project settings]] and [[Settings and configuration]], per PRD §83, and this note does not
+  design either. **Reading them is in scope, and an earlier draft wrongly deferred it.** That
+  draft had the picker start at millimetres and called reconciliation a later refinement —
+  against [[Project settings]], which is `horizon: MVP` like this note and whose Outcome
+  promises "every figure the plugin shows for it obeys them", units included. Two MVP notes
+  disagreeing about what a figure shows is not a deferral; it is two implementations that cannot
+  both be right. So the precedence is stated here, where the picker is initialised:
+
+  1. the **plan's remembered unit**, when one is stored and valid;
+  2. otherwise the **project's** configured unit;
+  3. otherwise the **plugin default**;
+  4. otherwise **millimetres**.
+
+  A value that is present but invalid is treated as absent at that level and the chain
+  continues — which is extension **5b**'s rule applied per level rather than as a jump straight
+  to the floor. Millimetres remains the floor and keeps assumption 4's justification: it is the
+  world unit, so it is the one answer that cannot be a lie when nothing above it has spoken.
+  Levels 2 and 3 read whatever those surfaces expose; until they exist there is nothing to read
+  and the chain falls through to millimetres on its own, which is why this costs nothing today
+  and prevents a contradiction later.
 - **Anything outside the plan editor.** The budget, the reports and the exports keep whatever
   units they already show. This is a lens on one surface, and a lens that silently changed the
   currency-shaped figures on a report would be a different and much larger promise.
@@ -301,9 +321,14 @@ That earns one rule the picker would not otherwise need:
 8. Areas follow the length unit without a second control: picking cm gives cm², never m².
 9. On an uncalibrated plan with no calibration in progress the picker is disabled and carries a
    reason a renovator can read. Checkable in a vault in under a minute.
-10. Reopening a plan restores the unit it was left in; a plan never opened shows millimetres.
-11. A stored value that is absent, unparseable, or names an unknown unit yields millimetres and
-   is dropped, with the same shape of test `settingsFrom` already has for `data.json`.
+10. Reopening a plan restores the unit it was left in. A plan never opened resolves through the
+    precedence chain, which today falls through to millimetres because neither the project nor
+    the plugin surface exists — so the test asserts the *chain*, with each level stubbed, not
+    the millimetre answer it currently produces.
+11. A stored value that is absent, unparseable, or names an unknown unit is dropped and its
+    level treated as absent, so resolution continues down the chain — with the same shape of
+    test `settingsFrom` already has for `data.json`. The case that must fail is a corrupt plan
+    cache overriding a project that stated its units.
 12. Two leaves on one plan show the same unit within one switch, with no reload.
 13. Every label the picker draws goes through `t`, and reads correctly under both locales
     [[Multilanguage]] declares — including the unit symbols themselves, which are not
@@ -322,10 +347,12 @@ That earns one rule the picker would not otherwise need:
     the resulting scale is identical to typing the equivalent value in any other unit. `5` in
     metres, `500` in centimetres and `5000` in millimetres produce the same calibration — a node
     test on the conversion, not a walkthrough.
-18. Switching the unit while the calibration prompt is open never silently changes what a
-    typed value means: either the control is disabled for the duration, or the value is
-    visibly converted. Checkable in a vault in under a minute, and the case a test should
-    fail on is the silent one.
+18. Switching the unit while the calibration prompt is open **visibly converts** the value
+    already typed. Disabling the control for the duration is *not* an alternative — an earlier
+    version of this criterion offered it, which contradicted extension **2b** and criterion 16
+    and, worse, defeated their purpose: the renovator needs the picker precisely *while* typing
+    the distance, since choosing its unit is what the picker is for at that moment. Checkable in
+    a vault in under a minute, and the case a test must fail on is the silent one.
 
 ## Assumptions
 
@@ -349,16 +376,25 @@ Each is something this note decided that its sources did not settle.
    adapter approved on its own merits is the other legitimate answer, and it is a decision
    somebody makes rather than a fallback this note assumes.
 2. **Per-device is acceptable, and is arguably correct.** Local storage does not sync, so the
-   same plan opened on a second machine starts at millimetres. For a cosmetic preference that
+   same plan opened on a second machine starts from the chain rather than from the remembered
+   unit — the project's unit where one is set, and millimetres only when nothing is. For a
+   preference that
    is a feature rather than a defect — the unit somebody reads at a desk and the unit they read
    on site are not obviously the same unit — but it is a decision, not a consequence.
 3. **Two decimals everywhere, including millimetres**, over a per-unit precision table. §71
    gives two decimals for m² and nothing for the rest, so this generalises its one example
    rather than inventing a second rule. The cost is `42718432.00 mm²`, which is honest about
    being a display convention rather than a significance claim.
-4. **Millimetres is the default**, not metres, even though metres is what estate work wants.
-   The world unit is the one default that can never be a lie, and a plan whose remembered value
-   was dropped as untrustworthy must not land on a unit that was inferred.
+4. **Millimetres is the floor of the precedence chain, not "the default"**, and the distinction
+   is one this note got wrong before review. The chain is plan → project → plugin → millimetres;
+   millimetres is what answers when *nothing above it has spoken*, which is the one answer that
+   cannot be a lie. An earlier version said flatly that millimetres was the default and added
+   that a plan whose remembered value was dropped "must not land on a unit that was inferred" —
+   which contradicts extension **5b** as it now stands, since a dropped value continues to the
+   project's unit, and a project's stated unit is exactly such an inference. It is the *right*
+   inference: a project that declared its units is better evidence of what the renovator wants
+   than one corrupt byte in a per-device cache. Metres is still not the floor, even though estate
+   work wants it, because the floor is the case where the product knows nothing.
 5. **The picker is a picker and not a cycle.** Three values in a menu, over a button that
    advances through them, because a control whose next state you have to remember is a control
    you read before you use. A command that cycles is a legitimate second input to the same

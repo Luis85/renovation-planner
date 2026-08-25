@@ -32,10 +32,12 @@ This is the display half of PRD §71's separation, made into a control. §71 ins
 display precision are different things and gives `42718432 mm²` / `42.72 m²` as its example; it
 never said who picks the second one. This use case says the renovator does.
 
-**It is not purely cosmetic, and the opening has to say so.** Switching writes nothing and moves
-no stored byte — but the same unit is what calibration reads a typed known distance *in*, which
-reaches something persisted. A reader who takes "cosmetic" at face value is the reader who ships
-a scale error; *The unit is read in both directions* below is the whole story.
+**It is not purely cosmetic, and the opening has to say so.** Switching writes nothing *to the
+vault* and moves no stored geometry — it does write the per-plan preference to local storage
+(step 5), which is a different thing and deliberately outside the vault. And the same unit is
+what calibration reads a typed known distance *in*, which reaches something persisted. A reader
+who takes "cosmetic" at face value is the reader who ships a scale error; *The unit is read in
+both directions* below is the whole story.
 
 ## Actor
 

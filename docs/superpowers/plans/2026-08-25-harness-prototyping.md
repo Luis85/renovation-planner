@@ -773,6 +773,7 @@ The index page: every prototype and every component, discovered from the tree so
 
 **Interfaces:**
 - Consumes: `seedFixture()` and `harnessEditorContext()` from Task 3.
+- Also owns **criterion 7**, moved here from Task 3 by that task's review: only this task's app installs VueKonva, and without it the two prop-free components that read `useProjectStore` cannot both mount.
 - Produces, all from `tests/harness/entries.ts`: `interface HarnessEntry { id: string; label: string; kind: 'prototype' | 'component'; component: () => Promise<unknown> }`, `discoverEntries(modules: Record<string, () => Promise<unknown>>, kind: HarnessEntry['kind']): HarnessEntry[]`, and the two globbed accessors `prototypeEntries(): HarnessEntry[]` / `componentEntries(): HarnessEntry[]`. Task 5 uses the entries; Task 7 drives `prototypeEntries()` directly, which is the only place the real glob is exercised.
 
 - [ ] **Step 1: Write the failing test**
@@ -1504,13 +1505,41 @@ Expected: `?index` lists the twelve components under `src/presentation/` and say
 prototypes yet. A bare URL still draws the project view and `?view=plan-editor` still draws the
 Plan Editor — check both, because those are the three fixed captures' addresses.
 
-- [ ] **Step 8: Run the full gate**
+- [ ] **Step 8: Hold criterion 7 — two DIFFERENT components reading one plan**
+
+This arrived from Task 3's review and it is the reason this step exists here rather than there.
+Criterion 7 reads: *"Two components mounted from one prototype read the same plan: a value shown by
+both matches."* Task 3 owned it and could not hold it — two prop-free components reading
+`useProjectStore` exist (`StatusBar.vue` and `PlanEditorRoot.vue`), but `PlanEditorRoot` needs
+`app.use(VueKonva)`, which only this task's app installs. Its first attempt read one store ref
+twice and compared it to itself, which passes whatever the fixture does.
+
+Add a case to `tests/harness/entries.test.ts` that mounts **two different real components** against
+one `seedFixture()`, in an app configured the way Step 6 configures the index — Pinia, VueKonva and
+the editor context — and asserts that a value from the plan appears in what BOTH render, and that
+the value is the fixture's rather than empty.
+
+Two things decide whether it is worth anything, and both are checkable:
+
+- **It must fail when the fixture is empty.** Comment out the assignments in `seedFixture` and
+  watch it go red before you trust it. A case that passes on an unseeded store is asserting Pinia's
+  singleton semantics, which is what Task 3's version did.
+- **The two components must be different.** Mounting one component twice proves the store is a
+  singleton, not that two components agree — and the criterion is about two things on one screen
+  agreeing, which is the whole argument for one seeded world rather than per-entry setup.
+
+If the pair you pick turns out to render the value in a way an assertion cannot see — a canvas, say,
+rather than text — pick another pair or state plainly in the test what you could and could not
+reach, and narrow the comment to match. Do not assert on something adjacent and call it the
+criterion.
+
+- [ ] **Step 9: Run the full gate**
 
 Run: `npm run check`
 
 Expected: PASS. If `analyze` reports `IndexPage.vue` or `entries.ts` dead, they are reached from `tests/harness/page.ts`, which is already a fallow entry — check the import chain rather than adding a declaration.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add tests/harness/entries.ts tests/harness/entries.test.ts tests/harness/IndexPage.vue tests/harness/page.ts
@@ -2768,8 +2797,8 @@ a record rather than a migration backlog."
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
 | 5 — one stylesheet, no second sheet | 5 (three routes: the `<link>`s in `index.html`, the module graph, and a `<link>` a template renders) |
-| 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) — for a component that takes no required props; see gap 4 |
-| 7 — two components read the same plan | 3 (second case) |
+| 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`, mounting the REAL `StatusBar` against nothing but the fixture) — for a component that takes no required props; see gap 4 |
+| 7 — two components read the same plan | **4**, not 3. Two DIFFERENT real components are what makes this real, the only prop-free pair reading `useProjectStore` is `StatusBar` and `PlanEditorRoot`, and `PlanEditorRoot` needs `app.use(VueKonva)` — which the index app installs and Task 3 does not have. Task 3's first attempt asserted one store ref against itself and could not fail; it leaves a pointer here instead |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
 | 9 — `npm run check` passes with the tree populated | 7 Step 10 |
 | 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`, plus the lint rule in Step 5 that keeps every mock template-only) |
@@ -2962,6 +2991,22 @@ review's own second pattern turned on the reviewer: **every round, a fix left a 
 and this time the stale sibling was inside the fix that was written to prevent exactly that. A
 replacement that matches nothing fails silently, which is the same shape as every other finding
 here: a green signal that means nothing.
+
+**Found by the TASK REVIEWS**, which is a third category and the sharpest one so far, because
+these are defects in the plan's own test code that eighteen rounds of reading did not see:
+
+| Found in | What was wrong | Settled by |
+| --- | --- | --- |
+| Task 1 | The negative assertion could not tell a pass from a parse error — the very predicate the file's own header identified as having silently accepted `['PARSE_ERROR']`. The mechanism was fixed and the assertion that could not see it was not | `not.toContain('PARSE_ERROR')`, watched failing |
+| Task 1 | Fixtures written into `src/` raced two tests that walk that tree | Removed by changing technique, not by serialising |
+| Task 2 | Six Minor findings, promoted to a fix round: a hand-written type where the bundler's own was one line away, a dead narrowing ternary, an unpinned `root`, a guarantee sentence wider than the check, and substring matching that a `node_modules` path could trip | All six in one pass |
+| **Task 3** | **The criterion-7 case could not fail.** `useProjectStore()` returns the same store instance for one active Pinia, so reading `storeToRefs(...).plan` twice compares one ref to itself. Delete the fixture's assignments and it stays green — both sides read `null`. It asserted Pinia's singleton semantics, not that the fixture is one world | Criterion 7 moved to Task 4, which is the first task with VueKonva and so the first that can mount two different components. Task 3 leaves a pointer rather than a green test that means nothing |
+| **Task 3** | **Criterion 6 was held against a stub**, not a real component — `createApp({ setup: () => () => null })`, which reads no store. That proves the injection key round-trips | Task 3 mounts the real `StatusBar` against nothing but the fixture, watched failing with the fixture emptied |
+
+The Task 3 pair is worth more than the others: **the plan named "a test that asserts on a proxy
+rather than on the thing" as its single most repeated defect, and then shipped two of them in the
+task that was supposed to prove the fixture works.** Naming a failure mode does not immunise you
+against it; only running the test with the thing removed does.
 
 Round eighteen, on HTML's own spellings, and on the six directories that exist today:
 

@@ -29,8 +29,10 @@ const openComponent = shallowRef<unknown>(null);
 const failure = ref<string | null>(null);
 /**
  * The id of what is actually RENDERED, and it means the WHOLE subtree — null until every
- * async dependency below the entry has settled, and null again the moment one fails. The
- * stage exposes it as `data-entry`, which is what `scripts/harness-shot.mjs` waits for.
+ * async dependency below the entry has settled, and null again once one fails — immediately
+ * for a defect the resolving render itself raised, and on the next microtask for one raised
+ * after that (see `settle()`, which is where the exact guarantee is written down). The stage
+ * exposes it as `data-entry`, which is what `scripts/harness-shot.mjs` waits for.
  *
  * It is deliberately not `requested`: the stage element exists from the first paint, so a
  * capture waiting on the stage alone would photograph "Pick an entry." and exit 0. An empty
@@ -71,7 +73,15 @@ const pendingId = ref<string | null>(null);
  *
  * A plain array rather than a ref, deliberately: it is written DURING render, where mutating
  * reactive state is a second warning and a re-render nobody asked for. It is read once the
- * render is over, in `settle()`.
+ * render is over — by `settle()` at the resolve, and by `reportLateDefect` on the microtask
+ * after a defect that arrives once the stage is already marked ready.
+ *
+ * **These two strings are Vue's, and nothing here can keep them current.** A `message.includes`
+ * against a reworded upstream warning matches nothing and turns this whole check off SILENTLY:
+ * the array stays empty, the stage is marked ready and `harness-shot` photographs the hole and
+ * exits 0. `tests/harness/indexPage.test.ts` pins them by driving a REAL component with real
+ * `required` props and a REAL `resolveComponent` miss, so a Vue reword reds a test instead —
+ * the same argument `tests/build/logging-carve-out.test.ts` makes against ESLint's message text.
  */
 const FATAL_WARNINGS = ['Failed to resolve component', 'Missing required prop'];
 
@@ -131,12 +141,21 @@ async function open(entry: HarnessEntry): Promise<void> {
 /**
  * A render-time throw from the mounted entry. Returning `false` stops it propagating, so one
  * bad entry reports itself instead of blanking the page and taking the list with it.
+ *
+ * **`mountedId` is cleared here and clearing it is load-bearing**, which a committed test found
+ * rather than a reading: without it `<Suspense>` still fires `@resolve` for the boundary the
+ * throw happened inside, `settle()` sees a pending id it recognises and an empty defect list,
+ * and it puts `data-entry` straight back on a stage showing the failure card. The page then
+ * says "failed to render" while advertising itself as ready — the one combination that gets an
+ * eyeless capture photographed and reported as a success. `mountedId` means "what is assigned
+ * to the stage", and after a throw nothing is.
  */
 onErrorCaptured((error) => {
 	const id = renderedId.value ?? pendingId.value ?? requested ?? 'the entry';
 
 	openComponent.value = null;
 	renderedId.value = null;
+	mountedId = null;
 	failure.value = `${id} failed to render: ${error instanceof Error ? error.message : String(error)}`;
 	return false;
 });
@@ -156,15 +175,33 @@ function hrefFor(entry: HarnessEntry): string {
 	return `?${new URLSearchParams({ entry: entry.id }).toString()}`;
 }
 
+/** Whatever has been collected, as a named failure, with the readiness marker taken off. */
+function reportDefects(): void {
+	openComponent.value = null;
+	renderedId.value = null;
+	failure.value = `${pendingId.value ?? 'the entry'} did not render cleanly: ${[...new Set(renderDefects)].join('; ')}`;
+}
+
 /**
  * What `<Suspense>`'s `@resolve` runs, once the whole subtree has settled.
  *
  * Ordering is the reason this is a function rather than an inline assignment. The resolution
  * warnings fire DURING the render that Suspense is waiting on, and `@resolve` fires after that
- * render is mounted — so by here the list is complete, and there is never a moment where
- * `data-entry` is set on a page that has a hole in it. Deferring the check to a microtask
- * instead would open exactly that window, and "too short for Playwright to observe" is not a
- * claim this project accepts.
+ * render is mounted — so by here every defect that render produced is already collected, and
+ * `data-entry` is never set over a hole that was there when the subtree resolved. Deferring
+ * THIS check to a microtask would open exactly that window, and "too short for Playwright to
+ * observe" is not a claim this project accepts.
+ *
+ * **What one read cannot cover, and the reason `reportLateDefect` exists below.** A defect
+ * first raised AFTER the resolve — a subtree mounted from `onMounted`, a `v-if` flipped a tick
+ * later — arrives when the marker is already on the stage, and this function has run for the
+ * last time. That is not hypothetical for this harness's own headline component:
+ * `tests/helpers/editor.ts` records that `PlanEditorRoot` mounts `PlanCanvas` a promise tick
+ * after mount whenever the store is not pre-seeded. So the guarantee is written to what the
+ * two together deliver: the marker goes on only when the resolved subtree was clean, and it
+ * comes OFF on the microtask after any later defect. A capture that reads `[data-entry]` inside
+ * that window still photographs the hole; nothing in a single-process page can close it, and
+ * saying so is cheaper than a sentence that is wrong once a tick.
  */
 function settle(): void {
 	// The resolve belongs to whatever is mounted. If that is not what `pendingId` names, this
@@ -177,9 +214,27 @@ function settle(): void {
 		return;
 	}
 
-	openComponent.value = null;
-	renderedId.value = null;
-	failure.value = `${pendingId.value ?? 'the entry'} did not render cleanly: ${[...new Set(renderDefects)].join('; ')}`;
+	reportDefects();
+}
+
+/**
+ * A defect that arrives once the stage is already marked ready.
+ *
+ * On a MICROTASK rather than inline, because this runs from `warnHandler` — which fires DURING
+ * a render, where writing reactive state is a second warning and a re-render nobody asked for.
+ * The array itself stays a plain one for that reason; this is the one place it has to reach
+ * back out to the refs, and it waits for the render to be over before it does.
+ *
+ * Re-checked rather than assumed on arrival: `open()` can have moved on in the meantime, and
+ * reporting then would put the previous entry's defect on the new entry's name.
+ */
+function reportLateDefect(): void {
+	// `queueMicrotask`, not `Promise.resolve().then(...)`: the callback here reports rather than
+	// producing a value, which `promise/always-return` refuses on a `then` and which the plain
+	// microtask API says more directly anyway.
+	queueMicrotask(() => {
+		if (mountedId !== null && mountedId === pendingId.value && renderDefects.length > 0) reportDefects();
+	});
 }
 
 /**
@@ -203,7 +258,11 @@ if (config) {
 	const previous = config.warnHandler;
 
 	config.warnHandler = (message, instance, trace) => {
-		if (FATAL_WARNINGS.some((fragment) => message.includes(fragment))) renderDefects.push(message);
+		if (FATAL_WARNINGS.some((fragment) => message.includes(fragment))) {
+			renderDefects.push(message);
+			// Already marked ready, so `settle()` will not run again for this entry — see it.
+			if (renderedId.value !== null) reportLateDefect();
+		}
 
 		if (previous) previous(message, instance, trace);
 		else console.warn(message, trace);
@@ -236,10 +295,15 @@ if (initial) void open(initial);
 			<!--
 				`@resolve` fires once every async dependency in the subtree has settled, which is
 				the only signal that covers a mock composing a real component that composes
-				another. `@pending` fires when a new set appears, so switching entries takes the
-				readiness marker away again rather than leaving the previous entry's id on a stage
-				that is mid-swap. `settle()` is what decides between ready and failed, because by
-				then it knows whether any tag in that subtree resolved to nothing.
+				another. `settle()` is what decides between ready and failed, because by then it
+				knows whether any tag in that subtree resolved to nothing.
+
+				`@pending` is belt-and-braces and does NOT fire on any path this page has today:
+				Vue raises it from `patchSuspense`, and switching entries never patches this one
+				— `open()` clears `openComponent` before it awaits, so the `v-else-if` tears the
+				boundary down and builds a fresh one. What actually takes the marker away between
+				entries is `open()`'s own `renderedId.value = null`, which is where the invariant
+				is tested. This stays for the day a change makes Suspense patch instead.
 			-->
 			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
 				<component :is="openComponent" />

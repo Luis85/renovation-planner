@@ -7,7 +7,7 @@ import type { Component } from 'vue';
 import { discoverEntries, registrableComponents } from './entries';
 import { harnessEditorContext, seedFixture } from './fixture';
 import { HARNESS_PLAN } from './planEditor';
-import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
 import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
 import { installEditorEnvironment } from '../helpers/editor';
@@ -212,8 +212,13 @@ describe('registering components for template-only prototypes', () => {
  * what these two components mount into is the thing being asserted about rather than a
  * lighter stand-in. `attachTo` a real element because Konva measures its container and the
  * theme resolver reads through `getComputedStyle`.
+ *
+ * The context is taken as an ARGUMENT rather than built here, so that one `harnessEditorContext()`
+ * covers both mounts the way `page.ts`'s single `app.provide` does. Building one per mount
+ * would have been immaterial to the assertions and would have made this comment's claim of
+ * fidelity false, which is the more expensive of the two.
  */
-function mountLikeTheIndex(component: Component, pinia: Pinia): VueWrapper {
+function mountLikeTheIndex(component: Component, pinia: Pinia, context: PlanEditorContext): VueWrapper {
 	const host = document.createElement('div');
 
 	document.body.appendChild(host);
@@ -222,7 +227,7 @@ function mountLikeTheIndex(component: Component, pinia: Pinia): VueWrapper {
 		attachTo: host,
 		global: {
 			plugins: [pinia, VueKonva],
-			provide: { [PLAN_EDITOR_CONTEXT as symbol]: harnessEditorContext() },
+			provide: { [PLAN_EDITOR_CONTEXT as symbol]: context },
 		},
 	});
 }
@@ -237,8 +242,10 @@ function mountLikeTheIndex(component: Component, pinia: Pinia): VueWrapper {
  * that is exactly what the un-awaited DOM shows.
  */
 function observe(pinia: Pinia): { statusBarText: string; rootHasCanvas: boolean; rootMessage: boolean } {
-	const statusBar = mountLikeTheIndex(StatusBar, pinia);
-	const root = mountLikeTheIndex(PlanEditorRoot, pinia);
+	// ONE context across both mounts, as the index provides one across the whole app.
+	const context = harnessEditorContext();
+	const statusBar = mountLikeTheIndex(StatusBar, pinia, context);
+	const root = mountLikeTheIndex(PlanEditorRoot, pinia, context);
 
 	const observed = {
 		statusBarText: statusBar.text(),

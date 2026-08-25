@@ -63,6 +63,12 @@ export function discoverEntries(
 	// place a rule is turned off, and this one is doing its job). The array being sorted is
 	// `map`'s own fresh one, so nothing is being protected from mutation — the copy costs one
 	// allocation per index build and the gate stays whole.
+	//
+	// `localeCompare` orders the way a reader expects (case-insensitively by base letter), and
+	// the limit is worth one clause: it is LOCALE-dependent, so "the same order every run"
+	// holds per machine rather than across the four CI legs. Nothing observable turns on that
+	// today — every id here is ASCII, where every locale agrees — and the day one is not, the
+	// remedy is a code-unit comparator and a worse-reading list.
 	const entries = Object.entries(modules)
 		.map(([file, component]) => ({
 			id: idFor(file, kind),
@@ -74,7 +80,14 @@ export function discoverEntries(
 
 	// Belt and braces over a reversible id: if two entries ever do collide, the failure mode
 	// without this is SILENT — the index opens the first match and the second is simply
-	// unreachable, with nothing to notice. Throwing turns that into a page that says so.
+	// unreachable, with nothing to notice.
+	//
+	// What throwing actually buys, stated precisely because the obvious sentence is wrong: this
+	// runs inside `IndexPage.vue`'s `<script setup>`, so it aborts the mount and the page stays
+	// BLANK — nothing on it says anything. What it does produce is Vue's unhandled-error
+	// `console.error`, which `scripts/harness-shot.mjs` records and exits non-zero on. So the
+	// trade is a blank page for a loud one, taken because the alternative is a page that looks
+	// complete and is not.
 	const ids = new Set(entries.map((entry) => entry.id));
 
 	if (ids.size !== entries.length) throw new Error(`duplicate harness entry ids in ${kind}`);

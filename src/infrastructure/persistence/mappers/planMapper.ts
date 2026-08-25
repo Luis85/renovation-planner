@@ -2,6 +2,7 @@ import type { CalculationError, ValidationError } from '../../../core/errors/App
 import type { Result } from '../../../core/result/Result';
 import { Plan } from '../../../domain/plan/Plan';
 import { PlanFrontmatterSchemaV1, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
+import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 
 /**
@@ -63,4 +64,32 @@ export function planFromPersistence(
 	const parsed = parsePersisted(PlanFrontmatterSchemaV1, raw, 'plan.frontmatter-invalid', 'Plan note');
 	if (!parsed.ok) return parsed;
 	return fromDto(parsed.value, calibration);
+}
+
+/**
+ * Calibration's sidecar DTO ↔ domain value. The shapes are field-for-field identical by
+ * design (ADR-002: the sidecar stores what the entity holds); this exists so the two
+ * halves of that sentence are mapped in ONE place rather than re-decided per writer —
+ * `ObsidianPlanRepository.syncCalibration` and the slice-7 geometry-sidecar port share it.
+ */
+export function calibrationToPersistence(
+	calibration: NonNullable<Plan['calibration']>,
+): PlanGeometryDTO['calibration'] {
+	return {
+		pointA: { x: calibration.pointA.x, y: calibration.pointA.y },
+		pointB: { x: calibration.pointB.x, y: calibration.pointB.y },
+		knownDistance: calibration.knownDistance,
+		pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
+	};
+}
+
+export function calibrationFromPersistence(
+	dto: NonNullable<PlanGeometryDTO['calibration']>,
+): NonNullable<Plan['calibration']> {
+	return {
+		pointA: { x: dto.pointA.x, y: dto.pointA.y },
+		pointB: { x: dto.pointB.x, y: dto.pointB.y },
+		knownDistance: dto.knownDistance,
+		pixelsPerWorldUnit: dto.pixelsPerWorldUnit,
+	};
 }

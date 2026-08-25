@@ -6,8 +6,11 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import { revisionConflict } from '../../../application/ports/versioning';
-import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
+import {
+	calibrationToPersistence,
+	planFromPersistence,
+	planToPersistence,
+} from '../../persistence/mappers/planMapper';
 import {
 	ensureFolder,
 	findNoteIdInFolder,
@@ -47,16 +50,6 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
  *   "partly done".
  */
-function calibrationToDto(calibration: Plan['calibration']): PlanGeometryDTO['calibration'] {
-	if (!calibration) return null;
-	return {
-		pointA: { x: calibration.pointA.x, y: calibration.pointA.y },
-		pointB: { x: calibration.pointB.x, y: calibration.pointB.y },
-		knownDistance: calibration.knownDistance,
-		pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
-	};
-}
-
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
 	private readonly folder: string;
@@ -194,12 +187,14 @@ export class ObsidianPlanRepository {
 			return err(persistenceError('plan.sidecar-unreadable', `The geometry sidecar for plan ${plan.id} could not be read.`, current.error));
 		}
 		const stored = JSON.stringify(current.value.dto.calibration);
-		const wanted = JSON.stringify(calibrationToDto(plan.calibration));
+		const wanted = JSON.stringify(
+			plan.calibration ? calibrationToPersistence(plan.calibration) : null,
+		);
 		if (stored === wanted) return ok(undefined);
 
 		const mutated = await this.geometry.mutate(plan.id, (dto) => ({
 			...dto,
-			calibration: calibrationToDto(plan.calibration),
+			calibration: plan.calibration ? calibrationToPersistence(plan.calibration) : null,
 		}));
 		return mutated.ok ? ok(undefined) : mutated;
 	}

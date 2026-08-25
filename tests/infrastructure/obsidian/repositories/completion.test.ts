@@ -228,6 +228,32 @@ describe('calibration round-trips through the plan repository', () => {
 		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBe(stableSidecar);
 	});
 
+	it('saving a plan whose calibration is null clears a sidecar calibration that exists', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const before = expectOk(await stack.plans.getById(planId));
+		const calibrated = before.entity.calibrate({
+			pointA: { x: 0, y: 0 },
+			pointB: { x: 100, y: 0 },
+			knownDistance: 2000,
+		});
+		if (!calibrated.ok) throw new Error(calibrated.error.message);
+		expectOk(await stack.plans.save(calibrated.value, before.version));
+
+		// The domain never clears a calibration today, but the sync must still lower
+		// `null` when an UNCALIBRATED entity is saved over a sidecar that holds one —
+		// driven here by saving a fresh, never-calibrated Plan under the same id.
+		expectOk(await stack.plans.save(
+			makePlanEntity({ id: planId, projectId: createProjectId() }),
+			expectOk(await stack.plans.getById(planId)).version,
+		));
+
+		const after = expectOk(await stack.plans.getById(planId));
+		expect(after.entity.calibration).toBeNull();
+		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, planId)) ?? '{}');
+		expect(sidecar.calibration).toBeNull();
+	});
+
 	it('getById reports migration-failed for a note with an unreadable schema version', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);

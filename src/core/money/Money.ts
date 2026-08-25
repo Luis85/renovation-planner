@@ -212,7 +212,11 @@ export function percentageOf(a: Money, percent: Decimal): Money {
 	return fromDecimal(new MoneyDecimal(a.amount).mul(percent).div(100), a.currency);
 }
 
-/** Unit price × quantity, at full precision — rounding happens only at `round`. */
+/**
+ * Unit price × quantity. Nothing is rounded to the minor unit here — that is `round`'s
+ * job, once, at the end; `MONEY_PRECISION` is the significant-digit limit that still
+ * applies.
+ */
 export function scale(a: Money, factor: Decimal): Money {
 	return fromDecimal(new MoneyDecimal(a.amount).mul(factor), a.currency);
 }

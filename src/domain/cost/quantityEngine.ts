@@ -19,10 +19,11 @@ import { UNIT_KIND, type MeasurementUnit, type Quantity } from '../../core/units
  * Raw measurements arrive in world millimeters (ADR-009) and are converted once, at the
  * first stage (`toMeasuredQuantity`). Every value is decimal arithmetic rather than
  * binary floating point (ADR-010), which is narrower than "exact" in two ways worth
- * naming: `applyRequirementRule` and `toDisplayValue` DIVIDE, and a division that does
- * not terminate is rounded at decimal.js's precision (20 significant digits, its
- * default); and that arithmetic runs on the SHARED `Decimal`, so unlike `core/money`'s —
- * which computes on a private clone — a `Decimal.set` anywhere in the process moves it.
+ * naming. `applyRequirementRule` DIVIDES by a coverage rate, and a division that does not
+ * terminate is rounded at decimal.js's precision — 20 significant digits, its default;
+ * `toDisplayValue` divides only by a power of ten, which shifts an exponent and cannot.
+ * And all of it runs on the SHARED `Decimal`, so unlike `core/money`'s — which computes
+ * on a private clone — a `Decimal.set` anywhere in the process moves these values.
  * Nothing here rounds deliberately: packaging rounds UP to whole lots because it is a
  * purchasable multiple, not a precision decision.
  *

@@ -139,6 +139,23 @@ def is_backlink(href):
     CASE is deliberately not normalised. `../DELIVERABLES/x.md` stays external because on a
     case-sensitive filesystem that folder does not exist — the rule follows the vault, not the URL.
 
+    KNOWN LIMIT, stated because it was measured and then deliberately not fixed. The path is read
+    on its own, NOT resolved from the body that carries it, so the number of `../` does not have to
+    be right: `../components/Toast.md` from `docs/user-experience/concepts/` really resolves to
+    `docs/user-experience/components/`, is not a derived note, and is stripped anyway — hiding a
+    genuine mention. Resolving from the body was built and measured; it fixes that and BREAKS the
+    pinned replay, because at `2253cea` the gallery footer read `../deliverables/…`, one level too
+    few, until `19c9974` re-rooted the paths a folder move had left behind. Base-relative
+    resolution calls that dangling link external, its label counts as evidence, and `r1366`
+    reproduces `present` against a committed `retained` — 677/678.
+
+    No rule separates the two: a broken backlink and a coincidental path are the same input, and an
+    existence test cannot tell them apart either, since neither `docs/user-experience/components/`
+    nor `docs/user-experience/deliverables/` exists. Only INTENT separates them, and intent is not
+    available to a path function. The error that does not rewrite committed history is the one
+    kept: flipping a row on the strength of a path typo fixed two commits later is what "a row
+    records what the evidence said WHEN THE COMPARISON RAN" exists to prevent.
+
     The leading slash was missing, so `/docs/components/Toast.md` — a valid repository-root URL —
     read as external and its label survived into the searched body. This is the SCOPE rule, the
     one thing the output gate shares with this function by design, so a defect here is invisible

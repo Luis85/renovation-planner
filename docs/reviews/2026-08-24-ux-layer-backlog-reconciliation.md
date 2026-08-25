@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Fifty-four corrections, all but one from review of the committed matrix — which is the argument for
+Fifty-four corrections and one recorded limit, all but one from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1937,6 +1937,35 @@ reports `cannot locate` and the gates stop rather than silently widening.
 the live half with it and the checks got *louder*, which is how a fail-closed anchor is supposed to
 behave. Had `_b` defaulted to the whole document on a miss, the same edit would have produced three
 gates passing over material they were never meant to read.
+
+**A fifty-fifth entry, and it is a limit rather than a correction — the first finding in this
+review that was verified, implemented, measured, and then deliberately reverted.**
+
+Review asked for the back-link path to be resolved **relative to the body that carries it**. That
+is correct about URLs, and it fixes a real false positive: `../components/Toast.md` from
+`docs/user-experience/concepts/` resolves to `docs/user-experience/components/`, is not a derived
+note, and is stripped anyway — hiding a genuine evidence mention.
+
+**It was built, and it breaks the pinned replay.** At the matrix base `2253cea` the gallery footer
+read `../deliverables/Design%20System.md`, one level too few; commit `19c9974` — *"re-root the
+paths the concepts folder move left behind"* — fixed it afterwards. So at the pinned corpus that
+anchor is **dangling**, base-relative resolution calls it external, its label counts as evidence,
+and `r1366` reproduces `present` against a committed `retained`. Measured: **677/678**.
+
+**No rule separates the two cases, which is why this stops at a limit instead of a patch.** A
+broken backlink and a coincidental path are the *same input* — both dangling, both naming a derived
+folder. An existence test cannot tell them apart either: `docs/user-experience/components/` and
+`docs/user-experience/deliverables/` are both absent. Only intent separates them, and intent is not
+available to a path function.
+
+**So the choice was which error to keep, and the committed matrix wins.** Adopting base-relative
+resolution would flip a committed row on the strength of a path typo fixed two commits later, which
+is precisely what *"a row records what the evidence said when the comparison ran"* exists to
+prevent. The false positive is real, is now written into `lookup.py` beside the rule, and is
+reported unresolved rather than quietly absent.
+
+**Recording a limit costs the same as recording a fix and is worth more here**, because the next
+reader will otherwise re-derive the same remedy and hit the same wall.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

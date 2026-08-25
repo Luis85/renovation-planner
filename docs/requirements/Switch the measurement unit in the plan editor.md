@@ -45,9 +45,12 @@ therefore the person who actually has both an estate and a bathroom in one vault
 ## Preconditions
 
 - A plan is open in the plan editor.
-- The plan is calibrated (PRD §82, SDD §25 — two points and a known distance). Without it there
-  is no real-world figure to express in any unit, which is extension **2a** rather than a
-  reason this use case cannot start.
+
+**Calibration is not a precondition**, and saying so is the point of this line. An uncalibrated
+plan (PRD §82, SDD §25 — two points and a known distance) has no real-world figure to express in
+any unit, but the use case still starts: the picker is shown and disabled, which is extension
+**2a** and acceptance criterion 7. Listing calibration above would let an implementation satisfy
+the preconditions and omit the behaviour the uncalibrated state actually owes.
 
 ## Main flow
 
@@ -171,9 +174,15 @@ Named rather than left looking forgotten.
 4. Conversion happens in exactly one place. A node test asks the conversion function directly,
    in `domain/`, per the *Calibration and measurement* epic's own definition of done — never
    through a screen.
-5. `42718432 mm²` displays as `42.72 m²` (PRD §71's worked example), `4271843.20 cm²` and
+5. `42718432 mm²` displays as `42.72 m²` (PRD §71's worked example), `427184.32 cm²` and
    `42718432.00 mm²`. Two decimals in every unit, and the millimetre case is included precisely
    because it is the one that looks silly and must still obey the rule.
+
+   **The areal factor is the square of the linear one** — `1 cm² = 100 mm²`, not 10 — and this
+   criterion carried `4271843.20 cm²` until a review caught it. A tenfold slip, in the note whose
+   own argument is that shifting a decimal by hand is where money is lost. It is left recorded
+   here rather than quietly corrected, because it is the exact defect criterion 3's round-trip
+   identity exists to catch, and a test that asserts these three figures would have failed on it.
 6. Areas follow the length unit without a second control: picking cm gives cm², never m².
 7. On an uncalibrated plan the picker is disabled and carries a reason a renovator can read.
    Checkable in a vault in under a minute.

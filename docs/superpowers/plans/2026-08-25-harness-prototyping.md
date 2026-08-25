@@ -571,7 +571,7 @@ One world every entry mounts against, so what the designer sees is reproducible 
 - Consumes: `HARNESS_PLAN`, `HARNESS_ZONES` and `harnessDeps(): PlanEditorDeps` from `tests/harness/planEditor.ts`, all three made `export` by Step 1.
 - Produces, from `tests/harness/fixture.ts`: `seedFixture(): Pinia` — creates a Pinia, makes it
   active, seeds `useProjectStore` with the harness plan and zones, returns it — and
-  `harnessEditorContext(): EditorContext`, the value `app.provide(EDITOR_CONTEXT, …)` needs.
+  `harnessEditorContext(): PlanEditorContext`, the value `app.provide(PLAN_EDITOR_CONTEXT, …)` needs.
   Task 4 uses both.
 
 - [ ] **Step 1: Export the existing fixtures and the deps builder**
@@ -598,10 +598,10 @@ import { storeToRefs } from 'pinia';
 import { createApp } from 'vue';
 import { seedFixture, harnessEditorContext } from './fixture';
 import {
-	EDITOR_CONTEXT,
-	useEditorContext,
-	type EditorContext,
-} from '../../src/presentation/editor/EditorContext';
+	PLAN_EDITOR_CONTEXT,
+	usePlanEditorContext,
+	type PlanEditorContext,
+} from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 
@@ -609,12 +609,12 @@ import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
  * The one world every index entry mounts against. Three claims worth a test: it is SEEDED
  * (a component reading the store finds a plan, with no per-entry setup), it is ONE world
  * (two stores created from it agree, which is what makes two components on a prototype
- * consistent), and the editor context it hands out is one `useEditorContext()` ACCEPTS.
+ * consistent), and the editor context it hands out is one `usePlanEditorContext()` ACCEPTS.
  *
  * The third is driven through a real `createApp` rather than asserted on the returned
  * object, because the failure it guards is a key mismatch: a context built correctly and
  * provided under a symbol the consumer does not inject looks perfect in a shape assertion
- * and throws on mount. `useEditorContext` throws rather than warning, so the index would
+ * and throws on mount. `usePlanEditorContext` throws rather than warning, so the index would
  * show Task 4's named-failure card for every component that reads it.
  */
 describe('the harness fixture', () => {
@@ -636,18 +636,18 @@ describe('the harness fixture', () => {
 		expect(first.value).toBe(second.value);
 	});
 
-	it('provides a context `useEditorContext()` accepts, so a real component can mount', () => {
-		let seen: EditorContext | undefined;
+	it('provides a context `usePlanEditorContext()` accepts, so a real component can mount', () => {
+		let seen: PlanEditorContext | undefined;
 
 		const app = createApp({
 			setup() {
-				seen = useEditorContext();
+				seen = usePlanEditorContext();
 
 				return () => null;
 			},
 		});
 
-		app.provide(EDITOR_CONTEXT, harnessEditorContext());
+		app.provide(PLAN_EDITOR_CONTEXT, harnessEditorContext());
 		app.mount(document.createElement('div'));
 
 		expect(seen?.planId).toBe(HARNESS_PLAN.id);
@@ -670,7 +670,7 @@ Create `tests/harness/fixture.ts`:
 ```typescript
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
-import type { EditorContext } from '../../src/presentation/editor/EditorContext';
+import type { PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 
 /**
@@ -691,13 +691,21 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 export function seedFixture(): Pinia {
 	const pinia = createPinia();
 
+	// Process-wide: the last call to `setActivePinia` wins, so calling `seedFixture()` again
+	// for a second entry replaces which Pinia `useProjectStore()` resolves to outside an
+	// explicit `app.use(pinia)`. Harmless for how Task 4 uses this — one fixture call per
+	// mounted entry, immediately consumed — but worth knowing before a caller relies on two
+	// live at once.
 	setActivePinia(pinia);
 
 	const project = useProjectStore();
 
-	// Assigned directly rather than through `hydrate`: hydration takes query services and is
-	// asynchronous, and this page has no vault to answer them. What a component needs is the
-	// post-hydration STATE, which is this.
+	// Assigned directly rather than through `hydrate`: `harnessDeps().queries` answers both
+	// queries perfectly well with no vault behind them, so that is not the reason. The real
+	// one is that `hydrate` is ASYNCHRONOUS (it awaits two query promises) and `seedFixture`
+	// is not — every index entry needs a world in place before its first synchronous mount,
+	// not one that lands a tick later. What a component needs is the post-hydration STATE,
+	// which is this.
 	project.plan = HARNESS_PLAN;
 	project.zones = new Map(HARNESS_ZONES.map((zone) => [zone.id, zone]));
 	project.status = 'ready';
@@ -709,21 +717,26 @@ export function seedFixture(): Pinia {
  * The editor context, which is NOT optional and is easy to miss.
  *
  * `src/presentation/views/PlanEditorView.ts` does three things when it mounts: `createPinia()`,
- * `use(VueKonva)` and **`provide(EDITOR_CONTEXT, …)`**. Without the third, every component that
- * calls `useEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything using
- * `useThemeTokens` — so the index would render the named failure for exactly the components a
- * designer most wants to look at, and a prototype composing one would too.
+ * `use(VueKonva)` and **`provide(PLAN_EDITOR_CONTEXT, …)`**. Without the third, every component
+ * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything
+ * using `useThemeTokens` — so the index would render the named failure for exactly the
+ * components a designer most wants to look at, and a prototype composing one would too.
  *
  * Built from `harnessDeps()` rather than from a second set of stubs, for the same reason the
  * plan and zones come from `planEditor.ts`: a second derivation answers differently the day one
  * of them is edited.
  */
-export function harnessEditorContext(): EditorContext {
+export function harnessEditorContext(): PlanEditorContext {
 	const deps = harnessDeps();
 
 	return {
 		planId: HARNESS_PLAN.id,
 		queries: deps.queries,
+		// Design slice 8's write side, which arrived on `main` while this branch was running.
+		// Taken from `harnessDeps()` like everything else here rather than stubbed: it answers
+		// `settings.unrecovered` for every write, which is the honest result for a page with no
+		// vault — a mock's gestures fail visibly instead of pretending to persist.
+		commands: deps.commands,
 		vault: deps.vault,
 		onThemeChange: deps.onThemeChange,
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
@@ -1387,7 +1400,7 @@ import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
 import { seedFixture, harnessEditorContext } from './fixture';
-import { EDITOR_CONTEXT } from '../../src/presentation/editor/EditorContext';
+import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
 import { componentEntries, prototypeEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
@@ -1434,7 +1447,7 @@ if (wantsIndex) {
 	const root = document.body.createDiv('rp-harness-leaf');
 	/**
 	 * Pinia AND VueKonva, because the production mount installs both.
-	 * `src/presentation/views/PlanEditorView.ts:158` calls `app.use(VueKonva)`, and without it
+	 * `src/presentation/views/PlanEditorView.ts` calls `app.use(VueKonva)` where it mounts, and without it
 	 * here every canvas component — `PlanCanvas`, `ZoneLayer`, `ZoneShape` — leaves `VStage`,
 	 * `VLayer` and `VLine` unresolved.
 	 *
@@ -1447,11 +1460,11 @@ if (wantsIndex) {
 
 	/**
 	 * The third thing the production mount does, and the one with no `use()` to make it
-	 * obvious. `PlanEditorView` calls `app.provide(EDITOR_CONTEXT, …)`; without it every
-	 * component reading `useEditorContext()` throws, and the index would show the named
+	 * obvious. `PlanEditorView` calls `app.provide(PLAN_EDITOR_CONTEXT, …)`; without it every
+	 * component reading `usePlanEditorContext()` throws, and the index would show the named
 	 * failure for precisely the components a designer most wants to see.
 	 */
-	app.provide(EDITOR_CONTEXT, harnessEditorContext());
+	app.provide(PLAN_EDITOR_CONTEXT, harnessEditorContext());
 
 	/**
 	 * Every real component, registered globally and lazily.
@@ -1941,19 +1954,19 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	});
 
 	/**
-	 * The production mount does THREE things — Pinia, VueKonva and `provide(EDITOR_CONTEXT)`.
+	 * The production mount does THREE things — Pinia, VueKonva and `provide(PLAN_EDITOR_CONTEXT)`.
 	 * The third has no `use()` to make it visible in a diff, which is why it was the one
 	 * missed, and why it gets its own assertion rather than being folded into the one above.
 	 */
-	it('provides EDITOR_CONTEXT on the index app, as the production mount does', () => {
+	it('provides PLAN_EDITOR_CONTEXT on the index app, as the production mount does', () => {
 		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
 		const production = readFileSync(
 			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
 			'utf8',
 		);
 
-		expect(production).toContain('app.provide(EDITOR_CONTEXT');
-		expect(page).toContain('provide(EDITOR_CONTEXT');
+		expect(production).toContain('app.provide(PLAN_EDITOR_CONTEXT');
+		expect(page).toContain('provide(PLAN_EDITOR_CONTEXT');
 	});
 
 	/**
@@ -2905,7 +2918,7 @@ than any of the fixes:
 | A test contradicted its own task | Task 6's DOM test asserted the standard-DOM branch **abandoned in round four**. Executed in order it would have failed against Task 4's own code — the plan was unrunnable | Task 6 (asserts ORDER: shim before first use) |
 | Sibling mocks were unregistered | A prototype composes the mocks beside it, and a template-only file can import neither a component nor a sibling. `<MockToolbar />` unresolved — half the main flow | Task 4 (both kinds in one registry) |
 | `CLAUDE.md` text contradicted the route | Task 8 still said the root is the index after Task 4 made it opt-in | Task 8 |
-| **VueKonva was not installed** | `PlanEditorView.ts:158` installs it; the index app did not. Every canvas component leaves `VStage`/`VLayer`/`VLine` unresolved — and Vue **warns rather than throws**, while the outer element still satisfies the shot selector, so `harness-shot` exits 0 on a PNG of a missing canvas | Task 4, with a test that reads the requirement out of production rather than pinning today's answer |
+| **VueKonva was not installed** | `PlanEditorView.ts` installs it where it mounts; the index app did not. Every canvas component leaves `VStage`/`VLayer`/`VLine` unresolved — and Vue **warns rather than throws**, while the outer element still satisfies the shot selector, so `harness-shot` exits 0 on a PNG of a missing canvas | Task 4, with a test that reads the requirement out of production rather than pinning today's answer |
 | The fixture check was harness-only | This plan creates `tests/fixtures/promotion/`, which a `/tests/harness/` filter misses. Residue of round four's own promotion fix | Task 2 (nothing under `tests/` at all — a rule, not a list) |
 | The promoted template was not byte-identical | The mock's commentary sat *inside* its template block, so the independent pair the previous round introduced could never match. Worse, the comment **spelled the opening template tag**, and `templateBlock()` finds the block by regex — the extraction would have started mid-comment | Task 7: commentary above the template, never naming that tag. Verified by running the test's own regex over both files |
 
@@ -2913,7 +2926,7 @@ Round seven, on what the tests still did not reach:
 
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
-| **The editor context was not provided** | `PlanEditorView.ts:145-159` does four things to mount the real app — Pinia, VueKonva, `provide(EDITOR_CONTEXT, …)`, mount. The index app did the first two. `useEditorContext()` **throws** on the missing injection (`EditorContext.ts:57-63`), so `PlanEditorRoot`, `BackgroundLayer` and anything using `useThemeTokens` render Task 4's named-failure card instead — the index would fail for exactly the components a designer most wants to look at | Task 3 (`harnessEditorContext()`, built from the exported deps rather than a second set of stubs), Task 4 Step 6 (the provision) and Task 6 (a test reading the requirement out of `PlanEditorView.ts` rather than pinning today's answer) |
+| **The editor context was not provided** | `PlanEditorView.ts` does four things where it mounts the real app — Pinia, VueKonva, `provide(PLAN_EDITOR_CONTEXT, …)`, mount. The index app did the first two. `usePlanEditorContext()` **throws** on the missing injection (`PlanEditorContext.ts`), so `PlanEditorRoot`, `BackgroundLayer` and anything using `useThemeTokens` render Task 4's named-failure card instead — the index would fail for exactly the components a designer most wants to look at | Task 3 (`harnessEditorContext()`, built from the exported deps rather than a second set of stubs), Task 4 Step 6 (the provision) and Task 6 (a test reading the requirement out of `PlanEditorView.ts` rather than pinning today's answer) |
 | **The stylesheet check required attribute order** | The regex wanted `rel` before `href`. A link written the other way round is the same link to a browser and invisible to the test — so a second sheet could be added in the spelling the check cannot see | Task 5 (two-stage parse: find every `<link>`, then read its attributes in any order; the planted proof is now `href`-first) |
 | **The real glob was never driven** | Every discovery case handed `discoverEntries` a hand-built map. If `import.meta.glob`'s pattern stopped matching `src/prototypes/`, discovery would return nothing, no prototype a designer added would ever appear — and all of them stay green. Criterion 1 asks for exactly this case and it was the one not written | Task 7 Step 9: discovery compared against the tree walked with `readdirSync`, watched failing on a deliberately broken glob. It waits for Task 7 because on an empty tree it is `[] === []` |
 
@@ -2991,6 +3004,31 @@ review's own second pattern turned on the reviewer: **every round, a fix left a 
 and this time the stale sibling was inside the fix that was written to prevent exactly that. A
 replacement that matches nothing fails silently, which is the same shape as every other finding
 here: a green signal that means nothing.
+
+**Found by the BASE MOVING**, which is the fourth category and the only one no amount of care
+inside this branch could have prevented:
+
+Design slice 8 (zone editing) merged into `main` while this plan was executing — 92 files, 5427
+insertions — and it **renamed `src/presentation/editor/EditorContext.ts` to
+`PlanEditorContext.ts`** and gave the context a new `commands` member. Every local run stayed
+green; all four CI legs went red. The reason is worth writing down because it will recur:
+
+**CI builds the pull request MERGE of head into base.** The two sides touched different LINES and
+disagreed about what EXISTS, so `mergeable_state` read `clean` at every check-in of the day, git
+merged without a single conflict, and the only instrument that could see the problem was the one
+that builds both sides together. A semantic clash does not show as dirty.
+
+What it cost, and what it did not: the fixture needed the new name and the new member — taken from
+`harnessDeps()`, which `main` had already taught to answer `commands` with
+`unavailablePlanEditorCommands()`, so no second stub was invented. This plan's references needed
+the same sweep, including one that would have failed outright: **Task 6 asserts
+`toContain('app.provide(EDITOR_CONTEXT')` against production source**, which after the rename
+matches nothing — a test reading a requirement out of production is only as durable as the spelling
+it reads, and this is the first time that cost anything.
+
+Every `PlanEditorView.ts:145-159`-style reference in this plan became a symbol reference in the same
+pass. `CLAUDE.md` says *address code by name, not by position — line numbers are correct until the
+next insertion above them*, and slice 8 inserted above all of them at once.
 
 **Found by the TASK REVIEWS**, which is a third category and the sharpest one so far, because
 these are defects in the plan's own test code that eighteen rounds of reading did not see:

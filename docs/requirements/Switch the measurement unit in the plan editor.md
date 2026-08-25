@@ -167,10 +167,22 @@ The two settings therefore do different jobs at both levels:
 **Level 1 above level 2 is a deliberate claim, not an accident of ordering.** A plan remembered
 in centimetres shows centimetres even where the project says metres, which reads against
 [[Project settings]]'s "every figure the plugin shows for it obeys them". Reconciled by **scope
-rather than precedence**: the project's unit governs the **values**, this picker governs only the
-editor's **rendering** of them, and the Guarantee makes the values provably identical either way.
-Putting the project above the remembered unit is the other coherent answer, and is rejected —
-it would delete the per-plan memory this use case exists to provide.
+rather than precedence**: the project's unit governs every **derived value** — quantities, costs,
+exports, reports — and this picker governs the editor's **rendering**, with the Guarantee making
+those values provably identical whichever unit is on screen. Putting the project above the
+remembered unit is the other coherent answer, and is rejected — it would delete the per-plan
+memory this use case exists to provide.
+
+**The picker also wins at calibration, and the reconciliation is wrong if it does not say so.**
+The unit is read in both directions, so a typed known distance is interpreted in **the unit the
+picker is showing** (criterion 17) — never in the project's, and never in a level of the chain
+the renovator cannot see. With the project on metres and the picker on centimetres, a typed `5`
+is 50 mm. Resolving that the other way is a scale wrong by a hundred, and it is the reading an
+unqualified "the picker governs only rendering" invites: calibration is exactly where the picker
+stops being about rendering. The rule is worth stating positively, because it is also the safety
+property — **what the renovator can see is what the number means.** A unit that governed
+interpretation from a settings pane the renovator is not looking at would be the same defect
+wearing a tidier justification.
 
 ## What this forces elsewhere
 
@@ -372,8 +384,12 @@ SDD §60 (UI Layout), SDD §61 (Responsive Strategy — the toolbar's width prob
 
 ADR-009 ([`docs/adrs/0009-world-coordinates-in-millimeters.md`](../adrs/0009-world-coordinates-in-millimeters.md))
 — read for what it refuses (a per-plan choice of the *persisted* unit) and for its *Revisit when*.
-This note does not trigger it: a display preference held outside the vault never reaches the
-sidecar the ADR is about.
+This note does not trigger it: the sidecar's `unit` field stays `"mm"` and the preference itself
+is never written there, which is the choice the ADR forbids. It does **influence** one persisted
+number — calibration's scale, derived from a distance typed in the displayed unit — and that is
+not what the ADR refuses: the scale is stored in millimetres like everything else. Saying "never
+reaches the sidecar" without this clause would read as "calibration is unaffected", which is the
+opposite of what *The unit is read in both directions* establishes.
 
 Business rules read: [[World coordinates are millimetres, converted once at the engine boundary]]
 (BR-SPATIAL-001 — **clarified** by this note, not amended; its invariant is unchanged) and

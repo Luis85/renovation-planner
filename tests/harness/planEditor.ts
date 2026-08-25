@@ -20,9 +20,15 @@ import { FakeLeaf } from '../helpers/workspace';
  * code that must never do it. The background pipeline is covered by the suite, with a real
  * PNG and a real PDF rasterized through real pdf.js, and by `npm run test-build` in a live
  * vault. What this page is for is the SCENE.
+ *
+ * `HARNESS_PLAN` and `HARNESS_ZONES` are EXPORTED because the harness index mounts single
+ * components against the same world (`fixture.ts`). One fixture rather than two: a second
+ * set would be a second derivation that can answer differently, and two components drawn
+ * from two plans that differ in a way nobody notices is exactly the defect one world buys
+ * its way out of.
  */
 
-const HARNESS_PLAN: PlanDto = {
+export const HARNESS_PLAN: PlanDto = {
 	id: 'harness-plan',
 	projectId: 'harness-project',
 	name: 'Ground floor',
@@ -36,7 +42,7 @@ const HARNESS_PLAN: PlanDto = {
  * be compared side by side, and one zone with a non-rectangular outline so the polygon
  * path is not being judged on rectangles alone.
  */
-const HARNESS_ZONES: readonly ZoneDto[] = [
+export const HARNESS_ZONES: readonly ZoneDto[] = [
 	{
 		id: 'harness-kitchen',
 		planId: HARNESS_PLAN.id,
@@ -97,7 +103,7 @@ const HARNESS_ZONES: readonly ZoneDto[] = [
  * reaches a vault: `getAbstractFileByPath` always answers `null`, which is the "no
  * background" path the header explains.
  */
-function harnessDeps(): PlanEditorDeps {
+export function harnessDeps(): PlanEditorDeps {
 	return {
 		queries: {
 			getPlan: () => Promise.resolve(ok(HARNESS_PLAN)),

@@ -1509,7 +1509,7 @@ The reason the whole feature exists: a mock and a real component drawn side by s
 - Test: `tests/harness/harness.test.ts` (add two cases — one per route a sheet takes)
 
 **Interfaces:**
-- Consumes: `tests/harness/index.html`, and every `.ts`/`.vue` file in `tests/harness/`.
+- Consumes: `tests/harness/index.html`, and every non-test `.ts`/`.vue` file under `src/` and `tests/harness/`.
 - Produces: nothing.
 
 - [ ] **Step 1: Read what the file already asserts**
@@ -1561,63 +1561,88 @@ import { REPO } from '../helpers/oxlint';
 - [ ] **Step 3: Write the second case — the route the HTML scan cannot see**
 
 The case above reads `index.html`, and a `<link>` is not the only way a sheet reaches the page.
-`import '../../docs/user-experience/concepts/concept.css'` in `tests/harness/page.ts`, or a
-`<style>` block in `tests/harness/IndexPage.vue`, loads a second sheet through Vite's module
-graph — the HTML has three links either way and the first case stays green.
+`import '../../docs/user-experience/concepts/concept.css'` — in `tests/harness/page.ts`, or in
+any module it can reach — or a `<style>` block in `tests/harness/IndexPage.vue`, loads a second
+sheet through Vite's module graph. The HTML has three links either way and the first case stays
+green.
 
-Two facts decide the scope, and both were measured rather than assumed:
+Three facts decide the scope, and all three were measured rather than assumed:
 
 - `eslint.config.mjs`'s `VUE_FILES` is `['**/src/**/*.vue']`, so `vue/no-restricted-block`
-  already refuses a `<style>` block in `src/prototypes/*.vue`. That half needs nothing here.
+  already refuses a `<style>` block anywhere under `src/`, prototypes included. That half needs
+  nothing here — and must not be duplicated by a text scan, which would report `ViewRoot.vue`,
+  whose comment spells the tag it promises never to use.
 - A `.vue` file under `tests/` matches **no ESLint configuration at all** (`eslint .` skips it
   silently) and oxlint reports nothing on one either. So `tests/harness/IndexPage.vue` — a file
   Task 4 creates — is linted by neither, and a `<style>` block in it is refused by nothing.
+- **Nothing refuses a `.css` import in either tree**, and the route is transitive: `page.ts`
+  imports the harness modules, those import `src/`, and Task 4's index globs `src/prototypes/**`
+  and `src/presentation/**`. A sheet imported by a component three levels down is loaded exactly
+  as surely as one imported in `page.ts`, and a scan of the harness directory alone would not
+  see it.
 
-Hence a text scan, over the harness directory, checking at the forbidden thing rather than
-listing the two files that exist today:
+Scanning both trees for the import closes the transitive route without building anything: if no
+file in either imports a stylesheet, nothing reachable through them does. Measured on the tree as
+it stands — 169 files, no importer, no `<style>` block outside that one comment.
+
+Hence a text scan, over what the page can reach rather than over the files that exist today:
 
 ```typescript
 	/**
 	 * The same claim over the other route. A sheet reaches this page as a `<link>` in
-	 * `index.html` or through Vite's module graph — a `.css` import, or an SFC `<style>`
-	 * block — and the case above can only see the first. The page's sheets are the three
-	 * links, and the module graph must add none.
+	 * `index.html` or through Vite's module graph — a `.css` import anywhere in what the
+	 * page can load, or an SFC `<style>` block — and the case above can only see the first.
+	 * The page's sheets are the three links, and the module graph must add none.
 	 *
-	 * A scan of the directory rather than of the two files that exist today: the next file
-	 * added to the harness is the one that would carry the import nobody checked. Text
-	 * rather than lint, because a `.vue` under `tests/` matches no ESLint configuration —
-	 * measured, and the reason this case exists at all rather than being a rule.
+	 * The scanned set is what the page can reach, not the files that exist today: `page.ts`
+	 * imports the harness modules, those import `src/`, and Task 4's index globs
+	 * `src/prototypes/**` and `src/presentation/**` — so a sheet imported by a component
+	 * three levels down is loaded exactly as surely as one imported here. Scanning both
+	 * trees closes the transitive route without building anything: if no file in either
+	 * imports a stylesheet, nothing reachable through them does.
 	 *
-	 * `*.test.ts` is skipped: the tests in this directory name stylesheet paths as strings
-	 * they READ, which is not a page loading one.
+	 * The two halves are checked over different sets, and that asymmetry is deliberate:
+	 *
+	 * - A `<style>` block is checked in `tests/harness/` ONLY, because `eslint.config.mjs`
+	 *   already refuses one anywhere under `src/` (`vue/no-restricted-block`, over
+	 *   `VUE_FILES` = `['**​/src/**​/*.vue']`) while a `.vue` under `tests/` matches no
+	 *   ESLint block at all — measured. Scanning `src/` for it here would duplicate a live
+	 *   rule AND report `ViewRoot.vue`, whose comment spells the tag it is promising never
+	 *   to use. A text scan cannot tell a comment from a block; the linter can, and does.
+	 * - A `.css` IMPORT is checked over both, because no rule refuses one in either.
+	 *
+	 * The import pattern matches a specifier, static or dynamic, rather than the bare
+	 * substring `.css`: prose naming `concept.css` is how this file explains itself, and a
+	 * guard that fires on its own explanation gets deleted.
 	 */
-	it('loads no stylesheet through the harness module graph', () => {
-		const dir = path.join(REPO, 'tests', 'harness');
-		const offenders = readdirSync(dir)
-			.filter((name) => name.endsWith('.ts') || name.endsWith('.vue'))
-			.filter((name) => !name.endsWith('.test.ts'))
-			.filter((name) => {
-				const source = readFileSync(path.join(dir, name), 'utf8');
-				return /\.css['"]/.test(source) || /<style[\s>]/.test(source);
+	it('loads no stylesheet through the module graph the harness can reach', () => {
+		const sheetImport = /import\s*\(?\s*['"][^'"]*\.css['"]/;
+		const sources = (dir: string): string[] =>
+			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+				const full = path.join(dir, entry.name);
+				if (entry.isDirectory()) return sources(full);
+				return /\.(ts|vue)$/.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 
-		expect(offenders).toEqual([]);
+		const importers = [...sources(path.join(REPO, 'src')), ...sources(path.join(REPO, 'tests', 'harness'))]
+			.filter((file) => sheetImport.test(readFileSync(file, 'utf8')));
+		const styleBlocks = sources(path.join(REPO, 'tests', 'harness')).filter((file) =>
+			/<style[\s>]/.test(readFileSync(file, 'utf8')),
+		);
+
+		expect({ importers, styleBlocks }).toEqual({ importers: [], styleBlocks: [] });
 	});
 ```
 
 `readdirSync` joins the existing `node:fs` import.
 
-**The test files in that directory name `.css` paths as strings they READ**, and
-`cssVars.test.ts` and `harness.test.ts` both do. A test that reads a stylesheet is not a page
-that loads one, so the scan skips `*.test.ts` — stated here rather than discovered, since a
-first run reporting this file itself would otherwise read as the guard working:
+`*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
+`tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
+both do — and a test that reads a stylesheet is not a page that loads one.
 
-```typescript
-			.filter((name) => !name.endsWith('.test.ts'))
-```
-
-Place it directly after the extension filter. Everything left is a file the page actually
-loads.
+Report the two lists in one `toEqual` rather than two `expect([]).toEqual([])` calls, so a
+failure names WHICH file and WHICH half — a bare `expected [ '…' ] to equal []` sends the reader
+back to the source to find out which rule they broke.
 
 - [ ] **Step 4: Run both cases**
 
@@ -1650,11 +1675,17 @@ import '../../docs/user-experience/concepts/concept.css';
 
 Run: `npx vitest run tests/harness/harness.test.ts`
 
-Expected: FAIL, naming `page.ts`. Then revert: `git checkout tests/harness/page.ts`
+Expected: FAIL, naming `page.ts` under `importers`. Then revert: `git checkout tests/harness/page.ts`
 
-A `<style>` block is the other half and is worth planting too, in whichever `.vue` the harness
-holds at this point — `git checkout` afterwards either way. A guard watched failing on one of
-its two spellings has been watched failing on one of its two spellings.
+Plant the **transitive** case too, because it is the one the previous version of this guard
+missed: put the same import at the top of `src/presentation/editor/shell/StatusBar.vue`'s script
+block. Expected: FAIL, naming that file — a sheet a component pulls in is loaded as surely as one
+`page.ts` pulls in. `git checkout` afterwards.
+
+A `<style>` block is the third spelling and is worth planting too, in whichever `.vue` the
+harness directory holds at this point — expected FAIL under `styleBlocks`, `git checkout`
+afterwards. A guard watched failing on one of its three spellings has been watched failing on one
+of its three spellings.
 
 - [ ] **Step 7: Run the full gate**
 
@@ -1731,8 +1762,12 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		// `dataset.entry`, never interpolated into a CSS attribute selector, because an id is
 		// built from a file path and a `"` is a legal filename character on POSIX.
 		expect(source).toContain('stage.dataset.entry === id');
-		expect(source).toContain('stage.firstElementChild !== null');
 		expect(source).toContain('waitForFunction(entryHasDrawn');
+		// The stage must not be empty either — but by NODE, not by element: a template whose
+		// root is text renders no element, and an element check would refuse a capture of an
+		// entry the index drew correctly.
+		expect(source).toContain('stage.childNodes.length > 0');
+		expect(source).not.toContain('firstElementChild');
 		// The bare stage class must not be used as a wait target on its own, and no attribute
 		// selector may be built out of an entry id.
 		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
@@ -1970,8 +2005,8 @@ Then, after the `SHOTS` array (line ~47), add:
  *
  * `IndexPage.vue` sets `data-entry` from `<Suspense>`'s `@resolve`, so it means the entry AND
  * every async component below it has settled — not merely that the outer module loaded, which
- * would still be a placeholder wherever a mock composes a real component. `firstElementChild`
- * waits out the render tick after that and is belt and braces rather than the primary signal.
+ * would still be a placeholder wherever a mock composes a real component. The node check waits
+ * out the render tick after that and is belt and braces rather than the primary signal.
  *
  * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
  * path, and a quote or a newline is a legal filename character on POSIX; interpolating one into
@@ -1979,11 +2014,18 @@ Then, after the `SHOTS` array (line ~47), add:
  * so the index could open an entry `harness-shot` could never capture. Comparing `dataset.entry`
  * as a STRING has no escaping question to get wrong — the class of defect is removed rather
  * than patched.
+ *
+ * `childNodes`, not `firstElementChild`. A template whose root is TEXT — `<template>Coming
+ * soon</template>`, which is a perfectly good early mock — mounts a text node and no element,
+ * so an element check would time out on an entry the index drew correctly and refuse a capture
+ * the guarantee promises. The marker is what proves the screen settled; this is only the cheap
+ * sanity check that the stage is not literally empty, and it must not be narrower than what a
+ * valid entry can render.
  */
 const entryHasDrawn = (id) => {
 	const stage = document.querySelector('.rp-harness-stage');
 
-	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.firstElementChild !== null;
+	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.childNodes.length > 0;
 };
 
 /**
@@ -2102,6 +2144,7 @@ The criterion the whole note is for: a promoted mock's template must be byte-ide
 
 **Files:**
 - Create: `src/prototypes/ZoneSummary.vue`
+- Modify: `eslint.config.mjs` (a `src/prototypes/**/*.vue` block narrowing `vue/no-restricted-block`)
 - Test: `tests/build/prototype-promotion.test.ts`
 - Test (modify): `tests/harness/entries.test.ts` — Task 4 left the real glob undriven
 
@@ -2255,7 +2298,51 @@ and the same remedy: name the file, with the reason written down beside the othe
 rather than globbing `tests/fixtures/**`, for the reason that file already gives about the
 concept stylesheets: a glob absorbs the next file and tells nobody.
 
-- [ ] **Step 5: Write the failing test**
+- [ ] **Step 5: Make template-only a RULE, not a property of one file**
+
+The case above reads `ZoneSummary.vue` by name. The second mock somebody writes could carry a
+`<script setup>` and that test would still pass — so the tree's defining invariant would hold
+for the one file that was thought of, which is the shape `CLAUDE.md` refuses: *a category
+invariant is checked at the forbidden thing, not by listing the places.*
+
+It is a real invariant rather than a preference. A prototype's promotion is "add a script block",
+so a mock that already has one has been promoted in place, and criterion 10's byte-identical
+claim has nothing left to compare. Nothing refuses it today: `vue/no-restricted-block` is
+configured `['error', 'style']`, which permits every script form.
+
+Add a block to `eslint.config.mjs`, immediately after the `VUE_FILES` block it narrows:
+
+```javascript
+	{
+		/**
+		 * `src/prototypes/` is TEMPLATE-ONLY, and this is where that stops being prose.
+		 * Promotion is "add a `<script setup>`", so a mock that already has one has been
+		 * promoted in place and there is nothing left for the byte-identical template claim
+		 * to compare. A mock needs no script either: the index registers every discovered
+		 * component and mock on the app, so a template resolves its tags without importing
+		 * them.
+		 *
+		 * `'style'` is REPEATED rather than inherited. Two flat-config blocks matching one
+		 * file override `vue/no-restricted-block`'s options rather than merging them, so a
+		 * block naming only `'script'` would silently permit the `<style>` block the wider
+		 * VUE_FILES block refuses — the same trap this config already documents for
+		 * `no-restricted-syntax`.
+		 *
+		 * `'script'` covers `<script setup>` as well as a plain `<script>`: the rule matches
+		 * the block name, and `setup` is an attribute on it. Measured, both forms.
+		 */
+		files: ['**/src/prototypes/**/*.vue'],
+		rules: { 'vue/no-restricted-block': ['error', 'style', 'script'] },
+	},
+```
+
+Watch it work before trusting it. Temporarily give `src/prototypes/ZoneSummary.vue` a
+`<script setup lang="ts"></script>` block and run `npx eslint src/prototypes/ZoneSummary.vue`:
+expected FAIL, `vue/no-restricted-block`, "Using `<script>` is not allowed." Then revert the
+block and confirm the file lints clean — a template-only SFC reports nothing, which is the half
+that has to keep working.
+
+- [ ] **Step 6: Write the failing test**
 
 Create `tests/build/prototype-promotion.test.ts`:
 
@@ -2304,7 +2391,7 @@ describe('promoting a mock', () => {
 		expect(promoted).toBe(mock);
 	});
 
-	it('is template-only before promotion — no script block in the prototypes tree', () => {
+	it('is template-only before promotion', () => {
 		expect(readFileSync(MOCK, 'utf8')).not.toContain('<script');
 	});
 
@@ -2314,7 +2401,7 @@ describe('promoting a mock', () => {
 });
 ```
 
-- [ ] **Step 6: Run it**
+- [ ] **Step 7: Run it**
 
 Run: `npx vitest run tests/build/prototype-promotion.test.ts`
 
@@ -2325,7 +2412,7 @@ indentation or a trailing newline. **Do not "fix" it by generating one from the 
 diff and make the promoted fixture match the mock exactly, because that is what the criterion
 claims a promotion does.
 
-- [ ] **Step 7: Prove it can fail, on the thing it is actually guarding**
+- [ ] **Step 8: Prove it can fail, on the thing it is actually guarding**
 
 Temporarily edit the promoted fixture's template — change `<h2>Zones</h2>` to `<h2>Rooms</h2>`,
 which is exactly the kind of small redraw a real promotion might slip in.
@@ -2337,7 +2424,7 @@ Expected: FAIL on `leaves the template byte-identical`.
 This is the assertion the whole tree exists to protect, so it is the one that must be watched
 failing. Then revert: `git checkout tests/fixtures/promotion/ZoneSummary.promoted.vue`
 
-- [ ] **Step 8: Prove the tree IS the registration, against the REAL glob**
+- [ ] **Step 9: Prove the tree IS the registration, against the REAL glob**
 
 Everything in `tests/harness/entries.test.ts` so far hands `discoverEntries` a hand-built map,
 which tests the id derivation and nothing else. The criterion is about `import.meta.glob`'s
@@ -2407,16 +2494,16 @@ Expected: FAIL on `discovers every .vue on disk`, reporting `[]` against `['Zone
 That is the defect the hand-built maps could not see. Then revert:
 `git checkout tests/harness/entries.ts`
 
-- [ ] **Step 9: Run the full gate**
+- [ ] **Step 10: Run the full gate**
 
 Run: `npm run check`
 
 Expected: PASS. In particular `analyze` must not report `ZoneSummary.vue` dead — Task 1's fallow entry is what covers it, and this is the first file that proves the glob matches.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add src/prototypes/ZoneSummary.vue tests/fixtures/promotion/ZoneSummary.promoted.vue tests/build/prototype-promotion.test.ts tests/harness/entries.test.ts
+git add src/prototypes/ZoneSummary.vue eslint.config.mjs tests/fixtures/promotion/ZoneSummary.promoted.vue tests/build/prototype-promotion.test.ts tests/harness/entries.test.ts
 git commit -m "Add the first mock, and hold the promotion claim
 
 A promoted mock's template must be byte-identical to the mock's — the
@@ -2428,6 +2515,13 @@ promoted side by interpolating the mock's own template, which compared a
 string to itself: it could not fail, and would have stayed green while a
 real promotion redrew everything. The promoted fixture is hand-written,
 and watched failing on a one-word template edit before being trusted.
+
+It is also where template-only stops being prose: eslint.config.mjs now
+narrows vue/no-restricted-block over src/prototypes/**/*.vue to refuse a
+script block as well as a style one, so the invariant holds for the next
+mock rather than for the one file a test names. Promotion is "add a
+script block", so a mock that already has one has been promoted in place
+and the byte-identical claim has nothing left to compare.
 
 This is also the first file proving the fallow glob matches and the
 harness-shot entry path writes a PNG — and the first one under
@@ -2446,6 +2540,7 @@ A capability nobody knows about is one that gets rebuilt. `CLAUDE.md` is what an
 **Files:**
 - Modify: `CLAUDE.md` (the three-commands section)
 - Modify: `docs/user-experience/concepts/README.md` (header)
+- Modify: `src/prototypes/README.md` and `vitest.config.ts` (the sentences Task 1 deliberately left in the future tense, now that their checks exist)
 
 **Interfaces:**
 - Consumes: everything above.
@@ -2482,7 +2577,28 @@ below — several of which no other instrument could have produced. A record tha
 stops being one, which is why this is a boundary rather than a migration.
 ```
 
-- [ ] **Step 3: Verify the added link resolves**
+- [ ] **Step 3: Make `src/prototypes/README.md` present-tense**
+
+Task 1 wrote that README with three sentences deliberately in the FUTURE tense, because the checks
+they name — `tests/build/prototypes-not-bundled.test.ts`, `tests/build/prototype-promotion.test.ts`
+and the index's glob over `src/prototypes/` — did not exist when it was committed, and a README
+asserting a guarantee ahead of its check is the defect this repository's guide names first. The
+`vitest.config.ts` coverage-exclusion comment was written the same way.
+
+All three exist now. Flip them, and assert it rather than trusting the flip:
+
+```bash
+ls tests/build/prototypes-not-bundled.test.ts tests/build/prototype-promotion.test.ts
+grep -rn "import.meta.glob" tests/harness/entries.ts
+```
+
+Every one must resolve before you change a word. Task 1's fix report lists the exact sentences it
+put in the future tense — read that list rather than re-deriving it, and change those and nothing
+else. If a sentence on the list names something the three commands above do NOT find, the sentence
+stays in the future tense and this step says so in the commit message: that is a task that did not
+land, not a README to be optimistic about.
+
+- [ ] **Step 4: Verify the added link resolves**
 
 Run:
 
@@ -2492,13 +2608,13 @@ test -f "docs/requirements/Prototype a screen in the harness before it is built.
 
 Expected: `ok`
 
-- [ ] **Step 4: Run the full gate**
+- [ ] **Step 5: Run the full gate**
 
 Run: `npm run check`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add CLAUDE.md docs/user-experience/concepts/README.md
@@ -2518,7 +2634,7 @@ a record rather than a migration backlog."
 
 | Criterion | Task |
 | --- | --- |
-| 1 — a file appears with no registration step | 4 (id derivation) + **7 Step 8** (the real glob, against the tree on disk) |
+| 1 — a file appears with no registration step | 4 (id derivation) + **7 Step 9** (the real glob, against the tree on disk) |
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
@@ -2526,8 +2642,8 @@ a record rather than a migration backlog."
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | 3 (second case) |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
-| 9 — `npm run check` passes with the tree populated | 7 Step 9 |
-| 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`) |
+| 9 — `npm run check` passes with the tree populated | 7 Step 10 |
+| 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`, plus the lint rule in Step 5 that keeps every mock template-only) |
 
 The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a** → Task 4's empty-tree test and the `v-if` in the template; **4b** → Vite's own overlay, unchanged, plus the try/catch; **3a** → Task 6 leaves an argumentless run intact so a machine without Chromium fails on `resolveChromiumExecutable` as it does today. **6a** is out of scope by the PBI's own text.
 
@@ -2554,7 +2670,11 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
    server, so it is live everywhere it matters today. A production build of the harness page
    would lose it silently and go back to photographing the hole — which is the trigger for
    needing a different signal, not a reason to avoid this one.
-6. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
+6. ~~**Task 1 Step 9 may need reordering.**~~ **Settled by execution: it does not.** `npm run
+   analyze` accepts `"src/prototypes/**/*.vue"` in `entry` while it matches nothing — measured on
+   a full run at the end of Task 1, with the manual-entry count unchanged at 7, since a glob
+   matching nothing contributes no resolved entries. The declaration stays in Task 1 and Task 7
+   adds nothing to `.fallowrc.json` for it.
 
 **Placeholder scan:** every code step carries real code; no "TBD", no "handle errors appropriately", no "similar to Task N".
 
@@ -2562,9 +2682,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twelve review rounds — thirty-seven findings. Thirty-six were real and are
-fixed above rather than noted; the thirty-seventh is the first that was not, and it is recorded
-as declined with the measurement that declined it.**
+**Revised across thirteen review rounds — forty findings. Thirty-nine were real and are fixed
+above rather than noted; one was not, and it is recorded as declined with the measurement that
+declined it.**
 
 Round one, on the shape of the harness:
 
@@ -2637,7 +2757,7 @@ Round seven, on what the tests still did not reach:
 | --- | --- | --- |
 | **The editor context was not provided** | `PlanEditorView.ts:145-159` does four things to mount the real app — Pinia, VueKonva, `provide(EDITOR_CONTEXT, …)`, mount. The index app did the first two. `useEditorContext()` **throws** on the missing injection (`EditorContext.ts:57-63`), so `PlanEditorRoot`, `BackgroundLayer` and anything using `useThemeTokens` render Task 4's named-failure card instead — the index would fail for exactly the components a designer most wants to look at | Task 3 (`harnessEditorContext()`, built from the exported deps rather than a second set of stubs), Task 4 Step 6 (the provision) and Task 6 (a test reading the requirement out of `PlanEditorView.ts` rather than pinning today's answer) |
 | **The stylesheet check required attribute order** | The regex wanted `rel` before `href`. A link written the other way round is the same link to a browser and invisible to the test — so a second sheet could be added in the spelling the check cannot see | Task 5 (two-stage parse: find every `<link>`, then read its attributes in any order; the planted proof is now `href`-first) |
-| **The real glob was never driven** | Every discovery case handed `discoverEntries` a hand-built map. If `import.meta.glob`'s pattern stopped matching `src/prototypes/`, discovery would return nothing, no prototype a designer added would ever appear — and all of them stay green. Criterion 1 asks for exactly this case and it was the one not written | Task 7 Step 8: discovery compared against the tree walked with `readdirSync`, watched failing on a deliberately broken glob. It waits for Task 7 because on an empty tree it is `[] === []` |
+| **The real glob was never driven** | Every discovery case handed `discoverEntries` a hand-built map. If `import.meta.glob`'s pattern stopped matching `src/prototypes/`, discovery would return nothing, no prototype a designer added would ever appear — and all of them stay green. Criterion 1 asks for exactly this case and it was the one not written | Task 7 Step 9: discovery compared against the tree walked with `readdirSync`, watched failing on a deliberately broken glob. It waits for Task 7 because on an empty tree it is `[] === []` |
 
 Round eight, on the paths only the eyeless actor takes:
 
@@ -2681,7 +2801,15 @@ was written: **a template-only SFC under `src/prototypes/` passes this repositor
 driven through ESLint at that exact path, exit 0. `vue/component-api-style` and `vue/block-lang`
 report on blocks that exist, so a file with no script block satisfies both.
 
-**The pattern, across all twelve rounds and worth more than any individual fix:** every failure was
+Round thirteen, on three guards that each held for the case somebody thought of:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The sheet scan was not transitive** | Round twelve's own fix, one level out. The scan read `tests/harness/` and a sheet imported by a component under `src/presentation/` — or by anything the index's glob loads — reaches the page exactly as surely, with the guard green. Fresh evidence against a fix that was itself fresh | Task 5: the import half scans `src/` and `tests/harness/` both, which closes the transitive route without building anything. The `<style>` half stays harness-only on purpose — `vue/no-restricted-block` already owns it under `src/`, and a text scan there reports `ViewRoot.vue`, whose comment spells the tag it promises never to use. The pattern matches a SPECIFIER now, not the substring `.css`, for the same reason |
+| **A text-root entry could never be captured** | `entryHasDrawn` required `stage.firstElementChild !== null`, and `<template>Coming soon</template>` — a perfectly good early mock — renders a text node and no element. The index draws it, `data-entry` is set, and `harness-shot` times out on an entry criterion 4 promises is capturable. A readiness check narrower than what a valid entry can render | Task 6: `childNodes.length > 0`. Its sibling test pinned the old string verbatim and was updated in the same edit — it now also forbids `firstElementChild` returning |
+| **Template-only held for one file** | The promotion test read `ZoneSummary.vue` by name, so the second mock could carry a `<script setup>` and stay green. `vue/no-restricted-block` was `['error', 'style']`, which permits every script form. The tree's defining invariant was a property of the one file that had been thought of | Task 7 Step 5: a `src/prototypes/**/*.vue` block narrowing that rule to `['error', 'style', 'script']` — checked at the forbidden thing, so it holds for mocks nobody has written. `'style'` is repeated because two blocks matching one file override the option array rather than merging it. Both script forms measured refused, template-only measured clean |
+
+**The pattern, across all thirteen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2696,6 +2824,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the thirty-six fixes. Round twelve is the first to add a third pattern:
+execution, not the thirty-nine fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

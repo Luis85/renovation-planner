@@ -37,26 +37,39 @@ const TESTS = '**/tests/**';
  * and transforms every one of those on `import` regardless of what tsconfig's `include`
  * names — Rollup/esbuild do not consult it — so `allowJs` is not a formality here, it is
  * the difference between a `.js` file under `src/` shipping in `dist/main.js` and not.
- * `.mts`, `.cts` and `.tsx` are Vite-resolvable too but are deliberately NOT in this list:
- * `eslint-plugin-obsidianmd`'s own recommended config applies
- * `tseslint.configs.recommendedTypeChecked` to exactly those three extensions, and nothing
- * in this file gives typescript-eslint's parser `parserOptions.projectService` for any of
- * them — measured, linting a virtual file at any of the three THROWS instead of reporting,
- * taking the whole run down rather than the one file. That is a pre-existing gap in this
- * config orthogonal to the one-way door, not something widening this list should paper
- * over. `.json` is resolvable too but cannot contain an `import` statement, so there is
- * nothing here for `no-restricted-imports` to catch.
+ * `.tsx`, `.mts` and `.cts` are TypeScript's OWN extension bucket, native regardless of
+ * `allowJs`, and Vite-resolvable the same way `.ts` is (`.cts` is not in Vite's own
+ * extension-less resolution list, but still compiles from an import that names it
+ * explicitly) — so the BAN covers all three, same as every other extension here.
+ *
+ * What those three do NOT get is a TEST, and that is a narrower claim than the rest of
+ * this list gets — said plainly, because leaving it unsaid is the defect this repository's
+ * own guide refuses. `eslint-plugin-obsidianmd`'s own recommended config applies
+ * `tseslint.configs.recommendedTypeChecked` to `**\/*.{ts,cts,mts,tsx}`, and the only block
+ * in this file giving typescript-eslint's parser type information (`parserOptions.projectService`)
+ * is scoped to `files: ['**\/*.ts']` — `.cts`/`.mts`/`.tsx` get none. Measured against BOTH
+ * a nonexistent path (what this test file's fixtures use for `.vue`/`.js`) and a REAL file
+ * written to `src/` and then removed: both throw the identical
+ * `@typescript-eslint/await-thenable` error, which is what says the gap is the missing
+ * `parserOptions` itself, not a project-service "file not found" the way an absent `.ts`
+ * path was. No fixture this test file can build reaches them, so it does not try —
+ * banning them costs nothing (a glob matching no file on disk is free; `npm run lint`
+ * stays green with zero `.tsx`/`.mts`/`.cts` files under `src/` today), but PROVING the ban
+ * fires for them would need this file's own `parserOptions.projectService` gap closed
+ * first, which is a bigger, unrelated fix. `.json` is resolvable too but cannot contain an
+ * `import` statement, so there is nothing here for `no-restricted-imports` to catch.
  *
  * Every extension for one `src/` subtree. A block widened on the ban but not on its
  * carve-out fails INWARD — the sink's own `.js` files would be the one place a `.js` file
  * could not use the console — so every caller is spelled by the same function.
  *
  * What actually catches a forgotten block is `tests/build/vue-rules.test.ts` (`.vue`) and
- * `tests/build/prototypes-one-way-door.test.ts` (`.js`, the root-of-`src/` block below),
- * which exercise a layer ban, `no-console` and the carve-out through real paths. This
- * helper only makes the spellings impossible to write apart by hand.
+ * `tests/build/prototypes-one-way-door.test.ts` (`.ts` and `.js`, the root-of-`src/` block
+ * below) — `.tsx`, `.mts` and `.cts` are the three extensions this helper covers that no
+ * test drives, for the reason above. This helper only makes the spellings impossible to
+ * write apart by hand; it does not make every one of them equally verified.
  */
-const SRC_EXTENSIONS = ['ts', 'vue', 'js', 'jsx', 'mjs', 'cjs'];
+const SRC_EXTENSIONS = ['ts', 'tsx', 'mts', 'cts', 'vue', 'js', 'jsx', 'mjs', 'cjs'];
 const srcFiles = (subtree) => SRC_EXTENSIONS.map((ext) => `**/src/${subtree}/**/*.${ext}`);
 
 /** Every SFC under `src/`, and the only files any Vue rule may be pointed at. */

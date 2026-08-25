@@ -10,10 +10,13 @@ import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
  * `forbidden(...)` calls, the root-of-`src/` block, and the catch-all block below that covers
  * a subtree none of the six names) and a layer whose block was missed reports nothing while
  * looking correct in review. Two EXTENSIONS are driven for the same reason as two globs:
- * `srcFiles()` (`eslint.config.mjs`) and the root-of-`src/` block both cover
- * `.ts`/`.vue`/`.js`/`.jsx`/`.mjs`/`.cjs` — `allowJs` plus what Vite's own resolver
- * accepts, not what the tree currently holds — and they are two SEPARATE glob lists, so a case
- * proving one covers `.js` says nothing about the other.
+ * `srcFiles()` (`eslint.config.mjs`) and the root-of-`src/` block both cover every extension
+ * `SRC_EXTENSIONS` names — `allowJs` plus what Vite's own resolver accepts, not what the tree
+ * currently holds — and they are two SEPARATE glob lists, so a case proving one covers `.js`
+ * says nothing about the other. Three of those extensions — `.tsx`, `.mts`, `.cts` — are
+ * BANNED but driven by no case below: `SRC_EXTENSIONS`'s own comment in `eslint.config.mjs`
+ * measures why no fixture, virtual or a real file written to disk, can reach them without
+ * crashing ESLint outright, rather than reporting a finding this file could assert on.
  *
  * Rule IDS rather than a pass/fail, following `vue-rules.test.ts`: a fixture that went red for
  * its own unrelated reason would otherwise read as a pass.

@@ -32,6 +32,7 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 	{ id: null, label: 'editor.toolbar.pan' },
 	{ id: 'select', label: 'editor.toolbar.select' },
 	{ id: 'draw-polygon', label: 'editor.toolbar.draw-zone' },
+	{ id: 'calibrate', label: 'editor.toolbar.calibrate' },
 ];
 </script>
 

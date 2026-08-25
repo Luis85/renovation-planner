@@ -22,9 +22,12 @@ import type { ToolId } from './tools/editor-tool';
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
 import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
+import { CalibrateTool } from './tools/calibrate-tool';
 import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
+import { useDialogStore } from '../dialogs/dialog-store';
+import KnownDistanceForm from './shell/KnownDistanceForm.vue';
 import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
@@ -123,12 +126,13 @@ function createInspector(
 	})();
 }
 
-/** The two concrete tools of this slice, registered against one shared context factory. */
+/** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(
 	toolManager: ToolManager,
 	context: PlanEditorContext,
 	projectStore: ReturnType<typeof useProjectStore>,
 	ledger: SessionWriteLedger,
+	dialogs: ReturnType<typeof useDialogStore>,
 ): void {
 	toolManager.register(
 		new SelectTool({
@@ -154,6 +158,35 @@ function registerEditorTools(
 				),
 			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
 			reportRejected: (error) => notify(error.message),
+		}),
+	);
+	toolManager.register(
+		new CalibrateTool({
+			// The two dialogs this gesture may open, in the order it opens them. Both go
+			// through the leaf's OWN store, so a calibration in one split pane cannot trap
+			// the other — `DialogHost` is per view for exactly that reason.
+			hasSpatialObjects: () => projectStore.zones.size > 0,
+			confirmRecalibration: async () =>
+				(await dialogs.openDialog({
+					kind: 'confirm',
+					title: tr('editor.calibrate.recalibrate.title'),
+					message: tr('editor.calibrate.recalibrate.message'),
+					danger: true,
+				})) === 'confirm',
+			supplyKnownDistance: async (measured) => {
+				const result = await dialogs.openDialog({
+					kind: 'form',
+					title: tr('editor.calibrate.distance.title'),
+					component: KnownDistanceForm,
+					props: { measured },
+				});
+				// `null` is this seam's word for "dismissed", and the tool refuses a
+				// non-number anyway — but narrowing HERE keeps the `unknown` the form
+				// container deliberately carries from reaching the command's input.
+				if (result === 'cancel' || typeof result.values !== 'number') return null;
+				return result.values;
+			},
+			createCommand: () => context.commands.calibratePlan(),
 		}),
 	);
 }
@@ -290,7 +323,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			activePlan: activePlan(),
 		}),
 	);
-	registerEditorTools(toolManager, context, projectStore, ledger);
+	registerEditorTools(toolManager, context, projectStore, ledger, useDialogStore());
 
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the

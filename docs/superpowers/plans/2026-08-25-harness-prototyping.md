@@ -414,8 +414,15 @@ It carries no marker, and its name deliberately does not collide with any compon
 add to the top of `src/main.ts`:
 
 ```typescript
-void import('./prototypes/Doomed.vue').then((module) => console.log(module));
+export const planted = import('./prototypes/Doomed.vue');
 ```
+
+**An `export`, not a `console.log`.** `.oxlintrc.json` turns `no-console` on for every file under
+`src/**`, so a planted `console.log` fails `npm run lint` on the CONSOLE CALL — which would make
+Step 5's PASS impossible and, worse, make its FAIL prove nothing about `no-restricted-imports`,
+since the run would be red either way. An exported binding also holds the import better than a
+console call does: it is a live export, so nothing can tree-shake it away before Rollup reports
+the module.
 
 **A dynamic import, deliberately.** It is the route lint cannot see, so it is the one this test
 exists for — and it is also what Rollup is most likely to emit as a separate chunk, which is
@@ -442,11 +449,13 @@ for the static form to watch lint refuse it:
 
 ```typescript
 import Doomed from './prototypes/Doomed.vue';
-console.log(Doomed);
+export const planted = Doomed;
 ```
 
 Run `npm run lint` again: FAIL with `no-restricted-imports` from Task 1's `forbidden('plugin', …)`
-block. The two halves cover different routes, and this step is what proves the division of labour
+block — and read the message, because that is the whole point of this step. It must name
+`no-restricted-imports` and nothing else; a run red for a second reason proves nothing about which
+rule is doing the work. The two halves cover different routes, and this step is what proves the division of labour
 rather than assuming it.
 
 - [ ] **Step 6: Prove it fails on a fixture too — the case a text scan could not catch**
@@ -462,7 +471,7 @@ Then temporarily add to the top of `src/main.ts`:
 
 ```typescript
 import { FIXTURE_PLAN } from '../tests/helpers/planFixtures';
-console.log(FIXTURE_PLAN);
+export const planted = FIXTURE_PLAN;
 ```
 
 **`tests/helpers/planFixtures.ts` and not `tests/harness/fixture.ts`, because the second does
@@ -1165,6 +1174,18 @@ const renderDefects: string[] = [];
  */
 let generation = 0;
 
+/**
+ * The id of the component currently ASSIGNED to the stage, as a plain value.
+ *
+ * `settle()` fires from a `<Suspense>` that belongs to whatever is mounted, and it has no other
+ * way to know which entry that was: entry A can still be on screen with a descendant pending
+ * while a click has already moved `pendingId` to B, and A's descendant settling would then mark
+ * the stage ready under B's name with A's content in it. The clear at the top of `open()` is the
+ * fix; this is the invariant that keeps it fixed, since removing the clear would otherwise
+ * reintroduce the defect silently.
+ */
+let mountedId: string | null = null;
+
 async function open(entry: HarnessEntry): Promise<void> {
 	const mine = ++generation;
 
@@ -1172,12 +1193,18 @@ async function open(entry: HarnessEntry): Promise<void> {
 	renderedId.value = null;
 	pendingId.value = entry.id;
 	renderDefects.length = 0;
+	// The previous entry comes OFF SCREEN before the await, not after it. Leaving it mounted
+	// while the next module loads is what lets a stale `<Suspense>` resolve under the new
+	// entry's name — and a blank stage during a load is the honest picture anyway.
+	openComponent.value = null;
+	mountedId = null;
 	try {
 		const module = (await entry.component()) as { default: unknown };
 
 		if (mine !== generation) return;
 
 		openComponent.value = module.default;
+		mountedId = entry.id;
 		// No `renderedId` assignment here, deliberately — see its declaration. The outer
 		// module having loaded says nothing about the components it composes.
 	} catch (error) {
@@ -1229,6 +1256,11 @@ function hrefFor(entry: HarnessEntry): string {
  * claim this project accepts.
  */
 function settle(): void {
+	// The resolve belongs to whatever is mounted. If that is not what `pendingId` names, this
+	// is a previous entry's subtree finishing after a navigation, and marking the stage ready
+	// would advertise the new id over the old content.
+	if (mountedId === null || mountedId !== pendingId.value) return;
+
 	if (renderDefects.length === 0) {
 		renderedId.value = pendingId.value;
 		return;
@@ -1745,6 +1777,28 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		// Both arms: a stale RESOLVE must not draw, and a stale REJECT must not overwrite a
 		// good entry's screen with the abandoned one's error.
 		expect(open.match(/if \(mine !== generation\) return;/g) ?? []).toHaveLength(2);
+	});
+
+	/**
+	 * The other half of the same race, and it is NOT covered by the generation guards: those
+	 * protect `entry.component()`'s await, while `<Suspense>` settles on its own schedule. Entry
+	 * A can be on screen with a descendant still pending when a click moves `pendingId` to B;
+	 * A's descendant then resolves and, without this, the stage advertises `data-entry="B"` over
+	 * A's content — a capture of the wrong component under the requested name.
+	 */
+	it('unmounts the previous entry before awaiting, and settles only for what is mounted', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		const start = index.indexOf('async function open');
+		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+
+		// The clear happens BEFORE the await, or the stale subtree stays mounted through it.
+		expect(open.indexOf('openComponent.value = null')).toBeGreaterThanOrEqual(0);
+		expect(open.indexOf('openComponent.value = null')).toBeLessThan(open.indexOf('await entry.component()'));
+
+		const settleStart = index.indexOf('function settle');
+		const settle = index.slice(settleStart, index.indexOf('\n}', settleStart) + 2);
+
+		expect(settle).toContain('mountedId !== pendingId.value');
 	});
 
 	/**
@@ -2407,7 +2461,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across ten review rounds — thirty-three findings, all real, all fixed above rather than noted.**
+**Revised across eleven review rounds — thirty-five findings, all real, all fixed above rather than noted.**
 
 Round one, on the shape of the harness:
 
@@ -2504,13 +2558,21 @@ Round ten, on the two remaining ways a green exit could lie:
 | **A missing required prop was not a failure** | Round nine caught the unresolved TAG and stopped there. A component with required props mounted by a bare `<component :is>` gets none — `EmptyLayer.vue` needs three — and Vue routes that through the same handler as a *different warning string*, which the match ignored. Same outcome: `<Suspense>` resolves, `data-entry` is set, and `harness-shot` captures a malformed component and exits 0 | Task 4: `FATAL_WARNINGS` names both, `renderDefects` replaces `unresolved`, and the plan states the limit rather than routing around it — a component needing props is listed, fails loudly when opened bare, and is looked at by composing it in a prototype that can pass them |
 | **The wait selector was built from a file path** | `[data-entry="${id}"]` interpolates an id derived from a filename, and a `"` or a newline is legal in one on POSIX. The selector then parses as something else or not at all, so the index could open an entry the capture could never wait for | Task 6 asks the PAGE instead: `waitForFunction` comparing `dataset.entry` as a string. The escaping question is removed rather than answered, and a test forbids `[data-entry=` from reappearing in the script |
 
-**The pattern, across all ten rounds and worth more than any individual fix:** every failure was
+Round eleven, on the halves the previous round's fix did not reach:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **Suspense settled for a navigation that was over** | Round nine's generation guards protect `entry.component()`'s await and nothing else, while `<Suspense>` settles on its own schedule. Entry A on screen with a descendant still pending, a click moves `pendingId` to B, A's descendant resolves — and the stage advertises `data-entry="B"` over A's content. A capture of the wrong component under the requested name, which is the failure mode this whole feature keeps producing in new places | Task 4: `open()` clears `openComponent` BEFORE the await, so the stale subtree unmounts rather than resolving later; and `settle()` refuses a resolve whose `mountedId` is not what `pendingId` names, so removing the clear cannot reintroduce it silently. Task 6 pins both |
+| **The lint probe used `console.log`** | `.oxlintrc.json` turns `no-console` on for every file under `src/**`, so all three planted probes fail `npm run lint` on the console call. Step 5's documented PASS was impossible, and its FAIL would have proved nothing about `no-restricted-imports` — the run was red either way, which is a proof that cannot distinguish the thing it exists to distinguish | Task 2 Steps 3, 5 and 6 export the planted binding instead. It also holds the import better: a live export cannot be tree-shaken away before Rollup reports the module |
+
+**The pattern, across all eleven rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
 would have to work, a readiness marker that means the outer module rather than the screen, an
 unresolved component or a failed injection Vue only warns about — and, twice now, a design that
-refused the collision its own headline workflow creates.
+refused the collision its own headline workflow creates, and a probe whose failure could not
+distinguish the rule it was testing from the one it tripped by accident.
 
 And the second pattern, which is mine rather than the design's: **every round, a fix left a
 sibling stale.** The DOM fix left the toggle. The promotion fixture left the bundle filter. The
@@ -2518,4 +2580,4 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the thirty-three fixes.
+execution, not the thirty-five fixes.

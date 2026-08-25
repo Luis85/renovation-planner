@@ -188,6 +188,33 @@ export default defineConfig({
 			// 1874/1877 lines — 99.70 / 98.81 / 99.81 / 99.84. The UNCOVERED sets are
 			// unchanged (the same six statements, eleven branches, one function and three
 			// lines enumerated above); only the denominators grew. NOTHING RATCHETS.
+			//
+			// Measured 2026-08-25 at the end of design slice 7 — calibration: `deriveCalibration`,
+			// the `PlanGeometrySidecar` port and its Obsidian adapter, the shared calibration
+			// mappers, `ReversibleCalibratePlanCommand` (rescale-everything transaction with its
+			// version-checked snapshot inverse) and `CalibrateTool`: 2251/2259 statements,
+			// 1038/1051 branches, 594/595 functions, 2055/2058 lines —
+			// 99.64 / 98.76 / 99.83 / 99.85. NOTHING RATCHETS: rounded down these are
+			// 99 / 98 / 99 / 99, the floors already in force.
+			//
+			// Every statement, branch and function of the five new/extended calibration files is
+			// covered; the uncovered set is EXACTLY the one enumerated above, still in untouched
+			// files (`ReversibleSetPlanBackground`'s snapshot re-validation, `costPipeline`'s two
+			// Result propagation guards, `ObsidianZoneRepository`'s double-fault logging,
+			// `GeometrySidecarView`'s Obsidian-runtime callback, `PlanCanvas`'s null-container
+			// guards, the plugin's non-`TFile` vault-event arm). One arm this slice touched grew
+			// its own test rather than joining that set: saving an UNCALIBRATED Plan over a
+			// sidecar that holds a calibration must lower `null`, driven by
+			// `completion.test.ts`.
+			//
+			// Measured 2026-08-25 again after slice 7's review pass — the conditional FIRST
+			// write (a concurrent writer between read and write now refuses instead of being
+			// clobbered), the output-finiteness floor on rescaled coordinates, the spent
+			// inverse refusing a second undo, the tool's generation guard against a prompt
+			// answered after deactivate, and the real-stack refusal tests against the actual
+			// sidecar store: 2268/2277 statements, 1052/1066 branches, 596/597 functions,
+			// 2071/2075 lines — 99.60 / 98.68 / 99.83 / 99.80. NOTHING RATCHETS again for the
+			// same reason; the uncovered set remains exactly the enumerated one.
 			thresholds: {
 				statements: 99,
 				functions: 99,

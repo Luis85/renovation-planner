@@ -1662,11 +1662,15 @@ Hence a text scan, over what the page can reach rather than over the files that 
 	it('loads no stylesheet through anything the harness can reach', () => {
 		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.css['"]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
+		// Every extension Vite will load as a module, not the two this repository happens to
+		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
+		// reachable as any other and its CSS import would load the same sheet.
+		const MODULE = /\.(?:ts|tsx|js|mjs|cjs|jsx|vue)$/;
 		const sources = (dir: string): string[] =>
 			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 				const full = path.join(dir, entry.name);
 				if (entry.isDirectory()) return sources(full);
-				return /\.(ts|vue)$/.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
+				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 
 		const reachable = [...sources(path.join(REPO, 'src')), ...sources(path.join(REPO, 'tests', 'harness'))];
@@ -1687,6 +1691,12 @@ Hence a text scan, over what the page can reach rather than over the files that 
 `*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
 `tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
 both do — and a test that reads a stylesheet is not a page that loads one.
+
+**The extension list is every module type Vite will load**, rather than the two this repository
+happens to hold. `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper under either tree is
+reachable and its CSS import loads the same sheet — and a scan admitting only what already exists
+is a scan of the past, which is the failure this guard has now had corrected three times in three
+different places. Measured with the widened list: still 169 files, still no hit.
 
 Report the two lists in one `toEqual` rather than two `expect([]).toEqual([])` calls, so a
 failure names WHICH file and WHICH half — a bare `expected [ '…' ] to equal []` sends the reader
@@ -2773,7 +2783,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across sixteen review rounds — forty-four findings. Forty-three were real and are fixed
+**Revised across seventeen review rounds — forty-six findings. Forty-five were real and are fixed
 above rather than noted; one was not, and it is recorded as declined with the measurement that
 declined it.**
 
@@ -2925,6 +2935,19 @@ and this time the stale sibling was inside the fix that was written to prevent e
 replacement that matches nothing fails silently, which is the same shape as every other finding
 here: a green signal that means nothing.
 
+Round seventeen, on the extension list — the same finding in two places, which is what makes it
+a category rather than a slip:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The one-way door does not cover a `.js` importer** | `srcFiles()` builds `**/src/<subtree>/**/*.ts` and `*.vue`, and Task 1's root block matches `**/src/*.ts` and `*.vue`. `tsconfig.json` sets `allowJs`, so a `.js` file under `src/` is compiled and bundled — and importing `src/prototypes/` from one passes lint. Measured: `src/main.js` and `src/core/Fixture.js` both exit 0 with the import in place. Criterion 3 says "from anywhere else in `src/`", and a `.js` file is anywhere else | Task 1's config, as a follow-up fix round: the extension lists widen and the test drives a `.js` importer. The layer bans inherit the same widening, which is a strict improvement — they claim the same thing about the same tree |
+| **The sheet scan does not read a `.js` module either** | `sources()` admitted `.ts` and `.vue`, so a `.js`/`.mjs` helper importing a stylesheet is a module Vite loads and the guard never opens | Task 5: the extension list is every module type Vite will load. Measured with the widened list — still 169 files, still no hit |
+
+Both are the same mistake: **an extension list written from what the tree contains rather than
+from what the tool accepts.** It is the third form of a failure this plan keeps producing — first
+a scan of too few directories, then a pattern matching too few spellings, now a filter admitting
+too few file types. Each looked complete because everything it could see was covered.
+
 **Found by EXECUTION rather than by review**, which is the category this list did not have until
 the plan started running. Two in Task 1, two in Task 2, and each was invisible to fifteen rounds
 of reading because each depended on what a tool actually does:
@@ -2940,7 +2963,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all sixteen rounds and worth more than any individual fix:** every failure was
+**The pattern, across all seventeen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2955,6 +2978,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the forty-three fixes. Round twelve is the first to add a third pattern:
+execution, not the forty-five fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

@@ -10,6 +10,7 @@ import {
 import { negativeQuantity } from './quantityEngine';
 import {
 	add,
+	isNegative,
 	percentageOf,
 	round,
 	scale,
@@ -34,10 +35,16 @@ import {
  * a bounded number of significant digits rather than "full".
  *
  * Every input is refused BEFORE any arithmetic runs (`inputError`): a mismatched pricing
- * basis, a negative quantity, a negative or above-100% discount, a negative tax rate.
- * All four are user input, so all four are a typed `CalculationError` and never a thrown
- * exception (SDD §65) — and together they are why no stage here can produce a negative
- * `Money`.
+ * basis, a negative quantity, a negative or above-100% discount, a negative tax rate, and
+ * a negative unit price, shipping charge or surcharge. All of them are user input, so all
+ * of them are a typed `CalculationError` and never a thrown exception (SDD §65).
+ *
+ * Those money guards are where non-negativity lives now, and they are NOT redundant with
+ * `core/money`: a `Money` is a signed quantity — a budget variance goes below zero and
+ * that is its answer — so the type enforces nothing and each FIELD that cannot go below
+ * zero is refused where it enters. Together they are why no stage here can produce a
+ * negative estimate, which is a guarantee of this pipeline over its own inputs rather
+ * than of the value type.
  */
 export interface DiscountRule {
 	readonly percent: Decimal;
@@ -115,10 +122,32 @@ function discountError(discount: DiscountRule | undefined): CalculationError | n
 }
 
 /**
+ * The money inputs that cannot be negative, named one at a time because the message has
+ * to say WHICH field was refused — one rule, one code, and the field in the text (the
+ * shape `negativeQuantity` already uses).
+ *
+ * `Money` itself is signed: a difference legitimately goes below zero, so `core/money`
+ * enforces nothing and every field that must not is guarded where it enters. These three
+ * are that guard for the pipeline. Absent is not negative — an omitted shipping charge is
+ * `zero`, not a refusal.
+ */
+function negativeAmount(label: string, value: Money | undefined): CalculationError | null {
+	if (!value || !isNegative(value)) return null;
+	return {
+		category: 'Calculation',
+		code: 'cost.negative-amount',
+		message:
+			`A ${label} cannot be negative; got ${value.amount} ${value.currency}. `
+			+ 'A credit is not a cost component.',
+	};
+}
+
+/**
  * Everything refused BEFORE any arithmetic runs, so no stage can be handed a value that
- * would drive the total negative — which is what lets `core/money` treat a negative
- * amount as a programmer error rather than a business failure. User input is refused
- * here, as a value; nothing on this path throws.
+ * would drive the total negative. Together these are what make the estimate this pipeline
+ * produces non-negative — a guarantee of the PIPELINE, over its own inputs, rather than of
+ * the `Money` type, which is signed. User input is refused here, as a value; nothing on
+ * this path throws.
  */
 function inputError(input: CostPipelineInput): CalculationError | null {
 	return (
@@ -126,6 +155,9 @@ function inputError(input: CostPipelineInput): CalculationError | null {
 		?? negativeQuantity(input.quantity)
 		?? discountError(input.discount)
 		?? (input.taxRate ? negativePercent(input.taxRate) : null)
+		?? negativeAmount('unit price', input.unitPrice)
+		?? negativeAmount('shipping charge', input.shipping)
+		?? negativeAmount('surcharge', input.surcharge)
 	);
 }
 

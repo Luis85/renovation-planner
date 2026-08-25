@@ -185,6 +185,46 @@ describe('computeEstimatedCost', () => {
 		expect(error.code).toBe('quantity.negative');
 	});
 
+	it('a NEGATIVE unit price is refused: Money is signed, but a price is not', () => {
+		// `core/money` stopped enforcing this and a FIELD that cannot go below zero is
+		// guarded where it enters — here, beside the negative quantity and the discount
+		// bound, before any arithmetic runs.
+		const error = expectErr(
+			computeEstimatedCost({ ...baseInput(), unitPrice: moneyOf('-12.50', 'USD') }),
+		);
+		expect(error.category).toBe('Calculation');
+		expect(error.code).toBe('cost.negative-amount');
+		expect(error.message).toContain('unit price');
+	});
+
+	it('a NEGATIVE shipping charge is refused, and names the field it refused', () => {
+		const error = expectErr(
+			computeEstimatedCost({ ...baseInput(), shipping: moneyOf('-25.00', 'USD') }),
+		);
+		expect(error.code).toBe('cost.negative-amount');
+		expect(error.message).toContain('shipping charge');
+	});
+
+	it('a NEGATIVE surcharge is refused, which is what ADR-012 refused to model as a discount', () => {
+		const error = expectErr(
+			computeEstimatedCost({ ...baseInput(), surcharge: moneyOf('-5.00', 'USD') }),
+		);
+		expect(error.code).toBe('cost.negative-amount');
+		expect(error.message).toContain('surcharge');
+	});
+
+	it('a zero unit price, shipping and surcharge are not negative and still compute', () => {
+		const free = expectOk(
+			computeEstimatedCost({
+				quantity: { value: d('3'), unit: 'piece' },
+				unitPrice: moneyOf('0', 'USD'),
+				shipping: moneyOf('0', 'USD'),
+				surcharge: moneyOf('0', 'USD'),
+			}),
+		);
+		expect(sameAmount(free.calculated, '0')).toBe(true);
+	});
+
 	it('a zero quantity is not negative, and costs the additive components alone', () => {
 		const none = expectOk(
 			computeEstimatedCost({

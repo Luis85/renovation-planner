@@ -1933,7 +1933,9 @@ Hence a text scan, over what the page can reach rather than over the files that 
 	});
 ```
 
-`readdirSync` joins the existing `node:fs` import.
+`readdirSync` joins the existing `node:fs` import, and `import { transform } from 'lightningcss';`
+is new — the package is already a devDependency and `scripts/styles-assemble.mjs` already imports
+it, so nothing arrives for this.
 
 **A stylesheet can import a stylesheet, and that is a fourth route.** `@import
 '../../docs/user-experience/concepts/concept.css';` added to `tests/harness/theme.css` loads the
@@ -1947,10 +1949,26 @@ carry none:
 
 ```typescript
 	it('lets no stylesheet the page loads pull in another', () => {
+		// PARSED, for the same reason the page check is parsed rather than pattern-matched.
+		// `@IMPORT` is valid CSS and a browser honours it; `/@import/` does not match it, and
+		// `/@import/i` would then match one inside a comment. `lightningcss` answers both at
+		// once — it is already a devDependency, already used by the stylesheet gate, and the
+		// visitor sees exactly what the cascade would.
+		const importsIn = (file: string): string[] => {
+			const found: string[] = [];
+			transform({
+				filename: file,
+				code: readFileSync(file),
+				minify: false,
+				visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
+			});
+			return found;
+		};
+
 		const sheets = (dir: string, skip: string[] = []): string[] =>
 			readdirSync(dir)
 				.filter((name) => name.endsWith('.css') && !skip.includes(name))
-				.filter((name) => /@import/.test(readFileSync(path.join(dir, name), 'utf8')))
+				.filter((name) => importsIn(path.join(dir, name)).length > 0)
 				.map((name) => path.posix.join(path.basename(dir), name));
 
 		const imported = [
@@ -1981,7 +1999,8 @@ each partial's body is checked for line count and hard-coded colours and then co
 **unchanged**. So `@import '/prototype.css';` in `styles/view.css` reaches the assembled sheet, and
 therefore the page, with every other guard green. That is why the scan covers `styles/` too.
 
-Plant it in BOTH trees before trusting it, because they are guarded for different reasons:
+Plant it in BOTH trees before trusting it, because they are guarded for different reasons — and
+plant one as `@IMPORT`, since answering case is half of why this parses rather than matching:
 
 - `tests/harness/theme.css` — expect FAIL naming `harness/theme.css`.
 - `styles/view.css` — expect FAIL naming `styles/view.css`. This is the one an earlier draft
@@ -3106,9 +3125,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-three review rounds — sixty findings. Fifty-eight were real and are fixed
-above rather than noted; two were not, and each is recorded as declined with the measurement that
-declined it.**
+**Revised across twenty-four review rounds — sixty-two findings. Sixty were real and are fixed above
+rather than noted; two were not, and each is recorded as declined with the measurement that declined
+it.**
 
 Round one, on the shape of the harness:
 
@@ -3303,6 +3322,18 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-four, on the one guard I left as a regex after arguing against regexes:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **`@IMPORT` is valid CSS and the scan was case-sensitive** | Round twenty-two replaced the HTML check with a parse, and argued for it at length. Round twenty-three then added a CSS check written as `/@import/` — the exact shape that argument refuses, two rounds later, by the same author | Task 5: `lightningcss` parses each sheet and the visitor reports what the cascade would see. Measured: it catches `@IMPORT` and ignores `/* @import '…' */`, which a case-insensitive regex would have got wrong in the other direction. Already a devDependency, already used by the stylesheet gate |
+| **The index stage has no height rule** | `<main class="rp-harness-stage">` gets no growth: `theme.css` flexes `.rp-harness-leaf > div` and `> div > div:last-child`, and neither matches it. A full-pane entry's `height: 100%` chain therefore has an auto-height containing block, so Konva measures the canvas from intrinsic content rather than from the pane — the index shows a component at the wrong size, which is the one thing the harness exists to get right | Task 4, as a follow-up. Found independently by both reviewers, which is what moved it from "a risk nobody can see" to work |
+
+The first is the sharpest self-inflicted finding on this branch. The argument for parsing was made,
+written down, and applied to HTML — and then the very next guard went in as a pattern, because it
+was a different file type and the lesson had been filed under the file type rather than under the
+question. A lesson that lives in one place is a lesson about that place.
+
 Round twenty-three, on a claim of mine that was false, a third fatal warning, and a rule the
 committed code already obeys:
 
@@ -3403,7 +3434,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all twenty-three rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty-four rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3418,6 +3449,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the fifty-eight fixes. Round twelve is the first to add a third pattern:
+execution, not the sixty fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

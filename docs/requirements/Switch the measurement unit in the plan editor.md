@@ -33,9 +33,12 @@ scales, and today exactly one unit.
 This is the display half of PRD §71's separation, made into a control. §71 already insists
 internal precision and display precision are two different things and gives
 `42718432 mm²` / `42.72 m²` as the worked example; it just never said who picks the second one.
-This use case says the renovator does, in the editor, and that the pick is **cosmetic** — it
-changes what a figure reads as and nothing else. The engine keeps calculating in millimetres,
-and no stored byte moves.
+This use case says the renovator does, in the editor. Switching writes nothing, moves no stored
+byte, and leaves the engine calculating in millimetres. **It is not, however, purely cosmetic,
+and this note stopped claiming it was** — the same unit is what calibration reads a typed known
+distance in, which is the one direction that reaches something persisted. *The unit is read in
+both directions* below is that whole story; it is stated in the opening because a reader who
+takes "cosmetic" at face value is the reader who ships the scale error.
 
 ## Actor
 
@@ -66,11 +69,17 @@ the preconditions and omit the behaviour the uncalibrated state actually owes.
 
 ## Extensions
 
-- **2a** — The plan has no calibration. The picker is present and **disabled**, and says why,
-  so the renovator is pointed at [[Scale calibration]] rather than left wondering where the
-  control went. It is the same refusal
+- **2a** — The plan has no calibration **and no calibration is in progress**. The picker is
+  present and **disabled**, and says why, so the renovator is pointed at [[Scale calibration]]
+  rather than left wondering where the control went. It is the same refusal
   [[An uncalibrated plan never presents a measurement as true]] already requires of
   [[Measurement label]], reached from the control instead of from the number.
+- **2b** — The plan has no calibration **and the renovator is calibrating it**. The picker is
+  **enabled**, because the unit is now an input rather than an output: the known distance about
+  to be typed is interpreted in it. This is the qualification 2a needs and did not have — an
+  earlier draft disabled the picker on every uncalibrated plan, which would have disabled it in
+  the one state where it first does something, and left the first calibration of every plan to
+  be typed in whatever unit the code happened to assume.
 - **3a** — The renovator picks the unit already in force. Nothing re-renders and nothing is
   written; a no-op is a no-op.
 - **4a** — A second editor leaf is open on the same plan. It follows immediately, because the
@@ -186,9 +195,41 @@ Named rather than left looking forgotten.
 - **Anything outside the plan editor.** The budget, the reports and the exports keep whatever
   units they already show. This is a lens on one surface, and a lens that silently changed the
   currency-shaped figures on a report would be a different and much larger promise.
-- **The unit a figure is *entered* in.** Typing a dimension into a field is an input problem
-  with its own validation and its own ambiguity, and nothing in the editor accepts a typed
-  dimension yet.
+- **Typed dimensions other than calibration's known distance.** Entering a value into a field
+  is an input problem with its own validation, and nothing else in the editor accepts one yet.
+  Calibration is the exception and it is emphatically *in* scope — see below.
+
+## The unit is read in both directions, and calibration is why
+
+**This note defines a term slice 7 already uses.**
+[`07-calibration`](../tasks/07-calibration.md) says the known real-world distance a renovator
+types is converted "from the **Plan's display unit** into world units (mm) … before it ever
+reaches a command". That sentence has had no owner: nothing said what a plan's display unit was
+or who set it. The picker is the answer, so the unit it sets is **read in both directions** —
+what a figure is shown as, and what a typed known distance means.
+
+An earlier draft of this note called input units out of scope on the grounds that "nothing in
+the editor accepts a typed dimension yet", which is false about slice 7 and was the most
+dangerous sentence in the note. Calibration establishes the scale that every later length, area,
+quantity and cost inherits, and unlike everything else here that scale is **persisted**. An
+implementation reading this note as output-only, against a calibration flow that reads the same
+unit as input, gets a scale wrong by a factor of 10 or 1000 — and a wrong scale is not a display
+defect, it is a plausible, wrong budget, which the *Calibration and measurement* epic calls the
+worst available outcome.
+
+Being read in both directions is what makes the unit **cosmetic-plus-one**, and the note says so
+rather than repeating "purely cosmetic" where it is no longer true: everything the picker does is
+cosmetic **except** its role as the interpretation of calibration's typed distance, which is the
+one place it reaches something persisted. The guarantee above is unaffected — switching a unit
+still writes nothing and still changes no stored figure — because it is *calibrating*, not
+switching, that persists.
+
+That earns one rule the picker would not otherwise need:
+
+- **Switching the unit while the calibration prompt is open must never silently reinterpret a
+  number already typed.** Either the picker is disabled for the duration of the prompt, or the
+  typed value is converted to the new unit in front of the renovator. Silently rebasing `5` from
+  metres to centimetres is a hundredfold scale error made of one click and no feedback.
 
 ## Acceptance criteria
 
@@ -219,8 +260,8 @@ Named rather than left looking forgotten.
    here rather than quietly corrected, because it is the exact defect this criterion's own three
    figures exist to catch — a test asserting them would have failed on it.
 8. Areas follow the length unit without a second control: picking cm gives cm², never m².
-9. On an uncalibrated plan the picker is disabled and carries a reason a renovator can read.
-   Checkable in a vault in under a minute.
+9. On an uncalibrated plan with no calibration in progress the picker is disabled and carries a
+   reason a renovator can read. Checkable in a vault in under a minute.
 10. Reopening a plan restores the unit it was left in; a plan never opened shows millimetres.
 11. A stored value that is absent, unparseable, or names an unknown unit yields millimetres and
    is dropped, with the same shape of test `settingsFrom` already has for `data.json`.
@@ -230,6 +271,18 @@ Named rather than left looking forgotten.
     automatically locale-invariant.
 14. The toolbar's tool group still enforces exactly one active tool, unchanged, with the picker
     present.
+15. On an uncalibrated plan the picker is **enabled** for the duration of calibration, so the
+    first calibration of a plan is typed in a unit the renovator chose rather than one the code
+    assumed. This and criterion 9 are the two halves of one rule and a test that asserts only
+    one of them passes the note while contradicting it.
+16. A known distance typed during calibration is interpreted in the unit the picker shows, and
+    the resulting scale is identical to typing the equivalent value in any other unit. `5` in
+    metres, `500` in centimetres and `5000` in millimetres produce the same calibration — a node
+    test on the conversion, not a walkthrough.
+17. Switching the unit while the calibration prompt is open never silently changes what a
+    typed value means: either the control is disabled for the duration, or the value is
+    visibly converted. Checkable in a vault in under a minute, and the case a test should
+    fail on is the silent one.
 
 ## Assumptions
 
@@ -289,7 +342,8 @@ Components read: [[Toolbar]], [[Tool button]], [[Measurement label]], [[Status b
 Design slices read: [`05-canvas-rendering-and-editor-shell`](../tasks/05-canvas-rendering-and-editor-shell.md)
 (the shell's five regions and the toolbar), [`06-editor-tool-framework-undo-redo-and-inspector`](../tasks/06-editor-tool-framework-undo-redo-and-inspector.md)
 (the tool registry the trailing group sits beside), [`07-calibration`](../tasks/07-calibration.md)
-(what makes a figure real in the first place) and
+(what makes a figure real in the first place — and the slice whose "Plan's display unit" this
+note turned out to define) and
 [`09-quantity-and-cost-engine`](../tasks/09-quantity-and-cost-engine.md) — the last being the one
 that refuted this note's first answer: `toMeasuredQuantity`'s signature, the `MeasurementUnit`
 vocabulary and the worked pipeline are why a display unit may not reach the pricing boundary.

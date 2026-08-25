@@ -193,13 +193,23 @@ export const useDialogStore = defineStore('dialog', () => {
 	 * Called by `DialogHost` alone — see its header for why the host settles rather than
 	 * each kind component.
 	 *
-	 * `current` is cleared BEFORE the promise settles so that a caller awaiting it may open
-	 * the next dialog immediately: the Reassign branch of the delete flow does exactly
-	 * that, and a clear ordered the other way would meet its own stacking guard.
+	 * `current` is cleared before `pending(result)` runs. What makes the Reassign branch
+	 * of the delete flow work — opening the next dialog the instant the awaited promise
+	 * resumes — is `current` being `null` BY THEN, not this particular statement order: a
+	 * Promise reaction always runs as a microtask, so clearing `current` after the call
+	 * instead would leave it just as reliably `null` before that reaction runs. This order
+	 * is kept anyway because it states the dependency where a reader can see it, rather
+	 * than relying on them already knowing that microtask timing makes the two orders
+	 * equivalent.
 	 */
 	function resolve(result: DialogResult): void {
 		const pending = settle;
-		if (pending === null) return; // a double-click on a resolved dialog, not a second settle
+		if (pending === null) return; // no dialog open to resolve
+		// NOT what stops a second settle — the Promise itself already refuses that no
+		// matter how many times `pending` is called. What this buys: the guard above
+		// becomes reachable on a later call (so a repeat resolve() short-circuits there
+		// instead of re-invoking a stale resolver), and the resolver closure is released
+		// rather than held onto for the life of the store.
 		settle = null;
 		current.value = null;
 		pending(result);

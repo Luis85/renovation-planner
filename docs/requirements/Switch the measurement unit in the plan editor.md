@@ -103,10 +103,18 @@ Whatever the renovator picks, and whichever branch above is taken:
   are untouched, so ADR-009's loader still validates and fails closed exactly as before.
 - **No calculation ever reads a displayed figure, and the pricing pipeline never learns the
   display unit at all.** Quantities and costs are converted from world millimetres to the
-  *asset's* unit by the quantity engine, which this note does not touch; the display unit
-  reaches only the formatter. A plan read in centimetres and a plan read in metres therefore
-  produce the same budget to the last cent — not because the figures are reconciled, but
-  because the budget was never shown the question.
+  *asset's* unit by the quantity engine, which this note does not touch. A plan read in
+  centimetres and a plan read in metres therefore produce the same budget to the last cent —
+  not because the figures are reconciled, but because the budget was never shown the question.
+
+  **On the output side the display unit reaches the formatter and nothing else. It has exactly
+  one input role, and this bullet has to name it or it is a lie:** calibration's typed known
+  distance is interpreted in it (*The unit is read in both directions* below). An earlier draft
+  of this bullet said the unit "reaches only the formatter" full stop, which survived the
+  section that made it false — and an implementation trusting it would pass a typed `5` as
+  5 mm where the renovator meant 5 m, persisting a scale off by a thousand. The guarantee is
+  therefore about the **output and pricing paths**, and is silent about calibration input by
+  design rather than by omission.
 - **Nothing about switching a unit reaches the vault.** No note is modified, no sidecar is
   rewritten, no save state is dirtied. This is what makes the switch cosmetic rather than an
   edit, and it is why the use case belongs under [[Canvas navigation]], whose own rule
@@ -195,9 +203,18 @@ Named rather than left looking forgotten.
 - **Anything outside the plan editor.** The budget, the reports and the exports keep whatever
   units they already show. This is a lens on one surface, and a lens that silently changed the
   currency-shaped figures on a report would be a different and much larger promise.
-- **Typed dimensions other than calibration's known distance.** Entering a value into a field
-  is an input problem with its own validation, and nothing else in the editor accepts one yet.
-  Calibration is the exception and it is emphatically *in* scope — see below.
+- **Typed dimensions other than calibration's known distance.** Entering a value into a field is
+  an input problem with its own validation. Calibration is the exception and it is emphatically
+  *in* scope — see *The unit is read in both directions*.
+
+  **The scope of this exclusion is asserted rather than proven, and the note says so**, because
+  the last version of this bullet claimed "nothing in the editor accepts a typed dimension yet"
+  and slice 7 refuted it. What was checked this time: slice 6's [[Inspector]] emits edits as
+  commands and its seven PRD §39 actions are not dimension entry. What was **not** checked:
+  every future field, and slices 8 and 10, which are unwritten against this question. So the
+  rule to implement is the general one — **any field taking a real-world dimension is
+  interpreted in the plan's display unit**, calibration being the only instance known today —
+  rather than a list of the fields somebody remembered.
 
 ## The unit is read in both directions, and calibration is why
 
@@ -333,7 +350,8 @@ when*. This note does not trigger it: a display preference held outside the vaul
 the sidecar the ADR is about.
 
 Business rules read: [[World coordinates are millimetres, converted once at the engine boundary]]
-(BR-SPATIAL-001, amended by this note) and
+(BR-SPATIAL-001 — **clarified** by this note, not amended: it owes one sentence distinguishing a
+parallel display conversion from a chained engine one, and its invariant is unchanged) and
 [[An uncalibrated plan never presents a measurement as true]].
 
 Components read: [[Toolbar]], [[Tool button]], [[Measurement label]], [[Status bar]],

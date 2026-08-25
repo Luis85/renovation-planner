@@ -5,10 +5,20 @@
  * right: `getLeavesOfType` answers only leaves that have been given that view state, and
  * `getLeaf` hands back a NEW empty leaf every call. That pairing is what makes "open a
  * second tab on every click" a failure a test can see.
+ *
+ * **This file imports nothing from `src/presentation/`, and stays that way on purpose.**
+ * `FakeWorkspace`/`FakeLeaf` are DOM-independent and used from plain-'node' test files
+ * (`revealView.test.ts`, `revealPlanEditor.test.ts`) as well as jsdom ones — this used to
+ * also export `makeView`, which reaches `RenovationProjectView` and, through it, the real
+ * `ViewRoot.vue`. That single re-export dragged a Vue SFC's client-mode compilation into
+ * every 'node'-environment file that imported this one for `FakeWorkspace` alone, which is
+ * what turned `ViewRoot.vue` gaining real content (slice 15's `DialogHost`) into a
+ * `@vitest/coverage-v8` false positive (see `tests/helpers/makeRenovationProjectView.ts` for
+ * the full account). `makeView` now lives there, precisely so this file can keep this
+ * invariant for the next helper someone adds here.
  */
 
 import type { WorkspaceLeaf } from './obsidian-mock';
-import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 
 // `implements` ties this fake to the mock's contract where the EDITOR can see it — no
 // gate type-checks tests/** yet (vitest transpiles without checking, tsconfig includes
@@ -31,14 +41,6 @@ export class FakeLeaf implements WorkspaceLeaf {
 		return this.state ?? {};
 	}
 }
-
-/**
- * The real view against a fake leaf — the `as never` cast lives HERE, once. Both the
- * jsdom suite and the browser harness mount build their view through this, so a grown
- * constructor requirement meets every consumer at the same time instead of fixing the
- * suite and silently stranding the harness page.
- */
-export const makeView = (): RenovationProjectView => new RenovationProjectView(new FakeLeaf() as never);
 
 export class FakeWorkspace {
 	readonly leaves: FakeLeaf[] = [];

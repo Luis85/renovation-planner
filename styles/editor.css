@@ -21,6 +21,20 @@
 	color: var(--text-normal);
 }
 
+/*
+ * Only the VUE ROOT needs to be a positioned ancestor, not `.renovation-plan-editor-view` —
+ * the outer host div `PlanEditorView.ts` creates for the Vue app to mount into.
+ * `DialogHost` (design slice 15) mounts as a direct child of `.renovation-plan-editor`
+ * itself, so `styles/dialogs.css`'s `.rp-dialog-overlay` finds THIS as its nearest
+ * positioned ancestor when it resolves its `position: absolute`. `.renovation-plan-editor-view`
+ * sits one level further out and would never be the overlay's nearest positioned ancestor
+ * once this one has a position, so giving it `relative` too would assert a claim nothing
+ * needs — kept off the shared rule above for exactly that reason.
+ */
+.renovation-plan-editor {
+	position: relative;
+}
+
 .rp-editor-toolbar {
 	display: flex;
 	align-items: center;

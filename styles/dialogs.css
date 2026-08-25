@@ -5,7 +5,15 @@
  *
  * Positioned against the VIEW, not the window: `DialogHost` mounts inside each
  * ItemView-scoped Vue app, and a dialog belongs to the view that raised it. `absolute`
- * over `fixed` is what keeps a Plan Editor dialog inside its own split pane.
+ * over `fixed` is what keeps a Plan Editor dialog inside its own split pane — but only
+ * because the overlay's MOUNT PARENT is itself a positioned ancestor. `absolute` resolves
+ * against the nearest ancestor whose `position` is not `static`, not against whichever
+ * element merely CONTAINS it, so this partial does not make that true by itself: it depends
+ * on `.renovation-plan-editor` (`styles/editor.css`) and `.renovation-planner-view`
+ * (`styles/view.css`) each declaring `position: relative` on the element `DialogHost`
+ * mounts directly inside. This partial has no business naming those two view-root classes
+ * itself — each partial owns its own root's positioning — so the dependency is stated here
+ * and satisfied there.
  */
 .rp-dialog-overlay {
 	position: absolute;

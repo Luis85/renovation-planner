@@ -1,12 +1,4 @@
 /**
- * @vitest-environment jsdom
- *
- * jsdom for the same reason `revealView.test.ts` needs it: `../../../helpers/workspace`
- * pulls in `RenovationProjectView`, whose `ViewRoot.vue` mounts slice 15's `DialogHost`, and
- * running that import under the default 'node' environment alongside `dialogKinds.test.ts`'s
- * jsdom one gets the SAME `.vue` file compiled twice by `@vitejs/plugin-vue` and merged into
- * a phantom duplicate by `@vitest/coverage-v8` — see that file's header for the full account.
- *
  * Opening the Plan Editor for a specific Plan.
  *
  * The premise this view exists on is that several coexist — comparing Ground Floor against

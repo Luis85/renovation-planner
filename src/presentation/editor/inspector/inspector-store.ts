@@ -18,11 +18,8 @@ import type { UndoableCommand } from '../tools/undoable-command';
  * whichever slice needs it (see the spec's Design → Inspector section).
  */
 // Exported per the spec's Interfaces & Contracts block, and consumed inside this module
-// (the `dto` ref, `hydrateFrom`, `refresh` further down) — but nothing outside it imports
-// the type yet, since the Vue UI that binds a form to `dto` arrives with slice 8.
-// Suppressed here rather than deleted, matching Zone.perimeter()'s own reasoning: deleting
-// a declared capability is how it rots before its first real consumer shows up.
-// fallow-ignore-next-line unused-type
+// (the `dto` ref, `hydrateFrom`, `refresh` further down) — slice 8's runtime imports the
+// type for its own `inspectorDto` slot.
 export type InspectorDto =
 	| { readonly kind: 'empty' }
 	| { readonly kind: 'zone'; readonly id: ZoneId; readonly name: string; readonly areaMm2: number }

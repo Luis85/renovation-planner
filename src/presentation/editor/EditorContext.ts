@@ -1,5 +1,6 @@
 import { inject, type InjectionKey } from 'vue';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
+import type { PlanEditorCommandServices } from './planEditorCommands';
 import type { BackgroundVault } from './layers/background/BackgroundRenderModel';
 
 /**
@@ -24,6 +25,12 @@ export interface EditorContext {
 	/** The Plan this leaf shows. Carried in Obsidian's per-leaf view state, not in the type. */
 	readonly planId: string;
 	readonly queries: PlanEditorQueryServices;
+	/**
+	 * The write side (design slice 8): the plain commands the editor's reversible
+	 * adapters wrap, the repository port their restore halves read and write through,
+	 * and the Inspector query. See `planEditorCommands.ts`.
+	 */
+	readonly commands: PlanEditorCommandServices;
 	readonly vault: BackgroundVault;
 	/**
 	 * Obsidian's `css-change`, as a subscription that hands back its own unsubscribe.

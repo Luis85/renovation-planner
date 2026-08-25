@@ -16,6 +16,7 @@ import {
 } from '../../../src/presentation/views/PlanEditorView';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
+import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { installEditorEnvironment, settle } from '../../helpers/editor';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { FakeLeaf } from '../../helpers/workspace';
@@ -31,6 +32,8 @@ function deps(): PlanEditorDeps {
 			getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
 			findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
 		},
+		// The lifecycle tests here dispatch nothing; the refusal commands keep that honest.
+		commands: unavailablePlanEditorCommands(),
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',

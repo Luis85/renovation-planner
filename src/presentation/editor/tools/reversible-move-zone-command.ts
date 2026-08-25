@@ -63,3 +63,13 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		return ok(undefined);
 	}
 }
+
+/**
+ * Design slice 8's vertex-drag gesture (docs/tasks/08-zone-editing.md, "Editing a single
+ * vertex"). A vertex drag is a whole-geometry replacement exactly like a body drag — the
+ * same wrapped command, one forward and one inverse `Polygon`, expectations from the same
+ * shared ledger — so it IS this class, under the name the spec gives the gesture. The two
+ * differ only in how their caller computes forward/inverse (one index replaced versus
+ * every vertex translated), which happens in `SelectTool`, not here.
+ */
+export type ReversibleMoveZoneVertexCommand = ReversibleMoveZoneCommand;

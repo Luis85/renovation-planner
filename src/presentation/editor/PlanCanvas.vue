@@ -23,7 +23,9 @@ import { tr } from '../i18n/strings';
 import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import type { ThemeTokens } from './theme/themeTokens';
-import { screenPoint, viewportTransform } from './viewport/Viewport';
+import { screenPoint, screenToWorld, viewportTransform, STAGE_PIXELS } from './viewport/Viewport';
+import type { EditorPointerEvent } from './tools/editor-tool';
+import { useEditorRuntime } from './runtime';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import BackgroundLayer from './layers/background/BackgroundLayer.vue';
 import EmptyLayer from './layers/EmptyLayer.vue';
@@ -35,6 +37,7 @@ const emit = defineEmits<{ backgroundStatus: [status: BackgroundStatus] }>();
 
 const editor = useEditorStore();
 const workspace = useWorkspaceStore();
+const runtime = useEditorRuntime();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
 
@@ -77,7 +80,30 @@ function onWheel(event: WheelEvent): void {
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
 }
 
+/**
+ * Design slice 8's routing rule: with a TOOL active, primary-button pointer events go to
+ * `ToolManager` and the camera keeps only wheel/key zoom; with none (camera mode) drag
+ * pans exactly as slice 5 shipped. One conversion here — DOM event to
+ * `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
+ * pixel math (ADR-009).
+ */
+function editorPointerEvent(event: PointerEvent): EditorPointerEvent {
+	const at = stagePoint(event);
+	return {
+		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
+		screenPoint: at,
+		button: event.button === 0 ? 'primary' : event.button === 1 ? 'auxiliary' : 'secondary',
+		modifiers: { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey },
+		targetId: null,
+	};
+}
+
 function onPointerDown(event: PointerEvent): void {
+	if (runtime.activeToolId.value !== null && event.button === 0) {
+		(event.target as Element).setPointerCapture?.(event.pointerId);
+		runtime.toolManager.pointerDown(editorPointerEvent(event));
+		return;
+	}
 	// Primary button only: the middle button is paste-on-Linux and the right one is the
 	// context menu, and claiming either would take a gesture the host owns.
 	if (event.button !== 0) return;
@@ -91,10 +117,18 @@ function onPointerDown(event: PointerEvent): void {
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
 	editor.setPointer(at);
+	if (runtime.activeToolId.value !== null) {
+		runtime.toolManager.pointerMove(editorPointerEvent(event));
+		return;
+	}
 	editor.continuePan(at);
 }
 
-function onPointerUp(): void {
+function onPointerUp(event: PointerEvent): void {
+	if (runtime.activeToolId.value !== null) {
+		runtime.toolManager.pointerUp(editorPointerEvent(event));
+		return;
+	}
 	editor.endPan();
 }
 
@@ -106,9 +140,15 @@ function onPointerLeave(): void {
 /**
  * §85 asks for keyboard-accessible controls, and zoom is the one interaction this slice
  * adds — so it is reachable by key as well as by wheel. Anchored at the middle of the
- * stage, since there is no pointer involved in a keypress.
+ * stage, since there is no pointer involved in a keypress. `Escape` abandons the active
+ * tool's in-flight gesture (`ToolManager.cancelGesture` is a safe no-op when there is
+ * none).
  */
 function onKeyDown(event: KeyboardEvent): void {
+	if (event.key === 'Escape') {
+		runtime.toolManager.cancelGesture();
+		return;
+	}
 	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
 	if (factor === null) return;
 	event.preventDefault();
@@ -185,7 +225,9 @@ onBeforeUnmount(() => {
 				:transform="transform"
 				:visible="layerVisibility.annotation"
 			/>
-			<InteractionLayer />
+			<InteractionLayer
+				:tokens="props.tokens"
+			/>
 		</VStage>
 	</div>
 </template>

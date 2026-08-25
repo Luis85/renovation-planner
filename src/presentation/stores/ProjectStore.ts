@@ -56,8 +56,23 @@ export const useProjectStore = defineStore('project', () => {
 	 * The zones query is not run when the Plan is absent or unreadable: there is nothing to
 	 * draw them on, and listing the zones of a plan that does not exist is a vault read
 	 * whose only possible answer is empty.
+	 *
+	 * **The `keepPreviousOnFailure` option is slice 8's, and only its.** A re-hydration
+	 * after a command whose WRITE succeeded is a different situation from an open-time
+	 * load: the vault state is newer than what the store shows, so blanking it would
+	 * replace "possibly stale" with definitely nothing — and through slice 13's save-state
+	 * tracking would read as a save error over a save that worked. There the failed read
+	 * keeps what the store had and surfaces the cause through `error` alone; slice 17's
+	 * rules for a failed hydrating read own how that reaches the user. Open-time loads keep
+	 * the default: a first paint has no previous contents to keep, and a re-open after a
+	 * failure must not draw a plan beside an error saying it could not be read.
 	 */
-	async function hydrate(queries: PlanEditorQueryServices, planId: string): Promise<void> {
+	async function hydrate(
+		queries: PlanEditorQueryServices,
+		planId: string,
+		options?: { readonly keepPreviousOnFailure?: boolean },
+	): Promise<void> {
+		const keepOnFailure = options?.keepPreviousOnFailure === true;
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -68,6 +83,10 @@ export const useProjectStore = defineStore('project', () => {
 
 		const foundPlan = await queries.getPlan(planId);
 		if (isErr(foundPlan)) {
+			if (keepOnFailure && status.value === 'ready') {
+				error.value = foundPlan.error;
+				return;
+			}
 			return fail(foundPlan.error);
 		}
 		if (foundPlan.value === null) {
@@ -79,6 +98,10 @@ export const useProjectStore = defineStore('project', () => {
 
 		const foundZones = await queries.findZonesByPlan(planId);
 		if (isErr(foundZones)) {
+			if (keepOnFailure && status.value === 'ready') {
+				error.value = foundZones.error;
+				return;
+			}
 			return fail(foundZones.error);
 		}
 

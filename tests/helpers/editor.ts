@@ -1,10 +1,14 @@
 import Konva from 'konva';
-import { createPinia } from 'pinia';
+import { createPinia, type Pinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { ok } from '../../src/core/result/Result';
 import { EDITOR_CONTEXT, type EditorContext } from '../../src/presentation/editor/EditorContext';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
+import {
+	unavailablePlanEditorCommands,
+	type PlanEditorCommandServices,
+} from '../../src/presentation/editor/planEditorCommands';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
 import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
@@ -31,11 +35,15 @@ export interface EditorHarnessOptions {
 	readonly plan?: PlanDto | null;
 	readonly zones?: readonly ZoneDto[];
 	readonly queries?: PlanEditorQueryServices;
+	/** The write side; defaults to the refusal commands, for tests that dispatch nothing. */
+	readonly commands?: PlanEditorCommandServices;
 	readonly vault?: BackgroundVault;
 }
 
 export interface EditorHarness {
 	readonly wrapper: VueWrapper;
+	/** The Pinia instance this leaf's stores live in — for driving store state directly. */
+	readonly pinia: Pinia;
 	/**
 	 * The canvas container the camera listens on, and the Konva stage inside it — both
 	 * `null` when the editor mounted WITHOUT a canvas, which it does for a plan that is
@@ -125,6 +133,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const context: EditorContext = {
 		planId: options.plan?.id ?? FIXTURE_PLAN.id,
 		queries: options.queries ?? fakeQueries(options.plan ?? FIXTURE_PLAN, options.zones ?? FIXTURE_ZONES),
+		commands: options.commands ?? unavailablePlanEditorCommands(),
 		vault: options.vault ?? EMPTY_VAULT,
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
@@ -141,9 +150,10 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const host = document.createElement('div');
 	document.body.appendChild(host);
 
+	const pinia = createPinia();
 	const wrapper = mount(PlanEditorRoot, {
 		attachTo: host,
-		global: { plugins: [createPinia(), VueKonva], provide: { [EDITOR_CONTEXT as symbol]: context } },
+		global: { plugins: [pinia, VueKonva], provide: { [EDITOR_CONTEXT as symbol]: context } },
 	});
 
 	await settle();
@@ -160,6 +170,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 
 	return {
 		wrapper,
+		pinia,
 		canvasEl,
 		// Taken only when a canvas was mounted: `Konva.stages` is process-global, so the last
 		// entry would otherwise be some previous test file stage.

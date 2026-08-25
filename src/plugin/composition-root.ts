@@ -5,6 +5,9 @@ import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
+import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
+import { MoveSpatialObjectCommand } from '../application/commands/zone/MoveSpatialObject';
+import { GetZoneInspector } from '../application/queries/GetZoneInspector';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
@@ -16,6 +19,7 @@ import {
 	type PlanEditorQueryServices,
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
 import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
@@ -133,6 +137,15 @@ export interface PersistenceServices {
 	 */
 	readonly setPlanBackground: SetPlanBackgroundCommand;
 	readonly reversibleSetPlanBackground: ReversibleSetPlanBackgroundCommand;
+	/**
+	 * Design slice 8's write side for the Plan Editor, beside slice 5's background pair:
+	 * the plain zone commands the editor's reversible adapters wrap (one adapter per
+	 * gesture, built inside the editor), and the Inspector query. Composed here so
+	 * `presentation/` is handed interfaces and never builds a command from a repository.
+	 */
+	readonly deleteZone: DeleteZoneCommand;
+	readonly moveZone: MoveSpatialObjectCommand;
+	readonly zoneInspector: GetZoneInspector;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -228,6 +241,9 @@ export function createCompositionRoot(
 			planEditorQueries: createPlanEditorQueries(queries),
 			setPlanBackground,
 			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),
+			deleteZone: new DeleteZoneCommand(zones, eventBus),
+			moveZone: new MoveSpatialObjectCommand(zones, eventBus),
+			zoneInspector: new GetZoneInspector(zones),
 			changeAdapter,
 		},
 	};
@@ -256,6 +272,15 @@ export function planEditorDeps(
 		// all — which would leave a restored Plan Editor leaf pointing at a view type
 		// Obsidian does not know.
 		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
+		commands: persistence
+			? {
+					createZone: persistence.createZone,
+					moveObject: persistence.moveZone,
+					deleteZone: persistence.deleteZone,
+					zones: persistence.zones,
+					zoneInspector: persistence.zoneInspector,
+				}
+			: unavailablePlanEditorCommands(),
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),

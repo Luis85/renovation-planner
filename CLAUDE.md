@@ -21,11 +21,33 @@ persisted Zones of one Plan rendered read-only, an image or PDF background, and 
 pan/zoom camera. Nothing on that canvas is editable: design slice 6 built the tool
 framework underneath it — `EditorTool` and its switching lifecycle, `CommandHistory`
 undo/redo, the reversible move-zone command, transformer normalization, the snap service,
-the selection store and the Inspector's selection-to-DTO-to-command pipeline — but wires
-no concrete tool into it, adds no Vue Inspector panel, and touches nothing in the
-composition root. Slice 7 (Calibration) and slice 8 (Zone Editing) are what plug into that
-framework and make the canvas editable. The one thing slice 5 writes is which document a
-Plan's background IS.
+the selection store and the Inspector's selection-to-DTO-to-command pipeline. Slice 7
+(Calibration) added the first concrete tool; slice 8 (Zone Editing) wired the framework
+into the editor for real — see the next section. The one thing slice 5 writes is which
+document a Plan's background IS.
+
+**Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
+are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
+`withEditorStateRefresh` decorator — is wired per leaf by `runtime.ts`, which is built
+inside the Vue tree (it hands out Pinia stores) and provided once per leaf. The toolbar
+offers Pan/Select/Draw-zone plus undo/redo; the Inspector panel shows the selection DTO
+and a Delete button that dispatches through `InspectorStore.commit`'s `toCommand` — the
+§59 choke point, not a second seam. The composition root now hands the view a
+`PlanEditorCommandServices` bundle (plain zone commands, the `ZoneRepository` port, the
+Inspector query) beside slice 5's queries; with settings unrecovered it is the refusal
+bundle, mirroring `unavailablePlanEditorQueries`. Three rules came out of it:
+
+- **The application-layer reversible adapters satisfy `UndoableCommand` structurally**
+  and cannot name it — the interface lives in `presentation/` and the layer ban holds.
+  Both adapters take the shared `WriteLedger`: every successful half records into it,
+  including restores, or a sibling adapter's inverse expectation goes stale.
+- **Every dispatch funnels through ONE object per leaf** — the wrapped dispatcher that
+  `runtime.ts` hands to tools as `context.commandDispatcher` and to the toolbar and the
+  delete button alike. A dispatch that bypasses it silently breaks the post-command
+  refresh and the reactive undo/redo flags; nothing errors anywhere.
+- **Camera mode is "no active tool"**, exactly what slice 5 shipped (`ToolManager` grew
+  `clearActiveTool()` for it). A gesture abandoned with Escape clears through
+  `cancelGesture()`; a rejected close keeps the vertex buffer.
 
 **Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`**, and the
 composition root still registers nothing — the toolbar that would arrives with slice 8, so
@@ -404,6 +426,16 @@ the editor, not the gate.
   created". Making the fake refuse turned **86 tests** red. The lesson that generalises: when
   a fake stands in for something that ENFORCES a precondition, the fake has to enforce it
   too, or the precondition is only ever checked in production.
+  **Fourth instance, found by review rather than by a gate.** The slice 8 e2e rig drove
+  gestures with bare `pointerdown` events that no `pointerup` ever followed — a sequence
+  no mouse can produce, since a real click always delivers both. `ToolManager` clears its
+  in-flight flag on `pointerUp`, so between two vertices of a polygon the flag is false,
+  and Escape-cancels-the-drawing was certified by a test whose event stream never left
+  the state the flag models. The fix (cancelGesture reaches any active tool) is fine; the
+  lesson is about the RIG: a simulated event stream must respect the grammar of the real
+  input device — clicks are down+up pairs, drags are down/move…/up — and the rig now
+  spells them that way (`click()` in `zoneEditing.test.ts`), so the next gesture test
+  cannot accidentally model an impossible input.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`

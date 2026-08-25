@@ -50,6 +50,7 @@ matrix is a citation to something that no longer exists.
 """
 import io, os, re, subprocess, sys, tempfile, shutil
 from html.parser import HTMLParser
+import posixpath
 from urllib.parse import unquote
 
 # The matrix was computed against ONE state of the corpus, and `RP_CORPUS_ROOT` is how a replay
@@ -126,6 +127,18 @@ def is_backlink(href):
     encode a character in the FILENAME, where the folder comparison never looked — `%63omponents`
     would have read as a folder that does not exist and the anchor would have survived.
 
+    The path is resolved by `posixpath.normpath` rather than by stripping prefixes one at a time.
+    Four consecutive review rounds landed on this function — depth, then quoting, then unquoted and
+    multi-line, then root-relative and whitespace, then encoding — and each was one more step
+    between a URL and its path. `../tasks/../deliverables/x.md`, `a/../deliverables/x.md` and
+    `./docs/./components/Toast.md` all resolve into the derived corpus and all read as external
+    before this, which is three more instances of the same sequence waiting to be reported. Handing
+    resolution to the standard library is the same move that replaced the anchor regex with a
+    parser, one layer down: stop enumerating the steps.
+
+    CASE is deliberately not normalised. `../DELIVERABLES/x.md` stays external because on a
+    case-sensitive filesystem that folder does not exist — the rule follows the vault, not the URL.
+
     The leading slash was missing, so `/docs/components/Toast.md` — a valid repository-root URL —
     read as external and its label survived into the searched body. This is the SCOPE rule, the
     one thing the output gate shares with this function by design, so a defect here is invisible
@@ -138,8 +151,8 @@ def is_backlink(href):
     # The scheme test runs AFTER decoding as well as before, because decoding can produce one.
     if re.match(r"\w+:", h) or re.match(r"\w+:", p) or h.startswith("//") or p.startswith("//"):
         return False
-    p = re.sub(r"^/", "", p)
-    p = re.sub(r"^(?:\.{1,2}/)+", "", p)
+    p = posixpath.normpath(re.sub(r"^/", "", p))
+    p = re.sub(r"^(?:\.\./)+", "", p)
     p = re.sub(r"^docs/", "", p)
     return p.split("/")[0] in DERIVED_FOLDERS
 
@@ -162,6 +175,11 @@ SCOPE_CASES = [
     ("../../%63omponents/Toast.md",            True,  "percent-encoded directory character"),
     ("../deliverables/Design%20System.md",     True,  "percent-encoded filename, as the corpus writes it"),
     ("%2F%2Fhost/deliverables/x",              False, "protocol-relative only after decoding"),
+    ("../tasks/../deliverables/x.md",          True,  "interior dot segment"),
+    ("a/../deliverables/x.md",                 True,  "interior dot segment, no leading prefix"),
+    ("./docs/./components/Toast.md",           True,  "redundant same-directory segments"),
+    ("../deliverables//x.md",                  True,  "duplicate slash"),
+    ("../DELIVERABLES/x.md",                   False, "case is not normalised: the vault decides"),
     ("../deliverables/x.md#anatomy",           True,  "with a fragment"),
     ("../deliverables/x.md?v=2",               True,  "with a query"),
     ("https://example.com/deliverables/x",     False, "external, http"),

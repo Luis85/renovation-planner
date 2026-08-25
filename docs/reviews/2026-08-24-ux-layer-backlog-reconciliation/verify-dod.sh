@@ -550,7 +550,13 @@ L=io.open(D+'.md',encoding='utf-8').read()
 # Find the history boundary by PATTERN, not by its current wording — the heading counts the
 # corrections, so it is renamed by every round, and hard-coding it made this gate crash the
 # first time the count moved.
-_b=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+# Anchored on the SECTION HEADING, not on the counting sentence below it. Three gates depend on
+# this boundary, and it was keyed to "N corrections, all from review of the committed matrix" — a
+# sentence rewritten on every round. Changing "all" to "all but one", a true and necessary edit,
+# made the boundary unresolvable and turned the live half into the whole document; the corrections
+# section's own quoted figures then failed three checks at once. A load-bearing anchor may not sit
+# on a sentence that every round rewrites.
+_b=re.search(r"^## Findings withdrawn after review$", L, re.M)
 if not _b:
     print("  FAIL cannot locate the corrections heading that bounds the live half"); sys.exit(1)
 live=L[:_b.start()]
@@ -612,7 +618,7 @@ python3 - <<'PYX' || fail=1
 import io,re,collections,sys
 D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
 L=io.open(D+'.md',encoding='utf-8').read()
-_b=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+_b=re.search(r"^## Findings withdrawn after review$", L, re.M)
 if not _b:
     print("  FAIL cannot locate the corrections heading that bounds the live half"); sys.exit(1)
 live, hist = L[:_b.start()], L[_b.start():]
@@ -779,7 +785,7 @@ everywhere = [
 # should not have: correction 7 records that "18 named rows" were rescored, which is a count of
 # rows that correction moved, not the total. The historical half quotes superseded figures ON
 # PURPOSE, so a shape general enough to be useful there would fail on every correction record.
-_lb=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+_lb=re.search(r"^## Findings withdrawn after review$", L, re.M)
 _live = L[:_lb.start()] if _lb else L
 wrong=[]
 for label,shape,want in everywhere:

@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Fifty-two corrections, all from review of the committed matrix — which is the argument for
+Fifty-four corrections, all but one from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1897,6 +1897,46 @@ since has landed on `is_backlink`, which is a **normalisation** problem, not a p
 not its own path, and each round has been one more step between the two. The table is the record of
 which steps are known — it does not claim to be all of them, and the next round will say so if it
 is not.
+
+**A fifty-third correction, and it is the only one in this ledger not reported by review.** The
+previous correction closed by saying the sequence would continue and that the next round should
+decide whether normalisation belongs to the standard library. Rather than wait to be told a sixth
+time, the three remaining instances were looked for — and found: `../tasks/../deliverables/x.md`,
+`a/../deliverables/x.md` and `./docs/./components/Toast.md` all resolve into the derived corpus and
+all read as **external**.
+
+**So resolution is `posixpath.normpath` now, not a sequence of prefix strips.** That is the same
+move that replaced the anchor regex with an HTML parser, one layer down: the failure was never a
+missing step, it was assembling steps at all. Five cases added — three interior-dot forms, a
+duplicate slash, and one that is deliberately **False**.
+
+**Case is not normalised, and that is a decision rather than an omission.** `../DELIVERABLES/x.md`
+stays external because on a case-sensitive filesystem that folder does not exist. The rule follows
+the vault, not the URL.
+
+**Watched failing by restoring the step-by-step stripping: 3 of 25 wrong**, each named by form.
+
+**What this changes about the sequence is worth stating, because "we fixed it five times" is not a
+result.** Four rounds were spent adding steps and each one was correct in isolation. The pattern
+only became visible when the *fifth* was written down beside the others — and the pattern, not any
+of the five, is what produced this fix. That is the argument for recording corrections rather than
+absorbing them.
+
+**A fifty-fourth correction, and the previous one caused it.** Writing *"all but one from
+review"* — true, and necessary, since the fifty-third was not reported — made the live/historical
+boundary unresolvable. **Three gates key off that boundary**, and it was anchored on the counting
+sentence *"N corrections, all from review of the committed matrix"*: a sentence this section
+rewrites on every single round. With the anchor gone the live half became the whole document, and
+the corrections section's own deliberately-quoted stale figures failed three checks at once.
+
+**A load-bearing anchor may not sit on a sentence that every round rewrites.** It anchors on the
+section HEADING now, at all three sites. Watched failing by renaming the heading: the boundary
+reports `cannot locate` and the gates stop rather than silently widening.
+
+**The failure mode is the one worth keeping.** The boundary did not go missing quietly — it took
+the live half with it and the checks got *louder*, which is how a fail-closed anchor is supposed to
+behave. Had `_b` defaulted to the whole document on a miss, the same edit would have produced three
+gates passing over material they were never meant to read.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

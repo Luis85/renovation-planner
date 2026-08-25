@@ -199,8 +199,15 @@ worse than one that says it is doing it.
    either a no-op nobody can prove or a division applied twice" — is satisfied, because it is
    about *chaining*. The rule owes one sentence: as written it describes one consumer and reads
    as though it were the only one. Its invariant is unchanged.
-2. **[[Project settings]] owes one word: its unit is a *default*.** Per the scope reconciliation
-   above — otherwise two MVP notes read as contradicting each other about what a figure shows.
+2. **[[Project settings]] owes a *new setting*, not a relabel.** An earlier phrasing here said it
+   owed "one word" — that its unit is a default — which the two-axis rule above makes
+   insufficient: the field it has is a `metric | imperial` **system**, and calling it a default
+   does not turn it into an `m | cm | mm` **display unit**. Level 2 of the chain stays
+   unimplementable until that note adds a distinct default display unit. Both things are owed:
+   the new setting, *and* the framing that whatever governs display is a default a plan may
+   override, per the scope reconciliation above — otherwise two MVP notes read as contradicting
+   each other about what a figure shows. [[Settings and configuration]] owes the same pair at
+   level 3.
 3. **[[Toolbar]]'s Contract must admit a non-tool child.** It is written as a container of tools,
    "given the tool registry and the id of the active tool, emits a tool-activation request", with
    one invariant: exactly one [[Tool button]] active. The picker is not a tool, never becomes
@@ -227,6 +234,12 @@ worse than one that says it is doing it.
    it names is right and the **module** is not: calibration's input conversion is the same
    presentation-layer conversion criterion 5 places there, run inverse. One module, used both
    ways; `core/units/` gains nothing.
+
+   **Its Dependencies section needs the same edit, and naming only the prose would miss it.**
+   That section lists "Slice 2 (Core Primitives) — `Point`, `distance()`, `Result<T,E>`, the
+   error category taxonomy, and **unit conversion**". An implementer reads dependencies before
+   prose, so leaving that entry standing reintroduces exactly the misplacement this item
+   rejects. Slice 2 supplies the world-unit *convention* to that slice, not a unit conversion.
 
 ## Out of scope
 

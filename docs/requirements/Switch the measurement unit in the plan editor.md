@@ -228,11 +228,11 @@ Named rather than left looking forgotten.
   both be right. So the precedence is stated here, where the picker is initialised:
 
   1. the **plan's remembered unit**, when one is stored and valid;
-  2. otherwise the **project's** configured unit;
+  2. otherwise the **project's default display unit**;
   3. otherwise the **plugin's default display unit**;
   4. otherwise **millimetres**.
 
-  **Level 3 does not exist today, and the existing `units` setting is not it.**
+  **Neither level 2 nor level 3 exists today, and the `units` settings are not them.**
   `src/plugin/settings/settings.ts` already ships `UNITS = ['metric', 'imperial']` with a
   default of `'metric'` — the one setting the pane currently offers — and an earlier draft of
   this note treated the whole level as unbuilt, which was false against code that is in the
@@ -248,10 +248,24 @@ Named rather than left looking forgotten.
     scope* — so **in an `imperial` vault the picker offers the metric units anyway today**,
     which is a named limitation the imperial work closes, rather than a silent one somebody
     discovers.
-  - a **default display unit** is a separate setting that does not exist yet, and adding it
-    belongs to [[Settings and configuration]] rather than here. Until it does, level 3 is
-    genuinely absent and the chain reaches millimetres — which is now true because of what the
-    setting *is*, not because nobody looked.
+  - a **default display unit** is a separate setting that does not exist yet. Until it does,
+    level 3 is genuinely absent and the chain reaches millimetres — which is true because of
+    what the setting *is*, not because nobody looked.
+
+  **Level 2 has exactly the same mismatch, and an earlier draft of this very paragraph missed
+  it while explaining the pattern one line below.** A project stores a **unit system** too:
+  PRD §83 assigns "units" to project scope, and [[Start a renovation project]] step 6 writes
+  "the unit system" onto the project note. So `metric` cannot select a display unit at the
+  project level either, for the identical reason it cannot at the plugin level. Diagnosing a
+  pattern and then not applying it one rung up is the failure this note has now made in three
+  different sections; naming it is cheaper than finding it again.
+
+  So **both middle levels are owed a default *display unit*, distinct from the system they
+  already store** — level 2 to [[Project settings]], level 3 to
+  [[Settings and configuration]]. Both are absent today and the chain reaches millimetres. The
+  system setting does a different job at both levels: it selects the **vocabulary** the picker
+  offers, project overriding plugin, exactly as every other project setting overrides its
+  plugin default.
 
   **Level 1 sitting above level 2 is a real claim against [[Project settings]], and it is made
   deliberately rather than by accident of ordering.** A plan remembered in centimetres shows
@@ -338,21 +352,26 @@ That earns one rule the picker would not otherwise need:
    asset's, whatever the picker says. Per `CLAUDE.md`, a category invariant is checked at the
    forbidden thing, because the next call site is the one nobody thought of.
 5. Each conversion happens once from world millimetres, and neither reads the other's output.
-   **They live in different layers, and putting both in `domain/` would be a layer violation
-   this note had asked for.** `tests/` mirrors `src/`, so "a node test in `domain/`" is a claim
-   about where the code goes:
+   **They live in different layers**, and `tests/` mirrors `src/`, so naming a test directory is
+   a claim about where the code goes:
 
-   - the **numeric** conversion between world millimetres and a display unit is a pure
-     primitive, and `core/units/` — which slice 2 already creates for "the world coordinate
-     convention" — is its home;
-   - the **formatter** that adds rounding, a unit symbol and a locale is presentation
-     behaviour and belongs in `presentation/`, tested there;
+   - the **display** conversion — millimetres to m/cm/mm, plus rounding and the unit symbol —
+     is presentation behaviour, whole. It lives in `presentation/` and is tested there.
    - the **pricing** conversion stays exactly where slice 9 has it, untouched.
 
    Each is asked of its function directly rather than through a screen, per the *Calibration and
-   measurement* epic's definition of done. The point of the split is that the display-unit
-   vocabulary and its rounding are a **replaceable UI concern**; routing them through `domain/`
-   would make them part of the domain API, which is the opposite of what the layering is for.
+   measurement* epic's definition of done.
+
+   **Two earlier drafts put the display conversion in the wrong place, in opposite directions,
+   and both are worth recording because the second was an overcorrection of the first.** The
+   first asked for it in `domain/`, which would have made a replaceable UI's rounding part of
+   the domain API. The second split off a "numeric primitive" into `core/units/` — but
+   [`Architecture and Software Design`](Architecture%20and%20Software%20Design.md) states that
+   **units come from slice 9, not slice 2, and slice 2's `core/units/` holds only the
+   world-unit convention**, so that invented an abstraction the architecture had already
+   assigned elsewhere. There is no core primitive here: converting mm to centimetres for a
+   label is not a domain fact, and splitting it in two to look properly layered is the
+   over-engineering that layering exists to prevent.
 6. The formatter converts from the **unrounded** world value. A test that rounds first and
    formats second produces a different figure at some input, and that input is the test.
 7. `42718432 mm²` displays as `42.72 m²` (PRD §71's worked example), `427184.32 cm²` and

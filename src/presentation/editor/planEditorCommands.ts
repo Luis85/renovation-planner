@@ -1,5 +1,6 @@
 import { err, type Result } from '../../core/result/Result';
 import type {
+	CalculationError,
 	GeometryError,
 	PersistenceError,
 	ReferenceError,
@@ -7,6 +8,7 @@ import type {
 } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
 import type { Query } from '../../application/queries/Query';
+import type { CalibratePlanInput } from '../../application/commands/plan/ReversibleCalibratePlan';
 import type { CreateZoneInput } from '../../application/commands/zone/CreateZone';
 import type { MoveSpatialObjectInput } from '../../application/commands/zone/MoveSpatialObject';
 import type { DeleteZoneInput } from '../../application/commands/zone/DeleteZone';
@@ -15,6 +17,18 @@ import type { Loaded } from '../../application/ports/versioning';
 import type { ZoneRepository } from '../../application/ports/ZoneRepository';
 import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneId } from '../../domain/zone/ZoneId';
+
+/**
+ * The reversible calibration, as the editor consumes it. A STRUCTURAL type rather than the
+ * concrete `ReversibleCalibratePlanCommand`, so `unavailablePlanEditorCommands` can answer
+ * the refusal shape without constructing a real command around refusing ports.
+ */
+export interface CalibratePlanTransaction {
+	execute(
+		input: CalibratePlanInput,
+	): Promise<Result<void, ReferenceError | ValidationError | CalculationError | PersistenceError>>;
+	undo(): Promise<Result<void, PersistenceError | ValidationError>>;
+}
 
 /**
  * The write side (and the Inspector's read side) of the Plan Editor, as slice 8 consumes
@@ -51,6 +65,14 @@ export interface PlanEditorCommandServices {
 		GetZoneInspectorInput,
 		Result<ZoneInspectorFields | null, PersistenceError | GeometryError>
 	>;
+	/**
+	 * A FACTORY, unlike every other member here, and the exception is the rule this
+	 * interface's header already states: what crosses this boundary is exactly what has no
+	 * per-transaction state. `ReversibleCalibratePlanCommand` holds one gesture's inverse,
+	 * so the editor gets the means to make one per gesture rather than a shared instance
+	 * two overlapping gestures would fight over.
+	 */
+	readonly calibratePlan: () => CalibratePlanTransaction;
 }
 
 type CreateZoneResult = Awaited<ReturnType<PlanEditorCommandServices['createZone']['execute']>>;
@@ -111,5 +133,13 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 				return Promise.resolve(err(persistenceFailure()) as ZoneInspectorResult);
 			},
 		},
+		calibratePlan: () => ({
+			execute(): Promise<Result<void, PersistenceError>> {
+				return Promise.resolve(err(persistenceFailure()));
+			},
+			undo(): Promise<Result<void, PersistenceError>> {
+				return Promise.resolve(err(persistenceFailure()));
+			},
+		}),
 	};
 }

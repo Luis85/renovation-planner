@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 
 /**
  * Driving the real oxlint, for the checks that are ABOUT the lint gate rather than about
@@ -9,8 +9,17 @@ import { fileURLToPath } from 'node:url';
  *
  * Resolved from `import.meta.url` rather than the working directory: another test file in
  * the same worker legitimately `chdir`s while it runs.
+ *
+ * `node:url`'s `URL` is imported BY NAME rather than left to the ambient global, and that is
+ * load-bearing rather than a style choice: this module now runs under `@vitest-environment
+ * jsdom` too (Task 5's `harness.test.ts`), where jsdom installs its own `URL` on `globalThis`
+ * — a `whatwg-url` implementation that resolves `'../..'` against a `file:` base into a
+ * non-`file:` URL, which `fileURLToPath` then refuses with "The URL must be of scheme file".
+ * Node's own `URL` resolves the identical input correctly. Measured: this line threw under
+ * jsdom before the explicit import and stopped throwing after it, with the node-environment
+ * callers unaffected either way.
  */
-export const REPO = fileURLToPath(new URL('../..', import.meta.url));
+export const REPO = fileURLToPath(new NodeURL('../..', import.meta.url));
 
 // The oxlint package's bin is a plain ES module, so it runs under `process.execPath` on
 // both CI platforms. `node_modules/.bin/oxlint` is a shell shim on Windows, which

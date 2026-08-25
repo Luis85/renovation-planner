@@ -8,13 +8,16 @@
  * It asserts the FRAME and the plumbing, never appearance. Appearance is a live vault's
  * answer.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { transform } from 'lightningcss';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mountHarness } from '../harness/mount';
 import { mountPlanEditorHarness } from '../harness/planEditor';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
 import { drawSchemeToggle } from '../harness/theme';
+import { REPO } from '../helpers/oxlint';
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -42,6 +45,33 @@ function harnessGrowthSelectors(): string[] {
 
 	return rules.filter(([, selector, body]) => selector.includes('.rp-harness-leaf') && body.includes('flex: 1')).map(([, selector]) => selector.trim());
 }
+
+/** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
+const readText = (file: string): string => readFileSync(file, 'utf8');
+
+/**
+ * Parses one stylesheet with `lightningcss` and reports every `@import` URL it declares — the
+ * cascade's own view of the sheet, not a pattern matched against its text. See the case that
+ * uses it for why: `/@import/` is case-sensitive and misses `@IMPORT`, and `/@import/i` would
+ * then match one inside a comment.
+ */
+const importsIn = (file: string): string[] => {
+	const found: string[] = [];
+	transform({
+		filename: file,
+		code: readFileSync(file),
+		minify: false,
+		visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
+	});
+	return found;
+};
+
+/** Every `.css` file directly in `dir` (excluding `skip`) that itself `@import`s another. */
+const sheetsImporting = (dir: string, skip: string[] = []): string[] =>
+	readdirSync(dir)
+		.filter((name) => name.endsWith('.css') && !skip.includes(name))
+		.filter((name) => importsIn(path.join(dir, name)).length > 0)
+		.map((name) => path.posix.join(path.basename(dir), name));
 
 beforeEach(() => {
 	document.body.innerHTML = '';
@@ -119,6 +149,183 @@ describe('the browser harness', () => {
 
 		expect(document.body.classList.contains('theme-light')).toBe(true);
 		expect(document.body.classList.contains('theme-dark')).toBe(false);
+	});
+
+	/**
+	 * The one-sheet claim, which is the entire reason prototypes moved out of
+	 * `docs/user-experience/concepts/`. A mock drawn against a second sheet is approved
+	 * against something that will not ship, and the page offering one is all it would take.
+	 *
+	 * Asserted on the page rather than on a rendered screen: there is no rendering engine
+	 * here, and what CAN be checked — that the page links exactly the three sheets it means
+	 * to, and that `concept.css` is not among them — is the thing that would actually go
+	 * wrong.
+	 *
+	 * PARSED, not pattern-matched. This file already runs in jsdom (`@vitest-environment`
+	 * at the top), so `DOMParser` is right there, and HTML has more spellings of one link
+	 * than a regex written by hand keeps up with: attribute order is free, attribute values
+	 * may be UNQUOTED (`<link rel=stylesheet href=…/concept.css>` is valid HTML a browser
+	 * loads), tag and attribute names are case-insensitive, and `rel` is a space-separated
+	 * token list. Two hand-written patterns here were each defeated by the next spelling
+	 * somebody thought of. The parser knows all of them, and it is the same argument
+	 * `CLAUDE.md` already makes for checking colours on lightningcss's parsed tree rather
+	 * than on source text.
+	 *
+	 * `[rel~=stylesheet i]` is that knowledge spelled out: `~=` matches one token of the
+	 * list, `i` makes it case-insensitive. The `<link rel="icon">` this page carries is
+	 * excluded by it, which is checked below rather than assumed.
+	 *
+	 * `style` joins the selector because a `<style>` element is a second way this page can
+	 * introduce CSS, and an `@import` inside one is a way in that no other guard here sees:
+	 * the module scan reads `.ts`/`.vue`, the sheet scan reads the harness's own `.css`
+	 * files, and neither is this HTML. The expected list is therefore the whole CSS-bearing
+	 * set of the page, not its links — which is why a `<style>` appears in it as `<style>`
+	 * and fails the equality rather than being silently uncounted.
+	 */
+	it('offers prototypes exactly one plugin stylesheet and no proposal sheet', () => {
+		const html = readFileSync(path.join(REPO, 'tests', 'harness', 'index.html'), 'utf8');
+
+		const page = new DOMParser().parseFromString(html, 'text/html');
+		// EVERY node that can introduce CSS, not only the links: a `<style>` element in this
+		// page is another way in, and `<style>@import '…/concept.css';</style>` is a way in
+		// that no later guard sees either — they scan module sources and the harness's own
+		// `.css` files, neither of which is this HTML. Asked as one category so the set is
+		// what is asserted, rather than a list of the spellings somebody thought of.
+		const sheets = [...page.querySelectorAll('link[rel~=stylesheet i], style')].map((node) =>
+			node.tagName === 'STYLE' ? '<style>' : (node.getAttribute('href') ?? ''),
+		);
+
+		expect(sheets).toEqual(['./obsidian.css', './theme.css', '/styles.css']);
+		expect(sheets.some((href) => href.includes('concept'))).toBe(false);
+	});
+
+	/**
+	 * The same claim over every other route. A sheet reaches this page as a `<link>` in
+	 * `index.html`, through Vite's module graph — a `.css` import anywhere in what the page
+	 * can load, or an SFC `<style>` block — or as a `<link>` a TEMPLATE renders into the
+	 * body, which no build step and no import is involved in at all. The case above can see
+	 * only the first. The page's sheets are the three links in `index.html`, and nothing the
+	 * page can reach may add a fourth.
+	 *
+	 * The scanned set is what the page can reach, not the files that exist today: `page.ts`
+	 * imports the harness modules, those import `src/` AND `tests/helpers/`, and Task 4's
+	 * index globs `src/prototypes/**` and `src/presentation/**` — so a sheet imported by a
+	 * component three levels down, or by a DOM helper, is loaded exactly as surely as one
+	 * imported here. Scanning all three trees closes the transitive route without building
+	 * anything: if no file in any of them imports a stylesheet, nothing reachable through
+	 * them does.
+	 *
+	 * The three spellings are checked over different sets, and the asymmetry is deliberate:
+	 *
+	 * - A `<style>` block is checked in `tests/harness/` ONLY, because `eslint.config.mjs`
+	 *   already refuses one anywhere under `src/` (`vue/no-restricted-block`, over
+	 *   `VUE_FILES` = `['**\/src/**\/*.vue']`) while a `.vue` under `tests/` matches no
+	 *   ESLint block at all — measured. Scanning `src/` for it here would duplicate a live
+	 *   rule AND report `ViewRoot.vue`, whose comment spells the tag it is promising never
+	 *   to use. A text scan cannot tell a comment from a block; the linter can, and does.
+	 * - A `.css` IMPORT is checked over both, because no rule refuses one in either.
+	 * - A `<link rel="stylesheet">` IN A TEMPLATE is checked over both as well, and it is the
+	 *   spelling that needs no build step and no import at all: a browser honours a
+	 *   stylesheet link in the body, so a mock carrying one loads the proposal sheet while
+	 *   the import scan, the `<style>` scan and the `index.html` scan all stay green. Matched
+	 *   as `<link … stylesheet` rather than by attribute order, for the reason the case above
+	 *   already gives — and narrow enough that the prose in this repository that merely says
+	 *   "stylesheet" does not trip it. Measured: no hit in 169 files.
+	 *
+	 * The import pattern matches the SPECIFIER POSITION — a quoted string preceded by `from`,
+	 * by `import`, or by `import(` — rather than the bare substring `.css`. Both halves of
+	 * that are load-bearing:
+	 *
+	 * Not the bare substring, because prose naming `concept.css` is how this repository
+	 * explains itself, and a guard that fires on its own explanation gets deleted rather
+	 * than obeyed.
+	 *
+	 * And not `import` alone, because `import classes from './panel.module.css'` — Vite's
+	 * ordinary CSS-modules form — puts the specifier after `from`, and a pattern anchored
+	 * on the quote following `import` misses it while looking thorough. Measured on all
+	 * five spellings: side-effect, default binding, named binding, dynamic, and a
+	 * re-export.
+	 */
+	it('loads no stylesheet through anything the harness can reach', () => {
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.css['"]/;
+		const sheetLink = /<link[^>]*\bstylesheet\b/i;
+		// Every extension Vite will load as a module, not the two this repository happens to
+		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
+		// reachable as any other and its CSS import would load the same sheet.
+		const MODULE = /\.(?:ts|tsx|js|mjs|cjs|jsx|vue)$/;
+		const sources = (dir: string): string[] =>
+			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+				const full = path.join(dir, entry.name);
+				if (entry.isDirectory()) return sources(full);
+				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
+			});
+
+		const reachable = [
+			...sources(path.join(REPO, 'src')),
+			...sources(path.join(REPO, 'tests', 'harness')),
+			// `tests/helpers/` too: `mount.ts` and `planEditor.ts` are RUNTIME modules of this
+			// page and they import from there, so a stylesheet imported by a helper reaches the
+			// page exactly as surely as one imported here.
+			...sources(path.join(REPO, 'tests', 'helpers')),
+		];
+
+		const importers = reachable.filter((file) => sheetImport.test(readText(file)));
+		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
+		const styleBlocks = sources(path.join(REPO, 'tests', 'harness')).filter((file) =>
+			/<style[\s>]/.test(readText(file)),
+		);
+
+		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
+	});
+
+	/**
+	 * A stylesheet can import a stylesheet, and that is a fourth route. `@import
+	 * '../../docs/user-experience/concepts/concept.css';` added to `tests/harness/theme.css`
+	 * loads the proposal sheet: the HTML still has its three links, no module imports a
+	 * `.css`, no template renders a `<link>`, and every list above stays empty. The walker
+	 * excludes `.css` files entirely, so it cannot see it.
+	 *
+	 * The two linked harness sheets are the reachable ones, and neither has any legitimate
+	 * use for `@import` — they are standalone files the page links directly. So the rule is
+	 * simply that they carry none.
+	 *
+	 * `*.test.ts` is excluded from the reachable set below only in the sense that this file
+	 * — and `cssVars.test.ts` — name a stylesheet path as a string they READ, not one they
+	 * import as a module Vite would load; a test that reads a stylesheet is not a page that
+	 * loads one, so nothing here needs to scan `tests/harness/*.test.ts` for `@import`.
+	 */
+	it('lets no stylesheet the page loads pull in another', () => {
+		// PARSED, for the same reason the page check is parsed rather than pattern-matched.
+		// `@IMPORT` is valid CSS and a browser honours it; `/@import/` does not match it, and
+		// `/@import/i` would then match one inside a comment. `lightningcss` answers both at
+		// once — it is already a devDependency, already used by the stylesheet gate, and the
+		// visitor sees exactly what the cascade would.
+		const imported = [
+			// `obsidian.css` too is excluded, and for a reason this file's own header explains
+			// rather than hides: it is vendored from a real Obsidian install and "the original
+			// header, kept whole" — its preserved upstream prose names a CSS custom property as
+			// `--page-*/--scale-factor`, and that substring is a literal `*/`, which closes a CSS
+			// block comment wherever it appears. `lightningcss` therefore throws parsing this
+			// file's own header rather than reporting an empty import list — measured, and true
+			// independent of Task 5: nothing before this test ever ran a real CSS parser over
+			// `obsidian.css`, since Vite serves it to `index.html` as a static asset rather than
+			// as an imported module. Editing the vendored text to dodge it would break the
+			// "kept whole" invariant the file states about itself, so the file is excluded
+			// instead — checked by inspection to carry no `@import` of its own (it is a static,
+			// reduced snapshot with none), the same way `styles/index.css` is excluded here
+			// because the assembler already validates its imports elsewhere.
+			...sheetsImporting(path.join(REPO, 'tests', 'harness'), ['obsidian.css']),
+			// `styles/` too, minus `index.css`. The assembler validates index.css's OWN lines
+			// against `@import "./<partial>.css";` — but it then concatenates each partial's
+			// body UNCHANGED (`scripts/styles-assemble.mjs`, the `parts` map: line count and
+			// hard-coded colours are checked, nothing else), so an `@import` inside a partial
+			// survives into the shipped sheet and into the page. Verified in the source, after
+			// an earlier version of this comment claimed the assembler owned the question and
+			// was wrong.
+			...sheetsImporting(path.join(REPO, 'styles'), ['index.css']),
+		];
+
+		expect(imported).toEqual([]);
 	});
 
 	// `applyPlatform` is deliberately NOT asserted here: the property that matters —

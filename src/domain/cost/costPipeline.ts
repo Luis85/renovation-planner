@@ -7,6 +7,7 @@ import {
 	type MeasurementUnit,
 	type Quantity,
 } from '../../core/units/MeasurementUnit';
+import { negativeQuantity } from './quantityEngine';
 import {
 	add,
 	percentageOf,
@@ -29,6 +30,12 @@ import {
  * `computeEstimatedCost` is the single entry point; the stages above are private so a
  * caller cannot skip or reorder them. Intermediate values keep full decimal.js
  * precision (ADR-010) — `round` runs exactly once, where the estimate is finalized.
+ *
+ * Every input is refused BEFORE any arithmetic runs (`inputError`): a mismatched pricing
+ * basis, a negative quantity, a negative or above-100% discount, a negative tax rate.
+ * All four are user input, so all four are a typed `CalculationError` and never a thrown
+ * exception (SDD §65) — and together they are why no stage here can produce a negative
+ * `Money`.
  */
 export interface DiscountRule {
 	readonly percent: Decimal;
@@ -55,6 +62,7 @@ export interface CostPipelineInput {
 }
 
 const NO_PERCENT = new Decimal('0');
+const FULL_DISCOUNT = new Decimal('100');
 
 function optionalMoney(value: Money | undefined, currency: string): Money {
 	return value ?? zero(currency);
@@ -71,24 +79,59 @@ function negativePercent(percent: Decimal): CalculationError | null {
 	};
 }
 
+function pricingBasisError(input: CostPipelineInput): CalculationError | null {
+	if (!input.pricedPer || UNIT_KIND[input.pricedPer] === UNIT_KIND[input.quantity.unit]) {
+		return null;
+	}
+	return {
+		category: 'Calculation',
+		code: 'cost.pricing-basis-mismatch',
+		message: `The unit price is ${UNIT_KIND[input.pricedPer]}-based but the quantity `
+			+ `is ${UNIT_KIND[input.quantity.unit]}-based (${input.pricedPer} vs ${input.quantity.unit}).`,
+	};
+}
+
+/**
+ * A percent is bounded at BOTH ends here, and only for the discount at the top: the
+ * discount is the one component that SUBTRACTS, so it is the only one a percentage can
+ * drive below zero, and 150% off produced a negative cost reported as a success. A tax
+ * rate above 100% is merely surprising — it still adds — so bounding it would refuse data
+ * that is odd rather than wrong. Exactly 100% is a free line, not an error.
+ */
+function discountError(discount: DiscountRule | undefined): CalculationError | null {
+	if (!discount) return null;
+	const negative = negativePercent(discount.percent);
+	if (negative) return negative;
+	if (!discount.percent.greaterThan(FULL_DISCOUNT)) return null;
+	return {
+		category: 'Calculation',
+		code: 'cost.discount-above-full',
+		message:
+			`A discount cannot exceed 100%; got ${discount.percent.toString()}%, which would `
+			+ 'turn a cost into a credit.',
+	};
+}
+
+/**
+ * Everything refused BEFORE any arithmetic runs, so no stage can be handed a value that
+ * would drive the total negative — which is what lets `core/money` treat a negative
+ * amount as a programmer error rather than a business failure. User input is refused
+ * here, as a value; nothing on this path throws.
+ */
+function inputError(input: CostPipelineInput): CalculationError | null {
+	return (
+		pricingBasisError(input)
+		?? negativeQuantity(input.quantity)
+		?? discountError(input.discount)
+		?? (input.taxRate ? negativePercent(input.taxRate) : null)
+	);
+}
+
 export function computeEstimatedCost(
 	input: CostPipelineInput,
 ): Result<DerivedValue<Money>, CalculationError> {
-	if (
-		input.pricedPer &&
-		UNIT_KIND[input.pricedPer] !== UNIT_KIND[input.quantity.unit]
-	) {
-		return err({
-			category: 'Calculation',
-			code: 'cost.pricing-basis-mismatch',
-			message: `The unit price is ${UNIT_KIND[input.pricedPer]}-based but the quantity `
-				+ `is ${UNIT_KIND[input.quantity.unit]}-based (${input.pricedPer} vs ${input.quantity.unit}).`,
-		});
-	}
-	const badDiscount = input.discount ? negativePercent(input.discount.percent) : null;
-	if (badDiscount) return err(badDiscount);
-	const badTax = input.taxRate ? negativePercent(input.taxRate) : null;
-	if (badTax) return err(badTax);
+	const invalid = inputError(input);
+	if (invalid) return err(invalid);
 	const currency = input.unitPrice.currency;
 	const subtotal = scale(input.unitPrice, input.quantity.value);
 	const afterDiscount = subtract(

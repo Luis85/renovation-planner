@@ -20,6 +20,10 @@ import { UNIT_KIND, type MeasurementUnit, type Quantity } from '../../core/units
  * first stage (`toMeasuredQuantity`). Every value is decimal.js exact (ADR-010); nothing
  * here rounds — packaging rounds UP to whole lots because it is a purchasable multiple,
  * not a precision decision.
+ *
+ * No exported stage here returns a negative `Quantity`: each refuses one on the way in,
+ * and `toMeasuredQuantity` refuses one on the way out, so the invariant does not depend
+ * on which door a caller enters at (`negativeQuantity`).
  */
 
 /** "1 unit of the asset covers `coverageRate` of the measured quantity's unit." */
@@ -51,23 +55,41 @@ function toDisplayValue(rawValue: Decimal, unit: MeasurementUnit): Decimal {
 	}
 }
 
-export function toMeasuredQuantity(rawValue: Decimal, unit: MeasurementUnit): Quantity {
-	return { value: toDisplayValue(rawValue, unit), unit };
-}
-
-function negativeQuantity(unit: MeasurementUnit): CalculationError {
+/**
+ * The one rule about a negative quantity, applied at every door rather than at the one a
+ * caller happens to use: every exported stage here refuses one, and the Cost Pipeline
+ * refuses the quantity it is handed with this same function — one rule with two error
+ * codes would be two rules, and a caller could not tell which one it had broken.
+ *
+ * `lessThan(0)` rather than `isNegative()`: decimal.js reports negative ZERO as negative
+ * (`new Decimal(0).mul(-1)`), and a zero quantity is a legitimate one.
+ */
+export function negativeQuantity(quantity: Quantity): CalculationError | null {
+	if (!quantity.value.lessThan(0)) return null;
 	return {
 		category: 'Calculation',
 		code: 'quantity.negative',
-		message: `A ${UNIT_KIND[unit]} quantity cannot be negative.`,
+		message:
+			`A ${UNIT_KIND[quantity.unit]} quantity cannot be negative; `
+			+ `got ${quantity.value.toString()} ${quantity.unit}.`,
 	};
+}
+
+export function toMeasuredQuantity(
+	rawValue: Decimal,
+	unit: MeasurementUnit,
+): Result<Quantity, CalculationError> {
+	const measured: Quantity = { value: toDisplayValue(rawValue, unit), unit };
+	const negative = negativeQuantity(measured);
+	return negative ? err(negative) : ok(measured);
 }
 
 export function applyRequirementRule(
 	measured: Quantity,
 	rule: RequirementRule,
 ): Result<Quantity, CalculationError> {
-	if (measured.value.isNegative()) return err(negativeQuantity(measured.unit));
+	const negative = negativeQuantity(measured);
+	if (negative) return err(negative);
 	if (rule.coverageRate.isZero()) {
 		return err({
 			category: 'Calculation',
@@ -90,6 +112,8 @@ export function applyWaste(
 	required: Quantity,
 	wastePercent: Decimal,
 ): Result<Quantity, CalculationError> {
+	const negative = negativeQuantity(required);
+	if (negative) return err(negative);
 	if (wastePercent.isNegative()) {
 		return err({
 			category: 'Calculation',
@@ -129,6 +153,8 @@ export function applyPackaging(
 	quantity: Quantity,
 	packaging?: PackagingRule,
 ): Result<Quantity, CalculationError> {
+	const negative = negativeQuantity(quantity);
+	if (negative) return err(negative);
 	if (!packaging) return ok(quantity);
 	const invalid = packagingRuleError(packaging);
 	if (invalid) return err(invalid);
@@ -148,8 +174,8 @@ export function runQuantityEngine(
 	packaging?: PackagingRule,
 ): Result<DerivedValue<Quantity>, CalculationError> {
 	const measured = toMeasuredQuantity(rawValue, unit);
-	if (measured.value.isNegative()) return err(negativeQuantity(unit));
-	const required = applyRequirementRule(measured, rule);
+	if (!measured.ok) return measured;
+	const required = applyRequirementRule(measured.value, rule);
 	if (!required.ok) return required;
 	const wasted = applyWaste(required.value, wastePercent);
 	if (!wasted.ok) return wasted;

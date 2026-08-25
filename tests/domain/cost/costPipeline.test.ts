@@ -147,4 +147,52 @@ describe('computeEstimatedCost', () => {
 		const error = expectErr(computeEstimatedCost({ ...baseInput(), taxRate: d('-8.25') }));
 		expect(error.code).toBe('cost.negative-percent');
 	});
+
+	it('a discount ABOVE 100% would report a negative cost as a success, and is refused', () => {
+		const error = expectErr(
+			computeEstimatedCost({ ...baseInput(), discount: { percent: d('150') } }),
+		);
+		expect(error.category).toBe('Calculation');
+		expect(error.code).toBe('cost.discount-above-full');
+	});
+
+	it('a discount of exactly 100% is the boundary and still computes, to zero', () => {
+		const free = expectOk(
+			computeEstimatedCost({ ...baseInput(), discount: { percent: d('100') } }),
+		);
+		expect(sameAmount(free.calculated, '0')).toBe(true);
+	});
+
+	it('a tax rate above 100% is surprising but cannot go negative, so it is NOT refused', () => {
+		const taxed = expectOk(
+			computeEstimatedCost({
+				quantity: { value: d('1'), unit: 'piece' },
+				unitPrice: moneyOf('10.00', 'USD'),
+				taxRate: d('150'),
+			}),
+		);
+		expect(sameAmount(taxed.calculated, '25.00')).toBe(true);
+	});
+
+	it('a NEGATIVE quantity is a typed failure, not a negative cost reported as a success', () => {
+		const error = expectErr(
+			computeEstimatedCost({
+				quantity: { value: d('-3'), unit: 'piece' },
+				unitPrice: moneyOf('12.50', 'USD'),
+			}),
+		);
+		expect(error.category).toBe('Calculation');
+		expect(error.code).toBe('quantity.negative');
+	});
+
+	it('a zero quantity is not negative, and costs the additive components alone', () => {
+		const none = expectOk(
+			computeEstimatedCost({
+				quantity: { value: d('0'), unit: 'piece' },
+				unitPrice: moneyOf('12.50', 'USD'),
+				shipping: moneyOf('25.00', 'USD'),
+			}),
+		);
+		expect(sameAmount(none.calculated, '25.00')).toBe(true);
+	});
 });

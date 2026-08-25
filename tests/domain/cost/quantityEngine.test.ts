@@ -22,27 +22,33 @@ function sameValue(q: { readonly value: Decimal }, expected: string): boolean {
 
 describe('toMeasuredQuantity', () => {
 	it('converts an mm2 geometry measurement to m2 once, at the first stage', () => {
-		const measured = toMeasuredQuantity(d('12345678'), 'm2');
+		const measured = expectOk(toMeasuredQuantity(d('12345678'), 'm2'));
 		expect(measured.unit).toBe('m2');
 		expect(sameValue(measured, '12.345678')).toBe(true);
 	});
 
 	it('converts mm to m for lengths', () => {
-		expect(sameValue(toMeasuredQuantity(d('4575'), 'm'), '4.575')).toBe(true);
+		expect(sameValue(expectOk(toMeasuredQuantity(d('4575'), 'm')), '4.575')).toBe(true);
 	});
 
 	it('converts mm3 to m3 for volumes', () => {
-		expect(sameValue(toMeasuredQuantity(d('2500000000'), 'm3'), '2.5')).toBe(true);
+		expect(sameValue(expectOk(toMeasuredQuantity(d('2500000000'), 'm3')), '2.5')).toBe(true);
 	});
 
 	it('passes pieces through unconverted', () => {
-		const measured = toMeasuredQuantity(d('12'), 'piece');
+		const measured = expectOk(toMeasuredQuantity(d('12'), 'piece'));
 		expect(sameValue(measured, '12')).toBe(true);
 	});
 
 	it('a fixed quantity is one lump sum regardless of any raw measurement', () => {
-		const measured = toMeasuredQuantity(d('0'), 'fixed');
+		const measured = expectOk(toMeasuredQuantity(d('0'), 'fixed'));
 		expect(sameValue(measured, '1')).toBe(true);
+	});
+
+	it('refuses to mint a negative measured quantity from a negative measurement', () => {
+		const error = expectErr(toMeasuredQuantity(d('-12345678'), 'm2'));
+		expect(error.category).toBe('Calculation');
+		expect(error.code).toBe('quantity.negative');
 	});
 });
 
@@ -50,7 +56,7 @@ describe('applyRequirementRule', () => {
 	it('divides the measured quantity by the coverage rate', () => {
 		const rule: RequirementRule = { coverageRate: d('2.5') };
 		const required = expectOk(
-			applyRequirementRule(toMeasuredQuantity(d('12345678'), 'm2'), rule),
+			applyRequirementRule(expectOk(toMeasuredQuantity(d('12345678'), 'm2')), rule),
 		);
 		expect(required.unit).toBe('m2');
 		expect(sameValue(required, '4.9382712')).toBe(true);
@@ -58,7 +64,7 @@ describe('applyRequirementRule', () => {
 
 	it('refuses a zero coverage rate instead of dividing by it', () => {
 		const error = expectErr(
-			applyRequirementRule(toMeasuredQuantity(d('10'), 'm2'), { coverageRate: d('0') }),
+			applyRequirementRule(expectOk(toMeasuredQuantity(d('10'), 'm2')), { coverageRate: d('0') }),
 		);
 		expect(error.category).toBe('Calculation');
 		expect(error.code).toBe('quantity.zero-coverage-rate');
@@ -66,7 +72,7 @@ describe('applyRequirementRule', () => {
 
 	it('refuses a NEGATIVE coverage rate, which would flow a negative purchase through every later stage', () => {
 		const error = expectErr(
-			applyRequirementRule(toMeasuredQuantity(d('10'), 'm2'), { coverageRate: d('-1') }),
+			applyRequirementRule(expectOk(toMeasuredQuantity(d('10'), 'm2')), { coverageRate: d('-1') }),
 		);
 		expect(error.category).toBe('Calculation');
 		expect(error.code).toBe('quantity.negative-coverage-rate');
@@ -98,6 +104,12 @@ describe('applyWaste', () => {
 		const error = expectErr(applyWaste({ value: d('7'), unit: 'piece' }, d('-5')));
 		expect(error.category).toBe('Calculation');
 		expect(error.code).toBe('quantity.negative-waste');
+	});
+
+	it('refuses a negative quantity, so the guard does not depend on which stage the caller enters at', () => {
+		const error = expectErr(applyWaste({ value: d('-7'), unit: 'piece' }, d('10')));
+		expect(error.category).toBe('Calculation');
+		expect(error.code).toBe('quantity.negative');
 	});
 });
 
@@ -158,6 +170,14 @@ describe('applyPackaging', () => {
 				applyPackaging({ value: d('10'), unit: 'm2' }, { lotSize: d('2.5'), minimumOrder: bad }),
 			);
 			expect(error.code).toBe('quantity.invalid-packaging');
+		}
+	});
+
+	it('refuses a negative quantity with or without a rule, so no door skips the guard', () => {
+		for (const rule of [undefined, { lotSize: d('2.5') }]) {
+			const error = expectErr(applyPackaging({ value: d('-10'), unit: 'm2' }, rule));
+			expect(error.category).toBe('Calculation');
+			expect(error.code).toBe('quantity.negative');
 		}
 	});
 });

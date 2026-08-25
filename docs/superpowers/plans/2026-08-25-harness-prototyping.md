@@ -1589,10 +1589,12 @@ Hence a text scan, over what the page can reach rather than over the files that 
 
 ```typescript
 	/**
-	 * The same claim over the other route. A sheet reaches this page as a `<link>` in
-	 * `index.html` or through Vite's module graph — a `.css` import anywhere in what the
-	 * page can load, or an SFC `<style>` block — and the case above can only see the first.
-	 * The page's sheets are the three links, and the module graph must add none.
+	 * The same claim over every other route. A sheet reaches this page as a `<link>` in
+	 * `index.html`, through Vite's module graph — a `.css` import anywhere in what the page
+	 * can load, or an SFC `<style>` block — or as a `<link>` a TEMPLATE renders into the
+	 * body, which no build step and no import is involved in at all. The case above can see
+	 * only the first. The page's sheets are the three links in `index.html`, and nothing the
+	 * page can reach may add a fourth.
 	 *
 	 * The scanned set is what the page can reach, not the files that exist today: `page.ts`
 	 * imports the harness modules, those import `src/`, and Task 4's index globs
@@ -1601,7 +1603,7 @@ Hence a text scan, over what the page can reach rather than over the files that 
 	 * trees closes the transitive route without building anything: if no file in either
 	 * imports a stylesheet, nothing reachable through them does.
 	 *
-	 * The two halves are checked over different sets, and that asymmetry is deliberate:
+	 * The three spellings are checked over different sets, and the asymmetry is deliberate:
 	 *
 	 * - A `<style>` block is checked in `tests/harness/` ONLY, because `eslint.config.mjs`
 	 *   already refuses one anywhere under `src/` (`vue/no-restricted-block`, over
@@ -1610,13 +1612,21 @@ Hence a text scan, over what the page can reach rather than over the files that 
 	 *   rule AND report `ViewRoot.vue`, whose comment spells the tag it is promising never
 	 *   to use. A text scan cannot tell a comment from a block; the linter can, and does.
 	 * - A `.css` IMPORT is checked over both, because no rule refuses one in either.
+	 * - A `<link rel="stylesheet">` IN A TEMPLATE is checked over both as well, and it is the
+	 *   spelling that needs no build step and no import at all: a browser honours a
+	 *   stylesheet link in the body, so a mock carrying one loads the proposal sheet while
+	 *   the import scan, the `<style>` scan and the `index.html` scan all stay green. Matched
+	 *   as `<link … stylesheet` rather than by attribute order, for the reason the case above
+	 *   already gives — and narrow enough that the prose in this repository that merely says
+	 *   "stylesheet" does not trip it. Measured: no hit in 169 files.
 	 *
 	 * The import pattern matches a specifier, static or dynamic, rather than the bare
 	 * substring `.css`: prose naming `concept.css` is how this file explains itself, and a
 	 * guard that fires on its own explanation gets deleted.
 	 */
-	it('loads no stylesheet through the module graph the harness can reach', () => {
+	it('loads no stylesheet through anything the harness can reach', () => {
 		const sheetImport = /import\s*\(?\s*['"][^'"]*\.css['"]/;
+		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		const sources = (dir: string): string[] =>
 			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 				const full = path.join(dir, entry.name);
@@ -1624,13 +1634,16 @@ Hence a text scan, over what the page can reach rather than over the files that 
 				return /\.(ts|vue)$/.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 
-		const importers = [...sources(path.join(REPO, 'src')), ...sources(path.join(REPO, 'tests', 'harness'))]
-			.filter((file) => sheetImport.test(readFileSync(file, 'utf8')));
+		const reachable = [...sources(path.join(REPO, 'src')), ...sources(path.join(REPO, 'tests', 'harness'))];
+		const read = (file: string): string => readFileSync(file, 'utf8');
+
+		const importers = reachable.filter((file) => sheetImport.test(read(file)));
+		const linkers = reachable.filter((file) => sheetLink.test(read(file)));
 		const styleBlocks = sources(path.join(REPO, 'tests', 'harness')).filter((file) =>
-			/<style[\s>]/.test(readFileSync(file, 'utf8')),
+			/<style[\s>]/.test(read(file)),
 		);
 
-		expect({ importers, styleBlocks }).toEqual({ importers: [], styleBlocks: [] });
+		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
 	});
 ```
 
@@ -1682,10 +1695,17 @@ missed: put the same import at the top of `src/presentation/editor/shell/StatusB
 block. Expected: FAIL, naming that file — a sheet a component pulls in is loaded as surely as one
 `page.ts` pulls in. `git checkout` afterwards.
 
-A `<style>` block is the third spelling and is worth planting too, in whichever `.vue` the
-harness directory holds at this point — expected FAIL under `styleBlocks`, `git checkout`
-afterwards. A guard watched failing on one of its three spellings has been watched failing on one
-of its three spellings.
+Plant the remaining two spellings as well — a guard watched failing on one of its spellings has
+been watched failing on one of its spellings, and each of these has its own list to land in:
+
+- A `<style>` block in whichever `.vue` the harness directory holds at this point. Expected FAIL
+  under `styleBlocks`.
+- `<link rel="stylesheet" href="../../docs/user-experience/concepts/concept.css" />` inside a
+  `<template>` — put it in `src/prototypes/ZoneSummary.vue` if Task 7 has landed, otherwise in the
+  harness's own `.vue`. Expected FAIL under `linkers`. This is the spelling that reaches the page
+  with no import and no build step, which is why it is worth planting rather than reasoning about.
+
+`git checkout` after each.
 
 - [ ] **Step 7: Run the full gate**
 
@@ -2674,7 +2694,7 @@ a record rather than a migration backlog."
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
-| 5 — one stylesheet, no second sheet | 5 (both routes: the `<link>`s in `index.html`, and the module graph) |
+| 5 — one stylesheet, no second sheet | 5 (three routes: the `<link>`s in `index.html`, the module graph, and a `<link>` a template renders) |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | 3 (second case) |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
@@ -2718,9 +2738,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across fourteen review rounds — forty-one findings. Forty were real and are fixed above
-rather than noted; one was not, and it is recorded as declined with the measurement that declined
-it.**
+**Revised across fifteen review rounds — forty-two findings. Forty-one were real and are fixed
+above rather than noted; one was not, and it is recorded as declined with the measurement that
+declined it.**
 
 Round one, on the shape of the harness:
 
@@ -2851,7 +2871,13 @@ Round fourteen, on a legal path that makes an illegal filename:
 | --- | --- | --- |
 | **The readable half of a PNG name was uncapped** | `readable` is the whole id flattened, so a deep path or a long basename produces a filename past the filesystem's 255-byte per-component limit — and past Windows' 260-character whole-path limit sooner, `harness-shots/` being in front of it and Windows being one of the four legs. `page.screenshot()` fails with `ENAMETOOLONG` on an entry the index opened perfectly: criterion 4's failure again, from the third direction now — first a collision, then a wait selector, now a length | Task 6: `.slice(0, 60)` on the readable half, which is safe precisely because identity lives in the digest beside it. A test pins both halves, and states the limit of a source-text assertion rather than implying it captured anything |
 
-**The pattern, across all fourteen rounds and worth more than any individual fix:** every failure was
+Round fifteen, on the spelling that needs no import at all:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **A `<link rel="stylesheet">` in a TEMPLATE was invisible to every check** | Rounds twelve and thirteen chased the sheet through the module graph and never left it. A browser honours a stylesheet link in the BODY, so a mock whose template renders one loads the proposal sheet with no import, no `<style>` block and no build step involved — past the import scan, past the `<style>` scan, and past the `index.html` scan, which reads a different file. Three green checks and the forbidden sheet on the page | Task 5: a third list, `linkers`, over the same reachable set as the import scan, matched as `<link … stylesheet` rather than by attribute order. Narrow enough that prose merely saying "stylesheet" does not trip it — measured, no hit in 169 files — and planted as its own watched failure in Step 6 |
+
+**The pattern, across all fifteen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2866,6 +2892,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the forty fixes. Round twelve is the first to add a third pattern:
+execution, not the forty-one fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

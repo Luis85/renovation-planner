@@ -1,0 +1,115 @@
+/*
+ * Design slice 15's dialog framework. One overlay and one panel, shared by every dialog
+ * kind — a kind that drew its own backdrop would be the second answer to "what is a
+ * dialog" this framework exists to prevent.
+ *
+ * Positioned against the VIEW, not the window: `DialogHost` mounts inside each
+ * ItemView-scoped Vue app, and a dialog belongs to the view that raised it. `absolute`
+ * over `fixed` is what keeps a Plan Editor dialog inside its own split pane.
+ */
+.rp-dialog-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: var(--layer-modal);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--size-4-4);
+	background-color: var(--background-modifier-cover);
+}
+
+.rp-dialog {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+	width: min(28rem, 100%);
+	max-height: 100%;
+	overflow-y: auto;
+	padding: var(--size-4-4);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	color: var(--text-normal);
+}
+
+.rp-dialog-title {
+	margin: 0;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+}
+
+.rp-dialog-message {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.rp-dialog-references,
+.rp-dialog-candidates {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rp-dialog-reference-row {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-dialog-candidate {
+	width: 100%;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	text-align: left;
+	cursor: pointer;
+}
+
+.rp-dialog-candidate:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-dialog-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+}
+
+.rp-dialog-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+}
+
+.rp-dialog-button {
+	padding: var(--size-4-1) var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--interactive-normal);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.rp-dialog-button:hover {
+	background-color: var(--interactive-hover);
+}
+
+/*
+ * Appearance only. `danger` changes no result and gates no action — the four-outcome
+ * decision is `DeleteReferenceDialog`'s job, and a colour that implied one would be
+ * stating a rule the type system already carries.
+ */
+.rp-dialog-button-danger {
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+.rp-dialog-button-danger:hover {
+	background-color: var(--background-modifier-error-hover);
+}

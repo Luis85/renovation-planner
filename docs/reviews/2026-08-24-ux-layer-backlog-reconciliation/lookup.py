@@ -50,6 +50,7 @@ matrix is a citation to something that no longer exists.
 """
 import io, os, re, subprocess, sys, tempfile, shutil
 from html.parser import HTMLParser
+from urllib.parse import unquote
 
 # The matrix was computed against ONE state of the corpus, and `RP_CORPUS_ROOT` is how a replay
 # names it — the same variable `candidates.sh` takes, for the same reason. Unset it and this reads
@@ -118,8 +119,12 @@ def is_backlink(href):
     """A link into the derived corpus.
 
     A SCHEME makes it external, and so does a protocol-relative `//host/...`. Everything else is
-    normalised to a vault-relative path before the folder is read: surrounding whitespace, a
-    ROOT-RELATIVE leading slash, any run of `./` or `../`, and a `docs/` prefix, in that order.
+    normalised to a vault-relative path before the folder is read: surrounding whitespace, PERCENT
+    ENCODING, a ROOT-RELATIVE leading slash, any run of `./` or `../`, and a `docs/` prefix.
+
+    Decoding is not hypothetical: this corpus already writes `Design%20System.md`. It happened to
+    encode a character in the FILENAME, where the folder comparison never looked — `%63omponents`
+    would have read as a folder that does not exist and the anchor would have survived.
 
     The leading slash was missing, so `/docs/components/Toast.md` — a valid repository-root URL —
     read as external and its label survived into the searched body. This is the SCOPE rule, the
@@ -129,9 +134,10 @@ def is_backlink(href):
     if not href:
         return False
     h = href.strip()
-    if re.match(r"\w+:", h) or h.startswith("//"):
+    p = unquote(h.split("#")[0].split("?")[0])
+    # The scheme test runs AFTER decoding as well as before, because decoding can produce one.
+    if re.match(r"\w+:", h) or re.match(r"\w+:", p) or h.startswith("//") or p.startswith("//"):
         return False
-    p = h.split("#")[0].split("?")[0]
     p = re.sub(r"^/", "", p)
     p = re.sub(r"^(?:\.{1,2}/)+", "", p)
     p = re.sub(r"^docs/", "", p)
@@ -153,6 +159,9 @@ SCOPE_CASES = [
     ("/docs/components/Toast.md",              True,  "repository-root URL"),
     ("/deliverables/x.md",                     True,  "root URL without docs/"),
     ("  ../deliverables/x.md  ",               True,  "surrounded by whitespace"),
+    ("../../%63omponents/Toast.md",            True,  "percent-encoded directory character"),
+    ("../deliverables/Design%20System.md",     True,  "percent-encoded filename, as the corpus writes it"),
+    ("%2F%2Fhost/deliverables/x",              False, "protocol-relative only after decoding"),
     ("../deliverables/x.md#anatomy",           True,  "with a fragment"),
     ("../deliverables/x.md?v=2",               True,  "with a query"),
     ("https://example.com/deliverables/x",     False, "external, http"),

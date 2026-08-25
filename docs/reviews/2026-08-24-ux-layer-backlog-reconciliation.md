@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Fifty-one corrections, all from review of the committed matrix — which is the argument for
+Fifty-two corrections, all from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1875,6 +1875,28 @@ anchor can take* failed three rounds running, because HTML's space of valid spel
 that is why the stripper is now a parser. Enumerating the *cases of a pure predicate* is different:
 the input space is a URL shape, small and closed enough to write down, and a hand-written table is
 independent of the implementation in a way a second implementation would not be.
+
+**A fifty-second correction: the scope rule compared an ENCODED path.** `../../%63omponents/Toast.md`
+resolves into `docs/components`, but the comparison saw `%63omponents`, found no such folder, and
+let the anchor survive the strip — its label then free to make a reverse lookup answer `present`.
+
+**Not hypothetical: this corpus already percent-encodes.** The gallery footer writes
+`Design%20System.md`. It happened to encode a character in the **filename**, which the folder
+comparison never looks at — so the encoding was present all along and simply had not landed on the
+segment that mattered. The path is decoded before classification now, and the scheme test runs
+after decoding as well as before, because decoding can produce one.
+
+**Three cases were added to the table** — an encoded directory character, the corpus's own encoded
+filename, and `%2F%2Fhost/...`, which is protocol-relative only *after* decoding. Watched failing
+by removing the decode: **1 of 20 wrong**, named by form.
+
+**This is the fourth consecutive round on one predicate, and the shape of the sequence is the
+finding.** Depth, then quoting and nesting, then unquoted and multi-line, then root-relative and
+whitespace, now encoding. The *structural* half stopped moving once it became a parser; every round
+since has landed on `is_backlink`, which is a **normalisation** problem, not a parsing one. A URL is
+not its own path, and each round has been one more step between the two. The table is the record of
+which steps are known — it does not claim to be all of them, and the next round will say so if it
+is not.
 
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed

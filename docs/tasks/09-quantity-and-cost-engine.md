@@ -143,10 +143,17 @@ Rules:
   earlier version of this document was the only place either was written down, which
   made a decision with consequences findable only by whoever already knew which slice to
   open — while ADR-010 restated SDD §49 without deciding anything.
-- What this slice adds is the application: intermediate pipeline values keep full
-  `decimal.js` precision, never rounded between stages, so waste/discount/tax stacking
-  cannot compound rounding error one step at a time — and the currency's minor unit
-  (2 decimal places for USD/EUR) is what "finalized" rounds to.
+- What this slice adds is the application: intermediate pipeline values are never
+  rounded to the currency's minor unit between stages, so waste/discount/tax stacking
+  cannot compound *that* rounding error one step at a time — the currency's minor unit
+  (2 decimal places for USD/EUR) is what "finalized" rounds to, once, at the end. That is
+  narrower than "full `decimal.js` precision", which an earlier version of this bullet
+  claimed and which decimal.js does not provide: every operation still rounds to a
+  configured number of significant digits — `MONEY_PRECISION` on `core/money/Money.ts`'s
+  private `Decimal.clone`, set to 34 (IEEE 754 decimal128's precision). Wide enough that
+  nothing in this slice's own worked example below comes near it, but not "full" in the
+  sense that decimal.js never rounds at all — `tests/core/money/moneyArithmetic.test.ts`
+  proves the residual with a 37-significant-digit exact product that does not survive.
 
 ### Unit kinds and Quantity
 
@@ -335,7 +342,10 @@ interface PackagingRule {
   readonly minimumOrder?: Decimal;
 }
 
-function toMeasuredQuantity(rawValue: Decimal, unit: MeasurementUnit): Quantity;
+function toMeasuredQuantity(
+  rawValue: Decimal,
+  unit: MeasurementUnit
+): Result<Quantity, CalculationError>;
 function applyRequirementRule(
   measured: Quantity,
   rule: RequirementRule
@@ -347,7 +357,7 @@ function applyWaste(
 function applyPackaging(
   quantity: Quantity,
   packaging?: PackagingRule
-): Quantity;
+): Result<Quantity, CalculationError>;
 
 function runQuantityEngine(
   rawValue: Decimal,
@@ -374,6 +384,22 @@ function computeEstimatedCost(
   input: CostPipelineInput
 ): Result<DerivedValue<Money>, CalculationError>;
 ```
+
+**`toMeasuredQuantity` and `applyPackaging` deviate from the bare-`Quantity` return the
+Definition of Done below was checked against**, and the two deviations have different
+histories. `toMeasuredQuantity` was changed deliberately, after this slice shipped: it
+was the one exported stage still able to hand back a negative `Quantity` — a corrupted or
+negative raw measurement passed straight through — while `applyRequirementRule` and
+`applyWaste` already refused one on the way in, so the "no exported stage returns a
+negative `Quantity`" guarantee `quantityEngine.ts`'s own header now states held for every
+door but this one. Wrapping it in `Result<Quantity, CalculationError>` was what closed it.
+`applyPackaging`'s `Result` return, by contrast, was never a change — it was already the
+shipped signature (it validates its own `PackagingRule`, rejecting a non-positive
+`lotSize`/`minimumOrder` as `quantity.invalid-packaging`) when this document was first
+written; the bare `Quantity` above was simply never corrected. Both checkmarks in the
+Definition of Done still describe what they verified — the worked example, the currency
+and negative-quantity guarantees — only the two literal return types shown above have
+since moved to match the code they were meant to describe.
 
 `CalculationError` is one of the categories already established in the shared error
 model (SDD §64); this slice does not introduce a new error category.

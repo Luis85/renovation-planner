@@ -9,14 +9,21 @@
  * Both globs are lazy: the index lists far more than it draws, and eagerly importing every
  * component would mount the whole plugin's presentation layer to render a list of links.
  *
- * TWO failure paths, not one. A module that fails to IMPORT rejects the promise and is
- * caught below; a module that imports fine but throws in `setup()` or `render()` fails
- * later, inside Vue's render cycle, where a try/catch around the import cannot see it.
- * `onErrorCaptured` is what covers the second, and without it criterion 8 holds only for
- * half the ways an entry can fail — the half that is easier to cause deliberately and rarer
- * in practice.
+ * THREE ways an entry fails, and no one mechanism sees two of them. A module that fails to
+ * IMPORT rejects the promise and is caught in `open()`. A module that imports fine but THROWS —
+ * in `setup()`, in `render()`, or from an async lifecycle hook a tick later — fails inside Vue's
+ * error cycle, where a try/catch around the import cannot see it; `EntryBoundary` covers that.
+ * And a module that neither rejects nor throws can still draw WRONGLY — an unresolved tag, a
+ * missing or mistyped prop — which Vue only WARNS about; `renderDefects` covers that. Each of
+ * the three was found by asking what an entry could do rather than by watching one do it, and
+ * `tests/harness/indexPage.test.ts` drives all three.
+ *
+ * All three are also ASYNCHRONOUS, which is the second half of the problem: any of them can land
+ * after the reader has opened something else, and a report that lands on the wrong entry is worse
+ * than no report. `generation`, `mountedId` and `EntryBoundary`'s own id are the three guards
+ * against that — see `generation` below, where the set is named together.
  */
-import { computed, getCurrentInstance, onErrorCaptured, ref, shallowRef } from 'vue';
+import { computed, defineComponent, getCurrentInstance, onErrorCaptured, ref, shallowRef } from 'vue';
 import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
 
 const prototypes = prototypeEntries();
@@ -109,6 +116,12 @@ const renderDefects: string[] = [];
  * and without this the FIRST to settle is whichever import happens to finish last: entry A's
  * module could overwrite entry B's, or A's load error could replace a B that had drawn
  * perfectly, while `pendingId` still says B. A stale call returns instead of writing anything.
+ *
+ * ONE of three guards, and the set is worth naming together because each covers a different
+ * asynchronous path and none of them covers another's: this one covers the LOADER await;
+ * `mountedId` covers the `<Suspense>` RESOLVE; and `EntryBoundary` covers the ERROR channel,
+ * which needs its own because a root hook has no way back to the `open()` call that mounted the
+ * subtree it is told about. Every one of the three was a real defect before it was a guard.
  */
 let generation = 0;
 
@@ -121,6 +134,9 @@ let generation = 0;
  * the stage ready under B's name with A's content in it. The clear at the top of `open()` is the
  * fix; this is the invariant that keeps it fixed, since removing the clear would otherwise
  * reintroduce the defect silently.
+ *
+ * `reportEntryFailure` reads it for the second question too — is the entry that threw the one on
+ * the stage — which is what keeps a stale rejection off a page it no longer belongs to.
  */
 let mountedId: string | null = null;
 
@@ -156,25 +172,69 @@ async function open(entry: HarnessEntry): Promise<void> {
 }
 
 /**
- * A render-time throw from the mounted entry. Returning `false` stops it propagating, so one
- * bad entry reports itself instead of blanking the page and taking the list with it.
+ * A throw from a mounted entry, attributed to the entry that ACTUALLY raised it.
  *
- * **`mountedId` is cleared here and clearing it is load-bearing**, which a committed test found
- * rather than a reading: without it `<Suspense>` still fires `@resolve` for the boundary the
- * throw happened inside, `settle()` sees a pending id it recognises and an empty defect list,
- * and it puts `data-entry` straight back on a stage showing the failure card. The page then
- * says "failed to render" while advertising itself as ready — the one combination that gets an
- * eyeless capture photographed and reported as a success. `mountedId` means "what is assigned
- * to the stage", and after a throw nothing is.
+ * **`mountedId` is cleared on the reporting path and clearing it is load-bearing**, which a
+ * committed test found rather than a reading: without it `<Suspense>` still fires `@resolve` for
+ * the boundary the throw happened inside, `settle()` sees a pending id it recognises and an empty
+ * defect list, and it puts `data-entry` straight back on a stage showing the failure card. The
+ * page then says "failed to render" while advertising itself as ready — the one combination that
+ * gets an eyeless capture photographed and reported as a success. `mountedId` means "what is
+ * assigned to the stage", and after a throw nothing is.
+ *
+ * **A STALE failure never touches the stage, and is never dropped either.** An entry whose async
+ * lifecycle hook rejects after the user has moved on still has its rejection delivered — Vue
+ * walks the parent chain of an instance that is already unmounted — and blaming whatever is on
+ * screen for it produces the worst outcome this page has: a working entry pulled off and replaced
+ * by a card accusing it, for a fault in something the reader has already left. So it goes to
+ * `console.error` instead, named as what it is. That is not a shrug: it is the one channel
+ * `scripts/harness-shot.mjs` records and exits non-zero on, so the failure is still loud to an
+ * agent with no eyes, while the entry actually on screen is left alone.
  */
-onErrorCaptured((error) => {
-	const id = renderedId.value ?? pendingId.value ?? requested ?? 'the entry';
+function reportEntryFailure(id: string, error: unknown): void {
+	const detail = error instanceof Error ? error.message : String(error);
+
+	if (id !== mountedId) {
+		console.error(`harness entry ${id} failed after the page moved on: ${detail}`);
+		return;
+	}
 
 	openComponent.value = null;
 	renderedId.value = null;
 	mountedId = null;
-	failure.value = `${id} failed to render: ${error instanceof Error ? error.message : String(error)}`;
-	return false;
+	failure.value = `${id} failed to render: ${detail}`;
+}
+
+/**
+ * The error boundary for ONE entry, which is what makes the attribution above possible.
+ *
+ * A root `onErrorCaptured` cannot do it. It is handed the error and the throwing instance and
+ * nothing that says which `open()` call put that instance there, so it can only read the CURRENT
+ * `renderedId`/`pendingId` — and that is precisely the bug. The generation counter cannot rescue
+ * it either: `generation` lives in `open()`, and a root hook has no closure over the call that
+ * mounted the subtree it is being told about. The alternative considered was walking `$parent`
+ * from the throwing instance to see whether it descends from the entry currently on stage, which
+ * needs a template ref through `<Suspense>` and a walk over Vue's instance tree — more code, over
+ * internals, to recover an id that a component created per entry simply HAS.
+ *
+ * `owned` is snapshotted in `setup` rather than read from the prop at throw time, for the same
+ * reason `mountedId` is a plain value: this boundary must report the entry it was created for,
+ * whatever the page has since become.
+ */
+const EntryBoundary = defineComponent({
+	props: { entryId: { type: String, required: true } },
+	setup(props, { slots }) {
+		const owned = props.entryId;
+
+		onErrorCaptured((error) => {
+			reportEntryFailure(owned, error);
+			// Stops here: one bad entry reports itself instead of blanking the page and taking
+			// the list with it.
+			return false;
+		});
+
+		return () => slots.default?.() ?? null;
+	},
 });
 
 /**
@@ -330,7 +390,17 @@ if (initial) void open(initial);
 				is tested. This stays for the day a change makes Suspense patch instead.
 			-->
 			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
-				<component :is="openComponent" />
+				<!--
+					Keyed by the entry, so the boundary that hears a throw is the one created for the
+					entry that raised it. Today `open()` clears `openComponent` before it awaits, so
+					the whole subtree is torn down between entries and every boundary is fresh
+					anyway — but that is the same accident the `@pending` note above describes, and
+					an attribution that depends on it would go wrong silently the day the swap
+					becomes a patch.
+				-->
+				<EntryBoundary :key="pendingId ?? ''" :entry-id="pendingId ?? ''">
+					<component :is="openComponent" />
+				</EntryBoundary>
 			</Suspense>
 			<p v-else>Pick an entry.</p>
 		</main>

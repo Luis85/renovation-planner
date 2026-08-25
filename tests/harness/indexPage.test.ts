@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref, resolveComponent } from 'vue';
+import { defineComponent, h, onMounted, ref, resolveComponent } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import type { HarnessEntry } from './entries';
@@ -130,6 +130,31 @@ const GrowsADefect = defineComponent({
 	setup: () => () => (lateDefect.value ? h(EmptyLayer) : h('p', 'clean')),
 });
 
+/**
+ * An entry whose ASYNC lifecycle hook rejects, on a gate this file opens — so "after the user
+ * navigated away" is a sequence rather than a race. Vue wraps lifecycle hooks in
+ * `callWithAsyncErrorHandling`, so the rejection is routed through the error channel exactly as a
+ * synchronous render throw is, just later: after the entry has been unmounted and replaced.
+ */
+let releaseLateFailure: () => void = () => undefined;
+
+const FailsAfterYouLeave = defineComponent({
+	setup() {
+		const gate = new Promise<void>((resolve) => {
+			releaseLateFailure = resolve;
+		});
+
+		onMounted(async () => {
+			await gate;
+			throw new Error('late failure from the entry you left');
+		});
+
+		return () => h('p', 'the entry you are about to leave');
+	},
+});
+
+const StillHere = defineComponent({ setup: () => () => h('p', 'the entry you moved to') });
+
 beforeEach(() => {
 	installEditorEnvironment();
 	document.body.replaceChildren();
@@ -235,6 +260,50 @@ describe('the harness index, refusing to advertise a hole', () => {
 		expect(wrapper.find('.rp-harness-failure').text()).toContain('Failed to resolve component');
 		expect(stageEntry(wrapper)).toBeUndefined();
 
+		wrapper.unmount();
+	});
+
+	/**
+	 * The THIRD asynchronous path, after the loader await and the Suspense resolve — and the only
+	 * one with no guard until now. Vue delivers a rejection to the capture hook even though the
+	 * instance that raised it is already unmounted, and a hook that reads the CURRENT `renderedId`
+	 * blames whatever is on screen. The consequence is the worst this page can produce: a working
+	 * entry pulled off the stage and replaced by a card accusing it, for a fault in an entry the
+	 * user has already left.
+	 *
+	 * Both halves are asserted, because either alone is satisfiable by doing the wrong thing. The
+	 * open entry must be left ALONE — a test that only checked "no failure card" would pass against
+	 * a page that swallowed the error entirely. And the stale failure must still reach the ONE
+	 * channel an eyeless agent reads, `console.error`, which `scripts/harness-shot.mjs` records and
+	 * exits non-zero on — a test that only checked the stage would pass against a silent drop,
+	 * which is the green-signal-that-means-nothing this whole page exists to refuse.
+	 */
+	it('does not blame the open entry for a failure the previous one left behind', async () => {
+		state.components = [
+			entryFor('component:LeftBehind', moduleOf(FailsAfterYouLeave)),
+			entryFor('component:StillHere', moduleOf(StillHere)),
+		];
+
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const wrapper = await openIndex('entry=component:LeftBehind');
+
+		expect(stageEntry(wrapper)).toBe('component:LeftBehind');
+
+		// The navigation, through the link the page actually offers.
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+
+		// Only now does the entry the user left finally fail.
+		releaseLateFailure();
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
+		expect(errors.mock.calls.flat().join(' ')).toContain('component:LeftBehind');
+
+		errors.mockRestore();
 		wrapper.unmount();
 	});
 

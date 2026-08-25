@@ -296,8 +296,14 @@ describe('SnapService.snapResize', () => {
 		// down to 0, past `min.x` (20). Returned as rounded that is `max < min` — an
 		// inverted box `BoundingBox` carries no invariant against and `createPolygon`
 		// accepts as an inverted-winding polygon, so it would reach a persisted zone.
-		// It collapses to a zero-width box at the grid line instead, which is the same
-		// answer `selection/normalize-transform.ts` gives a flipped Transformer scale.
+		// It mirrors instead: the rounded edge (0) and the untouched edge (20) are just
+		// sorted into min/max, so the box ends up on the OTHER side of the untouched
+		// edge rather than collapsing onto it — the same ordering
+		// `selection/normalize-transform.ts` gives a flipped Transformer scale. Whether a
+		// resize handle should instead CLAMP the moved edge against the fixed one (a
+		// genuine collapse) is still open: `snapResize` has no caller until a later
+		// slice puts a real Konva Transformer in front of it, and that is where it gets
+		// settled.
 		const service = makeService();
 		const narrow: BoundingBox = { min: { x: 20, y: 37 }, max: { x: 30, y: 172 } };
 

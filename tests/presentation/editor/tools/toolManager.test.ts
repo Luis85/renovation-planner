@@ -295,9 +295,13 @@ describe('ToolManager', () => {
  *   though it were a comment. No such string exists in either file today.
  *
  * Comments are stripped before the search, and that is load-bearing rather than tidy:
- * `tool-manager.ts`'s header exists precisely to talk about tool ids, so a matcher run
- * over raw text would flag the paragraph asserting the rule as though it broke it — the
- * same false positive `editorContext.test.ts`'s Konva check already records hitting.
+ * `tool-manager.ts`'s header today names tools only in backticks (`select`, `pan`,
+ * `draw-polygon`) and writes the forbidden shape with a literal ellipsis
+ * (`if (tool.id === '...')`), so no `ToolId` string literal actually appears there — but a
+ * future comment that quotes a real id in single quotes (the shape the next test plants)
+ * would flag the very paragraph asserting the rule as though it broke it, the same shape
+ * of false positive `editorContext.test.ts`'s Konva check already records hitting on a
+ * bare word.
  *
  * The instrument is tested before it is trusted (first `describe` below): a regex matching
  * nothing would make every assertion here pass while proving the opposite.
@@ -355,9 +359,10 @@ describe('the tool-specific-branching instrument', () => {
 	it('does not flag prose that merely NAMES a tool id in a comment', () => {
 		const ids = toolIds();
 
-		// The real false positive: `tool-manager.ts`'s own header states this rule, so a
-		// matcher over raw text would report the sentence asserting the invariant as a
-		// violation of it.
+		// The risk this guards against: a comment stating the rule while quoting an id in
+		// single quotes, as these synthetic examples do, would read as a violation to a
+		// matcher run over raw text before comments are stripped — not something
+		// `tool-manager.ts`'s actual header does today, but a shape a future one could.
 		expect(toolIdLiterals("// never write if (tool.id === 'select')", ids)).toEqual([]);
 		expect(toolIdLiterals("/**\n * Knows nothing about 'select' or 'pan'.\n */", ids)).toEqual([]);
 		expect(toolIdLiterals('const registered = this.tools.get(id);', ids)).toEqual([]);

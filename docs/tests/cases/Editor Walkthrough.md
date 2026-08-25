@@ -30,7 +30,7 @@ a step that only says "it looks right" cannot fail.
 | --- | --- | --- | --- |
 | 1 | Run `Create sample renovation project` | A project note, a plan note, a `Geometry/*.rpgeo` sidecar and five zone notes appear under `Renovation/` | The whole persistence layer on a vault with no folders in it. Two of the four known defects fired here |
 | 2 | Run `Open plan editor` and pick the plan | The editor opens on it | The command is available with no plan note active — it used to require one, which made it invisible in every vault |
-| 3 | Look at the shell | §60's five regions are present: toolbar, layers panel, canvas, inspector, status bar | Layout collapse. The toolbar and inspector are deliberately empty until slice 6 |
+| 3 | Look at the shell | §60's five regions are present: toolbar, layers panel, canvas, inspector, status bar | Layout collapse. The toolbar and inspector were deliberately empty until slice 6 — they have content since slice 8, which [[Zone Editing Walkthrough]] walks |
 | 4 | Look at the zones | Five zones, each with its name and a status caption; fills differ by zone TYPE and dash patterns by STATUS | A render model that draws every zone identically. The sample covers four types, all three statuses and one non-rectangular outline for exactly this |
 | 5 | Untick a layer in the Layers panel | Its contents disappear; ticking it back restores them | Layer visibility wired to the wrong layer, or to none |
 | 6 | Drag to pan; zoom with the wheel and with `+`/`-`; move the pointer | The camera follows, the zoom percentage changes, and the status bar's world-millimetre readout tracks the pointer | A viewport transform applied twice or in the wrong direction. `+`/`-` is listed separately because it is a different code path from the wheel |

@@ -32,6 +32,32 @@ echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z
 # gate, sees the bad numbers scroll past, and proceeds. Every measurement above is restated
 # here as a condition, and the script exits non-zero if any of them is wrong.
 fail=0
+
+# ---------------------------------------------------------------------------------------------
+# THE PINNED CORPUS, MATERIALISED ABOVE ITS FIRST USE.
+#
+# This matrix compares against the derived backlog AS IT STOOD, and `MATRIX_BASE` pins that state.
+# The multi-project decision has since edited four notes, and those four edits moved the candidate
+# set of 1,205 behavioural rows — a fifth of the matrix — so replaying against the working tree
+# measures a different corpus and reports the committed `cand_n` as wrong. The findings are not
+# invalidated by that: a gap says the backlog had no note for something WHEN THE COMPARISON RAN,
+# and the backlog gaining one afterwards is the finding being RESOLVED, recorded in `remedy`
+# rather than by moving the row.
+#
+# It lives HERE, at the top, because it did not: the `sections.py` selftest sat above the archive
+# and expanded `${PINNED:-.}` to the working tree on every run, so a check this file described as
+# pinned was not. That is the third ordering defect in this harness — after an allowlist helper
+# defined below its own first use — and the instance fix (move the one call down) leaves the next
+# `${PINNED}` added above this point silently unpinned. Defining above every use is what stops
+# the class, and the check below is what proves it rather than trusting the layout.
+MATRIX_BASE=2253cea3e2d2b4b5285f41b4066137f810ff3ad6
+PINNED=""
+if git cat-file -e "$MATRIX_BASE^{commit}" 2>/dev/null; then
+  PINNED="$(mktemp -d)"; trap 'rm -rf "$PINNED"' EXIT
+  git archive "$MATRIX_BASE" docs | tar -x -C "$PINNED" 2>/dev/null || PINNED=""
+fi
+[ -n "$PINNED" ] || echo "  NOTE matrix base $MATRIX_BASE unavailable; replaying against the working tree"
+
 chk(){ [ "$2" = "$3" ] || { echo "  FAIL $1: expected $2, measured $3"; fail=1; }; }
 chk "rows with no state" 0 "$(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')"
 # Definition-of-Done item 1 says every row holds exactly ONE OF FIVE states. Checking only for
@@ -142,7 +168,8 @@ fi
 
 # The coverage table's instrument, checked against a second implementation and pinned counts
 # before any number it produces is believed.
-python3 "$SP/sections.py" --selftest >/dev/null || { echo "  FAIL sections.py --selftest"; fail=1; }
+RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/sections.py" --selftest >/dev/null \
+  || { echo "  FAIL sections.py --selftest"; fail=1; }
 
 # The MECHANICAL half of the match must be reproducible from the committed tree — that is what
 # makes an `absent` verdict, and so every one of the 772 Gap findings, checkable rather than
@@ -157,13 +184,6 @@ python3 "$SP/sections.py" --selftest >/dev/null || { echo "  FAIL sections.py --
 # The findings are not invalidated by that: a gap says the backlog had no note for something when
 # the comparison ran, and the backlog gaining one afterwards is the finding being RESOLVED, which
 # is recorded in `remedy` rather than by moving the row.
-MATRIX_BASE=2253cea3e2d2b4b5285f41b4066137f810ff3ad6
-PINNED=""
-if git cat-file -e "$MATRIX_BASE^{commit}" 2>/dev/null; then
-  PINNED="$(mktemp -d)"; trap 'rm -rf "$PINNED"' EXIT
-  git archive "$MATRIX_BASE" docs | tar -x -C "$PINNED" 2>/dev/null || PINNED=""
-fi
-[ -n "$PINNED" ] || echo "  NOTE matrix base $MATRIX_BASE unavailable; replaying against the working tree"
 if [ -x "$SP/candidates.sh" ]; then
   python3 - "$SP" > "$SP/.sample.tsv" <<'PYS'
 import io, random, sys
@@ -191,7 +211,189 @@ fi
 # type-aware, alias-resolved, back-link-guarded — so it needs its own published command and its
 # own check, and a gate that covered one while the ledger claimed both would be the exact
 # defect this harness exists to catch. `--selftest` replays every named row against `rows.tsv`.
-python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py --selftest"; fail=1; }
+# ---------------------------------------------------------------------------------------------
+# THE CORPUS OVERRIDE MUST NOT REACH THE MATRIX.
+#
+# `RP_CORPUS_ROOT` pins the EVIDENCE, so a replay can read the bodies as they stood. It must not
+# also redirect `rows.tsv`: that is the artifact under test, and it is always the committed one.
+# `sections.py` resolved both through the same root, so the pinned replay measured pinned evidence
+# against the ARCHIVE'S matrix — four rows out of date, still holding the empty-state rows
+# withdrawn since. It happened not to change the answer, because those four removed no section's
+# last row, and the first correction that did would have made the published pinned command report
+# the old matrix silently. `lookup.py` never had it: its artifacts hang off the script's directory.
+#
+# Checked behaviourally, not by reading the source: run the instrument against two roots that
+# differ ONLY in `rows.tsv` — one the pinned tree, one the same tree with `rows.tsv` emptied — and
+# require identical output. Pre-fix the swept column collapses to 0 for every body; post-fix the
+# two runs are byte-identical.
+#
+# It exercises the DEFAULT invocation, and that bound was found the hard way: the first probe used
+# `--selftest`, which exits before `swept()` is ever called, so it passed against both the fixed
+# and the broken instrument and proved nothing. A probe that cannot tell the two apart is not
+# evidence, and this one was watched telling them apart before it was believed.
+if [ -n "$PINNED" ]; then
+  _probe_root="$(mktemp -d)"
+  mkdir -p "$_probe_root/docs/reviews/2026-08-24-ux-layer-backlog-reconciliation"
+  for _d in user-experience prds product; do
+    cp -r "$PINNED/docs/$_d" "$_probe_root/docs/$_d" 2>/dev/null
+  done
+  : > "$_probe_root/docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/rows.tsv"
+  if ! diff -q <(RP_CORPUS_ROOT="$PINNED" python3 "$SP/sections.py" 2>&1) \
+                <(RP_CORPUS_ROOT="$_probe_root" python3 "$SP/sections.py" 2>&1) >/dev/null; then
+    echo "  FAIL RP_CORPUS_ROOT reaches rows.tsv — sections.py measured the override's matrix, not the committed one"
+    fail=1
+  else
+    echo "  corpus override does not reach the matrix: ok"
+  fi
+  rm -rf "$_probe_root"
+else
+  echo "  NOTE matrix base unavailable; skipped the corpus-override/matrix separation check"
+fi
+
+# ---------------------------------------------------------------------------------------------
+# THE INSTRUMENTS RUN FROM ANYWHERE, INCLUDING WITH A RELATIVE CORPUS ROOT.
+#
+# `lookup.py`'s docstring promises "Run from anywhere in the repository", and it stopped being
+# true the moment `RP_CORPUS_ROOT` arrived: a RELATIVE override was resolved against the caller's
+# directory, so `RP_CORPUS_ROOT=. lookup.py` from `docs/` looked for `docs/docs/prds/...` and
+# traced back. `candidates.sh` never had the bug because it `cd`s to the top level before reading
+# the variable — the three instruments have to agree, and two of them silently did not.
+#
+# Checked by running them the way the claim says they can be run, from a subdirectory that is not
+# the repository root, in both the unset and relative-override forms. A claim in a docstring is
+# worth exactly what exercises it.
+# The first version of this check was itself wrong, which is the reason it is written out rather
+# than compressed: it passed the tool's arguments through an unquoted variable, so "Design System"
+# split into two words, the CLI printed its usage, and the check reported the TOOL as broken while
+# the tool was fine. Test the instrument before believing what it says about the subject.
+_probe=0
+_run_from_docs() {  # $1 = RP_CORPUS_ROOT value ("" means unset), rest = command
+  local root="$1"; shift
+  if [ -n "$root" ]; then
+    ( cd docs && RP_CORPUS_ROOT="$root" "$@" ) >/dev/null 2>&1
+  else
+    ( cd docs && "$@" ) >/dev/null 2>&1
+  fi
+}
+for _mode in "" "."; do
+  _label="${_mode:+relative}"; _label="${_label:-unset}"
+  _run_from_docs "$_mode" python3 "../$SP/lookup.py" reverse "Design System" \
+    || { echo "  FAIL lookup.py fails from docs/ with RP_CORPUS_ROOT $_label — 'run from anywhere' is false"; _probe=1; }
+  _run_from_docs "$_mode" python3 "../$SP/sections.py" --selftest \
+    || { echo "  FAIL sections.py fails from docs/ with RP_CORPUS_ROOT $_label — 'run from anywhere' is false"; _probe=1; }
+done
+[ "$_probe" = 0 ] && echo "  instruments run from a subdirectory, unset and relative corpus root: ok"
+fail=$(( fail || _probe ))
+
+# ---------------------------------------------------------------------------------------------
+# NOTHING EXPANDS $PINNED BEFORE THE ARCHIVE EXISTS.
+#
+# The invariant this file's own prose asserts: a replay described as pinned reads the pinned tree.
+# It was false — `sections.py --selftest` sat above the `git archive` and expanded `${PINNED:-.}`
+# to the working tree on every run, so the check ran against a corpus the matrix never compared,
+# while the ledger and this script both called it pinned. Review found it; nothing here could.
+#
+# Scoped to $PINNED deliberately, and the wider version was measured rather than dismissed: a
+# general "no variable used before it is assigned" scan reports SEVEN hits on this script and all
+# seven are false — a function's own loop variable, an assignment following a `;`, and a mention
+# inside a comment. Getting those right needs a bash parser, and a gate that needs a parser it
+# does not have is the defect this harness keeps catching in itself. So this checks the one
+# variable whose ordering is load-bearing, and says so instead of claiming the class.
+python3 - <<'PYP' || fail=1
+import io,re,sys
+P="docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/verify-dod.sh"
+lines=io.open(P,encoding="utf-8").read().split("\n")
+# Anchored on where the archive is COMPLETE, not on the first assignment. `PINNED=""` is an
+# initialiser three lines above `git archive`, so anchoring there declared the variable ready
+# while it still held the empty string — and an expansion inserted in the gap, the exact
+# regression this gate exists to prevent, would have passed. Review caught that.
+_start = next((i for i,l in enumerate(lines,1) if re.match(r'^\s*MATRIX_BASE=', l)), None)
+_ready = next((i for i,l in enumerate(lines,1)
+               if _start and i > _start and l.rstrip() == "fi"), None)
+if _start is None or _ready is None:
+    print("  FAIL verify-dod.sh no longer materialises PINNED in a recognisable block"); sys.exit(1)
+define = _ready
+# The block's OWN construction lines are the only legitimate expansions before completion.
+_BUILD = re.compile(r'mktemp -d|trap |git archive ')
+early=[(i,l.strip()[:78]) for i,l in enumerate(lines,1)
+       if i < define and not l.lstrip().startswith("#")
+       and re.search(r'\$\{?PINNED\b', l) and not _BUILD.search(l)]
+print("  $PINNED expanded before the pinned archive is built: %d" % len(early))
+for i,l in early:
+    print("  FAIL line %d expands $PINNED, but the archive is not complete until line %d — %s"
+          % (i,define,l))
+sys.exit(1 if early else 0)
+PYP
+
+# ---------------------------------------------------------------------------------------------
+# NO BACKLINK SURVIVES THE STRIP.
+#
+# This exists because pinning the selftest HID a defect instead of fixing one: the back-link
+# guard assumed a fixed depth, the gallery moved a directory deeper, the anchor TEXT survived
+# into the searched body, and `reverse "Design System"` answered `present gallery` from a link
+# that means the opposite. Pinning made the verifier green while the published lookup stayed
+# wrong on the corpus a reader actually has.
+#
+# The two checks are split by what each can guarantee, and neither covers the other. The PINNED
+# selftest guarantees the published matrix reproduces against the corpus it compared. THIS check
+# guarantees the stripper is correct on the corpus that exists NOW.
+# Checked on the RESULT, not on the mechanism, which is what finally makes it independent.
+# Two rounds were spent broadening a detector to match whatever the stripper's pattern matched —
+# attributes, quote styles, nested labels — and review named another valid form each time: an
+# UNQUOTED href, a label spanning lines. A detector that has to enumerate the same forms as the
+# thing it checks will always trail it by one round.
+#
+# So this asks the invariant directly of the OUTPUT: after the real strip runs, no anchor pointing
+# into a derived folder may remain in the text that gets searched. If the stripper misses a form,
+# the anchor is still there and this fails — whatever form it was. It shares the SCOPE rule with
+# the tool (`is_backlink`, so both agree what a backlink is) and shares nothing about structure.
+#
+# It counts what went IN as well as what is left: "0 remaining" and "there were none" print the
+# same line otherwise, which is how a check goes silently blind — twice already here.
+python3 - <<'PYB' || fail=1
+import io,os,re,sys
+import importlib.util
+spec=importlib.util.spec_from_file_location(
+    "lk","docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/lookup.py")
+lk=importlib.util.module_from_spec(spec); spec.loader.exec_module(lk)
+ATAG=re.compile(r'<a\b[^>]*>', re.S)
+HREF=re.compile(r"""\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""", re.S)
+def backlinks_in(text):
+    out=[]
+    for m in ATAG.finditer(text):
+        h=HREF.search(m.group(0))
+        if not h: continue
+        href=next((g for g in h.groups() if g is not None), "")
+        if lk.is_backlink(href): out.append(href)
+    return out
+# The SCOPE rule is the one thing this gate shares with the tool by design, so a defect in it is
+# invisible here — `/docs/components/Toast.md` read as external, and the anchor survived while
+# this check reported a clean strip. A shared premise cannot be checked by the thing that shares
+# it, so the rule is exercised directly against forms written out from its definition.
+if not lk.scope_selftest():
+    sys.exit(1)
+went_in=0; left=[]
+for name,path,a,b in lk.BODIES:
+    if not os.path.exists(path): continue
+    src=io.open(path,encoding="utf-8",errors="replace").read().split("\n")
+    text="\n".join(src[a-1:] if b is None else src[a-1:b])
+    went_in += len(backlinks_in(text))
+    left += [(name,h) for h in backlinks_in(lk.strip_backlinks(text))]
+if went_in == 0:
+    print("  FAIL the back-link check found no backlinks at all; it has stopped seeing the corpus")
+    sys.exit(1)
+print("  backlinks into a derived folder: %d in the bodies, %d surviving the strip" % (went_in,len(left)))
+for name,href in left:
+    print("  FAIL %s still carries %r after stripping — its anchor text is searched as evidence"
+          % (name,href))
+sys.exit(1 if left else 0)
+PYB
+
+# Replayed against the PINNED corpus, exactly as candidates.sh is. Against the working tree it
+# measures whatever the backlog and the evidence hold TODAY, which stopped being the corpus the
+# matrix compared the moment main gained the plan-editor work.
+RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 \
+  || { echo "  FAIL lookup.py --selftest"; fail=1; }
 
 # Every id the CLUSTER BULLETS cite must exist and still be a disagreement. Two clusters were
 # found narrating rows the matrix does not contain — `f258` and `f967` reclassified to `present`,
@@ -219,6 +421,65 @@ python3 "$SP/lookup.py" --selftest >/dev/null 2>&1 || { echo "  FAIL lookup.py -
 # above a floor that separates a total from a cluster size. It caught three more the review had
 # not named. Its own limit, stated because it cannot reach it: a BARE number under a heading has
 # no metric word beside it and is invisible here — those stay in the targeted sweep below.
+# ---------------------------------------------------------------------------------------------
+# A NAMED IDENTITY ROW MUST NOT BE A QUALIFIED FORM OF A NOTE THE BACKLOG ALREADY HAS.
+#
+# `components/`, `entities/` and `actors/` are IDENTITY targets: a thing is present iff a note IS
+# it, so an `absent` named row into one of them asserts the backlog is MISSING A THING. Review
+# found four rows where that was a category error — PRD §24 heads four worked EXAMPLES of one
+# empty state ("No Projects", "No Spaces", "No Work", "No Costs"), and the extractor read each
+# heading as the name of a separate component. `components/Empty state.md` already models exactly
+# one component whose cause and message vary, so those four rows demanded four notes for four
+# configurations of a note that exists, and produced four false gaps.
+#
+# Checked at the forbidden SHAPE rather than by listing the four: a named identity row whose
+# subject ends in the full title of a note in its own target directory is a qualified form of
+# that note, not a new thing. Run over all 48 absent named component rows it returned exactly the
+# four review named and nothing else, which is what made it safe to adopt as a gate rather than
+# a cleanup. It reads the PINNED tree, because it is a claim about the corpus the matrix measured.
+#
+# SCOPED BY MEASUREMENT, not by taste. `components/` and `actors/` report zero. `entities/` was
+# tried and reports ELEVEN, and reading them is what settled it: the shape does not transfer,
+# because an entity subject is frequently a VERB PHRASE that merely ends in an entity name —
+# "Start with a Blank Plan (starting method)", "Import Plan (project entry mode)", "Starting
+# Method options: Import a Floor Plan, Draw a Plan, Start Without a Plan". None is `Plan`
+# configured; each is a choice a wizard offers. The tail test cannot tell an adjectival qualifier
+# ("No Projects" + "empty state") from a verb phrase's object, so `entities/` stays out rather
+# than the gate being loosened until it passes. Excluding a directory to make a gate quiet is the
+# move this ledger warns about, so the reason is the reading, not the count.
+#
+# ONE of those eleven may be the real thing and is deliberately NOT actioned here: `f389`, which
+# asks `entities/` for a "Last Project" note when `Project.md` exists. It is an adjectival
+# qualifier and fits the shape. Re-judging a row the review did not raise, on a pinned matrix,
+# belongs to its own pass with its own reading — not to the commit that repairs a different row.
+#
+# What it cannot see, stated because the shape is narrower than the defect: a qualified form
+# whose subject does not END in the note's title ("empty state for No Projects"), and a category
+# error against a note the backlog does NOT have, which no lookup can distinguish from a real gap.
+python3 - "${PINNED:-.}" <<'PYQ' || fail=1
+import io,os,re,sys,csv
+D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
+root=sys.argv[1]
+rows=list(csv.DictReader(io.open(D+'/rows.tsv',encoding='utf-8'),delimiter='\t'))
+bad=[]
+for tgt in ('components','actors'):
+    d=os.path.join(root,'docs',tgt)
+    if not os.path.isdir(d): continue
+    titles={p[:-3].lower() for p in os.listdir(d) if p.endswith('.md')}
+    for r in rows:
+        if not(r['kind']=='named' and r['target']==tgt and r['state']=='absent'): continue
+        subj=re.sub(r'\s*\([^)]*\)\s*$','',r['subject']).strip()
+        w=subj.split()
+        for n in (3,2,1):
+            if len(w)<=n: continue
+            if ' '.join(w[-n:]).lower() in titles:
+                bad.append((r['id'],tgt,r['subject'],' '.join(w[-n:]))); break
+print("  absent named identity rows that are a qualified form of an existing note: %d" % len(bad))
+for rid,tgt,subj,tail in bad:
+    print("  FAIL %s asks %s/ for %r, which is %r configured — not a missing thing" % (rid,tgt,subj,tail))
+sys.exit(1 if bad else 0)
+PYQ
+
 # The ledger's ONE executable worked example must actually be true. It printed a finding id
 # (`g92`) that belongs to a different row than the one its own commands select — a reader running
 # the block would have seen `g96` come back and the label contradict it. Nothing checked it: the
@@ -289,7 +550,13 @@ L=io.open(D+'.md',encoding='utf-8').read()
 # Find the history boundary by PATTERN, not by its current wording — the heading counts the
 # corrections, so it is renamed by every round, and hard-coding it made this gate crash the
 # first time the count moved.
-_b=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+# Anchored on the SECTION HEADING, not on the counting sentence below it. Three gates depend on
+# this boundary, and it was keyed to "N corrections, all from review of the committed matrix" — a
+# sentence rewritten on every round. Changing "all" to "all but one", a true and necessary edit,
+# made the boundary unresolvable and turned the live half into the whole document; the corrections
+# section's own quoted figures then failed three checks at once. A load-bearing anchor may not sit
+# on a sentence that every round rewrites.
+_b=re.search(r"^## Findings withdrawn after review$", L, re.M)
 if not _b:
     print("  FAIL cannot locate the corrections heading that bounds the live half"); sys.exit(1)
 live=L[:_b.start()]
@@ -351,7 +618,7 @@ python3 - <<'PYX' || fail=1
 import io,re,collections,sys
 D='docs/reviews/2026-08-24-ux-layer-backlog-reconciliation'
 L=io.open(D+'.md',encoding='utf-8').read()
-_b=re.search(r"^[A-Za-z-]+ corrections, all from review of the committed matrix", L, re.M)
+_b=re.search(r"^## Findings withdrawn after review$", L, re.M)
 if not _b:
     print("  FAIL cannot locate the corrections heading that bounds the live half"); sys.exit(1)
 live, hist = L[:_b.start()], L[_b.start():]
@@ -487,12 +754,53 @@ checks=[
  # re-derivable from the artifacts. The live/historical split is positional, and position turned
  # out to be a proxy for liveness that fails on a correction which explains a figure by restating it.
  ("direction partition",      r"\*\*%d of the %d contradictions rest on reverse rows alone\*\*, against %d on forward rows" % (crev,kd['Contradiction'],cfwd)),
+ # The Checks block's selftest ratio is the NAMED ROW COUNT, and at 678 it sits below the `rows`
+ # floor exactly as the jtbd per-body count did — the same blind spot, found the same way, one
+ # round later. Computed from the matrix rather than pinned.
+ ("lookup selftest ratio",   r"lookup\.py reproduces the committed named state\s+%d / %d named rows"
+                             % ((dk[('forward','named')]+dk[('reverse','named')],)*2)),
  ("per-body forward rows",    r"prd %d, canvas %d, prototype %d, uxd %d,\nwireframes %d, jtbd %d, research %d, gallery %d\." % tuple(fwdbody[k] for k in ("prd","canvas","prototype","uxd","wireframes","jtbd","research","gallery"))),
 ]
+# EVERY COPY, not one of them. The sweep above uses re.search, so an entry is satisfied by a
+# single correct occurrence — which makes it structurally blind to the defect it exists to catch,
+# because every stale figure in this ledger has been a SECOND COPY of one that was right. Review
+# found the named-row count corrected in the Checks block while three other copies still read 682,
+# and the sweep passed clean on all three.
+#
+# These entries invert it: a SHAPE with a numeric group, where every match must equal the measured
+# value. One shape covers all copies of a figure, the ones written and the ones not yet written.
+#
+# The general version was measured and refused: scanning the live half for any "<number> <unit>"
+# and flagging a unit stated with two different values reports NINE units, essentially all
+# legitimate — "rows" alone correctly carries 2, 4, 6, 7, 37 and 66 across cluster sizes and
+# totals. Internal disagreement is not by itself a defect in a document that counts many things,
+# so this stays per-figure and says so.
+NAMED = dk[('forward','named')] + dk[('reverse','named')]
+everywhere = [
+ ("named-row count",       r"(\d+) named rows",                          NAMED),
+ ("named-row ratio",       r"(\d+) / (\d+) named rows",                  NAMED),
+ ("selftest N of N",       r"committed state: \*\*(\d+) of (\d+)\*\*",   NAMED),
+]
+# Scanned over the LIVE half only, and that bound was found by the check reporting a true hit it
+# should not have: correction 7 records that "18 named rows" were rescored, which is a count of
+# rows that correction moved, not the total. The historical half quotes superseded figures ON
+# PURPOSE, so a shape general enough to be useful there would fail on every correction record.
+_lb=re.search(r"^## Findings withdrawn after review$", L, re.M)
+_live = L[:_lb.start()] if _lb else L
+wrong=[]
+for label,shape,want in everywhere:
+    for m in re.finditer(shape,_live):
+        for g in m.groups():
+            if int(g)!=want:
+                wrong.append((label,_live[:m.start()].count("\n")+1,m.group(0).strip(),want))
+print("  restatements checked at every copy: %d shapes, disagreeing: %d" % (len(everywhere),len(wrong)))
+for label,line,txt,want in wrong:
+    print("  FAIL line %d: %r — every %s must read %d" % (line,txt,label,want))
+
 bad=[n for n,p in checks if not re.search(p,L)]
 print("  ledger figures swept against the committed data: %d, disagreeing: %d" % (len(checks),len(bad)))
 for n in bad: print("  FAIL ledger does not print the measured value for: %s" % n)
-sys.exit(1 if bad else 0)
+sys.exit(1 if (bad or wrong) else 0)
 PYS
 
 python3 - <<'PYC' || fail=1
@@ -524,7 +832,7 @@ for i, why in bad:
     print("  FAIL cluster cites %s but %s" % (i, why))
 sys.exit(1 if bad else 0)
 PYC
-python3 "$SP/lookup.py" --selftest 2>/dev/null | tail -1
+RP_CORPUS_ROOT="${PINNED:-.}" python3 "$SP/lookup.py" --selftest 2>/dev/null | tail -1
 
 # The two LEDGER conditions, asserted rather than printed. Item 1a is a claim about the
 # ledger's text, so it is checked against the ledger's text: all eight note types named, and

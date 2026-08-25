@@ -22,8 +22,21 @@ depth. `research§21` is the worked example.
 """
 import io, os, re, sys, collections, subprocess
 
-ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+# `RP_CORPUS_ROOT` pins the corpus, as in candidates.sh and lookup.py. It agrees with the working
+# tree today, and that is a measurement rather than a guarantee: the section counts here are of
+# bodies the plan-editor merge also touched, so the agreement is the current state of the corpus
+# and not a property of this instrument. It had no such variable until the check for it was run
+# with the variable ignored — which is why "identical both ways" proved nothing the first time.
+# A RELATIVE override is resolved against the repository root, not the caller's directory, which
+# is what `candidates.sh` already does by `cd`-ing to the top level before it reads the variable.
+# Without that, `RP_CORPUS_ROOT=.` from `docs/` looked for `docs/docs/prds/...` and traced back —
+# against a docstring three lines up that promises this runs from anywhere in the repository.
+_TOP = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                       capture_output=True, text=True).stdout.strip() or "."
+_CORPUS = os.environ.get("RP_CORPUS_ROOT")
+ROOT = (_CORPUS if _CORPUS and os.path.isabs(_CORPUS)
+        else os.path.normpath(os.path.join(_TOP, _CORPUS)) if _CORPUS
+        else _TOP)
 UX = os.path.join(ROOT, "docs/user-experience")
 PR = os.path.join(ROOT, "docs/prds")
 PD = os.path.join(ROOT, "docs/product")
@@ -41,7 +54,17 @@ BODIES = [
     ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
 ]
 
-ROWS = os.path.join(ROOT, "docs/reviews/2026-08-24-ux-layer-backlog-reconciliation/rows.tsv")
+# The CORPUS is pinnable; the MATRIX is not. `ROOT` moves with `RP_CORPUS_ROOT` so the evidence
+# bodies can be read as they stood, but `rows.tsv` is the artifact under test and must always be
+# the committed one — read from beside this script, exactly as `lookup.py` reads its own.
+#
+# It resolved through `ROOT` until review caught it, which meant the pinned replay measured the
+# pinned evidence against the ARCHIVE'S rows.tsv — a matrix four rows out of date, still holding
+# the empty-state rows withdrawn since. It happened not to change the answer, because those four
+# removed no section's last row; the first correction that did would have made the published
+# pinned command report the old matrix and say nothing.
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROWS = os.path.join(HERE, "rows.tsv")
 
 # A heading at ANY level, because the bodies do not share one: prd, uxd and research number at
 # `#`, canvas, prototype and wireframes at `##`. Any route that fixes a level measures a subset

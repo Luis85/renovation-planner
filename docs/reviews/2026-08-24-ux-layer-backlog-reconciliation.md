@@ -25,7 +25,7 @@ than left to be noticed:**
 
 ## What was found
 
-**45 contradictions, 763 gaps, 0 orphans, and 4 convention findings.** The contradictions are
+**45 contradictions, 759 gaps, 0 orphans, and 4 convention findings.** The contradictions are
 the useful half, and they concentrate rather than scatter — seven themed clusters carry 29 of
 the 45, and `deliverables/Disclosure ladder.md` alone accounts for 6.
 
@@ -36,7 +36,7 @@ drawn plan: its own *What is open* admits rung 1 "forbids" pricing before drawin
 `requirements/Start a renovation project.md` creates no `Plans/` folder until something is drawn.
 Cluster E quotes both and says why the matrix cannot count it.
 
-**No orphans at all.** Across 3,076 rows and eight evidence bodies, not one passage *replaces*
+**No orphans at all.** Across 3,072 rows and eight evidence bodies, not one passage *replaces*
 a derived claim rather than merely disagreeing with it. That is a result, not an absence: the
 UX layer contradicts the backlog in 45 places and supersedes it nowhere.
 
@@ -55,20 +55,20 @@ Rows and findings are different things and are counted separately.
 
 | | |
 | --- | --- |
-| matrix rows | **3,076** |
-| ├ forward, named | 497 |
+| matrix rows | **3,072** |
+| ├ forward, named | 493 |
 | ├ forward, behavioural | 907 |
 | ├ reverse, named | 185 |
 | └ reverse, behavioural | 1,487 |
 | **rows by state** | |
 | `retained` | 1,124 |
 | `present` | 1,144 |
-| `absent` | 763 |
+| `absent` | 759 |
 | `contradictory` | 45 |
 | `superseded` | **0** |
 | **findings** | |
 | Contradiction | **45** |
-| Gap | **763** |
+| Gap | **759** |
 | Orphan | **0** |
 | Convention (separate audit, outside the matrix) | **4** |
 
@@ -101,7 +101,7 @@ exist for only the five note types that hold named things, so a single count wou
 | `deliverables/` | 5 | 5 |
 | `issues/` | 3 | 3 |
 
-All eight evidence bodies contributed forward rows: prd 434, canvas 197, prototype 177, uxd 170,
+All eight evidence bodies contributed forward rows: prd 430, canvas 197, prototype 177, uxd 170,
 wireframes 147, jtbd 95, research 120, gallery 64.
 
 ### Sections swept, beside sections contained — with the instrument's limits
@@ -284,7 +284,7 @@ it. The demonstrated instance is `f1284`, "show the user what they need to do no
 were `task, current, next-best-action`, and `docs/requirements/Reporting and project cockpit.md`
 — which asks the claim's own question in as many words, "what is next, what is blocked" — uses
 none of the three, so it was never a candidate. Two rows from adjacent wishes in the same
-section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 763
+section landed on opposite verdicts for that reason alone. `f1284` is withdrawn below. **The 759
 gaps carry this limit in the same shape**, and it points one way only: it can invent a gap, never
 hide one.
 
@@ -570,10 +570,10 @@ counts rows rather than subjects throughout.
 
 ## Gaps
 
-**763**, of which 402 are named things the evidence names with no note behind them and 361 are
+**759**, of which 398 are named things the evidence names with no note behind them and 361 are
 behavioural claims no note addresses. The named/behavioural split and the per-body breakdown are in `findings.tsv`.
 
-They are not 763 separate problems. **Whole epics of the new PRD have no derived counterpart**,
+They are not 759 separate problems. **Whole epics of the new PRD have no derived counterpart**,
 and the reason is one measurement rather than a judgement — counted across all 227 notes:
 
 | term | derived notes containing it | times the workspace PRD uses it |
@@ -616,10 +616,10 @@ five deliverable notes is one.
 
 **A caveat a reader should apply to this number.** A gap is one forward row that no derived note
 addresses, and the same absence is reached from several bodies — `Project Home` alone produces
-rows from three. The 763 is a row-derived count, honestly produced and not deduplicated by
+rows from three. The 759 is a row-derived count, honestly produced and not deduplicated by
 subject, and the clusters above are the shape a reader should act on.
 
-**Every one of the 763 is re-runnable, and both commands are committed — two, because the two
+**Every one of the 759 is re-runnable, and both commands are committed — two, because the two
 row kinds are two mechanisms.** A named row is a *lookup* that settles the row on its own; a
 behavioural row is a *candidate set* that bounds a reading. One command cannot answer both, and
 publishing one and claiming both is the error this ledger keeps catching in itself.
@@ -638,7 +638,7 @@ bash $D/candidates.sh forward "interaction promise,awareness" # prints nothing: 
 so no judgement was involved at all — the ladder resolved it to `absent` mechanically. The
 command is the whole of that decision, and it either prints nothing today or the finding is wrong.
 
-**402 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
+**398 named gaps** — [`lookup.py`](2026-08-24-ux-layer-backlog-reconciliation/lookup.py), given
 the row's `target` and `subject`. It is type-aware, alias-resolved and back-link-guarded, which
 `candidates.sh` is none of, so it prints `Project Home`'s two answers rather than their union:
 
@@ -646,10 +646,10 @@ the row's `target` and `subject`. It is type-aware, alias-resolved and back-link
 python3 $D/lookup.py forward requirements  "Project Home"   # absent   -
 python3 $D/lookup.py forward deliverables  "Project Home"   # present  docs/deliverables/MVP Prototype.md
 python3 $D/lookup.py reverse               "Design System"  # retained -   (the back-link is stripped)
-python3 $D/lookup.py --selftest                             # replays all 682 named rows
+python3 $D/lookup.py --selftest                             # replays all 678 named rows
 ```
 
-`--selftest` replays every named row against its committed state: **682 of 682**, with the two
+`--selftest` replays every named row against its committed state: **678 of 678**, with the two
 rows a later reading moved from `present` to `contradictory` reported by name rather than
 tolerated silently. Judgement moving a row the lookup placed is the one legitimate divergence;
 the reverse of it is a failure, and the selftest treats it as one.
@@ -669,7 +669,7 @@ Listed, not settled. Each carries options and a recommendation; none is resolved
 ### 1. Classify `docs/user-experience/` and `docs/product/` — this one gates the rest
 
 `docs/README.md`'s folder table names neither. **Seven of the eight evidence bodies therefore have
-no recorded standing**, and 541 of the 808 matrix findings carry `undetermined` and propose no
+no recorded standing**, and 541 of the 804 matrix findings carry `undetermined` and propose no
 edit as a direct consequence.
 
 - **Received, like `prds/`** — the 32 contradictions now carrying `undetermined` gain the
@@ -887,20 +887,20 @@ to be typing.
 ## The finding set, as data
 
 The narrative above cites the contradictions in full and characterises the gaps by cluster. It
-does not print 763 gap citations, and a reader is entitled to check the totals rather than take
+does not print 759 gap citations, and a reader is entitled to check the totals rather than take
 them. **The matrix and the finding set are committed beside this ledger**, in
 [`2026-08-24-ux-layer-backlog-reconciliation/`](2026-08-24-ux-layer-backlog-reconciliation/):
 
 | file | rows | what it holds |
 | --- | --- | --- |
-| `rows.tsv` | 3,076 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
-| `findings.tsv` | 808 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
+| `rows.tsv` | 3,072 | every matrix row: direction, kind, subject, source, terms, candidate-set size, match, state, pair, target |
+| `findings.tsv` | 804 | every finding: kind, standing on both sides, both citations, the rows behind it, remedy |
 | `aliases.tsv` | 35 | the alias table the two-pass named lookup resolved through |
 | `convention.tsv` | 4 | the convention audit, kept out of the matrix counts |
 | `provenance.tsv` | 13 | the provenance trace: for each received contradiction, the original-PRD/SDD sections read and whether the derived note drifted from them |
 | `sections.py` | — | the coverage instrument behind the sections-swept table, with `--selftest` |
 | `candidates.sh` | — | the candidate command for a BEHAVIOURAL row — the mechanical half of that match |
-| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 682 named rows |
+| `lookup.py` | — | the named-thing lookup, with `--selftest` replaying all 678 named rows |
 
 The implementation plan had decided these would stay in a scratchpad, on the reasoning that the
 spec authorises one output file — and flagged that as a question for the repository owner rather
@@ -910,7 +910,7 @@ thing this instrument was built not to do. Eight files, additive, no derived not
 
 ## Findings withdrawn after review
 
-Thirty-eight corrections, all from review of the committed matrix — which is the argument for
+Fifty-four corrections and one recorded limit, all but one from review of the committed matrix — which is the argument for
 committing it. None was reachable from the narrative alone.
 
 **1. `r1448` — a techstack contradiction that is not one.** It set
@@ -1538,6 +1538,435 @@ by restating it. Running the net over the whole document was measured instead of
 hits, 20 of them legitimate history** — deltas, quotations and per-correction snapshots that must
 stay stale. So the boundary is right and that paragraph was misfiled; it is checked by name.
 
+**A thirty-ninth correction, and the first one that is a category error rather than a count.**
+`prd§24` heads four worked examples of an empty state — *No Projects*, *No Spaces*, *No Work*,
+*No Costs* — each followed by nothing but a message and its buttons. The named-thing extractor
+read each heading as the name of a separate component and filed four `absent` rows into
+`components/`, producing four gaps whose remedy read *"backlog gains a note"*.
+
+**The backlog already has the note.** `components/Empty state.md` models exactly one component and
+says so twice: *"It is a state, so it has none of its own. What varies is the cause"*, and a
+Contract reading *"Given a message and at most one action."* What each of §24's four blocks
+contains is a message and its actions — **the inputs that Contract says are passed IN**, not a
+component definition. That is what makes them four configurations of one component, and §24's own
+opening sentence — *"Every major view must define an actionable empty state"* — is singular.
+
+**Deliberately not "each block satisfies the one-action contract", because one does not.** *No
+Spaces* offers `[Add Space]` and `[Import Floor Plan]`, which is the disagreement `f647` records
+and which survives this correction. Being a configuration of a component and being a *conforming*
+one are different claims, and the first draft of this paragraph asserted the second — eight lines
+above the sentence that contradicts it.
+
+**The rows were removed rather than moved to `present`, and the reason is that they were already
+counted.** `f646`–`f649` read the same four passages behaviourally and are still in the matrix, so
+`prd§24` loses no coverage: what goes is a second, wrong reading of passages the matrix already
+holds. Marking them `present` would have kept four duplicate rows and inflated the row total by
+the same four. **`f647` survives and still disagrees** — *No Spaces* offers two actions where
+`Empty state.md` says *"One action, not several"* — so removing the named rows withdraws four
+false gaps without touching the one real finding in that section.
+
+**Checked at the shape, not by listing the four.** An `absent` named row into an identity
+directory asserts the backlog is missing a *thing*; if its subject ends in the full title of a
+note already in that directory, it is that note qualified. Run across all 48 absent named
+component rows, the test returned exactly the four review named and nothing else, which is what
+made it a gate rather than a cleanup.
+
+**Its scope is a measurement and the measurement changed it.** `components/` and `actors/` report
+zero. `entities/` was tried and reports **eleven**, and reading them is what settled it: an entity
+subject is frequently a verb phrase that merely ends in an entity name — "Start with a Blank Plan
+(starting method)", "Import Plan (project entry mode)", "Starting Method options: Import a Floor
+Plan, Draw a Plan, Start Without a Plan". None of those is `Plan` configured; each is a choice a
+wizard offers. The tail test cannot separate an adjectival qualifier from a verb phrase's object,
+so `entities/` stays out — and the reason recorded is the reading, not the count, because
+excluding a directory until a gate goes quiet is the move this ledger warns about.
+
+**One of those eleven may be the real thing, and is deliberately left alone.** `f389` asks
+`entities/` for a *Last Project* note while `Project.md` exists; that is an adjectival qualifier
+and it fits the shape. Re-judging a row the review did not raise, on a pinned matrix, belongs to
+its own pass with its own reading rather than to the commit repairing a different row. Recorded
+here so it is not lost.
+
+**And removing four rows moved a figure the sweeps still could not see**, which is the same blind
+spot one round later: the Checks block's `lookup.py --selftest` ratio is the *named row count*,
+and at 678 it sits below the `rows` floor exactly as `jtbd`'s 95 did. Found by running the
+selftest rather than by any gate. Now computed from the matrix, taking the targeted sweep to
+**44 figures**. The general net's floor is not the defect and lowering it is still refused; what
+this says is that every figure below totals scale has to be named, and the way they keep being
+found is by running the instrument rather than by reading the page.
+
+**A fortieth correction: both instruments now take `RP_CORPUS_ROOT`.** `candidates.sh` took it and
+`lookup.py` did not, so a replay of the named half silently read the working tree while the
+behavioural half read the corpus the matrix compared. **That is the same defect review found in
+`candidates.sh`, in the other direction** — one instrument repaired, the other not checked beside
+it, which is now the second time this pair has done exactly that to itself. `sections.py` has it
+too.
+
+**The reason given for that change was WRONG, and the correction is the more important half.**
+It said `main`'s plan-editor work had moved the corpus — that two new evidence files,
+`concepts/renovation-canvas.html` and `concepts/canvas.css`, name *Design System* where the old
+ones did not, so `r1366` legitimately flipped `retained` → `present`. **Neither file is in
+`BODIES`.** `lookup.py` reads exactly one file from that folder, `component-gallery.html`, so
+neither could have moved anything. The claim was checked against the wrong thing: the corpus
+directory was compared, and the instrument's own body list was not.
+
+**A forty-first correction, and it is the one that matters: the fix in the previous commit made
+the gate green while leaving the tool wrong.** The real cause of `r1366` is that `lookup.py`'s
+back-link guard assumed a fixed depth. An evidence document linking BACK to a derived note is not
+the evidence naming the thing, so the anchor is stripped before the body is searched — and
+`BACKLINK` matched exactly one `../`. The gallery moved a directory deeper, its footer became
+`../../deliverables/Design%20System.md`, the guard stopped matching, the anchor *text* survived
+into the searched body, and `reverse "Design System"` answered **`present gallery` from a link
+that means the opposite**.
+
+**Pinning the replay is right and was not the fix.** It made `verify-dod.sh` green while the
+published command a reader actually runs stayed wrong on the corpus a reader actually has. That is
+the one repair this harness must never accept, and it was committed here — one commit after the
+ledger recorded that two of four gates unable to fail had been *introduced by repairing another
+one*.
+
+The guard now accepts any run of `./` or `../`, with or without a `docs/` prefix: **the folder is
+what identifies a backlink, not the route.** `reverse "Design System"` answers `retained` on the
+working tree again, and the unpinned selftest is back to **678/678** — so the corpus had never
+moved in a way the matrix depended on, and the 677/678 quoted in the fortieth correction was the
+parser being broken, not the corpus having changed.
+
+**The new gate asks the forbidden thing directly rather than watching for a symptom.** Every
+`<a href>` pointing into a derived folder, in any body `lookup.py` reads, must be matched by
+`BACKLINK` — corpus-independent, so a new path spelling fails it whether or not any row's state
+happens to move. Watched failing by restoring the fixed-depth regex, and it named **three**
+backlinks where the row-state selftest had noticed one: the two `../../components/` links moved no
+state at all and were invisible to every check this ledger had. It reads `BODIES` and `BACKLINK`
+by importing `lookup.py`, which needed a `__main__` guard, because a gate holding its own copy of
+the thing it checks is a gate that drifts.
+
+**The two checks are now split by what each can guarantee, and neither is described as covering
+the other.** The pinned selftest guarantees the published matrix reproduces against the corpus it
+compared. The back-link contract guarantees the parser is correct on the corpus that exists now.
+Pinning without the second is how a green gate hides a broken tool.
+
+**And the check on the second instrument was worthless the first time it was run.** `sections.py`
+agreed with itself pinned and unpinned, which looked like evidence it was safe — until reading the
+file showed it never consulted `RP_CORPUS_ROOT` at all, so both runs had read the working tree and
+the agreement measured nothing. It now honours the variable, and the comparison means what it
+appeared to mean. *Measure a set with an instrument that can see all of it, and test the
+instrument first* — recorded here because this ledger states that rule and then broke it while
+checking the repair for a different instance of it.
+
+**A forty-second correction, and it is the third ordering defect in this harness.** The
+`sections.py` selftest expanded `${PINNED:-.}` **above** the `git archive` that creates the pinned
+tree, so it resolved to `.` on every run: a check this script and this ledger both described as
+pinned read the working tree instead. Review found it; nothing here could, because every gate that
+looks at pinning asks what the *tools* accept rather than what the *script* passes.
+
+**Its consequence today is nil, and saying so is the point.** `sections.py` agrees pinned and
+unpinned on the current corpus — the numbered headings it counts have not moved. So this corrects
+a false *claim*, not a wrong *number*, and it would have become a wrong number the first time an
+evidence body gained or lost a heading, failing for a change that had nothing to do with it.
+
+**Fixed by moving the definition above every use rather than the one call below it.** Review's
+remedy — move the invocation after the archive — repairs the instance and leaves the next
+`${PINNED}` added above that point silently unpinned. The same distinction settled the allowlist
+helper that was defined below its own first use, which is the ordering defect this one repeats.
+
+**And the general check was measured, then refused.** A "no variable used before it is assigned"
+scan over this script reports **seven** hits and all seven are false: a function's own loop
+variable, an assignment following a `;`, and a mention inside a comment. Getting those right needs
+a bash parser, and a gate that needs a parser it does not have is exactly the defect this harness
+keeps catching in itself. So the check covers the one variable whose ordering is load-bearing and
+says that, rather than claiming the class. Watched failing by putting the `sections.py` call back
+above the archive, which reproduced the original defect at the original line.
+
+**A forty-third correction, and it is about the sweep itself rather than a number.** Withdrawing
+`f412`–`f415` moved the named-row count to 678. The Checks block was updated and **three other
+copies were not** — the runnable example (`replays all 682 named rows`), the sentence beneath it
+(`682 of 682`), and the artifact table (`replaying all 682 named rows`). The targeted sweep passed
+clean on all three.
+
+**It passed because `re.search` is satisfied by ONE occurrence.** An entry asserts that the right
+value appears *somewhere*; it says nothing about the other copies. So the mechanism built to catch
+stale figures was structurally blind to the one thing every stale figure in this ledger has been —
+**a second copy of one that was right.** Ten rounds of that pattern, and the check could not see it
+by construction.
+
+**Inverted for the figures that get restated:** a *shape* with a numeric group, where every match
+in the live half must equal the measured value. One shape covers all copies of a figure, the ones
+written and the ones not yet written. Watched failing by restoring exactly one of the three — the
+new scan names it at its line, and the old `re.search` entry stays green, which is the whole
+demonstration.
+
+**The general version was measured and refused.** Scanning the live half for any *number + unit*
+and flagging a unit stated with two different values reports **nine** units, essentially all
+legitimate: `rows` alone correctly carries 2, 4, 6, 7, 37 and 66 across cluster sizes and totals.
+Internal disagreement is not by itself a defect in a document that counts many things, so this
+stays per-figure and says so rather than claiming the class.
+
+**Its bound came from the check reporting a hit it should not have.** Run over the whole document
+it flagged correction 7's own *"18 named rows"* — a count of the rows that correction moved, not
+the total. The historical half quotes superseded figures **on purpose**, so the scan is scoped to
+the live half, exactly as the labelled net and the superseded check already are.
+
+**A forty-fourth correction: the disproven explanation was still sitting in the tool.** The comment
+introducing `RP_CORPUS_ROOT` in `lookup.py` recorded the corpus-move diagnosis as fact — that two
+new evidence files had *"correctly"* flipped `Design System`, and that pinning was the fix. The
+forty-first correction disproved both, in the commit immediately after, and never went back to the
+file where the claim had been written down.
+
+**That is the unsolved class this ledger has named three times, now caught inside an instrument
+rather than in prose:** something written on top of a finding is not revisited when the finding
+moves. The comment now records the wrong reason *as* the wrong reason — because it was written
+into the file as fact, and a maintainer reading only that file would have been misdirected by it —
+and states the rule the episode actually established: **pinning is not a fix for a parser.**
+
+**A forty-fifth correction, and it is the cost of the variable that fixed the last one.**
+`lookup.py`'s docstring promises *"Run from anywhere in the repository"*, and adding
+`RP_CORPUS_ROOT` made that false: a **relative** override was resolved against the caller's
+directory, so `RP_CORPUS_ROOT=. lookup.py` run from `docs/` looked for `docs/docs/prds/…` and
+traced back. `sections.py` had the identical code, having been given the variable in the same
+commit.
+
+**`candidates.sh` never had it**, because it `cd`s to the repository top level before it reads the
+variable — so the three instruments disagreed about what a relative root means, and two of them
+disagreed silently. Both now resolve a relative override against the top level, which is what
+`candidates.sh` already did; an absolute override is taken as given.
+
+**The gate runs them the way the claim says they can be run** — from a subdirectory, in both the
+unset and relative forms. A promise in a docstring is worth exactly what exercises it, and this one
+had been false since the commit that made it, two commits ago.
+
+**Its first version reported the tool broken when the tool was fine.** The check passed the
+subject's arguments through an unquoted variable, so `Design System` split into two words, the CLI
+printed its usage and exited non-zero, and the gate announced a failure that did not exist. Caught
+by watching it — the run that was supposed to be green was red, against a manual run that was
+green. *Measure with an instrument that can see the thing, and test the instrument first*: the
+second time in three corrections that the check, not the subject, was the defect.
+
+**A forty-sixth correction, and it draws a line the last three corrections kept blurring: the
+CORPUS is pinnable, the MATRIX is not.** `RP_CORPUS_ROOT` exists so a replay can read the evidence
+bodies as they stood. `sections.py` resolved `rows.tsv` through the same root, so a pinned run
+measured pinned evidence against **the archive's matrix** — four rows out of date, still holding
+the empty-state rows withdrawn since. `lookup.py` never had it, because its artifacts hang off the
+script's own directory; `sections.py` now does the same.
+
+**It happened not to change the answer, and that is the whole danger.** Those four rows removed no
+section's last row, so the coverage table was identical either way. The first correction that
+removed one would have made the published pinned command report the old matrix and say nothing
+about it.
+
+**Checked behaviourally rather than by reading the source:** run the instrument against two roots
+differing *only* in `rows.tsv` — the pinned tree, and the same tree with `rows.tsv` emptied — and
+require identical output. Pre-fix the swept column collapses to **0** for every body; post-fix the
+two runs are byte-identical.
+
+**The first probe proved nothing, and finding that out is the lesson worth keeping.** It used
+`--selftest`, which exits before `swept()` is ever called — so it passed against the broken
+instrument and the fixed one alike. A probe that cannot tell the two apart is not evidence. It was
+only caught by watching it fail and seeing it *not* fail. **Third time in four corrections that the
+check, rather than the subject, was the defect** — and the first two were caught the same way,
+which is the argument for never trusting a green gate that has not been watched red.
+
+**A forty-seventh correction, and it was inside the correction that repaired something else.**
+The thirty-ninth said *"a message and at most one action is precisely what each of §24's four
+blocks contains"* — and one does not. *No Spaces* offers `[Add Space]` and `[Import Floor Plan]`,
+which is the disagreement `f647` records, **stated eight lines further down the same correction.**
+
+**The argument never needed that claim.** What makes the four blocks configurations rather than
+components is that each is a message and its actions — the inputs the Contract says are passed IN.
+Whether a given block *conforms* to the one-action rule is a separate question, and for one of them
+the answer is no. Being a configuration and being a conforming one are different claims; the draft
+asserted the second while the correction's own conclusion depended only on the first.
+
+**A forty-eighth correction: the ordering gate was anchored three lines early.** It took the first
+`PINNED=` match as the point the variable becomes usable — but that is `PINNED=""`, an initialiser
+sitting above the `git archive` that fills it. An expansion inserted in that gap, **the exact
+regression this gate exists to prevent**, would have been judged late enough and passed.
+
+It now anchors on the `fi` that closes the materialisation block, and allows only the block's own
+construction lines to expand `$PINNED` before it. Watched failing by inserting an expansion between
+`PINNED=""` and `git archive`: the new anchor names it at line 55, and the old anchor reports zero.
+**Fourth time in five corrections that the check, rather than the subject, was the defect** — and
+this one was a gate written to catch an ordering defect, holding an ordering defect.
+
+**A forty-ninth correction, and it is the deepest version of a shape this ledger keeps hitting:
+the gate had copied the blind spot of the thing it checks.** The back-link contract check was added
+one commit earlier to catch what the parser misses — and it detected anchors with the parser's own
+assumptions: `<a href="` literally, double quotes, a bare text label. So an anchor the parser could
+not strip was an anchor the gate could not see. It reported zero and meant nothing.
+
+**Both halves were wrong, and both are fixed.** `BACKLINK` now matches anchor STRUCTURE — attributes
+may precede `href`, either quote style, an optional relative prefix, a label containing nested
+markup — while excluding a scheme-bearing href, because `https://…/deliverables/x` is an external
+link and not a backlink. The gate now finds **any** `<a>` element, reads its `href` from any
+attribute position, and asks one question: does it point into a derived folder? The two agree on
+**scope** and disagree on **structure**, which is where independence has to live.
+
+**Watched failing on the form review named.** With the gallery footer rewritten as
+`<a class="ref" href='…'><span>Design System</span></a>` — valid HTML, identical meaning — the
+broadened guard strips it and `reverse "Design System"` stays `retained`. Reverting the guard to
+its rigid form: the gate reports **1 not stripped**, and the lookup answers **`present gallery`**,
+the false positive review predicted. The old detector reported zero on that same file.
+
+**And it now prints what it EXAMINED, not only what it rejected.** *"0 missed"* and *"found nothing
+at all"* printed the same line, which is how a detector broken into silence stops gating — twice
+already in this ledger. It reports `3 examined, 0 not stripped`, and a corpus where it finds none
+fails outright rather than passing quietly.
+
+**Fifth time in six corrections that the check, not the subject, was the defect.** The pattern is
+now specific enough to name: a gate written in the same sitting as the fix it guards inherits the
+author's understanding of the failure, including whatever was too narrow about it. None of the six
+was caught by a gate. Every one was caught by review, or by watching a gate fail and seeing it not.
+
+**A fiftieth correction, and it ends a class rather than another instance of it.** The back-link
+guard was a regex, and review named a valid form it missed on three consecutive rounds: a deeper
+`../` path, then an attribute before `href` and a `<span>`-wrapped label, then an **unquoted** href
+and a label **spanning lines**. Each fix enumerated the forms someone had thought of. **That is the
+defect this ledger names as the one it is most prone to, committed three times in a row inside the
+repair for the previous instance.**
+
+**HTML has a parser in the standard library, so the enumeration stops.** `lookup.py` now removes
+backlinks with `html.parser.HTMLParser`: it reads the tag structurally, asks `is_backlink` of the
+`href`, and cuts the span. `convert_charrefs=False` and slicing the **original** text mean the
+parser's leniency on Markdown costs nothing — it supplies positions, never reconstructed content.
+
+**The gate moved from the mechanism to the RESULT, which is what finally makes it independent.**
+Two rounds were spent broadening a detector to match whatever the stripper matched; a detector that
+must enumerate the same forms will always trail it by one round. It now asks the invariant of the
+output: *after the real strip runs, no anchor pointing into a derived folder may remain in the text
+that gets searched.* It shares the **scope** rule with the tool — both must agree what a backlink
+is — and shares nothing about structure.
+
+**Measured on both forms review named.** With the gallery footer written as
+`<a href=…>Design System</a>` and again with its label split across three lines: the previous regex
+strips **neither**; the parser strips **both**, and `reverse "Design System"` stays `retained`.
+Watched failing by putting the old regex back with the unquoted form in place — the gate reports
+`3 in the bodies, 1 surviving`, and the lookup answers **`present gallery`**.
+
+**It also reports what went IN, not only what is left.** *"0 surviving"* and *"there were none"*
+printed the same line, which is how a check goes silently blind; it now prints `3 in the bodies, 0
+surviving`, and finding none fails outright.
+
+**Sixth time in seven corrections that the check, rather than the subject, was the defect.** The
+lesson is narrower than "write better gates": **when a check has to recognise the same thing its
+subject recognises, it inherits the subject's blind spot** — so either check the RESULT instead of
+re-recognising the input, or use an instrument that was not written by the person who wrote the
+bug.
+
+**A fifty-first correction, and it landed in the one place the previous correction had said the
+gate could not reach.** `is_backlink` normalised `./`, `../` and a `docs/` prefix, but not a
+**leading slash** — so `/docs/components/Toast.md`, an ordinary repository-root URL, read as
+*external*, its label survived into the searched body, and a reverse lookup could answer `present`
+from a link meaning the opposite. Surrounding whitespace failed the same way.
+
+**The output gate could not see it, exactly as designed.** That gate deliberately shares the SCOPE
+rule with the tool — both must agree what a backlink *is* — and checks only structure. So a defect
+in the shared premise is invisible to it. The limit was stated one commit earlier; review supplied
+the instance the same day.
+
+**A shared premise cannot be checked by the thing that shares it, so the rule is now exercised
+directly.** `is_backlink` is a pure predicate over a small, stable input space, so it is checked
+against **17 forms written out by hand from the rule's definition** — one and two levels up, bare
+relative, `docs/`-prefixed, root-relative with and without `docs/`, whitespace-padded, fragment,
+query, http, mailto, protocol-relative, a non-derived folder, a folder that merely starts the same,
+empty, absent. Watched failing by reverting the leading-slash normalisation: **2 of 17 wrong**,
+named by form.
+
+**Enumeration is the weakness elsewhere in this file and the strength here, and the difference is
+worth stating** rather than looking like a contradiction. Enumerating the *syntactic forms an
+anchor can take* failed three rounds running, because HTML's space of valid spellings is open —
+that is why the stripper is now a parser. Enumerating the *cases of a pure predicate* is different:
+the input space is a URL shape, small and closed enough to write down, and a hand-written table is
+independent of the implementation in a way a second implementation would not be.
+
+**A fifty-second correction: the scope rule compared an ENCODED path.** `../../%63omponents/Toast.md`
+resolves into `docs/components`, but the comparison saw `%63omponents`, found no such folder, and
+let the anchor survive the strip — its label then free to make a reverse lookup answer `present`.
+
+**Not hypothetical: this corpus already percent-encodes.** The gallery footer writes
+`Design%20System.md`. It happened to encode a character in the **filename**, which the folder
+comparison never looks at — so the encoding was present all along and simply had not landed on the
+segment that mattered. The path is decoded before classification now, and the scheme test runs
+after decoding as well as before, because decoding can produce one.
+
+**Three cases were added to the table** — an encoded directory character, the corpus's own encoded
+filename, and `%2F%2Fhost/...`, which is protocol-relative only *after* decoding. Watched failing
+by removing the decode: **1 of 20 wrong**, named by form.
+
+**This is the fourth consecutive round on one predicate, and the shape of the sequence is the
+finding.** Depth, then quoting and nesting, then unquoted and multi-line, then root-relative and
+whitespace, now encoding. The *structural* half stopped moving once it became a parser; every round
+since has landed on `is_backlink`, which is a **normalisation** problem, not a parsing one. A URL is
+not its own path, and each round has been one more step between the two. The table is the record of
+which steps are known — it does not claim to be all of them, and the next round will say so if it
+is not.
+
+**A fifty-third correction, and it is the only one in this ledger not reported by review.** The
+previous correction closed by saying the sequence would continue and that the next round should
+decide whether normalisation belongs to the standard library. Rather than wait to be told a sixth
+time, the three remaining instances were looked for — and found: `../tasks/../deliverables/x.md`,
+`a/../deliverables/x.md` and `./docs/./components/Toast.md` all resolve into the derived corpus and
+all read as **external**.
+
+**So resolution is `posixpath.normpath` now, not a sequence of prefix strips.** That is the same
+move that replaced the anchor regex with an HTML parser, one layer down: the failure was never a
+missing step, it was assembling steps at all. Five cases added — three interior-dot forms, a
+duplicate slash, and one that is deliberately **False**.
+
+**Case is not normalised, and that is a decision rather than an omission.** `../DELIVERABLES/x.md`
+stays external because on a case-sensitive filesystem that folder does not exist. The rule follows
+the vault, not the URL.
+
+**Watched failing by restoring the step-by-step stripping: 3 of 25 wrong**, each named by form.
+
+**What this changes about the sequence is worth stating, because "we fixed it five times" is not a
+result.** Four rounds were spent adding steps and each one was correct in isolation. The pattern
+only became visible when the *fifth* was written down beside the others — and the pattern, not any
+of the five, is what produced this fix. That is the argument for recording corrections rather than
+absorbing them.
+
+**A fifty-fourth correction, and the previous one caused it.** Writing *"all but one from
+review"* — true, and necessary, since the fifty-third was not reported — made the live/historical
+boundary unresolvable. **Three gates key off that boundary**, and it was anchored on the counting
+sentence *"N corrections, all from review of the committed matrix"*: a sentence this section
+rewrites on every single round. With the anchor gone the live half became the whole document, and
+the corrections section's own deliberately-quoted stale figures failed three checks at once.
+
+**A load-bearing anchor may not sit on a sentence that every round rewrites.** It anchors on the
+section HEADING now, at all three sites. Watched failing by renaming the heading: the boundary
+reports `cannot locate` and the gates stop rather than silently widening.
+
+**The failure mode is the one worth keeping.** The boundary did not go missing quietly — it took
+the live half with it and the checks got *louder*, which is how a fail-closed anchor is supposed to
+behave. Had `_b` defaulted to the whole document on a miss, the same edit would have produced three
+gates passing over material they were never meant to read.
+
+**A fifty-fifth entry, and it is a limit rather than a correction — the first finding in this
+review that was verified, implemented, measured, and then deliberately reverted.**
+
+Review asked for the back-link path to be resolved **relative to the body that carries it**. That
+is correct about URLs, and it fixes a real false positive: `../components/Toast.md` from
+`docs/user-experience/concepts/` resolves to `docs/user-experience/components/`, is not a derived
+note, and is stripped anyway — hiding a genuine evidence mention.
+
+**It was built, and it breaks the pinned replay.** At the matrix base `2253cea` the gallery footer
+read `../deliverables/Design%20System.md`, one level too few; commit `19c9974` — *"re-root the
+paths the concepts folder move left behind"* — fixed it afterwards. So at the pinned corpus that
+anchor is **dangling**, base-relative resolution calls it external, its label counts as evidence,
+and `r1366` reproduces `present` against a committed `retained`. Measured: **677/678**.
+
+**No rule separates the two cases, which is why this stops at a limit instead of a patch.** A
+broken backlink and a coincidental path are the *same input* — both dangling, both naming a derived
+folder. An existence test cannot tell them apart either: `docs/user-experience/components/` and
+`docs/user-experience/deliverables/` are both absent. Only intent separates them, and intent is not
+available to a path function.
+
+**So the choice was which error to keep, and the committed matrix wins.** Adopting base-relative
+resolution would flip a committed row on the strength of a path typo fixed two commits later, which
+is precisely what *"a row records what the evidence said when the comparison ran"* exists to
+prevent. The false positive is real, is now written into `lookup.py` beside the rule, and is
+reported unresolved rather than quietly absent.
+
+**Recording a limit costs the same as recording a fix and is worth more here**, because the next
+reader will otherwise re-derive the same remedy and hit the same wall.
+
 These are recorded rather than quietly removed. A finding set that reports its own false
 positives is worth more than one reporting only successes, and five of the 52 originally claimed
 contradictions did not survive checking, while a fifty-third was found hiding inside another — a
@@ -1547,7 +1976,7 @@ and a reason to read the citations rather than the totals.
 ## Checks
 
 ```
-rows                                              3076
+rows                                              3072
   every row holds exactly one of five states      yes (0 blank, 0 outside the vocabulary)
 notes reached by any reverse row                  227 / 227
 notes reached by a reverse behavioural            227 / 227
@@ -1558,9 +1987,9 @@ finding set recomputed from rows.tsv          identical as a SET to findings.tsv
 candidates.sh reproduces the committed cand_n     15 / 15 sampled rows (fixed
                                               seed, both directions, empty sets
                                               included)
-lookup.py reproduces the committed named state   682 / 682 named rows (2 named,
+lookup.py reproduces the committed named state   678 / 678 named rows (2 named,
                                               and moved onward by a reading)
-gap findings, by the row kind behind them        402 named + 361 behavioural
+gap findings, by the row kind behind them        398 named + 361 behavioural
 findings with no evidence citation                   0
 undetermined findings proposing an edit              0
 received contradictions                             13

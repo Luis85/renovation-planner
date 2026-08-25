@@ -49,9 +49,34 @@ different, and each was a defect before it was a rule:
 matrix is a citation to something that no longer exists.
 """
 import io, os, re, subprocess, sys, tempfile, shutil
+from html.parser import HTMLParser
+import posixpath
+from urllib.parse import unquote
 
-ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+# The matrix was computed against ONE state of the corpus, and `RP_CORPUS_ROOT` is how a replay
+# names it — the same variable `candidates.sh` takes, for the same reason. Unset it and this reads
+# the working tree, which is what a reader wants while the corpus has not moved.
+#
+# It had no such variable until `candidates.sh` had had one for a while — the sibling defect to the
+# one review found there, in the other direction: one instrument was repaired and the other was not
+# checked beside it. The rule it serves: a reverse row records what the evidence said WHEN THE
+# COMPARISON RAN, so a replay is pinned rather than the matrix being restated.
+#
+# It arrived for the WRONG REASON, and the wrong reason is recorded here because it was written
+# into this file as fact. `Design System` flipping `retained` -> `present` was blamed on the corpus
+# moving — on two new evidence files naming it. Neither is in `BODIES`; this tool reads exactly one
+# file from that folder. The cause was `BACKLINK` below failing on a deeper path, and pinning the
+# replay made the gate green while leaving this tool wrong. **Pinning is not a fix for a parser.**
+# A RELATIVE override is resolved against the repository root, not the caller's directory, which
+# is what `candidates.sh` already does by `cd`-ing to the top level before it reads the variable.
+# Without that, `RP_CORPUS_ROOT=.` from `docs/` looked for `docs/docs/prds/...` and traced back —
+# against a docstring three lines up that promises this runs from anywhere in the repository.
+_TOP = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                       capture_output=True, text=True).stdout.strip() or "."
+_CORPUS = os.environ.get("RP_CORPUS_ROOT")
+ROOT = (_CORPUS if _CORPUS and os.path.isabs(_CORPUS)
+        else os.path.normpath(os.path.join(_TOP, _CORPUS)) if _CORPUS
+        else _TOP)
 HERE = os.path.dirname(os.path.abspath(__file__))
 UX = os.path.join(ROOT, "docs/user-experience")
 PR = os.path.join(ROOT, "docs/prds")
@@ -69,8 +94,162 @@ BODIES = [
     ("jtbd",       os.path.join(UX, "renovation-planner-JTBD-research-backlog.md"), 1, 424),
     ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
 ]
-BACKLINK = re.compile(
-    r'<a href="\.\./(deliverables|components|entities|requirements|actors|business-rules|adrs|issues)/[^"]*">[^<]*</a>')
+# A link from an evidence document BACK to a derived note is not the evidence naming the thing —
+# it is the evidence pointing AT it — so the anchor is stripped before the body is searched.
+#
+# The depth is not fixed, and assuming it was is what broke: this matched exactly one `../`, and
+# when the gallery moved a directory deeper its footer became `../../deliverables/Design%20System.md`.
+# The guard stopped matching, the anchor TEXT survived into the body, and `reverse "Design System"`
+# answered `present gallery` against a link that means the opposite. Any run of `./` or `../`, with
+# or without a `docs/` prefix, now counts — the folder is what identifies a backlink, not the route.
+# An evidence document linking BACK to a derived note is not the evidence naming the thing — it is
+# the evidence pointing AT it — so the anchor is removed before the body is searched.
+#
+# PARSED, not pattern-matched, and that is the third attempt. A regex assumed one `../`; broadened,
+# it still assumed a quoted href and a single-line label. Each round review named another valid
+# form — `<a class=… href=…>`, `<span>`-wrapped labels, an UNQUOTED href, a label spanning lines —
+# and each fix enumerated the forms someone had thought of, which is the defect this ledger names
+# as the one it is most prone to. HTML has a parser in the standard library; the enumeration ends
+# by using it. `convert_charrefs=False` and slicing the ORIGINAL text mean the parser's leniency
+# on Markdown costs nothing: it supplies positions, never reconstructed content.
+DERIVED_FOLDERS = ("deliverables", "components", "entities", "requirements",
+                   "actors", "business-rules", "adrs", "issues")
+
+
+def is_backlink(href):
+    """A link into the derived corpus.
+
+    A SCHEME makes it external, and so does a protocol-relative `//host/...`. Everything else is
+    normalised to a vault-relative path before the folder is read: surrounding whitespace, PERCENT
+    ENCODING, a ROOT-RELATIVE leading slash, any run of `./` or `../`, and a `docs/` prefix.
+
+    Decoding is not hypothetical: this corpus already writes `Design%20System.md`. It happened to
+    encode a character in the FILENAME, where the folder comparison never looked — `%63omponents`
+    would have read as a folder that does not exist and the anchor would have survived.
+
+    The path is resolved by `posixpath.normpath` rather than by stripping prefixes one at a time.
+    Four consecutive review rounds landed on this function — depth, then quoting, then unquoted and
+    multi-line, then root-relative and whitespace, then encoding — and each was one more step
+    between a URL and its path. `../tasks/../deliverables/x.md`, `a/../deliverables/x.md` and
+    `./docs/./components/Toast.md` all resolve into the derived corpus and all read as external
+    before this, which is three more instances of the same sequence waiting to be reported. Handing
+    resolution to the standard library is the same move that replaced the anchor regex with a
+    parser, one layer down: stop enumerating the steps.
+
+    CASE is deliberately not normalised. `../DELIVERABLES/x.md` stays external because on a
+    case-sensitive filesystem that folder does not exist — the rule follows the vault, not the URL.
+
+    KNOWN LIMIT, stated because it was measured and then deliberately not fixed. The path is read
+    on its own, NOT resolved from the body that carries it, so the number of `../` does not have to
+    be right: `../components/Toast.md` from `docs/user-experience/concepts/` really resolves to
+    `docs/user-experience/components/`, is not a derived note, and is stripped anyway — hiding a
+    genuine mention. Resolving from the body was built and measured; it fixes that and BREAKS the
+    pinned replay, because at `2253cea` the gallery footer read `../deliverables/…`, one level too
+    few, until `19c9974` re-rooted the paths a folder move had left behind. Base-relative
+    resolution calls that dangling link external, its label counts as evidence, and `r1366`
+    reproduces `present` against a committed `retained` — 677/678.
+
+    No rule separates the two: a broken backlink and a coincidental path are the same input, and an
+    existence test cannot tell them apart either, since neither `docs/user-experience/components/`
+    nor `docs/user-experience/deliverables/` exists. Only INTENT separates them, and intent is not
+    available to a path function. The error that does not rewrite committed history is the one
+    kept: flipping a row on the strength of a path typo fixed two commits later is what "a row
+    records what the evidence said WHEN THE COMPARISON RAN" exists to prevent.
+
+    The leading slash was missing, so `/docs/components/Toast.md` — a valid repository-root URL —
+    read as external and its label survived into the searched body. This is the SCOPE rule, the
+    one thing the output gate shares with this function by design, so a defect here is invisible
+    to it. That is why the rule is exercised directly, form by form, in `scope_selftest`.
+    """
+    if not href:
+        return False
+    h = href.strip()
+    p = unquote(h.split("#")[0].split("?")[0])
+    # The scheme test runs AFTER decoding as well as before, because decoding can produce one.
+    if re.match(r"\w+:", h) or re.match(r"\w+:", p) or h.startswith("//") or p.startswith("//"):
+        return False
+    p = posixpath.normpath(re.sub(r"^/", "", p))
+    p = re.sub(r"^(?:\.\./)+", "", p)
+    p = re.sub(r"^docs/", "", p)
+    return p.split("/")[0] in DERIVED_FOLDERS
+
+
+# The scope rule is a pure function, so it is checked against forms written out by hand from the
+# rule's definition rather than by a second implementation that could share its assumptions. Each
+# entry is a URL a real document could carry; three of them were false before review named the
+# first. A table is the right instrument here precisely because enumeration is the WEAKNESS
+# elsewhere in this file — for a pure predicate over a small, stable input space it is the
+# strength, and the parser above is what stops the enumeration where it does not belong.
+SCOPE_CASES = [
+    ("../deliverables/Design System.md",       True,  "one level up"),
+    ("../../deliverables/Design System.md",    True,  "two levels up"),
+    ("./components/Toast.md",                  True,  "explicit same-directory"),
+    ("components/Toast.md",                    True,  "bare relative"),
+    ("docs/entities/Plan.md",                  True,  "docs-prefixed"),
+    ("/docs/components/Toast.md",              True,  "repository-root URL"),
+    ("/deliverables/x.md",                     True,  "root URL without docs/"),
+    ("  ../deliverables/x.md  ",               True,  "surrounded by whitespace"),
+    ("../../%63omponents/Toast.md",            True,  "percent-encoded directory character"),
+    ("../deliverables/Design%20System.md",     True,  "percent-encoded filename, as the corpus writes it"),
+    ("%2F%2Fhost/deliverables/x",              False, "protocol-relative only after decoding"),
+    ("../tasks/../deliverables/x.md",          True,  "interior dot segment"),
+    ("a/../deliverables/x.md",                 True,  "interior dot segment, no leading prefix"),
+    ("./docs/./components/Toast.md",           True,  "redundant same-directory segments"),
+    ("../deliverables//x.md",                  True,  "duplicate slash"),
+    ("../DELIVERABLES/x.md",                   False, "case is not normalised: the vault decides"),
+    ("../deliverables/x.md#anatomy",           True,  "with a fragment"),
+    ("../deliverables/x.md?v=2",               True,  "with a query"),
+    ("https://example.com/deliverables/x",     False, "external, http"),
+    ("mailto:someone@example.com",             False, "external, mailto"),
+    ("//host/deliverables/x",                  False, "protocol-relative"),
+    ("../tasks/05-canvas.md",                  False, "a folder that is not derived"),
+    ("../deliverablesX/x.md",                  False, "a folder that merely starts the same"),
+    ("",                                       False, "empty"),
+    (None,                                     False, "absent"),
+]
+
+
+def scope_selftest():
+    bad = [(h, want, why) for h, want, why in SCOPE_CASES if is_backlink(h) is not want]
+    for h, want, why in bad:
+        print("  FAIL is_backlink(%r) is %s, expected %s — %s" % (h, not want, want, why))
+    print("  back-link scope rule: %d forms checked, %d wrong" % (len(SCOPE_CASES), len(bad)))
+    return not bad
+
+
+class _BacklinkStripper(HTMLParser):
+    def __init__(self, text):
+        super().__init__(convert_charrefs=False)
+        self.text, self._lines, self._cuts, self._open = text, text.split("\n"), [], None
+        self.feed(text)
+        self.close()
+
+    def _offset(self, pos):
+        line, col = pos
+        return sum(len(l) + 1 for l in self._lines[:line - 1]) + col
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a" and is_backlink(dict(attrs).get("href")):
+            self._open = self._offset(self.getpos())
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._open is not None:
+            end = self.text.find(">", self._offset(self.getpos()))
+            self._cuts.append((self._open, len(self.text) if end < 0 else end + 1))
+            self._open = None
+
+    def result(self):
+        out, last = [], 0
+        for a, b in self._cuts:
+            out.append(self.text[last:a])
+            last = b
+        out.append(self.text[last:])
+        return "".join(out)
+
+
+def strip_backlinks(text):
+    return _BacklinkStripper(text).result()
+
 
 ROLE = (r"(persona|command|screen|view|pane|tab|section|component|actor|entity|concept"
         r"|feature|artifact|deliverable|layer|tool|mode|state)")
@@ -93,7 +272,7 @@ def search_view(dst):
         src = io.open(path, encoding="utf-8", errors="replace").read().split("\n")
         text = "\n".join(src[a - 1:] if b is None else src[a - 1:b])
         io.open(os.path.join(dst, name + ".txt"), "w", encoding="utf-8").write(
-            BACKLINK.sub("", text))
+            strip_backlinks(text))
 
 
 def aliases():
@@ -351,4 +530,8 @@ def main():
         sys.exit(2)
 
 
-main()
+# Guarded so the module can be IMPORTED, which is what lets the back-link contract gate check
+# `BODIES` and `BACKLINK` as this tool actually defines them rather than re-declaring them
+# beside it. A gate holding its own copy of the thing it checks is a gate that drifts.
+if __name__ == "__main__":
+    main()

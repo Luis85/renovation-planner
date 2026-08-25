@@ -26,6 +26,7 @@
  */
 import { computed, defineComponent, getCurrentInstance, onErrorCaptured, onUnmounted, ref, shallowRef } from 'vue';
 import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
+import { reseedFixture } from './fixture';
 
 const prototypes = prototypeEntries();
 const components = componentEntries();
@@ -204,10 +205,19 @@ let mountedGeneration: number | null = null;
  *
  * This is the pair `EntryBoundary` already has, published for the one consumer that cannot be
  * given a hook of its own. Walking `$parent` from the `instance` the handler is passed would
- * answer the same question, and is refused for the same reason it was refused for the error
- * channel: more code, over Vue's instance tree, to recover values a per-mount component holds. The
- * objection is weaker here — there is no per-entry hook available, so this is not a free
- * alternative but a cheaper one — and it still wins on the same arithmetic.
+ * NOT answer the same question — measured in
+ * `node_modules/@vue/runtime-core/dist/runtime-core.cjs.js` (v3.5.41): `warn$1` hands the
+ * handler `stack[stack.length - 1].component`, the warning-STACK top, never `currentInstance`
+ * — and that stack is pushed only around a synchronous mount, patch or async-setup resolve
+ * (`pushWarningContext`, called from `mountComponent`/`updateComponent`). During the one case
+ * this channel actually has to get right — a warning raised while the PREVIOUS entry tears
+ * down — the teardown runs from `IndexPage`'s own reactive flush (`open()`'s
+ * `openComponent.value = null` only QUEUES it, per the paragraph above), so the stack top at
+ * that moment is `IndexPage` itself, not the entry being torn down. Walking `$parent` from it
+ * would therefore attribute the warning to the PAGE — the published id is not merely cheaper
+ * than instance-walking, for the one case that matters it is the only one that is correct.
+ * What remains is the arithmetic objection alone: more code, over Vue's instance tree, to
+ * recover a value a per-mount component simply holds.
  *
  * Cleared on unmount only if it is still ours — by GENERATION, so a boundary being torn down
  * cannot clear the publication of a LATER mount of the same entry — so the clear cannot depend on
@@ -215,8 +225,58 @@ let mountedGeneration: number | null = null;
  */
 let warningOwner: { readonly id: string; readonly generation: number } | null = null;
 
+/**
+ * The link an entry is reachable at, and the URL `open()` writes into the address bar for it
+ * — ONE function for both, so a copied link and a followed one always name the same screen.
+ *
+ * Built from `URLSearchParams`, and from the CURRENT `window.location.search` rather than
+ * from the id alone. Two guarantees, and both are load-bearing:
+ *
+ * `&` and `#` are legal in a filename on every platform this runs on, and an id carries the
+ * path, so a raw `?entry=${id}` produces a URL that no longer means the id: opening the link
+ * in a new tab or copying it hands `URLSearchParams.get('entry')` a truncated value and the
+ * index reports an unknown entry. `scripts/harness-shot.mjs` encodes the same id on its side.
+ *
+ * And `?theme`/`?phone` are real harness knobs (`theme.ts`), not the index's own concern — a
+ * designer comparing a component in light mode or at `?phone` is exactly who this link is
+ * for, and a version built from `{ entry: entry.id }` alone would silently drop whichever one
+ * was on the address bar, handing back the default dark desktop screen instead of the one
+ * being looked at. Cloning the CURRENT params and replacing only the two ROUTING keys keeps
+ * everything else: `index` is deleted (an entry now answers `page.ts`'s
+ * `params.has('index') || params.has('entry')` on its own, and a URL naming both bare `index`
+ * and a specific `entry` is not a state this page's own links produce) and `entry` is set to
+ * this one.
+ */
+function hrefFor(entry: HarnessEntry): string {
+	const params = new URLSearchParams(window.location.search);
+	params.delete('index');
+	params.set('entry', entry.id);
+	return `?${params.toString()}`;
+}
+
 async function open(entry: HarnessEntry): Promise<void> {
 	const mine = ++generation.value;
+
+	// The seeded world goes back to its starting values before ANY entry mounts, including the
+	// very first: `PlanEditorRoot` mutates the editor store on pan and zoom, `LayersPanel`
+	// mutates the workspace store, `SelectTool` mutates the selection store, and none of that
+	// is per-entry state — it is the ONE Pinia `page.ts` built with `seedFixture()`, shared by
+	// every entry this index opens for the app's whole lifetime. Without this, the second entry
+	// draws against whatever the first one left behind, and "the same screen looks the same
+	// next week" (`fixture.ts`'s header) stops being true the moment a designer pans a plan and
+	// looks at something else. See `reseedFixture` for which stores that is and how the set was
+	// established.
+	reseedFixture();
+
+	// The address bar follows the click, with `replaceState` rather than `push` — the index is
+	// one page, and a back-button stack of every entry glanced at is not what a designer wants;
+	// back should leave the harness. Built from `hrefFor`, the same function the link itself
+	// uses, so a refreshed or copied URL keeps the `?theme`/`?phone` the designer was looking at
+	// rather than losing it back to the harness's defaults — see `hrefFor` for why those survive
+	// too. `@click.exact.prevent` in the template is the other half: a MODIFIED click (Cmd/Ctrl,
+	// for opening in a new tab) never reaches this function at all, so this line only ever runs
+	// for the plain click it is meant to replace.
+	window.history.replaceState(null, '', hrefFor(entry));
 
 	failure.value = null;
 	renderedId.value = null;
@@ -335,21 +395,6 @@ const EntryBoundary = defineComponent({
 	},
 });
 
-/**
- * The link an entry is reachable at, built with `URLSearchParams` rather than interpolated.
- *
- * `&` and `#` are legal in a filename on every platform this runs on, and an id carries the
- * path, so a raw `?entry=${id}` produces a URL that no longer means the id: opening the link
- * in a new tab or copying it hands `URLSearchParams.get('entry')` a truncated value and the
- * index reports an unknown entry. The in-page click hides this, because `@click.prevent`
- * calls `open(entry)` with the object and never reads the URL back — so the defect would
- * appear only in the one path an agent uses, which is the path with no human watching.
- * `scripts/harness-shot.mjs` encodes the same id on its side.
- */
-function hrefFor(entry: HarnessEntry): string {
-	return `?${new URLSearchParams({ entry: entry.id }).toString()}`;
-}
-
 /** Whatever has been collected, as a named failure, with the readiness marker taken off. */
 function reportDefects(): void {
 	openComponent.value = null;
@@ -390,13 +435,18 @@ function settle(): void {
 	// on, this is a previous entry's subtree finishing after a navigation, and marking the stage
 	// ready would advertise the new id over the old content.
 	//
-	// A -> B -> A cannot reach this one, and the reason is Vue's rather than this page's: a
-	// `<Suspense>` only ever calls `resolve()` while it is live — `suspense.resolve()` on an
-	// unmounted boundary throws in dev (`runtime-core`, checked, not assumed), and every caller
-	// is guarded by `suspense.isUnmounted` — so the firing side here is always the CURRENT
-	// boundary, never a snapshot of an older one. The comparison is generation-keyed anyway,
-	// because four guards reasoning about staleness in three different keys is what produced the
-	// defect `generation` describes.
+	// A -> B -> A cannot reach this one, and the reason is Vue's rather than this page's — narrowed
+	// to what was actually measured in `runtime-core.cjs.js` (v3.5.41), rather than to "every
+	// caller": `suspense.resolve()` throws in dev when `suspense.isUnmounted` (~7316-7320), and
+	// that guards the five call sites that invoke a boundary's OWN `resolve()` directly from
+	// `mountSuspense`/`patchSuspense` — which is the only kind of call this page's `@resolve` can
+	// ever be, since it has one `<Suspense>` and nothing above it to nest under. The one caller
+	// `isUnmounted` does NOT guard is `resolve()`'s own recursive call for a NESTED suspensible
+	// boundary (~7392), gated instead by `parentSuspense.pendingBranch && parentSuspenseId ===
+	// parentSuspense.pendingId` — a path this page cannot reach at all. So the firing side here is
+	// always the CURRENT boundary, never a snapshot of an older one. The comparison is
+	// generation-keyed anyway, because four guards reasoning about staleness in three different
+	// keys is what produced the defect `generation` describes.
 	if (mountedGeneration === null || mountedGeneration !== generation.value) return;
 
 	if (renderDefects.length === 0) {
@@ -513,7 +563,7 @@ if (initial) void open(initial);
 			<p v-if="prototypes.length === 0">No prototypes yet — add a .vue file under src/prototypes/.</p>
 			<ul>
 				<li v-for="entry in all" :key="entry.id">
-					<a :href="hrefFor(entry)" @click.prevent="open(entry)">{{ entry.label }}</a>
+					<a :href="hrefFor(entry)" @click.exact.prevent="open(entry)">{{ entry.label }}</a>
 					<span>{{ entry.kind }}</span>
 				</li>
 			</ul>

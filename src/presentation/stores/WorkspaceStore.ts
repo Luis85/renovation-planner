@@ -41,6 +41,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		setLayerVisible(layer, !layerVisibility.value[layer]);
 	}
 
+	/**
+	 * Every field back to the value its `ref()` started at — the harness fixture's reset hook
+	 * (`tests/harness/fixture.ts`), called before every entry the index opens so a panel closed
+	 * or a layer hidden by one entry does not draw the next. `defaultLayerVisibility()` is
+	 * called again rather than a snapshot kept from the first call, for the same reason
+	 * `EditorStore.reset` imports `DEFAULT_VIEWPORT` rather than restating it.
+	 */
+	function reset(): void {
+		layersPanelOpen.value = true;
+		inspectorPanelOpen.value = true;
+		layerVisibility.value = defaultLayerVisibility();
+	}
+
 	return {
 		layersPanelOpen,
 		inspectorPanelOpen,
@@ -48,5 +61,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		toggleLayersPanel,
 		toggleInspectorPanel,
 		toggleLayer,
+		reset,
 	};
 });

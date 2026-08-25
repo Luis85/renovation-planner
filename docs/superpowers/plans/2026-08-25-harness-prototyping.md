@@ -2257,6 +2257,17 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 * path an agent uses: it never clicks, it opens `?entry=` directly. `&` and `#` are legal
 	 * in a filename and an id carries the path, so an interpolated link means something other
 	 * than the id it names — and the in-page click masks it by passing the object instead.
+	 *
+	 * **Updated in fix round 6 (Finding F), and the string this pins changed shape.** `hrefFor`
+	 * used to build a link from the id ALONE (`new URLSearchParams({ entry: entry.id })`),
+	 * which dropped `?theme`/`?phone` — real harness knobs `theme.ts` reads — off every link
+	 * and off the address bar `open()` now writes with it (Finding B's `history.replaceState`,
+	 * same round). It now clones the CURRENT `window.location.search`, deletes the `index`
+	 * routing key and sets `entry`, so a designer's variant survives a click same as an id
+	 * with `&`/`#` in it always did. The two assertions below moved with it: the positive pins
+	 * the new construction (`URLSearchParams(window.location.search)` plus `.set('entry', …)`)
+	 * rather than the old literal object-argument spelling, and the negative is unchanged —
+	 * a raw `` `?entry=${ `` interpolation is still the one thing refused either way.
 	 */
 	it('builds index links with URLSearchParams rather than interpolating the id', () => {
 		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
@@ -2271,7 +2282,8 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		const start = index.indexOf('function hrefFor');
 		const hrefFor = index.slice(start, index.indexOf('\n}', start) + 2);
 
-		expect(hrefFor).toContain('new URLSearchParams({ entry: entry.id })');
+		expect(hrefFor).toContain('new URLSearchParams(window.location.search)');
+		expect(hrefFor).toContain("params.set('entry', entry.id)");
 		expect(hrefFor, 'a raw ?entry= interpolation is back').not.toContain('`?entry=${');
 	});
 

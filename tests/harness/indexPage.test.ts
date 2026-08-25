@@ -9,6 +9,8 @@ import { harnessEditorContext, seedFixture } from './fixture';
 import EmptyLayer from '../../src/presentation/editor/layers/EmptyLayer.vue';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
 import { installEditorEnvironment, settle as flushAsync, settleUntil } from '../helpers/editor';
+import { useEditorStore } from '../../src/presentation/stores/EditorStore';
+import { DEFAULT_VIEWPORT, screenPoint } from '../../src/presentation/editor/viewport/Viewport';
 
 /**
  * CRITERION 8 — "an entry that throws names itself in the index rather than blanking the page,
@@ -78,9 +80,11 @@ const stageEntry = (wrapper: VueWrapper): string | undefined =>
  * production — Pinia and the editor context alongside `VueKonva` — so a REAL component reading
  * a store or `usePlanEditorContext()` mounts into the thing being asserted about rather than a
  * lighter stand-in that only the fake entries in this file happened not to need. Harmless to
- * every existing case here: none of the fakes below read a store or inject the context, and
- * `seedFixture()`'s `setActivePinia` call only matters to a component that calls
- * `useProjectStore()`/`useEditorStore()`, which none of them do.
+ * most cases here: `seedFixture()`'s `setActivePinia` call only matters to a component that
+ * calls `useProjectStore()`/`useEditorStore()`, and most of the fakes below read no store and
+ * inject no context. `PansTheCamera`/`ReadsTheCamera` (Finding A's regression) are the
+ * deliberate exception — they exist specifically to call `useEditorStore()` against this same
+ * Pinia, the way a real interaction does.
  */
 async function openIndex(query: string): Promise<VueWrapper> {
 	window.history.replaceState({}, '', query === '' ? '/' : `/?${query}`);
@@ -225,6 +229,33 @@ const StillHere = defineComponent({ setup: () => () => h('p', 'the entry you mov
 const Abandoned = defineComponent({ setup: () => () => h('p', 'the entry you abandoned') });
 
 /**
+ * Finding A's pair — the same store call `PlanCanvas` makes on a real pointer drag
+ * (`beginPan`/`continuePan`/`endPan`), so the mutation this drives is a real interaction
+ * rather than a store field poked directly, and a component that only READS the store, the
+ * way `StatusBar` does. Together they are the smallest real reproduction of "the second entry
+ * draws against whatever the first one left behind": open the first, let it pan the camera,
+ * open the second, and check what it sees.
+ */
+const PansTheCamera = defineComponent({
+	setup() {
+		const editor = useEditorStore();
+		editor.beginPan(screenPoint(0, 0));
+		editor.continuePan(screenPoint(120, 40));
+		editor.endPan();
+
+		return () => h('p', 'panned');
+	},
+});
+
+const ReadsTheCamera = defineComponent({
+	setup() {
+		const editor = useEditorStore();
+
+		return () => h('p', `pan:${editor.viewport.pan.x},${editor.viewport.pan.y}`);
+	},
+});
+
+/**
  * Module loads this file finishes by hand, oldest first — one per CALL of `entry.component()`,
  * which is what `open()` awaits and what the generation guard sits on the far side of.
  */
@@ -317,12 +348,117 @@ describe('the harness index, with nothing to open', () => {
 	});
 });
 
+/**
+ * Findings B and F, together — `.prevent` cancelled navigation and `open()` never touched
+ * history, so a refreshed or copied URL opened the wrong screen; and a `hrefFor` built from
+ * the id alone would have made that fix WORSE, replacing a correct `?index&theme=light` with
+ * a lossy `?entry=…`. Both land on the Designer actor (`docs/actors/Designer.md`), which is
+ * why neither had a gate watching it before this.
+ */
+describe('the harness index, the address bar following the opened entry', () => {
+	it('updates the address bar with replaceState, not pushState, when an entry opens', async () => {
+		const wrapper = await openIndex('index');
+		const replace = vi.spyOn(window.history, 'replaceState');
+		const push = vi.spyOn(window.history, 'pushState');
+
+		await wrapper.findAll('nav li a')[0].trigger('click');
+		await flushAsync();
+
+		expect(new URLSearchParams(window.location.search).get('entry')).toBe(
+			'component:editor/shell/StatusBar',
+		);
+		expect(replace).toHaveBeenCalled();
+		// The index is one page; a back-button stack of every entry glanced at is not what a
+		// designer wants — back should leave the harness, not walk backwards through it.
+		expect(push).not.toHaveBeenCalled();
+
+		replace.mockRestore();
+		push.mockRestore();
+		wrapper.unmount();
+	});
+
+	it('keeps `?theme` and `?phone` when the address bar follows a click, and drops `index`', async () => {
+		const wrapper = await openIndex('index&theme=light&phone');
+
+		await wrapper.findAll('nav li a')[0].trigger('click');
+		await flushAsync();
+
+		const after = new URLSearchParams(window.location.search);
+
+		expect(after.get('entry')).toBe('component:editor/shell/StatusBar');
+		expect(after.get('theme')).toBe('light');
+		expect(after.has('phone')).toBe(true);
+		expect(after.has('index')).toBe(false);
+
+		wrapper.unmount();
+	});
+
+	/**
+	 * The modifier half. `.exact` on the click handler makes Vue skip BOTH the handler and
+	 * `.prevent` together whenever a system modifier key is held (measured in
+	 * `@vue/runtime-dom`'s `modifierGuards`/`withModifiers` — `exact`'s guard returns early
+	 * before `prevent`'s runs), so a Cmd/Ctrl-click falls through to the anchor's own `href`
+	 * and the browser's own new-tab behaviour, exactly as a plain anchor would. Both halves —
+	 * modified and plain — are asserted, because either alone would pass against a handler
+	 * that ran unconditionally: `event.defaultPrevented` is the direct, jsdom-visible signal
+	 * that the handler did or did not run, which is why this is testable at all rather than
+	 * being the "genuinely untestable in jsdom" case the brief allowed for.
+	 */
+	it('leaves a modified click alone, so Cmd/Ctrl-click can still open a new tab', async () => {
+		const wrapper = await openIndex('index');
+		const link = wrapper.findAll('nav li a')[0].element as HTMLAnchorElement;
+
+		const modified = new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true });
+		link.dispatchEvent(modified);
+		await flushAsync();
+
+		expect(modified.defaultPrevented).toBe(false);
+		// The handler never ran: the stage is exactly where it started.
+		expect(stageEntry(wrapper)).toBeUndefined();
+
+		const plain = new MouseEvent('click', { bubbles: true, cancelable: true });
+		link.dispatchEvent(plain);
+		await flushAsync();
+
+		expect(plain.defaultPrevented).toBe(true);
+		expect(stageEntry(wrapper)).toBe('component:editor/shell/StatusBar');
+
+		wrapper.unmount();
+	});
+});
+
 describe('the harness index, opening an entry', () => {
 	it('marks the stage with the id it actually rendered', async () => {
 		const wrapper = await openIndex('entry=component:views/ViewRoot');
 
 		expect(stageEntry(wrapper)).toBe('component:views/ViewRoot');
 		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
+
+		wrapper.unmount();
+	});
+
+	/**
+	 * Finding A. Regression for `page.ts` calling `seedFixture()` once for the app's whole
+	 * lifetime while `PlanEditorRoot` (and other real components) mutate the shared editor
+	 * store on ordinary use — `open()` now calls `reseedFixture()` at the top of every
+	 * navigation, and this is what fails without that call: the second entry would draw the
+	 * PANNED viewport the first one left behind rather than the seeded default.
+	 */
+	it('reseeds the world before the next entry, so a pan the first one made does not draw the second', async () => {
+		state.components = [
+			entryFor('component:PansTheCamera', moduleOf(PansTheCamera)),
+			entryFor('component:ReadsTheCamera', moduleOf(ReadsTheCamera)),
+		];
+
+		const wrapper = await openIndex('entry=component:PansTheCamera');
+
+		expect(stageEntry(wrapper)).toBe('component:PansTheCamera');
+
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:ReadsTheCamera');
+		expect(wrapper.find('.rp-harness-stage').text()).toBe(`pan:${DEFAULT_VIEWPORT.pan.x},${DEFAULT_VIEWPORT.pan.y}`);
 
 		wrapper.unmount();
 	});
@@ -721,12 +857,21 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	 * EDIT to this file — `real.prototypeEntries()` re-globs at file-load time, which is the same
 	 * "the tree is the registration" property the whole feature is built on, turned on its own
 	 * guard.
+	 *
+	 * **Carries the control's `stageEntry` assertion too, and it is load-bearing here for the
+	 * same reason** (see the control's own comment): with zero iterations to run today, THIS is
+	 * the assertion that keeps the day Task 7 lands a prototype from silently proving nothing —
+	 * without it, a prototype that fails to import or throws while rendering would still leave
+	 * the CSS count unchanged and this case green, having never actually inspected what mounted.
+	 * A round of review that added the control's assertion without this one found exactly that
+	 * gap: a prototype planted to throw made the loop pass.
 	 */
 	it.each(real.prototypeEntries())('adds no stylesheet when $id mounts', async ({ id }) => {
 		const before = cssNodes();
 
 		const page = await openEntryInIndex(id);
 
+		expect(stageEntry(page)).toBe(id);
 		expect(cssNodes()).toBe(before);
 
 		page.unmount();

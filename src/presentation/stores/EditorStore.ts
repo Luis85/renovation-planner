@@ -110,6 +110,23 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
+	 * Every field back to the value its `ref()` started at — the harness fixture's reset hook
+	 * (`tests/harness/fixture.ts`), called before every entry the index opens so a pan or a
+	 * zoom left by one entry does not draw the next. Nothing here is persisted (see the header),
+	 * so "reset" is exactly "assign the same defaults the module top declared" — there is no
+	 * second source of truth for what a fresh viewport is, since `DEFAULT_VIEWPORT` is imported
+	 * rather than restated.
+	 */
+	function reset(): void {
+		viewport.value = DEFAULT_VIEWPORT;
+		activeToolId.value = null;
+		hoveredObjectId.value = null;
+		dragState.value = null;
+		temporaryPolygon.value = null;
+		pointerWorld.value = null;
+	}
+
+	/**
 	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
 	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
 	 * is this ref — so the toolbar's active state and `PlanCanvas`'s tool-versus-camera
@@ -139,5 +156,6 @@ export const useEditorStore = defineStore('editor', () => {
 		continuePan,
 		endPan,
 		setPointer,
+		reset,
 	};
 });

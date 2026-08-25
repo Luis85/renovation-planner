@@ -275,9 +275,13 @@ describe('two different components against one seeded world', () => {
 
 	/**
 	 * The negative, which is what makes the case above mean anything. A bare `createPinia()`
-	 * IS `seedFixture()` with its three assignments removed — nothing else in it touches the
-	 * store — so this is the "comment out the assignments and watch it go red" check, kept
-	 * rather than performed once and thrown away.
+	 * IS `seedFixture()` with its project-store assignments removed — the store these two
+	 * mounts actually read from. `seedFixture()` also calls `reseedFixture()`'s other three
+	 * resets (`useEditorStore().reset()`, `useWorkspaceStore().reset()`,
+	 * `useSelectionStore().clear()`, added for Finding A's fixture reset), but those put a
+	 * store back to the exact values a FRESH Pinia already holds, so they make no observable
+	 * difference against a bare `createPinia()` here. So this is still the "comment out the
+	 * assignments and watch it go red" check, kept rather than performed once and thrown away.
 	 */
 	it('loses BOTH observations when the world is not seeded', () => {
 		installEditorEnvironment();

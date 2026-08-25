@@ -54,7 +54,11 @@ function fromDto(
 	if (calibration === null || calibration === undefined) {
 		return constructed;
 	}
-	return constructed.value.withCalibration(calibration);
+	// Annotated rather than chained off `.value`: fallow resolves a class member through an
+	// explicit type annotation, and this is the ONE caller of `withCalibration` now that the
+	// entity no longer derives its own calibration — a property access here reads as dead.
+	const plan: Plan = constructed.value;
+	return plan.withCalibration(calibration);
 }
 
 export function planFromPersistence(
@@ -68,9 +72,10 @@ export function planFromPersistence(
 
 /**
  * Calibration's sidecar DTO ↔ domain value. The shapes are field-for-field identical by
- * design (ADR-002: the sidecar stores what the entity holds); this exists so the two
- * halves of that sentence are mapped in ONE place rather than re-decided per writer —
- * `ObsidianPlanRepository.syncCalibration` and the slice-7 geometry-sidecar port share it.
+ * design (ADR-002: the sidecar stores what the entity holds), which is exactly why the
+ * conversion is written down rather than spread by hand: `planFromPersistence` reads it
+ * beside this function, and `ObsidianPlanGeometrySidecar` — the one WRITER of the field —
+ * lowers it back.
  */
 export function calibrationToPersistence(
 	calibration: NonNullable<Plan['calibration']>,

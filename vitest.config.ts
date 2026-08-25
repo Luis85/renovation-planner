@@ -220,9 +220,8 @@ export default defineConfig({
 			// 99.64 / 98.76 / 99.83 / 99.85. NOTHING RATCHETS: rounded down these are
 			// 99 / 98 / 99 / 99, the floors already in force.
 			//
-			// Every statement, branch and function of the five new/extended calibration files is
-			// covered; the uncovered set is EXACTLY the one enumerated above, still in untouched
-			// files (`ReversibleSetPlanBackground`'s snapshot re-validation, `costPipeline`'s two
+			// The uncovered set is the one enumerated above, still in untouched files
+			// (`ReversibleSetPlanBackground`'s snapshot re-validation, `costPipeline`'s two
 			// Result propagation guards, `ObsidianZoneRepository`'s double-fault logging,
 			// `GeometrySidecarView`'s Obsidian-runtime callback, `PlanCanvas`'s null-container
 			// guards, the plugin's non-`TFile` vault-event arm). One arm this slice touched grew
@@ -237,7 +236,34 @@ export default defineConfig({
 			// answered after deactivate, and the real-stack refusal tests against the actual
 			// sidecar store: 2268/2277 statements, 1052/1066 branches, 596/597 functions,
 			// 2071/2075 lines — 99.60 / 98.68 / 99.83 / 99.80. NOTHING RATCHETS again for the
-			// same reason; the uncovered set remains exactly the enumerated one.
+			// same reason.
+			//
+			// THOSE FIGURES ARE THE SLICE-7 BRANCH'S, and are kept only as that branch's
+			// record: the merge with the signed-Money work re-denominated everything, and
+			// nobody re-measured the merged tree — where the same claim "every branch of the
+			// calibration files is covered" was FALSE. `CalibrateTool`'s non-primary-button
+			// guard had no test at all; a config comment is not an instrument, and this one
+			// was asserting what only a measurement can say.
+			//
+			// Measured 2026-08-25 on the MERGED tree, after the slice-7 review pass closed
+			// that gap (a secondary/auxiliary click places nothing) and added the
+			// one-gesture-at-a-time guard the prompt seam needs: 2309/2317 statements,
+			// 1090/1103 branches, 602/603 functions, 2105/2108 lines —
+			// 99.65 / 98.82 / 99.83 / 99.85. NOTHING RATCHETS: rounded down these are the
+			// 99 / 98 / 99 / 99 already in force. The uncovered set is back to the enumerated
+			// one in both COUNT and membership — 8 statements, 13 branches, 1 function, 3
+			// lines, every one of them in a file this slice did not touch.
+			//
+			// Measured 2026-08-25 again after the review pass DELETED slice 3's plain
+			// `CalibratePlanCommand`, `Plan.calibrate`, `createCalibration` and the plan
+			// repository's `syncCalibration` — calibration now has ONE writer, the geometry
+			// sidecar port: 2273/2281 statements, 1064/1077 branches, 596/597 functions,
+			// 2072/2075 lines — 99.64 / 98.79 / 99.83 / 99.85. NOTHING RATCHETS. The uncovered
+			// set is unchanged in count and membership; the denominators fell for the first
+			// time in this file's history, because the change removed code rather than adding
+			// it. Seven tests went with the capability they drove, and three arrived for what
+			// replaced it: the sidecar-to-entity read merge, the note save that touches no
+			// sidecar at all, and a hand-edited calibration refused at `withCalibration`.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -1,7 +1,9 @@
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
-import type { CalibratePlanInput } from '../../../application/commands/plan/CalibratePlan';
-import type { ReversibleCalibratePlanCommand } from '../../../application/commands/plan/ReversibleCalibratePlan';
+import type {
+	CalibratePlanInput,
+	ReversibleCalibratePlanCommand,
+} from '../../../application/commands/plan/ReversibleCalibratePlan';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 import type { UndoableCommand } from './undoable-command';
@@ -46,6 +48,15 @@ export class CalibrateTool implements EditorTool {
 	 * whatever editor is active by then.
 	 */
 	private generation = 0;
+	/**
+	 * One gesture at a time. The prompt seam is a plain `Promise`, not a modal that
+	 * swallows pointer events, so without this a third click starts a SECOND gesture while
+	 * the first answer is still pending: four clicks, two prompts, two calibrations, the
+	 * second derived against a scale the first has not landed yet. Ignoring the click is
+	 * the answer rather than superseding the pending gesture — the user has already been
+	 * asked a question about those two points, and `cancel()` is how they take it back.
+	 */
+	private prompting = false;
 
 	constructor(private readonly deps: CalibrateToolDeps) {}
 
@@ -65,6 +76,9 @@ export class CalibrateTool implements EditorTool {
 		}
 		if (event.button !== 'primary') {
 			return; // only the primary button places calibration points
+		}
+		if (this.prompting) {
+			return; // a gesture is awaiting its distance; see `prompting`
 		}
 		if (this.pointA === null) {
 			this.pointA = event.worldPoint;
@@ -89,6 +103,7 @@ export class CalibrateTool implements EditorTool {
 	cancel(): void {
 		this.generation += 1;
 		this.pointA = null; // clears a pending first point; no command dispatched
+		this.prompting = false; // and releases a gesture whose prompt the bump just killed
 	}
 
 	private async complete(
@@ -106,7 +121,18 @@ export class CalibrateTool implements EditorTool {
 		// picked on this plan and calibrate this plan.
 		const planId = context.activePlan.id;
 		const generation = this.generation;
-		const knownDistance = await this.deps.supplyKnownDistance(measured);
+		this.prompting = true;
+		let knownDistance: number | null;
+		try {
+			knownDistance = await this.deps.supplyKnownDistance(measured);
+		} finally {
+			// Only if this gesture is still the live one: a `cancel()` across the await
+			// already cleared the flag, and clearing it again would undo a new gesture's
+			// claim on it.
+			if (generation === this.generation) {
+				this.prompting = false;
+			}
+		}
 		if (generation !== this.generation) {
 			return; // the gesture was cancelled while its prompt sat open
 		}

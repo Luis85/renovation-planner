@@ -5,15 +5,22 @@ import type { BaseError, CalculationError, ValidationError } from '../../core/er
 import { planError } from './Plan.errors';
 
 /**
- * How background pixels map to world coordinates (SDD §25): two points measured in the
- * background's pixel space and the real-world distance between them. `pixelsPerWorldUnit`
- * is calibration's DERIVED output — pixel distance over known distance — never an
- * independently settable field (ADR-009: the coordinate system is always "world
- * millimeters, established by calibration").
+ * How background pixels map to world coordinates (SDD §25): two points and the
+ * real-world distance between them. `pixelsPerWorldUnit` is calibration's DERIVED
+ * output — background source pixels per world unit — never an independently settable
+ * field (ADR-009: the coordinate system is always "world millimeters, established by
+ * calibration").
+ *
+ * **`pointA` and `pointB` are in the plan's CURRENT world units**, not in the
+ * background's pixel space. The two coincide only on an uncalibrated plan, where the
+ * placeholder scale is `1` — which is exactly why the distinction is invisible until
+ * the first recalibration and worth stating here. A calibration AT REST additionally
+ * satisfies `distance(pointA, pointB) === knownDistance`: `deriveCalibration` returns
+ * the points as picked and the command that persists them multiplies every world-unit
+ * coordinate for the plan, its own pair included.
  *
  * Like `Polygon`, the interface is deliberately UNVALIDATED at the type level so callers
- * can hold one mid-construction; validity lives in `validateCalibration` /
- * `createCalibration` below.
+ * can hold one mid-construction; validity lives in `validateCalibration` below.
  */
 export interface Calibration {
 	readonly pointA: Point;
@@ -22,17 +29,22 @@ export interface Calibration {
 	readonly pixelsPerWorldUnit: number;
 }
 
-export interface CreateCalibrationInput {
-	readonly pointA: Point;
-	readonly pointB: Point;
-	/** World units (mm) — like every length here (ADR-009). */
-	readonly knownDistance: number;
-}
-
 /**
- * The shared validator behind `createCalibration` and `Plan.withCalibration`: both reject
- * a non-positive or non-finite known distance (validation), coincident points — the
- * division by zero — and a non-positive scale (calculation).
+ * The READ path's validator, behind `Plan.withCalibration`: it rejects a non-positive or
+ * non-finite known distance (validation), coincident points — the division by zero — and
+ * a non-positive scale (calculation), so a hand-edited sidecar cannot load a calibration
+ * the derivation would never have produced.
+ *
+ * It deliberately does NOT check the at-rest `distance(pointA, pointB) === knownDistance`
+ * invariant the persisting command establishes: floating-point rescale does not land on
+ * it exactly, and a validator that refused what the writer legitimately produces would
+ * make a saved plan unloadable. That invariant is asserted where it is CREATED
+ * (`reversibleCalibratePlan.test.ts`), not re-derived here.
+ *
+ * Its `plan.*` error codes are the read path's vocabulary; `deriveCalibration`'s
+ * `calibration.*` codes are the derivation's. Two vocabularies for two different
+ * questions — "can this file be loaded" and "can this gesture be turned into a scale" —
+ * rather than one spelling reused for both.
  */
 export function validateCalibration(
 	calibration: Calibration,
@@ -51,29 +63,6 @@ export function validateCalibration(
 		return err(planError('invalid-scale', 'pixelsPerWorldUnit must be a positive number.'));
 	}
 	return ok(undefined);
-}
-
-/** Derives `pixelsPerWorldUnit` from the two points and the known distance. */
-export function createCalibration(
-	input: CreateCalibrationInput,
-): Result<Calibration, ValidationError | CalculationError> {
-	if (!Number.isFinite(input.knownDistance) || input.knownDistance <= 0) {
-		return err(planError('non-positive-distance', 'The known distance must be positive.'));
-	}
-	const pixelDistance = distance(input.pointA, input.pointB);
-	if (!(pixelDistance > 0)) {
-		return err({
-			category: 'Calculation',
-			code: 'plan.degenerate-points',
-			message: 'The two calibration points must not coincide.',
-		});
-	}
-	return ok({
-		pointA: input.pointA,
-		pointB: input.pointB,
-		knownDistance: input.knownDistance,
-		pixelsPerWorldUnit: pixelDistance / input.knownDistance,
-	});
 }
 
 /** The three nameable business failures of a calibration derivation, narrowed by `code`. */

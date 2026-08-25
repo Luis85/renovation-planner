@@ -1,76 +1,62 @@
 import { describe, expect, it } from 'vitest';
-import { createCalibration, deriveCalibration, validateCalibration } from '../../../src/domain/plan/Calibration';
+import { deriveCalibration, validateCalibration, type Calibration } from '../../../src/domain/plan/Calibration';
 import { area, distance, scale } from '../../../src/core/geometry/operations';
 import { expectErr, expectOk } from '../../helpers/domain';
 
-describe('createCalibration', () => {
-	it('derives pixelsPerWorldUnit from the pixel distance over the known distance', () => {
-		const calibration = expectOk(
-			createCalibration({
-				pointA: { x: 0, y: 0 },
-				pointB: { x: 100, y: 0 },
-				knownDistance: 2000,
-			}),
-		);
-		expect(calibration.pixelsPerWorldUnit).toBeCloseTo(100 / 2000);
+/**
+ * The READ path's gate. `createCalibration` used to sit beside it deriving a second,
+ * incompatible answer — points that did not measure their own `knownDistance`, no rescale
+ * of the geometry around them — and was deleted with slice 3's `CalibratePlanCommand`;
+ * `deriveCalibration` below is the one derivation now.
+ */
+describe('validateCalibration', () => {
+	const wellFormed: Calibration = {
+		pointA: { x: 0, y: 0 },
+		pointB: { x: 0, y: 1000 },
+		knownDistance: 1000,
+		pixelsPerWorldUnit: 0.05,
+	};
+
+	it('accepts a well-formed calibration', () => {
+		expect(validateCalibration(wellFormed)).toEqual({ ok: true, value: undefined });
 	});
 
-	it('rejects a non-positive known distance', () => {
-		for (const knownDistance of [0, -1]) {
-			const error = expectErr(
-				createCalibration({
-					pointA: { x: 0, y: 0 },
-					pointB: { x: 10, y: 0 },
-					knownDistance,
-				}),
-			);
+	it('accepts what deriveCalibration plus its caller rescale actually produce', () => {
+		// The two halves have to agree: a calibration this validator refused would be one
+		// the writer can persist and `getById` can never load back.
+		const { calibration, scaleCorrection } = expectOk(
+			deriveCalibration({ x: 812, y: 240 }, { x: 812, y: 1040 }, 3200, null),
+		);
+		expect(validateCalibration({
+			...calibration,
+			pointA: scale(calibration.pointA, scaleCorrection, { x: 0, y: 0 }),
+			pointB: scale(calibration.pointB, scaleCorrection, { x: 0, y: 0 }),
+		})).toEqual({ ok: true, value: undefined });
+	});
+
+	it('rejects a non-finite or non-positive known distance', () => {
+		for (const knownDistance of [Number.NaN, Number.POSITIVE_INFINITY, 0, -1]) {
+			const error = expectErr(validateCalibration({ ...wellFormed, knownDistance }));
 			expect(error.code).toBe('plan.non-positive-distance');
 			expect(error.category).toBe('Validation');
 		}
 	});
 
 	it('rejects coincident points — the division by zero', () => {
-		const error = expectErr(
-			createCalibration({
-				pointA: { x: 5, y: 5 },
-				pointB: { x: 5, y: 5 },
-				knownDistance: 1000,
-			}),
-		);
+		const error = expectErr(validateCalibration({
+			...wellFormed,
+			pointA: { x: 1, y: 1 },
+			pointB: { x: 1, y: 1 },
+		}));
 		expect(error.code).toBe('plan.degenerate-points');
 		expect(error.category).toBe('Calculation');
 	});
-});
 
-describe('validateCalibration', () => {
-	it('accepts a well-formed calibration', () => {
-		const calibration = expectOk(createCalibration({
-			pointA: { x: 0, y: 0 },
-			pointB: { x: 0, y: 50 },
-			knownDistance: 1000,
-		}));
-		expect(validateCalibration(calibration)).toEqual({ ok: true, value: undefined });
-	});
-
-	it('rejects the same shapes createCalibration does', () => {
-		expect(expectErr(validateCalibration({
-			pointA: { x: 0, y: 0 },
-			pointB: { x: 10, y: 0 },
-			knownDistance: Number.NaN,
-		})).code).toBe('plan.non-positive-distance');
-
-		expect(expectErr(validateCalibration({
-			pointA: { x: 1, y: 1 },
-			pointB: { x: 1, y: 1 },
-			knownDistance: 1000,
-		})).code).toBe('plan.degenerate-points');
-
-		expect(expectErr(validateCalibration({
-			pointA: { x: 0, y: 0 },
-			pointB: { x: 10, y: 0 },
-			knownDistance: 1000,
-			pixelsPerWorldUnit: 0,
-		})).code).toBe('plan.invalid-scale');
+	it('rejects a non-finite or non-positive scale', () => {
+		for (const pixelsPerWorldUnit of [0, -1, Number.NaN]) {
+			expect(expectErr(validateCalibration({ ...wellFormed, pixelsPerWorldUnit })).code)
+				.toBe('plan.invalid-scale');
+		}
 	});
 });
 
@@ -88,8 +74,8 @@ describe('deriveCalibration', () => {
 
 	it('corrects against the PREVIOUS scale on recalibration', () => {
 		const previous = expectOk(
-			createCalibration({ pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 2000 }),
-		);
+			deriveCalibration({ x: 0, y: 0 }, { x: 100, y: 0 }, 2000, null),
+		).calibration;
 		const { calibration, scaleCorrection } = expectOk(
 			deriveCalibration({ x: 0, y: 0 }, { x: 50, y: 0 }, 500, previous),
 		);

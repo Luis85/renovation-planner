@@ -5,8 +5,10 @@ import type { EditorPointerEvent } from '../../../../src/presentation/editor/too
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
 import { ok } from '../../../../src/core/result/Result';
-import type { CalibratePlanInput } from '../../../../src/application/commands/plan/CalibratePlan';
-import type { ReversibleCalibratePlanCommand } from '../../../../src/application/commands/plan/ReversibleCalibratePlan';
+import type {
+	CalibratePlanInput,
+	ReversibleCalibratePlanCommand,
+} from '../../../../src/application/commands/plan/ReversibleCalibratePlan';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
 
 interface Harness {
@@ -86,6 +88,9 @@ const harness = (): Harness => {
 		createCommand: () => commandInstance,
 	};
 };
+
+/** Hoisted so the placeholder is not a fresh closure per call (unicorn scoping). */
+const noop = (): void => undefined;
 
 const at = (x: number, y: number): EditorPointerEvent => ({
 	worldPoint: { x, y },
@@ -275,6 +280,70 @@ describe('CalibrateTool', () => {
 			tool.pointerUp(at(1, 2));
 		}).not.toThrow();
 		expect(h.dispatched).toHaveLength(0);
+	});
+
+	it('a secondary or auxiliary button places nothing and never starts a gesture', async () => {
+		const h = harness();
+		h.supplyNextDistance(3200);
+		const tool = new CalibrateTool({
+			supplyKnownDistance: h.supplyKnownDistance,
+			createCommand: h.createCommand,
+		});
+		tool.activate(h.context);
+		tool.pointerDown({ ...at(812, 240), button: 'secondary' });
+		tool.pointerDown({ ...at(812, 1040), button: 'auxiliary' });
+		await flush();
+		// Not merely "did not dispatch": neither click may have become the pending FIRST
+		// point either, or the next primary click would complete a gesture over a point the
+		// user never placed with the button that places them.
+		expect(h.supplierMeasurements).toEqual([]);
+		expect(h.dispatched).toHaveLength(0);
+
+		tool.pointerDown(at(812, 240));
+		tool.pointerDown(at(812, 1040));
+		await flush();
+		expect(h.inputs).toEqual([
+			{ planId: 'plan-1', pointA: { x: 812, y: 240 }, pointB: { x: 812, y: 1040 }, knownDistance: 3200 },
+		]);
+	});
+
+	it('clicks during an outstanding prompt start no second gesture', async () => {
+		const h = harness();
+		h.supplyNextDistance(3200);
+		h.supplyNextDistance(6400);
+		let release: () => void = noop;
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const asked: number[] = [];
+		const tool = new CalibrateTool({
+			// Records the ask BEFORE blocking, so "was a second prompt opened?" is answerable
+			// while the first one is still outstanding — which is the whole question here.
+			supplyKnownDistance: async (measured) => {
+				asked.push(measured);
+				await held;
+				return h.supplyKnownDistance(measured);
+			},
+			createCommand: h.createCommand,
+		});
+		tool.activate(h.context);
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(0, 800));
+		await flush();
+
+		// Two more clicks while the first gesture's prompt is still open. Without the
+		// guard these become a second gesture, and the second answer dispatches a
+		// calibration derived against a scale the first one has not landed yet.
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(0, 1600));
+		await flush();
+		expect(asked).toEqual([800]);
+
+		release();
+		await flush();
+		expect(h.inputs).toEqual([
+			{ planId: 'plan-1', pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 800 }, knownDistance: 3200 },
+		]);
 	});
 
 	it('the dispatched history entry undoes through the same command instance', async () => {

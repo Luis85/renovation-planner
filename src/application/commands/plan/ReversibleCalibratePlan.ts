@@ -22,7 +22,27 @@ import type {
 } from '../../ports/PlanGeometrySidecar';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import { loadPlan } from './loadPlan';
-import type { CalibratePlanInput } from './CalibratePlan';
+
+/**
+ * What one calibration gesture supplies. Slice 3 declared this beside a plain
+ * `CalibratePlanCommand` that this command REPLACED — the plain one derived a
+ * calibration whose own points did not measure their `knownDistance` and rescaled no
+ * existing geometry, so keeping it reachable meant two answers to what calibrating a
+ * plan does. It was deleted rather than deprecated, and its input shape moved here, to
+ * the one command that still holds it.
+ */
+export interface CalibratePlanInput {
+	readonly planId: PlanId;
+	/**
+	 * In the plan's CURRENT world units — the space `event.worldPoint` already arrives in,
+	 * which equals the background's pixel space only while the plan is uncalibrated and
+	 * its placeholder scale is `1`. See `Calibration`.
+	 */
+	readonly pointA: Point;
+	readonly pointB: Point;
+	/** World units (mm) — like every length here (ADR-009). */
+	readonly knownDistance: number;
+}
 
 function allPointsFinite(document: PlanGeometryDocument): boolean {
 	for (const object of document.objects) {
@@ -41,8 +61,10 @@ function allPointsFinite(document: PlanGeometryDocument): boolean {
 }
 
 /**
- * Design slice 7's undoable calibration (SDD §25, §29-31) — supersedes the plain
- * `CalibratePlanCommand` body while keeping its input shape and event vocabulary.
+ * Design slice 7's undoable calibration (SDD §25, §29-31) — the ONE command that writes
+ * a plan's calibration. It replaced slice 3's plain `CalibratePlanCommand`, which was
+ * deleted rather than left beside it, and keeps that command's input shape and its
+ * `PlanCalibrated`/`ZoneGeometryChanged` event vocabulary.
  *
  * One `execute()` is one transaction: derive the correction with
  * `deriveCalibration`, multiply EVERY world-unit coordinate for the plan by it — the
@@ -100,15 +122,15 @@ export class ReversibleCalibratePlanCommand {
 		private readonly events: EventBus,
 	) {}
 
-	// Nothing in `src/` constructs or drives this command yet: the tool that dispatches it
-	// arrives when the composition root wires a ToolManager (slice 8's toolbar), and both
-	// halves ARE driven by `tests/application/commands/plan/reversibleCalibratePlan.test.ts`
-	// in the meantime — deleting a declared capability because its caller is one slice away
-	// is how the declaration rots, the reason `ReversibleSetPlanBackground` carries the
-	// identical mark. (The task doc's `implements UndoableCommand` sketch is satisfied by
-	// the zero-arg gesture wrapper `CalibrateTool` assembles around `execute(input)` /
-	// `undo()` — an application class cannot name presentation's interface.)
-	// fallow-ignore-next-line unused-class-member
+	// Nothing in the COMPOSITION ROOT wires this yet — that arrives with slice 8's
+	// toolbar and its ToolManager. Both halves are reached from `src/` all the same:
+	// `CalibrateTool` closes over `execute(input)` and `undo()` in the zero-arg gesture
+	// wrapper it hands the dispatcher, which is how the task doc's
+	// `implements UndoableCommand` sketch is satisfied without an application class naming
+	// a presentation interface. That reference is also why neither method needs the
+	// `fallow-ignore` mark `ReversibleSetPlanBackground` still carries: they had one while
+	// the tool imported its input type from the deleted slice-3 command, and fallow now
+	// resolves both through the tool.
 	async execute(
 		input: CalibratePlanInput,
 	): Promise<Result<void, ReferenceError | ValidationError | CalculationError | PersistenceError>> {
@@ -167,7 +189,6 @@ export class ReversibleCalibratePlanCommand {
 		return ok(undefined);
 	}
 
-	// fallow-ignore-next-line unused-class-member
 	async undo(): Promise<Result<void, PersistenceError | ValidationError>> {
 		const inverse = this.inverse;
 		if (inverse === null || this.lastWritten === null) {
@@ -193,6 +214,12 @@ export class ReversibleCalibratePlanCommand {
 		objectIds: readonly string[],
 	): Promise<void> {
 		for (const id of objectIds) {
+			// The cast crosses the same erasure the adapter's `'polygon'` literal names from
+			// the other side: `SpatialObjectGeometry.id` is a bare string because the port
+			// is document-grained, and schema v1 has exactly one spatial-object type, so
+			// every entry IS a Zone. The day the sidecar grows a second type this stops
+			// being true silently — the entry's type has to reach the port before then, and
+			// this loop has to filter on it.
 			await this.events.publish(zoneGeometryChanged({ zoneId: id as ZoneId, planId, projectId }));
 		}
 	}

@@ -12,6 +12,7 @@ import {
 import { fileNameFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { observeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/digest';import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { FindZonesByPlan } from '../../../../src/application/queries/FindZonesByPlan';
+import { ObsidianPlanGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 
 /**
  * The long tail of slice 4's diagnostics: every remaining refusal path, driven red here
@@ -199,61 +200,74 @@ describe('index empties', () => {
 	});
 });
 
-describe('calibration round-trips through the plan repository', () => {
-	it('saving a calibrated plan writes the sidecar calibration and reads it back merged', async () => {
+/**
+ * Calibration is READ-ONLY through the plan repository (design slice 7's review pass).
+ * The sidecar owns the field; `ReversibleCalibratePlanCommand` writes it through
+ * `PlanGeometrySidecar`; `getById` merges it into the entity. What used to be here — a
+ * `syncCalibration` that lowered the entity's value on every note save — was a lost
+ * update no version check could see, because calibration does not live in the note.
+ */
+describe('calibration is read-only through the plan repository', () => {
+	const CALIBRATION = {
+		pointA: { x: 0, y: 0 },
+		pointB: { x: 0, y: 2000 },
+		knownDistance: 2000,
+		pixelsPerWorldUnit: 0.05,
+	};
+
+	it('getById merges the sidecar calibration into the entity', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
-		const before = expectOk(await stack.plans.getById(planId));
-		expect(before.entity.calibration).toBeNull();
+		expect(expectOk(await stack.plans.getById(planId)).entity.calibration).toBeNull();
 
-		const calibrated = before.entity.calibrate({
-			pointA: { x: 0, y: 0 },
-			pointB: { x: 100, y: 0 },
-			knownDistance: 2000,
-		});
-		if (!calibrated.ok) throw new Error(calibrated.error.message);
-		expectOk(await stack.plans.save(calibrated.value, before.version));
+		const sidecar = new ObsidianPlanGeometrySidecar(stack.store);
+		expectOk(await sidecar.write(planId, { calibration: CALIBRATION, objects: [] }));
 
-		// The sidecar carries it...
-		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, planId)) ?? '{}');
-		expect(sidecar.calibration.pixelsPerWorldUnit).toBeCloseTo(0.05);
-
-		// ...and a fresh read merges it into the entity.
-		const after = expectOk(await stack.plans.getById(planId));
-		expect(after.entity.calibration?.pixelsPerWorldUnit).toBeCloseTo(0.05);
-
-		// Saving again with an UNCHANGED calibration skips the sidecar write (revision stable).
-		const stableSidecar = stack.vault.entries.get(sidecarPathOf(stack, planId));
-		await stack.plans.save(calibrated.value, after.version);
-		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBe(stableSidecar);
+		const after = expectOk(await stack.plans.getById(planId)).entity;
+		expect(after.calibration).toEqual(CALIBRATION);
 	});
 
-	it('saving a plan whose calibration is null clears a sidecar calibration that exists', async () => {
+	it('a note save NEVER writes the calibration field, even from an entity that disagrees', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		const before = expectOk(await stack.plans.getById(planId));
-		const calibrated = before.entity.calibrate({
-			pointA: { x: 0, y: 0 },
-			pointB: { x: 100, y: 0 },
-			knownDistance: 2000,
-		});
-		if (!calibrated.ok) throw new Error(calibrated.error.message);
-		expectOk(await stack.plans.save(calibrated.value, before.version));
+		const { planId, projectId } = await seed(stack);
+		const sidecar = new ObsidianPlanGeometrySidecar(stack.store);
+		expectOk(await sidecar.write(planId, { calibration: CALIBRATION, objects: [] }));
+		const untouched = stack.vault.entries.get(sidecarPathOf(stack, planId));
 
-		// The domain never clears a calibration today, but the sync must still lower
-		// `null` when an UNCALIBRATED entity is saved over a sidecar that holds one —
-		// driven here by saving a fresh, never-calibrated Plan under the same id.
+		// The exact shape of the old lost update: an entity read BEFORE the calibration
+		// landed (here, one that never had it at all) saved afterwards. Calibration is not
+		// in the note, so the note's revision never moved and `checkExpectedVersion` passes
+		// — the only thing standing between that save and the sidecar is that the
+		// repository no longer writes it.
+		const loaded = expectOk(await stack.plans.getById(planId));
 		expectOk(await stack.plans.save(
-			makePlanEntity({ id: planId, projectId: createProjectId() }),
-			expectOk(await stack.plans.getById(planId)).version,
+			makePlanEntity({ id: planId, projectId, name: 'Renamed' }),
+			loaded.version,
 		));
 
-		const after = expectOk(await stack.plans.getById(planId));
-		expect(after.entity.calibration).toBeNull();
-		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, planId)) ?? '{}');
-		expect(sidecar.calibration).toBeNull();
+		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBe(untouched);
+		expect(expectOk(await stack.plans.getById(planId)).entity.calibration).toEqual(CALIBRATION);
 	});
 
+	it('refuses to load a plan whose sidecar holds a calibration the derivation could not produce', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const path = sidecarPathOf(stack, planId);
+		const document = JSON.parse(stack.vault.entries.get(path) ?? '{}') as Record<string, unknown>;
+		// Hand-edited coincident points: the Zod schema checks each field's shape, so only
+		// `validateCalibration` at `withCalibration` can catch the RELATIONSHIP between them.
+		document['calibration'] = { ...CALIBRATION, pointA: { x: 7, y: 7 }, pointB: { x: 7, y: 7 } };
+		stack.vault.entries.set(path, JSON.stringify(document));
+
+		const failure = expectErr(await stack.plans.getById(planId));
+		expect(failure.code).toBe('plan.frontmatter-invalid');
+		// The code is the door; the cause is which rule refused. Without it the diagnostic
+		// points at the note, and the note is fine.
+		expect(failure.cause).toMatchObject({ code: 'plan.degenerate-points' });
+	});
+});
+
+describe('the long tail, continued', () => {
 	it('getById reports migration-failed for a note with an unreadable schema version', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);

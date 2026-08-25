@@ -27,6 +27,27 @@ composition root. Slice 7 (Calibration) and slice 8 (Zone Editing) are what plug
 framework and make the canvas editable. The one thing slice 5 writes is which document a
 Plan's background IS.
 
+**Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`**, and the
+composition root still registers nothing — the toolbar that would arrives with slice 8, so
+the capability is proven by tests and unreachable in a vault. Two rules came out of its
+review pass and both are load-bearing:
+
+- **A `Calibration`'s two points are in the plan's CURRENT world units**, not the
+  background's pixel space. The two coincide only while the plan is uncalibrated and its
+  placeholder scale is `1`, which is why every comment that said "pixel space" read as
+  correct until the first recalibration. A calibration AT REST also measures its own
+  `knownDistance`: the command multiplies every world-unit coordinate for the plan by
+  `scaleCorrection`, its own pair included.
+- **The geometry sidecar owns `calibration`, and `PlanGeometrySidecar` is its only
+  writer.** `ObsidianPlanRepository` owns the sidecar's LIFECYCLE and none of its content;
+  `Plan.calibration` is read-only through it, merged in by `getById`. It used to sync the
+  field on every note save, and that was a lost update no gate could see — calibration is
+  not in the note, so a calibration landing in the sidecar never moved the note's revision
+  and an entity read before one still passed `checkExpectedVersion` afterwards. Slice 3's
+  plain `CalibratePlanCommand`, `Plan.calibrate` and `createCalibration` were deleted in
+  the same pass: they were a second derivation answering differently, and `docs/tasks/07`
+  claimed a supersession the first pass never performed.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was

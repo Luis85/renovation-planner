@@ -4,131 +4,18 @@ import {
 } from '../../../../src/application/commands/plan/ReversibleCalibratePlan';
 import type {
 	PlanGeometryDocument,
-	PlanGeometrySidecar,
-	PlanGeometrySnapshot,
 	SpatialObjectGeometry,
 } from '../../../../src/application/ports/PlanGeometrySidecar';
-import type { EntityVersion } from '../../../../src/application/ports/versioning';
-import { externalModification, revisionConflict } from '../../../../src/application/ports/versioning';
 import { InMemoryPlanRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { distance } from '../../../../src/core/geometry/operations';
-import { err, ok, type Result } from '../../../../src/core/result/Result';
-import type { PersistenceError, ValidationError } from '../../../../src/core/errors/AppError';
+import { expectErr, expectOk, RecordingEventBus } from '../../../helpers/domain';
 import {
-	expectErr,
-	expectOk,
-	injectedPersistenceError,
-	RecordingEventBus,
-	type observationToken,
-} from '../../../helpers/domain';
+	InMemoryPlanGeometrySidecar,
+	InterleavingPlanGeometrySidecar,
+} from '../../../helpers/geometry-sidecar';
 import { makePlan } from '../../../helpers/entities';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
-
-/**
- * An HONEST in-memory sidecar: the version contract is enforced, not decorated. `poke`
- * models another plugin writer (revision moves), `scratch` a hand edit that left the
- * revision alone (only the content digest moves) — the two refusals an undo must tell
- * apart, per slice 6's snapshot-inverse rule.
- */
-class InMemoryPlanGeometrySidecar implements PlanGeometrySidecar {
-	private readonly plans = new Map<
-		string,
-		{ document: PlanGeometryDocument; version: EntityVersion }
-	>();
-	failNextWrite = false;
-
-	private digest(document: PlanGeometryDocument): ReturnType<typeof observationToken> {
-		return JSON.stringify(document) as never;
-	}
-
-	seed(planId: PlanId, document: PlanGeometryDocument): void {
-		this.plans.set(planId, {
-			document,
-			version: { revision: 1, observed: this.digest(document) },
-		});
-	}
-
-	poke(planId: PlanId): void {
-		const entry = this.plans.get(planId);
-		if (!entry) throw new Error(`nothing seeded under ${planId}`);
-		entry.version = { revision: entry.version.revision + 1, observed: this.digest(entry.document) };
-	}
-
-	scratch(planId: PlanId): void {
-		const entry = this.plans.get(planId);
-		if (!entry) throw new Error(`nothing seeded under ${planId}`);
-		const document = structuredClone(entry.document);
-		const first = document.objects[0];
-		if (first) {
-			document.objects = [{ ...first, points: [{ x: 999, y: 999 }, ...first.points.slice(1)] }];
-		}
-		entry.document = document;
-	}
-
-	read(planId: PlanId): Promise<Result<PlanGeometrySnapshot, PersistenceError | ValidationError>> {
-		const entry = this.plans.get(planId);
-		if (!entry) return Promise.resolve(err(injectedPersistenceError()));
-		return Promise.resolve(ok({ document: structuredClone(entry.document), version: entry.version }));
-	}
-
-	write(
-		planId: PlanId,
-		document: PlanGeometryDocument,
-		expected?: EntityVersion,
-	): Promise<Result<EntityVersion, PersistenceError | ValidationError>> {
-		return Promise.resolve(this.writeSync(planId, document, expected));
-	}
-
-	private writeSync(
-		planId: PlanId,
-		document: PlanGeometryDocument,
-		expected?: EntityVersion,
-	): Result<EntityVersion, PersistenceError | ValidationError> {
-		const entry = this.plans.get(planId);
-		if (!entry) return err(injectedPersistenceError());
-		if (this.failNextWrite) {
-			this.failNextWrite = false;
-			return err(injectedPersistenceError());
-		}
-		if (expected) {
-			if (expected.revision !== entry.version.revision) {
-				return err(revisionConflict('plan-geometry', String(planId)));
-			}
-			// Like the real store: the digest is recomputed from what the bytes hold NOW,
-			// never replayed from a stored token.
-			if (expected.observed !== this.digest(entry.document)) {
-				return err(externalModification('plan-geometry', String(planId)));
-			}
-		}
-		const version: EntityVersion = {
-			revision: entry.version.revision + 1,
-			observed: this.digest(document),
-		};
-		entry.document = structuredClone(document);
-		entry.version = version;
-		return ok(version);
-	}
-}
-
-/**
- * Extends the honest fake with one interleaving hook: `intercene` runs when the
- * command's WRITE begins — strictly after its READ — which is how a concurrent writer
- * landing between the two lock acquisitions is simulated. The base fake cannot catch
- * that race even in principle: it is synchronous and cannot interleave.
- */
-class InterleavingPlanGeometrySidecar extends InMemoryPlanGeometrySidecar {
-	intercene: (() => void) | null = null;
-
-	override write(
-		planId: PlanId,
-		document: PlanGeometryDocument,
-		expected?: EntityVersion,
-	): Promise<Result<EntityVersion, PersistenceError | ValidationError>> {
-		this.intercene?.();
-		return super.write(planId, document, expected);
-	}
-}
 
 const PICKED_A = { x: 812, y: 240 };
 const PICKED_B = { x: 812, y: 1040 }; // 800 world units apart

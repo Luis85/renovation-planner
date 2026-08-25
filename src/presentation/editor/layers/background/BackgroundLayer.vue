@@ -16,7 +16,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useProjectStore } from '../../../stores/ProjectStore';
-import { useEditorContext } from '../../EditorContext';
+import { usePlanEditorContext } from '../../PlanEditorContext';
 import type { NodeTransform } from '../../viewport/Viewport';
 import {
 	backgroundStatus,
@@ -33,7 +33,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ status: [status: BackgroundStatus] }>();
 
-const context = useEditorContext();
+const context = usePlanEditorContext();
 const { plan } = storeToRefs(useProjectStore());
 const model = ref<BackgroundRenderModel>(NO_BACKGROUND);
 

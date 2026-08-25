@@ -6,8 +6,8 @@ dependsOn:
   - "[[04-persistence-and-repository-layer]]"
   - "[[08-zone-editing]]"
   - "[[09-quantity-and-cost-engine]]"
-status: ""
-started: ""
+status: Active
+started: 2026-08-25
 finished: ""
 horizon: ""
 start: ""
@@ -148,6 +148,47 @@ This slice does not introduce a new SDD ADR; it applies ADR-006 (plain
 TypeScript domain), ADR-007 (command-based mutations), ADR-008 (event-aware
 architecture), ADR-009 (world coordinates in mm), and ADR-010 (decimal money)
 to two new entities.
+
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+A code review of merged slice 8 changed the event and undo machinery this
+slice subscribes to. Read these before writing the cascade.
+
+- **`ZoneGeometryChanged` now fans out CONCURRENTLY, and on BOTH halves of a
+  recalibration.** `ReversibleCalibratePlanCommand` used to `await` one publish per
+  rescaled object in a loop; it publishes them through `Promise.all` now, and `undo()`
+  announces the same set `execute()` did. So a recalibration of an N-zone plan invokes
+  `onZoneGeometryChanged` N times concurrently, twice over. The handler above writes a
+  stale marker per Requirement before recalculating — those writes go through the
+  repository's per-entity queue, which serializes them, but nothing serializes the
+  HANDLERS. Anything the cascade accumulates outside a repository (a counter, a batch, a
+  notification tally) has to be written for concurrent entry.
+- **Publishing a zone event now also re-hydrates every Plan Editor leaf showing that
+  plan.** `ZoneCreated`, `ZoneGeometryChanged` and `ZoneDeleted` are in
+  `planChangeSource`'s `PLAN_CHANGE_EVENTS` list. That is what fixed a second leaf drawing
+  stale geometry; it also means an event this slice publishes carries a vault-read cost per
+  open leaf, which matters most for exactly the cascade above.
+- **The zone event stream is ASYMMETRIC over undo/redo, and this slice is the first
+  subscriber that can decide what to do about it.** `create -> undo -> redo -> undo` emits
+  one `ZoneCreated` and TWO `ZoneDeleted`: the redo restores through
+  `ZoneRepository.save` and publishes nothing, because the sibling delete adapter argues
+  at length that a restore is not a creation. Any handler that COUNTS or MIRRORS the
+  lifecycle drifts permanently, and after a redo believes a zone that exists does not.
+  The review pass deliberately left this unresolved rather than settle an event contract
+  silently — `reversible-create-zone-command.ts`'s header states it where the code is.
+  Whatever this slice needs, decide it explicitly and change both adapters together.
+- **`WriteLedger`'s rule is "every write records, every delete FORGETS".** A deleted note
+  has no revision to remember, and a stale entry outliving the note it described gets
+  presented as an expectation by whatever touches that id next — which is precisely the
+  cascade-aware delete this slice adds. `WriteLedger.forget(id)` exists for it.
+- **`restoreZone` is the ONE `'absent'` restore**, shared by both reversible adapters.
+  This slice's widening — the snapshot growing into "the Zone plus everything the delete
+  touched", and `undo()` becoming a compensated multi-write sequence — changes that
+  precondition in one place instead of two. The two copies it replaced had already drifted
+  on whether they refreshed their own snapshot afterwards.
+- **`SelectTool.SpatialObjectCandidate` is the Assets extension point** it was written to
+  be, and `spatialObjects()` is materialised ONCE per gesture now rather than twice, so
+  widening the candidate set costs one traversal per click, not two.
 
 ## Design
 

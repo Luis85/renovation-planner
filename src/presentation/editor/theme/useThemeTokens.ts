@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref, type Ref } from 'vue';
-import { useEditorContext } from '../EditorContext';
+import { usePlanEditorContext } from '../PlanEditorContext';
 import { resolveThemeTokens, type ThemeTokens } from './themeTokens';
 
 /**
@@ -27,7 +27,7 @@ export function useThemeTokens(root: Ref<HTMLElement | null>): {
 	// Registered at setup and disposed with the component: a listener outliving its view
 	// would keep re-resolving against a detached element for the rest of the session, and
 	// the next open would add a second one.
-	const unsubscribe = useEditorContext().onThemeChange(refresh);
+	const unsubscribe = usePlanEditorContext().onThemeChange(refresh);
 	onBeforeUnmount(unsubscribe);
 
 	return { tokens, refresh };

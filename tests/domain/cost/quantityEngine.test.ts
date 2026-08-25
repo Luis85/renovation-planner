@@ -98,7 +98,7 @@ describe('applyRequirementRule', () => {
 });
 
 describe('applyWaste', () => {
-	it('multiplies by 1 + percent/100 at full precision', () => {
+	it('multiplies by 1 + percent/100 in decimal, not binary floating point', () => {
 		const required = { value: d('12.345678'), unit: 'm2' as const };
 		const wasted = expectOk(applyWaste(required, d('10')));
 		expect(sameValue(wasted, '13.5802458')).toBe(true);

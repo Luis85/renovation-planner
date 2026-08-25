@@ -17,4 +17,23 @@ describe('SessionWriteLedger', () => {
 		ledger.record('zone-a' as never, version(3));
 		expect(ledger.lastWritten('zone-a' as never)?.revision).toBe(3);
 	});
+	it('forget removes an entry, so a deleted entity presents no expectation', () => {
+		// A delete has no revision to record — the note is gone. Keeping the pre-delete one
+		// means the ledger goes on answering a version for a note that does not exist, and
+		// the first half to present it (slice 10's cascade-aware delete is the named
+		// candidate) refuses a legitimate undo against a revision nothing has.
+		const ledger = new SessionWriteLedger();
+		const id = 'zone-1' as never;
+		ledger.record(id, version(1));
+		expect(ledger.lastWritten(id)).toEqual(version(1));
+
+		ledger.forget(id);
+
+		expect(ledger.lastWritten(id)).toBeNull();
+	});
+
+	it('forget for an id it never knew is a no-op, not a throw', () => {
+		const ledger = new SessionWriteLedger();
+		expect(() => ledger.forget('never-seen' as never)).not.toThrow();
+	});
 });

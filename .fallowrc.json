@@ -87,7 +87,9 @@
 	// hoisted above the test file's imports, and the static form fails at runtime with
 	// `Cannot access '__vi_import_5__' before initialization` (measured, not assumed). Named
 	// rather than globbed, so the next unused export in this helper is still a finding.
-	"ignoreExports": [{ "file": "tests/helpers/logger.ts", "exports": ["consoleLoggerMock"] }],
+	"ignoreExports": [
+		{ "file": "tests/helpers/logger.ts", "exports": ["consoleLoggerMock"] }
+	],
 	"health": {
 		"coverage": "coverage/coverage-final.json",
 		"ignore": ["tests/**"]

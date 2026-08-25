@@ -114,6 +114,22 @@ export function screenToWorld(point: ScreenPoint, viewport: Viewport, dpr: numbe
 	return { x: point.x / scale + viewport.pan.x, y: point.y / scale + viewport.pan.y };
 }
 
+/**
+ * How many world millimetres one screen pixel spans at the current camera — the scalar
+ * every screen-sized tolerance is converted through (a vertex handle's grab radius, a
+ * click-versus-drag epsilon, a polygon's closing target).
+ *
+ * It lives HERE, beside the transform it inverts, because it is the same statement of the
+ * camera as `screenToWorld`: `1 / scale`, where `scale` is that function's own. Three
+ * tools derived it by hand before this existed — each projecting `(0,0)` and `(1,0)` back
+ * into world space and measuring the gap — which is both a third copy of the transform and
+ * a needless subtraction of two numbers dominated by `pan`, so a far-panned plan lost
+ * low-order bits of exactly the quantity being measured.
+ */
+export function worldPerScreenPixel(viewport: Viewport, dpr: number): number {
+	return 1 / (viewport.zoom * dpr);
+}
+
 /** What a Konva node's `x`/`y`/`scaleX`/`scaleY` config wants — plain numbers, no brand. */
 export interface NodeTransform {
 	readonly x: number;

@@ -4,9 +4,9 @@ parent: "[[Plan editor and canvas]]"
 order: 40
 dependsOn:
   - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-25
+finished: 2026-08-25
 horizon: ""
 start: ""
 due: ""
@@ -615,6 +615,45 @@ an `rbush`-backed candidate prefilter in front of it later.
 
 ## Interfaces & Contracts
 
+// As built, four deviations from the sketches below, each forced by what slices 3–7
+// actually shipped (the sketches' own restatements, not the shipped code, were wrong):
+//
+// 1. `DeleteZoneCommand` returns `Result<{ zoneId: ZoneId }, …>` — there is no
+//    `DeleteWithReferencesResult` and no `DeleteZoneInput.resolution`; both arrive with
+//    slice 10. The delete adapter is written against the real shapes; its undo is a
+//    single restore write whose compensation "is never reached", exactly as this doc's
+//    Design section states for the pre-slice-10 world.
+// 2. The application-layer adapters (`ReversibleCreateZoneCommand`,
+//    `ReversibleDeleteZoneCommand`) do NOT name `UndoableCommand` — it lives in
+//    `presentation/`, which `application/` may not import (the layer ban). They satisfy
+//    it structurally, as `ReversibleCalibratePlanCommand` already does.
+// 3. Both adapters take the shared `WriteLedger` in their constructor: every half's
+//    successful write records into it, including restores, so sibling adapters' inverse
+//    expectations stay live across create → move → undo → undo → redo → redo. The doc's
+//    constructor sketch omitted the ledger; slice 6's "the expectation is the history's"
+//    rule requires it.
+// 4. `ReversibleMoveZoneVertexCommand` IS `ReversibleMoveZoneCommand` under the gesture's
+//    name (a type alias with its own doc comment): a vertex drag is a whole-geometry
+//    replacement exactly like a body drag — same wrapped command, same ledger rule — and
+//    the two differ only in how the tool computes forward/inverse.
+// 5. "Clear selection if it pointed at this zone" lives in `runtime.ts`'s `deleteZone`,
+//    NOT in the adapter's `execute()` as the Design pseudocode has it: the selection
+//    store is presentation state, and an application adapter cannot reach it (the layer
+//    ban). The adapter stays a pure snapshot-and-replay pair.
+// 6. Both spatial tolerances are SCREEN-pixel-derived through the live camera, not the
+//    world-fixed millimetre values the Design sketch implies: the click-vs-drag epsilon
+//    (4 px) and the polygon close tolerance (12 px). The world-fixed first versions were
+//    the review pass's findings — 0.5 mm is half a pixel at the default zoom (clicks
+//    became micro-move commands) and 25 mm a 2.5 px close target (sub-pixel when zoomed
+//    out). `SelectTool` already measured handle proximity in pixels; the other two now
+//    follow the same rule.
+// 7. `ToolManager.cancelGesture()` no longer requires `gestureInFlight` — it reaches the
+//    active tool whenever one is active. The in-flight flag models a DRAG (down sets it,
+//    up clears it, and a real mouse always delivers both), so a multi-click tool sat
+//    between clicks with the flag false and Escape did nothing exactly when the user
+//    needed it. The tool-switch path KEEPS the in-flight guard. Every `cancel()` is
+//    required to be safe when nothing is in flight, which they all are.
+
 ```typescript
 // presentation/editor/tools/DrawPolygonTool.ts
 class DrawPolygonTool implements EditorTool {
@@ -901,6 +940,10 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
    legal — so both need their own test; and each passes trivially against an
    unconditional restore, since every individual compare-and-swap succeeds while the
    Vault ends up in a state no command would have produced.
+   **Deferred to slice 10 with the machinery it names** — `remove-references`,
+   `Requirement`, and the `affectedBefore` payload do not exist until then; in this
+   slice the undo is a single restore write and items 3a/3b/3c are unimplementable, not
+   unimplemented.
 3b. The **happy path** of that same undo still succeeds: a `remove-references` delete
    with every other endpoint untouched restores the Zone and every Requirement. This is
    a Definition of Done item rather than an obvious one because the first version of 3a

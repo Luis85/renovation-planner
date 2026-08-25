@@ -17,21 +17,15 @@ import type { RenderState } from './render-state';
  * editorContext.test.ts` checks that exclusion directly (Definition of Done 11) rather than
  * merely asserting it here.
  *
- * **Naming collision, read carefully**: there are now two types named `EditorContext` in
- * this codebase, in sibling directories, and neither is a typo.
- * - `src/presentation/editor/EditorContext.ts` (design slice 5) is a Vue **injection**
- *   context — `planId`, `queries`, `vault`, `onThemeChange`, `onPlanChanged` — provided
- *   once per Plan Editor leaf via `app.provide`, and consumed with `useEditorContext()`
- *   inside the Vue tree.
- * - **This** `EditorContext` (design slice 6, SDD §58) is the tool-framework facade below:
- *   what `EditorTool.activate(context)` receives. It is plain data handed to a tool by a
- *   `ToolManager`, has nothing to do with Vue's dependency injection, and is never placed
- *   on `provide`/`inject`.
- * They happen to share a name because the SDD and the design-slice-6 spec both call this
- * one `EditorContext`, and renaming it to dodge the collision would deviate from that
- * binding authority (`docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`)
- * over a readability concern. Import the one you mean from its own module; nothing
- * re-exports either under the other's name.
+ * **There used to be a second `EditorContext` here**, in the sibling directory: slice 5's
+ * Vue injection context, provided per Plan Editor leaf. It is `PlanEditorContext` now.
+ * This one keeps the bare name because the SDD and design slice 6 both call the tool
+ * facade `EditorContext` and renaming it would deviate from the binding authority
+ * (`docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`); the Vue one was this
+ * project's own invention and had no such claim on the word. Two paragraphs in two files
+ * explaining which was which, plus an alias import in `runtime.ts`, was the cost of
+ * keeping them both — and `npm run analyze` reported the pair as a duplicate export, which
+ * it genuinely was.
  */
 export interface EditorContext {
 	/** Read-only for every tool except `PanTool`, which mutates through `setPan`/`setZoom`
@@ -40,6 +34,16 @@ export interface EditorContext {
 	readonly viewport: {
 		worldToScreen(p: Point): ScreenPoint;
 		screenToWorld(p: ScreenPoint): Point;
+		/**
+		 * World millimetres per screen pixel at the CURRENT camera — how a tool converts a
+		 * screen-sized tolerance (a grab radius, a click epsilon, a closing target) into the
+		 * world units it must compare against. A member rather than something each tool
+		 * derives: three tools projected `(0,0)` and `(1,0)` back through `screenToWorld`
+		 * and measured the gap, which is a third copy of the transform in the two files
+		 * least equipped to own one. `viewport/Viewport.ts`'s `worldPerScreenPixel` is the
+		 * single definition this binds to.
+		 */
+		worldPerScreenPixel(): number;
 		setPan(delta: Vector): void;
 		setZoom(factor: number, origin: ScreenPoint): void;
 	};

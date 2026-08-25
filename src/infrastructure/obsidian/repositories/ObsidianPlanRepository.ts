@@ -6,7 +6,7 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import { revisionConflict } from '../../../application/ports/versioning';
-import { planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
+import { calibrationFromPersistence, planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
 	ensureFolder,
 	findNoteIdInFolder,
@@ -82,7 +82,18 @@ export class ObsidianPlanRepository {
 				err(persistenceError('plan.sidecar-unreadable', `The geometry sidecar for plan ${id} could not be read.`, sidecar.error)),
 			);
 		}
-		const entity = planFromPersistence(opened.migrated, sidecar.value.dto.calibration);
+		// Through the mapper, never by handing the raw DTO across as if it were the domain
+		// value. The two shapes are structurally identical today and `Point`'s brand is a
+		// phantom field, so the direct pass type-checked — and would go on type-checking on
+		// the day the sidecar schema diverges from the entity (tuple coordinates, a unit
+		// field), silently loading a malformed calibration. It also aliased the Zod-parsed
+		// object into the entity rather than copying it, which is the other thing the
+		// mapper exists to prevent.
+		const calibration = sidecar.value.dto.calibration;
+		const entity = planFromPersistence(
+			opened.migrated,
+			calibration ? calibrationFromPersistence(calibration) : null,
+		);
 		if (!entity.ok) {
 			// The code names the common case; the CAUSE is what actually refused, and the two
 			// are not the same file. A hand-edited sidecar whose calibration breaks a rule

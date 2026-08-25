@@ -18,15 +18,29 @@ import type { UndoableCommand } from '../tools/undoable-command';
  * whichever slice needs it (see the spec's Design → Inspector section).
  */
 // Exported per the spec's Interfaces & Contracts block, and consumed inside this module
-// (the `dto` ref, `hydrateFrom`, `refresh` further down) — but nothing outside it imports
-// the type yet, since the Vue UI that binds a form to `dto` arrives with slice 8.
-// Suppressed here rather than deleted, matching Zone.perimeter()'s own reasoning: deleting
-// a declared capability is how it rots before its first real consumer shows up.
-// fallow-ignore-next-line unused-type
+// (the `dto` ref, `hydrateFrom`, `refresh` further down) — slice 8's runtime imports the
+// type for its own `inspectorDto` slot.
 export type InspectorDto =
 	| { readonly kind: 'empty' }
 	| { readonly kind: 'zone'; readonly id: ZoneId; readonly name: string; readonly areaMm2: number }
 	| { readonly kind: 'multiple'; readonly ids: readonly EntityId<string>[] };
+
+/**
+ * Every edit the Inspector can ask for (SDD §59's last arrow), as a DISCRIMINATED UNION
+ * rather than the `Record<string, unknown>` bag this used to be.
+ *
+ * The bag was the reason `toCommand` ended in a `throw` for an unmapped edit — and
+ * `commit` calls `toCommand` synchronously, so that throw escaped the one call whose whole
+ * contract is a `Result`, straight out of a Vue click handler as an unhandled rejection
+ * with no Notice and no state change. A union removes the failure rather than reporting
+ * it: a `kind` nothing maps is a compile error at the mapper, in the same edit that adds
+ * the field to the panel.
+ *
+ * Declared here, beside `InspectorDto`, because this module is what PRODUCES the contract
+ * — the panel and the composition root both consume it (CLAUDE.md: "a type belongs with
+ * the code that produces it").
+ */
+export type InspectorEdit = { readonly kind: 'delete'; readonly zoneId: ZoneId };
 
 /**
  * What the composition root hands `createInspectorStoreDefinition`.
@@ -50,7 +64,7 @@ export interface InspectorDeps {
 		execute(input: { zoneId: ZoneId }): Promise<Result<ZoneInspectorFields | null, PersistenceError | GeometryError>>;
 	};
 	readonly dispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
-	toCommand(edit: Record<string, unknown>): UndoableCommand;
+	toCommand(edit: InspectorEdit): UndoableCommand;
 }
 
 function zoneDto(fields: ZoneInspectorFields): InspectorDto {
@@ -160,7 +174,7 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		 * exactly one `toCommand` call and one `dispatcher.run` call, dispatching the exact
 		 * command `toCommand` built; keystroke-coalescing on blur/enter is the future Vue
 		 * UI's job, not this store's. */
-		function commit(edit: Record<string, unknown>): Promise<Result<void, AppError>> {
+		function commit(edit: InspectorEdit): Promise<Result<void, AppError>> {
 			return deps.dispatcher.run(deps.toCommand(edit));
 		}
 

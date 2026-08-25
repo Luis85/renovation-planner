@@ -1,5 +1,6 @@
 import type { Point } from '../../core/geometry/Point';
 import type { PlanBackgroundRef } from '../../domain/plan/PlanBackgroundRef';
+import type { Calibration } from '../../domain/plan/Calibration';
 import type { Plan } from '../../domain/plan/Plan';
 import type { Project } from '../../domain/project/Project';
 import type { Zone } from '../../domain/zone/Zone';
@@ -23,6 +24,19 @@ export interface PlanDto {
 	readonly projectId: string;
 	readonly name: string;
 	readonly background: PlanBackgroundRef | null;
+	/**
+	 * How the plan's world units are established (SDD §25), `null` while it is
+	 * uncalibrated and drawing at the placeholder scale of 1.
+	 *
+	 * It is on the DTO because the query side is the only thing that can supply it, and a
+	 * consumer that needs it had no way to ask: `EditorContext.activePlan.calibration`
+	 * declares this exact value to every tool, and the runtime filled it with a hard-coded
+	 * `null` because this field did not exist — so any tool reading it would have measured
+	 * a calibrated plan at the uncalibrated scale, with the type satisfied and no gate able
+	 * to see it. A plain value object (two points and two numbers), so it stays as flat and
+	 * serializable as the rest of this file.
+	 */
+	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
 }
 
@@ -48,6 +62,7 @@ export function toPlanDto(plan: Plan): PlanDto {
 		projectId: plan.projectId,
 		name: plan.name,
 		background: plan.background,
+		calibration: plan.calibration,
 		layers: plan.layers,
 	};
 }

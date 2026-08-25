@@ -54,6 +54,36 @@ function fakeContext(): EditorContext {
 }
 
 describe('ToolManager', () => {
+	it('clearActiveTool runs the switch lifecycle back to no tool (design slice 8 camera mode)', () => {
+		const calls: string[] = [];
+		const select = fakeTool('select', calls);
+		const manager = new ToolManager(fakeContext);
+		manager.register(select);
+		manager.setActiveTool('select');
+
+		manager.clearActiveTool();
+
+		expect(calls).toEqual(['select:activate', 'select:deactivate']);
+		expect(manager.activeToolId).toBeNull();
+	});
+
+	it('clearActiveTool cancels an in-flight gesture first, and is a no-op with no active tool', () => {
+		const calls: string[] = [];
+		const draw = fakeTool('draw-polygon', calls);
+		const manager = new ToolManager(fakeContext);
+		manager.register(draw);
+		manager.setActiveTool('draw-polygon');
+		manager.pointerDown(pointerEvent());
+		calls.length = 0;
+
+		manager.clearActiveTool();
+		expect(calls).toEqual(['draw-polygon:cancel', 'draw-polygon:deactivate']);
+
+		// A second clear is a no-op — no cancel of a tool that is not there.
+		manager.clearActiveTool();
+		expect(calls).toEqual(['draw-polygon:cancel', 'draw-polygon:deactivate']);
+	});
+
 	it('registers a tool and activates it with a context from the factory', () => {
 		const calls: string[] = [];
 		const select = fakeTool('select', calls);
@@ -244,7 +274,7 @@ describe('ToolManager', () => {
 		expect(calls).toEqual(['select:deactivate', 'pan:activate']);
 	});
 
-	it('cancelGesture() with no gesture in flight does nothing', () => {
+	it('cancelGesture() reaches the active tool even with NO gesture in flight (design slice 8)', () => {
 		const calls: string[] = [];
 		const select = fakeTool('select', calls);
 		const manager = new ToolManager(fakeContext);
@@ -252,10 +282,14 @@ describe('ToolManager', () => {
 		manager.setActiveTool('select');
 		calls.length = 0;
 
+		// No pointerDown ever fired: a multi-click tool (the polygon buffer, the
+		// calibration prompt) sits between clicks with the in-flight flag false, and
+		// Escape must still reach it. A real mouse always delivers pointerUp, so a
+		// down-without-up sequence is not a state a drag produces — it is the state a
+		// multi-click gesture LIVES in.
 		manager.cancelGesture();
 
-		expect(calls).toEqual([]);
-		expect(select.cancel).not.toHaveBeenCalled();
+		expect(calls).toEqual(['select:cancel']);
 	});
 
 	it('cancelGesture() with no active tool at all does nothing and does not throw', () => {

@@ -31,6 +31,19 @@ export const useProjectStore = defineStore('project', () => {
 	const zones = ref<ReadonlyMap<string, ZoneDto>>(new Map());
 	const status = ref<ProjectStoreStatus>('idle');
 	const error = ref<PersistenceError | null>(null);
+	/**
+	 * The ticket every `hydrate` call takes before its first await, so a slower earlier
+	 * read cannot land on top of a faster later one.
+	 *
+	 * There are two concurrent callers now, not one: the post-command refresh funnel
+	 * (`withEditorStateRefresh`) and the plan-change listener the root subscribes — and
+	 * `ProjectIndexRebuilt` reaches every leaf regardless of which plan it touched. Two
+	 * overlapping hydrations would otherwise resolve in whatever order the vault answered,
+	 * and the LAST assignment wins whether or not it is the freshest: a just-drawn zone
+	 * disappears from the canvas with no error anywhere. `InspectorStore` guards exactly
+	 * this with the same mechanism.
+	 */
+	let latestHydration = 0;
 
 	/**
 	 * A failed read leaves NO stale plan behind. Keeping the previous one would draw a
@@ -56,8 +69,25 @@ export const useProjectStore = defineStore('project', () => {
 	 * The zones query is not run when the Plan is absent or unreadable: there is nothing to
 	 * draw them on, and listing the zones of a plan that does not exist is a vault read
 	 * whose only possible answer is empty.
+	 *
+	 * **The `keepPreviousOnFailure` option is slice 8's, and only its.** A re-hydration
+	 * after a command whose WRITE succeeded is a different situation from an open-time
+	 * load: the vault state is newer than what the store shows, so blanking it would
+	 * replace "possibly stale" with definitely nothing — and through slice 13's save-state
+	 * tracking would read as a save error over a save that worked. There the failed read
+	 * keeps what the store had and surfaces the cause through `error` alone; slice 17's
+	 * rules for a failed hydrating read own how that reaches the user. Open-time loads keep
+	 * the default: a first paint has no previous contents to keep, and a re-open after a
+	 * failure must not draw a plan beside an error saying it could not be read.
 	 */
-	async function hydrate(queries: PlanEditorQueryServices, planId: string): Promise<void> {
+	async function hydrate(
+		queries: PlanEditorQueryServices,
+		planId: string,
+		options?: { readonly keepPreviousOnFailure?: boolean },
+	): Promise<void> {
+		const request = ++latestHydration;
+		const superseded = (): boolean => request !== latestHydration;
+		const keepOnFailure = options?.keepPreviousOnFailure === true;
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -67,7 +97,12 @@ export const useProjectStore = defineStore('project', () => {
 		error.value = null;
 
 		const foundPlan = await queries.getPlan(planId);
+		if (superseded()) return;
 		if (isErr(foundPlan)) {
+			if (keepOnFailure && status.value === 'ready') {
+				error.value = foundPlan.error;
+				return;
+			}
 			return fail(foundPlan.error);
 		}
 		if (foundPlan.value === null) {
@@ -78,7 +113,12 @@ export const useProjectStore = defineStore('project', () => {
 		}
 
 		const foundZones = await queries.findZonesByPlan(planId);
+		if (superseded()) return;
 		if (isErr(foundZones)) {
+			if (keepOnFailure && status.value === 'ready') {
+				error.value = foundZones.error;
+				return;
+			}
 			return fail(foundZones.error);
 		}
 
@@ -89,6 +129,9 @@ export const useProjectStore = defineStore('project', () => {
 
 	/** What the view calls on close, so a reused leaf never opens onto the last Plan. */
 	function reset(): void {
+		// Invalidates any hydration still in flight: a leaf closing must not have the plan
+		// it was reading painted back in a tick later.
+		latestHydration += 1;
 		project.value = null;
 		plan.value = null;
 		zones.value = new Map();

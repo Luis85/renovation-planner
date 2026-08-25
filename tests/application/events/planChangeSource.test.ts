@@ -9,8 +9,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPlanChangeSource } from '../../../src/application/events/planChangeSource';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { planBackgroundChanged, planCalibrated } from '../../../src/domain/plan/Plan.events';
+import { zoneCreated, zoneDeleted, zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
 
 const GROUND = { planId: 'plan-ground' as never, projectId: 'project-1' as never };
+const GROUND_ZONE = { ...GROUND, zoneId: 'zone-1' as never };
 const FIRST = { planId: 'plan-first' as never, projectId: 'project-1' as never };
 
 describe('subscribing to one plan changes', () => {
@@ -37,6 +39,40 @@ describe('subscribing to one plan changes', () => {
 		await events.publish(planCalibrated(GROUND));
 
 		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * The three zone events, driven one at a time so dropping any one is a failure rather
+	 * than a silent narrowing.
+	 *
+	 * Slice 8's own post-command decorator refreshes only the leaf whose dispatcher ran, so
+	 * it covers every zone change the editor itself makes and none of the others: a second
+	 * Plan Editor leaf on the same plan (Obsidian's own "split" duplicates a leaf with its
+	 * view state), the sample seed, a synced note. Without these entries that second leaf
+	 * drew a stale zone set indefinitely and hit-tested against zones that no longer existed.
+	 */
+	it.each([
+		['ZoneCreated', zoneCreated],
+		['ZoneGeometryChanged', zoneGeometryChanged],
+		['ZoneDeleted', zoneDeleted],
+	])('fires when a zone of that plan is %s', async (_name, makeEvent) => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createPlanChangeSource(events)('plan-ground', listener);
+
+		await events.publish(makeEvent(GROUND_ZONE));
+
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	it('stays silent for a zone belonging to a DIFFERENT plan', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createPlanChangeSource(events)('plan-ground', listener);
+
+		await events.publish(zoneGeometryChanged({ ...FIRST, zoneId: 'zone-9' as never }));
+
+		expect(listener).not.toHaveBeenCalled();
 	});
 
 	it('stays silent for a different plan', async () => {

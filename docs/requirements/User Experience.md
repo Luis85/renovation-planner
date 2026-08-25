@@ -2,10 +2,10 @@
 type: Feature
 parent: "[[Cross-cutting concerns]]"
 order: 20
-status: New
-started: ""
+status: Active
+started: 2026-08-25
 finished: ""
-horizon: "MVP"
+horizon: MVP
 start: ""
 due: ""
 risk: ""

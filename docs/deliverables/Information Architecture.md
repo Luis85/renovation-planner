@@ -2,10 +2,10 @@
 type: Deliverable
 parent: "[[User Interface]]"
 order: 10
-status: Open
+status: Active
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: MVP
 start: ""
 due: ""
 risk: ""

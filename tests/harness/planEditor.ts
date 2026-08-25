@@ -1,5 +1,6 @@
 import { ok } from '../../src/core/result/Result';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
+import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { installObsidianDom } from '../helpers/dom';
@@ -115,6 +116,10 @@ export function harnessDeps(): PlanEditorDeps {
 			getPlan: () => Promise.resolve(ok(HARNESS_PLAN)),
 			findZonesByPlan: () => Promise.resolve(ok(HARNESS_ZONES)),
 		},
+		// Every write refuses with `settings.unrecovered`, the honest answer for a page with
+		// no vault behind it — the buttons render and the gestures fail like any other
+		// failed write rather than pretending to persist.
+		commands: unavailablePlanEditorCommands(),
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',

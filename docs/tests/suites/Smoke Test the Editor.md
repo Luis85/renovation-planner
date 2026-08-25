@@ -5,6 +5,7 @@ sources:
   - SDD §11
   - SDD §60
   - SDD §91
+status: Ready
 ---
 # Smoke Test the Editor
 
@@ -65,3 +66,5 @@ into an automated check will find the same thing again next release.
 ## Cases
 
 - [[Editor Walkthrough]] — design slice 5's Definition of Done, end to end.
+- [[Zone Editing Walkthrough]] — design slice 8's Definition of Done: draw, select, move,
+  reshape, delete, and every undo of those, by hand.

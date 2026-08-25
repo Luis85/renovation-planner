@@ -23,7 +23,9 @@ import { tr } from '../i18n/strings';
 import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import type { ThemeTokens } from './theme/themeTokens';
-import { screenPoint, viewportTransform } from './viewport/Viewport';
+import { screenPoint, screenToWorld, viewportTransform, STAGE_PIXELS, type ScreenPoint } from './viewport/Viewport';
+import type { EditorPointerEvent } from './tools/editor-tool';
+import { useEditorRuntime } from './runtime';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import BackgroundLayer from './layers/background/BackgroundLayer.vue';
 import EmptyLayer from './layers/EmptyLayer.vue';
@@ -35,6 +37,7 @@ const emit = defineEmits<{ backgroundStatus: [status: BackgroundStatus] }>();
 
 const editor = useEditorStore();
 const workspace = useWorkspaceStore();
+const runtime = useEditorRuntime();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
 
@@ -77,25 +80,92 @@ function onWheel(event: WheelEvent): void {
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
 }
 
+/**
+ * Design slice 8's routing rule: with a TOOL active, primary-button pointer events go to
+ * `ToolManager` and the camera keeps only wheel/key zoom; with none (camera mode) drag
+ * pans exactly as slice 5 shipped. One conversion here — DOM event to
+ * `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
+ * pixel math (ADR-009).
+ */
+function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
+	return {
+		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
+		screenPoint: at,
+		// `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed
+		// state" — so it is NOT a reading of what is currently held down. Only 1 and 2 are
+		// mapped away from `primary`, which keeps a move during a primary drag reading as
+		// the primary gesture it is; `buttons` is the bitmask a tool would need for the
+		// held-down question, and nothing asks it yet.
+		button: event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary',
+		modifiers: { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey },
+		targetId: null,
+	};
+}
+
+// Primary button only, in BOTH directions and in both modes: the middle button is
+// paste-on-Linux and the right one is the context menu, and claiming either would take a
+// gesture the host owns.
+//
+// Down and up take the SAME test on purpose. A mouse shares one `pointerId` across its
+// buttons, so filtering `pointerdown` while forwarding every `pointerup` handed tools a
+// release with no matching press — the impossible event grammar this project has already
+// recorded once as a test-rig defect, here in production code — and `SelectTool`
+// obligingly committed a half-finished move for it.
+//
+// What actually PREVENTS that is the tool's own `event.button !== 'primary'` guard, which
+// is where a category invariant belongs: at the forbidden thing, so it holds for tools not
+// yet written. This filter is the symmetry that keeps the grammar valid in the first place,
+// and it is not independently checked — `tests/presentation/editor/zoneEditing.test.ts`
+// pins the composite behaviour, and removing either half alone still passes.
+function isPrimary(event: PointerEvent): boolean {
+	return event.button === 0;
+}
+
 function onPointerDown(event: PointerEvent): void {
-	// Primary button only: the middle button is paste-on-Linux and the right one is the
-	// context menu, and claiming either would take a gesture the host owns.
-	if (event.button !== 0) return;
+	if (!isPrimary(event)) return;
+	const at = stagePoint(event);
 	// Capture, so a drag that leaves the pane still ends when the button does — without it
 	// the camera keeps panning after the pointer comes back, which reads as the view being
 	// stuck to the cursor.
 	(event.target as Element).setPointerCapture?.(event.pointerId);
-	editor.beginPan(stagePoint(event));
+	if (runtime.activeToolId.value !== null) {
+		runtime.toolManager.pointerDown(editorPointerEvent(event, at));
+		return;
+	}
+	editor.beginPan(at);
 }
 
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
 	editor.setPointer(at);
+	if (runtime.activeToolId.value !== null) {
+		runtime.toolManager.pointerMove(editorPointerEvent(event, at));
+		return;
+	}
 	editor.continuePan(at);
 }
 
-function onPointerUp(): void {
+function onPointerUp(event: PointerEvent): void {
+	if (runtime.activeToolId.value !== null) {
+		if (isPrimary(event)) runtime.toolManager.pointerUp(editorPointerEvent(event, stagePoint(event)));
+		return;
+	}
 	editor.endPan();
+}
+
+/**
+ * The pointer was taken away rather than released — the browser claiming a touch gesture
+ * for scrolling, the OS grabbing it on an alt-tab or a window drag. No `pointerup` will
+ * ever arrive, so whatever the active tool is holding has to be abandoned here or it
+ * outlives the gesture: `SelectTool` kept redrawing a translated preview with no button
+ * held, and the user's NEXT click anywhere committed a move by the delta between the
+ * abandoned start and that unrelated click. The camera already had its equivalent in
+ * `onPointerLeave`; the tool path had none.
+ */
+function onPointerCancel(): void {
+	runtime.toolManager.cancelGesture();
+	editor.endPan();
+	editor.setPointer(null);
 }
 
 function onPointerLeave(): void {
@@ -106,9 +176,15 @@ function onPointerLeave(): void {
 /**
  * §85 asks for keyboard-accessible controls, and zoom is the one interaction this slice
  * adds — so it is reachable by key as well as by wheel. Anchored at the middle of the
- * stage, since there is no pointer involved in a keypress.
+ * stage, since there is no pointer involved in a keypress. `Escape` abandons the active
+ * tool's in-flight gesture (`ToolManager.cancelGesture` is a safe no-op when there is
+ * none).
  */
 function onKeyDown(event: KeyboardEvent): void {
+	if (event.key === 'Escape') {
+		runtime.toolManager.cancelGesture();
+		return;
+	}
 	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
 	if (factor === null) return;
 	event.preventDefault();
@@ -150,6 +226,7 @@ onBeforeUnmount(() => {
 		@pointerdown="onPointerDown"
 		@pointermove="onPointerMove"
 		@pointerup="onPointerUp"
+		@pointercancel="onPointerCancel"
 		@pointerleave="onPointerLeave"
 		@keydown="onKeyDown"
 	>
@@ -185,7 +262,9 @@ onBeforeUnmount(() => {
 				:transform="transform"
 				:visible="layerVisibility.annotation"
 			/>
-			<InteractionLayer />
+			<InteractionLayer
+				:tokens="props.tokens"
+			/>
 		</VStage>
 	</div>
 </template>

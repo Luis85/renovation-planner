@@ -184,8 +184,11 @@ export class ReversibleCalibratePlanCommand {
 			projectId,
 		};
 
-		await this.events.publish(planCalibrated({ planId: input.planId, projectId }));
-		await this.announce(input.planId, projectId, document.objects.map((object) => object.id));
+		await this.announce(
+			input.planId,
+			projectId,
+			document.objects.map((object) => object.id),
+		);
 		return ok(undefined);
 	}
 
@@ -208,19 +211,37 @@ export class ReversibleCalibratePlanCommand {
 		return ok(undefined);
 	}
 
+	/**
+	 * The whole cascade a scale change produces, in ONE place so that both halves publish
+	 * the same set.
+	 *
+	 * `PlanCalibrated` used to be published by `execute` alone, and it is the only one of
+	 * these events a Plan Editor leaf was subscribed to — so undoing a calibration
+	 * refreshed no leaf at all, while the class comment claimed "the cascade travels both
+	 * directions". Putting it here is what makes that sentence a property of the code
+	 * rather than of the caller that remembered.
+	 *
+	 * The per-object events are published CONCURRENTLY: nothing here depends on the order
+	 * zones are announced in, and the sequential loop this replaced meant slice 10's
+	 * per-zone recalculation would have to finish for one zone before the next was even
+	 * dispatched — a fan-out serialized for no reason, twice over, since undo repeats it.
+	 */
 	private async announce(
 		planId: PlanId,
 		projectId: ProjectId,
 		objectIds: readonly string[],
 	): Promise<void> {
-		for (const id of objectIds) {
-			// The cast crosses the same erasure the adapter's `'polygon'` literal names from
-			// the other side: `SpatialObjectGeometry.id` is a bare string because the port
-			// is document-grained, and schema v1 has exactly one spatial-object type, so
-			// every entry IS a Zone. The day the sidecar grows a second type this stops
-			// being true silently — the entry's type has to reach the port before then, and
-			// this loop has to filter on it.
-			await this.events.publish(zoneGeometryChanged({ zoneId: id as ZoneId, planId, projectId }));
-		}
+		await this.events.publish(planCalibrated({ planId, projectId }));
+		// The cast crosses the same erasure the adapter's `'polygon'` literal names from the
+		// other side: `SpatialObjectGeometry.id` is a bare string because the port is
+		// document-grained, and schema v1 has exactly one spatial-object type, so every
+		// entry IS a Zone. The day the sidecar grows a second type this stops being true
+		// silently — the entry's type has to reach the port before then, and this fan-out
+		// has to filter on it.
+		await Promise.all(
+			objectIds.map((id) =>
+				this.events.publish(zoneGeometryChanged({ zoneId: id as ZoneId, planId, projectId })),
+			),
+		);
 	}
 }

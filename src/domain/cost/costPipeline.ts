@@ -77,8 +77,14 @@ function optionalMoney(value: Money | undefined, currency: string): Money {
 	return value ?? zero(currency);
 }
 
+/**
+ * `lessThan(0)` rather than `isNegative()`, for the reason `quantityEngine`'s
+ * `negativeQuantity` states beside its own: decimal.js reports negative ZERO as negative
+ * (`new Decimal(0).mul(-1)`), and a rate of zero is a legitimate rate whichever way it was
+ * arrived at. The two functions answer the same question and must answer it the same way.
+ */
 function negativePercent(percent: Decimal): CalculationError | null {
-	if (!percent.isNegative()) return null;
+	if (!percent.lessThan(0)) return null;
 	return {
 		category: 'Calculation',
 		code: 'cost.negative-percent',

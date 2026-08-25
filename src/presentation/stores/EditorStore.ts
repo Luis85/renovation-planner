@@ -110,25 +110,20 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
-	 * The four slots below are exposed and nothing reads them yet — §15's ephemeral
-	 * vocabulary, which design slice 5 states it defines the SHAPE of and a concrete tool
-	 * is what writes into. Suppressed rather than deleted, and rather than left to fail the
-	 * gate: this is the same case as `Zone.area()`/`Zone.perimeter()` in slice 3, where
-	 * deleting a declared capability because nothing calls it yet is how the declaration
-	 * rots. Each line is its own suppression so that a reader can be given to one slot at a
-	 * time, instead of one blanket comment outliving all four.
-	 *
-	 * Slice 6 removed none of them, and that is not an oversight it left behind: it built
-	 * the tool framework without wiring a `ToolManager`/`EditorContext` into the
-	 * composition root, so there was no seam at which a writer could exist. Its
-	 * `RenderState` (`../editor/tools/render-state.ts`) is a second home for
-	 * `hoveredObjectId`/`temporaryPolygon` and says so in its own header; reconciling the
-	 * two — retiring these slots, delegating to that class, or some third seam — belongs to
-	 * whichever task first composes the editor's tools for real.
+	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
+	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
+	 * is this ref — so the toolbar's active state and `PlanCanvas`'s tool-versus-camera
+	 * routing both come from here. It briefly had a second writer and a private copy beside
+	 * it: three places holding the active tool, the one this comment named as the consumer
+	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools
+	 * broadcast transients through `RenderState` (a reactive proxy over
+	 * `../editor/tools/render-state.ts`) instead, which is the reconciliation this file's
+	 * older notes anticipated: these two slots remain declared vocabulary awaiting a
+	 * reader, each with its own suppression so one can gain a consumer without the group
+	 * rotting as a block.
 	 */
 	return {
 		viewport,
-		// fallow-ignore-next-line unused-store-member
 		activeToolId,
 		// fallow-ignore-next-line unused-store-member
 		hoveredObjectId,

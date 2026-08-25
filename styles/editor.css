@@ -32,6 +32,79 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
+/*
+ * Slice 8's tool buttons. Obsidian's own button styling is not assumed here — these are
+ * small toggle states inside a toolbar, so they carry only what the states need, all of
+ * it through variables.
+ */
+.rp-editor-tool-button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-editor-tool-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-editor-tool-button:disabled {
+	color: var(--text-faint);
+	cursor: default;
+}
+
+.rp-editor-tool-active,
+.rp-editor-tool-active:hover {
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+}
+
+.rp-editor-toolbar-spacer {
+	flex: 1;
+}
+
+.rp-editor-inspector-empty {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-editor-inspector-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0 0 var(--size-4-4);
+	font-size: var(--font-ui-small);
+}
+
+.rp-editor-inspector-fields dt {
+	color: var(--text-muted);
+}
+
+.rp-editor-inspector-fields dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+.rp-editor-inspector-delete {
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-error);
+	background-color: transparent;
+	border: 1px solid var(--text-error);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-editor-inspector-delete:hover {
+	background-color: var(--background-modifier-error);
+}
+
 .rp-editor-body {
 	display: flex;
 	flex: 1;
@@ -103,6 +176,13 @@
 	min-height: 0;
 	overflow: hidden;
 	background-color: var(--background-primary);
+
+	/* The canvas owns every pointer gesture over it: without this the browser claims a
+	   touch or trackpad drag for scrolling and fires `pointercancel` mid-gesture, so a
+	   zone drag ends with no `pointerup` at all. `PlanCanvas.vue` handles that event
+	   anyway — the manifest promises mobile (`isDesktopOnly: false`) and a cancelled
+	   pointer has other causes — but a gesture that is never stolen is the better fix. */
+	touch-action: none;
 }
 
 .rp-editor-canvas-message {

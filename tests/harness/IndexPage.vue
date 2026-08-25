@@ -21,8 +21,8 @@
  * All three are also ASYNCHRONOUS, which is the second half of the problem and the harder one:
  * any of them can land after the reader has opened something else, and a report that lands on the
  * wrong entry is worse than no report — it pulls a working component off the stage and accuses it.
- * FOUR guards answer that, one for each place a result can land late, and `generation` below
- * names the set together.
+ * FOUR guards answer that, one for each place a result can land late, and they share ONE key:
+ * `generation` below names the set together and says why the key is a mount rather than an entry.
  */
 import { computed, defineComponent, getCurrentInstance, onErrorCaptured, onUnmounted, ref, shallowRef } from 'vue';
 import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
@@ -110,58 +110,91 @@ const pendingId = ref<string | null>(null);
  * render is over — by `settle()` at the resolve, and by `reportLateDefect` on the microtask
  * after a defect that arrives once the stage is already marked ready.
  *
- * **It holds ONE entry's warnings — the entry currently on the stage — and the handler enforces
+ * **It holds ONE mount's warnings — the mount currently on the stage — and the handler enforces
  * that rather than the array being trusted to.** There is one `config.warnHandler` per app, so
  * this array is shared by construction; `open()` emptying it on the way past is not ownership,
  * because entry A's teardown runs on a flush AFTER that clear and its warnings would land in the
  * array B's `settle()` reads. `warningOwner` is what decides, at push time, whose warning this
- * is; anything that is not the entry on the stage goes to `console.error` instead of in here.
+ * is — the live boundary publishes the MOUNT it belongs to — and anything that is not the mount
+ * on the stage goes to `console.error` instead of in here.
  */
 const renderDefects: string[] = [];
 
 /**
- * Which `open()` call is current. Two clicks in quick succession leave both awaits in flight,
- * and without this the FIRST to settle is whichever import happens to finish last: entry A's
- * module could overwrite entry B's, or A's load error could replace a B that had drawn
- * perfectly, while `pendingId` still says B. A stale call returns instead of writing anything.
+ * WHICH MOUNT this is. `open()` increments it, so every mount gets a number of its own —
+ * including a second mount of an entry the reader has already opened once — and that number is
+ * the ONE key all four asynchronous guards compare.
  *
- * ONE of four guards, and the set is worth naming together because each covers a different
- * asynchronous path and none of them covers another's:
+ * Two clicks in quick succession leave both awaits in flight, and without it the FIRST to settle
+ * is whichever import happens to finish last: entry A's module could overwrite entry B's, or A's
+ * load error could replace a B that had drawn perfectly, while `pendingId` still says B. A stale
+ * call returns instead of writing anything.
  *
- * - THIS one covers the LOADER await, in the closure that started it.
- * - `mountedId` covers the `<Suspense>` RESOLVE, which fires from a boundary that cannot say
- *   which entry it belongs to.
- * - `EntryBoundary`'s own `onErrorCaptured` covers the ERROR channel, which needs a per-entry
+ * The four are worth naming together because each covers a different asynchronous path and none
+ * of them covers another's:
+ *
+ * - `mine !== generation.value` in `open()` covers the LOADER await, in the closure that started
+ *   it.
+ * - `mountedGeneration` in `settle()` covers the `<Suspense>` RESOLVE, which fires from a
+ *   boundary that cannot say which mount it belongs to.
+ * - `EntryBoundary`'s own `onErrorCaptured` covers the ERROR channel, which needs a per-MOUNT
  *   hook because a root one has no way back to the `open()` call that mounted the subtree it is
  *   told about.
  * - `warningOwner` covers the WARNING channel, which cannot have a per-entry hook at all — Vue
- *   allows one `config.warnHandler` per app — so the boundary publishes its id instead.
+ *   allows one `config.warnHandler` per app — so the boundary publishes its mount instead.
+ *
+ * **An id names an ENTRY; only this names a MOUNT — which took a shipped defect to learn.** For
+ * four fix rounds three of these four compared entry ids, and A -> B -> A is the case an id
+ * cannot answer at all: open A, open B, open A again, and the FIRST A's rejection arrives while
+ * the second A is on the stage drawing perfectly. Vue delivers it to the first boundary, which
+ * snapshotted the id `A`; the stage is showing `A`; `id !== mountedId` is false, so the page
+ * pulled a healthy entry off and accused it of a fault in a mount the reader had already left.
+ * That is the exact outcome the whole apparatus exists to prevent, reached through the apparatus.
+ *
+ * A ref rather than a plain counter, because the template needs it: the boundary is keyed and
+ * propped with it, so the component that hears a throw is the one created for the mount that
+ * raised it. Everything else here reads `generation.value` — which is also why `pendingId` has no
+ * generation twin, since between navigations `openComponent` is null and no boundary exists at
+ * all; whenever one does, this holds the mount that put it there.
  *
  * Every one of the four was a real defect before it was a guard, each found by asking what could
- * still land late rather than by watching it happen, and each has a test that fails without it.
+ * still land late rather than by watching it happen, and each has a behavioural test that fails
+ * without it. The LOADER's own arrived last, in the round that unified the key: it had been
+ * pinned as source text by a task that has not run yet and driven by nothing, so the sentence
+ * before this one was an intention. Removing either arm of it now reds
+ * `tests/harness/indexPage.test.ts` — watched, both arms separately.
  */
-let generation = 0;
+const generation = ref(0);
 
 /**
- * The id of the component currently ASSIGNED to the stage, as a plain value.
+ * WHICH MOUNT is currently ASSIGNED to the stage — a `generation`, and null between navigations
+ * and after a failure.
  *
  * `settle()` fires from a `<Suspense>` that belongs to whatever is mounted, and it has no other
- * way to know which entry that was: entry A can still be on screen with a descendant pending
+ * way to know which mount that was: entry A can still be on screen with a descendant pending
  * while a click has already moved `pendingId` to B, and A's descendant settling would then mark
  * the stage ready under B's name with A's content in it. The clear at the top of `open()` is the
  * fix; this is the invariant that keeps it fixed, since removing the clear would otherwise
  * reintroduce the defect silently.
  *
- * `reportEntryFailure` reads it for the second question too — is the entry that threw the one on
- * the stage — which is what keeps a stale rejection off a page it no longer belongs to.
+ * `reportEntryFailure` reads it for the second question too — is the mount that threw the one on
+ * the stage — which is what keeps a stale rejection off a page it no longer belongs to, and what
+ * an id could not answer the moment one entry was mounted twice.
+ *
+ * There is deliberately no `mountedId` beside it. An id has exactly one honest use on these
+ * paths, naming the entry in a message, and both messages already have one that cannot go stale:
+ * `reportEntryFailure` is handed the id its own boundary snapshotted, and `reportDefects` names
+ * `pendingId`. A second variable that only ever agreed with those is a second answer waiting to
+ * disagree — and for four rounds it was the answer three guards asked.
  */
-let mountedId: string | null = null;
+let mountedGeneration: number | null = null;
 
 /**
- * Which entry a Vue warning currently belongs to, set by the live `EntryBoundary`.
+ * Which MOUNT a Vue warning currently belongs to, set by the live `EntryBoundary` — the
+ * generation for the comparison, the id for the message.
  *
  * Vue allows exactly ONE `config.warnHandler` per app, so the warning channel cannot be owned
- * per-entry the way the error channel now is — and `renderDefects` was therefore a shared array
+ * per-mount the way the error channel now is — and `renderDefects` was therefore a shared array
  * that `open()` emptied on the way past. That is a mis-attribution waiting to happen, and it was
  * REACHABLE rather than theoretical: `open()` clears the array and sets `openComponent` to null
  * synchronously, which only QUEUES Vue's re-render, so the flush that actually tears entry A down
@@ -169,20 +202,21 @@ let mountedId: string | null = null;
  * teardown therefore landed in the array that B's `settle()` reads, and pulled a clean B off the
  * stage under B's own name.
  *
- * This is the id `EntryBoundary` already has, published for the one consumer that cannot be given
- * a hook of its own. Walking `$parent` from the `instance` the handler is passed would answer the
- * same question, and is refused for the same reason it was refused for the error channel: more
- * code, over Vue's instance tree, to recover an id a per-entry component simply holds. The
+ * This is the pair `EntryBoundary` already has, published for the one consumer that cannot be
+ * given a hook of its own. Walking `$parent` from the `instance` the handler is passed would
+ * answer the same question, and is refused for the same reason it was refused for the error
+ * channel: more code, over Vue's instance tree, to recover values a per-mount component holds. The
  * objection is weaker here — there is no per-entry hook available, so this is not a free
  * alternative but a cheaper one — and it still wins on the same arithmetic.
  *
- * Cleared on unmount only if it is still ours, so the clear cannot depend on how A's teardown
- * and B's setup interleave across flushes.
+ * Cleared on unmount only if it is still ours — by GENERATION, so a boundary being torn down
+ * cannot clear the publication of a LATER mount of the same entry — so the clear cannot depend on
+ * how A's teardown and B's setup interleave across flushes.
  */
-let warningOwner: string | null = null;
+let warningOwner: { readonly id: string; readonly generation: number } | null = null;
 
 async function open(entry: HarnessEntry): Promise<void> {
-	const mine = ++generation;
+	const mine = ++generation.value;
 
 	failure.value = null;
 	renderedId.value = null;
@@ -192,18 +226,18 @@ async function open(entry: HarnessEntry): Promise<void> {
 	// while the next module loads is what lets a stale `<Suspense>` resolve under the new
 	// entry's name — and a blank stage during a load is the honest picture anyway.
 	openComponent.value = null;
-	mountedId = null;
+	mountedGeneration = null;
 	try {
 		const module = (await entry.component()) as { default: unknown };
 
-		if (mine !== generation) return;
+		if (mine !== generation.value) return;
 
 		openComponent.value = module.default;
-		mountedId = entry.id;
+		mountedGeneration = mine;
 		// No `renderedId` assignment here, deliberately — see its declaration. The outer
 		// module having loaded says nothing about the components it composes.
 	} catch (error) {
-		if (mine !== generation) return;
+		if (mine !== generation.value) return;
 
 		// Named rather than blank: a prototype that half-drew itself is worse than one that
 		// says what is missing, because a gap reads as a layout decision.
@@ -213,15 +247,16 @@ async function open(entry: HarnessEntry): Promise<void> {
 }
 
 /**
- * A throw from a mounted entry, attributed to the entry that ACTUALLY raised it.
+ * A throw from a mounted entry, attributed to the MOUNT that ACTUALLY raised it — `whose` is the
+ * generation the reporting boundary was created for, and `id` is only ever the name in the text.
  *
- * **`mountedId` is cleared on the reporting path and clearing it is load-bearing**, which a
- * committed test found rather than a reading: without it `<Suspense>` still fires `@resolve` for
- * the boundary the throw happened inside, `settle()` sees a pending id it recognises and an empty
+ * **`mountedGeneration` is cleared on the reporting path and clearing it is load-bearing**, which
+ * a committed test found rather than a reading: without it `<Suspense>` still fires `@resolve` for
+ * the boundary the throw happened inside, `settle()` sees a mount it recognises and an empty
  * defect list, and it puts `data-entry` straight back on a stage showing the failure card. The
  * page then says "failed to render" while advertising itself as ready — the one combination that
- * gets an eyeless capture photographed and reported as a success. `mountedId` means "what is
- * assigned to the stage", and after a throw nothing is.
+ * gets an eyeless capture photographed and reported as a success. `mountedGeneration` means "what
+ * is assigned to the stage", and after a throw nothing is.
  *
  * **A STALE failure never touches the stage, and is never dropped either.** An entry whose async
  * lifecycle hook rejects after the user has moved on still has its rejection delivered — Vue
@@ -231,52 +266,66 @@ async function open(entry: HarnessEntry): Promise<void> {
  * `console.error` instead, named as what it is. That is not a shrug: it is the one channel
  * `scripts/harness-shot.mjs` records and exits non-zero on, so the failure is still loud to an
  * agent with no eyes, while the entry actually on screen is left alone.
+ *
+ * **"The reader has moved on" includes moving BACK.** This is the one channel where the reporting
+ * side carries a snapshot taken at mount and outlives the mount that took it, so it is the one
+ * where two mounts of a single entry can both be in play: comparing ids answered `A === A` for
+ * the A -> B -> A case and did the accusing itself. Comparing generations is what makes the
+ * sentence above true.
  */
-function reportEntryFailure(id: string, error: unknown): void {
+function reportEntryFailure(id: string, whose: number, error: unknown): void {
 	const detail = error instanceof Error ? error.message : String(error);
 
-	if (id !== mountedId) {
+	if (whose !== mountedGeneration) {
 		console.error(`harness entry ${id} failed after the page moved on: ${detail}`);
 		return;
 	}
 
 	openComponent.value = null;
 	renderedId.value = null;
-	mountedId = null;
+	mountedGeneration = null;
 	failure.value = `${id} failed to render: ${detail}`;
 }
 
 /**
- * The error boundary for ONE entry, which is what makes the attribution above possible.
+ * The error boundary for ONE MOUNT, which is what makes the attribution above possible.
  *
  * A root `onErrorCaptured` cannot do it. It is handed the error and the throwing instance and
  * nothing that says which `open()` call put that instance there, so it can only read the CURRENT
- * `renderedId`/`pendingId` — and that is precisely the bug. The generation counter cannot rescue
- * it either: `generation` lives in `open()`, and a root hook has no closure over the call that
- * mounted the subtree it is being told about. The alternative considered was walking `$parent`
- * from the throwing instance to see whether it descends from the entry currently on stage, which
- * needs a template ref through `<Suspense>` and a walk over Vue's instance tree — more code, over
- * internals, to recover an id that a component created per entry simply HAS.
+ * `renderedId`/`pendingId`/`mountedGeneration` — and that is precisely the bug. Making
+ * `generation` reachable from anywhere does not rescue it: a root hook can read what the page IS,
+ * never what the subtree it is being told about was mounted AS. The alternative considered was
+ * walking `$parent` from the throwing instance to see whether it descends from the boundary
+ * currently on stage, which needs a template ref through `<Suspense>` and a walk over Vue's
+ * instance tree — more code, over internals, to recover two values a component created per mount
+ * simply HAS.
  *
- * `owned` is snapshotted in `setup` rather than read from the prop at throw time, for the same
- * reason `mountedId` is a plain value: this boundary must report the entry it was created for,
- * whatever the page has since become.
+ * BOTH are snapshotted in `setup` rather than read from the props at throw time, for the same
+ * reason `mountedGeneration` is a plain value: this boundary must report the mount it was created
+ * for, whatever the page has since become. They answer different questions and both are needed —
+ * `ownedGeneration` decides whether the failure is still the page's business, and `owned` is what
+ * the message has to name either way, since a reader and an eyeless `harness-shot` both want the
+ * entry rather than a counter.
  */
 const EntryBoundary = defineComponent({
-	props: { entryId: { type: String, required: true } },
+	props: {
+		entryId: { type: String, required: true },
+		generation: { type: Number, required: true },
+	},
 	setup(props, { slots }) {
 		const owned = props.entryId;
+		const ownedGeneration = props.generation;
 
 		// The WARNING channel's owner, which cannot be a hook (Vue has one `warnHandler` per app)
-		// and so is a published id instead. Set in `setup`, which runs before this boundary's slot
-		// content mounts — so a prop warning from the entry itself is already attributed.
-		warningOwner = owned;
+		// and so is a published mount instead. Set in `setup`, which runs before this boundary's
+		// slot content mounts — so a prop warning from the entry itself is already attributed.
+		warningOwner = { id: owned, generation: ownedGeneration };
 		onUnmounted(() => {
-			if (warningOwner === owned) warningOwner = null;
+			if (warningOwner?.generation === ownedGeneration) warningOwner = null;
 		});
 
 		onErrorCaptured((error) => {
-			reportEntryFailure(owned, error);
+			reportEntryFailure(owned, ownedGeneration, error);
 			// Stops here: one bad entry reports itself instead of blanking the page and taking
 			// the list with it.
 			return false;
@@ -337,10 +386,18 @@ function reportDefects(): void {
  * absolute would have been free and false.
  */
 function settle(): void {
-	// The resolve belongs to whatever is mounted. If that is not what `pendingId` names, this
-	// is a previous entry's subtree finishing after a navigation, and marking the stage ready
-	// would advertise the new id over the old content.
-	if (mountedId === null || mountedId !== pendingId.value) return;
+	// The resolve belongs to whatever is mounted. If that is not the mount `open()` is currently
+	// on, this is a previous entry's subtree finishing after a navigation, and marking the stage
+	// ready would advertise the new id over the old content.
+	//
+	// A -> B -> A cannot reach this one, and the reason is Vue's rather than this page's: a
+	// `<Suspense>` only ever calls `resolve()` while it is live — `suspense.resolve()` on an
+	// unmounted boundary throws in dev (`runtime-core`, checked, not assumed), and every caller
+	// is guarded by `suspense.isUnmounted` — so the firing side here is always the CURRENT
+	// boundary, never a snapshot of an older one. The comparison is generation-keyed anyway,
+	// because four guards reasoning about staleness in three different keys is what produced the
+	// defect `generation` describes.
+	if (mountedGeneration === null || mountedGeneration !== generation.value) return;
 
 	if (renderDefects.length === 0) {
 		renderedId.value = pendingId.value;
@@ -366,7 +423,9 @@ function reportLateDefect(): void {
 	// producing a value, which `promise/always-return` refuses on a `then` and which the plain
 	// microtask API says more directly anyway.
 	queueMicrotask(() => {
-		if (mountedId !== null && mountedId === pendingId.value && renderDefects.length > 0) reportDefects();
+		if (mountedGeneration !== null && mountedGeneration === generation.value && renderDefects.length > 0) {
+			reportDefects();
+		}
 	});
 }
 
@@ -393,10 +452,34 @@ if (config) {
 	const previous = config.warnHandler;
 
 	config.warnHandler = (message, instance, trace) => {
-		// ATTRIBUTED before it is collected. `renderDefects` is read by ONE entry's `settle()`, so
-		// only a warning belonging to the entry currently on the stage may go into it; anything
+		// ATTRIBUTED before it is collected. `renderDefects` is read by ONE mount's `settle()`, so
+		// only a warning belonging to the mount currently on the stage may go into it; anything
 		// else would accuse a component that did nothing wrong.
-		if (warningOwner !== null && warningOwner === mountedId) {
+		//
+		// **A -> B -> A cannot reach this channel, and it is worth saying why, because the same
+		// case DOES reach the error channel above.** There the reporting side is a snapshot that
+		// outlives its own mount; here it is `warningOwner`, republished by whichever boundary is
+		// live, so a mount the reader has left has nothing published at all. What settles it is
+		// VUE's behaviour, not this page's: `config.warnHandler` is consulted only when Vue's
+		// warning STACK is non-empty (`runtime-core`'s `warn` reads
+		// `stack.length ? stack[stack.length - 1].component : null` and takes the handler off
+		// THAT instance's app), and the stack is pushed only around a synchronous mount, patch or
+		// async-setup resolve. A continuation resuming after its instance was unmounted runs on a
+		// bare microtask with an empty stack, so Vue sends its warning to `console.warn` and this
+		// handler never sees it — measured in `tests/harness/indexPage.test.ts` by driving that
+		// exact navigation, not reasoned from the docs. And a warning that IS raised inside a
+		// mount or patch is one Vue itself attributes to the component being patched, which is the
+		// live entry — so no key available here, generation included, could tell a stale origin
+		// from the current one.
+		//
+		// It is generation-keyed regardless: one key for four guards is the point, and the clear
+		// on unmount is the one place here where two mounts of a single entry are both in play —
+		// they share an id, and the older one's teardown must not clear the younger one's
+		// publication. That needs an `onUnmounted` running after a later boundary's `setup`, which
+		// this page's flush ordering does not produce today (`open()` queues the unmount before it
+		// awaits the module that leads to the next mount), so it is a key that cannot be wrong
+		// rather than a defect being fixed.
+		if (warningOwner !== null && warningOwner.generation === mountedGeneration) {
 			renderDefects.push(message);
 			// Already marked ready, so `settle()` will not run again for this entry — see it.
 			if (renderedId.value !== null) reportLateDefect();
@@ -404,7 +487,7 @@ if (config) {
 			// Not dropped: a stale warning is still a warning, and silence is the green signal
 			// that means nothing. `console.error` is the channel `scripts/harness-shot.mjs`
 			// records and exits non-zero on, so it stays loud without touching the stage.
-			const subject = warningOwner === null ? 'the harness index itself' : `harness entry ${warningOwner}`;
+			const subject = warningOwner === null ? 'the harness index itself' : `harness entry ${warningOwner.id}`;
 
 			console.error(`Vue warning not attributable to the entry on the stage — from ${subject}: ${message}`);
 		}
@@ -452,8 +535,14 @@ if (initial) void open(initial);
 			-->
 			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
 				<!--
-					Keyed by the entry, so the boundary that hears a throw — and the one that
-					published `warningOwner` — is the one created for the entry that raised it.
+					Keyed by the MOUNT, so the boundary that hears a throw — and the one that
+					published `warningOwner` — is the one created for the mount that raised it.
+
+					Keying it by the entry id was not enough, and that is the whole of fix round 5:
+					A -> B -> A gives two mounts one id, so the key held its value across a
+					navigation the reader can see, and every guard downstream inherited the same
+					blindness. `generation` changes on every `open()`, a return to the entry just
+					left included.
 
 					The key is doing real work rather than restating what `open()` already arranges:
 					Vue's key semantics FORCE an unmount and remount instead of a patch, so the
@@ -463,7 +552,7 @@ if (initial) void open(initial);
 					correctness property on it would be resting it on the same accident the
 					`@pending` note above describes.
 				-->
-				<EntryBoundary :key="pendingId ?? ''" :entry-id="pendingId ?? ''">
+				<EntryBoundary :key="generation" :entry-id="pendingId ?? ''" :generation="generation">
 					<component :is="openComponent" />
 				</EntryBoundary>
 			</Suspense>

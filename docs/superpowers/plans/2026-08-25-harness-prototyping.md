@@ -2423,7 +2423,7 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		expect(open).toContain('const mine = ++generation');
 		// Both arms: a stale RESOLVE must not draw, and a stale REJECT must not overwrite a
 		// good entry's screen with the abandoned one's error.
-		expect(open.match(/if \(mine !== generation\) return;/g) ?? []).toHaveLength(2);
+		expect(open.match(/if \(mine !== generation\.value\) return;/g) ?? []).toHaveLength(2);
 	});
 
 	/**
@@ -2445,7 +2445,7 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		const settleStart = index.indexOf('function settle');
 		const settle = index.slice(settleStart, index.indexOf('\n}', settleStart) + 2);
 
-		expect(settle).toContain('mountedId !== pendingId.value');
+		expect(settle).toContain('mountedGeneration !== generation.value');
 	});
 
 	/**
@@ -3438,7 +3438,7 @@ Round twenty-nine, on the plan itself rather than on the code:
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
 | **The executable snippet still carried the allowlist round twenty-three removed** | Task 4's prescribed code declared `const FATAL_WARNINGS = ['Failed to resolve component', 'Missing required prop']` and filtered through it, while the committed `IndexPage.vue` had inverted the classification six rounds earlier. Following the plan rebuilds the exact `Invalid prop: type check failed` hole the inversion closed. Worse, and this is where the cost was: **Task 6's test pinned both strings as SOURCE TEXT** — `expect(index).toContain("'Failed to resolve component'")` — and the committed file spells them only inside a comment, with backticks rather than single quotes. Task 6 was unrunnable as written, and Task 6 had not run yet | The plan, in four places: the declaration and its rationale, the handler's filter, Task 6's assertion (now pinning `renderDefects.push(message)` — the collection being unconditional at the point it is written — with the behavioural proof left in `indexPage.test.ts`, which drives a real missing prop, a real wrong prop and a real unresolved tag), and two Self-Review rows, one of which had recorded the inversion as "the third string joins the list" |
-| **Warning ownership keyed by id, A -> B -> A** | The same defect as round twenty-eight, one channel over: `warningOwner` and `mountedId` both hold `'A'` for two different mounts, so a delayed warning from the first A is accepted and `reportLateDefect()` pulls the healthy second A off the stage | Folded into round twenty-eight's shape fix as a second RED case rather than answered separately — see below |
+| **Warning ownership keyed by id, A -> B -> A** | The same defect as round twenty-eight, one channel over: `warningOwner` and `mountedId` both hold `'A'` for two different mounts, so a delayed warning from the first A is accepted and `reportLateDefect()` pulls the healthy second A off the stage | Folded into round twenty-eight's shape fix, and then MEASURED rather than assumed: the guard is generation-keyed with the other three, but the case cannot reach this channel. Vue consults `config.warnHandler` only while its warning STACK is non-empty, and a continuation resuming after its own instance was unmounted has none — so Vue sends that warning to `console.warn` and the handler is never offered it. `tests/harness/indexPage.test.ts` drives that exact navigation and pins it, and the `warnHandler` guard carries the reason beside it |
 
 The first is the fifth instance on this branch of one shape, and the most expensive kind of it. The
 recurring failure has been a fix that leaves a sibling stale; here the stale sibling was an
@@ -3448,8 +3448,11 @@ scan time the plan agreed with itself, and it was the CODE that moved afterwards
 rule is that a plan under execution is not a static document — every fix to committed code has to
 be checked against the tasks still ahead of it, not only against the tasks behind.
 
-The second is why round twenty-eight's ruling was made on the shape rather than on the case. Two of
-the four guards, caught by the same navigation, found independently.
+The second is why round twenty-eight's ruling was made on the shape rather than on the case: two of
+the four guards named by one navigation, found independently. Driving it turned the ERROR channel red
+and left the warning channel green — Vue never offers this handler a warning raised by a mount the
+reader has left — so that half is answered by a measurement and a sentence beside the guard rather
+than by a test that fails without the fix. `task-4-report.md`'s fix round 5 carries the measurement.
 
 Round twenty-eight, on the key the previous two rounds were both written in:
 

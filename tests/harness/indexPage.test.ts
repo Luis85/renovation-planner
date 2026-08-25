@@ -191,12 +191,24 @@ const GrowsADefect = defineComponent({
  * `callWithAsyncErrorHandling`, so the rejection is routed through the error channel exactly as a
  * synchronous render throw is, just later: after the entry has been unmounted and replaced.
  */
-let releaseLateFailure: () => void = () => undefined;
+const lateFailureGates: Array<() => void> = [];
+
+/**
+ * Release ONE mount's gate, oldest first — `releaseLateFailure(0)` is the first mount of the
+ * entry, whatever has been mounted since.
+ *
+ * One gate per MOUNT rather than one per module, because the A -> B -> A case below mounts the
+ * same entry twice: a single module-level variable is overwritten by the second `setup()`, so
+ * "release the gate" released the wrong one and the first mount stayed pending forever.
+ */
+function releaseLateFailure(which = 0): void {
+	lateFailureGates[which]?.();
+}
 
 const FailsAfterYouLeave = defineComponent({
 	setup() {
 		const gate = new Promise<void>((resolve) => {
-			releaseLateFailure = resolve;
+			lateFailureGates.push(resolve);
 		});
 
 		onMounted(async () => {
@@ -209,6 +221,22 @@ const FailsAfterYouLeave = defineComponent({
 });
 
 const StillHere = defineComponent({ setup: () => () => h('p', 'the entry you moved to') });
+
+const Abandoned = defineComponent({ setup: () => () => h('p', 'the entry you abandoned') });
+
+/**
+ * Module loads this file finishes by hand, oldest first — one per CALL of `entry.component()`,
+ * which is what `open()` awaits and what the generation guard sits on the far side of.
+ */
+const gatedModules: Array<{ resolve: (module: { default: unknown }) => void; reject: (error: Error) => void }> = [];
+
+/** An entry whose module arrives when this file says so, and not before. */
+function gatedModule(): () => Promise<unknown> {
+	return () =>
+		new Promise((resolve, reject) => {
+			gatedModules.push({ resolve, reject });
+		});
+}
 
 /**
  * An entry that raises a Vue warning while it is being TORN DOWN. A real warning from real Vue
@@ -227,9 +255,37 @@ const WarnsWhileUnmounting = defineComponent({
 	},
 });
 
+/**
+ * The warning channel's twin of `FailsAfterYouLeave`: an entry that raises a Vue warning from an
+ * async lifecycle continuation, on a gate this file opens, once its own instance is long gone.
+ * `inject()` outside a `setup()` is a real Vue misuse with a real Vue warning
+ * (`inject() can only be used inside setup()…`) rather than a string written down here.
+ *
+ * One gate per MOUNT, for the reason `lateFailureGates` gives.
+ */
+const lateWarningGates: Array<() => void> = [];
+
+const WarnsAfterYouLeave = defineComponent({
+	setup() {
+		const gate = new Promise<void>((resolve) => {
+			lateWarningGates.push(resolve);
+		});
+
+		onMounted(async () => {
+			await gate;
+			inject('a-provide-that-does-not-exist');
+		});
+
+		return () => h('p', 'the entry that complains once you have gone');
+	},
+});
+
 beforeEach(() => {
 	installEditorEnvironment();
 	document.body.replaceChildren();
+	gatedModules.length = 0;
+	lateFailureGates.length = 0;
+	lateWarningGates.length = 0;
 	lateDefect.value = false;
 	state.prototypes = [];
 	state.components = [
@@ -292,6 +348,65 @@ describe('the harness index, opening an entry', () => {
 		expect(wrapper.find('.rp-harness-failure').text()).toContain('component:Exploding failed to render: boom');
 		expect(wrapper.findAll('nav li')).toHaveLength(1);
 		expect(stageEntry(wrapper)).toBeUndefined();
+
+		wrapper.unmount();
+	});
+
+	/**
+	 * The LOADER await's guard — the fourth of the four `generation` names, and the one with no
+	 * behavioural check until now. Its two arms fail differently, so both are driven here:
+	 *
+	 * - a stale RESOLVE draws the abandoned module under the open entry's name, which is why the
+	 *   text on the stage is asserted and not just `data-entry`. `settle()` refuses to re-mark a
+	 *   stage it no longer owns, so the marker keeps saying the entry the reader chose while the
+	 *   picture underneath it is of the one they left — the exact capture-the-wrong-component
+	 *   outcome, and one an assertion on the marker alone cannot see.
+	 * - a stale REJECT replaces a page that is drawing perfectly with a card accusing an entry the
+	 *   reader has already left.
+	 *
+	 * Two clicks in quick succession is the natural way in, but a race is not what this drives:
+	 * the loads finish when this file says so, which makes the ordering a sequence rather than
+	 * something to be lucky about.
+	 */
+	it('lets neither half of a stale entry load reach a page that has moved on', async () => {
+		state.components = [
+			entryFor('component:SlowToLoad', gatedModule()),
+			entryFor('component:StillHere', moduleOf(StillHere)),
+			entryFor('component:SlowToFail', gatedModule()),
+		];
+
+		const wrapper = await openIndex('entry=component:SlowToLoad');
+
+		// Nothing is advertised while a module is still loading — a blank stage is the honest
+		// picture, and the marker is what an eyeless capture waits for.
+		expect(stageEntry(wrapper)).toBeUndefined();
+
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+
+		// The abandoned module finally arrives.
+		gatedModules[0].resolve({ default: Abandoned });
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+		expect(wrapper.find('.rp-harness-stage').text()).toContain('the entry you moved to');
+		expect(wrapper.find('.rp-harness-stage').text()).not.toContain('abandoned');
+
+		// The other arm, and back to the entry the reader is already on: two mounts, one id.
+		await wrapper.findAll('nav li a')[2].trigger('click');
+		await flushAsync();
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+
+		gatedModules[1].reject(new Error('no such module'));
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
 
 		wrapper.unmount();
 	});
@@ -380,6 +495,55 @@ describe('the harness index, refusing to advertise a hole', () => {
 	});
 
 	/**
+	 * The same stale failure, with the reader coming BACK — A -> B -> A, which is the case an
+	 * attribution keyed on the entry ID cannot answer at all.
+	 *
+	 * Two mounts of one entry share an id, so `EntryBoundary`'s snapshot of it identifies the
+	 * ENTRY and not the MOUNT: the first A's boundary reports `component:ComesBackClean`, the
+	 * second A is on the stage under the same name, and an id comparison reads them as the same
+	 * thing. The consequence is the one the whole apparatus exists to prevent, reached by a route
+	 * the previous case cannot: a healthy, correctly rendered entry pulled off the stage and
+	 * accused, for a fault in a mount the reader already left.
+	 *
+	 * Both halves again, for the reason the case above states: left alone on the stage, and still
+	 * loud in `console.error`, which is the one channel an eyeless `harness-shot` records. The
+	 * error text is asserted rather than just the id — the id is the same for both mounts here, so
+	 * "names the entry" would be satisfied by a message about the wrong one.
+	 */
+	it('does not blame a second mount of an entry for the first mount it left behind', async () => {
+		state.components = [
+			entryFor('component:ComesBackClean', moduleOf(FailsAfterYouLeave)),
+			entryFor('component:StillHere', moduleOf(StillHere)),
+		];
+
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const wrapper = await openIndex('entry=component:ComesBackClean');
+
+		expect(stageEntry(wrapper)).toBe('component:ComesBackClean');
+
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+		// Back to the entry just left, which mounts it a SECOND time under the same id.
+		await wrapper.findAll('nav li a')[0].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:ComesBackClean');
+
+		// The FIRST mount's gate, not the second's — the second is the one on the stage.
+		releaseLateFailure(0);
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:ComesBackClean');
+		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
+		expect(errors.mock.calls.flat().join(' ')).toContain(
+			'harness entry component:ComesBackClean failed after the page moved on',
+		);
+
+		errors.mockRestore();
+		wrapper.unmount();
+	});
+
+	/**
 	 * The twin of the case above, in the channel a per-entry boundary cannot reach: Vue has exactly
 	 * ONE `config.warnHandler` per app, so `renderDefects` is a single shared array and a warning
 	 * raised while entry A tears down lands in it after `open(B)` has already emptied it.
@@ -408,6 +572,64 @@ describe('the harness index, refusing to advertise a hole', () => {
 		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
 		expect(errors.mock.calls.flat().join(' ')).toContain('component:WarnsOnUnmount');
 
+		errors.mockRestore();
+		wrapper.unmount();
+	});
+
+	/**
+	 * A -> B -> A in the WARNING channel, which an external review round reported as the same
+	 * defect one channel over — and it is NOT reachable, for a reason that belongs to Vue rather
+	 * than to `IndexPage.vue`. This case is what measured that, and what keeps the sentence beside
+	 * the `warnHandler` guard honest if Vue ever changes its mind.
+	 *
+	 * The first A raises a real Vue warning from an async continuation, long after the second A is
+	 * on the stage. Vue consults `config.warnHandler` only when its warning STACK is non-empty —
+	 * the stack is pushed around a synchronous mount, patch or async-setup resolve — so a
+	 * continuation resuming with its own instance already unmounted has no stack, and Vue sends the
+	 * warning to `console.warn` itself.
+	 *
+	 * **The `[Vue warn]:` prefix is the whole discriminator, so it is asserted rather than the
+	 * message alone.** Vue's own fallback writes that prefix; this page's handler chains through
+	 * with the bare message and a trace argument. A prefixed, single-argument call is therefore
+	 * proof that the warning HAPPENED and that the handler was never offered it — which is what
+	 * separates "unreachable" from "the test failed to produce a warning at all", the way this
+	 * whole file distrusts a green that could mean nothing.
+	 */
+	it('is never offered a warning raised by a mount the reader already left', async () => {
+		state.components = [
+			entryFor('component:ComesBackClean', moduleOf(WarnsAfterYouLeave)),
+			entryFor('component:StillHere', moduleOf(StillHere)),
+		];
+
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const warns = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const wrapper = await openIndex('entry=component:ComesBackClean');
+
+		expect(stageEntry(wrapper)).toBe('component:ComesBackClean');
+
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+		await wrapper.findAll('nav li a')[0].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:ComesBackClean');
+
+		// The FIRST mount's gate, not the second's — the second is the one on the stage.
+		lateWarningGates[0]?.();
+		await flushAsync();
+
+		// Vue's own console fallback, with Vue's own prefix and nothing else: the page's handler
+		// neither collected this warning nor reported it stale, because it never ran.
+		expect(warns.mock.calls).toEqual([
+			['[Vue warn]: inject() can only be used inside setup() or functional components.'],
+		]);
+		expect(errors.mock.calls).toEqual([]);
+
+		// And so the healthy second mount is left exactly where it was.
+		expect(stageEntry(wrapper)).toBe('component:ComesBackClean');
+		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
+
+		warns.mockRestore();
 		errors.mockRestore();
 		wrapper.unmount();
 	});

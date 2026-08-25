@@ -135,7 +135,8 @@ import from it. Two checks, because neither is sufficient alone:
 - `eslint.config.mjs` bans the import from every other layer — checked at the forbidden thing,
   so it holds for code nobody has written yet. `tests/build/prototypes-one-way-door.test.ts`.
 - `tests/build/prototypes-not-bundled.test.ts` asserts against `dist/`, catching the dynamic
-  route lint cannot see.
+  route lint cannot see. It derives what to look for from THIS TREE — no file here has to
+  remember a marker, because a marker only ever proves the marker is absent.
 
 It is excluded from coverage (`vitest.config.ts`) because nothing ships it, and declared to
 fallow (`.fallowrc.json`) because `import.meta.glob` is a Vite feature its static graph cannot
@@ -223,7 +224,7 @@ The backstop the one-way door cannot be: lint reads static imports, and a dynami
 Create `tests/build/prototypes-not-bundled.test.ts`:
 
 ```typescript
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
@@ -236,14 +237,32 @@ import { REPO } from '../helpers/oxlint';
  * Both exist because neither is sufficient. Lint reads static imports and a dynamic
  * specifier slips past it; a bundle scan sees everything and reports only after the fact.
  *
- * It asserts on a marker string rather than on file names: Vite's lib build inlines and
- * minifies, so a prototype that got bundled leaves no filename behind — but a string
- * literal in its template survives minification, which is why every prototype carries one.
+ * **The identifiers are DERIVED from the tree, never a marker each file has to remember.**
+ * An opt-in marker only proves the marker is absent: the next prototype nobody marked would
+ * ship past a green test, which is the failure this shape exists to prevent. Vue's SFC
+ * compiler emits `__name: "<basename>"` for devtools, and a string literal survives
+ * minification — so the file names themselves are what the bundle is scanned for.
+ *
+ * Production builds carry no sourcemap (`vite.config.ts` sets `sourcemap` only in
+ * development mode), which is why this reads the bundle text rather than a module graph.
  */
 const BUNDLE = path.join(REPO, 'dist', 'main.js');
+const PROTOTYPES = path.join(REPO, 'src', 'prototypes');
 
-/** The marker every file under `src/prototypes/` carries. See `src/prototypes/README.md`. */
-const MARKER = 'rp-prototype';
+/** Every `.vue` under `src/prototypes/`, by basename, at any depth. */
+function prototypeNames(dir: string): string[] {
+	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		if (entry.isDirectory()) return prototypeNames(path.join(dir, entry.name));
+		return entry.name.endsWith('.vue') ? [entry.name.replace(/\.vue$/, '')] : [];
+	});
+}
+
+/**
+ * The fixture's own identifiers. The guarantee names fixtures as well as prototypes, and the
+ * fixture lives under `tests/`, which the layer ban does not reach — so it needs its own
+ * assertion rather than inheriting one.
+ */
+const FIXTURE_IDENTIFIERS = ['seedFixture', 'HARNESS_PLAN', 'HARNESS_ZONES'];
 
 describe('the built plugin', () => {
 	it('has been built, so this test is asserting on something', () => {
@@ -253,10 +272,20 @@ describe('the built plugin', () => {
 		).toBe(true);
 	});
 
-	it('contains no prototype marker', () => {
+	it('contains no prototype from the tree', () => {
+		const bundle = readFileSync(BUNDLE, 'utf8');
+		const names = existsSync(PROTOTYPES) ? prototypeNames(PROTOTYPES) : [];
+
+		// Not an assertion about `names.length`: an empty tree is a legitimate state and this
+		// test still has to pass. What must never happen is a name in the tree appearing in
+		// the bundle.
+		for (const name of names) expect(bundle, `${name}.vue reached the bundle`).not.toContain(name);
+	});
+
+	it('contains no harness fixture', () => {
 		const bundle = readFileSync(BUNDLE, 'utf8');
 
-		expect(bundle).not.toContain(MARKER);
+		for (const id of FIXTURE_IDENTIFIERS) expect(bundle, `${id} reached the bundle`).not.toContain(id);
 	});
 });
 ```
@@ -271,7 +300,7 @@ Expected: FAIL on the first test if `dist/` does not exist. This is the correct 
 
 Run: `npm run build && npx vitest run tests/build/prototypes-not-bundled.test.ts`
 
-Expected: PASS, both tests. Nothing under `src/prototypes/` exists yet, so the marker is genuinely absent.
+Expected: PASS, three tests. The tree is empty, so the second test iterates nothing — which is why Step 4 exists.
 
 - [ ] **Step 4: Prove the test can fail — plant a prototype and import it**
 
@@ -279,21 +308,28 @@ This is the step that makes the test worth having. Temporarily create `src/proto
 
 ```vue
 <template>
-	<div class="rp-prototype">planted</div>
+	<div>planted</div>
 </template>
 ```
 
-And temporarily add this line to the top of `src/main.ts`:
+Note it carries no marker of any kind. That is the point: the test derives `Doomed` from the file name, so a prototype nobody thought to mark is caught anyway.
+
+And temporarily add these two lines to the top of `src/main.ts`:
 
 ```typescript
-import './prototypes/Doomed.vue';
+import Doomed from './prototypes/Doomed.vue';
+console.log(Doomed);
 ```
+
+The reference is needed because a side-effect-only import of an SFC can be tree-shaken away, which would make the planted defect vanish and teach you nothing.
 
 - [ ] **Step 5: Watch the bundle test go red**
 
 Run: `npm run build && npx vitest run tests/build/prototypes-not-bundled.test.ts`
 
-Expected: FAIL on `contains no prototype marker`. If it PASSES, the test is worthless and must be fixed before continuing — check that Vite is not tree-shaking the side-effect-only import, and if it is, change the planted import to `import Doomed from './prototypes/Doomed.vue';` plus a reference to `Doomed`.
+Expected: FAIL on `contains no prototype from the tree`, with the message `Doomed.vue reached the bundle`.
+
+If it PASSES, the test is worthless and must be fixed before continuing. The likely cause is that `__name` is not emitted in this build configuration — check with `grep -c Doomed dist/main.js`. If the name genuinely does not survive, fall back to asserting on a distinctive string from each prototype's template, extracted by reading the files, and record why in the test's header.
 
 - [ ] **Step 6: Confirm lint refuses the same thing**
 
@@ -498,28 +534,46 @@ import { discoverEntries } from './entries';
 /**
  * Discovery, tested on the SHAPE `import.meta.glob` returns rather than on the glob itself.
  * The glob is a Vite build-time feature with nothing to assert about in a unit test; what
- * can go wrong and be caught here is the id derivation — two files collapsing to one id, or
- * an id that does not survive being put in a URL.
+ * can go wrong and be caught here is the id derivation.
+ *
+ * The id is a URL, so it has to be UNIQUE across everything the index lists. A basename is
+ * not: `src/prototypes/StatusBar.vue` and `src/presentation/editor/shell/StatusBar.vue` are
+ * two different entries a designer would reasonably have at once — a mock of a component
+ * next to the component — and collapsing them makes the second unreachable by URL and
+ * uncapturable by `harness-shot`.
  */
 describe('harness entry discovery', () => {
-	it('derives an id from the file name, without the extension or the path', () => {
-		const entries = discoverEntries({ '/src/prototypes/ZoneEditing.vue': () => Promise.resolve({}) }, 'prototype');
+	it('qualifies the id by kind, so a mock and its real component are both reachable', () => {
+		const [prototype] = discoverEntries({ '/src/prototypes/StatusBar.vue': () => Promise.resolve({}) }, 'prototype');
+		const [component] = discoverEntries(
+			{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
+			'component',
+		);
 
-		expect(entries).toHaveLength(1);
-		expect(entries[0].id).toBe('ZoneEditing');
-		expect(entries[0].kind).toBe('prototype');
+		expect(prototype.id).not.toBe(component.id);
+		expect(prototype.id).toBe('prototype-StatusBar');
+		expect(component.id).toBe('component-editor-shell-StatusBar');
 	});
 
-	it('keeps nested files distinct rather than collapsing them onto one id', () => {
+	it('keeps two components with the same basename in different directories distinct', () => {
 		const entries = discoverEntries(
 			{
 				'/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}),
-				'/src/presentation/editor/layers/zone/ZoneShape.vue': () => Promise.resolve({}),
+				'/src/presentation/views/StatusBar.vue': () => Promise.resolve({}),
 			},
 			'component',
 		);
 
-		expect(entries.map((entry) => entry.id).sort()).toEqual(['StatusBar', 'ZoneShape']);
+		expect(new Set(entries.map((entry) => entry.id)).size).toBe(2);
+	});
+
+	it('keeps a human-readable label even though the id is qualified', () => {
+		const [entry] = discoverEntries(
+			{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
+			'component',
+		);
+
+		expect(entry.label).toBe('StatusBar');
 	});
 
 	it('sorts by id, so the index does not reorder itself between runs', () => {
@@ -531,7 +585,7 @@ describe('harness entry discovery', () => {
 			'prototype',
 		);
 
-		expect(entries.map((entry) => entry.id)).toEqual(['Alpha', 'Zebra']);
+		expect(entries.map((entry) => entry.label)).toEqual(['Alpha', 'Zebra']);
 	});
 
 	it('returns nothing for an empty tree rather than throwing', () => {
@@ -556,24 +610,48 @@ Create `tests/harness/entries.ts`:
  *
  * A hand-kept manifest is a step somebody has to remember, and `CLAUDE.md` refuses that
  * shape elsewhere for the same reason it is refused here — "src/ is the list and it cannot
- * go stale". The [[Coding agent]] actor note gives the sharper version: a registration step
- * is one a stateless actor forgets across sessions.
+ * go stale". The `Coding agent` actor note gives the sharper version: a registration step is
+ * one a stateless actor forgets across sessions.
  *
  * `discoverEntries` takes the glob RESULT rather than calling `import.meta.glob` itself, so
  * this module is a pure function a node test can drive. The globs live in `IndexPage.vue`,
  * which is the file Vite transforms.
  */
 export interface HarnessEntry {
-	/** The file's basename, which is also its URL. */
+	/** Unique across every entry, and the value `?entry=` carries. See `idFor`. */
 	readonly id: string;
+	/** The basename, for a human reading the list. Not unique, and never used as a URL. */
+	readonly label: string;
 	readonly kind: 'prototype' | 'component';
 	readonly component: () => Promise<unknown>;
 }
 
 /**
- * One entry per globbed module, id'd by basename and sorted so the index does not reorder
- * itself between runs — a list whose order moves is one a designer cannot navigate by
- * memory, and a screenshot of it would differ run to run for no reason.
+ * An id that is unique across the whole index, because it is a URL.
+ *
+ * A basename alone is NOT unique and the collision is the likely case rather than the exotic
+ * one: a mock named after the component it stands in for is exactly what a designer builds,
+ * and two components sharing a basename in different directories is ordinary. Either would
+ * make the second entry unreachable by `?entry=` and uncapturable by `harness-shot`, with no
+ * error — the index would simply always open the first.
+ *
+ * So: the kind, then the path between the tree root and the file, then the basename.
+ */
+function idFor(file: string, kind: HarnessEntry['kind']): string {
+	const withoutExtension = file.replace(/\.vue$/, '');
+	// Everything after the tree root: `…/src/prototypes/X` → `X`, and
+	// `…/src/presentation/editor/shell/StatusBar` → `editor/shell/StatusBar`.
+	const root = kind === 'prototype' ? '/src/prototypes/' : '/src/presentation/';
+	const index = withoutExtension.indexOf(root);
+	const relative = index === -1 ? withoutExtension : withoutExtension.slice(index + root.length);
+
+	return `${kind}-${relative.split('/').join('-')}`;
+}
+
+/**
+ * One entry per globbed module, sorted so the index does not reorder itself between runs — a
+ * list whose order moves is one a designer cannot navigate by memory, and a screenshot of it
+ * would differ run to run for no reason.
  */
 export function discoverEntries(
 	modules: Record<string, () => Promise<unknown>>,
@@ -581,7 +659,8 @@ export function discoverEntries(
 ): HarnessEntry[] {
 	return Object.entries(modules)
 		.map(([file, component]) => ({
-			id: file.split('/').pop()?.replace(/\.vue$/, '') ?? file,
+			id: idFor(file, kind),
+			label: file.split('/').pop()?.replace(/\.vue$/, '') ?? file,
 			kind,
 			component,
 		}))
@@ -612,8 +691,15 @@ Create `tests/harness/IndexPage.vue`:
  * `eager: false` on both: the index lists far more than it draws, and eagerly importing
  * every component would mount the whole plugin's presentation layer to render a list of
  * links.
+ *
+ * TWO failure paths, not one. A module that fails to IMPORT rejects the promise and is
+ * caught below; a module that imports fine but throws in `setup()` or `render()` fails
+ * later, inside Vue's render cycle, where a try/catch around the import cannot see it.
+ * `onErrorCaptured` is what covers the second, and without it criterion 8 holds only for
+ * half the ways an entry can fail — the half that is easier to cause deliberately and rarer
+ * in practice.
  */
-import { computed, ref, shallowRef } from 'vue';
+import { computed, onErrorCaptured, ref, shallowRef } from 'vue';
 import { discoverEntries, type HarnessEntry } from './entries';
 
 const prototypes = discoverEntries(
@@ -627,27 +713,59 @@ const components = discoverEntries(
 
 const all = computed<HarnessEntry[]>(() => [...prototypes, ...components]);
 
-const openId = ref<string | null>(new URLSearchParams(window.location.search).get('entry'));
+const requested = new URLSearchParams(window.location.search).get('entry');
 const openComponent = shallowRef<unknown>(null);
 const failure = ref<string | null>(null);
+/**
+ * The id of what is actually RENDERED — null until a component is on screen, and null again
+ * the moment one fails. The stage exposes it as `data-entry`, which is what
+ * `scripts/harness-shot.mjs` waits for.
+ *
+ * It is deliberately not `requested`: the stage element exists from the first paint, so a
+ * capture waiting on the stage alone would photograph "Pick an entry." and exit 0. An empty
+ * screenshot reported as a success is the worst outcome this whole feature can produce,
+ * because the actor it is built for cannot see that it is empty.
+ */
+const renderedId = ref<string | null>(null);
 
 async function open(entry: HarnessEntry): Promise<void> {
-	openId.value = entry.id;
 	failure.value = null;
+	renderedId.value = null;
 	try {
 		const module = (await entry.component()) as { default: unknown };
 
 		openComponent.value = module.default;
+		// Set only after the component is assigned. It is still a tick before Vue has
+		// rendered it, which `harness-shot` covers by also waiting for the stage to have a
+		// child element.
+		renderedId.value = entry.id;
 	} catch (error) {
 		// Named rather than blank: a prototype that half-drew itself is worse than one that
 		// says what is missing, because a gap reads as a layout decision.
 		openComponent.value = null;
-		failure.value = `${entry.id} failed to mount: ${error instanceof Error ? error.message : String(error)}`;
+		failure.value = `${entry.id} failed to load: ${error instanceof Error ? error.message : String(error)}`;
 	}
 }
 
-const initial = all.value.find((entry) => entry.id === openId.value);
+/**
+ * A render-time throw from the mounted entry. Returning `false` stops it propagating, so one
+ * bad entry reports itself instead of blanking the page and taking the list with it.
+ */
+onErrorCaptured((error) => {
+	const id = renderedId.value ?? requested ?? 'the entry';
 
+	openComponent.value = null;
+	renderedId.value = null;
+	failure.value = `${id} failed to render: ${error instanceof Error ? error.message : String(error)}`;
+	return false;
+});
+
+const initial = all.value.find((entry) => entry.id === requested);
+
+// An `?entry=` naming nothing is reported rather than silently ignored — `harness-shot`
+// exits non-zero on it, so a typo in a capture command fails loudly instead of writing a
+// picture of the index.
+if (requested && !initial) failure.value = `no entry named ${requested}`;
 if (initial) void open(initial);
 </script>
 
@@ -657,14 +775,14 @@ if (initial) void open(initial);
 			<h1>Harness</h1>
 			<p v-if="prototypes.length === 0">No prototypes yet — add a .vue file under src/prototypes/.</p>
 			<ul>
-				<li v-for="entry in all" :key="`${entry.kind}-${entry.id}`">
-					<a :href="`?entry=${entry.id}`" @click.prevent="open(entry)">{{ entry.id }}</a>
+				<li v-for="entry in all" :key="entry.id">
+					<a :href="`?entry=${entry.id}`" @click.prevent="open(entry)">{{ entry.label }}</a>
 					<span>{{ entry.kind }}</span>
 				</li>
 			</ul>
 		</nav>
-		<main class="rp-harness-stage">
-			<p v-if="failure" role="alert">{{ failure }}</p>
+		<main class="rp-harness-stage" :data-entry="renderedId ?? undefined">
+			<p v-if="failure" role="alert" class="rp-harness-failure">{{ failure }}</p>
 			<component :is="openComponent" v-else-if="openComponent" />
 			<p v-else>Pick an entry.</p>
 		</main>
@@ -674,7 +792,12 @@ if (initial) void open(initial);
 
 - [ ] **Step 6: Mount the index from the page entry**
 
-In `tests/harness/page.ts`, replace the mount block with one that routes on `?entry`. The existing two surfaces keep working unchanged; the index is what an unqualified URL now gets:
+In `tests/harness/page.ts`, replace the mount block. **The routing rule is what matters here,
+and getting it wrong silently breaks the existing capture workflow**: the three fixed shots in
+`scripts/harness-shot.mjs` use the queries `''`, `?theme=light` and `?phone`, none of which
+names a view. Routing on "has no `view` parameter → index" would send all three to the index
+while `captureOne` waits for `.renovation-planner-view`, and each would time out. So the index
+is reached by `?entry=` or by an explicit `?index`, and everything else keeps today's default.
 
 ```typescript
 import { createApp } from 'vue';
@@ -687,20 +810,32 @@ import { applyPlatform, drawSchemeToggle } from './theme';
 applyPlatform(window.location.search);
 
 const params = new URLSearchParams(window.location.search);
+
+/**
+ * The index is OPT-IN, and that is a decision rather than an accident.
+ *
+ * `?view=plan-editor` keeps the Plan Editor and everything else keeps the project view,
+ * because `scripts/harness-shot.mjs`'s three fixed shots address the project surface with no
+ * `view` parameter at all — `''`, `?theme=light`, `?phone`. Making a bare URL mean "index"
+ * would break all three, and the test in Task 6 that asserts the fixed shots still exist
+ * would keep passing while the captures timed out.
+ *
+ * The PBI leaves "does the index displace the current root" open. This answers it: it does
+ * not, because displacing it costs a working workflow to save one query parameter.
+ */
+const wantsIndex = params.has('index') || params.has('entry');
 const wantsPlanEditor = params.get('view') === 'plan-editor';
-// `?view=` keeps its two surfaces. Anything else is the index — including a bare URL, which
-// used to draw the project view and now draws the list that reaches it.
-const wantsView = params.has('view');
 
 let view: unknown = null;
 
-if (wantsView) {
-	view = wantsPlanEditor ? mountPlanEditorHarness(document.body).view : mountHarness(document.body).view;
-} else {
+if (wantsIndex) {
 	document.body.empty();
+
 	const root = document.body.createDiv('rp-harness-leaf');
 
 	createApp(IndexPage).use(seedFixture()).mount(root);
+} else {
+	view = wantsPlanEditor ? mountPlanEditorHarness(document.body).view : mountHarness(document.body).view;
 }
 
 drawSchemeToggle();
@@ -710,9 +845,11 @@ drawSchemeToggle();
 
 - [ ] **Step 7: Look at it**
 
-Run: `npm run harness`
+Run: `npm run harness`, then open `?index` on the URL it prints.
 
-Expected: the index lists the twelve components under `src/presentation/` and says there are no prototypes yet. `?view=plan-editor` still draws the Plan Editor.
+Expected: `?index` lists the twelve components under `src/presentation/` and says there are no
+prototypes yet. A bare URL still draws the project view and `?view=plan-editor` still draws the
+Plan Editor — check both, because those are the three fixed captures' addresses.
 
 - [ ] **Step 8: Run the full gate**
 
@@ -864,6 +1001,19 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		expect(source).toContain('?entry=');
 	});
 
+	/**
+	 * The assertion that stops a green run from lying. Waiting on `.rp-harness-stage` alone
+	 * would photograph the placeholder — a successful, empty PNG, which the actor this
+	 * feature exists for cannot tell from a real one.
+	 */
+	it('waits for the entry to have rendered, not merely for the stage to exist', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toContain('data-entry=');
+		// The bare stage class must not be used as a wait target on its own.
+		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
+	});
+
 	it('still defines the five fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
@@ -871,7 +1021,26 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 			expect(source).toContain(`name: '${name}'`);
 		}
 	});
-```
+
+	/**
+	 * The fixed shots address the project surface with NO `view` parameter, so
+	 * `tests/harness/page.ts` must keep routing a bare URL there. Asserted from this side
+	 * because the previous test passes whether or not those URLs still reach anything — a
+	 * shot list that exists and times out is the failure it cannot see.
+	 */
+	it('keeps the three project-view shots on URLs that do not request the index', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		for (const query of ["query: ''", "query: '?theme=light'", "query: '?phone'"]) {
+			expect(source).toContain(query);
+		}
+
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+
+		// The index is opt-in. If this ever becomes `!params.has('view')`, all three fixed
+		// shots start timing out with nothing else to report it.
+		expect(page).toContain("params.has('index')");
+	});
 
 - [ ] **Step 2: Run it and watch the first case fail**
 
@@ -879,35 +1048,54 @@ Run: `npx vitest run tests/build/harness-shot.test.ts`
 
 Expected: FAIL on `captures a named entry` — neither `process.argv` nor `?entry=` appears in the script. The second case PASSES already, which is its job: it pins the existing behaviour so Step 3 cannot quietly replace it.
 
-- [ ] **Step 3: Add the entry shots**
+- [ ] **Step 3: Add the entry shots, waiting on the ENTRY rather than the shell**
 
 In `scripts/harness-shot.mjs`, after the `SHOTS` array (line ~47), add:
 
 ```javascript
-/** The index's own mount point — what "the entry has drawn" means for a prototype. */
-const INDEX_STAGE = '.rp-harness-stage';
+/**
+ * What "the entry has drawn" means — and it is NOT `.rp-harness-stage`.
+ *
+ * The stage element is mounted synchronously on the first paint, while the selected SFC is
+ * still being imported. A capture waiting on the stage alone photographs "Pick an entry." and
+ * exits 0: a successful, empty PNG. That is the worst thing this script can produce, because
+ * the actor it exists for cannot see that the picture is blank — it would read a green exit
+ * as "the mock looks like that".
+ *
+ * `IndexPage.vue` sets `data-entry` only once the component is assigned, and the `> *` is what
+ * waits out the render tick after it.
+ */
+const entryStage = (entry) => `.rp-harness-stage[data-entry="${entry}"] > *`;
 
 /**
  * The shots for ONE named entry, in both schemes.
  *
  * This is what makes the harness usable by an actor with no eyes: `docs/actors/Coding agent.md`
  * describes an agent that verifies by running something that writes a file it can then read,
- * or does not verify at all. Without an argument here, every layout judgement about a mock
- * is deferred to a human and every iteration costs a round.
+ * or does not verify at all. Without an argument here, every layout judgement about a mock is
+ * deferred to a human and every iteration costs a round.
  *
  * No `?phone` shot: the fixed set has one for the project view because that surface is
- * responsive by design, and a prototype's own breakpoints are the prototype's business —
- * add `&phone` to the URL by hand when that is the question.
+ * responsive by design, and a prototype's own breakpoints are the prototype's business — add
+ * `&phone` to the URL by hand when that is the question.
  */
 const entryShots = (entry) => [
-	{ name: `entry-${entry}-dark`, query: `?entry=${encodeURIComponent(entry)}`, selector: INDEX_STAGE },
-	{ name: `entry-${entry}-light`, query: `?entry=${encodeURIComponent(entry)}&theme=light`, selector: INDEX_STAGE },
+	{
+		name: `entry-${entry}-dark`,
+		query: `?entry=${encodeURIComponent(entry)}`,
+		selector: entryStage(entry),
+	},
+	{
+		name: `entry-${entry}-light`,
+		query: `?entry=${encodeURIComponent(entry)}&theme=light`,
+		selector: entryStage(entry),
+	},
 ];
 ```
 
-- [ ] **Step 4: Read the argument in `run()`**
+- [ ] **Step 4: Read the argument in `run()`, and fail loudly on a name that draws nothing**
 
-In `scripts/harness-shot.mjs`, change `captureAll` to take the shot list, and `run()` to choose it:
+In `scripts/harness-shot.mjs`, change `captureAll` to take the shot list:
 
 ```javascript
 async function captureAll(browser, baseUrl, shots) {
@@ -918,16 +1106,21 @@ async function captureAll(browser, baseUrl, shots) {
 }
 ```
 
-And in `run()`, immediately after `const executablePath = resolveChromiumExecutable();`:
+In `run()`, immediately after `const executablePath = resolveChromiumExecutable();`:
 
 ```javascript
-	// `node scripts/harness-shot.mjs ZoneEditing` — one entry, both schemes. With no
+	// `node scripts/harness-shot.mjs ZoneSummary` — one entry, both schemes. With no
 	// argument, the five fixed surfaces, exactly as before.
 	const entry = process.argv[2];
 	const shots = entry ? entryShots(entry) : SHOTS;
 ```
 
 Then change the `captureAll(browser, baseUrl)` call inside `run()` to `captureAll(browser, baseUrl, shots)`.
+
+Nothing further is needed for the unknown-name case, and it is worth knowing why rather than
+assuming it: `IndexPage.vue` never sets `data-entry` for a name it cannot find, so
+`waitForSelector` times out, `captureOne` pushes that onto `errors`, and `reportErrors` sets a
+non-zero exit code. A typo fails; it does not quietly produce a picture of the index.
 
 - [ ] **Step 5: Run the test again**
 
@@ -971,7 +1164,7 @@ The criterion the whole note is for: a promoted mock's template must be byte-ide
 
 - [ ] **Step 1: Write the first mock**
 
-Create `src/prototypes/ZoneSummary.vue`. Note the `rp-prototype` class — the marker Task 2's bundle test scans for, which every file in this tree carries:
+Create `src/prototypes/ZoneSummary.vue`:
 
 ```vue
 <template>
@@ -981,11 +1174,12 @@ Create `src/prototypes/ZoneSummary.vue`. Note the `rp-prototype` class — the m
 		this markup goes across unchanged, which is what
 		`tests/build/prototype-promotion.test.ts` holds.
 
-		`rp-prototype` is the marker the bundle test scans `dist/` for. Every file in this
-		tree carries it: Vite's lib build inlines and minifies, so a prototype that got
-		bundled leaves no filename behind, but a class in a template survives.
+		Nothing here marks the file as a prototype, deliberately.
+		`tests/build/prototypes-not-bundled.test.ts` derives what to scan for from the tree
+		itself, so a mock nobody remembered to mark is caught anyway — which is the only
+		version of that guarantee worth having.
 	-->
-	<section class="rp-prototype rp-zone-summary">
+	<section class="rp-zone-summary">
 		<h2>Zones</h2>
 		<ul>
 			<li>
@@ -1009,9 +1203,21 @@ Expected: `ZoneSummary` appears in the index under prototypes. Open it; it draws
 
 - [ ] **Step 3: Capture it, the way an agent would**
 
-Run: `npm run harness-shot ZoneSummary`
+Run: `npm run harness-shot prototype-ZoneSummary`
 
-Expected: `harness-shots/entry-ZoneSummary-dark.png` and `entry-ZoneSummary-light.png` are written, and the command exits 0.
+Note the argument is the **id**, not the basename — ids are qualified by kind so a mock and the
+component it stands in for are both reachable (`entries.ts`). The index shows the label; the URL
+and this command take the id.
+
+Expected: `harness-shots/entry-prototype-ZoneSummary-dark.png` and `-light.png` are written, and
+the command exits 0. Open one — it must show the zone list, not "Pick an entry."
+
+Then prove the failure path, which is the half that matters for an actor that cannot see:
+
+Run: `npm run harness-shot NoSuchEntry`
+
+Expected: non-zero exit, with a timeout reported for both shots. A typo must never write a
+picture of the index and call it success.
 
 - [ ] **Step 4: Write the failing promotion test**
 
@@ -1043,10 +1249,6 @@ function templateBlock(sfc: string): string | null {
 }
 
 describe('promoting a mock', () => {
-	it('carries the bundle marker every file in the tree owes', () => {
-		expect(readFileSync(MOCK, 'utf8')).toContain('rp-prototype');
-	});
-
 	it('leaves the template byte-identical', () => {
 		const mock = readFileSync(MOCK, 'utf8');
 		const before = templateBlock(mock);
@@ -1069,7 +1271,7 @@ describe('promoting a mock', () => {
 
 Run: `npx vitest run tests/build/prototype-promotion.test.ts`
 
-Expected: PASS, 3 tests.
+Expected: PASS, 2 tests.
 
 - [ ] **Step 6: Prove the third case can fail**
 
@@ -1207,4 +1409,18 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Placeholder scan:** every code step carries real code; no "TBD", no "handle errors appropriately", no "similar to Task N".
 
-**Type consistency:** `HarnessEntry` (`id`, `kind`, `component`) is defined in Task 4 and used unchanged in Tasks 4 and 6. `seedFixture(): Pinia` is defined in Task 3 and called in Task 4 Step 6. `discoverEntries(modules, kind)` keeps one signature across its test and its use. The `rp-prototype` marker is introduced in Task 2's test and produced in Task 7 Step 1 — **that ordering is deliberate**: Task 2's test passes vacuously until Task 7 exists, which is why Task 2 Step 4 plants a file to prove the test can fail.
+**Type consistency:** `HarnessEntry` (`id`, `label`, `kind`, `component`) is defined in Task 4 and used unchanged in Tasks 4 and 6. `seedFixture(): Pinia` is defined in Task 3 and called in Task 4 Step 6. `discoverEntries(modules, kind)` keeps one signature across its test and its use. The `id` is the URL and the `harness-shot` argument (`prototype-ZoneSummary`); `label` is the basename shown in the list and is never used as an address — Task 7 Step 3 uses the id, deliberately.
+
+**Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
+
+**Revision after review.** Five findings on the first draft, all real, all fixed above rather than noted:
+
+| Finding | What was wrong | Where it is fixed |
+| --- | --- | --- |
+| Capture waited on the stage shell | `.rp-harness-stage` exists on first paint, so `harness-shot <name>` could photograph "Pick an entry." and **exit 0** — an empty PNG reported as a success, to an actor that cannot see it is empty | Task 4 (`data-entry`, set only once the component is assigned) and Task 6 (`[data-entry="…"] > *`, plus a test forbidding the bare class as a wait target) |
+| The argumentless run broke | Routing "no `view` parameter → index" sent the three fixed shots (`''`, `?theme=light`, `?phone`) to the index, where they would time out — while Task 6's test asserting the shots still exist kept passing | Task 4 Step 6: the index is opt-in (`?index` or `?entry=`), and Task 6 gains a test pinning that from the other side |
+| Render errors escaped the catch | `try/catch` around the dynamic import cannot see a throw from `setup()` or `render()`, so criterion 8 held for only half the ways an entry fails | Task 4: `onErrorCaptured` returning `false` |
+| The bundle test was opt-in | Scanning for a marker proves only the marker is absent; the next unmarked prototype ships past a green test, and the fixture had no marker at all despite the guarantee naming fixtures | Task 2: identifiers derived from the tree and from the fixture's own exports; the marker is gone from the plan entirely |
+| Ids could collide | A basename id makes a mock and the component it stands in for the same URL — the likely case, not the exotic one — leaving the second unreachable and uncapturable, silently | Task 4: ids qualified by kind and relative path, with `label` split off for display |
+
+Two of those were P1s that would have cost an implementer a debugging session each, and both are the same shape as the defect this plan's own subject exists to prevent: a green signal that means nothing.

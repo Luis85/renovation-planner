@@ -25,8 +25,21 @@ import type { CalculationError, ValidationError } from '../errors/AppError';
  * produce, `createMoney` can read back; an amount that failed on the way back in through
  * persistence would be a value the engine computed and can never re-read. `subtract`
  * reports a negative difference as a typed failure, and the operations that answer a bare
- * Money throw, because the only way to reach one there is a negative factor or percent
- * that every user-input caller refuses first.
+ * Money throw on one instead. Today's only caller — the Cost Pipeline — refuses a
+ * negative factor or percent before either reaches `scale`/`percentageOf`, but that is a
+ * convention this module's one caller observes, not a gate this module enforces:
+ * `scale` and `percentageOf` are exported, and nothing here stops a future caller from
+ * handing either a negative `Decimal` straight from user input.
+ *
+ * The invariant itself is right for what this module computes today — a cost, a price, a
+ * subtotal are never negative — and wrong the day something needs a SIGNED amount.
+ * `docs/requirements/Reporting and project cockpit.md` asks "am I over budget"; a budget
+ * variance (spent minus budget) is a difference whose sign is the answer, and under this
+ * design that computation comes back as `subtract`'s `money.negative-result` failure
+ * rather than a value whenever spend exceeds budget — the one case a variance exists to
+ * report. Whoever builds that reads this as the recorded decision: the fix is a signed
+ * `Variance` type of its own, not a relaxation of this invariant for every caller that
+ * already relies on it.
  *
  * Two constructors, by who vouches for the input. `createMoney` validates user-shaped
  * input (a persisted amount is a file the user can edit) and answers `Result`. `of` is
@@ -113,11 +126,14 @@ const MoneyDecimal = Decimal.clone({
  * hand-edit — refuses a leading `-`, so an amount this module produced and persistence
  * cannot read back would be a value the engine computed and can never re-read.
  *
- * A breach THROWS rather than answering a `Result`, in the same spirit as `of`: every
- * caller that could reach one from USER input refuses it first as a typed failure — the
- * Cost Pipeline bounds its discount at 100% and refuses a negative quantity, and
- * `subtract` reports a negative difference as an error — so arriving here with a negative
- * amount is a programmer error (SDD §65), not a business failure.
+ * A breach THROWS rather than answering a `Result`, in the same spirit as `of`: today's
+ * only caller that could reach one from USER input — the Cost Pipeline — refuses it first
+ * as a typed failure (it bounds its discount at 100% and refuses a negative quantity
+ * before calling `percentageOf`/`scale`), and `subtract` reports a negative difference as
+ * an error. That is a convention this module's one caller observes, not a gate `scale`/
+ * `percentageOf` enforce themselves (see the module header above), so arriving here with
+ * a negative amount from that caller is a programmer error (SDD §65), not a business
+ * failure.
  *
  * `lessThan(0)` rather than `isNegative()`: decimal.js reports negative ZERO as negative,
  * and a zero is a zero — `toFixed` serializes it as a plain `0` either way.
@@ -144,6 +160,18 @@ function fromDecimal(amount: Decimal, currency: string, places?: number): Money 
  */
 const LITERAL_PATTERN = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
+/**
+ * The `number` overload is CALLER-BEWARE, and ADR-010 is the reason why that matters: a
+ * float has already lost precision before it reaches this function, so
+ * `of(0.1 + 0.2, 'USD')` mints `"0.30000000000000004"` — `LITERAL_PATTERN` guards the
+ * string overload only and cannot see a value that arrived already rounded wrong as a
+ * `number`. Prefer the string overload for anything that started as user input or a
+ * literal in source; the `number` overload exists for a value some other API already
+ * hands back as a float, not as an invitation to skip the string. Left open rather than
+ * closed here: unlike `LITERAL_PATTERN`'s check, refusing a non-integer `number` (or the
+ * overload outright) would be a behaviour change, and needs its own test and review, not
+ * a documentation pass.
+ */
 export function of(value: string | number | Decimal, currency: string): Money {
 	if (!CURRENCY_PATTERN.test(currency)) {
 		throw new Error(

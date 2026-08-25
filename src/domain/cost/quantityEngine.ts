@@ -18,14 +18,20 @@ import { UNIT_KIND, type MeasurementUnit, type Quantity } from '../../core/units
  *
  * Raw measurements arrive in world millimeters (ADR-009) and are converted once, at the
  * first stage (`toMeasuredQuantity`). Every value is decimal arithmetic rather than
- * binary floating point (ADR-010), which is narrower than "exact" in two ways worth
- * naming. `applyRequirementRule` DIVIDES by a coverage rate, and a division that does not
- * terminate is rounded at decimal.js's precision — 20 significant digits, its default;
- * `toDisplayValue` divides only by a power of ten, which shifts an exponent and cannot.
- * And all of it runs on the SHARED `Decimal`, so unlike `core/money`'s — which computes
- * on a private clone — a `Decimal.set` anywhere in the process moves these values.
- * Nothing here rounds deliberately: packaging rounds UP to whole lots because it is a
- * purchasable multiple, not a precision decision.
+ * binary floating point (ADR-010), which is narrower than "exact" — this names every
+ * DIVIDE and MULTIPLY below that can round, rather than picking a count and calling it
+ * exhaustive. `applyRequirementRule` DIVIDES by a coverage rate, and a division that does
+ * not terminate is rounded at decimal.js's precision — 20 significant digits, its
+ * default; `toDisplayValue` divides only by a power of ten, which shifts an exponent and
+ * cannot. `applyWaste`'s MULTIPLY by the waste factor can round the same way.
+ * `applyPackaging` DIVIDES by the lot size before it takes a ceiling, so a division that
+ * rounds up at that precision can, in principle, push the ceiling to the next whole lot —
+ * one purchasable multiple beyond what an exact division would have needed, stacked on
+ * top of the ceiling's own deliberate rounding up. And all of it runs on the SHARED
+ * `Decimal`, so unlike `core/money`'s — which computes on a private clone — a
+ * `Decimal.set` anywhere in the process moves these values. Nothing here rounds
+ * deliberately except packaging's ceiling itself, which rounds up to a whole lot because
+ * that is a purchasable multiple, not a precision decision.
  *
  * No exported stage here returns a negative `Quantity`: each refuses one on the way in,
  * and `toMeasuredQuantity` refuses one on the way out, so the invariant does not depend

@@ -298,10 +298,10 @@ describe('ToolManager', () => {
  * `tool-manager.ts`'s header today names tools only in backticks (`select`, `pan`,
  * `draw-polygon`) and writes the forbidden shape with a literal ellipsis
  * (`if (tool.id === '...')`), so no `ToolId` string literal actually appears there — but a
- * future comment that quotes a real id in single quotes (the shape the next test plants)
- * would flag the very paragraph asserting the rule as though it broke it, the same shape
- * of false positive `editorContext.test.ts`'s Konva check already records hitting on a
- * bare word.
+ * future comment that quotes a real id in single quotes (the shape the "does not flag
+ * prose that merely NAMES a tool id in a comment" test below plants) would flag the very
+ * paragraph asserting the rule as though it broke it, the same shape of false positive
+ * `editorContext.test.ts`'s Konva check already records hitting on a bare word.
  *
  * The instrument is tested before it is trusted (first `describe` below): a regex matching
  * nothing would make every assertion here pass while proving the opposite.

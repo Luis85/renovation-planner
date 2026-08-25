@@ -9,7 +9,7 @@
  * trap must move focus explicitly at both ends anyway, so what these tests drive is the
  * same code path a browser would take at the wrap.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { mountDialogHost, type DialogHarness } from '../../helpers/dialogs';
 import { t } from '../../../src/presentation/i18n/strings';
@@ -25,6 +25,19 @@ const CONFIRM = { kind: 'confirm', title: 'T', message: 'M' } as const;
 
 function pressKey(element: Element, key: string, shiftKey = false): void {
 	element.dispatchEvent(new KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true }));
+}
+
+/**
+ * Returns the dispatched event so a case can read `defaultPrevented` — jsdom moves no
+ * focus on `mousedown` at all (it implements no browser default action for it), so
+ * `defaultPrevented` is the only observable trace `onMousedown` leaves here. Whether
+ * `preventDefault()` on `mousedown` actually PRESERVES focus in a real browser is
+ * Chromium's guarantee, not jsdom's, and is unproven by any test in this file.
+ */
+function pressDown(element: Element): MouseEvent {
+	const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+	element.dispatchEvent(event);
+	return event;
 }
 
 describe('opening', () => {
@@ -80,9 +93,12 @@ describe('opening', () => {
 	});
 
 	/**
-	 * The template's `kind` switch has four arms and no `default`; the other three kinds
-	 * are exercised elsewhere in this file, so this is what proves the FOURTH — `form` —
-	 * renders through the same host rather than falling through to a blank panel.
+	 * The other three kinds are exercised elsewhere in this file; this is what proves the
+	 * FOURTH — `form` — renders through the same host too, rather than falling through to
+	 * a blank panel. (What actually fails a fifth kind to build is `vue-tsc` rejecting the
+	 * residual union against `FormDialog`'s declared `descriptor: FormDescriptor` prop —
+	 * see the template comment in `DialogHost.vue` — not anything this runtime test can
+	 * exercise.)
 	 */
 	it('renders the form kind, the fourth arm of the switch', async () => {
 		harness = mountDialogHost();
@@ -152,6 +168,50 @@ describe('the focus trap', () => {
 	});
 });
 
+describe('a press that would land focus nowhere', () => {
+	/**
+	 * The half of the backdrop/`Escape` gap this component owns: a press on the overlay
+	 * (the backdrop) or on `.rp-dialog` itself (its own padding, outside any control) is
+	 * refused so it cannot blur the focused control to `<body>`. jsdom implements no
+	 * browser default action for `mousedown` — no focus actually moves here either way —
+	 * so `defaultPrevented` is what a jsdom test can honestly assert; that
+	 * `preventDefault()` is what PRESERVES focus in a real browser is Chromium's guarantee,
+	 * unproven by this test (see `pressDown`'s docblock).
+	 */
+	it('refuses a press on the backdrop', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog(CONFIRM);
+		await nextTick();
+
+		const overlay = harness.wrapper.find('.rp-dialog-overlay').element;
+		const event = pressDown(overlay);
+
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it("refuses a press on the panel's own padding", async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog(CONFIRM);
+		await nextTick();
+
+		const dialog = harness.wrapper.find('.rp-dialog').element;
+		const event = pressDown(dialog);
+
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it('leaves a press on a focusable control alone', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog(CONFIRM);
+		await nextTick();
+
+		const button = harness.wrapper.find('[data-rp-action="cancel"]').element;
+		const event = pressDown(button);
+
+		expect(event.defaultPrevented).toBe(false);
+	});
+});
+
 describe('Escape', () => {
 	it('resolves a confirm dialog as a cancellation', async () => {
 		harness = mountDialogHost();
@@ -181,6 +241,14 @@ describe('Escape', () => {
 	 * The listener is on the DIALOG, not the document. Two Plan Editor leaves may each have
 	 * a dialog open, and one `Escape` must close the focused one only — a document-level
 	 * listener per host would close both, which is the defect this asserts against.
+	 *
+	 * This is also the shape of the RESIDUAL gap `DialogHost.vue`'s header now names rather
+	 * than hides: dispatching `Escape` directly at an element outside `.rp-dialog` (as this
+	 * test does) is the same thing that happens for real once focus has actually left the
+	 * panel — which `onMousedown` prevents for a press on the backdrop or the panel's own
+	 * padding, but cannot prevent for a click into Obsidian's own chrome. This case is not
+	 * proving that gap closed; it is proving this component's own listener placement is
+	 * correct given that the gap exists elsewhere.
 	 */
 	it('leaves a keydown outside the dialog alone', async () => {
 		harness = mountDialogHost();
@@ -202,11 +270,19 @@ describe('Escape', () => {
 	 * Two `keydown`s can land before Vue's next render flush removes `.rp-dialog` from the
 	 * DOM — a held key auto-repeating, or two events dispatched in the same synchronous
 	 * turn. The first `Escape` already cleared `store.current` by the time the second
-	 * fires on the still-mounted element, and `onKeydown`'s `descriptor === null` guard is
-	 * what keeps that second event from reading `.kind` off a `null` descriptor.
+	 * fires on the still-mounted element; without `onKeydown`'s `descriptor === null`
+	 * guard, the second event would read `.kind` off a `null` descriptor and throw inside
+	 * the compiled listener. Traced against this exact `@vue/runtime-core`: with no
+	 * `app.config.warnHandler`/`errorHandler` configured (neither is, here), Vue's
+	 * `logError` reports the throw through `console.warn` and then RE-THROWS — jsdom's
+	 * event dispatch swallows that re-throw rather than propagating it to `pressKey`'s
+	 * caller, so `pending` still resolves correctly either way (the first `Escape` already
+	 * settled it). The `console.warn` spy is what the guard actually owns; asserting on
+	 * `pending` alone would pass with the guard deleted.
 	 */
 	it('ignores a second Escape fired before the DOM has caught up with the first', async () => {
 		harness = mountDialogHost();
+		const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 		const pending = harness.store.openDialog(CONFIRM);
 		await nextTick();
 
@@ -215,6 +291,8 @@ describe('Escape', () => {
 		pressKey(dialog, 'Escape');
 
 		await expect(pending).resolves.toBe('cancel');
+		expect(consoleWarn).not.toHaveBeenCalled();
+		consoleWarn.mockRestore();
 	});
 
 	it('leaves a key that is neither Escape nor Tab alone', async () => {

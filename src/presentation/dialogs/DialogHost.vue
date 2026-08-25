@@ -23,9 +23,17 @@
  * subtree, which is itself an accessibility violation (`aria-hidden-focus`) and which the
  * axe check in `tests/harness/accessibility.test.ts` would report.
  *
- * **The `Escape` listener is on the DIALOG, not on `document`.** Focus is trapped inside,
- * so every key the user presses arrives here anyway — and a document-level listener per
- * host would mean one `Escape` closing the dialogs of two Plan Editor leaves at once.
+ * **The `Escape` listener is on the DIALOG, not on `document`.** Every key pressed WHILE
+ * FOCUS IS INSIDE THE PANEL arrives here — a document-level listener per host would mean
+ * one `Escape` closing the dialogs of two Plan Editor leaves at once, which this avoids.
+ * It does not follow that every key press anywhere reaches here: a press on the backdrop
+ * or on the panel's own padding would blur the focused control to `<body>` in a real
+ * browser, which `.rp-dialog` does not contain, stranding `Escape` until the user clicked
+ * back inside — `onMousedown` below is the fix for that half. The other half is not this
+ * component's to fix: a click into Obsidian's own chrome (the view header, the ribbon, the
+ * file explorer, another leaf) moves focus out of this view entirely, and `Escape` there
+ * belongs to Obsidian, not to a dialog trapped inside one pane. That boundary is accepted,
+ * not a defect.
  */
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -51,7 +59,13 @@ const dialogEl = ref<HTMLElement | null>(null);
 
 /** The element focus came FROM, restored on every resolution path including Escape. */
 let previouslyFocused: HTMLElement | null = null;
-/** The siblings this host made inert, so exactly those are released. */
+/**
+ * The siblings this host made inert, so exactly those are released. `inertBackground` sets
+ * the attribute unconditionally and `releaseBackground` removes it unconditionally — safe
+ * only because nothing else in this app sets `inert` on a sibling of a dialog host today;
+ * a sibling that needed to stay inert for some OTHER reason while this dialog closes would
+ * need this to track that instead of blindly clearing every element it backgrounded.
+ */
 let backgrounded: HTMLElement[] = [];
 
 /**
@@ -86,6 +100,24 @@ function resolve(result: DialogResult): void {
 	store.resolve(result);
 }
 
+/**
+ * A press that would land focus NOWHERE is refused, rather than allowed to blur the panel.
+ * Chromium moves focus to `<body>` when the user presses a non-focusable element, and
+ * `onKeydown` is bound to `.rp-dialog` — so a press on the backdrop, or on the panel's own
+ * padding, would otherwise leave `Escape` dead until the user clicked back inside. This is
+ * the ONE half of that gap this component owns; see the header for the half it does not.
+ *
+ * `preventDefault` on `mousedown` preserves the current focus and cancels nothing else. A
+ * press that landed on a focusable control returns early, so a button still takes focus and
+ * still fires its click — `closest` rather than a direct match, because the press may land
+ * on a `<span>` inside the button.
+ */
+function onMousedown(event: MouseEvent): void {
+	const target = event.target;
+	if (target instanceof HTMLElement && target.closest(FOCUSABLE) !== null) return;
+	event.preventDefault();
+}
+
 function onKeydown(event: KeyboardEvent): void {
 	const descriptor = current.value;
 	if (descriptor === null) return;
@@ -99,16 +131,15 @@ function onKeydown(event: KeyboardEvent): void {
 	}
 	if (event.key !== 'Tab') return;
 
-	// Cast, not a guarded branch: every one of the four kind components renders at least
-	// one focusable control (a Cancel/Close button, unconditionally) — `dialogKinds.test.ts`
-	// is what proves that per kind. Were `focusable` ever empty despite it, `first` and
-	// `last` would both be `undefined`, `active === first`/`active === last` would both be
-	// false (`document.activeElement` is never itself `undefined`), and neither `.focus()`
-	// call below would run — the SAME outcome an early return would have produced, just
-	// without a branch a real dialog can never take.
+	// `first`/`last` stay `HTMLElement | undefined` — every one of the four kind components
+	// renders at least one focusable control (a Cancel/Close button, unconditionally;
+	// `dialogKinds.test.ts` proves that per kind), so `focusable` is never actually empty,
+	// but the guard against it is the optional chaining on `first?.focus()`/`last?.focus()`
+	// below rather than a cast: one branch, not a branch plus an early return, and it keeps
+	// the compiler checking the site the next edit here would touch.
 	const focusable = focusableWithin();
-	const first = focusable[0] as HTMLElement;
-	const last = focusable.at(-1) as HTMLElement;
+	const first = focusable[0];
+	const last = focusable.at(-1);
 
 	// No `|| active === null` fallback: this app never focuses an SVG node next to a dialog
 	// (Konva draws to `<canvas>`, an `HTMLElement`), and `document.activeElement` in a
@@ -119,10 +150,10 @@ function onKeydown(event: KeyboardEvent): void {
 	const leavingBackwards = event.shiftKey && active === first;
 	if (leavingForwards) {
 		event.preventDefault();
-		first.focus();
+		first?.focus();
 	} else if (leavingBackwards) {
 		event.preventDefault();
-		last.focus();
+		last?.focus();
 	}
 }
 
@@ -137,12 +168,27 @@ function onKeydown(event: KeyboardEvent): void {
  * yet this watcher's `inert`/focus side effects. `post` runs synchronously within the
  * flush that already committed the DOM, so a single `await nextTick()` at the call site
  * is enough.
+ *
+ * No `immediate: true`: with `flush: 'post'` an immediate run fires before `dialogEl` is
+ * bound, which would hit `inertBackground`'s cast on a `null` ref and throw. Nothing in
+ * this slice opens a dialog before this host is mounted (the calibrate flow opens from a
+ * tool gesture, slice 14's from a click), but that is a constraint on WHEN this component
+ * is mounted, not a fact `watch` enforces — this comment is the only thing stating it.
  */
 watch(
 	current,
 	(descriptor) => {
 		if (descriptor === null) {
+			// `releaseBackground()` before `previouslyFocused?.focus()`, and load-bearing in
+			// that order: Chromium refuses `focus()` on an element inside a still-`inert`
+			// subtree, so focusing first would silently fail. jsdom implements no `inert`
+			// behaviour at all, so no test here can catch a reorder of these two lines.
 			releaseBackground();
+			// A no-op, not a fallback, if `previouslyFocused` was removed from the DOM while
+			// the dialog was open (the delete flows open from a control their own resolution
+			// removes): `focus()` on a detached element does nothing, and focus is left
+			// wherever the removal left it — typically `<body>`. Restoring to the view root
+			// instead would be a behaviour change this task has no mandate for.
 			previouslyFocused?.focus();
 			previouslyFocused = null;
 			return;
@@ -160,6 +206,12 @@ watch(
  * A leaf closed with a dialog open would otherwise leave the view's own regions inert
  * forever — and Obsidian REUSES a view, so the next open would inherit a pane nothing can
  * be clicked in, with nothing erroring anywhere.
+ *
+ * This deliberately does NOT call `store.resolve`: a leaf's own `openDialog(...)` caller is
+ * gone with the leaf, so its `await` is left pending forever rather than settled with a
+ * value nobody reads. That is the intended behaviour — the view is gone, so there is
+ * nothing left to dispatch anything on its behalf — not an oversight this comment is
+ * silently working around.
  */
 onBeforeUnmount(releaseBackground);
 </script>
@@ -168,6 +220,7 @@ onBeforeUnmount(releaseBackground);
 	<div
 		v-if="current !== null"
 		class="rp-dialog-overlay"
+		@mousedown="onMousedown"
 	>
 		<div
 			ref="dialogEl"
@@ -177,6 +230,12 @@ onBeforeUnmount(releaseBackground);
 			:aria-label="tr('dialog')"
 			@keydown="onKeydown"
 		>
+			<!--
+				A fifth `kind` fails `npm run build` because `FormDialog` declares
+				`descriptor: FormDescriptor`, and `vue-tsc`'s template narrowing rejects binding
+				the residual union `current` still carries after every `v-if`/`v-else-if` above —
+				not because this chain has no explicit `v-else`.
+			-->
 			<ConfirmDialog
 				v-if="current.kind === 'confirm'"
 				:descriptor="current"

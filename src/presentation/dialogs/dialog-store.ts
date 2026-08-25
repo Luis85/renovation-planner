@@ -125,11 +125,15 @@ export type DialogResultFor<D extends DialogDescriptor> = DialogResultByKind[D['
 /**
  * What "the user cancelled" means in each kind's own result shape.
  *
- * ONE function rather than a value chosen at each cancel site, because there are three
- * such sites per kind — `Escape`, the cancel button, and the backdrop — and a cancel that
- * resolved `'cancel'` where the caller was switching on `result.action` would read as
- * `undefined` and fall through whatever the caller's default branch is. A `switch` with no
- * `default`: the compiler is what proves it total, so a fifth kind fails to build here.
+ * ONE function rather than a value chosen at each cancel site, because the single call
+ * site — `DialogHost`'s `Escape` handler — is kind-agnostic and would otherwise have to
+ * know every kind's own cancel shape itself. (Each kind component hardcodes its own cancel
+ * payload on its own cancel button; there is no backdrop-dismiss anywhere in this slice,
+ * and `DialogHost`'s `mousedown` handling makes a backdrop press inert rather than a
+ * cancellation.) A resolution of the bare string `'cancel'` where a caller was switching on
+ * `result.action` would read as `undefined` and fall through whatever the caller's default
+ * branch is. A `switch` with no `default`: the compiler is what proves it total, so a fifth
+ * kind fails to build here.
  */
 export function cancelResultFor(kind: DialogDescriptor['kind']): DialogResult {
 	switch (kind) {

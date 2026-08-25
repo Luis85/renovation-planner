@@ -1748,10 +1748,11 @@ throw the loader catch cannot see."
 The reason the whole feature exists: a mock and a real component drawn side by side must be styled by the same sheet, or an approved mock is approved against something that will not ship.
 
 **Files:**
-- Test: `tests/harness/harness.test.ts` (add three cases — one per route a sheet takes: the page's links, the module graph, and a stylesheet importing a stylesheet)
+- Test: `tests/harness/harness.test.ts` (three cases over SOURCE — the page's CSS-bearing nodes, the module graph, and a stylesheet importing a stylesheet)
+- Test: `tests/harness/indexPage.test.ts` (one case over the RENDERED DOCUMENT, for the routes no source scan can see)
 
 **Interfaces:**
-- Consumes: `tests/harness/index.html`, and every non-test module under `src/`, `tests/harness/` and `tests/helpers/` — the three trees the page can reach.
+- Consumes: `tests/harness/index.html`; every non-test module under `src/`, `tests/harness/` and `tests/helpers/` — the three trees the page can reach; every `.css` in `tests/harness/` and `styles/` except `index.css`; and the mounting helper `tests/harness/indexPage.test.ts` already has.
 - Produces: nothing.
 
 - [ ] **Step 1: Read what the file already asserts**
@@ -1999,29 +2000,6 @@ each partial's body is checked for line count and hard-coded colours and then co
 **unchanged**. So `@import '/prototype.css';` in `styles/view.css` reaches the assembled sheet, and
 therefore the page, with every other guard green. That is why the scan covers `styles/` too.
 
-Plant it in BOTH trees before trusting it, because they are guarded for different reasons — and
-plant one as `@IMPORT`, since answering case is half of why this parses rather than matching:
-
-- `tests/harness/theme.css` — expect FAIL naming `harness/theme.css`.
-- `styles/view.css` — expect FAIL naming `styles/view.css`. This is the one an earlier draft
-  believed was somebody else's problem, so it is the one worth seeing red.
-
-`git checkout` each afterwards.
-
-`*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
-`tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
-both do — and a test that reads a stylesheet is not a page that loads one.
-
-**The extension list is every module type Vite will load**, rather than the two this repository
-happens to hold. `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper under either tree is
-reachable and its CSS import loads the same sheet — and a scan admitting only what already exists
-is a scan of the past, which is the failure this guard has now had corrected three times in three
-different places. Measured with the widened list: still 169 files, still no hit.
-
-Report the two lists in one `toEqual` rather than two `expect([]).toEqual([])` calls, so a
-failure names WHICH file and WHICH half — a bare `expected [ '…' ] to equal []` sends the reader
-back to the source to find out which rule they broke.
-
 - [ ] **Step 4: Run the cases**
 
 Run: `npx vitest run tests/harness/harness.test.ts`
@@ -2092,13 +2070,78 @@ been watched failing on one of its spellings, and each of these has its own list
 
 `git checkout` after each.
 
-- [ ] **Step 7: Run the full gate**
+- [ ] **Step 7: The route no source scan can see — check the rendered document**
+
+Every guard above reads SOURCE. A template can render a stylesheet link without any of them
+seeing a `<link` at all: `<component is="link" rel="stylesheet" href="…/concept.css" />` is valid
+Vue and produces a real one, and `<component :is="tag">` with a computed value is not statically
+knowable even in principle.
+
+This is the sixth route found on this feature, and the fifth was already the point at which
+enumerating spellings stopped being the right shape. So this case does not add a spelling. It asks
+the DOCUMENT, after an entry has mounted, which is the only place every route converges:
+
+```typescript
+	it('adds no stylesheet to the document when an entry mounts', async () => {
+		const before = document.querySelectorAll('link[rel~=stylesheet i], style').length;
+
+		// Mount through the index the way a designer opens an entry, not by importing the
+		// component directly — the question is what the PAGE ends up with.
+		const page = await openEntryInIndex('component:editor/shell/StatusBar');
+
+		expect(document.querySelectorAll('link[rel~=stylesheet i], style')).toHaveLength(before);
+
+		page.unmount();
+	});
+```
+
+Use whichever mounting helper `tests/harness/indexPage.test.ts` already has rather than writing a
+second one — that file mounts the index for criterion 8 and its helper is the one to reuse.
+
+**Watch it fail on the route it exists for**: give a fixture entry the template
+`<component is="link" rel="stylesheet" href="../../docs/user-experience/concepts/concept.css" />`,
+and confirm the count goes up. That is the spelling no source scan sees, so it is the only planted
+proof worth taking here.
+
+**What this does and does not add.** It closes the category — any route a template takes to put a
+sheet on the page, including ones nobody has thought of — for the entries a test actually mounts.
+It does NOT replace the source scans: those catch a sheet in the edit loop, before anything runs,
+and they cover files no test mounts. Two checks, different reach, and the source scans stay because
+neither subsumes the other. Say that in the test, so the next reader does not delete one for the
+other.
+
+- [ ] **Step 8: Prove the `@import` case can fail, in both trees**
+
+Plant it in BOTH trees before trusting it, because they are guarded for different reasons — and
+plant one as `@IMPORT`, since answering case is half of why this parses rather than matching:
+
+- `tests/harness/theme.css` — expect FAIL naming `harness/theme.css`.
+- `styles/view.css` — expect FAIL naming `styles/view.css`. This is the one an earlier draft
+  believed was somebody else's problem, so it is the one worth seeing red.
+
+`git checkout` each afterwards.
+
+`*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
+`tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
+both do — and a test that reads a stylesheet is not a page that loads one.
+
+**The extension list is every module type Vite will load**, rather than the two this repository
+happens to hold. `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper under either tree is
+reachable and its CSS import loads the same sheet — and a scan admitting only what already exists
+is a scan of the past, which is the failure this guard has now had corrected three times in three
+different places. Measured with the widened list: still 169 files, still no hit.
+
+Report the two lists in one `toEqual` rather than two `expect([]).toEqual([])` calls, so a
+failure names WHICH file and WHICH half — a bare `expected [ '…' ] to equal []` sends the reader
+back to the source to find out which rule they broke.
+
+- [ ] **Step 9: Run the full gate**
 
 Run: `npm run check`
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add tests/harness/harness.test.ts
@@ -3081,7 +3124,7 @@ a record rather than a migration backlog."
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
-| 5 — one stylesheet, no second sheet | 5 (five routes: the page's whole CSS-bearing node set, a `.css` import anywhere the page can reach, a `<link>` a template renders, an `@import` inside a linked sheet, and an inline `<style>`) |
+| 5 — one stylesheet, no second sheet | 5, over two instruments: three SOURCE scans (the page's whole CSS-bearing node set, a `.css` import anywhere the page can reach, an `@import` in any sheet it loads) and one check of the RENDERED DOCUMENT after an entry mounts, which is where every route converges — including `<component is="link">` and any spelling nobody has thought of |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`, mounting the REAL `StatusBar` against nothing but the fixture) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | **4**, not 3, and held in its SUBSTANCE rather than its letter — see Task 4 Step 8. Exactly one prop-free component renders a plan-level value (`StatusBar`), so no pair can render the same value; `PlanEditorRoot` reads `status`. The case mounts both against one fixture, asserts two different consequences of it, and asserts that removing the fixture changes both. What it cannot show is stated in the test |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
@@ -3125,9 +3168,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-four review rounds — sixty-two findings. Sixty were real and are fixed above
-rather than noted; two were not, and each is recorded as declined with the measurement that declined
-it.**
+**Revised across twenty-five review rounds — sixty-four findings. Sixty-two were real and are fixed
+above rather than noted; two were not, and each is recorded as declined with the measurement that
+declined it.**
 
 Round one, on the shape of the harness:
 
@@ -3322,6 +3365,23 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-five, on the sixth route — and the last one worth chasing by spelling:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **A template can render a `<link>` without containing one** | `<component is="link" rel="stylesheet" href="…/concept.css" />` is valid Vue and produces a real stylesheet link. No source scan sees a `<link`, the path is not an import specifier, and `<component :is="tag">` with a computed value is not statically knowable even in principle | Task 5 Step 7: a check of the **rendered document**, after an entry mounts through the index, asserting the page's CSS-bearing node count is unchanged. It closes the CATEGORY rather than the spelling |
+| **`onErrorCaptured` blames the current entry for a stale one's rejection** | Entry A starts an async lifecycle hook that rejects after B is opened; Vue still delivers A's rejection to the root capture hook, which reads the CURRENT `renderedId`/`pendingId` and reports that **B** failed, pulling B off the stage. The generation guards cover `entry.component()`'s await and `<Suspense>`'s settlement; the error channel was the third path and had none | Task 4's committed `IndexPage.vue`, as a follow-up |
+
+The first closes the stylesheet thread properly, and the honest summary of that thread is worth
+more than the fix: **six routes, found one at a time, each fix closing the route it named.** The
+source scans stay — they catch a sheet in the edit loop, before anything runs, and they cover files
+no test mounts — but they cannot see what a template RENDERS, and no amount of pattern refinement
+will change that. The document check can. Two instruments with different reach, and the plan now
+says why neither subsumes the other, so the next reader does not delete one for the other.
+
+The second is the same shape as rounds nine and eleven in a channel nobody had checked: a guard
+built for one asynchronous path, and a second path that reaches the same state.
+
 Round twenty-four, on the one guard I left as a regex after arguing against regexes:
 
 | Finding | What was wrong | Fixed in |
@@ -3434,7 +3494,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all twenty-four rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty-five rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3449,6 +3509,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the sixty fixes. Round twelve is the first to add a third pattern:
+execution, not the sixty-two fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

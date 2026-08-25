@@ -37,7 +37,6 @@
  */
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { tr } from '../i18n/strings';
 import ConfirmDialog from './ConfirmDialog.vue';
 import DeleteReferenceDialog from './DeleteReferenceDialog.vue';
 import EntityPickerDialog from './EntityPickerDialog.vue';
@@ -56,6 +55,19 @@ const store = useDialogStore();
 const { current } = storeToRefs(store);
 
 const dialogEl = ref<HTMLElement | null>(null);
+
+/**
+ * The id `.rp-dialog`'s `aria-labelledby` points at, generated once per HOST instance
+ * rather than once per plugin session: `crypto.randomUUID()` needs no shared module state
+ * to stay collision-free, which matters because two Plan Editor leaves are two separate
+ * `createApp()` calls (ADR-004) — Vue's own `useId()` is unique only per app instance and
+ * would hand both leaves' first dialog the identical id absent a per-app `idPrefix` this
+ * component has no reach to set. Every one of the four kind components renders exactly one
+ * `.rp-dialog-title`, unconditionally, so this id always resolves to something; a
+ * hypothetical fifth kind that omitted the title element would leave `aria-labelledby`
+ * pointing at nothing, which is this decision's one unstated assumption.
+ */
+const titleId = `rp-dialog-title-${crypto.randomUUID()}`;
 
 /** The element focus came FROM, restored on every resolution path including Escape. */
 let previouslyFocused: HTMLElement | null = null;
@@ -111,10 +123,16 @@ function resolve(result: DialogResult): void {
  * press that landed on a focusable control returns early, so a button still takes focus and
  * still fires its click — `closest` rather than a direct match, because the press may land
  * on a `<span>` inside the button.
+ *
+ * `instanceof Element`, not `instanceof HTMLElement`: `closest()` is declared on `Element`,
+ * so a press landing on an SVG glyph inside a button — exactly what Obsidian's `setIcon()`
+ * renders — is an `SVGElement`, which fails an `HTMLElement` guard and would fall through
+ * to `preventDefault()`, leaving the focus ring off a button the user did click. No dialog
+ * kind renders an icon today, so nothing shipped manifests it.
  */
 function onMousedown(event: MouseEvent): void {
 	const target = event.target;
-	if (target instanceof HTMLElement && target.closest(FOCUSABLE) !== null) return;
+	if (target instanceof Element && target.closest(FOCUSABLE) !== null) return;
 	event.preventDefault();
 }
 
@@ -227,7 +245,7 @@ onBeforeUnmount(releaseBackground);
 			class="rp-dialog"
 			role="dialog"
 			aria-modal="true"
-			:aria-label="tr('dialog')"
+			:aria-labelledby="titleId"
 			@keydown="onKeydown"
 		>
 			<!--
@@ -239,21 +257,25 @@ onBeforeUnmount(releaseBackground);
 			<ConfirmDialog
 				v-if="current.kind === 'confirm'"
 				:descriptor="current"
+				:title-id="titleId"
 				@resolve="resolve"
 			/>
 			<DeleteReferenceDialog
 				v-else-if="current.kind === 'delete-reference'"
 				:descriptor="current"
+				:title-id="titleId"
 				@resolve="resolve"
 			/>
 			<EntityPickerDialog
 				v-else-if="current.kind === 'entity-picker'"
 				:descriptor="current"
+				:title-id="titleId"
 				@resolve="resolve"
 			/>
 			<FormDialog
 				v-else
 				:descriptor="current"
+				:title-id="titleId"
 				@resolve="resolve"
 			/>
 		</div>

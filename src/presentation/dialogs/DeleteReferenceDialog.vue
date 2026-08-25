@@ -16,7 +16,7 @@
 import { tr } from '../i18n/strings';
 import type { DeleteReferenceDescriptor, DeleteReferenceDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: DeleteReferenceDescriptor }>();
+defineProps<{ descriptor: DeleteReferenceDescriptor; titleId?: string }>();
 defineEmits<{ resolve: [result: DeleteReferenceDialogResult] }>();
 
 const ACTIONS = [
@@ -28,7 +28,10 @@ const ACTIONS = [
 </script>
 
 <template>
-	<h2 class="rp-dialog-title">
+	<h2
+		:id="titleId"
+		class="rp-dialog-title"
+	>
 		{{ descriptor.entityLabel }}
 	</h2>
 	<template v-if="descriptor.references.length > 0">

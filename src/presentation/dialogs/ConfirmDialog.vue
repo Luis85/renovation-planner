@@ -12,12 +12,15 @@
 import { tr } from '../i18n/strings';
 import type { ConfirmDescriptor, ConfirmDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: ConfirmDescriptor }>();
+defineProps<{ descriptor: ConfirmDescriptor; titleId?: string }>();
 defineEmits<{ resolve: [result: ConfirmDialogResult] }>();
 </script>
 
 <template>
-	<h2 class="rp-dialog-title">
+	<h2
+		:id="titleId"
+		class="rp-dialog-title"
+	>
 		{{ descriptor.title }}
 	</h2>
 	<p class="rp-dialog-message">

@@ -17,7 +17,7 @@
 import { tr } from '../i18n/strings';
 import type { FormDescriptor, FormDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: FormDescriptor }>();
+defineProps<{ descriptor: FormDescriptor; titleId?: string }>();
 const emit = defineEmits<{ resolve: [result: FormDialogResult] }>();
 
 function onSubmit(values: unknown): void {
@@ -26,7 +26,10 @@ function onSubmit(values: unknown): void {
 </script>
 
 <template>
-	<h2 class="rp-dialog-title">
+	<h2
+		:id="titleId"
+		class="rp-dialog-title"
+	>
 		{{ descriptor.title }}
 	</h2>
 	<div class="rp-dialog-body">

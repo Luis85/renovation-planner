@@ -14,12 +14,15 @@
 import { tr } from '../i18n/strings';
 import type { EntityPickerDescriptor, EntityPickerDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: EntityPickerDescriptor }>();
+defineProps<{ descriptor: EntityPickerDescriptor; titleId?: string }>();
 defineEmits<{ resolve: [result: EntityPickerDialogResult] }>();
 </script>
 
 <template>
-	<h2 class="rp-dialog-title">
+	<h2
+		:id="titleId"
+		class="rp-dialog-title"
+	>
 		{{ descriptor.title }}
 	</h2>
 	<ul

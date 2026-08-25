@@ -89,8 +89,10 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -173,4 +175,48 @@ describe('axe against the mounted view', () => {
 			mounted?.unmount();
 		}
 	});
+
+	/**
+	 * A dialog is the one surface in this plugin that takes the keyboard away from
+	 * everything behind it, so it is the one most worth scanning: `role="dialog"` without
+	 * an accessible name, a button with no text, and a heading that skips a level are all
+	 * real violations axe sees in jsdom.
+	 *
+	 * Mounted through `mountHarness` — the Renovation Project view, which otherwise draws
+	 * nothing (see the header) — rather than the Plan Editor case above: `DialogHost`
+	 * mounts in both (design slice 15), but the dialog framework's own markup is identical
+	 * either way, so scanning it here keeps a finding about the dialog from being
+	 * conflated with the Plan Editor's own five regions. `useDialogStore()` with no Pinia
+	 * argument resolves to the SAME store `DialogHost` reads: `RenovationProjectView.
+	 * onOpen` calls `app.use(createPinia())` synchronously inside `mountHarness`, which is
+	 * what makes that instance Pinia's own active one, and `useStore` falls back to it when
+	 * called outside a component's `setup`.
+	 *
+	 * The `form` kind is deliberately not included. No caller in this codebase supplies a
+	 * real `FormDescriptor.component` yet — the calibration flow's own form component is a
+	 * later task in this slice — and a stand-in component invented for this file would be
+	 * exactly the fixture the file header refuses: it would grade markup this suite wrote,
+	 * not markup the plugin ships. `dialogHost.test.ts` already proves the fourth arm of
+	 * `DialogHost`'s switch renders through the same host.
+	 *
+	 * What this does NOT check is stated once, here, rather than implied: `inert` is not
+	 * modelled by jsdom, so "the background is genuinely unreachable" is asserted by
+	 * `dialogHost.test.ts` against the ATTRIBUTE, and verified for real only in a vault.
+	 */
+	it.each([
+		['confirm', { kind: 'confirm', title: 'Recalculate costs?', message: 'This overwrites your manual adjustments.' }],
+		['delete-reference', { kind: 'delete-reference', entityLabel: 'Kitchen', references: [{ label: 'Requirements', count: 2 }] }],
+		['entity-picker', { kind: 'entity-picker', title: 'Choose a replacement zone', candidates: [{ id: 'z-1', label: 'Bathroom' }] }],
+	] as Array<[string, DialogDescriptor]>)(
+		'reports no semantic violation with a %s dialog open',
+		async (_kind, descriptor) => {
+			const { view } = mountHarness(document.body);
+			void useDialogStore().openDialog(descriptor);
+			await nextTick();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		},
+	);
 });

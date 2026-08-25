@@ -1946,26 +1946,48 @@ The two linked harness sheets are the reachable ones, and neither has any legiti
 carry none:
 
 ```typescript
-	it('lets no harness stylesheet pull in another', () => {
-		const dir = path.join(REPO, 'tests', 'harness');
-		const imported = readdirSync(dir)
-			.filter((name) => name.endsWith('.css'))
-			.filter((name) => /@import/.test(readFileSync(path.join(dir, name), 'utf8')));
+	it('lets no stylesheet the page loads pull in another', () => {
+		const sheets = (dir: string, skip: string[] = []): string[] =>
+			readdirSync(dir)
+				.filter((name) => name.endsWith('.css') && !skip.includes(name))
+				.filter((name) => /@import/.test(readFileSync(path.join(dir, name), 'utf8')))
+				.map((name) => path.posix.join(path.basename(dir), name));
+
+		const imported = [
+			...sheets(path.join(REPO, 'tests', 'harness')),
+			// `styles/` too, minus `index.css`. The assembler validates index.css's OWN lines
+			// against `@import "./<partial>.css";` — but it then concatenates each partial's
+			// body UNCHANGED (`scripts/styles-assemble.mjs`, the `parts` map: line count and
+			// hard-coded colours are checked, nothing else), so an `@import` inside a partial
+			// survives into the shipped sheet and into the page. Verified in the source, after
+			// an earlier version of this comment claimed the assembler owned the question and
+			// was wrong.
+			...sheets(path.join(REPO, 'styles'), ['index.css']),
+		];
 
 		expect(imported).toEqual([]);
 	});
 ```
 
-Scoped to `tests/harness/*.css` deliberately, and the exclusion is the interesting half:
-`styles/index.css` **does** use `@import`, for `./view.css`, `./editor.css` and `./chrome.css` —
-that is how the shipped sheet is assembled, and `scripts/styles-assemble.mjs` already fails the
-build on a partial it cannot resolve. Refusing `@import` there would refuse the mechanism the
-plugin's own stylesheet is built from. What that leaves unguarded is an `@import` inside a
-`styles/` partial pointing OUTSIDE `styles/`; the assembler owns that question and this test says
-so rather than reaching into it.
+One file is excluded and exactly one: **`styles/index.css`**, which uses `@import` for
+`./view.css`, `./editor.css` and `./chrome.css`. That is how the shipped sheet is assembled, and
+`scripts/styles-assemble.mjs` validates those lines itself — only `@import "./<partial>.css";` and
+comments are allowed in that file, flat, no subdirectories. Refusing `@import` there would refuse
+the mechanism the plugin's own stylesheet is built from.
 
-Plant it before trusting it: add the `@import` line above to `tests/harness/theme.css`, expect FAIL
-naming `theme.css`, then `git checkout tests/harness/theme.css`.
+**The PARTIALS are not excluded, and an earlier version of this plan wrongly said they were.** It
+claimed the assembler owned an `@import` inside a partial. It does not: reading its `parts` map,
+each partial's body is checked for line count and hard-coded colours and then concatenated
+**unchanged**. So `@import '/prototype.css';` in `styles/view.css` reaches the assembled sheet, and
+therefore the page, with every other guard green. That is why the scan covers `styles/` too.
+
+Plant it in BOTH trees before trusting it, because they are guarded for different reasons:
+
+- `tests/harness/theme.css` — expect FAIL naming `harness/theme.css`.
+- `styles/view.css` — expect FAIL naming `styles/view.css`. This is the one an earlier draft
+  believed was somebody else's problem, so it is the one worth seeing red.
+
+`git checkout` each afterwards.
 
 `*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
 `tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
@@ -2869,15 +2891,17 @@ function vueFilesUnder(directory: string, prefix = ''): string[] {
  */
 describe('the prototypes tree IS the registration', () => {
 	it('discovers every .vue on disk, with nothing registering them', () => {
-		const onDisk = vueFilesUnder(path.join(REPO, 'src', 'prototypes')).sort();
+		const onDisk = vueFilesUnder(path.join(REPO, 'src', 'prototypes')).toSorted();
 
 		// First, because an empty tree would make the equality below `[] === []` — vacuous, and
 		// exactly the "only passes while empty" failure the PBI's criterion 9 names.
 		expect(onDisk).toContain('ZoneSummary.vue');
 
+		// `toSorted`, not `sort`: `unicorn/no-array-sort` is on for `tests/` under
+		// `--deny-warnings`, which is what forced the same change in `entries.ts`.
 		const discovered = prototypeEntries()
 			.map((entry) => `${entry.id.replace(/^prototype:/, '')}.vue`)
-			.sort();
+			.toSorted();
 
 		expect(discovered).toEqual(onDisk);
 	});
@@ -3082,7 +3106,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-two review rounds — fifty-seven findings. Fifty-five were real and are fixed
+**Revised across twenty-three review rounds — sixty findings. Fifty-eight were real and are fixed
 above rather than noted; two were not, and each is recorded as declined with the measurement that
 declined it.**
 
@@ -3279,6 +3303,21 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-three, on a claim of mine that was false, a third fatal warning, and a rule the
+committed code already obeys:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The `styles/` partials were excused on a false premise** | This plan said an `@import` inside a `styles/` partial was the assembler's problem. It is not: `scripts/styles-assemble.mjs` validates `index.css`'s own lines, and then checks each partial only for line count and hard-coded colours before concatenating its body **unchanged**. So `@import '/prototype.css';` in `styles/view.css` reaches the assembled sheet and the page with every guard green — including the guard whose comment excused it | Task 5: the `@import` scan covers `styles/` too, excluding only `index.css`, whose imports the assembler validates itself. Planted in BOTH trees, and the `styles/` plant is the one worth watching red, being the one a draft believed was somebody else's problem |
+| **`Invalid prop: type check failed` is a third fatal warning** | `FATAL_WARNINGS` names the unresolved tag and the missing required prop. A prototype can pass every required prop and pass a WRONG one — `transform="bad"` to `EmptyLayer` — and Vue only warns, `<Suspense>` resolves, `data-entry` is set, and `harness-shot` records a malformed entry as a success. Round ten found the missing prop and stopped one warning short; this is the same stop, one warning further on | Task 4's committed `IndexPage.vue`, as a follow-up round: the third string joins the list, driven from a REAL source like the other two rather than written down again |
+| **Task 7's real-glob test used `.sort()`** | The same `unicorn/no-array-sort` that forced `.toSorted` in `entries.ts` — so the prescribed Step 10 gate could not have passed | Task 7: `.toSorted` on both arrays, with the reason named so the next writer does not reintroduce it |
+
+The first is worth more than its size, because the defect was in a SENTENCE rather than in code:
+the plan reasoned about what a build script does instead of reading it, wrote the conclusion into a
+comment, and the comment then justified not checking. That is the same failure as an unchecked
+invariant, one level up — a guard narrowed on a premise nobody verified. It was checked this time
+only because a reviewer read the assembler.
+
 Round twenty-two, on the fifth way into one page:
 
 | Finding | What was wrong | Fixed in |
@@ -3364,7 +3403,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all twenty-two rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty-three rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3379,6 +3418,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the fifty-five fixes. Round twelve is the first to add a third pattern:
+execution, not the fifty-eight fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

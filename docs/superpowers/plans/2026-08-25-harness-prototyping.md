@@ -69,12 +69,26 @@ beforeAll(warmUpEslint, ESLINT_BOOT_MS);
  */
 const IMPORTER = (layer: string) => `src/${layer}/Fixture.ts`;
 const PROTOTYPE_IMPORT = "import Mock from '../prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
+/** From `src/main.ts` the tree is one level down, not two. */
+const ROOT_IMPORT = "import Mock from './prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
 
 const LAYERS = ['core', 'domain', 'application', 'infrastructure', 'presentation', 'plugin'];
 
 describe('the prototypes one-way door', () => {
 	it.each(LAYERS)('refuses an import of src/prototypes/ from %s/', async (layer) => {
 		const reported = await lintText(PROTOTYPE_IMPORT, IMPORTER(layer));
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	/**
+	 * `src/main.ts` is the BUILD ENTRY and matches no subtree pattern, so every layer ban
+	 * misses it. Driven by its real path rather than a fixture beside it: the whole failure
+	 * this catches is a glob that does not reach the file, and a fixture at a different path
+	 * would be answering a different question.
+	 */
+	it('refuses an import of src/prototypes/ from the build entry itself', async () => {
+		const reported = await lintText(ROOT_IMPORT, 'src/main.ts');
 
 		expect(reported).toContain('no-restricted-imports');
 	});
@@ -123,9 +137,10 @@ In `eslint.config.mjs`, add `'prototypes'` to the `groups` array of each of the 
 
 Do the same for `'domain'`, `'application'`, `'infrastructure'` and `'presentation'` — append `'prototypes'` to each `groups` array, changing nothing else.
 
-- [ ] **Step 4: Add the missing ban for `plugin/`**
+- [ ] **Step 4: Add the missing bans for `plugin/` AND for the root of `src/`**
 
-`plugin/` composes every layer, so it has no `forbidden(...)` call today. It still may not import a prototype. Add this immediately after the `forbidden('presentation', …)` call:
+`plugin/` composes every layer, so it has no `forbidden(...)` call today. Add this immediately
+after the `forbidden('presentation', …)` call:
 
 ```javascript
 	forbidden(
@@ -133,6 +148,44 @@ Do the same for `'domain'`, `'application'`, `'infrastructure'` and `'presentati
 		{ groups: ['prototypes'] },
 		'plugin/ composes every layer, which is why it has no other ban — but src/prototypes/ is design scaffolding that must never reach a built plugin, and the composition root is the one place that could pull it in.',
 	),
+```
+
+**That is not sufficient, and the reason is the whole point of this step.** `srcFiles` builds
+`**/src/${subtree}/**/*`, so every `forbidden(...)` call covers a *subtree* — and
+**`src/main.ts` is not in one.** It sits at the root of `src/`, and it is the build entry
+(`vite.config.ts` sets `lib.entry` to exactly that file). So the single most important file in
+the repository would be the one place a prototype import is *not* refused.
+
+`forbidden()` cannot express it, since it takes a subtree name. Add a block of its own,
+immediately after the `forbidden('plugin', …)` call:
+
+```javascript
+	{
+		/**
+		 * The root of `src/` — which today is `src/main.ts` and nothing else, and which no
+		 * `forbidden(...)` call can reach: that helper builds `**​/src/<subtree>/**​/*`, so a
+		 * file sitting directly in `src/` matches no subtree pattern at all.
+		 *
+		 * It is also the BUILD ENTRY (`vite.config.ts`, `lib.entry`). A prototype imported
+		 * here is a prototype in every user's plugin, so the file with the most to lose was
+		 * the one file the layer bans did not cover.
+		 */
+		files: ['**/src/*.ts', '**/src/*.vue'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'],
+							message:
+								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
+						},
+					],
+				},
+			],
+		},
+	},
 ```
 
 - [ ] **Step 5: Run the test again**
@@ -605,7 +658,7 @@ Create `tests/harness/entries.test.ts`:
 
 ```typescript
 import { describe, expect, it } from 'vitest';
-import { discoverEntries } from './entries';
+import { discoverEntries, registrableComponents } from './entries';
 
 /**
  * Discovery, tested on the SHAPE `import.meta.glob` returns rather than on the glob itself.
@@ -686,6 +739,39 @@ describe('harness entry discovery', () => {
 		expect(discoverEntries({}, 'prototype')).toEqual([]);
 	});
 });
+
+/**
+ * A template-only prototype writes `<StatusBar />`, so the registry is keyed by LABEL — an id
+ * containing `:` and `/` is not a valid tag. Labels are not unique, which is the third place
+ * that has mattered in this design, so an ambiguous one is registered for nobody.
+ */
+describe('registering components for template-only prototypes', () => {
+	it('registers an unambiguous label under its tag', () => {
+		const { byTag, ambiguous } = registrableComponents(
+			discoverEntries({ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) }, 'component'),
+		);
+
+		expect([...byTag.keys()]).toEqual(['StatusBar']);
+		expect(ambiguous).toEqual([]);
+	});
+
+	it('refuses a duplicated label rather than letting the last one win', () => {
+		const { byTag, ambiguous } = registrableComponents(
+			discoverEntries(
+				{
+					'/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}),
+					'/src/presentation/views/StatusBar.vue': () => Promise.resolve({}),
+				},
+				'component',
+			),
+		);
+
+		// Neither is registered. A prototype writing `<StatusBar />` gets an unresolved tag it
+		// can SEE, rather than a component from a directory nobody chose.
+		expect(byTag.has('StatusBar')).toBe(false);
+		expect(ambiguous).toEqual(['StatusBar']);
+	});
+});
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -707,9 +793,13 @@ Create `tests/harness/entries.ts`:
  * go stale". The `Coding agent` actor note gives the sharper version: a registration step is
  * one a stateless actor forgets across sessions.
  *
- * `discoverEntries` takes the glob RESULT rather than calling `import.meta.glob` itself, so
- * this module is a pure function a node test can drive. The globs live in `IndexPage.vue`,
- * which is the file Vite transforms.
+ * `discoverEntries` takes the glob RESULT rather than calling `import.meta.glob` itself, so the
+ * id derivation stays a pure function a node test can drive. The two globs live below, in this
+ * module rather than in `IndexPage.vue`, because `page.ts` needs the component list too — to
+ * register those components globally — and a second glob in a second file is a second answer
+ * that can disagree.
+ *
+ * `import.meta.glob` is a Vite feature, not a Vue one, so a `.ts` module can hold it.
  */
 export interface HarnessEntry {
 	/** Unique across every entry, and the value `?entry=` carries. See `idFor`. */
@@ -773,6 +863,50 @@ export function discoverEntries(
 
 	return entries;
 }
+
+/** Every mock and prototype under `src/prototypes/`. */
+export const prototypeEntries = (): HarnessEntry[] =>
+	discoverEntries(
+		import.meta.glob('../../src/prototypes/**/*.vue') as Record<string, () => Promise<unknown>>,
+		'prototype',
+	);
+
+/** Every real component under `src/presentation/`. */
+export const componentEntries = (): HarnessEntry[] =>
+	discoverEntries(
+		import.meta.glob('../../src/presentation/**/*.vue') as Record<string, () => Promise<unknown>>,
+		'component',
+	);
+
+/**
+ * The components a template-only prototype can name, keyed by the tag it would write —
+ * `<StatusBar />`, so by LABEL rather than by id, since an id containing `:` and `/` is not a
+ * valid tag.
+ *
+ * Labels are not unique, and this is the third place that has mattered. Rather than let the
+ * second registration silently win — a prototype would then draw a component from a directory
+ * nobody chose — a duplicated label is registered for NOBODY and returned in `ambiguous`, so
+ * the index can say which tag it refused and why. An unresolved tag a designer can see beats a
+ * resolved one pointing somewhere they did not mean.
+ */
+export function registrableComponents(entries: HarnessEntry[]): {
+	byTag: Map<string, HarnessEntry>;
+	ambiguous: string[];
+} {
+	const seen = new Map<string, HarnessEntry[]>();
+
+	for (const entry of entries) seen.set(entry.label, [...(seen.get(entry.label) ?? []), entry]);
+
+	const byTag = new Map<string, HarnessEntry>();
+	const ambiguous: string[] = [];
+
+	for (const [label, found] of seen) {
+		if (found.length === 1) byTag.set(label, found[0]);
+		else ambiguous.push(label);
+	}
+
+	return { byTag, ambiguous };
+}
 ```
 
 - [ ] **Step 4: Run the test again**
@@ -790,14 +924,12 @@ Create `tests/harness/IndexPage.vue`:
 /**
  * The harness index: every prototype and every component, click to open.
  *
- * The two globs are here rather than in `entries.ts` because `import.meta.glob` is resolved
- * by Vite at build time and needs a literal it can see — so the file that owns the literals
- * is the file Vite transforms, and the id derivation stays a pure function a node test can
- * drive.
+ * The entry lists come from `entries.ts`, which owns both globs — `page.ts` needs the component
+ * list too, to register those components for template-only prototypes, and a second glob here
+ * would be a second answer that can disagree.
  *
- * `eager: false` on both: the index lists far more than it draws, and eagerly importing
- * every component would mount the whole plugin's presentation layer to render a list of
- * links.
+ * Both globs are lazy: the index lists far more than it draws, and eagerly importing every
+ * component would mount the whole plugin's presentation layer to render a list of links.
  *
  * TWO failure paths, not one. A module that fails to IMPORT rejects the promise and is
  * caught below; a module that imports fine but throws in `setup()` or `render()` fails
@@ -807,16 +939,10 @@ Create `tests/harness/IndexPage.vue`:
  * in practice.
  */
 import { computed, onErrorCaptured, ref, shallowRef } from 'vue';
-import { discoverEntries, type HarnessEntry } from './entries';
+import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
 
-const prototypes = discoverEntries(
-	import.meta.glob('../../src/prototypes/**/*.vue') as Record<string, () => Promise<unknown>>,
-	'prototype',
-);
-const components = discoverEntries(
-	import.meta.glob('../../src/presentation/**/*.vue') as Record<string, () => Promise<unknown>>,
-	'component',
-);
+const prototypes = prototypeEntries();
+const components = componentEntries();
 
 const all = computed<HarnessEntry[]>(() => [...prototypes, ...components]);
 
@@ -907,11 +1033,13 @@ while `captureOne` waits for `.renovation-planner-view`, and each would time out
 is reached by `?entry=` or by an explicit `?index`, and everything else keeps today's default.
 
 ```typescript
-import { createApp } from 'vue';
+import { createApp, defineAsyncComponent, type Component } from 'vue';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
 import { seedFixture } from './fixture';
+import { componentEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
+import { installObsidianDom } from '../helpers/dom';
 import { applyPlatform, drawSchemeToggle } from './theme';
 
 applyPlatform(window.location.search);
@@ -936,20 +1064,47 @@ const wantsPlanEditor = params.get('view') === 'plan-editor';
 let view: unknown = null;
 
 if (wantsIndex) {
-	// STANDARD DOM, not `empty()` and `createDiv()`. Obsidian's prototype extensions are
-	// installed by `mountHarness`, which does not run on this branch — so calling them here
-	// throws on the real page and the index never mounts, taking every named screenshot with
-	// it. `tests/harness/theme.ts` carries the same rule at the one other call site that runs
-	// before a mount, with the sentence that matters: the suite cannot see this, because every
-	// jsdom test file installs the extensions at module top.
-	document.body.replaceChildren();
+	/**
+	 * The shim, on this branch too.
+	 *
+	 * `mountHarness` and `mountPlanEditorHarness` install Obsidian's DOM prototype extensions
+	 * and this branch calls neither — but `drawSchemeToggle()` below runs on EVERY branch and
+	 * uses `document.body.createEl`. Without this the index mounts and then throws, which
+	 * `harness-shot` records as a page error and exits non-zero on: a capture that looks
+	 * broken while the entry rendered perfectly.
+	 *
+	 * `tests/harness/theme.ts:44-47` carries the same rule for `applyPlatform`, with the
+	 * sentence that explains why no test catches it: every jsdom file installs these at module
+	 * top, so the shimmed spelling passes the suite and throws on the real page.
+	 */
+	installObsidianDom();
+	document.body.empty();
 
-	const root = document.createElement('div');
+	const root = document.body.createDiv('rp-harness-leaf');
+	const app = createApp(IndexPage).use(seedFixture());
 
-	root.classList.add('rp-harness-leaf');
-	document.body.appendChild(root);
+	/**
+	 * Every real component, registered globally and lazily.
+	 *
+	 * Without this a template-only prototype cannot use one: `<StatusBar />` resolves through a
+	 * local import or the app registry, and a file with no `<script setup>` has no imports. The
+	 * prototype would render an unresolved custom element — silently, since Vue only warns —
+	 * and "compose mocks beside real components" would not work at all, which is the feature.
+	 *
+	 * `defineAsyncComponent` keeps the glob lazy: registering twelve components eagerly would
+	 * mount the presentation layer to draw a list of links.
+	 */
+	const { byTag, ambiguous } = registrableComponents(componentEntries());
 
-	createApp(IndexPage).use(seedFixture()).mount(root);
+	for (const [tag, entry] of byTag) {
+		app.component(tag, defineAsyncComponent(entry.component as () => Promise<Component>));
+	}
+
+	// Registered for nobody rather than for whichever won a race. An unresolved tag a designer
+	// can see beats a resolved one pointing at a directory they did not choose.
+	if (ambiguous.length > 0) console.warn(`ambiguous component tags, not registered: ${ambiguous.join(', ')}`);
+
+	app.mount(root);
 } else {
 	view = wantsPlanEditor ? mountPlanEditorHarness(document.body).view : mountHarness(document.body).view;
 }
@@ -984,10 +1139,14 @@ a step that must be remembered is one a stateless actor forgets across
 sessions, and CLAUDE.md refuses hand-kept lists elsewhere for the same
 reason.
 
-The globs live in the SFC because import.meta.glob needs a literal Vite
-can see; the id derivation is a pure function so a node test can drive
-it. A failed mount names itself rather than blanking the stage, because
-a gap reads as a layout decision."
+entries.ts owns both globs because page.ts needs the component list too
+— to register components for template-only prototypes — and a second
+glob in a second file is a second answer that can disagree. The id
+derivation stays a pure function so a node test can drive it.
+
+A failed mount names itself rather than blanking the stage, because a
+gap reads as a layout decision, and onErrorCaptured covers the render
+throw the loader catch cannot see."
 ```
 
 ---
@@ -1677,9 +1836,29 @@ Three of the fourteen were P1s that would each have cost an implementer a debugg
 one of those — the DOM shim — would have made the feature's headline capability fail on first
 use while every test stayed green.
 
-**The pattern across all three rounds, worth carrying into execution more than any individual
+Round four, on whether the thing would work at all:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The build entry was the one file not covered** | `srcFiles` builds `**/src/<subtree>/**/*`, so every layer ban covers a *subtree* — and `src/main.ts` sits at the root of `src/`, in none of them. It is also `vite.config.ts`'s `lib.entry`. The file with the most to lose was the only one where a prototype import was not refused, and Task 2's claim that lint catches the static plant was simply false | Task 1 (a block for `**/src/*.ts`) and its test, which lints `src/main.ts` by its real path |
+| **Template-only prototypes could not use a real component** | `<StatusBar />` resolves through a local import or the app registry. A file with no `<script setup>` has neither, and the app installed only Pinia — so the core workflow, mocks composed beside real components, would have rendered unresolved custom elements. Silently: Vue only warns | Task 4 (`app.component` + `defineAsyncComponent` for every discovered component, kept lazy) |
+| **The scheme toggle threw on the index branch** | Residue of round three's own fix. `drawSchemeToggle()` runs on every branch and calls `document.body.createEl`; the index branch installed no shim, so the page mounted and *then* threw — which `harness-shot` records and exits non-zero on, reporting a broken capture of an entry that rendered perfectly | Task 4 Step 6 (`installObsidianDom()` on that branch) |
+
+Two of those three were P1s, and the middle one would have made the feature's stated purpose
+not work.
+
+Fixing them surfaced two more, unprompted: `page.ts` needed the component list, so **both globs
+moved into `entries.ts`** — a second glob in a second file is a second answer that can disagree —
+and registering by label reintroduced **the basename collision for a third time**, now in Vue's
+component registry, where the second registration silently wins. An ambiguous label is registered
+for nobody now, so a designer sees an unresolved tag instead of a component from a directory they
+did not choose.
+
+**The pattern across all four rounds, worth carrying into execution more than any individual
 fix:** this plan's failures were never "the code is wrong". They were **green signals that mean
 nothing** — a config grep standing in for a lint run, a first chunk standing in for a build, a
-string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser. The
-repo already knew the last one and had written it down. Every task now watches its test fail
-before trusting it, which is the only defence that generalises.
+string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
+glob whose subtree quietly excludes the one file that matters. The repo already knew two of them
+and had written both down. Every task now watches its test fail before trusting it, which is the
+only defence that generalises — and the same basename collision appearing in a URL, a filename
+and a component registry is the argument for fixing a *class* rather than an instance.

@@ -136,6 +136,24 @@ Rules:
 
 - `add`/`subtract`/`compare` on mismatched currencies resolve `err(calculationError(…))`
   — never silently coerced, never `NaN`.
+- **A `Money` is SIGNED, and `subtract` answers a negative difference as a value.** The
+  `Result` on `add`/`subtract`/`compare` is for the currency mismatch and nothing else.
+  This is recorded here because it was briefly the opposite: a review pass after this
+  slice shipped made `Money` non-negative at both doors and reported a negative difference
+  as `money.negative-result`, and that was reversed. It answered a real defect — `subtract`
+  minted an amount `createMoney` refused to read back — by narrowing the producer when the
+  reader was the wrong half, and it made the important case an error, since
+  [`Reporting and project cockpit.md`](../requirements/Reporting%20and%20project%20cockpit.md)'s
+  "am I over budget" is a difference whose sign is the answer. What survives is the
+  round-trip property: **anything the module produces, `createMoney` reads back**, now over
+  the signed set, with a signed ZERO the one spelling both doors refuse.
+- **Non-negativity is a per-FIELD rule, enforced where the field is validated.** A unit
+  price, a shipping charge and a surcharge are refused below zero on `computeEstimatedCost`'s
+  input (`cost.negative-amount`), beside the negative quantity and the discount bound; a
+  `Project`'s `budget` and `contingency` are refused by `Project.create`
+  (`project.negative-amount`). Slice 10's `unitCost >= 0` and slice 16's form rules are the
+  same shape and were always written that way. So the pipeline still cannot produce a
+  negative estimate — that is a guarantee over ITS inputs, not a property of the value type.
 - **Rounding mode is `ROUND_HALF_UP`, applied once where a `Money` value is finalized as
   pipeline output** — here, the final `Estimated Cost` step; see **Definition of Done**
   for a worked example. Both halves are **ADR-010's** decision, not this slice's, and

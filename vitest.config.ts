@@ -198,6 +198,19 @@ export default defineConfig({
 			// here is driven, including both sides of each new guard and the throw arms of
 			// `fromDecimal`, and `costPipeline.ts`'s two `Result` propagation guards remain
 			// the same unreachable-by-construction pair the slice 9 paragraph above names.
+			// Measured 2026-08-25 again after REVERSING that Money non-negative invariant —
+			// `Money` is signed, `subtract` answers a negative difference as a value, and
+			// non-negativity moved to the fields that have it (`cost.negative-amount` on the
+			// pipeline's unit price/shipping/surcharge, `project.negative-amount` on a
+			// Project's budget/contingency): 2187/2195 statements, 1022/1035 branches,
+			// 571/572 functions, 1985/1988 lines — 99.63 / 98.74 / 99.82 / 99.84. NOTHING
+			// RATCHETS: rounded down these are the floors already in force, and branches at
+			// 98.74 still do not reach 99. The UNCOVERED set is unchanged in both COUNT and
+			// membership (8 statements, 13 branches, 1 function, 3 lines — the same arms the
+			// paragraphs above enumerate); only the denominators moved, and they moved in
+			// both directions at once: `fromDecimal`'s throw and `subtract`'s negative-result
+			// arm went away, five new guard arms arrived, and every one of the five is driven
+			// from both sides.
 			thresholds: {
 				statements: 99,
 				functions: 99,

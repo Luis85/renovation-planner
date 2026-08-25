@@ -1527,24 +1527,39 @@ both matches."* Task 3 owned it and could not hold it — two prop-free componen
 `app.use(VueKonva)`, which only this task's app installs. Its first attempt read one store ref
 twice and compared it to itself, which passes whatever the fixture does.
 
-Add a case to `tests/harness/entries.test.ts` that mounts **two different real components** against
-one `seedFixture()`, in an app configured the way Step 6 configures the index — Pinia, VueKonva and
-the editor context — and asserts that a value from the plan appears in what BOTH render, and that
-the value is the fixture's rather than empty.
+**The obvious pair does not work, and the reason decides the case.** `PlanEditorRoot` does not
+render a plan value itself — it reads `status` and gates its ready branch on it, and the plan NAME
+a reader sees inside it comes from the `StatusBar` nested in its own template. So "assert the
+fixture's plan name appears in standalone `StatusBar` and in `PlanEditorRoot`" exercises two
+`StatusBar` instances and passes even if `PlanEditorRoot` stops reading the store entirely.
 
-Two things decide whether it is worth anything, and both are checkable:
+Measured on the tree after slice 8 merged: of the components reading `useProjectStore`, exactly one
+prop-free component renders a PLAN-level value — `StatusBar`, which renders `plan.name`.
+`PlanEditorRoot` reads `status`; `ZoneLayer`, `BackgroundLayer` and `InteractionLayer` all declare
+required props. So the criterion's literal form — one value rendered by two different components —
+has no honest pair available today.
 
-- **It must fail when the fixture is empty.** Comment out the assignments in `seedFixture` and
-  watch it go red before you trust it. A case that passes on an unseeded store is asserting Pinia's
-  singleton semantics, which is what Task 3's version did.
-- **The two components must be different.** Mounting one component twice proves the store is a
-  singleton, not that two components agree — and the criterion is about two things on one screen
-  agreeing, which is the whole argument for one seeded world rather than per-entry setup.
+What IS available is the criterion's substance, and it is stronger than the literal form:
 
-If the pair you pick turns out to render the value in a way an assertion cannot see — a canvas, say,
-rather than text — pick another pair or state plainly in the test what you could and could not
-reach, and narrow the comment to match. Do not assert on something adjacent and call it the
-criterion.
+Mount `StatusBar` and `PlanEditorRoot` against ONE `seedFixture()`, in an app configured the way
+Step 6 configures the index — Pinia, VueKonva and the editor context. Assert two DIFFERENT
+observable consequences of the one seeded world: that `StatusBar` renders the fixture's plan name,
+and that `PlanEditorRoot` renders its `status === 'ready'` branch rather than the missing or failed
+one. Then assert the negative, which is what makes it mean anything: **with the fixture's
+assignments removed, BOTH change** — the name disappears and the ready branch does not render.
+
+That holds what the spec is actually arguing for ("two components on one screen agree, because they
+read the same plan rather than two invented ones") through two different components reading two
+different fields of one store, and it fails if either stops reading it. State plainly in the test
+what it does NOT prove: that two components render the SAME value, which no pair in this tree can
+demonstrate until a second plan-level consumer exists.
+
+Two things remain forbidden however you write it:
+
+- **Mounting one component twice.** That proves Pinia's store is a singleton, which is true
+  independent of the fixture, and it is the exact defect Task 3's first attempt shipped.
+- **A case that passes on an unseeded store.** Comment out the assignments in `seedFixture` and
+  watch it go red before you trust it. If it stays green, say so rather than shipping it.
 
 - [ ] **Step 9: Run the full gate**
 
@@ -2811,7 +2826,7 @@ a record rather than a migration backlog."
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
 | 5 — one stylesheet, no second sheet | 5 (three routes: the `<link>`s in `index.html`, the module graph, and a `<link>` a template renders) |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`, mounting the REAL `StatusBar` against nothing but the fixture) — for a component that takes no required props; see gap 4 |
-| 7 — two components read the same plan | **4**, not 3. Two DIFFERENT real components are what makes this real, the only prop-free pair reading `useProjectStore` is `StatusBar` and `PlanEditorRoot`, and `PlanEditorRoot` needs `app.use(VueKonva)` — which the index app installs and Task 3 does not have. Task 3's first attempt asserted one store ref against itself and could not fail; it leaves a pointer here instead |
+| 7 — two components read the same plan | **4**, not 3, and held in its SUBSTANCE rather than its letter — see Task 4 Step 8. Exactly one prop-free component renders a plan-level value (`StatusBar`), so no pair can render the same value; `PlanEditorRoot` reads `status`. The case mounts both against one fixture, asserts two different consequences of it, and asserts that removing the fixture changes both. What it cannot show is stated in the test |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
 | 9 — `npm run check` passes with the tree populated | 7 Step 10 |
 | 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`, plus the lint rule in Step 5 that keeps every mock template-only) |
@@ -3004,6 +3019,17 @@ review's own second pattern turned on the reviewer: **every round, a fix left a 
 and this time the stale sibling was inside the fix that was written to prevent exactly that. A
 replacement that matches nothing fails silently, which is the same shape as every other finding
 here: a green signal that means nothing.
+
+One finding from the review rounds belongs beside the others and did not fit their tables, because
+it is about a fix rather than about the code: **round nineteen refuted the pair this plan proposed
+for criterion 7 within an hour of it being written.** `PlanEditorRoot` renders the plan name only
+through the `StatusBar` nested in its own template, so the prescribed assertion would have
+exercised two `StatusBar` instances and passed with `PlanEditorRoot` no longer reading the store at
+all. The remedy narrowed the criterion to what the tree can honestly show — two components, two
+different fields, one world, both failing when the world is emptied — and wrote down what that does
+not prove. It is the clearest instance yet of the rule this plan keeps rediscovering: **a fix
+written to close a proxy defect is itself a claim, and it is worth exactly as much as the run that
+checks it.**
 
 **Found by the BASE MOVING**, which is the fourth category and the only one no amount of care
 inside this branch could have prevented:

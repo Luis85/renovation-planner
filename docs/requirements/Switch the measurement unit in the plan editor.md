@@ -75,7 +75,15 @@ uncalibrated state owes.
   unit is an input now, not an output, because the distance about to be typed is read in it.
   Without this qualification 2a would disable the picker in the one state where it first does
   something, leaving every plan's first calibration typed in whatever unit the code assumed.
-- **3a** — The unit picked is the one already in force. Nothing re-renders, nothing is written.
+- **3a** — The unit picked is the one already **stored for this plan**. Nothing re-renders and
+  nothing is written; a no-op is a no-op.
+- **3b** — The unit picked is the one already *displayed*, but it was **inherited** — the plan has
+  no stored value and the chain resolved to the project's or plugin's. This is **not** a no-op:
+  the selection is persisted at the plan level, even though nothing on screen changes. An
+  explicit pick is a decision, and leaving it unwritten means the day that inherited default
+  changes, the plan silently opens in a different unit — breaking step 5's promise that the
+  renovator's choice is remembered, in the one case where they cannot tell the promise was never
+  made. The two branches differ by where the current value *came from*, not by what it is.
 - **4a** — A second editor leaf is open on the same plan. It follows immediately: the unit
   belongs to the plan, not the leaf. Reading one plan in two units at once is the thing the
   renovator complained about, not a case this serves.
@@ -177,7 +185,7 @@ memory this use case exists to provide.
 
 **The picker also wins at calibration, and the reconciliation is wrong if it does not say so.**
 The unit is read in both directions, so a typed known distance is interpreted in **the unit the
-picker is showing** (criterion 17) — never in the project's, and never in a level of the chain
+picker is showing** (criterion 18) — never in the project's, and never in a level of the chain
 the renovator cannot see. With the project on metres and the picker on centimetres, a typed `5`
 is 50 mm. Resolving that the other way is a scale wrong by a hundred, and it is the reading an
 unqualified "the picker governs only rendering" invites: calibration is exactly where the picker
@@ -315,27 +323,31 @@ worse than one that says it is doing it.
     treated as absent, so resolution continues — the same shape of test `settingsFrom` has for
     `data.json`. The case that must fail is a corrupt plan cache overriding a project that stated
     its units.
-12. Two leaves on one plan show the same unit within one switch, with no reload.
-13. Every label the picker draws goes through `t` and reads correctly under both locales
+12. Explicitly picking the unit already on screen persists it when the plan had no stored value
+    (extension 3b), and writes nothing when it did (3a). The case that must fail: pick the
+    inherited unit, change the project default, reopen — the plan still shows what the renovator
+    picked.
+13. Two leaves on one plan show the same unit within one switch, with no reload.
+14. Every label the picker draws goes through `t` and reads correctly under both locales
     [[Multilanguage]] declares — including the unit symbols, which are not automatically
     locale-invariant.
-14. The toolbar's tool group still enforces exactly one active tool, unchanged, with the picker
+15. The toolbar's tool group still enforces exactly one active tool, unchanged, with the picker
     present.
-15. The picker is reachable and operable from the keyboard alone: one tab stop for the whole
+16. The picker is reachable and operable from the keyboard alone: one tab stop for the whole
     toolbar, arrow keys crossing into the picker and back, the unit changeable without a pointer.
     Walked in `npm run test-build`, because no gate here can see it — the case that must fail is a
     picker only a mouse can reach.
-16. On an uncalibrated plan the picker is **enabled** for the duration of calibration, so a plan's
+17. On an uncalibrated plan the picker is **enabled** for the duration of calibration, so a plan's
     first calibration is typed in a unit the renovator chose rather than one the code assumed.
     This and criterion 9 are two halves of one rule; a test asserting only one passes the note
     while contradicting it.
-17. A known distance typed during calibration is interpreted in the unit the picker shows, and the
+18. A known distance typed during calibration is interpreted in the unit the picker shows, and the
     resulting scale is identical to the equivalent value in any other unit. `5` in metres, `500`
     in centimetres and `5000` in millimetres produce the same calibration — a node test on the
     conversion, not a walkthrough. **It is the same presentation-layer conversion as criterion 5,
     run inverse**, and the test drives one module in both directions rather than two that can
     drift apart. Nothing about the display vocabulary reaches `core/units/`.
-18. Switching the unit while the calibration prompt is open **visibly converts** the typed value
+19. Switching the unit while the calibration prompt is open **visibly converts** the typed value
     **without rounding it**: `1` in millimetres becomes `0.001` in metres, not `0.00`. Round-
     tripping through every unit returns the value it started with. Disabling the control is not an
     alternative (extension 2b). The case a test must fail on is a conversion that quietly zeroes a

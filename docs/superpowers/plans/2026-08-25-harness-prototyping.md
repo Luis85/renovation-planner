@@ -373,10 +373,20 @@ describe('the built plugin', () => {
 		expect(leaked, `prototypes reached the bundle: ${leaked.join(', ')}`).toEqual([]);
 	});
 
-	it('contains no harness module, fixtures included', () => {
-		const leaked = modules.filter((id) => id.includes('/tests/harness/'));
+	/**
+	 * EVERY test path, not just `tests/harness/`. The guarantee names fixtures, and they do not
+	 * all live in one directory — `tests/fixtures/promotion/` holds the promoted SFC this plan
+	 * itself creates, and it would have passed a harness-only assertion.
+	 *
+	 * Stated as "nothing under `tests/`" rather than as a list of fixture directories, so the
+	 * next one somebody adds is covered without anybody remembering to come back here. Nothing
+	 * under `tests/` belongs in a plugin under any circumstances, which makes the broad rule
+	 * the correct one rather than merely the convenient one.
+	 */
+	it('contains no test module at all, fixtures included', () => {
+		const leaked = modules.filter((id) => id.includes('/tests/'));
 
-		expect(leaked, `harness modules reached the bundle: ${leaked.join(', ')}`).toEqual([]);
+		expect(leaked, `test modules reached the bundle: ${leaked.join(', ')}`).toEqual([]);
 	});
 });
 ```
@@ -458,7 +468,7 @@ console.log(seedFixture);
 
 Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
 
-Expected: FAIL on `contains no harness module, fixtures included`, naming `fixture.ts`.
+Expected: FAIL on `contains no test module at all, fixtures included`, naming `fixture.ts`.
 
 **This is the case that motivated the rewrite**: minification renames `seedFixture`, so a text
 scan for that identifier would have stayed green while the fixture shipped. Provenance sees it.
@@ -1053,6 +1063,7 @@ is reached by `?entry=` or by an explicit `?index`, and everything else keeps to
 
 ```typescript
 import { createApp, defineAsyncComponent, type Component } from 'vue';
+import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
 import { seedFixture } from './fixture';
@@ -1100,7 +1111,18 @@ if (wantsIndex) {
 	document.body.empty();
 
 	const root = document.body.createDiv('rp-harness-leaf');
-	const app = createApp(IndexPage).use(seedFixture());
+	/**
+	 * Pinia AND VueKonva, because the production mount installs both.
+	 * `src/presentation/views/PlanEditorView.ts:158` calls `app.use(VueKonva)`, and without it
+	 * here every canvas component — `PlanCanvas`, `ZoneLayer`, `ZoneShape` — leaves `VStage`,
+	 * `VLayer` and `VLine` unresolved.
+	 *
+	 * That failure is SILENT in the worst way: Vue reports an unresolved component as a
+	 * warning, not an error, and the entry's outer element still satisfies the screenshot
+	 * selector. `harness-shot` would exit 0 with a PNG of a missing canvas — the exact shape
+	 * of failure this whole feature is built to make impossible.
+	 */
+	const app = createApp(IndexPage).use(seedFixture()).use(VueKonva);
 
 	/**
 	 * Every real component, registered globally and lazily.
@@ -1332,6 +1354,24 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 * no runtime test catches it: every jsdom file installs the extensions at module top, so
 	 * the shimmed spelling passes the suite and throws on the real page.
 	 */
+	/**
+	 * The index app must install everything the production mount does, or a canvas component
+	 * renders nothing while every gate stays green — Vue warns rather than throws on an
+	 * unresolved component, and the outer element still satisfies the shot selector.
+	 */
+	it('installs VueKonva on the index app, as the production mount does', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const production = readFileSync(
+			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
+			'utf8',
+		);
+
+		// Read from production rather than hard-coded: if the plugin ever installs something
+		// else, this asks the question again instead of pinning today's answer.
+		expect(production).toContain('app.use(VueKonva)');
+		expect(page).toContain('.use(VueKonva)');
+	});
+
 	it('installs the Obsidian DOM shim before the index branch uses any extension', () => {
 		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
 		const branch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
@@ -1527,19 +1567,30 @@ The criterion the whole note is for: a promoted mock's template must be byte-ide
 
 Create `src/prototypes/ZoneSummary.vue`:
 
-```vue
-<template>
-	<!--
-		A template-only SFC: pure HTML to write, and already a real Vue component. Promotion
-		adds a `<script setup>` above this block and moves the file into `src/presentation/`;
-		this markup goes across unchanged, which is what
-		`tests/build/prototype-promotion.test.ts` holds.
+**The commentary goes ABOVE the `<template>` block, not inside it.** Anything inside is compared
+byte-for-byte against the promoted file by `tests/build/prototype-promotion.test.ts`, so a
+comment in one and not the other fails the test that matters — and duplicating it into the
+promoted file would mean carrying a note about mocks into shipped code. Outside the block, the
+rule explains itself: what is in `<template>` is what crosses unchanged.
 
-		Nothing here marks the file as a prototype, deliberately.
-		`tests/build/prototypes-not-bundled.test.ts` derives what to scan for from the tree
-		itself, so a mock nobody remembered to mark is caught anyway — which is the only
-		version of that guarantee worth having.
-	-->
+```vue
+<!--
+	A template-only SFC: pure HTML to write, and already a real Vue component. Promotion adds a
+	`<script setup>` above the template and moves the file into `src/presentation/`; the markup
+	goes across unchanged, which is what `tests/build/prototype-promotion.test.ts` holds.
+
+	This comment is OUTSIDE the template on purpose, and it deliberately does not spell the
+	opening template tag anywhere. `templateBlock()` finds the block with a regex, so a comment
+	naming that tag would make the test extract from HERE — the block it compares would start
+	mid-comment and the two files could never match. Anything inside the block would also have
+	to be copied into the promoted component, carrying a note about mocks into shipped code.
+
+	Nothing marks this file as a prototype, deliberately.
+	`tests/build/prototypes-not-bundled.test.ts` asks the build which modules composed the
+	chunk, so a mock nobody remembered to mark is caught anyway — the only version of that
+	guarantee worth having.
+-->
+<template>
 	<section class="rp-zone-summary">
 		<h2>Zones</h2>
 		<ul>
@@ -1591,7 +1642,15 @@ later does — it compares a string to itself. So the promoted side has to be wr
 by hand, the way somebody actually promoting this component would write it.
 
 Create `tests/fixtures/promotion/ZoneSummary.promoted.vue` — what `ZoneSummary` looks like after
-promotion, with a script block added and **the template copied across untouched**:
+promotion, with a script block added and **the template copied across untouched**.
+
+Its explanatory comment lives in the `<script setup>` block, and the mock's sits above the
+template. Neither is inside the compared block, which is what lets the two templates be
+byte-identical while each file still explains itself.
+
+Neither comment spells the opening template tag, either: `templateBlock()` locates the block by
+regex, so a comment naming that tag would make the extraction start mid-comment. That is not
+hypothetical — writing this plan hit it.
 
 ```vue
 <script setup lang="ts">
@@ -1651,6 +1710,16 @@ import { REPO } from '../helpers/oxlint';
  * The two sides are INDEPENDENT files. An earlier version composed the promoted side by
  * interpolating the mock's own template, which made the comparison a string against itself:
  * it could not fail, and would have stayed green while a real promotion redrew everything.
+ *
+ * A consequence worth stating, because the first independent pair failed on it: **nothing
+ * explanatory may live inside a `<template>` block in this tree.** The comparison is
+ * byte-for-byte, so a comment in the mock and not in the promoted file fails the test — and
+ * copying it across would carry a note about mocks into shipped code. Commentary goes above
+ * the template in a mock and in the script block of a promoted component.
+ *
+ * And no comment may SPELL the opening template tag: this function finds the block by regex,
+ * so a comment naming it makes the extraction start mid-comment and the two files can never
+ * match. Writing the plan this came from hit exactly that.
  */
 const MOCK = path.join(REPO, 'src', 'prototypes', 'ZoneSummary.vue');
 const PROMOTED = path.join(REPO, 'tests', 'fixtures', 'promotion', 'ZoneSummary.promoted.vue');
@@ -1890,11 +1959,25 @@ component registry, where the second registration silently wins. An ambiguous la
 for nobody now, so a designer sees an unresolved tag instead of a component from a directory they
 did not choose.
 
-**The pattern across all four rounds, worth carrying into execution more than any individual
-fix:** this plan's failures were never "the code is wrong". They were **green signals that mean
-nothing** — a config grep standing in for a lint run, a first chunk standing in for a build, a
-string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
-glob whose subtree quietly excludes the one file that matters. The repo already knew two of them
-and had written both down. Every task now watches its test fail before trusting it, which is the
-only defence that generalises — and the same basename collision appearing in a URL, a filename
-and a component registry is the argument for fixing a *class* rather than an instance.
+Rounds five and six kept finding the same thing, which is why the pattern below matters more
+than any of the fixes:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| A test contradicted its own task | Task 6's DOM test asserted the standard-DOM branch **abandoned in round four**. Executed in order it would have failed against Task 4's own code — the plan was unrunnable | Task 6 (asserts ORDER: shim before first use) |
+| Sibling mocks were unregistered | A prototype composes the mocks beside it, and a template-only file can import neither a component nor a sibling. `<MockToolbar />` unresolved — half the main flow | Task 4 (both kinds in one registry) |
+| `CLAUDE.md` text contradicted the route | Task 8 still said the root is the index after Task 4 made it opt-in | Task 8 |
+| **VueKonva was not installed** | `PlanEditorView.ts:158` installs it; the index app did not. Every canvas component leaves `VStage`/`VLayer`/`VLine` unresolved — and Vue **warns rather than throws**, while the outer element still satisfies the shot selector, so `harness-shot` exits 0 on a PNG of a missing canvas | Task 4, with a test that reads the requirement out of production rather than pinning today's answer |
+| The fixture check was harness-only | This plan creates `tests/fixtures/promotion/`, which a `/tests/harness/` filter misses. Residue of round four's own promotion fix | Task 2 (nothing under `tests/` at all — a rule, not a list) |
+| The promoted template was not byte-identical | The mock's commentary sat *inside* its template block, so the independent pair the previous round introduced could never match. Worse, the comment **spelled the opening template tag**, and `templateBlock()` finds the block by regex — the extraction would have started mid-comment | Task 7: commentary above the template, never naming that tag. Verified by running the test's own regex over both files |
+
+**The pattern, across all six rounds and worth more than any individual fix:** every failure was
+a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
+a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
+glob whose subtree excludes the file that matters, an unresolved component Vue only warns about.
+
+And the second pattern, which is mine rather than the design's: **every round, a fix left a
+sibling stale.** The DOM fix left the toggle. The promotion fixture left the bundle filter. The
+routing fix left the `CLAUDE.md` text and the PBI's own assumption. Rounds five and six ended
+with a *deliberate residue sweep* before pushing, and it caught two more the review had not —
+which is the practice to carry into execution, not the twenty-three fixes.

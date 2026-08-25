@@ -6,11 +6,12 @@ import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
  * import from it. That keeps design scaffolding out of a built plugin at the IMPORT rather
  * than only at the bundle, so it holds for code nobody has written yet.
  *
- * Every layer is driven, not just one, because the ban is seven separate config blocks (six
- * `forbidden(...)` calls plus the root-of-`src/` block below) and a layer whose block was
- * missed reports nothing while looking correct in review. Two EXTENSIONS are driven for the
- * same reason as two globs: `srcFiles()` (`eslint.config.mjs`) and the root-of-`src/` block
- * both cover `.ts`/`.vue`/`.js`/`.jsx`/`.mjs`/`.cjs` — `allowJs` plus what Vite's own resolver
+ * Every layer is driven, not just one, because the ban is eight separate config blocks (six
+ * `forbidden(...)` calls, the root-of-`src/` block, and the catch-all block below that covers
+ * a subtree none of the six names) and a layer whose block was missed reports nothing while
+ * looking correct in review. Two EXTENSIONS are driven for the same reason as two globs:
+ * `srcFiles()` (`eslint.config.mjs`) and the root-of-`src/` block both cover
+ * `.ts`/`.vue`/`.js`/`.jsx`/`.mjs`/`.cjs` — `allowJs` plus what Vite's own resolver
  * accepts, not what the tree currently holds — and they are two SEPARATE glob lists, so a case
  * proving one covers `.js` says nothing about the other.
  *
@@ -108,6 +109,40 @@ describe('the prototypes one-way door', () => {
 
 	it('refuses an import of src/prototypes/ from a .js build entry', async () => {
 		const reported = await lintText(JS_ROOT_IMPORT, 'src/main.js');
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	/**
+	 * The six `forbidden(...)` calls in `eslint.config.mjs` name today's six layers, one
+	 * `srcFiles(layer)` glob each — so a SUBTREE none of them names (`src/shared/`, say)
+	 * matches none of the six, and the root-of-`src/` block above does not reach it either
+	 * (that block only covers files sitting directly at the root). A catch-all block in
+	 * `eslint.config.mjs`, placed BEFORE the six `forbidden(...)` calls, is what closes
+	 * this — and its position, not its rule, is the fix: see that block's own comment for
+	 * why AFTER would silently take every layer ban away instead (this file's sibling case
+	 * below is the other half of that proof).
+	 */
+	it('refuses an import of src/prototypes/ from a subtree no forbidden(...) call names', async () => {
+		const reported = await lintText(PROTOTYPE_IMPORT, 'src/shared/Fixture.vue');
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	/**
+	 * The other half of the catch-all's proof, and the one a fix touching only the case
+	 * above would never catch: a REAL cross-layer violation — `core/` naming `presentation/`
+	 * — in a layer the catch-all's own glob ALSO matches. If the catch-all ever ends up
+	 * placed after the six `forbidden(...)` calls in `eslint.config.mjs`, this is the case
+	 * that goes red: the catch-all's narrower `prototypes`-only rule would override
+	 * `core/`'s full ban instead of the other way around, and this import would pass while
+	 * the prototypes-only tests above stayed green throughout.
+	 */
+	it('still refuses a real cross-layer import once the catch-all block is in place', async () => {
+		const reported = await lintText(
+			sfc("import StatusBar from '../presentation/editor/shell/StatusBar.vue';\n\nconst used = StatusBar;\nvoid used;"),
+			'src/core/Fixture.vue',
+		);
 
 		expect(reported).toContain('no-restricted-imports');
 	});

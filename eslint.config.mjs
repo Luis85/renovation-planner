@@ -97,6 +97,17 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
 });
 
 /**
+ * The three glob shapes ONE banned group name expands to: bare (the barrel spelling,
+ * `import … from '../prototypes'`), one level (`../prototypes/X`), and any depth
+ * (`../../a/prototypes/X`). `forbidden()`'s own `groups.flatMap` computes exactly this
+ * shape for every OTHER group it bans; `prototypes` needs its own copy of the same three
+ * because the root-of-`src/` block and the catch-all block below both ban ONLY this one
+ * group, from OUTSIDE `forbidden()`'s machinery — one constant so the two cannot spell it
+ * differently from each other, or from what `forbidden()` would have computed.
+ */
+const PROTOTYPES_GROUP = ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'];
+
+/**
  * The four the SDD prohibits in the inner layers (§3.4): a `Zone` is not a Konva polygon
  * and a `WorkPackage` is not a Markdown file, so the code that decides what they ARE may
  * not be able to name the technologies that merely present or store them.
@@ -338,6 +349,58 @@ export default defineConfig([
 		languageOptions: { parser: tsparser },
 		rules: { 'obsidianmd/validate-manifest': 'error' },
 	},
+	{
+		/**
+		 * `forbidden(...)` below names six SUBTREES that exist today — one per layer the
+		 * SDD's diagram draws. A subtree nobody has named yet (`src/shared/`, say) matches
+		 * none of their `srcFiles(layer)` globs, and it matches the root-of-`src/` block
+		 * below no better — that block only reaches files sitting directly AT the root, not
+		 * one level down. An import of `src/prototypes/` from a subtree with no
+		 * `forbidden(...)` call of its own would pass lint clean: the "list the places"
+		 * shape this repository's own guide refuses, hiding inside the very fix built to
+		 * check at the forbidden thing instead of enumerating them.
+		 *
+		 * **This block's POSITION in the array is load-bearing, and it is the entire fix —
+		 * not the rule it carries.** Two flat-config blocks matching one file OVERRIDE
+		 * `no-restricted-imports` rather than merging it (restated at the write-boundary
+		 * block below, for `no-restricted-syntax`, because the trap is the same one twice).
+		 * Placed AFTER the six `forbidden(...)` calls, this block would win the override for
+		 * EVERY layer file too — replacing each layer's full ban (which also covers its
+		 * sibling layers and its banned packages) with just this one's `prototypes`-only
+		 * rule. One hole, in an unnamed subtree, would be traded for six, in every named
+		 * one, silently: the prototypes ban would still fire everywhere and
+		 * `tests/build/prototypes-one-way-door.test.ts` would still read green, because
+		 * nothing in it checks that a LAYER ban survived — only that the prototypes ban did.
+		 *
+		 * Placed BEFORE them, as it is here, the same override becomes the fix instead: each
+		 * `forbidden(...)` call already restates `'prototypes'` in its own `groups` (added
+		 * when the one-way door was built), so for the six known layers the LATER, more
+		 * specific block overrides this one right back — restoring the FULL layer ban,
+		 * prototypes included, exactly as if this block did not exist. Only a subtree with no
+		 * `forbidden(...)` call of its own is left with just this block's rule, which is
+		 * exactly the coverage a subtree nobody has named yet should have.
+		 *
+		 * `tests/build/prototypes-one-way-door.test.ts` drives both halves of that claim: an
+		 * unnamed subtree refusing a prototype import, AND a named layer's own
+		 * cross-layer ban still firing — proof this block did not quietly take the second
+		 * one away. Proving only the first half is the trade above, passing.
+		 */
+		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: PROTOTYPES_GROUP,
+							message:
+								'src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.',
+						},
+					],
+				},
+			],
+		},
+	},
 	forbidden(
 		'core',
 		{
@@ -396,7 +459,7 @@ export default defineConfig([
 				{
 					patterns: [
 						{
-							group: ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'],
+							group: PROTOTYPES_GROUP,
 							message:
 								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
 						},
@@ -416,9 +479,13 @@ export default defineConfig([
 		// rather than merging it: the block below repeats the shared SVG selectors for
 		// that reason, and any further carve-out must do the same. `**/`-anchored like
 		// every other block, for the base-path reason TESTS states.
-		// Both globs literally rather than routed through `srcFiles`: `**/src/**/**/*.ts` is
-		// a needlessly clever spelling of the same set.
-		files: ['**/src/**/*.ts', '**/src/**/*.vue'],
+		// `SRC_EXTENSIONS`, spelled literally rather than routed through `srcFiles`:
+		// `srcFiles('**')` is a needlessly clever spelling of the same set. This glob went
+		// stale once already — it named only `.ts`/`.vue` after `SRC_EXTENSIONS` grew to
+		// six, so a `.js` file was covered by every layer ban and still bypassed the vault
+		// write boundary. Built from the constant now, the same way the root-of-`src/`
+		// block above is, so the two cannot drift apart from `srcFiles()` again.
+		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		ignores: ['**/src/infrastructure/obsidian/**'],
 		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},

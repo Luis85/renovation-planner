@@ -160,3 +160,64 @@ describe('the architecture blocks, now that they match .vue', () => {
 		expect(reported).not.toContain('no-console');
 	});
 });
+
+/**
+ * Design slice 15's own boundary. `presentation/dialogs/` is display-and-resolve only: a
+ * future edit that starts querying a repository from inside `DeleteReferenceDialog.vue`
+ * must fail the build rather than pass review by accident.
+ *
+ * A fixture path rather than a reading of the config object, for the reason this file
+ * already gives: two blocks matching one file OVERRIDE `no-restricted-imports` rather than
+ * merging, so the only honest question is what ESLint reports for a real path.
+ */
+describe('the dialogs boundary', () => {
+	const DIALOG = 'src/presentation/dialogs/DeleteReferenceDialog.vue';
+	const DIALOG_TS = 'src/presentation/dialogs/dialog-store.ts';
+
+	it('refuses an application import', async () => {
+		const reported = await lintText(
+			conforming("import type { Command } from '../../application/commands/Command';\nexport type C = Command<unknown, unknown>;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	// This directory's first `.ts` fixture in this file: every other case here lints a
+	// `.vue` path, none of which carry `parserOptions.projectService`, so this is the
+	// first call in this worker to build TypeScript's project-service program — the same
+	// first-call cost `ESLINT_BOOT_MS` documents for `lintText`/`resolveConfig`, paid here
+	// rather than in `beforeAll` because `warmUpEslint` only resolves `src/main.ts`'s
+	// config, not a second file's full type-aware lint.
+	it('refuses the event bus', async () => {
+		const reported = await lintText(
+			"import type { EventBus } from '../../core/events/EventBus';\nexport type B = EventBus;\n",
+			DIALOG_TS,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	}, ESLINT_BOOT_MS);
+
+	/**
+	 * The half that would silently disappear: a per-directory block REPLACES the wider
+	 * `presentation` one, so a block that added `application` and forgot to repeat
+	 * `infrastructure` would open the bigger hole while looking like it closed a smaller one.
+	 */
+	it('still refuses infrastructure, which the wider presentation block owned', async () => {
+		const reported = await lintText(
+			conforming("import { createConsoleLogger } from '../../infrastructure/logging/consoleLogger';\nvoid createConsoleLogger;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	it('allows the i18n import every dialog legitimately needs', async () => {
+		const reported = await lintText(
+			conforming("import { tr } from '../i18n/strings';\nvoid tr;"),
+			DIALOG,
+		);
+
+		expect(reported).not.toContain('no-restricted-imports');
+	});
+});

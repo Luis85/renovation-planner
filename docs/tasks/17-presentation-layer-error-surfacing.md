@@ -113,6 +113,31 @@ exist.
   answered under "Two cases that are not `AppError`s" below.
 - SDD §66 Error Boundary — the pipeline this slice completes.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass produced three facts the routing table above
+depends on.
+
+- **A category collision is the failure mode to watch, and it already happened.** The two
+  reversible zone adapters minted the identical `zone.nothing-to-undo` code as a
+  `Reference` failure in one file and a `Persistence` failure in the other — both
+  hand-built `AppError` literals, in a file that already imports the `referenceError`
+  factory and uses it a few lines further down. Anything routing on category, which is what this whole table
+  does, would have surfaced one logical failure two different ways. Both use the factory
+  now; the lesson is that a hand-built literal is how a discriminant drifts.
+- **A THROW reaches presentation, and `runtime.ts`'s `reportFault` is where it lands.**
+  Every dispatch in a Plan Editor leaf is ultimately bound to a click handler that
+  discards its promise, so before this an unexpected technical fault was a console
+  unhandled rejection and that button silently stopped working for the session. It
+  currently calls `notify()` with a raw `Error.message`. That is a seam, not a decision:
+  what a technical fault should say to a user, and whether it is a toast or a persistent
+  surface, is this slice's table to answer.
+- **`InspectorDto` still has no error variant.** A genuine "no such zone" and a transient
+  read failure both land on `{ kind: 'empty' }`, so a failed read on a fresh selection is
+  indistinguishable from an empty selection, with nothing surfaced anywhere. Recorded in
+  `inspector-store.ts`'s own header as a known gap left for whichever slice adds error
+  signalling — this one, if the union is to widen.
+
 ## Design
 
 ### The decision procedure

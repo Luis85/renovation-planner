@@ -122,6 +122,25 @@ that hands off to it.
   those slices to exist yet — a click on an action button whose target isn't built yet
   is simply not wired, the same way slice 5 shipped `InteractionLayer` empty.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass changed how `ProjectStore` settles, which is what
+this slice's selectors read.
+
+- **`hydrate` takes a request ticket: the last hydration STARTED owns the final state, not
+  the last to RESOLVE.** It gained a second concurrent caller in slice 8 (the post-command
+  refresh, beside the plan-change listener that `ProjectIndexRebuilt` fires on every leaf),
+  and without the ticket a slower earlier read overwrote a fresher later one — a
+  just-drawn zone vanishing from the canvas with no error. A superseded call now returns
+  having touched none of `status`, `plan`, `zones` or `error`, so a selector never sees a
+  half-applied older answer.
+- **`reset()` invalidates a hydration still in flight**, so a closing leaf cannot have the
+  plan it was reading painted back a tick later — which would otherwise be an empty state
+  replaced by content nobody asked for.
+- **`PlanDto` carries `calibration` now**, `null` while a plan is uncalibrated. That is a
+  distinguishable "not ready yet" this slice may want to name, alongside the
+  `ok([])` / `ok(null)` / `isErr` distinctions it already turns on.
+
 ## Design
 
 ### 1. The `EmptyState` component

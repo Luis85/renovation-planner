@@ -93,6 +93,36 @@ invent their own error handling, logging, or write-safety conventions.
   performs Infrastructure → Application error mapping before anything reaches
   Presentation.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass moved the boundary this slice formalizes. Four
+things to know before designing the Error Boundary.
+
+- **A THROWN fault now triggers a store re-read.** SDD 65 lets an unexpected technical
+  fault throw, and `ObsidianZoneRepository`'s own post-write bookkeeping runs after both
+  files are already on disk — so a throw says nothing about whether a write landed.
+  `withEditorStateRefresh` therefore re-reads the canvas and Inspector on a rejection as
+  well as on success, and re-throws the fault unchanged. The consequence for this slice:
+  by the time a fault reaches the boundary, the stores may already show the post-write
+  state. The fault is still a fault; the stores are not evidence either way.
+- **`runtime.ts`'s `reportFault` is a PLACEHOLDER for this slice's boundary, not a
+  design.** It exists because every dispatch in a leaf is ultimately bound to a click
+  handler that discards its promise, so a fault used to surface as a console unhandled
+  rejection and that button silently stopped working. It currently calls `notify()` with a
+  raw `Error.message`, which is the wrong text for a user and the right shape for a seam.
+  This slice owns what actually goes there.
+- **The serialization queue must never reject.** `tools/serial-queue.ts` is shared by
+  `CommandHistory` and the refresh decorator; its `tail.catch` is what stops one command's
+  technical fault from poisoning the chain and wedging every later gesture in the leaf
+  with no error anywhere. It was copy-pasted between the two before, which is two chances
+  to lose a line whose absence is invisible.
+- **Category is a discriminant, so one logical failure must not arrive as two.** The two
+  reversible zone adapters minted the identical `zone.nothing-to-undo` code as a
+  `Reference` failure in one file and a `Persistence` failure in the other, both as
+  hand-built object literals, in a file that already imports the `referenceError` factory
+  and uses it a few lines further down. Reach for the factory; a hand-built `AppError` literal is how
+  that happened.
+
 ## Design
 
 ### The Error Boundary

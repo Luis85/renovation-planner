@@ -105,6 +105,25 @@ error — that decision is slice 17's, once slices 13-16 all exist to decide bet
   tables both this slice's surfaces render through. Not a new mechanism: this slice adds
   keys to tables that already exist, per `docs/requirements/Architecture and Software Design.md`'s shared vocabulary.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass changed two things save-state tracking depends on.
+
+- **A redo of a zone creation publishes NO event.** `create -> undo -> redo -> undo` emits
+  one `ZoneCreated` and two `ZoneDeleted`, because the redo restores through
+  `ZoneRepository.save` rather than re-dispatching the create. Save tracking that counts
+  or mirrors the lifecycle drifts permanently and, after a redo, believes a zone that
+  exists does not. The review pass left the event contract for slice 10 to settle rather
+  than change it silently (`reversible-create-zone-command.ts` states it where the code
+  is) — but this slice must not key a "saved" indicator on those events until it is.
+- **The stores can be re-read after a command that did NOT succeed.** A thrown technical
+  fault says nothing about whether a write landed, so `withEditorStateRefresh` re-hydrates
+  the canvas and Inspector on a rejection too. Save state must therefore key on the
+  command's own outcome, never on "the stores were refreshed, so it worked".
+- **`runtime.ts`'s `reportFault` currently calls `notify()` with a raw `Error.message`.**
+  It exists so a fault in a click handler is not a silent unhandled rejection; the text is
+  a placeholder, and this slice's toast vocabulary is what belongs there.
+
 ## Design
 
 ### 1. Notification model

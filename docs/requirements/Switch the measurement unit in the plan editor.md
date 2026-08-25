@@ -57,8 +57,10 @@ the preconditions and omit the behaviour the uncalibrated state actually owes.
 
 ## Main flow
 
-1. The renovator has a plan open, showing figures in the unit that plan was last read in —
-   millimetres if it has never been switched.
+1. The renovator has a plan open, showing figures in the unit that plan was last read in — or,
+   where it has never been switched, in whatever the precedence chain resolves to (project unit,
+   then plugin default, then millimetres). Millimetres is what that chain answers today, because
+   neither surface above it exists yet; it is not a hard-coded initial state.
 2. They open the unit picker in the toolbar's trailing group.
 3. They pick metres, centimetres or millimetres.
 4. Every figure the editor draws re-reads in that unit at once: the canvas measurement labels,
@@ -170,15 +172,22 @@ rewrites a rule silently is worse than one that says it is doing it.
    not a tool, never becomes active, and emits something else, so it goes in a trailing group
    that is explicitly outside the tool group and outside that invariant. The Contract has to
    say so; today it does not admit a non-tool child at all.
-3. **A `Unit picker` component note is owed**, under `docs/components/`, `medium: dom`,
+3. **[[Project settings]] owes one word: its unit is a *default*.** Its Outcome promises "every
+   figure the plugin shows for it obeys them", and the precedence chain puts a plan's remembered
+   display unit above it. The two are reconciled by scope rather than by precedence — the
+   project's unit governs the **values**, this picker governs only the editor's **rendering** of
+   them, and the Guarantee makes the values provably identical either way — but that sentence
+   has to appear in that note, or two MVP notes read as contradicting each other on what a
+   figure shows.
+4. **A `Unit picker` component note is owed**, under `docs/components/`, `medium: dom`,
    `region: chrome`. Deliberately not written as a wikilink from here: an unresolved link in
    `docs/components/` is a to-do, and anywhere else it is a defect.
-4. **[[Measurement label]]'s Given gains a unit.** Its rule — "it displays precision; it never
+5. **[[Measurement label]]'s Given gains a unit.** Its rule — "it displays precision; it never
    decides it" — is untouched and is the reason this works: the label already refuses to invent
    a precision, so handing it one more input changes nothing about who owns the decision. Its
    open question 2, what an uncalibrated measurement renders as, is still open and still not
    this note's to answer.
-5. **[[Toolbar]]'s roving tabstop spans both groups, and this note decides that rather than
+6. **[[Toolbar]]'s roving tabstop spans both groups, and this note decides that rather than
    noting it.** A `role="toolbar"` group keeps **one tab stop in total**; the arrow keys move
    across the boundary from the last tool button into the picker and back. The alternative — a
    separate tab stop for the picker — is refused by the component's own argument, that "tabbing
@@ -221,6 +230,21 @@ Named rather than left looking forgotten.
   2. otherwise the **project's** configured unit;
   3. otherwise the **plugin default**;
   4. otherwise **millimetres**.
+
+  **Level 1 sitting above level 2 is a real claim against [[Project settings]], and it is made
+  deliberately rather than by accident of ordering.** A plan remembered in centimetres shows
+  centimetres even where the project says metres, which reads against that note's "every figure
+  the plugin shows for it obeys them". The reconciliation is narrower than overturning it, and it
+  turns on what "figure" means: **the project's unit governs the values, and this picker governs
+  only how the editor renders them.** The budget, the exports and the reports are identical
+  either way — that is the Guarantee above, not a hope — so nothing the project settled is
+  actually disobeyed. What a per-plan override changes is one renovator's view of one plan for
+  the length of their own session, which is the whole reason it was asked for.
+  [[Project settings]] therefore owes one word: its unit is the **default** every plan starts
+  from, and
+  the plan editor's display lens is overridable per plan. Putting the project above the remembered
+  unit is the other coherent answer and is rejected, because it would delete the per-plan memory
+  this use case exists to provide.
 
   A value that is present but invalid is treated as absent at that level and the chain
   continues — which is extension **5b**'s rule applied per level rather than as a jump straight

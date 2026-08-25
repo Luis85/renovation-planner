@@ -78,6 +78,16 @@ describe('applyRequirementRule', () => {
 		expect(error.code).toBe('quantity.negative-coverage-rate');
 	});
 
+	it('rounds a non-terminating division at decimal.js precision, which is the residual limit', () => {
+		// The header claims decimal arithmetic, NOT exactness: a third of 10 m2 does not
+		// terminate, and 20 significant digits is where the shared Decimal stops.
+		const required = expectOk(
+			applyRequirementRule({ value: d('10'), unit: 'm2' }, { coverageRate: d('3') }),
+		);
+		expect(required.value.sd()).toBe(20);
+		expect(required.value.mul(3).equals(d('10'))).toBe(false);
+	});
+
 	it('refuses a negative measured quantity when driven stage by stage, not only through the engine', () => {
 		const error = expectErr(
 			applyRequirementRule({ value: d('-3'), unit: 'piece' }, { coverageRate: d('1') }),

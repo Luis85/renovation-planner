@@ -9,10 +9,15 @@ import type { CalculationError, ValidationError } from '../errors/AppError';
  * `Number()`.
  *
  * `amount` is stored as a plain decimal STRING, not a number: a float is exactly what
- * ADR-010 refuses. The string is this module's serialization of an exact `Decimal`;
- * every operation parses, computes at full precision, and serializes back, so no
- * intermediate pipeline value is ever rounded between stages (ADR-010: rounding happens
- * once, where a figure is finalized as output — see `round`).
+ * ADR-010 refuses. The string is this module's serialization of a `Decimal`; every
+ * operation parses, computes and serializes back, and no intermediate value is rounded
+ * TO THE CURRENCY'S MINOR UNIT between stages — that happens once, at `round`, where a
+ * figure is finalized as output (ADR-010).
+ *
+ * That is narrower than "full precision", which an earlier version of this comment
+ * claimed and decimal.js does not provide: every operation rounds to a configured number
+ * of SIGNIFICANT digits. Here that number is `MONEY_PRECISION`, on a constructor of this
+ * module's own — see the constant for both the figure and the residual limit it leaves.
  *
  * A Money is never NEGATIVE, and that is an invariant rather than a claim made at one
  * door: `createMoney`'s pattern refuses a leading `-`, and `fromDecimal` — the single
@@ -73,6 +78,35 @@ export function createMoney(amount: string, currency: string): Result<Money, Val
 const MINOR_UNIT_PLACES = 2;
 
 /**
+ * Significant digits every operation below computes to. 34 is IEEE 754 decimal128's
+ * precision — a figure with a source rather than a guess, and wide enough that a
+ * twelve-digit unit price times a twelve-digit quantity is still exact, which no
+ * renovation figure comes near.
+ *
+ * The residual limit, stated because there is one: `plus`, `minus` and `mul` each round
+ * (ROUND_HALF_UP, ADR-010's mode) when their exact result needs more than 34 significant
+ * digits. `div` cannot round here — the only division is by 100 in `percentageOf`, which
+ * shifts an exponent and leaves the digits alone.
+ */
+const MONEY_PRECISION = 34;
+
+/**
+ * A module-private constructor, not the shared `Decimal`, because `Decimal.precision` is
+ * process-global mutable state: any dependency — or a future import here — calling
+ * `Decimal.set` would silently move every total this plugin computes, with nothing
+ * recording that it had a value at all. A clone takes neither the global settings in
+ * force when it is made (`defaults: true`) nor any later change to them.
+ *
+ * The threat it answers is a configuration call. Reading `Decimal.ROUND_HALF_UP` off the
+ * shared constructor is safe from that, since `set` cannot reach the library's constants.
+ */
+const MoneyDecimal = Decimal.clone({
+	defaults: true,
+	precision: MONEY_PRECISION,
+	rounding: Decimal.ROUND_HALF_UP,
+});
+
+/**
  * The ONE place a Money is minted from a Decimal, and so the one place the non-negative
  * invariant can hold for every operation at once. It is an invariant rather than a claim
  * made at one door: `createMoney` — the persistence door, reading a file the user can
@@ -124,7 +158,7 @@ export function of(value: string | number | Decimal, currency: string): Money {
 	// Every remaining string parses, so no DecimalError can escape here. What decimal.js
 	// CONSTRUCTS happily is NaN and Infinity, from a number or another Decimal; only the
 	// later arithmetic would notice, so finiteness is checked here, where the value enters.
-	const amount = new Decimal(value);
+	const amount = new MoneyDecimal(value);
 	if (!amount.isFinite()) {
 		throw new Error(
 			`A monetary amount must be a finite decimal; got "${String(value)}".`,
@@ -149,7 +183,7 @@ function currencyMismatch(a: Money, b: Money): CalculationError | null {
 export function add(a: Money, b: Money): Result<Money, CalculationError> {
 	const mismatch = currencyMismatch(a, b);
 	if (mismatch) return err(mismatch);
-	return ok(fromDecimal(new Decimal(a.amount).plus(b.amount), a.currency));
+	return ok(fromDecimal(new MoneyDecimal(a.amount).plus(b.amount), a.currency));
 }
 
 /**
@@ -160,7 +194,7 @@ export function add(a: Money, b: Money): Result<Money, CalculationError> {
 export function subtract(a: Money, b: Money): Result<Money, CalculationError> {
 	const mismatch = currencyMismatch(a, b);
 	if (mismatch) return err(mismatch);
-	const difference = new Decimal(a.amount).minus(b.amount);
+	const difference = new MoneyDecimal(a.amount).minus(b.amount);
 	if (difference.lessThan(0)) {
 		return err({
 			category: 'Calculation',
@@ -175,12 +209,12 @@ export function subtract(a: Money, b: Money): Result<Money, CalculationError> {
 
 /** The PART `percent` of `a` (`a × percent / 100`) — never the adjusted total. */
 export function percentageOf(a: Money, percent: Decimal): Money {
-	return fromDecimal(new Decimal(a.amount).mul(percent).div(100), a.currency);
+	return fromDecimal(new MoneyDecimal(a.amount).mul(percent).div(100), a.currency);
 }
 
 /** Unit price × quantity, at full precision — rounding happens only at `round`. */
 export function scale(a: Money, factor: Decimal): Money {
-	return fromDecimal(new Decimal(a.amount).mul(factor), a.currency);
+	return fromDecimal(new MoneyDecimal(a.amount).mul(factor), a.currency);
 }
 
 /**
@@ -191,7 +225,7 @@ export function scale(a: Money, factor: Decimal): Money {
  */
 export function round(a: Money): Money {
 	return fromDecimal(
-		new Decimal(a.amount).toDecimalPlaces(MINOR_UNIT_PLACES, Decimal.ROUND_HALF_UP),
+		new MoneyDecimal(a.amount).toDecimalPlaces(MINOR_UNIT_PLACES, MoneyDecimal.ROUND_HALF_UP),
 		a.currency,
 		MINOR_UNIT_PLACES,
 	);
@@ -200,5 +234,5 @@ export function round(a: Money): Money {
 export function compare(a: Money, b: Money): Result<-1 | 0 | 1, CalculationError> {
 	const mismatch = currencyMismatch(a, b);
 	if (mismatch) return err(mismatch);
-	return ok(new Decimal(a.amount).comparedTo(b.amount) as -1 | 0 | 1);
+	return ok(new MoneyDecimal(a.amount).comparedTo(b.amount) as -1 | 0 | 1);
 }

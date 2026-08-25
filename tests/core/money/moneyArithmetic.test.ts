@@ -213,3 +213,38 @@ describe('the non-negative invariant', () => {
 		}
 	});
 });
+
+describe('the arithmetic precision', () => {
+	/** 20 significant digits, so its square needs 37 — more than any precision here. */
+	const WIDE = '12345678901234567890';
+
+	it('is immune to a global Decimal.set, which any dependency could call', () => {
+		const before = scale(of(WIDE, 'USD'), new Decimal(WIDE)).amount;
+		Decimal.set({ precision: 5 });
+		try {
+			// The GLOBAL constructor is now crippled — a total computed through it would
+			// come out as 152420000000000000000000000000000000000.
+			expect(new Decimal(WIDE).mul(WIDE).toFixed(0)).toBe(
+				'152420000000000000000000000000000000000',
+			);
+			expect(scale(of(WIDE, 'USD'), new Decimal(WIDE)).amount).toBe(before);
+		} finally {
+			Decimal.set({ defaults: true });
+		}
+		expect(before).toBe('152415787532388367501905199875019100000');
+	});
+
+	it('rounds beyond 34 significant digits, which is the limit the header names', () => {
+		// The residual, stated as a check rather than as a promise of exactness: the
+		// exact square needs 37 significant digits and does not survive.
+		const product = new Decimal(scale(of(WIDE, 'USD'), new Decimal(WIDE)).amount);
+		expect(product.sd()).toBeLessThanOrEqual(34);
+		expect(product.equals(new Decimal('152415787532388367501905199875019052100'))).toBe(false);
+	});
+
+	it('a percentage divides by one hundred exactly, at any size', () => {
+		// `div` is the operation that would round if it could, and dividing by 100 only
+		// shifts an exponent — the significant digits are the ones `mul` already produced.
+		expect(percentageOf(of('187.50', 'USD'), new Decimal('8.25')).amount).toBe('15.46875');
+	});
+});

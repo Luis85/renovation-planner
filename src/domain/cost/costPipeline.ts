@@ -28,8 +28,10 @@ import {
  * them outside the chain).
  *
  * `computeEstimatedCost` is the single entry point; the stages above are private so a
- * caller cannot skip or reorder them. Intermediate values keep full decimal.js
- * precision (ADR-010) — `round` runs exactly once, where the estimate is finalized.
+ * caller cannot skip or reorder them. No intermediate value is rounded to the currency's
+ * minor unit between stages (ADR-010) — `round` runs exactly once, where the estimate is
+ * finalized. What "precision" means underneath that is `core/money`'s to state, and it is
+ * a bounded number of significant digits rather than "full".
  *
  * Every input is refused BEFORE any arithmetic runs (`inputError`): a mismatched pricing
  * basis, a negative quantity, a negative or above-100% discount, a negative tax rate.

@@ -19,27 +19,38 @@ import type { CalculationError, ValidationError } from '../errors/AppError';
  * of SIGNIFICANT digits. Here that number is `MONEY_PRECISION`, on a constructor of this
  * module's own — see the constant for both the figure and the residual limit it leaves.
  *
- * A Money is never NEGATIVE, and that is an invariant rather than a claim made at one
- * door: `createMoney`'s pattern refuses a leading `-`, and `fromDecimal` — the single
- * point every operation mints through — refuses one too. So anything this module can
- * produce, `createMoney` can read back; an amount that failed on the way back in through
- * persistence would be a value the engine computed and can never re-read. `subtract`
- * reports a negative difference as a typed failure, and the operations that answer a bare
- * Money throw on one instead. Today's only caller — the Cost Pipeline — refuses a
- * negative factor or percent before either reaches `scale`/`percentageOf`, but that is a
- * convention this module's one caller observes, not a gate this module enforces:
- * `scale` and `percentageOf` are exported, and nothing here stops a future caller from
- * handing either a negative `Decimal` straight from user input.
+ * **A Money is SIGNED**, and this paragraph is the record of a reversal. For one
+ * increment it was not: `createMoney` and `fromDecimal` both refused a leading `-`, and
+ * `subtract` reported a negative difference as a `money.negative-result` failure. That
+ * was the wrong repair to a real defect. The defect was that `subtract` MINTED
+ * `amount: '-5'` while `createMoney` refused to read it back — a value this module
+ * produced and could not re-read — and it was fixed by narrowing the producer when the
+ * reader was the half that was wrong.
  *
- * The invariant itself is right for what this module computes today — a cost, a price, a
- * subtotal are never negative — and wrong the day something needs a SIGNED amount.
- * `docs/requirements/Reporting and project cockpit.md` asks "am I over budget"; a budget
- * variance (spent minus budget) is a difference whose sign is the answer, and under this
- * design that computation comes back as `subtract`'s `money.negative-result` failure
- * rather than a value whenever spend exceeds budget — the one case a variance exists to
- * report. Whoever builds that reads this as the recorded decision: the fix is a signed
- * `Variance` type of its own, not a relaxation of this invariant for every caller that
- * already relies on it.
+ * Two reasons it was wrong, both of them about what a value type is for. Non-negativity
+ * is a property of particular FIELDS — a unit price, a shipping charge, a budget — not of
+ * a monetary quantity, so the narrow version left `Money` unable to express a legitimate
+ * domain value. And it made the important case an error: "am I over budget"
+ * (`docs/requirements/Reporting and project cockpit.md`) is answered by a difference
+ * whose SIGN is the answer, so the one computation a variance exists to report came back
+ * as a failure exactly when it mattered. A signed `Variance` type of its own was the
+ * escape hatch this comment used to propose, and it is refused: it would need add,
+ * subtract, compare, round and currency matching — `Money` under a different name.
+ *
+ * **Non-negativity is enforced per FIELD, where those fields are validated**, not here:
+ * `domain/cost/costPipeline.ts` refuses a negative unit price, shipping charge or
+ * surcharge on its input (`cost.negative-amount`) alongside the negative quantity and
+ * out-of-range discount it already refused, and `domain/project/Project.ts`'s smart
+ * constructor refuses a negative `budget` or `contingency` (`project.negative-amount`).
+ * A field that must not go below zero gets a guard where it enters; a difference does not.
+ *
+ * What survives the reversal is the invariant that was actually breached: **anything this
+ * module can PRODUCE, `createMoney` can read back**, now over the wider signed set.
+ * `AMOUNT_PATTERN` admits exactly what `fromDecimal`'s `toFixed` can emit — including a
+ * leading `-`, and excluding a signed ZERO, which `toFixed` never writes. It is a
+ * property of the two doors together rather than a claim about one, so
+ * `tests/core/money/moneyArithmetic.test.ts` drives it over a grid of negative operands,
+ * negative factors and negative results rather than over one example.
  *
  * Two constructors, by who vouches for the input. `createMoney` validates user-shaped
  * input (a persisted amount is a file the user can edit) and answers `Result`. `of` is
@@ -62,7 +73,18 @@ export interface Money {
 	readonly currency: string;
 }
 
-const AMOUNT_PATTERN = /^(0|[1-9]\d*)(\.\d+)?$/;
+/**
+ * One canonical spelling per value, signed: an optional `-`, no `+`, no leading zero, no
+ * exponent, no bare `-`, no trailing dot — nothing `fromDecimal`'s `toFixed` cannot emit.
+ *
+ * The negative LOOKAHEAD is what refuses a signed zero (`-0`, `-0.00`): the sign is
+ * admitted only in front of a magnitude that is not all zeros. `toFixed` drops the sign
+ * of a zero — `new Decimal('-0').toFixed()` is `"0"`, and `round` rounds to the minor unit
+ * before it serializes there, so a tiny negative cannot print as `-0.00` either — so this
+ * refuses nothing this module writes. What it buys is that zero has ONE string: two
+ * amounts that compare equal would otherwise digest differently in persistence.
+ */
+const AMOUNT_PATTERN = /^(-(?!0+(\.0+)?$))?(0|[1-9]\d*)(\.\d+)?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
 export function createMoney(amount: string, currency: string): Result<Money, ValidationError> {
@@ -70,7 +92,7 @@ export function createMoney(amount: string, currency: string): Result<Money, Val
 		return err({
 			category: 'Validation',
 			code: 'money.invalid-amount',
-			message: `A monetary amount must be a plain non-negative decimal string; got "${amount}".`,
+			message: `A monetary amount must be a plain decimal string; got "${amount}".`,
 		});
 	}
 	if (!CURRENCY_PATTERN.test(currency)) {
@@ -120,35 +142,23 @@ const MoneyDecimal = Decimal.clone({
 });
 
 /**
- * The ONE place a Money is minted from a Decimal, and so the one place the non-negative
- * invariant can hold for every operation at once. It is an invariant rather than a claim
- * made at one door: `createMoney` — the persistence door, reading a file the user can
- * hand-edit — refuses a leading `-`, so an amount this module produced and persistence
- * cannot read back would be a value the engine computed and can never re-read.
+ * The ONE place a Money is minted from a Decimal, and so the one place the round-trip
+ * invariant lives: every string this module ever puts in an `amount` is written here, by
+ * `toFixed`, and `AMOUNT_PATTERN` — the persistence door, reading a file the user can
+ * hand-edit — is written to accept exactly that set. An amount this module produced and
+ * `createMoney` then refused would be a value the engine computed and can never re-read,
+ * which is the defect that pairing exists to prevent.
  *
- * A breach THROWS rather than answering a `Result`, in the same spirit as `of`: today's
- * only caller that could reach one from USER input — the Cost Pipeline — refuses it first
- * as a typed failure (it bounds its discount at 100% and refuses a negative quantity
- * before calling `percentageOf`/`scale`), and `subtract` reports a negative difference as
- * an error. That is a convention this module's one caller observes, not a gate `scale`/
- * `percentageOf` enforce themselves (see the module header above), so arriving here with
- * a negative amount from that caller is a programmer error (SDD §65), not a business
- * failure.
- *
- * `lessThan(0)` rather than `isNegative()`: decimal.js reports negative ZERO as negative,
- * and a zero is a zero — `toFixed` serializes it as a plain `0` either way.
+ * It refuses NOTHING. A negative amount is a value (see the header), and a field that
+ * must not hold one is guarded where that field is validated, not here.
  *
  * `places` is how `round` finalizes at the currency's minor unit; every other caller
  * serializes at the value's own precision. `toFixed` is the exact plain (never
  * exponential) notation — `toString()` would switch to exponential form past 20 digits
- * and break the round-trip back through `new Decimal(...)`.
+ * and break the round-trip back through `new Decimal(...)`. It also normalizes a negative
+ * ZERO to a plain `0`, which is what lets `AMOUNT_PATTERN` refuse `-0`.
  */
 function fromDecimal(amount: Decimal, currency: string, places?: number): Money {
-	if (amount.lessThan(0)) {
-		throw new Error(
-			`A monetary amount cannot be negative; got ${amount.toFixed(amount.dp())}.`,
-		);
-	}
 	return { [moneyBrand]: true, amount: amount.toFixed(places ?? amount.dp()), currency };
 }
 
@@ -215,24 +225,14 @@ export function add(a: Money, b: Money): Result<Money, CalculationError> {
 }
 
 /**
- * A difference below zero is a typed failure, not a negative `Money`: `subtract` is the
- * one operation whose operands can legitimately produce one from valid input, and it
- * already answers a `Result`, so the invariant costs an error code rather than a throw.
+ * A difference below zero is a VALUE. The `Result` here is for the currency mismatch and
+ * nothing else — "budget minus planned cost" is the computation this exists for, and its
+ * sign is the answer rather than an error (see the header's record of the reversal).
  */
 export function subtract(a: Money, b: Money): Result<Money, CalculationError> {
 	const mismatch = currencyMismatch(a, b);
 	if (mismatch) return err(mismatch);
-	const difference = new MoneyDecimal(a.amount).minus(b.amount);
-	if (difference.lessThan(0)) {
-		return err({
-			category: 'Calculation',
-			code: 'money.negative-result',
-			message:
-				`A monetary amount cannot be negative: ${a.amount} minus ${b.amount} `
-				+ `${a.currency} would be ${difference.toFixed(difference.dp())}.`,
-		});
-	}
-	return ok(fromDecimal(difference, a.currency));
+	return ok(fromDecimal(new MoneyDecimal(a.amount).minus(b.amount), a.currency));
 }
 
 /** The PART `percent` of `a` (`a × percent / 100`) — never the adjusted total. */
@@ -267,4 +267,18 @@ export function compare(a: Money, b: Money): Result<-1 | 0 | 1, CalculationError
 	const mismatch = currencyMismatch(a, b);
 	if (mismatch) return err(mismatch);
 	return ok(new MoneyDecimal(a.amount).comparedTo(b.amount) as -1 | 0 | 1);
+}
+
+/**
+ * The sign, asked of the module that owns the representation: nothing outside
+ * `core/money` may parse an `amount` itself (ADR-010), and a FIELD that must not go below
+ * zero — a unit price, a shipping charge, a budget — is guarded by whoever validates that
+ * field. This is what those guards ask.
+ *
+ * `lessThan(0)` rather than `isNegative()`, which decimal.js answers `true` for a negative
+ * ZERO. No `Money` can hold one (`fromDecimal` serializes it as a plain `0`), so the two
+ * agree here — `lessThan(0)` is the one that keeps agreeing if that ever changes.
+ */
+export function isNegative(a: Money): boolean {
+	return new MoneyDecimal(a.amount).lessThan(0);
 }

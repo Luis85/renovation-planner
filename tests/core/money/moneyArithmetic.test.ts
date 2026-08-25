@@ -46,13 +46,15 @@ describe('subtract', () => {
 		).toBe(true);
 	});
 
-	it('refuses to produce a NEGATIVE amount, which no Money can hold', () => {
-		const error = expectErr(subtract(of('25.00', 'USD'), of('30.125', 'USD')));
-		expect(error.category).toBe('Calculation');
-		expect(error.code).toBe('money.negative-result');
+	it('answers a NEGATIVE difference as a value, because over budget is the answer', () => {
+		// The case a variance exists to report: `budget - planned` below zero is the
+		// result, not an error path.
+		const under = expectOk(subtract(of('25.00', 'USD'), of('30.125', 'USD')));
+		expect(sameAmount(under, '-5.125')).toBe(true);
+		expect(under.currency).toBe('USD');
 	});
 
-	it('subtracting a value from itself is zero, not a negative-result failure', () => {
+	it('subtracting a value from itself is zero, and zero is unsigned', () => {
 		expect(sameAmount(expectOk(subtract(of('30.125', 'USD'), of('30.125', 'USD'))), '0')).toBe(
 			true,
 		);
@@ -155,16 +157,23 @@ describe('of and zero', () => {
 	});
 });
 
-describe('the non-negative invariant', () => {
+describe('the round-trip invariant', () => {
 	/**
 	 * The property under every case below: anything this module can PRODUCE,
 	 * `createMoney` can read back. A value the engine minted that persistence then
 	 * refuses is a value that cannot be re-read, which is what made this a defect rather
 	 * than a taste — so it is asserted over the operations, not over one example.
+	 *
+	 * The grid carries NEGATIVE operands and factors as well as positive ones, because
+	 * `Money` is signed: widening `AMOUNT_PATTERN` without widening this grid would leave
+	 * exactly the new half of the value set unchecked.
 	 */
-	it('round-trips every produced amount back through createMoney', () => {
-		const amounts = ['0', '5', '0.1', '219.80', '1e3', '12.345678', '0.005', '187.50'];
-		const factors = ['0', '1', '3', '0.5', '13.5802458', '100'];
+	it('round-trips every produced amount back through createMoney, sign included', () => {
+		const amounts = [
+			'0', '5', '0.1', '219.80', '1e3', '12.345678', '0.005', '187.50',
+			'-5', '-0.1', '-219.80', '-1e3', '-12.345678', '-0.005',
+		];
+		const factors = ['0', '1', '3', '0.5', '13.5802458', '100', '-1', '-3', '-0.5', '-100'];
 		const produced: Money[] = [zero('USD')];
 		for (const amount of amounts) {
 			const a = of(amount, 'USD');
@@ -173,13 +182,13 @@ describe('the non-negative invariant', () => {
 				const b = of(factor, 'USD');
 				produced.push(scale(a, new Decimal(factor)), percentageOf(a, new Decimal(factor)));
 				produced.push(expectOk(add(a, b)));
-				const difference = subtract(a, b);
-				// Only the ok arm can be collected: the whole point is that the err arm
-				// never yields a Money at all.
-				if (difference.ok) produced.push(difference.value);
+				// Both directions, so a negative DIFFERENCE from positive operands is in the
+				// set too — the case the reversed decision made an error path.
+				produced.push(expectOk(subtract(a, b)), expectOk(subtract(b, a)));
 			}
 		}
-		expect(produced.length).toBeGreaterThan(150);
+		expect(produced.length).toBeGreaterThan(500);
+		expect(produced.some((money) => money.amount.startsWith('-'))).toBe(true);
 		for (const money of produced) {
 			const readBack = createMoney(money.amount, money.currency);
 			if (!readBack.ok) {
@@ -189,21 +198,23 @@ describe('the non-negative invariant', () => {
 		}
 	});
 
-	it('refuses to construct a negative amount at all, as a programmer error', () => {
-		expect(() => of('-5', 'USD')).toThrow('negative');
+	it('mints a negative amount, which is a value and not a programmer error', () => {
+		expect(of('-5', 'USD').amount).toBe('-5');
+		expect(sameAmount(scale(of('12.50', 'USD'), new Decimal('-3')), '-37.50')).toBe(true);
+		expect(sameAmount(percentageOf(of('12.50', 'USD'), new Decimal('-8')), '-1')).toBe(true);
 	});
 
-	it('throws rather than mint a negative amount from an operation the pipeline cannot reach', () => {
-		// `scale` and `percentageOf` return a bare Money, so a negative factor has nowhere
-		// to report to. The Cost Pipeline refuses a negative quantity and a negative
-		// percent before either is called, which is what makes this arm unreachable from
-		// there and a programmer error everywhere else (SDD §65).
-		expect(() => scale(of('12.50', 'USD'), new Decimal('-3'))).toThrow('negative');
-		expect(() => percentageOf(of('12.50', 'USD'), new Decimal('-5'))).toThrow('negative');
-	});
-
-	it('a negative ZERO is a zero, not a negative amount', () => {
+	it('drops the sign of a ZERO at every door, so zero has one spelling', () => {
+		// `toFixed` serializes negative zero as a plain `0`, which is what lets
+		// `AMOUNT_PATTERN` refuse `-0` without ever refusing something this module wrote.
 		expect(scale(of('0', 'USD'), new Decimal('-3')).amount).toBe('0');
+		expect(of('-0', 'USD').amount).toBe('0');
+		expect(of('-0.00', 'USD').amount).toBe('0');
+		// `round` is the one caller that serializes at a FIXED number of places, so it is
+		// the one that could print `-0.00` from a tiny negative. It rounds first, and a
+		// rounded-to-zero value has no sign left to print.
+		expect(round(of('-0.001', 'USD')).amount).toBe('0.00');
+		expect(round(of('-0.006', 'USD')).amount).toBe('-0.01');
 	});
 
 	it('refuses a literal in another base, which decimal.js would read as a number', () => {

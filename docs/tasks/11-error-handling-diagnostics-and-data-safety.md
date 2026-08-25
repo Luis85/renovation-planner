@@ -5,9 +5,9 @@ order: 10
 dependsOn:
   - "[[01-plugin-bootstrap-and-composition-root]]"
   - "[[02-core-primitives]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-25
+finished: 2026-08-25
 horizon: ""
 start: ""
 due: ""

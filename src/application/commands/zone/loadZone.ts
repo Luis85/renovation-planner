@@ -1,9 +1,10 @@
 import { err, ok, type Result } from '../../../core/result/Result';
-import type { PersistenceError, ReferenceError } from '../../../core/errors/AppError';
+import type { ReferenceError } from '../../../core/errors/AppError';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { Loaded } from '../../ports/versioning';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import { referenceError } from '../../errors';
 
 /**
@@ -14,7 +15,7 @@ import { referenceError } from '../../errors';
 export async function loadZone(
 	zones: ZoneRepository,
 	zoneId: ZoneId,
-): Promise<Result<Loaded<Zone>, ReferenceError | PersistenceError>> {
+): Promise<Result<Loaded<Zone>, ReferenceError | RepositoryError>> {
 	const found = await zones.getById(zoneId);
 	if (!found.ok) {
 		return found;

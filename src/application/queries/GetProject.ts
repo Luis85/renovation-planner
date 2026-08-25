@@ -1,9 +1,9 @@
-import type { PersistenceError } from '../../core/errors/AppError';
 import type { Result } from '../../core/result/Result';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { Project } from '../../domain/project/Project';
 import type { Query } from './Query';
 import type { ProjectRepository } from '../ports/ProjectRepository';
+import type { RepositoryError } from '../ports/repositoryErrors';
 import type { Loaded } from '../ports/versioning';
 
 export interface GetProjectInput {
@@ -18,7 +18,7 @@ export interface GetProjectInput {
  * loads in order to write already holds the version.
  */
 export class GetProject
-	implements Query<GetProjectInput, Result<Loaded<Project> | null, PersistenceError>>
+	implements Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>
 {
 	constructor(private readonly projects: ProjectRepository) {}
 

@@ -1,10 +1,10 @@
 import { ok, type Result } from '../../../core/result/Result';
-import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import type { DomainEvent, EventBus } from '../../../core/events/EventBus';
 import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanEventPayload } from '../../../domain/plan/Plan.events';
 import type { EntityVersion, Loaded } from '../../ports/versioning';
 import type { PlanRepository } from '../../ports/PlanRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 
 /**
  * The write-and-announce tail every Plan command shares: save CONDITIONALLY on the version
@@ -28,7 +28,7 @@ export async function savePlan(
 	plan: Plan,
 	expected: EntityVersion,
 	announce: (payload: PlanEventPayload) => DomainEvent,
-): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>> {
+): Promise<Result<Loaded<Plan>, RepositoryError>> {
 	const saved = await plans.save(plan, expected);
 	if (!saved.ok) {
 		return saved;

@@ -1,9 +1,7 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type {
 	GeometryError,
-	PersistenceError,
 	ReferenceError,
-	ValidationError,
 } from '../../../core/errors/AppError';
 import type { Polygon } from '../../../core/geometry/Polygon';
 import type { EventBus } from '../../../core/events/EventBus';
@@ -12,6 +10,7 @@ import { zoneGeometryChanged } from '../../../domain/zone/Zone.events';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { Command } from '../Command';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { EntityVersion, Loaded } from '../../ports/versioning';
 import { loadZone } from './loadZone';
 
@@ -32,7 +31,7 @@ export class MoveSpatialObjectCommand
 			MoveSpatialObjectInput,
 			Result<
 				{ zone: Loaded<Zone> },
-				ReferenceError | GeometryError | ValidationError | PersistenceError
+				ReferenceError | GeometryError | RepositoryError
 			>
 		>
 {

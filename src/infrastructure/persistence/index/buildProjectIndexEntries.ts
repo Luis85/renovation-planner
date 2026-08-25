@@ -125,5 +125,10 @@ export function buildProjectIndexEntries(input: ScanInput): ProjectIndexEntry[] 
 	collectNotes(input, folder, entries);
 	joinSidecars(input, `${folder}/${GEOMETRY_FOLDER}/`, entries);
 
+	// §67's `info` — a notable state transition, content-free: the index was REBUILT and
+	// this is how many entities it now knows. The warns above are per-note problems; this
+	// is the one-line summary a developer reads first.
+	input.logger.info('persistence.index.rebuilt', { entries: entries.size });
+
 	return [...entries.values()];
 }

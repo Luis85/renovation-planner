@@ -32,11 +32,18 @@ export interface RenovationPlannerSettings {
 	 * correct default, which is why nothing composes against one.
 	 */
 	projectFolder: string;
+	/**
+	 * Verbose logging (slice 11): drops the console logger's floor from `info` to
+	 * `debug`. Diagnostics, not telemetry — everything stays in the local console
+	 * (SDD §67), this only widens what reaches it.
+	 */
+	verboseLogging: boolean;
 }
 
 export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
 	units: 'metric',
 	projectFolder: DEFAULT_PROJECT_FOLDER,
+	verboseLogging: false,
 };
 
 /**
@@ -80,8 +87,20 @@ function projectFolderFrom(value: unknown): string {
 	return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_SETTINGS.projectFolder;
 }
 
+/**
+ * A boolean is a boolean or it is the default — `data.json` may hold `1`, `"true"` or a
+ * sentence, and none of those is a preference this plugin recognises.
+ */
+function verboseLoggingFrom(value: unknown): boolean {
+	return typeof value === 'boolean' ? value : DEFAULT_SETTINGS.verboseLogging;
+}
+
 /** `loadData` answers whatever data.json holds: an object, null on a fresh install, or junk. */
 export function settingsFrom(raw: unknown): RenovationPlannerSettings {
 	const stored = typeof raw === 'object' && raw !== null ? (raw as Partial<RenovationPlannerSettings>) : {};
-	return { units: unitsFrom(stored.units), projectFolder: projectFolderFrom(stored.projectFolder) };
+	return {
+		units: unitsFrom(stored.units),
+		projectFolder: projectFolderFrom(stored.projectFolder),
+		verboseLogging: verboseLoggingFrom(stored.verboseLogging),
+	};
 }

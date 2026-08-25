@@ -28,8 +28,12 @@ const ORDER: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];
 /** One prefix, so a vault console with several plugins in it can be filtered to this one. */
 const PREFIX = 'renovation-planner';
 
-export function createConsoleLogger(minLevel: LogLevel): Logger {
-	const floor = ORDER.indexOf(minLevel);
+export function createConsoleLogger(minLevel: LogLevel): Logger & { setLevel(level: LogLevel): void } {
+	// Mutable, via `setLevel` below: bootstrap constructs the logger BEFORE settings can
+	// exist, and slice 11's verbose-logging setting then widens the floor once the load
+	// has read it. The port stays four-methods; only the plugin knows its adapter can do
+	// this.
+	let floor = ORDER.indexOf(minLevel);
 
 	const emit = (level: LogLevel, event: string, context?: Record<string, unknown>): void => {
 		if (ORDER.indexOf(level) < floor) return;
@@ -47,6 +51,9 @@ export function createConsoleLogger(minLevel: LogLevel): Logger {
 	};
 
 	return {
+		setLevel(level: LogLevel): void {
+			floor = ORDER.indexOf(level);
+		},
 		debug: (event, context) => emit('debug', event, context),
 		info: (event, context) => emit('info', event, context),
 		warn: (event, context) => emit('warn', event, context),

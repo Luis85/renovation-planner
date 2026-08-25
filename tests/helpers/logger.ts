@@ -25,13 +25,24 @@ export const lines: Line[] = [];
 /** Every `minLevel` the code under test asked the adapter factory for — one per construction. */
 export const levels: LogLevel[] = [];
 
+/** Every floor change asked of the adapter — slice 11's verbose-logging switch, observed. */
+export const levelChanges: LogLevel[] = [];
+
 const record =
 	(level: LogLevel) =>
 	(event: string, context?: Record<string, unknown>): void => {
 		lines.push({ level, event, context });
 	};
 
-export const recorder: Logger = {
+/**
+ * The ADAPTER's shape, not just the port's: slice 11's verbose-logging setting reaches
+ * `setLevel` through the concrete type only the plugin knows, so the mock carries it too
+ * — a fake thinner than the real thing would crash exactly the wiring worth testing.
+ */
+export const recorder: Logger & { setLevel(level: LogLevel): void } = {
+	setLevel: (level: LogLevel): void => {
+		levelChanges.push(level);
+	},
 	debug: record('debug'),
 	info: record('info'),
 	warn: record('warn'),
@@ -49,4 +60,5 @@ export const consoleLoggerMock = (): { createConsoleLogger: (minLevel: LogLevel)
 export const resetRecorder = (): void => {
 	lines.length = 0;
 	levels.length = 0;
+	levelChanges.length = 0;
 };

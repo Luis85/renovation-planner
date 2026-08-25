@@ -13,6 +13,8 @@ export const en = {
 	'settings.units.imperial': 'Imperial',
 	'settings.project-folder.name': 'Project folder',
 	'settings.project-folder.desc': 'Vault folder where project, plan and zone notes are stored, each with its geometry file beside it.',
+	'settings.verbose-logging.name': 'Verbose logging',
+	'settings.verbose-logging.desc': 'Show debug-level messages in the developer console. Everything stays on this device.',
 	'view.geometry.name': 'Geometry sidecar',
 	'settings.unrecovered': 'Settings could not be read. Fix or remove data.json in the plugin folder, then reload the app.',
 	'view.plan-editor.name': 'Plan editor',
@@ -53,6 +55,23 @@ export const en = {
 	'zone.status.in-progress': 'In progress',
 	'zone.status.complete': 'Complete',
 	'zone.status.unknown': 'Unknown status',
+	// Error copy (slice 11). Keyed by `AppError.code`, by a closed set of dynamic-code
+	// suffixes, and by category — never by the error's own `message`, which is log text.
+	'vault.unexpected-failure': 'Reading or writing the vault failed unexpectedly. Try again.',
+	'migration.chain-gap': 'This note uses a format this plugin cannot read.',
+	'error.suffix.schema-version-unsupported':
+		'This note was written by a newer version of this plugin. Update the plugin to open it.',
+	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',
+	'error.suffix.external-modification': 'This entry was edited outside the plugin. Reload and try again.',
+	'error.suffix.migration-failed': 'This note could not be converted to the current format.',
+	'error.category.domain': 'Something about the project data is invalid.',
+	'error.category.validation': 'This data is not in the expected form.',
+	'error.category.persistence': 'The vault could not be read or written.',
+	'error.category.geometry': 'A geometry value is invalid.',
+	'error.category.import': 'Importing failed.',
+	'error.category.migration': 'This note cannot be read with this version of the plugin.',
+	'error.category.reference': 'That entry no longer exists.',
+	'error.category.calculation': 'A quantity could not be calculated.',
 } as const;
 
 export type StringKey = keyof typeof en;

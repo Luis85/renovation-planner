@@ -1,8 +1,12 @@
-import type { PersistenceError } from '../../core/errors/AppError';
+import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
-import type { FindZonesByPlan } from '../../application/queries/FindZonesByPlan';
-import type { GetPlan } from '../../application/queries/GetPlan';
+import type { Plan as PlanEntity } from '../../domain/plan/Plan';
+import type { Zone as ZoneEntity } from '../../domain/zone/Zone';
+import type { Loaded } from '../../application/ports/versioning';
+import type { Query } from '../../application/queries/Query';
+import type { GetPlanInput } from '../../application/queries/GetPlan';
+import type { FindZonesByPlanInput } from '../../application/queries/FindZonesByPlan';
 import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
 
 /**
@@ -17,8 +21,8 @@ import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
  * error routing both branch on, and neither could recover it afterwards.
  */
 export interface PlanEditorQueryServices {
-	getPlan(planId: string): Promise<Result<PlanDto | null, PersistenceError>>;
-	findZonesByPlan(planId: string): Promise<Result<readonly ZoneDto[], PersistenceError>>;
+	getPlan(planId: string): Promise<Result<PlanDto | null, RepositoryError>>;
+	findZonesByPlan(planId: string): Promise<Result<readonly ZoneDto[], RepositoryError>>;
 }
 
 /**
@@ -36,7 +40,7 @@ export interface PlanEditorQueryServices {
  */
 function refuseUnrecovered() {
 	return Promise.resolve(
-		err<PersistenceError>({
+		err<RepositoryError>({
 			category: 'Persistence',
 			code: 'settings.unrecovered',
 			message: 'Settings could not be read, so no plan can be loaded.',
@@ -64,8 +68,8 @@ export function unavailablePlanEditorQueries(): PlanEditorQueryServices {
  * check-then-act the versioning design exists to refuse.
  */
 export function createPlanEditorQueries(queries: {
-	readonly getPlan: GetPlan;
-	readonly findZonesByPlan: FindZonesByPlan;
+	readonly getPlan: Query<GetPlanInput, Result<Loaded<PlanEntity> | null, RepositoryError>>;
+	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<Loaded<ZoneEntity>[], RepositoryError>>;
 }): PlanEditorQueryServices {
 	return {
 		async getPlan(planId) {

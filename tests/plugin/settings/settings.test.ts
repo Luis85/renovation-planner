@@ -12,14 +12,25 @@ describe('resolving settings from stored data', () => {
 	});
 
 	it('keeps a stored choice over the default', () => {
-		expect(settingsFrom({ units: 'imperial' })).toEqual({ units: 'imperial', projectFolder: DEFAULT_SETTINGS.projectFolder });
+		expect(settingsFrom({ units: 'imperial' })).toEqual({
+			units: 'imperial',
+			projectFolder: DEFAULT_SETTINGS.projectFolder,
+			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
+		});
 	});
 
 	it('keeps a stored folder over the default', () => {
 		expect(settingsFrom({ projectFolder: 'Renovations/Main' })).toEqual({
 			units: DEFAULT_SETTINGS.units,
 			projectFolder: 'Renovations/Main',
+			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
+	});
+
+	it('keeps a stored verbose-logging choice, and rejects junk for it', () => {
+		expect(settingsFrom({ verboseLogging: true }).verboseLogging).toBe(true);
+		expect(settingsFrom({ verboseLogging: 1 }).verboseLogging).toBe(false);
+		expect(settingsFrom({ verboseLogging: 'yes' }).verboseLogging).toBe(false);
 	});
 
 	it('falls back to the default folder for an empty or junk path', () => {
@@ -59,6 +70,7 @@ describe('resolving settings from stored data', () => {
 		expect(settingsFrom({ units: 'imperial', currency: 'EUR' })).toEqual({
 			units: 'imperial',
 			projectFolder: DEFAULT_SETTINGS.projectFolder,
+			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});
 

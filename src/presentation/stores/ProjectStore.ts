@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { PersistenceError } from '../../core/errors/AppError';
+import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { isErr } from '../../core/result/Result';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
@@ -30,14 +30,14 @@ export const useProjectStore = defineStore('project', () => {
 	const plan = ref<PlanDto | null>(null);
 	const zones = ref<ReadonlyMap<string, ZoneDto>>(new Map());
 	const status = ref<ProjectStoreStatus>('idle');
-	const error = ref<PersistenceError | null>(null);
+	const error = ref<RepositoryError | null>(null);
 
 	/**
 	 * A failed read leaves NO stale plan behind. Keeping the previous one would draw a
 	 * canvas that looks current beside an error saying it is not, which is the worse of
 	 * the two wrong answers.
 	 */
-	function fail(cause: PersistenceError): void {
+	function fail(cause: RepositoryError): void {
 		plan.value = null;
 		zones.value = new Map();
 		error.value = cause;

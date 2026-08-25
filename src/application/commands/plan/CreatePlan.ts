@@ -1,5 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
-import type { PersistenceError, ReferenceError, ValidationError } from '../../../core/errors/AppError';
+import type { ReferenceError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import { Plan } from '../../../domain/plan/Plan';
@@ -10,6 +10,7 @@ import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Loaded } from '../../ports/versioning';
 
 export interface CreatePlanInput {
@@ -19,11 +20,13 @@ export interface CreatePlanInput {
 	readonly layers?: readonly string[];
 }
 
+export type CreatePlanError = ReferenceError | RepositoryError;
+
 export class CreatePlanCommand
 	implements
 		Command<
 			CreatePlanInput,
-			Result<{ plan: Loaded<Plan> }, ValidationError | ReferenceError | PersistenceError>
+			Result<{ plan: Loaded<Plan> }, CreatePlanError>
 		>
 {
 	constructor(
@@ -39,7 +42,7 @@ export class CreatePlanCommand
 	// sample-project seed became one, and `isErr` could not narrow the union it got.
 	async execute(
 		input: CreatePlanInput,
-	): Promise<Result<{ plan: Loaded<Plan> }, ValidationError | ReferenceError | PersistenceError>> {
+	): Promise<Result<{ plan: Loaded<Plan> }, CreatePlanError>> {
 		const found = await this.projects.getById(input.projectId);
 		if (isErr(found)) {
 			return found;

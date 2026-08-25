@@ -44,7 +44,7 @@ describe('plan geometry store diagnostics', () => {
 		expect(expectErr(await stack.store.read(planId)).code).toBe('plan-geometry.corrupt');
 	});
 
-	it('a migration gap on old data surfaces as migration-failed', async () => {
+	it('a migration gap on old data surfaces as a Migration refusal with the runner\'s own code', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
 		stack.vault.entries.set(
@@ -52,7 +52,8 @@ describe('plan geometry store diagnostics', () => {
 			JSON.stringify({ schemaVersion: 0, planId, revision: 0, unit: 'mm', calibration: null, objects: [] }),
 		);
 		const result = await stack.store.read(planId);
-		expect(!result.ok && result.error.code).toBe('plan-geometry.migration-failed');
+		expect(!result.ok && result.error.code).toBe('migration.chain-gap');
+		expect(!result.ok && result.error.category).toBe('Migration');
 	});
 
 	it('a hand-renamed or hand-edited planId refuses at read time (the filename join verified)', async () => {

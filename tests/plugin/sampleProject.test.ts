@@ -241,6 +241,8 @@ describe('the create-sample-project command', () => {
 		await drain();
 
 		expect(workspace.leaves).toHaveLength(0);
-		expect(Notice.shown).toEqual([injectedPersistenceError().message]);
+		// Through `toUserMessage`: the notice is the locale table's Persistence fallback
+		// for this injected code, never the error's own developer-facing `message`.
+		expect(Notice.shown).toEqual(['The vault could not be read or written.']);
 	});
 });

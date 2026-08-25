@@ -262,7 +262,9 @@ describe('set plan background', () => {
 		await flush();
 
 		expect(Notice.shown).toHaveLength(1);
-		expect(Notice.shown[0]).toContain('plan-gone');
+		// Through `toUserMessage`: the ReferenceError falls back to its category sentence,
+		// and the raw id — vault content — stays out of the notice.
+		expect(Notice.shown[0]).toBe('That entry no longer exists.');
 	});
 
 	it('says so rather than opening an empty picker when the vault has no candidate', async () => {

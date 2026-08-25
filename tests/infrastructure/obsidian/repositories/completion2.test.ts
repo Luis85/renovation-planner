@@ -87,7 +87,7 @@ describe('project repository: delete and listing failures', () => {
 });
 
 describe('zone repository: remaining refusals', () => {
-	it('getById reports migration-failed and frontmatter-invalid distinctly', async () => {
+	it('getById reports malformed versions and frontmatter-invalid distinctly', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		const zoneId = createZoneId();
@@ -95,7 +95,9 @@ describe('zone repository: remaining refusals', () => {
 		const path = notePathOf(stack, zoneId);
 
 		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: "junk"'));
-		expect(expectErr(await stack.zones.getById(zoneId)).code).toBe('zone.migration-failed');
+		const malformed = expectErr(await stack.zones.getById(zoneId));
+		expect(malformed.code).toBe('zone.schema-version-malformed');
+		expect(malformed.category).toBe('Validation');
 
 		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: "junk"', 'schema-version: 1').replace('"planned"', '"done"'));
 		expect(expectErr(await stack.zones.getById(zoneId)).code).toBe('zone.frontmatter-invalid');

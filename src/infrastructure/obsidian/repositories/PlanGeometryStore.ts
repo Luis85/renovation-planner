@@ -1,10 +1,10 @@
 import { TFile, type FileManager, type Vault } from 'obsidian';
-import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
+import type { MigrationError, PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import { checkExpectedVersion } from './versionCheck';
-import { ensureFolder, persistenceError } from './noteIo';
+import { ensureFolder, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PlanGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
@@ -26,6 +26,9 @@ function schemaVersionOf(parsed: unknown): number {
 	}
 	return 0;
 }
+
+/** What a sidecar read can refuse with — the same vocabulary a note read carries. */
+type SidecarReadError = PersistenceError | ValidationError | MigrationError;
 
 /** What a sidecar read hands back: the parsed document plus the version to write against. */
 export interface SidecarSnapshot {
@@ -85,7 +88,7 @@ export class PlanGeometryStore {
 		});
 	}
 
-	read(planId: PlanId): Promise<Result<SidecarSnapshot, PersistenceError | ValidationError>> {
+	read(planId: PlanId): Promise<Result<SidecarSnapshot, SidecarReadError>> {
 		return this.queues.run(`plan:${planId}`, () => this.readUnlocked(planId));
 	}
 
@@ -93,7 +96,7 @@ export class PlanGeometryStore {
 		planId: PlanId,
 		change: (dto: PlanGeometryDTO) => PlanGeometryDTO,
 		expected?: EntityVersion,
-	): Promise<Result<{ version: EntityVersion }, PersistenceError | ValidationError>> {
+	): Promise<Result<{ version: EntityVersion }, SidecarReadError>> {
 		return this.queues.run(`plan:${planId}`, async () => {
 			const current = await this.readUnlocked(planId);
 			if (!current.ok) return current;
@@ -145,7 +148,7 @@ export class PlanGeometryStore {
 	/** MUST run inside the plan's queue — every caller here does. */
 	private async readUnlocked(
 		planId: PlanId,
-	): Promise<Result<SidecarSnapshot, PersistenceError | ValidationError>> {
+	): Promise<Result<SidecarSnapshot, SidecarReadError>> {
 		const path = this.index.getGeometrySidecarPath(planId);
 		if (!path) {
 			return err(persistenceError('plan-geometry.path-unresolved', `No sidecar path is indexed for plan ${planId}.`));
@@ -168,11 +171,23 @@ export class PlanGeometryStore {
 			return err(persistenceError('plan-geometry.corrupt', `Sidecar ${path} is not valid JSON.`, cause));
 		}
 
+		// A PRESENT but non-numeric version is malformed data, not an old document —
+		// the same distinction `migrateNote` draws for notes (SDD §87 rule 7).
+		if (typeof parsed === 'object' && parsed !== null && 'schemaVersion' in parsed && typeof (parsed as Record<string, unknown>)['schemaVersion'] !== 'number') {
+			return err({
+				category: 'Validation',
+				code: 'plan-geometry.schema-version-malformed',
+				message: `Sidecar ${path} carries a non-numeric schemaVersion.`,
+			});
+		}
+
 		let migrated: unknown;
 		try {
 			migrated = this.migrations.migrateToLatest('plan-geometry', parsed, schemaVersionOf(parsed));
 		} catch (cause) {
-			return err(persistenceError('plan-geometry.migration-failed', `Migrating sidecar ${path} failed.`, cause));
+			// The same vocabulary a note read refuses with: a future `schemaVersion` keeps
+			// the runner's Migration category, anything else stays Persistence.
+			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
 		const validated = PlanGeometrySchemaV1.safeParse(migrated);

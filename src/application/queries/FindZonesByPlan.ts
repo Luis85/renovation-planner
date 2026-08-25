@@ -1,10 +1,10 @@
-import type { PersistenceError } from '../../core/errors/AppError';
 import type { Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { Zone } from '../../domain/zone/Zone';
 import type { Loaded } from '../ports/versioning';
 import type { Query } from './Query';
 import type { ZoneRepository } from '../ports/ZoneRepository';
+import type { RepositoryError } from '../ports/repositoryErrors';
 
 export interface FindZonesByPlanInput {
 	readonly planId: PlanId;
@@ -17,7 +17,7 @@ export interface FindZonesByPlanInput {
  * got its first real implementation.
  */
 export class FindZonesByPlan
-	implements Query<FindZonesByPlanInput, Result<Loaded<Zone>[], PersistenceError>>
+	implements Query<FindZonesByPlanInput, Result<Loaded<Zone>[], RepositoryError>>
 {
 	constructor(private readonly zones: ZoneRepository) {}
 

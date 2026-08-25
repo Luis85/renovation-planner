@@ -1,12 +1,23 @@
 import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
+import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
+import type { Command } from '../application/commands/Command';
+import type { Query } from '../application/queries/Query';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
+import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
+import type { CreateProjectInput, CreateProjectError } from '../application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
+import type { CreateZoneInput, CreateZoneError } from '../application/commands/zone/CreateZone';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
+import type {
+	SetPlanBackgroundInput,
+	SetPlanBackgroundOutcome,
+	SetPlanBackgroundError,
+} from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
@@ -17,13 +28,22 @@ import {
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
+import type { FindZonesByPlanInput } from '../application/queries/FindZonesByPlan';
 import { GetPlan } from '../application/queries/GetPlan';
+import type { GetPlanInput } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
+import type { GetProjectInput } from '../application/queries/GetProject';
 import { GetZone } from '../application/queries/GetZone';
+import type { GetZoneInput } from '../application/queries/GetZone';
+import type { Loaded } from '../application/ports/versioning';
+import type { Project } from '../domain/project/Project';
+import type { Plan } from '../domain/plan/Plan';
+import type { Zone } from '../domain/zone/Zone';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
+import type { RepositoryError } from '../application/ports/repositoryErrors';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
@@ -37,6 +57,11 @@ import { PLAN_GEOMETRY_MIGRATIONS } from '../infrastructure/persistence/migratio
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
+import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
+import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
+import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
+import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
+import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import type { RenovationPlannerSettings } from './settings/settings';
 
 /**
@@ -89,10 +114,12 @@ export interface CompositionRoot {
 
 /** The read side a view or command consumes; never a concrete repository type. */
 export interface QueryServices {
-	readonly getProject: GetProject;
-	readonly getPlan: GetPlan;
-	readonly getZone: GetZone;
-	readonly findZonesByPlan: FindZonesByPlan;
+	readonly getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>;
+	readonly getPlan: Query<GetPlanInput, Result<Loaded<Plan> | null, RepositoryError>>;
+	readonly getZone: Query<GetZoneInput, Result<Loaded<Zone> | null, RepositoryError>>;
+	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<Loaded<Zone>[], RepositoryError>>;
+	/** SDD §68's content-free snapshot — versions, schema versions, migration state, issues. */
+	readonly diagnostics: Query<void, DiagnosticsSnapshot>;
 }
 
 export interface PersistenceServices {
@@ -118,21 +145,25 @@ export interface PersistenceServices {
 	 * project, plan or zone note and slices 3, 4 and 5 were unreachable from inside
 	 * Obsidian. Composed here for the same reason every other service is: the write side a
 	 * command or a view consumes is an interface handed to it, never a repository it built.
+	 * Typed as `Command` rather than the concrete class because what leaves this root is
+	 * GUARDED (SDD §66): a wrapper object with the same `execute`, not the class itself.
 	 *
 	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
 	 * empty-state actions and slice 15's creation dialogs are what give them product-real
 	 * ones; neither needs a second wiring point, only a second call.
 	 */
-	readonly createProject: CreateProjectCommand;
-	readonly createPlan: CreatePlanCommand;
-	readonly createZone: CreateZoneCommand;
+	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
+	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
+	readonly createZone: Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, CreateZoneError>>;
 	/**
 	 * Slice 5's one write, in both faces: the plain command, and the undoable adapter
 	 * slice 6's `CommandHistory` will hold. The adapter WRAPS the command rather than
-	 * duplicating it, so there is one forward write however it is dispatched.
+	 * duplicating it, so there is one forward write however it is dispatched. Both are
+	 * guarded like every other service here; the adapter's `undo` is slice 6's to guard,
+	 * when a history exists to hold it.
 	 */
-	readonly setPlanBackground: SetPlanBackgroundCommand;
-	readonly reversibleSetPlanBackground: ReversibleSetPlanBackgroundCommand;
+	readonly setPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
+	readonly reversibleSetPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -151,6 +182,14 @@ export function createCompositionRoot(
 	settings: RenovationPlannerSettings | null,
 	logger: Logger,
 	vault: VaultStack | null = null,
+	/** Defaults to 'unknown' pairs so a test double can compose without an Obsidian app. */
+	environment: RuntimeVersions = { pluginVersion: 'unknown', obsidianVersion: 'unknown' },
+	/**
+	 * Supplied by the plugin so the ledger OUTLIVES a root: `saveSettings` rebuilds this
+	 * whole stack, and validation issues recorded before the change describe the
+	 * session's vault reads, not the previous settings object's.
+	 */
+	ledger: DiagnosticsLedger = new InMemoryDiagnosticsLedger(),
 ): CompositionRoot {
 	// Wired to the logger from its first line: `createEventBus`'s `onError` is where a
 	// throwing subscriber goes, and a bus built without one loses those failures silently
@@ -181,6 +220,7 @@ export function createCompositionRoot(
 		echo,
 		migrations,
 		logger,
+		ledger,
 		projectFolder: settings.projectFolder,
 	};
 
@@ -189,15 +229,32 @@ export function createCompositionRoot(
 	const plans = new ObsidianPlanRepository(deps, geometryStore);
 	const zones = new ObsidianZoneRepository(deps, geometryStore);
 
+	// The Error Boundary's last line (SDD §66): every command and query is handed out
+	// GUARDED, so an unexpected fault below this seam arrives as a resolved failed
+	// `Result` — never a rejection past the application layer. The repositories map the
+	// failures they EXPECT to coded errors; this catches what escapes that net. Each
+	// service gets its own event name so a log line names the boundary it crossed.
+	const vaultMapper = createVaultExceptionMapper('vault');
 	const queries: QueryServices = {
-		getProject: new GetProject(projects),
-		getPlan: new GetPlan(plans),
-		getZone: new GetZone(zones),
-		findZonesByPlan: new FindZonesByPlan(zones),
+		getProject: guardQuery(new GetProject(projects), 'query.getProject.failed', logger, vaultMapper),
+		getPlan: guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, vaultMapper),
+		getZone: guardQuery(new GetZone(zones), 'query.getZone.failed', logger, vaultMapper),
+		findZonesByPlan: guardQuery(new FindZonesByPlan(zones), 'query.findZonesByPlan.failed', logger, vaultMapper),
+		diagnostics: new GetDiagnosticsSnapshotQuery({
+			versions: environment,
+			latestSchemaVersions: () => migrations.latestVersions,
+			lastAppliedMigration: () => migrations.lastApplied,
+			ledger,
+		}),
 	};
 
 	const files = createVaultFileProbe(vault.vault);
-	const setPlanBackground = new SetPlanBackgroundCommand(plans, files, eventBus);
+	const setPlanBackground = guardCommand(
+		new SetPlanBackgroundCommand(plans, files, eventBus),
+		'command.setPlanBackground.failed',
+		logger,
+		vaultMapper,
+	);
 
 	const changeAdapter = new VaultChangeAdapter({
 		vault: vault.vault,
@@ -222,12 +279,17 @@ export function createCompositionRoot(
 			zones,
 			queries,
 			files,
-			createProject: new CreateProjectCommand(projects, eventBus),
-			createPlan: new CreatePlanCommand(plans, projects, eventBus),
-			createZone: new CreateZoneCommand(zones, plans, eventBus),
+			createProject: guardCommand(new CreateProjectCommand(projects, eventBus), 'command.createProject.failed', logger, vaultMapper),
+			createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, vaultMapper),
+			createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, vaultMapper),
 			planEditorQueries: createPlanEditorQueries(queries),
 			setPlanBackground,
-			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),
+			reversibleSetPlanBackground: guardCommand(
+				new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),
+				'command.setPlanBackground.undoable.failed',
+				logger,
+				vaultMapper,
+			),
 			changeAdapter,
 		},
 	};

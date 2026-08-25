@@ -1,8 +1,13 @@
-import type { App, TFile } from 'obsidian';
-import { isErr } from '../core/result/Result';
+import { getLanguage, type App, type TFile } from 'obsidian';
+import { isErr, type Result } from '../core/result/Result';
 import type { ProjectIndex, ProjectIndexEntry } from '../application/ports/ProjectIndex';
 import type { PlanId } from '../domain/plan/PlanId';
-import type { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
+import type { Command } from '../application/commands/Command';
+import type {
+	SetPlanBackgroundError,
+	SetPlanBackgroundInput,
+	SetPlanBackgroundOutcome,
+} from '../application/commands/plan/SetPlanBackground';
 import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
@@ -10,6 +15,7 @@ import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
 import { notify } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
+import { toUserMessage } from '../presentation/i18n/toUserMessage';
 import type { PluginCommandHost } from './commandHost';
 
 /**
@@ -52,8 +58,10 @@ function backgroundCandidates(app: App): TFile[] {
 async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TFile): Promise<void> {
 	// ANNOTATED, not inferred: fallow resolves a class's members through an explicit type
 	// annotation, and without one it reports `execute`/`undo` as dead members of a class
-	// this file is the only production caller of.
-	const command: ReversibleSetPlanBackgroundCommand | undefined =
+	// this file is the only production caller of. The annotation is the STRUCTURAL command
+	// shape, not the concrete adapter class: what leaves the composition root is guarded
+	// (SDD §66), a wrapper with the same `execute`.
+	const command: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>> | undefined =
 		host.root.persistence?.reversibleSetPlanBackground;
 	const kind = backgroundKindFor(file.path);
 	if (command === undefined || kind === null) return;
@@ -66,10 +74,9 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
 	});
 
 	if (isErr(result)) {
-		// The message is the error's own, which is domain text rather than UI copy — slice 17
-		// owns turning an `AppError` into a translated sentence, and inventing a second
-		// mapping here is what that slice would then have to unpick.
-		notify(result.error.message);
+		// Through `toUserMessage` (SDD §66's last step): a translated sentence keyed by
+		// the error's code, never the error's own `message`, which is developer text.
+		notify(toUserMessage(getLanguage(), result.error));
 	}
 	// Nothing else to do on success: the command published `PlanBackgroundChanged`, and the
 	// open Plan Editor re-hydrates off that. This code does not know a canvas exists.

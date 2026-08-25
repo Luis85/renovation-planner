@@ -56,6 +56,23 @@ describe('the threshold', () => {
 		expect(warn).not.toHaveBeenCalled();
 		expect(error).toHaveBeenCalledTimes(1);
 	});
+
+	// Slice 11's verbose-logging switch: bootstrap constructs at `info` (before settings
+	// can exist) and the plugin widens the floor once `verboseLogging` has been read.
+	it('widens the floor via setLevel, and narrows it back', () => {
+		const logger = createConsoleLogger('info');
+
+		logger.debug('plugin.load.started');
+		expect(debug).not.toHaveBeenCalled();
+
+		logger.setLevel('debug');
+		logger.debug('plugin.load.started');
+		expect(debug).toHaveBeenCalledTimes(1);
+
+		logger.setLevel('info');
+		logger.debug('plugin.load.started');
+		expect(debug).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe('the level in the line', () => {

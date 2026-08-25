@@ -4,8 +4,8 @@ import { planError } from '../../../domain/plan/Plan.errors';
 import type { PlanBackgroundRef } from '../../../domain/plan/PlanBackgroundRef';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { Loaded } from '../../ports/versioning';
+import type { Command } from '../Command';
 import type {
-	SetPlanBackgroundCommand,
 	SetPlanBackgroundError,
 	SetPlanBackgroundInput,
 	SetPlanBackgroundOutcome,
@@ -46,10 +46,16 @@ export class ReversibleSetPlanBackgroundCommand {
 	private snapshot: Snapshot | null = null;
 
 	constructor(
-		private readonly forward: SetPlanBackgroundCommand,
+		private readonly forward: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>,
 		private readonly plans: PlanRepository,
 	) {}
 
+	// The composition root GUARDS this adapter before handing it out (SDD §66), so the
+	// only production caller sees a structural `Command` wrapper, not this class — which
+	// makes `execute` invisible to fallow's graph. Suppressed for the reason its sibling
+	// below is: the method IS driven, by tests, and deleting a declared capability
+	// because its direct caller moved one indirection away is how declarations rot.
+	// fallow-ignore-next-line unused-class-member
 	async execute(
 		input: SetPlanBackgroundInput,
 	): Promise<Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>> {

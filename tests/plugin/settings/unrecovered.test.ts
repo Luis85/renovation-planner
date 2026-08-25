@@ -242,8 +242,9 @@ describe('a fresh install, which is the opposite outcome', () => {
 		const tab = plugin.settingTabs[0] as unknown as SettingsTab;
 
 		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
-		// Two controls now: units, and the slice-4 project folder (the one location field).
-		expect(tab.getSettingDefinitions()).toHaveLength(2);
+		// Three controls: units, the slice-4 project folder (the one location field), and
+		// slice 11's verbose-logging toggle.
+		expect(tab.getSettingDefinitions()).toHaveLength(3);
 
 		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
 

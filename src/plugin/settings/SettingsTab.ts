@@ -68,6 +68,15 @@ export class SettingsTab extends PluginSettingTab {
 					defaultValue: DEFAULT_SETTINGS.projectFolder,
 				},
 			},
+			{
+				name: tr('settings.verbose-logging.name'),
+				desc: tr('settings.verbose-logging.desc'),
+				control: {
+					type: 'toggle',
+					key: 'verboseLogging',
+					defaultValue: DEFAULT_SETTINGS.verboseLogging,
+				},
+			},
 		];
 	}
 

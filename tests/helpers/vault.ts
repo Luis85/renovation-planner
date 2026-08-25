@@ -4,6 +4,7 @@ import { serializeFrontmatter } from '../../src/infrastructure/obsidian/reposito
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
+import { InMemoryDiagnosticsLedger } from '../../src/infrastructure/logging/diagnosticsLedger';
 import { createMigrationRunner, type MigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
 import { PLAN_MIGRATIONS } from '../../src/infrastructure/persistence/migration/entities/plan/plan.migrations';
 import { ZONE_MIGRATIONS } from '../../src/infrastructure/persistence/migration/entities/zone/zone.migrations';
@@ -309,6 +310,7 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		zone: ZONE_MIGRATIONS,
 		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
 	});
+	const ledger = new InMemoryDiagnosticsLedger();
 
 	const deps = {
 		vault: vault as never,
@@ -318,6 +320,7 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		echo,
 		migrations,
 		logger,
+		ledger,
 		projectFolder,
 	};
 	const store = new PlanGeometryStore(vault as never, fileManager as never, index, migrations, echo);
@@ -331,6 +334,7 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		migrations,
 		logged,
 		logger,
+		ledger,
 		store,
 		projects: new ObsidianProjectRepository(deps),
 		plans: new ObsidianPlanRepository(deps, store),

@@ -47,13 +47,47 @@ describe('project repository failure branches', () => {
 		expect(expectErr(await stack.projects.save(project, 'absent')).code).toBe('project.write-failed');
 	});
 
-	it('a note with an unreadable schema version reports migration-failed', async () => {
+	it('a note with a malformed schema version reports schema-version-malformed', async () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		const path = stack.index.getPath(projectId) ?? '';
 		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: "junk"'));
-		expect(expectErr(await stack.projects.getById(projectId)).code).toBe('project.migration-failed');
+		const error = expectErr(await stack.projects.getById(projectId));
+		expect(error.code).toBe('project.schema-version-malformed');
+		expect(error.category).toBe('Validation');
+	});
+
+	// SDD §87 rule 7 + §92 item 13: a note from a NEWER build refuses as a Migration
+	// error — never a best-effort parse of a shape this build does not know — and the
+	// refusal is scoped to that one entity, so the rest of the project still loads.
+	it('a future schema version refuses fail-closed while other entities load on', async () => {
+		const stack = createRepositoryStack();
+		const first = createProjectId();
+		const second = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: first }), 'absent'));
+		expectOk(await stack.projects.save(makeProjectEntity({ id: second }), 'absent'));
+		const futurePath = stack.index.getPath(first) ?? '';
+		stack.vault.entries.set(futurePath, (stack.vault.entries.get(futurePath) ?? '').replace('schema-version: 1', 'schema-version: 99'));
+
+		const refused = expectErr(await stack.projects.getById(first));
+		expect(refused.category).toBe('Migration');
+		expect(refused.code).toBe('project.schema-version-unsupported');
+		expectOk(await stack.projects.getById(second));
+	});
+
+	// SDD §68: a refusal is RECORDED content-free — opaque id + error code — so the
+	// diagnostics snapshot can report it without ever holding project data.
+	it('a refused read lands in the diagnostics ledger as an opaque id and a code', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const path = stack.index.getPath(projectId) ?? '';
+		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
+		await stack.projects.getById(projectId);
+		expect(stack.ledger.issues()).toEqual([
+			{ entityType: 'project', entityId: projectId, issue: 'project.schema-version-unsupported' },
+		]);
 	});
 });
 

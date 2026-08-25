@@ -1,10 +1,5 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
-import type {
-	CalculationError,
-	PersistenceError,
-	ReferenceError,
-	ValidationError,
-} from '../../../core/errors/AppError';
+import type { CalculationError, ReferenceError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -14,6 +9,7 @@ import { loadPlan } from './loadPlan';
 import { savePlan } from './savePlan';
 import type { Command } from '../Command';
 import type { PlanRepository } from '../../ports/PlanRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Loaded } from '../../ports/versioning';
 
 export interface CalibratePlanInput {
@@ -35,7 +31,7 @@ export class CalibratePlanCommand
 			CalibratePlanInput,
 			Result<
 				{ plan: Loaded<Plan> },
-				ReferenceError | ValidationError | CalculationError | PersistenceError
+				ReferenceError | CalculationError | RepositoryError
 			>
 		>
 {

@@ -1,10 +1,10 @@
 import type { TFile } from 'obsidian';
-import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
+import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { revisionConflict } from '../../../application/ports/versioning';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
 import { planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
@@ -68,7 +68,7 @@ export class ObsidianPlanRepository {
 		this.folder = normalizeFolder(deps.projectFolder);
 	}
 
-	async getById(id: PlanId): Promise<Result<Loaded<Plan> | null, PersistenceError>> {
+	async getById(id: PlanId): Promise<Result<Loaded<Plan> | null, RepositoryError>> {
 		const opened = openNoteById(this.deps, 'plan', id);
 		if (opened.status === 'missing') return Promise.resolve(ok(null));
 		if (opened.status === 'error') return Promise.resolve(err(opened.error));
@@ -90,14 +90,14 @@ export class ObsidianPlanRepository {
 	save(
 		plan: Plan,
 		expected: Expected,
-	): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		return this.queues.run(`plan-note:${plan.id}`, () => this.saveQueued(plan, expected));
 	}
 
 	private saveQueued(
 		plan: Plan,
 		expected: Expected,
-	): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		// Existence before writes — the fork the conditional-write comparison needs.
 		const notesFolder = plansFolderFor(this.folder);
 		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, plan.id);
@@ -118,7 +118,7 @@ export class ObsidianPlanRepository {
 		plan: Plan,
 		dto: Record<string, unknown>,
 		notesFolder: string,
-	): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		const sidecarPath = sidecarPathFor(this.folder, plan.id);
 		const created = await this.geometry.create(plan.id, sidecarPath);
 		if (!created.ok) {
@@ -163,7 +163,7 @@ export class ObsidianPlanRepository {
 		note: TFile,
 		dto: Record<string, unknown>,
 		nextRevision: number,
-	): Promise<Result<Loaded<Plan>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		try {
 			await writeOwnedFrontmatter(this.deps.fileManager, note, dto);
 		} catch (cause) {
@@ -188,7 +188,7 @@ export class ObsidianPlanRepository {
 		return ok({ entity: plan, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}
 
-	private async syncCalibration(plan: Plan): Promise<Result<void, PersistenceError | ValidationError>> {
+	private async syncCalibration(plan: Plan): Promise<Result<void, RepositoryError>> {
 		const current = await this.geometry.read(plan.id);
 		if (!current.ok) {
 			return err(persistenceError('plan.sidecar-unreadable', `The geometry sidecar for plan ${plan.id} could not be read.`, current.error));
@@ -204,7 +204,7 @@ export class ObsidianPlanRepository {
 		return mutated.ok ? ok(undefined) : mutated;
 	}
 
-	delete(id: PlanId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
+	delete(id: PlanId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`plan-note:${id}`, async () => {
 			const file = this.locate(id);
 			// A vanished or unindexed note refuses exactly like a stale expectation: there
@@ -261,7 +261,7 @@ export class ObsidianPlanRepository {
 		});
 	}
 
-	async listByProject(projectId: ProjectId): Promise<Result<Loaded<Plan>[], PersistenceError>> {
+	async listByProject(projectId: ProjectId): Promise<Result<Loaded<Plan>[], RepositoryError>> {
 		const loaded: Loaded<Plan>[] = [];
 		for (const id of this.deps.index.getIdsByProject(projectId)) {
 			// One map per project holds every entity kind; plans carry the plan- prefix.

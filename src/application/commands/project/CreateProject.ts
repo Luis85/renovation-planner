@@ -1,5 +1,4 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
-import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Money } from '../../../core/money/Money';
 import { Project } from '../../../domain/project/Project';
@@ -8,6 +7,7 @@ import type { ProjectStatus } from '../../../domain/project/ProjectStatus';
 import { projectCreated } from '../../../domain/project/Project.events';
 import type { Command } from '../Command';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Loaded } from '../../ports/versioning';
 
 export interface CreateProjectInput {
@@ -21,11 +21,13 @@ export interface CreateProjectInput {
 	readonly locationDescription?: string | null;
 }
 
+export type CreateProjectError = RepositoryError;
+
 export class CreateProjectCommand
 	implements
 		Command<
 			CreateProjectInput,
-			Result<{ project: Loaded<Project> }, ValidationError | PersistenceError>
+			Result<{ project: Loaded<Project> }, CreateProjectError>
 		>
 {
 	constructor(
@@ -40,7 +42,7 @@ export class CreateProjectCommand
 	// sample-project seed became one, and `isErr` could not narrow the union it got.
 	async execute(
 		input: CreateProjectInput,
-	): Promise<Result<{ project: Loaded<Project> }, ValidationError | PersistenceError>> {
+	): Promise<Result<{ project: Loaded<Project> }, CreateProjectError>> {
 		const created = Project.create({ ...input, id: createProjectId() });
 		if (isErr(created)) {
 			return created;

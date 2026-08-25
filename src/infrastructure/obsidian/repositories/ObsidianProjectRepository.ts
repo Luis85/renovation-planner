@@ -1,6 +1,6 @@
 import type { TFile } from 'obsidian';
-import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
+import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { Project } from '../../../domain/project/Project';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
@@ -40,23 +40,29 @@ export class ObsidianProjectRepository {
 		this.folder = normalizeFolder(deps.projectFolder);
 	}
 
-	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, PersistenceError>> {
+	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, RepositoryError>> {
 		const file = this.locate(id);
 		if (!file) return Promise.resolve(ok(null));
-		return Promise.resolve(this.readEntity(file) as Result<Loaded<Project> | null, PersistenceError>);
+		const read = this.readEntity(file);
+		if (!read.ok) {
+			// Content-free (SDD §68): opaque id + error code into the diagnostics ledger.
+			this.deps.ledger.record({ entityType: 'project', entityId: id, issue: read.error.code });
+			return Promise.resolve(err(read.error));
+		}
+		return Promise.resolve(ok(read.value));
 	}
 
 	save(
 		project: Project,
 		expected: Expected,
-	): Promise<Result<Loaded<Project>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Project>, RepositoryError>> {
 		return this.queues.run(`project:${project.id}`, () => this.saveQueued(project, expected));
 	}
 
 	private async saveQueued(
 		project: Project,
 		expected: Expected,
-	): Promise<Result<Loaded<Project>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Project>, RepositoryError>> {
 		// Existence is established BEFORE anything is written — the insert/update fork the
 		// conditional-write comparison needs (SDD §42's rule, applied to a single file).
 		const existing = findNoteIdInFolder(this.deps, this.deps.vault, this.folder, project.id);
@@ -92,7 +98,7 @@ export class ObsidianProjectRepository {
 		return ok({ entity: project, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}
 
-	delete(id: ProjectId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
+	delete(id: ProjectId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`project:${id}`, async () => {
 			const file = this.locate(id);
 			// A vanished or unindexed note refuses exactly like a stale expectation.
@@ -116,7 +122,7 @@ export class ObsidianProjectRepository {
 		});
 	}
 
-	async listAll(): Promise<Result<Loaded<Project>[], PersistenceError>> {
+	async listAll(): Promise<Result<Loaded<Project>[], RepositoryError>> {
 		const loaded: Loaded<Project>[] = [];
 		for (const id of this.deps.index.getIdsByType('renovation-project')) {
 			const one = await this.getById(id as ProjectId);
@@ -130,7 +136,7 @@ export class ObsidianProjectRepository {
 		return fileAt(this.deps.vault, this.deps.index.getPath(id));
 	}
 
-	private readEntity(file: TFile): Result<Loaded<Project>, PersistenceError> {
+	private readEntity(file: TFile): Result<Loaded<Project>, RepositoryError> {
 		const raw = frontmatterOf(this.deps, file);
 		const migrated = migrateNote(this.deps.migrations, 'project', raw);
 		if (!migrated.ok) return migrated;

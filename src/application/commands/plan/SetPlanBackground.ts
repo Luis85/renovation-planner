@@ -1,5 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
-import type { PersistenceError, ReferenceError, ValidationError } from '../../../core/errors/AppError';
+import type { ReferenceError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -10,6 +10,7 @@ import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { VaultFileProbe } from '../../ports/VaultFileProbe';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Loaded } from '../../ports/versioning';
 import { loadPlan } from './loadPlan';
 import { savePlan } from './savePlan';
@@ -33,7 +34,7 @@ export interface SetPlanBackgroundOutcome {
 	readonly previousBackground: PlanBackgroundRef | null;
 }
 
-export type SetPlanBackgroundError = ReferenceError | ValidationError | PersistenceError;
+export type SetPlanBackgroundError = ReferenceError | RepositoryError;
 
 /**
  * Point a Plan at the document it is drawn over (SDD §54–55, design slice 5).

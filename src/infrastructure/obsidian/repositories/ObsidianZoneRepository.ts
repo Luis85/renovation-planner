@@ -1,6 +1,7 @@
 import { TFile } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
+import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Zone } from '../../../domain/zone/Zone';
@@ -75,7 +76,7 @@ export class ObsidianZoneRepository {
 		this.folder = normalizeFolder(deps.projectFolder);
 	}
 
-	async getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, PersistenceError>> {
+	async getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		const opened = openNoteById(this.deps, 'zone', id);
 		if (opened.status === 'missing') return Promise.resolve(ok(null));
 		if (opened.status === 'error') return Promise.resolve(err(opened.error));
@@ -109,14 +110,14 @@ export class ObsidianZoneRepository {
 	save(
 		zone: Zone,
 		expected: Expected,
-	): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Zone>, RepositoryError>> {
 		return this.queues.run(`zone:${zone.id}`, () => this.saveQueued(zone, expected));
 	}
 
 	private async saveQueued(
 		zone: Zone,
 		expected: Expected,
-	): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>> {
+	): Promise<Result<Loaded<Zone>, RepositoryError>> {
 		// Step 2: existence and snapshots BEFORE any write.
 		const notesFolder = zonesFolderFor(this.folder);
 		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, zone.id);
@@ -197,8 +198,8 @@ export class ObsidianZoneRepository {
 		wasUpdate: boolean,
 		notePath: string,
 		snapshotText: string,
-		cause: PersistenceError | ValidationError,
-	): Promise<Result<Loaded<Zone>, PersistenceError | ValidationError>> {
+		cause: RepositoryError,
+	): Promise<Result<Loaded<Zone>, RepositoryError>> {
 		const compensated = wasUpdate
 			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
 			: await this.deleteCreatedNote(notePath);
@@ -217,7 +218,7 @@ export class ObsidianZoneRepository {
 		);
 	}
 
-	delete(id: ZoneId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
+	delete(id: ZoneId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`zone:${id}`, async () => {
 			const file = this.locate(id);
 			// A vanished or unindexed note refuses exactly like a stale expectation.
@@ -277,11 +278,11 @@ export class ObsidianZoneRepository {
 		});
 	}
 
-	listByPlan(planId: PlanId): Promise<Result<Loaded<Zone>[], PersistenceError>> {
+	listByPlan(planId: PlanId): Promise<Result<Loaded<Zone>[], RepositoryError>> {
 		return this.list(this.deps.index.getSpatialObjectIdsByPlan(planId) as ZoneId[]);
 	}
 
-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Zone>[], PersistenceError>> {
+	listByProject(projectId: ProjectId): Promise<Result<Loaded<Zone>[], RepositoryError>> {
 		// One map per project holds every entity kind; zones carry the zone- prefix.
 		const ids = this.deps.index
 			.getIdsByProject(projectId)
@@ -289,7 +290,7 @@ export class ObsidianZoneRepository {
 		return this.list(ids);
 	}
 
-	private async list(ids: readonly ZoneId[]): Promise<Result<Loaded<Zone>[], PersistenceError>> {
+	private async list(ids: readonly ZoneId[]): Promise<Result<Loaded<Zone>[], RepositoryError>> {
 		const loaded: Loaded<Zone>[] = [];
 		for (const id of ids) {
 			const one = await this.getById(id);

@@ -1,4 +1,4 @@
-import { Plugin, TFile, type TAbstractFile } from 'obsidian';
+import { apiVersion, Plugin, TFile, type TAbstractFile } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
@@ -6,6 +6,7 @@ import { revealView } from '../infrastructure/obsidian/workspace/revealView';
 import type { LogLevel, Logger } from '../application/ports/Logger';
 import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
+import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
 import { createPluginDataProbe } from '../infrastructure/obsidian/settings/pluginDataFile';
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
@@ -24,11 +25,10 @@ import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './se
 import { SettingsTab } from './settings/SettingsTab';
 
 /**
- * The threshold is an argument to the adapter, not a setting: this slice's `debug` calls
- * compile and emit nothing, while the levels slice 11 adds still reach a released build
- * where they are worth having. A user-facing switch belongs with slice 11's diagnostics
- * work — "copy diagnostics" and "turn on verbose logging" are the same conversation — and
- * this slice does not add a settings field no feature reads yet.
+ * The floor bootstrap starts at, before settings can say otherwise: `loadSettings`
+ * reports through this logger, so it must exist first. Once settings are read,
+ * `verboseLogging` widens the floor to `debug` via `setLevel` — slice 11's switch, and
+ * everything still stays in the local console (SDD §67).
  */
 const LOG_LEVEL: LogLevel = 'info';
 
@@ -78,6 +78,21 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	root!: CompositionRoot;
 
+	/**
+	 * The adapter onload constructs, held CONCRETE rather than through the `Logger` port:
+	 * slice 11's verbose-logging setting reaches the floor via `setLevel`, which only the
+	 * adapter has — and `saveSettings` must be able to re-apply it live, not just onload.
+	 */
+	private readonly logger = createConsoleLogger(LOG_LEVEL);
+
+	/**
+	 * The diagnostics ledger outlives composition roots: `saveSettings` replaces the root
+	 * (and with it every repository), but the validation issues recorded so far describe
+	 * the SESSION's vault reads, and discarding them because a preference changed would
+	 * empty the diagnostics snapshot as a side effect nobody asked for.
+	 */
+	private readonly ledger = new InMemoryDiagnosticsLedger();
+
 	/** What `onunload` has to undo, in the order it was claimed. */
 	private readonly disposers: (() => void)[] = [];
 
@@ -90,7 +105,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
 		// it is not one of the things bootstrap sets up, it is what the setup steps report
 		// through, and the step below is the first one that can fail.
-		const logger = createConsoleLogger(LOG_LEVEL);
+		const logger = this.logger;
 		logger.debug('plugin.load.started');
 
 		// The raw app surface the persistence stack reads and writes through — gathered
@@ -104,10 +119,17 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// Settings first of the steps — the SDD's stated onload order (§9) — so everything
 		// registered below may read them. The merge is pure (`settingsFrom`); only the
 		// `loadData` call lives here, in the layer allowed to name it.
+		const loaded = await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id));
+		// Slice 11's verbose-logging switch: the only consumer of the adapter's `setLevel`,
+		// applied once the setting could have been read. Unreadable settings keep the
+		// bootstrap floor — no verbosity without a preference that asked for it.
+		if (loaded?.verboseLogging) logger.setLevel('debug');
 		this.root = createCompositionRoot(
-			await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id)),
+			loaded,
 			logger,
 			this.vaultStack,
+			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
+			this.ledger,
 		);
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
@@ -223,7 +245,17 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// is the other writer and is guarded independently (`getSettingDefinitions`).
 		if (this.root.settings === null) return Promise.resolve();
 
-		this.root = createCompositionRoot(next, this.root.logger, this.vaultStack);
+		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
+		// pane takes effect immediately, in both directions, without a plugin reload.
+		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
+
+		this.root = createCompositionRoot(
+			next,
+			this.root.logger,
+			this.vaultStack,
+			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
+			this.ledger,
+		);
 		// The new root carries an EMPTY index — and `projectFolder` is a setting, so the
 		// tree worth scanning may have moved. Re-running the build is what makes the swap
 		// complete; without it the session reads an index of nothing until the next reload,

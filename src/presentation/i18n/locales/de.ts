@@ -17,6 +17,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
 	'settings.project-folder.name': 'Projektordner',
 	'settings.project-folder.desc': 'Tresnornder, in dem Projekt-, Grundriss- und Zonennotizen liegen. Geometrie-Seitendateien liegen in einem Geometry-Ordner darin.',
+	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
+	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',
 	'view.plan-editor.name': 'Grundriss-Editor',
 	'command.open-plan-editor': 'Grundriss-Editor öffnen',
@@ -56,4 +58,24 @@ export const de: Partial<Record<StringKey, string>> = {
 	'zone.status.in-progress': 'In Arbeit',
 	'zone.status.complete': 'Fertig',
 	'zone.status.unknown': 'Unbekannter Status',
+	// Fehlermeldungen (Slice 11). Geschlüsselt über `AppError.code`, über eine geschlossene
+	// Menge dynamischer Code-Suffixe und über die Kategorie — nie über die `message` des
+	// Fehlers selbst, die Logtext ist.
+	'vault.unexpected-failure': 'Das Tresor konnte unerwartet nicht gelesen oder geschrieben werden. Bitte erneut versuchen.',
+	'migration.chain-gap': 'Diese Notiz verwendet ein Format, das dieses Plugin nicht lesen kann.',
+	'error.suffix.schema-version-unsupported':
+		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',
+	'error.suffix.revision-conflict':
+		'Dieser Eintrag wurde zwischenzeitlich an anderer Stelle geändert. Bitte neu laden und erneut versuchen.',
+	'error.suffix.external-modification':
+		'Dieser Eintrag wurde außerhalb des Plugins bearbeitet. Bitte neu laden und erneut versuchen.',
+	'error.suffix.migration-failed': 'Diese Notiz konnte nicht in das aktuelle Format umgewandelt werden.',
+	'error.category.domain': 'Die Projektdaten sind ungültig.',
+	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
+	'error.category.persistence': 'Der Tresor konnte nicht gelesen oder geschrieben werden.',
+	'error.category.geometry': 'Ein Geometriewert ist ungültig.',
+	'error.category.import': 'Der Import ist fehlgeschlagen.',
+	'error.category.migration': 'Diese Notiz kann mit dieser Version des Plugins nicht gelesen werden.',
+	'error.category.reference': 'Dieser Eintrag existiert nicht mehr.',
+	'error.category.calculation': 'Eine Menge konnte nicht berechnet werden.',
 };

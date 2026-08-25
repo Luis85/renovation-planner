@@ -177,7 +177,8 @@ describe('conditional writes against real files', () => {
 		const path = stack.index.getPath(zoneId) ?? '';
 		const parsed = parseFrontmatter(stack.vault.entries.get(path) ?? '');
 		parsed.frontmatter['my-own-key'] = 'kept by the user';
-		stack.vault.entries.set(path, `${serializeFrontmatter(parsed.frontmatter)}## My notes\n\nRetile before winter.\n`);
+		const body = '## My notes\n\nRetile before winter.\n';
+		stack.vault.entries.set(path, `${serializeFrontmatter(parsed.frontmatter)}${body}`);
 
 		// Succeeds on the version the ORIGINAL save returned: neither edit moved the token.
 		const after = expectOk(
@@ -188,7 +189,8 @@ describe('conditional writes against real files', () => {
 		const reparsed = parseFrontmatter(zoneNoteText(stack, zoneId) ?? '');
 		expect(reparsed.frontmatter['my-own-key']).toBe('kept by the user');
 		expect(reparsed.frontmatter['name']).toBe('Renamed');
-		expect(reparsed.body).toContain('Retile before winter.');
+		// Byte-for-byte, not "contains": §87 rule 3 promises the user's prose back untouched.
+		expect(reparsed.body).toBe(body);
 	});
 
 	it('the sidecar honours expected versions: absent applies, stale refuses, hand edits refuse', async () => {

@@ -1,9 +1,7 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type {
 	GeometryError,
-	PersistenceError,
 	ReferenceError,
-	ValidationError,
 } from '../../../core/errors/AppError';
 import type { Polygon } from '../../../core/geometry/Polygon';
 import type { EventBus } from '../../../core/events/EventBus';
@@ -17,6 +15,7 @@ import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Loaded } from '../../ports/versioning';
 
 export interface CreateZoneInput {
@@ -35,13 +34,21 @@ export interface CreateZoneInput {
 	readonly domainNoteLink?: string | null;
 }
 
+/**
+ * `ValidationError` is deliberately not a constituent of its own: `RepositoryError`
+ * already includes it, both for `Zone.create`'s domain refusals and for a pre-write
+ * schema refusal, and a duplicated union member is what
+ * `no-duplicate-type-constituents` exists to refuse.
+ */
+export type CreateZoneError = ReferenceError | GeometryError | RepositoryError;
+
 export class CreateZoneCommand
 	implements
 		Command<
 			CreateZoneInput,
 			Result<
 				{ zone: Loaded<Zone> },
-				ValidationError | ReferenceError | GeometryError | PersistenceError
+				CreateZoneError
 			>
 		>
 {
@@ -59,7 +66,7 @@ export class CreateZoneCommand
 	async execute(
 		input: CreateZoneInput,
 	): Promise<
-		Result<{ zone: Loaded<Zone> }, ValidationError | ReferenceError | GeometryError | PersistenceError>
+		Result<{ zone: Loaded<Zone> }, CreateZoneError>
 	> {
 		const planResult = await this.plans.getById(input.planId);
 		if (isErr(planResult)) {

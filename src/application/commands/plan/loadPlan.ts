@@ -1,9 +1,10 @@
 import { err, ok, type Result } from '../../../core/result/Result';
-import type { PersistenceError, ReferenceError } from '../../../core/errors/AppError';
+import type { ReferenceError } from '../../../core/errors/AppError';
 import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { Loaded } from '../../ports/versioning';
 import type { PlanRepository } from '../../ports/PlanRepository';
+import type { RepositoryError } from '../../ports/repositoryErrors';
 import { referenceError } from '../../errors';
 
 /**
@@ -20,7 +21,7 @@ import { referenceError } from '../../errors';
 export async function loadPlan(
 	plans: PlanRepository,
 	planId: PlanId,
-): Promise<Result<Loaded<Plan>, ReferenceError | PersistenceError>> {
+): Promise<Result<Loaded<Plan>, ReferenceError | RepositoryError>> {
 	const found = await plans.getById(planId);
 	if (!found.ok) {
 		return found;

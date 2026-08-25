@@ -5,9 +5,11 @@ import type { PlanId } from '../domain/plan/PlanId';
 import type { ZoneStatus } from '../domain/zone/ZoneStatus';
 import type { ZoneType } from '../domain/zone/ZoneType';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
+import { getLanguage } from 'obsidian';
 import { notify } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
+import { toUserMessage } from '../presentation/i18n/toUserMessage';
 import type { StringKey } from '../presentation/i18n/locales/en';
 import type { PersistenceServices } from './composition-root';
 import type { PluginCommandHost } from './commandHost';
@@ -167,10 +169,11 @@ export async function seedSampleProject(services: PersistenceServices): Promise<
 async function createAndOpen(host: PluginCommandHost, services: PersistenceServices): Promise<void> {
 	const seeded = await seedSampleProject(services);
 	if (isErr(seeded)) {
-		// The error's own message, which is domain text rather than UI copy — slice 17 owns
-		// turning an `AppError` into a translated sentence, and a second mapping invented
-		// here is what that slice would then have to unpick.
-		notify(seeded.error.message);
+		// Through `toUserMessage` (SDD §66's last step): the notice is a translated
+		// sentence keyed by the error's code, never the error's own `message`, which is
+		// developer text. Slice 17 owns WHICH surface this lands on; it does not own the
+		// copy, which stopped being invented at call sites here.
+		notify(toUserMessage(getLanguage(), seeded.error));
 		return;
 	}
 	await revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, seeded.value);

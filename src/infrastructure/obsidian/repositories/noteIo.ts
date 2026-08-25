@@ -1,6 +1,7 @@
 import { TFile as TFileValue, TFolder, type FileManager, type MetadataCache, type TFile, type Vault } from 'obsidian';
-import type { PersistenceError } from '../../../core/errors/AppError';
+import { type MigrationError, type PersistenceError, type ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
+import type { DiagnosticsLedger } from '../../../application/ports/diagnostics';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
@@ -26,31 +27,68 @@ export function persistenceError(code: string, message: string, cause?: unknown)
 }
 
 /**
+ * The `MigrationError` twin of the factory above. The runner throws tagged `Error`
+ * instances (its contract has no Result channel); the read path converts them HERE, so
+ * a migration refusal keeps its own category instead of being flattened into
+ * `Persistence` — which matters because "this build is too old for this note" and
+ * "the vault write failed" are different sentences to a user (SDD §87 rule 7).
+ */
+function migrationError(code: string, message: string, cause?: unknown): MigrationError {
+	return { category: 'Migration', code, message, ...(cause === undefined ? {} : { cause }) };
+}
+
+/**
+ * One step of the Error Boundary (SDD §66) for migration refusals, shared by the two
+ * read paths that run the runner — notes (`migrateNote`) and the geometry sidecar. A
+ * throw CARRYING the runner's `{ category: 'Migration' }` tag keeps its code and
+ * category; anything else thrown under the read stays a `Persistence` failure as
+ * before.
+ */
+export function mappedMigrationFailure(kind: string, cause: unknown): MigrationError | PersistenceError {
+	const tagged = cause as { code?: unknown; category?: unknown } | null;
+	if (tagged !== null && typeof tagged === 'object' && tagged.category === 'Migration' && typeof tagged.code === 'string') {
+		return migrationError(tagged.code, cause instanceof Error ? cause.message : String(cause), cause);
+	}
+	return persistenceError(`${kind}.migration-failed`, `Migrating the ${kind} document failed.`, cause);
+}
+
+/**
  * The migration half of a note read (SDD §44): chain `(kind, schema-version)` up to
- * latest BEFORE the Zod parse. A gap throws inside the runner; here it becomes the same
- * `PersistenceError` shape every other read failure takes.
+ * latest BEFORE the Zod parse. The failure vocabulary is the spec's, not one flattened
+ * shape: a version field that is present but not a number is a `ValidationError`
+ * (malformed data), while everything the runner refuses — a future version this build
+ * predates, a gap in the chain — keeps the runner's `Migration` category. Both are
+ * scoped to THIS note: the caller answers 'error' for this entity and the rest of the
+ * project loads on (SDD §92 item 13).
  */
 export function migrateNote(
 	migrations: MigrationRunner,
 	kind: string,
 	raw: Record<string, unknown>,
-): Result<unknown, PersistenceError> {
+): Result<unknown, PersistenceError | MigrationError | ValidationError> {
 	const version = raw['schema-version'];
+	if (version !== undefined && typeof version !== 'number') {
+		return err({
+			category: 'Validation',
+			code: `${kind}.schema-version-malformed`,
+			message: `The ${kind} note's schema-version is ${JSON.stringify(version)}, not a number.`,
+		});
+	}
 	const fromVersion = typeof version === 'number' ? version : 0;
 	try {
 		return ok(migrations.migrateToLatest(kind, raw, fromVersion));
 	} catch (cause) {
-		// Through the factory below rather than a literal of the same shape: the `cause`
-		// spread is the fiddly half, and a second hand-written copy of it is a second place
-		// for `cause: undefined` to start appearing on the error.
-		return err(persistenceError(`${kind}.migration-failed`, `Migrating the ${kind} note failed.`, cause));
+		// Through `mappedMigrationFailure` rather than a literal of the shape: the
+		// `cause` spread is the fiddly half, and a second hand-written copy of it is a
+		// second place for `cause: undefined` to start appearing on the error.
+		return err(mappedMigrationFailure(kind, cause));
 	}
 }
 
 /** The three ways "open this entity's note and read its migrated frontmatter" can land. */
 export type OpenedNote =
 	| { readonly status: 'missing' }
-	| { readonly status: 'error'; error: PersistenceError }
+	| { readonly status: 'error'; error: PersistenceError | MigrationError | ValidationError }
 	| { readonly status: 'ok'; file: TFile; raw: Record<string, unknown>; migrated: unknown };
 
 /** What reading a note's frontmatter needs: Obsidian's cache, and our own last write. */
@@ -100,12 +138,16 @@ export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<st
  * Resolves an entity's note through the index and reads its cached frontmatter plus the
  * migrated document — the identical preamble of all three repositories' `getById`. A
  * missing note is 'missing', never an error ("not found" is ok(null), §36).
+ *
+ * A refusal here is also RECORDED, not only returned: opaque entity id plus error code
+ * into the diagnostics ledger (SDD §68) — never the name, body or path content.
  */
 export function openNoteById(
 	deps: FrontmatterSource & {
 		vault: Vault;
 		index: ProjectIndex;
 		migrations: MigrationRunner;
+		ledger: DiagnosticsLedger;
 	},
 	kind: string,
 	id: string,
@@ -116,7 +158,10 @@ export function openNoteById(
 	if (!(abstractFile instanceof TFileValue)) return { status: 'missing' };
 	const raw = frontmatterOf(deps, abstractFile);
 	const migrated = migrateNote(deps.migrations, kind, raw);
-	if (!migrated.ok) return { status: 'error', error: migrated.error };
+	if (!migrated.ok) {
+		deps.ledger.record({ entityType: kind, entityId: id, issue: migrated.error.code });
+		return { status: 'error', error: migrated.error };
+	}
 	return { status: 'ok', file: abstractFile, raw, migrated: migrated.value };
 }
 

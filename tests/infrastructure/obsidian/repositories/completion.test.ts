@@ -135,9 +135,12 @@ describe('geometry store diagnostics', () => {
 		const path = sidecarPathOf(stack, planId);
 		const base = { planId, revision: 1, unit: 'mm', calibration: null, objects: [] };
 
-		// Absent schemaVersion starts the chain at 0 → gap → migration-failed.
+		// Absent schemaVersion starts the chain at 0 → gap → a Migration refusal with
+		// the runner's own code, no longer flattened into Persistence.
 		stack.vault.entries.set(path, JSON.stringify(base));
-		expect(expectErr(await stack.store.read(planId)).code).toBe('plan-geometry.migration-failed');
+		const gap = expectErr(await stack.store.read(planId));
+		expect(gap.code).toBe('migration.chain-gap');
+		expect(gap.category).toBe('Migration');
 
 		// A numeric v1 parses cleanly.
 		stack.vault.entries.set(path, JSON.stringify({ ...base, schemaVersion: 1 }));
@@ -228,12 +231,14 @@ describe('calibration round-trips through the plan repository', () => {
 		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBe(stableSidecar);
 	});
 
-	it('getById reports migration-failed for a note with an unreadable schema version', async () => {
+	it('getById reports a malformed schema version as a ValidationError, not a migration failure', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
 		const path = notePathOf(stack, planId);
 		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: "junk"'));
-		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.migration-failed');
+		const error = expectErr(await stack.plans.getById(planId));
+		expect(error.code).toBe('plan.schema-version-malformed');
+		expect(error.category).toBe('Validation');
 	});
 
 	it('an insert whose sidecar creation fails reports sidecar-create-failed', async () => {

@@ -39,6 +39,30 @@ describe('the migration runner', () => {
 		}
 	});
 
+	// SDD §87 rule 7, fail closed: a FUTURE version must be refused as its own defect —
+	// not fall through the loop and reach Zod, whose literal mismatch would report the
+	// wrong failure ("frontmatter-invalid") for what is really "this build is too old".
+	it('refuses a version newer than this build supports with a tagged Migration error', () => {
+		const runner = new MigrationRunner();
+		LATEST_VERSIONS['future'] = 1;
+		try {
+			const thrown = (() => {
+				try {
+					runner.migrateToLatest('future', { 'schema-version': 2 }, 2);
+					return null;
+				} catch (cause) {
+					return cause as Error & { code: string; category: 'Migration' };
+				}
+			})();
+			expect(thrown).not.toBeNull();
+			expect(thrown?.code).toBe('future.schema-version-unsupported');
+			expect(thrown?.category).toBe('Migration');
+			expect(thrown?.message).toMatch(/newer than this build supports/);
+		} finally {
+			delete LATEST_VERSIONS['future'];
+		}
+	});
+
 	it('ships with every real kind at version 1 and no steps to run', () => {
 		expect(LATEST_VERSIONS['project']).toBe(1);
 		expect(LATEST_VERSIONS['plan']).toBe(1);
@@ -46,6 +70,22 @@ describe('the migration runner', () => {
 		expect(LATEST_VERSIONS['plan-geometry']).toBe(1);
 		const runner = new MigrationRunner();
 		expect(runner.migrateToLatest('zone', { already: 'v1' }, 1)).toEqual({ already: 'v1' });
+	});
+
+	// SDD §68's migrationState.lastApplied: content-free ("kind: from -> to"), null until
+	// a step actually ran, and never persisted.
+	it('tracks the last applied step, content-free', () => {
+		const runner = new MigrationRunner();
+		expect(runner.lastApplied).toBeNull();
+		runner.register('fixture', v0toV1);
+		LATEST_VERSIONS['fixture'] = 1;
+		try {
+			runner.migrateToLatest('fixture', { 'old-name': 'a' }, 0);
+			expect(runner.lastApplied).toBe('fixture: 0 -> 1');
+			expect(Object.keys(runner.latestVersions).length).toBeGreaterThanOrEqual(4);
+		} finally {
+			delete LATEST_VERSIONS['fixture'];
+		}
 	});
 });
 

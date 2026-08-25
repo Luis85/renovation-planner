@@ -21,7 +21,7 @@ import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
-import { levels, lines, recorder, resetRecorder } from '../helpers/logger';
+import { levelChanges, levels, lines, recorder, resetRecorder } from '../helpers/logger';
 
 // Hoisted above the imports by vitest, which is why the factory imports the helper itself
 // rather than closing over a module-scope binding that would not exist yet. Measured, not
@@ -151,6 +151,32 @@ describe('the composition root', () => {
 	 */
 	it('is reached through one field rather than a bare settings field', () => {
 		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
+	});
+
+	/**
+	 * Slice 11's verbose-logging switch, observed at the wiring rather than the adapter:
+	 * a stored `verboseLogging: true` must reach the adapter as a floor change to `debug`
+	 * — and a default install (above) must ask for NO change, which is what keeps console
+	 * noise a choice the user made.
+	 */
+	it('widens the log floor only when the stored setting asks for it', async () => {
+		expect(levelChanges).toEqual([]);
+		await loadedPlugin({ ...DEFAULT_SETTINGS, verboseLogging: true });
+		expect(levelChanges).toEqual(['debug']);
+	});
+
+	/**
+	 * And the toggle is LIVE: `saveSettings` re-applies the floor in both directions, so
+	 * flipping it in the pane takes effect without disabling and re-enabling the plugin.
+	 */
+	it('re-applies the log floor when settings are saved', async () => {
+		expect(levelChanges).toEqual([]);
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, verboseLogging: true });
+		expect(levelChanges).toEqual(['debug']);
+
+		await plugin.saveSettings(DEFAULT_SETTINGS);
+		expect(levelChanges).toEqual(['debug', 'info']);
 	});
 
 	/**

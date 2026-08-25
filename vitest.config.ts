@@ -155,6 +155,19 @@ export default defineConfig({
 			// Measured 2026-08-24 again after the restored-leaf fix (`ProjectIndexRebuilt`):
 			// 1843/1849 statements, 816/827 branches, 486/487 functions, 1685/1688 lines —
 			// 99.67 / 98.66 / 99.79 / 99.82, the same four again. NOTHING RATCHETS.
+			//
+			// Measured 2026-08-25 at the end of design slice 11 - error handling,
+			// diagnostics and data safety: the schema-version fail-closed gate (future
+			// versions refuse as `MigrationError`), the guarded command/query boundary
+			// logging BOTH thrown exceptions and resolved failed Results, `toUserMessage`,
+			// the diagnostics snapshot query and its deduplicating ledger, and the
+			// verbose-logging setting applied live at load AND on save: after the review
+			// pass, 1910/1920 statements, 855/871 branches, 506/509 functions, 1748/1755
+			// lines - 99.47 / 98.16 / 99.41 / 99.60. NOTHING RATCHETS: rounded down these
+			// are the floors already in force, and branches at 98.16 leave about one branch
+			// of headroom under their floor of 98 - the uncovered set is the guard's
+			// never-taken arms no test can reach past TypeScript's narrowing, the phantom
+			// `import` branches named above, and the defensive refusals slice 4 named.
 			thresholds: {
 				statements: 99,
 				functions: 99,

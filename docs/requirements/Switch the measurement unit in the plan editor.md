@@ -49,7 +49,7 @@ therefore the person who actually has both an estate and a bathroom in one vault
 **Calibration is not a precondition**, and saying so is the point of this line. An uncalibrated
 plan (PRD §82, SDD §25 — two points and a known distance) has no real-world figure to express in
 any unit, but the use case still starts: the picker is shown and disabled, which is extension
-**2a** and acceptance criterion 7. Listing calibration above would let an implementation satisfy
+**2a** and acceptance criterion 9. Listing calibration above would let an implementation satisfy
 the preconditions and omit the behaviour the uncalibrated state actually owes.
 
 ## Main flow
@@ -92,9 +92,12 @@ Whatever the renovator picks, and whichever branch above is taken:
 
 - **The stored geometry is byte-identical.** The sidecar's coordinates and its `"unit": "mm"`
   are untouched, so ADR-009's loader still validates and fails closed exactly as before.
-- **No calculation ever reads a displayed figure.** Areas, quantities and costs are computed
-  from world millimetres regardless of what is on screen, so a plan read in centimetres and a
-  plan read in metres produce the same budget to the last cent.
+- **No calculation ever reads a displayed figure, and the pricing pipeline never learns the
+  display unit at all.** Quantities and costs are converted from world millimetres to the
+  *asset's* unit by the quantity engine, which this note does not touch; the display unit
+  reaches only the formatter. A plan read in centimetres and a plan read in metres therefore
+  produce the same budget to the last cent — not because the figures are reconciled, but
+  because the budget was never shown the question.
 - **Nothing about switching a unit reaches the vault.** No note is modified, no sidecar is
   rewritten, no save state is dirtied. This is what makes the switch cosmetic rather than an
   edit, and it is why the use case belongs under [[Canvas navigation]], whose own rule
@@ -105,15 +108,40 @@ Whatever the renovator picks, and whichever branch above is taken:
 Named here because each is an edit to something already written, and a requirement that
 rewrites a rule silently is worse than one that says it is doing it.
 
-1. **[[World coordinates are millimetres, converted once at the engine boundary]] is amended,
-   and its "once" is not.** BR-SPATIAL-001 currently reads "the conversion to `m`/`m²`/`m³`
-   happens once, at the quantity engine's first stage, and nothing downstream converts again".
-   The unit becomes an **argument** to that single conversion rather than a step after it: the
-   boundary converts world millimetres to whatever unit was asked for, still once, still in one
-   place. Only the hard-coded `m`/`m²`/`m³` needs rewording. The rule's actual warning — that a
-   second conversion is "either a no-op nobody can prove or a division applied twice" — is what
-   makes converting after the engine the wrong answer, since the figure it would convert has
-   already been rounded to two decimals and §71 forbids reading a rounded figure back.
+1. **[[World coordinates are millimetres, converted once at the engine boundary]] is
+   clarified, not amended — and an earlier draft of this note had it badly wrong.** That draft
+   made the display unit an **argument to `toMeasuredQuantity`**, which review refuted against
+   the engine's own contract, and the refutation is worth keeping because the failure was
+   expensive: `toMeasuredQuantity(rawValue, unit)` takes the **asset's pricing unit**, and
+   `MeasurementUnit` is `"piece" | "m" | "m2" | "m3" | "hour" | "day" | "fixed"` — a *pricing*
+   vocabulary with no `cm` or `mm` in it at all. Slice 9's worked pipeline runs
+   `12,345,678 mm²` → `12.345678 m²` → waste → packaging against a `lotSize` of `2.5 m²` →
+   `$12.50/m²`. Feeding cm² into that multiplies a per-square-metre price by a square-centimetre
+   quantity: a cost wrong by four orders of magnitude, or the refusal
+   [[A mismatched unit or currency is an error, not a coercion]] exists to raise. **A display
+   preference must never reach the pricing pipeline**, and that is now this note's constraint
+   rather than its mechanism.
+
+   So there are **two consumers of world millimetres, and they are parallel rather than
+   chained**:
+
+   - the quantity engine converts mm → the *asset's pricing unit*, once, at
+     `toMeasuredQuantity`. Untouched by this note.
+   - the editor's presentation formatter converts mm → the *renovator's chosen display unit*,
+     once, from the **unrounded** value.
+
+   Neither reads the other's output, which is what keeps BR-SPATIAL-001's actual warning
+   satisfied — "a second conversion is either a no-op nobody can prove or a division applied
+   twice" is about *chaining*, and two independent conversions from one source of truth are not
+   a chain. It also answers the objection that killed the alternative in the first place: the
+   formatter reads the unrounded world value, never the engine's two-decimal output, so §71's
+   ban on reading a rounded figure back is honoured.
+
+   What the rule needs is therefore a **sentence, not a rewrite**: as written, "the conversion
+   to `m`/`m²`/`m³` happens once, at the quantity engine's first stage, and nothing downstream
+   converts again" describes one consumer and reads as though it were the only one. It should
+   say that display formatting is a second, parallel conversion from the same millimetres, and
+   that the prohibition is on chaining them.
 2. **[[Toolbar]]'s Contract gains a second kind of child.** It is written as a container of
    tools — "given the tool registry and the id of the active tool, emits a tool-activation
    request" — with one invariant, exactly one [[Tool button]] active at a time. A unit picker is
@@ -169,31 +197,38 @@ Named rather than left looking forgotten.
 2. Picking a unit performs no vault write at all — checked by a spy on the write calls, not by
    driving the paths somebody thought of, per `CLAUDE.md`'s rule that a category invariant is
    checked at the forbidden thing.
-3. The same plan read in m, cm and mm produces identical area, quantity and cost figures once
-   converted back, because all three are computed from the same stored millimetres.
-4. Conversion happens in exactly one place. A node test asks the conversion function directly,
-   in `domain/`, per the *Calibration and measurement* epic's own definition of done — never
-   through a screen.
-5. `42718432 mm²` displays as `42.72 m²` (PRD §71's worked example), `427184.32 cm²` and
+3. The same plan read in m, cm and mm produces byte-identical cost output. Stronger than
+   "identical once converted back": the display unit is not an input to the cost pipeline, so
+   there is nothing to convert back.
+4. **The display unit never reaches `toMeasuredQuantity`, checked at the call rather than by
+   driving screens** — a spy on that function asserting its `unit` argument is always the
+   asset's, whatever the picker says. Per `CLAUDE.md`, a category invariant is checked at the
+   forbidden thing, because the next call site is the one nobody thought of.
+5. Each conversion happens once from world millimetres, and neither reads the other's output.
+   Both are node tests in `domain/` asked of the functions directly, per the *Calibration and
+   measurement* epic's own definition of done — never through a screen.
+6. The formatter converts from the **unrounded** world value. A test that rounds first and
+   formats second produces a different figure at some input, and that input is the test.
+7. `42718432 mm²` displays as `42.72 m²` (PRD §71's worked example), `427184.32 cm²` and
    `42718432.00 mm²`. Two decimals in every unit, and the millimetre case is included precisely
    because it is the one that looks silly and must still obey the rule.
 
    **The areal factor is the square of the linear one** — `1 cm² = 100 mm²`, not 10 — and this
    criterion carried `4271843.20 cm²` until a review caught it. A tenfold slip, in the note whose
    own argument is that shifting a decimal by hand is where money is lost. It is left recorded
-   here rather than quietly corrected, because it is the exact defect criterion 3's round-trip
-   identity exists to catch, and a test that asserts these three figures would have failed on it.
-6. Areas follow the length unit without a second control: picking cm gives cm², never m².
-7. On an uncalibrated plan the picker is disabled and carries a reason a renovator can read.
+   here rather than quietly corrected, because it is the exact defect this criterion's own three
+   figures exist to catch — a test asserting them would have failed on it.
+8. Areas follow the length unit without a second control: picking cm gives cm², never m².
+9. On an uncalibrated plan the picker is disabled and carries a reason a renovator can read.
    Checkable in a vault in under a minute.
-8. Reopening a plan restores the unit it was left in; a plan never opened shows millimetres.
-9. A stored value that is absent, unparseable, or names an unknown unit yields millimetres and
+10. Reopening a plan restores the unit it was left in; a plan never opened shows millimetres.
+11. A stored value that is absent, unparseable, or names an unknown unit yields millimetres and
    is dropped, with the same shape of test `settingsFrom` already has for `data.json`.
-10. Two leaves on one plan show the same unit within one switch, with no reload.
-11. Every label the picker draws goes through `t`, and reads correctly under both locales
+12. Two leaves on one plan show the same unit within one switch, with no reload.
+13. Every label the picker draws goes through `t`, and reads correctly under both locales
     [[Multilanguage]] declares — including the unit symbols themselves, which are not
     automatically locale-invariant.
-12. The toolbar's tool group still enforces exactly one active tool, unchanged, with the picker
+14. The toolbar's tool group still enforces exactly one active tool, unchanged, with the picker
     present.
 
 ## Assumptions
@@ -227,7 +262,7 @@ Each is something this note decided that its sources did not settle.
    a figure owes the renovator a readable one. It is not in the received PRD as a control,
    which is why this is stated as an assumption rather than cited.
 7. **The status bar is a follower, not a second control.** It re-reads in the chosen unit
-   (criterion 4's "every figure") while staying "a readout, not a control" — its Contract still
+   (main-flow step 4's "every figure") while staying "a readout, not a control" — its Contract still
    emits nothing.
 
 ## Sources
@@ -253,8 +288,11 @@ Components read: [[Toolbar]], [[Tool button]], [[Measurement label]], [[Status b
 
 Design slices read: [`05-canvas-rendering-and-editor-shell`](../tasks/05-canvas-rendering-and-editor-shell.md)
 (the shell's five regions and the toolbar), [`06-editor-tool-framework-undo-redo-and-inspector`](../tasks/06-editor-tool-framework-undo-redo-and-inspector.md)
-(the tool registry the trailing group sits beside) and [`07-calibration`](../tasks/07-calibration.md)
-(what makes a figure real in the first place).
+(the tool registry the trailing group sits beside), [`07-calibration`](../tasks/07-calibration.md)
+(what makes a figure real in the first place) and
+[`09-quantity-and-cost-engine`](../tasks/09-quantity-and-cost-engine.md) — the last being the one
+that refuted this note's first answer: `toMeasuredQuantity`'s signature, the `MeasurementUnit`
+vocabulary and the worked pipeline are why a display unit may not reach the pricing boundary.
 
 Every section number here names its document, since `docs/requirements/` reads a bare `§` as the
 PRD and the two documents number independently — PRD §60 is the Identity Model, SDD §60 is

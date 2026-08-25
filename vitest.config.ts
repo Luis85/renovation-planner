@@ -188,6 +188,16 @@ export default defineConfig({
 			// 1874/1877 lines — 99.70 / 98.81 / 99.81 / 99.84. The UNCOVERED sets are
 			// unchanged (the same six statements, eleven branches, one function and three
 			// lines enumerated above); only the denominators grew. NOTHING RATCHETS.
+			// Measured 2026-08-25 again after slice 9's review fixes — the Money non-negative
+			// invariant at `fromDecimal`, `round` serializing at the minor unit, the private
+			// decimal.js constructor clone, the discount's upper bound, and `negativeQuantity`
+			// applied at every exported door of the quantity engine and at the cost pipeline's
+			// input: 2182/2190 statements, 1013/1026 branches, 568/569 functions, 1982/1985
+			// lines — 99.63 / 98.73 / 99.82 / 99.84. NOTHING RATCHETS: rounded down these are
+			// the floors already in force. The UNCOVERED set is unchanged — every arm added
+			// here is driven, including both sides of each new guard and the throw arms of
+			// `fromDecimal`, and `costPipeline.ts`'s two `Result` propagation guards remain
+			// the same unreachable-by-construction pair the slice 9 paragraph above names.
 			thresholds: {
 				statements: 99,
 				functions: 99,

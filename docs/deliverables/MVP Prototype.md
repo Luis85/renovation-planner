@@ -3,6 +3,7 @@ type: Deliverable
 parent: "[[User Experience]]"
 order: 20
 horizon: MVP
+status: Active
 ---
 ## 1. Prototype Mission
 

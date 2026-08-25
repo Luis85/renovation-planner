@@ -63,6 +63,7 @@ noticed.
 - Architecture Test Rules: the automated layer-boundary checks and their CI wiring
   (§76), and the planted-violation meta-tests proving each one actually fires.
 - The Architecture Completion Criteria (§92) reproduced as the phase-level exit gate.
+- Smoke Tests under docs/tests for manual testing inside the Vault on items we can't automate
 
 ### Out of scope (covered by other slices)
 

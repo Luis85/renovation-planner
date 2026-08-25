@@ -5,6 +5,7 @@ sources:
   - SDD §11
   - SDD §60
   - SDD §91
+status: Ready
 ---
 # Smoke Test the Editor
 

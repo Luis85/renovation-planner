@@ -17,7 +17,6 @@ import { mountPlanEditorHarness } from '../harness/planEditor';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
 import { drawSchemeToggle } from '../harness/theme';
-import { REPO } from '../helpers/oxlint';
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -54,6 +53,18 @@ const readText = (file: string): string => readFileSync(file, 'utf8');
  * cascade's own view of the sheet, not a pattern matched against its text. See the case that
  * uses it for why: `/@import/` is case-sensitive and misses `@IMPORT`, and `/@import/i` would
  * then match one inside a comment.
+ *
+ * `errorRecovery: true` because `tests/harness/obsidian.css` — vendored, "kept whole" from a
+ * real Obsidian install — cannot otherwise be parsed at all: its preserved upstream prose
+ * names a CSS custom property as `--page-*\/--scale-factor`, and that substring is a literal
+ * asterisk-slash, which closes a CSS block comment in ANY conformant parser, browsers
+ * included, wherever it appears. Without recovery `lightningcss` throws trying to parse what
+ * follows as CSS.
+ * `errorRecovery` skips the malformed rule and keeps visiting the rest of the file rather than
+ * aborting — measured, it turns that throw into a clean `imports = []` for this file, and it
+ * changes nothing for every other sheet here, which already parse cleanly. Guarding the
+ * vendored sheet this way, rather than excluding it from the scan, means an `@import` added to
+ * it tomorrow is still caught — an excluded file is an unguarded file.
  */
 const importsIn = (file: string): string[] => {
 	const found: string[] = [];
@@ -61,6 +72,7 @@ const importsIn = (file: string): string[] => {
 		filename: file,
 		code: readFileSync(file),
 		minify: false,
+		errorRecovery: true,
 		visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
 	});
 	return found;
@@ -183,7 +195,7 @@ describe('the browser harness', () => {
 	 * and fails the equality rather than being silently uncounted.
 	 */
 	it('offers prototypes exactly one plugin stylesheet and no proposal sheet', () => {
-		const html = readFileSync(path.join(REPO, 'tests', 'harness', 'index.html'), 'utf8');
+		const html = readFileSync('tests/harness/index.html', 'utf8');
 
 		const page = new DOMParser().parseFromString(html, 'text/html');
 		// EVERY node that can introduce CSS, not only the links: a `<style>` element in this
@@ -200,12 +212,15 @@ describe('the browser harness', () => {
 	});
 
 	/**
-	 * The same claim over every other route. A sheet reaches this page as a `<link>` in
-	 * `index.html`, through Vite's module graph — a `.css` import anywhere in what the page
-	 * can load, or an SFC `<style>` block — or as a `<link>` a TEMPLATE renders into the
-	 * body, which no build step and no import is involved in at all. The case above can see
-	 * only the first. The page's sheets are the three links in `index.html`, and nothing the
-	 * page can reach may add a fourth.
+	 * The same claim over every other route THESE CHECKS cover. A sheet reaches this page as a
+	 * `<link>` in `index.html`, through Vite's module graph — a `.css` import anywhere in what
+	 * the page can load, or an SFC `<style>` block — or as a `<link>` a TEMPLATE renders into
+	 * the body, which no build step and no import is involved in at all. The case above can see
+	 * only the first. This one refuses those three routes reaching a fourth sheet through
+	 * anything the page can reach — not every conceivable route a stylesheet could take. A Vite
+	 * plugin's `transformIndexHtml` injecting a `<link>` would be a seventh route none of these
+	 * checks see; none exists in this repository today (grepped), so nothing here reaches for
+	 * one, but the claim is scoped to what is actually checked rather than to "nothing ever."
 	 *
 	 * The scanned set is what the page can reach, not the files that exist today: `page.ts`
 	 * imports the harness modules, those import `src/` AND `tests/helpers/`, and Task 4's
@@ -245,6 +260,20 @@ describe('the browser harness', () => {
 	 * on the quote following `import` misses it while looking thorough. Measured on all
 	 * five spellings: side-effect, default binding, named binding, dynamic, and a
 	 * re-export.
+	 *
+	 * `sources()` below excludes exactly the `*.test.ts` suffix, and only that suffix — a
+	 * `.test-d.ts` or `.test.tsx` under one of these trees would still be walked. Harmless
+	 * today (measured: neither exists under `src/`, `tests/harness/` or `tests/helpers/`).
+	 *
+	 * The exclusion is not a nicety: without it, this test fails against ITSELF and against
+	 * `cssVars.test.ts` — measured, not assumed. This file's own planted-proof documentation
+	 * literally contains `import '…/concept.css';`, matching `sheetImport`, and
+	 * `<link rel="stylesheet" href="…/concept.css" />`, matching `sheetLink`; `cssVars.test.ts`
+	 * separately defines `const LINK = /<link rel="stylesheet" href="([^"]+)" \/>/g;`, whose
+	 * own literal text matches `sheetLink` too. Neither file loads a stylesheet — one documents
+	 * this guard, the other extracts hrefs with a regex of its own — but both would report a
+	 * false hit if scanned, which is exactly the class of guard-fires-on-its-own-explanation
+	 * defect named above for the bare-substring case.
 	 */
 	it('loads no stylesheet through anything the harness can reach', () => {
 		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.css['"]/;
@@ -261,17 +290,17 @@ describe('the browser harness', () => {
 			});
 
 		const reachable = [
-			...sources(path.join(REPO, 'src')),
-			...sources(path.join(REPO, 'tests', 'harness')),
+			...sources('src'),
+			...sources('tests/harness'),
 			// `tests/helpers/` too: `mount.ts` and `planEditor.ts` are RUNTIME modules of this
 			// page and they import from there, so a stylesheet imported by a helper reaches the
 			// page exactly as surely as one imported here.
-			...sources(path.join(REPO, 'tests', 'helpers')),
+			...sources('tests/helpers'),
 		];
 
 		const importers = reachable.filter((file) => sheetImport.test(readText(file)));
 		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
-		const styleBlocks = sources(path.join(REPO, 'tests', 'harness')).filter((file) =>
+		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),
 		);
 
@@ -285,14 +314,10 @@ describe('the browser harness', () => {
 	 * `.css`, no template renders a `<link>`, and every list above stays empty. The walker
 	 * excludes `.css` files entirely, so it cannot see it.
 	 *
-	 * The two linked harness sheets are the reachable ones, and neither has any legitimate
-	 * use for `@import` — they are standalone files the page links directly. So the rule is
-	 * simply that they carry none.
-	 *
-	 * `*.test.ts` is excluded from the reachable set below only in the sense that this file
-	 * — and `cssVars.test.ts` — name a stylesheet path as a string they READ, not one they
-	 * import as a module Vite would load; a test that reads a stylesheet is not a page that
-	 * loads one, so nothing here needs to scan `tests/harness/*.test.ts` for `@import`.
+	 * BOTH linked harness sheets are scanned — `theme.css` and, with `errorRecovery` (see
+	 * `importsIn`), the vendored `obsidian.css` too — and neither has any legitimate use for
+	 * `@import`: they are standalone files the page links directly. So the rule is simply
+	 * that they carry none.
 	 */
 	it('lets no stylesheet the page loads pull in another', () => {
 		// PARSED, for the same reason the page check is parsed rather than pattern-matched.
@@ -301,20 +326,7 @@ describe('the browser harness', () => {
 		// once — it is already a devDependency, already used by the stylesheet gate, and the
 		// visitor sees exactly what the cascade would.
 		const imported = [
-			// `obsidian.css` too is excluded, and for a reason this file's own header explains
-			// rather than hides: it is vendored from a real Obsidian install and "the original
-			// header, kept whole" — its preserved upstream prose names a CSS custom property as
-			// `--page-*/--scale-factor`, and that substring is a literal `*/`, which closes a CSS
-			// block comment wherever it appears. `lightningcss` therefore throws parsing this
-			// file's own header rather than reporting an empty import list — measured, and true
-			// independent of Task 5: nothing before this test ever ran a real CSS parser over
-			// `obsidian.css`, since Vite serves it to `index.html` as a static asset rather than
-			// as an imported module. Editing the vendored text to dodge it would break the
-			// "kept whole" invariant the file states about itself, so the file is excluded
-			// instead — checked by inspection to carry no `@import` of its own (it is a static,
-			// reduced snapshot with none), the same way `styles/index.css` is excluded here
-			// because the assembler already validates its imports elsewhere.
-			...sheetsImporting(path.join(REPO, 'tests', 'harness'), ['obsidian.css']),
+			...sheetsImporting('tests/harness'),
 			// `styles/` too, minus `index.css`. The assembler validates index.css's OWN lines
 			// against `@import "./<partial>.css";` — but it then concatenates each partial's
 			// body UNCHANGED (`scripts/styles-assemble.mjs`, the `parts` map: line count and
@@ -322,7 +334,7 @@ describe('the browser harness', () => {
 			// survives into the shipped sheet and into the page. Verified in the source, after
 			// an earlier version of this comment claimed the assembler owned the question and
 			// was wrong.
-			...sheetsImporting(path.join(REPO, 'styles'), ['index.css']),
+			...sheetsImporting('styles', ['index.css']),
 		];
 
 		expect(imported).toEqual([]);

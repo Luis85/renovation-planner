@@ -471,12 +471,21 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	 * from "broken". A COMPONENT rather than a prototype, and deliberately so: it cannot exercise
 	 * the `<component is="link">` route at all (nothing here composes one into it), which is
 	 * exactly why the loop beneath it — over real PROTOTYPES — is not redundant with this one.
+	 *
+	 * **The `stageEntry` assertion is load-bearing, not decoration.** `openEntryInIndex` settles
+	 * on EITHER the stage naming what it rendered OR a failure card — so an id that resolves to
+	 * nothing, a module that fails to import, or one that throws would all still leave the CSS
+	 * count unchanged and this test green, while silently proving nothing about a mount that
+	 * actually happened. Asserting the id the stage actually rendered is what keeps this case
+	 * failing when `component:editor/shell/StatusBar` stops resolving — a renamed file, a moved
+	 * one, a broken glob — rather than degrading into "a failure card adds no stylesheet".
 	 */
 	it('adds no stylesheet to the document when a component mounts', async () => {
 		const before = cssNodes();
 
 		const page = await openEntryInIndex('component:editor/shell/StatusBar');
 
+		expect(stageEntry(page)).toBe('component:editor/shell/StatusBar');
 		expect(cssNodes()).toBe(before);
 
 		page.unmount();

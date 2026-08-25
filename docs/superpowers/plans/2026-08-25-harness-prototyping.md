@@ -1564,18 +1564,28 @@ Append this case to the outermost `describe` in `tests/harness/harness.test.ts`:
 	 * here, and what CAN be checked — that the page links exactly the three sheets it means
 	 * to, and that `concept.css` is not among them — is the thing that would actually go
 	 * wrong.
+	 *
+	 * PARSED, not pattern-matched. This file already runs in jsdom (`@vitest-environment`
+	 * at the top), so `DOMParser` is right there, and HTML has more spellings of one link
+	 * than a regex written by hand keeps up with: attribute order is free, attribute values
+	 * may be UNQUOTED (`<link rel=stylesheet href=…/concept.css>` is valid HTML a browser
+	 * loads), tag and attribute names are case-insensitive, and `rel` is a space-separated
+	 * token list. Two hand-written patterns here were each defeated by the next spelling
+	 * somebody thought of. The parser knows all of them, and it is the same argument
+	 * `CLAUDE.md` already makes for checking colours on lightningcss's parsed tree rather
+	 * than on source text.
+	 *
+	 * `[rel~=stylesheet i]` is that knowledge spelled out: `~=` matches one token of the
+	 * list, `i` makes it case-insensitive. The `<link rel="icon">` this page carries is
+	 * excluded by it, which is checked below rather than assumed.
 	 */
 	it('offers prototypes exactly one plugin stylesheet and no proposal sheet', () => {
 		const html = readFileSync(path.join(REPO, 'tests', 'harness', 'index.html'), 'utf8');
 
-		// Every `<link>`, then its attributes — rather than one regex assuming `rel` precedes
-		// `href`. Attribute order is free in HTML, so `<link href="…/concept.css"
-		// rel="stylesheet">` would load the forbidden proposal sheet while an order-dependent
-		// pattern reported the same three and stayed green.
-		const sheets = [...html.matchAll(/<link\b([^>]*)>/g)]
-			.map((match) => match[1])
-			.filter((attrs) => /\brel\s*=\s*["']stylesheet["']/.test(attrs))
-			.map((attrs) => /\bhref\s*=\s*["']([^"']+)["']/.exec(attrs)?.[1] ?? '');
+		const page = new DOMParser().parseFromString(html, 'text/html');
+		const sheets = [...page.querySelectorAll('link[rel~=stylesheet i]')].map(
+			(link) => link.getAttribute('href') ?? '',
+		);
 
 		expect(sheets).toEqual(['./obsidian.css', './theme.css', '/styles.css']);
 		expect(sheets.some((href) => href.includes('concept'))).toBe(false);
@@ -1719,16 +1729,27 @@ rather than a quiet reintroduction of the split.
 
 - [ ] **Step 5: Prove the link case can fail**
 
-Temporarily add to `tests/harness/index.html`, after the `/styles.css` link — **with `href`
-first**, which is the spelling an order-dependent pattern would have missed:
+Temporarily add to `tests/harness/index.html`, after the `/styles.css` link — **unquoted, and
+with `href` first**, which is valid HTML a browser loads and is the spelling both hand-written
+patterns before this one missed:
 
 ```html
-		<link href="../../docs/user-experience/concepts/concept.css" rel="stylesheet" />
+		<link href=../../docs/user-experience/concepts/concept.css rel=stylesheet>
 ```
 
 Run: `npx vitest run tests/harness/harness.test.ts`
 
-Expected: FAIL on both assertions. Then revert: `git checkout tests/harness/index.html`
+Expected: FAIL on both assertions, with `concept.css` present in the reported list — which is the
+part worth reading rather than just seeing red. A parser that had quietly dropped the unquoted
+link would fail the first assertion too, on a list of three that no longer matched a list of four,
+and look identical at a glance.
+
+Then revert: `git checkout tests/harness/index.html`
+
+Worth one more run before moving on, because it is the assumption the case rests on: confirm the
+page's own `<link rel="icon">` is NOT in `sheets`. If it were, the expected list would be four
+entries and the assertion would have been written around the parser's behaviour rather than
+against the page.
 
 - [ ] **Step 6: Prove the module-graph case can fail**
 
@@ -2790,9 +2811,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across seventeen review rounds — forty-six findings. Forty-five were real and are fixed
-above rather than noted; one was not, and it is recorded as declined with the measurement that
-declined it.**
+**Revised across eighteen review rounds — forty-eight findings. Forty-seven were real and are
+fixed above rather than noted; one was not, and it is recorded as declined with the measurement
+that declined it.**
 
 Round one, on the shape of the harness:
 
@@ -2942,6 +2963,23 @@ and this time the stale sibling was inside the fix that was written to prevent e
 replacement that matches nothing fails silently, which is the same shape as every other finding
 here: a green signal that means nothing.
 
+Round eighteen, on HTML's own spellings, and on the six directories that exist today:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The link check read only QUOTED attributes** | `<link rel=stylesheet href=…/concept.css>` is valid HTML that a browser loads, and the two-stage regex round seven introduced — itself the fix for an attribute-ORDER defect — matched neither half of it. Third pattern, third spelling it did not know about | Task 5: the case PARSES. This file already runs in jsdom, so `DOMParser` and `link[rel~=stylesheet i]` were there all along — free of attribute order, quoting, case, and `rel` being a token list. The same argument `CLAUDE.md` already makes for reading colours off lightningcss's tree instead of off source text. The planted proof is now the unquoted spelling, and the `<link rel="icon">` exclusion is checked rather than assumed |
+| **The prototype ban enumerated the six layers that exist** | The six `forbidden(...)` calls name today's subtrees and the root block covers only files DIRECTLY under `src/`. A new `src/shared/` would match neither, and its import of a prototype would pass lint — the "list the places" shape `CLAUDE.md` refuses, hiding inside the fix that was built to check at the forbidden thing | Task 1's config, as a follow-up: see the note below on why the remedy is not simply one broad block |
+
+The second one's remedy needs care rather than the obvious edit, and the reason is already written
+down in this repository: **two flat-config blocks matching one file OVERRIDE
+`no-restricted-imports` rather than merging it.** A broad `src/**/*` block carrying the prototype
+ban, placed after the `forbidden(...)` calls, would take the layer bans off every layer file it
+also matches — trading one hole for six. Placed BEFORE them it works, because each `forbidden(...)`
+call already carries `'prototypes'` in its own `groups` and so re-states the ban for the files it
+overrides. That ordering is load-bearing and invisible, which means the test has to drive a subtree
+name that no `forbidden(...)` call mentions AND re-check that a layer ban still fires in a layer
+directory. A fix that only proves the first half would silently be the trade above.
+
 Round seventeen, on the extension list — the same finding in two places, which is what makes it
 a category rather than a slip:
 
@@ -2970,7 +3008,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all seventeen rounds and worth more than any individual fix:** every failure was
+**The pattern, across all eighteen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2985,6 +3023,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the forty-five fixes. Round twelve is the first to add a third pattern:
+execution, not the forty-seven fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

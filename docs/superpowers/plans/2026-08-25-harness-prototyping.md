@@ -291,13 +291,19 @@ beforeAll(async () => {
 	})) as RollupOutput | RollupOutput[];
 
 	const output = Array.isArray(result) ? result[0] : result;
-	const chunk = output.output.find((part) => part.type === 'chunk');
+	// EVERY chunk, not the first. A dynamic import — the exact route this test exists to
+	// catch, since lint cannot see it — is what Rollup most likely emits as a SEPARATE chunk,
+	// so inspecting `output[0]` alone would leave the interesting case unexamined while
+	// looking thorough.
+	const chunks = output.output.filter((part) => part.type === 'chunk');
 
-	if (chunk === undefined || chunk.type !== 'chunk') throw new Error('the build produced no chunk to inspect');
+	if (chunks.length === 0) throw new Error('the build produced no chunk to inspect');
 
 	// Absolute ids, normalised to forward slashes so this reads the same on Windows — which
 	// is one of the four legs `npm run check` rides.
-	modules = Object.keys(chunk.modules).map((id) => id.split(path.sep).join('/'));
+	modules = chunks.flatMap((chunk) =>
+		Object.keys(chunk.type === 'chunk' ? chunk.modules : {}).map((id) => id.split(path.sep).join('/')),
+	);
 }, BUILD_MS);
 
 describe('the built plugin', () => {
@@ -330,7 +336,7 @@ Expected: PASS, three tests — and the first one is what makes the other two me
 fails on `/src/main.ts`, `chunk.modules` is not the shape this test assumes and the other
 assertions are passing over nothing; fix that before continuing.
 
-- [ ] **Step 3: Prove it fails on a prototype — plant one and import it**
+- [ ] **Step 3: Prove it fails on a prototype — plant one and import it DYNAMICALLY**
 
 Temporarily create `src/prototypes/Doomed.vue`:
 
@@ -344,12 +350,13 @@ It carries no marker, and its name deliberately does not collide with any compon
 add to the top of `src/main.ts`:
 
 ```typescript
-import Doomed from './prototypes/Doomed.vue';
-console.log(Doomed);
+void import('./prototypes/Doomed.vue').then((module) => console.log(module));
 ```
 
-The reference is needed because a side-effect-only import of an SFC can be tree-shaken, which
-would make the planted defect vanish and teach you nothing.
+**A dynamic import, deliberately.** It is the route lint cannot see, so it is the one this test
+exists for — and it is also what Rollup is most likely to emit as a separate chunk, which is
+what the multi-chunk aggregation above is for. A static import would prove the easy half and
+leave the hard half untested while looking like a proof.
 
 - [ ] **Step 4: Watch it go red**
 
@@ -357,12 +364,26 @@ Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
 
 Expected: FAIL on `contains no module from src/prototypes/`, naming `Doomed.vue`.
 
+If it PASSES, the aggregation is not reaching every chunk — print `chunks.length` and the file
+names before changing anything else, because a green result here means the whole test is
+decorative.
+
 - [ ] **Step 5: Confirm lint refuses the same thing**
 
 Run: `npm run lint`
 
-Expected: FAIL with `no-restricted-imports` from Task 1's `forbidden('plugin', …)` block. Both
-halves of the guarantee now proven to fire on one planted defect.
+Expected: **PASS** — and that is the point rather than a problem. `no-restricted-imports` does
+not see a dynamic specifier, which is precisely why the bundle test exists. Swap the planted line
+for the static form to watch lint refuse it:
+
+```typescript
+import Doomed from './prototypes/Doomed.vue';
+console.log(Doomed);
+```
+
+Run `npm run lint` again: FAIL with `no-restricted-imports` from Task 1's `forbidden('plugin', …)`
+block. The two halves cover different routes, and this step is what proves the division of labour
+rather than assuming it.
 
 - [ ] **Step 6: Prove it fails on a fixture too — the case a text scan could not catch**
 
@@ -915,9 +936,18 @@ const wantsPlanEditor = params.get('view') === 'plan-editor';
 let view: unknown = null;
 
 if (wantsIndex) {
-	document.body.empty();
+	// STANDARD DOM, not `empty()` and `createDiv()`. Obsidian's prototype extensions are
+	// installed by `mountHarness`, which does not run on this branch — so calling them here
+	// throws on the real page and the index never mounts, taking every named screenshot with
+	// it. `tests/harness/theme.ts` carries the same rule at the one other call site that runs
+	// before a mount, with the sentence that matters: the suite cannot see this, because every
+	// jsdom test file installs the extensions at module top.
+	document.body.replaceChildren();
 
-	const root = document.body.createDiv('rp-harness-leaf');
+	const root = document.createElement('div');
+
+	root.classList.add('rp-harness-leaf');
+	document.body.appendChild(root);
 
 	createApp(IndexPage).use(seedFixture()).mount(root);
 } else {
@@ -1105,11 +1135,29 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 * Windows, so an unsanitised PNG name is a leg-specific failure nobody would reproduce
 	 * locally on Linux or macOS.
 	 */
+	/**
+	 * The index branch runs BEFORE any mount, so Obsidian's DOM prototype extensions do not
+	 * exist yet. `tests/harness/theme.ts` already carries this rule for the one other
+	 * pre-mount call site, and its comment names why no test can see it: every jsdom file
+	 * installs the extensions at module top, so the shimmed spelling passes the suite and
+	 * throws on the real page.
+	 */
+	it('mounts the index with standard DOM, since no shim is installed on that branch', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const indexBranch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
+
+		expect(indexBranch).not.toMatch(/\.empty\(\)|\.createDiv\(|\.createEl\(/);
+		expect(indexBranch).toContain('document.createElement');
+	});
+
 	it('sanitises the entry id for the PNG filename without sanitising the URL', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		expect(source).toMatch(/replace\(\/\[\^a-zA-Z0-9\]\+\/g/);
 		expect(source).toContain('encodeURIComponent(entry)');
+		// Sanitising alone collapses `a-b/C` and `a/b-C` onto one filename, so the hash is
+		// what actually keeps two captures from overwriting each other.
+		expect(source).toContain('createHash');
 	});
 
 	it('still defines the five fixed shots, so an argumentless run is unchanged', () => {
@@ -1139,6 +1187,7 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		// shots start timing out with nothing else to report it.
 		expect(page).toContain("params.has('index')");
 	});
+```
 
 - [ ] **Step 2: Run it and watch the first case fail**
 
@@ -1148,7 +1197,13 @@ Expected: FAIL on `captures a named entry` — neither `process.argv` nor `?entr
 
 - [ ] **Step 3: Add the entry shots, waiting on the ENTRY rather than the shell**
 
-In `scripts/harness-shot.mjs`, after the `SHOTS` array (line ~47), add:
+In `scripts/harness-shot.mjs`, add `createHash` to the imports at the top:
+
+```javascript
+import { createHash } from 'node:crypto';
+```
+
+Then, after the `SHOTS` array (line ~47), add:
 
 ```javascript
 /**
@@ -1179,10 +1234,17 @@ const entryStage = (entry) => `.rp-harness-stage[data-entry="${entry}"] > *`;
  */
 const entryShots = (entry) => {
 	// The id is a URL and may contain `:` and `/` — both legal in a query value, both ILLEGAL
-	// in a Windows filename, and Windows is one of the four legs `npm run check` rides. So the
-	// PNG name is a sanitised form and the query is the real id. Sanitising the id itself
-	// instead would reintroduce exactly the collision `entries.ts` refuses.
-	const fileSafe = entry.replace(/[^a-zA-Z0-9]+/g, '-');
+	// in a Windows filename, and Windows is one of the four legs `npm run check` rides.
+	//
+	// Sanitising ALONE is not enough, and the plan's own id test names the case: `a-b/C` and
+	// `a/b-C` are different entries that collapse to one string the moment `/` and `:` become
+	// `-`. Two captures would then write the same two PNGs, the second silently overwriting
+	// the first — the same collision `entries.ts` refuses, moved from the URL to the file
+	// system. So the readable part is sanitised for humans and a short hash of the REAL id
+	// keeps it unique.
+	const readable = entry.replace(/[^a-zA-Z0-9]+/g, '-');
+	const digest = createHash('sha1').update(entry).digest('hex').slice(0, 8);
+	const fileSafe = `${readable}-${digest}`;
 
 	return [
 		{
@@ -1315,9 +1377,10 @@ Note the argument is the **id**, not the basename — ids are qualified by kind 
 component it stands in for are both reachable (`entries.ts`). The index shows the label; the URL
 and this command take the id.
 
-Expected: `harness-shots/entry-prototype-ZoneSummary-dark.png` and `-light.png` are written — the
-colon becomes a dash in the FILENAME because Windows forbids it there, while the URL keeps the
-real id. The command exits 0, and
+Expected: two PNGs under `harness-shots/`, named `entry-prototype-ZoneSummary-<hash>-dark.png`
+and `-light.png`. The colon becomes a dash because Windows forbids it in a filename, and the
+short hash of the real id is what stops two different entries sanitising onto one name. The
+command exits 0, and
 the command exits 0. Open one — it must show the zone list, not "Pick an entry."
 
 Then prove the failure path, which is the half that matters for an actor that cannot see:
@@ -1601,7 +1664,22 @@ Round two, on whether the tests test anything — the deeper set, and **one root
 | Ids still collided | Flattening `/` to `-` is not reversible: `a-b/C` and `a/b-C` become one id | Separator preserved (`component:editor/shell/StatusBar`), plus an explicit duplicate check that throws |
 | — (found while fixing the above) | Ids contain `:` and `/`, which are illegal in **Windows** filenames, and Windows is one of the four `npm run check` legs | `harness-shot` sanitises the PNG name only; the URL keeps the real id |
 
-Three of the ten were P1s that would each have cost an implementer a debugging session. The
-first round and the second share a theme worth carrying into execution: **a green signal that
-means nothing is the failure mode this plan is most prone to**, which is why every task now
-watches its test fail before trusting it.
+Round three, on the things only a browser or a build would have told you:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| The index would not mount at all | The `?index` branch called `document.body.empty()` and `createDiv()` — Obsidian prototype extensions installed by `mountHarness`, which does not run on that branch. It throws in a real browser, so **every named screenshot fails**. `tests/harness/theme.ts:44-47` already carries this exact rule for the one other pre-mount call site, including the sentence that matters: *no test can see it, because every jsdom file installs the extensions at module top* | Task 4 Step 6 (standard DOM) and Task 6 (a test reading that branch) |
+| Only the first chunk was inspected | A **dynamic import** — the one route lint cannot see, and therefore the whole reason the bundle test exists — is what Rollup most likely emits as a *separate* chunk. `output[0]` alone left it unexamined while looking thorough, and the planted proof used a static import, so it could not have revealed this | Task 2 (aggregate every chunk; the planted proof is now dynamic, and Step 5 shows lint deliberately *passing* on it, which is what proves the division of labour) |
+| PNG filenames collided | Sanitising `[^a-zA-Z0-9]` collapses `a-b/C` and `a/b-C` onto one name — the plan's own id example, the same collision moved from the URL to the file system, with the second capture silently overwriting the first | Task 6 (a short hash of the real id beside the readable part) |
+| An unclosed code fence | Steps 2 and 3 of Task 6 rendered *inside* a TypeScript block, so an executor copying a "code" step would have copied prose | Fixed; fence balance now verified mechanically |
+
+Three of the fourteen were P1s that would each have cost an implementer a debugging session, and
+one of those — the DOM shim — would have made the feature's headline capability fail on first
+use while every test stayed green.
+
+**The pattern across all three rounds, worth carrying into execution more than any individual
+fix:** this plan's failures were never "the code is wrong". They were **green signals that mean
+nothing** — a config grep standing in for a lint run, a first chunk standing in for a build, a
+string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser. The
+repo already knew the last one and had written it down. Every task now watches its test fail
+before trusting it, which is the only defence that generalises.

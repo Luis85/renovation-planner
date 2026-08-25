@@ -14,7 +14,10 @@ type: business-rule
 
 **The rule.** Rounding mode is `ROUND_HALF_UP`. A `Money` value is rounded to its currency's
 minor unit exactly where it is finalized as pipeline output — the `Estimated Cost` step of the
-cost pipeline — and never between stages. Intermediate values keep full `decimal.js` precision.
+cost pipeline — and never between stages. Intermediate values are never rounded to that minor
+unit — narrower than "keep full `decimal.js` precision", since every operation still rounds to a
+configured number of significant digits (34, `MONEY_PRECISION` in `core/money/Money.ts`; see
+ADR-010's 2026-08-25 revision).
 
 **Why.** Rounding per stage lets waste, discount and tax stacking compound the error one step at
 a time, which is the exact failure decimal arithmetic was adopted to prevent, reintroduced inside
@@ -23,7 +26,8 @@ change to that default would move every persisted figure with nothing recording 
 value at all. `ROUND_HALF_EVEN` was considered and refused — see ADR-010's alternatives.
 
 **Where it holds.** `core/money`'s `round`, called once by the cost pipeline. Every other
-operation returns full precision.
+operation returns its result unrounded to the minor unit — not at "full precision": the same
+34-significant-digit ceiling applies to those too.
 
 **Two roundings, not one — and this is where they are told apart.** §71's separation is real and
 is [[Internal precision and display precision are separate]], but it is about a *second*

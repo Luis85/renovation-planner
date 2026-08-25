@@ -45,10 +45,13 @@ None. It is stored as part of whatever holds it — a [[Cost item]]'s amount, a 
   than storing one and recomputing the others at display time.
 - **Two roundings, and only the first belongs to the arithmetic.** A `Money` value is rounded
   once, where the cost pipeline finalizes it — `ROUND_HALF_UP`, to the currency's minor unit
-  (ADR-010) — and intermediate values keep full precision. Display formatting rounds again and
-  never feeds back (§71's separation, applied to money). An earlier version of this bullet said
-  rounding happens *at display, not in the arithmetic*, which read the second rounding as
-  replacing the first and contradicted ADR-010's *once, at the end*.
+  (ADR-010) — and intermediate values are never rounded to that minor unit before then. Narrower
+  than "keep full precision", which an earlier version of this bullet said: `decimal.js` still
+  rounds every operation to a configured number of significant digits (34, per ADR-010's
+  2026-08-25 revision), not an unbounded one. Display formatting rounds again and never feeds
+  back (§71's separation, applied to money). An earlier version of this bullet said rounding
+  happens *at display, not in the arithmetic*, which read the second rounding as replacing the
+  first and contradicted ADR-010's *once, at the end*.
 
 ## Business rules that reach this entity
 

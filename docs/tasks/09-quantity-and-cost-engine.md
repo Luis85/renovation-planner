@@ -21,7 +21,7 @@ iteration: ""
 
 Deliver the Quantity Engine and Cost Pipeline as a pure, framework-free computational
 core: given a raw geometric measurement (a number with a unit), compute a purchase
-quantity and an estimated cost using exact decimal arithmetic throughout.
+quantity and an estimated cost using decimal arithmetic — never native floats — throughout.
 
 This is its own bounded slice because it has no dependency on any renovation domain
 entity. It does not know what a Zone, an Asset, or a Requirement is — it consumes plain
@@ -468,8 +468,8 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
       - Packaging (`lotSize = 2.5 m²`, no minimum) → Purchase Quantity:
         `15 m²` (`13.5802458 / 2.5 = 5.432...`, rounded up to 6 lots × 2.5).
       - Unit Price `$12.50/m²` → Line Subtotal: `$187.50`.
-      - Discount `5%` → After Discount: `$178.125` (full precision retained,
-        not yet rounded).
+      - Discount `5%` → After Discount: `$178.125` (exact, not yet rounded to the minor
+        unit).
       - Shipping `$25.00` flat → After Shipping: `$203.125`.
       - Tax `8.25%` → `$219.8828125`, rounded `ROUND_HALF_UP` to the currency's
         2 decimal places → **Estimated Cost: `$219.88`**.

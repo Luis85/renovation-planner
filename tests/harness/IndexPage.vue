@@ -208,10 +208,12 @@ let mountedGeneration: number | null = null;
  * NOT answer the same question — measured in
  * `node_modules/@vue/runtime-core/dist/runtime-core.cjs.js` (v3.5.41): `warn$1` hands the
  * handler `stack[stack.length - 1].component`, the warning-STACK top, never `currentInstance`
- * — and that stack is pushed only around a synchronous mount, patch or async-setup resolve
- * (`pushWarningContext`, called from `mountComponent`/`updateComponent`). During the one case
- * this channel actually has to get right — a warning raised while the PREVIOUS entry tears
- * down — the teardown runs from `IndexPage`'s own reactive flush (`open()`'s
+ * — and that stack is pushed around a synchronous mount, a patch, an async-setup resolve, or
+ * the logging of an unhandled error — five `pushWarningContext` call sites total in that file
+ * (counted, not the three this sentence used to imply), the fourth kind being `logError`, which
+ * pushes the ERRORED component's own vnode so an unhandled error's warning carries a trace.
+ * During the one case this channel actually has to get right — a warning raised while the
+ * PREVIOUS entry tears down — the teardown runs from `IndexPage`'s own reactive flush (`open()`'s
  * `openComponent.value = null` only QUEUES it, per the paragraph above), so the stack top at
  * that moment is `IndexPage` itself, not the entry being torn down. Walking `$parent` from it
  * would therefore attribute the warning to the PAGE — the published id is not merely cheaper
@@ -513,14 +515,19 @@ if (config) {
 		// VUE's behaviour, not this page's: `config.warnHandler` is consulted only when Vue's
 		// warning STACK is non-empty (`runtime-core`'s `warn` reads
 		// `stack.length ? stack[stack.length - 1].component : null` and takes the handler off
-		// THAT instance's app), and the stack is pushed only around a synchronous mount, patch or
-		// async-setup resolve. A continuation resuming after its instance was unmounted runs on a
-		// bare microtask with an empty stack, so Vue sends its warning to `console.warn` and this
-		// handler never sees it — measured in `tests/harness/indexPage.test.ts` by driving that
+		// THAT instance's app), and the stack is pushed around a synchronous mount, a patch, an
+		// async-setup resolve, or the logging of an unhandled error — five `pushWarningContext`
+		// call sites total, counted rather than assumed (see the paragraph above, around line 211).
+		// A continuation resuming after its instance was unmounted runs on a bare microtask with
+		// an empty stack, so Vue sends its warning to `console.warn` and this handler never sees
+		// it — measured in `tests/harness/indexPage.test.ts` by driving that
 		// exact navigation, not reasoned from the docs. And a warning that IS raised inside a
-		// mount or patch is one Vue itself attributes to the component being patched, which is the
-		// live entry — so no key available here, generation included, could tell a stale origin
-		// from the current one.
+		// mount or patch is one Vue attributes to whichever component's OWN frame is on top of the
+		// stack at that moment — which is not always the entry on stage: during that entry's
+		// teardown the top frame is `IndexPage`'s own, not the entry's, for the reason the
+		// paragraph above gives. Either way `instance` is not what decides the bucket below —
+		// `warningOwner` is — so no key available here, generation included, has to reconcile
+		// with whatever Vue itself attributes the warning to.
 		//
 		// It is generation-keyed regardless: one key for four guards is the point, and the clear
 		// on unmount is the one place here where two mounts of a single entry are both in play —

@@ -50,8 +50,23 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  * `watch(selectedIds, ..., { immediate: true })` re-runs `hydrateFrom` the moment the panel
  * (re)mounts, and `hydrateFrom([])` sets `dto` to `{ kind: 'empty' }` SYNCHRONOUSLY — before
  * its first `await` — so as long as `selection` is reset to `[]` first, the next mount of
- * `InspectorPanel` never has a chance to show a stale `dto`. That leaves four stores to reset
- * by hand, which is what this function does. `CommandHistory` and `ToolManager`
+ * `InspectorPanel` never has a chance to show a stale `dto`.
+ *
+ * **That self-correction rests on a precondition this paragraph did not state:
+ * `InspectorPanel.vue` must be the ONLY reader of `dto`.** True today —
+ * `runtime.ts`'s `inspectorDto` slot reaches `InspectorPanel.vue` and nothing else — but a
+ * second reader added anywhere in `src/` would break the exclusion silently, since nothing
+ * here re-runs when one is. `tests/harness/fixture.test.ts` checks the CATEGORY rather than
+ * this one file: a scan of `.inspectorDto` — the property-read spelling, not the
+ * declaration — across every file under `src/` must find exactly one occurrence, in
+ * `InspectorPanel.vue`. A second occurrence anywhere fails it, present or future, without
+ * naming that second file in advance; a reader reached through destructuring
+ * (`const { inspectorDto } = runtime`) instead of a `.inspectorDto` property read is the
+ * scan's stated limit, the same shape as the `.css`-import scan's own stated limit in
+ * `harness.test.ts`.
+ *
+ * That leaves four stores to reset by hand, which is what this function does. `CommandHistory`
+ * and `ToolManager`
  * (`runtime.ts`) are NOT in this set: they are plain objects `provideEditorRuntime` builds
  * fresh in `PlanEditorRoot`'s `setup()` on every mount, not Pinia state, so undo/redo history
  * cannot leak between entries either.

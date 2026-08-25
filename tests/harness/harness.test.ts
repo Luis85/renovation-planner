@@ -260,19 +260,33 @@ describe('the browser harness', () => {
 	 * on the quote following `import` misses it while looking thorough. Measured on six
 	 * spellings: side-effect, default binding, named binding, dynamic, a re-export, and a
 	 * BACKTICK-quoted dynamic import — `` import(`./x.css`) `` is valid, statically
-	 * analysable Vite syntax the first five checks did not cover, since the character class
+	 * analysable Vite syntax the first five checks did not cover, since the delimiter class
 	 * named only `'"` and not `` ` ``. Planted and watched failing before this was widened
 	 * (a template-literal specifier in `page.ts` reaches production and was invisible to
 	 * both this scan AND the rendered-document check in `indexPage.test.ts`, which mounts
 	 * `IndexPage` directly and never executes `page.ts` at all — this source scan is the
 	 * only one of the two that can see a `page.ts`-specific import at all).
 	 *
-	 * **What six spellings still does not cover, stated rather than left implicit.** A
-	 * COMPUTED specifier — `` import(`./${name}.css`) ``, or one built from a variable
-	 * (`import(cssPath)`) — is not a literal quoted string at all, so no regex on this
-	 * pattern's shape can see it; that is a limit of pattern-matching itself; a further
-	 * refinement of this character class does not remove it, which is the same lesson this
-	 * file's history keeps landing on one route at a time.
+	 * The widening touches only the DELIMITER class (`['"`` ` ``]`, both ends of the match);
+	 * the inner exclusion class stays `[^'"]` — backtick deliberately left out of it — so a
+	 * literal backtick inside a single- or double-quoted specifier, legal on every POSIX
+	 * filesystem (`import './weird`.css'`), still matches exactly as it did before this
+	 * widening, while `` import(`./x.css`) `` now matches too, delimiters included. Measured
+	 * both directions: sharing one class between the delimiters and the interior — the
+	 * shape this file carried between the six-spellings widening and this paragraph — passes
+	 * the backtick-quoted case but loses that POSIX-legal one; splitting the two classes, as
+	 * written now, keeps both.
+	 *
+	 * **What this still does not cover, stated rather than left implicit.** A specifier held
+	 * in a VARIABLE — `import(cssPath)` — is not a literal quoted string at all, so no regex
+	 * on this pattern's shape can see it; that is a limit of pattern-matching itself, and a
+	 * further refinement of this character class does not remove it. A COMPUTED specifier
+	 * built from a template literal is not automatically in that category, though — measured:
+	 * `` import(`./${name}.css`) `` still matches, because the pattern only requires `.css`
+	 * text to appear before the closing delimiter, and that text survives the `${…}`
+	 * interpolation sitting in front of it. What actually defeats the pattern is the
+	 * specifier carrying no literal `.css` text at the import site at all, which is what
+	 * `import(cssPath)` is an example of and a template literal ending in `.css` is not.
 	 *
 	 * `sources()` below excludes exactly the `*.test.ts` suffix, and only that suffix — a
 	 * `.test-d.ts` or `.test.tsx` under one of these trees would still be walked. Harmless
@@ -289,7 +303,7 @@ describe('the browser harness', () => {
 	 * defect named above for the bare-substring case.
 	 */
 	it('loads no stylesheet through anything the harness can reach', () => {
-		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"`]*\.css['"`]/;
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"]*\.css['"`]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as

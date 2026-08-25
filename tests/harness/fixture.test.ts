@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { storeToRefs } from 'pinia';
 import { mount } from '@vue/test-utils';
@@ -81,5 +83,39 @@ describe('the harness fixture', () => {
 		expect(seen?.planId).toBe(HARNESS_PLAN.id);
 
 		app.unmount();
+	});
+
+	/**
+	 * The precondition `reseedFixture`'s inspector-store paragraph names but does not reset
+	 * for: `InspectorPanel.vue` must stay the ONLY reader of `inspectorDto`, because
+	 * `dto`'s self-correction on remount is that panel's own `watch(..., { immediate: true })`
+	 * — nothing here re-runs it for a second consumer.
+	 *
+	 * A CATEGORY check rather than an enumeration: this scans every `.ts`/`.vue` file under
+	 * `src/` for the literal property-read `.inspectorDto` and asserts there is exactly one,
+	 * naming the file itself only in the failure message. A future second reader fails this
+	 * wherever it is added, without this test having named it in advance — the shape
+	 * `harness.test.ts`'s stylesheet-import scan already uses for the same reason.
+	 *
+	 * Stated limit, not hidden: a reader reached through destructuring
+	 * (`const { inspectorDto } = runtime`) carries no `.inspectorDto` substring, so this scan
+	 * does not see it — the same class of gap the `.css`-import scan documents for its own
+	 * pattern.
+	 */
+	it('is the only reader of `inspectorDto` under src/, so the fixture never resetting it stays safe', () => {
+		const MODULE = /\.(?:ts|tsx|vue)$/;
+		const sources = (dir: string): string[] =>
+			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+				const full = path.join(dir, entry.name);
+				return entry.isDirectory() ? sources(full) : MODULE.test(entry.name) ? [full] : [];
+			});
+
+		const readers = sources('src')
+			.filter((file) => readFileSync(file, 'utf8').includes('.inspectorDto'))
+			// Posix-normalized before the comparison below: `path.join` above emits `\` on the
+			// Windows CI leg, and this assertion names a literal path.
+			.map((file) => file.split(path.sep).join('/'));
+
+		expect(readers).toEqual(['src/presentation/editor/shell/InspectorPanel.vue']);
 	});
 });

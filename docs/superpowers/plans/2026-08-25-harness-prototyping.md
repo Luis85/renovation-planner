@@ -1265,274 +1265,62 @@ Expected: PASS, 4 tests.
 
 Create `tests/harness/IndexPage.vue`:
 
-```vue
-<script setup lang="ts">
-/**
- * The harness index: every prototype and every component, click to open.
- *
- * The entry lists come from `entries.ts`, which owns both globs — `page.ts` needs the component
- * list too, to register those components for template-only prototypes, and a second glob here
- * would be a second answer that can disagree.
- *
- * Both globs are lazy: the index lists far more than it draws, and eagerly importing every
- * component would mount the whole plugin's presentation layer to render a list of links.
- *
- * TWO failure paths, not one. A module that fails to IMPORT rejects the promise and is
- * caught below; a module that imports fine but throws in `setup()` or `render()` fails
- * later, inside Vue's render cycle, where a try/catch around the import cannot see it.
- * `onErrorCaptured` is what covers the second, and without it criterion 8 holds only for
- * half the ways an entry can fail — the half that is easier to cause deliberately and rarer
- * in practice.
- */
-import { computed, getCurrentInstance, onErrorCaptured, ref, shallowRef } from 'vue';
-import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
+**This step no longer carries the file's source, and the deletion is deliberate — read this
+before reaching for git history to "restore" it.**
 
-const prototypes = prototypeEntries();
-const components = componentEntries();
+An executable snippet for this file was here through round twenty-four. It then diverged from the
+committed `tests/harness/IndexPage.vue` across seven review rounds, and by round thirty-two the
+divergence was total: the snippet had no `EntryBoundary`, no `warningOwner`, no `reportLateDefect`
+and a `mountedId` the code no longer has. **Executing it would have rebuilt a page with none of the
+attribution apparatus rounds twenty-five through thirty-one installed** — five review rounds undone
+by following the plan.
 
-const all = computed<HarnessEntry[]>(() => [...prototypes, ...components]);
+Two remedies were proposed and both were refused, which is why this section reads as it does.
+*Annotating* the stale snippet leaves stale code sitting there to be copied, which is the actual
+complaint. *Mirroring* the committed file means every future fix to it must be duplicated here — and
+that treadmill is not hypothetical, it is precisely what produced rounds twenty-nine and thirty-two.
+A second copy is a second derivation that answers differently the day one of them is edited, which
+is the pattern `tests/harness/fixture.ts` and `tests/harness/planEditor.ts` already refuse elsewhere
+in this repository for the same reason.
 
-const requested = new URLSearchParams(window.location.search).get('entry');
-const openComponent = shallowRef<unknown>(null);
-const failure = ref<string | null>(null);
-/**
- * The id of what is actually RENDERED, and it means the WHOLE subtree — null until every
- * async dependency below the entry has settled, and null again the moment one fails. The
- * stage exposes it as `data-entry`, which is what `scripts/harness-shot.mjs` waits for.
- *
- * It is deliberately not `requested`: the stage element exists from the first paint, so a
- * capture waiting on the stage alone would photograph "Pick an entry." and exit 0. An empty
- * screenshot reported as a success is the worst outcome this whole feature can produce,
- * because the actor it is built for cannot see that it is empty.
- *
- * And it is deliberately not set by `open()` either, which is the same defect one level in.
- * The global registry hands every component to Vue as a `defineAsyncComponent`, so a
- * prototype composing `<StatusBar />` starts loading it only once the OUTER module has
- * rendered. Setting the id when the outer loader resolves would mark the page ready while
- * every nested component was still a placeholder — the outer element satisfies the shot
- * selector, so `harness-shot` writes a picture of a half-drawn screen and exits 0. `open()`
- * therefore only ever CLEARS it; `<Suspense>` in the template is what sets it, because
- * resolving a whole subtree's async dependencies together is exactly what that boundary is
- * for and it holds at any nesting depth.
- */
-const renderedId = ref<string | null>(null);
+**So the general rule, which the next plan should start from: a plan under execution carries the
+argument and the acceptance criteria, and stops carrying executable code for a file once that file
+exists and has been reviewed.** The code is the authority the moment it is committed; a snippet is
+only useful before there is a file to point at.
 
-/** What a resolved render should name. Distinct from `renderedId`, which means "on screen". */
-const pendingId = ref<string | null>(null);
+`tests/harness/IndexPage.vue` is that authority. What it must satisfy:
 
-/**
- * EVERY Vue warning raised while the current entry rendered — which is the whole
- * classification, stated as what IS a defect rather than as a list of the ones somebody
- * enumerated.
- *
- * **This was an allowlist through round twenty-three and the allowlist was wrong**, in the way
- * an allowlist always is. It named `Failed to resolve component` and `Missing required prop`,
- * the two cases the feature was designed against, and it did not name
- * `Invalid prop: type check failed` — so a prototype could pass every REQUIRED prop to
- * `EmptyLayer` and pass a WRONG one, Vue would warn, nothing would throw, `<Suspense>` would
- * resolve and `harness-shot` would record a malformed entry as a success. The set it missed is
- * not one string either: Vue's prop validator alone raises four, and there are dozens more
- * across `runtime-core` — `injection "x" not found`, `Property "x" was accessed during render
- * but is not defined on instance`, `Failed to resolve directive` — each of which means the same
- * thing here: what is on screen is not what the entry was supposed to be.
- *
- * So the classification is INVERTED, which is `CLAUDE.md`'s rule about category invariants
- * ("checked at the forbidden thing, not by listing the places") applied to the one mechanism
- * that fails SILENTLY when it is wrong. Vue's dev `warn` is by construction "you did something
- * wrong"; this page is a tool for LOOKING at a component, so anything Vue is unhappy enough
- * about to warn on makes the picture untrustworthy.
- *
- * **Do not reintroduce a match here.** If a benign warning is ever found, exclude it in THIS
- * one place, by name and with the reason beside it — a carve-out for a warning somebody has
- * actually seen, rather than a list written ahead of the evidence. The fallout was measured
- * rather than predicted: all twelve components under `src/presentation/` were opened one at a
- * time in a real browser and the inversion added NO new failure.
- *
- * The prop case is still a real limit rather than a bug to route around: a component that needs
- * props cannot be mounted bare, and the index says so instead of drawing something wrong.
- * Composing it in a prototype — where a template CAN pass props — is how a designer looks at one.
- *
- * A plain array rather than a ref, deliberately: it is written DURING render, where mutating
- * reactive state is a second warning and a re-render nobody asked for. It is read once the
- * render is over, in `settle()`.
- */
-const renderDefects: string[] = [];
+**Three ways an entry fails, and no one mechanism sees two of them.**
 
-/**
- * Which `open()` call is current. Two clicks in quick succession leave both awaits in flight,
- * and without this the FIRST to settle is whichever import happens to finish last: entry A's
- * module could overwrite entry B's, or A's load error could replace a B that had drawn
- * perfectly, while `pendingId` still says B. A stale call returns instead of writing anything.
- */
-let generation = 0;
+1. A module that fails to IMPORT rejects the promise — caught around the `await` in `open()`.
+2. A module that imports and then THROWS — in `setup()`, in `render()`, or from an async lifecycle
+   hook a tick later — fails inside Vue's error cycle, where a try/catch around the import cannot
+   see it. A per-entry `onErrorCaptured` boundary covers it; a ROOT hook cannot, because it is
+   handed the error and the throwing instance and nothing that says which `open()` call put that
+   instance there.
+3. A module that neither rejects nor throws can still draw WRONGLY — an unresolved tag, a missing or
+   mistyped prop — which Vue only WARNS about. Every warning reaching the handler is a defect: the
+   classification is inverted rather than an allowlist, because an allowlist fails silently when it
+   is wrong and this one already did, twice.
 
-/**
- * The id of the component currently ASSIGNED to the stage, as a plain value.
- *
- * `settle()` fires from a `<Suspense>` that belongs to whatever is mounted, and it has no other
- * way to know which entry that was: entry A can still be on screen with a descendant pending
- * while a click has already moved `pendingId` to B, and A's descendant settling would then mark
- * the stage ready under B's name with A's content in it. The clear at the top of `open()` is the
- * fix; this is the invariant that keeps it fixed, since removing the clear would otherwise
- * reintroduce the defect silently.
- */
-let mountedId: string | null = null;
+**All three are asynchronous, which is the harder half.** Any of them can land after the reader has
+opened something else, and a report on the wrong entry is worse than no report — it pulls a working
+component off the stage and accuses it. Four guards answer that, and they share ONE key.
 
-async function open(entry: HarnessEntry): Promise<void> {
-	const mine = ++generation;
+**The key is the MOUNT, not the entry.** An id cannot distinguish two mounts of the same entry, so
+A -> B -> A defeats any id-keyed guard: the stale mount and the live one compare equal. A monotonic
+generation, incremented in `open()`, is the key, and all four guards compare it — the loader await,
+the `<Suspense>` resolve, the error channel, and the warning channel.
 
-	failure.value = null;
-	renderedId.value = null;
-	pendingId.value = entry.id;
-	renderDefects.length = 0;
-	// The previous entry comes OFF SCREEN before the await, not after it. Leaving it mounted
-	// while the next module loads is what lets a stale `<Suspense>` resolve under the new
-	// entry's name — and a blank stage during a load is the honest picture anyway.
-	openComponent.value = null;
-	mountedId = null;
-	try {
-		const module = (await entry.component()) as { default: unknown };
+**Readiness means the whole SUBTREE, not the outer module.** Every component is registered as a
+`defineAsyncComponent`, so a prototype composing `<StatusBar />` starts loading it only once the
+outer module has rendered. `open()` may only ever CLEAR the readiness marker; `<Suspense>`'s
+`@resolve` is what sets it, because settling a whole subtree's async dependencies together is
+exactly what that boundary is for and it holds at any nesting depth.
 
-		if (mine !== generation) return;
-
-		openComponent.value = module.default;
-		mountedId = entry.id;
-		// No `renderedId` assignment here, deliberately — see its declaration. The outer
-		// module having loaded says nothing about the components it composes.
-	} catch (error) {
-		if (mine !== generation) return;
-
-		// Named rather than blank: a prototype that half-drew itself is worse than one that
-		// says what is missing, because a gap reads as a layout decision.
-		openComponent.value = null;
-		failure.value = `${entry.id} failed to load: ${error instanceof Error ? error.message : String(error)}`;
-	}
-}
-
-/**
- * A render-time throw from the mounted entry. Returning `false` stops it propagating, so one
- * bad entry reports itself instead of blanking the page and taking the list with it.
- */
-onErrorCaptured((error) => {
-	const id = renderedId.value ?? pendingId.value ?? requested ?? 'the entry';
-
-	openComponent.value = null;
-	renderedId.value = null;
-	failure.value = `${id} failed to render: ${error instanceof Error ? error.message : String(error)}`;
-	return false;
-});
-
-/**
- * The link an entry is reachable at, built with `URLSearchParams` rather than interpolated.
- *
- * `&` and `#` are legal in a filename on every platform this runs on, and an id carries the
- * path, so a raw `?entry=${id}` produces a URL that no longer means the id: opening the link
- * in a new tab or copying it hands `URLSearchParams.get('entry')` a truncated value and the
- * index reports an unknown entry. The in-page click hides this, because `@click.prevent`
- * calls `open(entry)` with the object and never reads the URL back — so the defect would
- * appear only in the one path an agent uses, which is the path with no human watching.
- * `scripts/harness-shot.mjs` encodes the same id on its side.
- */
-function hrefFor(entry: HarnessEntry): string {
-	return `?${new URLSearchParams({ entry: entry.id }).toString()}`;
-}
-
-/**
- * What `<Suspense>`'s `@resolve` runs, once the whole subtree has settled.
- *
- * Ordering is the reason this is a function rather than an inline assignment. The resolution
- * warnings fire DURING the render that Suspense is waiting on, and `@resolve` fires after that
- * render is mounted — so by here the list is complete, and there is never a moment where
- * `data-entry` is set on a page that has a hole in it. Deferring the check to a microtask
- * instead would open exactly that window, and "too short for Playwright to observe" is not a
- * claim this project accepts.
- */
-function settle(): void {
-	// The resolve belongs to whatever is mounted. If that is not what `pendingId` names, this
-	// is a previous entry's subtree finishing after a navigation, and marking the stage ready
-	// would advertise the new id over the old content.
-	if (mountedId === null || mountedId !== pendingId.value) return;
-
-	if (renderDefects.length === 0) {
-		renderedId.value = pendingId.value;
-		return;
-	}
-
-	openComponent.value = null;
-	renderedId.value = null;
-	failure.value = `${pendingId.value ?? 'the entry'} did not render cleanly: ${[...new Set(renderDefects)].join('; ')}`;
-}
-
-/**
- * Turn Vue's warnings into something the page can fail on — see `renderDefects` for why that is
- * ALL of them rather than a named few.
- *
- * `IndexPage` is this app's ROOT component, so its `appContext` is the app — reaching the
- * config here keeps the failure state with the only component that owns any, rather than
- * adding a module whose whole job would be carrying one array across a boundary.
- *
- * The previous handler is called, and `console.warn` when there is none, so installing this
- * does not swallow every other Vue warning on the page.
- *
- * **The limit, stated because it is invisible:** `warnHandler` exists in DEVELOPMENT builds
- * only. `npm run harness` and `npm run harness-shot` both run Vite's dev server, so it is
- * always live where it matters; a production build of the harness page would lose this and
- * would go back to photographing the hole.
- */
-const config = getCurrentInstance()?.appContext.config;
-
-if (config) {
-	const previous = config.warnHandler;
-
-	config.warnHandler = (message, instance, trace) => {
-		// The message itself, unfiltered. A `.includes` match here is the defect this line was
-		// rewritten to remove — see `renderDefects`.
-		renderDefects.push(message);
-
-		if (previous) previous(message, instance, trace);
-		else console.warn(message, trace);
-	};
-}
-
-const initial = all.value.find((entry) => entry.id === requested);
-
-// An `?entry=` naming nothing is reported rather than silently ignored — `harness-shot`
-// exits non-zero on it, so a typo in a capture command fails loudly instead of writing a
-// picture of the index.
-if (requested && !initial) failure.value = `no entry named ${requested}`;
-if (initial) void open(initial);
-</script>
-
-<template>
-	<div class="rp-harness-index">
-		<nav aria-label="Harness entries">
-			<h1>Harness</h1>
-			<p v-if="prototypes.length === 0">No prototypes yet — add a .vue file under src/prototypes/.</p>
-			<ul>
-				<li v-for="entry in all" :key="entry.id">
-					<a :href="hrefFor(entry)" @click.prevent="open(entry)">{{ entry.label }}</a>
-					<span>{{ entry.kind }}</span>
-				</li>
-			</ul>
-		</nav>
-		<main class="rp-harness-stage" :data-entry="renderedId ?? undefined">
-			<p v-if="failure" role="alert" class="rp-harness-failure">{{ failure }}</p>
-			<!--
-				`@resolve` fires once every async dependency in the subtree has settled, which is
-				the only signal that covers a mock composing a real component that composes
-				another. `@pending` fires when a new set appears, so switching entries takes the
-				readiness marker away again rather than leaving the previous entry's id on a stage
-				that is mid-swap. `settle()` is what decides between ready and failed, because by
-				then it knows whether any tag in that subtree resolved to nothing.
-			-->
-			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
-				<component :is="openComponent" />
-			</Suspense>
-			<p v-else>Pick an entry.</p>
-		</main>
-	</div>
-</template>
-```
+Every one of those was a real defect before it was a rule, each has a test that fails without it,
+and `tests/harness/indexPage.test.ts` drives all of them. Read that file beside the page: it is
+where the acceptance criteria above are actually enforced.
 
 - [ ] **Step 6: Mount the index from the page entry**
 
@@ -2377,10 +2165,26 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		const start = index.indexOf('async function open');
 		const open = index.slice(start, index.indexOf('\n}', start) + 2);
 
-		expect(open, 'open() never runs').toContain('renderedId.value = null');
-		expect(open, 'open() marks the stage ready before nested components load').not.toMatch(
-			/renderedId\.value\s*=\s*(?!null)/,
-		);
+		// Every assignment's RIGHT-HAND SIDE, collected and then required to be `null` — rather
+		// than a negative lookahead, which is how the first version of this was WRONG.
+		//
+		// It read `expect(open).not.toMatch(/renderedId\.value\s*=\s*(?!null)/)`, and that regex
+		// MATCHES `renderedId.value = null`: the engine backtracks `\s*` to zero width, the
+		// lookahead then sees `" nul"` rather than `"null"`, and succeeds. With `.not.toMatch`
+		// around it, the case therefore went RED against a correct file — Task 6 failed on
+		// arrival rather than letting a defect through, which is the less dangerous direction and
+		// still made the task unrunnable.
+		//
+		// Measured, both ways, against the committed file: the repaired form passes on the file as
+		// it stands, goes red when an `renderedId.value = entry.id` is injected into `open()`, and
+		// goes red when the clear is deleted entirely. Enumerating what is assigned has no
+		// backtracking trap and names the offending right-hand side when it fails.
+		const assigned = [...open.matchAll(/renderedId\.value\s*=\s*([^;\n]+)/g)].map((m) => m[1].trim());
+
+		expect(assigned, 'open() never runs').not.toHaveLength(0);
+		expect([...new Set(assigned)], 'open() marks the stage ready before nested components load').toEqual([
+			'null',
+		]);
 		expect(index).toContain('<Suspense');
 		expect(index).toContain('@resolve="settle()"');
 	});
@@ -2456,9 +2260,19 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 */
 	it('builds index links with URLSearchParams rather than interpolating the id', () => {
 		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		// `hrefFor`'s BODY, sliced the way the case above slices `open()`. Reading the whole file
+		// is what the first version did, and it could not work: the comment on `hrefFor` explains
+		// the defect by SPELLING the forbidden interpolation, so the negative matched the
+		// explanation and the guard was red against correct code. A comment naming a forbidden
+		// spelling is not the forbidden spelling.
+		//
+		// The narrower claim is stated rather than hidden: this covers the one function that
+		// builds the link. A second link built elsewhere by interpolation is not seen here.
+		const start = index.indexOf('function hrefFor');
+		const hrefFor = index.slice(start, index.indexOf('\n}', start) + 2);
 
-		expect(index).toContain('new URLSearchParams({ entry: entry.id })');
-		expect(index, 'a raw ?entry= interpolation is back').not.toContain('`?entry=${');
+		expect(hrefFor).toContain('new URLSearchParams({ entry: entry.id })');
+		expect(hrefFor, 'a raw ?entry= interpolation is back').not.toContain('`?entry=${');
 	});
 
 	/**
@@ -3325,7 +3139,7 @@ Round eleven, on the halves the previous round's fix did not reach:
 
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
-| **Suspense settled for a navigation that was over** | Round nine's generation guards protect `entry.component()`'s await and nothing else, while `<Suspense>` settles on its own schedule. Entry A on screen with a descendant still pending, a click moves `pendingId` to B, A's descendant resolves — and the stage advertises `data-entry="B"` over A's content. A capture of the wrong component under the requested name, which is the failure mode this whole feature keeps producing in new places | Task 4: `open()` clears `openComponent` BEFORE the await, so the stale subtree unmounts rather than resolving later; and `settle()` refuses a resolve whose `mountedId` is not what `pendingId` names, so removing the clear cannot reintroduce it silently. Task 6 pins both |
+| **Suspense settled for a navigation that was over** | Round nine's generation guards protect `entry.component()`'s await and nothing else, while `<Suspense>` settles on its own schedule. Entry A on screen with a descendant still pending, a click moves `pendingId` to B, A's descendant resolves — and the stage advertises `data-entry="B"` over A's content. A capture of the wrong component under the requested name, which is the failure mode this whole feature keeps producing in new places | Task 4: `open()` clears `openComponent` BEFORE the await, so the stale subtree unmounts rather than resolving later; and `settle()` refuses a resolve that does not belong to the mount currently on the stage, so removing the clear cannot reintroduce it silently. (That comparison was spelled with `mountedId` when this row was written; round thirty-one replaced the id with the generation, and the row is now worded to the INVARIANT rather than to the spelling so it cannot go stale the same way twice.) Task 6 pins both |
 | **The lint probe used `console.log`** | `.oxlintrc.json` turns `no-console` on for every file under `src/**`, so all three planted probes fail `npm run lint` on the console call. Step 5's documented PASS was impossible, and its FAIL would have proved nothing about `no-restricted-imports` — the run was red either way, which is a proof that cannot distinguish the thing it exists to distinguish | Task 2 Steps 3, 5 and 6 export the planted binding instead. It also holds the import better: a live export cannot be tree-shaken away before Rollup reports the module |
 
 Round twelve, on the sheet that arrives by the other road — and the first finding that did not

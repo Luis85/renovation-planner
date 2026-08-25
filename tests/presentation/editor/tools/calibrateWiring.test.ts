@@ -97,7 +97,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * is an input no mouse can produce, and a rig that spelled it that way already
 	 * certified one gesture test against a state the tool never reaches.
 	 */
-	it('asks for a distance after two clicks and dispatches the calibration', async () => {
+	it('asks for a distance after two clicks', async () => {
 		const harness = await mountPlanEditor({ zones: [] });
 		const store = useDialogStore(harness.pinia);
 		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
@@ -118,6 +118,13 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * ONE decorated dispatcher every gesture in this leaf funnels through. Asserted against
 	 * a real `PlanEditorCommandServices.calibratePlan` spy, so this is the input the
 	 * command actually receives, not a stand-in for it.
+	 *
+	 * The two points are in the plan's CURRENT world units, not screen pixels — at the
+	 * editor's default camera (`DEFAULT_VIEWPORT`, `zoom` 0.1, `pan` (-480,-480)),
+	 * `screenToWorld` is `screen × 10 − 480` per axis. The clicks land at screen (0,0) and
+	 * (100,0); a wiring that let screen coordinates through unconverted would produce
+	 * `pointA: {x:0,y:0}` and `pointB: {x:100,y:0}` instead of the world points asserted
+	 * below, so this case would fail exactly the way an unconverted wiring should.
 	 */
 	it('submits the distance and dispatches through the one command dispatcher', async () => {
 		const calls: CalibratePlanInput[] = [];
@@ -143,8 +150,18 @@ describe('the calibrate tool in a mounted editor', () => {
 		await settle();
 
 		expect(calls).toHaveLength(1);
-		expect(calls[0].knownDistance).toBe(2400);
+		expect(calls[0]).toEqual({
+			planId: 'plan-ground',
+			pointA: { x: -480, y: -480 },
+			pointB: { x: 520, y: -480 },
+			knownDistance: 2400,
+		});
 		expect(harness.wrapper.find('.rp-dialog').exists()).toBe(false);
+
+		// Proves this ran through the WRAPPED dispatcher specifically: only
+		// `wrappedDispatcher` moves the reactive undo/redo flags the toolbar reads, so a
+		// dispatch that bypassed it would leave Undo disabled with nothing else erroring.
+		expect(toolbarButton(harness, t('en', 'editor.toolbar.undo')).disabled).toBe(false);
 
 		harness.unmount();
 	});
@@ -152,9 +169,24 @@ describe('the calibrate tool in a mounted editor', () => {
 	/**
 	 * The gate, driven through the real editor rather than the tool alone: a plan WITH
 	 * zones gets the confirmation first, and declining it never reaches the distance form.
+	 * A recorder on `calibratePlan` turns "stops" into an assertion rather than an
+	 * inference from "no second dialog opened" — a decline that went on to dispatch
+	 * anyway would still leave `store.current` `null` afterward, so the recorder is what
+	 * a silently-broken decline would actually be caught by.
 	 */
 	it('confirms before recalibrating a plan that has zones, and stops on a decline', async () => {
-		const harness = await mountPlanEditor(); // the default fixture has zones
+		const calls: CalibratePlanInput[] = [];
+		const commands: PlanEditorCommandServices = {
+			...unavailablePlanEditorCommands(),
+			calibratePlan: () => ({
+				execute: (input) => {
+					calls.push(input);
+					return Promise.resolve(ok(undefined));
+				},
+				undo: () => Promise.resolve(ok(undefined)),
+			}),
+		};
+		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
 		const store = useDialogStore(harness.pinia);
 		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
 
@@ -168,6 +200,31 @@ describe('the calibrate tool in a mounted editor', () => {
 		await settle();
 
 		expect(store.current).toBeNull();
+		expect(calls).toHaveLength(0);
 		harness.unmount();
+	});
+
+	/**
+	 * The load-bearing claim `runtime.ts`'s `CalibrateTool` registration makes in comment
+	 * form: both dialogs go through the LEAF's own store, so a calibration gesture in one
+	 * split pane cannot trap another. Two independent harnesses share nothing but the
+	 * module-level Konva/pdf.js globals — each gets its own Pinia — so driving the gesture
+	 * in the first must leave the second's dialog store untouched.
+	 */
+	it('opens the confirmation only in the leaf that raised it, never in a second split pane', async () => {
+		const first = await mountPlanEditor(); // the default fixture has zones
+		const second = await mountPlanEditor();
+		const secondStore = useDialogStore(second.pinia);
+		setToolByLabel(first, t('en', 'editor.toolbar.calibrate'));
+
+		click(first, { x: 0, y: 0 });
+		click(first, { x: 100, y: 0 });
+		await settle();
+
+		expect(useDialogStore(first.pinia).current?.kind).toBe('confirm');
+		expect(secondStore.current).toBeNull();
+
+		first.unmount();
+		second.unmount();
 	});
 });

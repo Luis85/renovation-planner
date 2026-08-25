@@ -1321,28 +1321,41 @@ const renderedId = ref<string | null>(null);
 const pendingId = ref<string | null>(null);
 
 /**
- * The Vue warnings that mean what is on screen is NOT the entry, collected during the current
- * render pass.
+ * EVERY Vue warning raised while the current entry rendered — which is the whole
+ * classification, stated as what IS a defect rather than as a list of the ones somebody
+ * enumerated.
  *
- * Two of them, and they are the same defect wearing different words. A tag that resolves to
- * nothing — a typo in a mock, or a label `registrableComponents` refused because two entries of
- * one kind claim it — renders as an unknown element. A component with REQUIRED PROPS mounted by
- * a bare `<component :is>` gets none of them: `EmptyLayer.vue` needs `layerId`, `transform` and
- * `visible`, and the index has no way to know that before importing it. Vue only WARNS about
- * either, and a warning is invisible to `scripts/harness-shot.mjs`, which records console errors
- * and page errors — so the prototype is photographed with a hole in it, or the component draws
- * malformed, and the command exits 0. That is the empty-capture failure narrowed to one element.
+ * **This was an allowlist through round twenty-three and the allowlist was wrong**, in the way
+ * an allowlist always is. It named `Failed to resolve component` and `Missing required prop`,
+ * the two cases the feature was designed against, and it did not name
+ * `Invalid prop: type check failed` — so a prototype could pass every REQUIRED prop to
+ * `EmptyLayer` and pass a WRONG one, Vue would warn, nothing would throw, `<Suspense>` would
+ * resolve and `harness-shot` would record a malformed entry as a success. The set it missed is
+ * not one string either: Vue's prop validator alone raises four, and there are dozens more
+ * across `runtime-core` — `injection "x" not found`, `Property "x" was accessed during render
+ * but is not defined on instance`, `Failed to resolve directive` — each of which means the same
+ * thing here: what is on screen is not what the entry was supposed to be.
  *
- * The prop case is a real limit rather than a bug to route around: a component that needs props
- * cannot be mounted bare, and the index says so instead of drawing something wrong. Composing it
- * in a prototype — where a template CAN pass props — is how a designer looks at one.
+ * So the classification is INVERTED, which is `CLAUDE.md`'s rule about category invariants
+ * ("checked at the forbidden thing, not by listing the places") applied to the one mechanism
+ * that fails SILENTLY when it is wrong. Vue's dev `warn` is by construction "you did something
+ * wrong"; this page is a tool for LOOKING at a component, so anything Vue is unhappy enough
+ * about to warn on makes the picture untrustworthy.
+ *
+ * **Do not reintroduce a match here.** If a benign warning is ever found, exclude it in THIS
+ * one place, by name and with the reason beside it — a carve-out for a warning somebody has
+ * actually seen, rather than a list written ahead of the evidence. The fallout was measured
+ * rather than predicted: all twelve components under `src/presentation/` were opened one at a
+ * time in a real browser and the inversion added NO new failure.
+ *
+ * The prop case is still a real limit rather than a bug to route around: a component that needs
+ * props cannot be mounted bare, and the index says so instead of drawing something wrong.
+ * Composing it in a prototype — where a template CAN pass props — is how a designer looks at one.
  *
  * A plain array rather than a ref, deliberately: it is written DURING render, where mutating
  * reactive state is a second warning and a re-render nobody asked for. It is read once the
  * render is over, in `settle()`.
  */
-const FATAL_WARNINGS = ['Failed to resolve component', 'Missing required prop'];
-
 const renderDefects: string[] = [];
 
 /**
@@ -1451,7 +1464,8 @@ function settle(): void {
 }
 
 /**
- * Turn the warnings in `FATAL_WARNINGS` into something the page can fail on.
+ * Turn Vue's warnings into something the page can fail on — see `renderDefects` for why that is
+ * ALL of them rather than a named few.
  *
  * `IndexPage` is this app's ROOT component, so its `appContext` is the app — reaching the
  * config here keeps the failure state with the only component that owns any, rather than
@@ -1471,7 +1485,9 @@ if (config) {
 	const previous = config.warnHandler;
 
 	config.warnHandler = (message, instance, trace) => {
-		if (FATAL_WARNINGS.some((fragment) => message.includes(fragment))) renderDefects.push(message);
+		// The message itself, unfiltered. A `.includes` match here is the defect this line was
+		// rewritten to remove — see `renderDefects`.
+		renderDefects.push(message);
 
 		if (previous) previous(message, instance, trace);
 		else console.warn(message, trace);
@@ -2381,12 +2397,16 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
 
 		expect(index).toContain('config.warnHandler');
-		// BOTH warnings. A missing required prop is the same defect in different words: the
-		// element is on screen and is not the component the designer asked to look at.
-		expect(index).toContain("'Failed to resolve component'");
-		expect(index).toContain("'Missing required prop'");
-		// And they must reach `failure`, not merely be collected.
-		expect(index).toMatch(/renderDefects\.length === 0[\s\S]*failure\.value =/);
+		// The message ITSELF, with no fragment match in front of it. Pinning the two warning
+		// strings is what this assertion used to do, and it was wrong twice over: it went stale
+		// the moment the classification was inverted, and while it stood it described the
+		// allowlist that let `Invalid prop: type check failed` through. What must be true is
+		// that nothing filters — see `renderDefects` in `IndexPage.vue`.
+		expect(index).toContain('renderDefects.push(message)');
+		// Behaviour, not text, is held by `tests/harness/indexPage.test.ts`, which drives a real
+		// missing prop, a real wrong prop and a real unresolved tag through the mounted page.
+		// This case exists for the one thing that file cannot say: that the collection is
+		// unconditional at the point it is written.
 	});
 
 	/**
@@ -3202,9 +3222,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-six review rounds — sixty-six findings. Sixty-four were real and are fixed
-above rather than noted; two were not, and each is recorded as declined with the measurement that
-declined it.**
+**Revised across twenty-eight review rounds — sixty-eight findings. Sixty-six were real and are
+fixed above rather than noted; two were not, and each is recorded as declined with the measurement
+that declined it.**
 
 Round one, on the shape of the harness:
 
@@ -3298,7 +3318,7 @@ Round ten, on the two remaining ways a green exit could lie:
 
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
-| **A missing required prop was not a failure** | Round nine caught the unresolved TAG and stopped there. A component with required props mounted by a bare `<component :is>` gets none — `EmptyLayer.vue` needs three — and Vue routes that through the same handler as a *different warning string*, which the match ignored. Same outcome: `<Suspense>` resolves, `data-entry` is set, and `harness-shot` captures a malformed component and exits 0 | Task 4: `FATAL_WARNINGS` names both, `renderDefects` replaces `unresolved`, and the plan states the limit rather than routing around it — a component needing props is listed, fails loudly when opened bare, and is looked at by composing it in a prototype that can pass them |
+| **A missing required prop was not a failure** | Round nine caught the unresolved TAG and stopped there. A component with required props mounted by a bare `<component :is>` gets none — `EmptyLayer.vue` needs three — and Vue routes that through the same handler as a *different warning string*, which the match ignored. Same outcome: `<Suspense>` resolves, `data-entry` is set, and `harness-shot` captures a malformed component and exits 0 | Task 4: `renderDefects` replaces `unresolved`, and the plan states the limit rather than routing around it — a component needing props is listed, fails loudly when opened bare, and is looked at by composing it in a prototype that can pass them. The fix at the time was a two-item `FATAL_WARNINGS` allowlist; round twenty-three replaced it with the inversion below, and this row is kept as the history of how the allowlist got its second entry rather than as a description of what stands |
 | **The wait selector was built from a file path** | `[data-entry="${id}"]` interpolates an id derived from a filename, and a `"` or a newline is legal in one on POSIX. The selector then parses as something else or not at all, so the index could open an entry the capture could never wait for | Task 6 asks the PAGE instead: `waitForFunction` comparing `dataset.entry` as a string. The escaping question is removed rather than answered, and a test forbids `[data-entry=` from reappearing in the script |
 
 Round eleven, on the halves the previous round's fix did not reach:
@@ -3399,6 +3419,36 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-eight, on the key the previous two rounds were both written in:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **Attribution by ID cannot tell two mounts of the same entry apart** | A -> B -> A. `EntryBoundary` snapshots `props.entryId` in `setup`, so the first A's boundary and the second A's boundary hold the same `owned`. If the first A's async hook rejects only after the second A has mounted, `reportEntryFailure` compares `'A' !== mountedId` — false — and pulls the NEW, healthy A off the stage to accuse it. That is the exact outcome the attribution apparatus exists to prevent, and the outcome `reportEntryFailure`'s own header claims is prevented | Task 4's committed `IndexPage.vue`, as a follow-up round scoped to the SHAPE rather than the case: one attribution key across all four guards |
+
+This is the third refinement of one problem — round twenty-five gave the error channel an owner it
+had never had, round twenty-seven gave the warning channel one, and this round says the owner both
+of them were given is the wrong KIND of thing. Each fix was sound and each closed the route it
+named, which is what makes the recurrence worth reading as a signal rather than as three unrelated
+bugs. It is the same shape the stylesheet thread had for six rounds: the answer was a different
+question, not a better patch.
+
+The different question here: **`generation` — the monotonic counter `open()` already increments —
+is a key that distinguishes two mounts of the same entry, and three of the four guards do not use
+it.** The loader await has used it since round one of this file's life; `settle()`,
+`reportEntryFailure` and the `warnHandler` all key on an id. So the fix is not a fifth guard, it is
+bringing the four onto one key.
+
+Round twenty-seven, on the channel the previous round's fix did not own:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **`renderDefects` was a shared array with no owner** | Vue allows one `config.warnHandler` per app, so the defect array is shared by construction, and `open()` emptying it on the way past is not ownership. `open()` clears the array and sets `openComponent` to null SYNCHRONOUSLY, which only queues Vue's re-render — so the flush that tears entry A down runs afterwards, reliably ahead of the module await resuming, and a warning raised from A's teardown lands in the array B's `settle()` reads. A clean B is pulled off the stage under its own name | Task 4's committed `IndexPage.vue`: `warningOwner`, published by the live `EntryBoundary` and checked at PUSH time, so a warning that is not the stage entry's goes to `console.error` instead of into the array |
+
+The pair with round twenty-five is the point: that round gave the ERROR channel a per-entry owner
+and stopped there, because the error channel is the one Vue offers a per-entry hook for. The warning
+channel has no such hook — which is exactly why it needed the owner published instead of inferred,
+and exactly why it was the channel left unguarded.
+
 Round twenty-six, on the guard added one round earlier:
 
 | Finding | What was wrong | Fixed in |
@@ -3451,7 +3501,7 @@ committed code already obeys:
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
 | **The `styles/` partials were excused on a false premise** | This plan said an `@import` inside a `styles/` partial was the assembler's problem. It is not: `scripts/styles-assemble.mjs` validates `index.css`'s own lines, and then checks each partial only for line count and hard-coded colours before concatenating its body **unchanged**. So `@import '/prototype.css';` in `styles/view.css` reaches the assembled sheet and the page with every guard green — including the guard whose comment excused it | Task 5: the `@import` scan covers `styles/` too, excluding only `index.css`, whose imports the assembler validates itself. Planted in BOTH trees, and the `styles/` plant is the one worth watching red, being the one a draft believed was somebody else's problem |
-| **`Invalid prop: type check failed` is a third fatal warning** | `FATAL_WARNINGS` names the unresolved tag and the missing required prop. A prototype can pass every required prop and pass a WRONG one — `transform="bad"` to `EmptyLayer` — and Vue only warns, `<Suspense>` resolves, `data-entry` is set, and `harness-shot` records a malformed entry as a success. Round ten found the missing prop and stopped one warning short; this is the same stop, one warning further on | Task 4's committed `IndexPage.vue`, as a follow-up round: the third string joins the list, driven from a REAL source like the other two rather than written down again |
+| **`Invalid prop: type check failed` is a third fatal warning** | `FATAL_WARNINGS` names the unresolved tag and the missing required prop. A prototype can pass every required prop and pass a WRONG one — `transform="bad"` to `EmptyLayer` — and Vue only warns, `<Suspense>` resolves, `data-entry` is set, and `harness-shot` records a malformed entry as a success. Round ten found the missing prop and stopped one warning short; this is the same stop, one warning further on | Task 4's committed `IndexPage.vue`, as a follow-up round — and NOT by adding a third string, which is what this row first said. A third entry would have been the same stop one warning further on for a fourth time; Vue's prop validator alone raises four and `runtime-core` dozens more. The classification is INVERTED instead: every warning reaching the handler is a defect, with the carve-out reserved for a benign warning somebody has actually seen. Driven from REAL sources — `EmptyLayer` with genuine required props, a real `resolveComponent` miss — rather than written down again |
 | **Task 7's real-glob test used `.sort()`** | The same `unicorn/no-array-sort` that forced `.toSorted` in `entries.ts` — so the prescribed Step 10 gate could not have passed | Task 7: `.toSorted` on both arrays, with the reason named so the next writer does not reintroduce it |
 
 The first is worth more than its size, because the defect was in a SENTENCE rather than in code:

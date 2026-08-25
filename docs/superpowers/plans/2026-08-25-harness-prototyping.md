@@ -1133,19 +1133,29 @@ const renderedId = ref<string | null>(null);
 const pendingId = ref<string | null>(null);
 
 /**
- * Vue's component-resolution warnings from the current render pass.
+ * The Vue warnings that mean what is on screen is NOT the entry, collected during the current
+ * render pass.
  *
- * A tag that resolves to nothing — a typo in a mock, or a label `registrableComponents` refused
- * because two entries of one kind claim it — renders as an unknown element and Vue only WARNS.
- * A warning is invisible to `scripts/harness-shot.mjs`, which records console errors and page
- * errors: the prototype would be photographed with a component silently missing and the command
- * would exit 0. That is the same failure as the empty capture, narrowed to one hole in the page.
+ * Two of them, and they are the same defect wearing different words. A tag that resolves to
+ * nothing — a typo in a mock, or a label `registrableComponents` refused because two entries of
+ * one kind claim it — renders as an unknown element. A component with REQUIRED PROPS mounted by
+ * a bare `<component :is>` gets none of them: `EmptyLayer.vue` needs `layerId`, `transform` and
+ * `visible`, and the index has no way to know that before importing it. Vue only WARNS about
+ * either, and a warning is invisible to `scripts/harness-shot.mjs`, which records console errors
+ * and page errors — so the prototype is photographed with a hole in it, or the component draws
+ * malformed, and the command exits 0. That is the empty-capture failure narrowed to one element.
+ *
+ * The prop case is a real limit rather than a bug to route around: a component that needs props
+ * cannot be mounted bare, and the index says so instead of drawing something wrong. Composing it
+ * in a prototype — where a template CAN pass props — is how a designer looks at one.
  *
  * A plain array rather than a ref, deliberately: it is written DURING render, where mutating
  * reactive state is a second warning and a re-render nobody asked for. It is read once the
  * render is over, in `settle()`.
  */
-const unresolved: string[] = [];
+const FATAL_WARNINGS = ['Failed to resolve component', 'Missing required prop'];
+
+const renderDefects: string[] = [];
 
 /**
  * Which `open()` call is current. Two clicks in quick succession leave both awaits in flight,
@@ -1161,7 +1171,7 @@ async function open(entry: HarnessEntry): Promise<void> {
 	failure.value = null;
 	renderedId.value = null;
 	pendingId.value = entry.id;
-	unresolved.length = 0;
+	renderDefects.length = 0;
 	try {
 		const module = (await entry.component()) as { default: unknown };
 
@@ -1219,18 +1229,18 @@ function hrefFor(entry: HarnessEntry): string {
  * claim this project accepts.
  */
 function settle(): void {
-	if (unresolved.length === 0) {
+	if (renderDefects.length === 0) {
 		renderedId.value = pendingId.value;
 		return;
 	}
 
 	openComponent.value = null;
 	renderedId.value = null;
-	failure.value = `${pendingId.value ?? 'the entry'} has unresolved components: ${[...new Set(unresolved)].join('; ')}`;
+	failure.value = `${pendingId.value ?? 'the entry'} did not render cleanly: ${[...new Set(renderDefects)].join('; ')}`;
 }
 
 /**
- * Turn Vue's resolution warning into something the page can fail on.
+ * Turn the warnings in `FATAL_WARNINGS` into something the page can fail on.
  *
  * `IndexPage` is this app's ROOT component, so its `appContext` is the app — reaching the
  * config here keeps the failure state with the only component that owns any, rather than
@@ -1250,7 +1260,7 @@ if (config) {
 	const previous = config.warnHandler;
 
 	config.warnHandler = (message, instance, trace) => {
-		if (message.includes('Failed to resolve component')) unresolved.push(message);
+		if (FATAL_WARNINGS.some((fragment) => message.includes(fragment))) renderDefects.push(message);
 
 		if (previous) previous(message, instance, trace);
 		else console.warn(message, trace);
@@ -1601,9 +1611,16 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	it('waits for the entry to have rendered, not merely for the stage to exist', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
-		expect(source).toContain('data-entry=');
-		// The bare stage class must not be used as a wait target on its own.
+		// The readiness question is asked in the page: the id is compared as a STRING against
+		// `dataset.entry`, never interpolated into a CSS attribute selector, because an id is
+		// built from a file path and a `"` is a legal filename character on POSIX.
+		expect(source).toContain('stage.dataset.entry === id');
+		expect(source).toContain('stage.firstElementChild !== null');
+		expect(source).toContain('waitForFunction(entryHasDrawn');
+		// The bare stage class must not be used as a wait target on its own, and no attribute
+		// selector may be built out of an entry id.
 		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
+		expect(source).not.toMatch(/\[data-entry=/);
 	});
 
 	/**
@@ -1694,19 +1711,23 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	});
 
 	/**
-	 * A tag that resolves to nothing is Vue's most invisible failure: a warning, an unknown
-	 * element in the DOM, and a `<Suspense>` that resolves perfectly happily. `harness-shot`
-	 * records console ERRORS and page errors, so without this the capture succeeds with a hole
-	 * in it — and the case that produces it is two entries of one kind sharing a label, which
-	 * `registrableComponents` deliberately registers for nobody.
+	 * A tag that resolves to nothing, and a required prop nobody passed, are Vue's most
+	 * invisible failures: a warning, a wrong element in the DOM, and a `<Suspense>` that
+	 * resolves perfectly happily. `harness-shot` records console ERRORS and page errors, so
+	 * without this the capture succeeds with a hole in it. Both are reachable from the plan's
+	 * own tree — two entries of one kind sharing a label, and `EmptyLayer.vue`'s three required
+	 * props against a bare `<component :is>`.
 	 */
-	it('turns an unresolved component tag into a named entry failure', () => {
+	it('turns an unresolved tag or a missing required prop into a named entry failure', () => {
 		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
 
 		expect(index).toContain('config.warnHandler');
-		expect(index).toContain("message.includes('Failed to resolve component')");
-		// And it must reach `failure`, not merely be collected.
-		expect(index).toMatch(/unresolved\.length === 0[\s\S]*failure\.value =/);
+		// BOTH warnings. A missing required prop is the same defect in different words: the
+		// element is on screen and is not the component the designer asked to look at.
+		expect(index).toContain("'Failed to resolve component'");
+		expect(index).toContain("'Missing required prop'");
+		// And they must reach `failure`, not merely be collected.
+		expect(index).toMatch(/renderDefects\.length === 0[\s\S]*failure\.value =/);
 	});
 
 	/**
@@ -1811,10 +1832,21 @@ Then, after the `SHOTS` array (line ~47), add:
  *
  * `IndexPage.vue` sets `data-entry` from `<Suspense>`'s `@resolve`, so it means the entry AND
  * every async component below it has settled — not merely that the outer module loaded, which
- * would still be a placeholder wherever a mock composes a real component. The `> *` waits out
- * the render tick after that and is belt and braces rather than the primary signal.
+ * would still be a placeholder wherever a mock composes a real component. `firstElementChild`
+ * waits out the render tick after that and is belt and braces rather than the primary signal.
+ *
+ * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
+ * path, and a quote or a newline is a legal filename character on POSIX; interpolating one into
+ * `[data-entry="…"]` produces a selector that parses as something else or does not parse at all,
+ * so the index could open an entry `harness-shot` could never capture. Comparing `dataset.entry`
+ * as a STRING has no escaping question to get wrong — the class of defect is removed rather
+ * than patched.
  */
-const entryStage = (entry) => `.rp-harness-stage[data-entry="${entry}"] > *`;
+const entryHasDrawn = (id) => {
+	const stage = document.querySelector('.rp-harness-stage');
+
+	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.firstElementChild !== null;
+};
 
 /**
  * The shots for ONE named entry, in both schemes.
@@ -1842,19 +1874,31 @@ const entryShots = (entry) => {
 	const digest = createHash('sha1').update(entry).digest('hex').slice(0, 8);
 	const fileSafe = `${readable}-${digest}`;
 
+	// `entry` rather than `selector`: `captureOne` waits on `entryHasDrawn` when it is present.
 	return [
-		{
-			name: `entry-${fileSafe}-dark`,
-			query: `?entry=${encodeURIComponent(entry)}`,
-			selector: entryStage(entry),
-		},
+		{ name: `entry-${fileSafe}-dark`, query: `?entry=${encodeURIComponent(entry)}`, entry },
 		{
 			name: `entry-${fileSafe}-light`,
 			query: `?entry=${encodeURIComponent(entry)}&theme=light`,
-			selector: entryStage(entry),
+			entry,
 		},
 	];
 };
+```
+
+And teach `captureOne` the second way of waiting. Change its signature and its wait, and nothing
+else in the function:
+
+```javascript
+async function captureOne(browser, baseUrl, { name, query, selector, entry }, errors) {
+```
+
+```javascript
+		// The fixed shots name a selector; a named entry names itself, and is compared as a
+		// string in the page because a CSS attribute selector built from a file path is a
+		// quoting bug waiting for the first filename with a `"` in it.
+		if (entry === undefined) await page.waitForSelector(selector, { state: 'attached' });
+		else await page.waitForFunction(entryHasDrawn, entry);
 ```
 
 - [ ] **Step 4: Read the argument in `run()`, and fail loudly on a name that draws nothing**
@@ -2324,9 +2368,9 @@ a record rather than a migration backlog."
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
 | 5 — one stylesheet, no second sheet | 5 |
-| 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) |
+| 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | 3 (second case) |
-| 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — three ways in now: a rejected import, `onErrorCaptured`, and an unresolved tag via `warnHandler`; plus the empty-tree case) |
+| 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
 | 9 — `npm run check` passes with the tree populated | 7 Step 9 |
 | 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`) |
 
@@ -2343,12 +2387,19 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
    would need its own signal. No entry does that today; the sentence is here so the next one is
    not a surprise. It is also the reason `open()` is forbidden from setting `renderedId` rather
    than merely discouraged: the negative is what a test can hold.
-4. **`app.config.warnHandler` is a DEVELOPMENT-build API.** It is what turns an unresolved tag
-   into a named failure, and both `npm run harness` and `npm run harness-shot` run Vite's dev
+4. **A component with REQUIRED PROPS cannot be mounted bare, and the index says so.** The fixture
+   answers stores and the editor context; it cannot answer props, and discovery is a glob that
+   knows nothing about a component's signature before importing it. `EmptyLayer.vue` is the
+   example in the tree — `layerId`, `transform`, `visible`. Such an entry is listed, and opening
+   it reports a named failure rather than drawing something malformed. Composing it inside a
+   prototype, where a template can pass props, is how a designer looks at one. Giving the index
+   its own way to supply props is the obvious extension and is deliberately not in this plan.
+5. **`app.config.warnHandler` is a DEVELOPMENT-build API.** It is what turns an unresolved tag or
+   a missing required prop into a named failure, and both `npm run harness` and `npm run harness-shot` run Vite's dev
    server, so it is live everywhere it matters today. A production build of the harness page
    would lose it silently and go back to photographing the hole — which is the trigger for
    needing a different signal, not a reason to avoid this one.
-5. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
+6. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
 
 **Placeholder scan:** every code step carries real code; no "TBD", no "handle errors appropriately", no "similar to Task N".
 
@@ -2356,13 +2407,13 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across nine review rounds — thirty-one findings, all real, all fixed above rather than noted.**
+**Revised across ten review rounds — thirty-three findings, all real, all fixed above rather than noted.**
 
 Round one, on the shape of the harness:
 
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
-| Capture waited on the stage shell | `.rp-harness-stage` exists on first paint, so `harness-shot <name>` could photograph "Pick an entry." and **exit 0** — an empty PNG reported as success, to an actor that cannot see it is empty | Task 4 (`data-entry`) and Task 6 (`[data-entry="…"] > *`, plus a test forbidding the bare class). Round eight found the same defect one level in |
+| Capture waited on the stage shell | `.rp-harness-stage` exists on first paint, so `harness-shot <name>` could photograph "Pick an entry." and **exit 0** — an empty PNG reported as success, to an actor that cannot see it is empty | Task 4 (`data-entry`) and Task 6 (a `waitForFunction` comparing `dataset.entry`, plus a test forbidding the bare class). Round eight found the same defect one level in; round ten took the CSS selector out of it |
 | The argumentless run broke | Routing "no `view` parameter → index" sent the three fixed shots to the index to time out — while the test asserting those shots exist kept passing | Task 4 Step 6 (index is opt-in) and Task 6 (a test pinning it from the other side) |
 | Render errors escaped the catch | `try/catch` around a dynamic import cannot see a throw from `setup()` or `render()` | Task 4 (`onErrorCaptured`) |
 | The bundle test was opt-in | A marker proves only the marker is absent | Task 2 |
@@ -2446,7 +2497,14 @@ Round nine, on what a warning costs an actor that reads exit codes:
 | **An ambiguous tag was only a warning — and the ambiguity was the workflow** | Two halves, both bad. A mock named after the component it stands in for made `registrableComponents` refuse BOTH, so `<StatusBar />` was unresolved in exactly the case the feature exists for. And an unresolved tag is a Vue *warning*: `<Suspense>` still resolves, `captureOne` records only console errors, so `harness-shot` photographs a prototype with a component missing and exits 0 | Task 4: a prototype WINS its label (`shadowed`, reported); a collision within one kind is still refused; and `IndexPage.vue` installs a `warnHandler` that turns `Failed to resolve component` into a named entry failure, checked in `settle()` after the render Suspense waited on, so `data-entry` is never set on a page with a hole in it |
 | **A stale entry load could overwrite a newer one** | Two clicks leave two `open()` awaits in flight, and whichever import settles LAST wins. The stage could draw A while `data-entry` said B — a capture of the wrong component reported as a success under the requested name, which is worse than an empty one — or A's load error could replace a B that had drawn perfectly | Task 4 (a generation counter, guarding both the resolve and the reject arm), Task 6 (a test requiring both guards) |
 
-**The pattern, across all nine rounds and worth more than any individual fix:** every failure was
+Round ten, on the two remaining ways a green exit could lie:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **A missing required prop was not a failure** | Round nine caught the unresolved TAG and stopped there. A component with required props mounted by a bare `<component :is>` gets none — `EmptyLayer.vue` needs three — and Vue routes that through the same handler as a *different warning string*, which the match ignored. Same outcome: `<Suspense>` resolves, `data-entry` is set, and `harness-shot` captures a malformed component and exits 0 | Task 4: `FATAL_WARNINGS` names both, `renderDefects` replaces `unresolved`, and the plan states the limit rather than routing around it — a component needing props is listed, fails loudly when opened bare, and is looked at by composing it in a prototype that can pass them |
+| **The wait selector was built from a file path** | `[data-entry="${id}"]` interpolates an id derived from a filename, and a `"` or a newline is legal in one on POSIX. The selector then parses as something else or not at all, so the index could open an entry the capture could never wait for | Task 6 asks the PAGE instead: `waitForFunction` comparing `dataset.entry` as a string. The escaping question is removed rather than answered, and a test forbids `[data-entry=` from reappearing in the script |
+
+**The pattern, across all ten rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2460,4 +2518,4 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the thirty-one fixes.
+execution, not the thirty-three fixes.

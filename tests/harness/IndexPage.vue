@@ -18,12 +18,13 @@
  * the three was found by asking what an entry could do rather than by watching one do it, and
  * `tests/harness/indexPage.test.ts` drives all three.
  *
- * All three are also ASYNCHRONOUS, which is the second half of the problem: any of them can land
- * after the reader has opened something else, and a report that lands on the wrong entry is worse
- * than no report. `generation`, `mountedId` and `EntryBoundary`'s own id are the three guards
- * against that — see `generation` below, where the set is named together.
+ * All three are also ASYNCHRONOUS, which is the second half of the problem and the harder one:
+ * any of them can land after the reader has opened something else, and a report that lands on the
+ * wrong entry is worse than no report — it pulls a working component off the stage and accuses it.
+ * FOUR guards answer that, one for each place a result can land late, and `generation` below
+ * names the set together.
  */
-import { computed, defineComponent, getCurrentInstance, onErrorCaptured, ref, shallowRef } from 'vue';
+import { computed, defineComponent, getCurrentInstance, onErrorCaptured, onUnmounted, ref, shallowRef } from 'vue';
 import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
 
 const prototypes = prototypeEntries();
@@ -108,6 +109,13 @@ const pendingId = ref<string | null>(null);
  * reactive state is a second warning and a re-render nobody asked for. It is read once the
  * render is over — by `settle()` at the resolve, and by `reportLateDefect` on the microtask
  * after a defect that arrives once the stage is already marked ready.
+ *
+ * **It holds ONE entry's warnings — the entry currently on the stage — and the handler enforces
+ * that rather than the array being trusted to.** There is one `config.warnHandler` per app, so
+ * this array is shared by construction; `open()` emptying it on the way past is not ownership,
+ * because entry A's teardown runs on a flush AFTER that clear and its warnings would land in the
+ * array B's `settle()` reads. `warningOwner` is what decides, at push time, whose warning this
+ * is; anything that is not the entry on the stage goes to `console.error` instead of in here.
  */
 const renderDefects: string[] = [];
 
@@ -117,11 +125,20 @@ const renderDefects: string[] = [];
  * module could overwrite entry B's, or A's load error could replace a B that had drawn
  * perfectly, while `pendingId` still says B. A stale call returns instead of writing anything.
  *
- * ONE of three guards, and the set is worth naming together because each covers a different
- * asynchronous path and none of them covers another's: this one covers the LOADER await;
- * `mountedId` covers the `<Suspense>` RESOLVE; and `EntryBoundary` covers the ERROR channel,
- * which needs its own because a root hook has no way back to the `open()` call that mounted the
- * subtree it is told about. Every one of the three was a real defect before it was a guard.
+ * ONE of four guards, and the set is worth naming together because each covers a different
+ * asynchronous path and none of them covers another's:
+ *
+ * - THIS one covers the LOADER await, in the closure that started it.
+ * - `mountedId` covers the `<Suspense>` RESOLVE, which fires from a boundary that cannot say
+ *   which entry it belongs to.
+ * - `EntryBoundary`'s own `onErrorCaptured` covers the ERROR channel, which needs a per-entry
+ *   hook because a root one has no way back to the `open()` call that mounted the subtree it is
+ *   told about.
+ * - `warningOwner` covers the WARNING channel, which cannot have a per-entry hook at all — Vue
+ *   allows one `config.warnHandler` per app — so the boundary publishes its id instead.
+ *
+ * Every one of the four was a real defect before it was a guard, each found by asking what could
+ * still land late rather than by watching it happen, and each has a test that fails without it.
  */
 let generation = 0;
 
@@ -139,6 +156,30 @@ let generation = 0;
  * the stage — which is what keeps a stale rejection off a page it no longer belongs to.
  */
 let mountedId: string | null = null;
+
+/**
+ * Which entry a Vue warning currently belongs to, set by the live `EntryBoundary`.
+ *
+ * Vue allows exactly ONE `config.warnHandler` per app, so the warning channel cannot be owned
+ * per-entry the way the error channel now is — and `renderDefects` was therefore a shared array
+ * that `open()` emptied on the way past. That is a mis-attribution waiting to happen, and it was
+ * REACHABLE rather than theoretical: `open()` clears the array and sets `openComponent` to null
+ * synchronously, which only QUEUES Vue's re-render, so the flush that actually tears entry A down
+ * runs afterwards — reliably ahead of the module await resuming. A warning raised from A's
+ * teardown therefore landed in the array that B's `settle()` reads, and pulled a clean B off the
+ * stage under B's own name.
+ *
+ * This is the id `EntryBoundary` already has, published for the one consumer that cannot be given
+ * a hook of its own. Walking `$parent` from the `instance` the handler is passed would answer the
+ * same question, and is refused for the same reason it was refused for the error channel: more
+ * code, over Vue's instance tree, to recover an id a per-entry component simply holds. The
+ * objection is weaker here — there is no per-entry hook available, so this is not a free
+ * alternative but a cheaper one — and it still wins on the same arithmetic.
+ *
+ * Cleared on unmount only if it is still ours, so the clear cannot depend on how A's teardown
+ * and B's setup interleave across flushes.
+ */
+let warningOwner: string | null = null;
 
 async function open(entry: HarnessEntry): Promise<void> {
 	const mine = ++generation;
@@ -225,6 +266,14 @@ const EntryBoundary = defineComponent({
 	props: { entryId: { type: String, required: true } },
 	setup(props, { slots }) {
 		const owned = props.entryId;
+
+		// The WARNING channel's owner, which cannot be a hook (Vue has one `warnHandler` per app)
+		// and so is a published id instead. Set in `setup`, which runs before this boundary's slot
+		// content mounts — so a prop warning from the entry itself is already attributed.
+		warningOwner = owned;
+		onUnmounted(() => {
+			if (warningOwner === owned) warningOwner = null;
+		});
 
 		onErrorCaptured((error) => {
 			reportEntryFailure(owned, error);
@@ -344,9 +393,21 @@ if (config) {
 	const previous = config.warnHandler;
 
 	config.warnHandler = (message, instance, trace) => {
-		renderDefects.push(message);
-		// Already marked ready, so `settle()` will not run again for this entry — see it.
-		if (renderedId.value !== null) reportLateDefect();
+		// ATTRIBUTED before it is collected. `renderDefects` is read by ONE entry's `settle()`, so
+		// only a warning belonging to the entry currently on the stage may go into it; anything
+		// else would accuse a component that did nothing wrong.
+		if (warningOwner !== null && warningOwner === mountedId) {
+			renderDefects.push(message);
+			// Already marked ready, so `settle()` will not run again for this entry — see it.
+			if (renderedId.value !== null) reportLateDefect();
+		} else {
+			// Not dropped: a stale warning is still a warning, and silence is the green signal
+			// that means nothing. `console.error` is the channel `scripts/harness-shot.mjs`
+			// records and exits non-zero on, so it stays loud without touching the stage.
+			const subject = warningOwner === null ? 'the harness index itself' : `harness entry ${warningOwner}`;
+
+			console.error(`Vue warning not attributable to the entry on the stage — from ${subject}: ${message}`);
+		}
 
 		if (previous) previous(message, instance, trace);
 		else console.warn(message, trace);
@@ -391,12 +452,16 @@ if (initial) void open(initial);
 			-->
 			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
 				<!--
-					Keyed by the entry, so the boundary that hears a throw is the one created for the
-					entry that raised it. Today `open()` clears `openComponent` before it awaits, so
-					the whole subtree is torn down between entries and every boundary is fresh
-					anyway — but that is the same accident the `@pending` note above describes, and
-					an attribution that depends on it would go wrong silently the day the swap
-					becomes a patch.
+					Keyed by the entry, so the boundary that hears a throw — and the one that
+					published `warningOwner` — is the one created for the entry that raised it.
+
+					The key is doing real work rather than restating what `open()` already arranges:
+					Vue's key semantics FORCE an unmount and remount instead of a patch, so the
+					attribution holds on its own terms even if `open()` stopped clearing
+					`openComponent` before its await. That clear happens to produce a fresh boundary
+					today, which is why an earlier version of this note credited it — but resting a
+					correctness property on it would be resting it on the same accident the
+					`@pending` note above describes.
 				-->
 				<EntryBoundary :key="pendingId ?? ''" :entry-id="pendingId ?? ''">
 					<component :is="openComponent" />

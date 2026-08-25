@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, onMounted, ref, resolveComponent } from 'vue';
+import { defineComponent, h, inject, onBeforeUnmount, onMounted, ref, resolveComponent } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import type { HarnessEntry } from './entries';
@@ -210,6 +210,23 @@ const FailsAfterYouLeave = defineComponent({
 
 const StillHere = defineComponent({ setup: () => () => h('p', 'the entry you moved to') });
 
+/**
+ * An entry that raises a Vue warning while it is being TORN DOWN. A real warning from real Vue
+ * API use — `inject` of a key nothing provides answers `injection "…" not found.` — rather than a
+ * hand-rolled string, for the reason every other case here does the same. The particular misuse
+ * is a stand-in: what is under test is who OWNS `renderDefects` when two entries overlap, not
+ * which warning got into it.
+ */
+const WarnsWhileUnmounting = defineComponent({
+	setup() {
+		onBeforeUnmount(() => {
+			inject('a-provide-that-does-not-exist');
+		});
+
+		return () => h('p', 'the entry that complains on the way out');
+	},
+});
+
 beforeEach(() => {
 	installEditorEnvironment();
 	document.body.replaceChildren();
@@ -357,6 +374,39 @@ describe('the harness index, refusing to advertise a hole', () => {
 		expect(stageEntry(wrapper)).toBe('component:StillHere');
 		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
 		expect(errors.mock.calls.flat().join(' ')).toContain('component:LeftBehind');
+
+		errors.mockRestore();
+		wrapper.unmount();
+	});
+
+	/**
+	 * The twin of the case above, in the channel a per-entry boundary cannot reach: Vue has exactly
+	 * ONE `config.warnHandler` per app, so `renderDefects` is a single shared array and a warning
+	 * raised while entry A tears down lands in it after `open(B)` has already emptied it.
+	 *
+	 * The ordering is not a coincidence to be lucky about, it is the NORMAL one: `open()` clears
+	 * the array and sets `openComponent` to null synchronously, which only QUEUES Vue's re-render;
+	 * the flush that actually unmounts A runs on the microtask queue, ahead of the module await
+	 * resuming. So A's teardown warning is reliably in the array by the time B's `<Suspense>`
+	 * resolves and `settle()` reads it.
+	 */
+	it('does not blame the open entry for a warning the previous one raised on its way out', async () => {
+		state.components = [
+			entryFor('component:WarnsOnUnmount', moduleOf(WarnsWhileUnmounting)),
+			entryFor('component:StillHere', moduleOf(StillHere)),
+		];
+
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const wrapper = await openIndex('entry=component:WarnsOnUnmount');
+
+		expect(stageEntry(wrapper)).toBe('component:WarnsOnUnmount');
+
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:StillHere');
+		expect(wrapper.find('.rp-harness-failure').exists()).toBe(false);
+		expect(errors.mock.calls.flat().join(' ')).toContain('component:WarnsOnUnmount');
 
 		errors.mockRestore();
 		wrapper.unmount();

@@ -1691,6 +1691,22 @@ different fields of one store, and it fails if either stops reading it. State pl
 what it does NOT prove: that two components render the SAME value, which no pair in this tree can
 demonstrate until a second plan-level consumer exists.
 
+**Read the DOM SYNCHRONOUSLY, and understand why before you write it.** `PlanEditorRoot` calls
+`projectStore.hydrate(...)` from `onMounted`, and `harnessDeps().queries` answer `HARNESS_PLAN` for
+any plan id — so one microtask after mounting, `status === 'ready'` **whether or not the fixture
+seeded anything**, because the queries seeded it instead. A negative case that awaits a flush
+therefore passes for a reason that has nothing to do with `seedFixture`.
+
+That is not a race and the synchronous read is not a lucky window: `hydrate` awaits promises, so its
+effect lands on the microtask queue, and an assertion in the same tick as the mount runs strictly
+before it. What the fixture exists to provide is a world in place before the FIRST synchronous
+mount — every index entry mounts synchronously, which is why `seedFixture` is sync and `hydrate` is
+not — so the un-awaited DOM is measuring exactly the thing the criterion is about.
+
+Say that at the observation helper, because the next reader's instinct will be to add an `await`.
+If one is ever added the negative case goes RED rather than quietly green, which is the safe
+direction — but only if the reason is written down.
+
 Two things remain forbidden however you write it:
 
 - **Mounting one component twice.** That proves Pinia's store is a singleton, which is true
@@ -1735,7 +1751,7 @@ The reason the whole feature exists: a mock and a real component drawn side by s
 - Test: `tests/harness/harness.test.ts` (add three cases — one per route a sheet takes: the page's links, the module graph, and a stylesheet importing a stylesheet)
 
 **Interfaces:**
-- Consumes: `tests/harness/index.html`, and every non-test `.ts`/`.vue` file under `src/` and `tests/harness/`.
+- Consumes: `tests/harness/index.html`, and every non-test module under `src/`, `tests/harness/` and `tests/helpers/` — the three trees the page can reach.
 - Produces: nothing.
 
 - [ ] **Step 1: Read what the file already asserts**
@@ -1833,11 +1849,12 @@ Hence a text scan, over what the page can reach rather than over the files that 
 	 * page can reach may add a fourth.
 	 *
 	 * The scanned set is what the page can reach, not the files that exist today: `page.ts`
-	 * imports the harness modules, those import `src/`, and Task 4's index globs
-	 * `src/prototypes/**` and `src/presentation/**` — so a sheet imported by a component
-	 * three levels down is loaded exactly as surely as one imported here. Scanning both
-	 * trees closes the transitive route without building anything: if no file in either
-	 * imports a stylesheet, nothing reachable through them does.
+	 * imports the harness modules, those import `src/` AND `tests/helpers/`, and Task 4's
+	 * index globs `src/prototypes/**` and `src/presentation/**` — so a sheet imported by a
+	 * component three levels down, or by a DOM helper, is loaded exactly as surely as one
+	 * imported here. Scanning all three trees closes the transitive route without building
+	 * anything: if no file in any of them imports a stylesheet, nothing reachable through
+	 * them does.
 	 *
 	 * The three spellings are checked over different sets, and the asymmetry is deliberate:
 	 *
@@ -1884,7 +1901,14 @@ Hence a text scan, over what the page can reach rather than over the files that 
 				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 
-		const reachable = [...sources(path.join(REPO, 'src')), ...sources(path.join(REPO, 'tests', 'harness'))];
+		const reachable = [
+			...sources(path.join(REPO, 'src')),
+			...sources(path.join(REPO, 'tests', 'harness')),
+			// `tests/helpers/` too: `mount.ts` and `planEditor.ts` are RUNTIME modules of this
+			// page and they import from there, so a stylesheet imported by a helper reaches the
+			// page exactly as surely as one imported here.
+			...sources(path.join(REPO, 'tests', 'helpers')),
+		];
 		const read = (file: string): string => readFileSync(file, 'utf8');
 
 		const importers = reachable.filter((file) => sheetImport.test(read(file)));
@@ -3037,7 +3061,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty review rounds — fifty-four findings. Fifty-two were real and are fixed
+**Revised across twenty-one review rounds — fifty-six findings. Fifty-four were real and are fixed
 above rather than noted; two were not, and each is recorded as declined with the measurement that
 declined it.**
 
@@ -3234,6 +3258,17 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-one, on two guards that were narrower than the thing they guard:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The sheet scan missed the harness's own helpers** | `tests/harness/mount.ts` and `planEditor.ts` are RUNTIME modules of the page and they import `tests/helpers/dom.ts`, `workspace.ts`, `canvas.ts` and `layout.ts`. A stylesheet imported by any of those loads into the page while the walker examined `src/` and `tests/harness/` only. Fourth iteration of one family: too few directories, too few spellings, too few extensions, now too few TREES | Task 5: `tests/helpers/` joins the reachable set. Measured with it: 200 files, no importer, no `<link>` |
+| **Criterion 7's negative case could pass after hydration** | `PlanEditorRoot` re-hydrates from `context.queries` in `onMounted`, and `harnessDeps()` answers `HARNESS_PLAN` for any id — so a microtask after mounting, `status === 'ready'` whether the fixture seeded anything or not. An awaited negative would have proved nothing | Already handled in the code, which reads the DOM synchronously and says why; the PLAN did not name the trap, and now does. Not a race: `hydrate`'s effect lands on the microtask queue and a same-tick assertion runs before it, and the fixture's whole purpose is a world in place before the first synchronous mount |
+
+The second is the round's more interesting result, because the finding was RIGHT about the mechanism
+and the implementation had already accounted for it — independently, with the reason written at the
+call site. A plan that had merely said "assert the negative" would have got the fragile version.
+
 **Found by the TASK REVIEWS**, which is a third category and the sharpest one so far, because
 these are defects in the plan's own test code that eighteen rounds of reading did not see:
 
@@ -3295,7 +3330,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all twenty rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty-one rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3310,6 +3345,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the fifty-two fixes. Round twelve is the first to add a third pattern:
+execution, not the fifty-four fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

@@ -1506,10 +1506,10 @@ throw the loader catch cannot see."
 The reason the whole feature exists: a mock and a real component drawn side by side must be styled by the same sheet, or an approved mock is approved against something that will not ship.
 
 **Files:**
-- Test: `tests/harness/harness.test.ts` (add a case)
+- Test: `tests/harness/harness.test.ts` (add two cases — one per route a sheet takes)
 
 **Interfaces:**
-- Consumes: `tests/harness/index.html`.
+- Consumes: `tests/harness/index.html`, and every `.ts`/`.vue` file in `tests/harness/`.
 - Produces: nothing.
 
 - [ ] **Step 1: Read what the file already asserts**
@@ -1558,13 +1558,76 @@ import path from 'node:path';
 import { REPO } from '../helpers/oxlint';
 ```
 
-- [ ] **Step 3: Run it**
+- [ ] **Step 3: Write the second case — the route the HTML scan cannot see**
+
+The case above reads `index.html`, and a `<link>` is not the only way a sheet reaches the page.
+`import '../../docs/user-experience/concepts/concept.css'` in `tests/harness/page.ts`, or a
+`<style>` block in `tests/harness/IndexPage.vue`, loads a second sheet through Vite's module
+graph — the HTML has three links either way and the first case stays green.
+
+Two facts decide the scope, and both were measured rather than assumed:
+
+- `eslint.config.mjs`'s `VUE_FILES` is `['**/src/**/*.vue']`, so `vue/no-restricted-block`
+  already refuses a `<style>` block in `src/prototypes/*.vue`. That half needs nothing here.
+- A `.vue` file under `tests/` matches **no ESLint configuration at all** (`eslint .` skips it
+  silently) and oxlint reports nothing on one either. So `tests/harness/IndexPage.vue` — a file
+  Task 4 creates — is linted by neither, and a `<style>` block in it is refused by nothing.
+
+Hence a text scan, over the harness directory, checking at the forbidden thing rather than
+listing the two files that exist today:
+
+```typescript
+	/**
+	 * The same claim over the other route. A sheet reaches this page as a `<link>` in
+	 * `index.html` or through Vite's module graph — a `.css` import, or an SFC `<style>`
+	 * block — and the case above can only see the first. The page's sheets are the three
+	 * links, and the module graph must add none.
+	 *
+	 * A scan of the directory rather than of the two files that exist today: the next file
+	 * added to the harness is the one that would carry the import nobody checked. Text
+	 * rather than lint, because a `.vue` under `tests/` matches no ESLint configuration —
+	 * measured, and the reason this case exists at all rather than being a rule.
+	 *
+	 * `*.test.ts` is skipped: the tests in this directory name stylesheet paths as strings
+	 * they READ, which is not a page loading one.
+	 */
+	it('loads no stylesheet through the harness module graph', () => {
+		const dir = path.join(REPO, 'tests', 'harness');
+		const offenders = readdirSync(dir)
+			.filter((name) => name.endsWith('.ts') || name.endsWith('.vue'))
+			.filter((name) => !name.endsWith('.test.ts'))
+			.filter((name) => {
+				const source = readFileSync(path.join(dir, name), 'utf8');
+				return /\.css['"]/.test(source) || /<style[\s>]/.test(source);
+			});
+
+		expect(offenders).toEqual([]);
+	});
+```
+
+`readdirSync` joins the existing `node:fs` import.
+
+**The test files in that directory name `.css` paths as strings they READ**, and
+`cssVars.test.ts` and `harness.test.ts` both do. A test that reads a stylesheet is not a page
+that loads one, so the scan skips `*.test.ts` — stated here rather than discovered, since a
+first run reporting this file itself would otherwise read as the guard working:
+
+```typescript
+			.filter((name) => !name.endsWith('.test.ts'))
+```
+
+Place it directly after the extension filter. Everything left is a file the page actually
+loads.
+
+- [ ] **Step 4: Run both cases**
 
 Run: `npx vitest run tests/harness/harness.test.ts`
 
-Expected: PASS immediately — the page already links exactly those three. This test is a **regression guard**, not a driver, and that is worth being explicit about: it exists so that adding `concept.css` to the harness page later is a red test rather than a quiet reintroduction of the split.
+Expected: PASS. Both are **regression guards**, not drivers, and that is worth being explicit
+about: they exist so that adding `concept.css` to the harness — by either route — is a red test
+rather than a quiet reintroduction of the split.
 
-- [ ] **Step 4: Prove it can fail**
+- [ ] **Step 5: Prove the link case can fail**
 
 Temporarily add to `tests/harness/index.html`, after the `/styles.css` link — **with `href`
 first**, which is the spelling an order-dependent pattern would have missed:
@@ -1577,13 +1640,29 @@ Run: `npx vitest run tests/harness/harness.test.ts`
 
 Expected: FAIL on both assertions. Then revert: `git checkout tests/harness/index.html`
 
-- [ ] **Step 5: Run the full gate**
+- [ ] **Step 6: Prove the module-graph case can fail**
+
+Temporarily add to `tests/harness/page.ts`, as its first line:
+
+```typescript
+import '../../docs/user-experience/concepts/concept.css';
+```
+
+Run: `npx vitest run tests/harness/harness.test.ts`
+
+Expected: FAIL, naming `page.ts`. Then revert: `git checkout tests/harness/page.ts`
+
+A `<style>` block is the other half and is worth planting too, in whichever `.vue` the harness
+holds at this point — `git checkout` afterwards either way. A guard watched failing on one of
+its two spellings has been watched failing on one of its two spellings.
+
+- [ ] **Step 7: Run the full gate**
 
 Run: `npm run check`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add tests/harness/harness.test.ts
@@ -1594,7 +1673,12 @@ will not ship, which is the entire reason prototypes moved out of
 docs/user-experience/concepts/. Adding concept.css to the harness page
 is now a red test rather than a quiet reintroduction of the split.
 
-Watched failing with the sheet planted before being trusted."
+Two routes, because a sheet reaches the page as a <link> or through
+Vite's module graph, and a scan of index.html can only see the first.
+A .vue under tests/ matches no ESLint configuration, so the second is
+refused by nothing else.
+
+Both watched failing with a sheet planted before being trusted."
 ```
 
 ---
@@ -2154,6 +2238,23 @@ exists. That is deliberate and it is the point of the fixture: **promotion moves
 across unchanged**, and wiring the data up is a separate, later edit. A fixture that had already
 rewritten the template to `v-for` would be recording a rewrite as if it were a promotion.
 
+**A binding the template does not read does not fail this repository's lint, and that was
+measured rather than assumed** — the question is obvious enough that it will be asked again.
+`npm run lint` is `oxlint --deny-warnings && eslint . --max-warnings 0`: oxlint exits 0 on this
+file, and `eslint .` does not lint it at all, because a `.vue` under `tests/` matches no block
+in `eslint.config.mjs` (`VUE_FILES` is `['**/src/**/*.vue']`). The same content under `src/`
+DOES fail, on `no-unused-vars` for `zones`. So the script block stays exactly as written; do not
+trim it to satisfy a rule that does not run here. That `.vue` files under `tests/` are linted by
+neither linter is a real gap in this repository and it is not this plan's to close — Task 5's
+module-graph scan covers the one consequence that touches this feature.
+
+**If `npm run analyze` reports this fixture as a dead file, declare it rather than deleting or
+importing it.** `tests/build/prototype-promotion.test.ts` reads it with `readFileSync`, so no
+import graph can reach it — the same shape as the entries already declared in `.fallowrc.json`,
+and the same remedy: name the file, with the reason written down beside the others. Naming it
+rather than globbing `tests/fixtures/**`, for the reason that file already gives about the
+concept stylesheets: a glob absorbs the next file and tells nobody.
+
 - [ ] **Step 5: Write the failing test**
 
 Create `tests/build/prototype-promotion.test.ts`:
@@ -2421,7 +2522,7 @@ a record rather than a migration backlog."
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
-| 5 — one stylesheet, no second sheet | 5 |
+| 5 — one stylesheet, no second sheet | 5 (both routes: the `<link>`s in `index.html`, and the module graph) |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | 3 (second case) |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
@@ -2461,7 +2562,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across eleven review rounds — thirty-five findings, all real, all fixed above rather than noted.**
+**Revised across twelve review rounds — thirty-seven findings. Thirty-six were real and are
+fixed above rather than noted; the thirty-seventh is the first that was not, and it is recorded
+as declined with the measurement that declined it.**
 
 Round one, on the shape of the harness:
 
@@ -2565,7 +2668,20 @@ Round eleven, on the halves the previous round's fix did not reach:
 | **Suspense settled for a navigation that was over** | Round nine's generation guards protect `entry.component()`'s await and nothing else, while `<Suspense>` settles on its own schedule. Entry A on screen with a descendant still pending, a click moves `pendingId` to B, A's descendant resolves — and the stage advertises `data-entry="B"` over A's content. A capture of the wrong component under the requested name, which is the failure mode this whole feature keeps producing in new places | Task 4: `open()` clears `openComponent` BEFORE the await, so the stale subtree unmounts rather than resolving later; and `settle()` refuses a resolve whose `mountedId` is not what `pendingId` names, so removing the clear cannot reintroduce it silently. Task 6 pins both |
 | **The lint probe used `console.log`** | `.oxlintrc.json` turns `no-console` on for every file under `src/**`, so all three planted probes fail `npm run lint` on the console call. Step 5's documented PASS was impossible, and its FAIL would have proved nothing about `no-restricted-imports` — the run was red either way, which is a proof that cannot distinguish the thing it exists to distinguish | Task 2 Steps 3, 5 and 6 export the planted binding instead. It also holds the import better: a live export cannot be tree-shaken away before Rollup reports the module |
 
-**The pattern, across all eleven rounds and worth more than any individual fix:** every failure was
+Round twelve, on the sheet that arrives by the other road — and the first finding that did not
+survive being checked:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **A second sheet could arrive through the module graph** | Task 5 read `index.html` for `<link>` tags, and a `.css` import in `page.ts` or a `<style>` block in `IndexPage.vue` loads a sheet Vite injects at runtime — three links either way, green either way. Criterion 5 is the reason the whole feature exists, and it was checked over one of its two roads. Worse where it lands: `VUE_FILES` is `['**/src/**/*.vue']`, so `vue/no-restricted-block` covers a prototype's `<style>` but not `IndexPage.vue`'s, and a `.vue` under `tests/` matches no ESLint block at all | Task 5: a second case scanning `tests/harness/` for a `.css` import or a `<style>` block, watched failing on both spellings. The `src/prototypes/` half needed nothing — an existing rule already had it |
+| *(declined)* **"the promoted fixture's unused binding fails lint"** | It does not, and the finding named two specifics that are both false: `computed` IS used (it builds `zones`), and at the fixture's real path neither linter reports anything — oxlint exits 0, and `eslint .` skips the file because no configuration matches a `.vue` under `tests/`. The same content under `src/` does fail, which is presumably where the reasoning came from | Nothing changed. The measurement is written into Task 7 beside the fixture, so the next reader does not re-derive it — and the underlying gap it accidentally surfaced (`.vue` under `tests/` is linted by neither linter) is stated there as real and out of this plan's scope |
+
+Round twelve also settled the spec's own assumption 3, which had stood unverified since the note
+was written: **a template-only SFC under `src/prototypes/` passes this repository's lint** —
+driven through ESLint at that exact path, exit 0. `vue/component-api-style` and `vue/block-lang`
+report on blocks that exist, so a file with no script block satisfies both.
+
+**The pattern, across all twelve rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2580,4 +2696,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the thirty-five fixes.
+execution, not the thirty-six fixes. Round twelve is the first to add a third pattern:
+a finding can be confidently specific and still wrong, so a declined one is declined with a
+measurement rather than with a judgement.

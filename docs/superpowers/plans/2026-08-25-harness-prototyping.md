@@ -2082,21 +2082,55 @@ enumerating spellings stopped being the right shape. So this case does not add a
 the DOCUMENT, after an entry has mounted, which is the only place every route converges:
 
 ```typescript
-	it('adds no stylesheet to the document when an entry mounts', async () => {
-		const before = document.querySelectorAll('link[rel~=stylesheet i], style').length;
+	const cssNodes = (): number => document.querySelectorAll('link[rel~=stylesheet i], style').length;
+
+	// The control. It proves the mounting path and the counting work, so the loop below is not
+	// silently doing nothing while the prototypes tree is empty.
+	it('adds no stylesheet to the document when a component mounts', async () => {
+		const before = cssNodes();
 
 		// Mount through the index the way a designer opens an entry, not by importing the
 		// component directly — the question is what the PAGE ends up with.
 		const page = await openEntryInIndex('component:editor/shell/StatusBar');
 
-		expect(document.querySelectorAll('link[rel~=stylesheet i], style')).toHaveLength(before);
+		expect(cssNodes()).toBe(before);
+
+		page.unmount();
+	});
+
+	// The real ones, from the real glob. Empty until Task 7 adds `ZoneSummary.vue`, and covering
+	// it from that moment with no edit here — the tree being the registration, applied to the
+	// guard as well as to the index.
+	it.each(prototypeEntries())('adds no stylesheet when $id mounts', async ({ id }) => {
+		const before = cssNodes();
+
+		const page = await openEntryInIndex(id);
+
+		expect(cssNodes()).toBe(before);
 
 		page.unmount();
 	});
 ```
 
-Use whichever mounting helper `tests/harness/indexPage.test.ts` already has rather than writing a
-second one — that file mounts the index for criterion 8 and its helper is the one to reuse.
+**Drive every REAL prototype, not one hard-coded entry — and mind where you put it.**
+`tests/harness/indexPage.test.ts` mounts the index for criterion 8, but it **mocks `./entries`**, so
+a check living there inspects fixtures rather than the tree. Mounting one hard-coded `StatusBar`
+would be worse still: the route this case exists for is a PROTOTYPE rendering a `<link>`, and a
+component entry cannot exercise it.
+
+So the case must iterate what `prototypeEntries()` actually returns — the real glob — and it must
+live somewhere discovery is not mocked. Reuse a mounting helper rather than writing a second one,
+but the entry list has to be real even where the helper is borrowed.
+
+**On an empty tree this covers nothing, and that is stated rather than hidden.** Task 5 runs before
+any prototype exists, so today the loop has no iterations. It becomes meaningful the moment Task 7
+puts `ZoneSummary.vue` in the tree — with no edit to this test, which is the same "the tree IS the
+registration" property the feature is built on, applied to its own guard. Add one component entry
+alongside as a control, so the case is not silently doing nothing before then: the control proves
+the mounting path and the counting work, and the loop proves it over whatever the tree holds.
+
+Say both of those in the test. A reader who finds a loop with no iterations and no explanation will
+reasonably assume it is dead.
 
 **Watch it fail on the route it exists for**: give a fixture entry the template
 `<component is="link" rel="stylesheet" href="../../docs/user-experience/concepts/concept.css" />`,
@@ -2144,7 +2178,7 @@ Expected: PASS.
 - [ ] **Step 10: Commit**
 
 ```bash
-git add tests/harness/harness.test.ts
+git add tests/harness/harness.test.ts tests/harness/indexPage.test.ts
 git commit -m "Guard the one-sheet claim on the harness page
 
 A mock drawn against a second sheet is approved against something that
@@ -3168,7 +3202,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-five review rounds — sixty-four findings. Sixty-two were real and are fixed
+**Revised across twenty-six review rounds — sixty-six findings. Sixty-four were real and are fixed
 above rather than noted; two were not, and each is recorded as declined with the measurement that
 declined it.**
 
@@ -3365,6 +3399,23 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-six, on the guard added one round earlier:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The rendered-document check mounted one hard-coded component** | It named `StatusBar` — a COMPONENT, which cannot exercise the route the case exists for, since that route is a PROTOTYPE rendering a `<link>`. And the file it was placed in mocks `./entries`, so it would have inspected fixtures rather than the tree | Task 5: the case iterates what `prototypeEntries()` really returns, in a file where discovery is not mocked, with one component kept as a CONTROL so the loop is not silently doing nothing while the tree is empty |
+| **Task 5 staged one of its two test files** | Step 7 writes to `indexPage.test.ts` and the `git add` named only `harness.test.ts`. Following the plan would leave the new guard uncommitted and the worktree dirty | Both staged. **My residue, for the fourth time on this branch** |
+
+The first is the sharper one and it is the same mistake as the fix it corrects. Round twenty-five
+replaced route-enumeration with a category check — and then wrote that category check against ONE
+entry, chosen because it was convenient rather than because it was the case in question. Moving from
+"which spellings" to "what does the page end up with" is only worth something if the page is asked
+about the things that can actually do it.
+
+The empty-tree property is worth naming: the loop covers nothing today and covers `ZoneSummary` the
+moment Task 7 adds it, **with no edit to the test**. That is the feature's own headline claim — the
+tree is the registration — turned on its own guard.
+
 Round twenty-five, on the sixth route — and the last one worth chasing by spelling:
 
 | Finding | What was wrong | Fixed in |
@@ -3494,7 +3545,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all twenty-five rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty-six rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3509,6 +3560,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the sixty-two fixes. Round twelve is the first to add a third pattern:
+execution, not the sixty-four fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

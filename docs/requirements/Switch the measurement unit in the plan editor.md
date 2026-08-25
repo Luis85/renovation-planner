@@ -173,10 +173,19 @@ rewrites a rule silently is worse than one that says it is doing it.
    a precision, so handing it one more input changes nothing about who owns the decision. Its
    open question 2, what an uncalibrated measurement renders as, is still open and still not
    this note's to answer.
-5. **[[Toolbar]]'s roving tabstop has one more stop.** A `role="toolbar"` group with arrow-key
-   movement now spans a tool group and a control group, and where the arrow keys stop at the
-   boundary between them is a real question the accessibility test cannot answer — axe reads
-   roles and names, not keyboard behaviour.
+5. **[[Toolbar]]'s roving tabstop spans both groups, and this note decides that rather than
+   noting it.** A `role="toolbar"` group keeps **one tab stop in total**; the arrow keys move
+   across the boundary from the last tool button into the picker and back. The alternative — a
+   separate tab stop for the picker — is refused by the component's own argument, that "tabbing
+   through six buttons to reach the canvas is worse every single time"; adding stops is the
+   thing that pattern exists to avoid, and a menu inside a toolbar is an ordinary member of a
+   roving tabstop rather than a special case.
+
+   An earlier version of this item named the question and left it open, which reads as diligence
+   and is not: **nothing in `npm run check` can see keyboard behaviour** — axe reads roles and
+   names, as [[Toolbar]] itself says — so an unanswered question here is a control that ships
+   unreachable while every gate stays green. It has an acceptance criterion now, and that
+   criterion is walked in a vault.
 
 ## Out of scope
 
@@ -263,8 +272,21 @@ That earns one rule the picker would not otherwise need:
    asset's, whatever the picker says. Per `CLAUDE.md`, a category invariant is checked at the
    forbidden thing, because the next call site is the one nobody thought of.
 5. Each conversion happens once from world millimetres, and neither reads the other's output.
-   Both are node tests in `domain/` asked of the functions directly, per the *Calibration and
-   measurement* epic's own definition of done — never through a screen.
+   **They live in different layers, and putting both in `domain/` would be a layer violation
+   this note had asked for.** `tests/` mirrors `src/`, so "a node test in `domain/`" is a claim
+   about where the code goes:
+
+   - the **numeric** conversion between world millimetres and a display unit is a pure
+     primitive, and `core/units/` — which slice 2 already creates for "the world coordinate
+     convention" — is its home;
+   - the **formatter** that adds rounding, a unit symbol and a locale is presentation
+     behaviour and belongs in `presentation/`, tested there;
+   - the **pricing** conversion stays exactly where slice 9 has it, untouched.
+
+   Each is asked of its function directly rather than through a screen, per the *Calibration and
+   measurement* epic's definition of done. The point of the split is that the display-unit
+   vocabulary and its rounding are a **replaceable UI concern**; routing them through `domain/`
+   would make them part of the domain API, which is the opposite of what the layering is for.
 6. The formatter converts from the **unrounded** world value. A test that rounds first and
    formats second produces a different figure at some input, and that input is the test.
 7. `42718432 mm²` displays as `42.72 m²` (PRD §71's worked example), `427184.32 cm²` and
@@ -288,15 +310,19 @@ That earns one rule the picker would not otherwise need:
     automatically locale-invariant.
 14. The toolbar's tool group still enforces exactly one active tool, unchanged, with the picker
     present.
-15. On an uncalibrated plan the picker is **enabled** for the duration of calibration, so the
+15. The picker is reachable and operable from the keyboard alone: one tab stop for the whole
+    toolbar, arrow keys crossing from the tool group into the picker and back, and the unit
+    changeable without a pointer. Walked in `npm run test-build`, because no gate here can see
+    it — the case that must fail is a picker only a mouse can reach.
+16. On an uncalibrated plan the picker is **enabled** for the duration of calibration, so the
     first calibration of a plan is typed in a unit the renovator chose rather than one the code
     assumed. This and criterion 9 are the two halves of one rule and a test that asserts only
     one of them passes the note while contradicting it.
-16. A known distance typed during calibration is interpreted in the unit the picker shows, and
+17. A known distance typed during calibration is interpreted in the unit the picker shows, and
     the resulting scale is identical to typing the equivalent value in any other unit. `5` in
     metres, `500` in centimetres and `5000` in millimetres produce the same calibration — a node
     test on the conversion, not a walkthrough.
-17. Switching the unit while the calibration prompt is open never silently changes what a
+18. Switching the unit while the calibration prompt is open never silently changes what a
     typed value means: either the control is disabled for the duration, or the value is
     visibly converted. Checkable in a vault in under a minute, and the case a test should
     fail on is the silent one.
@@ -310,9 +336,18 @@ Each is something this note decided that its sources did not settle.
    the pinned `obsidian@1.13.0` typings** — `node_modules` was not installed when this note was
    written — and `CLAUDE.md`'s rule that the devDependency is pinned to the floor exactly means
    the compiler is the thing that decides. Check `loadLocalStorage`/`saveLocalStorage` against
-   the typings before planning against them; if they are not promised at `minAppVersion`, plain
-   `window.localStorage` under a plugin-scoped key prefix is the fallback and changes nothing
-   above.
+   the typings before planning against them.
+
+   **If they are not promised at `minAppVersion`, the fallback is to have no persistence, not to
+   reach for `window.localStorage`.** An earlier version of this assumption named the browser
+   global, which would have had the note *mandate* an architecture violation on its own fallback
+   path: [[Obsidian]] states what the plugin owes the host, and "not reaching for a global `app`,
+   and not writing outside the vault APIs" is one line of it. Obsidian's own
+   `loadLocalStorage`/`saveLocalStorage` exist precisely so a plugin does not touch that global.
+   Losing the memory is already a designed-for state — extension **5c** — so the degraded path
+   costs the renovator one re-pick per session and costs the architecture nothing. A host-backed
+   adapter approved on its own merits is the other legitimate answer, and it is a decision
+   somebody makes rather than a fallback this note assumes.
 2. **Per-device is acceptable, and is arguably correct.** Local storage does not sync, so the
    same plan opened on a second machine starts at millimetres. For a cosmetic preference that
    is a feature rather than a defect — the unit somebody reads at a desk and the unit they read

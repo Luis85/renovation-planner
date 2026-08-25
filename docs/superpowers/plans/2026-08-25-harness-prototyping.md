@@ -831,20 +831,26 @@ describe('harness entry discovery', () => {
 /**
  * A template-only prototype writes `<StatusBar />`, so the registry is keyed by LABEL — an id
  * containing `:` and `/` is not a valid tag. Labels are not unique, which is the third place
- * that has mattered in this design, so an ambiguous one is registered for nobody.
+ * that has mattered in this design.
+ *
+ * The two collisions are NOT the same question, and an earlier draft treating them alike broke
+ * the headline workflow. A mock named after the component it stands in for is not an ambiguity
+ * to refuse — replacing that component is the entire reason the mock exists, so the prototype
+ * takes the tag. A collision WITHIN one kind has no such answer and is still refused.
  */
 describe('registering components for template-only prototypes', () => {
 	it('registers an unambiguous label under its tag', () => {
-		const { byTag, ambiguous } = registrableComponents(
+		const { byTag, ambiguous, shadowed } = registrableComponents(
 			discoverEntries({ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) }, 'component'),
 		);
 
 		expect([...byTag.keys()]).toEqual(['StatusBar']);
 		expect(ambiguous).toEqual([]);
+		expect(shadowed).toEqual([]);
 	});
 
-	it('refuses a label shared by a mock and the component it stands in for', () => {
-		const { byTag, ambiguous } = registrableComponents([
+	it('lets a mock take the tag from the component it stands in for', () => {
+		const { byTag, ambiguous, shadowed } = registrableComponents([
 			...discoverEntries({ '/src/prototypes/StatusBar.vue': () => Promise.resolve({}) }, 'prototype'),
 			...discoverEntries(
 				{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
@@ -852,10 +858,14 @@ describe('registering components for template-only prototypes', () => {
 			),
 		]);
 
-		// The likeliest collision of all, since naming a mock after its component is the
-		// workflow. Neither is registered, so nothing silently shadows the other.
-		expect(byTag.has('StatusBar')).toBe(false);
-		expect(ambiguous).toEqual(['StatusBar']);
+		// The likeliest collision of all, and it is the WORKFLOW rather than a mistake: a
+		// designer redrawing `StatusBar` writes a mock called `StatusBar`, and `<StatusBar />`
+		// in their prototype has to mean the mock. Refusing both — the earlier draft — left the
+		// tag unresolved in exactly the case this feature exists to serve.
+		expect(byTag.get('StatusBar')?.kind).toBe('prototype');
+		expect(ambiguous).toEqual([]);
+		// Reported, because a component quietly replaced is worth one line in the console.
+		expect(shadowed).toEqual(['StatusBar']);
 	});
 
 	it('refuses a duplicated label rather than letting the last one win', () => {
@@ -869,10 +879,27 @@ describe('registering components for template-only prototypes', () => {
 			),
 		);
 
-		// Neither is registered. A prototype writing `<StatusBar />` gets an unresolved tag it
-		// can SEE, rather than a component from a directory nobody chose.
+		// Two of one kind: no winner exists, so neither is registered. `IndexPage.vue` turns the
+		// unresolved tag that follows into a named entry failure, so this is visible rather than
+		// a warning nobody reads.
 		expect(byTag.has('StatusBar')).toBe(false);
 		expect(ambiguous).toEqual(['StatusBar']);
+	});
+
+	it('refuses two mocks sharing a label, since neither stands in for the other', () => {
+		const { byTag, ambiguous, shadowed } = registrableComponents(
+			discoverEntries(
+				{
+					'/src/prototypes/StatusBar.vue': () => Promise.resolve({}),
+					'/src/prototypes/toolbar/StatusBar.vue': () => Promise.resolve({}),
+				},
+				'prototype',
+			),
+		);
+
+		expect(byTag.has('StatusBar')).toBe(false);
+		expect(ambiguous).toEqual(['StatusBar']);
+		expect(shadowed).toEqual([]);
 	});
 });
 ```
@@ -989,16 +1016,25 @@ export const componentEntries = (): HarnessEntry[] =>
  * Called with BOTH kinds: a prototype composes the mocks beside it as well as the real
  * components, and a template-only file can import neither.
  *
- * Labels are not unique, and this is the third place that has mattered. Rather than let the
- * second registration silently win — a prototype would then draw a component from a directory
- * nobody chose, or a mock would shadow the component it stands in for — a duplicated label is
- * registered for NOBODY and returned in `ambiguous`, so the index can say which tag it refused
- * and why. An unresolved tag a designer can see beats a resolved one pointing somewhere they
- * did not mean.
+ * Labels are not unique, and this is the third place that has mattered — but the two kinds of
+ * collision are different questions and an earlier draft refused both alike, which broke the
+ * headline workflow.
+ *
+ * A MOCK sharing a label with a component is not an ambiguity. Naming a mock after the
+ * component it stands in for is the whole point of writing one, so `<StatusBar />` inside a
+ * prototype must mean the mock. The prototype takes the tag, deterministically, and the
+ * shadowing is reported rather than merely allowed.
+ *
+ * A collision WITHIN one kind — two mocks, or two components in different directories — has no
+ * such answer, so the label is registered for NOBODY and returned in `ambiguous`. That leaves
+ * an unresolved tag, which `IndexPage.vue` turns into a named entry FAILURE: Vue only warns
+ * about one, and a warning is invisible to `harness-shot`, which would otherwise photograph a
+ * prototype with a component silently missing and exit 0.
  */
 export function registrableComponents(entries: HarnessEntry[]): {
 	byTag: Map<string, HarnessEntry>;
 	ambiguous: string[];
+	shadowed: string[];
 } {
 	const seen = new Map<string, HarnessEntry[]>();
 
@@ -1006,13 +1042,28 @@ export function registrableComponents(entries: HarnessEntry[]): {
 
 	const byTag = new Map<string, HarnessEntry>();
 	const ambiguous: string[] = [];
+	const shadowed: string[] = [];
 
 	for (const [label, found] of seen) {
-		if (found.length === 1) byTag.set(label, found[0]);
-		else ambiguous.push(label);
+		if (found.length === 1) {
+			byTag.set(label, found[0]);
+			continue;
+		}
+
+		const mocks = found.filter((entry) => entry.kind === 'prototype');
+
+		// Exactly one mock: it wins, whatever number of components it stands in for. Two mocks
+		// is a collision within a kind again, and falls through to `ambiguous` with the rest.
+		if (mocks.length === 1) {
+			byTag.set(label, mocks[0]);
+			shadowed.push(label);
+			continue;
+		}
+
+		ambiguous.push(label);
 	}
 
-	return { byTag, ambiguous };
+	return { byTag, ambiguous, shadowed };
 }
 ```
 
@@ -1045,7 +1096,7 @@ Create `tests/harness/IndexPage.vue`:
  * half the ways an entry can fail — the half that is easier to cause deliberately and rarer
  * in practice.
  */
-import { computed, onErrorCaptured, ref, shallowRef } from 'vue';
+import { computed, getCurrentInstance, onErrorCaptured, ref, shallowRef } from 'vue';
 import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
 
 const prototypes = prototypeEntries();
@@ -1078,20 +1129,50 @@ const failure = ref<string | null>(null);
  */
 const renderedId = ref<string | null>(null);
 
-/** What `@resolve` should name. Distinct from `renderedId`, which means "on screen". */
+/** What a resolved render should name. Distinct from `renderedId`, which means "on screen". */
 const pendingId = ref<string | null>(null);
 
+/**
+ * Vue's component-resolution warnings from the current render pass.
+ *
+ * A tag that resolves to nothing — a typo in a mock, or a label `registrableComponents` refused
+ * because two entries of one kind claim it — renders as an unknown element and Vue only WARNS.
+ * A warning is invisible to `scripts/harness-shot.mjs`, which records console errors and page
+ * errors: the prototype would be photographed with a component silently missing and the command
+ * would exit 0. That is the same failure as the empty capture, narrowed to one hole in the page.
+ *
+ * A plain array rather than a ref, deliberately: it is written DURING render, where mutating
+ * reactive state is a second warning and a re-render nobody asked for. It is read once the
+ * render is over, in `settle()`.
+ */
+const unresolved: string[] = [];
+
+/**
+ * Which `open()` call is current. Two clicks in quick succession leave both awaits in flight,
+ * and without this the FIRST to settle is whichever import happens to finish last: entry A's
+ * module could overwrite entry B's, or A's load error could replace a B that had drawn
+ * perfectly, while `pendingId` still says B. A stale call returns instead of writing anything.
+ */
+let generation = 0;
+
 async function open(entry: HarnessEntry): Promise<void> {
+	const mine = ++generation;
+
 	failure.value = null;
 	renderedId.value = null;
 	pendingId.value = entry.id;
+	unresolved.length = 0;
 	try {
 		const module = (await entry.component()) as { default: unknown };
+
+		if (mine !== generation) return;
 
 		openComponent.value = module.default;
 		// No `renderedId` assignment here, deliberately — see its declaration. The outer
 		// module having loaded says nothing about the components it composes.
 	} catch (error) {
+		if (mine !== generation) return;
+
 		// Named rather than blank: a prototype that half-drew itself is worse than one that
 		// says what is missing, because a gap reads as a layout decision.
 		openComponent.value = null;
@@ -1127,6 +1208,55 @@ function hrefFor(entry: HarnessEntry): string {
 	return `?${new URLSearchParams({ entry: entry.id }).toString()}`;
 }
 
+/**
+ * What `<Suspense>`'s `@resolve` runs, once the whole subtree has settled.
+ *
+ * Ordering is the reason this is a function rather than an inline assignment. The resolution
+ * warnings fire DURING the render that Suspense is waiting on, and `@resolve` fires after that
+ * render is mounted — so by here the list is complete, and there is never a moment where
+ * `data-entry` is set on a page that has a hole in it. Deferring the check to a microtask
+ * instead would open exactly that window, and "too short for Playwright to observe" is not a
+ * claim this project accepts.
+ */
+function settle(): void {
+	if (unresolved.length === 0) {
+		renderedId.value = pendingId.value;
+		return;
+	}
+
+	openComponent.value = null;
+	renderedId.value = null;
+	failure.value = `${pendingId.value ?? 'the entry'} has unresolved components: ${[...new Set(unresolved)].join('; ')}`;
+}
+
+/**
+ * Turn Vue's resolution warning into something the page can fail on.
+ *
+ * `IndexPage` is this app's ROOT component, so its `appContext` is the app — reaching the
+ * config here keeps the failure state with the only component that owns any, rather than
+ * adding a module whose whole job would be carrying one array across a boundary.
+ *
+ * The previous handler is called, and `console.warn` when there is none, so installing this
+ * does not swallow every other Vue warning on the page.
+ *
+ * **The limit, stated because it is invisible:** `warnHandler` exists in DEVELOPMENT builds
+ * only. `npm run harness` and `npm run harness-shot` both run Vite's dev server, so it is
+ * always live where it matters; a production build of the harness page would lose this and
+ * would go back to photographing the hole.
+ */
+const config = getCurrentInstance()?.appContext.config;
+
+if (config) {
+	const previous = config.warnHandler;
+
+	config.warnHandler = (message, instance, trace) => {
+		if (message.includes('Failed to resolve component')) unresolved.push(message);
+
+		if (previous) previous(message, instance, trace);
+		else console.warn(message, trace);
+	};
+}
+
 const initial = all.value.find((entry) => entry.id === requested);
 
 // An `?entry=` naming nothing is reported rather than silently ignored — `harness-shot`
@@ -1155,9 +1285,10 @@ if (initial) void open(initial);
 				the only signal that covers a mock composing a real component that composes
 				another. `@pending` fires when a new set appears, so switching entries takes the
 				readiness marker away again rather than leaving the previous entry's id on a stage
-				that is mid-swap.
+				that is mid-swap. `settle()` is what decides between ready and failed, because by
+				then it knows whether any tag in that subtree resolved to nothing.
 			-->
-			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="renderedId = pendingId">
+			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
 				<component :is="openComponent" />
 			</Suspense>
 			<p v-else>Pick an entry.</p>
@@ -1261,16 +1392,24 @@ if (wantsIndex) {
 	// BOTH kinds. A top-level prototype composes the mocks written beside it, and a
 	// template-only mock cannot import a sibling any more than it can import a component —
 	// registering only the real ones leaves `<MockToolbar />` unresolved, which is half the
-	// main flow. One registry across both also means a mock and a component sharing a label
-	// are caught as the ambiguity they are, rather than one kind silently shadowing the other.
-	const { byTag, ambiguous } = registrableComponents([...componentEntries(), ...prototypeEntries()]);
+	// main flow. One registry across both is also what lets a mock TAKE the tag of the
+	// component it stands in for, which is the workflow rather than a collision to refuse.
+	const { byTag, ambiguous, shadowed } = registrableComponents([
+		...componentEntries(),
+		...prototypeEntries(),
+	]);
 
 	for (const [tag, entry] of byTag) {
 		app.component(tag, defineAsyncComponent(entry.component as () => Promise<Component>));
 	}
 
-	// Registered for nobody rather than for whichever won a race. An unresolved tag a designer
-	// can see beats a resolved one pointing at a directory they did not choose.
+	// The workflow, not a warning: a mock named after a component takes its tag.
+	if (shadowed.length > 0) console.info(`mocks standing in for components: ${shadowed.join(', ')}`);
+
+	// Two of one kind: registered for nobody rather than for whichever won a race. The
+	// unresolved tag that follows is NOT left as a console warning — `IndexPage.vue` catches
+	// Vue's resolution warning and turns it into a named entry failure, because a warning is
+	// invisible to `harness-shot` and it would photograph the gap and exit 0.
 	if (ambiguous.length > 0) console.warn(`ambiguous component tags, not registered: ${ambiguous.join(', ')}`);
 
 	app.mount(root);
@@ -1541,14 +1680,50 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 */
 	it('marks the stage ready from Suspense, never from the entry loader', () => {
 		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
-		const open = index.slice(index.indexOf('async function open'), index.indexOf('onErrorCaptured'));
+		// The function body ONLY. Sliced to its own closing brace rather than to the next
+		// declaration, so that moving a neighbour cannot quietly widen what this reads.
+		const start = index.indexOf('async function open');
+		const open = index.slice(start, index.indexOf('\n}', start) + 2);
 
 		expect(open, 'open() never runs').toContain('renderedId.value = null');
 		expect(open, 'open() marks the stage ready before nested components load').not.toMatch(
 			/renderedId\.value\s*=\s*(?!null)/,
 		);
 		expect(index).toContain('<Suspense');
-		expect(index).toContain('@resolve="renderedId = pendingId"');
+		expect(index).toContain('@resolve="settle()"');
+	});
+
+	/**
+	 * A tag that resolves to nothing is Vue's most invisible failure: a warning, an unknown
+	 * element in the DOM, and a `<Suspense>` that resolves perfectly happily. `harness-shot`
+	 * records console ERRORS and page errors, so without this the capture succeeds with a hole
+	 * in it — and the case that produces it is two entries of one kind sharing a label, which
+	 * `registrableComponents` deliberately registers for nobody.
+	 */
+	it('turns an unresolved component tag into a named entry failure', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+
+		expect(index).toContain('config.warnHandler');
+		expect(index).toContain("message.includes('Failed to resolve component')");
+		// And it must reach `failure`, not merely be collected.
+		expect(index).toMatch(/unresolved\.length === 0[\s\S]*failure\.value =/);
+	});
+
+	/**
+	 * Two clicks in quick succession leave two `open()` awaits in flight. Without a generation
+	 * guard the LAST import to settle wins regardless of which entry the designer chose, so the
+	 * stage can draw A while `data-entry` says B — a capture of the wrong component, reported
+	 * as a success under the requested name, which is worse than an empty one.
+	 */
+	it('ignores a stale entry load', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		const start = index.indexOf('async function open');
+		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+
+		expect(open).toContain('const mine = ++generation');
+		// Both arms: a stale RESOLVE must not draw, and a stale REJECT must not overwrite a
+		// good entry's screen with the abandoned one's error.
+		expect(open.match(/if \(mine !== generation\) return;/g) ?? []).toHaveLength(2);
 	});
 
 	/**
@@ -2151,7 +2326,7 @@ a record rather than a migration backlog."
 | 5 — one stylesheet, no second sheet | 5 |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) |
 | 7 — two components read the same plan | 3 (second case) |
-| 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch, empty-tree case) |
+| 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — three ways in now: a rejected import, `onErrorCaptured`, and an unresolved tag via `warnHandler`; plus the empty-tree case) |
 | 9 — `npm run check` passes with the tree populated | 7 Step 9 |
 | 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`) |
 
@@ -2168,15 +2343,20 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
    would need its own signal. No entry does that today; the sentence is here so the next one is
    not a surprise. It is also the reason `open()` is forbidden from setting `renderedId` rather
    than merely discouraged: the negative is what a test can hold.
-4. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
+4. **`app.config.warnHandler` is a DEVELOPMENT-build API.** It is what turns an unresolved tag
+   into a named failure, and both `npm run harness` and `npm run harness-shot` run Vite's dev
+   server, so it is live everywhere it matters today. A production build of the harness page
+   would lose it silently and go back to photographing the hole — which is the trigger for
+   needing a different signal, not a reason to avoid this one.
+5. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
 
 **Placeholder scan:** every code step carries real code; no "TBD", no "handle errors appropriately", no "similar to Task N".
 
-**Type consistency:** `HarnessEntry` (`id`, `label`, `kind`, `component`) is defined in Task 4 and used unchanged in Tasks 4 and 6. `seedFixture(): Pinia` is defined in Task 3 and called in Task 4 Step 6. `discoverEntries(modules, kind)` keeps one signature across its test and its use. The `id` is the URL and the `harness-shot` argument (`prototype:ZoneSummary`), sanitised only for PNG filenames since Windows forbids `:` there; `label` is the basename shown in the list and is never used as an address — Task 7 Step 3 uses the id, deliberately.
+**Type consistency:** `HarnessEntry` (`id`, `label`, `kind`, `component`) is defined in Task 4 and used unchanged in Tasks 4 and 6. `seedFixture(): Pinia` is defined in Task 3 and called in Task 4 Step 6. `discoverEntries(modules, kind)` keeps one signature across its test and its use, and `registrableComponents(entries)` returns `{ byTag, ambiguous, shadowed }` in Task 4's test, its implementation and `page.ts` alike. The `id` is the URL and the `harness-shot` argument (`prototype:ZoneSummary`), sanitised only for PNG filenames since Windows forbids `:` there; `label` is the basename shown in the list and is never used as an address — Task 7 Step 3 uses the id, deliberately.
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across eight review rounds — twenty-nine findings, all real, all fixed above rather than noted.**
+**Revised across nine review rounds — thirty-one findings, all real, all fixed above rather than noted.**
 
 Round one, on the shape of the harness:
 
@@ -2225,9 +2405,11 @@ not work.
 Fixing them surfaced two more, unprompted: `page.ts` needed the component list, so **both globs
 moved into `entries.ts`** — a second glob in a second file is a second answer that can disagree —
 and registering by label reintroduced **the basename collision for a third time**, now in Vue's
-component registry, where the second registration silently wins. An ambiguous label is registered
-for nobody now, so a designer sees an unresolved tag instead of a component from a directory they
-did not choose.
+component registry, where the second registration silently wins. A label claimed twice within one
+kind is registered for nobody now, so a designer sees an unresolved tag instead of a component
+from a directory they did not choose. (Round nine corrected the other half of that fix: a mock
+sharing a label with the component it stands in for is the WORKFLOW, and refusing both left the
+tag unresolved in the one case this feature exists to serve.)
 
 Rounds five and six kept finding the same thing, which is why the pattern below matters more
 than any of the fixes:
@@ -2257,12 +2439,20 @@ Round eight, on the paths only the eyeless actor takes:
 | **Index links interpolated the id** | `&` and `#` are legal in a filename and an id carries the path, so `?entry=${id}` names something other than the id. The in-page click masks it — `@click.prevent` passes the object and never reads the URL back — so it would break only in the path an agent uses, which is the path with no human watching | Task 4 (`URLSearchParams`), Task 6 (a test forbidding the raw interpolation) |
 | **The planted fixture did not exist yet** | Task 2 Step 6 planted an import of `tests/harness/fixture.ts`, which **Task 3** creates. Vite stops on an unresolved specifier before Rollup produces a module list, so the step would have failed on the wrong thing and proved nothing | Task 2 Step 6 plants `tests/helpers/planFixtures.ts`, which is in the tree today and is genuinely a fixture. It also sharpens the minification argument: a const holding an object literal can be inlined away entirely |
 
-**The pattern, across all eight rounds and worth more than any individual fix:** every failure was
+Round nine, on what a warning costs an actor that reads exit codes:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **An ambiguous tag was only a warning — and the ambiguity was the workflow** | Two halves, both bad. A mock named after the component it stands in for made `registrableComponents` refuse BOTH, so `<StatusBar />` was unresolved in exactly the case the feature exists for. And an unresolved tag is a Vue *warning*: `<Suspense>` still resolves, `captureOne` records only console errors, so `harness-shot` photographs a prototype with a component missing and exits 0 | Task 4: a prototype WINS its label (`shadowed`, reported); a collision within one kind is still refused; and `IndexPage.vue` installs a `warnHandler` that turns `Failed to resolve component` into a named entry failure, checked in `settle()` after the render Suspense waited on, so `data-entry` is never set on a page with a hole in it |
+| **A stale entry load could overwrite a newer one** | Two clicks leave two `open()` awaits in flight, and whichever import settles LAST wins. The stage could draw A while `data-entry` said B — a capture of the wrong component reported as a success under the requested name, which is worse than an empty one — or A's load error could replace a B that had drawn perfectly | Task 4 (a generation counter, guarding both the resolve and the reject arm), Task 6 (a test requiring both guards) |
+
+**The pattern, across all nine rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
 would have to work, a readiness marker that means the outer module rather than the screen, an
-unresolved component or a failed injection Vue only warns about.
+unresolved component or a failed injection Vue only warns about — and, twice now, a design that
+refused the collision its own headline workflow creates.
 
 And the second pattern, which is mine rather than the design's: **every round, a fix left a
 sibling stale.** The DOM fix left the toggle. The promotion fixture left the bundle filter. The
@@ -2270,4 +2460,4 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the twenty-nine fixes.
+execution, not the thirty-one fixes.

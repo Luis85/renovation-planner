@@ -6,6 +6,14 @@ import type { BackgroundVault } from './layers/background/BackgroundRenderModel'
  * Everything the Plan Editor's Vue tree needs from outside itself, provided ONCE by
  * `PlanEditorView` on the app instance it created.
  *
+ * **Naming collision, read carefully**: `src/presentation/editor/tools/editor-context.ts`
+ * (design slice 6, SDD §58) declares a DIFFERENT type also called `EditorContext` — the
+ * facade `EditorTool.activate(context)` receives, carrying `viewport`, `selection`,
+ * `snapService`, `commandDispatcher`, `writeLedger`, `renderState` and `activePlan`. It has
+ * nothing to do with Vue's dependency injection and is never provided or injected. That
+ * file carries the full account of why both keep the name; import the one you mean from its
+ * own module.
+ *
  * One injection key rather than a prop threaded through five components, because every
  * member here is a property of the LEAF — which plan it shows, which vault it reads,
  * whose theme it follows — and a prop chain would make every intermediate component

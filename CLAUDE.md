@@ -18,8 +18,14 @@ a ribbon button and a command, and still draws an empty root. The **Plan editor*
 per-plan (several leaves coexist, keyed by a plan id in Obsidian's own view state) and is
 design slice 5: §60's five shell regions around a Konva stage of §17's seven layers, the
 persisted Zones of one Plan rendered read-only, an image or PDF background, and a
-pan/zoom camera. Nothing on that canvas is editable — slice 6 adds the tools — and the one
-thing slice 5 writes is which document a Plan's background IS.
+pan/zoom camera. Nothing on that canvas is editable: design slice 6 built the tool
+framework underneath it — `EditorTool` and its switching lifecycle, `CommandHistory`
+undo/redo, the reversible move-zone command, transformer normalization, the snap service,
+the selection store and the Inspector's selection-to-DTO-to-command pipeline — but wires
+no concrete tool into it, adds no Vue Inspector panel, and touches nothing in the
+composition root. Slice 7 (Calibration) and slice 8 (Zone Editing) are what plug into that
+framework and make the canvas editable. The one thing slice 5 writes is which document a
+Plan's background IS.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
@@ -163,7 +169,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
-  is 99.7/98.6/99.8/99.8 and the floors sit a covered unit or more below each. The exact
+  is 99.7/98.8/99.8/99.8 and the floors sit a covered unit or more below each. The exact
   numbers, which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
@@ -326,7 +332,15 @@ a call site resolving the language wrongly is invisible to the suite, which is w
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
 nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
-only), so an `implements` there binds the editor, not the gate.
+only) **except one file**: `tests/presentation/editor/type-safety.test-d.ts` is named
+alongside `src/**` in `tsconfig.json`'s `include`, because slice 6's screen/world brand
+separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
+hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
+`npm run build` is the whole mechanism by which a compile-time proof exists here — a
+`// @ts-expect-error` that goes unenforced is just a comment. It carries both directions:
+what must NOT compile (the two brand mixes) and what must (the live Pinia store still
+satisfying that four-member contract). Outside that one file, an `implements` still binds
+the editor, not the gate.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

@@ -172,6 +172,22 @@ export default defineConfig({
 			// unreachable by construction and kept only because the callee's `Result` cannot
 			// be honestly discarded. Every guard the review pass ADDED is covered: driven
 			// through both `runQuantityEngine` and its stages, and both sides of each arm.
+			// Measured 2026-08-25 at the end of design slice 6 — the editor tool framework:
+			// serialized CommandHistory, the reversible move-zone adapter, transformer scale
+			// normalization, the injectable SnapService, the selection store, the
+			// EditorContext facade and render state, the tool registry, and the Inspector's
+			// selection-to-DTO-to-command pipeline: 2043/2049 statements, 908/919 branches,
+			// 543/544 functions, 1867/1870 lines — 99.70 / 98.80 / 99.81 / 99.83. NOTHING
+			// RATCHETS: rounded down, statements/functions/lines still sit at 99 (100 is
+			// refused above) and branches still sit at 98 (98.80 does not reach 99) — the
+			// same four floors already in force.
+			// Measured 2026-08-25 again after slice 6's whole-branch review fixes — an ordered
+			// Transformer/snap-resize box, the Inspector's stale-response token, and the
+			// tests that make the undo cap, the gesture's persistence write and DoD 12
+			// discriminate: 2052/2058 statements, 912/923 branches, 543/544 functions,
+			// 1874/1877 lines — 99.70 / 98.81 / 99.81 / 99.84. The UNCOVERED sets are
+			// unchanged (the same six statements, eleven branches, one function and three
+			// lines enumerated above); only the denominators grew. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -1788,13 +1788,25 @@ Append this case to the outermost `describe` in `tests/harness/harness.test.ts`:
 	 * `[rel~=stylesheet i]` is that knowledge spelled out: `~=` matches one token of the
 	 * list, `i` makes it case-insensitive. The `<link rel="icon">` this page carries is
 	 * excluded by it, which is checked below rather than assumed.
+	 *
+	 * `style` joins the selector because a `<style>` element is a second way this page can
+	 * introduce CSS, and an `@import` inside one is a way in that no other guard here sees:
+	 * the module scan reads `.ts`/`.vue`, the sheet scan reads the harness's own `.css`
+	 * files, and neither is this HTML. The expected list is therefore the whole CSS-bearing
+	 * set of the page, not its links — which is why a `<style>` appears in it as `<style>`
+	 * and fails the equality rather than being silently uncounted.
 	 */
 	it('offers prototypes exactly one plugin stylesheet and no proposal sheet', () => {
 		const html = readFileSync(path.join(REPO, 'tests', 'harness', 'index.html'), 'utf8');
 
 		const page = new DOMParser().parseFromString(html, 'text/html');
-		const sheets = [...page.querySelectorAll('link[rel~=stylesheet i]')].map(
-			(link) => link.getAttribute('href') ?? '',
+		// EVERY node that can introduce CSS, not only the links: a `<style>` element in this
+		// page is another way in, and `<style>@import '…/concept.css';</style>` is a way in
+		// that no later guard sees either — they scan module sources and the harness's own
+		// `.css` files, neither of which is this HTML. Asked as one category so the set is
+		// what is asserted, rather than a list of the spellings somebody thought of.
+		const sheets = [...page.querySelectorAll('link[rel~=stylesheet i], style')].map((node) =>
+			node.tagName === 'STYLE' ? '<style>' : (node.getAttribute('href') ?? ''),
 		);
 
 		expect(sheets).toEqual(['./obsidian.css', './theme.css', '/styles.css']);
@@ -1986,6 +1998,15 @@ patterns before this one missed:
 ```html
 		<link href=../../docs/user-experience/concepts/concept.css rel=stylesheet>
 ```
+
+Plant the `<style>` spelling too, since it is the one no other guard would catch:
+
+```html
+		<style>@import '../../docs/user-experience/concepts/concept.css';</style>
+```
+
+Expected: FAIL, with `'<style>'` present in the reported list — which is the reading that tells you
+the category selector caught it rather than the equality failing for some other reason.
 
 Run: `npx vitest run tests/harness/harness.test.ts`
 
@@ -3017,7 +3038,7 @@ a record rather than a migration backlog."
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
-| 5 — one stylesheet, no second sheet | 5 (four routes: the `<link>`s in `index.html`, a `.css` import in the module graph, a `<link>` a template renders, and an `@import` inside a linked sheet) |
+| 5 — one stylesheet, no second sheet | 5 (five routes: the page's whole CSS-bearing node set, a `.css` import anywhere the page can reach, a `<link>` a template renders, an `@import` inside a linked sheet, and an inline `<style>`) |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`, mounting the REAL `StatusBar` against nothing but the fixture) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | **4**, not 3, and held in its SUBSTANCE rather than its letter — see Task 4 Step 8. Exactly one prop-free component renders a plan-level value (`StatusBar`), so no pair can render the same value; `PlanEditorRoot` reads `status`. The case mounts both against one fixture, asserts two different consequences of it, and asserts that removing the fixture changes both. What it cannot show is stated in the test |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
@@ -3061,7 +3082,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across twenty-one review rounds — fifty-six findings. Fifty-four were real and are fixed
+**Revised across twenty-two review rounds — fifty-seven findings. Fifty-five were real and are fixed
 above rather than noted; two were not, and each is recorded as declined with the measurement that
 declined it.**
 
@@ -3258,6 +3279,19 @@ not reproduce:
 | **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
 | *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
 
+Round twenty-two, on the fifth way into one page:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **An inline `<style>` in `index.html`** | `<style>@import '…/concept.css';</style>` loads the proposal sheet, and every guard misses it: the page check queried `link[rel~=stylesheet i]`, the module scan reads `.ts`/`.vue`, and the sheet scan reads the harness's own `.css` files — none of which is this HTML | Task 5: the page query asks for **every CSS-bearing node** (`link[rel~=stylesheet i], style`) rather than for links, so the expected list is the page's whole CSS set and a `<style>` fails the equality by appearing in it. Planted as its own proof |
+
+Five routes to one forbidden sheet have now been found one at a time — a `<link>`, a module import,
+a template-rendered `<link>`, a stylesheet's own `@import`, and an inline `<style>`. The lesson is
+not that the fifth was missed; it is that **enumerating routes is the wrong shape and kept looking
+like the right one**, because each fix genuinely closed the route it named. Where the check could be
+turned from a list into a category it now is: the page query asks what can introduce CSS rather than
+which tags do, which is why this round's fix needed no new assertion.
+
 Round twenty-one, on two guards that were narrower than the thing they guard:
 
 | Finding | What was wrong | Fixed in |
@@ -3330,7 +3364,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all twenty-one rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty-two rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3345,6 +3379,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the fifty-four fixes. Round twelve is the first to add a third pattern:
+execution, not the fifty-five fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

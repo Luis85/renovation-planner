@@ -1645,12 +1645,22 @@ Hence a text scan, over what the page can reach rather than over the files that 
 	 *   already gives — and narrow enough that the prose in this repository that merely says
 	 *   "stylesheet" does not trip it. Measured: no hit in 169 files.
 	 *
-	 * The import pattern matches a specifier, static or dynamic, rather than the bare
-	 * substring `.css`: prose naming `concept.css` is how this file explains itself, and a
-	 * guard that fires on its own explanation gets deleted.
+	 * The import pattern matches the SPECIFIER POSITION — a quoted string preceded by `from`,
+	 * by `import`, or by `import(` — rather than the bare substring `.css`. Both halves of
+	 * that are load-bearing:
+	 *
+	 * Not the bare substring, because prose naming `concept.css` is how this repository
+	 * explains itself, and a guard that fires on its own explanation gets deleted rather
+	 * than obeyed.
+	 *
+	 * And not `import` alone, because `import classes from './panel.module.css'` — Vite's
+	 * ordinary CSS-modules form — puts the specifier after `from`, and a pattern anchored
+	 * on the quote following `import` misses it while looking thorough. Measured on all
+	 * five spellings: side-effect, default binding, named binding, dynamic, and a
+	 * re-export.
 	 */
 	it('loads no stylesheet through anything the harness can reach', () => {
-		const sheetImport = /import\s*\(?\s*['"][^'"]*\.css['"]/;
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.css['"]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		const sources = (dir: string): string[] =>
 			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -2698,7 +2708,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add CLAUDE.md docs/user-experience/concepts/README.md
+git add CLAUDE.md docs/user-experience/concepts/README.md src/prototypes/README.md vitest.config.ts
 git commit -m "Record the harness index where the next reader looks
 
 CLAUDE.md is what an agent reads first, and a capability nobody knows
@@ -2763,7 +2773,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across fifteen review rounds — forty-two findings. Forty-one were real and are fixed
+**Revised across sixteen review rounds — forty-four findings. Forty-three were real and are fixed
 above rather than noted; one was not, and it is recorded as declined with the measurement that
 declined it.**
 
@@ -2902,6 +2912,19 @@ Round fifteen, on the spelling that needs no import at all:
 | --- | --- | --- |
 | **A `<link rel="stylesheet">` in a TEMPLATE was invisible to every check** | Rounds twelve and thirteen chased the sheet through the module graph and never left it. A browser honours a stylesheet link in the BODY, so a mock whose template renders one loads the proposal sheet with no import, no `<style>` block and no build step involved — past the import scan, past the `<style>` scan, and past the `index.html` scan, which reads a different file. Three green checks and the forbidden sheet on the page | Task 5: a third list, `linkers`, over the same reachable set as the import scan, matched as `<link … stylesheet` rather than by attribute order. Narrow enough that prose merely saying "stylesheet" does not trip it — measured, no hit in 169 files — and planted as its own watched failure in Step 6 |
 
+Round sixteen, on a regex that read one of the five spellings, and on my own stale sibling:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The import pattern missed the binding form** | `/import\s*\(?\s*['"]…/` anchors on a quote immediately after `import`, so `import classes from './panel.module.css'` — Vite's ordinary CSS-modules form — does not match. The sheet loads and `importers` stays empty. Round fifteen widened this guard's REACH twice and never checked its PATTERN against more than the spelling it was written for | Task 5: the pattern matches the specifier POSITION — a quoted string preceded by `from`, `import`, or `import(` — measured against all five spellings (side-effect, default binding, named binding, dynamic, re-export) and against two prose shapes it must ignore |
+| **Task 8 staged two files it did not modify, and not the two it did** | Its Step 3 retenses `src/prototypes/README.md` and `vitest.config.ts`, and its `git add` named neither — so following the plan leaves the worktree dirty and the retensing uncommitted, with no later commit to catch it. This is MY residue, not the plan's: the edit that added Step 3 also tried to fix this `git add` and its replacement target did not match, so the fix silently did nothing | Task 8: both files staged |
+
+The second one is worth keeping in this list rather than quietly correcting, because it is the
+review's own second pattern turned on the reviewer: **every round, a fix left a sibling stale** —
+and this time the stale sibling was inside the fix that was written to prevent exactly that. A
+replacement that matches nothing fails silently, which is the same shape as every other finding
+here: a green signal that means nothing.
+
 **Found by EXECUTION rather than by review**, which is the category this list did not have until
 the plan started running. Two in Task 1, two in Task 2, and each was invisible to fifteen rounds
 of reading because each depended on what a tool actually does:
@@ -2917,7 +2940,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all fifteen rounds and worth more than any individual fix:** every failure was
+**The pattern, across all sixteen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2932,6 +2955,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the forty-one fixes. Round twelve is the first to add a third pattern:
+execution, not the forty-three fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

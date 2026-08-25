@@ -4,6 +4,9 @@ import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
 import { EDITOR_CONTEXT, type EditorContext } from '../editor/EditorContext';
+import type {
+	PlanEditorCommandServices,
+} from '../editor/planEditorCommands';
 import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
@@ -33,6 +36,8 @@ interface PlanEditorViewState {
  */
 export interface PlanEditorDeps {
 	readonly queries: PlanEditorQueryServices;
+	/** The write side the editor's tools dispatch through — see `planEditorCommands.ts`. */
+	readonly commands: PlanEditorCommandServices;
 	readonly vault: BackgroundVault;
 	readonly onThemeChange: (listener: () => void) => () => void;
 	/**
@@ -145,6 +150,7 @@ export class PlanEditorView extends ItemView {
 		const context: EditorContext = {
 			planId,
 			queries: this.deps.queries,
+			commands: this.deps.commands,
 			vault: this.deps.vault,
 			onThemeChange: this.deps.onThemeChange,
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),

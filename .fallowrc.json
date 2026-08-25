@@ -80,7 +80,15 @@
 	// hoisted above the test file's imports, and the static form fails at runtime with
 	// `Cannot access '__vi_import_5__' before initialization` (measured, not assumed). Named
 	// rather than globbed, so the next unused export in this helper is still a finding.
-	"ignoreExports": [{ "file": "tests/helpers/logger.ts", "exports": ["consoleLoggerMock"] }],
+	//
+	// The two `EditorContext` entries are the documented slice-5/slice-6 name collision:
+	// one is a Vue injection context, the other the tool-framework facade, and both files
+	// carry the full account of why neither renames. Deliberate API, not a barrel accident.
+	"ignoreExports": [
+		{ "file": "tests/helpers/logger.ts", "exports": ["consoleLoggerMock"] },
+		{ "file": "src/presentation/editor/EditorContext.ts", "exports": ["EditorContext"] },
+		{ "file": "src/presentation/editor/tools/editor-context.ts", "exports": ["EditorContext"] }
+	],
 	"health": {
 		"coverage": "coverage/coverage-final.json",
 		"ignore": ["tests/**"]

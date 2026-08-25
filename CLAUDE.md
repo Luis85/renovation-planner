@@ -21,11 +21,33 @@ persisted Zones of one Plan rendered read-only, an image or PDF background, and 
 pan/zoom camera. Nothing on that canvas is editable: design slice 6 built the tool
 framework underneath it — `EditorTool` and its switching lifecycle, `CommandHistory`
 undo/redo, the reversible move-zone command, transformer normalization, the snap service,
-the selection store and the Inspector's selection-to-DTO-to-command pipeline — but wires
-no concrete tool into it, adds no Vue Inspector panel, and touches nothing in the
-composition root. Slice 7 (Calibration) and slice 8 (Zone Editing) are what plug into that
-framework and make the canvas editable. The one thing slice 5 writes is which document a
-Plan's background IS.
+the selection store and the Inspector's selection-to-DTO-to-command pipeline. Slice 7
+(Calibration) added the first concrete tool; slice 8 (Zone Editing) wired the framework
+into the editor for real — see the next section. The one thing slice 5 writes is which
+document a Plan's background IS.
+
+**Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
+are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
+`withEditorStateRefresh` decorator — is wired per leaf by `runtime.ts`, which is built
+inside the Vue tree (it hands out Pinia stores) and provided once per leaf. The toolbar
+offers Pan/Select/Draw-zone plus undo/redo; the Inspector panel shows the selection DTO
+and a Delete button that dispatches through `InspectorStore.commit`'s `toCommand` — the
+§59 choke point, not a second seam. The composition root now hands the view a
+`PlanEditorCommandServices` bundle (plain zone commands, the `ZoneRepository` port, the
+Inspector query) beside slice 5's queries; with settings unrecovered it is the refusal
+bundle, mirroring `unavailablePlanEditorQueries`. Three rules came out of it:
+
+- **The application-layer reversible adapters satisfy `UndoableCommand` structurally**
+  and cannot name it — the interface lives in `presentation/` and the layer ban holds.
+  Both adapters take the shared `WriteLedger`: every successful half records into it,
+  including restores, or a sibling adapter's inverse expectation goes stale.
+- **Every dispatch funnels through ONE object per leaf** — the wrapped dispatcher that
+  `runtime.ts` hands to tools as `context.commandDispatcher` and to the toolbar and the
+  delete button alike. A dispatch that bypasses it silently breaks the post-command
+  refresh and the reactive undo/redo flags; nothing errors anywhere.
+- **Camera mode is "no active tool"**, exactly what slice 5 shipped (`ToolManager` grew
+  `clearActiveTool()` for it). A gesture abandoned with Escape clears through
+  `cancelGesture()`; a rejected close keeps the vertex buffer.
 
 **Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`**, and the
 composition root still registers nothing — the toolbar that would arrives with slice 8, so

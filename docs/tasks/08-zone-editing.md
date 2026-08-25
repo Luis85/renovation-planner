@@ -4,9 +4,9 @@ parent: "[[Plan editor and canvas]]"
 order: 40
 dependsOn:
   - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-25
+finished: 2026-08-25
 horizon: ""
 start: ""
 due: ""
@@ -614,6 +614,28 @@ in the hit-test design (a plain "candidates for this plan" list) forecloses drop
 an `rbush`-backed candidate prefilter in front of it later.
 
 ## Interfaces & Contracts
+
+// As built, four deviations from the sketches below, each forced by what slices 3–7
+// actually shipped (the sketches' own restatements, not the shipped code, were wrong):
+//
+// 1. `DeleteZoneCommand` returns `Result<{ zoneId: ZoneId }, …>` — there is no
+//    `DeleteWithReferencesResult` and no `DeleteZoneInput.resolution`; both arrive with
+//    slice 10. The delete adapter is written against the real shapes; its undo is a
+//    single restore write whose compensation "is never reached", exactly as this doc's
+//    Design section states for the pre-slice-10 world.
+// 2. The application-layer adapters (`ReversibleCreateZoneCommand`,
+//    `ReversibleDeleteZoneCommand`) do NOT name `UndoableCommand` — it lives in
+//    `presentation/`, which `application/` may not import (the layer ban). They satisfy
+//    it structurally, as `ReversibleCalibratePlanCommand` already does.
+// 3. Both adapters take the shared `WriteLedger` in their constructor: every half's
+//    successful write records into it, including restores, so sibling adapters' inverse
+//    expectations stay live across create → move → undo → undo → redo → redo. The doc's
+//    constructor sketch omitted the ledger; slice 6's "the expectation is the history's"
+//    rule requires it.
+// 4. `ReversibleMoveZoneVertexCommand` IS `ReversibleMoveZoneCommand` under the gesture's
+//    name (a type alias with its own doc comment): a vertex drag is a whole-geometry
+//    replacement exactly like a body drag — same wrapped command, same ledger rule — and
+//    the two differ only in how the tool computes forward/inverse.
 
 ```typescript
 // presentation/editor/tools/DrawPolygonTool.ts

@@ -11,6 +11,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { useEditorContext } from './EditorContext';
+import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
@@ -22,6 +23,9 @@ import LayersPanel from './shell/LayersPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
 
 const context = useEditorContext();
+// The leaf's live machinery — history, tools, selection, inspector — built once here,
+// inside the tree whose Pinia instance owns the stores it hands out.
+provideEditorRuntime(context);
 const projectStore = useProjectStore();
 const { status } = storeToRefs(projectStore);
 const { layersPanelOpen, inspectorPanelOpen } = storeToRefs(useWorkspaceStore());

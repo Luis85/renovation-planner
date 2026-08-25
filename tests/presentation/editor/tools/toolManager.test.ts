@@ -54,6 +54,36 @@ function fakeContext(): EditorContext {
 }
 
 describe('ToolManager', () => {
+	it('clearActiveTool runs the switch lifecycle back to no tool (design slice 8 camera mode)', () => {
+		const calls: string[] = [];
+		const select = fakeTool('select', calls);
+		const manager = new ToolManager(fakeContext);
+		manager.register(select);
+		manager.setActiveTool('select');
+
+		manager.clearActiveTool();
+
+		expect(calls).toEqual(['select:activate', 'select:deactivate']);
+		expect(manager.activeToolId).toBeNull();
+	});
+
+	it('clearActiveTool cancels an in-flight gesture first, and is a no-op with no active tool', () => {
+		const calls: string[] = [];
+		const draw = fakeTool('draw-polygon', calls);
+		const manager = new ToolManager(fakeContext);
+		manager.register(draw);
+		manager.setActiveTool('draw-polygon');
+		manager.pointerDown(pointerEvent());
+		calls.length = 0;
+
+		manager.clearActiveTool();
+		expect(calls).toEqual(['draw-polygon:cancel', 'draw-polygon:deactivate']);
+
+		// A second clear is a no-op — no cancel of a tool that is not there.
+		manager.clearActiveTool();
+		expect(calls).toEqual(['draw-polygon:cancel', 'draw-polygon:deactivate']);
+	});
+
 	it('registers a tool and activates it with a context from the factory', () => {
 		const calls: string[] = [];
 		const select = fakeTool('select', calls);

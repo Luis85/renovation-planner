@@ -86,6 +86,23 @@ export class ToolManager {
 		next.activate(this.contextFactory());
 	}
 
+	/**
+	 * Returns to no active tool — design slice 8's camera mode, where the Plan Canvas
+	 * pans on drag exactly as slice 5 shipped it. The same switch lifecycle as
+	 * `setActiveTool`: the outgoing tool's `cancel()` only if a gesture is in flight,
+	 * then its `deactivate()`. A no-op when nothing is active.
+	 */
+	clearActiveTool(): void {
+		const outgoing = this.activeTool;
+		if (!outgoing) return;
+		if (this.gestureInFlight) {
+			outgoing.cancel();
+			this.gestureInFlight = false;
+		}
+		outgoing.deactivate();
+		this.activeTool = null;
+	}
+
 	/** A no-op when no tool is active (decision 1 above). */
 	pointerDown(event: EditorPointerEvent): void {
 		if (!this.activeTool) {

@@ -511,17 +511,21 @@ planted fixture import, the second being the case no text scan catches."
 One world every entry mounts against, so what the designer sees is reproducible and two components on a screen agree. It reuses the plan and zones the Plan Editor harness already defines rather than inventing a second set that could disagree.
 
 **Files:**
-- Modify: `tests/harness/planEditor.ts:25-95` (export the existing fixtures)
+- Modify: `tests/harness/planEditor.ts` — export `HARNESS_PLAN`, `HARNESS_ZONES` and `harnessDeps` (named rather than given as a line range, per `CLAUDE.md`: a range is correct until the next insertion above it)
 - Create: `tests/harness/fixture.ts`
 - Test: `tests/harness/fixture.test.ts`
 
 **Interfaces:**
-- Consumes: `HARNESS_PLAN` and `HARNESS_ZONES` from `tests/harness/planEditor.ts`.
-- Produces: `seedFixture(): Pinia` from `tests/harness/fixture.ts` — creates a Pinia, makes it active, seeds `useProjectStore` with the harness plan and zones, and returns it. Tasks 4 and 7 call it.
+- Consumes: `HARNESS_PLAN`, `HARNESS_ZONES` and `harnessDeps(): PlanEditorDeps` from `tests/harness/planEditor.ts`, all three made `export` by Step 1.
+- Produces, from `tests/harness/fixture.ts`: `seedFixture(): Pinia` — creates a Pinia, makes it
+  active, seeds `useProjectStore` with the harness plan and zones, returns it — and
+  `harnessEditorContext(): EditorContext`, the value `app.provide(EDITOR_CONTEXT, …)` needs.
+  Task 4 uses both.
 
-- [ ] **Step 1: Export the existing fixtures**
+- [ ] **Step 1: Export the existing fixtures and the deps builder**
 
-In `tests/harness/planEditor.ts`, change `const HARNESS_PLAN` (line 25) and `const HARNESS_ZONES` (line ~38) to `export const`. Change nothing else in the file. Add this sentence to the file's header comment, after the "No background document" paragraph:
+In `tests/harness/planEditor.ts`, change `const HARNESS_PLAN` (line 25), `const HARNESS_ZONES`
+(line ~38) and `function harnessDeps` (line ~100) to `export`. Change nothing else in the file. Add this sentence to the file's header comment, after the "No background document" paragraph:
 
 ```
  * `HARNESS_PLAN` and `HARNESS_ZONES` are EXPORTED because the harness index mounts single
@@ -539,15 +543,27 @@ Create `tests/harness/fixture.test.ts`:
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { storeToRefs } from 'pinia';
-import { seedFixture } from './fixture';
+import { createApp } from 'vue';
+import { seedFixture, harnessEditorContext } from './fixture';
+import {
+	EDITOR_CONTEXT,
+	useEditorContext,
+	type EditorContext,
+} from '../../src/presentation/editor/EditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 
 /**
- * The one world every index entry mounts against. Two claims worth a test: it is SEEDED
- * (a component reading the store finds a plan, with no per-entry setup), and it is ONE
- * world (two stores created from it agree, which is what makes two components on a
- * prototype consistent).
+ * The one world every index entry mounts against. Three claims worth a test: it is SEEDED
+ * (a component reading the store finds a plan, with no per-entry setup), it is ONE world
+ * (two stores created from it agree, which is what makes two components on a prototype
+ * consistent), and the editor context it hands out is one `useEditorContext()` ACCEPTS.
+ *
+ * The third is driven through a real `createApp` rather than asserted on the returned
+ * object, because the failure it guards is a key mismatch: a context built correctly and
+ * provided under a symbol the consumer does not inject looks perfect in a shape assertion
+ * and throws on mount. `useEditorContext` throws rather than warning, so the index would
+ * show Task 4's named-failure card for every component that reads it.
  */
 describe('the harness fixture', () => {
 	it('seeds the project store with the harness plan and zones', () => {
@@ -567,6 +583,25 @@ describe('the harness fixture', () => {
 
 		expect(first.value).toBe(second.value);
 	});
+
+	it('provides a context `useEditorContext()` accepts, so a real component can mount', () => {
+		let seen: EditorContext | undefined;
+
+		const app = createApp({
+			setup() {
+				seen = useEditorContext();
+
+				return () => null;
+			},
+		});
+
+		app.provide(EDITOR_CONTEXT, harnessEditorContext());
+		app.mount(document.createElement('div'));
+
+		expect(seen?.planId).toBe(HARNESS_PLAN.id);
+
+		app.unmount();
+	});
 });
 ```
 
@@ -583,7 +618,8 @@ Create `tests/harness/fixture.ts`:
 ```typescript
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
-import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
+import type { EditorContext } from '../../src/presentation/editor/EditorContext';
+import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 
 /**
  * ONE seeded world, behind every entry the harness index mounts.
@@ -616,13 +652,38 @@ export function seedFixture(): Pinia {
 
 	return pinia;
 }
+
+/**
+ * The editor context, which is NOT optional and is easy to miss.
+ *
+ * `src/presentation/views/PlanEditorView.ts` does three things when it mounts: `createPinia()`,
+ * `use(VueKonva)` and **`provide(EDITOR_CONTEXT, …)`**. Without the third, every component that
+ * calls `useEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything using
+ * `useThemeTokens` — so the index would render the named failure for exactly the components a
+ * designer most wants to look at, and a prototype composing one would too.
+ *
+ * Built from `harnessDeps()` rather than from a second set of stubs, for the same reason the
+ * plan and zones come from `planEditor.ts`: a second derivation answers differently the day one
+ * of them is edited.
+ */
+export function harnessEditorContext(): EditorContext {
+	const deps = harnessDeps();
+
+	return {
+		planId: HARNESS_PLAN.id,
+		queries: deps.queries,
+		vault: deps.vault,
+		onThemeChange: deps.onThemeChange,
+		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
+	};
+}
 ```
 
 - [ ] **Step 5: Run the test again**
 
 Run: `npx vitest run tests/harness/fixture.test.ts`
 
-Expected: PASS, 2 tests. If `project.status = 'ready'` is a type error, read the `ProjectStoreStatus` union in `src/presentation/stores/ProjectStore.ts` and use the member that means hydrated.
+Expected: PASS, 3 tests. If `project.status = 'ready'` is a type error, read the `ProjectStoreStatus` union in `src/presentation/stores/ProjectStore.ts` and use the member that means hydrated.
 
 - [ ] **Step 6: Run the full gate**
 
@@ -659,8 +720,8 @@ The index page: every prototype and every component, discovered from the tree so
 - Test: `tests/harness/entries.test.ts`
 
 **Interfaces:**
-- Consumes: `seedFixture()` from Task 3.
-- Produces: `type HarnessEntry = { id: string; kind: 'prototype' | 'component'; component: () => Promise<unknown> }` and `discoverEntries(modules: Record<string, () => Promise<unknown>>, kind: HarnessEntry['kind']): HarnessEntry[]` from `tests/harness/entries.ts`. Tasks 5 and 7 use both.
+- Consumes: `seedFixture()` and `harnessEditorContext()` from Task 3.
+- Produces, all from `tests/harness/entries.ts`: `interface HarnessEntry { id: string; label: string; kind: 'prototype' | 'component'; component: () => Promise<unknown> }`, `discoverEntries(modules: Record<string, () => Promise<unknown>>, kind: HarnessEntry['kind']): HarnessEntry[]`, and the two globbed accessors `prototypeEntries(): HarnessEntry[]` / `componentEntries(): HarnessEntry[]`. Task 5 uses the entries; Task 7 drives `prototypeEntries()` directly, which is the only place the real glob is exercised.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -671,9 +732,15 @@ import { describe, expect, it } from 'vitest';
 import { discoverEntries, registrableComponents } from './entries';
 
 /**
- * Discovery, tested on the SHAPE `import.meta.glob` returns rather than on the glob itself.
- * The glob is a Vite build-time feature with nothing to assert about in a unit test; what
- * can go wrong and be caught here is the id derivation.
+ * Discovery, tested here on the SHAPE `import.meta.glob` returns rather than on the glob
+ * itself: what can go wrong in these cases is the id derivation, and a hand-built map is the
+ * only way to drive a collision that does not exist on disk.
+ *
+ * That leaves the glob's own PATTERN unasserted, and a pattern that stops matching the tree
+ * is the failure where nothing a designer adds ever appears. Task 7 adds the case that closes
+ * it, in this file, once there is a real `.vue` under `src/prototypes/` to find: discovery
+ * against the tree walked independently. It waits for Task 7 because on an empty tree that
+ * assertion is `[] === []` — vacuous, and green for the wrong reason.
  *
  * The id is a URL, so it has to be UNIQUE across everything the index lists. A basename is
  * not: `src/prototypes/StatusBar.vue` and `src/presentation/editor/shell/StatusBar.vue` are
@@ -1066,7 +1133,8 @@ import { createApp, defineAsyncComponent, type Component } from 'vue';
 import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
-import { seedFixture } from './fixture';
+import { seedFixture, harnessEditorContext } from './fixture';
+import { EDITOR_CONTEXT } from '../../src/presentation/editor/EditorContext';
 import { componentEntries, prototypeEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
@@ -1123,6 +1191,14 @@ if (wantsIndex) {
 	 * of failure this whole feature is built to make impossible.
 	 */
 	const app = createApp(IndexPage).use(seedFixture()).use(VueKonva);
+
+	/**
+	 * The third thing the production mount does, and the one with no `use()` to make it
+	 * obvious. `PlanEditorView` calls `app.provide(EDITOR_CONTEXT, …)`; without it every
+	 * component reading `useEditorContext()` throws, and the index would show the named
+	 * failure for precisely the components a designer most wants to see.
+	 */
+	app.provide(EDITOR_CONTEXT, harnessEditorContext());
 
 	/**
 	 * Every real component, registered globally and lazily.
@@ -1231,7 +1307,15 @@ Append this case to the outermost `describe` in `tests/harness/harness.test.ts`:
 	 */
 	it('offers prototypes exactly one plugin stylesheet and no proposal sheet', () => {
 		const html = readFileSync(path.join(REPO, 'tests', 'harness', 'index.html'), 'utf8');
-		const sheets = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)].map((match) => match[1]);
+
+		// Every `<link>`, then its attributes — rather than one regex assuming `rel` precedes
+		// `href`. Attribute order is free in HTML, so `<link href="…/concept.css"
+		// rel="stylesheet">` would load the forbidden proposal sheet while an order-dependent
+		// pattern reported the same three and stayed green.
+		const sheets = [...html.matchAll(/<link\b([^>]*)>/g)]
+			.map((match) => match[1])
+			.filter((attrs) => /\brel\s*=\s*["']stylesheet["']/.test(attrs))
+			.map((attrs) => /\bhref\s*=\s*["']([^"']+)["']/.exec(attrs)?.[1] ?? '');
 
 		expect(sheets).toEqual(['./obsidian.css', './theme.css', '/styles.css']);
 		expect(sheets.some((href) => href.includes('concept'))).toBe(false);
@@ -1254,10 +1338,11 @@ Expected: PASS immediately — the page already links exactly those three. This 
 
 - [ ] **Step 4: Prove it can fail**
 
-Temporarily add to `tests/harness/index.html`, after the `/styles.css` link:
+Temporarily add to `tests/harness/index.html`, after the `/styles.css` link — **with `href`
+first**, which is the spelling an order-dependent pattern would have missed:
 
 ```html
-		<link rel="stylesheet" href="../../docs/user-experience/concepts/concept.css" />
+		<link href="../../docs/user-experience/concepts/concept.css" rel="stylesheet" />
 ```
 
 Run: `npx vitest run tests/harness/harness.test.ts`
@@ -1336,25 +1421,6 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	});
 
 	/**
-	 * Ids carry `:` and `/`; Windows filenames cannot. One of the four `npm run check` legs is
-	 * Windows, so an unsanitised PNG name is a leg-specific failure nobody would reproduce
-	 * locally on Linux or macOS.
-	 */
-	/**
-	 * The index branch runs BEFORE any mount, so Obsidian's DOM prototype extensions do not
-	 * exist until it installs them itself — and it MUST, because `drawSchemeToggle()` runs on
-	 * every branch and calls `document.body.createEl`.
-	 *
-	 * The assertion is ORDER, not spelling: the shim call has to come before the first use of
-	 * an extension. Asserting "no extension calls here" was the earlier version and it was
-	 * wrong twice over — it forbade the working implementation, and it would have passed a
-	 * branch that used standard DOM and then let `drawSchemeToggle()` throw anyway.
-	 *
-	 * `tests/harness/theme.ts:44-47` carries the same rule for `applyPlatform` and names why
-	 * no runtime test catches it: every jsdom file installs the extensions at module top, so
-	 * the shimmed spelling passes the suite and throws on the real page.
-	 */
-	/**
 	 * The index app must install everything the production mount does, or a canvas component
 	 * renders nothing while every gate stays green — Vue warns rather than throws on an
 	 * unresolved component, and the outer element still satisfies the shot selector.
@@ -1372,6 +1438,36 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		expect(page).toContain('.use(VueKonva)');
 	});
 
+	/**
+	 * The production mount does THREE things — Pinia, VueKonva and `provide(EDITOR_CONTEXT)`.
+	 * The third has no `use()` to make it visible in a diff, which is why it was the one
+	 * missed, and why it gets its own assertion rather than being folded into the one above.
+	 */
+	it('provides EDITOR_CONTEXT on the index app, as the production mount does', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const production = readFileSync(
+			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
+			'utf8',
+		);
+
+		expect(production).toContain('app.provide(EDITOR_CONTEXT');
+		expect(page).toContain('provide(EDITOR_CONTEXT');
+	});
+
+	/**
+	 * The index branch runs BEFORE any mount, so Obsidian's DOM prototype extensions do not
+	 * exist until it installs them itself — and it MUST, because `drawSchemeToggle()` runs on
+	 * every branch and calls `document.body.createEl`.
+	 *
+	 * The assertion is ORDER, not spelling: the shim call has to come before the first use of
+	 * an extension. Asserting "no extension calls here" was the earlier version and it was
+	 * wrong twice over — it forbade the working implementation, and it would have passed a
+	 * branch that used standard DOM and then let `drawSchemeToggle()` throw anyway.
+	 *
+	 * `tests/harness/theme.ts:44-47` carries the same rule for `applyPlatform` and names why
+	 * no runtime test catches it: every jsdom file installs the extensions at module top, so
+	 * the shimmed spelling passes the suite and throws on the real page.
+	 */
 	it('installs the Obsidian DOM shim before the index branch uses any extension', () => {
 		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
 		const branch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
@@ -1383,6 +1479,11 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		if (firstUse >= 0) expect(install).toBeLessThan(firstUse);
 	});
 
+	/**
+	 * Ids carry `:` and `/`; Windows filenames cannot. One of the four `npm run check` legs is
+	 * Windows, so an unsanitised PNG name is a leg-specific failure nobody would reproduce
+	 * locally on Linux or macOS.
+	 */
 	it('sanitises the entry id for the PNG filename without sanitising the URL', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
@@ -1558,6 +1659,7 @@ The criterion the whole note is for: a promoted mock's template must be byte-ide
 **Files:**
 - Create: `src/prototypes/ZoneSummary.vue`
 - Test: `tests/build/prototype-promotion.test.ts`
+- Test (modify): `tests/harness/entries.test.ts` — Task 4 left the real glob undriven
 
 **Interfaces:**
 - Consumes: `src/prototypes/` from Task 1, the index from Task 4.
@@ -1774,16 +1876,86 @@ Expected: FAIL on `leaves the template byte-identical`.
 This is the assertion the whole tree exists to protect, so it is the one that must be watched
 failing. Then revert: `git checkout tests/fixtures/promotion/ZoneSummary.promoted.vue`
 
-- [ ] **Step 7: Run the full gate**
+- [ ] **Step 8: Prove the tree IS the registration, against the REAL glob**
+
+Everything in `tests/harness/entries.test.ts` so far hands `discoverEntries` a hand-built map,
+which tests the id derivation and nothing else. The criterion is about `import.meta.glob`'s
+pattern: if it stops matching the tree, discovery returns nothing, no prototype a designer adds
+ever appears in the index, and every one of those tests stays green. There is a file on disk now,
+so the case can finally be written.
+
+Append to `tests/harness/entries.test.ts` — and add `prototypeEntries` to the import from
+`./entries`, plus the two node imports and `REPO`:
+
+```typescript
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
+import { REPO } from '../helpers/oxlint';
+```
+
+```typescript
+/** Every `.vue` under a directory, walked rather than globbed — the independent side. */
+function vueFilesUnder(directory: string, prefix = ''): string[] {
+	return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+		const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+		if (entry.isDirectory()) return vueFilesUnder(path.join(directory, entry.name), relative);
+
+		return entry.name.endsWith('.vue') ? [relative] : [];
+	});
+}
+
+/**
+ * Criterion 1, and the only case in this file that drives the real `import.meta.glob`.
+ *
+ * The test does NOT write the `.vue` file itself, and could not: `import.meta.glob` is resolved
+ * when Vite transforms this module, so a file created at run time is invisible to it and the
+ * assertion would fail for a reason that says nothing about registration. The file added by
+ * Step 1 is the one being added; what is asserted is that adding it to the TREE was the whole
+ * of adding it — nothing names it anywhere else.
+ *
+ * The id is mapped back to a path rather than the path forward to an id, deliberately: an
+ * expected id built by the test's own copy of `idFor` would be a second derivation agreeing
+ * with itself. The inverse is also the reversibility `idFor` claims when it keeps the path
+ * separator, so a flattened id would fail here.
+ */
+describe('the prototypes tree IS the registration', () => {
+	it('discovers every .vue on disk, with nothing registering them', () => {
+		const onDisk = vueFilesUnder(path.join(REPO, 'src', 'prototypes')).sort();
+
+		// First, because an empty tree would make the equality below `[] === []` — vacuous, and
+		// exactly the "only passes while empty" failure the PBI's criterion 9 names.
+		expect(onDisk).toContain('ZoneSummary.vue');
+
+		const discovered = prototypeEntries()
+			.map((entry) => `${entry.id.replace(/^prototype:/, '')}.vue`)
+			.sort();
+
+		expect(discovered).toEqual(onDisk);
+	});
+});
+```
+
+Run: `npx vitest run tests/harness/entries.test.ts`
+
+Expected: PASS, and the new case must be watched failing before it is trusted. Break the glob —
+change `'../../src/prototypes/**/*.vue'` in `tests/harness/entries.ts` to
+`'../../src/prototypes/*.vue.disabled'` — and run it again.
+
+Expected: FAIL on `discovers every .vue on disk`, reporting `[]` against `['ZoneSummary.vue']`.
+That is the defect the hand-built maps could not see. Then revert:
+`git checkout tests/harness/entries.ts`
+
+- [ ] **Step 9: Run the full gate**
 
 Run: `npm run check`
 
 Expected: PASS. In particular `analyze` must not report `ZoneSummary.vue` dead — Task 1's fallow entry is what covers it, and this is the first file that proves the glob matches.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add src/prototypes/ZoneSummary.vue tests/fixtures/promotion/ZoneSummary.promoted.vue tests/build/prototype-promotion.test.ts
+git add src/prototypes/ZoneSummary.vue tests/fixtures/promotion/ZoneSummary.promoted.vue tests/build/prototype-promotion.test.ts tests/harness/entries.test.ts
 git commit -m "Add the first mock, and hold the promotion claim
 
 A promoted mock's template must be byte-identical to the mock's — the
@@ -1797,7 +1969,11 @@ real promotion redrew everything. The promoted fixture is hand-written,
 and watched failing on a one-word template edit before being trusted.
 
 This is also the first file proving the fallow glob matches and the
-harness-shot entry path writes a PNG."
+harness-shot entry path writes a PNG — and the first one under
+src/prototypes/ at all, which is what finally lets the discovery test
+drive the real import.meta.glob instead of a hand-built map. Until now
+every discovery case would have stayed green with the glob pattern
+matching nothing at all."
 ```
 
 ---
@@ -1881,7 +2057,7 @@ a record rather than a migration backlog."
 
 | Criterion | Task |
 | --- | --- |
-| 1 — a file appears with no registration step | 4 (`entries.test.ts`) |
+| 1 — a file appears with no registration step | 4 (id derivation) + **7 Step 8** (the real glob, against the tree on disk) |
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
@@ -1889,7 +2065,7 @@ a record rather than a migration backlog."
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`) |
 | 7 — two components read the same plan | 3 (second case) |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch, empty-tree case) |
-| 9 — `npm run check` passes with the tree populated | 7 Step 7 |
+| 9 — `npm run check` passes with the tree populated | 7 Step 9 |
 | 10 — a promoted template is byte-identical | 7 (`prototype-promotion.test.ts`) |
 
 The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a** → Task 4's empty-tree test and the `v-if` in the template; **4b** → Vite's own overlay, unchanged, plus the try/catch; **3a** → Task 6 leaves an argumentless run intact so a machine without Chromium fails on `resolveChromiumExecutable` as it does today. **6a** is out of scope by the PBI's own text.
@@ -1906,7 +2082,7 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised twice after review — ten findings, all real, all fixed above rather than noted.**
+**Revised across seven review rounds — twenty-six findings, all real, all fixed above rather than noted.**
 
 Round one, on the shape of the harness:
 
@@ -1971,13 +2147,24 @@ than any of the fixes:
 | The fixture check was harness-only | This plan creates `tests/fixtures/promotion/`, which a `/tests/harness/` filter misses. Residue of round four's own promotion fix | Task 2 (nothing under `tests/` at all — a rule, not a list) |
 | The promoted template was not byte-identical | The mock's commentary sat *inside* its template block, so the independent pair the previous round introduced could never match. Worse, the comment **spelled the opening template tag**, and `templateBlock()` finds the block by regex — the extraction would have started mid-comment | Task 7: commentary above the template, never naming that tag. Verified by running the test's own regex over both files |
 
-**The pattern, across all six rounds and worth more than any individual fix:** every failure was
+Round seven, on what the tests still did not reach:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The editor context was not provided** | `PlanEditorView.ts:145-159` does four things to mount the real app — Pinia, VueKonva, `provide(EDITOR_CONTEXT, …)`, mount. The index app did the first two. `useEditorContext()` **throws** on the missing injection (`EditorContext.ts:57-63`), so `PlanEditorRoot`, `BackgroundLayer` and anything using `useThemeTokens` render Task 4's named-failure card instead — the index would fail for exactly the components a designer most wants to look at | Task 3 (`harnessEditorContext()`, built from the exported deps rather than a second set of stubs), Task 4 Step 6 (the provision) and Task 6 (a test reading the requirement out of `PlanEditorView.ts` rather than pinning today's answer) |
+| **The stylesheet check required attribute order** | The regex wanted `rel` before `href`. A link written the other way round is the same link to a browser and invisible to the test — so a second sheet could be added in the spelling the check cannot see | Task 5 (two-stage parse: find every `<link>`, then read its attributes in any order; the planted proof is now `href`-first) |
+| **The real glob was never driven** | Every discovery case handed `discoverEntries` a hand-built map. If `import.meta.glob`'s pattern stopped matching `src/prototypes/`, discovery would return nothing, no prototype a designer added would ever appear — and all of them stay green. Criterion 1 asks for exactly this case and it was the one not written | Task 7 Step 8: discovery compared against the tree walked with `readdirSync`, watched failing on a deliberately broken glob. It waits for Task 7 because on an empty tree it is `[] === []` |
+
+**The pattern, across all seven rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
-glob whose subtree excludes the file that matters, an unresolved component Vue only warns about.
+glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
+would have to work, an unresolved component or a failed injection Vue only warns about.
 
 And the second pattern, which is mine rather than the design's: **every round, a fix left a
 sibling stale.** The DOM fix left the toggle. The promotion fixture left the bundle filter. The
-routing fix left the `CLAUDE.md` text and the PBI's own assumption. Rounds five and six ended
-with a *deliberate residue sweep* before pushing, and it caught two more the review had not —
-which is the practice to carry into execution, not the twenty-three fixes.
+routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven's glob fix left Task 4's own
+header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
+already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
+pushing, and it kept catching what the review had not — which is the practice to carry into
+execution, not the twenty-six fixes.

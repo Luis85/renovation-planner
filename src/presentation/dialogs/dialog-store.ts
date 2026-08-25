@@ -4,9 +4,9 @@ import { shallowRef, type Component } from 'vue';
 /**
  * The plugin's one dialog framework (design slice 15). Everything here is DISPLAY state:
  * which descriptor is open, and the resolver of the Promise the opener is awaiting.
- * Nothing in this directory reads a repository, runs a query or dispatches a command —
- * `eslint.config.mjs` has a block for `presentation/dialogs/` that makes that a build
- * failure rather than a review note.
+ * Nothing in this directory reads a repository, runs a query, dispatches a command or
+ * reaches the event bus — `eslint.config.mjs` has a block for `presentation/dialogs/` that
+ * makes that a build failure rather than a review note.
  *
  * Every user-facing field below is a RESOLVED string, never a `StringKey`. A dialog's
  * title is usually built from a specific entity's name, so the caller — which knows both

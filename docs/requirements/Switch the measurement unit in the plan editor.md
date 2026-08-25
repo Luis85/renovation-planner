@@ -333,9 +333,16 @@ switching, that persists.
 That earns one rule the picker would not otherwise need:
 
 - **Switching the unit while the calibration prompt is open must never silently reinterpret a
-  number already typed.** Either the picker is disabled for the duration of the prompt, or the
-  typed value is converted to the new unit in front of the renovator. Silently rebasing `5` from
-  metres to centimetres is a hundredfold scale error made of one click and no feedback.
+  number already typed.** The typed value is converted to the new unit in front of the
+  renovator, without rounding. Silently rebasing `5` from metres to centimetres is a
+  hundredfold scale error made of one click and no feedback.
+
+  **Disabling the picker for the duration of the prompt is not the alternative**, though an
+  earlier draft of this bullet offered it as one. The prompt is exactly when the renovator
+  needs the picker — choosing the unit their typed distance is read in is what it is *for* at
+  that moment — so disabling it there would defeat extension **2b** and criterion 16 while
+  appearing to satisfy this rule. Criterion 18 is the checkable form of this sentence and the
+  two now say one thing.
 
 ## Acceptance criteria
 

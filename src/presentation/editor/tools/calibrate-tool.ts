@@ -24,7 +24,14 @@ export interface CalibrateToolDeps {
 	 * calibrated one, and a calibrated plan with nothing on it has nothing.
 	 */
 	readonly hasSpatialObjects: () => boolean;
-	/** Asks the user to confirm a rescale; `true` proceeds. Never called when the above is false. */
+	/**
+	 * Asks the user to confirm a rescale; `true` proceeds. Never called when
+	 * `hasSpatialObjects` is false. A dismissal (Escape, an overlay click, a Cancel
+	 * button) resolves `false` — there is no separate "dismissed" outcome for this
+	 * caller to distinguish from an explicit decline. The supplier must never REJECT:
+	 * `pointerDown` dispatches `complete()` with no `.catch`, so a rejection here would
+	 * surface as an unhandled promise rejection rather than as a declined gesture.
+	 */
 	readonly confirmRecalibration: () => Promise<boolean>;
 	/** Per gesture — the reversible command holds that one transaction's inverse state. */
 	readonly createCommand: () => CalibratePlanTransaction;
@@ -49,10 +56,11 @@ export class CalibrateTool implements EditorTool {
 	private context: EditorContext | null = null;
 	private pointA: Point | null = null;
 	/**
-	 * Bumped by every `cancel()`/`deactivate()`. `complete()` crosses an awaited prompt,
-	 * and the user can switch tools or plans while it sits open — the generation check
-	 * after the await is what makes a late answer dead rather than a dispatch against
-	 * whatever editor is active by then.
+	 * Bumped by every `cancel()`/`deactivate()`. `complete()` crosses TWO awaited prompts
+	 * (the recalibration confirmation, then the distance), and the user can switch tools
+	 * or plans while either sits open — the generation check after EACH await is what
+	 * makes a late answer dead rather than a dispatch against whatever editor is active
+	 * by then.
 	 */
 	private generation = 0;
 	/**

@@ -404,7 +404,7 @@ describe('CalibrateTool', () => {
  * reached, since a stale gesture must not merely fail to dispatch: it must not ask the
  * user anything either, and `dispatched` alone cannot tell those apart.
  */
-function makeTool(overrides: Partial<Pick<Harness, 'hasSpatialObjects' | 'confirmRecalibration'>>): {
+function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalibration'>): {
 	tool: CalibrateTool;
 	dispatched: UndoableCommand[];
 	distancePrompts: () => number;
@@ -418,17 +418,26 @@ function makeTool(overrides: Partial<Pick<Harness, 'hasSpatialObjects' | 'confir
 			return h.supplyKnownDistance(measuredWorldUnits);
 		},
 		createCommand: h.createCommand,
-		hasSpatialObjects: overrides.hasSpatialObjects ?? h.hasSpatialObjects,
-		confirmRecalibration: overrides.confirmRecalibration ?? h.confirmRecalibration,
+		hasSpatialObjects: overrides.hasSpatialObjects,
+		confirmRecalibration: overrides.confirmRecalibration,
 	});
 	tool.activate(h.context);
 	return { tool, dispatched: h.dispatched, distancePrompts: () => distancePromptCount };
 }
 
-/** Drives one full two-click gesture and drains its microtask chain (see `flush`). */
+/**
+ * Drives one full two-click gesture and drains its microtask chain (see `flush`). Each
+ * click is down+up on the SAME point, matching the grammar a real mouse produces — a bare
+ * `pointerDown` with no matching `pointerUp` is a sequence no mouse can produce, and CLAUDE.md
+ * records that exact shape certifying a broken Escape path in slice 8's rig.
+ */
 async function calibrate(tool: CalibrateTool): Promise<void> {
-	tool.pointerDown(at(812, 240));
-	tool.pointerDown(at(812, 1040));
+	const a = at(812, 240);
+	const b = at(812, 1040);
+	tool.pointerDown(a);
+	tool.pointerUp(a);
+	tool.pointerDown(b);
+	tool.pointerUp(b);
 	await flush();
 }
 
@@ -472,7 +481,7 @@ describe('the recalibration gate', () => {
 	});
 
 	it('dispatches nothing when the user declines', async () => {
-		const { tool, dispatched } = makeTool({
+		const { tool, dispatched, distancePrompts } = makeTool({
 			hasSpatialObjects: () => true,
 			confirmRecalibration: () => Promise.resolve(false),
 		});
@@ -480,6 +489,11 @@ describe('the recalibration gate', () => {
 		await calibrate(tool);
 
 		expect(dispatched).toEqual([]);
+		// The ordering claim itself: a user about to decline is never made to answer the
+		// distance prompt first. `dispatched` alone cannot tell "asked, then declined,
+		// then would-have-prompted-but-didn't" apart from "prompted anyway and only the
+		// dispatch was blocked" — this is the one assertion that does.
+		expect(distancePrompts()).toBe(0);
 	});
 
 	/**

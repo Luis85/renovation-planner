@@ -42,7 +42,8 @@ real-world measurements."*
   distance, derived scale) and its validation rules.
 - `ReversibleCalibratePlanCommand`, the undoable application command that turns a
   completed gesture plus a supplied distance into a persisted `Calibration`
-  (supersedes slice 3's plain, non-undoable `CalibratePlanCommand` — see Design).
+  (**replaces** slice 3's plain, non-undoable `CalibratePlanCommand`, which was deleted
+  in this slice's review pass — see Design).
 - Deriving the scale factor from the two points and the known distance, and the precise
   (and deliberately narrow) place it lands: the background's world extent, **not** the
   viewport transform — see "What calibration establishes".
@@ -557,6 +558,41 @@ see Testing Strategy.
 - Recalibration writes `calibration` and every rescaled spatial object's `objects[]`
   entry in the same sidecar write — one file, one Vault operation, naturally atomic.
 - No new Markdown frontmatter keys are introduced by this slice.
+
+### What the review pass changed: "supersedes" had to become "replaces"
+
+This section said "supersedes its `execute()` body" and the code did not do it. A new
+class was added and slice 3's was left exported, tested and reachable — two live
+calibration writers with contradictory semantics, of which the older one:
+
+- persisted a calibration whose own points did **not** measure their `knownDistance`,
+  which is the invariant DoD box 7 on this page asserts;
+- rescaled **no** existing geometry, which is option 1 of the recalibration question this
+  page explicitly decided against;
+- wrote the sidecar **unconditionally**, through the plan repository's `syncCalibration`,
+  bumping the revision and silently invalidating any pending calibration undo.
+
+Nothing chose between them, so the review pass deleted the older path outright:
+`CalibratePlanCommand`, `Plan.calibrate` and `createCalibration` (the duplicate
+derivation — `deriveCalibration(a, b, d, null)` with the points left un-rescaled).
+`CalibratePlanInput` moved onto the command that still holds it. `Plan.withCalibration`
+and `validateCalibration` stay: they are the READ path, where `planFromPersistence`
+merges the sidecar's value into the entity and re-validates it.
+
+**And `syncCalibration` went with them**, which the same review found to be a lost update
+no gate could see. Calibration does not live in the plan note, so a calibration landing
+in the sidecar does not move the note's revision — a `Plan` read *before* one still
+passed `checkExpectedVersion` afterwards, and the next rename wrote its stale calibration
+(or `null`) back over the new one while the rescaled coordinates stayed. Two writers of
+one field, only one of which has a version to check against, is the defect; the
+repository now owns the sidecar's **lifecycle** and none of its content, and
+`PlanGeometrySidecar` is the single writer of `calibration`. A note update no longer
+opens the sidecar at all, so a plan whose geometry file went missing can still be
+renamed.
+
+The first pass had also added a test pinning that clobber as intended behaviour
+("saving a plan whose calibration is null clears a sidecar calibration that exists").
+Covering a branch is not the same as asking whether the branch should exist.
 
 ## Testing Strategy
 

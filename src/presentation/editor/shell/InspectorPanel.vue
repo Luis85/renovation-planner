@@ -29,8 +29,14 @@ watch(
 
 const dto = runtime.inspectorDto;
 
+/**
+ * `'en-US'`, deliberately, not the host locale: a decimal comma on a de-DE machine and a
+ * decimal point everywhere else would make the same area render two ways for the same
+ * vault. One stable format until the string table grows a formatting rule of its own
+ * (slice 9's quantity engine is where units and locales get decided properly).
+ */
 const formatArea = (areaMm2: number): string =>
-	`${(areaMm2 / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} m²`;
+	`${(areaMm2 / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })} m²`;
 </script>
 
 <template>

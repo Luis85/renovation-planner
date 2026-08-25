@@ -6,9 +6,11 @@ import type { CommandHistory } from './command-history';
 /**
  * Everything slice 8's post-command funnel wraps (docs/tasks/08-zone-editing.md,
  * "Showing the result"). `Pick`ed, not the whole class: `canUndo`/`canRedo`/`clear`
- * change no persisted state to re-read and pass through untouched.
+ * change no persisted state to re-read and pass through untouched. Exported because it
+ * is part of this module's public signature — the decorator's parameter AND its return
+ * type — and an unexported name in that position is a private-type leak.
  */
-type RefreshedHistory = Pick<CommandHistory, 'run' | 'undo' | 'redo'>;
+export type RefreshedHistory = Pick<CommandHistory, 'run' | 'undo' | 'redo'>;
 
 /** Both stores hold working state; both are refreshed, never one standing in for the other. */
 export interface EditorStateRefreshDeps {

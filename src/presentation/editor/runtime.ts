@@ -118,6 +118,7 @@ function registerEditorTools(
 			// (see the alias's own doc comment); only forward/inverse differ.
 			createMoveGesture: (zoneId, forward, inverse): ReversibleMoveZoneVertexCommand =>
 				new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse),
+			reportRejected: (error) => notify(error.message),
 		}),
 	);
 	toolManager.register(
@@ -196,6 +197,9 @@ function buildRuntime(context: VueEditorContext): EditorRuntime {
 		commandDispatcher: wrappedDispatcher,
 		writeLedger: ledger,
 		renderState,
+		// `calibration: null` is a declared placeholder, not a lie about the plan: nothing
+		// in slice 8 reads it, and the calibrated value arrives when a consumer needs it —
+		// re-read from the plan's sidecar entry at activation, not cached here.
 		activePlan: { id: context.planId as never, calibration: null },
 	});
 
@@ -234,8 +238,12 @@ function buildRuntime(context: VueEditorContext): EditorRuntime {
 	async function deleteZone(zoneId: ZoneId): Promise<void> {
 		// Through the Inspector's own commit path (SDD §59), not a second dispatch seam.
 		const result = await inspector.commit({ kind: 'delete', zoneId });
+		if (!result.ok) {
+			// Same seam the tools use: a refused delete must not just do nothing.
+			notify(result.error.message);
+			return;
+		}
 		if (
-			result.ok &&
 			selection.selectedIds.length === 1 &&
 			String(selection.selectedIds[0]) === zoneId
 		) {

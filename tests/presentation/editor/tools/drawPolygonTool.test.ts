@@ -21,6 +21,7 @@ interface Harness {
 	inputs: CreateZoneInput[];
 	rejections: string[];
 	failNextDispatch: () => void;
+	gateNextDispatch: () => () => void;
 	nextZoneName: string;
 }
 
@@ -30,6 +31,7 @@ function harness(): Harness {
 	const inputs: CreateZoneInput[] = [];
 	const rejections: string[] = [];
 	let failNext = false;
+	let gate: (() => void) | null = null;
 
 	const selection = {
 		selectedIds: [] as string[],
@@ -54,6 +56,14 @@ function harness(): Harness {
 		snapService: { snapPoint: (point) => point } as never,
 		commandDispatcher: {
 			run: (runnable) => {
+				if (gate !== null) {
+					const release = gate;
+					gate = null;
+					return release().then(() => {
+						dispatched.push(runnable);
+						return runnable.execute();
+					});
+				}
 				if (failNext) {
 					failNext = false;
 					return Promise.resolve(
@@ -74,9 +84,20 @@ function harness(): Harness {
 		dispatched,
 		inputs,
 		rejections,
-		failNextDispatch: () => {
-			failNext = true;
-		},
+			failNextDispatch: () => {
+				failNext = true;
+			},
+			gateNextDispatch: () => {
+				let release!: () => void;
+				const gated = new Promise<void>((resolve) => {
+					release = resolve;
+				});
+				gate = () => {
+					gate = null;
+					return gated;
+				};
+				return () => release();
+			},
 		get nextZoneName() {
 			return `Zone ${inputs.length + 1}`;
 		},
@@ -171,6 +192,47 @@ describe('DrawPolygonTool', () => {
 		// Buffer intact: cancelling now is deliberate, not forced by the rejection.
 		tool.cancel();
 		expect(h.context.renderState.previewPolygon).toBeNull();
+	});
+
+	it('a close click while ANOTHER close is in flight is ignored — one shape, one command', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(0, 100));
+
+		// First close click: the dispatch is held open by the gate.
+		const release = h.gateNextDispatch();
+		tool.pointerDown(at(0, 0));
+		// Second close click inside the in-flight window — against the SAME buffer.
+		tool.pointerDown(at(0, 0));
+		release();
+		await flush();
+
+		expect(h.dispatched).toHaveLength(1);
+		expect(h.inputs).toHaveLength(1);
+		expect(h.context.selection.selectedIds).toEqual(['zone-created']);
+	});
+
+	it('a close click while ANOTHER close is in flight is ignored even when it FAILS', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(0, 100));
+		h.failNextDispatch();
+		tool.pointerDown(at(0, 0)); // closes, fails, buffer kept, closing cleared
+		await flush();
+		expect(h.rejections).toHaveLength(1);
+
+		// The guard is released by the failure: a fresh close is possible again.
+		tool.pointerDown(at(0, 0));
+		await flush();
+		expect(h.dispatched).toHaveLength(1);
 	});
 
 	it('cancel discards the buffer without dispatching anything', () => {

@@ -6,7 +6,7 @@ import type { EditorPointerEvent } from '../../../../src/presentation/editor/too
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { RenderState } from '../../../../src/presentation/editor/tools/render-state';
 import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
-import { ok } from '../../../../src/core/result/Result';
+import { ok, err } from '../../../../src/core/result/Result';
 import { createPolygon, type Polygon } from '../../../../src/core/geometry/Polygon';
 import type { Point } from '../../../../src/core/geometry/Point';
 
@@ -36,6 +36,7 @@ function squarePoints(x: number, y: number): readonly Point[] {
 function harness(): Harness {
 	setActivePinia(createPinia());
 	const gestures: Harness['gestures'] = [];
+	const rejections: string[] = [];
 
 	const selection = {
 		selectedIds: [] as string[],
@@ -66,7 +67,12 @@ function harness(): Harness {
 		activePlan: { id: 'plan-1' as never, calibration: null },
 	};
 
-	return { context, gestures };
+	return { context, gestures, rejections };
+}
+
+/** Drains the gesture's microtask chain before its dispatch result is asserted. */
+async function flush(): Promise<void> {
+	for (let round = 0; round < 8; round++) await Promise.resolve();
 }
 
 function build(
@@ -83,6 +89,7 @@ function build(
 			};
 			return gesture;
 		},
+		reportRejected: (error) => h.rejections.push(error.message),
 	});
 }
 
@@ -277,11 +284,11 @@ describe('SelectTool', () => {
 		const tool = build(h, candidates);
 		tool.activate(h.context);
 
-		// Select, then drag a vertex to a NON-FINITE position: createPolygon must reject
-		// and the gesture must die before any command exists.
+		// Select, then grab vertex 2 at (100, 100) and drag it to a NON-FINITE position:
+		// createPolygon must reject and the gesture must die before any command exists.
 		tool.pointerDown(eventAt(10, 10));
 		tool.pointerUp(eventAt(10, 10));
-		tool.pointerDown(eventAt(199, 199));
+		tool.pointerDown(eventAt(101, 101));
 		tool.pointerUp({
 			worldPoint: { x: Number.NaN, y: Number.NaN },
 			screenPoint: screenPoint(250, 250),
@@ -292,5 +299,48 @@ describe('SelectTool', () => {
 
 		expect(h.gestures).toHaveLength(0);
 		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.rejections).toHaveLength(1);
+	});
+
+	it('a FAILED move dispatch reports through the rejection seam too', async () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		// This harness's dispatcher resolves a failed Result: the wrapped command ran and
+		// was refused.
+		h.context.commandDispatcher.run = () =>
+			Promise.resolve(err({ category: 'Persistence', code: 'test.injected-failure', message: 'injected' }));
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerUp(eventAt(10, 10));
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerMove(eventAt(60, 10));
+		tool.pointerUp(eventAt(60, 10));
+		await flush();
+
+		expect(h.gestures).toHaveLength(1); // the gesture was BUILT and dispatched
+		expect(h.rejections).toHaveLength(1); // and its failure surfaced
+		expect(h.context.renderState.previewPolygon).toBeNull();
+	});
+
+	it('a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		// 10 world millimetres per screen pixel — ten times coarser than the default
+		// camera. A world-fixed 0.5 mm epsilon would call a 1 px hand jitter a move.
+		h.context.viewport.screenToWorld = ((point: { x: number; y: number }) => ({
+			x: point.x * 10,
+			y: point.y * 10,
+		})) as never;
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		// 30 world mm of displacement = 3 px at this camera: inside the 4 px epsilon.
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerUp(eventAt(40, 10));
+
+		expect(h.gestures).toHaveLength(0);
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
 	});
 });

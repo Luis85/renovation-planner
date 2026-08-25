@@ -23,13 +23,14 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
  *    upstream) where nothing is active yet. Throwing here would turn an ordinary "nothing
  *    to do" into a crash on every stray event; the manager instead does nothing and lets
  *    the caller decide whether that silence is worth noticing.
- * 2. **`cancelGesture()` with no gesture in flight is a no-op**, not a defensive call to
- *    the active tool's `cancel()`. This is the same rule the tool-switch lifecycle already
- *    states — "the outgoing tool's `cancel()`, **only if** a gesture is in flight" — so
- *    `cancelGesture()` and the switch path share one rule instead of two: a tool's
- *    `cancel()` is called exactly when there is a gesture for it to discard, never as a
- *    speculative "just in case." An `Escape` handler can therefore call it unconditionally
- *    without checking gesture state itself.
+ * 2. **`cancelGesture()` with no ACTIVE TOOL is a no-op** — but it no longer requires a
+ *    gesture in flight (restated in design slice 8; see the method's comment). The
+ *    tool-SWITCH path keeps the original rule — "the outgoing tool's `cancel()`, **only
+ *    if** a gesture is in flight" — so the switch calls `cancel()` exactly when the
+ *    outgoing tool's gesture was interrupted, never as a speculative "just in case."
+ *    (`cancelGesture()` — Escape — deliberately does NOT share that guard any more: a
+ *    multi-click tool sits BETWEEN clicks with no drag in flight, and Escape must reach
+ *    it there.)
  * 3. **Registering a second tool under an already-taken `ToolId` throws.** It is the same
  *    category of error as an unregistered id at `setActiveTool` — a wiring mistake at the
  *    composition root (e.g. two tools constructed with the same id, or a duplicate
@@ -130,12 +131,24 @@ export class ToolManager {
 	}
 
 	/**
-	 * Abandons the in-progress gesture, typically on `Escape`: calls the active tool's
-	 * `cancel()` and clears the in-flight flag. A no-op — `cancel()` is never called — when
-	 * there is no gesture in flight, or no active tool (decision 2 above).
+	 * Abandons whatever the active tool holds, typically on `Escape`: calls its `cancel()`
+	 * and clears the in-flight flag. A no-op only when NO tool is active.
+	 *
+	 * **Decision 2, restated by design slice 8's review pass.** This used to be a no-op
+	 * unless `gestureInFlight` — but that flag models a DRAG: down sets it, up clears it,
+	 * and a real mouse always delivers both. A multi-click tool (the polygon tool's
+	 * buffer, the calibration tool's pending first point) sits BETWEEN clicks with the
+	 * flag false, so the old guard made Escape do nothing exactly when the user needed it
+	 * — while every test passed, because simulated event streams happily sent
+	 * `pointerdown` without ever sending `pointerup`. Every `EditorTool.cancel()` is
+	 * required to be safe when nothing is in flight (they all clear transient state and
+	 * dispatch nothing), so the honest contract is: Escape always reaches the active
+	 * tool. The tool-SWITCH path below keeps its in-flight guard — there the question is
+	 * whether the OUTGOING tool's gesture was interrupted, and a completed click is not
+	 * an interruption.
 	 */
 	cancelGesture(): void {
-		if (!this.gestureInFlight || !this.activeTool) {
+		if (!this.activeTool) {
 			return;
 		}
 		this.activeTool.cancel();

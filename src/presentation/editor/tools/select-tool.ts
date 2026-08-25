@@ -31,12 +31,24 @@ export interface SelectToolDeps {
 		forward: Polygon,
 		inverse: Polygon,
 	) => UndoableCommand;
+	/**
+	 * Where a refused move reaches the user — validation rejection or failed write. The
+	 * draw tool carries the identical seam; a silent discard here would leave the zone
+	 * unmoved with the preview gone and no word of why.
+	 */
+	readonly reportRejected: (error: { message: string }) => void;
 }
 
 /** Vertex handles are eight screen pixels across at every zoom (SDD §19). */
 const HANDLE_RADIUS_PX = 8;
-/** Below this world-space displacement, pointerUp is a click, not a drag. */
-const CLICK_EPSILON_MM = 0.5;
+/**
+ * Below this SCREEN displacement, pointerUp is a click, not a drag — converted to world
+ * millimetres through the CURRENT camera on every release. A world-fixed epsilon was the
+ * first version's defect: 0.5 mm is half a pixel at the default zoom, so ordinary hand
+ * jitter during a click dispatched a move command — exactly the history pollution the
+ * spec's "a no-op move must not pollute the undo stack" exists to prevent.
+ */
+const CLICK_EPSILON_PX = 4;
 
 type Gesture =
 	| { readonly kind: 'body'; zoneId: ZoneId; original: Polygon; startWorld: Point }
@@ -154,7 +166,11 @@ export class SelectTool implements EditorTool {
 				dx: event.worldPoint.x - gesture.startWorld.x,
 				dy: event.worldPoint.y - gesture.startWorld.y,
 			};
-			if (Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_MM) {
+			// Camera-scaled: how many world millimetres one screen pixel is right now,
+			// measured through the same transform the canvas converts events with.
+			const zero = context.viewport.screenToWorld(screenPoint(0, 0));
+			const one = context.viewport.screenToWorld(screenPoint(1, 0));
+			if (Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * distance(zero, one)) {
 				// A click, not a drag: pure selection, nothing dispatched, no history entry.
 				context.renderState.previewPolygon = null;
 				return;
@@ -185,10 +201,14 @@ export class SelectTool implements EditorTool {
 		// and must not be trusted blindly (SDD §26's tool-level layer).
 		const polygonResult = createPolygon(forwardPoints);
 		context.renderState.previewPolygon = null;
-		if (!polygonResult.ok) return;
-		await context.commandDispatcher.run(
+		if (!polygonResult.ok) {
+			this.deps.reportRejected(polygonResult.error);
+			return;
+		}
+		const result = await context.commandDispatcher.run(
 			this.deps.createMoveGesture(zoneId, polygonResult.value, inverse),
 		);
+		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 
 	private hitTest(worldPoint: Point): SpatialObjectCandidate | null {

@@ -12,9 +12,11 @@
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
 import { describe, expect, it } from 'vitest';
+import type Konva from 'konva';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent } from 'vue';
 import { mount } from '@vue/test-utils';
+import { Notice } from 'obsidian';
 import { mountPlanEditor, settle, type EditorHarness } from '../../helpers/editor';
 import { useEditorRuntime } from '../../../src/presentation/editor/runtime';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
@@ -109,7 +111,18 @@ function pointer(element: HTMLElement, type: string, x: number, y: number, butto
 	);
 }
 
-async function until(condition: () => Promise<boolean>, what: string): Promise<void> {
+/**
+ * A real CLICK: down AND up at the same pixel. The rig deliberately never sends a bare
+ * `pointerdown` without its `pointerup` — a real mouse cannot do it, and the first
+ * review pass caught Escape-cancels-drawing being certified by exactly that impossible
+ * sequence. A drag is spelled `pointer(down, move…, up)`; everything else is clicks.
+ */
+function click(element: HTMLElement, x: number, y: number, button = 0): void {
+	pointer(element, 'pointerdown', x, y, button);
+	pointer(element, 'pointerup', x, y, button);
+}
+
+async function until(condition: () => boolean | Promise<boolean>, what: string): Promise<void> {
 	for (let round = 0; round < 100; round += 1) {
 		if (await condition()) return;
 		await settle();
@@ -133,10 +146,10 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
-		pointer(canvas, 'pointerdown', 500, 100);
-		pointer(canvas, 'pointerdown', 600, 100);
-		pointer(canvas, 'pointerdown', 600, 200);
-		pointer(canvas, 'pointerdown', 500, 100); // close click on the first vertex
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		click(canvas, 600, 200);
+		click(canvas, 500, 100); // close click on the first vertex
 		await settle();
 
 		// Persisted, not merely rendered.
@@ -207,7 +220,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		harness.unmount();
 	});
 
-	it('drags one vertex handle; undo restores that vertex without touching any other', async () => {
+	it('drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)', async () => {
 		const { harness, zonesRepo } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -216,9 +229,21 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		// Click to select...
-		pointer(canvas, 'pointerdown', 200, 200);
-		pointer(canvas, 'pointerup', 200, 200);
+		click(canvas, 200, 200);
 		await settle();
+
+		// DoD 5's second half: the selection SHOWS — one handle circle per vertex, in the
+		// interaction layer.
+		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
+		expect(interaction?.find('Circle').length).toBe(ZONE_A_DTO.points.length);
+
+		// The panel shows the pre-drag area: 2900 × 1900 mm. Waited for, not assumed — the
+		// selection query crosses an awaited repository read before the DTO lands.
+		await until(
+			() => harness.wrapper.text().includes('5.51 m²'),
+			'the Inspector to show the selected zone area',
+		);
+
 		// ...then grab vertex 0 at its screen projection (198,198) and drag it.
 		pointer(canvas, 'pointerdown', 199, 199);
 		pointer(canvas, 'pointermove', 250, 250);
@@ -229,6 +254,16 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		expect(edited?.entity.geometry.points[0]).toEqual({ x: 2020, y: 2020 });
 		expect(edited?.entity.geometry.points[1]).toEqual({ x: 4400, y: 1500 });
 		expect(edited?.entity.geometry.points[2]).toEqual({ x: 4400, y: 3400 });
+
+		// The refresh funnel re-ran the Inspector query inside the same dispatch: the panel
+		// carries the POST-drag area (4,262,000 mm²) with no reselect in between. A stale
+		// panel is the failure mode DoD 3 exists for, and a move alone would not catch it —
+		// a translation preserves area, so only an edit that CHANGES it can tell.
+		await until(
+			() => harness.wrapper.text().includes('4.26 m²'),
+			"the Inspector to refresh to the post-drag area without a reselect",
+		);
+		expect(harness.wrapper.text()).not.toContain('5.51 m²');
 
 		harness.unmount();
 	});
@@ -265,25 +300,44 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		harness.unmount();
 	});
 
-	it('the Pan toolbar state clears the active tool; Escape abandons an in-flight gesture', async () => {
+	it('Escape abandons a half-drawn polygon BETWEEN clicks — real click pairs, no zone created', async () => {
 		const { harness, zonesRepo } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
 		toolbarButton(harness, 'Draw zone').click();
 		await settle();
-		pointer(canvas, 'pointerdown', 500, 100);
-		pointer(canvas, 'pointerdown', 600, 100);
+		// Two REAL clicks — each with its pointerup, which is the state a multi-click
+		// gesture actually lives in between vertices. The first version of this test sent
+		// bare pointerdowns, an event sequence no mouse can produce, and certified an
+		// Escape that did nothing in a vault.
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
 		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-		pointer(canvas, 'pointerdown', 500, 100); // would have closed, but the buffer is gone
+		// A close attempt after the abandon: the buffer is gone, so this places a vertex
+		// into a fresh buffer instead of closing anything.
+		click(canvas, 500, 100);
+		click(canvas, 700, 100);
+		click(canvas, 700, 200);
 		await settle();
 
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
 
+		harness.unmount();
+	});
+
+	it('the Pan toolbar state clears the active tool; camera-mode drag does not feed tools', async () => {
+		const { harness, zonesRepo } = await rig();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
 		// Back to camera mode: drag pans again instead of feeding a tool.
 		toolbarButton(harness, 'Pan').click();
 		await settle();
-		pointer(canvas, 'pointerdown', 200, 200);
+		click(canvas, 200, 200);
 		await settle();
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
 
@@ -418,6 +472,71 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		expect(harness.wrapper.text()).toContain('Multiple objects selected.');
 		expect(harness.wrapper.text()).not.toContain('Delete zone');
+
+		harness.unmount();
+	});
+
+	it('a FAILED delete surfaces through the notice seam and leaves the zone intact', async () => {
+		const plans = new InMemoryPlanRepository();
+		const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
+		await plans.save(plan, 'absent');
+		class FlakyDelete extends InMemoryZoneRepository {
+			failuresLeft = 0;
+			override delete(
+				id: Parameters<InMemoryZoneRepository['delete']>[0],
+				expected: Parameters<InMemoryZoneRepository['delete']>[1],
+			) {
+				if (this.failuresLeft > 0) {
+					this.failuresLeft -= 1;
+					return Promise.resolve({ ok: false, error: injectedPersistenceError() } as const);
+				}
+				return super.delete(id, expected);
+			}
+		}
+		const zonesRepo = new FlakyDelete();
+		const zoneA = makeZone({
+			projectId: PROJECT_ID,
+			planId: plan.id,
+			id: 'zone-a' as ZoneId,
+			name: ZONE_A_DTO.name,
+			zoneType: 'Room',
+			status: 'Planned',
+			geometry: expectOk(createPolygon(ZONE_A_DTO.points)),
+		});
+		await zonesRepo.save(zoneA, 'absent');
+		const events = new RecordingEventBus();
+		const harness = await mountPlanEditor({
+			plan: PLAN_DTO,
+			zones: [ZONE_A_DTO],
+			queries: createPlanEditorQueries({
+				getPlan: new GetPlan(plans),
+				findZonesByPlan: new FindZonesByPlan(zonesRepo),
+			}),
+			commands: {
+				createZone: new CreateZoneCommand(zonesRepo, plans, events),
+				moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
+				deleteZone: new DeleteZoneCommand(zonesRepo, events),
+				zones: zonesRepo,
+				zoneInspector: new GetZoneInspector(zonesRepo),
+			},
+		});
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Select').click();
+		click(canvas, 200, 200);
+		await settle();
+
+		zonesRepo.failuresLeft = 1;
+		const noticesBefore = Notice.shown.length;
+		toolbarButton(harness, 'Delete zone').click();
+		await settle();
+
+		// The write failed, the zone survives, and the refusal reached the user through the
+		// same seam a failed draw uses — not a silent no-op.
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(Notice.shown.length).toBe(noticesBefore + 1);
+		expect(harness.wrapper.text()).toContain('Kitchen'); // selection and panel intact
 
 		harness.unmount();
 	});

@@ -636,6 +636,23 @@ an `rbush`-backed candidate prefilter in front of it later.
 //    name (a type alias with its own doc comment): a vertex drag is a whole-geometry
 //    replacement exactly like a body drag — same wrapped command, same ledger rule — and
 //    the two differ only in how the tool computes forward/inverse.
+// 5. "Clear selection if it pointed at this zone" lives in `runtime.ts`'s `deleteZone`,
+//    NOT in the adapter's `execute()` as the Design pseudocode has it: the selection
+//    store is presentation state, and an application adapter cannot reach it (the layer
+//    ban). The adapter stays a pure snapshot-and-replay pair.
+// 6. Both spatial tolerances are SCREEN-pixel-derived through the live camera, not the
+//    world-fixed millimetre values the Design sketch implies: the click-vs-drag epsilon
+//    (4 px) and the polygon close tolerance (12 px). The world-fixed first versions were
+//    the review pass's findings — 0.5 mm is half a pixel at the default zoom (clicks
+//    became micro-move commands) and 25 mm a 2.5 px close target (sub-pixel when zoomed
+//    out). `SelectTool` already measured handle proximity in pixels; the other two now
+//    follow the same rule.
+// 7. `ToolManager.cancelGesture()` no longer requires `gestureInFlight` — it reaches the
+//    active tool whenever one is active. The in-flight flag models a DRAG (down sets it,
+//    up clears it, and a real mouse always delivers both), so a multi-click tool sat
+//    between clicks with the flag false and Escape did nothing exactly when the user
+//    needed it. The tool-switch path KEEPS the in-flight guard. Every `cancel()` is
+//    required to be safe when nothing is in flight, which they all are.
 
 ```typescript
 // presentation/editor/tools/DrawPolygonTool.ts
@@ -923,6 +940,10 @@ redefining `EditorContext`, which this slice's Out of scope refuses.
    legal — so both need their own test; and each passes trivially against an
    unconditional restore, since every individual compare-and-swap succeeds while the
    Vault ends up in a state no command would have produced.
+   **Deferred to slice 10 with the machinery it names** — `remove-references`,
+   `Requirement`, and the `affectedBefore` payload do not exist until then; in this
+   slice the undo is a single restore write and items 3a/3b/3c are unimplementable, not
+   unimplemented.
 3b. The **happy path** of that same undo still succeeds: a `remove-references` delete
    with every other endpoint untouched restores the Zone and every Requirement. This is
    a Definition of Done item rather than an obvious one because the first version of 3a

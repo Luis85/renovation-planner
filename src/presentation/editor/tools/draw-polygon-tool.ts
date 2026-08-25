@@ -1,6 +1,7 @@
 import { distance } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
+import { screenPoint } from '../viewport/Viewport';
 import type { CreateZoneInput } from '../../../application/commands/zone/CreateZone';
 import type { ReversibleCreateZoneCommand } from '../../../application/commands/zone/reversible-create-zone-command';
 import type { EditorContext } from './editor-context';
@@ -27,10 +28,14 @@ export interface DrawPolygonToolDeps {
 }
 
 /**
- * How close to the first vertex a click must land to close the polygon, in world
- * millimetres. Generous relative to a pointer at usable zooms, small relative to rooms.
+ * How close to the first vertex a click must land to close the polygon — in SCREEN
+ * pixels, converted through the CURRENT camera on every click. A world-fixed tolerance
+ * was the first version's defect: 25 mm is a 2.5 px target at the default zoom and goes
+ * sub-pixel when zoomed out, making polygons nearly impossible to close exactly when the
+ * plan is smallest on screen. Twelve pixels: a deliberate click lands, a vertex-placement
+ * click does not stumble into it.
  */
-const CLOSE_TOLERANCE_MM = 25;
+const CLOSE_TOLERANCE_PX = 12;
 
 /**
  * The polygon-drawing tool (design slice 8, SDD §57): click places vertices,
@@ -52,30 +57,45 @@ export class DrawPolygonTool implements EditorTool {
 
 	private context: EditorContext | null = null;
 	private buffer: Point[] = [];
+	/**
+	 * A close is in flight. `closePolygon` crosses an awaited dispatch with the buffer
+	 * deliberately intact (a rejection must keep the user's work), so a second click near
+	 * the first vertex during that window would otherwise run the whole close again
+	 * against the SAME buffer — two zones, two history entries, one shape.
+	 */
+	private closing = false;
 
 	constructor(private readonly deps: DrawPolygonToolDeps) {}
 
 	activate(context: EditorContext): void {
 		this.context = context;
 		this.buffer = [];
+		this.closing = false;
 		this.clearPreview(context);
 	}
 
 	deactivate(): void {
 		const context = this.context;
 		this.buffer = [];
+		this.closing = false;
 		if (context !== null) this.clearPreview(context);
 		this.context = null;
 	}
 
 	pointerDown(event: EditorPointerEvent): void {
 		const context = this.context;
-		if (context === null || event.button !== 'primary') return;
+		if (context === null || event.button !== 'primary' || this.closing) return;
 		const snapped = context.snapService.snapPoint(event.worldPoint, {});
+		// Camera-scaled closing tolerance — see the constant's own comment. Measured
+		// against the UNSNAPPED click so a grid snap cannot drag a near-miss into a close.
+		const zero = context.viewport.screenToWorld(screenPoint(0, 0));
+		const one = context.viewport.screenToWorld(screenPoint(1, 0));
+		const closeToleranceWorld = CLOSE_TOLERANCE_PX * distance(zero, one);
 		if (
 			this.buffer.length >= 3 &&
-			distance(snapped, this.buffer[0]) <= CLOSE_TOLERANCE_MM
+			distance(event.worldPoint, this.buffer[0]) <= closeToleranceWorld
 		) {
+			this.closing = true;
 			void this.closePolygon(context);
 			return;
 		}
@@ -85,7 +105,7 @@ export class DrawPolygonTool implements EditorTool {
 
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
-		if (context === null || this.buffer.length === 0) return;
+		if (context === null || this.buffer.length === 0 || this.closing) return;
 		// Rubber-band preview edge from the last vertex to the pointer — InteractionLayer
 		// only, no domain state touched.
 		context.renderState.previewPolygon = [...this.buffer, event.worldPoint];
@@ -96,6 +116,7 @@ export class DrawPolygonTool implements EditorTool {
 	cancel(): void {
 		const context = this.context;
 		this.buffer = [];
+		this.closing = false;
 		if (context !== null) this.clearPreview(context); // no command dispatched
 	}
 
@@ -104,29 +125,34 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	private async closePolygon(context: EditorContext): Promise<void> {
-		const polygonResult = createPolygon(this.buffer);
-		if (!polygonResult.ok) {
-			this.deps.reportRejected(polygonResult.error);
-			return; // buffer intact — keep the user's in-progress work
+		try {
+			const polygonResult = createPolygon(this.buffer);
+			if (!polygonResult.ok) {
+				this.deps.reportRejected(polygonResult.error);
+				return; // buffer intact — keep the user's in-progress work
+			}
+			const geometry: Polygon = polygonResult.value;
+			const command = this.deps.createCommand({
+				planId: context.activePlan.id,
+				name: this.deps.nextZoneName(),
+				zoneType: 'Room',
+				geometry,
+			});
+			const result = await context.commandDispatcher.run(command);
+			if (!result.ok) {
+				this.deps.reportRejected(result.error);
+				return; // buffer intact here too
+			}
+			this.buffer = [];
+			this.clearPreview(context);
+			// Selecting what was just drawn is safe now: by the time the dispatch resolves, the
+			// refresh decorator has re-hydrated the store, so the new zone renders and is a
+			// valid hit-test candidate.
+			const zoneId = command.createdZoneId;
+			if (zoneId !== null) context.selection.select([zoneId]);
+		} finally {
+			// The window is over whichever way it resolved; the next click is a fresh gesture.
+			this.closing = false;
 		}
-		const geometry: Polygon = polygonResult.value;
-		const command = this.deps.createCommand({
-			planId: context.activePlan.id,
-			name: this.deps.nextZoneName(),
-			zoneType: 'Room',
-			geometry,
-		});
-		const result = await context.commandDispatcher.run(command);
-		if (!result.ok) {
-			this.deps.reportRejected(result.error);
-			return; // buffer intact here too
-		}
-		this.buffer = [];
-		this.clearPreview(context);
-		// Selecting what was just drawn is safe now: by the time the dispatch resolves, the
-		// refresh decorator has re-hydrated the store, so the new zone renders and is a
-		// valid hit-test candidate.
-		const zoneId = command.createdZoneId;
-		if (zoneId !== null) context.selection.select([zoneId]);
 	}
 }

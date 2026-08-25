@@ -176,6 +176,13 @@
 	min-height: 0;
 	overflow: hidden;
 	background-color: var(--background-primary);
+
+	/* The canvas owns every pointer gesture over it: without this the browser claims a
+	   touch or trackpad drag for scrolling and fires `pointercancel` mid-gesture, so a
+	   zone drag ends with no `pointerup` at all. `PlanCanvas.vue` handles that event
+	   anyway — the manifest promises mobile (`isDesktopOnly: false`) and a cancelled
+	   pointer has other causes — but a gesture that is never stolen is the better fix. */
+	touch-action: none;
 }
 
 .rp-editor-canvas-message {

@@ -10,7 +10,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
-import { useEditorContext } from './EditorContext';
+import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
@@ -22,7 +22,7 @@ import InspectorPanel from './shell/InspectorPanel.vue';
 import LayersPanel from './shell/LayersPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
 
-const context = useEditorContext();
+const context = usePlanEditorContext();
 // The leaf's live machinery — history, tools, selection, inspector — built once here,
 // inside the tree whose Pinia instance owns the stores it hands out.
 provideEditorRuntime(context);

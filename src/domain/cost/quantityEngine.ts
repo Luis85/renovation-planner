@@ -109,7 +109,10 @@ export function applyRequirementRule(
 			message: 'A coverage rate of zero divides by zero.',
 		});
 	}
-	if (rule.coverageRate.isNegative()) {
+	// `lessThan(0)`, like every other sign test here: `isNegative()` reports negative zero
+	// as negative. The `isZero()` guard above already refuses -0 on this path, so the change
+	// is about there being ONE spelling of "is this negative" rather than about behaviour.
+	if (rule.coverageRate.lessThan(0)) {
 		return err({
 			category: 'Calculation',
 			code: 'quantity.negative-coverage-rate',
@@ -126,7 +129,9 @@ export function applyWaste(
 ): Result<Quantity, CalculationError> {
 	const negative = negativeQuantity(required);
 	if (negative) return err(negative);
-	if (wastePercent.isNegative()) {
+	// A waste percentage of zero is legitimate, and negative zero is a zero — see
+	// `negativeQuantity` above for why `isNegative()` is the wrong test.
+	if (wastePercent.lessThan(0)) {
 		return err({
 			category: 'Calculation',
 			code: 'quantity.negative-waste',

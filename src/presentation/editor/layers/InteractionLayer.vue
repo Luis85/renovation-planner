@@ -19,6 +19,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
+import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -61,7 +62,9 @@ const selectedFlat = computed(() =>
 		: selectedScreenPoints.value.flatMap((at) => [at.x, at.y]),
 );
 
-const HANDLE_RADIUS_PX = 4;
+// The drawn radius; `VERTEX_GRAB_RADIUS_PX` beside it is the region that grabs it. Both
+// live in `../handleMetrics.ts` because they were declared independently here and in
+// `select-tool.ts`, under the same name, with different values.
 </script>
 
 <template>
@@ -95,7 +98,7 @@ const HANDLE_RADIUS_PX = 4;
 				:config="{
 					x: vertex.x,
 					y: vertex.y,
-					radius: HANDLE_RADIUS_PX,
+					radius: VERTEX_HANDLE_RADIUS_PX,
 					fill: props.tokens.canvasBackground,
 					stroke: props.tokens.accent,
 					strokeWidth: 1.5,

@@ -50,7 +50,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 				ledger,
 				{ zoneId: zone.id },
 			);
-		return { zones, events, zone, makeCommand };
+		return { zones, events, zone, ledger, makeCommand };
 	};
 
 	it('deletes through the plain command and publishes ZoneDeleted', async () => {
@@ -116,5 +116,32 @@ describe('ReversibleDeleteZoneCommand', () => {
 		const { makeCommand } = await wired();
 		const error = expectErr(await makeCommand().undo());
 		expect(error.code).toBe('zone.nothing-to-undo');
+	});
+	it('a successful delete FORGETS the ledger entry rather than keeping a dead revision', async () => {
+		// The note is gone, so there is no revision to remember. Keeping the pre-delete one
+		// leaves the ledger answering a version for a note that does not exist — and the
+		// first half to present it as an expectation (slice 10's cascade-aware delete is the
+		// named candidate) refuses a legitimate undo against a revision nothing has.
+		const { zones, zone, ledger, makeCommand } = await wired();
+		const loaded = expectOk(await zones.getById(zone.id));
+		if (loaded === null) throw new Error('expected the seeded zone to exist');
+		ledger.record(zone.id, loaded.version);
+		expect(ledger.lastWritten(zone.id)).not.toBeNull();
+
+		expect(expectOk(await makeCommand().execute())).toBeUndefined();
+
+		expect(ledger.lastWritten(zone.id)).toBeNull();
+	});
+
+	it('undo records the RESTORED version, so a redo presents what the last write left', async () => {
+		const { zone, ledger, makeCommand } = await wired();
+		const reversible = makeCommand();
+		await reversible.execute();
+
+		await reversible.undo();
+
+		// The ledger is what every sibling adapter reads its expectation from; a restore
+		// that went unrecorded hands the next move command a stale version.
+		expect(ledger.lastWritten(zone.id)).not.toBeNull();
 	});
 });

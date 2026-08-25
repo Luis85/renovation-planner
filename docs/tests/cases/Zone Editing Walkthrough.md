@@ -11,6 +11,7 @@ sources:
   - SDD §57
   - SDD §59
   - SDD §91
+status: Approved
 ---
 # Zone Editing Walkthrough
 
@@ -46,7 +47,10 @@ The steps below are the ones where "the suite is green" proves nothing about the
 | 13 | Undo the delete | The zone returns with the same shape — open the note and check | Restore through the repository, same ID, publishing no creation event |
 | 14 | Redo | The zone is deleted again | Redo replays against the restored identity |
 | 15 | Toggle the plugin off and on | Every drawn zone is still there; the console shows no `Several Konva instances detected` | Persistence across unload, and the Konva global release |
-| 16 | Open the plan in two tabs; undo in one | The other tab's canvas and Undo button are unaffected | Per-leaf runtime: history, selection and camera are per leaf, never shared |
+| 16 | Open the plan in two tabs (split the leaf); move a zone in one | The OTHER tab's canvas shows the move too, while its Undo button stays disabled and its camera and selection do not move | The two halves that must both hold: zone events reach every leaf showing the plan, and history/selection/camera stay per leaf. Before the review pass the second tab drew the pre-edit zones indefinitely and hit-tested against zones that no longer existed |
+| 17 | Select a zone, then CLICK one of its vertex handles without dragging | Nothing moves and Undo does not enable | The click-vs-drag epsilon on the VERTEX gesture. It applied to body drags only, so a click within the handle teleported that vertex — up to 8 mm per percent of zoom, ~80 mm at the default camera — and pushed a real move onto the undo stack |
+| 18 | Start dragging a zone, and right-click mid-drag without releasing the left button | The drag continues; releasing the left button commits exactly one move | Button routing. The canvas forwarded every `pointerup` while filtering `pointerdown`, so the right-button release committed the move at the half-finished position and the real release did nothing |
+| 19 | On a touch screen or trackpad, start a zone drag and swipe as if to scroll the pane | Either the drag continues or nothing moves at all — never a zone that jumps to a later, unrelated click | `touch-action: none` plus the `pointercancel` handler. A stolen gesture delivers no `pointerup`, and the abandoned gesture used to stay live |
 
 ## Deliberately NOT checked
 

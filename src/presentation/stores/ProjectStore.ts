@@ -31,6 +31,19 @@ export const useProjectStore = defineStore('project', () => {
 	const zones = ref<ReadonlyMap<string, ZoneDto>>(new Map());
 	const status = ref<ProjectStoreStatus>('idle');
 	const error = ref<PersistenceError | null>(null);
+	/**
+	 * The ticket every `hydrate` call takes before its first await, so a slower earlier
+	 * read cannot land on top of a faster later one.
+	 *
+	 * There are two concurrent callers now, not one: the post-command refresh funnel
+	 * (`withEditorStateRefresh`) and the plan-change listener the root subscribes — and
+	 * `ProjectIndexRebuilt` reaches every leaf regardless of which plan it touched. Two
+	 * overlapping hydrations would otherwise resolve in whatever order the vault answered,
+	 * and the LAST assignment wins whether or not it is the freshest: a just-drawn zone
+	 * disappears from the canvas with no error anywhere. `InspectorStore` guards exactly
+	 * this with the same mechanism.
+	 */
+	let latestHydration = 0;
 
 	/**
 	 * A failed read leaves NO stale plan behind. Keeping the previous one would draw a
@@ -72,6 +85,8 @@ export const useProjectStore = defineStore('project', () => {
 		planId: string,
 		options?: { readonly keepPreviousOnFailure?: boolean },
 	): Promise<void> {
+		const request = ++latestHydration;
+		const superseded = (): boolean => request !== latestHydration;
 		const keepOnFailure = options?.keepPreviousOnFailure === true;
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
@@ -82,6 +97,7 @@ export const useProjectStore = defineStore('project', () => {
 		error.value = null;
 
 		const foundPlan = await queries.getPlan(planId);
+		if (superseded()) return;
 		if (isErr(foundPlan)) {
 			if (keepOnFailure && status.value === 'ready') {
 				error.value = foundPlan.error;
@@ -97,6 +113,7 @@ export const useProjectStore = defineStore('project', () => {
 		}
 
 		const foundZones = await queries.findZonesByPlan(planId);
+		if (superseded()) return;
 		if (isErr(foundZones)) {
 			if (keepOnFailure && status.value === 'ready') {
 				error.value = foundZones.error;
@@ -112,6 +129,9 @@ export const useProjectStore = defineStore('project', () => {
 
 	/** What the view calls on close, so a reused leaf never opens onto the last Plan. */
 	function reset(): void {
+		// Invalidates any hydration still in flight: a leaf closing must not have the plan
+		// it was reading painted back in a tick later.
+		latestHydration += 1;
 		project.value = null;
 		plan.value = null;
 		zones.value = new Map();

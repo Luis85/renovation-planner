@@ -4,7 +4,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { Vector } from '../../../core/geometry/Vector';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import { screenPoint } from '../viewport/Viewport';
+import { VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
@@ -39,20 +39,31 @@ export interface SelectToolDeps {
 	readonly reportRejected: (error: { message: string }) => void;
 }
 
-/** Vertex handles are eight screen pixels across at every zoom (SDD §19). */
-const HANDLE_RADIUS_PX = 8;
 /**
  * Below this SCREEN displacement, pointerUp is a click, not a drag — converted to world
  * millimetres through the CURRENT camera on every release. A world-fixed epsilon was the
  * first version's defect: 0.5 mm is half a pixel at the default zoom, so ordinary hand
  * jitter during a click dispatched a move command — exactly the history pollution the
  * spec's "a no-op move must not pollute the undo stack" exists to prevent.
+ *
+ * It is measured on EVERY gesture, body and vertex alike. The second version's defect was
+ * applying it only to body drags: a plain click on a vertex handle then teleported that
+ * vertex to the click point — up to `VERTEX_GRAB_RADIUS_PX` away, which is 80 mm at the
+ * default zoom — and pushed a real move onto the undo stack. Both gestures therefore
+ * record where they STARTED, which is the whole reason the vertex arm carries a
+ * `startWorld` it otherwise has no use for.
  */
 const CLICK_EPSILON_PX = 4;
 
 type Gesture =
 	| { readonly kind: 'body'; zoneId: ZoneId; original: Polygon; startWorld: Point }
-	| { readonly kind: 'vertex'; zoneId: ZoneId; original: Polygon; index: number };
+	| {
+			readonly kind: 'vertex';
+			zoneId: ZoneId;
+			original: Polygon;
+			index: number;
+			startWorld: Point;
+	  };
 
 /**
  * The selection tool (design slice 8, SDD §57), scoped to `Zone` because that is the only
@@ -73,9 +84,11 @@ type Gesture =
  * snap → validate → dispatch funnel; undo restores the prior list, so only that vertex
  * differs by construction.
  *
- * All arithmetic runs on `event.worldPoint` / `event.screenPoint`; handle proximity is
- * measured in SCREEN pixels against the world→screen projection of each vertex, so a
- * handle stays eight pixels across at every zoom.
+ * All arithmetic runs on `event.worldPoint`; handle proximity is measured in SCREEN
+ * pixels converted through the current camera, so the grab region stays
+ * `VERTEX_GRAB_RADIUS_PX` at every zoom. That constant and the radius the
+ * `InteractionLayer` DRAWS live together in `../handleMetrics.ts`, which is what keeps
+ * "what you see" and "what you can grab" in a stated relationship.
  */
 export class SelectTool implements EditorTool {
 	readonly id: ToolId = 'select';
@@ -102,13 +115,16 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
 
+		// ONE materialisation of the candidate list per gesture. `spatialObjects()` maps the
+		// store's reactive zone map into fresh wrapper objects on every call, and this method
+		// used to invoke it twice — once for the handle test and again inside `hitTest`.
+		const candidates = this.deps.spatialObjects();
+
 		// A vertex handle of the ALREADY-SELECTED zone takes precedence over a body hit:
 		// once handles are showing they sit on top of the body visually too.
 		const selectedIds = context.selection.selectedIds;
 		if (selectedIds.length === 1) {
-			const selected = this.deps
-				.spatialObjects()
-				.find((object) => object.id === selectedIds[0]);
+			const selected = candidates.find((object) => object.id === selectedIds[0]);
 			if (selected !== undefined) {
 				const vertexIndex = this.vertexAt(context, event, selected.points);
 				if (vertexIndex >= 0) {
@@ -117,13 +133,14 @@ export class SelectTool implements EditorTool {
 						zoneId: selected.id as ZoneId,
 						original: { points: [...selected.points] },
 						index: vertexIndex,
+						startWorld: event.worldPoint,
 					};
 					return;
 				}
 			}
 		}
 
-		const hit = this.hitTest(event.worldPoint);
+		const hit = this.hitTest(candidates, event.worldPoint);
 		if (hit === null) {
 			context.selection.clear();
 			return;
@@ -158,26 +175,45 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		const gesture = this.gesture;
 		if (context === null || gesture === null) return;
+		// A mouse shares one `pointerId` across its buttons, and `pointerdown` on a
+		// non-primary button never started this gesture — so a secondary or middle release
+		// mid-drag must not end it. Without this guard a reflexive right-click during a
+		// drag committed the move at the half-finished position and left the real release
+		// a silent no-op.
+		if (event.button !== 'primary') return;
 		this.gesture = null;
+
+		const by: Vector = {
+			dx: event.worldPoint.x - gesture.startWorld.x,
+			dy: event.worldPoint.y - gesture.startWorld.y,
+		};
+		// Camera-scaled, and measured for BOTH gesture kinds: below it the pointer never
+		// travelled, so there is nothing to move whichever handle it went down on.
+		const worldPerPixel = context.viewport.worldPerScreenPixel();
+		if (Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * worldPerPixel) {
+			// A click, not a drag: pure selection, nothing dispatched, no history entry.
+			context.renderState.previewPolygon = null;
+			return;
+		}
 
 		let forwardPoints: Point[];
 		if (gesture.kind === 'body') {
-			const by: Vector = {
-				dx: event.worldPoint.x - gesture.startWorld.x,
-				dy: event.worldPoint.y - gesture.startWorld.y,
+			// ONE snap, of the translated first vertex, and the correction it produces is
+			// applied to every point. Snapping each vertex independently was the previous
+			// spelling and is not a translation at all: with a live candidate set, one
+			// corner would land on a guide while the opposite corner stayed where it was,
+			// so a "move" would silently deform the zone and change its area.
+			const translated = translate(gesture.original, by).points;
+			const anchor = translated[0];
+			const snappedAnchor = context.snapService.snapPoint(anchor, {});
+			const correction: Vector = {
+				dx: snappedAnchor.x - anchor.x,
+				dy: snappedAnchor.y - anchor.y,
 			};
-			// Camera-scaled: how many world millimetres one screen pixel is right now,
-			// measured through the same transform the canvas converts events with.
-			const zero = context.viewport.screenToWorld(screenPoint(0, 0));
-			const one = context.viewport.screenToWorld(screenPoint(1, 0));
-			if (Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * distance(zero, one)) {
-				// A click, not a drag: pure selection, nothing dispatched, no history entry.
-				context.renderState.previewPolygon = null;
-				return;
-			}
-			forwardPoints = translate(gesture.original, by).points.map((point) =>
-				context.snapService.snapPoint(point, {}),
-			);
+			forwardPoints = translated.map((point) => ({
+				x: point.x + correction.dx,
+				y: point.y + correction.dy,
+			}));
 		} else {
 			forwardPoints = [...gesture.original.points];
 			forwardPoints[gesture.index] = context.snapService.snapPoint(event.worldPoint, {});
@@ -211,9 +247,16 @@ export class SelectTool implements EditorTool {
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 
-	private hitTest(worldPoint: Point): SpatialObjectCandidate | null {
+	private hitTest(
+		candidates: readonly SpatialObjectCandidate[],
+		worldPoint: Point,
+	): SpatialObjectCandidate | null {
 		// Topmost-first: reverse z-order, so an overlapping stack selects what is on top.
-		for (const candidate of [...this.deps.spatialObjects()].toReversed()) {
+		// Walked backwards by index rather than copied to reverse — `[...list].toReversed()`
+		// allocated two more arrays per click on top of the one `spatialObjects()` had just
+		// built, since `toReversed` already returns a new array.
+		for (let index = candidates.length - 1; index >= 0; index -= 1) {
+			const candidate = candidates[index];
 			const inside = contains({ points: candidate.points }, worldPoint);
 			if (inside.ok && inside.value) return candidate;
 		}
@@ -225,12 +268,9 @@ export class SelectTool implements EditorTool {
 		event: EditorPointerEvent,
 		points: readonly Point[],
 	): number {
-		// The handle stays HANDLE_RADIUS_PX across at every zoom, so the tolerance is
-		// derived from the CURRENT camera: how many world millimetres one screen pixel is
-		// right now, measured through the same transform the canvas converts events with.
-		const zero = context.viewport.screenToWorld(screenPoint(0, 0));
-		const one = context.viewport.screenToWorld(screenPoint(1, 0));
-		const toleranceWorld = HANDLE_RADIUS_PX * distance(zero, one);
+		// The grab region is a constant SCREEN size at every zoom, so its world-space
+		// tolerance is derived from the current camera on every gesture.
+		const toleranceWorld = VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel();
 		for (const [index, point] of points.entries()) {
 			if (distance(point, event.worldPoint) <= toleranceWorld) return index;
 		}

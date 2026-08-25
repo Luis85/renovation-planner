@@ -12,8 +12,27 @@
  */
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
+import type { StringKey } from '../../i18n/locales/en';
+import type { ToolId } from '../tools/editor-tool';
 
 const runtime = useEditorRuntime();
+
+/**
+ * The mode buttons as DATA, one row per selectable mode — `null` being camera mode.
+ *
+ * A table rather than three near-identical ten-line `<button>` blocks: each block repeated
+ * its own id in three places (the class test, the `aria-pressed` test and the click), and
+ * a mismatch between the first two is a real accessibility defect that valid ARIA hides
+ * from the axe-core suite. Registering the next tool is now a row.
+ *
+ * `StringKey` keeps it type-checked: a label key the string table does not declare fails
+ * `npm run build`, exactly as a `tr(...)` call in a template does.
+ */
+const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[] = [
+	{ id: null, label: 'editor.toolbar.pan' },
+	{ id: 'select', label: 'editor.toolbar.select' },
+	{ id: 'draw-polygon', label: 'editor.toolbar.draw-zone' },
+];
 </script>
 
 <template>
@@ -23,34 +42,16 @@ const runtime = useEditorRuntime();
 		:aria-label="tr('editor.toolbar')"
 	>
 		<button
+			v-for="mode in MODES"
+			:key="mode.label"
 			type="button"
 			class="rp-editor-tool-button"
-			:class="{ 'rp-editor-tool-active': runtime.activeToolId.value === null }"
-			:aria-pressed="runtime.activeToolId.value === null"
-			:title="tr('editor.toolbar.pan')"
-			@click="runtime.setTool(null)"
+			:class="{ 'rp-editor-tool-active': runtime.activeToolId.value === mode.id }"
+			:aria-pressed="runtime.activeToolId.value === mode.id"
+			:title="tr(mode.label)"
+			@click="runtime.setTool(mode.id)"
 		>
-			{{ tr('editor.toolbar.pan') }}
-		</button>
-		<button
-			type="button"
-			class="rp-editor-tool-button"
-			:class="{ 'rp-editor-tool-active': runtime.activeToolId.value === 'select' }"
-			:aria-pressed="runtime.activeToolId.value === 'select'"
-			:title="tr('editor.toolbar.select')"
-			@click="runtime.setTool('select')"
-		>
-			{{ tr('editor.toolbar.select') }}
-		</button>
-		<button
-			type="button"
-			class="rp-editor-tool-button"
-			:class="{ 'rp-editor-tool-active': runtime.activeToolId.value === 'draw-polygon' }"
-			:aria-pressed="runtime.activeToolId.value === 'draw-polygon'"
-			:title="tr('editor.toolbar.draw-zone')"
-			@click="runtime.setTool('draw-polygon')"
-		>
-			{{ tr('editor.toolbar.draw-zone') }}
+			{{ tr(mode.label) }}
 		</button>
 		<span class="rp-editor-toolbar-spacer" />
 		<button

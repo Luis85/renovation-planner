@@ -90,7 +90,7 @@ describe('computeEstimatedCost', () => {
 		expect(sameAmount(without.calculated, '219.88')).toBe(true);
 	});
 
-	it('applies a discount alone at full precision, half-up where banker’s rounding differs', () => {
+	it('applies a discount alone in decimal, half-up where banker’s rounding differs', () => {
 		const discounted = expectOk(
 			computeEstimatedCost({
 				quantity: workedExampleQuantity(),
@@ -234,5 +234,25 @@ describe('computeEstimatedCost', () => {
 			}),
 		);
 		expect(sameAmount(none.calculated, '25.00')).toBe(true);
+	});
+	it('accepts a NEGATIVE ZERO tax rate and a negative-zero discount — both are zero', () => {
+		// decimal.js reports negative zero as negative, so `isNegative()` refused a rate of
+		// zero arrived at by multiplication — exactly the construction `quantityEngine`
+		// names beside its own `lessThan(0)`. Two answers to one question, one directory
+		// apart, and the newer one had already written down why the older was wrong.
+		const negativeZero = new Decimal(0).mul(-1);
+		expect(negativeZero.isNegative()).toBe(true); // the property this guards against
+		expect(negativeZero.lessThan(0)).toBe(false);
+
+		for (const field of ['taxRate', 'discount'] as const) {
+			const input = {
+				quantity: { value: new Decimal('2'), unit: 'm2' as const },
+				unitPrice: moneyOf('10.00', 'USD'),
+				...(field === 'taxRate'
+					? { taxRate: negativeZero }
+					: { discount: { kind: 'percent' as const, percent: negativeZero } }),
+			};
+			expect(computeEstimatedCost(input)).toMatchObject({ ok: true });
+		}
 	});
 });

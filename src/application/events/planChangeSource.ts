@@ -10,11 +10,25 @@ import type { PlanEventPayload } from '../../domain/plan/Plan.events';
  * never learns either, which is what stops a view from subscribing to an event type by
  * string and quietly missing the next one added here.
  *
- * The LIST is the extension point. Slice 7 adds calibration's own re-render this way and
- * slice 8 adds the zone events, each by naming an event here rather than by giving the
- * Plan Editor a second refresh path.
+ * The LIST is the extension point: an event is delivered to a plan's leaves by being
+ * named here, rather than by giving the Plan Editor a second refresh path.
+ *
+ * **The zone events are on it, and slice 8's own refresh decorator is not a substitute.**
+ * That decorator re-reads the leaf whose dispatcher ran — which is every leaf, as long as
+ * nothing else can change a zone. Two things can: a second Plan Editor leaf on the same
+ * plan (`revealPlanEditor` reuses an existing one, but Obsidian's own "split" duplicates a
+ * leaf with its view state intact), and any write from outside the editor — the sample
+ * seed, a synced note, a later slice's Bases view. Without these three the second leaf
+ * drew a stale zone set indefinitely and hit-tested against zones that no longer existed.
+ * The dispatching leaf pays one redundant re-read for it, which is a cost, not a defect.
  */
-const PLAN_CHANGE_EVENTS = ['PlanBackgroundChanged', 'PlanCalibrated'] as const;
+const PLAN_CHANGE_EVENTS = [
+	'PlanBackgroundChanged',
+	'PlanCalibrated',
+	'ZoneCreated',
+	'ZoneGeometryChanged',
+	'ZoneDeleted',
+] as const;
 
 /**
  * Events that mean "re-read, whichever plan you are showing" — a SECOND list rather than a

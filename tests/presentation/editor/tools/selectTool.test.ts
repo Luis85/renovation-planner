@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
 import { SelectTool } from '../../../../src/presentation/editor/tools/select-tool';
 import type { EditorContext } from '../../../../src/presentation/editor/tools/editor-context';
-import type { EditorPointerEvent } from '../../../../src/presentation/editor/tools/editor-tool';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
-import { RenderState } from '../../../../src/presentation/editor/tools/render-state';
-import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
 import { ok, err } from '../../../../src/core/result/Result';
 import { createPolygon, type Polygon } from '../../../../src/core/geometry/Polygon';
 import type { Point } from '../../../../src/core/geometry/Point';
+import { flushGesture as flush, pointerAt as eventAt, toolContext } from '../../../helpers/tool-context';
 
 /**
  * Design slice 8 — `SelectTool` (docs/tasks/08-zone-editing.md, "Selecting a zone",
@@ -20,6 +19,7 @@ import type { Point } from '../../../../src/core/geometry/Point';
 interface Harness {
 	context: EditorContext;
 	gestures: Array<{ zoneId: string; forward: Polygon; inverse: Polygon }>;
+	rejections: string[];
 }
 
 function squarePoints(x: number, y: number): readonly Point[] {
@@ -33,46 +33,13 @@ function squarePoints(x: number, y: number): readonly Point[] {
 	return result.value.points;
 }
 
-function harness(): Harness {
+function harness(worldPerScreenPixel = 1): Harness {
 	setActivePinia(createPinia());
-	const gestures: Harness['gestures'] = [];
-	const rejections: string[] = [];
-
-	const selection = {
-		selectedIds: [] as string[],
-		select(ids: readonly string[]) {
-			this.selectedIds = [...ids];
-		},
-		clear() {
-			this.selectedIds = [];
-		},
-		isSelected(id: string) {
-			return this.selectedIds.includes(id);
-		},
-	};
-	const context: EditorContext = {
-		viewport: {
-			worldToScreen: (point) => point as never,
-			screenToWorld: (point) => point as never,
-			setPan: () => undefined,
-			setZoom: () => undefined,
-		},
-		selection,
-		snapService: { snapPoint: (point) => point } as never,
-		commandDispatcher: {
-			run: () => Promise.resolve(ok(undefined)),
-		},
-		writeLedger: {} as never,
-		renderState: new RenderState(),
-		activePlan: { id: 'plan-1' as never, calibration: null },
-	};
-
-	return { context, gestures, rejections };
-}
-
-/** Drains the gesture's microtask chain before its dispatch result is asserted. */
-async function flush(): Promise<void> {
-	for (let round = 0; round < 8; round++) await Promise.resolve();
+	const { context, rejections } = toolContext({
+		worldPerScreenPixel,
+		commandDispatcher: { run: () => Promise.resolve(ok(undefined)) },
+	});
+	return { context, gestures: [], rejections };
 }
 
 function build(
@@ -91,16 +58,6 @@ function build(
 		},
 		reportRejected: (error) => h.rejections.push(error.message),
 	});
-}
-
-function eventAt(worldX: number, worldY: number): EditorPointerEvent {
-	return {
-		worldPoint: { x: worldX, y: worldY },
-		screenPoint: screenPoint(worldX, worldY),
-		button: 'primary',
-		modifiers: { shift: false, ctrl: false, alt: false },
-		targetId: null,
-	};
 }
 
 describe('SelectTool', () => {
@@ -326,13 +283,9 @@ describe('SelectTool', () => {
 
 	it('a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click', () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
-		const h = harness();
 		// 10 world millimetres per screen pixel — ten times coarser than the default
 		// camera. A world-fixed 0.5 mm epsilon would call a 1 px hand jitter a move.
-		h.context.viewport.screenToWorld = ((point: { x: number; y: number }) => ({
-			x: point.x * 10,
-			y: point.y * 10,
-		})) as never;
+		const h = harness(10);
 		const tool = build(h, candidates);
 		tool.activate(h.context);
 
@@ -342,5 +295,79 @@ describe('SelectTool', () => {
 
 		expect(h.gestures).toHaveLength(0);
 		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+	});
+	it('a CLICK on a vertex handle moves nothing and adds no history entry', () => {
+		// The click-versus-drag epsilon used to live only in the body branch, so a plain
+		// click within the grab radius of a vertex teleported that vertex to the click point
+		// and pushed a real move onto the undo stack. At the default camera the grab radius
+		// is 80 world millimetres, so "within the handle" is a long way from "on the vertex".
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness(10); // 10 world mm per screen pixel — the default camera
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10)); // select the zone so its handles show
+		tool.pointerUp(eventAt(10, 10));
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+
+		// Down and up at the SAME point, 20 world mm (2 px) off the corner at (100, 0) —
+		// inside the 8 px grab radius, so this is unambiguously a vertex gesture.
+		tool.pointerDown(eventAt(100, 20));
+		tool.pointerUp(eventAt(100, 20));
+
+		expect(h.gestures).toHaveLength(0);
+		expect(h.context.renderState.previewPolygon).toBeNull();
+	});
+
+	it('a NON-PRIMARY release during a drag does not commit the move', () => {
+		// A mouse shares one pointerId across its buttons, so a reflexive right-click
+		// mid-drag delivers a secondary pointerup. It never started this gesture and must
+		// not end it: committing there wrote the zone at a half-finished position and left
+		// the real release a silent no-op.
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerMove(eventAt(60, 10));
+		tool.pointerUp(eventAt(60, 10, 'secondary'));
+
+		expect(h.gestures).toHaveLength(0);
+
+		// The gesture is still live, so the real release still commits it.
+		tool.pointerUp(eventAt(60, 10));
+		expect(h.gestures).toHaveLength(1);
+		expect(h.gestures[0].forward.points[0]).toEqual({ x: 50, y: 0 });
+	});
+
+	it('a body move is a RIGID translation even when the snap moves the anchor', () => {
+		// The snap used to be applied to every vertex INDEPENDENTLY, which is not a
+		// translation: with live candidates one corner lands on a guide while the opposite
+		// corner stays put, so a "move" silently changes the zone's shape and area. One snap
+		// of the anchor, that correction applied to every point.
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		setActivePinia(createPinia());
+		const { context, rejections } = toolContext({
+			commandDispatcher: { run: () => Promise.resolve(ok(undefined)) },
+			// A grid that only ever pulls the first vertex — the pathological case an
+			// independent per-vertex snap deforms and a delta snap does not.
+			snapPoint: (point) => (point.x === 50 && point.y === 0 ? { x: 40, y: 0 } : point),
+		});
+		const h: Harness = { context, gestures: [], rejections };
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerUp(eventAt(60, 10)); // delta (+50, 0); anchor lands on (50, 0) and snaps to (40, 0)
+
+		expect(h.gestures).toHaveLength(1);
+		// Every point moved by the SAME corrected delta (+40, 0): still a 100 x 100 square.
+		expect(h.gestures[0].forward.points).toEqual([
+			{ x: 40, y: 0 },
+			{ x: 140, y: 0 },
+			{ x: 140, y: 100 },
+			{ x: 40, y: 100 },
+		]);
 	});
 });

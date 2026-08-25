@@ -68,7 +68,7 @@ describe('subtract', () => {
 });
 
 describe('scale', () => {
-	it('multiplies a unit price by a quantity at full precision', () => {
+	it('multiplies a unit price by a quantity in decimal, not binary floating point', () => {
 		expect(sameAmount(scale(of('12.50', 'USD'), new Decimal('15')), '187.50')).toBe(true);
 	});
 });

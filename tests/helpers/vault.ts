@@ -42,6 +42,18 @@ class FakeVault {
 	readonly failures = new Set<string>();
 	failedOps: string[] = [];
 
+	/**
+	 * Every operation this fake performed, in order, as `<op>:<path>` — the instrument for
+	 * asserting how MANY vault reads a repository call costs.
+	 *
+	 * A count is otherwise invisible: `listByPlan` re-read, re-parsed and re-validated the
+	 * whole plan geometry sidecar once per zone, so reflecting one changed zone was O(N)
+	 * file reads and O(N²) point validations, and the editor's post-command refresh pays
+	 * that on every drag release, drawn polygon, delete and Undo press. Every test passed
+	 * throughout, because a correct answer arrived either way.
+	 */
+	readonly operations: string[] = [];
+
 	getAbstractFileByPath(path: string): TFile | null {
 		if (!this.entries.has(path)) return null;
 		const segments = path.split('/');
@@ -164,6 +176,7 @@ class FakeVault {
 	}
 
 	private op(name: string, path: string): void {
+		this.operations.push(`${name}:${path}`);
 		if (this.failures.has(`${name}:${path}`)) {
 			this.failedOps.push(`${name}:${path}`);
 			throw new Error(`Injected failure: ${name} ${path}`);

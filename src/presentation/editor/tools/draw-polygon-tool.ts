@@ -1,7 +1,6 @@
 import { distance } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
-import { screenPoint } from '../viewport/Viewport';
 import type { CreateZoneInput } from '../../../application/commands/zone/CreateZone';
 import type { ReversibleCreateZoneCommand } from '../../../application/commands/zone/reversible-create-zone-command';
 import type { EditorContext } from './editor-context';
@@ -64,6 +63,18 @@ export class DrawPolygonTool implements EditorTool {
 	 * against the SAME buffer — two zones, two history entries, one shape.
 	 */
 	private closing = false;
+	/**
+	 * Which gesture the tool is currently on. Bumped by everything that abandons the
+	 * current one — `activate`, `deactivate` and `cancel` — so the continuation after
+	 * `closePolygon`'s awaited dispatch can tell whether the buffer, the preview and the
+	 * selection it is about to touch are still its own.
+	 *
+	 * Without it, Escape during an in-flight close (which clears `closing`, so further
+	 * clicks are accepted) let the user start a new polygon whose vertices the LATE
+	 * success then wiped, selecting the zone they had cancelled out of. `CalibrateTool`
+	 * has carried this counter since slice 7 for the identical window.
+	 */
+	private generation = 0;
 
 	constructor(private readonly deps: DrawPolygonToolDeps) {}
 
@@ -71,6 +82,7 @@ export class DrawPolygonTool implements EditorTool {
 		this.context = context;
 		this.buffer = [];
 		this.closing = false;
+		this.generation += 1;
 		this.clearPreview(context);
 	}
 
@@ -78,6 +90,7 @@ export class DrawPolygonTool implements EditorTool {
 		const context = this.context;
 		this.buffer = [];
 		this.closing = false;
+		this.generation += 1;
 		if (context !== null) this.clearPreview(context);
 		this.context = null;
 	}
@@ -87,10 +100,8 @@ export class DrawPolygonTool implements EditorTool {
 		if (context === null || event.button !== 'primary' || this.closing) return;
 		const snapped = context.snapService.snapPoint(event.worldPoint, {});
 		// Camera-scaled closing tolerance — see the constant's own comment. Measured
-		// against the UNSNAPPED click so a grid snap cannot drag a near-miss into a close.
-		const zero = context.viewport.screenToWorld(screenPoint(0, 0));
-		const one = context.viewport.screenToWorld(screenPoint(1, 0));
-		const closeToleranceWorld = CLOSE_TOLERANCE_PX * distance(zero, one);
+		// against the UNSNAPPED click so a snap cannot drag a near-miss into a close.
+		const closeToleranceWorld = CLOSE_TOLERANCE_PX * context.viewport.worldPerScreenPixel();
 		if (
 			this.buffer.length >= 3 &&
 			distance(event.worldPoint, this.buffer[0]) <= closeToleranceWorld
@@ -99,6 +110,13 @@ export class DrawPolygonTool implements EditorTool {
 			void this.closePolygon(context);
 			return;
 		}
+		// A repeated point is never a vertex. `Polygon` states it — the last→first edge is
+		// implicit, "never a repeated closing point" — and a duplicate would give the shape
+		// a zero-length edge that area, centroid and hit-testing all divide through. It is
+		// reachable precisely because the close test above measures the RAW click while the
+		// buffer takes the SNAPPED one: a snap that pulls a near-miss exactly onto an
+		// existing vertex fails the close test and would otherwise be pushed as a twin.
+		if (this.buffer.some((point) => point.x === snapped.x && point.y === snapped.y)) return;
 		this.buffer.push(snapped);
 		context.renderState.previewPolygon = [...this.buffer];
 	}
@@ -117,6 +135,7 @@ export class DrawPolygonTool implements EditorTool {
 		const context = this.context;
 		this.buffer = [];
 		this.closing = false;
+		this.generation += 1;
 		if (context !== null) this.clearPreview(context); // no command dispatched
 	}
 
@@ -125,6 +144,7 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	private async closePolygon(context: EditorContext): Promise<void> {
+		const generation = this.generation;
 		try {
 			const polygonResult = createPolygon(this.buffer);
 			if (!polygonResult.ok) {
@@ -139,6 +159,12 @@ export class DrawPolygonTool implements EditorTool {
 				geometry,
 			});
 			const result = await context.commandDispatcher.run(command);
+			// The gesture this close belonged to may be over: Escape, a tool switch or a
+			// re-activation happened while the dispatch was in flight. The write landed
+			// either way — the refresh decorator puts it on the canvas — but the buffer,
+			// the preview and the selection now belong to somebody else and must be left
+			// exactly as they are.
+			if (generation !== this.generation) return;
 			if (!result.ok) {
 				this.deps.reportRejected(result.error);
 				return; // buffer intact here too
@@ -152,7 +178,9 @@ export class DrawPolygonTool implements EditorTool {
 			if (zoneId !== null) context.selection.select([zoneId]);
 		} finally {
 			// The window is over whichever way it resolved; the next click is a fresh gesture.
-			this.closing = false;
+			// Only for the gesture that opened it — a `cancel()` mid-flight has already
+			// cleared the flag and started a new one, whose state this must not touch.
+			if (generation === this.generation) this.closing = false;
 		}
 	}
 }

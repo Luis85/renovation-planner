@@ -265,34 +265,42 @@ export default defineConfig({
 			// replaced it: the sidecar-to-entity read merge, the note save that touches no
 			// sidecar at all, and a hand-edited calibration refused at `withCalibration`.
 			//
-			// Measured 2026-08-25 at the end of design slice 8 - zone editing: the two
-			// reversible zone adapters, the refresh decorator, the two tools, the per-leaf
-			// runtime and its toolbar/canvas/inspector wiring, and the e2e suite driving the
-			// real mounted editor against in-memory repositories: 2645/2664 statements,
-			// 1224/1246 branches, 696/702 functions, 2416/2425 lines -
-			// 99.28 / 98.23 / 99.14 / 99.62. NOTHING RATCHETS: rounded down these are the
-			// 99 / 98 / 99 / 99 already in force. What slice 8 added to the uncovered set,
-			// so the next increment does not go hunting - every one either unreachable by
-			// construction or an arm whose whole purpose is to not happen:
-			// - reversible-create-zone-command.ts:85,97 and
-			//   reversible-delete-zone-command.ts:74,76: one-line error PROPAGATIONS off
-			//   failed restores/undo-dispatches and failed pre-delete reads. The failure
-			//   arms that carry behaviour (failed first create, failed undo restore leaving
-			//   the vault as the delete left it) each have their own test; these four are
-			//   return-err forwards whose only content is the error they carry.
-			// - runtime.ts:101: toCommand unknown-edit throw - no caller sends an unmapped
-			//   edit yet; rename lands with the first command family to serve it.
-			// - runtime.ts:121: the SelectTool rejection arrow - the seam is unit-tested on
-			//   the tool with its own dep; the runtime arrow is wiring.
-			// - runtime.ts:156: the inspector-cycle break pre-binding no-op - the store
-			//   cannot be read before the runtime finishes building it.
-			// - runtime.ts:181-186: the viewport adapter worldToScreen/setPan/setZoom -
-			//   declared by EditorContext, first consumed by a PanTool or a
-			//   calibration-aware tool, neither of which exists yet.
-			// - PlanCanvas.vue:65,167 and select-tool.ts:160: null guards a mounted
-			//   component and a completed gesture never reach.
-			// - with-editor-state-refresh.ts:73: the queue catch of an UNEXPECTED throw,
-			//   which exists so one command technical fault cannot wedge the shared chain.
+			// Measured 2026-08-25 at the end of design slice 8 - zone editing and the review
+			// pass that followed it: the two reversible zone adapters and their shared
+			// restore, the refresh decorator, the two tools, the per-leaf runtime and its
+			// toolbar/canvas/inspector wiring, and the e2e suite driving the real mounted
+			// editor against in-memory repositories: 99.2 / 98.1 / 99.1 / 99.5 across
+			// statements / branches / functions / lines. NOTHING RATCHETS: rounded down
+			// these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// What slice 8 added to the uncovered set, so the next increment does not go
+			// hunting - every one either unreachable by construction or an arm whose whole
+			// purpose is to not happen. Named by SYMBOL, never by file:line, for the reason
+			// CLAUDE.md gives ("address code by name, not by position"): the numbers in an
+			// earlier version of this block were accurate the day they were written and
+			// silently retargeted by the next insertion above them, and every other block in
+			// this file already named its arms.
+			// - `ReversibleCreateZoneCommand`'s and `ReversibleDeleteZoneCommand`'s one-line
+			//   error PROPAGATIONS off failed restores, failed undo dispatches and failed
+			//   pre-delete reads. The failure arms that carry behaviour (a failed first
+			//   create, a failed undo restore leaving the vault as the delete left it) each
+			//   have their own test; these are `return err` forwards whose only content is
+			//   the error they carry.
+			// - `runtime.ts`'s `registerEditorTools` rejection arrows - each seam is
+			//   unit-tested on the tool with its own dep, and the runtime arrow is wiring.
+			// - `runtime.ts`'s inspector-cycle break, the pre-binding `?? Promise.resolve()`:
+			//   the store cannot be read before the runtime finishes building it.
+			// - `runtime.ts`'s `viewportAdapter.setPan`/`setZoom` - declared by
+			//   `EditorContext` and first consumed by a `PanTool` or a calibration-aware
+			//   tool, neither of which exists yet. The adapter's comment says so where the
+			//   code is.
+			// - `runtime.ts`'s `reportFault` catch - an unexpected technical fault escaping a
+			//   dispatch, which the decorator below it already re-reads state for.
+			// - `PlanCanvas.vue`'s and `SelectTool`'s null guards on a mounted component and
+			//   a completed gesture, which by construction never fire.
+			// - `createSerialQueue`'s tail catch, which exists so one command's technical
+			//   fault cannot wedge the shared chain - reached only by a throw the queue is
+			//   built to survive.
 			thresholds: {
 				statements: 99,
 				functions: 99,

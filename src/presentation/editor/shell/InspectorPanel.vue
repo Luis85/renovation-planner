@@ -21,11 +21,13 @@ const { selectedIds } = storeToRefs(useSelectionStore());
 // Selection changed → re-run the query for whatever is selected now. The same call the
 // post-command refresh funnel makes on the OTHER side (refresh), so the panel has
 // exactly two moments: selection changed, or the selected entity changed.
-watch(
-	() => [...selectedIds.value],
-	(ids) => void runtime.hydrateInspector(ids),
-	{ immediate: true },
-);
+//
+// The ref itself is the source, not `() => [...selectedIds.value]`. That getter allocated
+// a fresh array on every evaluation, so `Object.is` could never match and the watcher fired
+// on every write to the store rather than on every CHANGE — one vault-backed Inspector
+// query per click on an already-selected zone. `selection-store`'s `select()` now keeps
+// the ref's identity when the ids are unchanged, which is the other half of the same fix.
+watch(selectedIds, (ids) => void runtime.hydrateInspector(ids), { immediate: true });
 
 const dto = runtime.inspectorDto;
 

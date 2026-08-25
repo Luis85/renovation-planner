@@ -60,6 +60,13 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  * INSIDE the queue — outside it, a restore would race the next writer and undo THAT
  * writer's work.
  */
+/**
+ * "Give me this plan's geometry sidecar" — `PlanGeometryStore.read`'s own signature, named
+ * so `loadOne` can take it as a parameter and `list` can pass a memoised one. Derived from
+ * the method rather than restated, so a widening of its error channel reaches here.
+ */
+type SidecarReader = PlanGeometryStore['read'];
+
 function validationFailure(message: string): ValidationError {
 	return { category: 'Validation', code: 'zone.pre-write-invalid', message };
 }
@@ -75,7 +82,25 @@ export class ObsidianZoneRepository {
 		this.folder = normalizeFolder(deps.projectFolder);
 	}
 
-	async getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, PersistenceError>> {
+	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, PersistenceError>> {
+		return this.loadOne(id, (planId) => this.geometry.read(planId));
+	}
+
+	/**
+	 * One zone, with its plan's sidecar supplied rather than read — the seam that lets
+	 * `list` read that document ONCE instead of once per zone.
+	 *
+	 * The sidecar is plan-grained: reading it is a vault read plus a JSON parse plus a
+	 * migration plus a Zod validation of every spatial object in the plan. Loading N zones
+	 * by calling `getById` N times therefore did N of those, so reflecting a single changed
+	 * zone cost O(N) file reads and O(N²) point validations — and the editor's post-command
+	 * refresh re-hydrates the whole plan after every drag release, drawn polygon, delete and
+	 * Undo press.
+	 */
+	private async loadOne(
+		id: ZoneId,
+		readSidecar: SidecarReader,
+	): Promise<Result<Loaded<Zone> | null, PersistenceError>> {
 		const opened = openNoteById(this.deps, 'zone', id);
 		if (opened.status === 'missing') return Promise.resolve(ok(null));
 		if (opened.status === 'error') return Promise.resolve(err(opened.error));
@@ -86,7 +111,7 @@ export class ObsidianZoneRepository {
 		// The sidecar half. A live note whose plan's sidecar cannot be read is a broken
 		// state, not a missing zone.
 		const planId = parsed.value.plan as PlanId;
-		const sidecar = await this.geometry.read(planId);
+		const sidecar = await readSidecar(planId);
 		if (!sidecar.ok) {
 			return Promise.resolve(
 				err(persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${planId} could not be read.`, sidecar.error)),
@@ -289,10 +314,28 @@ export class ObsidianZoneRepository {
 		return this.list(ids);
 	}
 
+	/**
+	 * Every zone in the list, with each plan's geometry sidecar read exactly once.
+	 *
+	 * The memo is scoped to ONE call and thrown away with it — this is not a cache, and
+	 * making it one would be a correctness change: a repository that remembered a document
+	 * across calls would serve a stale sidecar after any write, including its own. Within a
+	 * single listing there is nothing to go stale against, because nothing writes.
+	 *
+	 * Keyed by plan, not fixed to one, because `list` takes ids rather than a plan and
+	 * `findByProject` hands it zones from several.
+	 */
 	private async list(ids: readonly ZoneId[]): Promise<Result<Loaded<Zone>[], PersistenceError>> {
+		const sidecars = new Map<PlanId, ReturnType<SidecarReader>>();
+		const readOnce: SidecarReader = (planId) => {
+			const pending = sidecars.get(planId) ?? this.geometry.read(planId);
+			sidecars.set(planId, pending);
+			return pending;
+		};
+
 		const loaded: Loaded<Zone>[] = [];
 		for (const id of ids) {
-			const one = await this.getById(id);
+			const one = await this.loadOne(id, readOnce);
 			if (!one.ok) return one;
 			if (one.value) loaded.push(one.value);
 		}

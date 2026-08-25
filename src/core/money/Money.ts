@@ -46,11 +46,13 @@ import type { CalculationError, ValidationError } from '../errors/AppError';
  *
  * What survives the reversal is the invariant that was actually breached: **anything this
  * module can PRODUCE, `createMoney` can read back**, now over the wider signed set.
- * `AMOUNT_PATTERN` admits exactly what `fromDecimal`'s `toFixed` can emit — including a
- * leading `-`, and excluding a signed ZERO, which `toFixed` never writes. It is a
- * property of the two doors together rather than a claim about one, so
+ * `AMOUNT_PATTERN` admits everything `fromDecimal`'s `toFixed` can emit, a leading `-`
+ * included. It is a property of the two doors together rather than a claim about one, so
  * `tests/core/money/moneyArithmetic.test.ts` drives it over a grid of negative operands,
- * negative factors and negative results rather than over one example.
+ * negative factors and negative results rather than over one example. In the OTHER
+ * direction it is deliberately a little wider than what this module writes — `0.50` is
+ * accepted and kept distinct from `0.5`, since a hand-edited note is what it reads — and
+ * the one thing it refuses on that side is a signed ZERO, which `toFixed` never writes.
  *
  * Two constructors, by who vouches for the input. `createMoney` validates user-shaped
  * input (a persisted amount is a file the user can edit) and answers `Result`. `of` is
@@ -275,9 +277,10 @@ export function compare(a: Money, b: Money): Result<-1 | 0 | 1, CalculationError
  * zero — a unit price, a shipping charge, a budget — is guarded by whoever validates that
  * field. This is what those guards ask.
  *
- * `lessThan(0)` rather than `isNegative()`, which decimal.js answers `true` for a negative
- * ZERO. No `Money` can hold one (`fromDecimal` serializes it as a plain `0`), so the two
- * agree here — `lessThan(0)` is the one that keeps agreeing if that ever changes.
+ * `lessThan(0)` rather than decimal.js's own `Decimal.isNegative()`, which answers `true`
+ * for a negative ZERO. No `Money` can hold one — `fromDecimal` serializes it as a plain
+ * `0` and `AMOUNT_PATTERN` refuses the spelling — so the two agree today; `lessThan(0)` is
+ * the one that keeps agreeing if that ever changes.
  */
 export function isNegative(a: Money): boolean {
 	return new MoneyDecimal(a.amount).lessThan(0);

@@ -25,8 +25,9 @@ export interface CreateProjectProps {
  *
  * This entity is that place, and today it is the ONLY one: neither field is persisted yet
  * (`ProjectFrontmatterSchemaV1` declares `name` and `status`, not these two), so there is
- * no schema to state it at, and `CreateProjectCommand` constructs through here rather than
- * validating beside it. When the frontmatter grows the fields, the schema states the
+ * no schema to state it at, and both `CreateProjectCommand` and the persistence mapper
+ * construct through `Project.create` rather than validating beside it — the constructor is
+ * private, so there is no other way to make one. When the frontmatter grows the fields, the schema states the
  * SHAPE and this smart constructor keeps stating the rule — a Zod refinement there would
  * be a second answer to the same question, and the entity is the one every path passes.
  *

@@ -89,8 +89,9 @@ the preconditions and omit the behaviour the uncalibrated state actually owes.
   something this use case serves — it is the thing the renovator complained about.
 - **5a** — Nothing has ever been stored for this plan. It opens at the first level of the
   precedence chain that answers — project unit, then plugin default, then millimetres — per
-  *Deliberately out of scope*. Neither surface is built yet, so today the chain falls through to
-  millimetres, the world unit and therefore the one default that cannot be wrong.
+  *Deliberately out of scope*. Neither a project unit nor a default *display* unit exists yet —
+  the shipped `units: metric | imperial` setting picks a vocabulary, not a unit — so today the
+  chain reaches millimetres, the world unit and therefore the one default that cannot be wrong.
 - **5b** — What was stored is unreadable, or names a unit this version does not know. The bad
   value is dropped and that level is treated as **absent**, so the chain continues to the
   project unit and onward rather than jumping to the floor. This is exactly how `settingsFrom`
@@ -228,8 +229,29 @@ Named rather than left looking forgotten.
 
   1. the **plan's remembered unit**, when one is stored and valid;
   2. otherwise the **project's** configured unit;
-  3. otherwise the **plugin default**;
+  3. otherwise the **plugin's default display unit**;
   4. otherwise **millimetres**.
+
+  **Level 3 does not exist today, and the existing `units` setting is not it.**
+  `src/plugin/settings/settings.ts` already ships `UNITS = ['metric', 'imperial']` with a
+  default of `'metric'` — the one setting the pane currently offers — and an earlier draft of
+  this note treated the whole level as unbuilt, which was false against code that is in the
+  repository right now. But `'metric'` is still not an answer to "which unit does the picker
+  start in": **a measurement *system* and a display *unit* are different axes**, and `metric`
+  names a family containing all three of `m`, `cm` and `mm`. A chain level that resolved
+  `metric` to one of them would be inventing a preference nobody expressed.
+
+  So the two settings do different jobs, and the note says which:
+
+  - `units: metric | imperial` selects the **vocabulary the picker offers**. Metric offers
+    m/cm/mm. Imperial's vocabulary is the later value described under *Deliberately out of
+    scope* — so **in an `imperial` vault the picker offers the metric units anyway today**,
+    which is a named limitation the imperial work closes, rather than a silent one somebody
+    discovers.
+  - a **default display unit** is a separate setting that does not exist yet, and adding it
+    belongs to [[Settings and configuration]] rather than here. Until it does, level 3 is
+    genuinely absent and the chain reaches millimetres — which is now true because of what the
+    setting *is*, not because nobody looked.
 
   **Level 1 sitting above level 2 is a real claim against [[Project settings]], and it is made
   deliberately rather than by accident of ordering.** A plan remembered in centimetres shows
@@ -251,8 +273,8 @@ Named rather than left looking forgotten.
   to the floor. Millimetres remains the floor and keeps assumption 4's justification: it is the
   world unit, so it is the one answer that cannot be a lie when nothing above it has spoken.
   Levels 2 and 3 read whatever those surfaces expose; until they exist there is nothing to read
-  and the chain falls through to millimetres on its own, which is why this costs nothing today
-  and prevents a contradiction later.
+  and the chain reaches millimetres on its own, which is why this costs nothing today and
+  prevents a contradiction later.
 - **Anything outside the plan editor.** The budget, the reports and the exports keep whatever
   units they already show. This is a lens on one surface, and a lens that silently changed the
   currency-shaped figures on a report would be a different and much larger promise.
@@ -346,9 +368,10 @@ That earns one rule the picker would not otherwise need:
 9. On an uncalibrated plan with no calibration in progress the picker is disabled and carries a
    reason a renovator can read. Checkable in a vault in under a minute.
 10. Reopening a plan restores the unit it was left in. A plan never opened resolves through the
-    precedence chain, which today falls through to millimetres because neither the project nor
-    the plugin surface exists — so the test asserts the *chain*, with each level stubbed, not
-    the millimetre answer it currently produces.
+    precedence chain, which today reaches millimetres because neither a project unit nor a
+    default *display* unit exists — so the test asserts the *chain*, with each level stubbed,
+    not the millimetre answer it currently produces. A separate case asserts that an `imperial`
+    plugin setting still yields a usable picker rather than an empty vocabulary.
 11. A stored value that is absent, unparseable, or names an unknown unit is dropped and its
     level treated as absent, so resolution continues down the chain — with the same shape of
     test `settingsFrom` already has for `data.json`. The case that must fail is a corrupt plan
@@ -372,7 +395,10 @@ That earns one rule the picker would not otherwise need:
     metres, `500` in centimetres and `5000` in millimetres produce the same calibration — a node
     test on the conversion, not a walkthrough.
 18. Switching the unit while the calibration prompt is open **visibly converts** the value
-    already typed. Disabling the control for the duration is *not* an alternative — an earlier
+    already typed, **without rounding it**: `1` in millimetres becomes `0.001` in metres, not
+    `0.00`. Round-tripping a typed distance through every unit returns the value it started
+    with, and the case a test must fail on is a conversion that quietly zeroes a small
+    distance. Disabling the control for the duration is *not* an alternative — an earlier
     version of this criterion offered it, which contradicted extension **2b** and criterion 16
     and, worse, defeated their purpose: the renovator needs the picker precisely *while* typing
     the distance, since choosing its unit is what the picker is for at that moment. Checkable in
@@ -405,10 +431,19 @@ Each is something this note decided that its sources did not settle.
    preference that
    is a feature rather than a defect — the unit somebody reads at a desk and the unit they read
    on site are not obviously the same unit — but it is a decision, not a consequence.
-3. **Two decimals everywhere, including millimetres**, over a per-unit precision table. §71
-   gives two decimals for m² and nothing for the rest, so this generalises its one example
-   rather than inventing a second rule. The cost is `42718432.00 mm²`, which is honest about
-   being a display convention rather than a significance claim.
+3. **Two decimals everywhere, including millimetres — for a figure being *read*.** §71 gives
+   two decimals for m² and nothing for the rest, so this generalises its one example rather
+   than inventing a second rule. The cost is `42718432.00 mm²`, which is honest about being a
+   display convention rather than a significance claim.
+
+   **An editable value is exempt, and review found why the hard way.** Two decimals applied to
+   calibration's typed distance under criterion 18 turns `1 mm` into `0.00 m` on a switch to
+   metres — which either fails positive-distance validation or persists a zero scale, from a
+   rounding rule meant only to make numbers readable. Display precision governs what is
+   **rendered for reading**; a field the renovator is **editing** carries whatever digits its
+   exact value needs. The two are different jobs and collapsing them destroys data, which is
+   the same lesson §71 already teaches about internal versus display precision, arriving from
+   the input side.
 4. **Millimetres is the floor of the precedence chain, not "the default"**, and the distinction
    is one this note got wrong before review. The chain is plan → project → plugin → millimetres;
    millimetres is what answers when *nothing above it has spoken*, which is the one answer that

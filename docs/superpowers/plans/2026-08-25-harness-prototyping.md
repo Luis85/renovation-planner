@@ -319,64 +319,65 @@ both problems.
 ```typescript
 import path from 'node:path';
 import { build } from 'vite';
+import type { Rolldown } from 'vite';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
 
 /**
- * The three members this test reads, named locally rather than imported.
+ * The guarantee with a user on the other end: no prototype or fixture MODULE composes a
+ * built chunk. `prototypes-one-way-door.test.ts` refuses the import statement; this refuses
+ * the outcome — together they are what serve the wider claim that no mock, prototype or
+ * fixture ever reaches a user, by whichever route.
  *
- * `import type { RollupOutput } from 'rollup'` is the obvious spelling and it fails
- * `npm run analyze`: this Vite bundles with **Rolldown**, `rollup` is not an installed
- * package, and fallow reports an unlisted dependency. Installing `rollup` to satisfy a
- * type-only import that nothing type-checks — `tests/**` is outside `tsconfig.json`'s
- * `include` — is precisely the dependency `CLAUDE.md`'s "Deliberately absent" section
- * refuses. The import also survives Vitest, which strips type-only specifiers without
- * resolving them, so the failure arrives from fallow at the END of the gate rather than
- * from the test run: measured, and the reason this comment exists.
- */
-interface BuiltChunk {
-	type: string;
-	modules?: Record<string, unknown>;
-}
-interface BuildOutput {
-	output: BuiltChunk[];
-}
-
-/**
- * The guarantee with a user on the other end: no mock, prototype or fixture is ever in a built
- * plugin. `prototypes-one-way-door.test.ts` refuses the import; this refuses the OUTCOME.
+ * Narrower than that wider claim on purpose: `chunk.modules` is where source provenance
+ * lives, so a prototype or fixture shipped as a separate output ASSET — a file with a
+ * `fileName` and emitted `source`, no module id list — is outside what this test can see.
+ * Not cheaply checkable, which is why the sentence above is narrowed rather than the check
+ * widened to cover it.
  *
- * Both exist because neither is sufficient. Lint reads static imports and a dynamic specifier
- * slips past it; this sees whatever actually got in, and reports only after the fact.
+ * Both exist because neither is sufficient. Lint reads static imports and a dynamic
+ * specifier slips past it; this sees whatever actually got in, and reports only after the
+ * fact.
  *
- * `write: false` — the modules that composed the chunk are in the returned output, so nothing
- * is emitted to disk and this does not race `npm run build`'s own `dist/`.
+ * `write: false` — the modules that composed the chunk are in the returned output, so
+ * nothing is emitted to disk and this does not race `npm run build`'s own `dist/`.
+ *
+ * `Rolldown` comes from `vite` itself (`node_modules/vite/dist/node/index.d.ts` re-exports
+ * it), not from `rollup`: this repo's Vite (`^8`) bundles with Rolldown, and `rollup` is not
+ * an installed dependency here at all. Importing `RollupOutput` from `rollup` would
+ * type-check nowhere — this file is outside the one `tests/**` path that gets type-checked
+ * (CLAUDE.md's Testing section) — but would still trip `npm run analyze`'s
+ * unlisted-dependency scan, which reads import specifiers rather than resolved types.
  */
 const BUILD_MS = 120_000;
+
+// Absolute, normalised to forward slashes exactly like `modules` below, so a module id can
+// be compared against it the same way on every platform — REPO holds backslashes on
+// Windows and the ids built below never do.
+const repoRoot = REPO.split(path.sep).join('/');
 
 let modules: string[] = [];
 
 beforeAll(async () => {
 	const result = (await build({
 		configFile: path.resolve(REPO, 'vite.config.ts'),
+		root: REPO,
 		build: { write: false },
 		logLevel: 'error',
-	})) as BuildOutput | BuildOutput[];
+	})) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[];
 
 	const output = Array.isArray(result) ? result[0] : result;
 	// EVERY chunk, not the first. A dynamic import — the exact route this test exists to
 	// catch, since lint cannot see it — is what Rollup most likely emits as a SEPARATE chunk,
 	// so inspecting `output[0]` alone would leave the interesting case unexamined while
 	// looking thorough.
-	const chunks = output.output.filter((part) => part.type === 'chunk');
+	const chunks = output.output.filter((part): part is Rolldown.OutputChunk => part.type === 'chunk');
 
 	if (chunks.length === 0) throw new Error('the build produced no chunk to inspect');
 
 	// Absolute ids, normalised to forward slashes so this reads the same on Windows — which
 	// is one of the four legs `npm run check` rides.
-	modules = chunks.flatMap((chunk) =>
-		Object.keys(chunk.type === 'chunk' ? chunk.modules : {}).map((id) => id.split(path.sep).join('/')),
-	);
+	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => id.split(path.sep).join('/')));
 }, BUILD_MS);
 
 describe('the built plugin', () => {
@@ -388,15 +389,19 @@ describe('the built plugin', () => {
 	});
 
 	it('contains no module from src/prototypes/', () => {
-		const leaked = modules.filter((id) => id.includes('/src/prototypes/'));
+		// Anchored on this repository's own tree rather than a bare `/src/prototypes/`
+		// substring, so a dependency at `node_modules/x/src/prototypes/…` cannot fail this
+		// on correct work — `repoRoot` is what excludes `node_modules` from matching at all,
+		// since a package inside it never starts with this repo's own absolute path.
+		const leaked = modules.filter((id) => id.startsWith(`${repoRoot}src/prototypes/`));
 
 		expect(leaked, `prototypes reached the bundle: ${leaked.join(', ')}`).toEqual([]);
 	});
 
 	/**
-	 * EVERY test path, not just `tests/harness/`. The guarantee names fixtures, and they do not
-	 * all live in one directory — `tests/fixtures/promotion/` holds the promoted SFC this plan
-	 * itself creates, and it would have passed a harness-only assertion.
+	 * EVERY test path, not just `tests/harness/`. The guarantee names fixtures, and they do
+	 * not all live in one directory — Task 7 adds `tests/fixtures/promotion/` to hold the
+	 * promoted SFC, and a harness-only assertion would not have covered it.
 	 *
 	 * Stated as "nothing under `tests/`" rather than as a list of fixture directories, so the
 	 * next one somebody adds is covered without anybody remembering to come back here. Nothing
@@ -404,7 +409,9 @@ describe('the built plugin', () => {
 	 * the correct one rather than merely the convenient one.
 	 */
 	it('contains no test module at all, fixtures included', () => {
-		const leaked = modules.filter((id) => id.includes('/tests/'));
+		// Anchored on this repository's own tree for the same reason as the prototypes check
+		// above — node_modules/x/tests/… must not trip this on correct work.
+		const leaked = modules.filter((id) => id.startsWith(`${repoRoot}tests/`));
 
 		expect(leaked, `test modules reached the bundle: ${leaked.join(', ')}`).toEqual([]);
 	});
@@ -2956,7 +2963,7 @@ of reading because each depended on what a tool actually does:
 | --- | --- | --- |
 | Task 1 | The prescribed fixture technique linted FICTITIOUS `.ts` paths, and typescript-eslint's `projectService` fatally refuses a path not in the program — so `no-restricted-imports` never ran and the task's own third assertion passed trivially against `['PARSE_ERROR']`. `vue-rules.test.ts` gets away with the same shape only because the Vue block carries no `projectService` | Purely virtual `.vue` fixture paths, which `srcFiles()` already scopes every ban to. The negative assertion now also refuses `PARSE_ERROR`, watched failing |
 | Task 1 | Writing real fixtures into `src/` raced two tests that walk that tree, and vitest runs files in parallel | Removed by the technique above rather than serialised — a test that mutates the shared source tree is worse than the race it causes | 
-| Task 2 | `import type { RollupOutput } from 'rollup'` fails `npm run analyze`: this Vite bundles with **Rolldown** and `rollup` is not installed. It survives Vitest, which strips type-only imports without resolving them, so the failure arrives from fallow at the end of the gate rather than from the test | Local interfaces naming the three members the test reads. Installing `rollup` for a type nothing type-checks is the dependency `CLAUDE.md` refuses by name |
+| Task 2 | `import type { RollupOutput } from 'rollup'` fails `npm run analyze`: this Vite bundles with **Rolldown** and `rollup` is not installed. It survives Vitest, which strips type-only imports without resolving them, so the failure arrives from fallow at the end of the gate rather than from the test | `import type { Rolldown } from 'vite'` — the bundler's own type, from a package the file already imports and `package.json` already lists. Installing `rollup` for a type nothing type-checks is the dependency `CLAUDE.md` refuses by name; hand-written local interfaces were the FIRST fix and were wrong for the other reason, being a second description of someone else's shape that can disagree with it. The review found the accurate option one line away |
 | Task 2 | The planted probe `Doomed.vue` fails `vue/multi-word-component-names`, so the lint run in the step that exists to observe lint's verdict was red for an unrelated reason | `DoomedPrototype.vue`, and the plan now says why the name is two words |
 
 The generalisation is the one this plan already knew and had only applied to tests: **a step whose

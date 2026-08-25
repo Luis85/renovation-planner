@@ -1,0 +1,36 @@
+evidence_term	derived_term	note_path	relation
+DIY Renovator	Private renovator	docs/actors/Private renovator.md	renamed
+Advanced Renovator	Advanced DIY planner	docs/actors/Advanced DIY planner.md	renamed
+Professional Planner	Professional planner	docs/actors/Professional planner.md	same
+space	Space|Outdoor area|Zone	docs/entities/Space.md	collapsed
+Problem	Issue	docs/entities/Issue.md	renamed
+Defect	Issue	docs/entities/Issue.md	renamed
+Trade	Trade	docs/entities/Trade.md	same
+Building	Building	docs/entities/Building.md	same
+Floor	Floor	docs/entities/Floor.md	same
+Outdoor area	Outdoor area	docs/entities/Outdoor area.md	same
+Supplier	Supplier	docs/entities/Supplier.md	same
+Quantity	Quantity	docs/entities/Quantity.md	same
+Schedule	Schedule	docs/requirements/Schedule.md	same
+Zone	Zone	docs/entities/Zone.md	same
+Renovation Zone	Zone	docs/entities/Zone.md	renamed
+Plan	Plan	docs/entities/Plan.md	same
+Task	Task	docs/entities/Task.md	same
+Document	Document	docs/entities/Document.md	same
+modal	Modal	docs/components/Modal.md	same
+Project Settings	Project settings	docs/requirements/Project settings.md	same
+Start a Renovation Project	Start a renovation project	docs/requirements/Start a renovation project.md	same
+Work Package	Work package	docs/entities/Work package.md	same
+EmptyState	Empty state	docs/components/Empty state.md	same
+StatusBadge	Status badge	docs/components/Status badge.md	same
+Context Inspector	Inspector	docs/components/Inspector.md	renamed
+Renovation Canvas (pane)	Plan canvas	docs/components/Plan canvas.md	renamed
+As-built	As-built documentation	docs/requirements/As-built documentation.md	renamed
+Quotation	Quote	docs/entities/Quote.md	renamed
+Shopping list / purchase list	Procurement item	docs/entities/Procurement item.md	renamed
+Material	Asset	docs/entities/Asset.md	split
+Product	Asset	docs/entities/Asset.md	split
+Renovation Project	Project	docs/entities/Project.md	renamed
+Property	Site	docs/entities/Site.md	renamed
+Estimated / Committed / Actual Cost	Cost item	docs/entities/Cost item.md	renamed
+Room	Space	docs/entities/Space.md	renamed

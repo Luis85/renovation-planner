@@ -80,6 +80,22 @@
 	gap: var(--size-4-1);
 }
 
+/*
+ * The `form` kind's slot for the component its caller supplied. It carries a rule for one
+ * reason beyond the gap it fills: `FormDialog` names this class in its markup, and a class
+ * with no rule behind it is exactly what this sheet's header calls invisible in the
+ * harness.
+ *
+ * A plain column, deliberately. `.rp-dialog` owns `overflow-y` and `max-height`, so the
+ * PANEL is what scrolls; a `flex: 1` with `min-height: 0` here would nest a second scroll
+ * container inside the first and give a tall form two scrollbars.
+ */
+.rp-dialog-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
 .rp-dialog-actions {
 	display: flex;
 	flex-wrap: wrap;

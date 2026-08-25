@@ -31,15 +31,33 @@ import vueParser from 'vue-eslint-parser';
 const TESTS = '**/tests/**';
 
 /**
- * Both extensions for one `src/` subtree. A block widened to `.vue` on the ban but not on
- * its carve-out fails INWARD — the sink's own `.vue` files would be the one place a `.vue`
- * file could not use the console — so the two are spelled by the same function.
+ * Every extension `src/` can compile into the built plugin — not the extensions the tree
+ * happens to hold today. `tsconfig.json` sets `allowJs: true`, which is TypeScript's own
+ * JavaScript bucket: `.js`, `.jsx`, `.mjs`, `.cjs`, alongside `.ts`. Vite's bundler resolves
+ * and transforms every one of those on `import` regardless of what tsconfig's `include`
+ * names — Rollup/esbuild do not consult it — so `allowJs` is not a formality here, it is
+ * the difference between a `.js` file under `src/` shipping in `dist/main.js` and not.
+ * `.mts`, `.cts` and `.tsx` are Vite-resolvable too but are deliberately NOT in this list:
+ * `eslint-plugin-obsidianmd`'s own recommended config applies
+ * `tseslint.configs.recommendedTypeChecked` to exactly those three extensions, and nothing
+ * in this file gives typescript-eslint's parser `parserOptions.projectService` for any of
+ * them — measured, linting a virtual file at any of the three THROWS instead of reporting,
+ * taking the whole run down rather than the one file. That is a pre-existing gap in this
+ * config orthogonal to the one-way door, not something widening this list should paper
+ * over. `.json` is resolvable too but cannot contain an `import` statement, so there is
+ * nothing here for `no-restricted-imports` to catch.
  *
- * What actually catches a forgotten block is `tests/build/vue-rules.test.ts`, which
- * exercises a layer ban, `no-console` and the carve-out through real `.vue` paths. This
- * helper only makes the two spellings impossible to write apart by hand.
+ * Every extension for one `src/` subtree. A block widened on the ban but not on its
+ * carve-out fails INWARD — the sink's own `.js` files would be the one place a `.js` file
+ * could not use the console — so every caller is spelled by the same function.
+ *
+ * What actually catches a forgotten block is `tests/build/vue-rules.test.ts` (`.vue`) and
+ * `tests/build/prototypes-one-way-door.test.ts` (`.js`, the root-of-`src/` block below),
+ * which exercise a layer ban, `no-console` and the carve-out through real paths. This
+ * helper only makes the spellings impossible to write apart by hand.
  */
-const srcFiles = (subtree) => [`**/src/${subtree}/**/*.ts`, `**/src/${subtree}/**/*.vue`];
+const SRC_EXTENSIONS = ['ts', 'vue', 'js', 'jsx', 'mjs', 'cjs'];
+const srcFiles = (subtree) => SRC_EXTENSIONS.map((ext) => `**/src/${subtree}/**/*.${ext}`);
 
 /** Every SFC under `src/`, and the only files any Vue rule may be pointed at. */
 const VUE_FILES = ['**/src/**/*.vue'];
@@ -365,8 +383,13 @@ export default defineConfig([
 		 * It is also the BUILD ENTRY (`vite.config.ts`, `lib.entry`). A prototype imported
 		 * here is a prototype in every user's plugin, so the file with the most to lose was
 		 * the one file the layer bans did not cover.
+		 *
+		 * Same `SRC_EXTENSIONS` list as `srcFiles()` above, and for the same reason: the
+		 * build entry could be reauthored in `.js` (`allowJs`) exactly as any subtree could,
+		 * and this block is the one place a widened `srcFiles()` cannot reach in turn — it
+		 * is spelled out rather than routed through the helper because it is not a subtree.
 		 */
-		files: ['**/src/*.ts', '**/src/*.vue'],
+		files: SRC_EXTENSIONS.map((ext) => `**/src/*.${ext}`),
 		rules: {
 			'no-restricted-imports': [
 				'error',

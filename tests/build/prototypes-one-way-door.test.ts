@@ -8,12 +8,16 @@ import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
  *
  * Every layer is driven, not just one, because the ban is seven separate config blocks (six
  * `forbidden(...)` calls plus the root-of-`src/` block below) and a layer whose block was
- * missed reports nothing while looking correct in review.
+ * missed reports nothing while looking correct in review. Two EXTENSIONS are driven for the
+ * same reason as two globs: `srcFiles()` (`eslint.config.mjs`) and the root-of-`src/` block
+ * both cover `.ts`/`.vue`/`.js`/`.jsx`/`.mjs`/`.cjs` — `allowJs` plus what Vite's own resolver
+ * accepts, not what the tree currently holds — and they are two SEPARATE glob lists, so a case
+ * proving one covers `.js` says nothing about the other.
  *
  * Rule IDS rather than a pass/fail, following `vue-rules.test.ts`: a fixture that went red for
  * its own unrelated reason would otherwise read as a pass.
  *
- * Fixtures are `.vue`, linted as PURELY VIRTUAL text against a path that need not exist — never
+ * `.vue` fixtures are linted as PURELY VIRTUAL text against a path that need not exist — never
  * `.ts`. The generic `.ts` block in `eslint.config.mjs` turns on
  * `parserOptions.projectService`, and typescript-eslint's project service refuses a `.ts` path
  * it cannot find on disk with a FATAL parse error before any other rule — including
@@ -22,15 +26,22 @@ import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
  * files (`lint-scope.test.ts`, `suppressions.test.ts`) read the `src/` tree independently and
  * vitest runs files in parallel, so a fixture present when one of them walks `src/` and gone by
  * the time it reads the file back is a cross-file race, not a hypothetical. `.vue` fixtures
- * sidestep the problem entirely: `srcFiles()` (`eslint.config.mjs`) scopes every `forbidden()`
- * block to `.ts` **and** `.vue`, so a `.vue` path drives the identical `no-restricted-imports`
- * rule, and the Vue block carries no `projectService` at all (see its own comment in
- * `eslint.config.mjs`, for the same reason) — so a path that does not exist on disk parses
- * cleanly instead of fatally. `.vue` is also what this tree actually holds, per its README.
+ * sidestep the problem entirely: `srcFiles()` scopes every `forbidden()` block to every
+ * extension `SRC_EXTENSIONS` names (`eslint.config.mjs`) — `.ts` and `.vue` among them — so a
+ * `.vue` path drives the identical `no-restricted-imports` rule, and the Vue block
+ * carries no `projectService` at all (see its own comment in `eslint.config.mjs`, for the same
+ * reason) — so a path that does not exist on disk parses cleanly instead of fatally. `.vue` is
+ * also what this tree actually holds, per its README.
  *
- * `sfc()` wraps each fixture's script in a minimal `<script setup>`/`<template>` pair: bare
- * script text at a `.vue` path is not what `vue-eslint-parser` expects and is not what a real
- * file in this tree looks like either — measured, a bare import statement at a `.vue` path
+ * `.js` fixtures need none of that: measured, a virtual `.js` path parses cleanly with no
+ * `PARSE_ERROR` either, because `.js` is outside the generic `.ts`-only type-aware block just
+ * as `.vue` is — there is simply no `parserOptions` anywhere in `eslint.config.mjs` that scopes
+ * to `.js` and turns on `projectService`. Plain `import`/`export` text is enough; no `sfc()`
+ * wrapper, because a `.js` file is not an SFC.
+ *
+ * `sfc()` wraps each `.vue` fixture's script in a minimal `<script setup>`/`<template>` pair:
+ * bare script text at a `.vue` path is not what `vue-eslint-parser` expects and is not what a
+ * real file in this tree looks like either — measured, a bare import statement at a `.vue` path
  * reports only `vue/multi-word-component-names`, never touching `no-restricted-imports` at all,
  * which would have made every assertion below pass or fail for the wrong reason again.
  */
@@ -40,6 +51,10 @@ const IMPORTER = (layer: string) => `src/${layer}/Fixture.vue`;
 const PROTOTYPE_IMPORT = sfc("import Mock from '../prototypes/ZoneSummary.vue';\n\nconst used = Mock;\nvoid used;");
 /** From `src/main.ts` the tree is one level down, not two. Plain `.ts`: `src/main.ts` is real. */
 const ROOT_IMPORT = "import Mock from './prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
+
+/** The `.js` counterparts of `PROTOTYPE_IMPORT`/`ROOT_IMPORT` — plain text, no `sfc()`. */
+const JS_PROTOTYPE_IMPORT = "import Mock from '../prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
+const JS_ROOT_IMPORT = "import Mock from './prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
 
 const LAYERS = ['core', 'domain', 'application', 'infrastructure', 'presentation', 'plugin'];
 
@@ -73,6 +88,26 @@ describe('the prototypes one-way door', () => {
 	 */
 	it('refuses an import of src/prototypes/ from the build entry itself', async () => {
 		const reported = await lintText(ROOT_IMPORT, 'src/main.ts');
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	/**
+	 * `.js` is a DIFFERENT extension in a DIFFERENT glob than `.ts`/`.vue`, in both places the
+	 * ban lives: `srcFiles()`'s subtree pattern and the root-of-`src/` block's own `files`
+	 * array. One layer stands in for all six subtree blocks the same way `.vue` does above —
+	 * `srcFiles()` is one function, so every `forbidden(...)` call shares whatever extension
+	 * list it names — but the root block is a SEPARATE literal `files` array, so it needs its
+	 * own case; a fix to one glob is not a fix to the other.
+	 */
+	it('refuses an import of src/prototypes/ from a .js file in a layer', async () => {
+		const reported = await lintText(JS_PROTOTYPE_IMPORT, 'src/core/Fixture.js');
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	it('refuses an import of src/prototypes/ from a .js build entry', async () => {
+		const reported = await lintText(JS_ROOT_IMPORT, 'src/main.js');
 
 		expect(reported).toContain('no-restricted-imports');
 	});

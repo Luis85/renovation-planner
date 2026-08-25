@@ -21,6 +21,8 @@ interface Harness {
 	supplyNextDistance: (distance: number | null) => void;
 	supplyKnownDistance: (measuredWorldUnits: number) => Promise<number | null>;
 	createCommand: () => ReversibleCalibratePlanCommand;
+	hasSpatialObjects: () => boolean;
+	confirmRecalibration: () => Promise<boolean>;
 }
 
 /**
@@ -86,6 +88,10 @@ const harness = (): Harness => {
 			return Promise.resolve(answers.shift() ?? null);
 		},
 		createCommand: () => commandInstance,
+		// Permissive defaults: no existing case here is about the recalibration gate, so
+		// neither asking nor declining should change what any of them were testing.
+		hasSpatialObjects: () => false,
+		confirmRecalibration: () => Promise.resolve(true),
 	};
 };
 
@@ -119,6 +125,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 
 		tool.activate(h.context);
@@ -145,6 +153,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(0, 0));
@@ -159,6 +169,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 
@@ -178,6 +190,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(1, 1));
@@ -197,6 +211,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: () => gate,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(812, 240));
@@ -218,6 +234,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(0, 0));
@@ -231,6 +249,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(5, 5));
@@ -247,6 +267,8 @@ describe('CalibrateTool', () => {
 			const tool = new CalibrateTool({
 				supplyKnownDistance: h.supplyKnownDistance,
 				createCommand: h.createCommand,
+				hasSpatialObjects: h.hasSpatialObjects,
+				confirmRecalibration: h.confirmRecalibration,
 			});
 			tool.activate(h.context);
 			tool.pointerDown(at(0, 0));
@@ -261,6 +283,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.pointerDown(at(1, 1));
 		tool.pointerDown(at(2, 2));
@@ -273,6 +297,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		expect(() => {
@@ -288,6 +314,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown({ ...at(812, 240), button: 'secondary' });
@@ -325,6 +353,8 @@ describe('CalibrateTool', () => {
 				return h.supplyKnownDistance(measured);
 			},
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(0, 0));
@@ -352,6 +382,8 @@ describe('CalibrateTool', () => {
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
 			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
 		tool.pointerDown(at(812, 240));
@@ -363,5 +395,120 @@ describe('CalibrateTool', () => {
 		const result = await gesture.undo();
 		if (!result.ok) throw new Error('expected ok');
 		expect(h.undoCount).toBe(1);
+	});
+});
+
+/**
+ * Builds a `CalibrateTool` over `harness()`'s permissive defaults, overridden per test —
+ * and hands back `dispatched` plus a count of how many times the distance prompt was
+ * reached, since a stale gesture must not merely fail to dispatch: it must not ask the
+ * user anything either, and `dispatched` alone cannot tell those apart.
+ */
+function makeTool(overrides: Partial<Pick<Harness, 'hasSpatialObjects' | 'confirmRecalibration'>>): {
+	tool: CalibrateTool;
+	dispatched: UndoableCommand[];
+	distancePrompts: () => number;
+} {
+	const h = harness();
+	h.supplyNextDistance(3200);
+	let distancePromptCount = 0;
+	const tool = new CalibrateTool({
+		supplyKnownDistance: (measuredWorldUnits) => {
+			distancePromptCount += 1;
+			return h.supplyKnownDistance(measuredWorldUnits);
+		},
+		createCommand: h.createCommand,
+		hasSpatialObjects: overrides.hasSpatialObjects ?? h.hasSpatialObjects,
+		confirmRecalibration: overrides.confirmRecalibration ?? h.confirmRecalibration,
+	});
+	tool.activate(h.context);
+	return { tool, dispatched: h.dispatched, distancePrompts: () => distancePromptCount };
+}
+
+/** Drives one full two-click gesture and drains its microtask chain (see `flush`). */
+async function calibrate(tool: CalibrateTool): Promise<void> {
+	tool.pointerDown(at(812, 240));
+	tool.pointerDown(at(812, 1040));
+	await flush();
+}
+
+describe('the recalibration gate', () => {
+	/**
+	 * The trigger is whether objects will be RESCALED, not whether this is the first
+	 * calibration — a freshly imported plan with nothing drawn on it has nothing to lose,
+	 * and asking there is the "are you sure" that trains people to click through the ones
+	 * that matter.
+	 */
+	it('asks nothing on a plan with no geometry', async () => {
+		let asked = 0;
+		const { tool, dispatched } = makeTool({
+			hasSpatialObjects: () => false,
+			confirmRecalibration: () => {
+				asked += 1;
+				return Promise.resolve(true);
+			},
+		});
+
+		await calibrate(tool);
+
+		expect(asked).toBe(0);
+		expect(dispatched).toHaveLength(1);
+	});
+
+	it('asks before rescaling a plan that has geometry', async () => {
+		let asked = 0;
+		const { tool, dispatched } = makeTool({
+			hasSpatialObjects: () => true,
+			confirmRecalibration: () => {
+				asked += 1;
+				return Promise.resolve(true);
+			},
+		});
+
+		await calibrate(tool);
+
+		expect(asked).toBe(1);
+		expect(dispatched).toHaveLength(1);
+	});
+
+	it('dispatches nothing when the user declines', async () => {
+		const { tool, dispatched } = makeTool({
+			hasSpatialObjects: () => true,
+			confirmRecalibration: () => Promise.resolve(false),
+		});
+
+		await calibrate(tool);
+
+		expect(dispatched).toEqual([]);
+	});
+
+	/**
+	 * The generation rule, applied to the SECOND await this method now has. Without the
+	 * re-check, an Escape while the confirmation sat open let a late `true` calibrate a
+	 * plan the user had cancelled out of — the exact defect slice 7's counter exists for,
+	 * reintroduced by adding an await above it.
+	 */
+	it('drops a confirmation that resolves after the gesture was cancelled', async () => {
+		let release: ((confirmed: boolean) => void) | null = null;
+		const { tool, dispatched, distancePrompts } = makeTool({
+			hasSpatialObjects: () => true,
+			confirmRecalibration: () =>
+				new Promise<boolean>((resolve) => {
+					release = resolve;
+				}),
+		});
+
+		const gesture = calibrate(tool);
+		await Promise.resolve();
+		tool.cancel();
+		release?.(true);
+		await gesture;
+
+		expect(dispatched).toEqual([]);
+		// Not merely "did not dispatch": a stale gesture that reaches the distance prompt
+		// still asked the user something about points and a plan they no longer control —
+		// the trailing generation check catches the dispatch either way, so ONLY this
+		// assertion is what actually exercises the re-check right after the confirmation.
+		expect(distancePrompts()).toBe(0);
 	});
 });

@@ -1,9 +1,7 @@
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
-import type {
-	CalibratePlanInput,
-	ReversibleCalibratePlanCommand,
-} from '../../../application/commands/plan/ReversibleCalibratePlan';
+import type { CalibratePlanInput } from '../../../application/commands/plan/ReversibleCalibratePlan';
+import type { CalibratePlanTransaction } from '../planEditorCommands';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 import type { UndoableCommand } from './undoable-command';
@@ -13,15 +11,23 @@ import type { UndoableCommand } from './undoable-command';
  * answered in world millimetres like every length (ADR-009) — or `null` when the prompt
  * is dismissed. It exists because §59's Selection → Inspector pipeline has no Vue
  * Inspector panel yet: the tool states the seam it needs rather than reaching into a UI
- * that does not exist, and the Inspector (or slice 15's dialogs for the recalibration
- * confirmation this tool deliberately defers) plugs in here.
+ * that does not exist, and the Inspector plugs in here.
  */
 export type KnownDistanceSupplier = (measuredWorldUnits: number) => Promise<number | null>;
 
 export interface CalibrateToolDeps {
 	readonly supplyKnownDistance: KnownDistanceSupplier;
+	/**
+	 * Whether this plan already has geometry a recalibration would rescale. The gate for
+	 * warning the user is whether objects MOVE, not whether a calibration already exists:
+	 * an uncalibrated plan with five zones drawn on it has just as much to lose as a
+	 * calibrated one, and a calibrated plan with nothing on it has nothing.
+	 */
+	readonly hasSpatialObjects: () => boolean;
+	/** Asks the user to confirm a rescale; `true` proceeds. Never called when the above is false. */
+	readonly confirmRecalibration: () => Promise<boolean>;
 	/** Per gesture — the reversible command holds that one transaction's inverse state. */
-	readonly createCommand: () => ReversibleCalibratePlanCommand;
+	readonly createCommand: () => CalibratePlanTransaction;
 }
 
 /**
@@ -31,10 +37,11 @@ export interface CalibrateToolDeps {
  * are never reconverted here; per ADR-009 no editor tool performs its own pixel math.
  *
  * The command is dispatched through `EditorContext.commandDispatcher` only (SDD §58);
- * repositories and the event bus are invisible from here. The recalibration-confirmation
- * dialog (slice 15's `ConfirmDialog`, gated on whether the plan has spatial objects at
- * all — NOT on whether this is the first calibration) is deferred with slice 15 itself;
- * until then every completed gesture dispatches directly, which is all of Increment 5.
+ * repositories and the event bus are invisible from here. `complete` gates a rescale on
+ * `deps.confirmRecalibration()` (slice 15) before it ever asks for a distance — gated on
+ * whether the plan has spatial objects at all, NOT on whether this is the first
+ * calibration, so a fresh import with nothing drawn on it is never asked. This tool has
+ * no idea that gate is a dialog: it calls a plain dependency and reacts to `true`/`false`.
  */
 export class CalibrateTool implements EditorTool {
 	readonly id: ToolId = 'calibrate';
@@ -124,9 +131,21 @@ export class CalibrateTool implements EditorTool {
 		this.prompting = true;
 		let knownDistance: number | null;
 		try {
+			// Asked BEFORE the distance, so a user who is going to decline is never made to
+			// type a measurement first — and asked only when there is something to lose:
+			// see `CalibrateToolDeps.hasSpatialObjects`.
+			if (this.deps.hasSpatialObjects() && !(await this.deps.confirmRecalibration())) {
+				return;
+			}
+			// The SAME re-check the distance prompt below gets, and for the same reason:
+			// this method now crosses TWO awaits, and a `cancel()` across either one makes
+			// every later line belong to a gesture that no longer exists.
+			if (generation !== this.generation) {
+				return;
+			}
 			knownDistance = await this.deps.supplyKnownDistance(measured);
 		} finally {
-			// Only if this gesture is still the live one: a `cancel()` across the await
+			// Only if this gesture is still the live one: a `cancel()` across either await
 			// already cleared the flag, and clearing it again would undo a new gesture's
 			// claim on it.
 			if (generation === this.generation) {

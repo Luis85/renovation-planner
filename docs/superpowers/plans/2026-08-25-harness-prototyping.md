@@ -1751,6 +1751,32 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	});
 
 	/**
+	 * The PNG name is derived from a file path, and a legal path must not produce an illegal
+	 * filename. Two ways it can, and both are the same criterion-4 failure — an entry the
+	 * index opens and the capture cannot write:
+	 *
+	 * - Two different ids flattening onto one name, so the second capture silently
+	 *   overwrites the first. The digest is what refuses that.
+	 * - One id flattening onto a name too long for the filesystem — `ENAMETOOLONG` from
+	 *   `page.screenshot()`. The cap is what refuses that, and it is safe only BECAUSE the
+	 *   digest holds the identity: truncating a part that no longer has to be unique costs
+	 *   nothing.
+	 *
+	 * Asserted on the source, like every case in this file, because `harness-shot.mjs` runs
+	 * its capture at module scope and cannot be imported to be called. That is a real limit
+	 * of these assertions and it is stated rather than papered over: what they check is that
+	 * the script still SAYS this, not that a 300-character id was captured.
+	 */
+	it('keeps the PNG name unique and short enough to exist', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		// Identity: a short hash of the REAL id, not of the flattened one.
+		expect(source).toContain("createHash('sha1').update(entry)");
+		// Length: the human-readable half is capped, since the digest is what makes it unique.
+		expect(source).toMatch(/\.slice\(0,\s*60\)/);
+	});
+
+	/**
 	 * The assertion that stops a green run from lying. Waiting on `.rp-harness-stage` alone
 	 * would photograph the placeholder — a successful, empty PNG, which the actor this
 	 * feature exists for cannot tell from a real one.
@@ -2050,7 +2076,17 @@ const entryShots = (entry) => {
 	// the first — the same collision `entries.ts` refuses, moved from the URL to the file
 	// system. So the readable part is sanitised for humans and a short hash of the REAL id
 	// keeps it unique.
-	const readable = entry.replace(/[^a-zA-Z0-9]+/g, '-');
+	//
+	// The readable part is also CAPPED, and the cap is safe precisely because identity lives
+	// in the digest rather than in it: a deep path or a long basename is legal on every
+	// platform this runs on, and flattening the whole id into a filename is how a legal
+	// source path becomes an `ENAMETOOLONG` from `page.screenshot()` — an entry the index
+	// opens and the capture cannot write, which is the same criterion-4 failure as the
+	// collision above wearing different clothes. 60 leaves room for the `entry-`, the
+	// digest, the scheme and `.png` well inside the 255-byte per-component limit, and inside
+	// Windows' 260-character whole-path limit once `harness-shots/` is in front of it —
+	// Windows being one of the four legs, and the stricter of the two constraints.
+	const readable = entry.replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 60);
 	const digest = createHash('sha1').update(entry).digest('hex').slice(0, 8);
 	const fileSafe = `${readable}-${digest}`;
 
@@ -2682,9 +2718,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across thirteen review rounds — forty findings. Thirty-nine were real and are fixed
-above rather than noted; one was not, and it is recorded as declined with the measurement that
-declined it.**
+**Revised across fourteen review rounds — forty-one findings. Forty were real and are fixed above
+rather than noted; one was not, and it is recorded as declined with the measurement that declined
+it.**
 
 Round one, on the shape of the harness:
 
@@ -2809,7 +2845,13 @@ Round thirteen, on three guards that each held for the case somebody thought of:
 | **A text-root entry could never be captured** | `entryHasDrawn` required `stage.firstElementChild !== null`, and `<template>Coming soon</template>` — a perfectly good early mock — renders a text node and no element. The index draws it, `data-entry` is set, and `harness-shot` times out on an entry criterion 4 promises is capturable. A readiness check narrower than what a valid entry can render | Task 6: `childNodes.length > 0`. Its sibling test pinned the old string verbatim and was updated in the same edit — it now also forbids `firstElementChild` returning |
 | **Template-only held for one file** | The promotion test read `ZoneSummary.vue` by name, so the second mock could carry a `<script setup>` and stay green. `vue/no-restricted-block` was `['error', 'style']`, which permits every script form. The tree's defining invariant was a property of the one file that had been thought of | Task 7 Step 5: a `src/prototypes/**/*.vue` block narrowing that rule to `['error', 'style', 'script']` — checked at the forbidden thing, so it holds for mocks nobody has written. `'style'` is repeated because two blocks matching one file override the option array rather than merging it. Both script forms measured refused, template-only measured clean |
 
-**The pattern, across all thirteen rounds and worth more than any individual fix:** every failure was
+Round fourteen, on a legal path that makes an illegal filename:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **The readable half of a PNG name was uncapped** | `readable` is the whole id flattened, so a deep path or a long basename produces a filename past the filesystem's 255-byte per-component limit — and past Windows' 260-character whole-path limit sooner, `harness-shots/` being in front of it and Windows being one of the four legs. `page.screenshot()` fails with `ENAMETOOLONG` on an entry the index opened perfectly: criterion 4's failure again, from the third direction now — first a collision, then a wait selector, now a length | Task 6: `.slice(0, 60)` on the readable half, which is safe precisely because identity lives in the digest beside it. A test pins both halves, and states the limit of a source-text assertion rather than implying it captured anything |
+
+**The pattern, across all fourteen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -2824,6 +2866,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the thirty-nine fixes. Round twelve is the first to add a third pattern:
+execution, not the forty fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

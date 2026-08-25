@@ -319,9 +319,28 @@ both problems.
 ```typescript
 import path from 'node:path';
 import { build } from 'vite';
-import type { RollupOutput } from 'rollup';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
+
+/**
+ * The three members this test reads, named locally rather than imported.
+ *
+ * `import type { RollupOutput } from 'rollup'` is the obvious spelling and it fails
+ * `npm run analyze`: this Vite bundles with **Rolldown**, `rollup` is not an installed
+ * package, and fallow reports an unlisted dependency. Installing `rollup` to satisfy a
+ * type-only import that nothing type-checks — `tests/**` is outside `tsconfig.json`'s
+ * `include` — is precisely the dependency `CLAUDE.md`'s "Deliberately absent" section
+ * refuses. The import also survives Vitest, which strips type-only specifiers without
+ * resolving them, so the failure arrives from fallow at the END of the gate rather than
+ * from the test run: measured, and the reason this comment exists.
+ */
+interface BuiltChunk {
+	type: string;
+	modules?: Record<string, unknown>;
+}
+interface BuildOutput {
+	output: BuiltChunk[];
+}
 
 /**
  * The guarantee with a user on the other end: no mock, prototype or fixture is ever in a built
@@ -342,7 +361,7 @@ beforeAll(async () => {
 		configFile: path.resolve(REPO, 'vite.config.ts'),
 		build: { write: false },
 		logLevel: 'error',
-	})) as RollupOutput | RollupOutput[];
+	})) as BuildOutput | BuildOutput[];
 
 	const output = Array.isArray(result) ? result[0] : result;
 	// EVERY chunk, not the first. A dynamic import — the exact route this test exists to
@@ -402,7 +421,13 @@ assertions are passing over nothing; fix that before continuing.
 
 - [ ] **Step 3: Prove it fails on a prototype — plant one and import it DYNAMICALLY**
 
-Temporarily create `src/prototypes/Doomed.vue`:
+Temporarily create `src/prototypes/DoomedPrototype.vue`.
+
+**The name is two words on purpose.** `vue/multi-word-component-names` refuses a single-word
+SFC name here, so a probe called `Doomed.vue` makes `npm run lint` red for a reason that has
+nothing to do with the import boundary — and Step 5 below exists precisely to observe whether
+lint is red or green on a dynamic import. A probe whose failure cannot be attributed to the rule
+under test is the same defect as a green signal that means nothing. Measured.
 
 ```vue
 <template>
@@ -414,7 +439,7 @@ It carries no marker, and its name deliberately does not collide with any compon
 add to the top of `src/main.ts`:
 
 ```typescript
-export const planted = import('./prototypes/Doomed.vue');
+export const planted = import('./prototypes/DoomedPrototype.vue');
 ```
 
 **An `export`, not a `console.log`.** `.oxlintrc.json` turns `no-console` on for every file under
@@ -433,7 +458,7 @@ leave the hard half untested while looking like a proof.
 
 Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
 
-Expected: FAIL on `contains no module from src/prototypes/`, naming `Doomed.vue`.
+Expected: FAIL on `contains no module from src/prototypes/`, naming `DoomedPrototype.vue`.
 
 If it PASSES, the aggregation is not reaching every chunk — print `chunks.length` and the file
 names before changing anything else, because a green result here means the whole test is
@@ -448,8 +473,8 @@ not see a dynamic specifier, which is precisely why the bundle test exists. Swap
 for the static form to watch lint refuse it:
 
 ```typescript
-import Doomed from './prototypes/Doomed.vue';
-export const planted = Doomed;
+import DoomedPrototype from './prototypes/DoomedPrototype.vue';
+export const planted = DoomedPrototype;
 ```
 
 Run `npm run lint` again: FAIL with `no-restricted-imports` from Task 1's `forbidden('plugin', …)`
@@ -464,7 +489,7 @@ Revert the prototype and plant a fixture import instead:
 
 ```bash
 git checkout src/main.ts
-rm src/prototypes/Doomed.vue
+rm src/prototypes/DoomedPrototype.vue
 ```
 
 Then temporarily add to the top of `src/main.ts`:
@@ -2876,6 +2901,21 @@ Round fifteen, on the spelling that needs no import at all:
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
 | **A `<link rel="stylesheet">` in a TEMPLATE was invisible to every check** | Rounds twelve and thirteen chased the sheet through the module graph and never left it. A browser honours a stylesheet link in the BODY, so a mock whose template renders one loads the proposal sheet with no import, no `<style>` block and no build step involved — past the import scan, past the `<style>` scan, and past the `index.html` scan, which reads a different file. Three green checks and the forbidden sheet on the page | Task 5: a third list, `linkers`, over the same reachable set as the import scan, matched as `<link … stylesheet` rather than by attribute order. Narrow enough that prose merely saying "stylesheet" does not trip it — measured, no hit in 169 files — and planted as its own watched failure in Step 6 |
+
+**Found by EXECUTION rather than by review**, which is the category this list did not have until
+the plan started running. Two in Task 1, two in Task 2, and each was invisible to fifteen rounds
+of reading because each depended on what a tool actually does:
+
+| Found in | What was wrong | Settled by |
+| --- | --- | --- |
+| Task 1 | The prescribed fixture technique linted FICTITIOUS `.ts` paths, and typescript-eslint's `projectService` fatally refuses a path not in the program — so `no-restricted-imports` never ran and the task's own third assertion passed trivially against `['PARSE_ERROR']`. `vue-rules.test.ts` gets away with the same shape only because the Vue block carries no `projectService` | Purely virtual `.vue` fixture paths, which `srcFiles()` already scopes every ban to. The negative assertion now also refuses `PARSE_ERROR`, watched failing |
+| Task 1 | Writing real fixtures into `src/` raced two tests that walk that tree, and vitest runs files in parallel | Removed by the technique above rather than serialised — a test that mutates the shared source tree is worse than the race it causes | 
+| Task 2 | `import type { RollupOutput } from 'rollup'` fails `npm run analyze`: this Vite bundles with **Rolldown** and `rollup` is not installed. It survives Vitest, which strips type-only imports without resolving them, so the failure arrives from fallow at the end of the gate rather than from the test | Local interfaces naming the three members the test reads. Installing `rollup` for a type nothing type-checks is the dependency `CLAUDE.md` refuses by name |
+| Task 2 | The planted probe `Doomed.vue` fails `vue/multi-word-component-names`, so the lint run in the step that exists to observe lint's verdict was red for an unrelated reason | `DoomedPrototype.vue`, and the plan now says why the name is two words |
+
+The generalisation is the one this plan already knew and had only applied to tests: **a step whose
+expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
+these four, because each is a fact about a tool's behaviour rather than about the text.
 
 **The pattern, across all fifteen rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,

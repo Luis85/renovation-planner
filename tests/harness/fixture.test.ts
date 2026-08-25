@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { storeToRefs } from 'pinia';
+import { mount } from '@vue/test-utils';
 import { createApp } from 'vue';
 import { seedFixture, harnessEditorContext } from './fixture';
 import {
@@ -10,18 +11,24 @@ import {
 } from '../../src/presentation/editor/EditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
+import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
 
 /**
- * The one world every index entry mounts against. Three claims worth a test: it is SEEDED
- * (a component reading the store finds a plan, with no per-entry setup), it is ONE world
- * (two stores created from it agree, which is what makes two components on a prototype
- * consistent), and the editor context it hands out is one `useEditorContext()` ACCEPTS.
+ * The one world every index entry mounts against. Two claims held here: it is SEEDED (a
+ * component reading the store finds a plan, with no per-entry setup — held against the
+ * REAL `StatusBar`, not a stub, because a fake here must not be thinner than the
+ * component it stands in for), and the editor context it hands out is one
+ * `useEditorContext()` ACCEPTS.
  *
- * The third is driven through a real `createApp` rather than asserted on the returned
- * object, because the failure it guards is a key mismatch: a context built correctly and
- * provided under a symbol the consumer does not inject looks perfect in a shape assertion
- * and throws on mount. `useEditorContext` throws rather than warning, so the index would
- * show Task 4's named-failure card for every component that reads it.
+ * A third claim this fixture was originally asked to hold — two DIFFERENT components
+ * mounted from one prototype agree on the same plan — is not held in this file. See the
+ * comment before the final case below for why, and where it moved.
+ *
+ * The final case is driven through a real `createApp` rather than asserted on the
+ * returned object, because the failure it guards is a key mismatch: a context built
+ * correctly and provided under a symbol the consumer does not inject looks perfect in a
+ * shape assertion and throws on mount. `useEditorContext` throws rather than warning, so
+ * the index would show Task 4's named-failure card for every component that reads it.
  */
 describe('the harness fixture', () => {
 	it('seeds the project store with the harness plan and zones', () => {
@@ -33,14 +40,29 @@ describe('the harness fixture', () => {
 		expect(zones.value.size).toBe(HARNESS_ZONES.length);
 	});
 
-	it('gives two readers the same plan, which is what makes two components agree', () => {
-		seedFixture();
+	it('mounts the real StatusBar with no per-entry setup, because the fixture is already there', () => {
+		const pinia = seedFixture();
 
-		const first = storeToRefs(useProjectStore()).plan;
-		const second = storeToRefs(useProjectStore()).plan;
+		// `StatusBar` takes no props and calls `useEditorContext()` nowhere — only its
+		// parent `PlanEditorRoot` does — so the fixture's Pinia is the whole world it needs.
+		const wrapper = mount(StatusBar, { global: { plugins: [pinia] } });
 
-		expect(first.value).toBe(second.value);
+		expect(wrapper.text()).toContain(HARNESS_PLAN.name);
+
+		wrapper.unmount();
 	});
+
+	/*
+	 * Criterion 7 — "two components mounted from one prototype read the same plan: a value
+	 * shown by both matches" — is not held here. It needs two DIFFERENT real components;
+	 * the only prop-free pair that reads `useProjectStore` is `StatusBar` and
+	 * `PlanEditorRoot` (`PlanEditorRoot.vue`), and `PlanEditorRoot` additionally needs
+	 * `app.use(VueKonva)`, which this task's fixture does not install — only Task 4's
+	 * index app does. Mounting one component twice, or reading one Pinia store twice,
+	 * would prove only that Pinia returns the same store instance for one active Pinia
+	 * (it always does) and would assert nothing about this fixture being one world.
+	 * Held in Task 4, against `StatusBar` and `PlanEditorRoot` mounted together.
+	 */
 
 	it('provides a context `useEditorContext()` accepts, so a real component can mount', () => {
 		let seen: EditorContext | undefined;

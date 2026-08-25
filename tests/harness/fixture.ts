@@ -21,13 +21,21 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 export function seedFixture(): Pinia {
 	const pinia = createPinia();
 
+	// Process-wide: the last call to `setActivePinia` wins, so calling `seedFixture()` again
+	// for a second entry replaces which Pinia `useProjectStore()` resolves to outside an
+	// explicit `app.use(pinia)`. Harmless for how Task 4 uses this — one fixture call per
+	// mounted entry, immediately consumed — but worth knowing before a caller relies on two
+	// live at once.
 	setActivePinia(pinia);
 
 	const project = useProjectStore();
 
-	// Assigned directly rather than through `hydrate`: hydration takes query services and is
-	// asynchronous, and this page has no vault to answer them. What a component needs is the
-	// post-hydration STATE, which is this.
+	// Assigned directly rather than through `hydrate`: `harnessDeps().queries` answers both
+	// queries perfectly well with no vault behind them, so that is not the reason. The real
+	// one is that `hydrate` is ASYNCHRONOUS (it awaits two query promises) and `seedFixture`
+	// is not — every index entry needs a world in place before its first synchronous mount,
+	// not one that lands a tick later. What a component needs is the post-hydration STATE,
+	// which is this.
 	project.plan = HARNESS_PLAN;
 	project.zones = new Map(HARNESS_ZONES.map((zone) => [zone.id, zone]));
 	project.status = 'ready';

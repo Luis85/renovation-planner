@@ -25,7 +25,9 @@ import { FakeLeaf } from '../helpers/workspace';
  * components against the same world (`fixture.ts`). One fixture rather than two: a second
  * set would be a second derivation that can answer differently, and two components drawn
  * from two plans that differ in a way nobody notices is exactly the defect one world buys
- * its way out of.
+ * its way out of. `harnessDeps` is exported for the same reason and carries more surface —
+ * a cast vault and two always-answering queries — that `fixture.ts`'s editor context now
+ * hands to every component the index mounts, not only to this page's own view.
  */
 
 export const HARNESS_PLAN: PlanDto = {
@@ -106,6 +108,10 @@ export const HARNESS_ZONES: readonly ZoneDto[] = [
 export function harnessDeps(): PlanEditorDeps {
 	return {
 		queries: {
+			// Ignores the plan id it is given and always answers `HARNESS_PLAN` — the real
+			// query answers `ok(null)` for one it does not recognise. Fine while only
+			// `mountPlanEditorHarness` called this with `HARNESS_PLAN.id`; worth stating now
+			// that exporting `harnessDeps` widens the audience to whatever id a caller passes.
 			getPlan: () => Promise.resolve(ok(HARNESS_PLAN)),
 			findZonesByPlan: () => Promise.resolve(ok(HARNESS_ZONES)),
 		},

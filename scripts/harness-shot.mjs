@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
@@ -46,10 +47,91 @@ const SHOTS = [
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
 ];
 
+/**
+ * What "the entry has drawn" means — and it is NOT `.rp-harness-stage`.
+ *
+ * The stage element is mounted synchronously on the first paint, while the selected SFC is
+ * still being imported. A capture waiting on the stage alone photographs "Pick an entry." and
+ * exits 0: a successful, empty PNG. That is the worst thing this script can produce, because
+ * the actor it exists for cannot see that the picture is blank — it would read a green exit
+ * as "the mock looks like that".
+ *
+ * `IndexPage.vue` sets `data-entry` from `<Suspense>`'s `@resolve`, so it means the entry AND
+ * every async component below it has settled — not merely that the outer module loaded, which
+ * would still be a placeholder wherever a mock composes a real component. The node check waits
+ * out the render tick after that and is belt and braces rather than the primary signal.
+ *
+ * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
+ * path, and a quote or a newline is a legal filename character on POSIX; interpolating one into
+ * an attribute-value selector that parses as something else or does not parse at all,
+ * so the index could open an entry `harness-shot` could never capture. Comparing `dataset.entry`
+ * as a STRING has no escaping question to get wrong — the class of defect is removed rather
+ * than patched.
+ *
+ * `childNodes`, deliberately not the DOM's element-only equivalent. A template whose root is
+ * TEXT — `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a
+ * text node and no element, so a check that required an ELEMENT child would time out on an
+ * entry the index drew correctly and refuse a capture the guarantee promises. The marker is
+ * what proves the screen settled; this is only the cheap sanity check that the stage is not
+ * literally empty, and it must not be narrower than what a valid entry can render.
+ */
+const entryHasDrawn = (id) => {
+	const stage = document.querySelector('.rp-harness-stage');
+
+	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.childNodes.length > 0;
+};
+
+/**
+ * The shots for ONE named entry, in both schemes.
+ *
+ * This is what makes the harness usable by an actor with no eyes: `docs/actors/Coding agent.md`
+ * describes an agent that verifies by running something that writes a file it can then read,
+ * or does not verify at all. Without an argument here, every layout judgement about a mock is
+ * deferred to a human and every iteration costs a round.
+ *
+ * No `?phone` shot: the fixed set has one for the project view because that surface is
+ * responsive by design, and a prototype's own breakpoints are the prototype's business — add
+ * `&phone` to the URL by hand when that is the question.
+ */
+const entryShots = (entry) => {
+	// The id is a URL and may contain `:` and `/` — both legal in a query value, both ILLEGAL
+	// in a Windows filename, and Windows is one of the four legs `npm run check` rides.
+	//
+	// Sanitising ALONE is not enough, and the plan's own id test names the case: `a-b/C` and
+	// `a/b-C` are different entries that collapse to one string the moment `/` and `:` become
+	// `-`. Two captures would then write the same two PNGs, the second silently overwriting
+	// the first — the same collision `entries.ts` refuses, moved from the URL to the file
+	// system. So the readable part is sanitised for humans and a short hash of the REAL id
+	// keeps it unique.
+	//
+	// The readable part is also CAPPED, and the cap is safe precisely because identity lives
+	// in the digest rather than in it: a deep path or a long basename is legal on every
+	// platform this runs on, and flattening the whole id into a filename is how a legal
+	// source path becomes an `ENAMETOOLONG` from `page.screenshot()` — an entry the index
+	// opens and the capture cannot write, which is the same criterion-4 failure as the
+	// collision above wearing different clothes. 60 leaves room for the `entry-`, the
+	// digest, the scheme and `.png` well inside the 255-byte per-component limit, and inside
+	// Windows' 260-character whole-path limit once `harness-shots/` is in front of it —
+	// Windows being one of the four legs, and the stricter of the two constraints.
+	const readable = entry.replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 60);
+	const digest = createHash('sha1').update(entry).digest('hex').slice(0, 8);
+	const fileSafe = `${readable}-${digest}`;
+
+	// `entry` rather than `selector`: `captureOne` waits on `entryHasDrawn` when it is present.
+	return [
+		{ name: `entry-${fileSafe}-dark`, query: `?entry=${encodeURIComponent(entry)}`, entry },
+		{
+			name: `entry-${fileSafe}-light`,
+			query: `?entry=${encodeURIComponent(entry)}&theme=light`,
+			entry,
+		},
+	];
+};
+
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not
  * cost the other two their PNGs. */
-async function captureOne(browser, baseUrl, { name, query, selector }, errors) {
+async function captureOne(browser, baseUrl, { name, query, selector, entry }, errors) {
 	const page = await browser.newPage({ viewport: VIEWPORT });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
@@ -61,7 +143,11 @@ async function captureOne(browser, baseUrl, { name, query, selector }, errors) {
 		// 'load', not 'networkidle': Vite's dev server keeps an HMR websocket open, which
 		// networkidle waits forever for.
 		await page.goto(`${baseUrl}/${query}`, { waitUntil: 'load' });
-		await page.waitForSelector(selector, { state: 'attached' });
+		// The fixed shots name a selector; a named entry names itself, and is compared as a
+		// string in the page because a CSS attribute selector built from a file path is a
+		// quoting bug waiting for the first filename with a `"` in it.
+		if (entry === undefined) await page.waitForSelector(selector, { state: 'attached' });
+		else await page.waitForFunction(entryHasDrawn, entry);
 
 		const file = path.join(OUT_DIR, `${name}.png`);
 
@@ -114,10 +200,10 @@ async function startHarnessServer() {
 
 /** All three shots, and the errors any of them raised — collected rather than thrown, so
  * one bad shot does not cost the other two their PNGs. */
-async function captureAll(browser, baseUrl) {
+async function captureAll(browser, baseUrl, shots) {
 	const errors = [];
 
-	for (const shot of SHOTS) await captureOne(browser, baseUrl, shot, errors);
+	for (const shot of shots) await captureOne(browser, baseUrl, shot, errors);
 	return errors;
 }
 
@@ -134,6 +220,11 @@ function reportErrors(errors) {
 async function run() {
 	const executablePath = resolveChromiumExecutable();
 
+	// `node scripts/harness-shot.mjs ZoneSummary` — one entry, both schemes. With no
+	// argument, the five fixed surfaces, exactly as before.
+	const entry = process.argv[2];
+	const shots = entry ? entryShots(entry) : SHOTS;
+
 	mkdirSync(OUT_DIR, { recursive: true });
 
 	const { server, baseUrl } = await startHarnessServer();
@@ -148,7 +239,7 @@ async function run() {
 		const browser = await chromium.launch({ executablePath, headless: true });
 
 		try {
-			reportErrors(await captureAll(browser, baseUrl));
+			reportErrors(await captureAll(browser, baseUrl, shots));
 		} finally {
 			await browser.close();
 		}

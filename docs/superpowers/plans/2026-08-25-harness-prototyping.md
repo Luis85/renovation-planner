@@ -2142,7 +2142,15 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		const firstUse = branch.search(/\.empty\(\)|\.createDiv\(|\.createEl\(/);
 
 		expect(install, 'the index branch never installs the shim').toBeGreaterThanOrEqual(0);
-		if (firstUse >= 0) expect(install).toBeLessThan(firstUse);
+		// Written to avoid a CONDITIONAL expect (oxlint's `vitest/no-conditional-expect`, which
+		// `npm run check` fails on with zero tolerance): the literal
+		// `if (firstUse >= 0) expect(install).toBeLessThan(firstUse);` shown in an earlier
+		// version of this block is refused by that rule, and `linterOptions.noInlineConfig`
+		// rules out a suppression. Same claim either way — if no extension use is found in the
+		// branch, the ordering holds vacuously. Found executing Task 6, 2026-08-25.
+		const shimInstallsFirst = firstUse < 0 || install < firstUse;
+
+		expect(shimInstallsFirst, 'the shim installs before the first Obsidian DOM extension use').toBe(true);
 	});
 
 	/**
@@ -2364,17 +2372,23 @@ Then, after the `SHOTS` array (line ~47), add:
  *
  * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
  * path, and a quote or a newline is a legal filename character on POSIX; interpolating one into
- * `[data-entry="…"]` produces a selector that parses as something else or does not parse at all,
+ * an attribute-value selector that parses as something else or does not parse at all,
  * so the index could open an entry `harness-shot` could never capture. Comparing `dataset.entry`
  * as a STRING has no escaping question to get wrong — the class of defect is removed rather
  * than patched.
  *
- * `childNodes`, not `firstElementChild`. A template whose root is TEXT — `<template>Coming
- * soon</template>`, which is a perfectly good early mock — mounts a text node and no element,
- * so an element check would time out on an entry the index drew correctly and refuse a capture
- * the guarantee promises. The marker is what proves the screen settled; this is only the cheap
- * sanity check that the stage is not literally empty, and it must not be narrower than what a
- * valid entry can render.
+ * `childNodes`, deliberately not the DOM's element-only equivalent. A template whose root is
+ * TEXT — `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a
+ * text node and no element, so a check that required an ELEMENT child would time out on an
+ * entry the index drew correctly and refuse a capture the guarantee promises. The marker is
+ * what proves the screen settled; this is only the cheap sanity check that the stage is not
+ * literally empty, and it must not be narrower than what a valid entry can render.
+ *
+ * (Reworded away from naming the forbidden DOM property directly: the earlier phrasing put
+ * that literal substring inside this very comment, and the sibling test two blocks up checks
+ * the WHOLE script source for it — so the plan's own prescribed code failed its own
+ * prescribed test. Found executing Task 6, 2026-08-25; the `[data-entry="…"]` example a few
+ * lines up had the same shape and was reworded the same way.)
  */
 const entryHasDrawn = (id) => {
 	const stage = document.querySelector('.rp-harness-stage');

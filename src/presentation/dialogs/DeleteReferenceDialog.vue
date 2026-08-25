@@ -16,7 +16,7 @@
 import { tr } from '../i18n/strings';
 import type { DeleteReferenceDescriptor, DeleteReferenceDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: DeleteReferenceDescriptor; titleId?: string }>();
+defineProps<{ descriptor: DeleteReferenceDescriptor; titleId: string }>();
 defineEmits<{ resolve: [result: DeleteReferenceDialogResult] }>();
 
 const ACTIONS = [

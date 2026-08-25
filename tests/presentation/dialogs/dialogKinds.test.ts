@@ -15,11 +15,21 @@ import FormDialog from '../../../src/presentation/dialogs/FormDialog.vue';
 import { t } from '../../../src/presentation/i18n/strings';
 
 const EN = 'en';
+/**
+ * `titleId` is now a REQUIRED prop (`DialogHost` always supplies it in practice), so every
+ * mount below needs one; the value itself is arbitrary here since none of these tests
+ * exercise `DialogHost`'s own `aria-labelledby` wiring — that pairing is asserted in
+ * `dialogHost.test.ts`, against the real generated id.
+ */
+const TITLE_ID = 'test-title-id';
 
 describe('ConfirmDialog', () => {
 	it('renders the title and message it is handed', () => {
 		const wrapper = mount(ConfirmDialog, {
-			props: { descriptor: { kind: 'confirm', title: 'Recalibrate?', message: 'Zones rescale.' } },
+			props: {
+				descriptor: { kind: 'confirm', title: 'Recalibrate?', message: 'Zones rescale.' },
+				titleId: TITLE_ID,
+			},
 		});
 
 		expect(wrapper.find('.rp-dialog-title').text()).toBe('Recalibrate?');
@@ -28,7 +38,7 @@ describe('ConfirmDialog', () => {
 
 	it('falls back to translated labels, never to an English literal', () => {
 		const wrapper = mount(ConfirmDialog, {
-			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M' } },
+			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M' }, titleId: TITLE_ID },
 		});
 		const labels = wrapper.findAll('.rp-dialog-button').map((button) => button.text());
 
@@ -45,6 +55,7 @@ describe('ConfirmDialog', () => {
 					confirmLabel: 'Rescale',
 					cancelLabel: 'Keep',
 				},
+				titleId: TITLE_ID,
 			},
 		});
 
@@ -53,7 +64,7 @@ describe('ConfirmDialog', () => {
 
 	it('resolves confirm and cancel from their own buttons', async () => {
 		const wrapper = mount(ConfirmDialog, {
-			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M' } },
+			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M' }, titleId: TITLE_ID },
 		});
 
 		await wrapper.findAll('.rp-dialog-button')[1]?.trigger('click');
@@ -64,10 +75,13 @@ describe('ConfirmDialog', () => {
 
 	it('marks the confirm action destructive only when asked', () => {
 		const plain = mount(ConfirmDialog, {
-			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M' } },
+			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M' }, titleId: TITLE_ID },
 		});
 		const dangerous = mount(ConfirmDialog, {
-			props: { descriptor: { kind: 'confirm', title: 'T', message: 'M', danger: true } },
+			props: {
+				descriptor: { kind: 'confirm', title: 'T', message: 'M', danger: true },
+				titleId: TITLE_ID,
+			},
 		});
 
 		expect(plain.find('.rp-dialog-button-danger').exists()).toBe(false);
@@ -83,7 +97,10 @@ describe('DeleteReferenceDialog', () => {
 
 	it('renders every row it is handed, in the order supplied, and no other', () => {
 		const wrapper = mount(DeleteReferenceDialog, {
-			props: { descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows } },
+			props: {
+				descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows },
+				titleId: TITLE_ID,
+			},
 		});
 		const rendered = wrapper.findAll('.rp-dialog-reference-row').map((row) => row.text());
 
@@ -96,7 +113,10 @@ describe('DeleteReferenceDialog', () => {
 
 	it('invents no row for an empty references array', () => {
 		const wrapper = mount(DeleteReferenceDialog, {
-			props: { descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: [] } },
+			props: {
+				descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: [] },
+				titleId: TITLE_ID,
+			},
 		});
 
 		expect(wrapper.findAll('.rp-dialog-reference-row')).toHaveLength(0);
@@ -104,7 +124,10 @@ describe('DeleteReferenceDialog', () => {
 
 	it('names the entity it would delete', () => {
 		const wrapper = mount(DeleteReferenceDialog, {
-			props: { descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows } },
+			props: {
+				descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows },
+				titleId: TITLE_ID,
+			},
 		});
 
 		expect(wrapper.find('.rp-dialog-title').text()).toContain('Kitchen');
@@ -119,7 +142,10 @@ describe('DeleteReferenceDialog', () => {
 
 		for (const action of expected) {
 			const wrapper = mount(DeleteReferenceDialog, {
-				props: { descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows } },
+				props: {
+					descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows },
+					titleId: TITLE_ID,
+				},
 			});
 
 			await wrapper.find(`[data-rp-action="${action}"]`).trigger('click');
@@ -130,7 +156,10 @@ describe('DeleteReferenceDialog', () => {
 
 	it('emits once for a double-click', async () => {
 		const wrapper = mount(DeleteReferenceDialog, {
-			props: { descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows } },
+			props: {
+				descriptor: { kind: 'delete-reference', entityLabel: 'Kitchen', references: rows },
+				titleId: TITLE_ID,
+			},
 		});
 		const button = wrapper.find('[data-rp-action="delete-anyway"]');
 
@@ -152,7 +181,7 @@ describe('EntityPickerDialog', () => {
 
 	it('renders the candidates in the order given, applying no sort of its own', () => {
 		const wrapper = mount(EntityPickerDialog, {
-			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates } },
+			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates }, titleId: TITLE_ID },
 		});
 
 		expect(wrapper.findAll('.rp-dialog-candidate').map((c) => c.text())).toEqual([
@@ -163,7 +192,7 @@ describe('EntityPickerDialog', () => {
 
 	it('resolves the id of the candidate that was picked', async () => {
 		const wrapper = mount(EntityPickerDialog, {
-			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates } },
+			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates }, titleId: TITLE_ID },
 		});
 
 		await wrapper.findAll('.rp-dialog-candidate')[1]?.trigger('click');
@@ -173,7 +202,7 @@ describe('EntityPickerDialog', () => {
 
 	it('resolves cancel from its cancel control', async () => {
 		const wrapper = mount(EntityPickerDialog, {
-			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates } },
+			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates }, titleId: TITLE_ID },
 		});
 
 		await wrapper.find('[data-rp-action="cancel"]').trigger('click');
@@ -183,7 +212,10 @@ describe('EntityPickerDialog', () => {
 
 	it('says so rather than showing an empty list', () => {
 		const wrapper = mount(EntityPickerDialog, {
-			props: { descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates: [] } },
+			props: {
+				descriptor: { kind: 'entity-picker', title: 'Reassign to', candidates: [] },
+				titleId: TITLE_ID,
+			},
 		});
 
 		expect(wrapper.text()).toContain(t(EN, 'dialog.entity-picker.empty'));
@@ -204,6 +236,7 @@ describe('FormDialog', () => {
 		const wrapper = mount(FormDialog, {
 			props: {
 				descriptor: { kind: 'form', title: 'New asset', component: Field, props: { seed: 'x' } },
+				titleId: TITLE_ID,
 			},
 		});
 
@@ -214,6 +247,7 @@ describe('FormDialog', () => {
 		const wrapper = mount(FormDialog, {
 			props: {
 				descriptor: { kind: 'form', title: 'New asset', component: Field, props: { seed: 'x' } },
+				titleId: TITLE_ID,
 			},
 		});
 
@@ -224,7 +258,7 @@ describe('FormDialog', () => {
 
 	it('resolves cancel from its cancel control', async () => {
 		const wrapper = mount(FormDialog, {
-			props: { descriptor: { kind: 'form', title: 'New asset', component: Field } },
+			props: { descriptor: { kind: 'form', title: 'New asset', component: Field }, titleId: TITLE_ID },
 		});
 
 		await wrapper.find('[data-rp-action="cancel"]').trigger('click');

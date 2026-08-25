@@ -14,7 +14,7 @@
 import { tr } from '../i18n/strings';
 import type { EntityPickerDescriptor, EntityPickerDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: EntityPickerDescriptor; titleId?: string }>();
+defineProps<{ descriptor: EntityPickerDescriptor; titleId: string }>();
 defineEmits<{ resolve: [result: EntityPickerDialogResult] }>();
 </script>
 

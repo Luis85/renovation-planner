@@ -1,3 +1,16 @@
+<script lang="ts">
+/**
+ * Module-scoped on purpose, and the ONLY reason this file has a plain `<script>` beside
+ * its `<script setup>`: `src/` builds to one bundle (`dist/main.js`), so this module has
+ * exactly one instance in the document no matter how many times `createApp()` runs — two
+ * Plan Editor leaves are two separate apps (ADR-004) but the SAME compiled module. That is
+ * what makes a bare counter here unique across every `DialogHost` alive at once, which
+ * Vue's own `useId()` cannot promise (it is unique only PER APP, and closing that gap needs
+ * an `app.config.idPrefix` set where `createApp()` is called — outside this directory).
+ */
+let hostCount = 0;
+</script>
+
 <script setup lang="ts">
 /**
  * The one live dialog element per Vue app (design slice 15) — mounted in EVERY
@@ -57,17 +70,15 @@ const { current } = storeToRefs(store);
 const dialogEl = ref<HTMLElement | null>(null);
 
 /**
- * The id `.rp-dialog`'s `aria-labelledby` points at, generated once per HOST instance
- * rather than once per plugin session: `crypto.randomUUID()` needs no shared module state
- * to stay collision-free, which matters because two Plan Editor leaves are two separate
- * `createApp()` calls (ADR-004) — Vue's own `useId()` is unique only per app instance and
- * would hand both leaves' first dialog the identical id absent a per-app `idPrefix` this
- * component has no reach to set. Every one of the four kind components renders exactly one
- * `.rp-dialog-title`, unconditionally, so this id always resolves to something; a
- * hypothetical fifth kind that omitted the title element would leave `aria-labelledby`
- * pointing at nothing, which is this decision's one unstated assumption.
+ * The id `.rp-dialog`'s `aria-labelledby` points at. `++hostCount` reads the module-scoped
+ * counter declared in the plain `<script>` block above — see its comment for why that,
+ * rather than Web Crypto, is what makes this collision-free across two `createApp()`
+ * instances. Every one of the four kind components renders exactly one `.rp-dialog-title`,
+ * unconditionally, so this id always resolves to something; a hypothetical fifth kind that
+ * omitted the title element would leave `aria-labelledby` pointing at nothing, which is
+ * this decision's one unstated assumption.
  */
-const titleId = `rp-dialog-title-${crypto.randomUUID()}`;
+const titleId = `rp-dialog-title-${++hostCount}`;
 
 /** The element focus came FROM, restored on every resolution path including Escape. */
 let previouslyFocused: HTMLElement | null = null;

@@ -73,7 +73,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'zone.status.in-progress': 'In Arbeit',
 	'zone.status.complete': 'Fertig',
 	'zone.status.unknown': 'Unbekannter Status',
-	dialog: 'Dialog',
 	'dialog.confirm': 'Bestätigen',
 	'dialog.cancel': 'Abbrechen',
 	'dialog.delete-reference.referenced-by': 'Referenziert von',

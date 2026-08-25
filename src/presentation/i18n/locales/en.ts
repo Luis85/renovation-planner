@@ -70,7 +70,6 @@ export const en = {
 	'zone.status.in-progress': 'In progress',
 	'zone.status.complete': 'Complete',
 	'zone.status.unknown': 'Unknown status',
-	dialog: 'Dialog',
 	'dialog.confirm': 'Confirm',
 	'dialog.cancel': 'Cancel',
 	'dialog.delete-reference.referenced-by': 'Referenced by',

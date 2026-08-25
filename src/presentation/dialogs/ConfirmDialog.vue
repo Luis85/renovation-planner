@@ -12,7 +12,7 @@
 import { tr } from '../i18n/strings';
 import type { ConfirmDescriptor, ConfirmDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: ConfirmDescriptor; titleId?: string }>();
+defineProps<{ descriptor: ConfirmDescriptor; titleId: string }>();
 defineEmits<{ resolve: [result: ConfirmDialogResult] }>();
 </script>
 

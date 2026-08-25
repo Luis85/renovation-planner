@@ -17,7 +17,7 @@
 import { tr } from '../i18n/strings';
 import type { FormDescriptor, FormDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: FormDescriptor; titleId?: string }>();
+defineProps<{ descriptor: FormDescriptor; titleId: string }>();
 const emit = defineEmits<{ resolve: [result: FormDialogResult] }>();
 
 function onSubmit(values: unknown): void {

@@ -89,7 +89,7 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { nextTick } from 'vue';
+import { defineComponent, nextTick } from 'vue';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
@@ -179,8 +179,17 @@ describe('axe against the mounted view', () => {
 	/**
 	 * A dialog is the one surface in this plugin that takes the keyboard away from
 	 * everything behind it, so it is the one most worth scanning: `role="dialog"` without
-	 * an accessible name, a button with no text, and a heading that skips a level are all
-	 * real violations axe sees in jsdom.
+	 * an accessible name and a button with no text are both real violations axe sees here.
+	 * A heading level is NOT one of them at this scope: measured directly (a lone `<h4>`
+	 * inside a `role="dialog"` subtree with nothing else present), axe's `heading-order`
+	 * lands the case in `passes`, not `violations` — the rule needs a PRECEDING heading to
+	 * compare against, and `page-has-heading-one` (which would otherwise catch "the first
+	 * heading is not `<h1>`") is scope-inapplicable per this file's own header. Heading
+	 * LEVEL only becomes checkable in the composite this file deliberately avoids —
+	 * measured the same way, an `<h2>` panel heading followed by a dialog `<h4>` in the SAME
+	 * scanned subtree DOES land in `violations` — which is exactly why this case is mounted
+	 * through the otherwise-empty Renovation Project view rather than the Plan Editor's own
+	 * panel headings.
 	 *
 	 * Mounted through `mountHarness` — the Renovation Project view, which otherwise draws
 	 * nothing (see the header) — rather than the Plan Editor case above: `DialogHost`
@@ -192,12 +201,15 @@ describe('axe against the mounted view', () => {
 	 * what makes that instance Pinia's own active one, and `useStore` falls back to it when
 	 * called outside a component's `setup`.
 	 *
-	 * The `form` kind is deliberately not included. No caller in this codebase supplies a
-	 * real `FormDescriptor.component` yet — the calibration flow's own form component is a
-	 * later task in this slice — and a stand-in component invented for this file would be
-	 * exactly the fixture the file header refuses: it would grade markup this suite wrote,
-	 * not markup the plugin ships. `dialogHost.test.ts` already proves the fourth arm of
-	 * `DialogHost`'s switch renders through the same host.
+	 * The `form` kind IS included, via the same trivial `StubForm` `dialogHost.test.ts`
+	 * already mounts for its own "fourth arm of the switch" case. That stub is slot content,
+	 * not the markup under test — `<component :is="descriptor.component">` is the one line
+	 * of `FormDialog.vue` it stands in for; the title, the body wrapper and the Cancel
+	 * button around it are real `FormDialog.vue` markup, unconditionally rendered no matter
+	 * what the caller supplies. No caller in this codebase supplies a real
+	 * `FormDescriptor.component` yet (the calibration flow's own form component is a later
+	 * task in this slice), so a stub is the only way to exercise this kind's container at
+	 * all before then.
 	 *
 	 * What this does NOT check is stated once, here, rather than implied: `inert` is not
 	 * modelled by jsdom, so "the background is genuinely unreachable" is asserted by
@@ -207,6 +219,7 @@ describe('axe against the mounted view', () => {
 		['confirm', { kind: 'confirm', title: 'Recalculate costs?', message: 'This overwrites your manual adjustments.' }],
 		['delete-reference', { kind: 'delete-reference', entityLabel: 'Kitchen', references: [{ label: 'Requirements', count: 2 }] }],
 		['entity-picker', { kind: 'entity-picker', title: 'Choose a replacement zone', candidates: [{ id: 'z-1', label: 'Bathroom' }] }],
+		['form', { kind: 'form', title: 'Add a new asset', component: defineComponent({ template: '<p>stub form</p>' }) }],
 	] as Array<[string, DialogDescriptor]>)(
 		'reports no semantic violation with a %s dialog open',
 		async (_kind, descriptor) => {

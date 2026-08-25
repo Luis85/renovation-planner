@@ -57,6 +57,24 @@ describe('opening', () => {
 		expect(harness.wrapper.find('[data-rp-action="confirm"]').exists()).toBe(true);
 	});
 
+	/**
+	 * `aria-dialog-name` (the axe rule `tests/harness/accessibility.test.ts` scans for) only
+	 * proves `aria-labelledby` resolves to SOME non-empty text — a `titleId` accidentally
+	 * bound to a different, unrelated non-empty element would satisfy that rule and stay
+	 * green. This asserts the stronger, actually-intended thing: the id `.rp-dialog` points
+	 * at is the SAME id the visible `.rp-dialog-title` carries, so the accessible name really
+	 * is the title a sighted user reads.
+	 */
+	it("labels the dialog with its own title's id, not merely with something non-empty", async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog(CONFIRM);
+		await nextTick();
+
+		const labelledBy = harness.wrapper.find('.rp-dialog').attributes('aria-labelledby');
+		expect(labelledBy).toBeTruthy();
+		expect(harness.wrapper.find('.rp-dialog-title').attributes('id')).toBe(labelledBy);
+	});
+
 	it('moves focus into the dialog', async () => {
 		harness = mountDialogHost();
 		harness.background.focus();
@@ -207,6 +225,27 @@ describe('a press that would land focus nowhere', () => {
 
 		const button = harness.wrapper.find('[data-rp-action="cancel"]').element;
 		const event = pressDown(button);
+
+		expect(event.defaultPrevented).toBe(false);
+	});
+
+	/**
+	 * `closest()` is declared on `Element`, not `HTMLElement` — Obsidian's `setIcon()`
+	 * renders an SVG glyph INSIDE a button, and a press landing on that glyph has an
+	 * `SVGElement` as `event.target`. An `instanceof HTMLElement` guard would fail for it
+	 * and fall through to `preventDefault()`, silently refusing a press on a control the
+	 * user did click. No dialog kind renders an icon today, so this is reachable only by
+	 * building the target by hand, the way this case does.
+	 */
+	it('leaves a press on an SVG glyph inside a focusable control alone', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog(CONFIRM);
+		await nextTick();
+
+		const button = harness.wrapper.find('[data-rp-action="cancel"]').element;
+		const glyph = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		button.appendChild(glyph);
+		const event = pressDown(glyph);
 
 		expect(event.defaultPrevented).toBe(false);
 	});

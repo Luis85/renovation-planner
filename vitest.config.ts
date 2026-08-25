@@ -26,10 +26,12 @@ export default defineConfig({
 			// over code it never measured.
 			include: ['src/**/*.{ts,vue}'],
 			// `src/main.ts` is registration glue needing the real Obsidian Plugin runtime.
-			// `src/prototypes/**` is design scaffolding that is never in a built plugin
-			// (`tests/build/prototypes-not-bundled.test.ts`), so measuring it would let a
-			// mock's untested branches move a gate that exists for shipped code — and the
-			// floors are a RATCHET, so a tree that drags them is a tree that lowers them.
+			// `src/prototypes/**` is design scaffolding: today the justification is simply that
+			// nothing in the tree ships, so measuring it would let a mock's untested branches
+			// move a gate that exists for shipped code — and the floors are a RATCHET, so a tree
+			// that drags them is a tree that lowers them. Task 2 adds
+			// `tests/build/prototypes-not-bundled.test.ts` to prove the "never in a built
+			// plugin" half against `dist/` directly.
 			exclude: ['src/main.ts', 'src/prototypes/**'],
 			reporter: ['text-summary', 'json', 'lcov'],
 			// THE RATCHET. Raise these to what a FINISHED increment measures, rounded

@@ -1,78 +1,64 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
-import { REPO } from '../helpers/oxlint';
-
-/** Paths this file may have written to disk, tracked so a failed assertion still cleans up. */
-const writtenFixtures = new Set<string>();
-
-afterEach(() => {
-	for (const path of writtenFixtures) rmSync(path, { force: true });
-	writtenFixtures.clear();
-});
-
-/**
- * Writes `code` to a REAL file at `relativePath` (repo-root-relative), lints it, and removes
- * it again — see the header below for why a purely virtual path cannot exercise the type-aware
- * `.ts` blocks. `writtenFixtures` plus `afterEach` guarantee removal even when the assertion
- * after this call throws.
- */
-const withRealFixture = (code: string, relativePath: string): Promise<string[]> => {
-	const absolute = join(REPO, relativePath);
-	mkdirSync(dirname(absolute), { recursive: true });
-	writeFileSync(absolute, code);
-	writtenFixtures.add(absolute);
-
-	return lintText(code, relativePath);
-};
-
-// The ESLint boot, paid once here rather than by whichever test ran first — plus one more
-// one-time cost specific to this file: typescript-eslint's project service has to notice a
-// path it has never seen before it can type-check it, and that first discovery is what timed
-// out inside an individual test's default budget when it was left to happen there (measured:
-// ~5s, against vitest's 5000ms default). `warmUpEslint` already opens `src/main.ts`, a path the
-// initial program knows about; this second call teaches the project service about a NEW path
-// once, under `ESLINT_BOOT_MS`'s generous budget, so no test body pays for it below.
-beforeAll(async () => {
-	await warmUpEslint();
-	await withRealFixture('export {};\n', 'src/core/prototypesOneWayDoorWarmup.ts');
-}, ESLINT_BOOT_MS);
 
 /**
  * `src/prototypes/` is a ONE-WAY DOOR: it may import from the rest of `src/`, and nothing may
  * import from it. That keeps design scaffolding out of a built plugin at the IMPORT rather
  * than only at the bundle, so it holds for code nobody has written yet.
  *
- * Every layer is driven, not just one, because the ban is six separate config blocks and a
- * layer whose block was missed reports nothing while looking correct in review.
+ * Every layer is driven, not just one, because the ban is seven separate config blocks (six
+ * `forbidden(...)` calls plus the root-of-`src/` block below) and a layer whose block was
+ * missed reports nothing while looking correct in review.
  *
  * Rule IDS rather than a pass/fail, following `vue-rules.test.ts`: a fixture that went red for
  * its own unrelated reason would otherwise read as a pass.
  *
- * `.ts` fixtures are written to REAL, temporary paths rather than linted purely as virtual
- * text — discovered by actually running this file (as Step 2/5 require): the generic `.ts`
- * block in `eslint.config.mjs` turns on `parserOptions.projectService`, and typescript-eslint's
- * project service refuses a path it cannot find on disk with a FATAL parse error, before any
- * other rule — including `no-restricted-imports` — ever runs. That is not merely a noisier
- * failure: with a virtual-only path, the "allows a prototype to import a real component" test
- * below was passing for the wrong reason (`expect(reported).not.toContain(...)` is trivially
- * true of `['PARSE_ERROR']`), which is exactly the failure mode this plan's review history
- * warns about. `.vue` fixtures elsewhere in the suite (`vue-rules.test.ts`) never hit this,
- * because the Vue block is deliberately configured without `projectService` for the same
- * reason stated there. Each fixture file is written immediately before its assertion and
- * removed immediately after, through `withRealFixture` above.
+ * Fixtures are `.vue`, linted as PURELY VIRTUAL text against a path that need not exist — never
+ * `.ts`. The generic `.ts` block in `eslint.config.mjs` turns on
+ * `parserOptions.projectService`, and typescript-eslint's project service refuses a `.ts` path
+ * it cannot find on disk with a FATAL parse error before any other rule — including
+ * `no-restricted-imports` — ever runs. An earlier version of this file worked around that by
+ * writing each fixture to a REAL temporary file under `src/`, which is worse: two other test
+ * files (`lint-scope.test.ts`, `suppressions.test.ts`) read the `src/` tree independently and
+ * vitest runs files in parallel, so a fixture present when one of them walks `src/` and gone by
+ * the time it reads the file back is a cross-file race, not a hypothetical. `.vue` fixtures
+ * sidestep the problem entirely: `srcFiles()` (`eslint.config.mjs`) scopes every `forbidden()`
+ * block to `.ts` **and** `.vue`, so a `.vue` path drives the identical `no-restricted-imports`
+ * rule, and the Vue block carries no `projectService` at all (see its own comment in
+ * `eslint.config.mjs`, for the same reason) — so a path that does not exist on disk parses
+ * cleanly instead of fatally. `.vue` is also what this tree actually holds, per its README.
+ *
+ * `sfc()` wraps each fixture's script in a minimal `<script setup>`/`<template>` pair: bare
+ * script text at a `.vue` path is not what `vue-eslint-parser` expects and is not what a real
+ * file in this tree looks like either — measured, a bare import statement at a `.vue` path
+ * reports only `vue/multi-word-component-names`, never touching `no-restricted-imports` at all,
+ * which would have made every assertion below pass or fail for the wrong reason again.
  */
-const IMPORTER = (layer: string) => `src/${layer}/Fixture.ts`;
-const PROTOTYPE_IMPORT = "import Mock from '../prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
-/** From `src/main.ts` the tree is one level down, not two. */
+const sfc = (script: string): string => `<script setup lang="ts">\n${script}\n</script>\n\n<template>\n\t<div />\n</template>\n`;
+
+const IMPORTER = (layer: string) => `src/${layer}/Fixture.vue`;
+const PROTOTYPE_IMPORT = sfc("import Mock from '../prototypes/ZoneSummary.vue';\n\nconst used = Mock;\nvoid used;");
+/** From `src/main.ts` the tree is one level down, not two. Plain `.ts`: `src/main.ts` is real. */
 const ROOT_IMPORT = "import Mock from './prototypes/ZoneSummary.vue';\n\nexport const used = Mock;\n";
 
 const LAYERS = ['core', 'domain', 'application', 'infrastructure', 'presentation', 'plugin'];
 
+// The ESLint boot, paid once here rather than by whichever test ran first — plus one more
+// one-time cost, measured separately: the FIRST `lintText` call against a real, type-aware
+// (`.ts`) path builds typescript-eslint's project-service program, and that build alone (not
+// `warmUpEslint`'s `calculateConfigForFile`, which never invokes the parser) cost ~1.4s locally
+// and ~5.1s under `npm run test:coverage`'s instrumentation and full-suite parallel load —
+// enough to blow an individual test's default 5000ms timeout when left to happen there. This
+// primes it with the exact call the "build entry" test below makes, so that test only ever
+// pays the ~10ms cached cost. No file is written for this — `src/main.ts` already exists.
+beforeAll(async () => {
+	await warmUpEslint();
+	await lintText(ROOT_IMPORT, 'src/main.ts');
+}, ESLINT_BOOT_MS);
+
 describe('the prototypes one-way door', () => {
 	it.each(LAYERS)('refuses an import of src/prototypes/ from %s/', async (layer) => {
-		const reported = await withRealFixture(PROTOTYPE_IMPORT, IMPORTER(layer));
+		const reported = await lintText(PROTOTYPE_IMPORT, IMPORTER(layer));
 
 		expect(reported).toContain('no-restricted-imports');
 	});
@@ -81,9 +67,9 @@ describe('the prototypes one-way door', () => {
 	 * `src/main.ts` is the BUILD ENTRY and matches no subtree pattern, so every layer ban
 	 * misses it. Driven by its real path rather than a fixture beside it: the whole failure
 	 * this catches is a glob that does not reach the file, and a fixture at a different path
-	 * would be answering a different question. `src/main.ts` already exists, so this stays a
-	 * purely virtual `lintText` call — no write needed, and none of its real content is
-	 * disturbed even momentarily.
+	 * would be answering a different question. `src/main.ts` already exists on disk, so this
+	 * stays a purely virtual `lintText` call — no write needed, and none of its real content
+	 * is disturbed even momentarily.
 	 */
 	it('refuses an import of src/prototypes/ from the build entry itself', async () => {
 		const reported = await lintText(ROOT_IMPORT, 'src/main.ts');
@@ -95,13 +81,20 @@ describe('the prototypes one-way door', () => {
 	 * The complement, and the reason this is not simply "prototypes is banned everywhere":
 	 * a prototype composes REAL components, so the door has to be open in that direction. A
 	 * rule that closed both ways would pass the test above and make the feature unusable.
+	 *
+	 * Both a positive and a negative check on `no-restricted-imports`, and a check that
+	 * parsing itself succeeded: `not.toContain('no-restricted-imports')` alone cannot tell a
+	 * genuine pass from a fatal parse error swallowing every rule, including this one — that
+	 * is exactly what happened when this file used `.ts` fixtures (see the header above), and
+	 * `not.toContain('PARSE_ERROR')` is what would have caught it.
 	 */
 	it('allows a prototype to import a real component', async () => {
-		const reported = await withRealFixture(
-			"import StatusBar from '../presentation/editor/shell/StatusBar.vue';\n\nexport const used = StatusBar;\n",
-			'src/prototypes/Fixture.ts',
+		const reported = await lintText(
+			sfc("import StatusBar from '../presentation/editor/shell/StatusBar.vue';\n\nconst used = StatusBar;\nvoid used;"),
+			'src/prototypes/Fixture.vue',
 		);
 
 		expect(reported).not.toContain('no-restricted-imports');
+		expect(reported).not.toContain('PARSE_ERROR');
 	});
 });

@@ -6,8 +6,8 @@ dependsOn:
   - "[[04-persistence-and-repository-layer]]"
   - "[[08-zone-editing]]"
   - "[[09-quantity-and-cost-engine]]"
-status: ""
-started: ""
+status: Active
+started: 2026-08-25
 finished: ""
 horizon: ""
 start: ""

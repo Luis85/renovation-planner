@@ -755,6 +755,21 @@ describe('registering components for template-only prototypes', () => {
 		expect(ambiguous).toEqual([]);
 	});
 
+	it('refuses a label shared by a mock and the component it stands in for', () => {
+		const { byTag, ambiguous } = registrableComponents([
+			...discoverEntries({ '/src/prototypes/StatusBar.vue': () => Promise.resolve({}) }, 'prototype'),
+			...discoverEntries(
+				{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
+				'component',
+			),
+		]);
+
+		// The likeliest collision of all, since naming a mock after its component is the
+		// workflow. Neither is registered, so nothing silently shadows the other.
+		expect(byTag.has('StatusBar')).toBe(false);
+		expect(ambiguous).toEqual(['StatusBar']);
+	});
+
 	it('refuses a duplicated label rather than letting the last one win', () => {
 		const { byTag, ambiguous } = registrableComponents(
 			discoverEntries(
@@ -879,15 +894,19 @@ export const componentEntries = (): HarnessEntry[] =>
 	);
 
 /**
- * The components a template-only prototype can name, keyed by the tag it would write —
+ * Everything a template-only prototype can name, keyed by the tag it would write —
  * `<StatusBar />`, so by LABEL rather than by id, since an id containing `:` and `/` is not a
  * valid tag.
  *
+ * Called with BOTH kinds: a prototype composes the mocks beside it as well as the real
+ * components, and a template-only file can import neither.
+ *
  * Labels are not unique, and this is the third place that has mattered. Rather than let the
  * second registration silently win — a prototype would then draw a component from a directory
- * nobody chose — a duplicated label is registered for NOBODY and returned in `ambiguous`, so
- * the index can say which tag it refused and why. An unresolved tag a designer can see beats a
- * resolved one pointing somewhere they did not mean.
+ * nobody chose, or a mock would shadow the component it stands in for — a duplicated label is
+ * registered for NOBODY and returned in `ambiguous`, so the index can say which tag it refused
+ * and why. An unresolved tag a designer can see beats a resolved one pointing somewhere they
+ * did not mean.
  */
 export function registrableComponents(entries: HarnessEntry[]): {
 	byTag: Map<string, HarnessEntry>;
@@ -1037,7 +1056,7 @@ import { createApp, defineAsyncComponent, type Component } from 'vue';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
 import { seedFixture } from './fixture';
-import { componentEntries, registrableComponents } from './entries';
+import { componentEntries, prototypeEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
 import { applyPlatform, drawSchemeToggle } from './theme';
@@ -1094,7 +1113,12 @@ if (wantsIndex) {
 	 * `defineAsyncComponent` keeps the glob lazy: registering twelve components eagerly would
 	 * mount the presentation layer to draw a list of links.
 	 */
-	const { byTag, ambiguous } = registrableComponents(componentEntries());
+	// BOTH kinds. A top-level prototype composes the mocks written beside it, and a
+	// template-only mock cannot import a sibling any more than it can import a component —
+	// registering only the real ones leaves `<MockToolbar />` unresolved, which is half the
+	// main flow. One registry across both also means a mock and a component sharing a label
+	// are caught as the ambiguity they are, rather than one kind silently shadowing the other.
+	const { byTag, ambiguous } = registrableComponents([...componentEntries(), ...prototypeEntries()]);
 
 	for (const [tag, entry] of byTag) {
 		app.component(tag, defineAsyncComponent(entry.component as () => Promise<Component>));
@@ -1296,17 +1320,27 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 */
 	/**
 	 * The index branch runs BEFORE any mount, so Obsidian's DOM prototype extensions do not
-	 * exist yet. `tests/harness/theme.ts` already carries this rule for the one other
-	 * pre-mount call site, and its comment names why no test can see it: every jsdom file
-	 * installs the extensions at module top, so the shimmed spelling passes the suite and
-	 * throws on the real page.
+	 * exist until it installs them itself — and it MUST, because `drawSchemeToggle()` runs on
+	 * every branch and calls `document.body.createEl`.
+	 *
+	 * The assertion is ORDER, not spelling: the shim call has to come before the first use of
+	 * an extension. Asserting "no extension calls here" was the earlier version and it was
+	 * wrong twice over — it forbade the working implementation, and it would have passed a
+	 * branch that used standard DOM and then let `drawSchemeToggle()` throw anyway.
+	 *
+	 * `tests/harness/theme.ts:44-47` carries the same rule for `applyPlatform` and names why
+	 * no runtime test catches it: every jsdom file installs the extensions at module top, so
+	 * the shimmed spelling passes the suite and throws on the real page.
 	 */
-	it('mounts the index with standard DOM, since no shim is installed on that branch', () => {
+	it('installs the Obsidian DOM shim before the index branch uses any extension', () => {
 		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
-		const indexBranch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
+		const branch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
 
-		expect(indexBranch).not.toMatch(/\.empty\(\)|\.createDiv\(|\.createEl\(/);
-		expect(indexBranch).toContain('document.createElement');
+		const install = branch.indexOf('installObsidianDom()');
+		const firstUse = branch.search(/\.empty\(\)|\.createDiv\(|\.createEl\(/);
+
+		expect(install, 'the index branch never installs the shim').toBeGreaterThanOrEqual(0);
+		if (firstUse >= 0) expect(install).toBeLessThan(firstUse);
 	});
 
 	it('sanitises the entry id for the PNG filename without sanitising the URL', () => {
@@ -1716,10 +1750,12 @@ A capability nobody knows about is one that gets rebuilt. `CLAUDE.md` is what an
 Find the `npm run harness` bullet in `CLAUDE.md` (it begins "a Vite dev server drawing the real view"). Append to it:
 
 ```
-  Its ROOT is now an index of every prototype and every real component, discovered from the
-  tree with `import.meta.glob` so a saved file needs no registration. `?entry=<name>` opens
-  one, `npm run harness-shot <name>` captures it in both schemes, and `?view=` keeps the two
-  original surfaces. Mocks live in `src/prototypes/` as template-only SFCs — pure HTML to
+  **`?index`** draws an index of every prototype and every real component, discovered from the
+  tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
+  directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
+  and the bare root still draws the project view: the three fixed captures address that surface
+  with no query at all, so making the root an index would break them while the test asserting
+  they exist kept passing. Mocks live in `src/prototypes/` as template-only SFCs — pure HTML to
   write, already a real component, and promoted by adding a `<script setup>` rather than
   being redrawn. **Nothing in that tree ever reaches a built plugin**, refused twice: a
   per-layer `no-restricted-imports` ban makes it a one-way door, and

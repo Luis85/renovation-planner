@@ -190,8 +190,12 @@ shown without extending the fixture, and extending it changes what every other e
 3. **A template-only SFC is a valid Vue component** and needs no script block to mount. True of
    Vue 3 SFCs and of `@vitejs/plugin-vue` as configured, unverified against this repository's
    exact toolchain because `node_modules` was not installed when this note was written.
-4. **The index lives at the harness root**, where the project view is drawn today. Whether that
-   displaces the current default or sits beside it is a design decision this note leaves open.
+4. **The index is reached by `?index`, and does NOT displace the harness root.** This note first
+   assumed the root, leaving displacement open as a design decision. Planning it closed the
+   question with a reason worth keeping here: `scripts/harness-shot.mjs`'s three fixed captures
+   address the project surface with **no query parameter at all**, so a root that meant "index"
+   would break all three — while the test asserting those captures still exist kept passing.
+   The bare root stays the project view.
 5. **`src/prototypes/` is the path.** Named for what it holds rather than for who writes it —
    `src/mocks/` would read as test doubles, which these are not.
 6. **The note carries acceptance criteria**, following [[Start a renovation project]]'s precedent

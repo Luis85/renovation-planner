@@ -323,31 +323,65 @@ export default defineConfig([
 	forbidden(
 		'core',
 		{
-			groups: ['domain', 'application', 'infrastructure', 'presentation', 'plugin'],
+			groups: ['domain', 'application', 'infrastructure', 'presentation', 'plugin', 'prototypes'],
 			packages: PRESENTATION_AND_HOST,
 		},
 		'core/ is generic technical ground — geometry, units, money, ids, results, events. It knows nothing about renovation and nothing about a host.',
 	),
 	forbidden(
 		'domain',
-		{ groups: ['application', 'infrastructure', 'presentation', 'plugin'], packages: PRESENTATION_AND_HOST },
+		{
+			groups: ['application', 'infrastructure', 'presentation', 'plugin', 'prototypes'],
+			packages: PRESENTATION_AND_HOST,
+		},
 		'domain/ decides what a Zone or a WorkPackage IS. A Konva polygon, a Pinia object and a Markdown file are representations of it, so it may name none of them (SDD §3.3, §3.4).',
 	),
 	forbidden(
 		'application',
-		{ groups: ['infrastructure', 'presentation', 'plugin'], packages: PRESENTATION_AND_HOST },
+		{ groups: ['infrastructure', 'presentation', 'plugin', 'prototypes'], packages: PRESENTATION_AND_HOST },
 		'application/ coordinates use cases against PORTS it declares itself. Infrastructure implements those ports and the composition root wires them; an import the other way inverts the dependency the ports exist to create.',
 	),
 	forbidden(
 		'infrastructure',
-		{ groups: ['presentation', 'plugin'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
+		{ groups: ['presentation', 'plugin', 'prototypes'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
 		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
 	),
 	forbidden(
 		'presentation',
-		{ groups: ['infrastructure', 'plugin'] },
+		{ groups: ['infrastructure', 'plugin', 'prototypes'] },
 		'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.',
 	),
+	forbidden(
+		'plugin',
+		{ groups: ['prototypes'] },
+		'plugin/ composes every layer, which is why it has no other ban — but src/prototypes/ is design scaffolding that must never reach a built plugin, and the composition root is the one place that could pull it in.',
+	),
+	{
+		/**
+		 * The root of `src/` — which today is `src/main.ts` and nothing else, and which no
+		 * `forbidden(...)` call can reach: that helper builds `**\/src/<subtree>/**\/*`, so a
+		 * file sitting directly in `src/` matches no subtree pattern at all.
+		 *
+		 * It is also the BUILD ENTRY (`vite.config.ts`, `lib.entry`). A prototype imported
+		 * here is a prototype in every user's plugin, so the file with the most to lose was
+		 * the one file the layer bans did not cover.
+		 */
+		files: ['**/src/*.ts', '**/src/*.vue'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'],
+							message:
+								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
+						},
+					],
+				},
+			],
+		},
+	},
 	{
 		// -- invariants that are checked rather than described ----------------------
 		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`

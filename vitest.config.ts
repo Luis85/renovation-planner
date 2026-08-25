@@ -25,8 +25,12 @@ export default defineConfig({
 			// nothing — component tests run, the numbers do not move, and the gate passes
 			// over code it never measured.
 			include: ['src/**/*.{ts,vue}'],
-			// Registration glue that needs the real Obsidian Plugin runtime.
-			exclude: ['src/main.ts'],
+			// `src/main.ts` is registration glue needing the real Obsidian Plugin runtime.
+			// `src/prototypes/**` is design scaffolding that is never in a built plugin
+			// (`tests/build/prototypes-not-bundled.test.ts`), so measuring it would let a
+			// mock's untested branches move a gate that exists for shipped code — and the
+			// floors are a RATCHET, so a tree that drags them is a tree that lowers them.
+			exclude: ['src/main.ts', 'src/prototypes/**'],
 			reporter: ['text-summary', 'json', 'lcov'],
 			// THE RATCHET. Raise these to what a FINISHED increment measures, rounded
 			// down, and never lower one to accommodate a change. Three rules that the

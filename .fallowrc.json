@@ -21,6 +21,12 @@
 	// to fail to compile (an unused one is a compile error) and its `SelectionStore`
 	// assignability check has to succeed. The file's job is to be type-checked, never to be
 	// imported or executed.
+	// `src/prototypes/**/*.vue` is a fifth kind: the harness index reaches every one of them
+	// through `import.meta.glob`, which is a VITE feature resolved at build time and invisible
+	// to a static import graph — so fallow sees a tree nothing imports and reports every file
+	// dead. Declared as entries rather than as `dynamicallyLoaded` because they are modules
+	// that import other modules (a prototype composes real components), and fallow has to
+	// follow those edges or it reports the components dead instead.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",
@@ -28,7 +34,8 @@
 		"scripts/harness-shot.mjs",
 		"scripts/concept-shots.mjs",
 		"scripts/background-fixture.mjs",
-		"tests/presentation/editor/type-safety.test-d.ts"
+		"tests/presentation/editor/type-safety.test-d.ts",
+		"src/prototypes/**/*.vue"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML

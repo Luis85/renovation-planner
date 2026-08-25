@@ -308,9 +308,10 @@ were wrong, in opposite directions, which is why this one does neither:
 - A **basename** derived from the tree is worse than useless: naming a mock after the component
   it stands in for is the workflow this whole feature is built for — `src/prototypes/StatusBar.vue`
   beside the real `StatusBar.vue` — and the real one already puts that string in the bundle. The
-  gate would fail on correct work. Minification finishes the argument: `seedFixture` and
-  `HARNESS_PLAN` are module-scope names that a release build renames, so a fixture could ship
-  with every assertion green.
+  gate would fail on correct work. Minification finishes the argument: `FIXTURE_PLAN`,
+  `seedFixture` and `HARNESS_PLAN` are module-scope names that a release build renames — and a
+  const holding an object literal can be inlined away entirely — so a fixture could ship with
+  every assertion green.
 
 Rollup reports the module ids that composed each chunk. That is provenance, and it is immune to
 both problems.
@@ -460,18 +461,27 @@ rm src/prototypes/Doomed.vue
 Then temporarily add to the top of `src/main.ts`:
 
 ```typescript
-import { seedFixture } from '../tests/harness/fixture';
-console.log(seedFixture);
+import { FIXTURE_PLAN } from '../tests/helpers/planFixtures';
+console.log(FIXTURE_PLAN);
 ```
+
+**`tests/helpers/planFixtures.ts` and not `tests/harness/fixture.ts`, because the second does
+not exist yet** — Task 3 creates it. Planting an import of a module that is not there makes Vite
+stop on an unresolved specifier before Rollup ever produces a module list, so the step would fail
+on the wrong thing and prove nothing about the assertion. `planFixtures.ts` is in the tree today,
+it is genuinely a fixture, and its only import is type-only, so it resolves cleanly and lands in
+the module list.
 
 - [ ] **Step 7: Watch the fixture assertion go red**
 
 Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
 
-Expected: FAIL on `contains no test module at all, fixtures included`, naming `fixture.ts`.
+Expected: FAIL on `contains no test module at all, fixtures included`, naming `planFixtures.ts`.
 
-**This is the case that motivated the rewrite**: minification renames `seedFixture`, so a text
-scan for that identifier would have stayed green while the fixture shipped. Provenance sees it.
+**This is the case that motivated the rewrite**: `FIXTURE_PLAN` is a module-scope const holding
+an object literal, and a release build both renames it and can inline it away entirely — so a
+text scan for that identifier stays green while every byte of the fixture's data ships.
+Provenance sees the module regardless of what minification did to its names.
 
 - [ ] **Step 8: Remove the planted import and run the full gate**
 
@@ -497,8 +507,9 @@ proves only the marker is absent. A basename derived from the tree is
 worse: naming a mock after the component it stands in for is the
 workflow this feature exists for, and the real component already puts
 that string in the bundle, so the gate would fail on correct work.
-Minification settles it — a release build renames seedFixture, so a
-fixture could ship with every text assertion green.
+Minification settles it — a release build renames FIXTURE_PLAN and can
+inline the object it holds away entirely, so a fixture could ship with
+every text assertion green.
 
 Watched failing twice before being trusted: a planted prototype and a
 planted fixture import, the second being the case no text scan catches."
@@ -1046,28 +1057,40 @@ const requested = new URLSearchParams(window.location.search).get('entry');
 const openComponent = shallowRef<unknown>(null);
 const failure = ref<string | null>(null);
 /**
- * The id of what is actually RENDERED — null until a component is on screen, and null again
- * the moment one fails. The stage exposes it as `data-entry`, which is what
- * `scripts/harness-shot.mjs` waits for.
+ * The id of what is actually RENDERED, and it means the WHOLE subtree — null until every
+ * async dependency below the entry has settled, and null again the moment one fails. The
+ * stage exposes it as `data-entry`, which is what `scripts/harness-shot.mjs` waits for.
  *
  * It is deliberately not `requested`: the stage element exists from the first paint, so a
  * capture waiting on the stage alone would photograph "Pick an entry." and exit 0. An empty
  * screenshot reported as a success is the worst outcome this whole feature can produce,
  * because the actor it is built for cannot see that it is empty.
+ *
+ * And it is deliberately not set by `open()` either, which is the same defect one level in.
+ * The global registry hands every component to Vue as a `defineAsyncComponent`, so a
+ * prototype composing `<StatusBar />` starts loading it only once the OUTER module has
+ * rendered. Setting the id when the outer loader resolves would mark the page ready while
+ * every nested component was still a placeholder — the outer element satisfies the shot
+ * selector, so `harness-shot` writes a picture of a half-drawn screen and exits 0. `open()`
+ * therefore only ever CLEARS it; `<Suspense>` in the template is what sets it, because
+ * resolving a whole subtree's async dependencies together is exactly what that boundary is
+ * for and it holds at any nesting depth.
  */
 const renderedId = ref<string | null>(null);
+
+/** What `@resolve` should name. Distinct from `renderedId`, which means "on screen". */
+const pendingId = ref<string | null>(null);
 
 async function open(entry: HarnessEntry): Promise<void> {
 	failure.value = null;
 	renderedId.value = null;
+	pendingId.value = entry.id;
 	try {
 		const module = (await entry.component()) as { default: unknown };
 
 		openComponent.value = module.default;
-		// Set only after the component is assigned. It is still a tick before Vue has
-		// rendered it, which `harness-shot` covers by also waiting for the stage to have a
-		// child element.
-		renderedId.value = entry.id;
+		// No `renderedId` assignment here, deliberately — see its declaration. The outer
+		// module having loaded says nothing about the components it composes.
 	} catch (error) {
 		// Named rather than blank: a prototype that half-drew itself is worse than one that
 		// says what is missing, because a gap reads as a layout decision.
@@ -1081,13 +1104,28 @@ async function open(entry: HarnessEntry): Promise<void> {
  * bad entry reports itself instead of blanking the page and taking the list with it.
  */
 onErrorCaptured((error) => {
-	const id = renderedId.value ?? requested ?? 'the entry';
+	const id = renderedId.value ?? pendingId.value ?? requested ?? 'the entry';
 
 	openComponent.value = null;
 	renderedId.value = null;
 	failure.value = `${id} failed to render: ${error instanceof Error ? error.message : String(error)}`;
 	return false;
 });
+
+/**
+ * The link an entry is reachable at, built with `URLSearchParams` rather than interpolated.
+ *
+ * `&` and `#` are legal in a filename on every platform this runs on, and an id carries the
+ * path, so a raw `?entry=${id}` produces a URL that no longer means the id: opening the link
+ * in a new tab or copying it hands `URLSearchParams.get('entry')` a truncated value and the
+ * index reports an unknown entry. The in-page click hides this, because `@click.prevent`
+ * calls `open(entry)` with the object and never reads the URL back — so the defect would
+ * appear only in the one path an agent uses, which is the path with no human watching.
+ * `scripts/harness-shot.mjs` encodes the same id on its side.
+ */
+function hrefFor(entry: HarnessEntry): string {
+	return `?${new URLSearchParams({ entry: entry.id }).toString()}`;
+}
 
 const initial = all.value.find((entry) => entry.id === requested);
 
@@ -1105,14 +1143,23 @@ if (initial) void open(initial);
 			<p v-if="prototypes.length === 0">No prototypes yet — add a .vue file under src/prototypes/.</p>
 			<ul>
 				<li v-for="entry in all" :key="entry.id">
-					<a :href="`?entry=${entry.id}`" @click.prevent="open(entry)">{{ entry.label }}</a>
+					<a :href="hrefFor(entry)" @click.prevent="open(entry)">{{ entry.label }}</a>
 					<span>{{ entry.kind }}</span>
 				</li>
 			</ul>
 		</nav>
 		<main class="rp-harness-stage" :data-entry="renderedId ?? undefined">
 			<p v-if="failure" role="alert" class="rp-harness-failure">{{ failure }}</p>
-			<component :is="openComponent" v-else-if="openComponent" />
+			<!--
+				`@resolve` fires once every async dependency in the subtree has settled, which is
+				the only signal that covers a mock composing a real component that composes
+				another. `@pending` fires when a new set appears, so switching entries takes the
+				readiness marker away again rather than leaving the previous entry's id on a stage
+				that is mid-swap.
+			-->
+			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="renderedId = pendingId">
+				<component :is="openComponent" />
+			</Suspense>
 			<p v-else>Pick an entry.</p>
 		</main>
 	</div>
@@ -1480,6 +1527,44 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	});
 
 	/**
+	 * Readiness must mean the WHOLE subtree, not the outer module.
+	 *
+	 * Every component is registered as a `defineAsyncComponent`, so a prototype composing
+	 * `<StatusBar />` starts loading it only after the outer module renders. Marking the stage
+	 * ready when the outer loader resolves satisfies this file's own `> *` selector while every
+	 * nested component is still a placeholder — a half-drawn screen captured and exited 0 on,
+	 * which is the same defect as the "Pick an entry." capture, one level in.
+	 *
+	 * Asserted on the source for the reason this file's header gives, and the assertion is the
+	 * NEGATIVE one, because that is where the defect was: `open()` may clear `renderedId` and
+	 * must never set it to an id. `<Suspense>` is what sets it, on `@resolve`.
+	 */
+	it('marks the stage ready from Suspense, never from the entry loader', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		const open = index.slice(index.indexOf('async function open'), index.indexOf('onErrorCaptured'));
+
+		expect(open, 'open() never runs').toContain('renderedId.value = null');
+		expect(open, 'open() marks the stage ready before nested components load').not.toMatch(
+			/renderedId\.value\s*=\s*(?!null)/,
+		);
+		expect(index).toContain('<Suspense');
+		expect(index).toContain('@resolve="renderedId = pendingId"');
+	});
+
+	/**
+	 * The index's own links have to survive a round trip through the URL, because that is the
+	 * path an agent uses: it never clicks, it opens `?entry=` directly. `&` and `#` are legal
+	 * in a filename and an id carries the path, so an interpolated link means something other
+	 * than the id it names — and the in-page click masks it by passing the object instead.
+	 */
+	it('builds index links with URLSearchParams rather than interpolating the id', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+
+		expect(index).toContain('new URLSearchParams({ entry: entry.id })');
+		expect(index, 'a raw ?entry= interpolation is back').not.toContain('`?entry=${');
+	});
+
+	/**
 	 * Ids carry `:` and `/`; Windows filenames cannot. One of the four `npm run check` legs is
 	 * Windows, so an unsanitised PNG name is a leg-specific failure nobody would reproduce
 	 * locally on Linux or macOS.
@@ -1549,8 +1634,10 @@ Then, after the `SHOTS` array (line ~47), add:
  * the actor it exists for cannot see that the picture is blank — it would read a green exit
  * as "the mock looks like that".
  *
- * `IndexPage.vue` sets `data-entry` only once the component is assigned, and the `> *` is what
- * waits out the render tick after it.
+ * `IndexPage.vue` sets `data-entry` from `<Suspense>`'s `@resolve`, so it means the entry AND
+ * every async component below it has settled — not merely that the outer module loaded, which
+ * would still be a placeholder wherever a mock composes a real component. The `> *` waits out
+ * the render tick after that and is belt and braces rather than the primary signal.
  */
 const entryStage = (entry) => `.rp-harness-stage[data-entry="${entry}"] > *`;
 
@@ -2074,7 +2161,14 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 1. **Criterion 8's "names itself" is tested by construction, not by a driven failure.** Task 4 writes the branch and Task 7 does not plant a throwing prototype to watch it fire. Add that if a reviewer wants the branch proven — it would be a fourth case in `entries.test.ts` mounting a module whose import rejects.
 2. **The fixture assigns store state directly** rather than going through `hydrate`, because hydration takes query services this page cannot answer. If `ProjectStore`'s refs turn out not to be writable from outside, Task 3 Step 4 needs a store action instead, and that is a change to `src/presentation/stores/ProjectStore.ts` this plan does not currently touch.
-3. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
+3. **`<Suspense>` settles the INITIAL subtree.** An async component that only becomes part of the
+   tree later — behind a `v-if` a click flips — is not covered by the `@resolve` that marked the
+   stage ready. `@pending` clears `renderedId` when a new set of dependencies appears, so the
+   marker is at least honest about it, but a capture of a screen that lazily loads on interaction
+   would need its own signal. No entry does that today; the sentence is here so the next one is
+   not a surprise. It is also the reason `open()` is forbidden from setting `renderedId` rather
+   than merely discouraged: the negative is what a test can hold.
+4. **Task 1 Step 9 may need reordering.** A fallow `entry` glob matching nothing might itself be an error; if so the declaration moves to Task 7, and Task 1's gate run passes without it.
 
 **Placeholder scan:** every code step carries real code; no "TBD", no "handle errors appropriately", no "similar to Task N".
 
@@ -2082,13 +2176,13 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across seven review rounds — twenty-six findings, all real, all fixed above rather than noted.**
+**Revised across eight review rounds — twenty-nine findings, all real, all fixed above rather than noted.**
 
 Round one, on the shape of the harness:
 
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
-| Capture waited on the stage shell | `.rp-harness-stage` exists on first paint, so `harness-shot <name>` could photograph "Pick an entry." and **exit 0** — an empty PNG reported as success, to an actor that cannot see it is empty | Task 4 (`data-entry`) and Task 6 (`[data-entry="…"] > *`, plus a test forbidding the bare class) |
+| Capture waited on the stage shell | `.rp-harness-stage` exists on first paint, so `harness-shot <name>` could photograph "Pick an entry." and **exit 0** — an empty PNG reported as success, to an actor that cannot see it is empty | Task 4 (`data-entry`) and Task 6 (`[data-entry="…"] > *`, plus a test forbidding the bare class). Round eight found the same defect one level in |
 | The argumentless run broke | Routing "no `view` parameter → index" sent the three fixed shots to the index to time out — while the test asserting those shots exist kept passing | Task 4 Step 6 (index is opt-in) and Task 6 (a test pinning it from the other side) |
 | Render errors escaped the catch | `try/catch` around a dynamic import cannot see a throw from `setup()` or `render()` | Task 4 (`onErrorCaptured`) |
 | The bundle test was opt-in | A marker proves only the marker is absent | Task 2 |
@@ -2099,7 +2193,7 @@ Round two, on whether the tests test anything — the deeper set, and **one root
 | Finding | The proxy | What it asserts now |
 | --- | --- | --- |
 | Lint test read the config | Grepping `eslint.config.mjs` for `'prototypes'` proves the string is present, not that an import is refused — and `tests/build/vue-rules.test.ts` already says why: *"a rule scoped to files it never matches reports nothing and looks correct"* | Drives ESLint through the existing `lintText` helper, across all six layers, plus the open direction |
-| Bundle test scanned text — twice, wrongly | A marker is opt-in; a **basename** is worse than useless, since `src/prototypes/StatusBar.vue` beside the real one makes the gate fail on correct work, and minification renames `seedFixture` so a fixture ships green | Asks Rollup which modules composed the chunk. Watched failing on a planted prototype **and** a planted fixture |
+| Bundle test scanned text — twice, wrongly | A marker is opt-in; a **basename** is worse than useless, since `src/prototypes/StatusBar.vue` beside the real one makes the gate fail on correct work, and minification renames `FIXTURE_PLAN` so a fixture ships green | Asks Rollup which modules composed the chunk. Watched failing on a planted prototype **and** a planted fixture |
 | Promotion test was tautological | The "promoted" file was built by interpolating the mock's own template, so it compared a string to itself and could never fail | An independent hand-written fixture, watched failing on a one-word template edit |
 | Ids still collided | Flattening `/` to `-` is not reversible: `a-b/C` and `a/b-C` become one id | Separator preserved (`component:editor/shell/StatusBar`), plus an explicit duplicate check that throws |
 | — (found while fixing the above) | Ids contain `:` and `/`, which are illegal in **Windows** filenames, and Windows is one of the four `npm run check` legs | `harness-shot` sanitises the PNG name only; the URL keeps the real id |
@@ -2155,11 +2249,20 @@ Round seven, on what the tests still did not reach:
 | **The stylesheet check required attribute order** | The regex wanted `rel` before `href`. A link written the other way round is the same link to a browser and invisible to the test — so a second sheet could be added in the spelling the check cannot see | Task 5 (two-stage parse: find every `<link>`, then read its attributes in any order; the planted proof is now `href`-first) |
 | **The real glob was never driven** | Every discovery case handed `discoverEntries` a hand-built map. If `import.meta.glob`'s pattern stopped matching `src/prototypes/`, discovery would return nothing, no prototype a designer added would ever appear — and all of them stay green. Criterion 1 asks for exactly this case and it was the one not written | Task 7 Step 8: discovery compared against the tree walked with `readdirSync`, watched failing on a deliberately broken glob. It waits for Task 7 because on an empty tree it is `[] === []` |
 
-**The pattern, across all seven rounds and worth more than any individual fix:** every failure was
+Round eight, on the paths only the eyeless actor takes:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **Readiness meant the outer module, not the screen** | The same defect as round one's stage-shell race, one level in and invisible to round one's fix. Every component is registered as a `defineAsyncComponent`, so a prototype composing `<StatusBar />` starts loading it only after the outer module renders — and the outer element already satisfies `[data-entry] > *`. `harness-shot` would write a picture of a half-drawn screen and exit 0, on exactly the composition the feature exists for | Task 4: `<Suspense>` sets `renderedId` on `@resolve`, which settles a whole subtree at any depth; `open()` may only ever CLEAR it. Task 6 asserts the negative, because that is where the defect was |
+| **Index links interpolated the id** | `&` and `#` are legal in a filename and an id carries the path, so `?entry=${id}` names something other than the id. The in-page click masks it — `@click.prevent` passes the object and never reads the URL back — so it would break only in the path an agent uses, which is the path with no human watching | Task 4 (`URLSearchParams`), Task 6 (a test forbidding the raw interpolation) |
+| **The planted fixture did not exist yet** | Task 2 Step 6 planted an import of `tests/harness/fixture.ts`, which **Task 3** creates. Vite stops on an unresolved specifier before Rollup produces a module list, so the step would have failed on the wrong thing and proved nothing | Task 2 Step 6 plants `tests/helpers/planFixtures.ts`, which is in the tree today and is genuinely a fixture. It also sharpens the minification argument: a const holding an object literal can be inlined away entirely |
+
+**The pattern, across all eight rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
-would have to work, an unresolved component or a failed injection Vue only warns about.
+would have to work, a readiness marker that means the outer module rather than the screen, an
+unresolved component or a failed injection Vue only warns about.
 
 And the second pattern, which is mine rather than the design's: **every round, a fix left a
 sibling stale.** The DOM fix left the toggle. The promotion fixture left the bundle filter. The
@@ -2167,4 +2270,4 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the twenty-six fixes.
+execution, not the twenty-nine fixes.

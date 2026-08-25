@@ -1,11 +1,18 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * jsdom only because `../../../helpers/workspace` pulls in `RenovationProjectView`, whose
+ * `ViewRoot.vue` mounts slice 15's `DialogHost` (design slice 15): once a `.vue` file with
+ * real template content is reachable from BOTH this file's default 'node' environment and
+ * `dialogKinds.test.ts`'s jsdom one, `@vitejs/plugin-vue` compiles it once per environment
+ * and `@vitest/coverage-v8` merges the two into a phantom, never-hit duplicate of every
+ * statement — not a real gap, since the same file is fully exercised under jsdom elsewhere.
+ * No DOM otherwise: this is still the whole reason activation lives in a module rather than
+ * in the plugin's click handler. What "show the view" means is asked of a function.
+ */
 import { describe, expect, it } from 'vitest';
 import { revealView } from '../../../../src/infrastructure/obsidian/workspace/revealView';
 import { FakeWorkspace } from '../../../helpers/workspace';
-
-/**
- * No DOM: this is the whole reason activation lives in a module rather than in the plugin's
- * click handler. What "show the view" means is asked of a function.
- */
 
 const TYPE = 'renovation-project';
 

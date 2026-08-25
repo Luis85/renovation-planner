@@ -55,36 +55,53 @@ const renderedId = ref<string | null>(null);
 const pendingId = ref<string | null>(null);
 
 /**
- * The Vue warnings that mean what is on screen is NOT the entry, collected during the current
- * render pass.
+ * Every Vue warning raised while the current entry rendered — which is the whole classification,
+ * stated as what IS a defect rather than as a list of the ones somebody enumerated.
  *
- * Two of them, and they are the same defect wearing different words. A tag that resolves to
- * nothing — a typo in a mock, or a label `registrableComponents` refused because two entries of
- * one kind claim it — renders as an unknown element. A component with REQUIRED PROPS mounted by
- * a bare `<component :is>` gets none of them: `EmptyLayer.vue` needs `layerId`, `transform` and
- * `visible`, and the index has no way to know that before importing it. Vue only WARNS about
- * either, and a warning is invisible to `scripts/harness-shot.mjs`, which records console errors
- * and page errors — so the prototype is photographed with a hole in it, or the component draws
- * malformed, and the command exits 0. That is the empty-capture failure narrowed to one element.
+ * **This used to be an allowlist and the allowlist was wrong**, in the way an allowlist always
+ * is: it named `Failed to resolve component` and `Missing required prop`, which are the two
+ * cases the feature was designed against, and it did not name `Invalid prop: type check failed`
+ * — so a prototype could pass every REQUIRED prop to `EmptyLayer` and pass a wrong one, Vue
+ * would warn, nothing would throw (the template spreads `...props.transform`, and spreading a
+ * string is legal), `<Suspense>` would resolve and `harness-shot` would record a malformed entry
+ * as a success. The set it missed is not one string either: Vue's prop validator alone raises
+ * four (`Missing required prop`, `Invalid prop: type check failed`,
+ * `Invalid prop: custom validator check failed`, `Invalid prop name`), and there are dozens more
+ * across `runtime-core` — `injection "x" not found`, `Property "x" was accessed during render
+ * but is not defined on instance`, `Component is missing template or render function`,
+ * `Failed to resolve directive`, `Extraneous non-props attributes` — each of which means the
+ * same thing here: what is on screen is not what the entry was supposed to be.
  *
- * The prop case is a real limit rather than a bug to route around: a component that needs props
- * cannot be mounted bare, and the index says so instead of drawing something wrong. Composing it
- * in a prototype — where a template CAN pass props — is how a designer looks at one.
+ * So the classification is inverted, which is `CLAUDE.md`'s rule about category invariants
+ * ("checked at the forbidden thing, not by listing the places") applied to the one mechanism
+ * that fails SILENTLY when it is wrong. Vue's dev `warn` is by construction "you did something
+ * wrong"; this page is a tool for LOOKING at a component, so anything Vue is unhappy enough
+ * about to warn on makes the picture untrustworthy. Reporting it costs a named failure card the
+ * reader can act on. Missing it costs a screenshot of a broken screen, reported as a success, to
+ * an actor who cannot see that it is broken.
+ *
+ * **What this costs, and why nothing is carved out today.** The inverted shape trades a silent
+ * miss for a possible false alarm: a warning that is benign for this page would report an entry
+ * as failed. Exactly one warning was expected to be that, `<Suspense> is an experimental feature
+ * and its API will likely change` — and it turns out not to reach here at all, because Vue emits
+ * it through `console.info` rather than through `warn` (measured in `runtime-core`, not assumed).
+ *
+ * And the fallout was measured rather than predicted: all twelve components under
+ * `src/presentation/` were opened one at a time in a real browser, and the inversion added NO
+ * new failure. Two report missing required props (`EmptyLayer`, `BackgroundLayer`) — the family
+ * the allowlist already caught. Six THROW when mounted bare and are named by `onErrorCaptured`,
+ * which this classification never touched. Four render clean and are marked ready. Not one
+ * warning outside the prop family reached this handler.
+ *
+ * If a benign one is ever found, THIS is the one place to exclude it, by name and with the
+ * reason beside it — a carve-out for a warning somebody has actually seen, rather than a list
+ * written ahead of the evidence.
  *
  * A plain array rather than a ref, deliberately: it is written DURING render, where mutating
  * reactive state is a second warning and a re-render nobody asked for. It is read once the
  * render is over — by `settle()` at the resolve, and by `reportLateDefect` on the microtask
  * after a defect that arrives once the stage is already marked ready.
- *
- * **These two strings are Vue's, and nothing here can keep them current.** A `message.includes`
- * against a reworded upstream warning matches nothing and turns this whole check off SILENTLY:
- * the array stays empty, the stage is marked ready and `harness-shot` photographs the hole and
- * exits 0. `tests/harness/indexPage.test.ts` pins them by driving a REAL component with real
- * `required` props and a REAL `resolveComponent` miss, so a Vue reword reds a test instead —
- * the same argument `tests/build/logging-carve-out.test.ts` makes against ESLint's message text.
  */
-const FATAL_WARNINGS = ['Failed to resolve component', 'Missing required prop'];
-
 const renderDefects: string[] = [];
 
 /**
@@ -200,8 +217,15 @@ function reportDefects(): void {
  * after mount whenever the store is not pre-seeded. So the guarantee is written to what the
  * two together deliver: the marker goes on only when the resolved subtree was clean, and it
  * comes OFF on the microtask after any later defect. A capture that reads `[data-entry]` inside
- * that window still photographs the hole; nothing in a single-process page can close it, and
- * saying so is cheaper than a sentence that is wrong once a tick.
+ * that microtask still photographs the hole.
+ *
+ * The constraint that leaves the window open is VUE's, not the platform's, and the sentence has
+ * to say which: a `warnHandler` fires mid-render, and writing reactive state there earns a second
+ * warning and a render pass nobody asked for — so the clear has to wait for the current render to
+ * end. A raw `removeAttribute` on the stage element from the handler would close it, and is
+ * refused because the attribute would then have two writers, one of them fighting Vue's next
+ * patch to keep it off. One writer and a microtask of exposure is the cheaper trade; a wrong
+ * absolute would have been free and false.
  */
 function settle(): void {
 	// The resolve belongs to whatever is mounted. If that is not what `pendingId` names, this
@@ -238,14 +262,16 @@ function reportLateDefect(): void {
 }
 
 /**
- * Turn the warnings in `FATAL_WARNINGS` into something the page can fail on.
+ * Turn Vue's warnings into something the page can fail on — see `renderDefects` for why that is
+ * ALL of them rather than a named few.
  *
  * `IndexPage` is this app's ROOT component, so its `appContext` is the app — reaching the
  * config here keeps the failure state with the only component that owns any, rather than
  * adding a module whose whole job would be carrying one array across a boundary.
  *
  * The previous handler is called, and `console.warn` when there is none, so installing this
- * does not swallow every other Vue warning on the page.
+ * reports rather than swallows: a warning still reaches the console for a human reading it, and
+ * `harness-shot` still sees whatever it saw before.
  *
  * **The limit, stated because it is invisible:** `warnHandler` exists in DEVELOPMENT builds
  * only. `npm run harness` and `npm run harness-shot` both run Vite's dev server, so it is
@@ -258,11 +284,9 @@ if (config) {
 	const previous = config.warnHandler;
 
 	config.warnHandler = (message, instance, trace) => {
-		if (FATAL_WARNINGS.some((fragment) => message.includes(fragment))) {
-			renderDefects.push(message);
-			// Already marked ready, so `settle()` will not run again for this entry — see it.
-			if (renderedId.value !== null) reportLateDefect();
-		}
+		renderDefects.push(message);
+		// Already marked ready, so `settle()` will not run again for this entry — see it.
+		if (renderedId.value !== null) reportLateDefect();
 
 		if (previous) previous(message, instance, trace);
 		else console.warn(message, trace);

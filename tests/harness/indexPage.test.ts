@@ -23,14 +23,14 @@ import { installEditorEnvironment, settle as flushAsync } from '../helpers/edito
  * screenshot is empty. A page that says "failed" while still advertising readiness is worse
  * than one that says nothing, because it is photographed and reported as a success.
  *
- * Two of these cases pin **Vue's own warning wording** rather than this file's idea of it, and
- * that is the point of driving a REAL component with required props (`EmptyLayer`) and a REAL
- * `resolveComponent` miss instead of hand-writing the strings. `FATAL_WARNINGS` matches by
- * `message.includes(...)`, so a Vue upgrade that rewords either one turns the check off
- * silently: nothing is collected, `settle()` marks the stage ready and `harness-shot` goes back
- * to photographing a hole and exiting 0. This repository already refuses exactly that shape —
- * `tests/build/logging-carve-out.test.ts` exists because a wrapper matching ESLint's message
- * text "reports NOTHING on a miss". Same mechanism, same remedy.
+ * Three of these cases drive a REAL source of a Vue warning — `EmptyLayer` mounted bare, a real
+ * `resolveComponent` miss, and `EmptyLayer` handed a prop of the WRONG TYPE — rather than a
+ * component written to emit a string. That mattered twice over. It is what turned up the hole
+ * that made `IndexPage.vue` classify by "every Vue warning is a defect" instead of by an
+ * allowlist: the allowlist named the missing prop and the unresolved tag, and a wrong prop TYPE
+ * warned, threw nothing, resolved `<Suspense>` and would have been photographed as a success.
+ * And it is what keeps these cases about Vue's behaviour rather than about a string this file
+ * chose — a hand-rolled emitter would pass whatever Vue actually does.
  *
  * The entry lists are mocked and the components are real. `import.meta.glob` is what discovery
  * uses in a browser, and it cannot produce a module that REJECTS or a component that throws —
@@ -101,6 +101,22 @@ const Exploding = defineComponent({
 /** A tag that resolves to nothing, which is what an unregistered `<StatusBar />` produces. */
 const Unresolved = defineComponent({
 	setup: () => () => h(resolveComponent('NoSuchComponent') as string),
+});
+
+/**
+ * EVERY required prop present, and one of them the WRONG TYPE — the case an allowlist written
+ * from "missing prop" and "unresolved tag" does not see. `EmptyLayer`'s `transform` is an
+ * object; a string passes Vue's `required` check and fails its type check, and Vue only WARNS.
+ * Nothing throws either: the template spreads `...props.transform`, and spreading a string is
+ * legal, so `onErrorCaptured` never fires. The entry draws malformed and the stage would be
+ * marked ready.
+ *
+ * The wrong prop goes to the REAL component, so the warning is Vue's own rather than a string
+ * this file wrote down — the same reason the two cases above drive `EmptyLayer` bare and a real
+ * `resolveComponent` miss.
+ */
+const WrongPropType = defineComponent({
+	setup: () => () => h(EmptyLayer, { layerId: 'zone', transform: 'bad' as never, visible: true }),
 });
 
 /**
@@ -194,6 +210,18 @@ describe('the harness index, refusing to advertise a hole', () => {
 		// than written down here — which is the whole point: reword it upstream and this reds.
 		expect(wrapper.find('.rp-harness-failure').text()).toContain('did not render cleanly');
 		expect(wrapper.find('.rp-harness-failure').text()).toContain('Missing required prop');
+		expect(stageEntry(wrapper)).toBeUndefined();
+
+		wrapper.unmount();
+	});
+
+	it('treats a prop of the wrong type as a failure, not a render', async () => {
+		state.components = [entryFor('component:WrongPropType', moduleOf(WrongPropType))];
+
+		const wrapper = await openIndex('entry=component:WrongPropType');
+
+		expect(wrapper.find('.rp-harness-failure').text()).toContain('did not render cleanly');
+		expect(wrapper.find('.rp-harness-failure').text()).toContain('Invalid prop');
 		expect(stageEntry(wrapper)).toBeUndefined();
 
 		wrapper.unmount();

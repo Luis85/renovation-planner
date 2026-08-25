@@ -5,10 +5,10 @@ import { mount } from '@vue/test-utils';
 import { createApp } from 'vue';
 import { seedFixture, harnessEditorContext } from './fixture';
 import {
-	EDITOR_CONTEXT,
-	useEditorContext,
-	type EditorContext,
-} from '../../src/presentation/editor/EditorContext';
+	PLAN_EDITOR_CONTEXT,
+	usePlanEditorContext,
+	type PlanEditorContext,
+} from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
@@ -18,7 +18,7 @@ import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
  * component reading the store finds a plan, with no per-entry setup — held against the
  * REAL `StatusBar`, not a stub, because a fake here must not be thinner than the
  * component it stands in for), and the editor context it hands out is one
- * `useEditorContext()` ACCEPTS.
+ * `usePlanEditorContext()` ACCEPTS.
  *
  * A third claim this fixture was originally asked to hold — two DIFFERENT components
  * mounted from one prototype agree on the same plan — is not held in this file. See the
@@ -27,7 +27,7 @@ import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
  * The final case is driven through a real `createApp` rather than asserted on the
  * returned object, because the failure it guards is a key mismatch: a context built
  * correctly and provided under a symbol the consumer does not inject looks perfect in a
- * shape assertion and throws on mount. `useEditorContext` throws rather than warning, so
+ * shape assertion and throws on mount. `usePlanEditorContext` throws rather than warning, so
  * the index would show Task 4's named-failure card for every component that reads it.
  */
 describe('the harness fixture', () => {
@@ -43,7 +43,7 @@ describe('the harness fixture', () => {
 	it('mounts the real StatusBar with no per-entry setup, because the fixture is already there', () => {
 		const pinia = seedFixture();
 
-		// `StatusBar` takes no props and calls `useEditorContext()` nowhere — only its
+		// `StatusBar` takes no props and calls `usePlanEditorContext()` nowhere — only its
 		// parent `PlanEditorRoot` does — so the fixture's Pinia is the whole world it needs.
 		const wrapper = mount(StatusBar, { global: { plugins: [pinia] } });
 
@@ -64,18 +64,18 @@ describe('the harness fixture', () => {
 	 * Held in Task 4, against `StatusBar` and `PlanEditorRoot` mounted together.
 	 */
 
-	it('provides a context `useEditorContext()` accepts, so a real component can mount', () => {
-		let seen: EditorContext | undefined;
+	it('provides a context `usePlanEditorContext()` accepts, so a real component can mount', () => {
+		let seen: PlanEditorContext | undefined;
 
 		const app = createApp({
 			setup() {
-				seen = useEditorContext();
+				seen = usePlanEditorContext();
 
 				return () => null;
 			},
 		});
 
-		app.provide(EDITOR_CONTEXT, harnessEditorContext());
+		app.provide(PLAN_EDITOR_CONTEXT, harnessEditorContext());
 		app.mount(document.createElement('div'));
 
 		expect(seen?.planId).toBe(HARNESS_PLAN.id);

@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
-import type { EditorContext } from '../../src/presentation/editor/EditorContext';
+import type { PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 
 /**
@@ -47,21 +47,26 @@ export function seedFixture(): Pinia {
  * The editor context, which is NOT optional and is easy to miss.
  *
  * `src/presentation/views/PlanEditorView.ts` does three things when it mounts: `createPinia()`,
- * `use(VueKonva)` and **`provide(EDITOR_CONTEXT, …)`**. Without the third, every component that
- * calls `useEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything using
- * `useThemeTokens` — so the index would render the named failure for exactly the components a
- * designer most wants to look at, and a prototype composing one would too.
+ * `use(VueKonva)` and **`provide(PLAN_EDITOR_CONTEXT, …)`**. Without the third, every component
+ * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything
+ * using `useThemeTokens` — so the index would render the named failure for exactly the
+ * components a designer most wants to look at, and a prototype composing one would too.
  *
  * Built from `harnessDeps()` rather than from a second set of stubs, for the same reason the
  * plan and zones come from `planEditor.ts`: a second derivation answers differently the day one
  * of them is edited.
  */
-export function harnessEditorContext(): EditorContext {
+export function harnessEditorContext(): PlanEditorContext {
 	const deps = harnessDeps();
 
 	return {
 		planId: HARNESS_PLAN.id,
 		queries: deps.queries,
+		// Design slice 8's write side, which arrived on `main` while this branch was running.
+		// Taken from `harnessDeps()` like everything else here rather than stubbed: it answers
+		// `settings.unrecovered` for every write, which is the honest result for a page with no
+		// vault — a mock's gestures fail visibly instead of pretending to persist.
+		commands: deps.commands,
 		vault: deps.vault,
 		onThemeChange: deps.onThemeChange,
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),

@@ -1674,6 +1674,10 @@ has no honest pair available today.
 
 What IS available is the criterion's substance, and it is stronger than the literal form:
 
+**Write it in `tests/harness/entries.test.ts`**, beside the discovery cases, and add that file to
+Step 10's `git add` — an earlier draft of this step described the case without naming a file, which
+would have let an implementer complete every prescribed edit and commit with criterion 7 untested.
+
 Mount `StatusBar` and `PlanEditorRoot` against ONE `seedFixture()`, in an app configured the way
 Step 6 configures the index — Pinia, VueKonva and the editor context. Assert two DIFFERENT
 observable consequences of the one seeded world: that `StatusBar` renders the fixture's plan name,
@@ -1728,7 +1732,7 @@ throw the loader catch cannot see."
 The reason the whole feature exists: a mock and a real component drawn side by side must be styled by the same sheet, or an approved mock is approved against something that will not ship.
 
 **Files:**
-- Test: `tests/harness/harness.test.ts` (add two cases — one per route a sheet takes)
+- Test: `tests/harness/harness.test.ts` (add three cases — one per route a sheet takes: the page's links, the module graph, and a stylesheet importing a stylesheet)
 
 **Interfaces:**
 - Consumes: `tests/harness/index.html`, and every non-test `.ts`/`.vue` file under `src/` and `tests/harness/`.
@@ -1895,6 +1899,38 @@ Hence a text scan, over what the page can reach rather than over the files that 
 
 `readdirSync` joins the existing `node:fs` import.
 
+**A stylesheet can import a stylesheet, and that is a fourth route.** `@import
+'../../docs/user-experience/concepts/concept.css';` added to `tests/harness/theme.css` loads the
+proposal sheet: the HTML still has its three links, no module imports a `.css`, no template renders
+a `<link>`, and every list above stays empty. The walker excludes `.css` files entirely, so it
+cannot see it.
+
+The two linked harness sheets are the reachable ones, and neither has any legitimate use for
+`@import` — they are standalone files the page links directly. So the rule is simply that they
+carry none:
+
+```typescript
+	it('lets no harness stylesheet pull in another', () => {
+		const dir = path.join(REPO, 'tests', 'harness');
+		const imported = readdirSync(dir)
+			.filter((name) => name.endsWith('.css'))
+			.filter((name) => /@import/.test(readFileSync(path.join(dir, name), 'utf8')));
+
+		expect(imported).toEqual([]);
+	});
+```
+
+Scoped to `tests/harness/*.css` deliberately, and the exclusion is the interesting half:
+`styles/index.css` **does** use `@import`, for `./view.css`, `./editor.css` and `./chrome.css` —
+that is how the shipped sheet is assembled, and `scripts/styles-assemble.mjs` already fails the
+build on a partial it cannot resolve. Refusing `@import` there would refuse the mechanism the
+plugin's own stylesheet is built from. What that leaves unguarded is an `@import` inside a
+`styles/` partial pointing OUTSIDE `styles/`; the assembler owns that question and this test says
+so rather than reaching into it.
+
+Plant it before trusting it: add the `@import` line above to `tests/harness/theme.css`, expect FAIL
+naming `theme.css`, then `git checkout tests/harness/theme.css`.
+
 `*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
 `tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
 both do — and a test that reads a stylesheet is not a page that loads one.
@@ -1909,13 +1945,13 @@ Report the two lists in one `toEqual` rather than two `expect([]).toEqual([])` c
 failure names WHICH file and WHICH half — a bare `expected [ '…' ] to equal []` sends the reader
 back to the source to find out which rule they broke.
 
-- [ ] **Step 4: Run both cases**
+- [ ] **Step 4: Run the cases**
 
 Run: `npx vitest run tests/harness/harness.test.ts`
 
-Expected: PASS. Both are **regression guards**, not drivers, and that is worth being explicit
-about: they exist so that adding `concept.css` to the harness — by either route — is a red test
-rather than a quiet reintroduction of the split.
+Expected: PASS. They are **regression guards**, not drivers, and that is worth being explicit
+about: they exist so that adding `concept.css` to the harness — by any of its routes — is a red
+test rather than a quiet reintroduction of the split.
 
 - [ ] **Step 5: Prove the link case can fail**
 
@@ -2957,7 +2993,7 @@ a record rather than a migration backlog."
 | 2 — no prototype in the built plugin | 2 (`prototypes-not-bundled.test.ts`) |
 | 3 — an import from elsewhere fails lint | 1 (`prototypes-one-way-door.test.ts`) |
 | 4 — every entry addressable and shootable | 4 (`?entry=`) + 6 (`harness-shot <name>`) |
-| 5 — one stylesheet, no second sheet | 5 (three routes: the `<link>`s in `index.html`, the module graph, and a `<link>` a template renders) |
+| 5 — one stylesheet, no second sheet | 5 (four routes: the `<link>`s in `index.html`, a `.css` import in the module graph, a `<link>` a template renders, and an `@import` inside a linked sheet) |
 | 6 — a component mounts with no per-entry setup | 3 (`fixture.test.ts`, mounting the REAL `StatusBar` against nothing but the fixture) — for a component that takes no required props; see gap 4 |
 | 7 — two components read the same plan | **4**, not 3, and held in its SUBSTANCE rather than its letter — see Task 4 Step 8. Exactly one prop-free component renders a plan-level value (`StatusBar`), so no pair can render the same value; `PlanEditorRoot` reads `status`. The case mounts both against one fixture, asserts two different consequences of it, and asserts that removing the fixture changes both. What it cannot show is stated in the test |
 | 8 — an entry that throws names itself; empty tree still lists | 4 (`IndexPage.vue` failure branch — four ways in now: a rejected import, `onErrorCaptured`, an unresolved tag and a missing required prop, the last two via `warnHandler`; plus the empty-tree case) |
@@ -3001,9 +3037,9 @@ The PBI's extensions map too: **2a** → Task 4 Step 5's `failure` branch; **4a*
 
 **Task 2's test passes vacuously on an empty tree**, which is why Task 2 Step 4 plants an *unmarked* prototype and imports it: it proves the test fires on a file nobody remembered to flag, which is the only version of that guarantee worth having.
 
-**Revised across eighteen review rounds — forty-eight findings. Forty-seven were real and are
-fixed above rather than noted; one was not, and it is recorded as declined with the measurement
-that declined it.**
+**Revised across twenty review rounds — fifty-four findings. Fifty-two were real and are fixed
+above rather than noted; two were not, and each is recorded as declined with the measurement that
+declined it.**
 
 Round one, on the shape of the harness:
 
@@ -3189,6 +3225,15 @@ Every `PlanEditorView.ts:145-159`-style reference in this plan became a symbol r
 pass. `CLAUDE.md` says *address code by name, not by position — line numbers are correct until the
 next insertion above them*, and slice 8 inserted above all of them at once.
 
+Round twenty, on a route through CSS itself, a step that named no file, and one finding that did
+not reproduce:
+
+| Finding | What was wrong | Fixed in |
+| --- | --- | --- |
+| **A stylesheet can `@import` a stylesheet** | The fourth route, and the first that involves no JavaScript at all: `@import '…/concept.css';` in `tests/harness/theme.css` loads the proposal sheet with the page's three links unchanged, no module importing a `.css`, and no template rendering a `<link>`. The walker excludes `.css` files entirely, so all three lists stay empty | Task 5: a case refusing `@import` in `tests/harness/*.css`, planted before being trusted. Scoped there deliberately — `styles/index.css` uses `@import` to assemble the shipped sheet from its partials, and `scripts/styles-assemble.mjs` already fails the build on one it cannot resolve, so refusing it there would refuse the mechanism the plugin's own stylesheet is built from. What that leaves — an `@import` inside a `styles/` partial pointing outside `styles/` — belongs to the assembler, and the test says so rather than reaching into it |
+| **Task 4's criterion-7 step named no file** | Prose describing a case, with no file to write it in, and `git add` staging four files none of which was obviously its home. An implementer could complete every prescribed edit and commit with criterion 7 untested — which is how a criterion that was MOVED to a task gets lost in the move. My residue: the rewrite that fixed the pair deleted the sentence naming `entries.test.ts` | Task 4 Step 8 names the file and points at Step 10, which already staged it |
+| *(declined)* **"an emitted ASSET escapes the chunk-modules check"** | The scenario is real in principle — `chunk.modules` carries source provenance and an `OutputAsset` does not — but it does not reproduce in this build. Planted both spellings: `new URL('../tests/fixtures/…png', import.meta.url)` emitted no asset at all, and a plain `import png from '../tests/fixtures/…png'` put the fixture's path **into `chunk.modules`**, where the existing assertion catches it. The only asset this lib build emits is `styles.css`, whose `originalFileNames` is `[]` | Nothing changed. The test's own header already narrows its claim to chunk modules rather than asserting more, which was the right call independently |
+
 **Found by the TASK REVIEWS**, which is a third category and the sharpest one so far, because
 these are defects in the plan's own test code that eighteen rounds of reading did not see:
 
@@ -3250,7 +3295,7 @@ The generalisation is the one this plan already knew and had only applied to tes
 expectation nobody has run is a claim, not a check.** Fifteen rounds of review could not see any of
 these four, because each is a fact about a tool's behaviour rather than about the text.
 
-**The pattern, across all eighteen rounds and worth more than any individual fix:** every failure was
+**The pattern, across all twenty rounds and worth more than any individual fix:** every failure was
 a **green signal that means nothing** — a config grep for a lint run, a first chunk for a build,
 a string compared to itself, a shimmed DOM call that passes in jsdom and throws in a browser, a
 glob whose subtree excludes the file that matters, a hand-built map standing in for the glob that
@@ -3265,6 +3310,6 @@ routing fix left the `CLAUDE.md` text and the PBI's own assumption. Round seven'
 header claiming the glob had "nothing to assert about in a unit test", and Task 7's step numbers
 already carried two Step 7s. Rounds five onward ended with a *deliberate residue sweep* before
 pushing, and it kept catching what the review had not — which is the practice to carry into
-execution, not the forty-seven fixes. Round twelve is the first to add a third pattern:
+execution, not the fifty-two fixes. Round twelve is the first to add a third pattern:
 a finding can be confidently specific and still wrong, so a declined one is declined with a
 measurement rather than with a judgement.

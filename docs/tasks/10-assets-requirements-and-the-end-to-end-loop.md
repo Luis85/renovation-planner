@@ -2206,7 +2206,18 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       the Requirements it creates each carry their own Zone's `projectId`. This criterion
       replaces one requiring the opposite, and is written as a positive assertion on
       purpose — a deleted refusal leaves no test behind, and nothing would then notice the
-      guard being reintroduced.
+      guard being reintroduced. What it asserts is the **project pairing**, and it settles
+      nothing about the currency of the estimate that pairing produces — see *Sharing did
+      create one new way for a pairing to be wrong* and the Issue it names. The two do not
+      collide, and the reason is worth stating because it reads as though they must: the
+      mismatch case is constructible today, so this criterion does not cover an impossible
+      input. `costPipeline` takes its currency from `input.unitPrice` and compares it
+      against nothing, so an EUR Asset assigned into a GBP project yields a Requirement
+      whose `estimatedCost.calculated` is arithmetically correct and denominated in EUR.
+      The criterion above it — a correct estimate on first creation — is met by that
+      figure. Whether a figure in the Asset's currency is the *right* one for the Zone's
+      project is the open question, and it is open in the shipped code rather than in this
+      criterion.
 - [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
       covered by a fixture where one Asset is referenced from two Projects; the delete
       dialog renders a row per project. A bare total is refused by this test, because it

@@ -8,7 +8,7 @@ import { InMemoryPlanRepository } from '../../../../src/infrastructure/persisten
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import type { PersistenceError } from '../../../../src/core/errors/AppError';
 import type { ZoneRepository } from '../../../../src/application/ports/ZoneRepository';
-import { makeDeleteZoneCommand } from '../../../helpers/slice10';
+import { makeDeleteZoneCommand, zoneUndoDeps } from '../../../helpers/slice10';
 import { RecordingEventBus, expectErr, expectOk } from '../../../helpers/domain';
 import { makePlan, makeZone, squareAt } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
@@ -84,6 +84,7 @@ describe('ReversibleDeleteZoneCommand read refusals', () => {
 			zones,
 			new SessionWriteLedger(),
 			{ zoneId: createZoneId() },
+			zoneUndoDeps(),
 		);
 		const error = expectErr(await adapter.execute());
 		expect(error.code).toBe('zone.zone-not-found');
@@ -99,6 +100,7 @@ describe('ReversibleDeleteZoneCommand read refusals', () => {
 			zones,
 			new SessionWriteLedger(),
 			{ zoneId: createZoneId() },
+			zoneUndoDeps(),
 		);
 		const error = expectErr(await adapter.execute());
 		expect(error.code).toBe('test.injected-failure');

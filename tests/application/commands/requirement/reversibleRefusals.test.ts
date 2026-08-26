@@ -91,7 +91,7 @@ describe('ReversibleAssignAssetCommand refusals', () => {
 		expect(executed.value.requirementId).toBeTruthy();
 
 		// Another writer moves the requirement between this history's execute and undo.
-		const cost = new SetRequirementCostOverrideCommand(w.requirements, w.events);
+		const cost = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
 		expectOk(
 			await cost.execute({ requirementId: executed.value.requirementId, cost: null }),
 		);
@@ -149,7 +149,7 @@ describe('Reversible override adapters', () => {
 	it('undo before any execute answers undo.before-execute (quantity)', async () => {
 		const w = await requirementFixture();
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
-			new SetRequirementQuantityOverrideCommand(w.requirements, w.events),
+			new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
 		);
 		const error = expectErr(await adapter.undo());
@@ -159,7 +159,7 @@ describe('Reversible override adapters', () => {
 	it('execute with an unknown requirement answers requirement.not-found without running', async () => {
 		const w = await requirementFixture();
 		const adapter = new ReversibleSetRequirementCostOverrideCommand(
-			new SetRequirementCostOverrideCommand(w.requirements, w.events),
+			new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
 		);
 		const error = expectErr(
@@ -174,7 +174,7 @@ describe('Reversible override adapters', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
-			new SetRequirementQuantityOverrideCommand(requirements, w.events),
+			new SetRequirementQuantityOverrideCommand(requirements, w.events, w.locks),
 			requirements,
 		);
 		const error = expectErr(
@@ -186,7 +186,7 @@ describe('Reversible override adapters', () => {
 	it('a run that fails on the FIRST execute leaves no snapshot behind', async () => {
 		const w = await wiredWithLink();
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
-			new SetRequirementQuantityOverrideCommand(w.requirements, w.events),
+			new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
 		);
 		const error = expectErr(await adapter.execute({ requirementId: w.requirementId, quantity: -3 }));
@@ -197,7 +197,7 @@ describe('Reversible override adapters', () => {
 
 	it('a run that fails on a REDO propagates while keeping the snapshot', async () => {
 		const w = await wiredWithLink();
-		const setCommand = new SetRequirementQuantityOverrideCommand(w.requirements, w.events);
+		const setCommand = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(setCommand, w.requirements);
 
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 5 }));

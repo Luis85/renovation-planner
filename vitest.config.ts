@@ -301,6 +301,40 @@ export default defineConfig({
 			// - `createSerialQueue`'s tail catch, which exists so one command's technical
 			//   fault cannot wedge the shared chain - reached only by a throw the queue is
 			//   built to survive.
+			//
+			// Measured 2026-08-26 at the end of design slice 10 - Asset and Requirement, the
+			// reference-integrity engine and its compensated sequences, the recalculation
+			// cascade, the Requirements panel and the delete-with-references flow:
+			// 4102/4132 statements, 2036/2077 branches, 1037/1047 functions, 3669/3687 lines
+			// - 99.27 / 98.02 / 99.04 / 99.51. NOTHING RATCHETS, for the third time and the
+			// same reason: rounded down these ARE the floors in force.
+			//
+			// Branches is the metric to watch now, and this is the entry that says so. It
+			// finished at 98.02 against a floor of 98 - about 0.4 of a branch of headroom,
+			// where the slice-6 measurement had eight. That is not a regression in testing:
+			// the denominator grew by a factor of two (919 -> 2077) while the same handful of
+			// structurally unreachable arms stayed uncovered, so their cost per arm fell but
+			// the ROUNDED figure landed just over the line instead of comfortably above it.
+			// The practical consequence for the next increment: one new uncovered branch
+			// fails this gate. Plan the test with the code.
+			//
+			// What slice 10 adds to the uncovered set, all of it the same shape as the list
+			// above - a `Result` forward whose only content is the error it carries, or an
+			// arm a caller cannot reach:
+			// - `deleteResolution.ts`'s `case undefined` in `applyResolutionToRequirement`
+			//   and its `resolvedReferents ?? []`: both are refused earlier, by
+			//   `checkConsentedSet` and `resolutionInputError` respectively, and kept because
+			//   the compiler cannot see that.
+			// - the repoint's `!repointed.ok` guard, over a domain method whose only refusal
+			//   is a shape the entity already had.
+			// - `compensate`'s `!snapshot` continue, for a progress entry naming something
+			//   `affectedBefore` does not carry. The mirror of it in `undoDeleteResolution`
+			//   IS covered, driven directly rather than through a command that cannot
+			//   produce the mismatch; this one is reachable only by hand-building a marker,
+			//   which `recovery.test.ts` does for the recovery path and not for this one.
+			//
+			// `undoDeleteResolution.ts` itself is at 100% of all four, which is what a module
+			// whose whole job is a failure path should be.
 			thresholds: {
 				statements: 99,
 				functions: 99,

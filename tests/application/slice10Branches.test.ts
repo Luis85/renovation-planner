@@ -238,7 +238,7 @@ describe('override command refusals', () => {
 	it('the cost override answers requirement.not-found for an unknown id', async () => {
 		const w = await wiredWithLink();
 		const error = expectErr(
-			await new SetRequirementCostOverrideCommand(w.requirements, w.events).execute({
+			await new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks).execute({
 				requirementId: 'requirement-none' as never,
 				cost: null,
 			}),
@@ -249,7 +249,7 @@ describe('override command refusals', () => {
 	it('the quantity override refuses a negative figure', async () => {
 		const w = await wiredWithLink();
 		const error = expectErr(
-			await new SetRequirementQuantityOverrideCommand(w.requirements, w.events).execute({
+			await new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks).execute({
 				requirementId: w.requirementId,
 				quantity: -3,
 			}),

@@ -27,6 +27,8 @@ function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQu
 	return {
 		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
 		findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
+		getRequirementsForZone: () => Promise.resolve(ok([])),
+		listAssets: () => Promise.resolve(ok([])),
 		...overrides,
 	};
 }

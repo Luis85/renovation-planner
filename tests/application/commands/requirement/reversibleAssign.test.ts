@@ -84,7 +84,7 @@ describe('ReversibleAssignAssetCommand', () => {
 		if (!preExisting.ok) throw new Error('unexpected failure');
 
 		// Someone sets an override on the found link.
-		await new SetRequirementCostOverrideCommand(w.requirements, w.events).execute({
+		await new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks).execute({
 			requirementId: preExisting.value.requirement.id,
 			cost: moneyOf('400.00', 'EUR'),
 		});

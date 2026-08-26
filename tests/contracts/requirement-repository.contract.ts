@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { Decimal } from 'decimal.js';
+import { of as moneyOf } from '../../src/core/money/Money';
 import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
 import type { EntityVersion } from '../../src/application/ports/versioning';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
@@ -151,6 +153,32 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 			const f = make();
 			const requirement = newRequirement(f);
 			expect((await f.repository.markStale(requirement.id)).ok).toBe(false);
+		});
+
+		/**
+		 * The test that fails if a persisted decimal is ever written as a YAML float. Three
+		 * decimal places on purpose: `594.005` is not representable in binary floating point,
+		 * so a value that went through a `number` at ANY point in the round trip comes back as
+		 * `594.0049999...` or is silently rounded to `594.00`. Asserted on the `Decimal`, with
+		 * `equals` rather than a string compare, because the claim is about the VALUE — a
+		 * string compare would also fail a harmless `594.0050`.
+		 */
+		it('a three-decimal figure round-trips through persistence without loss', async () => {
+			const f = make();
+			const requirement = makeRequirement({
+				projectId: f.otherProject(),
+				assetId: f.newAsset(),
+				origin: { kind: 'zone', zoneId: f.newZone() },
+				quantity: { calculated: { value: new Decimal('13.2005'), unit: 'm2' } },
+				estimatedCost: { calculated: moneyOf('594.005', 'EUR') },
+			});
+			expectOk(await f.repository.save(requirement, 'absent'));
+
+			const reread = expectOk(await f.repository.getById(requirement.id));
+			if (reread === null) throw new Error('expected the saved requirement to read back');
+			expect(new Decimal(reread.entity.estimatedCost.calculated.amount).equals(new Decimal('594.005')))
+				.toBe(true);
+			expect(reread.entity.quantity.calculated.value.equals(new Decimal('13.2005'))).toBe(true);
 		});
 
 		it('listByZone and listByAsset each return only their own requirements', async () => {

@@ -40,6 +40,8 @@ import {
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
+import { notify } from '../presentation/notices/notify';
+import { tr } from '../presentation/i18n/strings';
 import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
 import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
@@ -241,11 +243,30 @@ interface Slice10Wiring {
 function composeSlice10(wiring: Slice10Wiring) {
 	const { zones, assets, requirements, recalculate, events, locks, logger, markers } = wiring;
 
+	/**
+	 * The cascade runs in the BACKGROUND — nothing the user clicked is waiting on it — so a
+	 * failure inside it reaches nobody unless it is announced. That matters most for exactly
+	 * the case this port is named after: the durable marker that lets a later reader see
+	 * "these figures are out of date" is itself the write that failed, so silence here means
+	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
+	 * suite's benefit; production always passes it, and this is the caller that makes the
+	 * whole port more than a tested no-op.
+	 */
+	const cascadeNotices = {
+		cascadeAborted: () => {
+			notify(tr('cascade.aborted'));
+		},
+		staleMarkerFailed: () => {
+			notify(tr('cascade.stale-marker-failed'));
+		},
+	};
+
 	const subscriptions: { dispose(): void }[] = [
 		registerOnZoneGeometryChanged(events, {
 			requirements,
 			events,
 			logger,
+			notify: cascadeNotices,
 			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
 		}),
 		registerOnAssetUpdated(events, {
@@ -253,6 +274,7 @@ function composeSlice10(wiring: Slice10Wiring) {
 			assets,
 			events,
 			logger,
+			notify: cascadeNotices,
 			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
 		}),
 	];
@@ -270,8 +292,8 @@ function composeSlice10(wiring: Slice10Wiring) {
 			markers,
 		}),
 		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
-		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events),
-		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events),
+		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
+		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
 		deleteRequirement: new DeleteRequirementCommand(requirements),
 		queries: {
 			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets),
@@ -314,6 +336,18 @@ function composeQueryServices(
 	};
 }
 
+/** Every entity shape's migration table, keyed as the runner reads it. */
+function migrationSet() {
+	return {
+		project: PROJECT_MIGRATIONS,
+		plan: PLAN_MIGRATIONS,
+		zone: ZONE_MIGRATIONS,
+		asset: ASSET_MIGRATIONS,
+		requirement: REQUIREMENT_MIGRATIONS,
+		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
+	};
+}
+
 export function createCompositionRoot(
 	settings: RenovationPlannerSettings | null,
 	logger: Logger,
@@ -333,14 +367,7 @@ export function createCompositionRoot(
 
 	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
-	const migrations = createMigrationRunner({
-		project: PROJECT_MIGRATIONS,
-		plan: PLAN_MIGRATIONS,
-		zone: ZONE_MIGRATIONS,
-		asset: ASSET_MIGRATIONS,
-		requirement: REQUIREMENT_MIGRATIONS,
-		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
-	});
+	const migrations = createMigrationRunner(migrationSet());
 
 	const deps: NoteVaultDeps = {
 		vault: vault.vault,
@@ -384,7 +411,13 @@ export function createCompositionRoot(
 			createProject: new CreateProjectCommand(projects, eventBus),
 			createPlan: new CreatePlanCommand(plans, projects, eventBus),
 			createZone: new CreateZoneCommand(zones, plans, eventBus),
-			planEditorQueries: createPlanEditorQueries(queries),
+			planEditorQueries: createPlanEditorQueries({
+				...queries,
+				getRequirementsForZone: slice10.queries.getRequirementsForZone,
+				listAssets: slice10.queries.listAssets,
+				listRequirementsReferencing: slice10.queries.listRequirementsReferencing,
+				listReassignmentTargets: slice10.queries.listReassignmentTargets,
+			}),
 			setPlanBackground: new SetPlanBackgroundCommand(plans, files, eventBus),
 			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(
 				new SetPlanBackgroundCommand(plans, files, eventBus),
@@ -455,6 +488,15 @@ export function planEditorDeps(
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,
 					zoneInspector: persistence.zoneInspector,
+					requirementEdits: {
+						assignAsset: persistence.assignAsset,
+						setQuantityOverride: persistence.setRequirementQuantityOverride,
+						setCostOverride: persistence.setRequirementCostOverride,
+						requirements: persistence.requirements,
+						assets: persistence.assets,
+						locks: persistence.locks,
+						logger: root.logger,
+					},
 					// A new command per call — see `CalibratePlanTransaction`. The three
 					// collaborators are the same ones every other write here is built from;
 					// only the lifetime differs.

@@ -9,6 +9,7 @@ import type {
 import { effectiveValue } from '../../../core/derived/DerivedValue';
 import type { Money } from '../../../core/money/Money';
 import type { Quantity } from '../../../core/units/MeasurementUnit';
+import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import { costEstimateChanged } from '../../../domain/requirement/Requirement.events';
@@ -126,23 +127,32 @@ export class SetRequirementQuantityOverrideCommand
 	constructor(
 		private readonly requirements: RequirementRepository,
 		private readonly events: EventBus,
+		private readonly locks: ReferenceLocks,
 	) {}
 
 	async execute(
 		input: SetRequirementQuantityOverrideInput,
 	): Promise<Result<Requirement, SetOverrideErrors>> {
-		const applied = await applyQuantityOverride(this.requirements, input);
+		const applied = await this.executeWithVersion(input);
 		if (!applied.ok) return applied;
-		await publishIfEffectiveCostChanged(
-			this.events,
-			applied.value.requirement,
-			applied.value.previousEffectiveCost,
-		);
 		return ok(applied.value.requirement);
 	}
 
 	/** The adapter's door: the same write, plus what undo needs that publishing does not. */
 	async executeWithVersion(
+		input: SetRequirementQuantityOverrideInput,
+	): Promise<Result<{ requirement: Requirement; version: EntityVersion }, SetOverrideErrors>> {
+		// The level-2 lock a delete resolution's compensation relies on — see
+		// `SetRequirementCostOverrideCommand`'s header, which states the rule once for both.
+		const release = await this.locks.acquire([], [input.requirementId]);
+		try {
+			return await this.write(input);
+		} finally {
+			release();
+		}
+	}
+
+	private async write(
 		input: SetRequirementQuantityOverrideInput,
 	): Promise<Result<{ requirement: Requirement; version: EntityVersion }, SetOverrideErrors>> {
 		const applied = await applyQuantityOverride(this.requirements, input);

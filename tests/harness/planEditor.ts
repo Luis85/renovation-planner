@@ -102,6 +102,10 @@ function harnessDeps(): PlanEditorDeps {
 	return {
 		queries: {
 			getPlan: () => Promise.resolve(ok(HARNESS_PLAN)),
+			getRequirementsForZone: () => Promise.resolve(ok([])),
+			listAssets: () => Promise.resolve(ok([])),
+			listRequirementsReferencing: () => Promise.resolve(ok([])),
+			listReassignmentTargets: () => Promise.resolve(ok([])),
 			findZonesByPlan: () => Promise.resolve(ok(HARNESS_ZONES)),
 		},
 		// Every write refuses with `settings.unrecovered`, the honest answer for a page with

@@ -2,6 +2,7 @@
 // jsdom: the plugin shell touches the DOM through the module mock, exactly as
 // tests/plugin/persistence-wiring.test.ts does.
 import { describe, expect, it } from 'vitest';
+import { Notice } from 'obsidian';
 import { Decimal } from 'decimal.js';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack } from '../helpers/vault';
@@ -111,6 +112,42 @@ describe('slice-10 cascade wiring', () => {
 		// 0.00011 m2 x 50.00 EUR per m2, rounded to the minor unit.
 		expect(recalculated?.entity.estimatedCost.calculated.amount).toBe('0.01');
 		void project;
+
+		await plugin.onunload();
+	});
+
+	/**
+	 * The cascade runs in the background, so a failure inside it reaches nobody unless it is
+	 * announced — and the one write whose failure this covers is the durable marker that
+	 * would otherwise let a wrong figure be presented as current. `CascadeDeps.notify` is
+	 * optional for the suite's benefit, so nothing but this test can tell a composition that
+	 * passes it from one that leaves it undefined and logs into the void.
+	 */
+	it('a failed stale marker inside the cascade reaches the user as a notice', async () => {
+		const { stack, project, plan, zone, requirement } = await seededStack();
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+
+		const before = Notice.shown.length;
+		// The PLUGIN's own repository, not the fixture's: the two write to one vault through
+		// separate instances, and patching the fixture's would leave the cascade's own write
+		// working perfectly.
+		const composed = plugin.root.persistence?.requirements;
+		if (composed === undefined) throw new Error('expected a composed requirement repository');
+		composed.markStale = () =>
+			Promise.resolve({
+				ok: false,
+				error: { category: 'Persistence', code: 'test.injected', message: 'no' },
+			}) as ReturnType<typeof composed.markStale>;
+
+		await plugin.root.eventBus.publish({
+			type: 'ZoneGeometryChanged',
+			payload: { zoneId: zone.entity.id, planId: plan.entity.id, projectId: project.entity.id },
+		} as never);
+
+		expect(Notice.shown.length).toBe(before + 1);
+		expect(Notice.shown.at(-1)).toContain('out of date');
+		void requirement;
 
 		await plugin.onunload();
 	});

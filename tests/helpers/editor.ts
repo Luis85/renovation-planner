@@ -65,6 +65,10 @@ function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[]): PlanEdito
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
 		findZonesByPlan: () => Promise.resolve(ok(zones)),
+		getRequirementsForZone: () => Promise.resolve(ok([])),
+		listAssets: () => Promise.resolve(ok([])),
+		listRequirementsReferencing: () => Promise.resolve(ok([])),
+		listReassignmentTargets: () => Promise.resolve(ok([])),
 	};
 }
 

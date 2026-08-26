@@ -8,6 +8,8 @@ import { RecalculateRequirementCommand } from '../../src/application/commands/re
 import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
 import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZone';
 import type { ZoneRepository } from '../../src/application/ports/ZoneRepository';
+import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
+import type { DeleteZoneUndoDeps } from '../../src/application/commands/zone/reversible-delete-zone-command';
 import type { DomainEvent, EventBus } from '../../src/core/events/EventBus';
 import { createEventBus } from '../../src/core/events/EventBus';
 import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
@@ -27,16 +29,27 @@ export function makeDeleteZoneCommand(
 	zones: ZoneRepository,
 	events: EventBus,
 	requirements = new InMemoryRequirementRepository(),
+	locks = new ReferenceLocks(),
 ): DeleteZoneCommand {
 	const assets = new InMemoryAssetRepository();
 	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events);
-	return new DeleteZoneCommand(
-		{ zones, requirements, recalculate, events, locks: new ReferenceLocks(), logger: recorder },
-	);
+	return new DeleteZoneCommand({ zones, requirements, recalculate, events, locks, logger: recorder });
+}
+
+/**
+ * The undo half `ReversibleDeleteZoneCommand` grew in slice 10 — the Requirements a
+ * resolution touched are restored through these. Defaulted for the pre-slice-10 tests,
+ * whose zones have no referents and whose undo therefore collapses to one write.
+ */
+export function zoneUndoDeps(
+	requirements: RequirementRepository = new InMemoryRequirementRepository(),
+	locks: ReferenceLocks = new ReferenceLocks(),
+): DeleteZoneUndoDeps {
+	return { requirements, locks, logger: recorder };
 }
 
 /** A REAL dispatching bus recording publication order — for event-chain assertions. */
-function dispatchingEventBus(): EventBus & {
+export function dispatchingEventBus(): EventBus & {
 	readonly published: readonly DomainEvent[];
 } {
 	const published: DomainEvent[] = [];
@@ -96,13 +109,18 @@ export interface RequirementFixture {
 	readonly recalculate: RecalculateRequirementCommand;
 }
 
-/** One in-memory stack with a project and plan already saved — the base fixture of slice 10's application tests. */
-export async function requirementFixture(): Promise<RequirementFixture> {
+/**
+ * One in-memory stack with a project and plan already saved — the base fixture of slice
+ * 10's application tests. Both mutable repositories are injectable so a subclass can fail a
+ * chosen write at the PORT, which is where a fault the code cannot branch on belongs.
+ */
+export async function requirementFixture(
+	requirements: InMemoryRequirementRepository = new InMemoryRequirementRepository(),
+	zones: InMemoryZoneRepository = new InMemoryZoneRepository(),
+): Promise<RequirementFixture> {
 	const projects = new InMemoryProjectRepository();
 	const plans = new InMemoryPlanRepository();
-	const zones = new InMemoryZoneRepository();
 	const assets = new InMemoryAssetRepository();
-	const requirements = new InMemoryRequirementRepository();
 	const events = dispatchingEventBus();
 	const locks = new ReferenceLocks();
 	const project = expectOk(await projects.save(makeProject(), 'absent'));

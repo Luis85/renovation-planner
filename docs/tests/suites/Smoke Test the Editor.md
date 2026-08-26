@@ -72,3 +72,9 @@ into an automated check will find the same thing again next release.
   confirmation, the focus trap, `Escape`, the `inert` background, and the calibration
   itself, which slice 7 built and slice 8 shipped unreachable. Two of its steps ask what
   Obsidian's own keymap does behind a dialog and record the answer rather than assert one.
+- [[Assign an Asset and Delete a Referenced Zone]] — design slice 10's end-to-end loop
+  (`Zone Geometry → Area → Requirement → Cost`) and the delete-with-references decision.
+  Three of its twenty steps are the only place anything can see them: a populated
+  requirement row's LAYOUT (jsdom lays nothing out, and the browser harness draws this
+  panel empty), the §64 decision panel over a pane that is entirely canvas, and the
+  round trip through a real reload.

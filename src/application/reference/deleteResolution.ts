@@ -362,7 +362,7 @@ async function compensate<TEntity>(
 		if (isErr(restored)) {
 			ops.logger.error('sequence.compensation.failed', {
 				entityId: ops.entityId,
-			entityKind: ops.entityKind,
+				entityKind: ops.entityKind,
 				requirementId: entry.id,
 				cause: restored.error,
 			});
@@ -413,7 +413,7 @@ export async function runDeleteResolution<TEntity>(
 		if (isErr(recorded)) {
 			ops.logger.error('sequence.marker-update.failed', {
 				entityId: ops.entityId,
-			entityKind: ops.entityKind,
+				entityKind: ops.entityKind,
 				cause: recorded.error,
 			});
 		}
@@ -423,7 +423,7 @@ export async function runDeleteResolution<TEntity>(
 		if (isErr(cleared)) {
 			ops.logger.error('sequence.marker-clear.failed', {
 				entityId: ops.entityId,
-			entityKind: ops.entityKind,
+				entityKind: ops.entityKind,
 				cause: cleared.error,
 			});
 		}

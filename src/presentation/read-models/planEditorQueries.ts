@@ -1,9 +1,26 @@
 import type { PersistenceError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
+import type { ProjectId } from '../../domain/project/ProjectId';
+import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { FindZonesByPlan } from '../../application/queries/FindZonesByPlan';
 import type { GetPlan } from '../../application/queries/GetPlan';
+import type {
+	GetRequirementsForZone,
+	RequirementInspectorDTO,
+} from '../../application/queries/GetRequirementsForZone';
+import type { ListAssets } from '../../application/queries/ListAssets';
+import type { ListRequirementsReferencing } from '../../application/queries/ListRequirementsReferencing';
+import type { ListReassignmentTargets } from '../../application/queries/ListReassignmentTargets';
+import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
+import type { RequirementId } from '../../domain/requirement/RequirementId';
 import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
+
+/** One row of the assign-asset picker: what a `<select>` needs, nothing more. */
+export interface AssetOptionDto {
+	readonly id: string;
+	readonly name: string;
+}
 
 /**
  * The ONLY application-layer surface the Plan Editor depends on. Concrete Obsidian
@@ -19,6 +36,25 @@ import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
 export interface PlanEditorQueryServices {
 	getPlan(planId: string): Promise<Result<PlanDto | null, PersistenceError>>;
 	findZonesByPlan(planId: string): Promise<Result<readonly ZoneDto[], PersistenceError>>;
+	/**
+	 * Slice 10's Requirements panel rows for one zone. The query's own DTO is handed on
+	 * verbatim — it IS the presentation contract (the stale flag, the missing-target
+	 * marker and the override figures are all things only the UI renders).
+	 */
+	getRequirementsForZone(
+		zoneId: string,
+	): Promise<Result<readonly RequirementInspectorDTO[], PersistenceError>>;
+	/** The assign-asset picker's options for one project, unfiltered (the command enforces the unit-kind rule). */
+	listAssets(projectId: string): Promise<Result<readonly AssetOptionDto[], PersistenceError>>;
+	/**
+	 * What the delete flow shows the user BEFORE the dialog, and owes back to the command
+	 * as `resolvedReferents`. IDs rather than a count, because the command compares sets.
+	 */
+	listRequirementsReferencing(zoneId: string): Promise<Result<readonly RequirementId[], PersistenceError>>;
+	/** The Reassign picker's candidates, already narrowed to what the command would accept. */
+	listReassignmentTargets(
+		zoneId: string,
+	): Promise<Result<readonly ReassignmentTargetDto[], PersistenceError>>;
 }
 
 /**
@@ -45,7 +81,14 @@ function refuseUnrecovered() {
 }
 
 export function unavailablePlanEditorQueries(): PlanEditorQueryServices {
-	return { getPlan: refuseUnrecovered, findZonesByPlan: refuseUnrecovered };
+	return {
+		getPlan: refuseUnrecovered,
+		findZonesByPlan: refuseUnrecovered,
+		getRequirementsForZone: refuseUnrecovered,
+		listAssets: refuseUnrecovered,
+		listRequirementsReferencing: refuseUnrecovered,
+		listReassignmentTargets: refuseUnrecovered,
+	};
 }
 
 /**
@@ -66,6 +109,12 @@ export function unavailablePlanEditorQueries(): PlanEditorQueryServices {
 export function createPlanEditorQueries(queries: {
 	readonly getPlan: GetPlan;
 	readonly findZonesByPlan: FindZonesByPlan;
+	/** Production composition always passes both slice-10 members; omitted only by editor
+	 * test rigs that mount no Requirements panel content, which then answer empty. */
+	readonly getRequirementsForZone?: GetRequirementsForZone;
+	readonly listAssets?: ListAssets;
+	readonly listRequirementsReferencing?: ListRequirementsReferencing;
+	readonly listReassignmentTargets?: ListReassignmentTargets;
 }): PlanEditorQueryServices {
 	return {
 		async getPlan(planId) {
@@ -77,6 +126,28 @@ export function createPlanEditorQueries(queries: {
 			const found = await queries.findZonesByPlan.execute({ planId: planId as PlanId });
 			if (isErr(found)) return found;
 			return ok(found.value.map((loaded) => toZoneDto(loaded.entity)));
+		},
+		async getRequirementsForZone(zoneId) {
+			const found = queries.getRequirementsForZone;
+			if (!found) return ok([]);
+			return await found.execute(zoneId as ZoneId);
+		},
+		async listAssets(projectId) {
+			const listed = queries.listAssets;
+			if (!listed) return ok([]);
+			const found = await listed.execute(projectId as ProjectId);
+			if (isErr(found)) return found;
+			return ok(found.value.map((asset) => ({ id: asset.id, name: asset.name })));
+		},
+		async listRequirementsReferencing(zoneId) {
+			const listed = queries.listRequirementsReferencing;
+			if (!listed) return ok([]);
+			return await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
+		},
+		async listReassignmentTargets(zoneId) {
+			const listed = queries.listReassignmentTargets;
+			if (!listed) return ok([]);
+			return await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
 		},
 	};
 }

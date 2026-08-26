@@ -71,18 +71,24 @@ The framework is complete and in use: `DialogStore`, `DialogHost`, all four kind
 trap, `Escape`, background `inert`, focus restoration, the stacking guard, the import
 boundary and its meta-test. Definition of Done items 1, 2, 3, 4, 5, 7, 9, 10 and 11 are met.
 
-**Items 6, 8 and 8a are NOT met, and were not attempted.** They are the Zone-delete worked
-example, and every collaborator they name — `ListRequirementsReferencing`,
-`ListReassignmentTargets`, and a `reversibleDeleteZone` taking `resolution` /
-`resolvedReferents` and refusing with `reference.set-changed` — belongs to slice 10, which
-was in flight while this slice was built. Declaring those shapes here would have been a
-second derivation of contracts slice 10 owns, which this document's own "Out of scope"
-section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` are built and tested and
-have no production caller for the same reason: that is the plan, not dead code.
+**Items 6, 8 and 8a were NOT met here, and were not attempted — slice 10 met them
+(2026-08-26).** They are the Zone-delete worked example, and every collaborator they name —
+`ListRequirementsReferencing`, `ListReassignmentTargets`, and a `reversibleDeleteZone` taking
+`resolution` / `resolvedReferents` and refusing with `reference.set-changed` — belongs to
+slice 10, which was in flight while this slice was built. Declaring those shapes here would
+have been a second derivation of contracts slice 10 owns, which this document's own "Out of
+scope" section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` were built and
+tested with no production caller for the same reason: that was the plan, not dead code.
 
-The Inspector's Delete button still dispatches straight through `InspectorStore.commit`'s
-`toCommand`, unchanged. Wiring it to `DeleteReferenceDialog` is slice 10's closing task;
-this sentence stays until it happens.
+**Both have a caller now.** `presentation/editor/deleteZoneFlow.ts` is it, reached from the
+Inspector's Delete button through `runtime.ts`'s `createDeleteZoneAction`. The three items
+are covered where that flow lives: `tests/presentation/editor/deleteZoneFlow.test.ts` asserts
+the decisions on the COMMAND INPUT (a zero count carries no `resolution`; every resolution
+carries the exact `resolvedReferents` the row was built from; `reference.set-changed` re-asks
+once and a second one is surfaced), and
+`tests/presentation/editor/shell/deleteZoneWithReferences.test.ts` drives the real mounted
+editor with the real `DialogHost` — which is what would catch a flow with the right logic and
+a query nobody passed it.
 
 **What this slice DID reach:** `CalibrateTool`, which slice 7 built and slice 8 shipped
 registered nowhere. It is in `registerEditorTools` and in the toolbar now, its recalibration

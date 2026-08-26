@@ -25,7 +25,7 @@ function makeFields(id: ZoneId, overrides: Partial<ZoneInspectorFields> = {}): Z
  * whose `dispatcher.run` and `toCommand` are spies, and whose call counts this suite
  * asserts against directly — the DoD 10 rule that "not called" must be checked against a
  * spy, not inferred from the resulting DTO. */
-function stubDeps(initialAnswer: QueryAnswer) {
+function stubDeps(initialAnswer: QueryAnswer, requirementsQuery?: InspectorDeps['requirementsQuery']) {
 	let answer = initialAnswer;
 	const queryExecute = vi.fn<(input: { zoneId: ZoneId }) => Promise<QueryAnswer>>(() => Promise.resolve(answer));
 	const commandRun = vi.fn<(command: UndoableCommand) => Promise<Result<void, AppError>>>(() =>
@@ -37,6 +37,7 @@ function stubDeps(initialAnswer: QueryAnswer) {
 	}));
 	const deps: InspectorDeps = {
 		query: { execute: queryExecute },
+		requirementsQuery: requirementsQuery ?? { execute: () => Promise.resolve(ok([])) },
 		dispatcher: { run: commandRun },
 		toCommand,
 	};
@@ -69,6 +70,9 @@ function deferredDeps() {
 	);
 	const deps: InspectorDeps = {
 		query: { execute: queryExecute },
+		requirementsQuery: {
+			execute: () => Promise.resolve(ok([])),
+		},
 		dispatcher: { run: () => Promise.resolve(ok(undefined)) },
 		toCommand: () => ({
 			execute: () => Promise.resolve(ok(undefined)),
@@ -100,6 +104,56 @@ describe('InspectorStore', () => {
 			expect(queryExecute).toHaveBeenCalledTimes(1);
 			expect(queryExecute).toHaveBeenCalledWith({ zoneId: id });
 			expect(store.dto).toEqual({ kind: 'zone', id, name: 'Living room', areaMm2: 100 });
+		});
+
+		it('the requirements rows hydrate with the zone and clear on empty and multiple selections', async () => {
+			const id = zoneId(1);
+			const rows = [{ requirementId: 'requirement-1' }] as never;
+			const answer: Result<readonly unknown[], PersistenceError> = ok(rows);
+			const { deps } = stubDeps(ok(makeFields(id)), {
+				execute: () => Promise.resolve(answer),
+			});
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([id]);
+			expect(store.requirements).toStrictEqual(rows);
+
+			await store.hydrateFrom([]);
+			expect(store.requirements).toEqual([]);
+
+			await store.hydrateFrom([id]);
+			expect(store.requirements).toStrictEqual(rows);
+
+			await store.hydrateFrom([zoneId(1), zoneId(2)]);
+			expect(store.requirements).toEqual([]);
+		});
+
+		/**
+		 * A FAILED requirements read empties the panel rather than leaving the previous
+		 * zone's rows on screen under the new zone's name. The two halves of the store
+		 * disagreeing about which zone they describe is the one thing the shared request
+		 * ticket exists to prevent, and a failure must not reintroduce it.
+		 */
+		it('an unreadable requirements query empties the rows, on hydrate and on refresh alike', async () => {
+			const id = zoneId(1);
+			const rows = [{ requirementId: 'requirement-1' }] as never;
+			let answer: Result<readonly unknown[], PersistenceError> = ok(rows);
+			const { deps } = stubDeps(ok(makeFields(id)), {
+				execute: () => Promise.resolve(answer),
+			});
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([id]);
+			expect(store.requirements).toStrictEqual(rows);
+
+			answer = err({ category: 'Persistence', code: 'vault.unreadable', message: 'no' });
+			await store.refresh();
+			expect(store.requirements).toEqual([]);
+
+			// And the same on a fresh selection, which takes the other of the two call sites.
+			await store.hydrateFrom([]);
+			await store.hydrateFrom([id]);
+			expect(store.requirements).toEqual([]);
 		});
 
 		it('several ids produce `multiple`, and the query is never called', async () => {

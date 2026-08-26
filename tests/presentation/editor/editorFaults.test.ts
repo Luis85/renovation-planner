@@ -13,7 +13,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Notice } from 'obsidian';
-import { mountPlanEditor, settle } from '../../helpers/editor';
+import { mountPlanEditor, settle, settleUntil } from '../../helpers/editor';
+import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { click, PLAN_DTO, PROJECT_ID, toolbarButton, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { expectOk, RecordingEventBus } from '../../helpers/domain';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
@@ -68,6 +69,10 @@ async function faultRig() {
 			findZonesByPlan: new FindZonesByPlan(zonesRepo),
 		}),
 		commands: {
+			// Spread over the refusal bundle so slice 10's members exist: this rig deletes a
+			// zone nothing references, so a refusing requirement port is exactly right — what
+			// it must not be is ABSENT, which would fail the delete for the wrong reason.
+			...unavailablePlanEditorCommands(),
 			createZone: new CreateZoneCommand(zonesRepo, plans, events),
 			moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
 			deleteZone: makeDeleteZoneCommand(zonesRepo, events),
@@ -91,7 +96,10 @@ describe('an unexpected fault during a dispatch', () => {
 		const noticesBefore = Notice.shown.length;
 		zonesRepo.throwNext = true;
 		toolbarButton(harness, 'Delete zone').click();
-		await settle();
+		// `settleUntil` rather than a fixed `settle()`: slice 10's delete flow reads the
+		// referencing requirements before it dispatches, so the number of ticks between the
+		// click and the write is a property of that flow rather than of this test.
+		await settleUntil(() => Notice.shown.length === noticesBefore + 1, 'the fault notice');
 
 		// Told, not swallowed — the same seam every refused gesture already reports through.
 		expect(Notice.shown.length).toBe(noticesBefore + 1);
@@ -101,8 +109,10 @@ describe('an unexpected fault during a dispatch', () => {
 
 		// And the leaf still works: a second, clean delete goes through.
 		toolbarButton(harness, 'Delete zone').click();
-		await settle();
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(0);
+		await settleUntil(
+			async () => expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).length === 0,
+			'the second delete lands',
+		);
 
 		harness.unmount();
 	});

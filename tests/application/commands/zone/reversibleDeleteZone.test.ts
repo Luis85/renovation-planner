@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeDeleteZoneCommand } from '../../../helpers/slice10';
+import { makeDeleteZoneCommand, zoneUndoDeps } from '../../../helpers/slice10';
 import { ReversibleDeleteZoneCommand } from '../../../../src/application/commands/zone/reversible-delete-zone-command';
 import { SessionWriteLedger, type WriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -49,6 +49,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 				zones,
 				ledger,
 				{ zoneId: zone.id },
+				zoneUndoDeps(),
 			);
 		return { zones, events, zone, ledger, makeCommand };
 	};

@@ -8,12 +8,28 @@ import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { referenceError } from '../../errors';
 import type { WriteLedger } from '../../editor/WriteLedger';
+import type { Logger } from '../../ports/Logger';
+import type { RequirementRepository } from '../../ports/RequirementRepository';
+import type { ReferenceLocks } from '../../reference/ReferenceLocks';
+import type { ResolvedSequence } from '../../reference/deleteResolution';
+import { undoDeleteResolution, type Compensation } from '../../reference/undoDeleteResolution';
 import { restoreZone } from './restore-zone';
 
 export type DeleteCommand = Command<
 	DeleteZoneInput,
-	Result<{ zoneId: ZoneId }, ReferenceError | ValidationError | PersistenceError>
+	Result<ResolvedSequence & { zoneId: ZoneId }, ReferenceError | ValidationError | PersistenceError>
 >;
+
+/**
+ * What the undo half needs and the delete half does not: the Requirements the resolution
+ * touched are restored through the port, under the same two lock levels the forward
+ * sequence took, and a compensation that also fails is logged rather than returned.
+ */
+export interface DeleteZoneUndoDeps {
+	readonly requirements: RequirementRepository;
+	readonly locks: ReferenceLocks;
+	readonly logger: Logger;
+}
 
 // The same factory and the same CATEGORY as the sibling create adapter's. These two used
 // to hand-build the identical `zone.nothing-to-undo` code as a `Reference` failure in one
@@ -50,20 +66,32 @@ function nothingToUndo(): ReferenceError {
  * ID-keyed upsert — slice 3's port contract, asserted in the shared repository contract
  * suite both persistence implementations run.
  *
- * **Slice 10 widens this adapter, not its shape**: once `DeleteZoneInput.resolution`
- * exists and the wrapped command can cascade to referencing entities, the snapshot grows
- * into "the Zone plus everything the delete touched" and `undo()` becomes a compensated
- * multi-write sequence. In THIS slice no entity can reference a Zone, so the pair above
- * is already a true inverse and stays exactly as written here.
+ * **Slice 10 widened it, exactly as slice 8 predicted it would.** A `Requirement` can
+ * reference a Zone now, so the wrapped command cascades: the snapshot is "the Zone plus
+ * everything the delete touched" (`affectedBefore`, with `affectedAfter` carrying the
+ * expectation each restore must present), and `undo()` is the compensated multi-write
+ * sequence `undoDeleteResolution` owns. Restoring the Zone alone would not be an inverse
+ * of anything: a Zone brought back with its Requirements still deleted, or still repointed
+ * at another Asset, is not the state the user had before pressing Delete.
  */
 export class ReversibleDeleteZoneCommand {
 	private snapshot: Loaded<Zone> | null = null;
+	/**
+	 * What the resolution did, as the resolution itself reported it. Empty for an
+	 * unreferenced Zone, which is what makes the single-write case of slice 8 a special
+	 * case of this one rather than a second path.
+	 */
+	private sequence: Pick<ResolvedSequence, 'affectedBefore' | 'affectedAfter'> = {
+		affectedBefore: [],
+		affectedAfter: [],
+	};
 
 	constructor(
 		private readonly deleteCommand: DeleteCommand,
 		private readonly zones: ZoneRepository,
 		private readonly ledger: WriteLedger,
 		private readonly input: DeleteZoneInput,
+		private readonly undoDeps: DeleteZoneUndoDeps,
 	) {}
 
 	// Driven only through the `UndoableCommand` shape at the dispatch site
@@ -84,6 +112,12 @@ export class ReversibleDeleteZoneCommand {
 		const result = await this.deleteCommand.execute(input);
 		if (isErr(result)) return result;
 		this.snapshot = snapshot;
+		// Taken from the RESULT, never re-read: `affectedAfter` holds the versions this
+		// command's own writes produced, which a read after the fact could only guess at.
+		this.sequence = {
+			affectedBefore: result.value.affectedBefore,
+			affectedAfter: result.value.affectedAfter,
+		};
 		// The note is gone: the ledger stops answering a revision for this id rather than
 		// keeping the pre-delete one — see `WriteLedger` for why that distinction matters
 		// to whatever touches the id next.
@@ -95,12 +129,43 @@ export class ReversibleDeleteZoneCommand {
 	async undo(): Promise<Result<void, PersistenceError | ValidationError | ReferenceError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
-		const written = await restoreZone(this.zones, this.ledger, snapshot);
-		if (isErr(written)) return written;
+		// A box rather than a local, because the assignment happens inside the callback the
+		// sequence drives and is read after it returns.
+		const restored: { value: Loaded<Zone> | null } = { value: null };
+
+		const undone = await undoDeleteResolution(
+			{
+				entityId: this.input.zoneId,
+				logger: this.undoDeps.logger,
+				requirements: this.undoDeps.requirements,
+				restoreEntity: async () => {
+					const written = await restoreZone(this.zones, this.ledger, snapshot);
+					if (isErr(written)) return written;
+					restored.value = written.value;
+					return ok(this.removeAgain(written.value.version));
+				},
+			},
+			this.sequence,
+			this.undoDeps.locks,
+		);
+		if (isErr(undone)) return undone;
+
 		// The restored version, so a second undo after a redo presents what the LAST write
 		// left rather than the original load's. The sibling create adapter always did this
-		// and this one did not, with nothing marking the difference as deliberate.
-		this.snapshot = written.value;
+		// and this one did not, with nothing marking the difference as deliberate. Advanced
+		// only on SUCCESS: a rolled-back undo deleted the note again, so the pre-delete
+		// snapshot is still what a retry has to restore.
+		if (restored.value !== null) this.snapshot = restored.value;
 		return ok(undefined);
+	}
+
+	/** The inverse of the zone half of `undo()`, handed to the sequence by the write itself. */
+	private removeAgain(version: Loaded<Zone>['version']): Compensation {
+		return async () => {
+			const removed = await this.zones.delete(this.input.zoneId, version);
+			if (isErr(removed)) return removed;
+			this.ledger.forget(this.input.zoneId);
+			return ok(undefined);
+		};
 	}
 }

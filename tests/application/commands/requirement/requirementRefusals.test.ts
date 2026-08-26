@@ -270,7 +270,7 @@ describe('override command refusals beyond not-found', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new SetRequirementQuantityOverrideCommand(requirements, w.events).execute({
+			await new SetRequirementQuantityOverrideCommand(requirements, w.events, w.locks).execute({
 				requirementId: w.requirementId,
 				quantity: 3,
 			}),
@@ -281,7 +281,7 @@ describe('override command refusals beyond not-found', () => {
 	it('the quantity override answers requirement.not-found for an unknown id', async () => {
 		const w = await wiredWithLink();
 		const error = expectErr(
-			await new SetRequirementQuantityOverrideCommand(w.requirements, w.events).execute({
+			await new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks).execute({
 				requirementId: 'requirement-none' as never,
 				quantity: 3,
 			}),
@@ -296,7 +296,7 @@ describe('override command refusals beyond not-found', () => {
 		const stored = expectOk(await w.requirements.getById(w.requirementId));
 		Object.assign(stored?.entity.calculatedFrom.unitCost as object, { amount: '-5.00' });
 		const error = expectErr(
-			await new SetRequirementQuantityOverrideCommand(w.requirements, w.events).execute({
+			await new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks).execute({
 				requirementId: w.requirementId,
 				quantity: 3,
 			}),
@@ -310,6 +310,7 @@ describe('override command refusals beyond not-found', () => {
 			await new SetRequirementQuantityOverrideCommand(
 				withConflictingReads(w.requirements),
 				w.events,
+				w.locks,
 			).execute({ requirementId: w.requirementId, quantity: 3 }),
 		);
 		expect(error.category).toBe('Validation');
@@ -317,10 +318,10 @@ describe('override command refusals beyond not-found', () => {
 
 	it('a quantity override keeps an existing cost override while re-pricing the estimate', async () => {
 		const w = await wiredWithLink();
-		const cost = new SetRequirementCostOverrideCommand(w.requirements, w.events);
+		const cost = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
 		expectOk(await cost.execute({ requirementId: w.requirementId, cost: moneyOf('99.99', 'EUR') }));
 
-		const quantity = new SetRequirementQuantityOverrideCommand(w.requirements, w.events);
+		const quantity = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
 		const updated = expectOk(
 			await quantity.execute({ requirementId: w.requirementId, quantity: 5 }),
 		);
@@ -336,7 +337,7 @@ describe('override command refusals beyond not-found', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new SetRequirementCostOverrideCommand(requirements, w.events).execute({
+			await new SetRequirementCostOverrideCommand(requirements, w.events, w.locks).execute({
 				requirementId: w.requirementId,
 				cost: moneyOf('10.00', 'EUR'),
 			}),
@@ -347,7 +348,7 @@ describe('override command refusals beyond not-found', () => {
 	it('the cost override propagates a lost race on its conditional save', async () => {
 		const w = await wiredWithLink();
 		const error = expectErr(
-			await new SetRequirementCostOverrideCommand(withConflictingReads(w.requirements), w.events).execute({
+			await new SetRequirementCostOverrideCommand(withConflictingReads(w.requirements), w.events, w.locks).execute({
 				requirementId: w.requirementId,
 				cost: moneyOf('10.00', 'EUR'),
 			}),

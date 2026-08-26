@@ -30,22 +30,28 @@ sharing a basename therefore draw **two rows a reader cannot tell apart** — sa
 kind, differing only in an `href` nobody reads. Clicking one is a coin flip.
 
 The global registry already handles its half of this correctly and deliberately: a label two
-entries claim is registered for nobody and reported in `ambiguous`, with the reasoning written
-down in that file. The LIST is the half with no answer.
+entries claim is registered for nobody and reported in `ambiguous`, and `IndexPage.vue` turns
+the resulting unresolved tag into a named entry failure. The LIST is the half with no answer,
+and `entries.ts`'s docblock now records exactly that — the gap is written where the two sides
+disagree rather than living in a review thread.
 
 ## What is true today
 
-- No two prototypes share a basename yet, so nothing is broken in the tree. This is why it is
-  filed rather than fixed under a failing test.
-- The registry's ambiguity handling means composition already degrades safely; only the picker
-  misleads.
+- No two entries share a basename yet, measured, so nothing is broken in the tree. This is why
+  it is recorded rather than fixed under a failing test.
+- Criterion 4 still holds: both entries are reachable at their own URL. What fails is the
+  reading of the list, not the routing.
+- Composition already degrades loudly — a designer writing either name into a prototype gets a
+  failure card. Only the picker is silent, which is the disagreement.
 
 ## What closes it
 
-Showing enough of the path to disambiguate — the id, or the directory segment, or the label
-with a parenthesised parent — and a test that mounts two same-basename fixtures and asserts the
-two rows differ in their rendered text. The test is the part that matters: it is what stops the
-next reorganisation from reintroducing it silently.
+Not "show the path", which is the obvious fix and the wrong one: it disambiguates the rows and
+still leaves a designer meeting an unresolved tag with no explanation. The fix worth making is
+to surface what `registrableComponents` **already decided** — mark the ambiguous pair in the
+list as unusable in a prototype, for the reason it is unusable — plus a test mounting two
+same-basename fixtures and asserting the rows say so. The test is the part that matters: it is
+what stops the next reorganisation from reintroducing the silence.
 
 ## Why it matters
 

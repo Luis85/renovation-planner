@@ -37,6 +37,10 @@ rule. It was found by capturing a PNG and looking at it; nothing else here can f
 - jsdom lays nothing out, so the remedy is CSS and the CSS is invisible to every gate.
 - `npm run harness-shot` writes the PNG that shows it, asserts nothing about it, and is
   deliberately outside `npm run check` and outside CI.
+- The second mock written here, `src/prototypes/WorkPackages.vue`, does **not** have the
+  defect — it ships `styles/work-packages.css`, whose gaps and margins put every adjacent
+  element apart on purpose. That is the sharpest statement of the trap: it is sprung by a
+  mock with no stylesheet of its own, and nothing anywhere notices that a mock has none.
 
 ## What closes it
 

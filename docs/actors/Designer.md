@@ -64,5 +64,15 @@ deals with.
 [`deliverables/Design System.md`](../deliverables/Design%20System.md) ·
 [`user-experience/concepts/README.md`](../user-experience/concepts/README.md).
 
-**Checked by** — not yet. The behaviour this note describes is verified by the acceptance
-criteria of [[Prototype a screen in the harness before it is built]], which is unbuilt.
+**Checked by** — the acceptance criteria of
+[[Prototype a screen in the harness before it is built]], which is BUILT. `src/prototypes/` holds
+template-only mocks, the harness index lists every prototype and component discovered from the
+tree (open it with `npm run harness` and then `?index`), and one assembled stylesheet styles both
+— `tests/harness/harness.test.ts` and `tests/harness/indexPage.test.ts` hold that from three
+directions, since no single instrument reaches every way a second sheet could arrive.
+
+**What is NOT checked, because this actor's judgement is the part no test replaces.** Whether a
+prototype LOOKS right — spacing, hierarchy, whether it reads against a real theme — is exactly
+what this note exists to say a person must decide. The gates prove a prototype mounts cleanly and
+pulls in no second stylesheet; they are silent on whether it is any good, and that silence is the
+point rather than a gap.

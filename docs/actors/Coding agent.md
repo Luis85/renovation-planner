@@ -69,7 +69,20 @@ a product for renovators and say nothing about who builds it.
 [`CLAUDE.md`](../../CLAUDE.md) ·
 [`setup/quality-harness.md`](../setup/quality-harness.md).
 
-**Checked by** — not yet, and partly uncheckable: "the agent can verify its own output" is a
-claim about a workflow rather than about code. The closest thing to a check is
-[[Prototype a screen in the harness before it is built]]'s criterion 4 — every index entry
-reachable by `harness-shot` as well as by the index — which is unbuilt.
+**Checked by** — partly, and the uncheckable half is worth naming as such: "the agent can verify
+its own output" is a claim about a workflow rather than about code, and no test can hold it.
+
+The checkable half is [[Prototype a screen in the harness before it is built]]'s criterion 4 —
+every index entry reachable by `harness-shot` as well as by the index — and that is BUILT.
+`scripts/entryShots.mjs` derives the shots for an entry id, `tests/build/entryShots.test.ts`
+drives that derivation directly, and `tests/build/harness-shot.test.ts` pins the wiring from
+`process.argv` through to it. `tests/harness/entries.test.ts` drives the real
+`import.meta.glob`, so the index's list and the capture's argument come from one discovery.
+
+**What the exit code is worth, since that is the whole point for this actor.** `harness-shot`
+waits on `data-entry`, which the page sets only when the entry's WHOLE subtree resolved with no
+Vue warning and no throw — the classification is inverted, so every warning is a defect rather
+than a named few — and it re-asks after the screenshot, so a defect landing in the clearing
+microtask cannot leave a green exit on a picture of a failure card. An agent with no eyes can
+therefore trust "exit 0" to mean the screen rendered, and must still not read it as meaning the
+screen looks right. Nothing here can see that.

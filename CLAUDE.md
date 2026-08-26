@@ -278,11 +278,15 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   equal the floors already in force ratchets NOTHING, which is what slice 5 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
-  real mounted views (`mountHarness` and the real Plan Editor, never a fixture), checking
+  real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
+  three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It
   earns its place rather than merely running: pointed at the Plan Editor — the first
   surface here that draws anything — it immediately found three `aria-label`s on role-less
-  `<div>`s, which is a real violation and one no other gate can see. Read its header before trusting
+  `<div>`s, which is a real violation and one no other gate can see. The index is the only
+  page here built out of interactive controls rather than a canvas, which is why it is
+  scanned open, empty and failed rather than once: those three draw different markup, and
+  the failure card is the tree's one live region. Read its header before trusting
   the word "accessibility" any wider than that: it does NOT verify colour contrast, a
   visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
   of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
@@ -417,6 +421,14 @@ Two rules that follow from it and are worth stating because breaking them is che
 - **A view type and a command id are DATA, not text.** Obsidian persists the first in the
   workspace layout and binds a user's hotkey to the second, so renaming either orphans
   something a user has. The display names beside them are text.
+- **`src/prototypes/` is inside `src/` and outside the layering.** A mock is template-only,
+  composes real components and sibling mocks through the harness index's registry rather than
+  by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
+  makes that a one-way door and `tests/build/prototypes-not-bundled.test.ts` asks the real
+  build which modules composed each chunk. Its CSS is not exempt from anything: a mock's
+  classes ship in the assembled sheet like every other rule (criterion 5 — one screen, one
+  stylesheet), and `tests/build/prototype-styles.test.ts` refuses a class the sheet leaves
+  undeclared. `src/prototypes/README.md` carries the one rule that is relaxed there.
 
 There is deliberately no list of modules here. `src/` is the list and it cannot go stale.
 
@@ -469,9 +481,19 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
-only) **except one file**: `tests/presentation/editor/type-safety.test-d.ts` is named
-alongside `src/**` in `tsconfig.json`'s `include`, because slice 6's screen/world brand
+nothing type-checks `tests/**` (vitest transpiles without checking) **except two entries in
+`tsconfig.json`'s `include`**, each there for its own reason.
+
+`tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
+`IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
+viewed through, and it was reached by neither `vue-tsc` nor `eslint-plugin-vue` (whose
+`VUE_FILES` was `src/` only). The first run over it found `HARNESS_PLAN` missing a required
+`PlanDto` field while annotated as one. Both globs are asked of the tools rather than read,
+in `tests/build/lint-scope.test.ts` — TypeScript's own config parser, with `.vue` declared as
+an extra extension, and ESLint's `calculateConfigForFile`.
+
+`tests/presentation/editor/type-safety.test-d.ts` is the second, and it is a proof: slice 6's
+screen/world brand
 separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
 hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
 `npm run build` is the whole mechanism by which a compile-time proof exists here — a

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 60
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -42,11 +42,20 @@ Two statements went stale when the harness landed and nothing fails because of i
 - The prototypes ban is real and doubly enforced; only its *description* is missing from the
   place a reader looks for import rules.
 
-## What closes it
+## What closed it
 
-Retensing the assumption to a verified statement with the file that verifies it named, and one
-line in the Architecture section placing `src/prototypes/` — what it may import, what refuses
-it, and the pointer to `src/prototypes/README.md`.
+The assumption is a fact and reads as one, naming `ZonePanel.vue` and the two suites that drive
+it. The Architecture section gained a bullet placing `src/prototypes/` — what may import it
+(nothing), what refuses it (a per-layer ban plus a bundle scan of the real build), and that its
+CSS is not exempt from anything.
+
+Two more passages had gone stale in the same week and are corrected here rather than filed
+again, since they are the same defect:
+
+- the accessibility paragraph named `mountHarness` and the Plan Editor as the surfaces axe
+  runs against, and the index is scanned in three states now;
+- the testing section said `tsconfig.json` covers `src/` only "except one file", and there are
+  two entries now — the second, `tests/harness/**/*.vue`, being about scope rather than proof.
 
 ## Why it matters
 

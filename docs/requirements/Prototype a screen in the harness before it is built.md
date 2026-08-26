@@ -196,9 +196,12 @@ shown without extending the fixture, and extending it changes what every other e
    the honest reading is that it serves the MVP rather than being in it.
 2. **`dependsOn` is left empty**, though the sibling names [[Design System]]. Nothing here needs
    the design system decided first; a prototype is how some of its open questions get answered.
-3. **A template-only SFC is a valid Vue component** and needs no script block to mount. True of
-   Vue 3 SFCs and of `@vitejs/plugin-vue` as configured, unverified against this repository's
-   exact toolchain because `node_modules` was not installed when this note was written.
+3. **A template-only SFC is a valid Vue component** and needs no script block to mount. Was an
+   assumption, written when `node_modules` was not installed; it is a fact now.
+   `src/prototypes/ZonePanel.vue` is template-only, mounts, and composes a real component
+   (`<StatusBar />`) beside a sibling mock (`<ZoneSummary />`) through the index's registry,
+   importing neither — which is the whole workflow this note asks for, and it is driven by
+   `tests/harness/indexRealEntries.test.ts` and scanned by the accessibility suite.
 4. **The index is reached by `?index`, and does NOT displace the harness root.** This note first
    assumed the root, leaving displacement open as a design decision. Planning it closed the
    question with a reason worth keeping here: `scripts/harness-shot.mjs`'s three fixed captures

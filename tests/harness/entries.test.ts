@@ -6,8 +6,8 @@ import Konva from 'konva';
 import { createPinia, type Pinia } from 'pinia';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
-import type { Component } from 'vue';
-import { componentEntries, discoverEntries, prototypeEntries, registrableComponents } from './entries';
+import { createApp, type Component } from 'vue';
+import { componentEntries, discoverEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
 import { harnessEditorContext, seedFixture } from './fixture';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import SharedWorldPrototype from './SharedWorldPrototype.vue';
@@ -421,5 +421,48 @@ describe('the prototypes tree IS the registration', () => {
 			.toSorted();
 
 		expect(discovered).toEqual(onDisk);
+	});
+});
+
+/**
+ * What `registerEntries` refuses, driven against a REAL app with the REAL plugin installed.
+ *
+ * `app.use(VueKonva)` registers `VStage`, `VLayer` and friends as globals, and
+ * `app.component(tag, …)` would replace one without complaint from anything this harness reads:
+ * Vue only warns, the warning fires before `IndexPage` exists to install its handler, and
+ * `harness-shot` deliberately ignores `console.warn`. A mock named `VStage.vue` would therefore
+ * take the tag out from under `PlanCanvas`, render inside the real editor, and be photographed
+ * as a success.
+ *
+ * A real `createApp` rather than a stub with a `component` method: the whole question is what
+ * Vue's own registry answers for a tag a plugin took, and a stub would be answering it from
+ * whatever this file assumed.
+ */
+const registrable = (id: string): HarnessEntry => ({
+	id,
+	label: id.split(/[:/]/).pop() ?? id,
+	kind: 'prototype',
+	component: () => Promise.resolve({ default: { template: '<p>mock</p>' } }),
+});
+
+describe('registering entries on an app that already has globals', () => {
+	it('refuses a tag a plugin already holds, and registers the rest', () => {
+		const app = createApp({ template: '<p>host</p>' }).use(VueKonva);
+		const konvaStage = app.component('VStage');
+
+		// The instrument first: if VueKonva stopped registering this tag, the case below would
+		// pass by measuring a collision that never happened.
+		expect(konvaStage, 'VueKonva did not register VStage').toBeDefined();
+
+		const refused = registerEntries(app, new Map([
+			['VStage', registrable('prototype:VStage')],
+			['ZonePanel', registrable('prototype:ZonePanel')],
+		]));
+
+		expect(refused).toEqual(['VStage']);
+		// Identity, not merely "something is registered": the point is that Konva's own component
+		// is still the one behind the tag.
+		expect(app.component('VStage')).toBe(konvaStage);
+		expect(app.component('ZonePanel')).toBeDefined();
 	});
 });

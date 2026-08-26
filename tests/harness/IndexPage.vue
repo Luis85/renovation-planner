@@ -851,7 +851,20 @@ if (initial) void open(initial);
 						:href="hrefFor(entry)"
 						@click.exact.prevent="open(entry)"
 					>{{ entry.label }}</a>
-					<span>{{ entry.kind }}</span>
+					<!--
+						A REAL space, INSIDE the span. Vue's `whitespace: 'condense'` removes the
+						newline between two elements, so the row's text linearises as
+						`ZonePanelprototype` wherever the visual gap is not what is being read — a
+						copy, or assistive technology reading the row rather than the link.
+						`theme.css`'s margin answers the pixels and cannot answer that.
+
+						Inside rather than between: a bare `{{ ' ' }}` node between the two elements
+						produced THREE spaces, because condense only deletes a whitespace-only node
+						between two ELEMENTS and condenses it to one space next to a text node — so
+						the separator, plus the two collapsed neighbours, all survived. Measured,
+						not reasoned about.
+					-->
+					<span>{{ ' ' + entry.kind }}</span>
 					<!--
 						Words, not a colour or an icon: SDD §85 refuses colour as the only
 						channel, and this row has to say WHY the name cannot be written into a
@@ -862,7 +875,7 @@ if (initial) void open(initial);
 					<span
 						v-if="rowNotes.get(entry.id)"
 						class="rp-harness-ambiguous"
-					>{{ rowNotes.get(entry.id) }}</span>
+					>{{ ' ' + rowNotes.get(entry.id) }}</span>
 				</li>
 			</ul>
 		</nav>

@@ -330,6 +330,12 @@ describe('the headless harness capture script', () => {
 	 * function over the same two entry kinds. A source scan rather than a behavioural check
 	 * because `page.ts` runs its mount at module scope; what the registry DOES once installed is
 	 * held behaviourally by `tests/harness/indexRealEntries.test.ts`.
+	 *
+	 * The registration LOOP is no longer in either file: both call `registerEntries` in
+	 * `entries.ts`, which is what makes its refusal of a tag a plugin already holds reachable
+	 * from a test at all (`entries.test.ts`, against a real app with VueKonva installed). So the
+	 * pin follows it — the two files are checked for the shared call, and the one place
+	 * `defineAsyncComponent` now lives is checked for it.
 	 */
 	it('registers every discovered component and mock on the index app, and mirrors that in tests', () => {
 		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
@@ -339,10 +345,14 @@ describe('the headless harness capture script', () => {
 			expect(source).toContain('registrableComponents([');
 			expect(source).toContain('...componentEntries()');
 			expect(source).toContain('...prototypeEntries()');
-			expect(source).toContain('defineAsyncComponent(');
+			expect(source).toContain('registerEntries(app, byTag)');
 		}
 
-		expect(page).toContain('app.component(tag,');
+		// The async wrapper, in the one module that now applies it — resolving components here
+		// instead would settle a mounted subtree a tick earlier than the browser does.
+		expect(readFileSync(path.join(REPO, 'tests', 'harness', 'entries.ts'), 'utf8')).toContain(
+			'defineAsyncComponent(',
+		);
 	});
 
 	/**

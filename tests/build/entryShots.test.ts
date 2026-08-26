@@ -172,6 +172,21 @@ describe('resolveShots, on --width', () => {
 		expect(() => shotsFor('prototype:X', flag)).toThrow(message);
 	});
 
+	/**
+	 * Two entries is a mistake, not a request this command can serve. Taking the first and
+	 * discarding the rest would write successful PNGs for A and exit 0 while B — asked for in the
+	 * same breath — was never captured and never mentioned, which is the silent wrong-picture
+	 * outcome every other refusal in this function exists to prevent.
+	 */
+	it('refuses a second entry rather than capturing the first and dropping it', () => {
+		expect(() => shotsFor('prototype:A', 'prototype:B')).toThrow('one entry at a time; got 2');
+	});
+
+	// The flag must not be counted as one of them.
+	it('still takes one entry when a flag sits beside it', () => {
+		expect(shotsFor('prototype:A', '--width=460').map((shot) => shot.width)).toEqual([460, 460]);
+	});
+
 	// The fixed set carries its own viewports, `?phone` among them, so this command cannot mean
 	// what it says and is refused rather than quietly ignored.
 	it('refuses a width with no entry to apply it to', () => {

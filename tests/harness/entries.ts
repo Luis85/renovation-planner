@@ -116,6 +116,8 @@ declare global {
 	}
 }
 
+import { defineAsyncComponent, type App, type Component } from 'vue';
+
 /** Every mock and prototype under `src/prototypes/`. */
 export const prototypeEntries = (): HarnessEntry[] =>
 	discoverEntries(import.meta.glob('../../src/prototypes/**/*.vue'), 'prototype');
@@ -196,4 +198,42 @@ export function registrableComponents(entries: HarnessEntry[]): {
 	}
 
 	return { byTag, ambiguous, shadowed };
+}
+
+/**
+ * Install every registrable entry on an app, and refuse the tags it would OVERWRITE.
+ *
+ * One function for both callers — `page.ts` in the browser and `indexApp.ts` under test — so
+ * the refusal below is exercised by the same code the real page runs. They had two copies of
+ * the loop, which is how the registry step came to be missing from one of them once already.
+ *
+ * **What it refuses, and why silence here is dangerous.** `app.use(VueKonva)` registers globals
+ * (`VStage`, `VLayer`, …) before this runs, and `app.component(tag, …)` would happily replace
+ * one. Vue only WARNS about that, the warning fires before `IndexPage` installs its handler —
+ * there is no component instance yet — and `harness-shot` deliberately ignores `console.warn`.
+ * So a mock named `VStage.vue` would take the tag out from under `PlanCanvas`, which would then
+ * render the mock inside the real editor and photograph it as a success. A discovered entry
+ * shadowing a discovered COMPONENT is the workflow; shadowing a plugin's global is not, and the
+ * two are only distinguishable here, where the app is.
+ *
+ * `app.component(tag)` with one argument is Vue's own getter — `undefined` when nothing holds
+ * the tag — so what counts as taken is asked of the app rather than kept in a list beside it.
+ */
+export function registerEntries(app: App, byTag: Map<string, HarnessEntry>): string[] {
+	const refused: string[] = [];
+
+	for (const [tag, entry] of byTag) {
+		if (app.component(tag) !== undefined) {
+			refused.push(tag);
+			continue;
+		}
+
+		// `defineAsyncComponent`, never the resolved component: an async child is a dependency of
+		// the `<Suspense>` boundary `IndexPage.vue` marks the stage from, so resolving here would
+		// settle the subtree a tick earlier than the browser does and take the readiness question
+		// this page is built around out of the test entirely.
+		app.component(tag, defineAsyncComponent(entry.component as () => Promise<Component>));
+	}
+
+	return refused;
 }

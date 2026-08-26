@@ -1,11 +1,11 @@
-import { defineAsyncComponent, type Component } from 'vue';
+import type { App } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import IndexPage from './IndexPage.vue';
 import { harnessEditorContext, seedFixture } from './fixture';
 import { settle, settleUntil } from '../helpers/editor';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
-import { componentEntries, prototypeEntries, registrableComponents } from './entries';
+import { componentEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
 
 /**
  * The app configuration `tests/harness/page.ts` gives the index, as ONE object two test files
@@ -39,7 +39,6 @@ import { componentEntries, prototypeEntries, registrableComponents } from './ent
 export function indexAppConfig(): {
 	plugins: unknown[];
 	provide: Record<symbol, unknown>;
-	components: Record<string, Component>;
 } {
 	// BOTH kinds, exactly as `page.ts` does it, and through the same function: a top-level
 	// prototype composes the mocks written beside it as well as the real components, and a
@@ -47,16 +46,18 @@ export function indexAppConfig(): {
 	const { byTag } = registrableComponents([...componentEntries(), ...prototypeEntries()]);
 
 	return {
-		plugins: [seedFixture(), VueKonva],
+		plugins: [
+			seedFixture(),
+			VueKonva,
+			// A PLUGIN rather than `global.components`, and installed after VueKonva, so this is
+			// the same call in the same order the browser makes: `registerEntries` is what
+			// refuses a tag a plugin already holds, and a `components` map would have gone in
+			// through a different door and never met that refusal. `defineAsyncComponent` lives
+			// in there too — see its own header for why resolving here would take the readiness
+			// question this page is built around out of the tests entirely.
+			{ install: (app: App) => void registerEntries(app, byTag) },
+		],
 		provide: { [PLAN_EDITOR_CONTEXT as symbol]: harnessEditorContext() },
-		// `defineAsyncComponent`, as `page.ts` registers them — not the resolved components.
-		// That is not fidelity for its own sake: an async child is a dependency of the
-		// `<Suspense>` boundary `IndexPage.vue` marks the stage from, so registering resolved
-		// components would settle the subtree a tick earlier than the browser does and would
-		// take the readiness question this page is built around out of the test entirely.
-		components: Object.fromEntries(
-			[...byTag].map(([tag, entry]) => [tag, defineAsyncComponent(entry.component as () => Promise<Component>)]),
-		),
 	};
 }
 

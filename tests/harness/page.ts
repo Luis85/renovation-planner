@@ -7,13 +7,13 @@
  * same reason `?theme` and `?phone` are ones: a headless screenshot needs a URL and nothing to
  * click.
  */
-import { createApp, defineAsyncComponent, type Component } from 'vue';
+import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
 import { seedFixture, harnessEditorContext } from './fixture';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
-import { componentEntries, prototypeEntries, registrableComponents } from './entries';
+import { componentEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
 import { applyPlatform, drawSchemeToggle } from './theme';
@@ -102,8 +102,13 @@ if (wantsIndex) {
 		...prototypeEntries(),
 	]);
 
-	for (const [tag, entry] of byTag) {
-		app.component(tag, defineAsyncComponent(entry.component as () => Promise<Component>));
+	// One shared function with `indexApp.ts`, which is what makes the refusal below reachable
+	// from a test at all — see `registerEntries` for what it refuses and why the alternative is
+	// a wrong screenshot at exit 0.
+	const refused = registerEntries(app, byTag);
+
+	if (refused.length > 0) {
+		console.error(`harness entries not registered, the tag is a plugin's: ${refused.join(', ')}`);
 	}
 
 	// The workflow, not a warning: a mock named after a component takes its tag.

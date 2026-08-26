@@ -131,7 +131,17 @@ export function resolveShots(argv, fixedShots, env = {}) {
 			return parseWidth(match[1]);
 		})
 		.at(-1);
-	const entry = args.find((arg) => !arg.startsWith('--'));
+	const positional = args.filter((arg) => !arg.startsWith('--'));
+
+	// A SECOND entry is a mistake, not a request this command can serve: it captures one entry.
+	// Taking the first and discarding the rest would write successful PNGs for A and exit 0 while
+	// B — asked for in the same breath — was never captured and never mentioned. Every other
+	// malformed invocation here is refused for exactly that reason.
+	if (positional.length > 1) {
+		throw new Error(`one entry at a time; got ${positional.length}: ${positional.join(', ')}`);
+	}
+
+	const entry = positional[0];
 
 	// `npm run harness-shot X --width=460` does NOT reach here: npm claims an unknown flag as
 	// its own config and exports it as `npm_config_width`, so the script is invoked with the

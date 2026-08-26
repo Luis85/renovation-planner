@@ -140,6 +140,13 @@ body {
  * between them: every row read `ZonePanelprototype`. Found by capturing a PNG and looking at it,
  * after forty-four review rounds over that template.
  *
+ * The template now carries a real space inside each following span as well, and the two are not
+ * redundant: that space is what the row's TEXT has — for a copy, or for assistive technology
+ * reading the row rather than the link — and this rule is what the row LOOKS like. An earlier
+ * version of this comment said CSS was where the separation belonged "rather than a `&nbsp;` or
+ * a `{{ ' ' }}`", which was right about the pixels and wrong about everything a stylesheet
+ * cannot reach.
+ *
  * **Be exact about what the suite could and could not have caught, because the obvious reading is
  * wrong.** jsdom is NOT blind to the missing separator — `textContent` reads `ZonePanelprototype`
  * perfectly well, and a test could have asserted it. What no gate here can see is SPACING, which

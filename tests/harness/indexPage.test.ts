@@ -314,9 +314,13 @@ describe('the harness index, with nothing to open', () => {
 		const wrapper = await openIndex('index');
 
 		expect(wrapper.text()).toContain('No prototypes yet');
+		// One space, from the template rather than from the stylesheet: the row's TEXT is what a
+		// copy and a screen reader get, and a margin contributes nothing to it. Three would mean
+		// the separator had gone back to being a node BETWEEN the two elements — see the
+		// template's own comment for why that spelling produces three.
 		expect(wrapper.findAll('nav li').map((li) => li.text())).toEqual([
-			'StatusBarcomponent',
-			'ViewRootcomponent',
+			'StatusBar component',
+			'ViewRoot component',
 		]);
 
 		wrapper.unmount();

@@ -24,7 +24,16 @@
  * FOUR guards answer that, one for each place a result can land late, and they share ONE key:
  * `generation` below names the set together and says why the key is a mount rather than an entry.
  */
-import { computed, defineComponent, getCurrentInstance, onErrorCaptured, onUnmounted, ref, shallowRef } from 'vue';
+import {
+	computed,
+	defineComponent,
+	getCurrentInstance,
+	onErrorCaptured,
+	onMounted,
+	onUnmounted,
+	ref,
+	shallowRef,
+} from 'vue';
 import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
 import { reseedFixture } from './fixture';
 
@@ -220,7 +229,9 @@ let mountedGeneration: number | null = null;
  * stage under B's own name.
  *
  * This is the pair `EntryBoundary` already has, published for the one consumer that cannot be
- * given a hook of its own. Walking `$parent` from the `instance` the handler is passed would
+ * given a hook of its own. Published PER PAGE: a `<script setup>` block's own bindings live in
+ * `setup()`, so this is one variable per mounted `IndexPage` rather than one per module —
+ * which is exactly `warnHandler`'s own scope, since Vue installs that per app. Walking `$parent` from the `instance` the handler is passed would
  * NOT answer the same question — measured in
  * `node_modules/@vue/runtime-core/dist/runtime-core.cjs.js` (v3.5.41): `warn$1` hands the
  * handler `stack[stack.length - 1].component`, the warning-STACK top, never `currentInstance`
@@ -242,6 +253,40 @@ let mountedGeneration: number | null = null;
  * how A's teardown and B's setup interleave across flushes.
  */
 let warningOwner: { readonly id: string; readonly generation: number } | null = null;
+
+/**
+ * How many `EntryBoundary`s are MOUNTED, which must never exceed one.
+ *
+ * `warningOwner` above describes exactly one mount, and that is sound only while one boundary
+ * is alive at a time. The template arranges it: a single
+ * `v-else-if` `<Suspense>` holds the only one, and `open()` clears `openComponent` before it
+ * awaits, so A is torn down before B is built. Every word of that was true and none of it was
+ * CHECKED, which is the whole reason this counter exists: a second entry pane — a side-by-side
+ * comparison, a plausible thing to want from a prototyping harness — would put two boundaries
+ * in the tree, the second would publish over the first, and warnings raised by A would be
+ * reported under B's name. No error, no failing test, just a wrong entry id in a message.
+ *
+ * Counted at MOUNT rather than at `setup`, because setup overlap is normal and deliberate: B's
+ * setup runs before A's `onUnmounted`, which is exactly why the clear above is guarded by
+ * generation. A count taken in `setup` would report the ordinary A -> B transition as a defect.
+ *
+ * PER PAGE, not per module, and the distinction was measured rather than assumed: everything
+ * declared in a `<script setup>` block runs inside `setup()`, so two mounted `IndexPage`s hold
+ * two counters and two `warningOwner`s. That is the correct scope rather than a limitation —
+ * `warnHandler` is per APP, so two indexes on one screen already have two channels and cannot
+ * misattribute to each other. It also means this arm is not reachable from a test today: the
+ * only way to have two live boundaries is a template that mounts two, which is why
+ * `entryBoundary.test.ts` checks the template and this counter is the defence for the change
+ * that check cannot describe — a `v-for`, a second `<Suspense>` branch, a boundary moved into a
+ * child component.
+ *
+ * Reported through `console.error` rather than thrown. It is the channel
+ * `scripts/harness-shot.mjs` records and exits non-zero on, so this fails a capture loudly
+ * while leaving the page usable for whoever is mid-refactor — and a throw from `onMounted` is
+ * not caught by this boundary's own `onErrorCaptured` anyway, so it would take the page down
+ * rather than name itself.
+ */
+let liveBoundaries = 0;
 
 /**
  * How many times the scheme toggle has written to the URL — a counter with no value, existing
@@ -446,7 +491,16 @@ const EntryBoundary = defineComponent({
 		// and so is a published mount instead. Set in `setup`, which runs before this boundary's
 		// slot content mounts — so a prop warning from the entry itself is already attributed.
 		warningOwner = { id: owned, generation: ownedGeneration };
+		onMounted(() => {
+			liveBoundaries += 1;
+			if (liveBoundaries > 1) {
+				console.error(
+					`the harness index has ${liveBoundaries} live entry boundaries, and warnings can no longer be attributed to an entry — the newest, ${owned}, has published over the others`,
+				);
+			}
+		});
 		onUnmounted(() => {
+			liveBoundaries -= 1;
 			if (warningOwner?.generation === ownedGeneration) warningOwner = null;
 		});
 

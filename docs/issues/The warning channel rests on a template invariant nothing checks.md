@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 70
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -41,12 +41,34 @@ failing test; warnings would simply be attributed to the wrong entry.
 - Every existing test drives one boundary at a time, so the suite would go on passing through
   the change that breaks it.
 
-## What closes it
+## What closed it
 
-A test that mounts two boundaries and asserts the attribution is either correct or refused —
-whichever the design chooses. Refusing is the cheaper honest answer: `EntryBoundary` can throw
-on a second concurrent mount, which turns a silent misattribution into a failure at the moment
-someone adds the second pane. Then the comment describes a checked rule instead of a hope.
+`tests/harness/entryBoundary.test.ts`, checking the invariant where it lives — the template
+mounts `<EntryBoundary` exactly once — plus a counter in `IndexPage.vue` that reports through
+`console.error` when two are ever mounted at once, which is the channel `harness-shot` exits
+non-zero on. Both watched failing: a second boundary added to the template reds the source
+check AND fires the counter.
+
+**Writing it corrected the file it was written for, which is the part worth keeping.** The
+first version asserted that a second mounted `IndexPage` trips the counter, on the strength of
+the comments calling `warningOwner` "module state". It does not, and it should not: a
+`<script setup>` block's top-level bindings run inside `setup()`, so `warningOwner`, the
+counter and `mountedGeneration` are per mounted page, not per module. Two indexes are two Vue
+apps with two `warnHandler`s and cannot misattribute to each other at all — the scope is right,
+and only the description of it was wrong. `IndexPage.vue` says per page now, in both places
+that made the claim, and a case pins that the second index is not reported as a defect.
+
+That also settles what the counter can and cannot be tested for: the only way to hold two live
+boundaries is a template that mounts two, so the `> 1` arm has no committed test and the
+template check is what keeps it unreachable. The counter is the defence for the change a source
+scan cannot describe — a `v-for`, a second `<Suspense>` branch, a boundary moved into a child.
+
+**One unrelated defect fell out of the same work.** The shared `openIndex` settled for a fixed
+number of flushes, which is not enough for a cold dynamic import of a real `.vue` file: the
+caller got a page still mid-`open()`, showing `Pick an entry.` It waits for a resolved state
+now, bounded. This is not a flake — whichever file imported that component earlier made the
+same helper work, so the identical line passed in one suite and failed in another for a reason
+neither file could see.
 
 ## Why it matters
 

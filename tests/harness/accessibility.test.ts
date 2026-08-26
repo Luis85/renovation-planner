@@ -89,11 +89,9 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { mount, type VueWrapper } from '@vue/test-utils';
-import IndexPage from './IndexPage.vue';
-import { indexAppConfig } from './indexApp';
+import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
-import { mountPlanEditor, settle, type EditorHarness } from '../helpers/editor';
+import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -110,21 +108,6 @@ const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'ta
 
 const runOptions: Parameters<typeof axe.run>[1] = {
 	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
-};
-
-/** The index at one URL, mounted exactly as `tests/harness/page.ts` configures the browser's. */
-const openIndex = async (query: string): Promise<VueWrapper> => {
-	window.history.replaceState({}, '', `/?${query}`);
-
-	const host = document.createElement('div');
-
-	document.body.appendChild(host);
-
-	const wrapper = mount(IndexPage, { attachTo: host, global: indexAppConfig() });
-
-	await settle();
-
-	return wrapper;
 };
 
 /** One state of the index, scanned and torn down — the mount must not outlive the scan. */

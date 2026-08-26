@@ -70,6 +70,12 @@ An item beneath this epic is done when:
   placement carries onto the plan an outline nothing has to guess the meaning of. What the plan
   then does with it — drawing it, flagging an overlap between two of them — belongs to
   [[Plan editor]] and [[Asset placement]] and is **not promised by this epic**.
+- An **anchor** and a **facing direction** are captured with the shape and round-trip with it, so
+  a placement reads one reference point and one canonical orientation instead of each deriving its
+  own. Which of them a placement applies, and what it does when a renovator rotates or mirrors an
+  object, belongs to [[Asset placement]] and is likewise not promised here. Stated as its own
+  condition because an epic that names an attribute in its prose and in none of its criteria has
+  promised a field nothing is judged against.
 - Height is **stored, shown and exported, and interpreted by nothing**: no calculation, no
   clearance check and no fit test anywhere in the product reads it. Displaying a number and
   computing with one are different acts, and only the second is refused here. *Does the worktop

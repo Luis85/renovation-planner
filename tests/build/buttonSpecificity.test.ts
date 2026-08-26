@@ -143,6 +143,36 @@ describe('the instrument', () => {
 		expect(specificityOf(parseSelector(selector))).toEqual(expected);
 	});
 
+	/**
+	 * `:nth-child(An+B of S)` is the ONE pseudo-class that scores its argument in ADDITION to
+	 * itself (CSS Selectors 4 §17), where the `:is()` family scores its argument instead. It is
+	 * also spelled differently in the tree — the list arrives under `of`, not under `selectors` —
+	 * so the generic arm saw no arguments at all and scored the pseudo alone.
+	 *
+	 * Under-scoring is the false-pass direction, and the first case is the one that bites: against
+	 * `.a.b .button:focus-visible` at (0,4,0) a reset carrying `:nth-child(2 of .scope)` TIES and,
+	 * coming later, wins in the browser — while a reader scoring it (0,3,0) leaves the ring the
+	 * simulated winner and `tests/build/buttonFocusRing.test.ts` certifies an indicator that is not
+	 * on screen.
+	 */
+	it.each([
+		['.button:nth-child(2 of .scope):focus-visible', [0, 4, 0]],
+		['.button:nth-child(2n + 1)', [0, 2, 0]],
+		[':nth-child(2 of .a, #b)', [1, 1, 0]],
+		[':nth-last-child(odd of .a.b)', [0, 3, 0]],
+		[':nth-of-type(2n)', [0, 1, 0]],
+	])('adds both halves of %s', (selector, expected) => {
+		expect(specificityOf(parseSelector(selector))).toEqual(expected);
+	});
+
+	it('lets an `of` reset tie the ring it revokes, rather than reading as its inferior', () => {
+		const ring = specificityOf(parseSelector('.a.b .button:focus-visible'));
+		const reset = specificityOf(parseSelector('.button:nth-child(2 of .scope):focus-visible'));
+
+		expect(moreSpecific(ring, reset)).toBe(false);
+		expect(moreSpecific(reset, ring)).toBe(false);
+	});
+
 	// The argument pattern cannot match nested parentheses, and one `String.replace` pass never
 	// re-scans what it rewrote — so an inner pseudo has to be resolved before the outer one.
 	it('scores a nested functional pseudo rather than skipping it', () => {

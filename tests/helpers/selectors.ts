@@ -185,6 +185,25 @@ const argumentsOf = (component: SelectorComponent): SelectorList =>
 		: [];
 
 /**
+ * The selector list of an `An+B of S` pseudo-class — `:nth-child`/`:nth-last-child` — or `[]`.
+ *
+ * A SECOND accessor rather than a widening of `argumentsOf`, because the two answer different
+ * questions and only one of them changes here. `argumentsOf` feeds `alternativesOf` and
+ * `subjectClasses`, which ask what a rule REACHES: `:nth-child(2 of .scope)` is a strict subset of
+ * `.scope`, so folding it in there would have a rule claim elements the nth constraint excludes.
+ * What `of` does change is the SCORE, and it is the one place in this grammar where a
+ * functional pseudo-class contributes its argument IN ADDITION to itself.
+ *
+ * The parser puts it under `of`, not under `selectors`, which is why the generic arm could not see
+ * it at all: `.button:nth-child(2 of .scope):focus-visible` scored (0,3,0) here and is (0,4,0) in
+ * a browser. Under-scoring a rule is the false-pass direction — a reset that really wins the
+ * cascade reads as losing it, and `tests/build/buttonFocusRing.test.ts` then certifies a focus
+ * indicator no user can see.
+ */
+const nthOfArgumentsOf = (component: SelectorComponent): SelectorList =>
+	component.type === 'pseudo-class' && 'of' in component && Array.isArray(component.of) ? component.of : [];
+
+/**
  * The class names a selector's SUBJECT wears — its last compound, the element the rule styles.
  *
  * An ancestor mention does not count: `.rp-dialog-button .icon` styles the icon. Nor does a
@@ -288,12 +307,16 @@ export function specificityOf(selector: Selector): [number, number, number] {
 			case 'pseudo-class': {
 				if (component.kind === 'where') break;
 
-				const args = argumentsOf(component);
+				// `:nth-child(An+B of S)` is the one shape that scores BOTH — a class for itself AND
+				// the most specific selector in `S` — where `:is()`/`:not()`/`:has()` score their
+				// argument INSTEAD of themselves. Handled before the generic arm because it is the
+				// argument list that decides, and this one is spelled `of` rather than `selectors`.
+				const nthOf = nthOfArgumentsOf(component);
+				const args = nthOf.length > 0 ? nthOf : argumentsOf(component);
 
-				if (args.length === 0) {
-					classes += 1;
-					break;
-				}
+				if (nthOf.length > 0 || args.length === 0) classes += 1;
+
+				if (args.length === 0) break;
 
 				const [i, c, t] = args
 					.map((argument) => specificityOf(argument))

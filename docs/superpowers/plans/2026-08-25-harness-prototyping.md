@@ -1,6 +1,28 @@
 # Harness Prototyping Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **EXECUTED — a RECORD, not an instruction. Do not implement this plan.** All eight tasks have
+> landed: `src/prototypes/` and its one-way door, `tests/build/prototypes-not-bundled.test.ts`,
+> `tests/harness/fixture.ts`, the index (`tests/harness/IndexPage.vue` + `entries.ts`),
+> `tests/build/prototype-styles.test.ts`, `npm run harness-shot <entry>`,
+> `tests/build/prototype-promotion.test.ts`, and the account in `CLAUDE.md`. The tree is the
+> specification now; where the tree and this document disagree, the tree is right. The `- [ ]`
+> boxes below are the state each step was written in, not work outstanding.
+>
+> **Why a banner rather than a rewrite of the steps that drifted**, since review asked for the
+> rewrite. Fix rounds moved real code out of the shape these steps prescribe — `entryShots` and
+> the capture-readiness predicate live in `scripts/entryShots.mjs` and
+> `scripts/captureReadiness.mjs`, modules Task 6 never mentions, and
+> `tests/build/harness-shot.test.ts` now REFUSES the code Task 6 Step 3 tells you to write, so
+> following it verbatim cannot reach a green `npm run check`. Re-prescribing today's modules as
+> steps that were never taken would turn a true record into a plausible one, and it would drift
+> again on the next change to that code. Every task here carries that exposure, not only Task 6,
+> which is why the repair is at the head of the file rather than inside one step: the defect was
+> the line this paragraph replaces, which told an agent to execute a document whose work was
+> already done.
+>
+> The earlier alignment fixes on this branch were made while Task 6 had NOT yet run, when
+> following the plan was still how that code would come to exist. That stopped being true when it
+> ran, and this banner is what takes their place.
 
 **Goal:** Let a designer and a coding agent build a screen out of template-only mock SFCs and real Vue components in the browser harness, on the real stylesheet, without any of it reaching a built plugin.
 

@@ -12,4 +12,10 @@
 	height: 100%;
 	min-height: 0;
 	color: var(--text-normal);
+	/* This view's `DialogHost` (design slice 15) mounts as a direct child of this element,
+	   so it is the overlay's nearest ancestor: `styles/dialogs.css`'s `.rp-dialog-overlay`
+	   positions itself `absolute` against whichever ancestor is the closest POSITIONED one,
+	   and without this the overlay would resolve against whatever Obsidian's own chrome
+	   happens to position above it instead of against this view. */
+	position: relative;
 }

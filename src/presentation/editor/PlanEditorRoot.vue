@@ -10,11 +10,12 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
-import { useEditorContext } from './EditorContext';
+import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
+import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import PlanCanvas from './PlanCanvas.vue';
 import EditorToolbar from './shell/EditorToolbar.vue';
@@ -22,7 +23,7 @@ import InspectorPanel from './shell/InspectorPanel.vue';
 import LayersPanel from './shell/LayersPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
 
-const context = useEditorContext();
+const context = usePlanEditorContext();
 // The leaf's live machinery — history, tools, selection, inspector — built once here,
 // inside the tree whose Pinia instance owns the stores it hands out.
 provideEditorRuntime(context);
@@ -101,5 +102,11 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			{{ tr('editor.background-failed') }}
 		</p>
 		<StatusBar />
+		<!--
+			Last child, and a sibling of the five regions rather than nested in one: the host
+			makes its parent's OTHER children inert while a dialog is open, so every region
+			has to be a sibling of it for the background to actually go inert.
+		-->
+		<DialogHost />
 	</div>
 </template>

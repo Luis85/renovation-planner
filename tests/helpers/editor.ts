@@ -3,7 +3,7 @@ import { createPinia, type Pinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { ok } from '../../src/core/result/Result';
-import { EDITOR_CONTEXT, type EditorContext } from '../../src/presentation/editor/EditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
 import {
 	unavailablePlanEditorCommands,
@@ -105,12 +105,21 @@ const SETTLE_ROUNDS = 50;
  * regression into a hung suite, and "condition never held" with no subject is the least
  * useful failure a test can produce.
  */
-export async function settleUntil(condition: () => boolean, what: string): Promise<void> {
+export async function settleUntil(
+	condition: () => boolean | Promise<boolean>,
+	what: string,
+): Promise<void> {
+	// The predicate may be ASYNC: the slice-8 e2e rig waits on vault reads, and it grew its
+	// own second copy of this loop — with a different round budget and different failure
+	// text — because the signature did not allow one. A flake fixed by raising the budget
+	// here has to reach every caller, so there is one budget.
 	for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
-		if (condition()) return;
+		if (await condition()) return;
 		await settle();
 	}
-	if (!condition()) throw new Error(`Timed out after ${SETTLE_ROUNDS} settle rounds waiting for: ${what}`);
+	if (!(await condition())) {
+		throw new Error(`Timed out after ${SETTLE_ROUNDS} settle rounds waiting for: ${what}`);
+	}
 }
 
 export function installEditorEnvironment(): void {
@@ -130,7 +139,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const themeListeners = new Set<() => void>();
 	const planListeners = new Set<() => void>();
 
-	const context: EditorContext = {
+	const context: PlanEditorContext = {
 		planId: options.plan?.id ?? FIXTURE_PLAN.id,
 		queries: options.queries ?? fakeQueries(options.plan ?? FIXTURE_PLAN, options.zones ?? FIXTURE_ZONES),
 		commands: options.commands ?? unavailablePlanEditorCommands(),
@@ -153,7 +162,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const pinia = createPinia();
 	const wrapper = mount(PlanEditorRoot, {
 		attachTo: host,
-		global: { plugins: [pinia, VueKonva], provide: { [EDITOR_CONTEXT as symbol]: context } },
+		global: { plugins: [pinia, VueKonva], provide: { [PLAN_EDITOR_CONTEXT as symbol]: context } },
 	});
 
 	await settle();

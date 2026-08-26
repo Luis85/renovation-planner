@@ -88,6 +88,32 @@ and Requirement entities, and the `Zone Geometry → Area → Requirement → Co
 - No dependency on slices 3–8: no Zone, Plan, or Inspector code is required to build or
   test this slice.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+A code review of merged slice 8 changed things this slice builds on. Each is a
+pitfall that was already shipped once, not a hypothetical.
+
+- **One spelling of "is this negative": `lessThan(0)`, never `Decimal.isNegative()`.**
+  decimal.js reports negative ZERO as negative, so `new Decimal(0).mul(-1)` was refused
+  as a negative rate. `quantityEngine.negativeQuantity` already knew this and wrote it
+  down; `costPipeline.negativePercent`, `applyWaste` and `applyRequirementRule`'s
+  coverage-rate guard did not, so one directory held two answers to one question. All of
+  them use `lessThan(0)` now, and every stage this slice adds must too — the difference
+  only ever shows on a value a user could legitimately supply.
+- **The Inspector already converts mm2 to m2, and it is a SECOND owner of a conversion
+  this slice defines.** `InspectorPanel.vue` does `areaMm2 / 1_000_000` in binary float
+  with a hard-coded unit label, against an `InspectorDto` that carries a raw storage unit
+  into a template. `toDisplayValue` dispatches on `MeasurementUnit` with `Decimal`
+  precisely so a second area unit is one case in one switch — and `MeasurementUnit`
+  already names `ft2` as the anticipated one. The day it lands, the domain switch grows a
+  case and that template keeps dividing by a million. **This was deliberately NOT fixed in
+  the review pass**: the fix is to make `GetZoneInspector` hand back a `Quantity` (value +
+  unit) so the panel formats and does not convert, which is this slice's boundary to move
+  rather than a polish edit. `docs/requirements/Switch the measurement unit in the plan
+  editor.md` makes it load-bearing rather than tidy.
+- **`PlanDto` carries `calibration` now.** The presentation layer can read a plan's real
+  scale, which is what turns a raw millimetre measurement into a trustworthy one.
+
 ## Design
 
 ### Module placement

@@ -14,16 +14,19 @@ vault-change pipeline, and the migration runner.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
-a ribbon button and a command, and still draws an empty root. The **Plan editor** is
-per-plan (several leaves coexist, keyed by a plan id in Obsidian's own view state) and is
-design slice 5: §60's five shell regions around a Konva stage of §17's seven layers, the
-persisted Zones of one Plan rendered read-only, an image or PDF background, and a
-pan/zoom camera. Nothing on that canvas is editable: design slice 6 built the tool
-framework underneath it — `EditorTool` and its switching lifecycle, `CommandHistory`
-undo/redo, the reversible move-zone command, transformer normalization, the snap service,
-the selection store and the Inspector's selection-to-DTO-to-command pipeline. Slice 7
-(Calibration) added the first concrete tool; slice 8 (Zone Editing) wired the framework
-into the editor for real — see the next section. The one thing slice 5 writes is which
+a ribbon button and a command, and draws nothing of its own yet; the only thing mounted in
+it is slice 15's `DialogHost`, which is invisible until something opens a dialog, and slice
+14's empty states are what will give it content. The **Plan editor** is per-plan (several
+leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
+around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
+background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
+next section: slice 6 built the tool framework underneath it (`EditorTool` and its switching
+lifecycle, `CommandHistory` undo/redo, the reversible move-zone command, transformer
+normalization, the snap service, the selection store and the Inspector's
+selection-to-DTO-to-command pipeline), slice 7 added the first concrete tool, slice 8 wired
+the framework into the editor for real, and slice 15 made slice 7's tool reachable. This
+paragraph said "nothing on that canvas is editable" for four slices after it stopped being
+true, contradicting the sentence immediately below it. The one thing slice 5 writes is which
 document a Plan's background IS.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
@@ -35,12 +38,17 @@ and a Delete button that dispatches through `InspectorStore.commit`'s `toCommand
 §59 choke point, not a second seam. The composition root now hands the view a
 `PlanEditorCommandServices` bundle (plain zone commands, the `ZoneRepository` port, the
 Inspector query) beside slice 5's queries; with settings unrecovered it is the refusal
-bundle, mirroring `unavailablePlanEditorQueries`. Three rules came out of it:
+bundle, mirroring `unavailablePlanEditorQueries`. These rules came out of it and of the
+review pass that followed:
 
 - **The application-layer reversible adapters satisfy `UndoableCommand` structurally**
   and cannot name it — the interface lives in `presentation/` and the layer ban holds.
-  Both adapters take the shared `WriteLedger`: every successful half records into it,
-  including restores, or a sibling adapter's inverse expectation goes stale.
+  Both adapters take the shared `WriteLedger`: **every WRITE records into it, restores
+  included, and every DELETE forgets the id** — a deleted note has no revision to remember,
+  and a stale entry outliving the note it described is presented as an expectation by
+  whatever touches that id next. The earlier spelling here was "every successful half
+  records", which two of its four subjects broke because they are deletes;
+  `application/editor/WriteLedger.ts` now states the rule once for all of them.
 - **Every dispatch funnels through ONE object per leaf** — the wrapped dispatcher that
   `runtime.ts` hands to tools as `context.commandDispatcher` and to the toolbar and the
   delete button alike. A dispatch that bypasses it silently breaks the post-command
@@ -48,11 +56,140 @@ bundle, mirroring `unavailablePlanEditorQueries`. Three rules came out of it:
 - **Camera mode is "no active tool"**, exactly what slice 5 shipped (`ToolManager` grew
   `clearActiveTool()` for it). A gesture abandoned with Escape clears through
   `cancelGesture()`; a rejected close keeps the vertex buffer.
+- **A simulated pointer stream has to obey the real device's grammar, and so does the
+  ROUTING.** A click is down+up on the SAME button; a drag is down/move…/up; a pointer can
+  also be taken away with no up at all (`pointercancel`, which the browser fires when it
+  claims a touch gesture for scrolling). The canvas therefore filters `pointerdown` and
+  `pointerup` with the same button test — forwarding an unfiltered up while filtering the
+  down handed tools a release with no matching press, and `SelectTool` committed a
+  half-finished move for it — and every tool guards `event.button` itself, which is where
+  the invariant belongs. `styles/editor.css` sets `touch-action: none` so the gesture is not
+  stolen in the first place. `tests/presentation/editor/canvasPointerRouting.test.ts` drives
+  both streams.
+- **A screen-sized tolerance is converted through `worldPerScreenPixel()`**, the one
+  statement of the camera's inverse (`viewport/Viewport.ts`), reached by tools through
+  `EditorContext.viewport`. Three tools each derived it by projecting `(0,0)` and `(1,0)`
+  back through `screenToWorld` and subtracting — three copies of the transform, and a
+  subtraction of two numbers dominated by `pan`, so a far-panned plan lost low-order bits of
+  exactly the quantity being measured. The click-versus-drag epsilon applies to EVERY
+  gesture: applying it to body drags alone let a plain click on a vertex handle teleport
+  that vertex up to 80 mm and push a real move onto the undo stack.
+- **What the user sees and what the user can grab are two numbers in one module**
+  (`editor/handleMetrics.ts`), with the grab radius deliberately the larger. They were
+  declared independently, under the same name, with the values 8 and 4, and the comment on
+  the 8 described it as a diameter.
+- **A tool continuation that crosses an `await` re-checks whether its gesture is still its
+  own.** `DrawPolygonTool` and `CalibrateTool` both carry a `generation` counter bumped by
+  `activate`/`deactivate`/`cancel`; without it, Escape during an in-flight close let the
+  late success wipe the vertices of the polygon the user had started since and select the
+  zone they had cancelled out of.
+- **A THROWN fault is not "nothing happened".** SDD §65 reserves throws for technical
+  faults, and a write may well have landed before one — `withEditorStateRefresh` therefore
+  re-reads the stores on a rejection as well as on success, and re-throws unchanged.
+  `runtime.ts`'s `reportFault` is the last stop: every dispatch is ultimately bound to a
+  click handler that discards its promise, so without it a fault was an unhandled rejection
+  and that button silently stopped working.
+- **A store that two things hydrate needs a ticket.** `ProjectStore.hydrate` gained a second
+  concurrent caller in this slice (the refresh funnel, beside the plan-change listener that
+  `ProjectIndexRebuilt` fires on every leaf), and without a request ticket the slower
+  earlier read wins: a just-drawn zone vanishes with no error. `InspectorStore` already had
+  one; the two now match.
+- **A zone change reaches every leaf showing that plan** — `ZoneCreated`,
+  `ZoneGeometryChanged` and `ZoneDeleted` are in `planChangeSource`'s list. The refresh
+  decorator covers only the leaf that dispatched, which is every leaf right up until
+  something else writes a zone: a split leaf on the same plan, the sample seed, a synced
+  note.
+- **There is ONE `EditorContext`.** Slices 5 and 6 shipped two types under that name in
+  sibling directories, each with a "read carefully" paragraph and an aliased import at their
+  shared consumer; `npm run analyze` reported the pair as a duplicate export, correctly. The
+  Vue injection context is `PlanEditorContext` now (`PLAN_EDITOR_CONTEXT`,
+  `usePlanEditorContext`); the tool facade keeps the bare name, which is the SDD's.
 
-**Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`**, and the
-composition root still registers nothing — the toolbar that would arrives with slice 8, so
-the capability is proven by tests and unreachable in a vault. Two rules came out of its
-review pass and both are load-bearing:
+**Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
+descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the
+descriptor's own `kind` through `DialogResultByKind`, and THROWS if a dialog is already open
+— sequential, never stacked. `DialogHost` mounts once per ItemView-scoped Vue app (both of
+them, not the editor's alone) and owns every keyboard concern, so no kind reimplements one.
+Its first real caller is the calibration gesture. Rules that came out of it:
+
+- **`presentation/dialogs/` may not import `application/`, `infrastructure/`, `plugin/` or
+  the event bus** — a `forbidden('presentation/dialogs', …)` block in `eslint.config.mjs`,
+  driven through real fixture paths by `tests/build/vue-rules.test.ts`. It REPEATS the bans
+  the wider `presentation` block already carries, because two blocks matching one file
+  override rather than merge, and a block naming only its additions would open the bigger
+  hole while looking like it closed a smaller one.
+- **`DialogHost` is the single caller of `store.resolve`.** The kinds emit a typed `resolve`
+  event and settle nothing. Single-settle, focus restoration and the release of the
+  background's `inert` all hang off that one function; a kind that settled directly would
+  bypass all three and nothing would error. Nothing ENFORCES the exclusivity — `resolve` is
+  a public store member — and the store's own comment says so rather than implying a
+  mechanism.
+- **"Modal" here means the VIEW, never the application.** The background goes `inert`
+  (deliberately not `aria-hidden`: the siblings hold focusable controls, so an aria-hidden
+  subtree around them is itself the `aria-hidden-focus` violation the axe check reports;
+  `aria-modal="true"` tells a screen reader the same thing). But this is not an Obsidian
+  `Modal`: nothing pushes a `Scope`, and `onKeydown` calls `preventDefault()` without
+  `stopPropagation()`, so Obsidian's own keymap stays live behind it — a hotkey bound to
+  `Escape` fires alongside the dialog's cancel, and `Ctrl+P` opens the command palette on
+  top of an open dialog. jsdom models no host keymap, so no test here can see any of that;
+  `docs/tests/cases/Calibrate a Plan.md` steps 17 and 18 are where it gets looked at.
+- **The `Escape` listener is on the DIALOG element, not on `document`**, because two Plan
+  Editor leaves may each have a dialog open and one `Escape` must close the focused one
+  only. `onBeforeUnmount` releases the `inert`, because Obsidian REUSES a view and a leaf
+  closed with a dialog open would otherwise reopen into a pane nothing can be clicked in.
+- **A dialog opened during `pointerdown` loses its focus to the browser.** Chromium moves
+  focus to `<body>` as `pointerdown`'s own default action, which runs AFTER the handler
+  returns — so the dialog's focus lands first and is then thrown away, and `Escape` does
+  nothing. `CalibrateTool` therefore buffers the completing click and starts its dialog from
+  `pointerUp`. Found by driving a real browser; jsdom implements no focus-on-mousedown at
+  all, so the suite can only assert `defaultPrevented`.
+- **Obsidian's own `button:not(.clickable-icon)` outranks a single class.** It sets
+  `background-color` at (0,1,1) — `:not()` contributes its argument's specificity — so
+  `.rp-dialog-button-danger` at (0,1,0) lost and the destructive button rendered plain
+  white. It is `.rp-dialog .rp-dialog-button-danger` now. jsdom never resolves `var()` to a
+  colour, so the only instrument for this is a browser.
+- **A user-facing string in a dialog is resolved by the CALLER**, never by the dialog:
+  `title`, `message`, `entityLabel` and every `ReferenceRow.label` arrive already through
+  `t()`. Only the two label DEFAULTS are resolved inside the framework, from `StringKey`s —
+  `confirmLabel ?? 'Confirm'` would have been the one untranslated string every confirmation
+  in the plugin flowed through. Neither half is caught by lint: `I18N_LITERAL_BAN` fires at
+  four call sites and a descriptor's `title:` is none of them, so both rest on review.
+  What IS checked is that `de.ts` translates every key `en.ts` declares
+  (`tests/presentation/i18n/strings.test.ts`) — the type permits the gap on purpose, so an
+  incomplete locale is safe, and the fallback then hides a forgotten key from everyone but
+  the user reading it.
+- **A new dialog kind is FIVE edits, four of them build failures — measured, not asserted.**
+  Adding one and reading `vue-tsc` reports twice at `DialogResultByKind` and once at
+  `DialogHost`'s last branch, with `cancelResultFor`'s `TS2366` appearing as soon as the
+  result-type entry exists. Only the component file is something the compiler cannot make
+  you write. The one hole: `DialogHost`'s check is `FormDialog`'s declared prop type, so it
+  is STRUCTURAL — a fifth descriptor carrying a `title` and a `component` would satisfy
+  `FormDescriptor` and render as a form rather than fail.
+- **`DeleteReferenceDialog` and `EntityPickerDialog` are built, tested and called by
+  nothing**, and that is the plan rather than dead code. Their caller is slice 10's
+  delete-with-references flow and the queries feeding their rows are slice 10's to define;
+  Definition-of-Done items 6, 8 and 8a of `docs/tasks/15-modals-and-confirmation-dialogs.md`
+  are open and that document says so.
+- **A tool's transient visual goes in `RenderState`, and it needs its own field when it
+  means its own thing.** The calibration segment is `measurement`, not a two-point
+  `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
+  zone", while a measurement renders solid and open with a marker at each end. `pointerMove`
+  had been an empty method under a comment deferring the preview "until a rendering seam
+  exists", and that seam had existed since slice 8 — so the gesture drew nothing at all, and
+  an empty method has no behaviour for any test to disagree with. Found by a human
+  calibrating a plan.
+
+**Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`, and since
+slice 15 a user can actually reach it.** `registerEditorTools` registers `calibrate` beside
+`select` and `draw-polygon`, the toolbar names it, and the composition root hands the editor
+a `calibratePlan` factory; the two prompts the tool declares are a `ConfirmDialog` and a
+`FormDialog` (`KnownDistanceForm`). For two whole slices this paragraph instead recorded that
+it was unreachable — proven by tests, wired to nothing, no user able to calibrate a plan,
+every area the Inspector printed being background pixels relabelled as millimetres at the
+placeholder scale of 1. That is the shape to remember rather than the fact: a tool absent
+from a registration list is invisible to all four gates, because nothing is wrong with the
+code. It took a human opening the toolbar. Two rules came out of its review pass and both
+are load-bearing:
 
 - **A `Calibration`'s two points are in the plan's CURRENT world units**, not the
   background's pixel space. The two coincide only while the plan is uncalibrated and its
@@ -81,8 +218,9 @@ project, a plan and five zones through the real `CreateProjectCommand` /
 `CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
 vault-side equivalent of `npm run harness`, and the only way zones exist at all before
 slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it (slice
-14's empty-state actions and slice 15's creation dialogs) and why the partial notes a
-failed seed leaves behind are deliberate.
+14's empty-state actions and slice 16's creation forms — NOT slice 15, which built the
+dialog framework those forms mount in and no form that names a project) and why the partial
+notes a failed seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
@@ -211,12 +349,16 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   sees it.
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
-  reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
-  is 99.7/98.8/99.8/99.8 and the floors sit a covered unit or more below each. The exact
-  numbers, which increment moved them, and what every remaining uncovered arm IS live in
+  reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
+  99/99/99/98 (statements/functions/lines/branches), against 99.3/99.07/99.61/98.23 as of
+  slice 15. **Read functions again: 99.07 against a floor of 99, which is 0.07 of headroom
+  where one uncovered function costs 0.13.** So an untested new arm does not "reduce
+  coverage", it fails the gate — plan the test with the code rather than after it. Do not
+  read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
+  which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slice 5 did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5 and 15 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted views (`mountHarness` and the real Plan Editor, never a fixture), checking

@@ -8,18 +8,19 @@ import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { referenceError } from '../../errors';
 import type { WriteLedger } from '../../editor/WriteLedger';
+import { restoreZone } from './restore-zone';
 
 export type DeleteCommand = Command<
 	DeleteZoneInput,
 	Result<{ zoneId: ZoneId }, ReferenceError | ValidationError | PersistenceError>
 >;
 
-function nothingToUndo(): PersistenceError {
-	return {
-		category: 'Persistence',
-		code: 'zone.nothing-to-undo',
-		message: 'This zone deletion has no recorded state to undo.',
-	};
+// The same factory and the same CATEGORY as the sibling create adapter's. These two used
+// to hand-build the identical `zone.nothing-to-undo` code as a `Reference` failure in one
+// file and a `Persistence` failure in the other, so anything routing on category — which
+// is what SDD §64 makes it a discriminant for — saw one logical failure as two.
+function nothingToUndo(): ReferenceError {
+	return referenceError('zone.nothing-to-undo', 'This zone deletion has no recorded state to undo.');
 }
 
 /**
@@ -37,7 +38,8 @@ function nothingToUndo(): PersistenceError {
  *
  * **`undo()`** is the one inverse here that bypasses the command layer entirely:
  * deletion has no "delete the opposite thing" replay, so the snapshot is restored
- * directly through `zones.save(zone, 'absent')`. That publishes nothing — a restore is
+ * directly through `restoreZone` — `zones.save(zone, 'absent')` plus the ledger record,
+ * shared with the create adapter's redo, which needs the identical half. That publishes nothing — a restore is
  * not a creation, and announcing it as one would drive every `ZoneCreated` subscriber
  * (slice 13's save tracking among them) with an event describing something that did not
  * happen; the editor refresh (this slice's post-command decorator) re-reads state instead
@@ -82,16 +84,23 @@ export class ReversibleDeleteZoneCommand {
 		const result = await this.deleteCommand.execute(input);
 		if (isErr(result)) return result;
 		this.snapshot = snapshot;
+		// The note is gone: the ledger stops answering a revision for this id rather than
+		// keeping the pre-delete one — see `WriteLedger` for why that distinction matters
+		// to whatever touches the id next.
+		this.ledger.forget(this.input.zoneId);
 		return ok(undefined);
 	}
 
 	// fallow-ignore-next-line unused-class-member
-	async undo(): Promise<Result<void, PersistenceError | ValidationError>> {
+	async undo(): Promise<Result<void, PersistenceError | ValidationError | ReferenceError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
-		const written = await this.zones.save(snapshot.entity, 'absent');
+		const written = await restoreZone(this.zones, this.ledger, snapshot);
 		if (isErr(written)) return written;
-		this.ledger.record(written.value.entity.id, written.value.version);
+		// The restored version, so a second undo after a redo presents what the LAST write
+		// left rather than the original load's. The sibling create adapter always did this
+		// and this one did not, with nothing marking the difference as deliberate.
+		this.snapshot = written.value;
 		return ok(undefined);
 	}
 }

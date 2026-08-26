@@ -3,7 +3,7 @@ import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
-import { EDITOR_CONTEXT, type EditorContext } from '../editor/EditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../editor/PlanEditorContext';
 import type {
 	PlanEditorCommandServices,
 } from '../editor/planEditorCommands';
@@ -147,7 +147,7 @@ export class PlanEditorView extends ItemView {
 	private mount(planId: string): void {
 		this.contentEl.empty();
 		const host = this.contentEl.createDiv('renovation-plan-editor-view');
-		const context: EditorContext = {
+		const context: PlanEditorContext = {
 			planId,
 			queries: this.deps.queries,
 			commands: this.deps.commands,
@@ -162,7 +162,7 @@ export class PlanEditorView extends ItemView {
 		// (ADR-004), and a global `app.use` at plugin scope would leak vue-konva's component
 		// registration into every future view whether it draws a canvas or not.
 		app.use(VueKonva);
-		app.provide(EDITOR_CONTEXT, context);
+		app.provide(PLAN_EDITOR_CONTEXT, context);
 		app.mount(host);
 
 		this.vueApp = app;

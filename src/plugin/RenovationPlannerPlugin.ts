@@ -158,8 +158,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 		// SCAFFOLDING, and its own module says so at length: one command that seeds a
 		// project, a plan and five zones through the real create commands, so slice 5's
-		// canvas can be looked at in a vault at all. Slice 14's empty states and slice 15's
-		// dialogs are what remove it.
+		// canvas can be looked at in a vault at all. Slice 14's empty states and slice 16's
+		// creation forms are what remove it — slice 15 built the dialog framework they mount in,
+		// which is not the same thing as being able to name a project.
 		registerSampleProjectCommand(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`

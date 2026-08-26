@@ -131,9 +131,16 @@ describe('ReversibleCalibratePlanCommand', () => {
 		if (!firstObject) throw new Error('the seeded zone vanished');
 		expect(firstObject.points[2]).toEqual({ x: 110, y: 100 });
 
-		// One ZoneGeometryChanged from execute, one re-emitted by undo.
+		// The WHOLE cascade travels both directions: execute announces `PlanCalibrated` plus
+		// one `ZoneGeometryChanged` per rescaled object, and undo announces exactly the same
+		// set. `PlanCalibrated` is the one of the two a Plan Editor leaf subscribes to, so an
+		// undo that omitted it refreshed no leaf at all — which is what this used to assert.
 		const types = w.events.published.slice(1).map((event) => event.type);
-		expect(types).toEqual(['ZoneGeometryChanged', 'ZoneGeometryChanged']);
+		expect(types).toEqual([
+			'ZoneGeometryChanged',
+			'PlanCalibrated',
+			'ZoneGeometryChanged',
+		]);
 	});
 
 	it('undo refuses against a foreign write and leaves both changes intact', async () => {

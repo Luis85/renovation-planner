@@ -18,7 +18,14 @@ type VoidResult = Result<void, AppError>;
 
 const PLAN_ID = 'plan-1';
 
-const planDto = () => ({ id: PLAN_ID, projectId: 'project-1', name: 'Ground floor', background: null, layers: [] });
+const planDto = () => ({
+	id: PLAN_ID,
+	projectId: 'project-1',
+	name: 'Ground floor',
+	background: null,
+	calibration: null,
+	layers: [],
+});
 
 const zoneDto = (id: string): ZoneDto => ({
 	id,
@@ -247,5 +254,72 @@ describe('withEditorStateRefresh', () => {
 		expect(projectStore.zones.has('zone-b')).toBe(true);
 		// And the writes themselves stayed in dispatch order.
 		expect(history.calls).toEqual(['run', 'run']);
+	});
+	it('refreshes on a THROWN fault too, and re-throws it unchanged', async () => {
+		// A `Result` failure means nothing was written, so there is nothing to read back. An
+		// unexpected technical fault says NOTHING of the kind — `ObsidianZoneRepository`'s
+		// own post-write bookkeeping runs after both files are already on disk — so the
+		// stores must be re-read or the canvas keeps showing pre-command state over a write
+		// that succeeded. This used to gate the refresh on `result.ok` alone, and a throw
+		// skipped it entirely.
+		const queries = makeQueries();
+		const projectStore = useProjectStore();
+		const fault = new Error('the vault went away mid-write');
+		let inspectorRefreshes = 0;
+		const refreshed = withEditorStateRefresh(
+			{
+				run: () => Promise.reject(fault),
+				undo: () => Promise.resolve(ok(undefined)),
+				redo: () => Promise.resolve(ok(undefined)),
+			},
+			{
+				projectStore,
+				inspectorStore: {
+					refresh: () => {
+						inspectorRefreshes += 1;
+						return Promise.resolve();
+					},
+				},
+				queries,
+				planId: PLAN_ID,
+			},
+		);
+
+		await expect(refreshed.run(noopCommand)).rejects.toBe(fault);
+
+		expect(queries.zoneReads()).toBe(1);
+		expect(inspectorRefreshes).toBe(1);
+		expect(projectStore.zones.has('zone-1')).toBe(true);
+	});
+
+	it('a fault does not wedge the queue for the NEXT dispatch', async () => {
+		// The shared serial queue's catch is what makes this true; a rejected tail would
+		// poison every later `.then()` and hang the leaf with no error anywhere.
+		const queries = makeQueries();
+		const projectStore = useProjectStore();
+		let first = true;
+		const refreshed = withEditorStateRefresh(
+			{
+				run: () => {
+					if (first) {
+						first = false;
+						return Promise.reject(new Error('boom'));
+					}
+					return Promise.resolve(ok(undefined));
+				},
+				undo: () => Promise.resolve(ok(undefined)),
+				redo: () => Promise.resolve(ok(undefined)),
+			},
+			{
+				projectStore,
+				inspectorStore: { refresh: () => Promise.resolve() },
+				queries,
+				planId: PLAN_ID,
+			},
+		);
+
+		await expect(refreshed.run(noopCommand)).rejects.toThrow('boom');
+
+		expect(await refreshed.run(noopCommand)).toMatchObject({ ok: true });
 	});
 });

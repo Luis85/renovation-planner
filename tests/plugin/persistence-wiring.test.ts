@@ -164,6 +164,20 @@ describe('persistence composition', () => {
 		expect(plugin.root.persistence?.index.getPath(planId)).toBe(planPath);
 	});
 
+	/**
+	 * A FACTORY rather than a shared instance, for the reason `PlanEditorCommandServices`
+	 * already states about the zone adapters: a reversible command holds ONE transaction's
+	 * inverse state, so two overlapping gestures sharing one would have the second undo
+	 * restore the first's snapshot.
+	 */
+	it('hands the editor a calibrate factory that answers a fresh command each call', async () => {
+		const { planEditorDeps } = await import('../../src/plugin/composition-root');
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS);
+		const services = planEditorDeps(plugin.root, workspace as never, {} as never).commands;
+
+		expect(services.calibratePlan()).not.toBe(services.calibratePlan());
+	});
+
 	it('declares exactly one folder setting, and Geometry is not among them', async () => {
 		const { plugin } = await loadedPlugin(null);
 		void plugin;

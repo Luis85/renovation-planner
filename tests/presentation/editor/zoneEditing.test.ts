@@ -17,7 +17,16 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent } from 'vue';
 import { mount } from '@vue/test-utils';
 import { Notice } from 'obsidian';
-import { mountPlanEditor, settle, type EditorHarness } from '../../helpers/editor';
+import { mountPlanEditor, settle, settleUntil as until, type EditorHarness } from '../../helpers/editor';
+import {
+	click,
+	PLAN_DTO,
+	pointer,
+	PROJECT_ID,
+	rig,
+	toolbarButton,
+	ZONE_A_DTO,
+} from '../../helpers/planEditorRig';
 import { makeDeleteZoneCommand } from '../../helpers/slice10';
 import { useEditorRuntime } from '../../../src/presentation/editor/runtime';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
@@ -28,114 +37,12 @@ import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspec
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { createPlanEditorQueries } from '../../../src/presentation/read-models/planEditorQueries';
-import type { PlanDto, ZoneDto } from '../../../src/presentation/read-models/PlanDto';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { makePlan, makeZone } from '../../helpers/entities';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
-import { createProjectId } from '../../../src/domain/project/ProjectId';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
-
-const PROJECT_ID = createProjectId();
-const PLAN_DTO: PlanDto = {
-	id: 'plan-e2e',
-	projectId: PROJECT_ID,
-	name: 'Ground floor',
-	background: null,
-	layers: [],
-};
-
-/** World rect (1500..4400)² — screen footprint (198,198)-(488,388) at the default camera. */
-const ZONE_A_DTO: ZoneDto = {
-	id: 'zone-a',
-	planId: PLAN_DTO.id,
-	name: 'Kitchen',
-	zoneType: 'Room',
-	status: 'Planned',
-	points: [
-		{ x: 1500, y: 1500 },
-		{ x: 4400, y: 1500 },
-		{ x: 4400, y: 3400 },
-		{ x: 1500, y: 3400 },
-	],
-};
-
-interface Rig {
-	harness: EditorHarness;
-	zonesRepo: InMemoryZoneRepository;
-}
-
-async function rig(): Promise<Rig> {
-	const plans = new InMemoryPlanRepository();
-	const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
-	await plans.save(plan, 'absent');
-	const zonesRepo = new InMemoryZoneRepository();
-	const geometry = expectOk(createPolygon(ZONE_A_DTO.points));
-	const zoneA = makeZone({
-		projectId: PROJECT_ID,
-		planId: plan.id,
-		id: 'zone-a' as ZoneId,
-		name: ZONE_A_DTO.name,
-		zoneType: 'Room',
-		status: 'Planned',
-		geometry,
-	});
-	await zonesRepo.save(zoneA, 'absent');
-
-	const events = new RecordingEventBus();
-	const queries = createPlanEditorQueries({
-		getPlan: new GetPlan(plans),
-		findZonesByPlan: new FindZonesByPlan(zonesRepo),
-	});
-	const commands = {
-		createZone: new CreateZoneCommand(zonesRepo, plans, events),
-		moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
-		deleteZone: makeDeleteZoneCommand(zonesRepo, events),
-		zones: zonesRepo,
-		zoneInspector: new GetZoneInspector(zonesRepo),
-	};
-
-	const harness = await mountPlanEditor({
-		plan: PLAN_DTO,
-		zones: [ZONE_A_DTO],
-		queries,
-		commands,
-	});
-	return { harness, zonesRepo };
-}
-
-function pointer(element: HTMLElement, type: string, x: number, y: number, button = 0): void {
-	element.dispatchEvent(
-		new PointerEvent(type, { button, clientX: x, clientY: y, bubbles: true }),
-	);
-}
-
-/**
- * A real CLICK: down AND up at the same pixel. The rig deliberately never sends a bare
- * `pointerdown` without its `pointerup` — a real mouse cannot do it, and the first
- * review pass caught Escape-cancels-drawing being certified by exactly that impossible
- * sequence. A drag is spelled `pointer(down, move…, up)`; everything else is clicks.
- */
-function click(element: HTMLElement, x: number, y: number, button = 0): void {
-	pointer(element, 'pointerdown', x, y, button);
-	pointer(element, 'pointerup', x, y, button);
-}
-
-async function until(condition: () => boolean | Promise<boolean>, what: string): Promise<void> {
-	for (let round = 0; round < 100; round += 1) {
-		if (await condition()) return;
-		await settle();
-	}
-	throw new Error(`Timed out waiting for: ${what}`);
-}
-
-function toolbarButton(harness: EditorHarness, label: string): HTMLButtonElement {
-	const buttons = harness.wrapper.findAll('button');
-	const found = buttons.find((button) => button.text() === label);
-	if (found === undefined) throw new Error(`no toolbar button labelled ${label}`);
-	return found.element as HTMLButtonElement;
-}
 
 describe('the wired Plan Editor (design slice 8)', () => {
 	it('draws a zone through the toolbar and canvas, persists it, selects it, and undo/redo keep the SAME id', async () => {
@@ -436,10 +343,10 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		toolbarButton(harness, 'Draw zone').click();
 		await settle();
-		pointer(canvas, 'pointerdown', 500, 100);
-		pointer(canvas, 'pointerdown', 600, 100);
-		pointer(canvas, 'pointerdown', 600, 200);
-		pointer(canvas, 'pointerdown', 500, 100);
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		click(canvas, 600, 200);
+		click(canvas, 500, 100);
 		await settle();
 
 		// The write failed; nothing was created and no selection was made.
@@ -449,10 +356,10 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		// The editor survives: a deliberate fresh draw with the fault cleared succeeds.
-		pointer(canvas, 'pointerdown', 500, 100);
-		pointer(canvas, 'pointerdown', 600, 100);
-		pointer(canvas, 'pointerdown', 600, 200);
-		pointer(canvas, 'pointerdown', 500, 100);
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		click(canvas, 600, 200);
+		click(canvas, 500, 100);
 		await settle();
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(2);
 
@@ -548,5 +455,4 @@ describe('the wired Plan Editor (design slice 8)', () => {
 				{ global: { plugins: [createPinia()] } },
 			);
 		}).toThrow('without an EditorRuntime');
-	});
-});
+	});});

@@ -19,6 +19,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
+import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -43,6 +44,28 @@ const previewFlat = computed(() => {
 });
 
 /**
+ * The calibration segment, projected the same way. SOLID and open, with a marker at each
+ * end, deliberately unlike the dashed closed polygon above: the two say different things,
+ * and a vault walkthrough found the calibration gesture drew nothing at all, so a user
+ * clicking two points had no idea what the plugin thought they had picked.
+ *
+ * Both endpoints project independently rather than the segment being drawn as a two-point
+ * polygon, for the reason the whole layer works this way — screen space, so a zoom does not
+ * scale the stroke or the markers.
+ */
+const measurementEnds = computed(() => {
+	const segment = runtime.renderState.measurement;
+	if (segment === null) return null;
+	return [segment.start, segment.end].map((point) =>
+		worldToScreen(point, editorStore.viewport, STAGE_PIXELS),
+	);
+});
+
+const measurementFlat = computed(() =>
+	measurementEnds.value === null ? null : measurementEnds.value.flatMap((at) => [at.x, at.y]),
+);
+
+/**
  * The selected zone's outline and vertex handles. Exactly one zone is selectable in this
  * slice (`SelectTool` sets one id); anything else renders nothing rather than guessing.
  */
@@ -61,7 +84,9 @@ const selectedFlat = computed(() =>
 		: selectedScreenPoints.value.flatMap((at) => [at.x, at.y]),
 );
 
-const HANDLE_RADIUS_PX = 4;
+// The drawn radius; `VERTEX_GRAB_RADIUS_PX` beside it is the region that grabs it. Both
+// live in `../handleMetrics.ts` because they were declared independently here and in
+// `select-tool.ts`, under the same name, with different values.
 </script>
 
 <template>
@@ -78,6 +103,30 @@ const HANDLE_RADIUS_PX = 4;
 				listening: false,
 			}"
 		/>
+		<template v-if="measurementFlat !== null">
+			<VLine
+				:config="{
+					points: measurementFlat,
+					stroke: props.tokens.accent,
+					strokeWidth: 2,
+					strokeScaleEnabled: false,
+					listening: false,
+				}"
+			/>
+			<VCircle
+				v-for="(end, index) in measurementEnds"
+				:key="index"
+				:config="{
+					x: end.x,
+					y: end.y,
+					radius: VERTEX_HANDLE_RADIUS_PX,
+					fill: props.tokens.canvasBackground,
+					stroke: props.tokens.accent,
+					strokeWidth: 1.5,
+					listening: false,
+				}"
+			/>
+		</template>
 		<template v-if="selectedFlat !== null">
 			<VLine
 				:config="{
@@ -95,7 +144,7 @@ const HANDLE_RADIUS_PX = 4;
 				:config="{
 					x: vertex.x,
 					y: vertex.y,
-					radius: HANDLE_RADIUS_PX,
+					radius: VERTEX_HANDLE_RADIUS_PX,
 					fill: props.tokens.canvasBackground,
 					stroke: props.tokens.accent,
 					strokeWidth: 1.5,

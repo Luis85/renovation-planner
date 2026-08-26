@@ -8,6 +8,7 @@ import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
 import { MoveSpatialObjectCommand } from '../application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../application/queries/GetZoneInspector';
+import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
@@ -44,6 +45,7 @@ import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
 import { GetZone } from '../application/queries/GetZone';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
+import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
 import type { PlanRepository } from '../application/ports/PlanRepository';
@@ -51,6 +53,7 @@ import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
+import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
@@ -125,6 +128,11 @@ export interface PersistenceServices {
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
 	readonly geometryStore: PlanGeometryStore;
+	/**
+	 * The slice-7 port over the same store, for `ReversibleCalibratePlanCommand` — the only
+	 * collaborator here that reads and writes calibration rather than an entity note.
+	 */
+	readonly geometry: PlanGeometrySidecar;
 	readonly projects: ProjectRepository;
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
@@ -150,8 +158,11 @@ export interface PersistenceServices {
 	 * command or a view consumes is an interface handed to it, never a repository it built.
 	 *
 	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
-	 * empty-state actions and slice 15's creation dialogs are what give them product-real
-	 * ones; neither needs a second wiring point, only a second call.
+	 * empty-state actions and slice 16's creation FORMS are what give them product-real ones;
+	 * neither needs a second wiring point, only a second call. (This used to name "slice 15's
+	 * creation dialogs" — slice 15 shipped the dialog framework those forms will be mounted
+	 * in, and no form of its own beyond the calibration prompt, so the promise outlived the
+	 * slice that was supposed to keep it.)
 	 */
 	readonly createProject: CreateProjectCommand;
 	readonly createPlan: CreatePlanCommand;
@@ -339,6 +350,7 @@ export function createCompositionRoot(
 	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus);
 	const slice10 = composeSlice10({ zones, assets, requirements, recalculate, events: eventBus, locks, logger });
 	const queries = composeQueryServices(zones, plans, projects);
+	const geometry = new ObsidianPlanGeometrySidecar(geometryStore);
 	const files = createVaultFileProbe(vault.vault);
 
 	return {
@@ -350,6 +362,7 @@ export function createCompositionRoot(
 			vaultDeps: deps,
 			migrations,
 			geometryStore,
+			geometry,
 			projects,
 			plans,
 			zones,
@@ -430,6 +443,11 @@ export function planEditorDeps(
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,
 					zoneInspector: persistence.zoneInspector,
+					// A new command per call — see `CalibratePlanTransaction`. The three
+					// collaborators are the same ones every other write here is built from;
+					// only the lifetime differs.
+					calibratePlan: () =>
+						new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
 				}
 			: unavailablePlanEditorCommands(),
 		vault,

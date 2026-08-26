@@ -30,6 +30,16 @@ type MoveCommand = Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }
  * undo can never succeed again. The first `execute()` is the user's gesture and is
  * last-writer-wins, matching what `MoveSpatialObjectCommand` already does with no
  * `expected`.
+ *
+ * **This is also design slice 8's `ReversibleMoveZoneVertexCommand`**, which the spec
+ * names for the vertex-drag gesture. There is no second class and there was never going to
+ * be one: a vertex drag is a whole-geometry replacement exactly like a body drag — same
+ * wrapped command, one forward and one inverse `Polygon`, expectations from the same
+ * ledger. The two differ only in how `SelectTool` computes forward/inverse (one index
+ * replaced versus every point translated), which happens there and not here. The name
+ * existed briefly as an exported type alias so the spec's word appeared in code; an
+ * exported name carrying no type of its own only makes a reader go looking for a second
+ * implementation, so it is recorded in this paragraph instead.
  */
 export class ReversibleMoveZoneCommand implements UndoableCommand {
 	private hasWritten = false;
@@ -63,13 +73,3 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		return ok(undefined);
 	}
 }
-
-/**
- * Design slice 8's vertex-drag gesture (docs/tasks/08-zone-editing.md, "Editing a single
- * vertex"). A vertex drag is a whole-geometry replacement exactly like a body drag — the
- * same wrapped command, one forward and one inverse `Polygon`, expectations from the same
- * shared ledger — so it IS this class, under the name the spec gives the gesture. The two
- * differ only in how their caller computes forward/inverse (one index replaced versus
- * every vertex translated), which happens in `SelectTool`, not here.
- */
-export type ReversibleMoveZoneVertexCommand = ReversibleMoveZoneCommand;

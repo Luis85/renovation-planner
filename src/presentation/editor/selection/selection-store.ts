@@ -11,11 +11,24 @@ import type { EntityId } from '../../../core/identity/EntityId';
 export const useSelectionStore = defineStore('editor-selection', () => {
 	const selectedIds = ref<readonly EntityId<string>[]>([]);
 
+	/**
+	 * Selecting what is ALREADY selected is a no-op, down to the ref's identity.
+	 *
+	 * Without that test every assignment is a fresh array, so every watcher on this ref
+	 * fires — and `SelectTool.pointerDown` calls `select([hit.id])` unconditionally on
+	 * every click that lands on a zone, including the one that starts a drag on the zone
+	 * already selected. Each of those re-ran the Inspector query: a note read plus a parse
+	 * and a schema validation of the plan's whole geometry sidecar, to arrive at the answer
+	 * already on screen.
+	 */
 	function select(ids: readonly EntityId<string>[]): void {
+		const current = selectedIds.value;
+		if (current.length === ids.length && current.every((id, index) => id === ids[index])) return;
 		selectedIds.value = [...ids];
 	}
 
 	function clear(): void {
+		if (selectedIds.value.length === 0) return;
 		selectedIds.value = [];
 	}
 

@@ -5,8 +5,8 @@ order: 30
 dependsOn:
   - "[[05-canvas-rendering-and-editor-shell]]"
   - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
-status: ""
-started: ""
+status: Active
+started: 2026-08-25
 finished: ""
 horizon: ""
 start: ""
@@ -64,6 +64,53 @@ each is reversible through undo (slice 6), and creating a thing is not destroyin
 The one caller outside that list is slice 7's `CalibrateTool`, which confirms under (a) —
 a recalibration reinterprets every coordinate already drawn, and undo restores it, but
 the user cannot see what they are about to lose before it happens.
+
+### What landed, and what did not (2026-08-26)
+
+The framework is complete and in use: `DialogStore`, `DialogHost`, all four kinds, the focus
+trap, `Escape`, background `inert`, focus restoration, the stacking guard, the import
+boundary and its meta-test. Definition of Done items 1, 2, 3, 4, 5, 7, 9, 10 and 11 are met.
+
+**Items 6, 8 and 8a are NOT met, and were not attempted.** They are the Zone-delete worked
+example, and every collaborator they name — `ListRequirementsReferencing`,
+`ListReassignmentTargets`, and a `reversibleDeleteZone` taking `resolution` /
+`resolvedReferents` and refusing with `reference.set-changed` — belongs to slice 10, which
+was in flight while this slice was built. Declaring those shapes here would have been a
+second derivation of contracts slice 10 owns, which this document's own "Out of scope"
+section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` are built and tested and
+have no production caller for the same reason: that is the plan, not dead code.
+
+The Inspector's Delete button still dispatches straight through `InspectorStore.commit`'s
+`toCommand`, unchanged. Wiring it to `DeleteReferenceDialog` is slice 10's closing task;
+this sentence stays until it happens.
+
+**What this slice DID reach:** `CalibrateTool`, which slice 7 built and slice 8 shipped
+registered nowhere. It is in `registerEditorTools` and in the toolbar now, its recalibration
+confirmation is a `ConfirmDialog` and its `supplyKnownDistance` is a `form` dialog over
+`KnownDistanceForm`. A user can calibrate a plan.
+
+Note what the framework does NOT claim, because the word "modal" reads wider than it is:
+`inert` takes the VIEW away from the user, never the application. This is not an Obsidian
+`Modal` — nothing pushes a `Scope` and the keydown handler does not `stopPropagation()` — so
+Obsidian's own keymap stays live behind an open dialog.
+
+### What the walkthrough found (2026-08-26)
+
+`docs/tests/cases/Calibrate a Plan.md` is the procedure and carries the run. Everything
+passed except the calibration gesture, which **drew nothing at all**: two clicks, then a
+dialog, with no indication of which two points had been picked.
+`CalibrateTool.pointerMove` was an empty method under a comment deferring the preview "until
+a rendering seam exists for tool overlays" — and that seam had existed since slice 8 wired
+`RenderState` into `runtime.ts`. The comment outlived its own condition, and an empty method
+has no behaviour for a test to disagree with, which is how it passed every gate.
+
+Fixed with `RenderState.measurement` and a solid two-marker segment on the interaction
+layer, held from the first click through both dialogs. Written up where the code is; the
+case's step 3 covers it.
+
+One thing was recorded rather than fixed: the dialog is centred over the pane, so it can sit
+on top of the segment it is asking about. The fix is where every dialog in the plugin sits,
+which is a design decision rather than part of drawing the segment.
 
 ## Scope
 
@@ -140,6 +187,33 @@ the user cannot see what they are about to lose before it happens.
 - ADR-005 (Pinia for Presentation State) — `DialogStore` is UI state, never canonical.
 - PRD §64 (Deletion Semantics) and PRD §39 (User Experience Requirements) — the two
   PRD sections this slice's design derives from directly.
+
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass made one of this slice's preconditions real and
+left one piece of wiring for it.
+
+- **`EditorContext.activePlan.calibration` is a REAL value now**, which it was not when
+  slice 7 wrote the dialog it hands to this slice. It was a hard-coded `null` behind a
+  field `EditorContext` declares as the plan's calibration, so any tool reading it saw
+  "uncalibrated" on every calibrated plan, with the type satisfied and no gate able to see
+  it. `PlanDto` carries the field now and the tool context is rebuilt per activation.
+  Note what this does and does not change: slice 7's confirmation triggers on the plan
+  already having **spatial objects**, not on it already having a calibration, so the
+  TRIGGER is unaffected. What the real value buys is the dialog's CONTENT — a
+  recalibration prompt can state the scale being replaced instead of describing the change
+  in the abstract.
+- **`CalibrateTool` is registered NOWHERE, and this slice is the natural place to finish
+  it.** Slice 7 built the tool, the reversible command and the sidecar port; slice 8's
+  toolbar shipped without it, so no user can calibrate a plan and every area the Inspector
+  prints is background pixels relabelled as millimetres at the placeholder scale of 1.
+  What is missing is two things: a row in `EditorToolbar.vue`'s `MODES` table, and a real
+  `supplyKnownDistance` — a `KnownDistanceSupplier` that asks the user for the measured
+  length. That prompt is a modal, which is this slice.
+- **The toolbar is a DATA table now.** `MODES` is a
+  `readonly { id: ToolId | null; label: StringKey }[]` rendered by one `v-for`; a new mode
+  is a row, and the label key stays type-checked. It was three near-identical ten-line
+  `<button>` blocks, each repeating its own id in three places.
 
 ## Design
 

@@ -121,6 +121,7 @@ describe('ReversibleCreateZoneCommand', () => {
 		const silentLedger: WriteLedger = {
 			lastWritten: () => null,
 			record: () => undefined,
+			forget: () => undefined,
 		};
 		const command = new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),

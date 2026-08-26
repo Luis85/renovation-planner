@@ -258,6 +258,35 @@ describe('writing into a folder nothing has created yet', () => {
 
 		expect(expectOk(await stack.zones.listByPlan(plan.id))).toHaveLength(1);
 	});
+	/**
+	 * The geometry sidecar is PLAN-grained: one vault read, one JSON parse, one migration
+	 * and one Zod validation of every spatial object in the plan. Loading N zones by
+	 * calling `getById` N times therefore did N of those — O(N) file reads and O(N²) point
+	 * validations to answer one listing — and the Plan Editor's post-command refresh
+	 * re-hydrates the whole plan after every drag release, drawn polygon, delete and Undo
+	 * press.
+	 *
+	 * Counted at the vault rather than argued about: a memo that quietly stopped memoising
+	 * would answer every other assertion in this file identically.
+	 */
+	it('reads a plan geometry sidecar ONCE per listing, not once per zone', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+		for (let index = 0; index < 4; index += 1) {
+			expectOk(await stack.zones.save(makeZoneEntity({ projectId: project.id, planId: plan.id }), 'absent'));
+		}
+
+		stack.vault.operations.length = 0;
+		expect(expectOk(await stack.zones.listByPlan(plan.id))).toHaveLength(4);
+
+		const sidecarReads = stack.vault.operations.filter(
+			(operation) => operation.startsWith('read:') && operation.includes('Geometry/'),
+		);
+		expect(sidecarReads).toHaveLength(1);
+	});
 });
 
 assetRepositoryContract(() => {

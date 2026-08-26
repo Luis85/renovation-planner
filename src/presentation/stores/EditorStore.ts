@@ -110,9 +110,12 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
-	 * `activeToolId` gained its writer in design slice 8: `runtime.ts`'s `setTool` mirrors
-	 * `ToolManager`'s non-reactive pointer into it, so the toolbar can render the active
-	 * state. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools
+	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
+	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
+	 * is this ref — so the toolbar's active state and `PlanCanvas`'s tool-versus-camera
+	 * routing both come from here. It briefly had a second writer and a private copy beside
+	 * it: three places holding the active tool, the one this comment named as the consumer
+	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools
 	 * broadcast transients through `RenderState` (a reactive proxy over
 	 * `../editor/tools/render-state.ts`) instead, which is the reconciliation this file's
 	 * older notes anticipated: these two slots remain declared vocabulary awaiting a

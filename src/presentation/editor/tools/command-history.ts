@@ -1,5 +1,6 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { AppError } from '../../../core/errors/AppError';
+import { createSerialQueue } from './serial-queue';
 import type { UndoableCommand } from './undoable-command';
 
 /**
@@ -50,10 +51,12 @@ type VoidResult = Result<void, AppError>;
 export class CommandHistory {
 	private undoStack: UndoableCommand[] = [];
 	private redoStack: UndoableCommand[] = [];
-	// The serialization queue: every public operation chains onto this promise and replaces
-	// it, so at most one operation's body is ever running and the stacks mutate in the
-	// order calls arrived, not the order they happened to resolve.
-	private tail: Promise<unknown> = Promise.resolve();
+	// The serialization queue: every public operation goes through it, so at most one
+	// operation's body is ever running and the stacks mutate in the order calls arrived,
+	// not the order they happened to resolve. Shared with `withEditorStateRefresh`, which
+	// wraps this class and needs the same guarantee one level up — see `./serial-queue.ts`
+	// for why the chain must never reject.
+	private readonly enqueue = createSerialQueue();
 
 	get canUndo(): boolean {
 		return this.undoStack.length > 0;
@@ -87,18 +90,6 @@ export class CommandHistory {
 			this.redoStack = [];
 			return Promise.resolve(ok(undefined));
 		});
-	}
-
-	private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-		const routed = this.tail.then(operation);
-		// The queue itself must never reject: `run`/`undo`/`redo` resolve a `Result` for
-		// every EXPECTED failure, but SDD §65 still lets an unexpected technical fault
-		// throw — and a rejected `tail` would poison every later operation's `.then()`,
-		// wedging the queue for every gesture after it. `routed` still carries its own
-		// outcome to whoever called this operation; this catch only protects the shared
-		// chain, so one command's unexpected throw cannot block the next one's turn.
-		this.tail = routed.catch(() => undefined);
-		return routed;
 	}
 
 	private async runNow(command: UndoableCommand): Promise<VoidResult> {

@@ -11,7 +11,7 @@ import { mount } from '@vue/test-utils';
 import { PlanBackgroundSuggestModal } from '../../../src/presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../../../src/presentation/modals/PlanSuggestModal';
 import type { ProjectIndexEntry } from '../../../src/application/ports/ProjectIndex';
-import { EDITOR_CONTEXT, useEditorContext } from '../../../src/presentation/editor/EditorContext';
+import { PLAN_EDITOR_CONTEXT, usePlanEditorContext } from '../../../src/presentation/editor/PlanEditorContext';
 import { useThemeTokens } from '../../../src/presentation/editor/theme/useThemeTokens';
 import { renderPdfPage } from '../../../src/presentation/editor/layers/background/pdfRaster';
 import { t } from '../../../src/presentation/i18n/strings';
@@ -121,7 +121,7 @@ describe('the plan picker', () => {
  */
 describe('the editor context guard', () => {
 	it('throws rather than mounting an editor with nothing behind it', () => {
-		expect(() => useEditorContext()).toThrow(/EditorContext/);
+		expect(() => usePlanEditorContext()).toThrow(/EditorContext/);
 	});
 });
 
@@ -159,7 +159,7 @@ describe('resolving the theme before the root element exists', () => {
 		const wrapper = mount(probe, {
 			global: {
 				provide: {
-					[EDITOR_CONTEXT as symbol]: {
+					[PLAN_EDITOR_CONTEXT as symbol]: {
 						planId: 'plan-1',
 						queries: {} as never,
 						vault: {} as never,

@@ -7,13 +7,13 @@ import type { BackgroundVault } from './layers/background/BackgroundRenderModel'
  * Everything the Plan Editor's Vue tree needs from outside itself, provided ONCE by
  * `PlanEditorView` on the app instance it created.
  *
- * **Naming collision, read carefully**: `src/presentation/editor/tools/editor-context.ts`
- * (design slice 6, SDD §58) declares a DIFFERENT type also called `EditorContext` — the
- * facade `EditorTool.activate(context)` receives, carrying `viewport`, `selection`,
- * `snapService`, `commandDispatcher`, `writeLedger`, `renderState` and `activePlan`. It has
- * nothing to do with Vue's dependency injection and is never provided or injected. That
- * file carries the full account of why both keep the name; import the one you mean from its
- * own module.
+ * Named `PlanEditorContext` and not `EditorContext`: that word belongs to
+ * `tools/editor-context.ts` (design slice 6, SDD §58), the facade
+ * `EditorTool.activate(context)` receives — a spec-bound name this one has no claim on.
+ * Both types existed under the one name for two slices, which cost a "read carefully"
+ * paragraph in each file, an aliased import at their only shared consumer, and a genuine
+ * duplicate-export finding from `npm run analyze`. This has nothing to do with tools:
+ * it is what the LEAF is, provided once by `PlanEditorView` on the app instance it created.
  *
  * One injection key rather than a prop threaded through five components, because every
  * member here is a property of the LEAF — which plan it shows, which vault it reads,
@@ -21,7 +21,7 @@ import type { BackgroundVault } from './layers/background/BackgroundRenderModel'
  * declare things it does not use. It is `app.provide`, not a module-level singleton, which
  * is what keeps two Plan Editor leaves genuinely independent (ADR-004).
  */
-export interface EditorContext {
+export interface PlanEditorContext {
 	/** The Plan this leaf shows. Carried in Obsidian's per-leaf view state, not in the type. */
 	readonly planId: string;
 	readonly queries: PlanEditorQueryServices;
@@ -53,7 +53,7 @@ export interface EditorContext {
 	onPlanChanged(listener: () => void): () => void;
 }
 
-export const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('renovation-planner:editor-context');
+export const PLAN_EDITOR_CONTEXT: InjectionKey<PlanEditorContext> = Symbol('renovation-planner:editor-context');
 
 /**
  * Throws rather than returning `undefined` when the context is absent, because there is no
@@ -61,10 +61,10 @@ export const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('renovation-pl
  * nothing, and look like an empty plan. Failing at mount points at the composition
  * mistake instead.
  */
-export function useEditorContext(): EditorContext {
-	const context = inject(EDITOR_CONTEXT);
+export function usePlanEditorContext(): PlanEditorContext {
+	const context = inject(PLAN_EDITOR_CONTEXT);
 	if (context === undefined) {
-		throw new Error('The plan editor was mounted without an EditorContext.');
+		throw new Error('The plan editor was mounted without a PlanEditorContext.');
 	}
 	return context;
 }

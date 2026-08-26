@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
 import { DrawPolygonTool } from '../../../../src/presentation/editor/tools/draw-polygon-tool';
 import type { EditorContext } from '../../../../src/presentation/editor/tools/editor-context';
-import type { EditorPointerEvent } from '../../../../src/presentation/editor/tools/editor-tool';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
-import { RenderState } from '../../../../src/presentation/editor/tools/render-state';
-import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
 import { err, ok } from '../../../../src/core/result/Result';
 import type { CreateZoneInput } from '../../../../src/application/commands/zone/CreateZone';
+import { flushGesture as flush, pointerAt as at, toolContext } from '../../../helpers/tool-context';
 
 /**
  * Design slice 8 — `DrawPolygonTool` driven by simulated pointer sequences
@@ -33,27 +32,7 @@ function harness(): Harness {
 	let failNext = false;
 	let gate: (() => void) | null = null;
 
-	const selection = {
-		selectedIds: [] as string[],
-		select(ids: readonly string[]) {
-			this.selectedIds = [...ids];
-		},
-		clear() {
-			this.selectedIds = [];
-		},
-		isSelected(id: string) {
-			return this.selectedIds.includes(id);
-		},
-	};
-	const context: EditorContext = {
-		viewport: {
-			worldToScreen: (point) => point as never,
-			screenToWorld: (point) => point as never,
-			setPan: () => undefined,
-			setZoom: () => undefined,
-		},
-		selection,
-		snapService: { snapPoint: (point) => point } as never,
+	const { context } = toolContext({
 		commandDispatcher: {
 			run: (runnable) => {
 				if (gate !== null) {
@@ -74,10 +53,7 @@ function harness(): Harness {
 				return runnable.execute();
 			},
 		},
-		writeLedger: {} as never,
-		renderState: new RenderState(),
-		activePlan: { id: 'plan-1' as never, calibration: null },
-	};
+	});
 
 	return {
 		context,
@@ -121,20 +97,6 @@ function build(h: Harness): DrawPolygonTool {
 	});
 }
 
-function at(x: number, y: number): EditorPointerEvent {
-	return {
-		worldPoint: { x, y },
-		screenPoint: screenPoint(x, y),
-		button: 'primary',
-		modifiers: { shift: false, ctrl: false, alt: false },
-		targetId: null,
-	};
-}
-
-/** Drains the gesture's microtask chain before its dispatch result is asserted. */
-async function flush(): Promise<void> {
-	for (let round = 0; round < 8; round++) await Promise.resolve();
-}
 
 describe('DrawPolygonTool', () => {
 	it('three vertices plus a close click produce exactly ONE dispatched command and a selection', async () => {
@@ -306,5 +268,76 @@ describe('DrawPolygonTool', () => {
 		// Buffer intact — the user keeps their work and can cancel deliberately.
 		tool.cancel();
 		expect(h.context.renderState.previewPolygon).toBeNull();
+	});
+	it('a snapped vertex landing on an existing one is NOT pushed as a duplicate', async () => {
+		// The close test measures the RAW click and the buffer takes the SNAPPED one, so a
+		// snap that pulls a near-miss exactly onto an existing vertex fails the close test.
+		// Pushing it anyway gives the polygon a repeated point — a zero-length edge that
+		// `Polygon` forbids and that area, centroid and hit-testing all divide through.
+		setActivePinia(createPinia());
+		const inputs: CreateZoneInput[] = [];
+		const { context } = toolContext({
+			// Everything within 5 mm of (0, 0) snaps onto it.
+			snapPoint: (point) => (Math.hypot(point.x, point.y) <= 5 ? { x: 0, y: 0 } : point),
+		});
+		const tool = new DrawPolygonTool({
+			createCommand: (input) => {
+				inputs.push(input);
+				return {
+					execute: () => Promise.resolve(ok(undefined)),
+					undo: () => Promise.resolve(ok(undefined)),
+					get createdZoneId() {
+						return 'zone-created' as never;
+					},
+				} as never;
+			},
+			nextZoneName: () => 'Zone 1',
+			reportRejected: () => undefined,
+		});
+		tool.activate(context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		// Three world millimetres from the first vertex: far outside the 12 px close
+		// tolerance is not the question — with fewer than three points it cannot close at
+		// all — but the snap lands it exactly on `buffer[0]`.
+		tool.pointerDown(at(3, 0));
+
+		expect(context.renderState.previewPolygon).toEqual([
+			{ x: 0, y: 0 },
+			{ x: 100, y: 0 },
+		]);
+		await flush();
+	});
+
+	it('Escape during an in-flight close does not let the LATE success wipe the next polygon', async () => {
+		// `cancel()` clears `closing`, so clicks are accepted again while the dispatch is
+		// still in flight. Without a generation counter the resolved continuation then ran
+		// unconditionally: it wiped the new gesture's vertices, blanked its rubber band and
+		// selected the zone the user had just cancelled out of.
+		const h = harness();
+		const release = h.gateNextDispatch();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(100, 100));
+		tool.pointerDown(at(0, 0)); // close — now awaiting the gated dispatch
+
+		tool.cancel();
+		tool.pointerDown(at(500, 500));
+		tool.pointerDown(at(600, 500));
+
+		release();
+		await flush();
+
+		// The new gesture's two vertices survived, and nothing selected the zone the
+		// abandoned close created.
+		expect(h.context.renderState.previewPolygon).toEqual([
+			{ x: 500, y: 500 },
+			{ x: 600, y: 500 },
+		]);
+		expect(h.context.selection.selectedIds).toEqual([]);
 	});
 });

@@ -66,4 +66,49 @@ describe('SelectionStore', () => {
 		store.select([selectedId] as EntityId<string>[]);
 		expect(store.isSelected(unselectedId)).toBe(false);
 	});
+	it('re-selecting the SAME ids keeps the array identity, so watchers do not fire', () => {
+		// `SelectTool.pointerDown` calls `select([hit.id])` on every click that lands on a
+		// zone, the one that starts a drag on the already-selected zone included. Assigning
+		// a fresh array each time made the Inspector's watcher fire on every one of those —
+		// a note read plus a parse and a schema validation of the plan's whole geometry
+		// sidecar, to arrive at the answer already on screen.
+		const store = useSelectionStore();
+		const ids = ['zone-1', 'zone-2'] as EntityId<string>[];
+
+		store.select(ids);
+		const first = store.selectedIds;
+		store.select(['zone-1', 'zone-2'] as EntityId<string>[]); // same ids, different array
+
+		expect(store.selectedIds).toBe(first);
+	});
+
+	it('a genuinely different selection DOES replace the array', () => {
+		const store = useSelectionStore();
+		store.select(['zone-1'] as EntityId<string>[]);
+		const first = store.selectedIds;
+
+		store.select(['zone-2'] as EntityId<string>[]);
+
+		expect(store.selectedIds).not.toBe(first);
+		expect(store.selectedIds).toEqual(['zone-2']);
+	});
+
+	it('order matters: the same ids in a different order is a different selection', () => {
+		const store = useSelectionStore();
+		store.select(['zone-1', 'zone-2'] as EntityId<string>[]);
+		const first = store.selectedIds;
+
+		store.select(['zone-2', 'zone-1'] as EntityId<string>[]);
+
+		expect(store.selectedIds).not.toBe(first);
+	});
+
+	it('clear on an already-empty selection keeps the array identity too', () => {
+		const store = useSelectionStore();
+		const empty = store.selectedIds;
+
+		store.clear();
+
+		expect(store.selectedIds).toBe(empty);
+	});
 });

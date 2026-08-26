@@ -14,6 +14,8 @@ import type { Loaded } from '../../ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { WriteLedger } from '../../editor/WriteLedger';
+import { referenceError } from '../../errors';
+import { restoreZone } from './restore-zone';
 
 export type CreateCommand = Command<
 	CreateZoneInput,
@@ -24,12 +26,12 @@ export type UndoDeleteCommand = Command<
 	Result<{ zoneId: ZoneId }, ReferenceError | ValidationError | PersistenceError>
 >;
 
-function nothingToUndo(): AppError {
-	return {
-		category: 'Reference',
-		code: 'zone.nothing-to-undo',
-		message: 'This zone creation has no recorded state to undo.',
-	};
+// Through the factory, not a hand-built literal: the sibling delete adapter minted the
+// same `zone.nothing-to-undo` code with a DIFFERENT category, and category is the
+// discriminant SDD §64 makes it so a consumer can route on it — one logical failure
+// arriving as two is exactly what that would break.
+function nothingToUndo(): ReferenceError {
+	return referenceError('zone.nothing-to-undo', 'This zone creation has no recorded state to undo.');
 }
 
 /**
@@ -57,9 +59,22 @@ function nothingToUndo(): AppError {
  *   strategy requires to succeed ("create, move, undo, undo, redo, redo"). A zone edited
  *   OUTSIDE the editor since still refuses — its revision left the ledger's behind.
  *
- * Every successful write records into the same shared ledger, including the restore: the
- * move adapter's next dispatch reads its expectation from there, and a restore that went
- * unrecorded would hand it a stale version.
+ * Every WRITE records into the same shared ledger, the restore included — the move
+ * adapter's next dispatch reads its expectation from there, and a restore that went
+ * unrecorded would hand it a stale version. The delete in `undo()` records nothing,
+ * because a deleted note has no revision; it FORGETS the id instead, so no later half
+ * presents a revision for a note that does not exist. `WriteLedger` states that rule
+ * once for all four adapters.
+ *
+ * **Known asymmetry in the EVENT stream, stated because it is not fixed here.** The first
+ * `execute` publishes `ZoneCreated` (through the plain command) and `undo` publishes
+ * `ZoneDeleted` (likewise), but the redo restore publishes nothing — the sibling delete
+ * adapter argues at length that a restore is not a creation. So create → undo → redo →
+ * undo emits one create and two deletes. Nothing today counts them: the editor refreshes
+ * off the history, not off events, and `planChangeSource` only re-reads. Slice 10's
+ * recalculation and slice 13's save tracking are the first subscribers that would care,
+ * and what an undo/redo pair OUGHT to announce is their decision to make, not a detail to
+ * settle silently here.
  */
 export class ReversibleCreateZoneCommand {
 	private snapshot: Loaded<Zone> | null = null;
@@ -81,10 +96,10 @@ export class ReversibleCreateZoneCommand {
 			this.ledger.record(result.value.zone.entity.id, result.value.zone.version);
 			return ok(undefined);
 		}
-		const written = await this.zones.save(snapshot.entity, 'absent');
+		const written = await restoreZone(this.zones, this.ledger, snapshot);
 		if (isErr(written)) return written;
+		// The next undo must delete what THIS redo wrote, not what the original create did.
 		this.snapshot = written.value;
-		this.ledger.record(written.value.entity.id, written.value.version);
 		return ok(undefined);
 	}
 
@@ -95,6 +110,9 @@ export class ReversibleCreateZoneCommand {
 		const input: DeleteZoneInput = { zoneId: snapshot.entity.id, expected };
 		const result = await this.deleteCommand.execute(input);
 		if (isErr(result)) return result;
+		// The note is gone, so the ledger must stop answering a revision for it — see
+		// `WriteLedger`'s own account of why a delete forgets rather than records.
+		this.ledger.forget(snapshot.entity.id);
 		return ok(undefined);
 	}
 

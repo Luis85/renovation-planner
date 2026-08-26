@@ -38,8 +38,24 @@ describe('mapping an entity to a read model', () => {
 			projectId,
 			name: 'First floor',
 			background: { path: 'Plans/first.pdf', kind: 'pdf', page: 3 },
+			calibration: null,
 			layers: ['walls'],
 		});
+	});
+
+	it('carries a plan CALIBRATION onto the read model', () => {
+		// The field the editor's tool framework reads through `EditorContext.activePlan`.
+		// It was absent from this DTO, so the runtime handed every tool a hard-coded `null`
+		// — an uncalibrated reading of a calibrated plan, with the type satisfied.
+		const calibration = {
+			pointA: { x: 0, y: 0 },
+			pointB: { x: 1000, y: 0 },
+			knownDistance: 1000,
+			pixelsPerWorldUnit: 2,
+		};
+		const plan = expectOk(makePlan({ projectId: createProjectId() }).withCalibration(calibration));
+
+		expect(toPlanDto(plan).calibration).toEqual(calibration);
 	});
 
 	it('flattens a zone, keeping its geometry in world millimetres', () => {

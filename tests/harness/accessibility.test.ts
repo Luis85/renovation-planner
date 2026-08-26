@@ -89,8 +89,10 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { defineComponent, nextTick } from 'vue';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -173,4 +175,63 @@ describe('axe against the mounted view', () => {
 			mounted?.unmount();
 		}
 	});
+
+	/**
+	 * A dialog is the one surface in this plugin that takes the keyboard away from
+	 * everything behind it, so it is the one most worth scanning: `role="dialog"` without
+	 * an accessible name and a button with no text are both real violations axe sees here.
+	 * A heading LEVEL is not one of them at this scope, and that is a limit of the scope
+	 * rather than a reason for choosing it. Every kind renders its title as an `<h2>`, and
+	 * the Renovation Project view draws no other heading, so the scanned subtree holds one
+	 * heading: axe's `heading-order` needs a PRECEDING heading to compare against and lands
+	 * a lone one in `passes`, while `page-has-heading-one` (which would otherwise catch "the
+	 * first heading is not `<h1>`") is scope-inapplicable per this file's own header.
+	 *
+	 * The earlier version of this paragraph read the other way round — that a dialog `<h4>`
+	 * following the Plan Editor's `<h2>` panel titles WOULD land in `violations`, and that
+	 * this was why the case mounts here. There is no `<h4>` anywhere in `src/`; measured
+	 * against this branch, the Plan Editor with a dialog open scans as three `<h2>`s and
+	 * zero violations, so either mount is clean and the real reason is the one below.
+	 *
+	 * Mounted through `mountHarness` — the Renovation Project view, which otherwise draws
+	 * nothing (see the header) — rather than the Plan Editor case above: `DialogHost`
+	 * mounts in both (design slice 15), but the dialog framework's own markup is identical
+	 * either way, so scanning it here keeps a finding about the dialog from being
+	 * conflated with the Plan Editor's own five regions. `useDialogStore()` with no Pinia
+	 * argument resolves to the SAME store `DialogHost` reads: `RenovationProjectView.
+	 * onOpen` calls `app.use(createPinia())` synchronously inside `mountHarness`, which is
+	 * what makes that instance Pinia's own active one, and `useStore` falls back to it when
+	 * called outside a component's `setup`.
+	 *
+	 * The `form` kind IS included, via the same trivial `StubForm` `dialogHost.test.ts`
+	 * already mounts for its own "fourth arm of the switch" case. That stub is slot content,
+	 * not the markup under test — `<component :is="descriptor.component">` is the one line
+	 * of `FormDialog.vue` it stands in for; the title, the body wrapper and the Cancel
+	 * button around it are real `FormDialog.vue` markup, unconditionally rendered no matter
+	 * what the caller supplies. No caller in this codebase supplies a real
+	 * `FormDescriptor.component` yet (the calibration flow's own form component is a later
+	 * task in this slice), so a stub is the only way to exercise this kind's container at
+	 * all before then.
+	 *
+	 * What this does NOT check is stated once, here, rather than implied: `inert` is not
+	 * modelled by jsdom, so "the background is genuinely unreachable" is asserted by
+	 * `dialogHost.test.ts` against the ATTRIBUTE, and verified for real only in a vault.
+	 */
+	it.each([
+		['confirm', { kind: 'confirm', title: 'Recalculate costs?', message: 'This overwrites your manual adjustments.' }],
+		['delete-reference', { kind: 'delete-reference', entityLabel: 'Kitchen', references: [{ label: 'Requirements', count: 2 }] }],
+		['entity-picker', { kind: 'entity-picker', title: 'Choose a replacement zone', candidates: [{ id: 'z-1', label: 'Bathroom' }] }],
+		['form', { kind: 'form', title: 'Add a new asset', component: defineComponent({ template: '<p>stub form</p>' }) }],
+	] as Array<[string, DialogDescriptor]>)(
+		'reports no semantic violation with a %s dialog open',
+		async (_kind, descriptor) => {
+			const { view } = mountHarness(document.body);
+			void useDialogStore().openDialog(descriptor);
+			await nextTick();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		},
+	);
 });

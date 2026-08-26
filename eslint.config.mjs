@@ -348,6 +348,16 @@ export default defineConfig([
 		{ groups: ['infrastructure', 'plugin'] },
 		'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.',
 	),
+	forbidden(
+		'presentation/dialogs',
+		// Repeats `infrastructure` and `plugin` from the `presentation` block above ON
+		// PURPOSE: two blocks matching one file OVERRIDE `no-restricted-imports` rather than
+		// merging it, so a block that named only its own additions would quietly widen the
+		// hole it was written to narrow. `tests/build/vue-rules.test.ts` drives all three
+		// through real fixture paths rather than reading this object.
+		{ groups: ['application', 'infrastructure', 'plugin', 'core/events'] },
+		'presentation/dialogs/ renders what it is handed and resolves one typed value. A query, a command, a repository or the event bus reached from here would put a domain decision inside a dialog (design slice 15, Definition of Done 9).',
+	),
 	{
 		// -- invariants that are checked rather than described ----------------------
 		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`

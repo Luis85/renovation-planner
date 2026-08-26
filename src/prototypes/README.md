@@ -90,6 +90,11 @@ both checked:
   inside a scoped block can still be global; `:deep(…)` (and `::v-deep`, `>>>`, `/deep/`) reaches
   into a composed component's markup, which is a one-word opt-out from both rules above. Both are
   refused by name. `:slotted(…)` is allowed: it is bounded to content the mock was handed.
+- **No local rule for a class you hand to a component.** `<StatusBar class="mock-status" />` is
+  ordinary Vue and stays legal — fallthrough merges that class onto the child's root, which is
+  how a mock lays a composed component out using the SHIPPED sheet. Declaring `.mock-status` in
+  the mock's own block is what reaches inside it, so the refusal is of the PAIR rather than
+  either half.
 
 **A `styles/` partial plus an `@import` in `styles/index.css`** — the assembler fails the build
 on a partial nothing imports, which is what stops that edit being half-done.

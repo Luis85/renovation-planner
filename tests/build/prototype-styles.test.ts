@@ -297,6 +297,36 @@ describe('a prototype and the sheet that styles it', () => {
 	 * `:slotted(…)` is deliberately not here: it is bounded to content the mock was handed, which
 	 * is the mock's own markup by another route.
 	 */
+	/**
+	 * The third route to a composed component's root, and the one both rules above wave through.
+	 *
+	 * `<StatusBar class="mock-status" />` is ordinary Vue: fallthrough merges that class onto the
+	 * child's ROOT element, and the parent's scope attribute is already there — so a
+	 * `.mock-status` rule in the mock's block styles the real component. The
+	 * no-real-component-class rule passes it (`mock-status` appears nowhere in `src/presentation`)
+	 * and the subject rule passes it (it is a class).
+	 *
+	 * So the rule is about the PAIR rather than either half: a class handed to a component tag,
+	 * and a rule for that class in the same file. Handing one over stays legal — that is how a
+	 * mock lays a composed component out using the SHIPPED sheet, which is what criterion 5 asks
+	 * for. Declaring it locally is the part that reaches inside.
+	 *
+	 * Component tags are recognised by their capital: this tree writes `<StatusBar />` and a
+	 * native element is lowercase, which `vue/component-name-in-template-casing` already holds.
+	 * A `<component :is>` is not read, and is the stated limit.
+	 */
+	it.each(prototypes)('%s styles no class it hands to a component', (file) => {
+		const source = readFileSync(`src/prototypes/${file}`, 'utf8').replace(HTML_COMMENT, '');
+		const handedOver = [...source.matchAll(/<[A-Z][\w.]*\b[^>]*>/g)].flatMap(([tag]) => classesUsedBy(tag));
+		const declaredHere = new Set(
+			styleBlocks(source).flatMap((block) =>
+				[...block.replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
+			),
+		);
+
+		expect(handedOver.filter((name) => declaredHere.has(name))).toEqual([]);
+	});
+
 	it.each(prototypes)('%s uses no escape from its own scope', (file) => {
 		const escapes = [':global(', ':deep(', '::v-deep', '::v-global', '>>>', '/deep/'];
 		const blocks = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8')).map((block) =>

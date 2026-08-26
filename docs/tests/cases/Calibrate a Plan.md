@@ -101,8 +101,8 @@ that narrowness is acceptable. Write the answer into the Runs table either way.
 - **`DeleteReferenceDialog` and `EntityPickerDialog` cannot be reached from the UI.** Both
   are built and unit-tested with no production caller by design — their caller is slice 10's
   delete-with-references flow, and the queries feeding their rows are slice 10's to define.
-  Definition-of-Done items 6, 8 and 8a of the task document are open and say so. Do not hunt
-  for a way to open them; there is none, and that is not a defect.
+  Definition-of-Done items 6, 6a, 8 and 8a of the task document are open and say so. Do not
+  hunt for a way to open them; there is none, and that is not a defect.
 - **Zone names and types.** Every drawn zone is still "Room", named "Zone N". This slice
   built the dialog framework, not creation forms — those are slice 16's, and slice 14 owns
   the empty-state actions that open them. Renaming is not wired.

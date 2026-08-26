@@ -8,6 +8,7 @@ import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
 import { MoveSpatialObjectCommand } from '../application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../application/queries/GetZoneInspector';
+import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
@@ -25,11 +26,13 @@ import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
 import { GetZone } from '../application/queries/GetZone';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
+import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
+import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
@@ -104,6 +107,11 @@ export interface PersistenceServices {
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
 	readonly geometryStore: PlanGeometryStore;
+	/**
+	 * The slice-7 port over the same store, for `ReversibleCalibratePlanCommand` — the only
+	 * collaborator here that reads and writes calibration rather than an entity note.
+	 */
+	readonly geometry: PlanGeometrySidecar;
 	readonly projects: ProjectRepository;
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
@@ -198,6 +206,7 @@ export function createCompositionRoot(
 	};
 
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
+	const geometry = new ObsidianPlanGeometrySidecar(geometryStore);
 	const projects = new ObsidianProjectRepository(deps);
 	const plans = new ObsidianPlanRepository(deps, geometryStore);
 	const zones = new ObsidianZoneRepository(deps, geometryStore);
@@ -230,6 +239,7 @@ export function createCompositionRoot(
 			vaultDeps: deps,
 			migrations,
 			geometryStore,
+			geometry,
 			projects,
 			plans,
 			zones,
@@ -279,6 +289,11 @@ export function planEditorDeps(
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,
 					zoneInspector: persistence.zoneInspector,
+					// A new command per call — see `CalibratePlanTransaction`. The three
+					// collaborators are the same ones every other write here is built from;
+					// only the lifetime differs.
+					calibratePlan: () =>
+						new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
 				}
 			: unavailablePlanEditorCommands(),
 		vault,

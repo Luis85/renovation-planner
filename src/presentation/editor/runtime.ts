@@ -22,9 +22,12 @@ import type { ToolId } from './tools/editor-tool';
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
 import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
+import { CalibrateTool } from './tools/calibrate-tool';
 import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
+import { useDialogStore } from '../dialogs/dialog-store';
+import KnownDistanceForm from './shell/KnownDistanceForm.vue';
 import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
@@ -123,12 +126,13 @@ function createInspector(
 	})();
 }
 
-/** The two concrete tools of this slice, registered against one shared context factory. */
+/** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(
 	toolManager: ToolManager,
 	context: PlanEditorContext,
 	projectStore: ReturnType<typeof useProjectStore>,
 	ledger: SessionWriteLedger,
+	dialogs: ReturnType<typeof useDialogStore>,
 ): void {
 	toolManager.register(
 		new SelectTool({
@@ -153,6 +157,36 @@ function registerEditorTools(
 					input,
 				),
 			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
+			reportRejected: (error) => notify(error.message),
+		}),
+	);
+	toolManager.register(
+		new CalibrateTool({
+			// The two dialogs this gesture may open, in the order it opens them. Both go
+			// through the leaf's OWN store, so a calibration in one split pane cannot trap
+			// the other — `DialogHost` is per view for exactly that reason.
+			hasSpatialObjects: () => projectStore.zones.size > 0,
+			confirmRecalibration: async () =>
+				(await dialogs.openDialog({
+					kind: 'confirm',
+					title: tr('editor.calibrate.recalibrate.title'),
+					message: tr('editor.calibrate.recalibrate.message'),
+					danger: true,
+				})) === 'confirm',
+			supplyKnownDistance: async (measured) => {
+				const result = await dialogs.openDialog({
+					kind: 'form',
+					title: tr('editor.calibrate.distance.title'),
+					component: KnownDistanceForm,
+					props: { measured },
+				});
+				// `null` is this seam's word for "dismissed", and the tool refuses a
+				// non-number anyway — but narrowing HERE keeps the `unknown` the form
+				// container deliberately carries from reaching the command's input.
+				if (result === 'cancel' || typeof result.values !== 'number') return null;
+				return result.values;
+			},
+			createCommand: () => context.commands.calibratePlan(),
 			reportRejected: (error) => notify(error.message),
 		}),
 	);
@@ -181,10 +215,66 @@ async function reportFault(operation: Promise<VoidResult>): Promise<VoidResult |
 	}
 }
 
+/**
+ * `reportFault`'s other half: an EXPECTED refusal that RESOLVES rather than throws
+ * (SDD §65). `CommandHistory.undoNow`/`redoNow` deliberately leave a refused undo/redo ON
+ * its stack rather than popping it, so without this the button stays enabled, does
+ * nothing, and says nothing about why. A caller chains `notifyIfRefused(reportFault(op))`
+ * to cover both halves — throw and resolved refusal — in one line.
+ */
+async function notifyIfRefused(operation: Promise<VoidResult | null>): Promise<void> {
+	const result = await operation;
+	if (result !== null && !result.ok) notify(result.error.message);
+}
+
+/**
+ * The ONE dispatcher a leaf hands out — tools, toolbar and Inspector alike — wrapped so the
+ * history-flag mirror hears about a tool gesture as well as a toolbar one. A dispatch that
+ * bypasses this object silently breaks the reactive undo/redo flags and nothing errors.
+ *
+ * Two plain refs re-read from the history rather than an invalidation counter that two
+ * computeds subscribed to with a `void revision.value` statement: that spelling put a line
+ * with no visible effect above each `return`, and any tidy-up of it froze the Undo/Redo
+ * buttons in whatever state they had at mount with nothing erroring.
+ *
+ * `finally`, not the resolved path: an unexpected technical fault can still leave the stacks
+ * moved (SDD §65), and flags that stop tracking after one throw are wrong for the rest of
+ * the leaf's life.
+ */
+function wrapDispatcher(
+	history: CommandHistory,
+	dispatcher: ReturnType<typeof withEditorStateRefresh>,
+): {
+	readonly dispatcher: EditorRuntime['dispatcher'];
+	readonly canUndo: Ref<boolean>;
+	readonly canRedo: Ref<boolean>;
+} {
+	const canUndo = ref(history.canUndo);
+	const canRedo = ref(history.canRedo);
+	async function stepping(operation: () => Promise<VoidResult>): Promise<VoidResult> {
+		try {
+			return await operation();
+		} finally {
+			canUndo.value = history.canUndo;
+			canRedo.value = history.canRedo;
+		}
+	}
+	return {
+		dispatcher: {
+			run: (command) => stepping(() => dispatcher.run(command)),
+			undo: () => stepping(() => dispatcher.undo()),
+			redo: () => stepping(() => dispatcher.redo()),
+		},
+		canUndo,
+		canRedo,
+	};
+}
+
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
+	const dialogs = useDialogStore();
 
 	const history = new CommandHistory();
 	const ledger = new SessionWriteLedger();
@@ -203,32 +293,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		planId: context.planId,
 	});
 
-	// Every dispatch in the leaf — tools included — funnels through THIS object, so the
-	// history-flag mirror hears about tool gestures as well as toolbar ones.
-	//
-	// Two plain refs re-read from the history rather than an invalidation counter that two
-	// computeds subscribed to with a `void revision.value` statement: that spelling put a
-	// line with no visible effect above each `return`, and any tidy-up of it froze the
-	// Undo/Redo buttons in whatever state they had at mount with nothing erroring.
-	//
-	// `finally`, not the resolved path: an unexpected technical fault can still leave the
-	// stacks moved (SDD §65), and flags that stop tracking after one throw are wrong for
-	// the rest of the leaf's life.
-	const canUndo = ref(history.canUndo);
-	const canRedo = ref(history.canRedo);
-	async function stepping(operation: () => Promise<VoidResult>): Promise<VoidResult> {
-		try {
-			return await operation();
-		} finally {
-			canUndo.value = history.canUndo;
-			canRedo.value = history.canRedo;
-		}
-	}
-	const wrappedDispatcher: EditorRuntime['dispatcher'] = {
-		run: (command) => stepping(() => dispatcher.run(command)),
-		undo: () => stepping(() => dispatcher.undo()),
-		redo: () => stepping(() => dispatcher.redo()),
-	};
+	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, dispatcher);
 
 	const inspector = createInspector(context, wrappedDispatcher, ledger);
 	inspectorRef.current = inspector;
@@ -290,7 +355,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			activePlan: activePlan(),
 		}),
 	);
-	registerEditorTools(toolManager, context, projectStore, ledger);
+	registerEditorTools(toolManager, context, projectStore, ledger, dialogs);
 
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the
@@ -309,16 +374,16 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		activeToolId.value = id;
 	};
 
-	// `notify`, not a bare `void`: these two are bound straight to toolbar clicks, and
-	// `CommandHistory` deliberately lets an unexpected technical fault reject rather than
-	// resolve a `Result` (SDD §65). Without this the user's Undo press would produce an
-	// unhandled promise rejection and no word of what happened — the same seam every
-	// refused gesture in this leaf already reports through.
+	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
+	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
+	// refuses with a revision conflict whenever anything else has touched the plan's
+	// sidecar since (every zone create, move and delete does), and this is what makes THAT
+	// refusal say something rather than nothing.
 	async function undo(): Promise<void> {
-		await reportFault(wrappedDispatcher.undo());
+		await notifyIfRefused(reportFault(wrappedDispatcher.undo()));
 	}
 	async function redo(): Promise<void> {
-		await reportFault(wrappedDispatcher.redo());
+		await notifyIfRefused(reportFault(wrappedDispatcher.redo()));
 	}
 
 	async function deleteZone(zoneId: ZoneId): Promise<void> {

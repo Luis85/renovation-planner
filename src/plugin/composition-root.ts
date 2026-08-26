@@ -45,6 +45,7 @@ import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
 import { GetZone } from '../application/queries/GetZone';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
+import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
@@ -201,6 +202,12 @@ export interface PersistenceServices {
 	};
 	/** Subscriptions the plugin must dispose on unload; filled at composition time. */
 	readonly subscriptions: { dispose(): void }[];
+	/**
+	 * The durable marker store behind multi-entity sequences, when composed over real
+	 * plugin-local storage — what load-time recovery walks. Absent only in tests that
+	 * compose without one.
+	 */
+	readonly markers?: SequenceMarkerStore;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -223,6 +230,7 @@ interface Slice10Wiring {
 	readonly events: EventBus;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
+	readonly markers?: SequenceMarkerStore;
 }
 
 /**
@@ -231,7 +239,7 @@ interface Slice10Wiring {
  * `createCompositionRoot`'s own body only by the size budget every function shares.
  */
 function composeSlice10(wiring: Slice10Wiring) {
-	const { zones, assets, requirements, recalculate, events, locks, logger } = wiring;
+	const { zones, assets, requirements, recalculate, events, locks, logger, markers } = wiring;
 
 	const subscriptions: { dispose(): void }[] = [
 		registerOnZoneGeometryChanged(events, {
@@ -259,6 +267,7 @@ function composeSlice10(wiring: Slice10Wiring) {
 			events,
 			locks,
 			logger,
+			markers,
 		}),
 		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events),
@@ -309,6 +318,7 @@ export function createCompositionRoot(
 	settings: RenovationPlannerSettings | null,
 	logger: Logger,
 	vault: VaultStack | null = null,
+	markers?: SequenceMarkerStore,
 ): CompositionRoot {
 	// Wired to the logger from its first line: `createEventBus`'s `onError` is where a
 	// throwing subscriber goes, and a bus built without one loses those failures silently
@@ -348,7 +358,7 @@ export function createCompositionRoot(
 	// every view serialize against the same keys.
 	const locks = new ReferenceLocks();
 	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus);
-	const slice10 = composeSlice10({ zones, assets, requirements, recalculate, events: eventBus, locks, logger });
+	const slice10 = composeSlice10({ zones, assets, requirements, recalculate, events: eventBus, locks, logger, markers });
 	const queries = composeQueryServices(zones, plans, projects);
 	const geometry = new ObsidianPlanGeometrySidecar(geometryStore);
 	const files = createVaultFileProbe(vault.vault);
@@ -387,6 +397,7 @@ export function createCompositionRoot(
 				events: eventBus,
 				locks,
 				logger,
+				markers,
 			}),
 			moveZone: new MoveSpatialObjectCommand(zones, eventBus),
 			zoneInspector: new GetZoneInspector(zones),
@@ -400,6 +411,7 @@ export function createCompositionRoot(
 			deleteRequirement: slice10.deleteRequirement,
 			requirementQueries: slice10.queries,
 			subscriptions: slice10.subscriptions,
+			markers,
 			changeAdapter: new VaultChangeAdapter({
 				vault: vault.vault,
 				metadataCache: vault.metadataCache,

@@ -66,6 +66,7 @@ function makeOps(overrides?: {
 	const errors: string[] = [];
 	const ops: RecordedOps = {
 		entityId: 'entity-1',
+		entityKind: 'zone',
 		logger: {
 			debug() {},
 			info() {},

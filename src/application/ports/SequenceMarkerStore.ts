@@ -10,6 +10,8 @@ import type { SequenceMarker } from '../reference/deleteResolution';
  * recovery, and a marker is not a preference a user should find in their settings file.
  */
 export interface SequenceMarkerStore {
+	/** Every outstanding marker — what the load-time recovery pass walks. */
+	list(): Promise<Result<readonly SequenceMarker[], PersistenceError>>;
 	read(entityId: string): Promise<Result<SequenceMarker | null, PersistenceError>>;
 	write(marker: SequenceMarker): Promise<Result<void, PersistenceError>>;
 	clear(entityId: string): Promise<Result<void, PersistenceError>>;

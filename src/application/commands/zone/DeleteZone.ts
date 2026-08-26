@@ -82,6 +82,7 @@ export class DeleteZoneCommand
 		const resolved = await runDeleteResolution(
 			{
 				entityId: input.zoneId,
+				entityKind: 'zone',
 				logger: this.ops.logger,
 				listReferents: () => this.ops.requirements.listByZone(input.zoneId),
 				loadEntity: () => this.ops.zones.getById(input.zoneId),

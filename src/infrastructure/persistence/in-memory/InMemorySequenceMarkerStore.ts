@@ -13,12 +13,16 @@ import type { SequenceMarkerStore } from '../../../application/ports/SequenceMar
 export class InMemorySequenceMarkerStore implements SequenceMarkerStore {
 	private readonly markers = new Map<string, SequenceMarker>();
 
+	list(): Promise<Result<readonly SequenceMarker[], PersistenceError>> {
+		return Promise.resolve(ok([...this.markers.values()]));
+	}
+
 	read(entityId: string): Promise<Result<SequenceMarker | null, PersistenceError>> {
 		return Promise.resolve(ok(this.markers.get(entityId) ?? null));
 	}
 
 	write(marker: SequenceMarker): Promise<Result<void, PersistenceError>> {
-		this.markers.set(marker.entityId, structuredClone(marker));
+		this.markers.set(marker.entityId, marker);
 		return Promise.resolve(ok(undefined));
 	}
 

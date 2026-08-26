@@ -50,7 +50,7 @@ export type SequenceProgress =
 	| { readonly id: RequirementId; readonly outcome: 'written'; readonly version: EntityVersion }
 	| { readonly id: RequirementId; readonly outcome: 'deleted' };
 
-const SEQUENCE_MARKER_SCHEMA_VERSION = 1;
+export const SEQUENCE_MARKER_SCHEMA_VERSION = 1;
 
 /**
  * The durable record written BEFORE a multi-entity sequence's first mutation. Plugin-local
@@ -64,6 +64,8 @@ const SEQUENCE_MARKER_SCHEMA_VERSION = 1;
 export interface SequenceMarker {
 	readonly schemaVersion: number;
 	readonly kind: 'delete-resolution' | 'delete-undo';
+	/** Which repository restores the deleted entity — an ID alone cannot say. */
+	readonly entityKind: 'zone' | 'asset';
 	readonly entityId: string;
 	/** The deleted entity in full plus the version it was deleted at — an ID is not a Zone. */
 	readonly entitySnapshot: Loaded<unknown>;
@@ -88,6 +90,7 @@ function referenceSetChanged(liveCount: number): ReferenceError {
 export interface ResolutionOps<TEntity> {
 	/** The deleted entity's id — a ZoneId or AssetId. */
 	readonly entityId: string;
+	readonly entityKind: 'zone' | 'asset';
 	readonly logger: Logger;
 	listReferents(): Promise<Result<Loaded<Requirement>[], PersistenceError>>;
 	loadEntity(): Promise<Result<Loaded<TEntity> | null, PersistenceError>>;
@@ -359,6 +362,7 @@ async function compensate<TEntity>(
 		if (isErr(restored)) {
 			ops.logger.error('sequence.compensation.failed', {
 				entityId: ops.entityId,
+			entityKind: ops.entityKind,
 				requirementId: entry.id,
 				cause: restored.error,
 			});
@@ -386,6 +390,7 @@ export async function runDeleteResolution<TEntity>(
 			schemaVersion: SEQUENCE_MARKER_SCHEMA_VERSION,
 			kind: 'delete-resolution',
 			entityId: ops.entityId,
+			entityKind: ops.entityKind,
 			entitySnapshot: entitySnapshot,
 			entityDeleted: false,
 			affectedBefore,
@@ -408,6 +413,7 @@ export async function runDeleteResolution<TEntity>(
 		if (isErr(recorded)) {
 			ops.logger.error('sequence.marker-update.failed', {
 				entityId: ops.entityId,
+			entityKind: ops.entityKind,
 				cause: recorded.error,
 			});
 		}
@@ -417,6 +423,7 @@ export async function runDeleteResolution<TEntity>(
 		if (isErr(cleared)) {
 			ops.logger.error('sequence.marker-clear.failed', {
 				entityId: ops.entityId,
+			entityKind: ops.entityKind,
 				cause: cleared.error,
 			});
 		}

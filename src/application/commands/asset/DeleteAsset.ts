@@ -72,6 +72,7 @@ export class DeleteAssetCommand
 		const resolved = await runDeleteResolution(
 			{
 				entityId: input.assetId,
+				entityKind: 'asset',
 				logger: this.ops.logger,
 				listReferents: () => this.ops.requirements.listByAsset(input.assetId),
 				loadEntity: async () => await this.ops.assets.getById(input.assetId),

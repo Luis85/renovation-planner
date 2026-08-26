@@ -519,10 +519,15 @@ Two rules that follow from it and are worth stating because breaking them is che
   a style block, composes real components and sibling mocks through the harness index's registry
   or — once it has a script — by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
   makes that a one-way door and `tests/build/prototypes-not-bundled.test.ts` asks the real
-  build which modules composed each chunk. Its CSS is not exempt from anything: a mock's
-  classes ship in the assembled sheet like every other rule (criterion 5 — one screen, one
-  stylesheet), and `tests/build/prototype-styles.test.ts` refuses a class the sheet leaves
-  undeclared. `src/prototypes/README.md` carries the one rule that is relaxed there.
+  build which modules composed each chunk. Its CSS has TWO homes and they differ in one thing,
+  whether the rules ship: a `<style scoped>` block in the mock does not — nothing imports this
+  tree — and does not travel at promotion either, while a `styles/` partial does both. `scoped`
+  is required rather than preferred, because Vite never removes an injected block and an
+  unscoped one would go on styling the index after the designer opened something else.
+  `tests/build/prototype-styles.test.ts` refuses a class NEITHER home declares, and refuses an
+  unscoped block. A real component is still drawn by the assembled sheet and by nothing else,
+  which is what criterion 5 actually guarantees. `src/prototypes/README.md` carries the whole
+  trade and the one lint rule that is relaxed there.
 
 There is deliberately no list of modules here. `src/` is the list and it cannot go stale.
 

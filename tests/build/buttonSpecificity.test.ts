@@ -101,25 +101,59 @@ const beats = (a: readonly [number, number, number], b: readonly [number, number
 	a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2];
 
 /** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
-const vueFilesUnder = (dir: string): string[] =>
+const filesUnder = (dir: string, ext: string): string[] =>
 	readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
 		entry.isDirectory()
-			? vueFilesUnder(`${dir}/${entry.name}`)
-			: entry.name.endsWith('.vue')
+			? filesUnder(`${dir}/${entry.name}`, ext)
+			: entry.name.endsWith(ext)
 				? [`${dir}/${entry.name}`]
 				: [],
 	);
 
-/** Every `rp-*` class this project puts on a `<button>`, from the templates rather than a list. */
+/**
+ * How far past a `createEl('button'` call to look for its `cls`. Bounded rather than brace-matched
+ * on purpose: the option object nests (`attr: { … }`), so `[^}]*` stops at the wrong brace, and a
+ * real parser is far more than this needs. The limit is a stated one — a `cls` further away than
+ * this, or built from a variable rather than a literal, is not seen, and the instrument case below
+ * pins the one call that exists rather than trusting the window.
+ */
+const CREATE_WINDOW = 300;
+
+/**
+ * Every `rp-*` class this project puts on a `<button>`, from the SOURCE rather than a list — and
+ * from both ways a button is made here, which is the correction this function needed.
+ *
+ * It read Vue templates only, so `.rp-harness-scheme` — created in `tests/harness/theme.ts` with
+ * `createEl('button', { cls: … })` — was in no class set, and every rule governing it went
+ * unchecked by both cases below while `theme.css` sat in `sheets` looking covered. Measured:
+ * reverting its doubled selector to the bare class AND deleting its focus ring left this file
+ * green. A scan that names one authoring style silently exempts the other.
+ */
 function buttonClasses(): Set<string> {
 	const found = new Set<string>();
+	const add = (text: string) => {
+		for (const [cls] of text.matchAll(/\brp-[\w-]+/g)) found.add(`.${cls}`);
+	};
 
-	for (const file of vueFilesUnder('src/presentation')) {
+	for (const file of filesUnder('src/presentation', '.vue')) {
 		// The OPENING TAG only, so a class on a sibling element inside the button's own markup is
 		// not collected as if the button wore it. Both `class="…"` and `:class="{ x: … }"` live in
 		// there, and `rp-editor-tool-active` arrives only through the second.
-		for (const [tag] of readFileSync(file, 'utf8').matchAll(/<button\b[^>]*>/g)) {
-			for (const [cls] of tag.matchAll(/\brp-[\w-]+/g)) found.add(`.${cls}`);
+		for (const [tag] of readFileSync(file, 'utf8').matchAll(/<button\b[^>]*>/g)) add(tag);
+	}
+
+	// Obsidian's own DOM helper, which is how anything outside a Vue tree makes an element here.
+	// `tests/harness` as well as `src`, because the harness's chrome is styled by a sheet this
+	// file scans and is therefore this file's business.
+	for (const dir of ['src', 'tests/harness']) {
+		for (const file of filesUnder(dir, '.ts')) {
+			const source = readFileSync(file, 'utf8');
+
+			for (const match of source.matchAll(/createEl\(\s*['"]button['"]/g)) {
+				const cls = /\bcls:\s*['"]([^'"]+)['"]/.exec(source.slice(match.index, match.index + CREATE_WINDOW));
+
+				if (cls !== null) add(cls[1]);
+			}
 		}
 	}
 
@@ -142,14 +176,25 @@ const rulesIn = (css: string): Array<[string, string]> =>
 	]);
 
 /**
- * Does this selector's SUBJECT — its last compound, the element the rule actually styles — carry
- * the class? An ancestor mention does not count: `.rp-dialog-button .icon` styles the icon.
+ * The class tokens on a selector's SUBJECT — its last compound, the element the rule actually
+ * styles. An ancestor mention does not count: `.rp-dialog-button .icon` styles the icon.
+ *
+ * WHOLE TOKENS, which is the correction this needed. It was `subject.includes(cls)`, a substring
+ * test, and `.rp-dialog-button` is a PREFIX of `.rp-dialog-button-danger` — so a danger rule
+ * matched the base class first, inherited its `DEFERS_TO_THE_HOST` exemption, and was skipped.
+ * Measured: reverting `.rp-dialog .rp-dialog-button-danger` to the bare selector that caused the
+ * original defect left this file green. The one rule this whole check was written for was the one
+ * rule it could not see.
  */
-const subjectCarries = (selector: string, cls: string): boolean => {
+const subjectClasses = (selector: string): string[] => {
 	const subject = selector.split(/\s+|>|\+|~/).filter(Boolean).pop() ?? '';
 
-	return subject.includes(cls);
+	return [...subject.matchAll(/\.[\w-]+/g)].map(([token]) => token);
 };
+
+/** The button classes a selector's subject wears, as exact tokens. */
+const buttonClassesOn = (selector: string, classes: Set<string>): string[] =>
+	subjectClasses(selector).filter((token) => classes.has(token));
 
 describe('the instrument', () => {
 	it.each([
@@ -185,6 +230,31 @@ describe('the instrument', () => {
 		expect(classes).toContain('.rp-dialog-button-danger');
 	});
 
+	/**
+	 * The imperative half. `.rp-harness-scheme` exists only as a `createEl('button', { cls })` in
+	 * `tests/harness/theme.ts`, and a scan of Vue templates alone left every rule governing it
+	 * unchecked while its sheet sat in `sheets` looking covered.
+	 */
+	it('finds a button created through createEl, not only one written as a tag', () => {
+		expect(buttonClasses()).toContain('.rp-harness-scheme');
+	});
+
+	/**
+	 * WHOLE TOKENS. `.rp-dialog-button` is a prefix of `.rp-dialog-button-danger`, and a substring
+	 * test handed the danger rule the base class's `DEFERS_TO_THE_HOST` exemption — so the one
+	 * rule this check was written for was the one rule it skipped.
+	 */
+	it('does not read a longer class as the shorter one it starts with', () => {
+		const classes = new Set(['.rp-dialog-button', '.rp-dialog-button-danger']);
+
+		expect(buttonClassesOn('.rp-dialog .rp-dialog-button-danger', classes)).toEqual(['.rp-dialog-button-danger']);
+		expect(buttonClassesOn('.rp-dialog .rp-dialog-button', classes)).toEqual(['.rp-dialog-button']);
+	});
+
+	it('reads only the subject, never an ancestor', () => {
+		expect(buttonClassesOn('.rp-dialog-button .icon', new Set(['.rp-dialog-button']))).toEqual([]);
+	});
+
 	it('scans sheets that exist and hold rules', () => {
 		expect(sheets.length).toBeGreaterThan(3);
 		expect(rulesIn(readFileSync('styles/editor.css', 'utf8')).length).toBeGreaterThan(5);
@@ -201,9 +271,13 @@ describe('every button rule against Obsidian\'s own', () => {
 				if (!CONTESTED.some((property) => new RegExp(`(^|[;{\\s])${property}\\s*:`).test(body))) continue;
 
 				for (const selector of prelude.split(',').map((part) => part.trim())) {
-					const cls = [...classes].find((candidate) => subjectCarries(selector, candidate));
+					const onSubject = buttonClassesOn(selector, classes);
 
-					if (cls === undefined || DEFERS_TO_THE_HOST.includes(cls)) continue;
+					if (onSubject.length === 0) continue;
+					// EVERY token must be a deferring one for the rule to be exempt. A subject wearing
+					// both `.rp-dialog-button` and `.rp-dialog-button-danger` is governed by the
+					// stricter of the two, which is the case the substring bug got backwards.
+					if (onSubject.every((token) => DEFERS_TO_THE_HOST.includes(token))) continue;
 					if (!beats(specificityOf(selector), OBSIDIAN_BUTTON)) losing.push(`${sheet}: ${selector}`);
 				}
 			}
@@ -237,13 +311,12 @@ describe('every button rule against Obsidian\'s own', () => {
 		for (const sheet of sheets) {
 			for (const [prelude, body] of rulesIn(readFileSync(sheet, 'utf8'))) {
 				for (const selector of prelude.split(',').map((part) => part.trim())) {
-					const cls = [...classes].find((candidate) => subjectCarries(selector, candidate));
-
-					if (cls === undefined) continue;
-					if (selector.includes(':focus-visible')) ringed.add(cls);
-					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow
-					// says nothing about the resting state a ring is drawn on.
-					else if (/box-shadow\s*:\s*none/.test(body)) flattened.set(cls, `${sheet}: ${selector}`);
+					for (const cls of buttonClassesOn(selector, classes)) {
+						if (selector.includes(':focus-visible')) ringed.add(cls);
+						// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow
+						// says nothing about the resting state a ring is drawn on.
+						else if (/box-shadow\s*:\s*none/.test(body)) flattened.set(cls, `${sheet}: ${selector}`);
+					}
 				}
 			}
 		}

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 80
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -45,13 +45,33 @@ actually fire.
 - `linterOptions.noInlineConfig` means no comment can turn the rule off, so the exposure is a
   selector that stops matching, not one that gets suppressed.
 
-## What closes it
+## What closed it
 
-A `tests/build/` case that runs ESLint's API over a fixture snippet per selector — one that
-must report, and one near-miss that must not — in the shape `logging-carve-out.test.ts`
-already uses. A rewritten selector, or an AST shape changing under a TypeScript upgrade, then
-fails at `npm run check` instead of at the review that notices the vault got written from a
-view.
+`tests/build/write-boundary.test.ts` — sixteen cases through `lintText`, which resolves the
+real flat config for a path without writing anything, so a deliberately-offending fixture never
+lands under `src/` where it would fail `npm run lint` for the whole repository.
+
+Four groups, because the rule can fail in four different directions:
+
+- **Every selector reports.** Frontmatter, a vault write through a property and through a local
+  named `vault`, an adapter write both ways, and both halves of the local-storage pair.
+- **The sanctioned directory still writes.** Without this the suite could not tell a working
+  boundary from one that refuses everything everywhere — a state that fails the build, but only
+  once someone writes the next repository method.
+- **Reads are not writes**, including a method whose name merely starts the same way.
+- **The two blind spots the config declares in prose**, pinned as absences: a differently-named
+  alias and a destructured method. Writing down that they escape is not an endorsement; it is
+  what stops the next reader believing the rule covers a spelling it cannot see.
+
+Plus the extension list, which went stale once already — the glob named only `.ts` and `.vue`
+after `SRC_EXTENSIONS` grew, so a `.js` file was covered by every layer ban and still bypassed
+this boundary. A `.js` case and an SFC case pin the two that are easy to forget. Narrowing the
+glob back to `.ts` reds exactly those two; neutering a selector reds exactly its own cases.
+
+One constraint worth recording, since it cost a first draft: the `.ts` blocks are type-aware,
+so a virtual path with no file behind it cannot be parsed and `lintText` answers `PARSE_ERROR`
+— which contains no rule id and would have read as "the boundary said nothing" in every
+negative case. The probes borrow real paths instead.
 
 ## Why it matters
 

@@ -89,8 +89,11 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import IndexPage from './IndexPage.vue';
+import { indexAppConfig } from './indexApp';
 import { mountHarness } from './mount';
-import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { mountPlanEditor, settle, type EditorHarness } from '../helpers/editor';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -107,6 +110,31 @@ const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'ta
 
 const runOptions: Parameters<typeof axe.run>[1] = {
 	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
+};
+
+/** The index at one URL, mounted exactly as `tests/harness/page.ts` configures the browser's. */
+const openIndex = async (query: string): Promise<VueWrapper> => {
+	window.history.replaceState({}, '', `/?${query}`);
+
+	const host = document.createElement('div');
+
+	document.body.appendChild(host);
+
+	const wrapper = mount(IndexPage, { attachTo: host, global: indexAppConfig() });
+
+	await settle();
+
+	return wrapper;
+};
+
+/** One state of the index, scanned and torn down — the mount must not outlive the scan. */
+const scan = async (query: string) => {
+	const wrapper = await openIndex(query);
+	try {
+		return await axe.run(wrapper.element as HTMLElement, runOptions);
+	} finally {
+		wrapper.unmount();
+	}
 };
 
 beforeEach(() => {
@@ -172,5 +200,53 @@ describe('axe against the mounted view', () => {
 		} finally {
 			mounted?.unmount();
 		}
+	});
+});
+
+/**
+ * The harness index, which this file did not touch until now — and which is the surface here
+ * most likely to hold a defect axe CAN see, since it is the only page built out of interactive
+ * controls rather than a canvas: a labelled `nav`, a list of links, an `h1`, a live
+ * `role="alert"` and a stage whose contents swap.
+ *
+ * "Developer tooling" is the usual reason to skip it and is not a good one: a designer using a
+ * screen reader is a person this tool would otherwise exclude. The file's whole ceiling still
+ * applies — see the header — so this grades semantics and nothing about how any of it looks.
+ *
+ * Mounted through `indexAppConfig()`, the same object the browser's page is configured from,
+ * for the reason every case above gives: a fixture typed into this file would grade markup
+ * nobody keeps in sync with what renders.
+ *
+ * Three states rather than one, because they draw different markup and only the first is
+ * reachable by default: the picker, an entry OPEN on the stage (which grades the prototype's
+ * own markup too — this is the case that would catch a mock shipping an unlabelled control),
+ * and the failure card, which exists only when something went wrong and is the one piece of
+ * live-region markup in the tree.
+ */
+describe('axe against the harness index', () => {
+	it.each([
+		['the picker', 'index'],
+		['an entry open on the stage', 'entry=prototype:ZonePanel'],
+		['the failure card', 'entry=prototype:Nope'],
+	])('reports no semantic violations on %s', async (_state, query) => {
+		expect((await scan(query)).violations).toEqual([]);
+	});
+
+	/**
+	 * The case above is only worth its runtime if the page it scanned had the state's markup in
+	 * it. `?entry=` resolves against the real entry list, so a renamed prototype would leave the
+	 * middle case scanning a failure card — passing, and grading nothing it claims to.
+	 */
+	it('scanned the states it names', async () => {
+		const open = await openIndex('entry=prototype:ZonePanel');
+
+		expect(open.find('.rp-harness-failure').exists(), 'the ZonePanel entry did not open').toBe(false);
+		expect(open.find('.rp-zone-summary').exists()).toBe(true);
+		open.unmount();
+
+		const failed = await openIndex('entry=prototype:Nope');
+
+		expect(failed.find('.rp-harness-failure').attributes('role')).toBe('alert');
+		failed.unmount();
 	});
 });

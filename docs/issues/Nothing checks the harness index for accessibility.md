@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 30
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -39,12 +39,27 @@ in jsdom: it is the only page here built out of interactive controls rather than
 - The failure card's `role="alert"` and the `data-failure` attribute beside it are a pairing
   axe would have an opinion about.
 
-## What closes it
+## What closed it
 
-One more case in `tests/harness/accessibility.test.ts` mounting the index through
-`tests/harness/indexApp.ts` — the app config both index test files already share, so the mount
-is a few lines — and scanning it, with a second case for the failure state, since the alert is
-only in the tree when something failed.
+Three cases in `tests/harness/accessibility.test.ts`, mounted through `indexAppConfig()` — the
+same object the browser's page is configured from — one per state, because the three draw
+different markup and only the first is reachable by default:
+
+- **the picker**, which is the labelled `nav`, the `h1` and the list of links;
+- **an entry open on the stage**, which grades the prototype's own markup as well as the
+  index's — this is the case that would catch a mock shipping an unlabelled control;
+- **the failure card**, the one piece of live-region markup in the tree, which exists only
+  when something has gone wrong.
+
+All three passed on the first run, so a fourth case makes them worth their runtime: a
+nameless `<button>` injected into the template reds all three, and a separate case asserts the
+middle scan actually opened `ZonePanel` rather than quietly scanning a failure card — a
+renamed prototype would otherwise leave it green while grading nothing it claims to. Watched
+failing both ways.
+
+The file's whole ceiling still applies and this note must not be read as widening it: contrast,
+focus visibility, hit-target size and the page-wide landmark rules are as invisible on the
+index as they are on every other surface here.
 
 ## Why it matters
 

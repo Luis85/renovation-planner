@@ -57,14 +57,17 @@ An item beneath this epic is done when:
   references the definition and never copies it, and a derived value is recomputed on read (§88).
   This epic extends those rules from price to geometry and deliberately does not restate them — a
   rule stated in two notes is two rules the day one of them is edited.
-- The footprint a placement referenced stays **identifiable after the fact**, so that freezing a
-  plan has something to freeze. This epic hands [[Plan revisions]] a problem it did not have: an
-  approved revision is immutable and must stay recoverable, that epic snapshots a plan's *own*
-  geometry, and a referenced footprint is not in that snapshot — so reshaping a definition would
-  silently redraw a drawing somebody had already approved, which is exactly the failure that epic
-  exists to prevent. Whether the answer is a version pin or a snapshot taken at approval is **that
-  epic's to decide**; the obligation here is only that the geometry a placement used is
-  recoverable rather than overwritten in place.
+- **Every attribute of the shape a placement referenced** stays identifiable after the fact —
+  footprint, clearance boundary, anchor, facing and height, not the outline alone — so that
+  freezing a plan has something to freeze. This epic hands [[Plan revisions]] a problem it did not
+  have: an approved revision is immutable and must stay recoverable, that epic snapshots a plan's
+  *own* geometry, and a referenced shape is in none of it — so editing a definition would silently
+  redraw, reorient or re-export a drawing somebody had already approved, which is exactly the
+  failure that epic exists to prevent. The attributes are named one by one on purpose: an
+  obligation written about *the geometry* reads as the outline, and the other four move the
+  rendering and the export just as surely. Whether the answer is a version pin or a snapshot taken
+  at approval is **that epic's to decide**; the obligation here is only that the state a placement
+  used is recoverable rather than overwritten in place.
 - The calibration a designer surface takes belongs to **that object** and never reaches a plan's.
   The act itself stays [[Calibration and measurement]]'s, and this epic inherits its rules on
   units (§70), on the separation of internal from display precision (§71), and on loud

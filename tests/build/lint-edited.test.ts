@@ -1,12 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
 
 /**
- * The edit-loop hook: oxlint over the ONE file an agent just wrote, reported back while
+ * The edit-loop hook: oxlint over the ONE file an agent just wrote — and ESLint too when that
+ * file is an SFC, since oxlint has no Vue rules at all — reported back while
  * the reasoning that produced it is still in hand. `npm run check` is still the definition
  * of done — this only moves the cheapest half of it several turns earlier.
  *
@@ -58,6 +59,25 @@ const named = (command: string) =>
 			.join('/'),
 	);
 
+/**
+ * An SFC at a path ESLint's `VUE_FILES` glob actually matches — see the SFC cases for why a
+ * temp directory cannot be used. Tracked so `afterEach` removes it even when a case throws:
+ * a stray offending `.vue` left in the tree would fail `npm run lint` for the whole repository.
+ */
+const plantedSfcs: string[] = [];
+
+const plantSfc = (contents: string) => {
+	const file = path.join(REPO, 'tests', 'harness', `lint-edited-probe-${plantedSfcs.length}.vue`);
+
+	plantedSfcs.push(file);
+	writeFileSync(file, contents);
+	return file;
+};
+
+afterEach(() => {
+	for (const file of plantedSfcs.splice(0)) rmSync(file, { force: true });
+});
+
 const plant = (contents: string) => {
 	const file = path.join(mkdtempSync(path.join(tmpdir(), 'lint-edited-')), 'edited.ts');
 
@@ -85,6 +105,35 @@ describe('the edit-loop hook', () => {
 
 	it('leaves a file oxlint does not parse alone', () => {
 		expect(hook(edited('README.md')).code).toBe(0);
+	});
+
+	/**
+	 * The one extension where oxlint alone is not enough, and the reason this hook runs a second
+	 * linter at all: oxlint has no port of `eslint-plugin-vue` — no Vue rules whatever — so a
+	 * `.vue` edit used to come back clean from a hook that could not read the ruleset governing
+	 * it. `vue/html-indent` is exactly what a mock author trips first, and `npm run check` said
+	 * so several turns later, which is the gap this hook exists to close.
+	 *
+	 * Planted under `tests/harness/`, which is a real directory `VUE_FILES` matches: ESLint's
+	 * flat config resolves `files` globs against the project, so a temp-directory path — what
+	 * `plant` produces for every other case here — matches no block and would be reported as
+	 * nothing at all. Removed in `afterEach` whatever happens.
+	 */
+	it('tells the agent what ESLint found in an SFC, which oxlint cannot see at all', () => {
+		const spaced = '<template>\n  <p>x</p>\n</template>\n';
+
+		const { code, said } = hook(edited(plantSfc(spaced)));
+
+		expect(said).toContain('vue/html-indent');
+		expect(code).toBe(2);
+	});
+
+	// The other direction, so the case above is not passing because ESLint reports on every SFC:
+	// a conforming template must still come back silent.
+	it('says nothing about an SFC that conforms', () => {
+		const tabbed = '<template>\n\t<p>x</p>\n</template>\n';
+
+		expect(hook(edited(plantSfc(tabbed)))).toEqual({ code: 0, said: '' });
 	});
 
 	/**

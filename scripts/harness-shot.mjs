@@ -2,14 +2,24 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
+import {
+	describeFailure,
+	entryHasDrawn,
+	readFailureKind,
+	reportIfNoLongerDrawn,
+	UNKNOWN_ENTRY,
+	waitUntilReady,
+} from './captureReadiness.mjs';
 import { resolveChromiumExecutable } from './chromium.mjs';
+import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — the dark scheme, the light scheme and `?phone`
- * — for a look nobody has to open a browser for. This is how a real layout defect was
- * found earlier in this plan (the view collapsing to 39px of a 700px pane): nothing in the
- * suite could see it because jsdom draws nothing, and a screenshot is the only artifact
- * that shows it.
+ * Headless capture of the browser harness — either the five fixed surfaces (the project
+ * view's dark scheme, light scheme and `?phone`, plus the Plan Editor's dark and light
+ * schemes) or, given an entry id, one named prototype or component in both schemes — for a
+ * look nobody has to open a browser for. This is how a real layout defect was found earlier
+ * in this plan (the view collapsing to 39px of a 700px pane): nothing in the suite could see
+ * it because jsdom draws nothing, and a screenshot is the only artifact that shows it.
  *
  * What this is NOT: a test. It draws; it asserts no appearance, and there is no baseline
  * to diff against — the same reason `npm run harness` itself is outside `npm run check`.
@@ -34,6 +44,21 @@ const VIEWPORT = { width: 1280, height: 800 };
 const PROJECT_VIEW = '.renovation-planner-view';
 const PLAN_EDITOR_VIEW = '.renovation-plan-editor-view';
 
+/**
+ * The viewport for one shot: `VIEWPORT`, with `width` overriding its one field when a shot
+ * carries one.
+ *
+ * Height is deliberately NOT a second knob. What a narrow capture answers is how the layout
+ * WRAPS, and the page scrolls, so a shorter viewport would only crop the answer.
+ *
+ * A named function rather than a ternary inside `captureOne`, and that is a gate talking rather
+ * than taste: `captureOne` runs at module scope behind a browser, so no test covers it, and one
+ * more branch took its CRAP score to exactly the threshold `npm run analyze` fails at. Lifting
+ * the decision out is the honest fix — the branch is about viewport policy and not about
+ * capturing, and out here it can be read on its own.
+ */
+const viewportFor = (width) => (width === undefined ? VIEWPORT : { ...VIEWPORT, width });
+
 const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
@@ -48,30 +73,58 @@ const SHOTS = [
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not
- * cost the other two their PNGs. */
-async function captureOne(browser, baseUrl, { name, query, selector }, errors) {
-	const page = await browser.newPage({ viewport: VIEWPORT });
+ * cost the rest of the run its PNGs.
+ *
+ * Returns the page's own CLASSIFICATION of the failure it recorded (`readFailureKind`), or
+ * `undefined` on a clean capture: `captureAll` reads it to decide whether the SECOND colour
+ * scheme of the same entry is worth attempting at all. The kind rather than the reason, because
+ * the reason is prose an entry's own error can imitate — see `readFailureKind`. The reason is
+ * still pushed here rather than returned: the errors list is what the exit code is built from,
+ * and a caller that forgot to push would turn a failure into a green run. */
+async function captureOne(browser, baseUrl, { name, query, selector, entry, width }, errors) {
+	const page = await browser.newPage({ viewport: viewportFor(width) });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
 	page.on('console', (msg) => {
 		if (msg.type() === 'error') errors.push(`[${name}] console error: ${msg.text()}`);
 	});
+	// `console.warn` is deliberately NOT recorded here. `IndexPage.vue`'s `warnHandler` sends
+	// EVERY Vue warning there unconditionally (attributed or not, late or not) — it is the one
+	// channel a warning always reaches, on top of whatever else it does — so treating it as a
+	// failure signal would fail a shot on a warning that never touched the entry on stage at
+	// all, which is the false positive `warnHandler`'s own header goes out of its way to avoid
+	// (`console.error` is its channel for that; see "Not dropped" there). The late-clear window
+	// this file exists to close is closed by re-asking `entryHasDrawn` after the screenshot
+	// (`reportIfNoLongerDrawn`), which reads the one thing that actually failed rather than a
+	// channel carrying both real defects and noise.
 
 	try {
 		// 'load', not 'networkidle': Vite's dev server keeps an HMR websocket open, which
 		// networkidle waits forever for.
 		await page.goto(`${baseUrl}/${query}`, { waitUntil: 'load' });
-		await page.waitForSelector(selector, { state: 'attached' });
+		// `entryHasDrawn` is passed in rather than imported over there: `captureReadiness.mjs`
+		// only ever hands it to `page.waitForFunction`, so it stays free of DOM-shaped code and a
+		// fake `page` can drive the race with no browser. Same bargain `reportIfNoLongerDrawn`
+		// already makes below.
+		await waitUntilReady(page, selector, entry, entryHasDrawn);
 
 		const file = path.join(OUT_DIR, `${name}.png`);
 
 		await page.screenshot({ path: file, fullPage: true });
+		await reportIfNoLongerDrawn(page, entry, name, errors, entryHasDrawn);
+
 		console.log(`wrote ${file}`);
 	} catch (error) {
-		errors.push(`[${name}] ${error instanceof Error ? error.message : String(error)}`);
+		const reason = error instanceof Error ? error.message : String(error);
+		const described = await describeFailure(page, entry, reason);
+
+		errors.push(`[${name}] ${described}`);
+		return (await readFailureKind(page, entry)) ?? undefined;
 	} finally {
 		await page.close();
 	}
+
+	return undefined;
 }
 
 /** Boot the harness's own dev server (`vite.harness.config.ts`) on a free port, the JS API
@@ -112,12 +165,49 @@ async function startHarnessServer() {
 	}
 }
 
-/** All three shots, and the errors any of them raised — collected rather than thrown, so
- * one bad shot does not cost the other two their PNGs. */
-async function captureAll(browser, baseUrl) {
-	const errors = [];
+/** Why this shot is not being attempted, or `undefined` to attempt it. Its own function so
+ * `captureAll` stays one decision per line — fallow's complexity budget reads the loop, and a
+ * capture loop is the wrong place to spend it. */
+function skipReason({ name, entry }, missing) {
+	if (entry === undefined || !missing.has(entry)) return undefined;
 
-	for (const shot of SHOTS) await captureOne(browser, baseUrl, shot, errors);
+	return `[${name}] not attempted: the index has no entry named ${entry}`;
+}
+
+/** Whether a shot's failure means the ENTRY is missing rather than that it drew badly — the
+ * only failure whose answer the other colour scheme cannot change. `undefined` is a clean
+ * capture, which is never a reason to skip anything. */
+const isMissingEntry = ({ entry }, kind) => entry !== undefined && kind === UNKNOWN_ENTRY;
+
+/** Every shot in the list — five for a bare run, two for a named entry — and the errors any
+ * of them raised, collected rather than thrown, so one bad shot does not cost the rest of
+ * the run its PNGs.
+ *
+ * An entry the index says it does not HAVE is not attempted twice. The two shots of one entry
+ * differ only by `?theme`, and a mistyped id fails identically in both schemes — so the second
+ * one is a page load, a race and a `describeFailure` read spent to be told the same sentence.
+ * It is still REPORTED, with the reason: silently writing one PNG where two were promised, and
+ * saying nothing about the second, is the shape of quiet this whole script is against. Only
+ * "no such entry" qualifies, and it is the PAGE that says so (`readFailureKind` reads
+ * `data-failure`, not the message); an entry that exists and drew badly is attempted in both
+ * schemes, because a defect can be scheme-specific and looking is the point. */
+async function captureAll(browser, baseUrl, shots) {
+	const errors = [];
+	const missing = new Set();
+
+	for (const shot of shots) {
+		const skipped = skipReason(shot, missing);
+
+		if (skipped !== undefined) {
+			errors.push(skipped);
+			continue;
+		}
+
+		const failure = await captureOne(browser, baseUrl, shot, errors);
+
+		if (isMissingEntry(shot, failure)) missing.add(shot.entry);
+	}
+
 	return errors;
 }
 
@@ -134,6 +224,15 @@ function reportErrors(errors) {
 async function run() {
 	const executablePath = resolveChromiumExecutable();
 
+	// `node scripts/harness-shot.mjs prototype:ZoneSummary` — one entry, both schemes. The
+	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
+	// the label, but the URL and this command both take the id, since a mock and the real
+	// component it stands in for share a basename and need to stay reachable as two entries.
+	// With no argument, the five fixed surfaces, exactly as before. `resolveShots` is what
+	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
+	// rather than reading this file's source text to check which index it uses.
+	const shots = resolveShots(process.argv, SHOTS, process.env);
+
 	mkdirSync(OUT_DIR, { recursive: true });
 
 	const { server, baseUrl } = await startHarnessServer();
@@ -148,7 +247,7 @@ async function run() {
 		const browser = await chromium.launch({ executablePath, headless: true });
 
 		try {
-			reportErrors(await captureAll(browser, baseUrl));
+			reportErrors(await captureAll(browser, baseUrl, shots));
 		} finally {
 			await browser.close();
 		}

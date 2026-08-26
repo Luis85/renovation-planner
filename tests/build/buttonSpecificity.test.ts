@@ -213,6 +213,48 @@ describe('every button rule against Obsidian\'s own', () => {
 	});
 
 	/**
+	 * FLATTENING A BUTTON TAKES ITS FOCUS RING WITH IT, and this is the check for that.
+	 *
+	 * A rule that beats (0,1,1) on `box-shadow` also beats Obsidian's `button:focus-visible`,
+	 * which is where a button's ring comes from — and Obsidian's global `:focus { outline: none }`
+	 * has already taken the outline, so nothing is left. Measured on a focused toolbar button
+	 * after the specificity fix and before this one: `outline: none`, `box-shadow: none`, both
+	 * schemes. The same pull request that fixed exactly this defect on the index's entry links
+	 * reintroduced it on four other controls, by fixing something else. It was caught by review,
+	 * not by any gate here — jsdom resolves no `:focus-visible`, and a capture only shows it if
+	 * something happens to be focused when the shutter opens.
+	 *
+	 * So the rule is stated where it can be enforced: a subject that suppresses `box-shadow` must
+	 * have a `:focus-visible` rule of its own. It does not check what that rule DRAWS — that is a
+	 * contrast question no gate here can answer (`--interactive-accent` was chosen over Obsidian's
+	 * own ring token by measuring both in a browser; the numbers are in `styles/editor.css`).
+	 */
+	it('gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring', () => {
+		const classes = buttonClasses();
+		const flattened = new Map<string, string>();
+		const ringed = new Set<string>();
+
+		for (const sheet of sheets) {
+			for (const [prelude, body] of rulesIn(readFileSync(sheet, 'utf8'))) {
+				for (const selector of prelude.split(',').map((part) => part.trim())) {
+					const cls = [...classes].find((candidate) => subjectCarries(selector, candidate));
+
+					if (cls === undefined) continue;
+					if (selector.includes(':focus-visible')) ringed.add(cls);
+					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow
+					// says nothing about the resting state a ring is drawn on.
+					else if (/box-shadow\s*:\s*none/.test(body)) flattened.set(cls, `${sheet}: ${selector}`);
+				}
+			}
+		}
+
+		expect([...flattened].filter(([cls]) => !ringed.has(cls)).map(([, where]) => where)).toEqual([]);
+		// The set must not be empty, or this passes by scanning nothing — the same trap
+		// `accessibility.test.ts` names for an `it.each` over an empty array.
+		expect(flattened.size).toBeGreaterThan(2);
+	});
+
+	/**
 	 * The check above is a negative, and a negative that has never fired is not known to fire.
 	 * This drives the exact spelling every one of the five real defects had — a bare class on a
 	 * button, setting a contested property — through the same predicate.

@@ -498,13 +498,27 @@ body {
 	border-radius: var(--radius-s);
 	background-color: var(--background-secondary);
 	box-shadow: none;
-	color: var(--text-faint);
+	/*
+	 * `--text-muted` and NOT `--text-faint`, which this rule asked for until the doubled selector
+	 * made it win. That is the whole irony of the fix: while it lost the cascade the toggle drew
+	 * in Obsidian's `--text-color` and was readable by accident, and winning gave it the colour
+	 * it had always asked for — 2.12:1 in light and 2.57:1 in dark, measured, against a 4.5:1
+	 * floor. `--text-muted` is 6.19:1 and 7.03:1 on this background. It is the same call
+	 * `.rp-harness-count` above records, and this rule had it wrong for the same reason: an
+	 * 11px label reads as decoration until somebody has to read it.
+	 */
+	color: var(--text-muted);
 	font-family: ui-monospace, monospace;
 	font-size: 11px;
 	cursor: var(--cursor, pointer);
 }
 
+.rp-harness-scheme.rp-harness-scheme:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 .rp-harness-scheme.rp-harness-scheme:hover {
-	color: var(--text-muted);
+	color: var(--text-normal);
 	background-color: var(--background-modifier-hover);
 }

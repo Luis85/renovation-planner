@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { PersistenceError } from '../../core/errors/AppError';
 import { isErr } from '../../core/result/Result';
+import { selectPlanEditorEmptyState } from '../emptyStates/selectors';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
 
@@ -127,6 +128,22 @@ export const useProjectStore = defineStore('project', () => {
 		status.value = 'ready';
 	}
 
+	/**
+	 * Which empty state this Plan Editor is in, or `null` for a normal render (design slice
+	 * 14). A getter over state this store already hydrates — no new field and no new query,
+	 * which is why it is here rather than in a store of its own.
+	 *
+	 * It reads `plan` and `zones` and NOTHING about the editor: whether an active tool
+	 * currently displaces the overlay is a rendering rule, decided in `PlanEditorRoot`. A
+	 * store that mixed the two would make "which state is this plan in" unanswerable without
+	 * a live tool manager, and this getter's whole value is that it is answerable.
+	 *
+	 * A failed or missing read never reaches the selector: `plan` is `null` in both cases and
+	 * the selector returns no key for that — which is the `Ok(null)`-is-a-broken-reference
+	 * rule, not an accident of ordering.
+	 */
+	const emptyStateKey = computed(() => selectPlanEditorEmptyState(plan.value, [...zones.value.values()]));
+
 	/** What the view calls on close, so a reused leaf never opens onto the last Plan. */
 	function reset(): void {
 		// Invalidates any hydration still in flight: a leaf closing must not have the plan
@@ -147,5 +164,5 @@ export const useProjectStore = defineStore('project', () => {
 	 * being a declared shape.
 	 */
 	// fallow-ignore-next-line unused-store-member
-	return { project, plan, zones, status, error, hydrate, reset };
+	return { project, plan, zones, status, error, emptyStateKey, hydrate, reset };
 });

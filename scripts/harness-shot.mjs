@@ -14,9 +14,10 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the five fixed surfaces (the project
- * view's dark scheme, light scheme and `?phone`, plus the Plan Editor's dark and light
- * schemes) or, given an entry id, one named prototype or component in both schemes — for a
+ * Headless capture of the browser harness — either the seven fixed surfaces (the project
+ * view's dark scheme, light scheme and `?phone`, the Plan Editor's dark and light schemes,
+ * and the harness index's own two) or, given an entry id, one named prototype or component
+ * in both schemes — for a
  * look nobody has to open a browser for. This is how a real layout defect was found earlier
  * in this plan (the view collapsing to 39px of a 700px pane): nothing in the suite could see
  * it because jsdom draws nothing, and a screenshot is the only artifact that shows it.
@@ -43,6 +44,10 @@ const VIEWPORT = { width: 1280, height: 800 };
 // out on a page that had rendered perfectly.
 const PROJECT_VIEW = '.renovation-planner-view';
 const PLAN_EDITOR_VIEW = '.renovation-plan-editor-view';
+// The harness's own picker. Present from the first paint and with nothing async under it — the
+// index at `?index` opens no entry — so unlike the two surfaces above there is no "has it really
+// drawn" question to answer here beyond the element existing.
+const HARNESS_INDEX = '.rp-harness-index';
 
 /**
  * The viewport for one shot: `VIEWPORT`, with `width` overriding its one field when a shot
@@ -69,6 +74,18 @@ const SHOTS = [
 	// surfaces; add one when §61 changes.
 	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
+	// The harness's own index, in both schemes — the one surface here that this command could
+	// not photograph. That is not a gap worth leaving in a tool whose whole argument is that a
+	// capture read by eye reaches defects no gate can: the index's own chrome went unlooked-at
+	// while it accumulated a focus ring nothing drew, rows under the 24px target minimum, a
+	// contrast failure in one scheme only, and a `role="alert"` card styled by no rule at all —
+	// with `npm run check` green throughout, because every one of those is invisible to a suite
+	// with no layout engine.
+	//
+	// BOTH schemes for the same reason every entry capture takes both: two of those four defects
+	// were scheme-specific, and one of them existed only in light.
+	{ name: 'index-dark', query: '?index', selector: HARNESS_INDEX },
+	{ name: 'index-light', query: '?index&theme=light', selector: HARNESS_INDEX },
 ];
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
@@ -228,7 +245,7 @@ async function run() {
 	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
 	// the label, but the URL and this command both take the id, since a mock and the real
 	// component it stands in for share a basename and need to stay reachable as two entries.
-	// With no argument, the five fixed surfaces, exactly as before. `resolveShots` is what
+	// With no argument, the seven fixed surfaces, exactly as before. `resolveShots` is what
 	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
 	// rather than reading this file's source text to check which index it uses.
 	const shots = resolveShots(process.argv, SHOTS, process.env);

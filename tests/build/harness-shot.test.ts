@@ -564,11 +564,27 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the five fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the seven fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
-		for (const name of ['dark', 'light', 'phone', 'plan-editor-dark', 'plan-editor-light']) {
+		for (const name of ['dark', 'light', 'phone', 'plan-editor-dark', 'plan-editor-light', 'index-dark', 'index-light']) {
 			expect(source).toContain(`name: '${name}'`);
+		}
+	});
+
+	/**
+	 * The index pair is the one addition here that photographs the HARNESS rather than the
+	 * plugin, and it is the reason this command can now be pointed at its own chrome. Asserted
+	 * separately from the list above because the property that matters is not that the names
+	 * exist but that they ask for the picker: `?index` is what `tests/harness/page.ts` routes to
+	 * `IndexPage`, and a shot that lost the parameter would silently photograph the project
+	 * surface twice more and still pass the name check.
+	 */
+	it('points the index shots at the route that draws the picker', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		for (const query of ["query: '?index'", "query: '?index&theme=light'"]) {
+			expect(source).toContain(query);
 		}
 	});
 

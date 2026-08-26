@@ -101,7 +101,7 @@ describe('resolveShots', () => {
 	 * other index) inside `run()`. Nothing else in this suite runs `harness-shot.mjs`'s `run()`
 	 * — it launches a browser — so before `resolveShots` existed, that mutation left all
 	 * existing cases green while `npm run harness-shot prototype:ZoneSummary` silently wrote
-	 * the five fixed PNGs and exited 0. Driving this function with a real argv array is what
+	 * the seven fixed PNGs and exited 0. Driving this function with a real argv array is what
 	 * makes the choice of index an assertion rather than a comment.
 	 */
 	it('reads the entry from the first non-flag argument and turns it into the entry shots', () => {
@@ -117,7 +117,7 @@ describe('resolveShots', () => {
 	/**
 	 * `npm run harness-shot ""` is a mistake, not an absent argument. Truthiness alone cannot
 	 * tell the two apart — `''` and `undefined` are both falsy — so a quoted empty string used
-	 * to run the five fixed shots and exit 0 rather than reporting an unnamed entry.
+	 * to run the seven fixed shots and exit 0 rather than reporting an unnamed entry.
 	 */
 	it('rejects a blank entry rather than silently falling back to the fixed shots', () => {
 		expect(() => resolveShots(['node', 'scripts/harness-shot.mjs', ''], FIXED)).toThrow(/empty/);

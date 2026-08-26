@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia, storeToRefs } from 'pinia';
 import { mount } from '@vue/test-utils';
 import { createApp } from 'vue';
-import { seedFixture, harnessEditorContext } from './fixture';
+import { reseedFixture, seedFixture, harnessEditorContext } from './fixture';
+import { cancelResultFor, DialogStackingError, useDialogStore } from '../../src/presentation/dialogs/dialog-store';
 import {
 	PLAN_EDITOR_CONTEXT,
 	usePlanEditorContext,
@@ -165,5 +166,52 @@ describe('the harness Inspector query', () => {
 		const created = await commands.createZone.execute({} as never);
 
 		expect(isErr(created) && created.error.code).toBe('settings.unrecovered');
+	});
+});
+
+/**
+ * The dialog left open when a designer navigates away.
+ *
+ * `DialogHost` unmounts WITHOUT settling — deliberately, since the entry it belonged to is
+ * gone — while the index keeps one Pinia for its whole life. So without this the next entry
+ * inherited an open dialog and its first `openDialog` threw `DialogStackingError`: an entry
+ * that worked or not depending on which entry preceded it, which is the one property
+ * `reseedFixture` exists to remove.
+ *
+ * It is also the case `reseedFixture`'s own comment predicted — "a store added later is a store
+ * this reset will miss" — realised by a MERGE rather than by an edit, with both sides complete
+ * and correct alone.
+ */
+describe('reseedFixture, on a dialog nobody closed', () => {
+	it('abandons it, so the next entry can open one', async () => {
+		setActivePinia(seedFixture());
+
+		const store = useDialogStore();
+		// Awaited below rather than dropped: abandoning has to SETTLE the promise, not merely
+		// clear the ref — a caller left awaiting forever is the failure that would replace the
+		// one being fixed.
+		const pending = store.openDialog({ kind: 'confirm', title: 'Delete', body: 'Sure?', confirmLabel: 'Delete' });
+
+		expect(store.current).not.toBeNull();
+
+		reseedFixture();
+
+		// Compared against `cancelResultFor` rather than a literal: each kind has its OWN cancel
+		// shape (`confirm` settles to `'cancel'`, a form to `{ action: 'cancel' }`), and what this
+		// case is about is that an abandoned dialog ends the way a DISMISSED one does — not what
+		// that value happens to be for this kind.
+		expect(await pending).toEqual(cancelResultFor('confirm'));
+		expect(store.current).toBeNull();
+		expect(() => store.openDialog({ kind: 'confirm', title: 'Next', body: 'Again?', confirmLabel: 'Go' })).not.toThrow(
+			DialogStackingError,
+		);
+	});
+
+	// The other direction: reseeding with nothing open must not invent a settle or throw.
+	it('says nothing when no dialog is open', () => {
+		setActivePinia(seedFixture());
+
+		expect(() => reseedFixture()).not.toThrow();
+		expect(useDialogStore().current).toBeNull();
 	});
 });

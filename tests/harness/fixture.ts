@@ -3,6 +3,7 @@ import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { useWorkspaceStore } from '../../src/presentation/stores/WorkspaceStore';
 import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
+import { cancelResultFor, useDialogStore } from '../../src/presentation/dialogs/dialog-store';
 import type { PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 
@@ -39,7 +40,8 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  * true.
  *
  * **Which stores that is, and how the set was established.** Every `defineStore(...)` call
- * under `src/presentation/` (grepped, five hits) is a store an entry mounted through the
+ * under `src/presentation/` (grepped — six today, and the count is stated because it moved:
+ * design slice 15's `dialog` store is the one this paragraph's last sentence warned about) is a store an entry mounted through the
  * index can reach: `ProjectStore`, `EditorStore` and `WorkspaceStore` (module singletons,
  * reached the moment any component calls `useProjectStore()` / `useEditorStore()` /
  * `useWorkspaceStore()`), `selection-store` (same shape), and `inspector-store` — whose
@@ -68,7 +70,8 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  * scan's stated limit, the same shape as the `.css`-import scan's own stated limit in
  * `harness.test.ts`.
  *
- * That leaves four stores to reset by hand, which is what this function does. `CommandHistory`
+ * That leaves five stores to put back by hand, which is what this function does — four reset,
+ * and the dialog abandoned. `CommandHistory`
  * and `ToolManager`
  * (`runtime.ts`) are NOT in this set: they are plain objects `provideEditorRuntime` builds
  * fresh in `PlanEditorRoot`'s `setup()` on every mount, not Pinia state, so undo/redo history
@@ -76,7 +79,11 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  *
  * A store added later is a store this reset will miss — the risk this comment exists to
  * flag for the next reader, since `npm run analyze`'s dead-export check cannot see "a ref a
- * component writes to and this function does not reset".
+ * component writes to and this function does not reset". That has now happened once, through a
+ * MERGE rather than an edit: the `dialog` store landed on `main` while this file was being
+ * written on a branch, so each side was complete and correct alone. `fixture.test.ts` drives
+ * the abandonment, which is the only part of this a test can hold; the warning stands for the
+ * seventh store.
  */
 export function reseedFixture(): void {
 	const project = useProjectStore();
@@ -99,6 +106,22 @@ export function reseedFixture(): void {
 	useEditorStore().reset();
 	useWorkspaceStore().reset();
 	useSelectionStore().clear();
+
+	// The dialog store, ABANDONED rather than reset — it has no `reset()` and should not grow
+	// one for this: a pending dialog is a promise somebody is awaiting, and dropping `current`
+	// without settling would strand that caller forever. `resolve` with the kind's own cancel
+	// result is what `DialogHost`'s Escape handler does, so the abandoned dialog ends the way a
+	// dismissed one does.
+	//
+	// It is here because `DialogHost` unmounts WITHOUT settling when the entry it belongs to
+	// leaves the stage, while the index keeps one Pinia for its whole life. So the next entry
+	// inherited an open dialog, and its first `openDialog` threw `DialogStackingError` — an
+	// entry that worked or not depending on what had been opened before it. Which is precisely
+	// what the paragraph below predicted: this store arrived on `main` with design slice 15
+	// while this function was being written on another branch, and neither side was wrong.
+	const dialog = useDialogStore();
+
+	if (dialog.current !== null) dialog.resolve(cancelResultFor(dialog.current.kind));
 }
 
 /**

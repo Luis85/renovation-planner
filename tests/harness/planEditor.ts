@@ -124,8 +124,18 @@ export function harnessDeps(): PlanEditorDeps {
 			// query answers `ok(null)` for one it does not recognise. Fine while only
 			// `mountPlanEditorHarness` called this with `HARNESS_PLAN.id`; worth stating now
 			// that exporting `harnessDeps` widens the audience to whatever id a caller passes.
-			getPlan: () => Promise.resolve(ok(HARNESS_PLAN)),
-			findZonesByPlan: () => Promise.resolve(ok(HARNESS_ZONES)),
+			//
+			// **A fresh DTO per call, not the constant.** The real query builds its DTOs from
+			// notes it just read, so every caller gets objects of its own; handing back the
+			// module constant made this fake THINNER than the thing it stands in for, and
+			// `PlanEditorRoot.hydrate()` puts whatever it gets straight into Pinia's deep
+			// reactive state. So a scripted prototype composing the editor replaced
+			// `reseedFixture()`'s copies with these very objects, and the next mutation through
+			// the store edited the fixture itself — the leak that function's clone closes,
+			// re-opened one seam over. Both clones are needed: this one covers hydration, that
+			// one covers the synchronous seed, and neither path goes through the other.
+			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
+			findZonesByPlan: () => Promise.resolve(ok(structuredClone(HARNESS_ZONES))),
 		},
 		/**
 		 * Every WRITE refuses with `settings.unrecovered`, the honest answer for a page with no

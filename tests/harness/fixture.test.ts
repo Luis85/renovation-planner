@@ -271,3 +271,39 @@ describe('reseedFixture, on a world the previous entry edited', () => {
 		expect(kitchen.points[0]?.x).toBe(0);
 	});
 });
+
+/**
+ * The OTHER way the fixture constants reach reactive state, and the one `reseedFixture`'s
+ * clone cannot see: a prototype composing `PlanEditorRoot` hydrates the project store through
+ * `harnessDeps().queries`, which replaces everything the reseed assigned. Answering with the
+ * module constants therefore re-opened the same leak one seam over — and made the fake
+ * thinner than the query it stands in for, which builds its DTOs from notes it has just read
+ * and so hands every caller objects of its own.
+ *
+ * Driven through the real `hydrate` rather than asserted on the query's return value: the
+ * defect is not "the query returns a shared object", it is "a store mutation reaches the
+ * fixture", and only the store can show that. Watched failing with both `structuredClone`
+ * calls removed from `planEditor.ts` — the plan name and the zone vertex both come back as
+ * the prototype's values, while the reseed case above stayed GREEN, which is the measurement
+ * that the two seams are independent rather than two spellings of one.
+ */
+describe('the harness queries, hydrating a store a prototype then writes to', () => {
+	it('never hand out the fixture objects themselves', async () => {
+		setActivePinia(seedFixture());
+
+		const project = useProjectStore();
+		const kitchen = HARNESS_ZONES[0];
+		if (kitchen === undefined) throw new Error('the fixture declares no zones');
+
+		await project.hydrate(harnessDeps().queries, HARNESS_PLAN.id);
+
+		const hydratedVertex = project.zones.get(kitchen.id)?.points[0];
+		if (project.plan === null || hydratedVertex === undefined) throw new Error('hydration seeded nothing');
+
+		project.plan.name = 'Edited after hydrating';
+		hydratedVertex.x = 999;
+
+		expect(HARNESS_PLAN.name).toBe('Ground floor');
+		expect(kitchen.points[0]?.x).toBe(0);
+	});
+});

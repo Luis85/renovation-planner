@@ -111,10 +111,11 @@ export function reseedFixture(): void {
 	// and a hand-written one would need editing every time a nested field is added — the
 	// class of omission nothing here would notice.
 	//
-	// What this does NOT cover, stated rather than implied: the DTOs `harnessDeps()`'s
-	// queries answer with are still the module constants, so a prototype that mutates a zone
-	// it got back from the Inspector query — rather than one it read out of the store — still
-	// writes through. `planEditor.ts` owns that bundle; this function owns the store.
+	// This covers the SYNCHRONOUS seed and nothing else. The other way the constants reach
+	// reactive state is `PlanEditorRoot.hydrate()`, through `harnessDeps().queries` — which a
+	// scripted prototype composing the editor takes, replacing everything assigned here. That
+	// seam is closed at the query boundary, in `planEditor.ts`, and the two clones are
+	// independent: neither path goes through the other.
 	project.plan = structuredClone(HARNESS_PLAN);
 	project.zones = new Map(structuredClone(HARNESS_ZONES).map((zone) => [zone.id, zone]));
 	project.status = 'ready';

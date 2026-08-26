@@ -28,11 +28,20 @@ is written that way because the list had already gone stale once — the library
 One surface for all of it, because §83's own split is the only division a user should have to
 understand: this applies to every project, that applies to this one.
 
-**Not everything here is a default.** Four of the five are starting values a project may then
-disagree with; the **library folder** is not, because there is nothing to disagree with it — the
-shared [[Asset]], [[Supplier]] and [[Trade]] catalogues belong to no project (§59), so their
-location is answered once for the vault and no project overrides it. That is precisely why §83
-puts it in the plugin half, and why the outcome below has to be stated in two parts rather than one.
+**Not everything here is a default**, and the test for which is whether §83's *project* half has a
+counterpart. Default units, default currency and default folders have one — a project states its
+own units, currency and folder, and the plugin value is only where a new project starts. The
+**library folder** and **editor preferences** have none, so both are settled once for the vault and
+no project overrides either.
+
+Naming the test rather than counting is deliberate. An earlier wording here said "four of the five"
+are project-overridable, which was wrong about editor preferences and would have gone stale the
+next time §83 gained a setting — the same defect as the enumeration two paragraphs above, made
+twice in one branch.
+
+The library folder's own reason is the sharper one: the shared [[Asset]], [[Supplier]] and
+[[Trade]] catalogues belong to no project (§59), so there is nothing to disagree with it. That is
+why §83 puts it in the plugin half, and why the outcome below is stated in two parts rather than one.
 
 **Changing the library folder is a migration, not a preference.** Once catalogue entries exist,
 persisting a new path alone would leave every project resolving an empty library while the notes

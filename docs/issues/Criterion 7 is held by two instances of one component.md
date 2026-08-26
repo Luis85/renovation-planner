@@ -53,7 +53,10 @@ The Inspector panel was always the candidate — it draws a zone's name and area
 and it turned out to be blocked by something this note did not know about: `InspectorPanel`
 could not be MOUNTED outside `PlanEditorRoot` at all. It injects the editor runtime, nothing
 above it in the harness provided one, and a template-only prototype has no script block with
-which to supply an injection. Three other components were in the same position.
+which to supply an injection. Three other components were in the same position. (A mock may
+carry a script now, so a prototype COULD provide one itself — but a per-entry provide in the
+index is the right place for it regardless, since every entry needs it and no mock should have
+to know that.)
 
 **That half is fixed.** `EntryBoundary` calls `provideEditorRuntime(usePlanEditorContext())`,
 the same call with the same argument `PlanEditorRoot` makes in a vault, built per entry so an

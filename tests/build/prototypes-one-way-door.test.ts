@@ -6,11 +6,13 @@ import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
  * stands in the way of the reverse. That keeps design scaffolding out of a built plugin at the
  * IMPORT rather than only at the bundle, so it holds for code nobody has written yet.
  *
- * The open direction is a fact about THIS rule, not a licence a prototype can use: a mock is
- * template-only (`vue/no-restricted-block` refuses `<script>` there), so it has nowhere to put
- * an import statement at all, and it composes real components through the harness index's global
- * registry instead — see `src/prototypes/README.md`. The last case below is what keeps the ban
- * from becoming symmetric anyway; its own comment says what that is worth.
+ * The open direction is REAL and is used: a mock may carry a `<script setup>`, so it may import
+ * — `WorkPackageFilters.vue` imports `ref` from `vue` — and a scripted mock composing a real
+ * component by import is the shape a promoted component already has. A TEMPLATE-ONLY mock still
+ * has nowhere to put an import statement and composes through the harness index's global
+ * registry instead; both routes are live, and `src/prototypes/README.md` says which to reach
+ * for. The last case below is what keeps the ban from becoming symmetric; its own comment says
+ * what that is worth.
  *
  * Every layer is driven, not just one, because the ban is eight separate config blocks (six
  * `forbidden(...)` calls, the root-of-`src/` block, and the catch-all block below that covers
@@ -159,8 +161,9 @@ describe('the prototypes one-way door', () => {
 	/**
 	 * The complement, and the reason this is not simply "prototypes is banned everywhere".
 	 *
-	 * The reason is NOT "a prototype imports real components" — it cannot, and the earlier
-	 * version of this comment claiming so was false the day the template-only rule landed. What
+	 * The reason is NOT "a prototype imports real components" — that was impossible while the
+	 * tree was template-only and is merely possible now, which is not the same as being what
+	 * this case holds. What
 	 * this case actually holds is that the ban is DIRECTIONAL: a rule closed both ways would
 	 * pass every case above while making this tree a layer nothing may reach out of, and the
 	 * error it produced would be about layers rather than about the template-only rule that is

@@ -37,8 +37,9 @@ codebase and the harness, not the thing running in somebody's vault.
   that makes a round slow — a mock that has to be rewritten to be seen, a component that only
   renders inside a whole view — costs rounds rather than minutes, and rounds are where the
   design actually happens.
-- **Owns what is a mock and what is finished.** A template-only SFC is a statement that the
-  markup is settled and the behaviour is not. Only they can say when that stops being true.
+- **Owns what is a mock and what is finished.** A file under `src/prototypes/` is a statement
+  that the screen is provisional — whatever blocks it carries. Only they can say when that
+  stops being true, and promotion is what says it.
 
 ## What the plugin owes it
 

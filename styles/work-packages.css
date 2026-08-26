@@ -1,5 +1,11 @@
 /*
- * The Work Packages list — `src/prototypes/WorkPackages.vue` and the filter bar beside it.
+ * The Work Packages list — `src/prototypes/WorkPackages.vue`.
+ *
+ * The filter bar's rules are NOT here: `WorkPackageFilters.vue` carries its own `<style>`
+ * block, which is what a mock's CSS should do while the screen it draws does not exist — it
+ * stops being downloaded by every vault. These stay because this file is 200 lines of CSS
+ * against a 306-line SFC, and 506 is past the 400 lines this repository allows one component.
+ * That is the measured reason for the split, not a stylistic one.
  *
  * It lives HERE, in the shipped sheet, rather than beside the mock, because two rules leave
  * nowhere else: `vue/no-restricted-block` refuses a `<style>` block in every `.vue` file in
@@ -72,55 +78,6 @@
 }
 
 /* The filter bar. A row of trades and the result of applying them, at opposite ends. */
-.rp-wp-filters {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--size-4-2);
-	padding: 0 var(--size-4-4) var(--size-4-3);
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.rp-wp-filter-group {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--size-4-1);
-}
-
-.rp-wp-filter {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
-	background-color: transparent;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	cursor: pointer;
-}
-
-.rp-wp-filter:hover {
-	color: var(--text-normal);
-	background-color: var(--background-modifier-hover);
-}
-
-/*
- * The selected trade. `aria-pressed` is the semantic channel and this is the visible one; a
- * promoted component binds the attribute and keeps this selector, which is why the rule keys
- * on a class rather than on `[aria-pressed="true"]` — the mock draws the state, the component
- * computes it, and the CSS should not have to change between those two.
- */
-.rp-wp-filter--on {
-	color: var(--text-on-accent);
-	background-color: var(--interactive-accent);
-	border-color: var(--interactive-accent);
-}
-
-.rp-wp-filter-count {
-	margin: 0;
-	font-size: var(--font-ui-smaller);
-	color: var(--text-faint);
-}
-
 .rp-wp-list {
 	display: flex;
 	flex: 1;

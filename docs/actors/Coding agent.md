@@ -30,8 +30,10 @@ anybody's memory.
 
 ## What it does to the plugin
 
-- **Writes the mocks a designer iterates on.** A template-only SFC needs no runtime to author,
-  so this is work the agent can do well: it is markup, and markup is text.
+- **Writes the mocks a designer iterates on.** A mock needs no runtime to author, so this is
+  work the agent can do well: it is markup, and markup is text. The simplest mock is a template
+  and nothing else; one that needs props or state carries a `<script setup>`, which is the same
+  code the agent writes in `src/presentation/` anyway.
 - **Reads the gates as the specification.** `npm run check` is what tells it whether it is done.
   A rule that lives only in prose is a rule it will break politely and confidently, which is why
   `eslint.config.mjs` carries the architecture rather than a style guide carrying it.

@@ -327,10 +327,13 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
   `?phone`), just never a `view` one — so making a bare root mean "index" would break them
   while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as
-  template-only SFCs — HTML plus Vue's template syntax, written to the same Vue lint rules as
-  the rest of `src/` so that promotion is adding a `<script setup>` and moving the file rather
-  than redrawing the markup. They compose real components and sibling mocks through the index's
-  global registry, never through imports: a template-only file has no script block to put one in.
+  SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style>` — written to the
+  same Vue lint rules as the rest of `src/` so that promotion is moving the file rather than
+  redrawing the markup. A template-only mock composes real components and sibling mocks through
+  the index's global registry, having no script block to put an import in; a scripted one may
+  import them directly, which is what a shipped component does. A `<style>` block does not ship
+  and does not travel — promotion lifts it into a `styles/` partial, since SDD §84's colour
+  check runs over the assembled sheet and never sees inside an SFC.
   `src/prototypes/README.md` carries the one rule that IS relaxed there and why. **No prototype or fixture MODULE ever composes a built chunk**, refused
   twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
   `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
@@ -427,9 +430,9 @@ Two rules that follow from it and are worth stating because breaking them is che
 - **A view type and a command id are DATA, not text.** Obsidian persists the first in the
   workspace layout and binds a user's hotkey to the second, so renaming either orphans
   something a user has. The display names beside them are text.
-- **`src/prototypes/` is inside `src/` and outside the layering.** A mock is template-only,
-  composes real components and sibling mocks through the harness index's registry rather than
-  by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
+- **`src/prototypes/` is inside `src/` and outside the layering.** A mock may carry a script and
+  a style block, composes real components and sibling mocks through the harness index's registry
+  or — once it has a script — by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
   makes that a one-way door and `tests/build/prototypes-not-bundled.test.ts` asks the real
   build which modules composed each chunk. Its CSS is not exempt from anything: a mock's
   classes ship in the assembled sheet like every other rule (criterion 5 — one screen, one

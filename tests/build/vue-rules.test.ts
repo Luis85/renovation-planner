@@ -167,37 +167,42 @@ describe('the architecture blocks, now that they match .vue', () => {
 
 /**
  * `src/prototypes/**\/*.vue` carries its own `vue/no-restricted-block` block
- * (`eslint.config.mjs`), widened from the wider VUE_FILES block's `['error', 'style']` to
- * `['error', 'style', 'script']` — a mock in that directory has no script and gains one only
- * on promotion, so `<script>` (setup included) is refused there same as `<style>`. This is
- * the block the review found unproven: present in the config, matched to no fixture, so a
- * dropped `'style'` or a `files` glob edited away from the directory would report nothing
- * here while the comment above the rule kept claiming both are refused.
+ * (`eslint.config.mjs`), turned OFF for this one directory while the wider VUE_FILES block
+ * refuses `<style>` everywhere else. Both directions are driven, because "off here and on
+ * there" is the whole claim and a config's own text cannot make it good: an `'off'` that
+ * leaked to `VUE_FILES` would let a `<style>` block into a shipped component, and a `files`
+ * glob edited away from this directory would put the ban back on mocks with nothing to say so.
  */
 describe('the prototypes-only scope of vue/no-restricted-block', () => {
 	const PROTOTYPE = 'src/prototypes/PrototypeFixture.vue';
+	const SHIPPED = 'src/presentation/editor/PrototypeFixture.vue';
+	const STYLED = '<template>\n\t<div class="x" />\n</template>\n\n<style>\n.x { display: block; }\n</style>\n';
 
-	// `'script'` matches the block by NAME, and `setup` is an attribute on it — `conforming`
-	// always writes `<script setup lang="ts">`, so this is the measured case for that claim.
-	it('refuses a script-setup block', async () => {
-		const reported = await lintText(conforming(''), PROTOTYPE);
-
-		expect(reported).toContain('vue/no-restricted-block');
+	/**
+	 * A scripted mock is the point of the relaxation: every shipped component has a
+	 * `<script setup>`, so this is what makes promotion a file move for a mock that needs props,
+	 * a `v-for` or any state at all. `conforming` always writes `<script setup lang="ts">`, so
+	 * this is also the measured case for the rule matching a block by NAME with `setup` as an
+	 * attribute on it.
+	 */
+	it('accepts a script-setup block in a mock', async () => {
+		expect(await lintText(conforming(''), PROTOTYPE)).toEqual([]);
 	});
 
-	// `'style'` is REPEATED in the prototypes block rather than inherited from VUE_FILES,
-	// because two flat-config blocks matching one file override the rule's options rather
-	// than merging them. Drop the repeated `'style'` and this goes from `toContain` to
-	// absent, silently permitting a `<style>` block in a mock.
-	it('refuses a style block', async () => {
-		const reported = await lintText('<template>\n\t<div class="x" />\n</template>\n\n<style>\n.x { display: block; }\n</style>\n', PROTOTYPE);
-
-		expect(reported).toContain('vue/no-restricted-block');
+	// The trade, and the half that does not travel: a mock's CSS does not ship, and promotion
+	// lifts it into a `styles/` partial because a shipped component is styled from the assembled
+	// sheet SDD §84's colour check runs over.
+	it('accepts a style block in a mock', async () => {
+		expect(await lintText(STYLED, PROTOTYPE)).toEqual([]);
 	});
 
-	// The third measured claim: a template-only SFC — what every mock in this directory
-	// actually is before promotion — lints CLEAN under this whole merged config, not merely
-	// silent on this one rule.
+	// The other direction, which is what makes the two cases above a SCOPE rather than a
+	// deletion. An `'off'` that reached `VUE_FILES` would read exactly the same up there.
+	it('still refuses a style block in a shipped component', async () => {
+		expect(await lintText(STYLED, SHIPPED)).toContain('vue/no-restricted-block');
+	});
+
+	// Template-only stays legal, and stays the promotion pair's own shape.
 	it('lints clean with a template and nothing else', async () => {
 		const reported = await lintText('<template>\n\t<div class="x" />\n</template>\n', PROTOTYPE);
 
@@ -208,7 +213,7 @@ describe('the prototypes-only scope of vue/no-restricted-block', () => {
 /**
  * What `flat/recommended` still refuses inside `src/prototypes/`, and the one thing it does
  * not — the check under `eslint.config.mjs`'s `vue/multi-word-component-names: 'off'` block
- * and under `src/prototypes/README.md`'s narrowed sentence about what "template-only" costs.
+ * and under `src/prototypes/README.md`'s narrowed sentence about what the relaxations cost.
  *
  * All three spellings are driven in BOTH trees, because the whole decision is where the line
  * between them falls: turning a rule off in one directory is invisible from the config's own

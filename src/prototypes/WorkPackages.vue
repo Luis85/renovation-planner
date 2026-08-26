@@ -8,7 +8,7 @@
 	why the zone chips read Kitchen, Bathroom, Terrace and Garden: those are the fixture's
 	four zones, so a reader can check the two halves of the screen against each other.
 	`<WorkPackageFilters />` is the sibling mock. Neither is imported, and neither can be:
-	this tree is template-only, so both tags resolve through the registry the harness index
+	this FILE is template-only, so both tags resolve through the registry the harness index
 	installs.
 
 	**The design, and the three decisions inside it worth arguing with:**
@@ -27,7 +27,11 @@
 	   easiest place to forget it.
 
 	**What this mock deliberately does not draw**, so the gaps read as decisions: no
-	selection or hover affordance (nothing is clickable in a template-only file), no empty
+	selection or hover affordance (nothing is clickable in a template-only file — a constraint
+	that has since been lifted: a mock may carry a `<script setup>`, and `WorkPackageFilters.vue`
+	beside this file now does. The pips stay because eight pips beat a bar at 12%, which is a
+	judgement rather than a workaround; this file's own repetition is what a script would
+	actually fix), no empty
 	state (that is slice 14's, and drawing a second screen here would hide this one), and no
 	sort control — the order below is the dependency order the schedule would impose, which
 	is the only ordering a renovator asked for in `docs/requirements/Schedule.md`.

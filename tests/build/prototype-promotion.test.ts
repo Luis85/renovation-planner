@@ -4,9 +4,16 @@ import { describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
 
 /**
- * THE criterion the whole feature is for. Promotion must add a `<script setup>` and move the
- * file — never redraw the markup. If a template cannot cross that boundary unchanged, the
- * rewrite this replaces has only moved somewhere else.
+ * THE criterion the whole feature is for. Promotion must MOVE the file — never redraw the
+ * markup. If a template cannot cross that boundary unchanged, the rewrite this replaces has
+ * only moved somewhere else.
+ *
+ * **"Adds a `<script setup>`" is this PAIR's shape and no longer the tree's.** A mock may carry
+ * a script block now, and one that does promotes with it — which is the point of allowing it,
+ * since every shipped component has one. `ZoneSummary.vue` is deliberately still template-only:
+ * a mock that needs no state needs no script, it is the simplest thing this criterion can be
+ * held against, and keeping one such file means the template-only route stays driven rather
+ * than becoming folklore.
  *
  * The two sides are INDEPENDENT files. An earlier version composed the promoted side by
  * interpolating the mock's own template, which made the comparison a string against itself:
@@ -74,11 +81,22 @@ describe('promoting a mock', () => {
 		expect(promoted).toBe(mock);
 	});
 
-	it('is template-only before promotion', () => {
+	it('is template-only before promotion, which is this pair and not the tree', () => {
 		expect(withoutCommentary(readFileSync(MOCK, 'utf8'))).not.toContain('<script');
 	});
 
-	it('gains a script block on promotion, which is what promotion IS', () => {
+	/**
+	 * The half of a mock that does NOT travel, pinned so the cost of a `<style>` block is
+	 * checked rather than described. A shipped component is styled from `styles/`, because SDD
+	 * §84's colour check runs over the assembled sheet and a block inside an SFC never reaches
+	 * it — so promotion lifts the CSS into a partial, and a promoted fixture carrying one would
+	 * mean this repository had quietly changed how shipped components are styled.
+	 */
+	it('carries no style block after promotion, whatever the mock had', () => {
+		expect(withoutCommentary(readFileSync(PROMOTED, 'utf8'))).not.toContain('<style');
+	});
+
+	it('gains a script block on promotion, which is what promotion IS for a template-only mock', () => {
 		expect(readFileSync(PROMOTED, 'utf8')).toContain('<script setup lang="ts">');
 	});
 });

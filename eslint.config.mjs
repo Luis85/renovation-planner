@@ -630,25 +630,40 @@ export default defineConfig([
 	},
 	{
 		/**
-		 * `src/prototypes/` is TEMPLATE-ONLY, and this is where that stops being prose.
-		 * Promotion is "add a `<script setup>`", so a mock that already has one has been
-		 * promoted in place and there is nothing left for the byte-identical template claim
-		 * to compare. A mock needs no script either: the index registers every discovered
-		 * component and mock on the app, so a template resolves its tags without importing
-		 * them.
+		 * `src/prototypes/` may carry a `<script setup>` and a `<style>` block, and this is where
+		 * that stops being prose. Both are refused everywhere else in this repository; here the
+		 * rule is turned OFF entirely.
 		 *
-		 * `'style'` is REPEATED rather than inherited. Two flat-config blocks matching one
-		 * file override `vue/no-restricted-block`'s options rather than merging them, so a
-		 * block naming only `'script'` would silently permit the `<style>` block the wider
-		 * VUE_FILES block refuses — the same trap this config already documents for
-		 * `no-restricted-syntax`.
+		 * **`<script setup>` makes a mock MORE like the thing it becomes, not less.** Every
+		 * shipped component has one, so a scripted mock promotes as a file move with nothing to
+		 * add — and it lifts the three limits a template-only file imposes, each of which a real
+		 * mock author hit and worked around: no props means no `v-for`, so repeated rows are
+		 * hand-copied; no bindings means a proportion cannot be drawn at all (an inline `style`
+		 * is what the marketplace refuses and what promotion would have to remove); and no state
+		 * means no hover, selection or focus to judge, which for a list view is half of what
+		 * there is to judge. Template-only remains legal and remains the promotion pair's own
+		 * shape — `ZoneSummary.vue` is still exactly that.
 		 *
-		 * `'script'` covers `<script setup>` as well as a plain `<script>`: the rule matches
-		 * the block name, and `setup` is an attribute on it. Measured, both forms.
+		 * **`<style>` is the trade, and it goes the other way, so it is stated plainly.** A
+		 * mock's block does NOT ship, which is the whole gain: nothing imports this tree, so a
+		 * screen's provisional CSS stops being downloaded by every vault while the screen it
+		 * draws does not exist. What it costs is that the block does not TRAVEL either — a
+		 * shipped component is styled from `styles/`, since SDD §84's colour check runs over the
+		 * assembled sheet — so promotion lifts the block into a partial. `styles/` stays
+		 * available for a mock whose CSS has outgrown the SFC budget: `WorkPackages.vue` is 306
+		 * code lines against 200 of CSS, and 506 is past the 400 this config allows an SFC.
+		 *
+		 * `'off'` EXPLICITLY, not by omission. Two flat-config blocks matching one file override
+		 * this rule's options rather than merging them, so leaving it out here would not relax
+		 * anything — the wider `VUE_FILES` block's `['error', 'style']` would simply apply. The
+		 * same trap this config documents for `no-restricted-syntax`, in the other direction.
+		 *
+		 * `tests/build/vue-rules.test.ts` drives both blocks in both trees, because "off here and
+		 * on there" is exactly the claim a config's own text cannot make good on.
 		 */
 		files: ['**/src/prototypes/**/*.vue'],
 		rules: {
-			'vue/no-restricted-block': ['error', 'style', 'script'],
+			'vue/no-restricted-block': 'off',
 			/**
 			 * OFF here, and the choice is between this and narrowing a promise — so the reason
 			 * has to be written down rather than assumed.

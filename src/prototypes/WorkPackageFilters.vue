@@ -13,10 +13,36 @@
 	sits at the end of the row rather than in the header, because it is a result of the filter
 	rather than a property of the plan.
 
-	Nothing here is interactive: a template-only mock has no script block, so `aria-pressed`
-	states are drawn rather than bound. The first tab is drawn as the selected one so the
-	selected treatment is visible in a screenshot at all.
+	**This is the first mock with a script and a style block of its own**, and it is what those
+	two buy. The trades were five hand-copied `<button>` blocks, because a template-only file
+	has no props and so no `v-for`; and nothing was interactive, because it had no state — the
+	first tab was drawn as selected purely so the selected treatment appeared in a screenshot.
+	Both were worked around rather than designed, and a reviewer looking at a static bar could
+	not judge the one thing a filter bar is: what it does when you press it.
+
+	The `<style>` block does not ship — nothing imports this tree — which is the whole gain
+	over a `styles/` partial for a screen that does not exist yet. What it costs is that the
+	block does not travel either: promotion moves this file into `src/presentation/` and lifts
+	the CSS into a partial, because a shipped component is styled from the assembled sheet that
+	SDD §84's colour check runs over. The template and the script cross unchanged.
 -->
+<script setup lang="ts">
+// A real import, exactly as a shipped component writes it — there is no auto-import here, and
+// a mock that imports the way `src/presentation/` does is a mock that promotes as a file move.
+import { ref } from 'vue';
+
+/**
+ * The trades, as data rather than as five copies of one block. A promoted component takes
+ * this as a prop from the plan's own packages; a mock holds the shape it will be handed, so
+ * that the promotion is a change of SOURCE and not of markup.
+ */
+const trades = ['All trades', 'Demolition', 'Plumbing', 'Electrical', 'Groundworks'] as const;
+
+// The one piece of state a filter bar has. `aria-pressed` is bound from it rather than drawn,
+// so what a reviewer presses in the harness is what a renovator will press in a vault.
+const active = ref<string>(trades[0]);
+</script>
+
 <template>
 	<div class="rp-wp-filters">
 		<div
@@ -25,39 +51,15 @@
 			aria-label="Filter by trade"
 		>
 			<button
-				type="button"
-				class="rp-wp-filter rp-wp-filter--on"
-				aria-pressed="true"
-			>
-				All trades
-			</button>
-			<button
+				v-for="trade in trades"
+				:key="trade"
 				type="button"
 				class="rp-wp-filter"
-				aria-pressed="false"
+				:class="{ 'rp-wp-filter--on': trade === active }"
+				:aria-pressed="trade === active"
+				@click="active = trade"
 			>
-				Demolition
-			</button>
-			<button
-				type="button"
-				class="rp-wp-filter"
-				aria-pressed="false"
-			>
-				Plumbing
-			</button>
-			<button
-				type="button"
-				class="rp-wp-filter"
-				aria-pressed="false"
-			>
-				Electrical
-			</button>
-			<button
-				type="button"
-				class="rp-wp-filter"
-				aria-pressed="false"
-			>
-				Groundworks
+				{{ trade }}
 			</button>
 		</div>
 		<p class="rp-wp-filter-count">
@@ -65,3 +67,54 @@
 		</p>
 	</div>
 </template>
+
+<style>
+.rp-wp-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: 0 var(--size-4-4) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-wp-filter-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+}
+
+.rp-wp-filter {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background-color: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	cursor: pointer;
+}
+
+.rp-wp-filter:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * The selected trade. `aria-pressed` is the semantic channel and this is the visible one; the
+ * rule keys on a class rather than on `[aria-pressed="true"]` so that it survives promotion
+ * unchanged — the mock binds the state now, the component will compute it, and the CSS should
+ * not have to change between those two.
+ */
+.rp-wp-filter--on {
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.rp-wp-filter-count {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+</style>

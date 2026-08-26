@@ -113,6 +113,20 @@ describe('a template-only prototype composing what it cannot import', () => {
  * check mean anything: the question is what the PAGE ends up with, which is exactly what
  * `open()`'s async pipeline and `<Suspense>` decide — not what one component renders in
  * isolation.
+ *
+ * **What this no longer claims, since a mock may carry a `<style>` block.** The guarantee is
+ * about SHIPPED components: those are styled from the assembled sheet, so a component that
+ * arrives with a sheet of its own is the defect. A prototype's block is a different thing —
+ * it does not ship, it is loaded only while that mock is on the stage, and injecting it is the
+ * mechanism working. So the component case below asserts the count is unchanged, and the
+ * prototype loop asserts a mock adds at MOST its own one block.
+ *
+ * That distinction is invisible here and the file has to say so: vitest runs with `css: false`,
+ * which stubs SFC style blocks into nothing, so no `<style>` node appears under test whatever
+ * the mock contains. The upper bound below therefore holds trivially in this environment and
+ * would only bite in a browser. It is written as the honest claim rather than as a stricter one
+ * that jsdom happens to satisfy — `npm run harness` is where a second sheet would actually
+ * appear, and a capture is what would show it.
  */
 
 /** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
@@ -192,13 +206,16 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	 * control's assertion without this one found exactly that gap: a prototype planted to throw
 	 * made the loop pass.
 	 */
-	it.each(prototypeEntries())('adds no stylesheet when $id mounts', async ({ id }) => {
+	it.each(prototypeEntries())('adds no sheet but its own when $id mounts', async ({ id }) => {
 		const before = cssNodes();
 
 		const page = await openEntry(id);
 
 		expect(page.find('.rp-harness-stage').attributes('data-entry')).toBe(id);
-		expect(cssNodes()).toBe(before);
+		// At most one, and that one is the mock's own `<style>` block. A mock reaching for a
+		// second sheet — a `<link>` rendered from a template, an `@import` in its block — is the
+		// route this case exists for, and it is still refused.
+		expect(cssNodes()).toBeLessThanOrEqual(before + 1);
 
 		page.unmount();
 	});

@@ -5,10 +5,24 @@ The acceptance criteria this tree answers to are
 Read it before the first mock: two of the questions below — where a mock's CSS goes, and what
 "never shipped" does and does not cover — are settled there and nowhere else.
 
-Template-only `.vue` files: a `<template>` block and nothing else — no `<script>`, no `<style>`,
-both refused by lint. It is already a real Vue component the harness mounts like any other, so
-**promotion adds a `<script setup>` and moves the file — the markup is never redrawn.** That is
-the whole point, and `tests/build/prototype-promotion.test.ts` holds it.
+`.vue` files that are already real Vue components the harness mounts like any other, so
+**promotion MOVES the file — the markup is never redrawn.** That is the whole point, and
+`tests/build/prototype-promotion.test.ts` holds it.
+
+**A `<template>` is the only required block.** A `<script setup>` and a `<style>` are both
+allowed here and refused everywhere else in `src/`; `tests/build/vue-rules.test.ts` drives both
+trees, because "off here and on there" is a claim a config's own text cannot make good on.
+
+- **Template-only is the simplest shape and stays fully supported.** It composes through the
+  index's global registry (below), and promotion adds the `<script setup>`. `ZoneSummary.vue` is
+  deliberately kept this way so the route stays driven rather than becoming folklore.
+- **A `<script setup>` makes a mock more like the thing it becomes, not less.** Every shipped
+  component has one, so a scripted mock promotes with nothing to add. Reach for it as soon as
+  the screen needs props, a `v-for` over data, or any state — a filter that cannot be pressed
+  and a list whose rows are hand-copied are both worse mocks than the constraint was worth.
+  `WorkPackageFilters.vue` is the worked example.
+- **A `<style>` block is the one trade that runs the other way**, so decide it deliberately
+  rather than by habit. See below.
 
 **Which markup, exactly.** It is HTML plus Vue's template syntax, written to the same Vue lint
 rules as the rest of `src/` — tab indentation, and a content-bearing element with attributes on
@@ -44,22 +58,29 @@ because neither is sufficient alone:
 
 ## Where a mock's CSS goes
 
-**In `styles/`, in the sheet that ships.** A partial of its own plus an `@import` in
-`styles/index.css` — the assembler fails the build on a partial nothing imports, which is what
-stops that edit being half-done. `styles/zone-panel.css` and `styles/work-packages.css` are the
-two worked examples, and each states the trade in its header.
+**Two homes, and they differ in one thing: whether the rules ship.**
 
-There is nowhere else to put it, by two rules that meet here: `vue/no-restricted-block` refuses
-a `<style>` block in every `.vue` file in this repository, and criterion 5 of the requirements
-note asks that a mock and a real component on one screen be styled by the SAME assembled
-stylesheet — there is no second sheet in the harness page for prototypes to opt into. That is
-deliberate: the design a designer approves is drawn by the bytes a vault will run, and
-promotion stays a file move rather than a redraw.
+**Its own `<style>` block — prefer this while the screen is provisional.** Nothing imports this
+tree, so the block never reaches `dist/`: a screen that does not exist yet costs every vault
+nothing. `WorkPackageFilters.vue` is the worked example. What it costs is that the block does
+not TRAVEL: a shipped component is styled from the assembled sheet, because SDD §84's colour
+check runs over that sheet with lightningcss and never sees inside an SFC — so promotion lifts
+the block into a partial. `tests/build/prototype-promotion.test.ts` pins that a promoted
+component carries no `<style>`.
 
-**The cost, which the "never shipped" heading above does not cover and must not be read as
-covering.** It is true of MODULES — the one-way door and the bundle scan below hold it — and
-false of the stylesheet. A mock's rules ship to every vault while the screen they draw does not
-exist. Deleting a mock therefore means deleting its partial and its `@import` too.
+**A `styles/` partial plus an `@import` in `styles/index.css`** — the assembler fails the build
+on a partial nothing imports, which is what stops that edit being half-done.
+`styles/work-packages.css` and `styles/zone-panel.css` are the worked examples. Reach for this
+when the SFC has outgrown its budget (measured, not taste: `WorkPackages.vue` is 306 code lines
+against 200 of CSS, and 506 is past the 400 this repository allows one component), or when the
+screen is being built for real and the rules should travel.
+
+**What "never shipped" in the heading above does and does not cover.** It is true of MODULES —
+the one-way door and the bundle scan below hold it. A `styles/` partial is the exception, and
+the exception is the whole reason the `<style>` block is now allowed: the first mock written
+here put 296 lines of CSS into the shipped sheet for a screen nobody can open. Deleting such a
+mock means deleting its partial and its `@import` too; deleting a mock that styles itself means
+deleting one file.
 
 `tests/build/prototype-styles.test.ts` refuses a class a mock names that the assembled sheet
 leaves undeclared, so a mock cannot arrive unstyled by accident — which is how the first one
@@ -67,9 +88,11 @@ here rendered `Kitchen12.60 m²` through forty-four review rounds. It says nothi
 the styling is any GOOD: jsdom lays nothing out, so spacing, wrapping and overflow are visible
 only in a capture read by eye.
 
-## What the shape of a template-only file decides for you
+## What a TEMPLATE-ONLY file decides for you
 
-Two constraints that are easy to meet mid-file rather than at the start, and neither is a bug:
+Three constraints, none of them bugs — and all three lift the moment the file gains a
+`<script setup>`, which is why the list is here rather than in the section above. Knowing them
+is how you decide which shape a mock wants BEFORE writing three hundred lines of it:
 
 - **No bound dimensions.** No script block means no `:style` binding, and an inline
   `style="width: 40%"` is what the marketplace rejects and what promotion would have to
@@ -83,8 +106,13 @@ Two constraints that are easy to meet mid-file rather than at the start, and nei
   and is the price of the constraint.
 - **No interaction states.** No script block means no state, so there is no hover, selection,
   focus or empty state to judge — and for a list view those are half of what there is to judge.
-  A mock answers what a screen LOOKS like at rest. When the question is what it does, the
-  answer is a real component and a slice, not a bigger mock.
+  A template-only mock answers what a screen LOOKS like at rest.
+
+The first author to write a mock here hit all three, worked around each, and said so — the pips
+in `WorkPackages.vue` exist because a proportion could not be drawn, and its filter bar was five
+copied blocks with the first one drawn as selected so the state appeared in a screenshot at all.
+Those are the constraints a script block removes; `WorkPackageFilters.vue` is what it looks like
+afterwards.
 
 ## Running one
 

@@ -18,6 +18,12 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  * every adjacent element apart on purpose. So the trap is sprung by a mock with no styles of
  * its own, and until now nothing noticed that a mock had none.
  *
+ * TWO places a class may be declared, since a mock may now carry its own `<style>` block: that
+ * block, or the assembled sheet. The two are not interchangeable and the README says which to
+ * reach for — the block does not ship and does not travel at promotion, a partial does both —
+ * but for THIS check they are the same question, which is whether anything styles the class at
+ * all.
+ *
  * Naming this as "every class is declared" rather than "every mock has a stylesheet" is
  * deliberate: a partial that exists but does not cover the class a template actually writes
  * leaves exactly the same span unstyled, and the first run of this check found precisely that
@@ -67,12 +73,21 @@ const walk = (dir: string): string[] =>
 
 const prototypes = walk('src/prototypes').map((file) => file.replace('src/prototypes/', ''));
 
+/** A mock's own `<style>` block, or `''` when it has none. */
+const styleBlock = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/)?.[0] ?? '';
+
 const used = new Map(
 	prototypes.map((file) => {
 		const source = readFileSync(`src/prototypes/${file}`, 'utf8');
 		const classes = [...source.matchAll(CLASS_ATTRIBUTE)].flatMap(([, list]) => list.split(/\s+/).filter(Boolean));
+		// A mock may style itself, so its OWN block is a declaration source alongside the
+		// assembled sheet — and only its own: one mock's block says nothing about another's,
+		// since neither ships and neither is loaded when the other is on the stage.
+		const own = new Set(
+			[...styleBlock(source).replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
+		);
 
-		return [file, new Set(classes)] as const;
+		return [file, { classes: new Set(classes), own }] as const;
 	}),
 );
 
@@ -95,12 +110,17 @@ describe('a prototype and the sheet that styles it', () => {
 	 */
 	it('is measured by regexes that still match', () => {
 		expect(prototypes.length).toBeGreaterThan(0);
-		expect([...used.values()].some((classes) => classes.size > 0)).toBe(true);
+		expect([...used.values()].some(({ classes }) => classes.size > 0)).toBe(true);
 		expect(declared.has('rp-zone-summary__name')).toBe(true);
+		// The third regex, and the one with no other case to prove it: a `<style>` extractor that
+		// stopped matching would silently hand every scripted mock an empty `own` set, turning
+		// the relaxation this file was rewritten for back into a failure nobody could read.
+		expect([...used.values()].some(({ own }) => own.size > 0)).toBe(true);
 	});
 
-	it.each(prototypes)('%s names no class the assembled sheet leaves undeclared', (file) => {
-		const undeclared = [...(used.get(file) ?? [])].filter((name) => !declared.has(name));
+	it.each(prototypes)('%s names no class nothing styles', (file) => {
+		const entry = used.get(file);
+		const undeclared = [...(entry?.classes ?? [])].filter((name) => !declared.has(name) && !entry?.own.has(name));
 
 		expect(undeclared).toEqual([]);
 	});

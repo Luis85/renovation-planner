@@ -37,9 +37,11 @@ list view was asked for and looked at, and it is a different answer to that row.
   given: the per-task pips collapse to a number, and the paired glyph-and-word status collapses
   to one text column. §85's "colour is never the only channel" survives that collapse; the
   *density* both decisions exist for does not.
-- The pips exist because a template-only mock cannot express a proportion — no script block, so
-  no bound width, and an inline `style` is what promotion would have to remove. So one of the
-  two decisions was shaped by the prototyping constraint as much as by the design.
+- The pips were reached for because a template-only mock cannot express a proportion — no script
+  block, so no bound width, and an inline `style` is what promotion would have to remove. That
+  constraint has since been lifted (a mock may carry a `<script setup>` now), and the pips are
+  kept on their own merit: a bar at 0% and a bar at 12% look alike, eight pips and three do not.
+  Worth knowing when settling this, because the decision no longer has a constraint behind it.
 
 ## What closes it
 

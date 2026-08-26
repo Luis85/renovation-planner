@@ -29,10 +29,15 @@ proposal, and the concepts README records six findings those pages produced that
 would have. What it cannot do is hand its output forward.
 
 So this use case moves the drawing to where the real components already live: a mock is a
-**template-only Vue SFC**, which is HTML plus Vue's template syntax and is already a real
-component the harness mounts like any other. Promotion adds a `<script setup>` block. The markup
-is never redrawn — which is also why the template is written to the same Vue lint rules the
-presentation tree uses: markup that broke them could not cross unchanged.
+**Vue SFC under `src/prototypes/`** — a `<template>`, optionally a `<script setup>`, optionally
+a `<style>` — and is already a real component the harness mounts like any other. The markup is
+never redrawn, which is why the template is written to the same Vue lint rules the presentation
+tree uses: markup that broke them could not cross unchanged.
+
+The simplest mock is template-only, and promotion then adds the `<script setup>`. A mock that
+needs props, a `v-for` or any interaction state carries one already and promotes as a plain
+file move — which is the closer of the two to what a shipped component is, and the reason the
+tree does not insist on the simpler shape.
 
 ## Actors
 
@@ -56,16 +61,18 @@ per *One seeded fixture* below.
 
 1. The designer describes a screen that does not exist. Some of its parts are real components
    already; some are not.
-2. The coding agent writes the missing parts as **template-only SFCs** under `src/prototypes/`,
+2. The coding agent writes the missing parts as **SFCs** under `src/prototypes/`,
    and a prototype SFC that composes them beside the real components it needs.
 3. The agent runs `npm run harness-shot <name>` and looks at the PNG it just produced — one per
    colour scheme. It iterates against its own output.
 4. The designer opens the harness. Its **index** lists every prototype and every component,
    discovered from the tree; they open the one in question, or go straight to its URL.
-5. What they are looking at is styled by the **same assembled stylesheet the plugin ships**, so
-   the judgement is about the thing that will exist.
-6. When the design settles, a mock is promoted: a `<script setup>` is added and the file moves
-   into the presentation tree. Its template goes unchanged.
+5. Every real component on the screen is drawn by the **assembled stylesheet the plugin ships**,
+   so the judgement is about the thing that will exist. A mock's own provisional rules may live
+   in its `<style>` block, where they cost no vault anything.
+6. When the design settles, a mock is promoted: the file moves into the presentation tree, its
+   template and its script go unchanged, and a `<style>` block — if it has one — is lifted into
+   a `styles/` partial.
 
 ## Extensions
 
@@ -176,8 +183,14 @@ shown without extending the fixture, and extending it changes what every other e
 4. Every entry the index lists is reachable at its own URL, and `npm run harness-shot <name>`
    writes a PNG for it in each colour scheme. The failing case is an entry that the index can
    open and the shot command cannot.
-5. Mocks and real components in one prototype are styled by the **same** assembled stylesheet —
-   there is no second sheet in the harness page for prototypes to opt into.
+5. A **real component** in a prototype is styled by the assembled stylesheet the plugin ships,
+   and by nothing else — there is no second sheet in the harness page for a shipped component to
+   be drawn from. A MOCK may carry its own `<style>` block instead: it does not ship, which is
+   the point, and it does not travel at promotion either — the block is lifted into a `styles/`
+   partial, because SDD §84's colour check runs over the assembled sheet and never sees inside an
+   SFC. **Amended after the first author used this tree**, whose report is what made the cost of
+   the original wording visible: 296 lines of a mock's CSS were being downloaded by every vault
+   for a screen that does not exist.
 6. A real component mounts in the index with no per-entry setup, because the fixture is already
    there. Checkable by opening any component entry in under a minute.
 7. Two components mounted from one prototype read the same plan: a value shown by both matches.

@@ -574,6 +574,10 @@ describe('a flattened button and its focus ring', () => {
 		],
 		// A condition on the SUBJECT is a condition like any other: focus alone draws nothing here.
 		[
+			'a ring inherited from an ancestor that has none',
+			'.rp-dialog { outline: none; } .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: inherit; }',
+		],
+		[
 			'a ring that also requires hover',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:hover:focus-visible { outline: 2px solid red; }',
 		],
@@ -728,6 +732,12 @@ describe('a flattened button and its focus ring', () => {
 		// was "not every component is zero", which catches `0 0 0 0` and credits this.
 		'box-shadow: 0 0 0 -1px red',
 		'box-shadow: 0 0 0 -0.5em red',
+		// `inherit` is the one CSS-wide keyword whose value a stylesheet does not hold — it is the
+		// PARENT's, and under a `.dialog { outline: none }` that is nothing. It fell through to the
+		// `var()` arm, which credits an unknown as drawing, so a focus rule spelled this way answered
+		// a flattened button with an indicator that is not there.
+		'outline: inherit',
+		'box-shadow: inherit',
 	])('does not count %s as a ring', (declarations) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
 	});
@@ -781,6 +791,16 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'an outline assembled from two rules',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-color: red; } .rp-dialog-button:focus-visible { outline-style: solid; }',
+		],
+		// AN IMPORTANT SHORTHAND BESIDE A REDUNDANT NORMAL LONGHAND. The important `outline` wins every
+		// component in the browser, so this ring stands and the later normal reset cannot touch it.
+		// Under the whole-outline importance this file used to resolve, the normal `outline-color`
+		// made `every(...)` false, the block read as wholly normal, and the reset beat it — the gate
+		// rejecting CSS that rings. Per-longhand importance has no such arm: `outline` being important
+		// makes every part important, whatever else the block also sets.
+		[
+			'an important outline shorthand beside a normal longhand',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red !important; outline-color: red; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: none; }',
 		],
 		[
 			'a reset a later rule of equal specificity puts back',

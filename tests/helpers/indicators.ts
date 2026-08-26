@@ -41,7 +41,7 @@ import type { Declaration } from 'lightningcss';
  * is a reset; anything else draws, because what a variable holds is outside what any gate here
  * can see. That is the same ceiling the specificity check declares, stated rather than implied.
  */
-const RESETS = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer']);
+const NOT_KNOWN_TO_PAINT = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer', 'inherit']);
 
 /** Is this a length the parser resolved to exactly zero? */
 const isZero = (length: { type: string; value?: unknown }): boolean =>
@@ -104,12 +104,27 @@ export type OutlinePart = 'width' | 'style' | 'color';
  */
 export type OutlineParts = Partial<Record<OutlinePart, Known>>;
 
-/** Is an unparsed value a single bare keyword that resets the property? */
-const isReset = (declaration: Declaration & { property: 'unparsed' }): boolean => {
+/**
+ * Is an unparsed value a single bare keyword this gate may not credit as painting?
+ *
+ * Five of the six RESET the property, and `inherit` is the odd one — it takes the PARENT's value,
+ * which is not knowable from a stylesheet at all. It is in the set anyway, and that is the whole
+ * point of the rename: the question this predicate answers is not "does this reset" but "may this
+ * be credited", and for a gate about a MISSING focus indicator the answer to an unknowable value is
+ * no. `outline: inherit` under a `.dialog { outline: none }` leaves the button bare, and treating
+ * it as an unknown that draws — the arm every `var()` takes — passed that.
+ *
+ * The `var()` arm stays on the other side, and the difference is worth stating: a variable's value
+ * is chosen by this project or by the theme and is overwhelmingly a real ring, while `inherit`'s is
+ * whatever an ancestor happened to have and is overwhelmingly the initial. Neither is provable
+ * here; they are guesses in opposite directions, and this one is the conservative guess about a
+ * keyword nothing in this repository writes.
+ */
+const isBlankKeyword = (declaration: Declaration & { property: 'unparsed' }): boolean => {
 	const tokens = declaration.value.value;
 	const only = tokens.length === 1 ? tokens[0] : null;
 
-	return only?.type === 'token' && only.value.type === 'ident' && RESETS.has(only.value.value.toLowerCase());
+	return only?.type === 'token' && only.value.type === 'ident' && NOT_KNOWN_TO_PAINT.has(only.value.value.toLowerCase());
 };
 
 /**
@@ -180,8 +195,8 @@ export const indicatorOf = (
 		}
 		if (declaration.property !== 'unparsed') continue;
 
-		const reset = isReset(declaration);
-		const known: Known = reset ? 'blank' : 'unknown';
+		const blank = isBlankKeyword(declaration);
+		const known: Known = blank ? 'blank' : 'unknown';
 
 		switch (propertyOf(declaration)) {
 			case 'outline': {
@@ -207,7 +222,7 @@ export const indicatorOf = (
 				break;
 			}
 			case 'box-shadow': {
-				shadow = !reset;
+				shadow = !blank;
 				break;
 			}
 			default: {

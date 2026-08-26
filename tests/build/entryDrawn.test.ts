@@ -27,6 +27,17 @@ beforeEach(() => {
 });
 
 describe('entryHasDrawn', () => {
+	/**
+	 * An EMPTY element counts, and that is deliberate rather than an oversight: `<canvas>` is
+	 * exactly that shape, so the Plan Editor's own capture is an empty element with everything
+	 * painted inside it. Refusing it would refuse the one entry this tool exists to photograph.
+	 */
+	it('accepts an empty element, because a canvas is one', () => {
+		stage('<canvas></canvas>');
+
+		expect(entryHasDrawn('prototype:X')).toBe(true);
+	});
+
 	it.each([
 		['an element', '<p>drawn</p>'],
 		['a bare text root, which is a legitimate early mock', 'Coming soon'],
@@ -39,6 +50,7 @@ describe('entryHasDrawn', () => {
 
 	it.each([
 		['a comment placeholder alone, which is how a v-if="false" root renders', '<!--v-if-->'],
+		['a hidden root, which draws nothing while occupying a node', '<div hidden><p>invisible</p></div>'],
 		['nothing at all', ''],
 		['whitespace, which draws nothing a person can see', '   \n\t '],
 	])('refuses %s', (_what, html) => {

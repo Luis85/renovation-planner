@@ -287,7 +287,11 @@ describe('axe against the harness index', () => {
 	 * otherwise pass here while being scanned not at all.
 	 */
 	it.each(prototypeEntries())('reports no semantic violations on $id', async ({ id }) => {
-		const wrapper = await openIndex(`entry=${id}`);
+		// ENCODED, as `hrefFor` and `scripts/entryShots.mjs` both do. An id is built from a file
+		// path and `&` is a legal filename character, so an unencoded one would truncate the
+		// query and this case would report that a perfectly good prototype had failed to open —
+		// a red gate caused by adding a legal file, not by anything being wrong with it.
+		const wrapper = await openIndex(`entry=${encodeURIComponent(id)}`);
 
 		try {
 			expect(wrapper.find('.rp-harness-failure').exists(), `${id} did not open`).toBe(false);

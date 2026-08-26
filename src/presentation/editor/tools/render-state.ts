@@ -4,9 +4,9 @@ import type { Point } from '../../../core/geometry/Point';
 
 /**
  * Transient-only visuals (SDD §19, design slice 6): hover, an in-progress preview
- * polygon, a marquee-select rectangle, and snap guides. None of these four fields is
- * ever persisted, and none of it is domain state — a Plan closed and reopened starts
- * every one of them fresh.
+ * polygon, a marquee-select rectangle, snap guides, and the calibration segment. None of
+ * these five fields is ever persisted, and none of it is domain state — a Plan closed and
+ * reopened starts every one of them fresh.
  *
  * **A plain class, not a slot on `EditorStore`** (`src/presentation/stores/EditorStore.ts`,
  * Pinia). That file already carries `hoveredObjectId` and `temporaryPolygon` refs, each
@@ -25,11 +25,22 @@ export class RenderState {
 	previewPolygon: readonly Point[] | null = null;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];
+	/**
+	 * The two points a calibration is being measured between — its own field rather than a
+	 * two-point `previewPolygon`, because the two mean different things and a walkthrough
+	 * asked for exactly that distinction: a polygon preview says "you are drawing a zone",
+	 * and `InteractionLayer` draws it dashed and closed. A calibration is a measurement, so
+	 * it renders solid with a marker at each end. Reusing the polygon field would have shown
+	 * the user the wrong verb at the one moment they said they could not tell what was
+	 * happening.
+	 */
+	measurement: LineSegment | null = null;
 
 	reset(): void {
 		this.hoveredObjectId = null;
 		this.previewPolygon = null;
 		this.marquee = null;
 		this.snapGuides = [];
+		this.measurement = null;
 	}
 }

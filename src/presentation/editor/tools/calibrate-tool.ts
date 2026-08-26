@@ -125,6 +125,10 @@ export class CalibrateTool implements EditorTool {
 		}
 		if (this.pointA === null) {
 			this.pointA = event.worldPoint;
+			// A zero-length segment, so the anchor's own marker is drawn before the pointer
+			// has moved anywhere: the first click has to leave a trace, or the user cannot
+			// tell it registered.
+			context.renderState.measurement = { start: event.worldPoint, end: event.worldPoint };
 			return; // first point placed; wait for the second click
 		}
 		const pointA = this.pointA;
@@ -132,10 +136,33 @@ export class CalibrateTool implements EditorTool {
 		// The second point is placed here, exactly as before — only the START of `complete()`
 		// moves to `pointerUp`. See `pointerUp` for why.
 		this.pendingCompletion = { pointA, pointB: event.worldPoint };
+		// And the measured segment STAYS on screen from here through both dialogs: it is the
+		// thing the user is being asked to put a length on, so it has to still be visible
+		// while they answer. `complete()`'s `finally` is what takes it down.
+		context.renderState.measurement = { start: pointA, end: event.worldPoint };
 	}
 
-	pointerMove(): void {
-		// Live preview segment deferred until a rendering seam exists for tool overlays.
+	/**
+	 * The rubber band from the placed anchor to the pointer — `InteractionLayer` only, no
+	 * domain state touched, the same seam `DrawPolygonTool` broadcasts its preview through.
+	 *
+	 * This method was empty, under a comment claiming a "live preview segment deferred until
+	 * a rendering seam exists for tool overlays". That seam has existed since slice 8 wired
+	 * `RenderState` into `runtime.ts` and `InteractionLayer` began drawing from it, so the
+	 * comment outlived its own condition — and the cost was found by a human calibrating a
+	 * plan in a vault and seeing nothing drawn at all.
+	 *
+	 * `prompting` is in the guard as well as `pointA === null`: once the second point is
+	 * placed the segment is the MEASURED one, and a pointer that keeps moving while a dialog
+	 * sits open must not drag its end around. `pointA` is already `null` by then, so this is
+	 * belt and braces rather than the only thing holding it — kept because the two states
+	 * mean different things and a later edit to either should not silently start animating a
+	 * segment the user is being asked about.
+	 */
+	pointerMove(event: EditorPointerEvent): void {
+		const context = this.context;
+		if (context === null || this.pointA === null || this.prompting) return;
+		context.renderState.measurement = { start: this.pointA, end: event.worldPoint };
 	}
 
 	/**
@@ -177,10 +204,19 @@ export class CalibrateTool implements EditorTool {
 	}
 
 	cancel(): void {
+		const context = this.context;
 		this.generation += 1;
 		this.pointA = null; // clears a pending first point; no command dispatched
 		this.pendingCompletion = null; // and a buffered second point awaiting its pointerUp
 		this.prompting = false; // and releases a gesture whose prompt the bump just killed
+		// And takes the segment off the canvas. `context` is read before the resets because
+		// `deactivate()` calls this BEFORE clearing it — a cancel with no context has nothing
+		// drawn to clear anyway.
+		if (context !== null) this.clearMeasurement(context);
+	}
+
+	private clearMeasurement(context: EditorContext): void {
+		context.renderState.measurement = null;
 	}
 
 	private async complete(
@@ -192,6 +228,9 @@ export class CalibrateTool implements EditorTool {
 		// number from ever reaching the prompt or the derivation below it.
 		const measured = distance(pointA, pointB);
 		if (!(measured > 0)) {
+			// Two clicks in the same place still drew an anchor marker; nothing is going to
+			// be asked about it, so it comes off again here.
+			this.clearMeasurement(context);
 			return;
 		}
 		// The plan is bound BEFORE the prompt: whatever the user answers, the points were
@@ -217,9 +256,13 @@ export class CalibrateTool implements EditorTool {
 		} finally {
 			// Only if this gesture is still the live one: a `cancel()` across either await
 			// already cleared the flag, and clearing it again would undo a new gesture's
-			// claim on it.
+			// claim on it. The segment goes with it — both dialogs are closed by now, on
+			// every path out of the `try` including a decline, so what it was there to
+			// explain is over. Clearing it unguarded would wipe the anchor a NEW gesture had
+			// already drawn while this stale one was still unwinding.
 			if (generation === this.generation) {
 				this.prompting = false;
+				this.clearMeasurement(context);
 			}
 		}
 		if (generation !== this.generation) {

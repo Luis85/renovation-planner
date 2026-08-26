@@ -12,6 +12,13 @@ settings pane offers the one setting there is; and the persistence layer of desi
 is in place — Obsidian repositories, the geometry sidecar store, the project index and its
 vault-change pipeline, and the migration runner.
 
+**Every entity and mechanism the MVP architecture needs now exists**, which is what slice
+10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
+cost engine behind them, the reference-integrity engine that guards deleting either end of
+a link, and the recalculation cascade that keeps a figure honest when its inputs move.
+Everything past this point is feature work on a proven template. What is NOT done is the
+cross-cutting pair (slices 11–12) and every surface slices 13–17 name.
+
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
 a ribbon button and a command, and draws nothing of its own yet; the only thing mounted in
@@ -173,15 +180,19 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   you write. The one hole: `DialogHost`'s check is `FormDialog`'s declared prop type, so it
   is STRUCTURAL — a fifth descriptor carrying a `title` and a `component` would satisfy
   `FormDescriptor` and render as a form rather than fail.
-- **`DeleteReferenceDialog` and `EntityPickerDialog` are built, tested and called by
-  nothing**, and that is the plan rather than dead code. Their caller is slice 10's
-  delete-with-references flow and the queries feeding their rows are slice 10's to define;
-  Definition-of-Done items 6, 6a, 8 and 8a of
-  `docs/tasks/15-modals-and-confirmation-dialogs.md` are open and that document says so.
-  **6a is `t` interpolation**, and it is the odd one out: not slice 10's to define, but
-  unbuilt because nothing had asked for it. `t(language, key)` takes two arguments and
-  every string in `en.ts` is fixed text; the first with a value inside it is item 6's row
-  label, which names a project. So the two land together.
+- **`DeleteReferenceDialog` and `EntityPickerDialog` have a caller now** — slice 10's
+  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button. They
+  shipped with none for two slices, which was the plan rather than dead code: the queries
+  feeding their rows and the command fields carrying their answer were slice 10's to define,
+  and declaring them in slice 15 would have been a second derivation of contracts it owns.
+  **Two of slice 15's items are still open, and the caller did not close them**, because the
+  shared-catalogue amendment rewrote them after that flow was built:
+  `ListRequirementsReferencing` returns a flat `RequirementId[]`, not the per-project GROUPS
+  carrying `projectName` and `projectPath` that item 6 now asks for; and item 6a's
+  `t(language, key, params?)` does not exist — `src/presentation/i18n/strings.ts` still
+  declares two parameters, and every string `en.ts` holds is fixed text. The two land
+  together, because the first interpolated string in the plugin is the row label item 6
+  names.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
   means its own thing.** The calibration segment is `measurement`, not a two-point
   `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
@@ -190,6 +201,54 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   exists", and that seam had existed since slice 8 — so the gesture drew nothing at all, and
   an empty method has no behaviour for any test to disagree with. Found by a human
   calibrating a plan.
+
+**Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
+Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the
+Inspector grew a Requirements panel (`RequirementRow.vue` per row) whose assign control and
+two override fields all dispatch through `InspectorStore.commit` like every other edit; and
+the Delete button finally has the reference decision slice 15 built two dialogs for.
+Rules that came out of it:
+
+- **The read informs and the command enforces, and they are allowed to disagree.**
+  `deleteZoneFlow.ts` reads the referents BEFORE the dialog, so its answer is stale by
+  construction. A zero count therefore dispatches the ABSENT-resolution form rather than a
+  `delete-anyway` the user was never offered: a refusal is recoverable by asking, while
+  consent is exactly what the command's re-check cannot argue with. A resolution travels
+  with `resolvedReferents` — the exact ids the dialog's row was built from — so the command
+  compares SETS, and `reference.set-changed` is re-asked exactly ONCE. Every one of those is
+  asserted on the COMMAND INPUT, because "a dialog opened" is equally true of a caller that
+  sent `delete-anyway` straight through.
+- **An undo is the same compensated sequence run backwards**, so it is written down once
+  (`application/reference/undoDeleteResolution.ts`) rather than derived a second time.
+  Entity first, then the Requirements in the exact reverse of the order the resolution wrote
+  them; every write hands back its OWN inverse, taken from what `getById` actually found
+  before it; both lock levels held through the rollback. Slice 8's `ReversibleDeleteZone`
+  header predicted this widening and now carries it.
+- **A lock only excludes participants that take it.** The delete resolution took level-2
+  locks over every Requirement it writes, and the override commands took none — so a legal
+  override landing between the forward write and the compensation was silently lost.
+  Both override commands acquire the level-2 lock now. `RecalculateRequirementCommand`
+  deliberately still does not, and the reason is in its sibling's header: the resolution
+  calls it inline while holding that very lock.
+- **A recording event bus is a fake with no cascade in it.** `tests/helpers/planEditorRig.ts`
+  used `RecordingEventBus`, whose `subscribe` discards its handler — so every
+  geometry-driven figure in the editor's own e2e rig was as stale as the day it was written
+  and no assertion could see it. It dispatches now and registers the same two handlers the
+  composition root does.
+- **A background failure that nobody is awaiting reaches nobody unless it is announced.**
+  `CascadeDeps.notify` was built, tested and passed by nothing, so a failed stale marker was
+  logged into the void — and that marker is precisely what lets a later reader see a wrong
+  figure as wrong. The composition root passes it now;
+  `tests/plugin/slice10CascadeWiring.test.ts` is what can tell a composition that wires it
+  from one that does not.
+- **`assetName` is nullable so the row can be BUILT.** A Requirement whose Asset was deleted
+  renders from its id plus the reason; typed `string`, the query would have had to fail or
+  drop the row, and the stale warning would be unreachable for exactly the rows that need
+  it. The Zone-side half has no surface at all in this slice, and the task document says so
+  rather than implying one.
+- **Three decimals, not two, is what catches a YAML float.** `594.005` is not representable
+  in binary floating point; `594.00` and `99.99` survive a coercion that would destroy it.
+  The check lives in the shared repository contract, so both implementations take it.
 
 **Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`, and since
 slice 15 a user can actually reach it.** `registerEditorTools` registers `calibrate` beside
@@ -362,9 +421,9 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.3/99.07/99.61/98.23 as of
-  slice 15. **Read functions again: 99.07 against a floor of 99, which is 0.07 of headroom
-  where one uncovered function costs 0.13.** So an untested new arm does not "reduce
+  99/99/99/98 (statements/functions/lines/branches), against 99.27/99.04/99.51/98.02 as of
+  slice 10. **Read branches again: 98.02 against a floor of 98, which is 0.02 of headroom
+  where ONE uncovered branch costs about 0.05.** So an untested new arm does not "reduce
   coverage", it fails the gate — plan the test with the code rather than after it. Do not
   read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
   which increment moved them, and what every remaining uncovered arm IS live in
@@ -563,8 +622,14 @@ read it. That is not hypothetical: the first author to write a mock here tripped
 `vue/html-indent` and `vue/singleline-html-element-content-newline`, got a green hook, and met
 `npm run check` several turns later — the exact gap this hook exists to close, in the one tree
 whose authors are most likely to fall into it. The cost is measured and is why it is not
-extended to `.ts`: oxlint answers for one SFC in about 110ms and ESLint in about 2.5s, and on
-`.ts` the two overlap enough that seconds per edit would buy little.
+extended to `.ts`: oxlint answers for one SFC in about 110ms and ESLint in seconds, and on
+`.ts` the two overlap enough that seconds per edit would buy little. **That second figure
+tracks the size of `src/`, not the size of the file** — the Vue ruleset is type-aware, so
+the project service loads the whole tree before it answers for one SFC. It was about 2.5s
+when this hook was built and is 5.4s now; the two SFC cases in
+`tests/build/lint-edited.test.ts` carry an explicit budget because growth alone pushed them
+past vitest's 5000ms default, and that budget is the instrument for whether this hook is
+still cheap enough to sit in the edit loop at all.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
@@ -775,9 +840,16 @@ that was fixing the previous instance.
 
 Not oversights; each has a trigger.
 
-- **decimal.js and dayjs**, and nothing else on the SDD's stack. Installing a dependency
-  nothing imports fails `npm run analyze`, so each arrives with its first real use — money
-  arithmetic (ADR-010) and scheduling respectively, neither of which exists yet.
+- **dayjs**, and nothing else on the SDD's stack. Installing a dependency nothing imports
+  fails `npm run analyze`, so each arrives with its first real use — scheduling, which does
+  not exist yet.
+
+  **decimal.js is NOT on this list any more.** It arrived with slice 9's money arithmetic
+  (ADR-010) and this line said otherwise for two slices. `core/money/Money.ts` is the ONLY
+  module that touches a `Decimal` for a monetary amount — `amount` is a decimal STRING
+  across every boundary, because a float is exactly what ADR-010 refuses — and quantities
+  carry a `Decimal` directly. Three decimals is the figure that catches a coercion:
+  `594.005` is not representable in binary floating point while `99.99` survives one.
 
   **Vue, Pinia, zod, konva and vue-konva are NOT on this list any more**, and
   this paragraph is the record of what their arrival cost, because the next arrival pays

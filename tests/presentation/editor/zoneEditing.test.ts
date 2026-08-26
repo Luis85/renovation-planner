@@ -27,11 +27,11 @@ import {
 	toolbarButton,
 	ZONE_A_DTO,
 } from '../../helpers/planEditorRig';
+import { makeDeleteZoneCommand } from '../../helpers/slice10';
 import { useEditorRuntime } from '../../../src/presentation/editor/runtime';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { expectOk, injectedPersistenceError, RecordingEventBus } from '../../helpers/domain';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
-import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
@@ -333,7 +333,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			commands: {
 				createZone: new CreateZoneCommand(zonesRepo, plans, events),
 				moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
-				deleteZone: new DeleteZoneCommand(zonesRepo, events),
+				deleteZone: makeDeleteZoneCommand(zonesRepo, events),
 				zones: zonesRepo,
 				zoneInspector: new GetZoneInspector(zonesRepo),
 			},
@@ -422,7 +422,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			commands: {
 				createZone: new CreateZoneCommand(zonesRepo, plans, events),
 				moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
-				deleteZone: new DeleteZoneCommand(zonesRepo, events),
+				deleteZone: makeDeleteZoneCommand(zonesRepo, events),
 				zones: zonesRepo,
 				zoneInspector: new GetZoneInspector(zonesRepo),
 			},

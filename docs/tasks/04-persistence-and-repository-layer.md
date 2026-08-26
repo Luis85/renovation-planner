@@ -963,7 +963,9 @@ interface FindZonesByPlanQuery {
   **Whoever next touches this pipeline owes it a decision** — scanning and watching a list
   of roots is the obvious shape — and slice 10's shared-asset queries cannot work until it
   is made. Recorded here rather than fixed in the slice that discovered it, because this
-  file owns the index.
+  file owns the index. **That decision is taken, and the list of roots built, in
+  [18 — A Project Owns Its Folder](18-a-project-owns-its-folder.md)**, which needs the same
+  list for its own reason and so pays for both at once.
   User-supplied paths pass through `normalizePath` before any Vault call. There is no
   second location field: ADR-011 puts geometry in `Geometry/` inside this folder, so the
   sidecar path is derived rather than configured, and changing this one setting while

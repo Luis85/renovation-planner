@@ -329,7 +329,7 @@ describe('the camera', () => {
 describe('what the shell shows when there is no plan to draw', () => {
 	it('says so, and mounts no canvas, when the plan does not exist', async () => {
 		harness = await mountPlanEditor({
-			queries: { getPlan: () => Promise.resolve(ok(null)), findZonesByPlan: () => Promise.resolve(ok([])) },
+			queries: { getPlan: () => Promise.resolve(ok(null)), findZonesByPlan: () => Promise.resolve(ok([])), getRequirementsForZone: () => Promise.resolve(ok([])), listAssets: () => Promise.resolve(ok([])) },
 		});
 
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(false);
@@ -341,6 +341,8 @@ describe('what the shell shows when there is no plan to draw', () => {
 			queries: {
 				getPlan: () => Promise.resolve(err(READ_FAILED)),
 				findZonesByPlan: () => Promise.resolve(ok([])),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
 			},
 		});
 
@@ -358,6 +360,8 @@ describe('what the shell shows when there is no plan to draw', () => {
 				// Never settles: the editor is in its loading state for the whole of this test.
 				getPlan: () => new Promise(() => {}),
 				findZonesByPlan: () => Promise.resolve(ok([])),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
 			},
 		});
 

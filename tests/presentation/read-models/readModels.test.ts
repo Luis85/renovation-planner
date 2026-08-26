@@ -166,15 +166,53 @@ describe('the plan editor query boundary', () => {
 	 * broken" is not "this plan does not exist", and the editor's failed state is the right
 	 * thing to show for the first.
 	 */
-	it('refuses both reads when settings were never recovered', async () => {
+	it('refuses every read when settings were never recovered', async () => {
 		const queries = unavailablePlanEditorQueries();
 
 		expect(expectErr(await queries.getPlan('plan-1'))).toMatchObject({
 			category: 'Persistence',
 			code: 'settings.unrecovered',
 		});
-		expect(expectErr(await queries.findZonesByPlan('plan-1'))).toMatchObject({
-			code: 'settings.unrecovered',
-		});
+		for (const refused of [
+			await queries.findZonesByPlan('plan-1'),
+			await queries.getRequirementsForZone('zone-1'),
+			await queries.listAssets('project-1'),
+			await queries.listRequirementsReferencing('zone-1'),
+			await queries.listReassignmentTargets('zone-1'),
+		]) {
+			expect(expectErr(refused)).toMatchObject({ code: 'settings.unrecovered' });
+		}
+	});
+
+	/**
+	 * The four slice-10 members are OPTIONAL on the input, for editor test rigs that mount
+	 * no Requirements panel content — and an omitted one answers EMPTY rather than throwing.
+	 * Asserted because the alternative reads identically at the call site and fails only in
+	 * a rig, which is the last place anyone looks.
+	 */
+	it('surfaces a failed asset read as an error rather than an empty picker', async () => {
+		// An empty picker and an unreadable catalog look identical to the panel, and only one
+		// of them means "this project has no assets yet".
+		const failing = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+			listAssets: {
+				execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })),
+			},
+		} as never);
+
+		expect(expectErr(await failing.listAssets('project-1'))).toMatchObject({ category: 'Persistence' });
+	});
+
+	it('answers empty for a slice-10 query the composition omitted', async () => {
+		const bare = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+		} as never);
+
+		expect(expectOk(await bare.getRequirementsForZone('zone-1'))).toEqual([]);
+		expect(expectOk(await bare.listAssets('project-1'))).toEqual([]);
+		expect(expectOk(await bare.listRequirementsReferencing('zone-1'))).toEqual([]);
+		expect(expectOk(await bare.listReassignmentTargets('zone-1'))).toEqual([]);
 	});
 });

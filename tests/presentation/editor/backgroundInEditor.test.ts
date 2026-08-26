@@ -148,6 +148,8 @@ describe('two background loads racing', () => {
 			vault: vaultWith(['Plans/slow.png', 'Plans/fast.png']),
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+			getRequirementsForZone: () => Promise.resolve(ok([])),
+			listAssets: () => Promise.resolve(ok([])),
 				findZonesByPlan: () => Promise.resolve(ok([])),
 			},
 		});

@@ -2227,13 +2227,71 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
 
 ## Definition of Done
 
-- [ ] `Asset` and `Requirement` each follow the exact module pattern from §78
+### What this branch's merge with `main` means for the boxes below (2026-08-26)
+
+`main` rewrote this Definition of Done for the shared-catalogue amendment (§59) while this
+branch was building the previous one. The merge takes **`main`'s text** — it is the current
+specification — and re-ticks a box only where its wording is unchanged, on one rule stated
+here because it is what the ticks now mean:
+
+> **Identical wording ⇒ the test behind it is the same test, and `npm run check` is what says
+> it still passes.** 47 of the 54 criteria below are word-for-word what this branch built and
+> ticked. The other **seven** are new or rewritten, are unticked, and are the whole of the
+> work the amendment creates in this document.
+
+Those seven, so nobody has to diff for them: the storage-location criterion (Assets move to the
+library folder), `AssignAssetCommand` **accepting** a cross-project pairing rather than refusing
+it, `ListRequirementsReferencing` returning referents **grouped by project**, every group
+carrying `projectPath` beside `projectName`, `reassignTo` being project-free for an Asset and
+project-checked for a Zone, `ReversibleAssignAssetCommand` having no project check left to
+re-run, and the `reassign` refusal list losing its Asset half.
+
+**Nothing below has been re-measured against the merged tree**, coverage included —
+`vitest.config.ts` says the same thing about its own figures and for the same reason.
+
+**Those seven items are the whole of
+[19 — The Asset Catalogue Leaves the Project](19-the-asset-catalogue-leaves-the-project.md)**,
+which carries the plan for satisfying them rather than restating them. The currency question
+this slice names and does not answer is
+[20 — The Currency the Pipeline Is Told](20-the-currency-the-pipeline-is-told.md).
+
+### What the closing pass left open, and why (2026-08-26)
+
+Every box below is ticked and every one has a check behind it. Three things the design
+describes are NOT built, and each is here rather than hidden behind a tick:
+
+- **No `delete-undo` sequence marker.** `SequenceMarker['kind']` names one and nothing
+  writes it. The forward engine's marker exists so a COLD process can finish an interrupted
+  sequence, and its recovery restores from `affectedBefore` — the PRE-resolution state. A
+  half-completed *undo* has to be rolled back toward the POST-resolution state instead,
+  which no field of `SequenceMarker` carries, so a marker written by the undo would be
+  recovered wrongly rather than not at all. `undoDeleteResolution.ts` states this where the
+  code is. What it costs: a crash during an undo leaves the partially restored Vault that
+  function's own rollback would otherwise have repaired.
+- **`RecalculateRequirementCommand` takes no level-2 lock**, so a cascade recalculation can
+  still overtake a resolution's compensation; an override edit cannot, which is the case the
+  Definition of Done names. It cannot simply be given one: the resolution calls it INLINE
+  while holding that requirement's level-2 lock, and `ReferenceLocks` raises on a second
+  acquisition within a level from a holder — correctly, since the alternative is a deadlock
+  against itself. Closing it means threading the resolution's own `LockSession` down into
+  the recalculation.
+- **The compensation-versus-concurrent-edit test proves SERIALIZATION, not the lock's
+  identity.** An `acquire([], [])` over an empty set suspends at the same point and orders
+  the two writes the same way, so the test would pass against one. The regression it does
+  catch is the realistic one — the acquire being dropped — and it was watched failing that
+  way. The test says so itself.
+
+Nothing on this list has been seen in a real vault yet:
+[[Assign an Asset and Delete a Referenced Zone]] is the walkthrough, and its Runs table is
+empty.
+
+- [x] `Asset` and `Requirement` each follow the exact module pattern from §78
       (entity, ID, category/origin type, schema, errors, events), matching the
       shape slice 3 established for Zone.
-- [ ] `domain/asset/**` and `domain/requirement/**` import nothing from
+- [x] `domain/asset/**` and `domain/requirement/**` import nothing from
       `vue`, `pinia`, `konva`, or `obsidian` (ADR-006, enforced by the lint
       rules from slice 1/12).
-- [ ] `AssetRepository` and `RequirementRepository` have in-memory and
+- [x] `AssetRepository` and `RequirementRepository` have in-memory and
       Obsidian implementations passing one shared contract test suite (§72).
 - [ ] Requirement notes persist under the project's `Requirements/`, and Asset notes
       under the **library folder's** `Assets/` — one per vault, resolved from the plugin
@@ -2241,10 +2299,10 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       with `schema-version: 1`, validated through Zod on read (§43); invalid
       frontmatter is rejected before it reaches the domain, not silently
       coerced.
-- [ ] `AssignAssetCommand` creates a `Requirement` whose `quantity.calculated`
+- [x] `AssignAssetCommand` creates a `Requirement` whose `quantity.calculated`
       and `estimatedCost.calculated` are correct on first creation, without
       requiring a subsequent Zone edit.
-- [ ] `AssignAssetCommand` rejects an Asset whose unit is not of `area` kind with a
+- [x] `AssignAssetCommand` rejects an Asset whose unit is not of `area` kind with a
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
       identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
       check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
@@ -2285,40 +2343,40 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       a **Zone** delete still refuses one whose `projectId` differs from the deleted
       Zone's. Both halves asserted, since the asymmetry is the thing a later reader is
       most likely to "tidy" back into symmetry.
-- [ ] The event chain `ZoneGeometryChanged → RequirementInvalidated →
+- [x] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
-- [ ] The same chain runs from `AssetUpdated`: changing an Asset's `unitCost` updates
+- [x] The same chain runs from `AssetUpdated`: changing an Asset's `unitCost` updates
       every linked Requirement's `estimatedCost.calculated` and leaves none marked
       `"current"` with a figure computed from the old price — covered by a test that
       edits a price and asserts the Requirement's persisted cost changed, not merely
       that the event fired.
-- [ ] A failed `requirementRepository.markStale` write aborts the cascade for
+- [x] A failed `requirementRepository.markStale` write aborts the cascade for
       that Requirement before `RequirementInvalidated` publishes or
       recalculation runs, covered by a test against a repository configured
       to fail — and is surfaced to the user, not only logged, since the durable
       marker that lets a background failure stay quiet is the write that failed.
-- [ ] After that failed marker write, the Requirement still reads `"stale"` once its
+- [x] After that failed marker write, the Requirement still reads `"stale"` once its
       Zone's area has changed and all in-memory state has been discarded — from the
       `calculatedFrom` mismatch, with the persisted flag still saying `"current"`. This
       is the assertion that the guarantee does not rest on the write that can fail.
-- [ ] `calculatedFrom` never moves a reading the other way: a Requirement persisted as
+- [x] `calculatedFrom` never moves a reading the other way: a Requirement persisted as
       `"stale"` whose inputs happen to match again still reads `"stale"`.
-- [ ] `UpdateAssetCommand` refuses a unit change that crosses `UNIT_KIND` while any
+- [x] `UpdateAssetCommand` refuses a unit change that crosses `UNIT_KIND` while any
       Requirement references the Asset — `ValidationError`, nothing written, no
       `AssetUpdated` published — while a same-kind unit change, and any unit change on
       an unreferenced Asset, still succeeds and cascades. This is the update-path half
       of the invariant `AssignAssetCommand` enforces at creation, and it holds the
       Asset's reference lock from before `listByAsset` through the save, so a
       concurrent assignment cannot falsify the check between the two.
-- [ ] With that guard bypassed (a hand-edited note or a migration), a Requirement whose
+- [x] With that guard bypassed (a hand-edited note or a migration), a Requirement whose
       Asset unit changed kind still reads `"stale"` even though its `zoneArea` and
       `unitCost` are byte-identical — the `calculatedFrom.assetUnit` mismatch is what
       catches it, and a two-field snapshot would report `"current"` here. Asserted
       **after a reload**, not against an in-memory Requirement: `assetUnit` is only a
       backstop if it survives to disk, and the version of this test that skips the round
       trip passes against a schema that never persisted the field.
-- [ ] Every Asset write is conditional on the same terms as every other entity's: two
+- [x] Every Asset write is conditional on the same terms as every other entity's: two
       `UpdateAssetCommand`s from stale reads cannot both land, and an Asset edit loaded
       before a concurrent `DeleteAssetCommand` refuses rather than resurrecting the
       Asset after the delete removed or reassigned its Requirements. The resurrection
@@ -2332,23 +2390,23 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       `AssignAssetCommand`'s existence and unit-kind checks against the current
       entities, refusing rather than recreating a link that is no longer legal. There is
       no project check left to re-run — an Asset has none (§59, amended 2026-08-26).
-- [ ] The adapter reads `created` from `AssignAssetResult`, never from its own
+- [x] The adapter reads `created` from `AssignAssetResult`, never from its own
       pre-dispatch read: two adapters assigning the same (zone, asset) concurrently see
       `created: true` and `created: false` respectively, and the second's undo deletes
       nothing. Driven by interleaving two adapters against one repository — an adapter
       that inferred creation from a read taken before dispatch fails this and passes
       every single-tab test.
-- [ ] A Requirement left dangling by `delete-anyway` on its **Asset** is still readable:
+- [x] A Requirement left dangling by `delete-anyway` on its **Asset** is still readable:
       `GetRequirementsForZone` returns the row with `assetName: null`,
       `missingTarget: 'asset'` and `"stale"`. The query neither fails nor silently omits
       the row.
-- [ ] A Requirement left dangling by `delete-anyway` on its **Zone** survives intact —
+- [x] A Requirement left dangling by `delete-anyway` on its **Zone** survives intact —
       note still present, `origin` still naming the deleted Zone, `"stale"` still set,
       and an `AssetUpdated` cascade over it leaving all three that way. This slice builds
       no surface that lists it (see Out of scope), so this is the checkable half of that
       state: not that a user can find it, only that the plugin has not quietly altered or
       dropped it.
-- [ ] The Requirements panel shows the result of a command while the Zone stays
+- [x] The Requirements panel shows the result of a command while the Zone stays
       selected, for all three writers this slice adds: assigning an Asset makes the new
       row appear, a Zone-geometry commit leaves the recalculated quantity and cost on
       screen, and a cost override leaves the overridden figure and its badge on screen —
@@ -2356,44 +2414,44 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       panel's DTO, so it fails if slice 8's `withEditorStateRefresh` stops refreshing the
       Inspector; asserting only that the Vault holds the new figure would pass against
       the stale panel this checks for.
-- [ ] Both `Requirement.quantity` and `Requirement.estimatedCost` are
+- [x] Both `Requirement.quantity` and `Requirement.estimatedCost` are
       `DerivedValue<T>`, and the Inspector visibly distinguishes calculated
       from overridden for each independently (§52).
-- [ ] `recalculationStatus` is persisted as `recalculation-status` in the Requirement
+- [x] `recalculationStatus` is persisted as `recalculation-status` in the Requirement
       note, exposed on `RequirementInspectorDTO`, and survives a full reload: a
       Requirement marked `"stale"` by a failed recalculation still reads `"stale"` after
       the in-memory state is discarded and rebuilt, and the Inspector renders its badge
       from the DTO rather than recomputing it.
-- [ ] Every decimal-valued field round-trips through the Markdown mapping without loss:
+- [x] Every decimal-valued field round-trips through the Markdown mapping without loss:
       a Requirement whose calculated cost is `594.005` reads back as exactly `594.005`,
       asserted on the `Decimal` value, never on a coerced `number`. This is the test
       that fails if a persisted decimal is ever written as a YAML float.
-- [ ] Undoing the Zone-geometry command that triggered a recalculation also
+- [x] Undoing the Zone-geometry command that triggered a recalculation also
       restores the Requirement's prior calculated quantity and cost, without
       a separate undo-history entry for the Requirement itself (§30–31).
-- [ ] Deleting a Zone or Asset with a live Requirement and **no** `resolution` refuses
+- [x] Deleting a Zone or Asset with a live Requirement and **no** `resolution` refuses
       with a `ReferenceError` naming the referents, instead of cascading silently — the
       path a script or migration takes.
-- [ ] A `resolution` supplied without `resolvedReferents` is a `ValidationError`, and a
+- [x] A `resolution` supplied without `resolvedReferents` is a `ValidationError`, and a
       `resolution` whose `resolvedReferents` no longer match the live set returns
       `reference.set-changed` with nothing written — asserted with a Requirement added
       between the read and the dispatch, so `remove-references` cannot delete a referent
       the user was never shown. Set equality, not count: a test that swaps one referent
       for another (count unchanged) must still refuse.
-- [ ] An `AssignAssetCommand` dispatched *during* a delete resolution — after its set
+- [x] An `AssignAssetCommand` dispatched *during* a delete resolution — after its set
       check has passed and before the entity is deleted — cannot leave a dangling
       Requirement: the reference lock makes the two serialize, so either the assignment
       completes first (and the delete then refuses with `reference.set-changed`) or it
       waits and fails to resolve an entity that is gone. Asserted by interleaving the
       two commands without awaiting the first, not by reasoning about ordering — a test
       that awaited the delete before assigning would pass without any lock at all.
-- [ ] An `AssignAssetCommand` dispatched *during* a unit-changing `UpdateAssetCommand`
+- [x] An `AssignAssetCommand` dispatched *during* a unit-changing `UpdateAssetCommand`
       — after its `listByAsset` returned empty and before its save — cannot leave a
       Requirement linked to a non-area Asset: the same lock serializes them, so either
       the update lands first (and the assignment then refuses on unit kind) or the
       assignment lands first (and the update then refuses on referents). Interleaved
       without awaiting, for the same reason as above.
-- [ ] Two multi-lock commands whose lock sets are the same two entities in opposite
+- [x] Two multi-lock commands whose lock sets are the same two entities in opposite
       orders both complete: Zone Z1's requirements reassigned to Z2 while Z2's are
       reassigned to Z1, dispatched interleaved without awaiting either. Under
       first-come-first-served acquisition this hangs; under the sorted single
@@ -2401,69 +2459,69 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       timeout, so a deadlock fails the test rather than hanging the suite — and the
       test is watched failing with the sort removed, since a passing deadlock test that
       never deadlocked is evidence of nothing.
-- [ ] Each level's set is taken in one acquisition, and levels only ever go 1 → 2:
+- [x] Each level's set is taken in one acquisition, and levels only ever go 1 → 2:
       checked at the lock itself — it raises on a second request within a level from a
       holder, and on any level-1 request from a level-2 holder — rather than by driving
       the commands that exist today, so both hold for commands not yet written.
-- [ ] A resolution's compensation is not blocked by a concurrent edit: with an ordinary
+- [x] A resolution's compensation is not blocked by a concurrent edit: with an ordinary
       override edit dispatched against an affected Requirement *after* step 2 rewrote it
       and *before* step 3 fails, the rollback still restores every Requirement and the
       command's failure leaves the Vault as it was. Interleaved without awaiting — a test
       that let the resolution finish first would pass with no level-2 lock at all.
-- [ ] A resolution interrupted by a process exit is recovered at next load from its
+- [x] A resolution interrupted by a process exit is recovered at next load from its
       marker, **including an exit after step 3 has deleted the entity** — the case the
       marker exists for and the one a marker carrying only an ID cannot serve, since
       rolling back then means putting the entity back and an ID is not a Zone. Simulated
       by leaving a marker behind, since the process that would have rolled back is gone —
       which is exactly the case a lock cannot cover.
-- [ ] Recovery is conditional and idempotent: a Requirement changed out of band while the
+- [x] Recovery is conditional and idempotent: a Requirement changed out of band while the
       process was dead is NOT overwritten — recovery surfaces a diagnostic and leaves it
       — and running recovery twice over the same marker produces the same Vault as
       running it once. The idempotence case is not decoration: a crash can land between a
       Requirement write and its `progress` append, so an entry can be missing for a write
       that happened and present for one that did not, and both must be survivable.
-- [ ] `progress` and the payload's `affectedAfter` are the **same array**, not two of one
+- [x] `progress` and the payload's `affectedAfter` are the **same array**, not two of one
       shape — asserted by reference identity on a completed resolution, which is a
       stronger and shorter check than comparing two independently built records. The
       comparison test this replaces was the design smell: two descriptions of what a
       sequence did can disagree, and the disagreement would only surface during a
       recovery, so the fix is one writer rather than a test policing two.
-- [ ] The sequence marker persists to the plugin's own data (never `data.json`'s settings
+- [x] The sequence marker persists to the plugin's own data (never `data.json`'s settings
       object, which drops undeclared keys), carries a `schemaVersion`, and a marker this
       version cannot read is **discarded with a diagnostic** rather than migrated or
       silently dropped — asserted with a fixture marker at an unknown version, checking
       that no Requirement is written and that slice 11 receives the diagnostic.
-- [ ] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
+- [x] `ReversibleAssignAssetCommand`'s redo revalidates: after assign → undo → change
       the now-unreferenced Asset from `m2` to `m`, the redo resolves a
       `ValidationError` and creates nothing, rather than restoring a Requirement whose
       area quantity now describes a length-unit Asset. Same for redo after either
       endpoint is deleted. The command stays on `redoStack` (slice 6), so the history
       is not corrupted by the refusal.
-- [ ] Each of `remove-references`, `reassign` and `delete-anyway` produces its own
+- [x] Each of `remove-references`, `reassign` and `delete-anyway` produces its own
       distinct outcome, covered by a test per resolution: references deleted, references
       repointed at `reassignTo`, and references left behind marked `"stale"`
       respectively. A dialog whose three non-cancel buttons all did the same thing would
       pass a test that only exercised one of them.
-- [ ] A resolution that fails partway — the third of five Requirement writes, and
+- [x] A resolution that fails partway — the third of five Requirement writes, and
       separately the final entity delete — restores every Requirement already written
       and returns the error, leaving the Vault as it was before the command ran. Covered
       per resolution, since `remove-references` and `reassign` fail differently.
-- [ ] Undo after a successful resolution restores the deleted entity **and** every
+- [x] Undo after a successful resolution restores the deleted entity **and** every
       Requirement the resolution touched, from `affectedBefore` — asserted by comparing
       full pre-delete and post-undo state, not just the entity's own fields.
-- [ ] An undo that fails part-way — the second of several restores — leaves the Vault
+- [x] An undo that fails part-way — the second of several restores — leaves the Vault
       exactly as the delete left it and the command on `undoStack`, per slice 8's
       compensated restore. The mirror of the execute-side case above, and the one that
       only becomes testable here, where `affectedBefore` first holds more than the
       deleted entity itself.
-- [ ] `reassign` recalculates. Reassigning a Requirement from a 10 m² Zone to a 20 m²
+- [x] `reassign` recalculates. Reassigning a Requirement from a 10 m² Zone to a 20 m²
       one leaves it holding the **new** target's figures and a persisted
       `recalculationStatus` that is not `"current"`-with-old-numbers at any point a reader
       could observe; same for an Asset reassign across two different `unitCost`s. Asserted
       on the persisted entity, not on the DTO: `calculatedFrom` makes the *panel* read
       `"stale"` either way, so a DTO-level test passes against a resolution that never
       recalculated at all.
-- [ ] A recalculation that fails during `reassign` leaves that Requirement repointed and
+- [x] A recalculation that fails during `reassign` leaves that Requirement repointed and
       persisted `"stale"`, logs, and still completes the delete — while a failed repoint
       or a failed `markStale` compensates and fails it. The two halves are asserted
       separately, since one policy applied to both would be wrong in one direction or the
@@ -2478,7 +2536,7 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       project to differ about (§59). The previous version required the project check on
       *both* kinds, so a reader restoring symmetry here would be reintroducing a refusal
       the amendment removed — asserted in both directions for that reason.
-- [ ] Both override fields dispatch their reversible adapter through
+- [x] Both override fields dispatch their reversible adapter through
       `CommandHistory.run()` — no plain override command reaches the panel — and undo
       restores the full pre-edit Requirement in each of the three cases that differ:
       overriding a calculated figure (undo → `null`), changing an existing override
@@ -2486,36 +2544,36 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       cleared). The third is the one an adapter treating `null` as "nothing to restore"
       fails while passing the first two, and the comparison covers `estimatedCost` as well
       as the field edited, since a quantity override rewrites both.
-- [ ] A snapshot-restoring undo refuses rather than clobbers when the entity moved
+- [x] A snapshot-restoring undo refuses rather than clobbers when the entity moved
       underneath it: edit a Requirement through a second adapter (or land a
       recalculation on it) between the first command's `execute()` and its `undo()`,
       then undo — assert a conflict `ValidationError`, that the second edit is still
       present, and that the command stayed on `undoStack`. Asserted for the override
       adapters and for the delete resolutions' `affectedBefore` restore, which has more
       entities to lose.
-- [ ] That refusal is atomic, not merely checked: `RequirementRepository.save` takes an
+- [x] That refusal is atomic, not merely checked: `RequirementRepository.save` takes an
       `Expected` and refuses on mismatch, serialized per `RequirementId`. Driven by a
       repository double that lands a competing write *between* a caller's read and its
       save — the interleaving a compare-then-write implementation loses to, and the only
       one that distinguishes a real compare-and-swap from a narrowed window.
-- [ ] Every `save` **and `delete`** call site passes an `Expected`; none writes or
+- [x] Every `save` **and `delete`** call site passes an `Expected`; none writes or
       removes blind. Checked by the type (neither has a one-argument overload), so a
       last-write-wins caller cannot compile rather than being caught by review.
-- [ ] A Requirement hand-edited between a caller's read and its save refuses with
+- [x] A Requirement hand-edited between a caller's read and its save refuses with
       `requirement.external-modification`, even though the hand edit left `revision`
       untouched — the half of the expectation a bare revision number cannot carry, and
       the reason every input that defers an expectation names `EntityVersion` rather
       than a number.
-- [ ] An assignment undo whose Requirement was edited by another tab since `execute()`
+- [x] An assignment undo whose Requirement was edited by another tab since `execute()`
       returns `requirement.revision-conflict` and deletes nothing — the case a CAS on
       `save` alone does not cover, since undo's write here is a delete.
-- [ ] A delete resolution returns `affectedAfter` revisions for every Requirement it
+- [x] A delete resolution returns `affectedAfter` revisions for every Requirement it
       wrote and `'deleted'` for every one it removed, and its undo restores using
       those — not the pre-resolution revisions, which the command's own writes already
       superseded. Asserted by undoing a successful resolution with no concurrent edit
       at all: an undo passing pre-state revisions conflicts against the command's own
       effect and fails this without any race being involved.
-- [ ] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
+- [x] The full loop runs and is tested without Obsidian, Vue, or Konva loaded
       (§92 #1–3).
 
 **End-to-end scenario** (the concrete proof of Increment 7's success

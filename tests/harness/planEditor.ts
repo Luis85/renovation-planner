@@ -136,6 +136,14 @@ export function harnessDeps(): PlanEditorDeps {
 			// one covers the synchronous seed, and neither path goes through the other.
 			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
 			findZonesByPlan: () => Promise.resolve(ok(structuredClone(HARNESS_ZONES))),
+			// Slice 10's four reads, answered EMPTY rather than refused — the fixture world
+			// seeds no Requirements and no Assets, so an empty list is what the real query
+			// would return for it. That is the honest stand-in; the refusal bundle would be
+			// the harsher one, and this file already carries what that costs below.
+			getRequirementsForZone: () => Promise.resolve(ok([])),
+			listAssets: () => Promise.resolve(ok([])),
+			listRequirementsReferencing: () => Promise.resolve(ok([])),
+			listReassignmentTargets: () => Promise.resolve(ok([])),
 		},
 		/**
 		 * Every WRITE refuses with `settings.unrecovered`, the honest answer for a page with no

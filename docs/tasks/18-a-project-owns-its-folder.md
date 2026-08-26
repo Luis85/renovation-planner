@@ -1,0 +1,344 @@
+---
+type: Task
+parent: "[[Foundation and composition root]]"
+order: 50
+dependsOn:
+  - "[[04-persistence-and-repository-layer]]"
+status: ""
+started: ""
+finished: ""
+horizon: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
+---
+# Design Slice 18: A Project Owns Its Folder
+
+## Purpose
+
+PRD §83 puts **project folder** under Project Settings and **default folders** under Plugin
+Settings. The code has one plugin setting, `projectFolder`, and every project nests directly
+inside it. That was correct while a project folder was the only location a note could have.
+The 2026-08-26 amendment ends that: §36 now draws two roots, and §83 forbids the library
+folder and a project folder from overlapping in either direction.
+
+Under today's shape that rule cannot be stated, let alone checked. `Renovation/` is the
+project folder, so the library's own drawn default — `Renovation/Library/` — is *contained by
+it*, and a literal reading of §83 refuses the default §36 draws. The disagreement is not about
+paths, it is about **what the words "project folder" name**: §83 means one renovation's folder,
+the code means the root every renovation shares. Slice 19 cannot state its overlap refusal
+until that is settled, which is why this slice comes first.
+
+There is a second reason, and somebody else recorded it first.
+[`04-persistence-and-repository-layer.md`](04-persistence-and-repository-layer.md) carries a
+prerequisite added 2026-08-26 and deliberately not built there: `collectNotes` skips any file
+whose path does not start with the project folder and `VaultChangeAdapter` returns early on the
+same test, so **a library that is a separate root is invisible to the Project Index and to the
+vault-change pipeline**. That note hands the decision to "whoever next touches this pipeline —
+scanning and watching a list of roots is the obvious shape."
+
+It also says, in a correction to its own first draft, that **"it bites in every valid
+configuration, not eventually"** — because §83 forbids the library and a project folder from
+containing one another, and §36 draws the project folder as `Renovation/Kitchen Refit/` rather
+than the `Renovation/` parent, so the library is *never* inside the scanned root. **There is no
+grace period, and that is the same sentence as this slice's own purpose**: both halves of the
+problem are the word "project folder" meaning one renovation's folder rather than the root they
+share. So the index work lands here rather than becoming a fourth seam.
+
+This slice adds no entity, no command, no rendering and no user-visible feature. It moves one
+setting and rewrites what resolves a path.
+
+## Scope
+
+### In scope
+
+- **ADR-012**, deciding whether a project's folder is a stored field or is derived from where
+  its `Project.md` note sits. Written before the code, because the two answers produce
+  different schemas and the ADR is the artefact that survives the choice.
+- `RenovationPlannerSettings.projectFolder` becomes the **default location for a new project**,
+  and is renamed to say so. It stops being the answer to "where is this entity."
+- A per-project folder, reaching every path `paths.ts` derives: `Plans/`, `Zones/`,
+  `Requirements/`, `Geometry/` (ADR-011 unchanged — still derived, still never configured).
+- `NoteVaultDeps.projectFolder` is removed. Five repositories cache
+  `normalizeFolder(deps.projectFolder)` in their constructors; a per-project folder cannot be a
+  constructor field, so folder resolution moves to the write, per entity.
+- **The Project Index and the vault-change pipeline take a LIST of roots**, closing slice 4's
+  recorded prerequisite. One root today, several the moment slice 19 lands.
+- A one-time migration for vaults holding the single-folder layout.
+- `foldersOverlap`, the pure predicate §83's rule needs, and its refusal at the two sites that
+  exist in this slice (creating a project, changing a project's folder). The third site — moving
+  the library — is slice 19's, and calls the same function.
+
+### Out of scope (covered by other slices)
+
+- The **library folder** setting and everything downstream of it — slice 19. This slice makes
+  its overlap rule statable and its index multi-root; it does not add it.
+- `Asset` losing `projectId`, and the catalogue moving — slice 19.
+- `Project.currency` and the per-project price override — slice 20.
+- Any UI for choosing a project's folder beyond what the settings surface already draws. Slice
+  16 owns creation forms; a project's folder is chosen at creation, and until that slice exists
+  the only creators are `CreateProjectCommand` and the sample seed.
+
+## Dependencies
+
+Slice 4 (the repositories, the index, the vault-change pipeline, the migration runner). Nothing
+else. It is deliberately ahead of slice 19 and blocks it.
+
+## Design
+
+### The decision ADR-012 owes
+
+Two shapes, and the ADR picks one rather than this document doing it quietly:
+
+**A stored field.** `Project.folder`, persisted as `folder:` in the note, schema-bumped. It is
+what §83's word "setting" literally says. Its cost is ADR-011's own argument, made there against
+a configurable sidecar folder: *"there is no setting left holding a path that has quietly gone
+stale."* A stored folder can go stale — a user moves the folder in Obsidian's file explorer and
+the field still names the old one.
+
+**Derived from the note's location.** A project's folder is the folder its `Project.md` is in.
+Nothing is stored, nothing goes stale, and moving a project in Obsidian is moving a folder —
+which is exactly the property ADR-011 chose the project-scoped sidecar folder to preserve. Its
+cost: §83 says "setting", and this makes it not one; and discovery has to find `Project.md`
+notes before it can bound anything else, which is a real change to the index's scan order.
+
+**The recommendation is the derived one**, on ADR-011's precedent, and the ADR has to say
+explicitly why [[Identity is the id, never the filename, title or path]] does not forbid it —
+that rule governs *identity*, and a folder is location, but the rule's name reads as though it
+settles this and it does not.
+
+Everything below is written against the derived shape. If the ADR chooses the stored field, the
+index section is unchanged and the migration gains a step.
+
+### Roots, and why the index takes a list
+
+`buildProjectIndexEntries` becomes two ordered passes over a **root list** rather than one pass
+over a prefix:
+
+```text
+roots: readonly string[]      ← one per project folder, plus (slice 19) the library folder
+   ↓
+collectNotes(root) for each   ← unchanged inside; only the bound is per-root
+   ↓
+joinSidecars(root)            ← only for roots that are project folders
+```
+
+The list is built by scanning for `type: renovation-project` notes first and taking each one's
+parent folder. That is one extra pass over `vault.getMarkdownFiles()` at `onLayoutReady`, and
+the cost is worth naming rather than discovering: the scan already walks that list once, so this
+is a second walk of the same array, not a second read of every file. `frontmatterOf` is what
+costs, and it is called on the same set either way.
+
+**A note of ours under no root is skipped with a diagnostic**, the same shape `note-excluded`
+already has. That is a behaviour change worth stating. Today a note outside `projectFolder` is
+skipped *silently*, correctly, because everything outside the one folder is somebody else's
+note. With a root list, a note carrying our `type` and a valid `id` and sitting under no root is
+a different thing — an orphan — and saying nothing about it is how a project the index cannot
+see looks identical to a project that does not exist.
+
+`VaultChangeAdapter` takes the same list and the same predicate. **One function answers "which
+root is this path under", and both callers use it.** The full scan and the incremental run
+disagreeing about a note is the defect `stringField` was already extracted to prevent; this is
+the same shape one level up.
+
+### What replaces `deps.projectFolder`
+
+Five repositories resolve their folder in a constructor today. A per-project folder is not known
+then, so each save resolves it from the entity being written:
+
+- **Project**: its own folder is where its note goes. On INSERT there is no note yet, so the
+  folder comes from the command input, defaulted from the plugin setting — which is the whole of
+  what that setting still does.
+- **Plan, Zone, Requirement**: from the owning project, through the index. Every one of these
+  already carries a `projectId`, so no field is added and no lookup is invented —
+  `index.getPath(projectId)` and `parentOf` give the folder, and `parentOf` already exists in
+  `paths.ts` for the compensating-create path.
+- **Geometry sidecars**: unchanged in rule (project folder + `Geometry/`, ADR-011), changed only
+  in which string "project folder" resolves to.
+
+`paths.ts`'s functions already take the folder as their first argument (`plansFolderFor(folder)`),
+so their signatures do not move. What moves is who computes the argument.
+
+**A project whose folder cannot be resolved is a `PersistenceError`, never a fallback to the
+default.** Writing to a defaulted path when the real one is unknown is how a note lands in a
+parallel tree beside the user's work — the exact failure slice 1 refused defaults for, and its
+reasoning ("a setting that names a path is not a preference") applies here unchanged.
+
+### `foldersOverlap`
+
+```ts
+/** §83: two configured paths may be neither equal nor contain one another. */
+export function foldersOverlap(a: string, b: string): boolean
+```
+
+Segment-aware after `normalizeFolder`, so `Renovation Library` is not "inside" `Renovation`:
+equal, or one is the other plus `/` and more. Three arms, three tests, and the third is the one
+a naive `startsWith` gets wrong — it is written first and watched failing.
+
+It is pure and lives in `paths.ts`, the one place a path is taken apart or put together. It has
+two callers here and a third in slice 19. **The refusal is at each call site, not inside the
+predicate**, because the three sites produce three different errors naming three different
+things a user did.
+
+### The migration
+
+A vault holding the single-folder layout has `Renovation/Project.md`, `Renovation/Plans/…`,
+`Renovation/Zones/…` — every project sharing one folder. After this slice, each project needs
+its own.
+
+**This is a note MOVE, and the migration runner cannot do it.** `MigrationRunner` chains pure
+functions over plain frontmatter objects at read time (`migrateToLatest(kind, raw, fromVersion)`);
+it never touches a file. So the folder migration is its own mechanism, run once at
+`onLayoutReady` before the index scan, and it is written down here rather than filed under
+"migration" as though the existing machinery covered it.
+
+The sequence, which is the same shape slice 19's library move uses:
+
+1. Detect the old layout: a root holding `Project.md` **and** the per-kind folders directly.
+2. Per project, create `<root>/<project name>/` and `fileManager.renameFile` its note and every
+   entity note the index attributes to it. `renameFile` rather than `vault.rename`, because it
+   is what fixes links in other notes — a user's own wikilink into a plan note must survive.
+3. Rebuild the index from the new roots.
+4. Only then persist the settings change.
+
+**A partial move is possible and is not compensated**, and this is the honest sentence: a
+failure at file 40 of 90 leaves 40 moved. Step 4 then does not run, the old setting stands, and
+the next load meets a layout that is neither shape. So the migration reports a diagnostic naming
+what it moved and stops; it attempts no reverse move, because a reverse move can fail the same
+way and there is then no shape at all. This is a real cost of the decision, named rather than
+designed around — the alternative is a transaction over Obsidian's file API, which does not
+exist.
+
+**A single-project vault — which is every vault this plugin has ever produced — moves in one
+folder rename.** So the failure window above is the multi-project case, and there are none yet.
+
+## Interfaces & Contracts
+
+```ts
+// paths.ts — new, pure
+export function foldersOverlap(a: string, b: string): boolean;
+
+// ProjectIndex — the scan's bound becomes plural
+interface IndexRoots {
+	readonly projectFolders: readonly string[];
+	readonly library?: string;
+}
+```
+
+`library` is optional and unused here. It is declared now rather than in slice 19 because the
+alternative is slice 19 widening a type slice 18 shipped, and the field costs nothing while
+absent. **Nothing in this slice reads it**, and that is the narrow claim: the multi-root
+machinery is proven with several project folders, not with a library, because there is no
+library yet to prove it with.
+
+`NoteVaultDeps.projectFolder` is deleted. That deletion is the compile-error surface this slice
+is steered by: five repositories and two pipeline modules stop building at once, and each is
+converted in the same commit because `vue-tsc` runs first in `npm run build`.
+
+## Persistence Impact
+
+No new note kind and no frontmatter change **if ADR-012 chooses the derived shape**. If it
+chooses the stored field, `Project` gains `folder:` and `LATEST_VERSIONS.project` goes to 2 with
+a real migration step.
+
+New vault layout, per PRD §36:
+
+```text
+Renovation/                     ← the plugin setting: where a NEW project starts
+├── Kitchen Refit/              ← a project folder
+│   ├── Project.md
+│   ├── Plans/  Zones/  Requirements/  Geometry/
+└── Bathroom/
+    └── …
+```
+
+## Testing Strategy
+
+- `foldersOverlap` — node, three arms plus the segment case, written before the predicate.
+- The root-list scan — the existing index tests, extended to two projects. **The two-project
+  fixture is the point**: every index test today has one project, and a one-project fixture
+  passes against a scan that still uses a single prefix.
+- The orphan diagnostic — a note of ours under no root, asserted on the `warn` call. A category
+  invariant checked at the logger rather than by enumerating placements.
+- Folder resolution — driven through the repositories, asserting the PATH a note landed at, for
+  two projects whose folders differ. Asserting only that the write succeeded would pass against
+  a repository that wrote both into one folder.
+- The unresolvable-project refusal — a `PersistenceError`, driven by removing the project's index
+  entry between a caller's read and its save.
+- The migration — the fake vault, one project and then three, plus the partial-failure case
+  asserting that the setting was NOT persisted and that the diagnostic names what moved.
+
+**Coverage.** Branches sit at 98.02 against a floor of 98 — about 0.4 of a branch of headroom
+(`vitest.config.ts` carries the measurement, taken on the merged tree 2026-08-26). This slice's
+new arms are `foldersOverlap`'s three, the root-resolution miss, the orphan skip, and the
+migration's detect and partial arms. **Every one gets its test in the commit that adds it**,
+because one uncovered branch fails the gate. That is arithmetic here, not a style preference.
+
+## Staying green
+
+Three commits, and the ordering is what keeps `npm run check` passing at each:
+
+1. **`foldersOverlap` and the root-list types, with nobody calling them.** Pure additions, fully
+   tested, no behaviour change.
+2. **The conversion.** `NoteVaultDeps.projectFolder` deleted, five repositories and both pipeline
+   modules converted, index tests extended. Atomic by necessity — the deletion is what fails the
+   build, and a half-converted tree does not compile.
+3. **The migration and the settings rename.**
+
+## Definition of Done
+
+- [ ] **ADR-012 exists and is Accepted**, stating whether a project's folder is stored or
+      derived, naming ADR-011's precedent, and saying explicitly why
+      [[Identity is the id, never the filename, title or path]] does not forbid the derived
+      shape — the rule reads as though it settles this and it does not.
+- [ ] `foldersOverlap` refuses equal paths and containment **in both directions**, and accepts
+      two paths sharing a name prefix without a segment boundary (`Renovation` and
+      `Renovation Library`). The third case is watched failing against a plain `startsWith`.
+- [ ] The Project Index scans a LIST of roots, covered by a fixture with **two** projects in
+      **different** folders, both fully resolvable. A single-project fixture passes against the
+      single-prefix scan this replaces, so the two-project fixture is the check.
+- [ ] `VaultChangeAdapter` watches the same list, asserted by modifying a note in the second
+      project and observing the index update. Same reasoning: one project proves nothing here.
+- [ ] Both halves answer "which root is this path under" through **one** function, checked by
+      that function having exactly two callers. The defect being guarded is the full scan and
+      the incremental run disagreeing about a note — what `stringField` already exists to
+      prevent one level down.
+- [ ] A note of this plugin's under no root is skipped **with a diagnostic**, asserted on the
+      logger call. Today it is skipped silently and correctly; with a root list, silence hides
+      an orphaned project.
+- [ ] Every entity's note lands in ITS OWN project's folder, asserted on the resulting path for
+      two projects at once. `NoteVaultDeps.projectFolder` no longer exists, checked by the type.
+- [ ] A save whose project folder cannot be resolved returns a `PersistenceError` and writes
+      nothing — never a write to the defaulted path. Driven by removing the index entry between
+      the read and the save.
+- [ ] Geometry sidecars still resolve as ADR-011 specifies, now inside the per-project folder,
+      asserted through `PlanGeometryStore` against two projects.
+- [ ] The one-time migration moves a single-folder vault to per-project folders using
+      `fileManager.renameFile` (so vault links survive), rebuilds the index, and persists the
+      setting **only after** the move succeeded — asserted by failing the move partway and
+      checking that `data.json` still holds the old value.
+- [ ] A partial move reports a diagnostic naming every note it moved, and attempts no reverse
+      move. Asserted because this is the documented cost rather than a bug: the test pins the
+      behaviour, it does not argue it is desirable.
+- [ ] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — floors rise
+      only if a finished increment measures above them.
+
+## References
+
+**PRD**: §36 Vault Data Model (as amended 2026-08-26); §59 Entity Relationship Rules; §83
+Configuration Model — the folder split and the overlap rule; §102 Performance Budgets, for the
+scan cost named above.
+
+**ADRs**: [ADR-011](../adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md) —
+its rejected alternative is this slice's argument in miniature, and its "a project moves as one
+folder" consequence is what the derived shape preserves. **ADR-012 is owed by this slice.**
+
+**Slices**: [04](04-persistence-and-repository-layer.md) — owns the index, and records the
+multi-root prerequisite this slice closes; [19](19-the-asset-catalogue-leaves-the-project.md) —
+blocked on this one.
+
+**Business rules**: [[Work belongs to one project, catalogues belong to the vault]] ·
+[[Identity is the id, never the filename, title or path]]

@@ -71,26 +71,44 @@ The framework is complete and in use: `DialogStore`, `DialogHost`, all four kind
 trap, `Escape`, background `inert`, focus restoration, the stacking guard, the import
 boundary and its meta-test. Definition of Done items 1, 2, 3, 4, 5, 7, 9, 10 and 11 are met.
 
-**Items 6, 6a, 8 and 8a are NOT met, and were not attempted.** They are the Zone-delete worked
-example, and every collaborator they name — `ListRequirementsReferencing`,
+**Items 8 and 8a were met by slice 10 (2026-08-26); items 6 and 6a were not.** All four are
+the Zone-delete worked example, and every collaborator they name — `ListRequirementsReferencing`,
 `ListReassignmentTargets`, and a `reversibleDeleteZone` taking `resolution` /
 `resolvedReferents` and refusing with `reference.set-changed` — belongs to slice 10, which
 was in flight while this slice was built. Declaring those shapes here would have been a
 second derivation of contracts slice 10 owns, which this document's own "Out of scope"
-section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` are built and tested and
-have no production caller for the same reason: that is the plan, not dead code.
+section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` were built and tested with
+no production caller for the same reason: that was the plan, not dead code.
 
-Item **6a** is unmet for a different reason and it is worth separating: `t` interpolation
-is not slice 10's, it is this slice's own, and it was not built because nothing had asked
-for it — every string the framework itself renders is fixed text, and the first
-interpolated one is item 6's row label. So it lands when item 6 does. `t(language, key)`
-in `src/presentation/i18n/strings.ts` still takes two arguments; the executable example
-below spells the three-argument form the row label needs, and that is a specification
-rather than a description of what ships today.
+**Both have a caller now.** `presentation/editor/deleteZoneFlow.ts` is it, reached from the
+Inspector's Delete button through `runtime.ts`'s `createDeleteZoneAction`. Items 8 and 8a are
+covered where that flow lives: `tests/presentation/editor/deleteZoneFlow.test.ts` asserts the
+decisions on the COMMAND INPUT (a zero count carries no `resolution`; every resolution carries
+the exact `resolvedReferents` the row was built from; `reference.set-changed` re-asks once and
+a second one is surfaced), and
+`tests/presentation/editor/shell/deleteZoneWithReferences.test.ts` drives the real mounted
+editor with the real `DialogHost` — which is what would catch a flow with the right logic and
+a query nobody passed it.
 
-The Inspector's Delete button still dispatches straight through `InspectorStore.commit`'s
-`toCommand`, unchanged. Wiring it to `DeleteReferenceDialog` is slice 10's closing task;
-this sentence stays until it happens.
+**Item 6 stayed open, and it stayed open because it changed underneath that flow.** The
+shared-catalogue amendment (§59, 2026-08-26) rewrote it after `deleteZoneFlow.ts` was built:
+it now asks for referents grouped **per project**, each group carrying `projectName` and — for
+any group whose name is not unique on screen — `projectPath`. `ListRequirementsReferencing`
+returns a flat `readonly RequirementId[]`, so nothing downstream can build those rows. The
+flow satisfies the item this document carried when it was written and not the item it carries
+now, which is the honest state and not a regression in the flow.
+
+Item **6a** is unmet for a different reason again, and it is worth separating: `t`
+interpolation is not slice 10's, it is this slice's own, and it was not built because nothing
+had asked for it — every string the framework itself renders is fixed text, and the first
+interpolated one is item 6's row label. So it lands when item 6 does. `t(language, key)` in
+`src/presentation/i18n/strings.ts` still takes two arguments; the executable example below
+spells the three-argument form the row label needs, and that is a specification rather than a
+description of what ships today.
+
+**Both land in
+[19 — The Asset Catalogue Leaves the Project](19-the-asset-catalogue-leaves-the-project.md)**,
+because the amendment that rewrote item 6 is the one that slice implements.
 
 **What this slice DID reach:** `CalibrateTool`, which slice 7 built and slice 8 shipped
 registered nowhere. It is in `registerEditorTools` and in the toolbar now, its recalibration

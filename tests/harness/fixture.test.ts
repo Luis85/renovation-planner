@@ -148,7 +148,14 @@ describe('the harness Inspector query', () => {
 		const kitchen = HARNESS_ZONES[0];
 		const useInspector = createInspectorStoreDefinition({
 			query: harnessDeps().commands.zoneInspector,
-			// Neither is reached by `hydrateFrom`; both are required by the deps type.
+			// `requirementsQuery` IS reached by `hydrateFrom` — slice 10 made the rows ride the
+			// same ticket as the zone — so it is answered rather than stubbed away, from the same
+			// bundle as the query above. Empty is the fixture world's honest answer: it seeds no
+			// Requirements. `dispatcher` and `toCommand` are the two `hydrateFrom` genuinely does
+			// not reach, and are required only by the deps type.
+			requirementsQuery: {
+				execute: ({ zoneId }) => harnessDeps().queries.getRequirementsForZone(String(zoneId)),
+			},
 			dispatcher: { run: () => Promise.resolve(ok(undefined)) },
 			toCommand: () => ({}) as never,
 		});

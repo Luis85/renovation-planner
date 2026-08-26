@@ -30,6 +30,8 @@ function deps(): PlanEditorDeps {
 	return {
 		queries: {
 			getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
+			getRequirementsForZone: () => Promise.resolve(ok([])),
+			listAssets: () => Promise.resolve(ok([])),
 			findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
 		},
 		// The lifecycle tests here dispatch nothing; the refusal commands keep that honest.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DeleteZoneCommand } from '../../../../src/application/commands/zone/DeleteZone';
+import { makeDeleteZoneCommand } from '../../../helpers/slice10';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import {
 	expectErr,
@@ -16,7 +16,7 @@ import type { ProjectId } from '../../../../src/domain/project/ProjectId';
 const wired = () => {
 	const zones = new InMemoryZoneRepository();
 	const events = new RecordingEventBus();
-	return { zones, events, command: new DeleteZoneCommand(zones, events) };
+	return { zones, events, command: makeDeleteZoneCommand(zones, events) };
 };
 
 const seed = async (zones: InMemoryZoneRepository) => {
@@ -34,7 +34,10 @@ describe('DeleteZoneCommand', () => {
 		const zone = await seed(zones);
 
 		const result = await command.execute({ zoneId: zone.id });
-		expect(expectOk(result)).toEqual({ zoneId: zone.id });
+		const payload = expectOk(result);
+		expect(payload.zoneId).toBe(zone.id);
+		expect(payload.affectedBefore).toEqual([]);
+		expect(payload.affectedAfter).toEqual([]);
 		expect(await zones.getById(zone.id)).toEqual({ ok: true, value: null });
 
 		expect(events.published).toEqual([
@@ -60,7 +63,7 @@ describe('DeleteZoneCommand', () => {
 			}
 		}
 		const error = expectErr(
-			await new DeleteZoneCommand(new FailingRead(), events).execute({ zoneId: 'zone-x' as never }),
+			await makeDeleteZoneCommand(new FailingRead() as never, events).execute({ zoneId: 'zone-x' as never }),
 		);
 		expect(error.code).toBe('test.injected-failure');
 		expect(events.published).toHaveLength(0);
@@ -95,7 +98,7 @@ describe('DeleteZoneCommand', () => {
 		const zone = await seed(zones);
 		zones.fail = true;
 		const error = expectErr(
-			await new DeleteZoneCommand(zones, events).execute({ zoneId: zone.id }),
+			await makeDeleteZoneCommand(zones, events).execute({ zoneId: zone.id }),
 		);
 		expect(error.code).toBe('test.injected-failure');
 		expect(events.published).toHaveLength(0);

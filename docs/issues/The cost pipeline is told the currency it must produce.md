@@ -161,6 +161,11 @@ The override lands and a project can supply its own price for a shared definitio
 point the question becomes whether a supplied override replaces the proposed refusal or
 merely satisfies it.
 
+**That is [20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md)**,
+which clears all three blockers above and answers the question as *satisfies*: the pipeline's
+check stands for every caller, and the override is how a project passes it. This Issue closes
+when that slice does, and its outcome is recorded here rather than only there.
+
 ## References
 
 - PRD §59 (as amended 2026-08-26 — the shared catalogues), §72 (a project's currency), §89

@@ -553,9 +553,18 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   drew the same picture. And the fix for the first four introduced the fifth: `.rp-harness-index
   h2` is a descendant selector, the stage lives inside that element, and the picker's uppercase
   type was drawn over every entry's own headings until a capture showed `WorkPackages.vue`'s
-  title reading "WORK PACKAGES". `tests/harness/indexChrome.test.ts` refuses that selector shape
-  now; the other four are what `harness-shot`'s own `index-dark`/`index-light` pair exists to
-  keep looking at.
+  title reading "WORK PACKAGES". `tests/harness/indexChrome.test.ts` refuses a selector that
+  reaches the mounted entry now, from any of the three roots that lead there — the picker, the
+  stage and the leaf — rather than only the one that shipped.
+
+  **Which capture watches which of the other four**, because the resting pair cannot watch all
+  of them and saying it could is how a state stops being looked at: `index-dark`/`index-light`
+  hold the row height and the kind label's contrast, both of which are on screen at rest.
+  A focus ring is not — nothing is focused in a headless page until something presses Tab — so
+  that one is `index-focus`, which is why that shot takes a `focus` selector and why
+  `focusForShot` presses Tab rather than calling `page.focus()`, which does not satisfy
+  `:focus-visible`. The failure card is not on screen either, since no entry has failed: it is
+  `index-failure`, which asks for an entry id that does not exist.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.

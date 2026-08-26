@@ -148,25 +148,50 @@ function buttonClasses(): Set<string> {
  */
 const RESETS = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer']);
 
+/** Is this a length the parser resolved to exactly zero? */
+const isZero = (length: { type: string; value?: unknown }): boolean =>
+	length.type === 'value' && (length.value as { value: number }).value === 0;
+
+/**
+ * Would this colour paint anything?
+ *
+ * The parser folds every spelling of a fully transparent colour to the same node — `transparent`,
+ * `#0000`, `rgba(0,0,0,0)`, `hsla(0,0%,0%,0)` and even `light-dark(transparent, transparent)` all
+ * arrive as `rgb` with `alpha: 0`, which is exactly why this is one comparison rather than a list
+ * of spellings. A node carrying no numeric alpha at all — `currentcolor` — is assumed to paint.
+ */
+const paints = (color: { alpha?: number }): boolean => color.alpha !== 0;
+
 const drawsAnIndicator = (declarations: readonly Declaration[]): boolean =>
 	declarations.some((declaration) => {
 		const property = propertyOf(declaration);
 
 		if (property !== 'outline' && property !== 'box-shadow') return false;
-		// An outline draws when its STYLE is not `none` and its WIDTH is not zero. `outline: none`
-		// and `outline: 0` both resolve style to `none`, so the style test alone covers those two;
-		// `outline: 0 solid red` is the third spelling and needs the width — a zero width with a
-		// real style is the one that reads most like a deliberate value. The parser hands both
-		// components over already resolved, which is the whole reason this is two comparisons
-		// rather than a per-property leading-zero pattern.
+		// An outline draws when its STYLE is not `none`, its WIDTH is not zero, and its COLOUR paints.
+		// `outline: none` and `outline: 0` both resolve style to `none`, so the style test alone
+		// covers those two; `outline: 0 solid red` needs the width and `outline: 2px none red` is back
+		// under the style test. `outline: 2px solid transparent` is the fourth spelling and is the one
+		// a value vocabulary would never have reached — every component reads as a deliberate value
+		// and the rule still draws nothing.
 		if (declaration.property === 'outline') {
-			const { style, width } = declaration.value;
+			const { style, width, color } = declaration.value;
 
 			if (style.value === 'none') return false;
+			if (width.type === 'length' && isZero(width.value)) return false;
 
-			return !(width.type === 'length' && width.value.type === 'value' && width.value.value.value === 0);
+			return paints(color);
 		}
-		if (declaration.property === 'box-shadow') return declaration.value.length > 0;
+		// A shadow draws when it paints AND has a non-zero geometry. All four at zero is a shadow
+		// exactly the size of the box with no blur, which is nothing; any one of them non-zero puts
+		// something outside the border box — an offset slab, a glow, a ring. `box-shadow: 0 0 0 3px
+		// <accent>` is this project's own focus ring and is precisely the spread case.
+		if (declaration.property === 'box-shadow') {
+			return declaration.value.some(
+				(shadow) =>
+					paints(shadow.color) &&
+					![shadow.xOffset, shadow.yOffset, shadow.blur, shadow.spread].every((length) => isZero(length)),
+			);
+		}
 		if (declaration.property !== 'unparsed') return true;
 
 		const tokens = declaration.value.value;
@@ -557,6 +582,41 @@ describe('every button rule against Obsidian\'s own', () => {
 	// `outline-offset` is not an indicator, and its hyphen is what keeps it out of the scan.
 	it('does not mistake outline-offset for an indicator', () => {
 		expect(drawsAnIndicator(declarationsOf('outline-offset: 1px;'))).toBe(false);
+	});
+
+	/**
+	 * A value can be a fully deliberate one and still paint nothing. `outline: 2px solid transparent`
+	 * has a real width and a real style — every question the earlier version of this predicate asked
+	 * comes back "yes" — and the ring is invisible. So is a shadow whose colour is transparent, and
+	 * so is one whose four lengths are all zero: that is a shadow exactly the size of the box, with
+	 * no blur to spill past it.
+	 *
+	 * The parser is what makes this one comparison instead of a list of spellings — `transparent`,
+	 * `#0000`, `rgba(0,0,0,0)`, `hsla(…,0)` and `light-dark(transparent, transparent)` all arrive as
+	 * the same node with `alpha: 0`. A value vocabulary would have had to enumerate them, which is
+	 * how this predicate got its previous three holes.
+	 */
+	it.each([
+		'outline: 2px solid transparent',
+		'outline: 2px solid #0000',
+		'outline: 2px solid rgba(0, 0, 0, 0)',
+		'outline: 2px solid light-dark(transparent, transparent)',
+		'outline: 2px none red',
+		'box-shadow: 0 0 0 3px transparent',
+		'box-shadow: 0 0 0 0 red',
+	])('does not count %s as a ring', (declaration) => {
+		expect(drawsAnIndicator(declarationsOf(declaration))).toBe(false);
+	});
+
+	// The other direction, since a colour test that refused everything would pass the block above.
+	it.each([
+		'outline: 2px solid currentColor',
+		'outline: 2px solid rgba(255, 0, 0, 0.5)',
+		'box-shadow: 0 0 4px red',
+		'box-shadow: 2px 2px 0 0 red',
+		'box-shadow: 0 0 0 3px transparent, 0 0 0 3px red',
+	])('counts %s as a ring', (declaration) => {
+		expect(drawsAnIndicator(declarationsOf(declaration))).toBe(true);
 	});
 
 	it('reports a bare class that sets one of the contested properties', () => {

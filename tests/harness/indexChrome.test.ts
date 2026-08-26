@@ -79,46 +79,88 @@ describe('the harness index, on which route drew it', () => {
  * carries the account and the shared reader.
  */
 const PICKER_ROOT = 'rp-harness-index';
-
-/** Every selector in a stylesheet whose text mentions the index root, at any depth. */
-const indexSelectors = (css: string): Selector[] =>
-	stylesheetRules(css)
-		.flatMap((rule) => rule.selectors)
-		.filter((selector) => compoundsOf(selector).some((compound) => compoundHasClass(compound, PICKER_ROOT)));
+const STAGE = 'rp-harness-stage';
+const LEAF = 'rp-harness-leaf';
 
 /**
- * Does this selector reach a DESCENDANT of `.rp-harness-index`?
+ * Every selector in a stylesheet that could reach the mounted entry — which is EVERY selector,
+ * because the roots that lead there are not one class.
  *
- * The rule, stated once: a compound carrying the root, with something after it that is not
- * reached through a child hop INTO THE PICKER. Four spellings have had to be taught to it and
- * every one is a case below — a plain descendant, a qualified root, a root inside a functional
- * pseudo, and a sibling hop off the nav.
+ * The scan used to keep only selectors mentioning `.rp-harness-index`, which is the route the
+ * shipped defect happened to take. `.rp-harness-stage h2` takes a shorter one: it names the stage
+ * directly, mentions the index nowhere, restyles the mounted entry exactly the same way, and was
+ * discarded before `reachesTheStage` ever saw it. A filter that names one root answers for one
+ * root; the predicate is what decides, so nothing is filtered out ahead of it.
+ */
+const harnessSelectors = (css: string): Selector[] => stylesheetRules(css).flatMap((rule) => rule.selectors);
+
+/**
+ * Does this selector reach a DESCENDANT of the stage — the element every entry mounts into?
  *
- * The nav is the only safe child. Treating every `>` as safe let `.rp-harness-index > main h2`
- * through: one child hop, then a descent into the stage. And reaching the nav is not the end of
- * the walk either — `.rp-harness-index > nav + main h2` steps sideways onto the stage beside it.
- * Only the hop DIRECTLY after the nav can escape, because anything deeper is already a
- * descendant of the nav and a sibling of a descendant shares its parent.
+ * Stated about the STAGE rather than about the picker, because the picker is one of three ways in
+ * and the other two name it nowhere. Three roots lead to the mounted entry and each bounds
+ * differently:
+ *
+ * - **the stage itself.** Anything after it is inside it. Styling the stage is fine; descending
+ *   past it is the whole defect. `<main>` is taken as the stage too — it is the only one on the
+ *   page — so a rule that reaches it by TYPE rather than by class is caught as well.
+ * - **the picker root**, which holds both the nav and the stage. The nav is the only safe child.
+ *   Treating every `>` as safe let `.rp-harness-index > main h2` through: one child hop, then a
+ *   descent into the stage. Reaching the nav is not the end of the walk either —
+ *   `.rp-harness-index > nav + main h2` steps sideways onto the stage beside it. Only the hop
+ *   DIRECTLY after the nav can escape, because anything deeper is already a descendant of the nav
+ *   and a sibling of a descendant shares its parent.
+ * - **the leaf**, the whole page. Once a selector is inside it, ANY descendant hop can land in the
+ *   stage — not only one taken straight off the leaf, which is why this is a state carried down
+ *   the walk rather than a question asked of one compound. `.rp-harness-leaf > div h2` takes a
+ *   child hop first and then descends, and reads as bounded right up until the last hop. A chain
+ *   of CHILD hops stays bounded, which is what keeps the growth chain
+ *   (`.rp-harness-leaf > div > div:last-child`, a real rule that must reach through containers)
+ *   out of this.
+ *
+ * The residual, since the rule is that a check's sentence is written to what it can see: a chain
+ * of CHILD hops that walks down INTO the stage without naming it or `<main>` — by `:nth-child`,
+ * say — is not modelled. Nothing here is written that way and the rules that come close stop
+ * above the stage.
  */
 const reachesTheStage = (selector: Selector): boolean => {
 	const compounds = compoundsOf(selector);
-	const at = compounds.findIndex((compound) => compoundHasClass(compound, PICKER_ROOT));
-
-	if (at === -1) return false;
 
 	// The WHOLE relationship can live inside a functional pseudo — `:is(.rp-harness-index > main
 	// h2)` — where the compound carrying the root is also the last one, and every question below
 	// would read it as a root with nothing after it. Its arguments are asked the same question.
-	const nested = compounds[at].components
-		.flatMap((component) => (component.type === 'pseudo-class' && 'selectors' in component ? component.selectors : []))
-		.some((argument) => reachesTheStage(argument));
+	const nested = compounds.some((compound) =>
+		compound.components
+			.flatMap((component) => (component.type === 'pseudo-class' && 'selectors' in component ? component.selectors : []))
+			.some((argument) => reachesTheStage(argument)),
+	);
 
 	if (nested) return true;
-	if (at === compounds.length - 1) return false;
-	if (compounds[at].after !== 'child') return true;
-	if (typeOf(compounds[at + 1]) !== 'nav') return true;
 
-	return compounds[at + 1].after === 'next-sibling' || compounds[at + 1].after === 'later-sibling';
+	let insideLeaf = false;
+
+	for (const [at, compound] of compounds.entries()) {
+		const last = at === compounds.length - 1;
+
+		if (compoundHasClass(compound, STAGE) || typeOf(compound) === 'main') return !last;
+
+		if (compoundHasClass(compound, PICKER_ROOT)) {
+			if (last) return false;
+			if (compound.after !== 'child') return true;
+			if (typeOf(compounds[at + 1]) !== 'nav') return true;
+
+			return compounds[at + 1].after === 'next-sibling' || compounds[at + 1].after === 'later-sibling';
+		}
+
+		if (insideLeaf && compound.after === 'descendant') return true;
+		if (compoundHasClass(compound, LEAF)) {
+			if (compound.after === 'descendant') return true;
+
+			insideLeaf = compound.after === 'child';
+		}
+	}
+
+	return false;
 };
 
 /** A selector rendered back to text, so a failure names something a reader can grep for. */
@@ -135,8 +177,8 @@ const show = (selector: Selector): string =>
 		.join('');
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
-	it('roots every index rule at a direct-child nav, so no rule reaches a mounted entry', () => {
-		const offenders = indexSelectors(readFileSync('tests/harness/theme.css', 'utf8'))
+	it('leaves the mounted entry alone, from every root that leads to it', () => {
+		const offenders = harnessSelectors(readFileSync('tests/harness/theme.css', 'utf8'))
 			.filter((selector) => reachesTheStage(selector))
 			.map((selector) => show(selector));
 
@@ -169,8 +211,15 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// The whole relationship nested inside the pseudo, where the compound scan sees one token.
 		['a relationship nested in a pseudo', ':is(.rp-harness-index > main h2) { color: red; }'],
 		['a descendant nested in a pseudo', ':is(.rp-harness-index h2) { color: red; }'],
+		// The routes that name the picker NOWHERE. Each restyles the mounted entry exactly as the
+		// rule that shipped did, and each was discarded by the old scan before the predicate ran:
+		// it kept only selectors mentioning `.rp-harness-index`, so a shorter path in was invisible.
+		['a rule rooted at the stage class', '.rp-harness-stage h2 { color: red; }'],
+		['a rule rooted at the stage element', 'main h2 { color: red; }'],
+		['a descendant of the whole page', '.rp-harness-leaf h2 { color: red; }'],
+		['a child of the page, then a descent', '.rp-harness-leaf > div h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
-		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
+		expect(harnessSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});
 
 	/**
@@ -187,7 +236,15 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// a blanket refusal of every pseudo that mentions the root.
 		['a safe relationship nested in a pseudo', ':is(.rp-harness-index > nav li) { color: red; }'],
 		['an exclusion', '.rp-harness-leaf > div:not(.rp-harness-index) { flex: 1; }'],
+		// Styling the stage is not descending into it, and the growth chain is real: a chain of
+		// CHILD hops from the leaf stays above the mounted entry. Widening the scan to the stage
+		// and the leaf is what makes both of these worth stating — before it, neither was in scope
+		// at all and their silence proved nothing.
+		['the stage itself', '.rp-harness-stage { flex: 1; }'],
+		['the stage element itself', 'main { flex: 1; }'],
+		['the growth chain', '.rp-harness-leaf > div > div:last-child { flex: 1; }'],
+		['the leaf itself', '.rp-harness-leaf { display: flex; }'],
 	])('says nothing about %s', (_case, css) => {
-		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);
+		expect(harnessSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);
 	});
 });

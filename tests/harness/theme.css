@@ -16,11 +16,13 @@
  * a `.rp-harness-*` class or the missing-icon attribute, which no Obsidian selector can be
  * spelled as. `body` below is the single exception, and it is held to `height`.
  *
- * **A SECOND rule, which the first one does not imply and cannot catch: a selector rooted at
- * `.rp-harness-index` must not be a DESCENDANT selector.** The stage is inside that element —
- * `.rp-harness-index` holds the picker AND `<main class="rp-harness-stage">`, which is where a
- * component under test is mounted — so `.rp-harness-index h2 { text-transform: uppercase }`
- * restyles every `h2` in every entry the index opens. That is the harness silently editing the
+ * **A SECOND rule, which the first one does not imply and cannot catch: no selector here may
+ * reach a DESCENDANT of the stage.** `<main class="rp-harness-stage">` is where a component under
+ * test is mounted, so `.rp-harness-index h2 { text-transform: uppercase }` restyles every `h2` in
+ * every entry the index opens. Stated about the stage rather than about the picker, because the
+ * picker is one of three roots that lead there and the other two name it nowhere:
+ * `.rp-harness-stage h2` and `.rp-harness-leaf h2` do the identical damage. Writing the rule
+ * about the route the defect happened to take is what left those two unwatched. That is the harness silently editing the
  * thing it exists to show, which is the worst defect this file can hold and the one no test
  * here can see: jsdom resolves no cascade, and the suite asserts on markup rather than on
  * appearance. It shipped for exactly one capture — `WorkPackages.vue`'s own "Work packages"

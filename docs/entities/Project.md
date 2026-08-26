@@ -56,7 +56,7 @@ the one entity whose filename is fixed while every other is derived from its nam
 
 - Owns [[Plan]], [[Construction section]], [[Work package]] and [[Document]] — 0..n each (§59).
 - **References, and does not own,** the three shared catalogues: [[Asset]], [[Supplier]] and
-  [[Trade]] (§59, amended 2026-08-26). They live in §36's `Library/`, are available to every
+  [[Trade]] (§59, amended 2026-08-26). They live in the library folder (§83), are available to every
   project, and carry no project id.
 - Owns at most one [[Site]], which is where the physical hierarchy starts.
 - Defines the currency every [[Money]] value in it is denominated in (§72).

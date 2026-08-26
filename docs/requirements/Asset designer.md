@@ -102,7 +102,8 @@ An item beneath this epic is done when:
   with the plugin uninstalled (§3.2), and a renovator's own words for a category or a kind of
   object survive the round trip unchanged (§84). **That sidecar lives with the shared library, not
   with any plan and not with any project**, which follows from where its definition lives: §59 as
-  amended makes [[Asset]] a catalogue shared across projects, in §36's `Library/Assets/`
+  amended makes [[Asset]] a catalogue shared across projects, in the library folder's `Assets/`
+  (§83)
   ([[Work belongs to one project, catalogues belong to the vault]]). Neither scope ADR-011 offers
   will do — that ADR puts one `.rpgeo` per *plan*, named by the plan's id and carrying a `planId`,
   on ADR-002's per-plan-not-per-spatial-object rule, inside a *project's* `Geometry/` folder — and

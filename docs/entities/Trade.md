@@ -31,7 +31,7 @@ package rather than an entity.
 
 ## Identity and persistence
 
-A note in the shared catalog (§36's `Library/Trades/`), with a stable `id` (§60). It carries
+A note in the library folder's `Trades/` (§83, §36), with a stable `id` (§60). It carries
 **no project id** ([[Work belongs to one project, catalogues belong to the vault]]).
 
 ## Relationships
@@ -40,7 +40,9 @@ A note in the shared catalog (§36's `Library/Trades/`), with a stable `id` (§6
   a per-renovation thing: *electrician* means the same in the second project as in the first, and
   §84's custom trades are worth writing once.
 - Assigned to 0..n [[Work package]], one trade each.
-- Aggregates [[Cost item]]s and schedule across those work packages (§10, §21).
+- Aggregates [[Cost item]]s and schedule across those work packages **within one project**
+  (§10, §21). A [[Work package]] belongs to one project, so the aggregate does too: a total or a
+  timeline spanning two renovations answers no question either of them asks.
 - Appears in a [[Construction section]] indirectly, through its work packages.
 
 ## Rules

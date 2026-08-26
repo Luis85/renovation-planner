@@ -1165,36 +1165,41 @@ AS-BUILT
 
 Recommended structure:
 
+Two locations, because two scopes. The **library folder** holds what every project shares and is
+one plugin setting (§83); a **project folder** holds one renovation and is a project setting. The
+drawing below shows them both at their defaults, and neither path is fixed.
+
 ```text
-Renovation/
-│
-├── Library/                     ← shared across every project (§59)
-│   ├── Assets/
-│   ├── Suppliers/
-│   └── Trades/
-│
-└── Kitchen Refit/               ← one project folder, one per renovation
-    ├── Project.md
-    ├── Plans/
-    ├── Zones/
-    ├── Construction Sections/
-    ├── Work Packages/
-    ├── Tasks/
-    ├── Requirements/
-    ├── Quotes/
-    ├── Orders/
-    ├── Invoices/
-    ├── Costs/
-    ├── Decisions/
-    ├── Risks/
-    ├── Documents/
-    └── Photos/
+Renovation/Library/              ← the library folder, one per vault (§83)
+├── Assets/
+├── Suppliers/
+└── Trades/
+
+Renovation/Kitchen Refit/        ← a project folder, one per renovation
+├── Project.md
+├── Plans/
+├── Zones/
+├── Construction Sections/
+├── Work Packages/
+├── Tasks/
+├── Requirements/
+├── Quotes/
+├── Orders/
+├── Invoices/
+├── Costs/
+├── Decisions/
+├── Risks/
+├── Documents/
+└── Photos/
 ```
 
-> **Amended 2026-08-26, by the product owner**, with §59. `Assets/`, `Suppliers/` and `Trades/`
-> were drawn inside the project folder; they are the three shared catalogues and are drawn in a
-> sibling `Library/` now. The project folder still moves, backs up and deletes as one unit, which
-> is the property the single-folder layout was drawn for.
+> **Amended 2026-08-26, by the product owner**, with §59 and §83. `Assets/`, `Suppliers/` and
+> `Trades/` were drawn inside the project folder; they are the three shared catalogues and live in
+> the library folder now. They are drawn as two separate roots rather than as siblings under one
+> parent **on purpose**: §83 lets every project choose its own folder, so a library nested beside
+> *a* project folder could not be found from the others. Each path resolves from its own setting.
+> The project folder still moves, backs up and deletes as one unit, which is the property the
+> single-folder layout was drawn for.
 
 Paths must be configurable.
 
@@ -2178,7 +2183,13 @@ Future: multiple control points.
 - default units
 - default currency
 - default folders
+- **library folder** — where the shared Asset, Supplier and Trade catalogues live (§59)
 - editor preferences
+
+> **Amended 2026-08-26, by the product owner**, with §59 and §36. The library folder is a *plugin*
+> setting rather than a project one, and that is the whole reason it is named here: a project
+> setting is answered once per project, and the three catalogues belong to no project. One vault
+> has one library, wherever its owner puts it.
 
 ## Project Settings
 

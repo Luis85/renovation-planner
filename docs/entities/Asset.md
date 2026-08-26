@@ -34,7 +34,7 @@ necessarily a material. That is why the entity is called Asset rather than Mater
 
 ## Identity and persistence
 
-A Markdown note in the shared library (§36's `Library/Assets/`) with a stable `id` (§60).
+A Markdown note in the library folder's `Assets/` (§83, §36) with a stable `id` (§60).
 Category, unit and unit price in frontmatter so the library is searchable and [[Bases]]-queryable;
 product data, links and photos in the body. It carries **no project id**, which is the rule being
 kept rather than a field somebody forgot — see
@@ -55,6 +55,15 @@ kept rather than a field somebody forgot — see
 - **Asset categories are configurable** (§84).
 - The price here is a default, not a fact. A [[Quote]] beats it, and a [[Cost item]] records
   what was actually used.
+- **The price carries its own currency, and a mismatch is an error rather than a coercion.** A
+  [[Project]] defines the currency every [[Money]] value in it is denominated in (§72), and two
+  projects in one vault may legitimately disagree — while the definition they both reference
+  holds one price. So the currency travels with the price, and a project whose own currency
+  differs is told rather than served a number that is well-formed and wrong. This is
+  [[A mismatched unit or currency is an error, not a coercion]] applied at the point sharing
+  created: nothing here converts, because no exchange rate, and no date to read one at, exists
+  anywhere in this product. The project supplies its own price instead, which is what a [[Quote]]
+  already does to a default.
 - One asset, one unit. An asset sold by both the piece and the m² is two assets, or the
   quantity chain has no defined arithmetic.
 - Package size and minimum order quantity belong here, and are what [[Procurement item]] rounds

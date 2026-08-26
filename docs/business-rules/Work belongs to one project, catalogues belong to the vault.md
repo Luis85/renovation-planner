@@ -20,7 +20,8 @@ packages; a [[Work package]] belongs to one project, optionally one construction
 least one domain scope. **Between two projects' work there is no reference.**
 
 *Catalogues* belong to the vault: [[Asset]], [[Supplier]] and [[Trade]] are defined once, in §36's
-`Library/` beside the project folders, and **any project may reference any of them**. A catalogue
+the library folder — one per vault, a *plugin* setting (§83) rather than a project one, precisely
+because no project owns what is in it — and **any project may reference any of them**. A catalogue
 entry has no owning project, so "which project is this tile in" is not a question with an answer.
 
 **Why the line falls there.** The first half protects a rollup and a deletion: a reference between

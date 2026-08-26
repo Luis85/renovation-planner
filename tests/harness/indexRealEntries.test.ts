@@ -147,6 +147,37 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	});
 
 	/**
+	 * The components that need the EDITOR RUNTIME, which the index provides per entry.
+	 *
+	 * Measured before it did: four of the twelve real components could not be opened here at
+	 * all, each failing on this one injection — `InspectorPanel`, `EditorToolbar`, `PlanCanvas`
+	 * and `InteractionLayer`. That is the class a prototype could not have worked around, since
+	 * a template-only mock has no script block: it can pass a prop and can never supply an
+	 * injection, which made the shell components a designer most wants to compose the ones the
+	 * harness could not show. `EntryBoundary` calls `provideEditorRuntime(usePlanEditorContext())`
+	 * now, the same call with the same argument `PlanEditorRoot` makes in a vault.
+	 *
+	 * The two cases here are the two that then open completely. `PlanCanvas` and
+	 * `InteractionLayer` get past the injection and want a Konva stage next — theirs to need,
+	 * and a prototype can give it by composing them inside one — so they are not asserted here.
+	 *
+	 * Asserted through `data-entry` rather than through a rendered class, for the reason the
+	 * control above gives at length: `openEntry` settles on a stage marker OR a failure card,
+	 * so anything weaker would pass on the failure card these cases exist to rule out.
+	 */
+	it.each([['component:editor/shell/InspectorPanel'], ['component:editor/shell/EditorToolbar']])(
+		'opens %s, which needs a runtime nothing above it would otherwise provide',
+		async (id) => {
+			const page = await openEntry(id);
+
+			expect(page.find('.rp-harness-failure').exists()).toBe(false);
+			expect(page.find('.rp-harness-stage').attributes('data-entry')).toBe(id);
+
+			page.unmount();
+		},
+	);
+
+	/**
 	 * The real ones, from the real glob — EMPTY when Task 5 ran, before any prototype existed.
 	 * Today the tree holds two, `ZoneSummary.vue` and `ZonePanel.vue`, so this `it.each` has two
 	 * iterations and covers both — stated here rather than left for a reader to wonder about.

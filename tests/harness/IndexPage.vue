@@ -36,6 +36,8 @@ import {
 } from 'vue';
 import { componentEntries, prototypeEntries, registrableComponents, type HarnessEntry } from './entries';
 import { reseedFixture } from './fixture';
+import { usePlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
+import { provideEditorRuntime } from '../../src/presentation/editor/runtime';
 
 const prototypes = prototypeEntries();
 const components = componentEntries();
@@ -506,6 +508,41 @@ const EntryBoundary = defineComponent({
 	setup(props, { slots }) {
 		const owned = props.entryId;
 		const ownedGeneration = props.generation;
+
+		/*
+		 * An `EditorRuntime` for whatever is on the stage, built exactly as `PlanEditorRoot`
+		 * builds its own — `provideEditorRuntime(usePlanEditorContext())`, the same call with
+		 * the same argument, so the harness has no second answer to what a runtime is.
+		 *
+		 * Without it, FOUR of the twelve real components could not be opened in the index at
+		 * all — `InspectorPanel`, `EditorToolbar`, `PlanCanvas` and `InteractionLayer`, each
+		 * failing on this one injection (measured). That is the class a prototype could not
+		 * work around: a template-only mock has no script block, so it can pass a prop and can
+		 * never supply an injection, which made the shell components a designer most wants to
+		 * compose the ones the harness could not show.
+		 *
+		 * The count is FOUR and not more, and the difference is worth stating because the first
+		 * measurement said nine. The other five fail on requirements that are theirs rather
+		 * than the page's — a required prop, or a Konva stage ancestor — and two of them looked
+		 * like this defect only because the probe ran in a jsdom file that had not installed
+		 * `tests/helpers/canvas.ts`, where Konva reads `null` for its context. With the canvas
+		 * installed, `PlanEditorRoot` opens; `PlanCanvas` and `InteractionLayer` get past this
+		 * injection and then want a stage, which a prototype CAN give them by composing them
+		 * inside one.
+		 *
+		 * HERE rather than in `IndexPage`'s own setup, and that is the whole reason this sits
+		 * in a component created per mount: a runtime holds `CommandHistory` and `ToolManager`,
+		 * which are per-editor state. Provided once for the page, an entry's undo stack would
+		 * outlive it and the next entry would open on top of it — the leak `reseedFixture()`
+		 * exists to prevent for the Pinia stores, reintroduced through the one piece of state
+		 * that is not in Pinia. Keyed by `generation`, this boundary is rebuilt on every
+		 * navigation, so each entry gets its own.
+		 *
+		 * `PlanEditorRoot` still calls `provideEditorRuntime` itself when it is the entry: a
+		 * nested provide shadows this one for its own subtree, which is the same thing that
+		 * happens in a vault.
+		 */
+		provideEditorRuntime(usePlanEditorContext());
 
 		// The WARNING channel's owner, which cannot be a hook (Vue has one `warnHandler` per app)
 		// and so is a published mount instead. Set in `setup`, which runs before this boundary's

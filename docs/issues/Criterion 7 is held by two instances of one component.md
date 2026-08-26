@@ -49,9 +49,29 @@ written for.
 
 ## What closes it
 
-The Inspector panel drawing a zone's name or area from the store. A fourth assertion then reads
-that value out of the Inspector and out of `StatusBar` in the same mounted prototype, and the
-criterion holds by construction with no reading attached.
+The Inspector panel was always the candidate — it draws a zone's name and area from the store —
+and it turned out to be blocked by something this note did not know about: `InspectorPanel`
+could not be MOUNTED outside `PlanEditorRoot` at all. It injects the editor runtime, nothing
+above it in the harness provided one, and a template-only prototype has no script block with
+which to supply an injection. Three other components were in the same position.
+
+**That half is fixed.** `EntryBoundary` calls `provideEditorRuntime(usePlanEditorContext())`,
+the same call with the same argument `PlanEditorRoot` makes in a vault, built per entry so an
+entry's `CommandHistory` cannot outlive it. `InspectorPanel` and `EditorToolbar` open in the
+index now, and a prototype can compose them.
+
+What is still missing is smaller and more stubborn: **no two components display the same
+value.** `StatusBar` shows the plan's name; the Inspector shows the selected zone's name and
+area. A prototype composing both would demonstrate two different components reading one world —
+worth having — but the criterion's literal "a value shown by both matches" would still be held
+by the two `StatusBar` instances. Closing it needs a second component that prints something the
+first one prints too, and choosing to build one is a product decision rather than a harness
+one.
+
+The fixture is the other half of it: `reseedFixture()` clears the selection, so an Inspector
+composed into a prototype today shows `Nothing selected.` Seeding a selection would give it
+real content — a better fixture for looking at, which is what this harness is for — and is a
+change to every plan-editor capture, so it belongs to whoever makes that call.
 
 ## Why it matters
 

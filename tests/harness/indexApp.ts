@@ -3,7 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import IndexPage from './IndexPage.vue';
 import { harnessEditorContext, seedFixture } from './fixture';
-import { settle } from '../helpers/editor';
+import { settle, settleUntil } from '../helpers/editor';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
 import { componentEntries, prototypeEntries, registrableComponents } from './entries';
 
@@ -92,18 +92,20 @@ export async function openIndex(query: string): Promise<VueWrapper> {
 	 * component EARLIER made the same helper work, so the same line passed in one suite and
 	 * failed in another for reasons neither file could see.
 	 *
-	 * `settle()` is still what does the flushing; this only decides when to stop calling it.
-	 * The bound is a real bound rather than a spin — a component that never resolves must fail
-	 * the caller's own assertion, not hang the run.
+	 * `settleUntil` is the shared loop and the shared round budget, which is the point of it
+	 * having a home in `tests/helpers/editor.ts` — a hand-rolled version here (this function
+	 * had one for an hour) is a second budget and a second failure message for the same wait.
+	 * `indexRealEntries.test.ts` waits on exactly this condition through the same helper.
 	 */
-	const wantsEntry = new URLSearchParams(window.location.search).has('entry');
-	for (let flush = 0; flush < 50; flush += 1) {
+	if (new URLSearchParams(window.location.search).has('entry')) {
+		await settleUntil(
+			() =>
+				wrapper.find('.rp-harness-stage').attributes('data-entry') !== undefined ||
+				wrapper.find('.rp-harness-failure').exists(),
+			`${query} to settle`,
+		);
+	} else {
 		await settle();
-		if (!wantsEntry) break;
-		const resolved =
-			wrapper.find('.rp-harness-stage').attributes('data-entry') !== undefined ||
-			wrapper.find('.rp-harness-failure').exists();
-		if (resolved) break;
 	}
 
 	return wrapper;

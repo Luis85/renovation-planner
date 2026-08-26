@@ -274,6 +274,18 @@ describe('a flattened button and its focus ring', () => {
 			'a base shadow that outranks the host ring',
 			'.rp-dialog .rp-dialog-button { box-shadow: 0 0 0 1px red; }',
 		],
+		// A TIE goes to us. Obsidian's ring is a normal declaration at (0,1,1) in a sheet loaded before
+		// every one scanned here, so an equal-specificity base shadow wins on source order — and a
+		// `moreSpecific` test alone read it as a loser and stayed silent.
+		[
+			'a base shadow tying the host ring, loaded after it',
+			'button.rp-dialog-button { box-shadow: 0 0 0 1px red; }',
+		],
+		// And importance beats it from BELOW, where no specificity test can see the replacement at all.
+		[
+			'a less specific important base shadow',
+			'.rp-dialog-button { box-shadow: 0 0 0 1px red !important; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',

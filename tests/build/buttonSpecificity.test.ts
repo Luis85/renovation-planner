@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Selector } from 'lightningcss';
 import { alternativesOf, compoundsOf, importsIn, moreSpecific, parseSelector, propertyOf, show, specificityOf, stylesheetRules } from '../helpers/selectors';
 import { declarationsOf, drawsAnIndicator } from '../helpers/indicators';
-import { buttonClasses, buttonClassesOn, sheets, targetsAButton } from '../helpers/buttonRules';
+import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, targetsAButton } from '../helpers/buttonRules';
 
 /**
  * NO RULE THIS PROJECT WRITES FOR A `<button>` MAY LOSE TO OBSIDIAN'S OWN BUTTON RULE.
@@ -283,6 +283,21 @@ describe('the instrument', () => {
 		expect(classes.size).toBeGreaterThan(3);
 		expect(classes).toContain('.rp-editor-tool-active');
 		expect(classes).toContain('.rp-dialog-button-danger');
+	});
+
+	/**
+	 * AND ONLY from a class attribute. Five real dialog buttons carry `data-rp-action="cancel"`, so a
+	 * scan of the whole opening tag invented `.rp-action` — a class no stylesheet declares and no
+	 * element wears — and put it in `.rp-dialog-button`'s co-occurrence GROUP, where a revoking rule
+	 * for an unrelated element would have been widened into the dialog button's focus cascade.
+	 *
+	 * Asserted on the GROUPS as well as the flat set, because the group is where the damage was: the
+	 * flat set merely gained a name nothing matches.
+	 */
+	it('takes classes from class attributes only, not from every rp- token in the tag', () => {
+		expect(buttonClasses()).not.toContain('.rp-action');
+		expect(buttonClassGroups().filter((group) => group.has('.rp-action'))).toEqual([]);
+		expect(buttonClassGroups().some((group) => group.has('.rp-dialog-button'))).toBe(true);
 	});
 
 	/**

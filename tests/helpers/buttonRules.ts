@@ -31,6 +31,23 @@ const filesUnder = (dir: string, ext: string): string[] =>
 const CREATE_WINDOW = 300;
 
 /**
+ * A class-bearing attribute of an opening tag, and its value.
+ *
+ * The scan used to read `rp-*` tokens out of the WHOLE tag, which is one attribute too wide: five
+ * real dialog buttons carry `data-rp-action="cancel"`, so `.rp-action` — a class no stylesheet
+ * declares and no element wears — entered `buttonClasses()` and, worse, joined
+ * `.rp-dialog-button`'s co-occurrence GROUP. A revoking rule for an unrelated `.rp-action` element
+ * would then be widened into the dialog button's focus cascade, and a rule whose subject wore it
+ * would be governed by the button specificity threshold. Nothing declares that class today, so the
+ * damage was latent rather than live — which is exactly how the other spelling holes here have
+ * looked right up until a file was added.
+ *
+ * Both bindings, because `rp-editor-tool-active` arrives only through `:class`, and both quote
+ * styles, because nothing stops a template using either.
+ */
+const CLASS_ATTRIBUTE = /(?::|v-bind:)?class\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+
+/**
  * The `rp-*` classes this project puts on a `<button>`, ONE SET PER BUTTON — from the SOURCE
  * rather than a list, and from both ways a button is made here.
  *
@@ -61,10 +78,12 @@ export function buttonClassGroups(): ReadonlySet<string>[] {
 	// `.rp-wp-new` undiscovered while its rule lost the cascade, so the screen's primary action
 	// was being judged as a plain grey button.
 	for (const file of ['src/presentation', 'src/prototypes'].flatMap((dir) => filesUnder(dir, '.vue'))) {
-		// The OPENING TAG only, so a class on a sibling element inside the button's own markup is
-		// not collected as if the button wore it. Both `class="…"` and `:class="{ x: … }"` live in
-		// there, and `rp-editor-tool-active` arrives only through the second.
-		for (const [tag] of readFileSync(file, 'utf8').matchAll(/<button\b[^>]*>/g)) add(tag);
+		// The opening tag's CLASS ATTRIBUTES only — the tag alone was one attribute too wide, and a
+		// class on a sibling element inside the button's own markup is not the button's either. Every
+		// class attribute of one tag is joined into ONE group, because they land on one element.
+		for (const [tag] of readFileSync(file, 'utf8').matchAll(/<button\b[^>]*>/g)) {
+			add([...tag.matchAll(CLASS_ATTRIBUTE)].map((attribute) => attribute[1] ?? attribute[2] ?? '').join(' '));
+		}
 	}
 
 	// Obsidian's own DOM helper, which is how anything outside a Vue tree makes an element here.

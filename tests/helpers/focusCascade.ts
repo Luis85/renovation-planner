@@ -388,18 +388,30 @@ export const flattenedWithoutRing = (
 				// ring away exactly as `box-shadow: none` does — the button looks the same at rest and
 				// focused. Only `shadow === false` counted, so that whole half was invisible.
 				//
-				// The specificity test is load-bearing: a base shadow that LOSES to the host rule changes
-				// nothing about focus, and without it `.rp-dialog-button { box-shadow: 0 0 0 3px red }` at
-				// (0,1,0) reports while its ring is on screen. Measured — it flips a case either way.
+				// WHETHER A BASE SHADOW REPLACES THE HOST RING IS THE WHOLE CASCADE, not specificity alone.
+				// Obsidian's `button:focus-visible { box-shadow: … }` is a NORMAL declaration at (0,1,1) in
+				// a sheet loaded before every one scanned here, so ours wins on a TIE by source order, and
+				// an important declaration of ours wins outright however specific it is. `moreSpecific`
+				// alone missed both: an equal-specificity base shadow and a low-specificity `!important`
+				// one each replace the ring while reading as losers.
+				//
+				// Still load-bearing in the other direction: a base shadow that genuinely loses changes
+				// nothing about focus, and without the test `.rp-dialog-button { box-shadow: 0 0 0 3px red }`
+				// at (0,1,0) reports while its ring is on screen. Measured — it flips a case either way.
 				// The specificity is of the ORIGINAL selector, for the reason the ranking below gives.
+				//
+				// KNOWN ASYMMETRY, stated rather than implied: the `shadow === false` arm below is NOT
+				// gated on this, so a losing `box-shadow: none` still records a site. That OVER-reports,
+				// which is the safe side for a gate about a missing indicator, and every such rule this
+				// project actually writes is at (0,2,0) and beats the host anyway.
+				const replacesHostRing = importantShadow || !moreSpecific(HOST_FOCUS_RING, specificityOf(selector));
 				//
 				// A `!ringsFocus` guard was written here first, reasoning that a focus rule drawing a
 				// shadow IS the indicator rather than a replacement of one. It is REDUNDANT and was
 				// removed: such a rule records a site whose conditions are its own, so it covers and
 				// answers that site itself. No case could tell the guard from its absence, and the
 				// remaining silent case for a shadow ring drawn on focus is what pins that.
-				const flattens =
-					shadow === false || (shadow === true && moreSpecific(specificityOf(selector), HOST_FOCUS_RING));
+				const flattens = shadow === false || (shadow === true && replacesHostRing);
 
 				for (const { key, conditions } of focusSites(branch, classes, rule.condition)) {
 					// A focus rule is heard in every cascade it can REACH, not only the one it is filed

@@ -227,10 +227,54 @@ async function notifyIfRefused(operation: Promise<VoidResult | null>): Promise<v
 	if (result !== null && !result.ok) notify(result.error.message);
 }
 
+/**
+ * The ONE dispatcher a leaf hands out — tools, toolbar and Inspector alike — wrapped so the
+ * history-flag mirror hears about a tool gesture as well as a toolbar one. A dispatch that
+ * bypasses this object silently breaks the reactive undo/redo flags and nothing errors.
+ *
+ * Two plain refs re-read from the history rather than an invalidation counter that two
+ * computeds subscribed to with a `void revision.value` statement: that spelling put a line
+ * with no visible effect above each `return`, and any tidy-up of it froze the Undo/Redo
+ * buttons in whatever state they had at mount with nothing erroring.
+ *
+ * `finally`, not the resolved path: an unexpected technical fault can still leave the stacks
+ * moved (SDD §65), and flags that stop tracking after one throw are wrong for the rest of
+ * the leaf's life.
+ */
+function wrapDispatcher(
+	history: CommandHistory,
+	dispatcher: ReturnType<typeof withEditorStateRefresh>,
+): {
+	readonly dispatcher: EditorRuntime['dispatcher'];
+	readonly canUndo: Ref<boolean>;
+	readonly canRedo: Ref<boolean>;
+} {
+	const canUndo = ref(history.canUndo);
+	const canRedo = ref(history.canRedo);
+	async function stepping(operation: () => Promise<VoidResult>): Promise<VoidResult> {
+		try {
+			return await operation();
+		} finally {
+			canUndo.value = history.canUndo;
+			canRedo.value = history.canRedo;
+		}
+	}
+	return {
+		dispatcher: {
+			run: (command) => stepping(() => dispatcher.run(command)),
+			undo: () => stepping(() => dispatcher.undo()),
+			redo: () => stepping(() => dispatcher.redo()),
+		},
+		canUndo,
+		canRedo,
+	};
+}
+
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
+	const dialogs = useDialogStore();
 
 	const history = new CommandHistory();
 	const ledger = new SessionWriteLedger();
@@ -249,32 +293,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		planId: context.planId,
 	});
 
-	// Every dispatch in the leaf — tools included — funnels through THIS object, so the
-	// history-flag mirror hears about tool gestures as well as toolbar ones.
-	//
-	// Two plain refs re-read from the history rather than an invalidation counter that two
-	// computeds subscribed to with a `void revision.value` statement: that spelling put a
-	// line with no visible effect above each `return`, and any tidy-up of it froze the
-	// Undo/Redo buttons in whatever state they had at mount with nothing erroring.
-	//
-	// `finally`, not the resolved path: an unexpected technical fault can still leave the
-	// stacks moved (SDD §65), and flags that stop tracking after one throw are wrong for
-	// the rest of the leaf's life.
-	const canUndo = ref(history.canUndo);
-	const canRedo = ref(history.canRedo);
-	async function stepping(operation: () => Promise<VoidResult>): Promise<VoidResult> {
-		try {
-			return await operation();
-		} finally {
-			canUndo.value = history.canUndo;
-			canRedo.value = history.canRedo;
-		}
-	}
-	const wrappedDispatcher: EditorRuntime['dispatcher'] = {
-		run: (command) => stepping(() => dispatcher.run(command)),
-		undo: () => stepping(() => dispatcher.undo()),
-		redo: () => stepping(() => dispatcher.redo()),
-	};
+	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, dispatcher);
 
 	const inspector = createInspector(context, wrappedDispatcher, ledger);
 	inspectorRef.current = inspector;
@@ -336,7 +355,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			activePlan: activePlan(),
 		}),
 	);
-	registerEditorTools(toolManager, context, projectStore, ledger, useDialogStore());
+	registerEditorTools(toolManager, context, projectStore, ledger, dialogs);
 
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the

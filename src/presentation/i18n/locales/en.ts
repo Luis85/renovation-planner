@@ -100,6 +100,17 @@ export const en = {
 	// Validation one would otherwise read 'This data is not in the expected form.' about a
 	// decision the user just made. Fixed sentences, no interpolation and no count — the
 	// delete dialog enumerates the referents; the notice is the refusal.
+	//
+	// EVERY KEY HERE MUST EQUAL A MINTED `AppError.code` EXACTLY, and only half of that
+	// paragraph is checkable, so only half is claimed. `StringKey` is `keyof typeof en`,
+	// which admits any key at all: a misspelt one is translated in `de.ts`, satisfies
+	// `tests/presentation/i18n/strings.test.ts`, and then never resolves — the user is
+	// back on the category sentence, silently, which is the exact defect these entries
+	// were added to remove. `tests/presentation/i18n/toUserMessage.test.ts` drives all
+	// nine from a table copied off the RAISE SITES and asserts each resolves to its own
+	// copy rather than to its category's. What no test can settle is the judgement in the
+	// first sentence — that the category sentence is *wrong* for a given code — and that
+	// stays a matter for review.
 	'reference.referents-exist': 'Other entries still reference this. Remove or reassign them first.',
 	'reference.set-changed': 'The references to this changed while you were deciding. Check them and confirm again.',
 	'reference.resolution-required': 'This is still referenced. Decide what happens to those references before deleting it.',

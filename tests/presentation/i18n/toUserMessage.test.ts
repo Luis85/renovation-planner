@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { toUserMessage } from '../../../src/presentation/i18n/toUserMessage';
-import type { AppError } from '../../../src/core/errors/AppError';
+import { t } from '../../../src/presentation/i18n/strings';
+import type { StringKey } from '../../../src/presentation/i18n/locales/en';
+import type { AppError, ErrorCategory } from '../../../src/core/errors/AppError';
 
 /**
  * The message/log separation (SDD §66–68): what a user reads comes from the locale
@@ -65,5 +67,57 @@ describe('toUserMessage', () => {
 		const de = toUserMessage('de', future);
 		expect(en).not.toBe(de);
 		expect(de).toContain('neueren Version');
+	});
+});
+
+/**
+ * The binding nothing enforced: a locale key that does not EXACTLY equal a minted
+ * `AppError.code`.
+ *
+ * `en` is a plain object literal and `StringKey = keyof typeof en`, so the compiler
+ * accepts any key at all. A misspelt one is dutifully translated in `de.ts`, passes
+ * `tests/presentation/i18n/strings.test.ts` (which only asks that `de` covers `en`),
+ * and then never resolves — falling through to exactly the category sentence design
+ * slice 11's Definition of Done item 3 exists to remove. Silent, and identical to the
+ * defect this task was written to fix.
+ *
+ * The table below is the binding. It is copied from the RAISE SITES, not from the locale
+ * file — a table derived from `en.ts` would agree with a typo — and each row names the
+ * module that mints the code so the pairing is checkable by reading two files.
+ *
+ * Two assertions per row, because they fail for different reasons:
+ *
+ *   - the resolved copy IS the code's own entry, which is false the moment the key and
+ *     the code differ by one character (`t` answers `undefined` for an unknown key, and
+ *     `toUserMessage` then returns the category sentence);
+ *   - the resolved copy is NOT the category sentence, in BOTH locales — the behavioural
+ *     half, and the test under `en.ts`'s claim that each of these entries exists because
+ *     the category sentence does not serve it.
+ *
+ * What this does NOT check, so the sentence is not read wider than it is: that a raise
+ * site still mints the code the row names. Those are inline object literals, so there is
+ * no symbol to import; a code renamed at its raise site leaves this green and the user
+ * back on the category sentence. That is what the "and the module that mints it" column
+ * is for — it is a pointer for a reader, not an instrument.
+ */
+const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, categoryKey: StringKey, mintedIn: string]> = [
+	['reference.referents-exist', 'Reference', 'error.category.reference', 'application/reference/deleteResolution.ts'],
+	['reference.set-changed', 'Reference', 'error.category.reference', 'application/reference/deleteResolution.ts'],
+	['reference.resolution-required', 'Validation', 'error.category.validation', 'application/reference/deleteResolution.ts'],
+	['reference.no-reassignment-target', 'Validation', 'error.category.validation', 'presentation/editor/deleteZoneFlow.ts'],
+	['reference.self-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
+	['reference.cross-project-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
+	['requirement.unit-not-area', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
+	['requirement.cross-project', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
+	['requirement.negative-quantity', 'Domain', 'error.category.domain', 'application/commands/requirement/SetRequirementQuantityOverride.ts'],
+];
+
+describe("design slice 10's coded refusals", () => {
+	it.each(MINTED)('%s resolves its own copy rather than the %s category sentence', (code, category, categoryKey) => {
+		const refusal = error({ category, code });
+
+		expect(toUserMessage('en', refusal)).toBe(t('en', code as StringKey));
+		expect(toUserMessage('en', refusal)).not.toBe(t('en', categoryKey));
+		expect(toUserMessage('de', refusal)).not.toBe(t('de', categoryKey));
 	});
 });

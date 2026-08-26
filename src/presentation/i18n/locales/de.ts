@@ -99,14 +99,24 @@ export const de: Partial<Record<StringKey, string>> = {
 	'vault.unexpected-failure': 'Das Tresor konnte unerwartet nicht gelesen oder geschrieben werden. Bitte erneut versuchen.',
 	'migration.chain-gap': 'Diese Notiz verwendet ein Format, das dieses Plugin nicht lesen kann.',
 	// Slice 10: Referenzintegrität und Anforderungen. Feste Sätze, keine Interpolation.
-	'reference.referents-exist': 'Andere Einträge verweisen noch hierauf. Entfernen oder weisen Sie sie zuerst neu zu.',
-	'reference.set-changed': 'Die Verweise hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
-	'reference.resolution-required': 'Hierauf wird noch verwiesen. Entscheiden Sie vor dem Löschen, was mit diesen Verweisen geschieht.',
+	//
+	// GLOSSAR — diese Sätze verwenden dieselben Wörter wie die Oberfläche, die sie
+	// zurückweisen: ein Asset heißt `Objekt` (`editor.inspector.requirement.asset`,
+	// `editor.inspector.assign.label`), eine Referenz heißt `Referenz`
+	// (`dialog.delete-reference.*`), und das Umhängen heißt `neu zuweisen`
+	// (`dialog.delete-reference.reassign`). Die erste Fassung schrieb `Material` und
+	// `Verweis`: der Nutzer drückte `Objekt zuweisen` bzw. `Referenzen entfernen` und
+	// wurde mit einem Satz über ein `Material` bzw. einen `Verweis` abgewiesen — zwei
+	// Namen für eine Sache, in einem Ablauf. Genau das soll eine übersetzte Absage
+	// verhindern.
+	'reference.referents-exist': 'Andere Einträge referenzieren dies noch. Entfernen Sie die Referenzen oder weisen Sie sie zuerst neu zu.',
+	'reference.set-changed': 'Die Referenzen hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
+	'reference.resolution-required': 'Dies wird noch referenziert. Entscheiden Sie vor dem Löschen, was mit diesen Referenzen geschehen soll.',
 	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
-	'reference.self-reassign': 'Verweise können nicht auf den zu löschenden Eintrag umgehängt werden. Bitte einen anderen wählen.',
-	'reference.cross-project-reassign': 'Verweise können nur innerhalb desselben Projekts umgehängt werden.',
-	'requirement.unit-not-area': 'Dieses Material wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
-	'requirement.cross-project': 'Eine Zone und ein Material aus verschiedenen Projekten können nicht verknüpft werden.',
+	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
+	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
+	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
+	'requirement.cross-project': 'Eine Zone und ein Objekt aus verschiedenen Projekten können nicht verknüpft werden.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
 	'error.suffix.schema-version-unsupported':
 		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',

@@ -335,9 +335,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 		// Load-time recovery of an interrupted multi-entity sequence: conditional and
 		// idempotent (see the recovery module), so re-running it after a settings swap is
-		// safe, and with no outstanding marker it reads one small file and stops. The
-		// rejection cannot be discarded — but it IS logged inside, so `void` only skips an
-		// await nobody here needs.
+		// safe, and with no outstanding marker it reads one small file and stops.
+		//
+		// `void` skips an await nobody here needs, and it is safe because the function
+		// RESOLVES rather than rejects for every fault: it holds its own try/catch and logs
+		// `sequence.recovery.failed`. This comment claimed that while it was false — there
+		// was no catch anywhere in that module, so a faulting vault read at load became an
+		// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
+		// without the catch that makes the sentence true.
 		if (persistence.markers) {
 			void recoverInterruptedSequences({
 				markers: persistence.markers,

@@ -11,18 +11,6 @@ import { expectOk } from '../helpers/domain';
 import { createPlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
-import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
-import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
-import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
-import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZone';
-import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
-import { SetPlanBackgroundCommand } from '../../src/application/commands/plan/SetPlanBackground';
-import { ReversibleSetPlanBackgroundCommand } from '../../src/application/commands/plan/ReversibleSetPlanBackground';
-import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
-import { FindZonesByPlan } from '../../src/application/queries/FindZonesByPlan';
-import { GetPlan } from '../../src/application/queries/GetPlan';
-import { GetProject } from '../../src/application/queries/GetProject';
-import { GetZone } from '../../src/application/queries/GetZone';
 
 installObsidianDom();
 
@@ -57,8 +45,11 @@ describe('persistence composition', () => {
 		expect(plugin.root.persistence?.plans).toBeDefined();
 		expect(plugin.root.persistence?.zones).toBeDefined();
 		// Every command and query leaves the root GUARDED (SDD §66): a wrapper with the
-		// same `execute`, never the bare class — so the assertions are about the shape
-		// being present and callable, not about identity.
+		// same `execute`, never the bare class — so the assertions here are about the shape
+		// being present and callable. That the wrapper IS a guard is not asked here at all:
+		// `tests/plugin/guardCategory.test.ts` asks it of every member the root hands out,
+		// without naming one, which is what replaced the twelve `not.toBeInstanceOf` lines
+		// this file used to carry.
 		expect(typeof plugin.root.persistence?.queries.findZonesByPlan.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.queries.diagnostics.execute).toBe('function');
 		// The three creates, composed here since the sample-project seed became their first
@@ -95,36 +86,6 @@ describe('persistence composition', () => {
 		});
 		expect(snapshot?.migrationState.pending).toEqual([]);
 		expect(snapshot?.obsidianVersion).toBe(apiVersion);
-	});
-
-	/**
-	 * The identity half of the Error Boundary for the services slice 11 itself guarded.
-	 *
-	 * Slice 11 relaxed the assertions above from `toBeInstanceOf(TheClass)` to
-	 * "has a callable `execute`" — correct, because what leaves the root is a wrapper — and
-	 * put nothing in the place of what that gave up. `typeof x.execute === 'function'` is
-	 * true of the bare class too, and the field types are STRUCTURAL, so composing any of
-	 * these unguarded would have left the whole suite green. One `not.toBeInstanceOf` line
-	 * each is what closes it; slice 10's twelve are covered the same way in
-	 * `guardWiring.test.ts`, which also drives a fault through the boundary.
-	 */
-	it('hands out a wrapper for every service it guards, never the class', async () => {
-		const { plugin } = await loadedPlugin(DEFAULT_SETTINGS);
-		const persistence = plugin.root.persistence;
-		if (persistence === undefined || persistence === null) throw new Error('expected a composed stack');
-
-		expect(persistence.createProject).not.toBeInstanceOf(CreateProjectCommand);
-		expect(persistence.createPlan).not.toBeInstanceOf(CreatePlanCommand);
-		expect(persistence.createZone).not.toBeInstanceOf(CreateZoneCommand);
-		expect(persistence.setPlanBackground).not.toBeInstanceOf(SetPlanBackgroundCommand);
-		expect(persistence.reversibleSetPlanBackground).not.toBeInstanceOf(ReversibleSetPlanBackgroundCommand);
-		expect(persistence.deleteZone).not.toBeInstanceOf(DeleteZoneCommand);
-		expect(persistence.moveZone).not.toBeInstanceOf(MoveSpatialObjectCommand);
-		expect(persistence.zoneInspector).not.toBeInstanceOf(GetZoneInspector);
-		expect(persistence.queries.getProject).not.toBeInstanceOf(GetProject);
-		expect(persistence.queries.getPlan).not.toBeInstanceOf(GetPlan);
-		expect(persistence.queries.getZone).not.toBeInstanceOf(GetZone);
-		expect(persistence.queries.findZonesByPlan).not.toBeInstanceOf(FindZonesByPlan);
 	});
 
 	it('rebuilds the index from vault contents at layout-ready', async () => {

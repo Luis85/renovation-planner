@@ -11,17 +11,17 @@
  * each slice-10 command and query a WRAPPER when it leaves, and does a fault below it
  * arrive as a resolved failed `Result` with the boundary's own event in the log?
  *
- * Two halves, because neither is sufficient alone. The identity half names all twelve
- * services one at a time: a missing guard is a single service that silently rejects, and a
- * count would not say which. The behavioural half drives a real throw through one command
- * and one query, because "not an instance of the class" is also true of any other object —
- * only the resolved refusal plus the named log line say that the thing wrapping it is the
- * boundary.
+ * What is left here is the BEHAVIOURAL half: a real throw driven through one command and
+ * one query, arriving as a resolved refusal with the boundary's own event in the log.
+ * "Not an instance of the class" is also true of any other object — only the refusal plus
+ * the named log line say that the thing wrapping a service IS the boundary.
  *
- * Deliberately NOT the category invariant ("every member of `PersistenceServices` that is
- * a Command or a Query is guarded"). That check has to be made at the forbidden thing
- * rather than by enumerating, and a later task owns it; what this file guarantees is
- * exactly the twelve services it names.
+ * The IDENTITY half used to live here too, as twelve `not.toBeInstanceOf` lines, and it is
+ * gone rather than kept beside its replacement: `tests/plugin/guardCategory.test.ts` walks
+ * everything the root hands out and requires the guard's own mark on every `execute`-bearing
+ * member it finds, which is a stronger statement than the twelve — it covers members nobody
+ * listed, and it also asks whether every DOOR is wrapped rather than just the object. Two
+ * mechanisms for one guarantee is how the weaker of them goes on being maintained.
  */
 import { describe, expect, it } from 'vitest';
 import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';
@@ -29,18 +29,6 @@ import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/gua
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
-import { CreateAssetCommand } from '../../src/application/commands/asset/CreateAsset';
-import { UpdateAssetCommand } from '../../src/application/commands/asset/UpdateAsset';
-import { DeleteAssetCommand } from '../../src/application/commands/asset/DeleteAsset';
-import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
-import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
-import { SetRequirementQuantityOverrideCommand } from '../../src/application/commands/requirement/SetRequirementQuantityOverride';
-import { SetRequirementCostOverrideCommand } from '../../src/application/commands/requirement/SetRequirementCostOverride';
-import { DeleteRequirementCommand } from '../../src/application/commands/requirement/DeleteRequirement';
-import { GetRequirementsForZone } from '../../src/application/queries/GetRequirementsForZone';
-import { ListAssets } from '../../src/application/queries/ListAssets';
-import { ListRequirementsReferencing } from '../../src/application/queries/ListRequirementsReferencing';
-import { ListReassignmentTargets } from '../../src/application/queries/ListReassignmentTargets';
 
 installObsidianDom();
 
@@ -76,34 +64,6 @@ function detonate(repository: object): void {
 }
 
 describe('slice 10 leaves the composition root guarded', () => {
-	it('hands out a wrapper for every slice-10 command, never the command class', () => {
-		const persistence = composed();
-
-		expect(persistence.createAsset).not.toBeInstanceOf(CreateAssetCommand);
-		expect(persistence.updateAsset).not.toBeInstanceOf(UpdateAssetCommand);
-		expect(persistence.deleteAsset).not.toBeInstanceOf(DeleteAssetCommand);
-		expect(persistence.assignAsset).not.toBeInstanceOf(AssignAssetCommand);
-		expect(persistence.recalculateRequirement).not.toBeInstanceOf(RecalculateRequirementCommand);
-		expect(persistence.setRequirementQuantityOverride).not.toBeInstanceOf(SetRequirementQuantityOverrideCommand);
-		expect(persistence.setRequirementCostOverride).not.toBeInstanceOf(SetRequirementCostOverrideCommand);
-		expect(persistence.deleteRequirement).not.toBeInstanceOf(DeleteRequirementCommand);
-
-		// Still callable, and still only `execute`: the guard hands back the Command shape
-		// and nothing else, which is why the fields are typed structurally.
-		expect(typeof persistence.createAsset.execute).toBe('function');
-		expect(typeof persistence.deleteRequirement.execute).toBe('function');
-	});
-
-	it('hands out a wrapper for every slice-10 query, never the query class', () => {
-		const { requirementQueries } = composed();
-
-		expect(requirementQueries.getRequirementsForZone).not.toBeInstanceOf(GetRequirementsForZone);
-		expect(requirementQueries.listAssets).not.toBeInstanceOf(ListAssets);
-		expect(requirementQueries.listRequirementsReferencing).not.toBeInstanceOf(ListRequirementsReferencing);
-		expect(requirementQueries.listReassignmentTargets).not.toBeInstanceOf(ListReassignmentTargets);
-		expect(typeof requirementQueries.listAssets.execute).toBe('function');
-	});
-
 	/**
 	 * The override commands have TWO public doors, and the one the app actually uses is the
 	 * second: the Inspector's reversible adapters dispatch through `executeWithVersion`.

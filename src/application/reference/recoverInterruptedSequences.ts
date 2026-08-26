@@ -82,12 +82,27 @@ async function recoverOne(deps: RecoveryDeps, marker: SequenceMarker): Promise<v
  * marker for the next load.
  */
 export async function recoverInterruptedSequences(deps: RecoveryDeps): Promise<void> {
-	const listed = await deps.markers.list();
-	if (isErr(listed)) {
-		deps.logger.error('sequence.recovery.list-failed', { cause: listed.error });
-		return;
-	}
-	for (const marker of listed.value) {
-		await recoverOne(deps, marker);
+	try {
+		const listed = await deps.markers.list();
+		if (isErr(listed)) {
+			deps.logger.error('sequence.recovery.list-failed', { cause: listed.error });
+			return;
+		}
+		for (const marker of listed.value) {
+			await recoverOne(deps, marker);
+		}
+	} catch (cause) {
+		// The Error Boundary (SDD §65–66) for the one entry point that has no wrapper: this
+		// runs at LOAD, dispatched fire-and-forget, so a throw below it — a vault read that
+		// faults rather than refusing — is an unhandled rejection reaching nobody. The
+		// handling is HERE rather than at the call site because the guarantee belongs to
+		// the function: `RenovationPlannerPlugin` is one caller today and a second would
+		// have to remember a `.catch` that nothing checks.
+		//
+		// Swallowed on purpose, and only here: this is a background repair nobody asked
+		// for, its every conditional refusal is already surfaced as its own log line above,
+		// and there is no surface to tell the user on (slice 13's notifications do not
+		// exist). What must not happen is silence, which is what this line prevents.
+		deps.logger.error('sequence.recovery.failed', { cause });
 	}
 }

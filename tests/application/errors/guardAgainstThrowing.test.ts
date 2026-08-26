@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { err, ok } from '../../../src/core/result/Result';
+import { err, ok, type Result } from '../../../src/core/result/Result';
 import { injectedPersistenceError } from '../../helpers/domain';
 import { guardCommand, guardQuery } from '../../../src/application/errors/guardAgainstThrowing';
 import { createVaultExceptionMapper, type VaultExceptionMapper } from '../../../src/application/errors/exceptionMapper';
@@ -9,7 +9,7 @@ import { CreateProjectCommand } from '../../../src/application/commands/project/
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
-import type { RecalculateRequirementCommand } from '../../../src/application/commands/requirement/RecalculateRequirement';
+import { RecalculateRequirementCommand } from '../../../src/application/commands/requirement/RecalculateRequirement';
 import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { ReversibleCalibratePlanCommand } from '../../../src/application/commands/plan/ReversibleCalibratePlan';
@@ -20,35 +20,48 @@ import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { GetProject } from '../../../src/application/queries/GetProject';
 import { GetZone } from '../../../src/application/queries/GetZone';
 import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
-import { makePlan, makeProject, makeZone } from '../../helpers/entities';
+import { makeAsset, makePlan, makeProject, makeRequirement, makeZone } from '../../helpers/entities';
 import type { PlanRepository } from '../../../src/application/ports/PlanRepository';
 import type { ProjectRepository } from '../../../src/application/ports/ProjectRepository';
 import type { ZoneRepository } from '../../../src/application/ports/ZoneRepository';
 import type { VaultFileProbe } from '../../../src/application/ports/VaultFileProbe';
+import type { AssetRepository } from '../../../src/application/ports/AssetRepository';
+import type { Command } from '../../../src/application/commands/Command';
+import type { Query } from '../../../src/application/queries/Query';
+import { CreateAssetCommand } from '../../../src/application/commands/asset/CreateAsset';
+import { UpdateAssetCommand } from '../../../src/application/commands/asset/UpdateAsset';
+import { DeleteAssetCommand } from '../../../src/application/commands/asset/DeleteAsset';
+import { AssignAssetCommand } from '../../../src/application/commands/requirement/AssignAsset';
+import { SetRequirementQuantityOverrideCommand } from '../../../src/application/commands/requirement/SetRequirementQuantityOverride';
+import { SetRequirementCostOverrideCommand } from '../../../src/application/commands/requirement/SetRequirementCostOverride';
+import { DeleteRequirementCommand } from '../../../src/application/commands/requirement/DeleteRequirement';
+import { GetRequirementsForZone } from '../../../src/application/queries/GetRequirementsForZone';
+import { ListAssets } from '../../../src/application/queries/ListAssets';
+import { ListRequirementsReferencing } from '../../../src/application/queries/ListRequirementsReferencing';
+import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
 
 /**
- * The Result-not-throw contract (SDD §65–66), asserted over the command and query classes
- * NAMED BELOW — every one through slice 8, plus both halves of the calibration
- * transaction — `undo`'s half of which is driven where the wrapper is BUILT
- * (`tests/plugin/guardWiring.test.ts`), because an `undo` before any `execute` refuses
- * with a coded Result rather than throwing, and this loop is about thrown faults. It is
- * not "every class there is": design slice 10's eight commands and four
- * queries are driven through the composed root instead, by
- * `tests/plugin/slice10GuardWiring.test.ts`, which can also tell a guarded composition
- * from an unguarded one. Each service here is constructed against dependencies that REJECT — the unexpected fault
- * the repositories' coded `Result`s do not cover — and wrapped exactly as the
- * composition root wraps them, each must answer a RESOLVED failed `Result` carrying a
+ * The Result-not-throw contract (SDD 65-66), asserted over the command and query classes
+ * NAMED BELOW - every one through slice 8, and design slice 10's eight commands and four
+ * queries beside them. Each is constructed against dependencies that REJECT - the
+ * unexpected fault the repositories' coded `Result`s do not cover - and wrapped exactly as
+ * the composition root wraps it; each must answer a RESOLVED failed `Result` carrying a
  * `PersistenceError`, never a rejection.
+ *
+ * This file is about the MECHANISM: a guard applied to a service of that shape behaves.
+ * Whether the composition root actually applies one is a different claim with its own
+ * check - `tests/plugin/guardCategory.test.ts` walks everything the root hands out and
+ * refuses an unguarded `execute`-bearing member without naming any of them, which is the
+ * category form this file cannot reach by construction. `undo`'s half of the calibration
+ * transaction is driven where the wrapper is BUILT (`tests/plugin/guardWiring.test.ts`),
+ * because an `undo` before any `execute` refuses with a coded Result rather than throwing,
+ * and this loop is about thrown faults.
  *
  * The cast-safety of the guards is no longer this test's job: their signatures demand
  * `Result<T, E | PersistenceError>`, so a future service whose error union narrowed
  * away `PersistenceError` fails to COMPILE at the composition root's wiring site. What
- * remains here is the runtime half — every rejection resolves, every failure (thrown
+ * remains here is the runtime half - every rejection resolves, every failure (thrown
  * or resolved) is logged with its cause at the boundary.
- *
- * What this deliberately does NOT prove: that the composition root actually wraps every
- * future service it gains. That half lives in review of `composition-root.ts`, whose
- * comment names the rule where the wiring happens.
  */
 
 const map: VaultExceptionMapper = createVaultExceptionMapper('vault');
@@ -60,132 +73,291 @@ const logger: Logger = {
 	error: (event, context) => logged.push({ event, context }),
 };
 
+/**
+ * Every member the ports and collaborators stood in for below actually declare - the five
+ * repositories, `VaultFileProbe`, `PlanGeometrySidecar`, and the `Pick<…, 'execute'>` a
+ * command takes of another command.
+ *
+ * It exists because the stand-in under it is a fake that is KINDER than the real thing in
+ * a specific way: a Proxy answering EVERY property with a thrower means a service
+ * constructed with the wrong argument SHAPE reaches for `deps.requirements`, gets a
+ * thrower, and faults exactly like the rejecting repository the case is about.
+ * `new DeleteZoneCommand(zones, events)` did that here for a whole slice after the command
+ * grew a deps object, and `tests/**` is not type-checked, so nothing else noticed. An ask
+ * for anything outside this set is a malformed FIXTURE rather than a faulting vault; it is
+ * recorded and asserted empty, because the guard maps it into the same
+ * `vault.unexpected-failure` the contract under test is about.
+ */
+const PORT_MEMBERS: ReadonlySet<string> = new Set([
+	'getById',
+	'save',
+	'delete',
+	'listAll',
+	'listByProject',
+	'listByPlan',
+	'listByZone',
+	'listByAsset',
+	'markStale',
+	'fileExists',
+	'read',
+	'write',
+	'execute',
+]);
+
+/** Every ask no port declares, in order — see `PORT_MEMBERS`. */
+const malformedAsks: string[] = [];
+
+/** A dependency that throws for every call the ports declare, and only those. */
 function rejecting<T>(name: string): T {
 	const reject = (): never => {
 		throw new Error(`${name} exploded`);
 	};
-	return new Proxy({ reject }, { get: () => reject }) as T;
+	return new Proxy(
+		{ reject },
+		{
+			get: (_target, key) => {
+				// A real port has no symbol-keyed members; answering `undefined` keeps
+				// `await`, printing and `instanceof` behaving the way they do for one.
+				if (typeof key === 'symbol') return undefined;
+				if (!PORT_MEMBERS.has(key)) {
+					malformedAsks.push(`${name}.${key}`);
+				}
+				return reject;
+			},
+		},
+	) as T;
 }
 
 const plans = rejecting<PlanRepository>('plans');
 const projects = rejecting<ProjectRepository>('projects');
 const zones = rejecting<ZoneRepository>('zones');
+const assets = rejecting<AssetRepository>('assets');
+const requirements = rejecting<RequirementRepository>('requirements');
 const files = rejecting<VaultFileProbe>('files');
 const events = { publish: (): Promise<void> => Promise.resolve() };
 
-function services(): Array<{ name: string; run: () => Promise<unknown> }> {
+interface Fixture {
+	readonly name: string;
+	readonly run: () => Promise<unknown>;
+}
+
+/**
+ * One case: build the service, wrap it, and hand back only the CALL.
+ *
+ * The construction happens HERE rather than inside `run`, so a constructor that reads its
+ * argument - one that destructures, or validates - faults while the fixture list is being
+ * built and fails this file loudly, instead of throwing inside the guard and being
+ * asserted as the rejecting repository. It is only half the answer: a constructor that
+ * merely STORES what it is given (`DeleteZoneCommand` is one) accepts anything, and the
+ * malformed shape surfaces later, as a property no port declares. `PORT_MEMBERS` is what
+ * catches that half.
+ */
+function commandCase<I>(name: string, command: Command<I, Result<unknown, never>>, event: string, input: I): Fixture {
+	const wrapped = guardCommand(command, event, logger, map);
+	return { name, run: () => wrapped.execute(input) };
+}
+
+function queryCase<I>(name: string, query: Query<I, Result<unknown, never>>, event: string, input: I): Fixture {
+	const wrapped = guardQuery(query, event, logger, map);
+	return { name, run: () => wrapped.execute(input) };
+}
+
+/** Slice 8 and earlier: the writes and reads the editor was built on. */
+function editorServices(): Fixture[] {
 	const project = makeProject();
 	const plan = makePlan({ projectId: project.id });
 	const zone = makeZone({ projectId: project.id, planId: plan.id });
+	const background = { planId: plan.id, background: { path: 'a.png', kind: 'image' } } as never;
+	const forward = guardCommand(
+		new SetPlanBackgroundCommand(plans, files, events),
+		'command.setPlanBackground.failed',
+		logger,
+		map,
+	);
 	return [
-		{
-			name: 'CreateProjectCommand',
-			run: () =>
-				guardCommand(new CreateProjectCommand(projects, events), 'command.createProject.failed', logger, map).execute({
-					name: 'Kitchen',
-				}),
-		},
-		{
-			name: 'CreatePlanCommand',
-			run: () =>
-				guardCommand(new CreatePlanCommand(plans, projects, events), 'command.createPlan.failed', logger, map).execute({
-					projectId: plan.projectId,
-					name: 'Ground floor',
-				}),
-		},
-		{
-			name: 'CreateZoneCommand',
-			run: () =>
-				guardCommand(new CreateZoneCommand(zones, plans, events), 'command.createZone.failed', logger, map).execute({
-					planId: plan.id,
-					name: 'Kitchen',
-					zoneType: 'kitchen',
-					geometry: { points: [] },
-				} as never),
-		},
-		{
-			name: 'ReversibleCalibratePlanCommand',
-			run: () =>
-				guardCommand(
-					new ReversibleCalibratePlanCommand(plans, rejecting('sidecar'), events),
-					'command.calibratePlan.failed',
-					logger,
-					map,
-				).execute({
-					planId: plan.id,
-					pointA: { x: 0, y: 0 },
-					pointB: { x: 10, y: 0 },
-					knownDistance: 1000,
-				} as never),
-		},
-		{
-			// ONE deps object since slice 10, not `(zones, events)`. Spelled wrongly here for
-			// a whole slice and green throughout: `rejecting()` is a Proxy answering EVERY
-			// property with a thrower, so the malformed construction threw a `TypeError` that
-			// looked exactly like the rejecting repository this case is about, and `tests/**`
-			// is not type-checked. The lock set is REAL and the logger is this file's, so the
-			// only thing that can throw is the collaborator the case names.
-			name: 'DeleteZoneCommand',
-			run: () =>
-				guardCommand(
-					new DeleteZoneCommand({
-						zones,
-						requirements: rejecting<RequirementRepository>('requirements'),
-						recalculate: rejecting<Pick<RecalculateRequirementCommand, 'execute'>>('recalculate'),
-						events,
-						locks: new ReferenceLocks(),
-						logger,
-					}),
-					'command.deleteZone.failed',
-					logger,
-					map,
-				).execute({ zoneId: zone.id }),
-		},
-		{
-			name: 'GetZoneInspector',
-			run: () =>
-				guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map).execute({ zoneId: zone.id }),
-		},
-		{
-			name: 'MoveSpatialObjectCommand',
-			run: () =>
-				guardCommand(new MoveSpatialObjectCommand(zones, events), 'command.moveSpatialObject.failed', logger, map).execute({
-					zoneId: zone.id,
-					geometry: { points: [] },
-				} as never),
-		},
-		{
-			name: 'SetPlanBackgroundCommand',
-			run: () =>
-				guardCommand(
-					new SetPlanBackgroundCommand(plans, files, events),
-					'command.setPlanBackground.failed',
-					logger,
-					map,
-				).execute({ planId: plan.id, background: { path: 'a.png', kind: 'image' } }),
-		},
-		{
-			name: 'ReversibleSetPlanBackgroundCommand',
-			run: () =>
-				guardCommand(
-					new ReversibleSetPlanBackgroundCommand(
-						guardCommand(new SetPlanBackgroundCommand(plans, files, events), 'command.setPlanBackground.failed', logger, map),
-						plans,
-					),
-					'command.setPlanBackground.undoable.failed',
-					logger,
-					map,
-				).execute({ planId: plan.id, background: { path: 'a.png', kind: 'image' } }),
-		},
-		{ name: 'GetProject', run: () => guardQuery(new GetProject(projects), 'query.getProject.failed', logger, map).execute({ projectId: project.id }) },
-		{ name: 'GetPlan', run: () => guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, map).execute({ planId: plan.id }) },
-		{ name: 'GetZone', run: () => guardQuery(new GetZone(zones), 'query.getZone.failed', logger, map).execute({ zoneId: zone.id }) },
-		{ name: 'FindZonesByPlan', run: () => guardQuery(new FindZonesByPlan(zones), 'query.findZonesByPlan.failed', logger, map).execute({ planId: plan.id }) },
+		commandCase('CreateProjectCommand', new CreateProjectCommand(projects, events) as never, 'command.createProject.failed', {
+			name: 'Kitchen',
+		}),
+		commandCase('CreatePlanCommand', new CreatePlanCommand(plans, projects, events) as never, 'command.createPlan.failed', {
+			projectId: plan.projectId,
+			name: 'Ground floor',
+		}),
+		commandCase('CreateZoneCommand', new CreateZoneCommand(zones, plans, events) as never, 'command.createZone.failed', {
+			planId: plan.id,
+			name: 'Kitchen',
+			zoneType: 'kitchen',
+			geometry: { points: [] },
+		}),
+		commandCase(
+			'ReversibleCalibratePlanCommand',
+			new ReversibleCalibratePlanCommand(plans, rejecting('sidecar'), events) as never,
+			'command.calibratePlan.failed',
+			{ planId: plan.id, pointA: { x: 0, y: 0 }, pointB: { x: 10, y: 0 }, knownDistance: 1000 },
+		),
+		commandCase(
+			// ONE deps object since slice 10, not `(zones, events)`. The lock set is REAL and
+			// the logger is this file's, so the only thing that can throw is a collaborator
+			// this case names.
+			'DeleteZoneCommand',
+			new DeleteZoneCommand({
+				zones,
+				requirements,
+				recalculate: rejecting<Pick<RecalculateRequirementCommand, 'execute'>>('recalculate'),
+				events,
+				locks: new ReferenceLocks(),
+				logger,
+			}) as never,
+			'command.deleteZone.failed',
+			{ zoneId: zone.id },
+		),
+		commandCase(
+			'MoveSpatialObjectCommand',
+			new MoveSpatialObjectCommand(zones, events) as never,
+			'command.moveSpatialObject.failed',
+			{ zoneId: zone.id, geometry: { points: [] } },
+		),
+		commandCase(
+			'SetPlanBackgroundCommand',
+			new SetPlanBackgroundCommand(plans, files, events) as never,
+			'command.setPlanBackground.failed',
+			background,
+		),
+		commandCase(
+			'ReversibleSetPlanBackgroundCommand',
+			new ReversibleSetPlanBackgroundCommand(forward as never, plans) as never,
+			'command.setPlanBackground.undoable.failed',
+			background,
+		),
+		queryCase('GetZoneInspector', new GetZoneInspector(zones) as never, 'query.zoneInspector.failed', { zoneId: zone.id }),
+		queryCase('GetProject', new GetProject(projects) as never, 'query.getProject.failed', { projectId: project.id }),
+		queryCase('GetPlan', new GetPlan(plans) as never, 'query.getPlan.failed', { planId: plan.id }),
+		queryCase('GetZone', new GetZone(zones) as never, 'query.getZone.failed', { zoneId: zone.id }),
+		queryCase('FindZonesByPlan', new FindZonesByPlan(zones) as never, 'query.findZonesByPlan.failed', { planId: plan.id }),
 	];
+}
+
+/**
+ * Design slice 10's twelve, over the same rejecting collaborators - the shapes the guard
+ * actually wraps in production, and ones this file did not reach while the composition
+ * wired every one of them.
+ *
+ * The two override commands appear TWICE, because they have two public doors and the one
+ * the app dispatches through is the second: the Inspector's reversible adapters call
+ * `executeWithVersion`. The composition's two-door facade is `guardBothDoors`, which lives
+ * in `plugin/` and is asserted where it is built; what belongs here is the mechanism - the
+ * same guard over a door that is not named `execute`.
+ */
+function slice10Services(): Fixture[] {
+	const project = makeProject();
+	const plan = makePlan({ projectId: project.id });
+	const zone = makeZone({ projectId: project.id, planId: plan.id });
+	const asset = makeAsset({ projectId: project.id });
+	const requirement = makeRequirement({
+		projectId: project.id,
+		assetId: asset.id,
+		origin: { kind: 'zone', zoneId: zone.id },
+	});
+	const locks = new ReferenceLocks();
+	const quantityOverride = new SetRequirementQuantityOverrideCommand(requirements, events, locks);
+	const costOverride = new SetRequirementCostOverrideCommand(requirements, events, locks);
+	const target = { kind: 'zone', zoneId: zone.id } as const;
+	return [
+		commandCase('CreateAssetCommand', new CreateAssetCommand(assets, events) as never, 'command.createAsset.failed', {
+			projectId: project.id,
+			name: 'Porcelain Terrace Tile',
+			category: 'material',
+			unit: 'm2',
+			unitCostAmount: '45.00',
+			currency: 'EUR',
+		}),
+		commandCase(
+			'UpdateAssetCommand',
+			new UpdateAssetCommand(assets, requirements, events, locks) as never,
+			'command.updateAsset.failed',
+			{ assetId: asset.id, changes: { name: 'Renamed' } },
+		),
+		commandCase(
+			'DeleteAssetCommand',
+			new DeleteAssetCommand({
+				assets,
+				requirements,
+				recalculate: rejecting<Pick<RecalculateRequirementCommand, 'execute'>>('recalculate'),
+				events,
+				locks,
+				logger,
+			}) as never,
+			'command.deleteAsset.failed',
+			{ assetId: asset.id },
+		),
+		commandCase(
+			'AssignAssetCommand',
+			new AssignAssetCommand(zones, assets, requirements, events, locks) as never,
+			'command.assignAsset.failed',
+			{ zoneId: zone.id, assetId: asset.id },
+		),
+		commandCase(
+			'RecalculateRequirementCommand',
+			new RecalculateRequirementCommand(requirements, zones, assets, events) as never,
+			'command.recalculateRequirement.failed',
+			{ requirementId: requirement.id },
+		),
+		commandCase(
+			'SetRequirementQuantityOverrideCommand',
+			quantityOverride as never,
+			'command.setRequirementQuantityOverride.failed',
+			{ requirementId: requirement.id, quantity: 3 },
+		),
+		commandCase(
+			'SetRequirementQuantityOverrideCommand.executeWithVersion',
+			{ execute: (input: never) => quantityOverride.executeWithVersion(input) } as never,
+			'command.setRequirementQuantityOverride.with-version.failed',
+			{ requirementId: requirement.id, quantity: 3 },
+		),
+		commandCase('SetRequirementCostOverrideCommand', costOverride as never, 'command.setRequirementCostOverride.failed', {
+			requirementId: requirement.id,
+			cost: null,
+		}),
+		commandCase(
+			'SetRequirementCostOverrideCommand.executeWithVersion',
+			{ execute: (input: never) => costOverride.executeWithVersion(input) } as never,
+			'command.setRequirementCostOverride.with-version.failed',
+			{ requirementId: requirement.id, cost: null },
+		),
+		commandCase(
+			'DeleteRequirementCommand',
+			new DeleteRequirementCommand(requirements) as never,
+			'command.deleteRequirement.failed',
+			{ requirementId: requirement.id },
+		),
+		queryCase(
+			'GetRequirementsForZone',
+			new GetRequirementsForZone(requirements, zones, assets) as never,
+			'query.getRequirementsForZone.failed',
+			zone.id,
+		),
+		queryCase('ListAssets', new ListAssets(assets) as never, 'query.listAssets.failed', project.id),
+		queryCase(
+			'ListRequirementsReferencing',
+			new ListRequirementsReferencing(requirements) as never,
+			'query.listRequirementsReferencing.failed',
+			target,
+		),
+		queryCase(
+			'ListReassignmentTargets',
+			new ListReassignmentTargets(zones, assets) as never,
+			'query.listReassignmentTargets.failed',
+			target,
+		),
+	];
+}
+
+function services(): Fixture[] {
+	return [...editorServices(), ...slice10Services()];
 }
 
 describe('the Result-not-throw contract', () => {
 	it('resolves a failed Result for every command and query when its dependencies reject', async () => {
+		malformedAsks.length = 0;
 		for (const service of services()) {
 			// A rejection here IS the failure the contract forbids: awaited bare, so an
 			// unexpected throw fails this test rather than passing through as a value.
@@ -194,6 +366,11 @@ describe('the Result-not-throw contract', () => {
 			expect(result.error?.category).toBe('Persistence');
 			expect(result.error?.code).toBe('vault.unexpected-failure');
 		}
+		// And every one of those faults came from a member a port DECLARES. Without this
+		// line a fixture built against a constructor the command no longer has is green:
+		// the fault is a stand-in answering a property nothing should have asked it for,
+		// mapped into the same coded error the contract is about. See `PORT_MEMBERS`.
+		expect(malformedAsks).toEqual([]);
 	});
 
 	it('logs every mapped exception with its original cause at the mapping step', async () => {

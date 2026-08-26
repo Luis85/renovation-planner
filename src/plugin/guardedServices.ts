@@ -8,7 +8,7 @@ import type { RepositoryError } from '../application/ports/repositoryErrors';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
-import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
+import { guardCommand, guardQuery, markGuarded } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
 import { GetPlan, type GetPlanInput } from '../application/queries/GetPlan';
@@ -267,10 +267,15 @@ function guardBothDoors<TInput, TVersioned, E extends AppError>(
 		logger,
 		map,
 	);
-	return {
-		execute: (input) => guardedExecute.execute(input),
-		executeWithVersion: (input) => guardedVersioned.execute(input),
-	};
+	// Marked with BOTH names: the facade is one object with two doors, and a mark naming
+	// only `execute` would describe exactly the state this function exists to end.
+	return markGuarded(
+		{
+			execute: (input: TInput) => guardedExecute.execute(input),
+			executeWithVersion: (input: TInput) => guardedVersioned.execute(input),
+		},
+		['execute', 'executeWithVersion'],
+	);
 }
 
 /**
@@ -360,8 +365,11 @@ export function guardCalibratePlan(
 		map,
 	);
 	const guardedExecute = guardCommand(transaction, 'command.calibratePlan.failed', logger, map);
-	return {
-		execute: (input) => guardedExecute.execute(input),
-		undo: () => guardedUndo.execute(undefined),
-	};
+	return markGuarded(
+		{
+			execute: (input: Parameters<CalibratePlanTransaction['execute']>[0]) => guardedExecute.execute(input),
+			undo: () => guardedUndo.execute(undefined),
+		},
+		['execute', 'undo'],
+	);
 }

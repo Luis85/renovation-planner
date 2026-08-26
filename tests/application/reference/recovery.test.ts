@@ -271,4 +271,66 @@ describe('recoverInterruptedSequences', () => {
 
 		expect(lines.some((line) => line.event === 'sequence.recovery.clear-failed')).toBe(true);
 	});
+
+	/**
+	 * The Error Boundary over the one entry point that never had a wrapper (SDD §65–66).
+	 *
+	 * This runs at LOAD, dispatched `void recoverInterruptedSequences({…})` — so a THROW
+	 * below it (a vault read that faults rather than refusing) is an unhandled rejection
+	 * reaching nobody, which is exactly what `reportFault` exists to prevent one seam over.
+	 * The plugin's call site asserted in a comment that the rejection "IS logged inside"
+	 * while the module contained no `try`/`catch` at all; these two cases are what fails
+	 * without the one that makes the sentence true.
+	 *
+	 * Both halves of the walk are driven, because they fault in different places: the
+	 * `list()` that opens it, and a per-marker write deep inside the loop.
+	 */
+	it('resolves and logs rather than rejecting when the marker LIST throws', async () => {
+		// `lines` accumulates across this file's tests; the counts below are about THIS case.
+		lines.length = 0;
+		const w = await requirementFixture();
+		const markers = overridePort(new InMemorySequenceMarkerStore(), {
+			list: () => {
+				throw new Error('the marker file exploded');
+			},
+		});
+
+		await expect(
+			recoverInterruptedSequences({ markers, requirements: w.requirements, zones: w.zones, assets: w.assets, logger }),
+		).resolves.toBeUndefined();
+
+		const failed = lines.filter((line) => line.event === 'sequence.recovery.failed');
+		expect(failed).toHaveLength(1);
+		expect(failed[0]?.context?.cause).toBeInstanceOf(Error);
+	});
+
+	it('resolves and logs rather than rejecting when a restore deep inside the walk throws', async () => {
+		lines.length = 0;
+		const w = await requirementFixture();
+		const markers = new InMemorySequenceMarkerStore();
+		await markers.write({
+			schemaVersion: 1,
+			kind: 'delete-resolution',
+			entityKind: 'asset',
+			entityId: 'asset-none',
+			entitySnapshot: { entity: {}, version: { revision: 1, observed: 'o' } } as never,
+			entityDeleted: false,
+			affectedBefore: [{ entity: { id: 'req-1' }, version: { revision: 1, observed: 'o' } } as never],
+			progress: [{ id: 'req-1' as never, outcome: 'written', version: { revision: 1, observed: 'o' } as never }],
+		});
+		const requirements = overridePort(w.requirements, {
+			save: () => {
+				throw new Error('the vault exploded mid-restore');
+			},
+		});
+
+		await expect(
+			recoverInterruptedSequences({ markers, requirements, zones: w.zones, assets: w.assets, logger }),
+		).resolves.toBeUndefined();
+
+		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(1);
+		// And the marker is still there: a fault is not a completed recovery, so the next
+		// load tries again. Nothing cleared it on the way out of the catch.
+		expect(expectOk(await markers.list())).toHaveLength(1);
+	});
 });

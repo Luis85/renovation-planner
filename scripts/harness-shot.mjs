@@ -14,9 +14,9 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the seven fixed surfaces (the project
+ * Headless capture of the browser harness — either the nine fixed surfaces (the project
  * view's dark scheme, light scheme and `?phone`, the Plan Editor's dark and light schemes,
- * and the harness index's own two) or, given an entry id, one named prototype or component
+ * and the harness index at rest in both schemes, focused, and showing its failure card) or, given an entry id, one named prototype or component
  * in both schemes — for a
  * look nobody has to open a browser for. This is how a real layout defect was found earlier
  * in this plan (the view collapsing to 39px of a 700px pane): nothing in the suite could see
@@ -64,6 +64,41 @@ const HARNESS_INDEX = '.rp-harness-index';
  */
 const viewportFor = (width) => (width === undefined ? VIEWPORT : { ...VIEWPORT, width });
 
+/** How many Tab presses to spend looking for `focus`, before giving up and saying so. */
+const FOCUS_TAB_LIMIT = 12;
+
+/**
+ * Put the keyboard on the element a shot names, so a `:focus-visible` ring is IN THE PICTURE.
+ *
+ * `page.keyboard.press('Tab')` and not `page.focus()`, which is the whole difficulty and the
+ * reason this exists rather than being one line at the call site. `:focus-visible` is a
+ * heuristic, not a state: Chromium matches it after a KEYBOARD interaction and withholds it for
+ * programmatic focus on a link, so `page.focus()` would leave the element focused, the ring
+ * undrawn, and the screenshot indistinguishable from the resting one — a capture that looks like
+ * it covers the state while covering nothing, which is worse than not taking it.
+ *
+ * Tabbing until the selector matches rather than a fixed count, because a fixed count encodes
+ * today's DOM order and breaks silently the day an element is added above the target. THROWS on
+ * running out: `captureOne`'s catch turns that into a named error and a non-zero exit, so a
+ * target that stopped being reachable by keyboard — which is itself the defect this shot exists
+ * to watch — is reported rather than photographed as a blank.
+ *
+ * A no-op for a shot with no `focus`, which is every shot but one. Out here rather than as a
+ * branch inside `captureOne` for the reason `viewportFor` gives above: that function runs behind
+ * a browser where no test reaches it, and one more branch took its CRAP score to exactly the
+ * threshold `npm run analyze` fails at.
+ */
+async function focusForShot(page, focus) {
+	if (focus === undefined) return;
+
+	for (let press = 0; press < FOCUS_TAB_LIMIT; press += 1) {
+		await page.keyboard.press('Tab');
+		if (await page.evaluate((sel) => document.activeElement?.matches(sel) ?? false, focus)) return;
+	}
+
+	throw new Error(`nothing matching ${focus} took focus within ${FOCUS_TAB_LIMIT} tab presses`);
+}
+
 const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
@@ -74,18 +109,38 @@ const SHOTS = [
 	// surfaces; add one when §61 changes.
 	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
-	// The harness's own index, in both schemes — the one surface here that this command could
-	// not photograph. That is not a gap worth leaving in a tool whose whole argument is that a
-	// capture read by eye reaches defects no gate can: the index's own chrome went unlooked-at
-	// while it accumulated a focus ring nothing drew, rows under the 24px target minimum, a
-	// contrast failure in one scheme only, and a `role="alert"` card styled by no rule at all —
-	// with `npm run check` green throughout, because every one of those is invisible to a suite
-	// with no layout engine.
+	// The harness's own index — the one surface here this command could not photograph. That is
+	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
+	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated
+	// a focus ring nothing drew, rows under the 24px target minimum, a contrast failure in one
+	// scheme only, and a `role="alert"` card styled by no rule at all — with `npm run check`
+	// green throughout, because every one of those is invisible to a suite with no layout engine.
 	//
-	// BOTH schemes for the same reason every entry capture takes both: two of those four defects
-	// were scheme-specific, and one of them existed only in light.
+	// FOUR shots and not two, because a STATE nothing navigates to is a state no picture holds.
+	// The first version of this took the two resting shots alone and claimed all four defects as
+	// the reason; `?index` renders neither the focus ring (nothing has been tabbed to) nor the
+	// failure card (nothing has failed), so deleting either rule would have left both PNGs
+	// identical. Two of the four were being watched by a comment rather than by a camera.
+	//
+	// Which scheme each state is taken in is the scheme its own defect was worst in, so the run
+	// stays four shots rather than eight:
+	//   - Rest, BOTH: the contrast failure existed only in light, and the picker's whole palette
+	//     is what these two are for.
+	//   - Focus, DARK: the ring is `--interactive-accent` and the dark background is the harder
+	//     of the two to separate it from.
+	//   - Failure, LIGHT: `--text-error` measured 3.89:1 there against 4.27:1 in dark, which is
+	//     why that card's colour ended up decided by the light scheme.
 	{ name: 'index-dark', query: '?index', selector: HARNESS_INDEX },
 	{ name: 'index-light', query: '?index&theme=light', selector: HARNESS_INDEX },
+	// `focus` is what makes this shot differ from `index-dark` at all — see `focusForShot` for
+	// why it is reached with a Tab press rather than set programmatically.
+	{ name: 'index-focus', query: '?index', selector: HARNESS_INDEX, focus: `${HARNESS_INDEX} > nav li a` },
+	// An id no entry can have, so the index draws its failure card. Deliberately WITHOUT an
+	// `entry` field: that field means "wait for this entry to draw and report if it did not",
+	// which is the opposite of what this shot wants. With none, the wait is on the card's own
+	// selector and the run stays green — the failure being photographed is the subject here, not
+	// a fault in the run.
+	{ name: 'index-failure', query: '?entry=no-such-entry&theme=light', selector: '.rp-harness-failure' },
 ];
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
@@ -98,7 +153,7 @@ const SHOTS = [
  * the reason is prose an entry's own error can imitate — see `readFailureKind`. The reason is
  * still pushed here rather than returned: the errors list is what the exit code is built from,
  * and a caller that forgot to push would turn a failure into a green run. */
-async function captureOne(browser, baseUrl, { name, query, selector, entry, width }, errors) {
+async function captureOne(browser, baseUrl, { name, query, selector, entry, width, focus }, errors) {
 	const page = await browser.newPage({ viewport: viewportFor(width) });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
@@ -124,6 +179,9 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry, widt
 		// fake `page` can drive the race with no browser. Same bargain `reportIfNoLongerDrawn`
 		// already makes below.
 		await waitUntilReady(page, selector, entry, entryHasDrawn);
+		// After the wait, never before it: tabbing into a page that has not drawn its list yet
+		// walks whatever tab order exists at that moment, which is not the one being pictured.
+		await focusForShot(page, focus);
 
 		const file = path.join(OUT_DIR, `${name}.png`);
 
@@ -245,7 +303,7 @@ async function run() {
 	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
 	// the label, but the URL and this command both take the id, since a mock and the real
 	// component it stands in for share a basename and need to stay reachable as two entries.
-	// With no argument, the seven fixed surfaces, exactly as before. `resolveShots` is what
+	// With no argument, the nine fixed surfaces, exactly as before. `resolveShots` is what
 	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
 	// rather than reading this file's source text to check which index it uses.
 	const shots = resolveShots(process.argv, SHOTS, process.env);

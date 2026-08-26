@@ -564,21 +564,31 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the seven fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the nine fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
-		for (const name of ['dark', 'light', 'phone', 'plan-editor-dark', 'plan-editor-light', 'index-dark', 'index-light']) {
+		for (const name of [
+			'dark',
+			'light',
+			'phone',
+			'plan-editor-dark',
+			'plan-editor-light',
+			'index-dark',
+			'index-light',
+			'index-focus',
+			'index-failure',
+		]) {
 			expect(source).toContain(`name: '${name}'`);
 		}
 	});
 
 	/**
-	 * The index pair is the one addition here that photographs the HARNESS rather than the
-	 * plugin, and it is the reason this command can now be pointed at its own chrome. Asserted
-	 * separately from the list above because the property that matters is not that the names
-	 * exist but that they ask for the picker: `?index` is what `tests/harness/page.ts` routes to
-	 * `IndexPage`, and a shot that lost the parameter would silently photograph the project
-	 * surface twice more and still pass the name check.
+	 * The index shots are the ones that photograph the HARNESS rather than the plugin, and they
+	 * are the reason this command can be pointed at its own chrome. Asserted separately from the
+	 * list above because the property that matters is not that the names exist but that they ask
+	 * for the picker: `?index` is what `tests/harness/page.ts` routes to `IndexPage`, and a shot
+	 * that lost the parameter would silently photograph the project surface again and still pass
+	 * the name check.
 	 */
 	it('points the index shots at the route that draws the picker', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
@@ -586,6 +596,44 @@ describe('the headless harness capture script', () => {
 		for (const query of ["query: '?index'", "query: '?index&theme=light'"]) {
 			expect(source).toContain(query);
 		}
+	});
+
+	/**
+	 * A STATE nothing navigates to is a state no picture holds, which is what the first version
+	 * of the index shots got wrong: they took the resting picker twice and named four defects as
+	 * the reason, while `?index` renders neither a focus ring (nothing has been tabbed to) nor a
+	 * failure card (nothing has failed). Deleting either rule left both PNGs identical.
+	 *
+	 * So the two states each need their own SETUP, and this pins that the setup is still there:
+	 * a `focus` selector on one shot, and a query naming an id no entry can have on the other.
+	 * Source-text assertions because `SHOTS` runs at module scope behind a browser — the same
+	 * bargain every case in this block makes — and the behaviour under them is `focusForShot`'s,
+	 * which is asserted directly below.
+	 */
+	it('gives the focus ring and the failure card a shot that actually renders them', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toContain("name: 'index-focus'");
+		expect(source).toMatch(/name: 'index-focus'[^}]*focus:/);
+		expect(source).toContain("name: 'index-failure'");
+		expect(source).toMatch(/name: 'index-failure'[^}]*query: '\?entry=no-such-entry/);
+	});
+
+	/**
+	 * `page.focus()` would leave the element focused and the ring UNDRAWN — `:focus-visible` is a
+	 * keyboard heuristic, so a programmatic focus produces a screenshot identical to the resting
+	 * one. That is the failure mode this whole addition exists to avoid, and it is invisible in
+	 * the PNG, so it is pinned here instead.
+	 */
+	it('reaches the focus target with the keyboard rather than programmatically', () => {
+		// STRIPPED, like every negative scan in this file — and this one proves the convention
+		// rather than merely following it: `focusForShot`'s own comment NAMES `page.focus(` to say
+		// why it is refused, so the raw-text version of this assertion failed on the sentence
+		// explaining the rule it was checking.
+		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+
+		expect(source).toContain("keyboard.press('Tab')");
+		expect(source).not.toContain('page.focus(');
 	});
 
 	/**

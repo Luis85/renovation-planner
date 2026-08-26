@@ -59,8 +59,12 @@ The steps below are the ones where "the suite is green" proves nothing about the
   behaviour, not a defect to file.
 - **Snapping.** `SnapService` is wired but this slice hands it no candidate geometry, so
   nothing visibly snaps yet — vertices land where the pointer lands.
-- **Zone names/types.** Every drawn zone is "Room", named "Zone N" — scaffolding until
-  slice 15's creation dialogs. Renaming is not wired.
+- **Zone names/types.** Every drawn zone is "Room", named "Zone N" — scaffolding until the
+  creation forms arrive. Those are slice 16's, with slice 14 owning the empty-state actions
+  that open them; slice 15 built the dialog FRAMEWORK they will be mounted in and no form of
+  its own beyond the calibration prompt ([[Calibrate a Plan]]). This line used to say
+  "until slice 15's creation dialogs", which now reads as a promise that slice kept only
+  half of. Renaming is not wired.
 
 ## Runs
 

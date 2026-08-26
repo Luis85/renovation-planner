@@ -153,19 +153,32 @@ const inherits = (properties: readonly string[]): boolean =>
  * Does this branch name any part of the harness — a `rp-harness-*` class, or the missing-icon
  * attribute no Obsidian selector can be spelled as?
  *
+ * Asked of the COMPONENTS, in positive position only. It was a substring test on the rendered
+ * selector, which is the same defect this whole pair of files was rewritten to stop: a structural
+ * question answered against text. `body:has(.rp-harness-group) h2` mentions the picker and is
+ * rooted at `body` — it matches whenever the picker exists and restyles every heading in every
+ * mounted entry — and the substring found the class and called it harness-scoped.
+ *
+ * `alternativesOf` expands `:is()` and `:where()` and leaves `:not()` and `:has()` whole, so
+ * skipping pseudo-classes here is exactly "in positive position": an alternative the subject may
+ * match counts, something it must NOT be or must merely CONTAIN does not.
+ *
  * `body` alone is not enough, and is the exception `theme.css`'s header carves out: it is held to
  * `height`, which does not inherit, so the caller's own property test lets it through.
  *
- * The attribute is named here rather than guessed at: `[data-icon-missing]` is what
- * `obsidian-mock.ts` stamps when `setIcon` is called and the mock draws no SVG. Getting the
- * spelling wrong fails LOUDLY — that rule becomes an offender in the real sheet — which is the
- * useful direction for a name this has to match exactly.
+ * The attribute is read from the parsed node rather than matched as text. `[data-icon-missing]` is
+ * what `obsidian-mock.ts` stamps when `setIcon` is called and the mock draws no SVG; the spelling
+ * has to be exact, and getting it wrong fails LOUDLY — that rule becomes an offender in the real
+ * sheet, which is how the first version of this line was caught.
  */
-const namesTheHarness = (branch: Selector): boolean => {
-	const text = show(branch);
-
-	return text.includes('.rp-harness-') || text.includes('[data-icon-missing]');
-};
+const namesTheHarness = (branch: Selector): boolean =>
+	alternativesOf(branch).some((alternative) =>
+		alternative.some(
+			(component) =>
+				(component.type === 'class' && component.name.startsWith('rp-harness-')) ||
+				(component.type === 'attribute' && component.name === 'data-icon-missing'),
+		),
+	);
 
 /**
  * Does this selector reach a DESCENDANT of the stage — the element every entry mounts into?
@@ -317,6 +330,11 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a selector rooted above the harness', 'body h2 { color: red; }'],
 		['a selector rooted at the document', 'html .rp-entry-title { text-transform: uppercase; }'],
 		['a bare type selector', 'h2 { color: red; }'],
+		// Harness chrome mentioned only inside `:has()`. The subject is `h2` under `body`, so this
+		// matches whenever the picker exists and restyles every heading in every entry — and a
+		// substring test on the rendered selector found the class and called it harness-scoped.
+		['harness chrome named only inside :has()', 'body:has(.rp-harness-group) h2 { color: red; }'],
+		['harness chrome named only inside :not()', 'body:not(.rp-harness-leaf) h2 { color: red; }'],
 		// The stage reached through a pseudo. `typeOf` reads a compound's DIRECT components, so the
 		// pseudo hid the type from the outer walk; asking the argument on its own hid what followed
 		// the pseudo from the argument. Expansion is what sees both at once.
@@ -355,6 +373,9 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['the body height rule', 'body { height: 100%; }'],
 		// The missing-icon attribute is harness vocabulary too, and the rule that uses it is real.
 		['the missing-icon rule', '[data-icon-missing]::after { content: attr(data-icon-missing); }'],
+		// A harness class inside `:is()` IS the subject's own, so it must stay silent — or positive
+		// position has become "no pseudo counts at all".
+		['harness chrome named inside :is()', ':is(.rp-harness-group, .rp-harness-empty) { display: block; }'],
 		// The real stage rule, which must stay silent or the allow-list has refused the one thing
 		// the stage exists to do.
 		['the stage as a container', '.rp-harness-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }'],

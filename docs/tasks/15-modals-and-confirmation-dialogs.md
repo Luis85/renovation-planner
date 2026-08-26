@@ -71,7 +71,7 @@ The framework is complete and in use: `DialogStore`, `DialogHost`, all four kind
 trap, `Escape`, background `inert`, focus restoration, the stacking guard, the import
 boundary and its meta-test. Definition of Done items 1, 2, 3, 4, 5, 7, 9, 10 and 11 are met.
 
-**Items 6, 8 and 8a are NOT met, and were not attempted.** They are the Zone-delete worked
+**Items 6, 6a, 8 and 8a are NOT met, and were not attempted.** They are the Zone-delete worked
 example, and every collaborator they name — `ListRequirementsReferencing`,
 `ListReassignmentTargets`, and a `reversibleDeleteZone` taking `resolution` /
 `resolvedReferents` and refusing with `reference.set-changed` — belongs to slice 10, which
@@ -79,6 +79,14 @@ was in flight while this slice was built. Declaring those shapes here would have
 second derivation of contracts slice 10 owns, which this document's own "Out of scope"
 section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` are built and tested and
 have no production caller for the same reason: that is the plan, not dead code.
+
+Item **6a** is unmet for a different reason and it is worth separating: `t` interpolation
+is not slice 10's, it is this slice's own, and it was not built because nothing had asked
+for it — every string the framework itself renders is fixed text, and the first
+interpolated one is item 6's row label. So it lands when item 6 does. `t(language, key)`
+in `src/presentation/i18n/strings.ts` still takes two arguments; the executable example
+below spells the three-argument form the row label needs, and that is a specification
+rather than a description of what ships today.
 
 The Inspector's Delete button still dispatches straight through `InspectorStore.commit`'s
 `toCommand`, unchanged. Wiring it to `DeleteReferenceDialog` is slice 10's closing task;
@@ -134,6 +142,14 @@ which is a design decision rather than part of drawing the segment.
   already computed, and resolves to one of the four PRD §64 actions.
 - The modal-stacking rule: one dialog at a time, enforced by `DialogStore` itself, with
   a stated rationale.
+- **Placeholder interpolation in `t`**, because this slice is the first thing in the
+  plugin that needs a user-facing string with a value inside it: the reference rows name
+  a project. Every string shipped before this one is fixed text, which is why
+  `t(language, key)` takes no parameters today. This slice cannot compose the label from
+  fragments instead — its own call-site rule is that a COMPLETE label is resolved through
+  `t()`, since word order and punctuation around an interpolated name are the
+  translator's to choose — so the row label and the interpolation arrive together or
+  neither does. See *Interpolation* under Interfaces & Contracts.
 
 ### Out of scope (covered by other slices)
 
@@ -775,6 +791,47 @@ presentation/dialogs/
 └── DeleteReferenceDialog.vue
 ```
 
+### Interpolation: `t` gains a third parameter
+
+The shipped signature is `t(language: string, key: StringKey): string`
+(`src/presentation/i18n/strings.ts`), and every string in `en.ts` today is fixed text.
+The reference rows are the first strings in the plugin with a value inside them, so this
+slice extends it:
+
+```typescript
+type Interpolations = Readonly<Record<string, string>>;
+
+// `params` is optional, so every existing two-argument call is unchanged — this is an
+// addition, not a migration. `tr(key, params?)` takes the same third argument and
+// forwards it, since it is `t` in the app's own language and nothing more.
+function t(language: string, key: StringKey, params?: Interpolations): string;
+
+// A template names its holes as `{name}`:
+//   'entity.requirement.plural.in-project':    'Requirements in {project}'
+//   'entity.requirement.plural.in-project-at': 'Requirements in {project} ({path})'
+```
+
+Four rules, because each is a decision that could have gone the other way:
+
+- **ONE pass over the template, never a `replace` per parameter.** Iterating the
+  parameters means a substituted value is itself scanned by the next iteration: a project
+  a user named `{path}` would have the real vault path substituted into its own name.
+  A single `replace(/\{(\w+)\}/g, …)` over the template cannot do that, because it only
+  ever visits the template's own text.
+- **An unmatched placeholder is left standing**, rendered literally as `{project}`, not
+  replaced with an empty string. Both are wrong; one is visible. A blank where a project
+  name belongs is a row a user cannot read and a defect nobody reports.
+- **The compiler cannot check that a key's parameters match its template.** `StringKey`
+  is a union of key names and carries nothing about holes, so `t(lang, 'x.in-project')`
+  with no params compiles and renders `{project}` to a user. Saying so is the honest
+  sentence; what IS checkable is the *locale* half, below.
+- **A locale's translation must name the same holes as `en`'s.** `de.ts` is a
+  `Partial<Record<StringKey, string>>` on purpose — an incomplete locale falls back and
+  is safe — but a PRESENT translation that spells `{projekt}` renders a literal brace to
+  a German user and to nobody else. `tests/presentation/i18n/strings.test.ts` already
+  asserts `de` translates every key `en` declares; it gains the placeholder-set
+  comparison, which is a set equality over the same regex, per key.
+
 ## Persistence Impact
 
 None. `DialogStore` holds only which dialog descriptor is currently open and the
@@ -837,6 +894,16 @@ contract ends at the typed result, before any write occurs.
   produces **two rows**, each counting its own group. It is worth its own test precisely
   because every Zone case is single-group, so a caller that rendered `groups[0]` and ignored
   the rest would pass every other test in this file.
+- **Interpolation tests** (`tests/presentation/i18n/strings.test.ts`, extending what is
+  there). `t` with no third argument is byte-identical to today for every existing key —
+  the addition is checked not to be a migration. A template's holes are filled from
+  `params`; a hole with no matching parameter renders as its own `{name}`; and a
+  parameter VALUE containing `{path}` is passed through untouched while the template's
+  real `{path}` is filled from `params` — the one-pass property, which an implementation
+  that iterated `replace` per parameter would fail and no other assertion here would
+  notice. Plus the locale half: for every key `de` translates, its placeholder set equals
+  `en`'s, which is a real gap today rather than a hypothetical — an incomplete locale is
+  safe by design, a *mis-holed* one renders a brace to exactly one language's users.
 - **Same-name test**, which the grouped-rows test does not reach either: a double returning
   two groups **whose `projectName` is the same string** produces two rows carrying
   `entity.requirement.plural.in-project-at` with each group's own `projectPath`, and a
@@ -906,6 +973,13 @@ contract ends at the typed result, before any write occurs.
    end-to-end version belongs to whichever slice writes that caller. The mapping test still
    earns its place here, because every Zone fixture is single-group and would pass a caller
    that read `groups[0]` alone.
+6a. `t(language, key, params?)` fills `{name}` holes from `params` in a single pass over
+    the template, leaves an unmatched hole standing as `{name}`, and is unchanged for
+    every two-argument call that exists today. `tr` forwards the same third argument.
+    `de.ts`'s translation of any key names the same holes as `en.ts`'s, asserted per key
+    rather than for the two keys this slice adds — the rule is about the locale files,
+    not about these labels, and a check that enumerated them would go stale on the next
+    interpolated string.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
    stacking or queueing a second one — the modal-stacking rule is enforced by
    `DialogStore`, checked by a unit test, not left to caller discipline.

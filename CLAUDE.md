@@ -168,8 +168,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
 - **`DeleteReferenceDialog` and `EntityPickerDialog` are built, tested and called by
   nothing**, and that is the plan rather than dead code. Their caller is slice 10's
   delete-with-references flow and the queries feeding their rows are slice 10's to define;
-  Definition-of-Done items 6, 8 and 8a of `docs/tasks/15-modals-and-confirmation-dialogs.md`
-  are open and that document says so.
+  Definition-of-Done items 6, 6a, 8 and 8a of
+  `docs/tasks/15-modals-and-confirmation-dialogs.md` are open and that document says so.
+  **6a is `t` interpolation**, and it is the odd one out: not slice 10's to define, but
+  unbuilt because nothing had asked for it. `t(language, key)` takes two arguments and
+  every string in `en.ts` is fixed text; the first with a value inside it is item 6's row
+  label, which names a project. So the two land together.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
   means its own thing.** The calibration segment is `measurement`, not a two-point
   `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a

@@ -200,10 +200,18 @@ their caller is this slice's Inspector delete flow, and the queries it reads
 define. Slice 15 deliberately did not declare those shapes: a second derivation of contracts
 this slice owns is what its own "Out of scope" section forbids.
 
-Slice 15's Definition of Done items 6, 8 and 8a — including the stale-count, consented-set
-and bounded-retry tests, written out in full in that document's Testing Strategy — are the
-closing task here. Open `dialogStore.openDialog({ kind: 'delete-reference', … })` from the
-Inspector's Delete action; **do not build a second dialog.** What to know before doing it:
+Slice 15's Definition of Done items 6, 6a, 8 and 8a — including the stale-count,
+consented-set and bounded-retry tests, written out in full in that document's Testing
+Strategy — are the closing task here. Open
+`dialogStore.openDialog({ kind: 'delete-reference', … })` from the Inspector's Delete
+action; **do not build a second dialog.** What to know before doing it:
+
+- **Item 6a is `t` interpolation, and it lands here because item 6 does.** The row label
+  names a project, `t(language, key)` takes two arguments today, and every string shipped
+  before it is fixed text — so the first interpolated string in the plugin is the one this
+  task writes. Slice 15 specifies the three-argument form and its four rules; this task
+  builds it. It is not extra scope discovered late: a label that names a project cannot be
+  assembled from translated fragments, which is that document's own call-site rule.
 
 - `openDialog` THROWS if a dialog is already open — sequential, never stacked. The Reassign
   branch works because the store clears `current` before the awaiting caller resumes, so

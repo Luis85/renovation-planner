@@ -440,15 +440,24 @@ PRD §64's own example lists four reference categories — Work Packages, Tasks,
 Items, Documents. At the build stage slices 1–10 reach, only `Requirement` exists as an
 entity that can reference a `Zone`; Work Package, Task, and Document arrive in later,
 unsliced feature epics (see `docs/requirements/Architecture and Software Design.md`, "Explicitly deferred"). The worked
-example's actual dialog therefore shows one row, `Requirements: N`, not the PRD's
-illustrative four. `DeleteReferenceDialog`'s `references` field is an arbitrary-length
-array precisely so each later epic's slice adds its own row (`Work Packages: N`,
-`Tasks: N`, ...) without changing this dialog's shape or contract.
+example's actual dialog therefore shows one row per referencing **project** — for a Zone
+always exactly one, since a Zone belongs to one Plan and that to one Project — labelled
+with the entity type *and* that project's name, not the PRD's illustrative four.
+`DeleteReferenceDialog`'s `references` field is an arbitrary-length array precisely so each
+later epic's slice adds its own rows (`Work Packages`, `Tasks`, …) without changing this
+dialog's shape or contract.
+
+**The row is project-qualified even in the single-row Zone case**, and that is deliberate
+rather than incidental: the same rows are what an Asset deletion renders, where a shared
+catalogue entry may be referenced from several projects at once (§59, amended 2026-08-26),
+and a bare `Requirements: N` there would read as "in the project I am looking at". A label
+shape that is only correct in the Zone case would be rebuilt the first time an Asset used it.
 
 The identical shape applies to Asset deletion: slice 10's `DeleteAssetCommand` queries
-`requirementRepository.listByAsset(assetId)` and opens the same
-`DeleteReferenceDialog` kind with a different `entityLabel` and count — nothing about
-the dialog changes between the Zone and Asset cases; only the caller and the query do.
+`ListRequirementsReferencing({ kind: 'asset', assetId })` and opens the same
+`DeleteReferenceDialog` kind with a different `entityLabel` and, usually, **more than one
+row** — nothing about the dialog changes between the Zone and Asset cases; only the caller,
+the query and the number of groups do.
 
 ### Modal stacking rule: one at a time, enforced structurally
 
@@ -799,10 +808,19 @@ contract ends at the typed result, before any write occurs.
   belongs to one Plan and that to one Project. Then assert that choosing each of the four
   actions resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
-- **Grouped-rows test**, which a Zone fixture cannot reach and an Asset one can: a double
-  returning two groups produces **two rows**, each counting its own group. It is worth its
-  own test precisely because every Zone case is single-group, so a caller that rendered
-  `groups[0]` and ignored the rest would pass every other test in this file.
+- **Grouped-rows test**, which no Zone fixture can reach: a double returning two groups
+  produces **two rows**, each counting its own group. It is worth its own test precisely
+  because every Zone case is single-group, so a caller that rendered `groups[0]` and ignored
+  the rest would pass every other test in this file.
+
+  **It cannot be driven through `onInspectorDeleteZone`**, which hard-codes the Zone query,
+  `ZoneId` and `reversibleDeleteZone` — feeding it two groups would assert a Zone result
+  that cannot occur. The multi-group case belongs to the **Asset** delete caller, and this
+  slice does not specify one: `DeleteAssetCommand` is slice 10's, and its Inspector entry
+  point arrives with it. So this test targets the **row-mapping** directly rather than a
+  flow, and the end-to-end version is owed by whichever slice writes that caller. Naming
+  that here rather than leaving a test nobody can write: the mapping is the part this slice
+  owns, and it is testable today.
 - **Stale-count test**, the one the zero branch exists for: a query double answering `[]`
   and a command double refusing with a `ReferenceError`. Assert on the command's *input*
   — the first dispatch carries no `resolution` — because a test that only checked "a

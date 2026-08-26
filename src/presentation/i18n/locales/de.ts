@@ -66,7 +66,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
 	'editor.calibrate.distance.measured': 'Auf dem Plan gemessen:',
 	'editor.calibrate.recalibrate.title': 'Die Zonen auf diesem Plan neu skalieren?',
-	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Zonen eingezeichnet. Beim Neukalibrieren werden alle skaliert. Sie können den Vorgang rückgängig machen.',
+	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Zonen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
 	'background.unsupported': 'Nur PNG-, JPEG- und PDF-Dateien können ein Grundriss-Hintergrund sein.',
 	'zone.status.planned': 'Geplant',

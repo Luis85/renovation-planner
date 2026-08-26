@@ -63,7 +63,7 @@ export const en = {
 	'editor.calibrate.distance.label': 'Distance in millimetres',
 	'editor.calibrate.distance.measured': 'Measured on the plan:',
 	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
-	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Recalibrating rescales every one of them. You can undo it.',
+	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	'background.no-plan-open': 'Open a plan editor first.',
 	'background.unsupported': 'Only PNG, JPEG and PDF files can be a plan background.',
 	'zone.status.planned': 'Planned',

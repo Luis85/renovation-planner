@@ -304,9 +304,9 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
   and **Obsidian's own app.css**, in a browser, with no Obsidian. `?view=plan-editor` draws
-  the Plan Editor instead of the project surface, `?theme=light` and `?phone` are the other
-  two knobs, and all three exist so a headless capture needs a URL and nothing to click.
-  Faithful about markup,
+  the Plan Editor instead of the project surface, `?theme=light`, `?phone`, `?index` and
+  `?entry=<id>` are the other knobs, and all of them exist so a headless capture needs a URL
+  and nothing to click. Faithful about markup,
   spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
   nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
   `.view-content`), which the fake `ItemView` in `tests/helpers/obsidian-mock.ts` nests the
@@ -315,23 +315,29 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
   "faithful" read wider than it is.
+
   **`?index`** draws an index of every prototype and every real component, discovered from the
   tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
   directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
   and the bare root still draws the project view: the three fixed captures address that surface
-  with no query at all, so making the root an index would break them while the test asserting
-  they exist kept passing. Mocks live in `src/prototypes/` as template-only SFCs — pure HTML to
+  with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
+  `?phone`), just never a `view` one — so making a bare root mean "index" would break them
+  while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as template-only SFCs — pure HTML to
   write, already a real component, and promoted by adding a `<script setup>` rather than
-  being redrawn. **Nothing in that tree ever reaches a built plugin**, refused twice: a
-  per-layer `no-restricted-imports` ban makes it a one-way door, and
+  being redrawn. **No prototype or fixture MODULE ever composes a built chunk**, refused
+  twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
   `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
   false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
   each chunk. Neither is sufficient — lint reads static imports, the bundle scan reports
-  after the fact.
+  after the fact — and the bundle scan is narrower than the wider claim it serves: a
+  prototype or fixture shipped as a separate emitted ASSET, with no module id in the chunk
+  list, is outside what `chunk.modules` can see, and not cheaply checkable.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
   scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
-  folder — a look at rendered layout, which jsdom cannot produce at all.
+  folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
+  (`npm run harness-shot <id>`) it captures that one prototype or component from the index
+  instead of the five fixed shots, in both colour schemes.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 

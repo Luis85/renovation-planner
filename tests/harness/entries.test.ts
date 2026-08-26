@@ -319,7 +319,9 @@ function vueFilesUnder(directory: string, prefix = ''): string[] {
  * The id is mapped back to a path rather than the path forward to an id, deliberately: an
  * expected id built by the test's own copy of `idFor` would be a second derivation agreeing
  * with itself. The inverse is also the reversibility `idFor` claims when it keeps the path
- * separator, so a flattened id would fail here.
+ * separator — a flattened id would fail here once a nested prototype exists, but the tree
+ * today holds one top-level `.vue` and no nesting, so a flattened id would currently be
+ * byte-identical to the real one and pass; this case does not yet exercise that guarantee.
  *
  * `src/prototypes` is resolved against `process.cwd()` rather than through `REPO`
  * (`../helpers/oxlint`'s `fileURLToPath(new URL('../..', import.meta.url))`): this file runs
@@ -328,7 +330,12 @@ function vueFilesUnder(directory: string, prefix = ''): string[] {
  * test runs — measured, not assumed. `harness.test.ts` and `fixture.test.ts` are the same
  * jsdom-scoped file and already read the tree by a bare path (`'styles/chrome.css'`, …) for
  * exactly this reason: `npm run check`'s vitest step runs from the repository root, so a path
- * relative to `process.cwd()` is the one spelling that works in both environments.
+ * relative to `process.cwd()` is the one spelling that works in both environments. That trades
+ * one hazard for its opposite rather than removing a hazard outright: `REPO` exists precisely
+ * so a test is immune to another file's `chdir` (`tests/helpers/oxlint.ts`'s own comment —
+ * `tests/build/styles.test.ts` chdirs, contained by its `afterEach` restore and vitest's
+ * per-file isolation), and `process.cwd()` here is exposed to exactly that hazard in exchange
+ * for working under jsdom at all.
  */
 describe('the prototypes tree IS the registration', () => {
 	it('discovers every .vue on disk, with nothing registering them', () => {

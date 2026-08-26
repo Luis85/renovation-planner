@@ -307,6 +307,21 @@ export default defineConfig({
 			// - `createSerialQueue`'s tail catch, which exists so one command's technical
 			//   fault cannot wedge the shared chain - reached only by a throw the queue is
 			//   built to survive.
+			//
+			// Measured 2026-08-26 after the slice 8 review pass CLAUDE.md's harness section
+			// narrates (the WriteLedger, the single per-leaf dispatch funnel, the
+			// click-versus-drag epsilon and the handleMetrics split, the tool generation
+			// guards, the concurrent-hydrate tickets, the plan-change fan-out) and the
+			// harness prototyping capability built on top of it (Tasks 1-8) - the latter
+			// contributing nothing to this figure itself, since `IndexPage.vue` and
+			// `entries.ts` live under `tests/harness/`, outside `include`, and the one file
+			// the capability added under `src/` (`src/prototypes/ZoneSummary.vue`) is
+			// excluded by name: 2711/2729 statements, 1247/1269 branches, 711/717 functions,
+			// 2461/2470 lines - 99.34 / 98.26 / 99.16 / 99.63. NOTHING RATCHETS: rounded
+			// down these are 99 / 98 / 99 / 99, the floors already in force, with 9.3 / 3.3 /
+			// 1.15 / 15.6 covered units of headroom respectively (rule 1's `1 / total * 100`
+			// per metric) - functions the tightest of the four, same as every measurement
+			// since slice 4 introduced the first unreachable arms.
 			thresholds: {
 				statements: 99,
 				functions: 99,

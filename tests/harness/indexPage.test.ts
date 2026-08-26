@@ -949,14 +949,12 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	});
 
 	/**
-	 * The real ones, from the real glob — EMPTY until Task 7 adds a first file under
-	 * `src/prototypes/`. Task 5 ran before any prototype existed; today, with `ZoneSummary.vue`
-	 * in the tree, this `it.each` has one iteration and covers it — stated here rather than
-	 * left for a reader to wonder about. The moment Task 7 lands `ZoneSummary.vue`, this starts
-	 * covering it with NO EDIT to this file — `real.prototypeEntries()` re-globs at file-load
-	 * time, which is the same
-	 * "the tree is the registration" property the whole feature is built on, turned on its own
-	 * guard.
+	 * The real ones, from the real glob — EMPTY when Task 5 ran, before any prototype
+	 * existed. Task 7 landed a first file under `src/prototypes/`, `ZoneSummary.vue`; today,
+	 * with it in the tree, this `it.each` has one iteration and covers it — stated here
+	 * rather than left for a reader to wonder about. Task 7's file landed with NO EDIT to this
+	 * file — `real.prototypeEntries()` re-globs at file-load time, which is the same "the tree
+	 * is the registration" property the whole feature is built on, turned on its own guard.
 	 *
 	 * **Carries the control's `stageEntry` assertion too, and it is load-bearing here for the
 	 * same reason** (see the control's own comment): with only one iteration running today,

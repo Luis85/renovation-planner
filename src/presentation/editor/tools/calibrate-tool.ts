@@ -29,7 +29,7 @@ export interface CalibrateToolDeps {
 	 * `hasSpatialObjects` is false. A dismissal (Escape, an overlay click, a Cancel
 	 * button) resolves `false` — there is no separate "dismissed" outcome for this
 	 * caller to distinguish from an explicit decline. The supplier must never REJECT:
-	 * `pointerDown` dispatches `complete()` with no `.catch`, so a rejection here would
+	 * `pointerUp` dispatches `complete()` with no `.catch`, so a rejection here would
 	 * surface as an unhandled promise rejection rather than as a declined gesture.
 	 */
 	readonly confirmRecalibration: () => Promise<boolean>;
@@ -55,6 +55,17 @@ export class CalibrateTool implements EditorTool {
 
 	private context: EditorContext | null = null;
 	private pointA: Point | null = null;
+	/**
+	 * The second point, buffered between the completing `pointerDown` and the `pointerUp`
+	 * that actually starts `complete()` — see `pointerUp`'s comment for why the start is
+	 * deferred. Both coordinates are captured at `pointerDown` time, exactly as before this
+	 * deferral existed: a drag between the two events still calibrates against where the
+	 * button went DOWN, not where it comes up, which is today's behaviour and stays that
+	 * way. `cancel()` clears it, which is what makes a `pointercancel` (routed here through
+	 * `EditorTool.cancel()`) or an intervening Escape leave a later, unmatched `pointerUp`
+	 * with nothing to complete.
+	 */
+	private pendingCompletion: { readonly pointA: Point; readonly pointB: Point } | null = null;
 	/**
 	 * Bumped by every `cancel()`/`deactivate()`. `complete()` crosses TWO awaited prompts
 	 * (the recalibration confirmation, then the distance), and the user can switch tools
@@ -101,23 +112,56 @@ export class CalibrateTool implements EditorTool {
 		}
 		const pointA = this.pointA;
 		this.pointA = null;
-		// Deliberately fire-and-forget with NO catch: every EXPECTED refusal resolves
-		// through the returned `Result` (derivation, revision conflict), so a rejection
-		// here can only be an unexpected technical fault — and that stays loud as an
-		// unhandled rejection instead of being silently swallowed. Surfacing the Result
-		// itself is Inspector/slice-15 work; nothing renders feedback yet.
-		void this.complete(context, pointA, event.worldPoint);
+		// The second point is placed here, exactly as before — only the START of `complete()`
+		// moves to `pointerUp`. See `pointerUp` for why.
+		this.pendingCompletion = { pointA, pointB: event.worldPoint };
 	}
 
 	pointerMove(): void {
 		// Live preview segment deferred until a rendering seam exists for tool overlays.
 	}
 
-	pointerUp(): void {}
+	/**
+	 * `complete()` starts HERE, not in `pointerDown` where the second point is placed.
+	 * `complete()` may open a dialog (slice 15's recalibration confirmation), synchronously
+	 * on this same call stack the first time it awaits nothing yet — and a `pointerdown`'s
+	 * own default action runs AFTER this handler returns: Chromium moves focus to `<body>`
+	 * on a mousedown whose target is not focusable, which the canvas is not. A dialog
+	 * opened from inside `pointerdown` gets focus stolen out from under it by that default
+	 * action; opening from `pointerup` instead means the browser's own focus-to-`<body>`
+	 * move already happened by the time anything here runs, so the dialog's own focus
+	 * lands last and stays.
+	 *
+	 * `pendingCompletion` is what makes this correct rather than merely deferred: it is set
+	 * only by the SAME gesture's completing `pointerDown` and cleared by `cancel()`, so a
+	 * `pointerUp` with no matching `pointerDown` (nothing buffered) or one that arrives
+	 * after a `pointercancel`/Escape cancelled the gesture in between (buffer cleared) both
+	 * no-op here — there is nothing to complete either way.
+	 *
+	 * The `event.button` guard is this method's own, not merely inherited from the canvas's
+	 * routing: a mouse shares one `pointerId` across its buttons, so a stray secondary or
+	 * auxiliary release while the primary button that placed the second point is still down
+	 * must leave `pendingCompletion` buffered for the primary release that actually ends it,
+	 * not consume it early.
+	 */
+	pointerUp(event: EditorPointerEvent): void {
+		if (event.button !== 'primary') return;
+		const context = this.context;
+		const pending = this.pendingCompletion;
+		this.pendingCompletion = null;
+		if (context === null || pending === null) return;
+		// Deliberately fire-and-forget with NO catch: every EXPECTED refusal resolves
+		// through the returned `Result` (derivation, revision conflict), so a rejection
+		// here can only be an unexpected technical fault — and that stays loud as an
+		// unhandled rejection instead of being silently swallowed. Surfacing the Result
+		// itself is Inspector/slice-15 work; nothing renders feedback yet.
+		void this.complete(context, pending.pointA, pending.pointB);
+	}
 
 	cancel(): void {
 		this.generation += 1;
 		this.pointA = null; // clears a pending first point; no command dispatched
+		this.pendingCompletion = null; // and a buffered second point awaiting its pointerUp
 		this.prompting = false; // and releases a gesture whose prompt the bump just killed
 	}
 

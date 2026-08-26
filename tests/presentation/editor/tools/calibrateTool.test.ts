@@ -106,6 +106,13 @@ const at = (x: number, y: number): EditorPointerEvent => ({
 	targetId: null,
 });
 
+/** One down+up pair — the grammar a real mouse click produces — for a call site that has
+ * no reason to split the two, unlike the cases below that assert BETWEEN them. */
+function click(tool: CalibrateTool, event: EditorPointerEvent): void {
+	tool.pointerDown(event);
+	tool.pointerUp(event);
+}
+
 /**
  * Drains the gesture's microtask chain — `complete()` crosses an awaited supplier and
  * the dispatcher before its dispatch lands, so a single `await Promise.resolve()` races
@@ -130,11 +137,19 @@ describe('CalibrateTool', () => {
 		});
 
 		tool.activate(h.context);
-		tool.pointerDown(at(812, 240));
+		click(tool, at(812, 240));
 		await flush();
 		expect(h.dispatched).toHaveLength(0); // still waiting for the second point
 
 		tool.pointerDown(at(812, 1040));
+		await flush();
+		// The gesture completes on pointerUp, not pointerDown — see `CalibrateTool.pointerUp`.
+		// A dialog opened synchronously inside pointerdown's dispatch loses focus to the
+		// browser's own mousedown-driven focus-to-<body> move, which runs AFTER the handler
+		// returns; deferring the start of `complete()` to pointerup is the fix.
+		expect(h.dispatched).toHaveLength(0);
+
+		tool.pointerUp(at(812, 1040));
 		await flush();
 
 		expect(h.dispatched).toHaveLength(1);
@@ -157,8 +172,8 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
-		tool.pointerDown(at(0, 0));
-		tool.pointerDown(at(30, 40));
+		click(tool, at(0, 0));
+		click(tool, at(30, 40));
 		await flush();
 		expect(h.screenToWorld).not.toHaveBeenCalled();
 	});
@@ -215,8 +230,8 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
-		tool.pointerDown(at(812, 240));
-		tool.pointerDown(at(812, 1040)); // the gesture is now parked at the prompt
+		click(tool, at(812, 240));
+		click(tool, at(812, 1040)); // the gesture is now parked at the prompt
 		tool.deactivate();
 		answer(3200);
 		await flush();
@@ -238,8 +253,8 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
-		tool.pointerDown(at(0, 0));
-		tool.pointerDown(at(10, 0));
+		click(tool, at(0, 0));
+		click(tool, at(10, 0));
 		await flush();
 		expect(h.dispatched).toHaveLength(0);
 	});
@@ -253,8 +268,8 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
-		tool.pointerDown(at(5, 5));
-		tool.pointerDown(at(5, 5));
+		click(tool, at(5, 5));
+		click(tool, at(5, 5));
 		await flush();
 		expect(h.dispatched).toHaveLength(0);
 		expect(h.supplierMeasurements).toHaveLength(0);
@@ -271,8 +286,8 @@ describe('CalibrateTool', () => {
 				confirmRecalibration: h.confirmRecalibration,
 			});
 			tool.activate(h.context);
-			tool.pointerDown(at(0, 0));
-			tool.pointerDown(at(10, 0));
+			click(tool, at(0, 0));
+			click(tool, at(10, 0));
 			await flush();
 			expect(h.dispatched).toHaveLength(0);
 		}
@@ -292,7 +307,7 @@ describe('CalibrateTool', () => {
 		expect(h.dispatched).toHaveLength(0);
 	});
 
-	it('pointerMove and pointerUp are part of the gesture surface and are inert', () => {
+	it('pointerMove and a pointerUp with no matching pointerDown are inert', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
@@ -301,11 +316,44 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
+		// No `pointerDown` precedes either call — the gesture no real mouse produces (a
+		// release with no matching press), and the one this project has already recorded
+		// once as a rig defect (CLAUDE.md, slice 8's e2e rig). `pointerUp` must not throw
+		// and must not have anything buffered to complete.
 		expect(() => {
 			tool.pointerMove(at(1, 2));
 			tool.pointerUp(at(1, 2));
 		}).not.toThrow();
 		expect(h.dispatched).toHaveLength(0);
+	});
+
+	it('a gesture cancelled between the completing pointerDown and its pointerUp dispatches nothing', async () => {
+		const h = harness();
+		h.supplyNextDistance(3200);
+		const tool = new CalibrateTool({
+			supplyKnownDistance: h.supplyKnownDistance,
+			createCommand: h.createCommand,
+			hasSpatialObjects: h.hasSpatialObjects,
+			confirmRecalibration: h.confirmRecalibration,
+		});
+		tool.activate(h.context);
+		click(tool, at(812, 240));
+		// The second point's `pointerDown` buffers `pendingCompletion` — `complete()` has
+		// not started yet, which is the whole point of deferring it to `pointerUp`.
+		tool.pointerDown(at(812, 1040));
+		// `cancel()` is what `ToolManager.cancelGesture()` calls on Escape, and what
+		// `PlanCanvas.onPointerCancel` calls when the browser claims the gesture for
+		// scrolling (`pointercancel`, no `pointerup` ever follows on a real device) — either
+		// way it must clear the buffered completion before any `pointerUp` arrives for it.
+		tool.cancel();
+		// The `pointerUp` that WOULD have completed the gesture, had it not been cancelled —
+		// on a real `pointercancel` this call never happens at all, but a `cancel()` reached
+		// through Escape can still be followed by the original press's `pointerUp`, so the
+		// guard must hold even then.
+		tool.pointerUp(at(812, 1040));
+		await flush();
+		expect(h.dispatched).toHaveLength(0);
+		expect(h.supplierMeasurements).toHaveLength(0);
 	});
 
 	it('a secondary or auxiliary button places nothing and never starts a gesture', async () => {
@@ -319,7 +367,6 @@ describe('CalibrateTool', () => {
 		});
 		tool.activate(h.context);
 		tool.pointerDown({ ...at(812, 240), button: 'secondary' });
-		tool.pointerDown({ ...at(812, 1040), button: 'auxiliary' });
 		await flush();
 		// Not merely "did not dispatch": neither click may have become the pending FIRST
 		// point either, or the next primary click would complete a gesture over a point the
@@ -327,8 +374,16 @@ describe('CalibrateTool', () => {
 		expect(h.supplierMeasurements).toEqual([]);
 		expect(h.dispatched).toHaveLength(0);
 
-		tool.pointerDown(at(812, 240));
+		click(tool, at(812, 240));
+		// The completing pointerDown, buffered — then a stray secondary/auxiliary release
+		// (a mouse shares one pointerId across its buttons) must not consume it early; only
+		// the matching primary release below may.
 		tool.pointerDown(at(812, 1040));
+		tool.pointerUp({ ...at(812, 1040), button: 'auxiliary' });
+		await flush();
+		expect(h.dispatched).toHaveLength(0);
+
+		tool.pointerUp(at(812, 1040));
 		await flush();
 		expect(h.inputs).toEqual([
 			{ planId: 'plan-1', pointA: { x: 812, y: 240 }, pointB: { x: 812, y: 1040 }, knownDistance: 3200 },
@@ -357,15 +412,15 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
-		tool.pointerDown(at(0, 0));
-		tool.pointerDown(at(0, 800));
+		click(tool, at(0, 0));
+		click(tool, at(0, 800));
 		await flush();
 
 		// Two more clicks while the first gesture's prompt is still open. Without the
 		// guard these become a second gesture, and the second answer dispatches a
 		// calibration derived against a scale the first one has not landed yet.
-		tool.pointerDown(at(0, 0));
-		tool.pointerDown(at(0, 1600));
+		click(tool, at(0, 0));
+		click(tool, at(0, 1600));
 		await flush();
 		expect(asked).toEqual([800]);
 
@@ -386,8 +441,8 @@ describe('CalibrateTool', () => {
 			confirmRecalibration: h.confirmRecalibration,
 		});
 		tool.activate(h.context);
-		tool.pointerDown(at(812, 240));
-		tool.pointerDown(at(812, 1040));
+		click(tool, at(812, 240));
+		click(tool, at(812, 1040));
 		await flush();
 
 		const gesture = h.dispatched[0];
@@ -432,12 +487,8 @@ function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalib
  * records that exact shape certifying a broken Escape path in slice 8's rig.
  */
 async function calibrate(tool: CalibrateTool): Promise<void> {
-	const a = at(812, 240);
-	const b = at(812, 1040);
-	tool.pointerDown(a);
-	tool.pointerUp(a);
-	tool.pointerDown(b);
-	tool.pointerUp(b);
+	click(tool, at(812, 240));
+	click(tool, at(812, 1040));
 	await flush();
 }
 

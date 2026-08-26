@@ -93,6 +93,25 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	return [{ key: show(subject), conditions }];
 };
 
+/** One `:focus-visible` declaration, as the per-site cascade needs it. */
+interface FocusRule {
+	readonly property: 'outline' | 'shadow';
+	readonly draws: boolean;
+	readonly important: boolean;
+	readonly specificity: readonly [number, number, number];
+	readonly conditions: Conditions;
+	/** Source order within the scan, for the tie-break the cascade ends on. */
+	readonly order: number;
+}
+
+/** Does `a` win over `b` — importance first, then specificity, then whichever came later? */
+const beats = (a: FocusRule, b: FocusRule): boolean =>
+	a.important !== b.important
+		? a.important
+		: moreSpecific(a.specificity, b.specificity) ||
+			(!moreSpecific(b.specificity, a.specificity) && a.order > b.order);
+
+
 /**
  * The cascade keys a REVOKING focus rule competes in, beyond the one it is filed under.
  *
@@ -153,6 +172,34 @@ const covers = (ring: Conditions, flattened: Conditions): boolean =>
 	ring.subject.every((one) => flattened.subject.includes(one));
 
 /**
+ * Does anything leave a visible indicator on THIS flattening site?
+ *
+ * Resolved per site rather than once per key, because a key stands for many elements and a cascade
+ * winner is a property of one. Two disjoint containers can each flatten the same class and each
+ * ring it; a single winner per key let the later ring replace the earlier and report a site that is
+ * fully answered.
+ *
+ * Two conditions, and the second is what keeps the previous rounds' fixes intact:
+ *
+ * - something must DRAW and COVER the site — apply everywhere the flattening rule does;
+ * - and nothing that draws NOTHING may beat it. A narrower reset does not cover the site, but it
+ *   still reaches some of the elements the site stands for, so it disqualifies the ring rather
+ *   than being filtered out of the site's cascade.
+ *
+ * That second clause over-reports where the two scopes are disjoint rather than nested — a reset in
+ * `.dialog-b` disqualifies a ring in `.dialog-a`, which it never touches. `covers` can prove an
+ * identical scope or none at all and nothing between, so it cannot tell disjoint from narrower, and
+ * over-reporting is the safe side of that.
+ */
+const answers = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
+	rules.some(
+		(drawing) =>
+			drawing.draws &&
+			covers(drawing.conditions, site.conditions) &&
+			!rules.some((reset) => !reset.draws && reset.property === drawing.property && beats(reset, drawing)),
+	);
+
+/**
  * The button classes a stylesheet FLATTENS without giving back a ring, each mapped to where.
  *
  * Extracted so a fixture can drive it. The decision is per BRANCH and the branch is the whole
@@ -195,20 +242,16 @@ const flattenedWithoutRing = (
 	// one winner per key replaced the whole standing with that rule's "draws nothing", reporting a
 	// button whose ring is on screen. A rule competes only for the properties it DECLARES, which is
 	// what `indicatorOf` returning `undefined` for an unmentioned property already told us.
-	const ringed = new Map<
-		string,
-		Partial<
-			Record<
-				'outline' | 'shadow',
-				{
-					readonly important: boolean;
-					readonly specificity: readonly [number, number, number];
-					readonly draws: boolean;
-					readonly conditions: Conditions;
-				}
-			>
-		>
-	>();
+	// EVERY focus rule, not one winner per property. A winner is a property of an ELEMENT, and a key
+	// stands for many: `.dialog-a .button` and `.dialog-b .button` can each be flattened and each
+	// have their own equally scoped ring, and keeping one winner let the later ring replace the
+	// earlier one and report a site that is fully answered. The cascade is resolved per SITE below.
+	//
+	// This is the same shape as `flattened` holding one site per key — one value for something that
+	// legitimately occurs many times — in the structure standing right beside it.
+	const ringed = new Map<string, FocusRule[]>();
+	// Source order across every sheet, which is the cascade's last tie-break.
+	let order = 0;
 
 	// Both sets span every sheet, because the two halves need not share one. A class flattened in
 	// `editor.css` and ringed in `dialogs.css` is ringed; scanning a sheet at a time would report it.
@@ -276,32 +319,19 @@ const flattenedWithoutRing = (
 						const specificity = specificityOf(selector);
 
 						for (const reached of reaches) {
-							const standing = ringed.get(reached) ?? {};
-							const next = { ...standing };
+							for (const [property, declared, important] of [
+								['outline', outline, importantOutline],
+								['shadow', shadow, importantShadow],
+							] as const) {
+								if (declared === undefined) continue;
 
-						for (const [property, declared, important] of [
-							['outline', outline, importantOutline],
-							['shadow', shadow, importantShadow],
-						] as const) {
-							if (declared === undefined) continue;
-
-							const holder = standing[property];
-							// IMPORTANCE FIRST, then specificity. An important declaration beats every normal
-							// one in every other rule wherever it was written, so comparing specificity alone
-							// credited a visible ring to `.dialog .button:focus-visible { outline: 2px solid
-							// red }` while `.button:focus-visible { outline: none !important }` was what the
-							// browser drew. This was declared as a ceiling for three rounds rather than fixed;
-							// a stated ceiling that produces a MISSING focus indicator is worth closing.
-							const beaten =
-								holder !== undefined &&
-								(holder.important !== important
-									? holder.important
-									: moreSpecific(holder.specificity, specificity));
-
-							if (!beaten) next[property] = { important, specificity, draws: declared, conditions };
-						}
-
-							ringed.set(reached, next);
+								// APPENDED, never compared here. Which rule wins is a question about one element,
+								// and this key stands for many — so it is asked per flattening site, by `answers`.
+								ringed.set(reached, [
+									...(ringed.get(reached) ?? []),
+									{ property, draws: declared, important, specificity, conditions, order: order++ },
+								]);
+							}
 						}
 					}
 					// SUPPRESSING THE SHADOW IS A FLATTENING SITE WHEREVER IT HAPPENS, focus state included.
@@ -327,18 +357,12 @@ const flattenedWithoutRing = (
 
 	const seen = flattened.size;
 
-	// A button is answered where EITHER surviving property draws. The two are resolved separately
-	// and each covers separately, so an outline that wins in one scope and a shadow that wins in
-	// another answer the sites each of them reaches.
-	for (const [key, winners] of ringed) {
+	for (const [key, rules] of ringed) {
 		const sites = flattened.get(key);
 
 		if (sites === undefined) continue;
 
-		const drawing = [winners.outline, winners.shadow].filter((winner) => winner?.draws === true);
-		const uncovered = sites.filter(
-			(site) => !drawing.some((winner) => winner !== undefined && covers(winner.conditions, site.conditions)),
-		);
+		const uncovered = sites.filter((site) => !answers(rules, site));
 
 		if (uncovered.length === 0) flattened.delete(key);
 		else flattened.set(key, uncovered);
@@ -505,6 +529,13 @@ describe('a flattened button and its focus ring', () => {
 		// TWO containers flattened, one of them ringed. Keyed to a single site, the second flattening
 		// rule replaced the first and the scoped ring cleared what was left — while every button in
 		// `.dialog-a` stayed bare.
+		// Two DISJOINT containers, each flattened and each ringed at its own scope. One winner per key
+		// let the later ring replace the earlier, and the earlier site — fully answered — was
+		// reported. A cascade winner is a property of an ELEMENT; a key stands for many.
+		[
+			'a reset in one of two independently ringed containers',
+			'.dialog-a .rp-dialog-button { box-shadow: none; } .dialog-a .rp-dialog-button:focus-visible { outline: 2px solid red; } .dialog-b .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button:focus-visible { outline: none; }',
+		],
 		[
 			'one of two flattened containers left unringed',
 			'.dialog-a .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button:focus-visible { outline: 2px solid red; }',
@@ -720,6 +751,12 @@ describe('a flattened button and its focus ring', () => {
 		],
 		// Both containers flattened and both ringed by ONE unscoped rule — which covers every site,
 		// or the per-site rule has become "more than one flattening rule can never be answered".
+		// The case the per-key winner got wrong: both containers are fully answered at their own scope,
+		// and neither ring may displace the other.
+		[
+			'two independently flattened and independently ringed containers',
+			'.dialog-a .rp-dialog-button { box-shadow: none; } .dialog-a .rp-dialog-button:focus-visible { outline: 2px solid red; } .dialog-b .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
 		[
 			'two flattened containers under one unscoped ring',
 			'.dialog-a .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',

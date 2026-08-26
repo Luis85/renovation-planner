@@ -2,10 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { GetProject } from '../../../src/application/queries/GetProject';
 import { GetZone } from '../../../src/application/queries/GetZone';
+import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
+import { err, ok } from '../../../src/core/result/Result';
+import type { GeometryError } from '../../../src/core/errors/AppError';
+import type { Zone } from '../../../src/domain/zone/Zone';
+import type { Loaded } from '../../../src/application/ports/versioning';
+import type { ZoneRepository } from '../../../src/application/ports/ZoneRepository';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
-import { expectErr, expectOk, injectedReadFailure } from '../../helpers/domain';
+import { expectErr, expectOk, injectedReadFailure, observationToken } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone, squareAt } from '../../helpers/entities';
 
 describe('the three read queries', () => {
@@ -67,5 +73,84 @@ describe('the three read queries', () => {
 		expect(expectErr(projectError).code).toBe('test.injected-failure');
 		expect(expectErr(planError).code).toBe('test.injected-failure');
 		expect(expectErr(zoneError).code).toBe('test.injected-failure');
+	});
+});
+
+describe('GetZoneInspector', () => {
+	it('answers a ZoneInspectorFields DTO computed from the zone geometry', async () => {
+		const project = makeProject();
+		const plan = makePlan({ projectId: project.id });
+		const zones = new InMemoryZoneRepository();
+		const zone = makeZone({
+			projectId: project.id,
+			planId: plan.id,
+			name: 'Kitchen',
+			geometry: squareAt(0, 0),
+		});
+		await zones.save(zone, 'absent');
+
+		const found = await new GetZoneInspector(zones).execute({ zoneId: zone.id });
+
+		expect(expectOk(found)).toEqual({ id: zone.id, name: 'Kitchen', areaMm2: 100 });
+	});
+
+	it('answers ok(null) — not an error — for a missing id, like GetZone', async () => {
+		const found = await new GetZoneInspector(new InMemoryZoneRepository()).execute({ zoneId: 'zone-x' as never });
+
+		expect(found).toEqual({ ok: true, value: null });
+	});
+
+	it('passes a failed read straight through', async () => {
+		class FailingZones extends InMemoryZoneRepository {
+			override getById() {
+				return injectedReadFailure();
+			}
+		}
+
+		const found = await new GetZoneInspector(new FailingZones()).execute({ zoneId: 'zone-y' as never });
+
+		expect(expectErr(found).code).toBe('test.injected-failure');
+	});
+
+	it('passes a GeometryError from area() straight through — the widened error union', async () => {
+		// Zone.create()/withGeometry() already re-validate every geometry that reaches a
+		// real Zone, so area() cannot actually fail on anything a repository could store —
+		// this stub bypasses that validation to exercise the branch ambiguity-resolution
+		// #1 exists for: the brief's declared `PersistenceError`-only union cannot carry
+		// what GetZoneInspector can actually produce, since it calls Zone.area().
+		const project = makeProject();
+		const plan = makePlan({ projectId: project.id });
+		const zone = makeZone({ projectId: project.id, planId: plan.id });
+		const geometryFailure: GeometryError = {
+			category: 'Geometry',
+			code: 'test.injected-area-failure',
+			message: 'Injected geometry failure.',
+		};
+		const corruptedZone = { ...zone, area: () => err(geometryFailure) } as unknown as Zone;
+		class GeometryFailingZones implements ZoneRepository {
+			getById(): ReturnType<ZoneRepository['getById']> {
+				const loaded: Loaded<Zone> = {
+					entity: corruptedZone,
+					version: { revision: 1, observed: observationToken('v1') },
+				};
+				return Promise.resolve(ok(loaded));
+			}
+			save(): ReturnType<ZoneRepository['save']> {
+				throw new Error('not used in this test');
+			}
+			delete(): ReturnType<ZoneRepository['delete']> {
+				throw new Error('not used in this test');
+			}
+			listByPlan(): ReturnType<ZoneRepository['listByPlan']> {
+				throw new Error('not used in this test');
+			}
+			listByProject(): ReturnType<ZoneRepository['listByProject']> {
+				throw new Error('not used in this test');
+			}
+		}
+
+		const found = await new GetZoneInspector(new GeometryFailingZones()).execute({ zoneId: zone.id });
+
+		expect(expectErr(found)).toEqual(geometryFailure);
 	});
 });

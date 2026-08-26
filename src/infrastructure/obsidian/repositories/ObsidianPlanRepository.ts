@@ -6,8 +6,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { revisionConflict } from '../../../application/ports/versioning';
-import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
+import { calibrationFromPersistence, planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
 	ensureFolder,
 	findNoteIdInFolder,
@@ -34,9 +33,22 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
 /**
  * The Obsidian-backed PlanRepository (SDD §36, §42). A Plan's state spans TWO files:
  * its note, and the geometry sidecar whose LIFECYCLE this repository owns (create on
- * insert, delete on delete; never `objects[]` content). The calibration FIELD of the
- * sidecar is Plan state too and travels with every save — that, not the note, is where
- * §38 puts it, so recalibration stays one write away from the geometry it rescales.
+ * insert, delete on delete) — never its CONTENT: not `objects[]`, and since design slice
+ * 7 not `calibration` either.
+ *
+ * `Plan.calibration` is therefore READ-ONLY through this repository: `getById` merges the
+ * sidecar's value into the entity, and `save` writes the note alone.
+ * `ReversibleCalibratePlanCommand` is the only writer, through
+ * `PlanGeometrySidecar` — because calibrating means rewriting the calibration AND every
+ * rescaled coordinate as one conditional write, which a plan-note save cannot express.
+ *
+ * It used to sync the field on every save, and that was a LOST UPDATE with no gate able
+ * to see it: calibration does not live in the note, so a calibration landing in the
+ * sidecar does not move the note's revision — an entity read BEFORE one still passed
+ * `checkExpectedVersion` afterwards, and a rename then wrote its stale calibration (or
+ * `null`) back over the new one while the rescaled coordinates stayed. Two writers of one
+ * field where only one of them has a version to check is the defect; removing the writer
+ * that cannot check is the fix.
  *
  * The two-file lifecycle is compensated in both directions (§42):
  * - INSERT writes the sidecar FIRST: a Plan note without its sidecar is the worse
@@ -47,16 +59,6 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
  *   "partly done".
  */
-function calibrationToDto(calibration: Plan['calibration']): PlanGeometryDTO['calibration'] {
-	if (!calibration) return null;
-	return {
-		pointA: { x: calibration.pointA.x, y: calibration.pointA.y },
-		pointB: { x: calibration.pointB.x, y: calibration.pointB.y },
-		knownDistance: calibration.knownDistance,
-		pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
-	};
-}
-
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
 	private readonly folder: string;
@@ -80,9 +82,25 @@ export class ObsidianPlanRepository {
 				err(persistenceError('plan.sidecar-unreadable', `The geometry sidecar for plan ${id} could not be read.`, sidecar.error)),
 			);
 		}
-		const entity = planFromPersistence(opened.migrated, sidecar.value.dto.calibration);
+		// Through the mapper, never by handing the raw DTO across as if it were the domain
+		// value. The two shapes are structurally identical today and `Point`'s brand is a
+		// phantom field, so the direct pass type-checked — and would go on type-checking on
+		// the day the sidecar schema diverges from the entity (tuple coordinates, a unit
+		// field), silently loading a malformed calibration. It also aliased the Zod-parsed
+		// object into the entity rather than copying it, which is the other thing the
+		// mapper exists to prevent.
+		const calibration = sidecar.value.dto.calibration;
+		const entity = planFromPersistence(
+			opened.migrated,
+			calibration ? calibrationFromPersistence(calibration) : null,
+		);
 		if (!entity.ok) {
-			return Promise.resolve(err(persistenceError('plan.frontmatter-invalid', entity.error.message)));
+			// The code names the common case; the CAUSE is what actually refused, and the two
+			// are not the same file. A hand-edited sidecar whose calibration breaks a rule
+			// only `validateCalibration` can see (coincident points, a collapsed scale)
+			// arrives here too, and reporting it as invalid frontmatter with the specific
+			// failure discarded sends a reader to the wrong file.
+			return Promise.resolve(err(persistenceError('plan.frontmatter-invalid', entity.error.message, entity.error)));
 		}
 		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(opened.raw) }));
 	}
@@ -153,10 +171,10 @@ export class ObsidianPlanRepository {
 	}
 
 	/**
-	 * The note only. An update never creates or deletes the sidecar — but it syncs the
-	 * calibration field (Plan state) and upserts the index entry CARRYING
-	 * `geometrySidecarPath` through: writing an entry without it would silently clear
-	 * the mapping and break every Zone operation on a Plan whose only change was its title.
+	 * The note only — an update never creates, deletes or writes into the sidecar. It does
+	 * upsert the index entry CARRYING `geometrySidecarPath` through: writing an entry
+	 * without it would silently clear the mapping and break every Zone operation on a Plan
+	 * whose only change was its title.
 	 */
 	private async updateExisting(
 		plan: Plan,
@@ -169,9 +187,6 @@ export class ObsidianPlanRepository {
 		} catch (cause) {
 			return err(persistenceError('plan.write-failed', `Could not write the note for plan ${plan.id}.`, cause));
 		}
-
-		const synced = await this.syncCalibration(plan);
-		if (!synced.ok) return synced;
 
 		this.deps.index.upsert({
 			id: plan.id,
@@ -186,22 +201,6 @@ export class ObsidianPlanRepository {
 		this.deps.echo.markFrontmatter(note.path, dto);
 
 		return ok({ entity: plan, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
-	}
-
-	private async syncCalibration(plan: Plan): Promise<Result<void, RepositoryError>> {
-		const current = await this.geometry.read(plan.id);
-		if (!current.ok) {
-			return err(persistenceError('plan.sidecar-unreadable', `The geometry sidecar for plan ${plan.id} could not be read.`, current.error));
-		}
-		const stored = JSON.stringify(current.value.dto.calibration);
-		const wanted = JSON.stringify(calibrationToDto(plan.calibration));
-		if (stored === wanted) return ok(undefined);
-
-		const mutated = await this.geometry.mutate(plan.id, (dto) => ({
-			...dto,
-			calibration: calibrationToDto(plan.calibration),
-		}));
-		return mutated.ok ? ok(undefined) : mutated;
 	}
 
 	delete(id: PlanId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {

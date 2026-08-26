@@ -19,10 +19,17 @@ The whole renovation, and the root of everything else. §58's relationship model
 and §59 states the rule plainly: a project owns 0..n [[Plan]]s, [[Construction section]]s,
 [[Work package]]s, [[Asset]]s, [[Supplier]]s and [[Document]]s.
 
-It is a root rather than a container, which is a different claim. Nothing here spans two
-projects — the index (SDD §47) is scoped to one, the currency (§72) is defined once per
-project, and there is no portfolio. Admitting a second root is one of the changes
-[[Professional planner]] would force.
+It is a root rather than a container, which is a different claim. **Nothing here spans two
+projects** — the index (SDD §47) is scoped to one, the currency (§72) is defined once per
+project, and there is no portfolio.
+
+A vault may nonetheless hold several projects, and a Home lists them so one can be opened. That
+is a surface, not a second root: it reads project notes and opens one, adding no relationship
+across them, which is why none of the three sentences above changes. **Selecting among projects
+and aggregating across them are different things**, and only the second would force the second
+root — see
+[[The vault holds many projects, and selecting one is not a portfolio]]. Aggregation is what
+[[Professional planner]] would force, and it stays refused.
 
 §8's properties: name, description, status, start, target completion, budget, contingency,
 location description, linked plans. §83 adds project settings on top of plugin settings, so

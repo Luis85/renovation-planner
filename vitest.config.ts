@@ -156,18 +156,168 @@ export default defineConfig({
 			// 1843/1849 statements, 816/827 branches, 486/487 functions, 1685/1688 lines —
 			// 99.67 / 98.66 / 99.79 / 99.82, the same four again. NOTHING RATCHETS.
 			//
-			// Measured 2026-08-25 at the end of design slice 11 - error handling,
-			// diagnostics and data safety: the schema-version fail-closed gate (future
-			// versions refuse as `MigrationError`), the guarded command/query boundary
-			// logging BOTH thrown exceptions and resolved failed Results, `toUserMessage`,
-			// the diagnostics snapshot query and its deduplicating ledger, and the
-			// verbose-logging setting applied live at load AND on save: after the review
-			// pass, 1910/1920 statements, 855/871 branches, 506/509 functions, 1748/1755
-			// lines - 99.47 / 98.16 / 99.41 / 99.60. NOTHING RATCHETS: rounded down these
-			// are the floors already in force, and branches at 98.16 leave about one branch
-			// of headroom under their floor of 98 - the uncovered set is the guard's
-			// never-taken arms no test can reach past TypeScript's narrowing, the phantom
-			// `import` branches named above, and the defensive refusals slice 4 named.
+			// Measured 2026-08-25 on the SLICE-11 BRANCH (before merging main) - error
+			// handling, diagnostics and data safety: the schema-version fail-closed gate
+			// (future versions refuse as `MigrationError`), the guarded command/query
+			// boundary logging BOTH thrown exceptions and resolved failed Results,
+			// `toUserMessage`, the diagnostics snapshot query and its deduplicating ledger,
+			// and the verbose-logging setting applied live at load AND on save:
+			// 1910/1920 statements, 855/871 branches, 506/509 functions, 1748/1755 lines.
+			// Kept as that branch's record only; the MERGED tree is re-measured below.
+			//
+			// Measured 2026-08-25 on the MERGED tree (slice 11 + main through slice 8 and
+			// the signed-Money work): the guards now wrap slice 8's zone commands and the
+			// Inspector query too; the diagnostics snapshot is driven through the real
+			// composition root; and the sidecar read path gained its own fail-closed tests.
+			// 2780/2798 statements, 1289/1313 branches, 732/738 functions, 2526/2535 lines -
+			// 99.35 / 98.17 / 99.18 / 99.64. NOTHING RATCHETS: rounded down these are the
+			// floors already in force.
+			//
+			// Measured 2026-08-24 at the end of design slice 9 — the quantity and cost
+			// engine (`core/money` arithmetic over decimal.js, `core/units`, `core/derived`,
+			// `domain/cost`), including the review pass that Result-typed `applyPackaging`
+			// and added the pricing-basis/negative-percent/coverage-sign guards:
+			// 1946/1954 statements, 893/906 branches, 508/509 functions, 1771/1774 lines —
+			// 99.59 / 98.56 / 99.80 / 99.83. Rounded down these are 99 / 98 / 99 / 99 —
+			// exactly the floors in force, so NOTHING RATCHETS; statements and branches
+			// gained new covered units but not enough to move a whole-number floor.
+			//
+			// What slice 9 adds to the uncovered set: the two `Result` propagation guards in
+			// `costPipeline.ts` (the discount-stage `subtract` and the final tax `add`). Both
+			// guard an operation whose operands derive from `unitPrice` itself — the parts
+			// are `percentageOf` of values already in that currency — so the mismatch arm is
+			// unreachable by construction and kept only because the callee's `Result` cannot
+			// be honestly discarded. Every guard the review pass ADDED is covered: driven
+			// through both `runQuantityEngine` and its stages, and both sides of each arm.
+			// Measured 2026-08-25 at the end of design slice 6 — the editor tool framework:
+			// serialized CommandHistory, the reversible move-zone adapter, transformer scale
+			// normalization, the injectable SnapService, the selection store, the
+			// EditorContext facade and render state, the tool registry, and the Inspector's
+			// selection-to-DTO-to-command pipeline: 2043/2049 statements, 908/919 branches,
+			// 543/544 functions, 1867/1870 lines — 99.70 / 98.80 / 99.81 / 99.83. NOTHING
+			// RATCHETS: rounded down, statements/functions/lines still sit at 99 (100 is
+			// refused above) and branches still sit at 98 (98.80 does not reach 99) — the
+			// same four floors already in force.
+			// Measured 2026-08-25 again after slice 6's whole-branch review fixes — an ordered
+			// Transformer/snap-resize box, the Inspector's stale-response token, and the
+			// tests that make the undo cap, the gesture's persistence write and DoD 12
+			// discriminate: 2052/2058 statements, 912/923 branches, 543/544 functions,
+			// 1874/1877 lines — 99.70 / 98.81 / 99.81 / 99.84. The UNCOVERED sets are
+			// unchanged (the same six statements, eleven branches, one function and three
+			// lines enumerated above); only the denominators grew. NOTHING RATCHETS.
+			// Measured 2026-08-25 again after slice 9's review fixes — the Money non-negative
+			// invariant at `fromDecimal`, `round` serializing at the minor unit, the private
+			// decimal.js constructor clone, the discount's upper bound, and `negativeQuantity`
+			// applied at every exported door of the quantity engine and at the cost pipeline's
+			// input: 2182/2190 statements, 1013/1026 branches, 568/569 functions, 1982/1985
+			// lines — 99.63 / 98.73 / 99.82 / 99.84. NOTHING RATCHETS: rounded down these are
+			// the floors already in force. The UNCOVERED set is unchanged — every arm added
+			// here is driven, including both sides of each new guard and the throw arms of
+			// `fromDecimal`, and `costPipeline.ts`'s two `Result` propagation guards remain
+			// the same unreachable-by-construction pair the slice 9 paragraph above names.
+			// Measured 2026-08-25 again after REVERSING that Money non-negative invariant —
+			// `Money` is signed, `subtract` answers a negative difference as a value, and
+			// non-negativity moved to the fields that have it (`cost.negative-amount` on the
+			// pipeline's unit price/shipping/surcharge, `project.negative-amount` on a
+			// Project's budget/contingency): 2187/2195 statements, 1022/1035 branches,
+			// 571/572 functions, 1985/1988 lines — 99.63 / 98.74 / 99.82 / 99.84. NOTHING
+			// RATCHETS: rounded down these are the floors already in force, and branches at
+			// 98.74 still do not reach 99. The UNCOVERED set is unchanged in both COUNT and
+			// membership (8 statements, 13 branches, 1 function, 3 lines — the same arms the
+			// paragraphs above enumerate); only the denominators moved, and they moved in
+			// both directions at once: `fromDecimal`'s throw and `subtract`'s negative-result
+			// arm went away, five new guard arms arrived, and every one of the five is driven
+			// from both sides.
+			//
+			// Measured 2026-08-25 at the end of design slice 7 — calibration: `deriveCalibration`,
+			// the `PlanGeometrySidecar` port and its Obsidian adapter, the shared calibration
+			// mappers, `ReversibleCalibratePlanCommand` (rescale-everything transaction with its
+			// version-checked snapshot inverse) and `CalibrateTool`: 2251/2259 statements,
+			// 1038/1051 branches, 594/595 functions, 2055/2058 lines —
+			// 99.64 / 98.76 / 99.83 / 99.85. NOTHING RATCHETS: rounded down these are
+			// 99 / 98 / 99 / 99, the floors already in force.
+			//
+			// The uncovered set is the one enumerated above, still in untouched files
+			// (`ReversibleSetPlanBackground`'s snapshot re-validation, `costPipeline`'s two
+			// Result propagation guards, `ObsidianZoneRepository`'s double-fault logging,
+			// `GeometrySidecarView`'s Obsidian-runtime callback, `PlanCanvas`'s null-container
+			// guards, the plugin's non-`TFile` vault-event arm). One arm this slice touched grew
+			// its own test rather than joining that set: saving an UNCALIBRATED Plan over a
+			// sidecar that holds a calibration must lower `null`, driven by
+			// `completion.test.ts`.
+			//
+			// Measured 2026-08-25 again after slice 7's review pass — the conditional FIRST
+			// write (a concurrent writer between read and write now refuses instead of being
+			// clobbered), the output-finiteness floor on rescaled coordinates, the spent
+			// inverse refusing a second undo, the tool's generation guard against a prompt
+			// answered after deactivate, and the real-stack refusal tests against the actual
+			// sidecar store: 2268/2277 statements, 1052/1066 branches, 596/597 functions,
+			// 2071/2075 lines — 99.60 / 98.68 / 99.83 / 99.80. NOTHING RATCHETS again for the
+			// same reason.
+			//
+			// THOSE FIGURES ARE THE SLICE-7 BRANCH'S, and are kept only as that branch's
+			// record: the merge with the signed-Money work re-denominated everything, and
+			// nobody re-measured the merged tree — where the same claim "every branch of the
+			// calibration files is covered" was FALSE. `CalibrateTool`'s non-primary-button
+			// guard had no test at all; a config comment is not an instrument, and this one
+			// was asserting what only a measurement can say.
+			//
+			// Measured 2026-08-25 on the MERGED tree, after the slice-7 review pass closed
+			// that gap (a secondary/auxiliary click places nothing) and added the
+			// one-gesture-at-a-time guard the prompt seam needs: 2309/2317 statements,
+			// 1090/1103 branches, 602/603 functions, 2105/2108 lines —
+			// 99.65 / 98.82 / 99.83 / 99.85. NOTHING RATCHETS: rounded down these are the
+			// 99 / 98 / 99 / 99 already in force. The uncovered set is back to the enumerated
+			// one in both COUNT and membership — 8 statements, 13 branches, 1 function, 3
+			// lines, every one of them in a file this slice did not touch.
+			//
+			// Measured 2026-08-25 again after the review pass DELETED slice 3's plain
+			// `CalibratePlanCommand`, `Plan.calibrate`, `createCalibration` and the plan
+			// repository's `syncCalibration` — calibration now has ONE writer, the geometry
+			// sidecar port: 2273/2281 statements, 1064/1077 branches, 596/597 functions,
+			// 2072/2075 lines — 99.64 / 98.79 / 99.83 / 99.85. NOTHING RATCHETS. The uncovered
+			// set is unchanged in count and membership; the denominators fell for the first
+			// time in this file's history, because the change removed code rather than adding
+			// it. Seven tests went with the capability they drove, and three arrived for what
+			// replaced it: the sidecar-to-entity read merge, the note save that touches no
+			// sidecar at all, and a hand-edited calibration refused at `withCalibration`.
+			//
+			// Measured 2026-08-25 at the end of design slice 8 - zone editing and the review
+			// pass that followed it: the two reversible zone adapters and their shared
+			// restore, the refresh decorator, the two tools, the per-leaf runtime and its
+			// toolbar/canvas/inspector wiring, and the e2e suite driving the real mounted
+			// editor against in-memory repositories: 99.2 / 98.1 / 99.1 / 99.5 across
+			// statements / branches / functions / lines. NOTHING RATCHETS: rounded down
+			// these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// What slice 8 added to the uncovered set, so the next increment does not go
+			// hunting - every one either unreachable by construction or an arm whose whole
+			// purpose is to not happen. Named by SYMBOL, never by file:line, for the reason
+			// CLAUDE.md gives ("address code by name, not by position"): the numbers in an
+			// earlier version of this block were accurate the day they were written and
+			// silently retargeted by the next insertion above them, and every other block in
+			// this file already named its arms.
+			// - `ReversibleCreateZoneCommand`'s and `ReversibleDeleteZoneCommand`'s one-line
+			//   error PROPAGATIONS off failed restores, failed undo dispatches and failed
+			//   pre-delete reads. The failure arms that carry behaviour (a failed first
+			//   create, a failed undo restore leaving the vault as the delete left it) each
+			//   have their own test; these are `return err` forwards whose only content is
+			//   the error they carry.
+			// - `runtime.ts`'s `registerEditorTools` rejection arrows - each seam is
+			//   unit-tested on the tool with its own dep, and the runtime arrow is wiring.
+			// - `runtime.ts`'s inspector-cycle break, the pre-binding `?? Promise.resolve()`:
+			//   the store cannot be read before the runtime finishes building it.
+			// - `runtime.ts`'s `viewportAdapter.setPan`/`setZoom` - declared by
+			//   `EditorContext` and first consumed by a `PanTool` or a calibration-aware
+			//   tool, neither of which exists yet. The adapter's comment says so where the
+			//   code is.
+			// - `runtime.ts`'s `reportFault` catch - an unexpected technical fault escaping a
+			//   dispatch, which the decorator below it already re-reads state for.
+			// - `PlanCanvas.vue`'s and `SelectTool`'s null guards on a mounted component and
+			//   a completed gesture, which by construction never fire.
+			// - `createSerialQueue`'s tail catch, which exists so one command's technical
+			//   fault cannot wedge the shared chain - reached only by a throw the queue is
+			//   built to survive.
 			thresholds: {
 				statements: 99,
 				functions: 99,

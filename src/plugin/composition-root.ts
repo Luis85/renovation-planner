@@ -1,6 +1,10 @@
 import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
+import type {
+	GeometryError,
+	ReferenceError,
+} from '../core/errors/AppError';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
 import type { Query } from '../application/queries/Query';
@@ -11,6 +15,13 @@ import { CreateProjectCommand } from '../application/commands/project/CreateProj
 import type { CreateProjectInput, CreateProjectError } from '../application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import type { CreateZoneInput, CreateZoneError } from '../application/commands/zone/CreateZone';
+import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
+import type { DeleteZoneInput } from '../application/commands/zone/DeleteZone';
+import { MoveSpatialObjectCommand } from '../application/commands/zone/MoveSpatialObject';
+import type { MoveSpatialObjectInput } from '../application/commands/zone/MoveSpatialObject';
+import { GetZoneInspector } from '../application/queries/GetZoneInspector';
+import type { GetZoneInspectorInput, ZoneInspectorFields } from '../application/queries/GetZoneInspector';
+import type { ZoneId } from '../domain/zone/ZoneId';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type {
@@ -27,6 +38,7 @@ import {
 	type PlanEditorQueryServices,
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
 import type { FindZonesByPlanInput } from '../application/queries/FindZonesByPlan';
 import { GetPlan } from '../application/queries/GetPlan';
@@ -57,7 +69,7 @@ import { PLAN_GEOMETRY_MIGRATIONS } from '../infrastructure/persistence/migratio
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
-import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
+import { createVaultExceptionMapper, type VaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
@@ -164,6 +176,16 @@ export interface PersistenceServices {
 	 */
 	readonly setPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
 	readonly reversibleSetPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
+	/**
+	 * Design slice 8's write side for the Plan Editor, beside slice 5's background pair:
+	 * the plain zone commands the editor's reversible adapters wrap (one adapter per
+	 * gesture, built inside the editor), and the Inspector query. Composed here so
+	 * `presentation/` is handed interfaces and never builds a command from a repository.
+	 * GUARDED like every other service here (SDD §66) — structural shapes, not classes.
+	 */
+	readonly deleteZone: Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | RepositoryError>>;
+	readonly moveZone: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>>;
+	readonly zoneInspector: Query<GetZoneInspectorInput, Result<ZoneInspectorFields | null, RepositoryError | GeometryError>>;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -178,6 +200,119 @@ export interface VaultStack {
 	readonly metadataCache: MetadataCache;
 }
 
+/**
+ * The read side and the editor-facing write side, every member GUARDED (SDD §66): an
+ * unexpected fault below this seam arrives as a resolved failed `Result` — never a
+ * rejection past the application layer. The repositories map the failures they EXPECT
+ * to coded errors; these wrappers catch what escapes that net. Each service gets its
+ * own event name so a log line names the boundary it crossed.
+ *
+ * The three slice-8 locals are ANNOTATED with explicit guard type arguments rather than
+ * left to inference: a contextual type from the PersistenceServices field makes E infer
+ * from the TARGET instead of the command, and the widened union then mis-narrows.
+ */
+function guardedEditorServices(
+	repositories: {
+		projects: ObsidianProjectRepository;
+		plans: ObsidianPlanRepository;
+		zones: ObsidianZoneRepository;
+	},
+	deps: {
+		eventBus: EventBus;
+		files: VaultFileProbe;
+		logger: Logger;
+		map: VaultExceptionMapper;
+	},
+	diagnosticsSources: {
+		versions: RuntimeVersions;
+		migrations: MigrationRunner;
+		ledger: DiagnosticsLedger;
+	},
+) {
+	const { projects, plans, zones } = repositories;
+	const { eventBus, files, logger, map } = deps;
+
+	const queries: QueryServices = {
+		getProject: guardQuery(new GetProject(projects), 'query.getProject.failed', logger, map),
+		getPlan: guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, map),
+		getZone: guardQuery(new GetZone(zones), 'query.getZone.failed', logger, map),
+		findZonesByPlan: guardQuery(new FindZonesByPlan(zones), 'query.findZonesByPlan.failed', logger, map),
+		diagnostics: new GetDiagnosticsSnapshotQuery({
+			versions: diagnosticsSources.versions,
+			latestSchemaVersions: () => diagnosticsSources.migrations.latestVersions,
+			lastAppliedMigration: () => diagnosticsSources.migrations.lastApplied,
+			ledger: diagnosticsSources.ledger,
+		}),
+	};
+
+	const setPlanBackground = guardCommand(
+		new SetPlanBackgroundCommand(plans, files, eventBus),
+		'command.setPlanBackground.failed',
+		logger,
+		map,
+	);
+	const deleteZone =
+		guardCommand<DeleteZoneInput, { zoneId: ZoneId }, ReferenceError | RepositoryError>(
+			new DeleteZoneCommand(zones, eventBus),
+			'command.deleteZone.failed',
+			logger,
+			map,
+		);
+	const moveZone =
+		guardCommand<MoveSpatialObjectInput, { zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>(
+			new MoveSpatialObjectCommand(zones, eventBus),
+			'command.moveZone.failed',
+			logger,
+			map,
+		);
+	const zoneInspector =
+		guardQuery<GetZoneInspectorInput, ZoneInspectorFields | null, RepositoryError | GeometryError>(
+			new GetZoneInspector(zones),
+			'query.zoneInspector.failed',
+			logger,
+			map,
+		);
+
+	return { queries, setPlanBackground, deleteZone, moveZone, zoneInspector };
+}
+
+/**
+ * The Plan Editor's own dependency bundle, assembled from a composed root.
+ *
+ * A function rather than another `CompositionRoot` field, because it needs the
+ * `Workspace` — which is not part of the vault stack the persistence layer reads through —
+ * and because it answers `null` for a session with no persistence at all: with settings
+ * unrecovered there is no query service to hand a view, so registering one that would
+ * draw an empty pane is worse than not being able to open it.
+ */
+export function planEditorDeps(
+	root: CompositionRoot,
+	workspace: Workspace,
+	vault: Vault,
+): PlanEditorDeps {
+	const persistence = root.persistence;
+	return {
+		// TOTAL rather than nullable, and that is the point: with settings unrecovered there
+		// is no query service to hand over, so the view is handed one that REFUSES and shows
+		// the same failed state it shows for any unreadable plan. The alternatives were a
+		// nullable dependency every caller has to branch on, or not registering the view at
+		// all — which would leave a restored Plan Editor leaf pointing at a view type
+		// Obsidian does not know.
+		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
+		commands: persistence
+			? {
+					createZone: persistence.createZone,
+					moveObject: persistence.moveZone,
+					deleteZone: persistence.deleteZone,
+					zones: persistence.zones,
+					zoneInspector: persistence.zoneInspector,
+				}
+			: unavailablePlanEditorCommands(),
+		vault,
+		onThemeChange: createThemeChangeSource(workspace),
+		onPlanChanged: createPlanChangeSource(root.eventBus),
+	};
+}
 export function createCompositionRoot(
 	settings: RenovationPlannerSettings | null,
 	logger: Logger,
@@ -229,31 +364,12 @@ export function createCompositionRoot(
 	const plans = new ObsidianPlanRepository(deps, geometryStore);
 	const zones = new ObsidianZoneRepository(deps, geometryStore);
 
-	// The Error Boundary's last line (SDD §66): every command and query is handed out
-	// GUARDED, so an unexpected fault below this seam arrives as a resolved failed
-	// `Result` — never a rejection past the application layer. The repositories map the
-	// failures they EXPECT to coded errors; this catches what escapes that net. Each
-	// service gets its own event name so a log line names the boundary it crossed.
 	const vaultMapper = createVaultExceptionMapper('vault');
-	const queries: QueryServices = {
-		getProject: guardQuery(new GetProject(projects), 'query.getProject.failed', logger, vaultMapper),
-		getPlan: guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, vaultMapper),
-		getZone: guardQuery(new GetZone(zones), 'query.getZone.failed', logger, vaultMapper),
-		findZonesByPlan: guardQuery(new FindZonesByPlan(zones), 'query.findZonesByPlan.failed', logger, vaultMapper),
-		diagnostics: new GetDiagnosticsSnapshotQuery({
-			versions: environment,
-			latestSchemaVersions: () => migrations.latestVersions,
-			lastAppliedMigration: () => migrations.lastApplied,
-			ledger,
-		}),
-	};
-
 	const files = createVaultFileProbe(vault.vault);
-	const setPlanBackground = guardCommand(
-		new SetPlanBackgroundCommand(plans, files, eventBus),
-		'command.setPlanBackground.failed',
-		logger,
-		vaultMapper,
+	const guarded = guardedEditorServices(
+		{ projects, plans, zones },
+		{ eventBus, files, logger, map: vaultMapper },
+		{ versions: environment, migrations, ledger },
 	);
 
 	const changeAdapter = new VaultChangeAdapter({
@@ -277,49 +393,23 @@ export function createCompositionRoot(
 			projects,
 			plans,
 			zones,
-			queries,
+			queries: guarded.queries,
 			files,
 			createProject: guardCommand(new CreateProjectCommand(projects, eventBus), 'command.createProject.failed', logger, vaultMapper),
 			createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, vaultMapper),
 			createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, vaultMapper),
-			planEditorQueries: createPlanEditorQueries(queries),
-			setPlanBackground,
+			planEditorQueries: createPlanEditorQueries(guarded.queries),
+			setPlanBackground: guarded.setPlanBackground,
 			reversibleSetPlanBackground: guardCommand(
-				new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),
+				new ReversibleSetPlanBackgroundCommand(guarded.setPlanBackground, plans),
 				'command.setPlanBackground.undoable.failed',
 				logger,
 				vaultMapper,
 			),
+			deleteZone: guarded.deleteZone,
+			moveZone: guarded.moveZone,
+			zoneInspector: guarded.zoneInspector,
 			changeAdapter,
 		},
-	};
-}
-
-/**
- * The Plan Editor's own dependency bundle, assembled from a composed root.
- *
- * A function rather than another `CompositionRoot` field, because it needs the
- * `Workspace` — which is not part of the vault stack the persistence layer reads through —
- * and because it answers `null` for a session with no persistence at all: with settings
- * unrecovered there is no query service to hand a view, so registering one that would
- * draw an empty pane is worse than not being able to open it.
- */
-export function planEditorDeps(
-	root: CompositionRoot,
-	workspace: Workspace,
-	vault: Vault,
-): PlanEditorDeps {
-	const persistence = root.persistence;
-	return {
-		// TOTAL rather than nullable, and that is the point: with settings unrecovered there
-		// is no query service to hand over, so the view is handed one that REFUSES and shows
-		// the same failed state it shows for any unreadable plan. The alternatives were a
-		// nullable dependency every caller has to branch on, or not registering the view at
-		// all — which would leave a restored Plan Editor leaf pointing at a view type
-		// Obsidian does not know.
-		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
-		vault,
-		onThemeChange: createThemeChangeSource(workspace),
-		onPlanChanged: createPlanChangeSource(root.eventBus),
 	};
 }

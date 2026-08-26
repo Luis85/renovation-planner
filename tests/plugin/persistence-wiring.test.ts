@@ -3,6 +3,7 @@
 // module mock, exactly as tests/plugin/registration.test.ts does.
 import { describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
+import { apiVersion } from '../helpers/obsidian-mock';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
@@ -58,6 +59,20 @@ describe('persistence composition', () => {
 		// Nothing scanned yet: the index is empty until layout-ready.
 		expect(plugin.root.persistence.index.entries()).toEqual([]);
 		expect(workspace.layoutReadyCallbacks).toHaveLength(1);
+	});
+
+	/**
+	 * Slice 11's snapshot query, driven through the REAL composition: its sources are the
+	 * migration runner and the manifest the plugin passed in, so this is what proves the
+	 * wiring (not just the class) answers with the runner's version table.
+	 */
+	it('wires the diagnostics snapshot to the real migration runner', async () => {
+		const { plugin } = await loadedPlugin(DEFAULT_SETTINGS);
+		const snapshot = await plugin.root.persistence?.queries.diagnostics.execute();
+
+		expect(snapshot?.schemaVersions).toEqual({ project: 1, plan: 1, zone: 1, 'plan-geometry': 1 });
+		expect(snapshot?.migrationState.pending).toEqual([]);
+		expect(snapshot?.obsidianVersion).toBe(apiVersion);
 	});
 
 	it('rebuilds the index from vault contents at layout-ready', async () => {

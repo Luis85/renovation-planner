@@ -14,6 +14,7 @@ import {
 	screenToWorld,
 	STAGE_PIXELS,
 	viewportTransform,
+	worldPerScreenPixel,
 	worldToScreen,
 	zoomAbout,
 	type Viewport,
@@ -141,5 +142,46 @@ describe('the camera', () => {
 
 	it('leaves zoom alone while panning', () => {
 		expect(panBy({ pan: { x: 3, y: 4 }, zoom: 0.7 }, 10, 10).zoom).toBe(0.7);
+	});
+});
+
+/**
+ * The two-point probe three tools each wrote by hand before `worldPerScreenPixel` existed:
+ * project (0,0) and (1,0) back into world space and measure the gap.
+ */
+function probe(viewport: Viewport): number {
+	return (
+		screenToWorld(screenPoint(1, 0), viewport, STAGE_PIXELS).x
+		- screenToWorld(screenPoint(0, 0), viewport, STAGE_PIXELS).x
+	);
+}
+
+describe('world millimetres per screen pixel', () => {
+	it('agrees with the two-point probe at an ordinary camera', () => {
+		// Where the probe is accurate, the two must be the same number — otherwise this
+		// would be a behaviour change dressed as a refactor.
+		const viewport: Viewport = { pan: { x: -480, y: -480 }, zoom: 0.1 };
+
+		expect(worldPerScreenPixel(viewport, STAGE_PIXELS)).toBeCloseTo(probe(viewport), 9);
+		expect(worldPerScreenPixel(viewport, STAGE_PIXELS)).toBe(1 / viewport.zoom);
+	});
+
+	it('stays exact at a far pan, where the two-point probe does not', () => {
+		// `screenToWorld(p) = p.x / scale + pan.x`, so the probe recovers `1 / scale` by
+		// subtracting two numbers dominated by `pan.x` — and loses low-order bits of exactly
+		// the quantity being measured. This is the reason the direct form exists, not merely
+		// a tidier spelling of it: a tolerance that quantises turns a drag into a click or a
+		// click into a drag, silently.
+		const farPanned: Viewport = { pan: { x: 1e12, y: -3e11 }, zoom: 0.037 };
+
+		expect(worldPerScreenPixel(farPanned, STAGE_PIXELS)).toBe(1 / 0.037);
+		// Not merely different in the last bit: the probe is out by ~5e-5 of a world
+		// millimetre here, and grows with the pan.
+		expect(probe(farPanned)).not.toBe(1 / 0.037);
+		expect(Math.abs(probe(farPanned) - 1 / 0.037)).toBeGreaterThan(1e-5);
+	});
+
+	it('scales with the device-pixel argument, like both transforms', () => {
+		expect(worldPerScreenPixel({ pan: { x: 0, y: 0 }, zoom: 2 }, 2)).toBeCloseTo(0.25, 12);
 	});
 });

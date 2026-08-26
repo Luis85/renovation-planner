@@ -4,9 +4,9 @@ parent: "[[Quantity, cost and the end-to-end loop]]"
 order: 10
 dependsOn:
   - "[[02-core-primitives]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-24
+finished: 2026-08-24
 horizon: ""
 start: ""
 due: ""
@@ -21,7 +21,7 @@ iteration: ""
 
 Deliver the Quantity Engine and Cost Pipeline as a pure, framework-free computational
 core: given a raw geometric measurement (a number with a unit), compute a purchase
-quantity and an estimated cost using exact decimal arithmetic throughout.
+quantity and an estimated cost using decimal arithmetic — never native floats — throughout.
 
 This is its own bounded slice because it has no dependency on any renovation domain
 entity. It does not know what a Zone, an Asset, or a Requirement is — it consumes plain
@@ -88,6 +88,32 @@ and Requirement entities, and the `Zone Geometry → Area → Requirement → Co
 - No dependency on slices 3–8: no Zone, Plan, or Inspector code is required to build or
   test this slice.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+A code review of merged slice 8 changed things this slice builds on. Each is a
+pitfall that was already shipped once, not a hypothetical.
+
+- **One spelling of "is this negative": `lessThan(0)`, never `Decimal.isNegative()`.**
+  decimal.js reports negative ZERO as negative, so `new Decimal(0).mul(-1)` was refused
+  as a negative rate. `quantityEngine.negativeQuantity` already knew this and wrote it
+  down; `costPipeline.negativePercent`, `applyWaste` and `applyRequirementRule`'s
+  coverage-rate guard did not, so one directory held two answers to one question. All of
+  them use `lessThan(0)` now, and every stage this slice adds must too — the difference
+  only ever shows on a value a user could legitimately supply.
+- **The Inspector already converts mm2 to m2, and it is a SECOND owner of a conversion
+  this slice defines.** `InspectorPanel.vue` does `areaMm2 / 1_000_000` in binary float
+  with a hard-coded unit label, against an `InspectorDto` that carries a raw storage unit
+  into a template. `toDisplayValue` dispatches on `MeasurementUnit` with `Decimal`
+  precisely so a second area unit is one case in one switch — and `MeasurementUnit`
+  already names `ft2` as the anticipated one. The day it lands, the domain switch grows a
+  case and that template keeps dividing by a million. **This was deliberately NOT fixed in
+  the review pass**: the fix is to make `GetZoneInspector` hand back a `Quantity` (value +
+  unit) so the panel formats and does not convert, which is this slice's boundary to move
+  rather than a polish edit. `docs/requirements/Switch the measurement unit in the plan
+  editor.md` makes it load-bearing rather than tidy.
+- **`PlanDto` carries `calibration` now.** The presentation layer can read a plan's real
+  scale, which is what turns a raw millimetre measurement into a trustworthy one.
+
 ## Design
 
 ### Module placement
@@ -136,6 +162,24 @@ Rules:
 
 - `add`/`subtract`/`compare` on mismatched currencies resolve `err(calculationError(…))`
   — never silently coerced, never `NaN`.
+- **A `Money` is SIGNED, and `subtract` answers a negative difference as a value.** The
+  `Result` on `add`/`subtract`/`compare` is for the currency mismatch and nothing else.
+  This is recorded here because it was briefly the opposite: a review pass after this
+  slice shipped made `Money` non-negative at both doors and reported a negative difference
+  as `money.negative-result`, and that was reversed. It answered a real defect — `subtract`
+  minted an amount `createMoney` refused to read back — by narrowing the producer when the
+  reader was the wrong half, and it made the important case an error, since
+  [`Reporting and project cockpit.md`](../requirements/Reporting%20and%20project%20cockpit.md)'s
+  "am I over budget" is a difference whose sign is the answer. What survives is the
+  round-trip property: **anything the module produces, `createMoney` reads back**, now over
+  the signed set, with a signed ZERO the one spelling both doors refuse.
+- **Non-negativity is a per-FIELD rule, enforced where the field is validated.** A unit
+  price, a shipping charge and a surcharge are refused below zero on `computeEstimatedCost`'s
+  input (`cost.negative-amount`), beside the negative quantity and the discount bound; a
+  `Project`'s `budget` and `contingency` are refused by `Project.create`
+  (`project.negative-amount`). Slice 10's `unitCost >= 0` and slice 16's form rules are the
+  same shape and were always written that way. So the pipeline still cannot produce a
+  negative estimate — that is a guarantee over ITS inputs, not a property of the value type.
 - **Rounding mode is `ROUND_HALF_UP`, applied once where a `Money` value is finalized as
   pipeline output** — here, the final `Estimated Cost` step; see **Definition of Done**
   for a worked example. Both halves are **ADR-010's** decision, not this slice's, and
@@ -143,10 +187,17 @@ Rules:
   earlier version of this document was the only place either was written down, which
   made a decision with consequences findable only by whoever already knew which slice to
   open — while ADR-010 restated SDD §49 without deciding anything.
-- What this slice adds is the application: intermediate pipeline values keep full
-  `decimal.js` precision, never rounded between stages, so waste/discount/tax stacking
-  cannot compound rounding error one step at a time — and the currency's minor unit
-  (2 decimal places for USD/EUR) is what "finalized" rounds to.
+- What this slice adds is the application: intermediate pipeline values are never
+  rounded to the currency's minor unit between stages, so waste/discount/tax stacking
+  cannot compound *that* rounding error one step at a time — the currency's minor unit
+  (2 decimal places for USD/EUR) is what "finalized" rounds to, once, at the end. That is
+  narrower than "full `decimal.js` precision", which an earlier version of this bullet
+  claimed and which decimal.js does not provide: every operation still rounds to a
+  configured number of significant digits — `MONEY_PRECISION` on `core/money/Money.ts`'s
+  private `Decimal.clone`, set to 34 (IEEE 754 decimal128's precision). Wide enough that
+  nothing in this slice's own worked example below comes near it, but not "full" in the
+  sense that decimal.js never rounds at all — `tests/core/money/moneyArithmetic.test.ts`
+  proves the residual with a 37-significant-digit exact product that does not survive.
 
 ### Unit kinds and Quantity
 
@@ -335,7 +386,10 @@ interface PackagingRule {
   readonly minimumOrder?: Decimal;
 }
 
-function toMeasuredQuantity(rawValue: Decimal, unit: MeasurementUnit): Quantity;
+function toMeasuredQuantity(
+  rawValue: Decimal,
+  unit: MeasurementUnit
+): Result<Quantity, CalculationError>;
 function applyRequirementRule(
   measured: Quantity,
   rule: RequirementRule
@@ -347,7 +401,7 @@ function applyWaste(
 function applyPackaging(
   quantity: Quantity,
   packaging?: PackagingRule
-): Quantity;
+): Result<Quantity, CalculationError>;
 
 function runQuantityEngine(
   rawValue: Decimal,
@@ -374,6 +428,22 @@ function computeEstimatedCost(
   input: CostPipelineInput
 ): Result<DerivedValue<Money>, CalculationError>;
 ```
+
+**`toMeasuredQuantity` and `applyPackaging` deviate from the bare-`Quantity` return the
+Definition of Done below was checked against**, and the two deviations have different
+histories. `toMeasuredQuantity` was changed deliberately, after this slice shipped: it
+was the one exported stage still able to hand back a negative `Quantity` — a corrupted or
+negative raw measurement passed straight through — while `applyRequirementRule` and
+`applyWaste` already refused one on the way in, so the "no exported stage returns a
+negative `Quantity`" guarantee `quantityEngine.ts`'s own header now states held for every
+door but this one. Wrapping it in `Result<Quantity, CalculationError>` was what closed it.
+`applyPackaging`'s `Result` return, by contrast, was never a change — it was already the
+shipped signature (it validates its own `PackagingRule`, rejecting a non-positive
+`lotSize`/`minimumOrder` as `quantity.invalid-packaging`) when this document was first
+written; the bare `Quantity` above was simply never corrected. Both checkmarks in the
+Definition of Done still describe what they verified — the worked example, the currency
+and negative-quantity guarantees — only the two literal return types shown above have
+since moved to match the code they were meant to describe.
 
 `CalculationError` is one of the categories already established in the shared error
 model (SDD §64); this slice does not introduce a new error category.
@@ -427,14 +497,14 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
 
 ## Definition of Done
 
-- [ ] `Money.of("0.10","USD")` added to `Money.of("0.20","USD")` produces exactly
+- [x] `Money.of("0.10","USD")` added to `Money.of("0.20","USD")` produces exactly
       `Money.of("0.30","USD")` — verified without ever converting to a native `number`
       mid-calculation (demonstrates the ADR-010 rationale: `0.1 + 0.2 !== 0.3` in
       native floats, but is exact here).
-- [ ] Adding `Money` values of different currencies resolves a `CalculationError` in
+- [x] Adding `Money` values of different currencies resolves a `CalculationError` in
       every arithmetic function that takes two `Money` operands (add, subtract,
       compare).
-- [ ] End-to-end worked example, Quantity Engine → Cost Pipeline, produces the
+- [x] End-to-end worked example, Quantity Engine → Cost Pipeline, produces the
       following exact values (all in `decimal.js`, asserted as such):
       - Geometry input: `12,345,678 mm²` → Measured Quantity: `12.345678 m²`.
       - Requirement Rule (1:1 coverage) → Required Quantity: `12.345678 m²`.
@@ -442,27 +512,27 @@ component harness, no Konva stage. This directly implements SDD §70's **Money**
       - Packaging (`lotSize = 2.5 m²`, no minimum) → Purchase Quantity:
         `15 m²` (`13.5802458 / 2.5 = 5.432...`, rounded up to 6 lots × 2.5).
       - Unit Price `$12.50/m²` → Line Subtotal: `$187.50`.
-      - Discount `5%` → After Discount: `$178.125` (full precision retained,
-        not yet rounded).
+      - Discount `5%` → After Discount: `$178.125` (exact, not yet rounded to the minor
+        unit).
       - Shipping `$25.00` flat → After Shipping: `$203.125`.
       - Tax `8.25%` → `$219.8828125`, rounded `ROUND_HALF_UP` to the currency's
         2 decimal places → **Estimated Cost: `$219.88`**.
-- [ ] Overriding the Purchase Quantity `DerivedValue` (e.g. `calculated: 15 m²`,
+- [x] Overriding the Purchase Quantity `DerivedValue` (e.g. `calculated: 15 m²`,
       `override: 18 m²`) changes the Cost Pipeline's result deterministically
       (`18 × $12.50 = $225.00` subtotal onward) — proving effective-value resolution
       flows forward through the pipeline, not just at the point of override.
-- [ ] `applyPackaging` with `packaging: undefined` returns the waste-adjusted quantity
+- [x] `applyPackaging` with `packaging: undefined` returns the waste-adjusted quantity
       unchanged (no error, no silent default lot size).
-- [ ] `surcharge` omitted leaves the post-shipping total unchanged, and a supplied
+- [x] `surcharge` omitted leaves the post-shipping total unchanged, and a supplied
       `surcharge` is added **before** tax is computed (ADR-012). Asserted with a case where
       the two orders differ, so a reordering cannot pass silently: on the worked example
       above, a `$25.00` surcharge gives `($203.125 + $25.00) × 1.0825 = $246.9453125`, while
       applying it after tax would give `$203.125 × 1.0825 + $25.00 = $244.8828125` — a
       `$2.0625` difference, which is the tax on the surcharge.
-- [ ] All SDD §70 Money and Quantity unit test bullets (addition, tax, discounts,
+- [x] All SDD §70 Money and Quantity unit test bullets (addition, tax, discounts,
       rounding, currency safety, length requirements, area requirements, waste,
       packaging, manual overrides) have a corresponding passing `vitest` test.
-- [ ] No file under `core/money`, `core/units`, `core/derived`, or `domain/cost`
+- [x] No file under `core/money`, `core/units`, `core/derived`, or `domain/cost`
       imports from `obsidian`, `vue`, `pinia`, or `konva`. This needs no new check and
       no manual verification: slice 1 committed the per-directory
       `no-restricted-imports` bans for `core/**` and `domain/**` before any file existed

@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ValidationError } from '../../core/errors/AppError';
-import type { Money } from '../../core/money/Money';
+import { isNegative, type Money } from '../../core/money/Money';
 import { isProjectStatus, type ProjectStatus } from './ProjectStatus';
 import type { ProjectId } from './ProjectId';
 import { projectError } from './Project.errors';
@@ -15,6 +15,31 @@ export interface CreateProjectProps {
 	readonly budget?: Money | null;
 	readonly contingency?: Money | null;
 	readonly locationDescription?: string | null;
+}
+
+/**
+ * `budget` and `contingency` are the two fields here that cannot go below zero, and this
+ * is the boundary that refuses one: `Money` is a SIGNED quantity — spend minus budget is
+ * a difference whose sign is the answer — so non-negativity is a per-field rule, enforced
+ * where the field is validated.
+ *
+ * This entity is that place, and today it is the ONLY one: neither field is persisted yet
+ * (`ProjectFrontmatterSchemaV1` declares `name` and `status`, not these two), so there is
+ * no schema to state it at, and both `CreateProjectCommand` and the persistence mapper
+ * construct through `Project.create` rather than validating beside it — the constructor is
+ * private, so there is no other way to make one. When the frontmatter grows the fields, the schema states the
+ * SHAPE and this smart constructor keeps stating the rule — a Zod refinement there would
+ * be a second answer to the same question, and the entity is the one every path passes.
+ *
+ * One code with the field NAMED in the message, not a code per field: two codes would
+ * read as two rules (the shape `quantityEngine`'s `negativeQuantity` argues for).
+ */
+function negativeAmount(field: string, value: Money | null | undefined): ValidationError | null {
+	if (!value || !isNegative(value)) return null;
+	return projectError(
+		'negative-amount',
+		`A project ${field} cannot be negative; got ${value.amount} ${value.currency}.`,
+	);
 }
 
 /**
@@ -63,6 +88,11 @@ export class Project {
 		}
 		if (!isProjectStatus(props.status ?? 'IDEA')) {
 			return err(projectError('unknown-status', `"${String(props.status)}" is not a project status.`));
+		}
+		const negative =
+			negativeAmount('budget', props.budget) ?? negativeAmount('contingency', props.contingency);
+		if (negative) {
+			return err(negative);
 		}
 		if (
 			props.start &&

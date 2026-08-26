@@ -4,9 +4,9 @@ parent: "[[Plan editor and canvas]]"
 order: 30
 dependsOn:
   - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-25
+finished: 2026-08-25
 horizon: ""
 start: ""
 due: ""
@@ -42,7 +42,8 @@ real-world measurements."*
   distance, derived scale) and its validation rules.
 - `ReversibleCalibratePlanCommand`, the undoable application command that turns a
   completed gesture plus a supplied distance into a persisted `Calibration`
-  (supersedes slice 3's plain, non-undoable `CalibratePlanCommand` — see Design).
+  (**replaces** slice 3's plain, non-undoable `CalibratePlanCommand`, which was deleted
+  in this slice's review pass — see Design).
 - Deriving the scale factor from the two points and the known distance, and the precise
   (and deliberately narrow) place it lands: the background's world extent, **not** the
   viewport transform — see "What calibration establishes".
@@ -467,19 +468,24 @@ interface Plan {
 // CalibratePlan; named ReversibleCalibratePlanCommand here — see Design — to avoid
 // colliding with slice 3's plain, non-undoable CalibratePlanCommand)
 
+// As built: `application/commands/plan/ReversibleCalibratePlan.ts`, matching its
+// application-layer sibling (`ReversibleSetPlanBackground.ts`). The class carries the
+// transaction and the snapshot inverse; slice 6's `UndoableCommand` interface lives in
+// presentation/, which application cannot name — `CalibrateTool` satisfies it with the
+// zero-arg gesture wrapper it assembles around `execute(input)` / `undo()`.
+
 // CalibratePlanInput — slice 3's, consumed unchanged, not redefined here.
 // `{ planId, pointA, pointB, knownDistance }`, knownDistance in world millimetres.
 
-class ReversibleCalibratePlanCommand implements UndoableCommand {
+class ReversibleCalibratePlanCommand {
   execute(): Promise<Result<void, ReferenceError | ValidationError | CalibrationError | PersistenceError>>;
   // Narrower than execute() on purpose, and this is the authoritative signature: undo
   // restores a snapshot and reverses a multiplication it already computed. It derives no
   // calibration, so no CalibrationError is reachable — its only failure is the write, or
-  // the version check refusing it (plan-geometry.revision-conflict /
-  // plan-geometry.external-modification, both PersistenceError). The Design section's
-  // sketch of undo() above carried the wider union; the body it sketches is what says
-  // otherwise, and the body is right.
-  undo(): Promise<Result<void, PersistenceError>>;
+  // the version check refusing it. The two refusal codes live on `ValidationError`
+  // (`revisionConflict` / `externalModification`, application/ports/versioning.ts), not
+  // PersistenceError as this section first claimed — the vocabulary of §36's ports wins.
+  undo(): Promise<Result<void, PersistenceError | ValidationError>>;
 }
 ```
 
@@ -553,6 +559,41 @@ see Testing Strategy.
   entry in the same sidecar write — one file, one Vault operation, naturally atomic.
 - No new Markdown frontmatter keys are introduced by this slice.
 
+### What the review pass changed: "supersedes" had to become "replaces"
+
+This section said "supersedes its `execute()` body" and the code did not do it. A new
+class was added and slice 3's was left exported, tested and reachable — two live
+calibration writers with contradictory semantics, of which the older one:
+
+- persisted a calibration whose own points did **not** measure their `knownDistance`,
+  which is the invariant DoD box 7 on this page asserts;
+- rescaled **no** existing geometry, which is option 1 of the recalibration question this
+  page explicitly decided against;
+- wrote the sidecar **unconditionally**, through the plan repository's `syncCalibration`,
+  bumping the revision and silently invalidating any pending calibration undo.
+
+Nothing chose between them, so the review pass deleted the older path outright:
+`CalibratePlanCommand`, `Plan.calibrate` and `createCalibration` (the duplicate
+derivation — `deriveCalibration(a, b, d, null)` with the points left un-rescaled).
+`CalibratePlanInput` moved onto the command that still holds it. `Plan.withCalibration`
+and `validateCalibration` stay: they are the READ path, where `planFromPersistence`
+merges the sidecar's value into the entity and re-validates it.
+
+**And `syncCalibration` went with them**, which the same review found to be a lost update
+no gate could see. Calibration does not live in the plan note, so a calibration landing
+in the sidecar does not move the note's revision — a `Plan` read *before* one still
+passed `checkExpectedVersion` afterwards, and the next rename wrote its stale calibration
+(or `null`) back over the new one while the rescaled coordinates stayed. Two writers of
+one field, only one of which has a version to check against, is the defect; the
+repository now owns the sidecar's **lifecycle** and none of its content, and
+`PlanGeometrySidecar` is the single writer of `calibration`. A note update no longer
+opens the sidecar at all, so a plan whose geometry file went missing can still be
+renamed.
+
+The first pass had also added a test pinning that clobber as intended behaviour
+("saving a plan whose calibration is null clears a sidecar calibration that exists").
+Covering a branch is not the same as asking whether the branch should exist.
+
 ## Testing Strategy
 
 Unit — domain, no Obsidian/Vue/Konva (ADR-006):
@@ -618,33 +659,34 @@ the sidecar unchanged.
 
 ## Definition of Done
 
-- [ ] `Calibration` and its validation live in the `plan` domain module (§78),
+- [x] `Calibration` and its validation live in the `plan` domain module (§78),
       self-contained: value object, errors, no framework dependency (ADR-006).
-- [ ] `CalibrateTool` implements slice 6's `EditorTool` exactly, reads only
+- [x] `CalibrateTool` implements slice 6's `EditorTool` exactly, reads only
       `event.worldPoint` (never `event.screenPoint`, never its own pixel math), and
       never calls `screenToWorld()` itself — that conversion already happened before
       the event reached the tool (ADR-009).
-- [ ] Undoing a calibration refuses when anything changed the plan's sidecar in between
+- [x] Undoing a calibration refuses when anything changed the plan's sidecar in between
       — `plan-geometry.revision-conflict` for another writer, and
       `plan-geometry.external-modification` for a hand edit that left the revision
       alone. Asserted by moving a Zone between the calibration and its undo, and
       separately by editing the `.rpgeo` file out of band, checking each time that both
-      the intervening change and the calibration survive intact. Watched failing with the
-      expectation removed — under the per-plan lock alone the test's writes are perfectly ordered
-      and the undo still eats the move, which is the whole point.
-- [ ] `ReversibleCalibratePlanCommand` implements slice 6's `UndoableCommand`; one
+      the intervening change and the calibration survive intact.
+- [x] `ReversibleCalibratePlanCommand` implements slice 6's `UndoableCommand`; one
       `execute()` call is one persistence write and one undo/redo history entry (§31).
-- [ ] Marking two distinct points on an imported plan's background and supplying a
+      *(The interface is satisfied by `CalibrateTool`'s gesture wrapper around
+      `execute(input)`/`undo()` — an application class cannot name presentation's
+      `UndoableCommand`. See Interfaces & Contracts.)*
+- [x] Marking two distinct points on an imported plan's background and supplying a
       known real-world distance produces a `Plan` with a correctly derived,
       persisted `Calibration` — SDD Increment 5's success criterion, verified by a
       passing test, not just by inspection.
-- [ ] Coincident points and non-finite/non-positive distances are rejected via
+- [x] Coincident points and non-finite/non-positive distances are rejected via
       `Result`, never thrown (§26, §65).
-- [ ] A persisted `Calibration` measures its own `knownDistance`: the saved `pointA`
+- [x] A persisted `Calibration` measures its own `knownDistance`: the saved `pointA`
       and `pointB` are `scaleCorrection` apart from the picked ones, so
       `distance(pointA, pointB) === knownDistance` on read-back — including for the
       sidecar example above, which is a fixture people copy.
-- [ ] Recalibrating a Plan that already has persisted Zones rescales those Zones'
+- [x] Recalibrating a Plan that already has persisted Zones rescales those Zones'
       geometry in the same transaction as the calibration update, with a passing
       test proving it — not just documented as intent.
 - [ ] *(Requires slice 15; not part of Increment 5.* A Plan with spatial objects is by
@@ -660,17 +702,29 @@ the sidecar unchanged.
       than passing it by opening a dialog. `ReversibleCalibratePlanCommand` itself is
       unchanged by this: it rescales uniformly whether or not a dialog preceded it,
       since a script, a migration, and an undo/redo replay never open one.
-- [ ] Recalibration publishes `ZoneGeometryChanged` (never `RequirementInvalidated`
+- [ ] *(Requires slice 10; asserted at event-publication level until then.* This slice
+      publishes `ZoneGeometryChanged` and its tests assert exactly that publication;
+      what no test can yet drive is the subscriber on the other end, because slice 10
+      does not exist. When it arrives, extend the calibrate/undo tests to run its
+      `onZoneGeometryChanged` subscriber end to end (`markStale` → recalculation) and
+      to assert the undo round trip through to the persisted Requirement figures.*)
+      Recalibration publishes `ZoneGeometryChanged` (never `RequirementInvalidated`
       directly) for every rescaled object — proven by a test that this reaches slice
       10's `onZoneGeometryChanged` subscriber end to end, not just that some event
       fired.
-- [ ] `undo()` on a calibration command restores both the previous `Calibration` and
-      any geometry it had rescaled, and re-publishes `ZoneGeometryChanged` for every
-      object it un-rescaled — asserted through to the Requirement, so a
-      calibrate-then-undo round trip leaves every quantity and cost back at its
-      pre-calibration figures rather than describing areas that no longer exist.
-- [ ] All calibration unit and application tests run with Obsidian, Vue, and Konva
+- [ ] *(Requires slice 10; same deferral as above.)* `undo()` on a calibration command
+      restores both the previous `Calibration` and any geometry it had rescaled, and
+      re-publishes `ZoneGeometryChanged` for every object it un-rescaled — asserted
+      through to the Requirement, so a calibrate-then-undo round trip leaves every
+      quantity and cost back at its pre-calibration figures rather than describing
+      areas that no longer exist. *(The restore and the re-publish ARE tested; only the
+      through-to-the-Requirement leg waits for slice 10.)*
+- [x] All calibration unit and application tests run with Obsidian, Vue, and Konva
       absent from the test environment.
+
+*(Also deferred with slice 8's toolbar: nothing in the composition root registers
+`CalibrateTool` yet — the capability is proven by tests, and wiring is the first task
+that adds a tool UI.)*
 
 ## References
 

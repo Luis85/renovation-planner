@@ -110,16 +110,17 @@ export class Zone {
 		};
 	}
 
-	// PRD §8's "a Zone can expose derived length and area": public domain API whose first
-	// consumer is slice 9's quantity engine / slice 8's inspector, so nothing in src/
-	// calls either yet. Suppressed here rather than deleted — deleting them is how a
-	// declared capability rots.
+	// PRD §8's "a Zone can expose derived length and area": public domain API. `area()`'s
+	// first consumer is design slice 6's Inspector query (`GetZoneInspector`), so its
+	// suppression is removed — the condition its own comment named. `perimeter()` still
+	// has no consumer, so its suppression stays; see that method's own comment.
 	/** mm², computed on demand from geometry — never a stored field to keep in sync. */
-	// fallow-ignore-next-line unused-class-member
 	area(): Result<number, GeometryError> {
 		return polygonArea(this.geometry);
 	}
 
+	// Still unconsumed — nothing in src/ calls perimeter() yet. Suppressed here rather
+	// than deleted: deleting it is how a declared capability rots.
 	/** mm, computed on demand for the same reason. */
 	// fallow-ignore-next-line unused-class-member
 	perimeter(): Result<number, GeometryError> {

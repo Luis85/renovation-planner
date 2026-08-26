@@ -10,23 +10,30 @@ import {
 	type ScreenPoint,
 	type Viewport,
 } from '../editor/viewport/Viewport';
-
 /**
- * Slice 6 owns the tool vocabulary; this is the typed SLOT it fills, declared here so
- * that adding tools does not change this store's shape. Always `null` in this slice —
- * there is no `EditorTool` yet to be active.
+ * The vocabulary for `activeToolId` below — the typed SLOT for whichever `EditorTool` is
+ * active, so that adding tools does not change this store's shape. Always `null` today:
+ * nothing constructs a `ToolManager`, so nothing writes to that slot.
  *
- * NOT exported, and `DragState` below is the same: an export with no consumer is dead code
- * by this project's own gate (`npm run analyze`), and "slice 6 will want it" is exactly the
- * argument that gate refuses. Slice 6 exports it in the change that gives it a caller.
+ * Design slice 6's real union, IMPORTED rather than restated. This file used to declare a
+ * local `type ToolId = string` with a note saying slice 6 would export the union "in the
+ * change that gives it a caller" — slice 6 did export it (`editor-tool.ts`) and left the
+ * local alias standing, so `presentation/` briefly held two different types of that name
+ * for one concept. One import is the whole fix: a tool id this store can hold is now
+ * exactly one the framework can register.
  */
-type ToolId = string;
+import type { ToolId } from '../editor/tools/editor-tool';
 
 /**
- * A gesture in progress. This slice has exactly one — the camera pan — and slice 6 widens
- * the union with the tool gestures it introduces. The `kind` discriminator is here from
- * the start for that reason: a single-shape "drag state" would have to be replaced rather
- * than extended.
+ * A gesture in progress. There is exactly one today — the camera pan — and whichever slice
+ * ships a concrete tool that drags (slice 7's calibration, slice 8's zone editing) widens
+ * the union with its own. Slice 6 built the tool framework but no tool, so it added none.
+ * The `kind` discriminator is here from the start for that reason: a single-shape "drag
+ * state" would have to be replaced rather than extended.
+ *
+ * NOT exported: an export with no consumer is dead code by this project's own gate
+ * (`npm run analyze`), and "a later slice will want it" is exactly the argument that gate
+ * refuses.
  *
  * It holds the viewport the gesture STARTED from, not a running total, so a pan is
  * computed from the original camera and the total pointer displacement. Accumulating
@@ -44,8 +51,10 @@ type DragState = {
  * canonical: a Plan Editor closed and reopened resets all of it, which is why the SDD
  * gives no requirement to remember a per-plan camera across sessions.
  *
- * This slice defines the shape and drives only the viewport half; the rest is inert until
- * slice 6's tools start writing into it.
+ * This store defines the shape and drives only the viewport half; the rest is inert until
+ * a concrete tool starts writing into it. Slice 6 added the framework a tool plugs into
+ * (`EditorTool`, `ToolManager`, `CommandHistory`, `EditorContext`) and no tool, and wired
+ * none of it into the composition root, so nothing here gained a writer.
  */
 export const useEditorStore = defineStore('editor', () => {
 	const viewport = ref<Viewport>(DEFAULT_VIEWPORT);
@@ -101,17 +110,20 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
-	 * The four slots below are exposed and nothing reads them yet — §15's ephemeral
-	 * vocabulary, which design slice 5 states it defines the SHAPE of and slice 6's tools
-	 * are what write into. Suppressed rather than deleted, and rather than left to fail the
-	 * gate: this is the same case as `Zone.area()`/`Zone.perimeter()` in slice 3, where
-	 * deleting a declared capability because nothing calls it yet is how the declaration
-	 * rots. Each line is its own suppression so that slice 6 removes them one at a time as
-	 * it gives each slot a reader, instead of one blanket comment outliving all four.
+	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
+	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
+	 * is this ref — so the toolbar's active state and `PlanCanvas`'s tool-versus-camera
+	 * routing both come from here. It briefly had a second writer and a private copy beside
+	 * it: three places holding the active tool, the one this comment named as the consumer
+	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools
+	 * broadcast transients through `RenderState` (a reactive proxy over
+	 * `../editor/tools/render-state.ts`) instead, which is the reconciliation this file's
+	 * older notes anticipated: these two slots remain declared vocabulary awaiting a
+	 * reader, each with its own suppression so one can gain a consumer without the group
+	 * rotting as a block.
 	 */
 	return {
 		viewport,
-		// fallow-ignore-next-line unused-store-member
 		activeToolId,
 		// fallow-ignore-next-line unused-store-member
 		hoveredObjectId,

@@ -10,7 +10,7 @@ import type { Point } from '../../../core/geometry/Point';
  * contribution, built on slice 2's `Point`. This module is their ONE declaration in
  * `src/`: slice 6 imports them from here and defines none of them, because two
  * structurally identical brands type-check everywhere and guarantee nothing
- * (`tests/presentation/editor/viewport/declarations.test.ts` is what checks that,
+ * (`tests/presentation/editor/declarations.test.ts` is what checks that,
  * rather than this paragraph).
  *
  * **Rendering is not a caller.** Pan and zoom are the content `Group`'s own transform
@@ -26,7 +26,12 @@ export type { Point } from '../../../core/geometry/Point';
  * A coordinate in the stage's pixel space. Deliberately incompatible with `Point`,
  * which is always world millimetres: the two are the same shape and mean opposite
  * things, and a codebase that lets one be passed where the other is expected has no
- * coordinate system at all.
+ * coordinate system at all. The incompatibility runs both ways only because `Point`
+ * carries a phantom `__brand?: undefined` field of its own
+ * (`../../../core/geometry/Point.ts`) — without it, a value merely ADDING this
+ * `__brand` property would still satisfy `Point` structurally.
+ * `tests/presentation/editor/type-safety.test-d.ts` is what checks that, rather than
+ * this paragraph.
  */
 export interface ScreenPoint {
 	readonly x: number;
@@ -107,6 +112,22 @@ export function worldToScreen(point: Point, viewport: Viewport, dpr: number): Sc
 export function screenToWorld(point: ScreenPoint, viewport: Viewport, dpr: number): Point {
 	const scale = viewport.zoom * dpr;
 	return { x: point.x / scale + viewport.pan.x, y: point.y / scale + viewport.pan.y };
+}
+
+/**
+ * How many world millimetres one screen pixel spans at the current camera — the scalar
+ * every screen-sized tolerance is converted through (a vertex handle's grab radius, a
+ * click-versus-drag epsilon, a polygon's closing target).
+ *
+ * It lives HERE, beside the transform it inverts, because it is the same statement of the
+ * camera as `screenToWorld`: `1 / scale`, where `scale` is that function's own. Three
+ * tools derived it by hand before this existed — each projecting `(0,0)` and `(1,0)` back
+ * into world space and measuring the gap — which is both a third copy of the transform and
+ * a needless subtraction of two numbers dominated by `pan`, so a far-panned plan lost
+ * low-order bits of exactly the quantity being measured.
+ */
+export function worldPerScreenPixel(viewport: Viewport, dpr: number): number {
+	return 1 / (viewport.zoom * dpr);
 }
 
 /** What a Konva node's `x`/`y`/`scaleX`/`scaleY` config wants — plain numbers, no brand. */

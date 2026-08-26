@@ -30,8 +30,12 @@ Each of these is a stated non-goal or a load-bearing assumption, so none is a sm
 - **Multi-user.** §57 rules out cloud collaboration and §3.1 makes local-first a principle.
   A planner and a client both editing means concurrency, permissions and a merge story the
   vault model has none of.
-- **Cross-project work.** The [[Project]] is the root of the relationship model (§58) and the
-  project index (SDD §47) is scoped to one. A portfolio view is a second root.
+- **Cross-project work**, meaning *aggregation* across projects rather than a choice between
+  them. The [[Project]] is the root of the relationship model (§58) and the project index
+  (SDD §47) is scoped to one, so any number spanning two projects needs a second root. A vault
+  holding several projects does not: that is a listing surface, decided in
+  [[The vault holds many projects, and selecting one is not a portfolio]] and explicitly not a
+  reason to admit this actor.
 - **Liability.** §73 calls the tax model planning support and explicitly not accounting or
   tax advice; §57 rules out permitting and professional estimating suites. Someone billing
   from these numbers changes what the numbers have to be.

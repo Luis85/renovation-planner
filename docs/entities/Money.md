@@ -39,16 +39,25 @@ None. It is stored as part of whatever holds it — a [[Cost item]]'s amount, a 
 ## Rules
 
 - Decimal arithmetic throughout, with no float shortcut anywhere on the path (ADR-010).
+- **A Money is signed, and non-negativity belongs to fields rather than to the type.** A
+  budget, a unit price and a shipping charge cannot go below zero and are refused where each
+  is validated; a difference — spent minus budget — legitimately does, and its sign is the
+  answer [[Reporting and project cockpit]] exists to give. The module briefly enforced non-negativity on the
+  value type itself, which made "am I over budget" an error path exactly when the answer was
+  yes; `src/core/money/Money.ts`'s header carries the record of that reversal.
 - Amount and currency travel together. A bare number crossing a boundary is a currency waiting
   to be assumed.
 - §73's net / tax rate / tax amount / gross are four values, and the model keeps all four rather
   than storing one and recomputing the others at display time.
 - **Two roundings, and only the first belongs to the arithmetic.** A `Money` value is rounded
   once, where the cost pipeline finalizes it — `ROUND_HALF_UP`, to the currency's minor unit
-  (ADR-010) — and intermediate values keep full precision. Display formatting rounds again and
-  never feeds back (§71's separation, applied to money). An earlier version of this bullet said
-  rounding happens *at display, not in the arithmetic*, which read the second rounding as
-  replacing the first and contradicted ADR-010's *once, at the end*.
+  (ADR-010) — and intermediate values are never rounded to that minor unit before then. Narrower
+  than "keep full precision", which an earlier version of this bullet said: `decimal.js` still
+  rounds every operation to a configured number of significant digits (34, per ADR-010's
+  2026-08-25 revision), not an unbounded one. Display formatting rounds again and never feeds
+  back (§71's separation, applied to money). An earlier version of this bullet said rounding
+  happens *at display, not in the arithmetic*, which read the second rounding as replacing the
+  first and contradicted ADR-010's *once, at the end*.
 
 ## Business rules that reach this entity
 

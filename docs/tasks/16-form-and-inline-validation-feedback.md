@@ -108,6 +108,29 @@ dialog's fields work the same whether they render inside slice 15's modal contai
 a placeholder host built ahead of it; where slice 15 exists, this slice's forms are
 hosted inside it rather than defining their own overlay/backdrop/focus-trap.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass changed the Inspector's edit contract, in the
+direction this slice needs.
+
+- **`InspectorStore.commit` takes a DISCRIMINATED UNION, not a bag.** `InspectorEdit` is
+  declared beside `InspectorDto` in `inspector/inspector-store.ts` and is
+  `{ kind: 'delete'; zoneId: ZoneId }` today. `toCommand` is an exhaustive `switch` on
+  `kind` with no fallback: adding this slice's rename/status/field edits is a **compile
+  error at the mapper**, in the same edit that adds the field to the panel. That is the
+  whole point of the shape.
+- **`commit` no longer THROWS.** It took `Record<string, unknown>` and ended in
+  `throw new Error('No Inspector edit is mapped to a command yet.')`, called synchronously
+  from a non-async function — so an unmapped edit escaped the one call whose entire
+  contract is a `Result`, out of a Vue click handler as an unhandled rejection with no
+  notice, no error state and nothing logged. The second edit kind was what would have
+  fired it. It resolves a `Result` in every case now, which is what this slice's per-field
+  error state can be written against.
+- **The delete button is still the SDD 59 choke point**, and any new affordance goes
+  through the same `commit` -> `toCommand` -> decorated dispatcher path. A second dispatch
+  seam silently breaks the post-command refresh and the reactive undo/redo flags, and
+  nothing errors anywhere.
+
 ## Design
 
 ### Three kinds of validation feedback, and why field-level is its own thing

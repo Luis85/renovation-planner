@@ -140,6 +140,62 @@ describe('ProjectStore hydration', () => {
 		expect(seen).toEqual(['loading', 'loading']);
 	});
 
+	/**
+	 * Slice 8 gave `hydrate` a SECOND concurrent caller — the post-command refresh funnel,
+	 * alongside the plan-change listener, which `ProjectIndexRebuilt` fires on every leaf
+	 * regardless of which plan it touched. Two overlapping hydrations resolve in whatever
+	 * order the vault answers, and without a ticket the LAST assignment wins whether or not
+	 * it is the freshest: a just-drawn zone disappears from the canvas with no error.
+	 */
+	it('a SLOW earlier hydration does not overwrite a faster later one', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+
+		let releaseSlow!: () => void;
+		const slowGate = new Promise<void>((resolve) => {
+			releaseSlow = resolve;
+		});
+		const stalePlan = { ...FIXTURE_PLAN, name: 'the stale answer' };
+		const slow = store.hydrate(
+			queries({
+				getPlan: () => slowGate.then(() => ok(stalePlan)),
+				findZonesByPlan: () => Promise.resolve(ok([])),
+			}),
+			FIXTURE_PLAN.id,
+		);
+
+		// A second hydration starts and finishes entirely inside the first one's await.
+		const fresh = { ...FIXTURE_PLAN, name: 'the fresh answer' };
+		await store.hydrate(queries({ getPlan: () => Promise.resolve(ok(fresh)) }), FIXTURE_PLAN.id);
+		expect(store.plan?.name).toBe('the fresh answer');
+
+		releaseSlow();
+		await slow;
+
+		expect(store.plan?.name).toBe('the fresh answer');
+		expect(store.zones.size).toBe(FIXTURE_ZONES.length);
+	});
+
+	it('a reset invalidates a hydration still in flight', async () => {
+		// A leaf closing must not have the plan it was reading painted back a tick later.
+		const store = useProjectStore();
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const pending = store.hydrate(
+			queries({ getPlan: () => gate.then(() => ok(FIXTURE_PLAN)) }),
+			FIXTURE_PLAN.id,
+		);
+
+		store.reset();
+		release();
+		await pending;
+
+		expect(store.plan).toBeNull();
+		expect(store.status).toBe('idle');
+	});
+
 	it('is fully rebuildable — a reset returns it to its opening state', async () => {
 		const store = useProjectStore();
 		await store.hydrate(queries(), FIXTURE_PLAN.id);

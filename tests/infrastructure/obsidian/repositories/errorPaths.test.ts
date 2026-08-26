@@ -100,16 +100,21 @@ describe('plan repository failure branches', () => {
 		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.frontmatter-invalid');
 	});
 
-	it('an update fails when the calibration sync cannot read the sidecar', async () => {
+	it('an update touches no sidecar at all — a missing one does not fail a rename', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		const read = expectOk(await stack.plans.getById(planId));
 		stack.vault.entries.delete(sidecarPathOf(stack, planId));
-		const result = await stack.plans.save(
+
+		// This used to refuse: the save read the sidecar to sync the calibration field.
+		// Since the sidecar owns that field outright (slice 7's review pass), a note update
+		// has no reason to open the file — and renaming a plan whose geometry file went
+		// missing is not a rename failure. `getById` is what still reports the absence.
+		expectOk(await stack.plans.save(
 			makePlanEntity({ id: planId, projectId, name: 'Renamed' }),
 			read.version,
-		);
-		expect(expectErr(result).code).toBe('plan.sidecar-unreadable');
+		));
+		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.sidecar-unreadable');
 	});
 
 	it('a delete whose compensation also fails still reports the original failure and logs it', async () => {

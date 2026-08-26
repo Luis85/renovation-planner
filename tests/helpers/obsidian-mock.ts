@@ -35,6 +35,12 @@ export function getLanguage(): string {
 }
 
 /**
+ * Slice 11 reads this for the diagnostics snapshot's Obsidian version. A fixed string
+ * is what a fixed app reports; the plugin treats it as opaque text either way.
+ */
+export const apiVersion = '1.13.0';
+
+/**
  * The real `normalizePath`, and no kinder: it is what a path handed to the vault adapter
  * has to pass through, and a fake that returned its input unchanged would pass every
  * caller while the real call answered about a DIFFERENT path.

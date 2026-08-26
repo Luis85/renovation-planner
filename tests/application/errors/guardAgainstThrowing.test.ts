@@ -7,15 +7,16 @@ import type { Logger } from '../../../src/application/ports/Logger';
 import { CreatePlanCommand } from '../../../src/application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../../../src/application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
-import { CalibratePlanCommand } from '../../../src/application/commands/plan/CalibratePlan';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
+import { ReversibleCalibratePlanCommand } from '../../../src/application/commands/plan/ReversibleCalibratePlan';
 import { SetPlanBackgroundCommand } from '../../../src/application/commands/plan/SetPlanBackground';
 import { ReversibleSetPlanBackgroundCommand } from '../../../src/application/commands/plan/ReversibleSetPlanBackground';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { GetProject } from '../../../src/application/queries/GetProject';
 import { GetZone } from '../../../src/application/queries/GetZone';
+import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
 import { makePlan, makeProject, makeZone } from '../../helpers/entities';
 import type { PlanRepository } from '../../../src/application/ports/PlanRepository';
 import type { ProjectRepository } from '../../../src/application/ports/ProjectRepository';
@@ -93,18 +94,28 @@ function services(): Array<{ name: string; run: () => Promise<unknown> }> {
 				} as never),
 		},
 		{
-			name: 'CalibratePlanCommand',
+			name: 'ReversibleCalibratePlanCommand',
 			run: () =>
-				guardCommand(new CalibratePlanCommand(plans, events), 'command.calibratePlan.failed', logger, map).execute({
+				guardCommand(
+					new ReversibleCalibratePlanCommand(plans, rejecting('sidecar'), events),
+					'command.calibratePlan.failed',
+					logger,
+					map,
+				).execute({
 					planId: plan.id,
 					pointA: { x: 0, y: 0 },
 					pointB: { x: 10, y: 0 },
 					knownDistance: 1000,
-				}),
+				} as never),
 		},
 		{
 			name: 'DeleteZoneCommand',
 			run: () => guardCommand(new DeleteZoneCommand(zones, events), 'command.deleteZone.failed', logger, map).execute({ zoneId: zone.id }),
+		},
+		{
+			name: 'GetZoneInspector',
+			run: () =>
+				guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map).execute({ zoneId: zone.id }),
 		},
 		{
 			name: 'MoveSpatialObjectCommand',

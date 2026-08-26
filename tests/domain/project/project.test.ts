@@ -45,6 +45,37 @@ describe('Project.create', () => {
 		expect(project.locationDescription).toBe('Ground floor');
 	});
 
+	it('rejects a NEGATIVE budget or contingency, naming which field it refused', () => {
+		// `Money` is signed — a variance legitimately goes below zero — so the entity that
+		// owns these two fields is what refuses one here. This is the boundary every path
+		// into a Project passes through: `CreateProjectCommand` and the persistence mapper
+		// both construct through `Project.create`.
+		const negative = expectOk(createMoney('-1', 'EUR'));
+		const budgetError = expectErr(
+			Project.create({ id: createProjectId(), name: 'Kitchen', budget: negative }),
+		);
+		expect(budgetError.category).toBe('Validation');
+		expect(budgetError.code).toBe('project.negative-amount');
+		expect(budgetError.message).toContain('budget');
+
+		const contingencyError = expectErr(
+			Project.create({ id: createProjectId(), name: 'Kitchen', contingency: negative }),
+		);
+		expect(contingencyError.code).toBe('project.negative-amount');
+		expect(contingencyError.message).toContain('contingency');
+	});
+
+	it('accepts a ZERO budget, which is a stated budget of nothing rather than an absent one', () => {
+		const project = expectOk(
+			Project.create({
+				id: createProjectId(),
+				name: 'Kitchen',
+				budget: expectOk(createMoney('0', 'EUR')),
+			}),
+		);
+		expect(project.budget?.amount).toBe('0');
+	});
+
 	it('rejects an empty or whitespace-only name', () => {
 		for (const name of ['', '   ']) {
 			const error = expectErr(Project.create({ id: createProjectId(), name }));

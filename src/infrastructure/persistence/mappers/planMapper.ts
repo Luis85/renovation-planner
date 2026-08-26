@@ -2,6 +2,7 @@ import type { CalculationError, ValidationError } from '../../../core/errors/App
 import type { Result } from '../../../core/result/Result';
 import { Plan } from '../../../domain/plan/Plan';
 import { PlanFrontmatterSchemaV1, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
+import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 
 /**
@@ -53,7 +54,11 @@ function fromDto(
 	if (calibration === null || calibration === undefined) {
 		return constructed;
 	}
-	return constructed.value.withCalibration(calibration);
+	// Annotated rather than chained off `.value`: fallow resolves a class member through an
+	// explicit type annotation, and this is the ONE caller of `withCalibration` now that the
+	// entity no longer derives its own calibration — a property access here reads as dead.
+	const plan: Plan = constructed.value;
+	return plan.withCalibration(calibration);
 }
 
 export function planFromPersistence(
@@ -63,4 +68,33 @@ export function planFromPersistence(
 	const parsed = parsePersisted(PlanFrontmatterSchemaV1, raw, 'plan.frontmatter-invalid', 'Plan note');
 	if (!parsed.ok) return parsed;
 	return fromDto(parsed.value, calibration);
+}
+
+/**
+ * Calibration's sidecar DTO ↔ domain value. The shapes are field-for-field identical by
+ * design (ADR-002: the sidecar stores what the entity holds), which is exactly why the
+ * conversion is written down rather than spread by hand: `planFromPersistence` reads it
+ * beside this function, and `ObsidianPlanGeometrySidecar` — the one WRITER of the field —
+ * lowers it back.
+ */
+export function calibrationToPersistence(
+	calibration: NonNullable<Plan['calibration']>,
+): PlanGeometryDTO['calibration'] {
+	return {
+		pointA: { x: calibration.pointA.x, y: calibration.pointA.y },
+		pointB: { x: calibration.pointB.x, y: calibration.pointB.y },
+		knownDistance: calibration.knownDistance,
+		pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
+	};
+}
+
+export function calibrationFromPersistence(
+	dto: NonNullable<PlanGeometryDTO['calibration']>,
+): NonNullable<Plan['calibration']> {
+	return {
+		pointA: { x: dto.pointA.x, y: dto.pointA.y },
+		pointB: { x: dto.pointB.x, y: dto.pointB.y },
+		knownDistance: dto.knownDistance,
+		pixelsPerWorldUnit: dto.pixelsPerWorldUnit,
+	};
 }

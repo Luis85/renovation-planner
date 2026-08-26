@@ -1,7 +1,7 @@
 import { err, ok, type Result } from '../../core/result/Result';
 import type { CalculationError, ValidationError } from '../../core/errors/AppError';
 import type { ProjectId } from '../project/ProjectId';
-import { createCalibration, validateCalibration, type Calibration, type CreateCalibrationInput } from './Calibration';
+import { validateCalibration, type Calibration } from './Calibration';
 import { PLAN_BACKGROUND_KINDS, type PlanBackgroundRef } from './PlanBackgroundRef';
 import { planError } from './Plan.errors';
 import type { PlanId } from './PlanId';
@@ -58,7 +58,8 @@ interface PlanFields {
 /**
  * A floor plan belonging to exactly one Project (PRD §59). Immutable; `projectId` is set
  * once at creation and no command moves a Plan between Projects. Calibration starts
- * `null` until a `CalibratePlanCommand` succeeds.
+ * `null` and is read out of the geometry sidecar — `ReversibleCalibratePlanCommand`
+ * writes it there, never through this entity.
  */
 export class Plan {
 	readonly id: PlanId;
@@ -120,6 +121,15 @@ export class Plan {
 		return ok(new Plan({ ...this.fields(), background }));
 	}
 
+	/**
+	 * READ-path only: what `planFromPersistence` merges out of the geometry sidecar, the
+	 * one file that owns this field. There is deliberately no `calibrate()` beside it —
+	 * a Plan cannot derive its own calibration, because deriving one means rescaling every
+	 * spatial-object coordinate in the same transaction, which is
+	 * `ReversibleCalibratePlanCommand`'s whole job and nothing an immutable entity can do
+	 * to files it cannot see. Re-validated here anyway: a hand-edited sidecar reaches this
+	 * door, and the sidecar's Zod schema checks shapes, not the relationships between them.
+	 */
 	withCalibration(
 		calibration: Calibration,
 	): Result<Plan, ValidationError | CalculationError> {
@@ -128,19 +138,6 @@ export class Plan {
 			return checked;
 		}
 		return ok(new Plan({ ...this.fields(), calibration }));
-	}
-
-	/**
-	 * Derives and stores the calibration in one step — what `CalibratePlanCommand`
-	 * actually calls, so a calibration cannot be validated twice through two different
-	 * doors.
-	 */
-	calibrate(input: CreateCalibrationInput): Result<Plan, ValidationError | CalculationError> {
-		const calibration = createCalibration(input);
-		if (!calibration.ok) {
-			return calibration;
-		}
-		return this.withCalibration(calibration.value);
 	}
 
 	private fields(): PlanFields {

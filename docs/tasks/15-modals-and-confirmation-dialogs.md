@@ -141,6 +141,33 @@ the user cannot see what they are about to lose before it happens.
 - PRD §64 (Deletion Semantics) and PRD §39 (User Experience Requirements) — the two
   PRD sections this slice's design derives from directly.
 
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass made one of this slice's preconditions real and
+left one piece of wiring for it.
+
+- **`EditorContext.activePlan.calibration` is a REAL value now**, which it was not when
+  slice 7 wrote the dialog it hands to this slice. It was a hard-coded `null` behind a
+  field `EditorContext` declares as the plan's calibration, so any tool reading it saw
+  "uncalibrated" on every calibrated plan, with the type satisfied and no gate able to see
+  it. `PlanDto` carries the field now and the tool context is rebuilt per activation.
+  Note what this does and does not change: slice 7's confirmation triggers on the plan
+  already having **spatial objects**, not on it already having a calibration, so the
+  TRIGGER is unaffected. What the real value buys is the dialog's CONTENT — a
+  recalibration prompt can state the scale being replaced instead of describing the change
+  in the abstract.
+- **`CalibrateTool` is registered NOWHERE, and this slice is the natural place to finish
+  it.** Slice 7 built the tool, the reversible command and the sidecar port; slice 8's
+  toolbar shipped without it, so no user can calibrate a plan and every area the Inspector
+  prints is background pixels relabelled as millimetres at the placeholder scale of 1.
+  What is missing is two things: a row in `EditorToolbar.vue`'s `MODES` table, and a real
+  `supplyKnownDistance` — a `KnownDistanceSupplier` that asks the user for the measured
+  length. That prompt is a modal, which is this slice.
+- **The toolbar is a DATA table now.** `MODES` is a
+  `readonly { id: ToolId | null; label: StringKey }[]` rendered by one `v-for`; a new mode
+  is a row, and the label key stays type-checked. It was three near-identical ten-line
+  `<button>` blocks, each repeating its own id in three places.
+
 ## Design
 
 ### `DialogStore` and the Promise-based open API

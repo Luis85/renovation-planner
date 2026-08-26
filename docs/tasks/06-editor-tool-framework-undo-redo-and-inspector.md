@@ -4,9 +4,9 @@ parent: "[[Plan editor and canvas]]"
 order: 20
 dependsOn:
   - "[[05-canvas-rendering-and-editor-shell]]"
-status: ""
-started: ""
-finished: ""
+status: Done
+started: 2026-08-24
+finished: 2026-08-25
 horizon: ""
 start: ""
 due: ""

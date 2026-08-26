@@ -206,6 +206,16 @@ only far enough to make `Plan` a complete, testable in-memory entity. Slice 7
 semantics, and upgrading `CalibratePlanCommand` to `UndoableCommand` once slice 6's
 undo/redo exists — the same pattern slice 8 uses for the Zone commands below.
 
+> **Superseded by slice 7 (2026-08-25).** "Upgrading" turned out to mean REPLACING:
+> `ReversibleCalibratePlanCommand` derives a calibration whose own points measure their
+> `knownDistance` and rescales every spatial object in the same conditional write, and
+> `CalibratePlanCommand`, `Plan.calibrate` and `createCalibration` were deleted rather
+> than kept alongside it — two derivations answering differently, with nothing choosing
+> between them. What survives from this slice is the READ path: `Plan.calibration`,
+> `Plan.withCalibration` and `validateCalibration`, now filled in from the geometry
+> sidecar rather than by any command on this entity. Everything below is the record of
+> what this slice delivered, and was true when it was written.
+
 **Zone** (PRD §8):
 
 | Property | Type | Notes |

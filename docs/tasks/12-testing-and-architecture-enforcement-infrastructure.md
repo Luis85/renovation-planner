@@ -63,6 +63,7 @@ noticed.
 - Architecture Test Rules: the automated layer-boundary checks and their CI wiring
   (§76), and the planted-violation meta-tests proving each one actually fires.
 - The Architecture Completion Criteria (§92) reproduced as the phase-level exit gate.
+- Smoke Tests under docs/tests for manual testing inside the Vault on items we can't automate
 
 ### Out of scope (covered by other slices)
 
@@ -112,6 +113,39 @@ Specific ties:
 - Slice 1 (Composition Root) again, for the tooling decision this slice inherits rather
   than remakes: ESLint `no-restricted-imports`, no `dependency-cruiser`.
 - ADR-010 (Decimal Money Arithmetic) — why the Money unit category exists at all.
+
+### Carried forward from the slice 8 review pass (2026-08-25)
+
+The slice 8 review pass added shared rigs and one instrument this slice
+should know about, and produced one rule worth mechanizing.
+
+- **Two shared test rigs now exist, and neither should be re-hand-rolled.**
+  `tests/helpers/tool-context.ts` builds the `EditorContext` double every tool suite needs
+  (`toolContext`, `pointerAt`, `flushGesture`); three suites had built it from scratch and
+  two more carried a fourth and fifth viewport stub, so adding a member to `EditorContext`
+  meant the same edit in five files — and `tests/**` is not type-checked, so missing one
+  leaves that suite silently exercising the old shape. `tests/helpers/planEditorRig.ts`
+  mounts the real Plan Editor against in-memory repositories, shared by
+  `zoneEditing.test.ts`, `canvasPointerRouting.test.ts` and `editorFaults.test.ts`.
+- **The tool-context camera is a REAL scale, not an identity projection.** Every
+  hand-rolled stub was `(point) => point`, so no tool test ever exercised a non-unit
+  camera — which is exactly the arithmetic two shipped tolerance defects lived in.
+- **`FakeVault.operations` records every vault operation as `<op>:<path>`.** It is the
+  instrument for asserting how MANY reads a repository call costs — a count is otherwise
+  invisible, because a correct answer arrives either way. `listByPlan` re-read and
+  re-validated the whole plan geometry sidecar once per zone (O(N) reads, O(N^2) point
+  validations) with every test green throughout.
+- **A rule this slice could mechanize: a simulated event stream must obey the real input
+  device's grammar.** A click is down+up on the same button, a drag is down/move/up, and
+  a pointer can be taken away with no up at all (`pointercancel`). Rigs that sent bare
+  `pointerdown`s certified Escape-cancels-drawing against a state no mouse can reach —
+  twice, the second time in the same file whose own helper comment forbids it. A lint rule
+  or a rig-level assertion would hold where a comment did not.
+- **A `duplicate-exports` finding is not answered by `ignoreExports`.** That key suppresses
+  UNUSED exports; pointing it at a name collision silenced a rule that was correctly
+  firing and made the dead-export gate blind to those two names for two slices. The fix
+  was to remove the collision (the Vue `EditorContext` became `PlanEditorContext`). When a
+  suppression does not name the finding, it is the wrong suppression.
 
 ## Design
 

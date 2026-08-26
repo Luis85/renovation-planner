@@ -18,8 +18,116 @@ a ribbon button and a command, and still draws an empty root. The **Plan editor*
 per-plan (several leaves coexist, keyed by a plan id in Obsidian's own view state) and is
 design slice 5: §60's five shell regions around a Konva stage of §17's seven layers, the
 persisted Zones of one Plan rendered read-only, an image or PDF background, and a
-pan/zoom camera. Nothing on that canvas is editable — slice 6 adds the tools — and the one
-thing slice 5 writes is which document a Plan's background IS.
+pan/zoom camera. Nothing on that canvas is editable: design slice 6 built the tool
+framework underneath it — `EditorTool` and its switching lifecycle, `CommandHistory`
+undo/redo, the reversible move-zone command, transformer normalization, the snap service,
+the selection store and the Inspector's selection-to-DTO-to-command pipeline. Slice 7
+(Calibration) added the first concrete tool; slice 8 (Zone Editing) wired the framework
+into the editor for real — see the next section. The one thing slice 5 writes is which
+document a Plan's background IS.
+
+**Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
+are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
+`withEditorStateRefresh` decorator — is wired per leaf by `runtime.ts`, which is built
+inside the Vue tree (it hands out Pinia stores) and provided once per leaf. The toolbar
+offers Pan/Select/Draw-zone plus undo/redo; the Inspector panel shows the selection DTO
+and a Delete button that dispatches through `InspectorStore.commit`'s `toCommand` — the
+§59 choke point, not a second seam. The composition root now hands the view a
+`PlanEditorCommandServices` bundle (plain zone commands, the `ZoneRepository` port, the
+Inspector query) beside slice 5's queries; with settings unrecovered it is the refusal
+bundle, mirroring `unavailablePlanEditorQueries`. These rules came out of it and of the
+review pass that followed:
+
+- **The application-layer reversible adapters satisfy `UndoableCommand` structurally**
+  and cannot name it — the interface lives in `presentation/` and the layer ban holds.
+  Both adapters take the shared `WriteLedger`: **every WRITE records into it, restores
+  included, and every DELETE forgets the id** — a deleted note has no revision to remember,
+  and a stale entry outliving the note it described is presented as an expectation by
+  whatever touches that id next. The earlier spelling here was "every successful half
+  records", which two of its four subjects broke because they are deletes;
+  `application/editor/WriteLedger.ts` now states the rule once for all of them.
+- **Every dispatch funnels through ONE object per leaf** — the wrapped dispatcher that
+  `runtime.ts` hands to tools as `context.commandDispatcher` and to the toolbar and the
+  delete button alike. A dispatch that bypasses it silently breaks the post-command
+  refresh and the reactive undo/redo flags; nothing errors anywhere.
+- **Camera mode is "no active tool"**, exactly what slice 5 shipped (`ToolManager` grew
+  `clearActiveTool()` for it). A gesture abandoned with Escape clears through
+  `cancelGesture()`; a rejected close keeps the vertex buffer.
+- **A simulated pointer stream has to obey the real device's grammar, and so does the
+  ROUTING.** A click is down+up on the SAME button; a drag is down/move…/up; a pointer can
+  also be taken away with no up at all (`pointercancel`, which the browser fires when it
+  claims a touch gesture for scrolling). The canvas therefore filters `pointerdown` and
+  `pointerup` with the same button test — forwarding an unfiltered up while filtering the
+  down handed tools a release with no matching press, and `SelectTool` committed a
+  half-finished move for it — and every tool guards `event.button` itself, which is where
+  the invariant belongs. `styles/editor.css` sets `touch-action: none` so the gesture is not
+  stolen in the first place. `tests/presentation/editor/canvasPointerRouting.test.ts` drives
+  both streams.
+- **A screen-sized tolerance is converted through `worldPerScreenPixel()`**, the one
+  statement of the camera's inverse (`viewport/Viewport.ts`), reached by tools through
+  `EditorContext.viewport`. Three tools each derived it by projecting `(0,0)` and `(1,0)`
+  back through `screenToWorld` and subtracting — three copies of the transform, and a
+  subtraction of two numbers dominated by `pan`, so a far-panned plan lost low-order bits of
+  exactly the quantity being measured. The click-versus-drag epsilon applies to EVERY
+  gesture: applying it to body drags alone let a plain click on a vertex handle teleport
+  that vertex up to 80 mm and push a real move onto the undo stack.
+- **What the user sees and what the user can grab are two numbers in one module**
+  (`editor/handleMetrics.ts`), with the grab radius deliberately the larger. They were
+  declared independently, under the same name, with the values 8 and 4, and the comment on
+  the 8 described it as a diameter.
+- **A tool continuation that crosses an `await` re-checks whether its gesture is still its
+  own.** `DrawPolygonTool` and `CalibrateTool` both carry a `generation` counter bumped by
+  `activate`/`deactivate`/`cancel`; without it, Escape during an in-flight close let the
+  late success wipe the vertices of the polygon the user had started since and select the
+  zone they had cancelled out of.
+- **A THROWN fault is not "nothing happened".** SDD §65 reserves throws for technical
+  faults, and a write may well have landed before one — `withEditorStateRefresh` therefore
+  re-reads the stores on a rejection as well as on success, and re-throws unchanged.
+  `runtime.ts`'s `reportFault` is the last stop: every dispatch is ultimately bound to a
+  click handler that discards its promise, so without it a fault was an unhandled rejection
+  and that button silently stopped working.
+- **A store that two things hydrate needs a ticket.** `ProjectStore.hydrate` gained a second
+  concurrent caller in this slice (the refresh funnel, beside the plan-change listener that
+  `ProjectIndexRebuilt` fires on every leaf), and without a request ticket the slower
+  earlier read wins: a just-drawn zone vanishes with no error. `InspectorStore` already had
+  one; the two now match.
+- **A zone change reaches every leaf showing that plan** — `ZoneCreated`,
+  `ZoneGeometryChanged` and `ZoneDeleted` are in `planChangeSource`'s list. The refresh
+  decorator covers only the leaf that dispatched, which is every leaf right up until
+  something else writes a zone: a split leaf on the same plan, the sample seed, a synced
+  note.
+- **There is ONE `EditorContext`.** Slices 5 and 6 shipped two types under that name in
+  sibling directories, each with a "read carefully" paragraph and an aliased import at their
+  shared consumer; `npm run analyze` reported the pair as a duplicate export, correctly. The
+  Vue injection context is `PlanEditorContext` now (`PLAN_EDITOR_CONTEXT`,
+  `usePlanEditorContext`); the tool facade keeps the bare name, which is the SDD's.
+
+**Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`** — and it
+is still **unreachable in a vault after slice 8**, which is a defect rather than a plan.
+`registerEditorTools` registers `select` and `draw-polygon` and stops; the toolbar names
+Pan/Select/Draw-zone. So `CalibrateTool`, `ReversibleCalibratePlanCommand` and the sidecar
+port are proven by tests, wired to nothing, and no user can calibrate a plan — every area
+the Inspector prints is background pixels relabelled as millimetres at the placeholder
+scale of 1. Wiring it is a toolbar entry plus a `supplyKnownDistance` prompt; this sentence
+stays until one of those happens. (An earlier version said the toolbar "arrives with slice
+8", which stopped being true the moment slice 8 landed without it.) Two rules came out of
+its review pass and both are load-bearing:
+
+- **A `Calibration`'s two points are in the plan's CURRENT world units**, not the
+  background's pixel space. The two coincide only while the plan is uncalibrated and its
+  placeholder scale is `1`, which is why every comment that said "pixel space" read as
+  correct until the first recalibration. A calibration AT REST also measures its own
+  `knownDistance`: the command multiplies every world-unit coordinate for the plan by
+  `scaleCorrection`, its own pair included.
+- **The geometry sidecar owns `calibration`, and `PlanGeometrySidecar` is its only
+  writer.** `ObsidianPlanRepository` owns the sidecar's LIFECYCLE and none of its content;
+  `Plan.calibration` is read-only through it, merged in by `getById`. It used to sync the
+  field on every note save, and that was a lost update no gate could see — calibration is
+  not in the note, so a calibration landing in the sidecar never moved the note's revision
+  and an entity read before one still passed `checkExpectedVersion` afterwards. Slice 3's
+  plain `CalibratePlanCommand`, `Plan.calibrate` and `createCalibration` were deleted in
+  the same pass: they were a second derivation answering differently, and `docs/tasks/07`
+  claimed a supersession the first pass never performed.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
@@ -163,7 +271,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
-  is 99.7/98.6/99.8/99.8 and the floors sit a covered unit or more below each. The exact
+  is 99.7/98.8/99.8/99.8 and the floors sit a covered unit or more below each. The exact
   numbers, which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
@@ -326,7 +434,15 @@ a call site resolving the language wrongly is invisible to the suite, which is w
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
 nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
-only), so an `implements` there binds the editor, not the gate.
+only) **except one file**: `tests/presentation/editor/type-safety.test-d.ts` is named
+alongside `src/**` in `tsconfig.json`'s `include`, because slice 6's screen/world brand
+separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
+hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
+`npm run build` is the whole mechanism by which a compile-time proof exists here — a
+`// @ts-expect-error` that goes unenforced is just a comment. It carries both directions:
+what must NOT compile (the two brand mixes) and what must (the live Pinia store still
+satisfying that four-member contract). Outside that one file, an `implements` still binds
+the editor, not the gate.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
@@ -369,6 +485,16 @@ only), so an `implements` there binds the editor, not the gate.
   created". Making the fake refuse turned **86 tests** red. The lesson that generalises: when
   a fake stands in for something that ENFORCES a precondition, the fake has to enforce it
   too, or the precondition is only ever checked in production.
+  **Fourth instance, found by review rather than by a gate.** The slice 8 e2e rig drove
+  gestures with bare `pointerdown` events that no `pointerup` ever followed — a sequence
+  no mouse can produce, since a real click always delivers both. `ToolManager` clears its
+  in-flight flag on `pointerUp`, so between two vertices of a polygon the flag is false,
+  and Escape-cancels-the-drawing was certified by a test whose event stream never left
+  the state the flag models. The fix (cancelGesture reaches any active tool) is fine; the
+  lesson is about the RIG: a simulated event stream must respect the grammar of the real
+  input device — clicks are down+up pairs, drags are down/move…/up — and the rig now
+  spells them that way (`click()` in `zoneEditing.test.ts`), so the next gesture test
+  cannot accidentally model an impossible input.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`

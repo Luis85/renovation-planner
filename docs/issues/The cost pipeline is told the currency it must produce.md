@@ -90,10 +90,12 @@ declares `quantity`, `unitPrice`, `pricedPer?`, `discount?`, `shipping?`, `surch
 check against anything. Passing an EUR price where GBP is expected returns a successful EUR
 estimate today.
 
-So `docs/tasks/09-quantity-and-cost-engine.md` currently specifies a guarantee the code does
-not provide. That is the defect `CLAUDE.md` names — *write the guarantee to the check, never
-ahead of it* — and this note exists so the gap is tracked rather than resting in a contract
-nobody has read against the source.
+**Slice 9 no longer specifies otherwise, and that is deliberate.** A version of this branch
+did add `expectedCurrency` to that contract, which put a guarantee ahead of its code — the
+defect `CLAUDE.md` names — and it was withdrawn. So there is **no slice-9 promise to repair**:
+the pipeline as specified checks currency only among the monetary operands actually handed to
+it, which is exactly what it implements. What is missing is a *proposal*, carried here, not a
+contract violation to go and fix.
 
 The work is small and has an exact template beside it: **`pricedPer?` is the same shape** — an
 optional field whose own comment reads *"Omitted, no basis check runs"* — so `expectedCurrency`
@@ -132,20 +134,25 @@ rate and no date to read one at. [[Asset]] records that refusal.
 
 ## Consequences
 
-- `RecalculateRequirementCommand` reads the owning [[Project]]. Stated because an earlier
-  version of slice 10 claimed no new dependency was needed, which made the design look cheaper
-  than it is.
-- A Requirement pairing a Zone with an Asset priced in another currency is **created and then
-  fails to recalculate**, staying `recalculationStatus: "stale"` and visible in the Inspector,
-  without blocking its siblings.
-- Such a Requirement is not costable until the **per-project price override** exists, which
-  [[Asset library]]'s definition of done requires and no slice yet defines. That is a separate
-  gap, named in slice 10.
+These follow from the proposal *if it is adopted*, and none of them is settled today.
+
+- Something has to read the owning [[Project]] for its currency, so whichever command does
+  gains a dependency it does not have. Worth stating because an earlier draft claimed no new
+  dependency was needed, which made the design look cheaper than it is.
+- **What happens to a Requirement whose price is in another currency is undecided**, and
+  deliberately left so. An earlier draft said it is created and left `"stale"` — which
+  blocker 3 above rules out, since a non-optional `estimatedCost` gives such a Requirement no
+  value to be constructed with. Refusing before creation, a missing/error estimate
+  representation, and requiring the override up front are all still on the table; naming an
+  outcome here would be re-making the mistake this Issue exists to record.
+- Whatever is chosen interacts with the **per-project price override** that
+  [[Asset library]]'s definition of done requires and no slice defines. The two are not
+  separable: an override supplied at creation is also an answer to the question above.
 
 ## Revisit when
 
 The override lands and a project can supply its own price for a shared definition — at which
-point the question becomes whether a supplied override replaces `expectedCurrency`'s refusal or
+point the question becomes whether a supplied override replaces the proposed refusal or
 merely satisfies it.
 
 ## References

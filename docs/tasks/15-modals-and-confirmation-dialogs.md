@@ -620,18 +620,32 @@ async function onInspectorDeleteZone(
   return askThenDelete(zoneId, zoneName, relisted.value);
 }
 
+// `groups` rather than a flat id list: slice 10's `ListRequirementsReferencing` returns
+// referents grouped by project, because a shared Asset's referents may sit in projects
+// other than the one on screen (§59, amended 2026-08-26). A Zone target always yields
+// exactly ONE group — a Zone belongs to one Plan, which belongs to one Project — so this
+// flow renders one row as it always did; the shape is what lets the Asset flow render
+// several without a second query. Dispatch still takes a FLAT set: grouping is how the
+// referents are SHOWN, and the set consented to is their union.
 async function askThenDelete(
   zoneId: ZoneId,
   zoneName: string,
-  referents: readonly RequirementId[],
+  groups: readonly ReferencingProject[],
   isRetry = false,
 ): Promise<void> {
+  const referents = groups.flatMap((g) => g.requirementIds);
   const result: DeleteReferenceDialogResult = await dialogStore.openDialog({
     kind: 'delete-reference',
     entityLabel: zoneName,
     // Resolved by the caller from its own StringKey — the dialog renders rows, it does
     // not name entity types (see ReferenceRow in Interfaces & Contracts).
-    references: [{ label: t(lang, 'entity.requirement.plural'), count: referents.length }],
+    // One row per project. For a Zone that is always one row; the label carries the
+    // project name so the Asset flow's several rows are distinguishable, and a count with
+    // no project on it would read as "in the project I am looking at".
+    references: groups.map((g) => ({
+      label: `${t(lang, 'entity.requirement.plural')} — ${g.projectName}`,
+      count: g.requirementIds.length,
+    })),
   });
 
   if (result.action === 'cancel') return;

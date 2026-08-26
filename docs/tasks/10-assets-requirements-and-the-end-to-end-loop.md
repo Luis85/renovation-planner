@@ -392,16 +392,27 @@ currency (§72), and two projects may legitimately disagree; the shared definiti
 both reference holds one price. So an Asset priced in EUR can now be assigned to a Zone
 in a GBP project, which it could not be while catalogues were project-scoped.
 
-**That is caught at recalculation, not at assignment, and deliberately on the seam that
-already exists.** [[A mismatched unit or currency is an error, not a coercion]] is
-enforced by the cost pipeline, so `RecalculateRequirement` fails for that pair and the
-Requirement stays `recalculationStatus: "stale"` — never cleared, surfaced by the
-Inspector, and explicitly not allowed to block its siblings (see the cascade's error
-branch, which already says *one Asset's bad currency/unit must not block the others*).
-`AssignAssetCommand` keeps loading exactly two entities. Checking at assign time would
-mean reading the Project as well, for feedback the recalculation path already gives, and
-a project's currency is a setting the user may change afterwards — which would put the
-check on the wrong side of the fact it depends on.
+**That is caught in the cost pipeline, which owns the rule — but the pipeline had to be
+given the operand to catch it with.** [[A mismatched unit or currency is an error, not a
+coercion]] is enforced by `core/money`'s `add`/`subtract`/`compare`, and those refuse a
+mismatch *between two* `Money` values. On an initial calculation there is only one, the
+Asset's price, so nothing disagreed with it and the pipeline would have returned a
+well-formed estimate in the wrong currency and cleared the stale marker. Slice 9's
+`CostPipelineInput` therefore gains **`expectedCurrency`**, and `computeEstimatedCost`
+refuses before any arithmetic when `unitPrice.currency` differs from it.
+
+**So the Project is read, and this note previously claimed otherwise.** An earlier version
+of this paragraph said `AssignAssetCommand` keeps loading exactly two entities and that no
+new dependency was needed — which was wrong, and wrong in the direction that makes a
+design look cheaper than it is. Whichever end the check sits at, the project's currency
+has to reach the pipeline. It reaches it through the recalculation path: the Requirement
+is created, `RecalculateRequirement` supplies the owning Project's currency, and a
+mismatch leaves the Requirement `recalculationStatus: "stale"` — never cleared, surfaced
+by the Inspector, and explicitly not allowed to block its siblings (see the cascade's
+error branch, which already says *one Asset's bad currency/unit must not block the
+others*). Recalculation rather than assignment because a project's currency is a setting
+the user may change afterwards, and recalculation re-reads it while an assign-time refusal
+would sit on the wrong side of the fact it depends on.
 
 **What turns that stale Requirement into a usable one is a per-project price override,
 and this slice does not define one.** [[Asset library]]'s definition of done requires it —
@@ -717,7 +728,11 @@ Safety rules put the authority in the domain and the detection in the read model
 is that split, applied to one field.
 
 `RecalculateRequirementCommand` (named in SDD §29) re-fetches the current Zone
-and Asset, re-runs the pipeline above, saves the Requirement (quantity, cost, and
+and Asset — **and the owning Project, for its currency**, which slice 9's
+`CostPipelineInput.expectedCurrency` requires and which a shared Asset made necessary
+(§59, amended 2026-08-26): the price may arrive in a currency this project does not use,
+and the pipeline cannot detect that without being told what it should be. It re-runs the
+pipeline above, saves the Requirement (quantity, cost, and
 `recalculationStatus: "current"` together, one write), and publishes
 `RequirementRecalculated`. A second handler runs the Cost Pipeline off the
 freshly recalculated quantity and publishes `CostEstimateChanged`:
@@ -2205,9 +2220,16 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       `recalculationStatus: "stale"` while its sibling Requirements on the same Zone
       recalculate normally. Asserted end to end rather than at the command, because that
       is where the check lives: ownership stopped being a reason a pairing can be wrong,
-      currency became one, and the seam catching it is the cost pipeline's existing one.
-      The per-project price override that would make such a Requirement costable is not in
-      this slice — see "Sharing did create one new way for a pairing to be wrong".
+      and currency became one.
+- [ ] `RecalculateRequirementCommand` passes the owning **Project's** currency as
+      `CostPipelineInput.expectedCurrency`, asserted by a test that would pass without it:
+      an EUR Asset against a GBP Project must not produce a `"current"` Requirement
+      carrying a EUR estimate. Named as its own criterion because the failure mode is
+      silence — `add`/`subtract` refuse a mismatch between two `Money` values, and an
+      initial calculation has only one, so without this operand the pipeline succeeds and
+      is wrong. The per-project price override that would make such a Requirement costable
+      is not in this slice — see "Sharing did create one new way for a pairing to be
+      wrong".
 - [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
       covered by a fixture where one Asset is referenced from two Projects; the delete
       dialog renders a row per project. A bare total is refused by this test, because it
@@ -2260,8 +2282,9 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       `RequirementId`, and undo on the idempotent path — where the Requirement already
       existed — deletes nothing and preserves its overrides. Redo restores the ID but
       not the validity: it re-acquires both endpoint locks and re-runs
-      `AssignAssetCommand`'s existence, project and unit-kind checks against the
-      current entities, refusing rather than recreating a link that is no longer legal.
+      `AssignAssetCommand`'s existence and unit-kind checks against the current
+      entities, refusing rather than recreating a link that is no longer legal. There is
+      no project check left to re-run — an Asset has none (§59, amended 2026-08-26).
 - [ ] The adapter reads `created` from `AssignAssetResult`, never from its own
       pre-dispatch read: two adapters assigning the same (zone, asset) concurrently see
       `created: true` and `created: false` respectively, and the second's undo deletes

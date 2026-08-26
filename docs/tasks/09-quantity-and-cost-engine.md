@@ -418,6 +418,19 @@ interface DiscountRule {
 interface CostPipelineInput {
   readonly quantity: Quantity; // effective Purchase Quantity
   readonly unitPrice: Money;
+  // The currency the RESULT must be denominated in — the owning Project's (§72).
+  // `computeEstimatedCost` refuses with a `CalculationError` when `unitPrice.currency`
+  // differs from it, before any arithmetic.
+  //
+  // Added 2026-08-26, and it exists because §59 was amended: the Asset catalogue is
+  // shared across projects, so a price may legitimately arrive in a currency the project
+  // does not use. `add`/`subtract`/`compare` already refuse a mismatch BETWEEN two Money
+  // values — but on an initial calculation there is only one, the price, so nothing was
+  // there to disagree with it and the pipeline would return a well-formed estimate in the
+  // wrong currency. Naming the expected currency is what gives
+  // "a mismatched unit or currency is an error, not a coercion" a second operand at the
+  // one point it never had one.
+  readonly expectedCurrency: CurrencyCode;
   readonly discount?: DiscountRule;
   readonly shipping?: Money;
   readonly surcharge?: Money; // ADR-012 — additive with shipping, before tax

@@ -148,6 +148,14 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   `.rp-dialog-button-danger` at (0,1,0) lost and the destructive button rendered plain
   white. It is `.rp-dialog .rp-dialog-button-danger` now. jsdom never resolves `var()` to a
   colour, so the only instrument for this is a browser.
+- **A descriptor says what it is about IN WORDS, and may not lean on what is behind it.**
+  The panel is centred in its own pane and the pane is full of canvas, so the object being
+  asked about is usually underneath the question — measured in the harness, a calibration
+  confirmation covered the segment the user had just drawn. A content rule rather than a
+  positioning one on purpose: no alignment escapes it (top covers the zone captions, bottom
+  the status bar, right still crosses a third of the canvas), so moving the panel only
+  relocates what it hides. `KnownDistanceForm` printing the measured distance is what
+  compliance looks like; slice 10's delete flow is where it will matter most.
 - **A user-facing string in a dialog is resolved by the CALLER**, never by the dialog:
   `title`, `message`, `entityLabel` and every `ReferenceRow.label` arrive already through
   `t()`. Only the two label DEFAULTS are resolved inside the framework, from `StringKey`s —

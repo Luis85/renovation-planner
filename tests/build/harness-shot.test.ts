@@ -620,6 +620,28 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
+	 * EACH STATE IS PHOTOGRAPHED IN THE SCHEME ITS OWN CONTRAST IS WORST IN, which is the whole
+	 * reason the run is four index shots and not eight. So the scheme is part of what these shots
+	 * ARE, and it was a comment rather than a check until it was wrong: `index-focus` was taken in
+	 * dark, on the plausible-sounding reasoning that a dark background is harder to separate a
+	 * colour from. The ring is `--interactive-accent` on the nav's `--background-secondary`, which
+	 * measures 3.46:1 in dark and 3.17:1 in light — so a light-only regression toward 1.4.11's 3:1
+	 * floor was in the one state no capture held, and the numbers contradicting the comment were
+	 * already recorded in `styles/editor.css`.
+	 *
+	 * A source-text assertion, like its siblings above, and it pins the SCHEME only. That a given
+	 * scheme is the weaker one is a browser measurement no gate here can make — jsdom resolves no
+	 * `var()` to a colour — so what this can hold is that the choice was made deliberately and has
+	 * not silently flipped back.
+	 */
+	it('takes each index state in the scheme its own contrast is weakest in', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'index-focus'[^}]*theme=light/);
+		expect(source).toMatch(/name: 'index-failure'[^}]*theme=light/);
+	});
+
+	/**
 	 * `page.focus()` would leave the element focused and the ring UNDRAWN — `:focus-visible` is a
 	 * keyboard heuristic, so a programmatic focus produces a screenshot identical to the resting
 	 * one. That is the failure mode this whole addition exists to avoid, and it is invisible in

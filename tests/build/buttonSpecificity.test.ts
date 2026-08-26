@@ -290,6 +290,31 @@ const show = (selector: Selector): string =>
 		.join('');
 
 /**
+ * What the focus scan KEYS a branch by — the identity a flattening rule and its ring rule must
+ * share for the second to answer the first.
+ *
+ * A class-bearing subject is keyed by its classes, which is the right granularity: the same class
+ * flattened in one sheet and ringed in another is ringed. A subject that names no class of ours is
+ * keyed by its SHAPE — the selector with `:focus-visible` removed — because that is the only
+ * identity it has. `.rp-editor-toolbar button` and `.rp-editor-toolbar button:focus-visible` reduce
+ * to the same string; `.rp-editor-toolbar button:hover` does not, which is correct, since a hover
+ * outline is not a focus ring.
+ *
+ * Without this, a rule targeting our buttons by TYPE was in neither set: it flattened the host's
+ * shadow and was never asked for a replacement. The specificity check had already been widened to
+ * see a bare `button` subject (`targetsAButton`); this one had not, and its `seen` guard could not
+ * notice, because unrelated class-based rules keep that count non-zero.
+ */
+const focusKeys = (branch: Selector, classes: Set<string>): string[] => {
+	const onSubject = buttonClassesOn(branch, classes);
+
+	if (onSubject.length > 0) return onSubject;
+	if (!targetsAButton(branch, classes)) return [];
+
+	return [show(branch.filter((component) => !(component.type === 'pseudo-class' && component.kind === 'focus-visible')))];
+};
+
+/**
  * The button classes a stylesheet FLATTENS without giving back a ring, each mapped to where.
  *
  * Extracted so a fixture can drive it. The decision is per BRANCH and the branch is the whole
@@ -327,7 +352,7 @@ const flattenedWithoutRing = (
 					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
 				);
 
-				for (const cls of buttonClassesOn(branch, classes)) {
+				for (const cls of focusKeys(branch, classes)) {
 					if (ringsFocus && draws) ringed.add(cls);
 					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow says
 					// nothing about the resting state a ring is drawn on.
@@ -656,6 +681,35 @@ describe('every button rule against Obsidian\'s own', () => {
 		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([
 			'.rp-dialog-button',
 		]);
+	});
+
+	/**
+	 * A rule can target our buttons by TYPE and name no class of ours at all. Keyed by class, those
+	 * were in neither set — flattening the host's shadow and never asked for a replacement — and the
+	 * `seen` guard could not notice, because unrelated class-based rules keep that count non-zero.
+	 * They are keyed by SHAPE instead, which is the only identity such a subject has.
+	 */
+	it.each([
+		['flattens and never rings', '.rp-editor-toolbar button { box-shadow: none; }'],
+		[
+			'flattens and rings only on hover',
+			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:hover { outline: 2px solid red; }',
+		],
+		['a bare button subject', 'button { box-shadow: none; }'],
+	])('reports a type-targeted rule that %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toHaveLength(1);
+	});
+
+	// The ring rule reduces to the same shape as the rule that flattened, which is what makes the
+	// two answer each other. `:hover` above deliberately does not.
+	it.each([
+		[
+			'a ring on the same shape',
+			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:focus-visible { outline: 2px solid red; }',
+		],
+		['a bare button ringed', 'button { box-shadow: none; } button:focus-visible { outline: 2px solid red; }'],
+	])('says nothing about a type-targeted rule with %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([]);
 	});
 
 	// And stays silent on the shapes that genuinely ring, or the branch rule has become a refusal

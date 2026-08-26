@@ -126,15 +126,21 @@ const SHOTS = [
 	// stays four shots rather than eight:
 	//   - Rest, BOTH: the contrast failure existed only in light, and the picker's whole palette
 	//     is what these two are for.
-	//   - Focus, DARK: the ring is `--interactive-accent` and the dark background is the harder
-	//     of the two to separate it from.
+	//   - Focus, LIGHT: the ring is `--interactive-accent` on the nav's `--background-secondary`,
+	//     which measures 3.46:1 in dark and 3.17:1 in LIGHT — so light is the tighter of the two
+	//     against 1.4.11's 3:1 floor, and it is the scheme a regression would breach first. This
+	//     said dark, on the reasoning that a dark background is harder to separate a colour from.
+	//     That is a plausible sentence and it is not a measurement; the numbers were already in
+	//     `styles/editor.css` and disagreed with it. Re-measured in a real Chromium against the
+	//     vendored sheet to confirm, since the recorded pair was taken on the editor's surfaces
+	//     rather than on this one.
 	//   - Failure, LIGHT: `--text-error` measured 3.89:1 there against 4.27:1 in dark, which is
 	//     why that card's colour ended up decided by the light scheme.
 	{ name: 'index-dark', query: '?index', selector: HARNESS_INDEX },
 	{ name: 'index-light', query: '?index&theme=light', selector: HARNESS_INDEX },
 	// `focus` is what makes this shot differ from `index-dark` at all — see `focusForShot` for
 	// why it is reached with a Tab press rather than set programmatically.
-	{ name: 'index-focus', query: '?index', selector: HARNESS_INDEX, focus: `${HARNESS_INDEX} > nav li a` },
+	{ name: 'index-focus', query: '?index&theme=light', selector: HARNESS_INDEX, focus: `${HARNESS_INDEX} > nav li a` },
 	// An id no entry can have, so the index draws its failure card. Deliberately WITHOUT an
 	// `entry` field: that field means "wait for this entry to draw and report if it did not",
 	// which is the opposite of what this shot wants. With none, the wait is on the card's own

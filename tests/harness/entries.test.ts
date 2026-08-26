@@ -462,6 +462,28 @@ describe('registering entries on an app that already has globals', () => {
 		expect(refused).toEqual(['Transition']);
 	});
 
+	/**
+	 * A NATIVE element name, asked of Vue rather than of a list this file would have to keep.
+	 * `<button />` compiles to an element and never reaches the registry, so a mock named
+	 * `button.vue` would be registered, composed, and silently replaced by an empty native
+	 * button — with the stage marking itself ready over it.
+	 */
+	it.each([['button'], ['main'], ['circle']])('refuses %s, which Vue compiles as an element', (tag) => {
+		const app = createApp({ template: '<p>host</p>' });
+
+		expect(app.config.isNativeTag?.(tag), `Vue does not consider ${tag} native`).toBe(true);
+		expect(registerEntries(app, new Map([[tag, registrable(`prototype:${tag}`)]]))).toEqual([tag]);
+	});
+
+	// The other side of the same rule: capitalised is a perfectly good component name, and only
+	// the lowercase spelling is the one Vue resolves for itself.
+	it('registers the capitalised spelling of a native name', () => {
+		const app = createApp({ template: '<p>host</p>' });
+
+		expect(registerEntries(app, new Map([['Button', registrable('prototype:Button')]]))).toEqual([]);
+		expect(app.component('Button')).toBeDefined();
+	});
+
 	it('refuses a tag a plugin already holds, and registers the rest', () => {
 		const app = createApp({ template: '<p>host</p>' }).use(VueKonva);
 		const konvaStage = app.component('VStage');

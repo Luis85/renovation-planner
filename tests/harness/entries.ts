@@ -237,6 +237,13 @@ export function registrableComponents(entries: HarnessEntry[]): {
  * Worth saying that this is not merely a harness rule: a component named `Transition.vue` would
  * hit the same wall in `src/presentation/`, so a mock refused here is being told something true
  * about the name rather than something local to the index.
+ *
+ * **A NATIVE tag is the same defect and is not a list**, which is why it is not in this one:
+ * `button.vue` or `main.vue` compiles to an element, never a component lookup, so composing it
+ * would render an empty `<button>` and the stage would mark itself ready over the wrong screen.
+ * `app.config.isNativeTag` is Vue's own answer to that question — `runtime-dom` installs it —
+ * so the check below asks it rather than keeping a copy of HTML. Case matters and correctly so:
+ * `Button.vue` is a fine component name and only the lowercase spelling collides.
  */
 const VUE_BUILT_INS = new Set([
 	'Transition',
@@ -253,7 +260,7 @@ export function registerEntries(app: App, byTag: Map<string, HarnessEntry>): str
 	const refused: string[] = [];
 
 	for (const [tag, entry] of byTag) {
-		if (VUE_BUILT_INS.has(tag) || app.component(tag) !== undefined) {
+		if (VUE_BUILT_INS.has(tag) || app.config.isNativeTag?.(tag) === true || app.component(tag) !== undefined) {
 			refused.push(tag);
 			continue;
 		}

@@ -99,8 +99,24 @@ export function reseedFixture(): void {
 	// is not — every index entry needs a world in place before its first synchronous mount,
 	// not one that lands a tick later. What a component needs is the post-hydration STATE,
 	// which is this.
-	project.plan = HARNESS_PLAN;
-	project.zones = new Map(HARNESS_ZONES.map((zone) => [zone.id, zone]));
+	//
+	// **Deep COPIES, not the fixture objects themselves.** Pinia state is a deep reactive
+	// proxy, so a write through it — `useProjectStore().plan.name = 'x'`, a zone's
+	// `points[0].x` — lands on whatever object was assigned here. Assigning the module
+	// constants therefore let a prototype edit the source of truth: the mutation survived
+	// this reset, because the next call re-seeded the SAME, now-mutated, objects, and every
+	// later entry inherited it. That became reachable the moment a mock was allowed to carry
+	// a `<script setup>` and reach a store. `structuredClone` rather than a hand-written copy
+	// because these are plain data all the way down (`PlanDto`, `ZoneDto` and its `points`),
+	// and a hand-written one would need editing every time a nested field is added — the
+	// class of omission nothing here would notice.
+	//
+	// What this does NOT cover, stated rather than implied: the DTOs `harnessDeps()`'s
+	// queries answer with are still the module constants, so a prototype that mutates a zone
+	// it got back from the Inspector query — rather than one it read out of the store — still
+	// writes through. `planEditor.ts` owns that bundle; this function owns the store.
+	project.plan = structuredClone(HARNESS_PLAN);
+	project.zones = new Map(structuredClone(HARNESS_ZONES).map((zone) => [zone.id, zone]));
 	project.status = 'ready';
 
 	useEditorStore().reset();

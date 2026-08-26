@@ -227,3 +227,47 @@ describe('reseedFixture, on a dialog nobody closed', () => {
 		expect(useDialogStore().current).toBeNull();
 	});
 });
+
+/**
+ * The world a prototype can now WRITE to, which is new: a mock may carry a `<script setup>`,
+ * so it may call `useProjectStore()` and assign through it. Pinia's state is a deep reactive
+ * proxy over whatever object was seeded, so this is not a claim about the store's API — it is
+ * a claim about which objects that proxy is standing over.
+ *
+ * Watched failing with `structuredClone` removed, and ALL FOUR assertions red — measured
+ * with `expect.soft` rather than assumed from the first one to stop the case. Both the plan's
+ * `name` and the zone's `points[0].x` come back as the prototype's values, on the store side
+ * AND on the module constants, which is the two halves of the same fact: the re-seed put back
+ * the very objects the prototype had just edited, so "reproducible" was true only for an entry
+ * that happened to be the first one opened.
+ *
+ * The second half is the one a re-seed could never repair. `points[0].x` is there because a
+ * SHALLOW copy would leave it writing through while the `name` assertion went green.
+ */
+describe('reseedFixture, on a world the previous entry edited', () => {
+	it('puts back values a prototype wrote through the store, and never lets it edit the fixture itself', () => {
+		setActivePinia(seedFixture());
+
+		const project = useProjectStore();
+		const kitchen = HARNESS_ZONES[0];
+		if (project.plan === null || kitchen === undefined) throw new Error('the fixture seeded nothing to mutate');
+		const seededVertex = project.zones.get(kitchen.id)?.points[0];
+		if (seededVertex === undefined) throw new Error('the fixture seeded no kitchen');
+
+		// What a scripted mock reaching for the store would plausibly do: rename the plan it is
+		// drawing, and nudge a vertex. The second is the one a shallow copy would miss.
+		project.plan.name = 'Edited by a prototype';
+		seededVertex.x = 999;
+
+		reseedFixture();
+
+		expect(project.plan?.name).toBe('Ground floor');
+		expect(project.zones.get(kitchen.id)?.points[0]?.x).toBe(0);
+
+		// The half a re-seed cannot repair, and therefore the half worth guarding: the module
+		// constants every other consumer of this fixture reads — `harnessDeps`'s queries, the
+		// two cases at the top of this file — are still what they were declared as.
+		expect(HARNESS_PLAN.name).toBe('Ground floor');
+		expect(kitchen.points[0]?.x).toBe(0);
+	});
+});

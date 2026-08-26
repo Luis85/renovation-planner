@@ -2,9 +2,8 @@
 type: PBI
 parent: "[[Architecture and Software Design]]"
 order: 10
-status: Done
+status: Ready
 started: ""
-finished: 2026-08-25
 horizon: MVP
 start: ""
 due: ""

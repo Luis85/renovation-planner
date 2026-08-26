@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Selector } from 'lightningcss';
 import { alternativesOf, moreSpecific, show, specificityOf, stylesheetRules } from '../helpers/selectors';
 import { declarationsOf, drawsAnIndicator, indicatorOf } from '../helpers/indicators';
-import { buttonClasses, buttonClassesOn, sheets, subjectOf, targetsAButton } from '../helpers/buttonRules';
+import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, subjectOf, targetsAButton } from '../helpers/buttonRules';
 
 /**
  * FLATTENING A BUTTON TAKES ITS FOCUS RING WITH IT, and this file is the check for that.
@@ -66,7 +66,7 @@ interface FocusSite {
 	readonly conditions: Conditions;
 }
 
-const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean, condition: string): FocusSite[] => {
+const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
 	const subject = subjectOf(branch).filter(
@@ -90,30 +90,39 @@ const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean, co
 	if (onSubject.length > 0) return onSubject.map((key) => ({ key, conditions }));
 	if (!targetsAButton(branch, classes)) return [];
 
-	// A TYPE-TARGETED FOCUS RULE THAT DRAWS NOTHING COMPETES IN EVERY CLASS'S CASCADE, because it
-	// matches buttons wearing those classes too. Filed under its shape alone, a reset like
-	// `.rp-dialog.rp-dialog button:focus-visible { outline: none }` never met the ring it outranks —
-	// `.rp-dialog .rp-dialog-button:focus-visible` — and the two sat in separate cascades while the
-	// browser applied both to one element and picked the reset.
-	//
-	// ONLY WHEN IT REVOKES, and that condition was measured rather than reasoned. Letting every
-	// type-targeted focus rule join turned `.rp-editor-toolbar button:focus-visible { outline: … }`
-	// into a false positive against an unrelated `.rp-dialog-button`: it is the more specific of the
-	// two, so it WON that cascade, and then failed `covers` because its ancestors are not the class
-	// rule's — converting a correct arrangement into a report.
-	//
-	// A rule that draws can only ever ADD a ring, and adding is already handled: `covers` refuses to
-	// let `button:focus-visible` clear `.rp-dialog-button`, since `button` is not among that rule's
-	// conditions. A rule that draws NOTHING is the only one that can take a ring away, which is the
-	// case worth widening for.
-	//
-	// Flattening rules never join, for the same reason in reverse: filed under every class, a
-	// type-targeted suppression would demand that each class's ring answer for a rule that may not
-	// reach it.
-	const shape = { key: show(subject), conditions };
-
-	return revokes ? [shape, ...[...classes].map((key) => ({ key, conditions }))] : [shape];
+	return [{ key: show(subject), conditions }];
 };
+
+/**
+ * The cascade keys a REVOKING focus rule competes in, beyond the one it is filed under.
+ *
+ * A rule that draws can only ever ADD a ring, and `covers` already refuses to let it clear
+ * anything whose conditions it does not satisfy. A rule that draws NOTHING is the only one that
+ * can take a ring away, so it is the only one that needs to be heard in a cascade it was not
+ * filed under.
+ *
+ * TWO overlaps, and the difference between them is the whole reason this is not "every key".
+ *
+ * A bare `button` subject really does match every button, so a revoking type-targeted rule joins
+ * every class. `.rp-dialog-button-danger` does NOT match every `.rp-dialog-button`, so a revoking
+ * class-targeted rule joins only the classes some ONE BUTTON wears alongside it — which
+ * `buttonClassGroups` knows because it scans the markup a tag at a time. Joining every class there
+ * would let a danger reset beat an unrelated ring on specificity and report a button that is fine,
+ * which is round 23's over-correction in its class-versus-class form.
+ *
+ * FLATTENING SITES ARE NEVER WIDENED. A site belongs to the classes its subject actually wears;
+ * filed under a co-occurring class as well, an ordinary suppression would demand an answer from a
+ * cascade it has nothing to do with.
+ */
+const cascadeKeys = (
+	key: string,
+	classes: Set<string>,
+	groups: readonly ReadonlySet<string>[],
+	targetsType: boolean,
+): string[] =>
+	targetsType
+		? [key, ...classes]
+		: [...new Set([key, ...groups.filter((group) => group.has(key)).flatMap((group) => [...group])])];
 
 /**
  * Does a ring drawn under these conditions cover a button flattened under those?
@@ -156,6 +165,7 @@ const covers = (ring: Conditions, flattened: Conditions): boolean =>
 const flattenedWithoutRing = (
 	scanned: readonly (readonly [string, string])[],
 	classes: Set<string>,
+	groups: readonly ReadonlySet<string>[] = [],
 ): { readonly offenders: Map<string, string>; readonly seen: number } => {
 	// A LIST per key, not one site. The same class is flattened in as many places as the sheets
 	// flatten it, and `set` kept only the last: `.dialog-a .button { box-shadow: none }` followed by
@@ -235,7 +245,14 @@ const flattenedWithoutRing = (
 					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
 				);
 
-				for (const { key, conditions } of focusSites(branch, classes, ringsFocus && !draws, rule.condition)) {
+				for (const { key, conditions } of focusSites(branch, classes, rule.condition)) {
+					// A revoking rule is heard in every cascade it can REACH, not only the one it is filed
+					// under. `cascadeKeys` says which, and why the two overlaps differ.
+					const reaches =
+						ringsFocus && !draws
+							? cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0)
+							: [key];
+
 					if (ringsFocus) {
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
 						// says so and this call site said otherwise. `:where()` contributes ZERO, argument
@@ -244,8 +261,10 @@ const flattenedWithoutRing = (
 						// actually outranks it, and the flattened button was credited a ring the cascade never
 						// draws. Expansion answers WHICH elements a rule reaches; ranking is a separate question.
 						const specificity = specificityOf(selector);
-						const standing = ringed.get(key) ?? {};
-						const next = { ...standing };
+
+						for (const reached of reaches) {
+							const standing = ringed.get(reached) ?? {};
+							const next = { ...standing };
 
 						for (const [property, declared, important] of [
 							['outline', outline, importantOutline],
@@ -269,7 +288,8 @@ const flattenedWithoutRing = (
 							if (!beaten) next[property] = { important, specificity, draws: declared, conditions };
 						}
 
-						ringed.set(key, next);
+							ringed.set(reached, next);
+						}
 					}
 					// SUPPRESSING THE SHADOW IS A FLATTENING SITE WHEREVER IT HAPPENS, focus state included.
 					// Obsidian's ring for a button IS a `box-shadow` on `:focus-visible`, so
@@ -319,6 +339,17 @@ const flattenedWithoutRing = (
 };
 
 
+/**
+ * A fixture button set and its co-occurrence, so a case can say WHICH classes one element wears.
+ * The real project's shape: `.rp-dialog-button` and `.rp-dialog-button-danger` land on the same
+ * button, `.rp-editor-tool-button` on a different one.
+ */
+const BUTTONS = new Set(['.rp-dialog-button', '.rp-dialog-button-danger', '.rp-editor-tool-button']);
+const GROUPS: ReadonlySet<string>[] = [
+	new Set(['.rp-dialog-button', '.rp-dialog-button-danger']),
+	new Set(['.rp-editor-tool-button']),
+];
+
 describe('a flattened button and its focus ring', () => {
 	/**
 	 * FLATTENING A BUTTON TAKES ITS FOCUS RING WITH IT, and this is the check for that.
@@ -341,6 +372,7 @@ describe('a flattened button and its focus ring', () => {
 		const { offenders, seen } = flattenedWithoutRing(
 			sheets.map((sheet) => [sheet, readFileSync(sheet, 'utf8')] as const),
 			buttonClasses(),
+			buttonClassGroups(),
 		);
 
 		expect(offenders.values().toArray().flat().map((site) => site.where)).toEqual([]);
@@ -428,6 +460,13 @@ describe('a flattened button and its focus ring', () => {
 		// FOCUS state removes exactly the indicator this check protects. With no base rule to record
 		// a site, routing every focus rule into the cascade left nothing to report at all.
 		['a focus-state shadow reset with no replacement', '.rp-dialog-button:focus-visible { box-shadow: none; }'],
+		// ONE BUTTON, TWO CLASSES. `ConfirmDialog.vue` puts both on the same element, so the danger
+		// reset takes away the ring the base class draws — and filed under separate keys the two
+		// never met.
+		[
+			'a reset on a class the same button also wears',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button-danger:focus-visible { outline: none; }',
+		],
 		[
 			'a focus-state shadow reset whose replacement is scoped narrower',
 			'.rp-dialog-button:focus-visible { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; }',
@@ -490,7 +529,7 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
 		],
 	])('reports %s', (_case, css) => {
-		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([
 			'.rp-dialog-button',
 		]);
 	});
@@ -509,7 +548,7 @@ describe('a flattened button and its focus ring', () => {
 		],
 		['a bare button subject', 'button { box-shadow: none; }'],
 	])('reports a type-targeted rule that %s', (_case, css) => {
-		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toHaveLength(1);
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toHaveLength(1);
 	});
 
 	/**
@@ -527,7 +566,7 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar:focus-visible button { outline: 2px solid red; }',
 		],
 	])('reports %s', (_case, css) => {
-		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toHaveLength(1);
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toHaveLength(1);
 	});
 
 	/**
@@ -591,7 +630,7 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
 	])('says nothing about a type-targeted rule with %s', (_case, css) => {
-		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([]);
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
 	});
 
 	// And stays silent on the shapes that genuinely ring, or the branch rule has become a refusal
@@ -639,6 +678,12 @@ describe('a flattened button and its focus ring', () => {
 		],
 		// A focus rule that takes the shadow and gives an outline in the SAME block answers its own
 		// site — or "a focus suppression is a site" has become "no focus rule may touch box-shadow".
+		// A reset on a class NO shared button wears must not join — that is the round-23 over-correction
+		// in its class-versus-class form, and it would report a button whose ring is on screen.
+		[
+			'a reset on a class no shared button wears',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-editor-tool-button:focus-visible { outline: none; }',
+		],
 		[
 			'a focus-state shadow reset that draws an outline instead',
 			'.rp-dialog-button:focus-visible { box-shadow: none; outline: 2px solid red; }',
@@ -703,6 +748,6 @@ describe('a flattened button and its focus ring', () => {
 		// to demand a ring for.
 		['a suppression its own block overrides', '.rp-dialog-button { box-shadow: none; box-shadow: 0 0 0 3px red; }'],
 	])('says nothing about %s', (_case, css) => {
-		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([]);
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
 	});
 });

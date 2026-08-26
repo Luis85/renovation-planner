@@ -31,8 +31,14 @@ const filesUnder = (dir: string, ext: string): string[] =>
 const CREATE_WINDOW = 300;
 
 /**
- * Every `rp-*` class this project puts on a `<button>`, from the SOURCE rather than a list — and
- * from both ways a button is made here, which is the correction this function needed.
+ * The `rp-*` classes this project puts on a `<button>`, ONE SET PER BUTTON — from the SOURCE
+ * rather than a list, and from both ways a button is made here.
+ *
+ * Grouped rather than flattened because one button wears several: `ConfirmDialog.vue` and
+ * `DeleteReferenceDialog.vue` both put `.rp-dialog-button` and, conditionally,
+ * `.rp-dialog-button-danger` on the SAME element. A rule keyed on one and a rule keyed on the
+ * other therefore apply to one button and must compete, which a flat set of class names cannot
+ * express.
  *
  * It read Vue templates only, so `.rp-harness-scheme` — created in `tests/harness/theme.ts` with
  * `createEl('button', { cls: … })` — was in no class set, and every rule governing it went
@@ -40,10 +46,13 @@ const CREATE_WINDOW = 300;
  * reverting its doubled selector to the bare class AND deleting its focus ring left this file
  * green. A scan that names one authoring style silently exempts the other.
  */
-export function buttonClasses(): Set<string> {
-	const found = new Set<string>();
+export function buttonClassGroups(): ReadonlySet<string>[] {
+	const groups: Set<string>[] = [];
 	const add = (text: string) => {
+		const found = new Set<string>();
+
 		for (const [cls] of text.matchAll(/\brp-[\w-]+/g)) found.add(`.${cls}`);
+		if (found.size > 0) groups.push(found);
 	};
 
 	// `src/prototypes` as well as `src/presentation`. A mock is never shipped, but the sheet that
@@ -73,8 +82,16 @@ export function buttonClasses(): Set<string> {
 		}
 	}
 
-	return found;
+	return groups;
 }
+
+/**
+ * Every `rp-*` class this project puts on a `<button>`, as one set.
+ *
+ * Derived from the groups rather than scanned again, so the two cannot answer differently about
+ * what a button is.
+ */
+export const buttonClasses = (): Set<string> => new Set(buttonClassGroups().flatMap((group) => [...group]));
 
 /**
  * Every sheet that can style a button, IN THE ORDER A BROWSER LOADS THEM.

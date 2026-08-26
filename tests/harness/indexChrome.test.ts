@@ -145,6 +145,15 @@ const harnessRules = (css: string): { selector: Selector; properties: string[] }
 		rule.selectors.map((selector) => ({ selector, properties: rule.declarations.map((one) => propertyOf(one)) })),
 	);
 
+/** Is this branch's subject the page itself — one `body` or `html`, with nothing below it? */
+const isThePage = (branch: Selector): boolean => {
+	const compounds = compoundsOf(branch);
+
+	return (
+		compounds.length === 1 && (typeOf(compounds[0]) === 'body' || typeOf(compounds[0]) === 'html')
+	);
+};
+
 /** Does this rule declare anything that INHERITS past the element it was written for? */
 const inherits = (properties: readonly string[]): boolean =>
 	properties.some((property) => !STAGE_MAY_DECLARE.has(property));
@@ -255,8 +264,15 @@ const branchReachesTheStage = (branch: Selector, properties: readonly string[]):
 	// `theme.css`'s FIRST header rule already says every selector must name something the harness
 	// draws, with `body` as its single exception; that rule was enforced nowhere. It is enforced
 	// here, in the one place that is already reading every selector in the sheet.
-	return !namesTheHarness(branch) && (branch.some((component) => component.type === 'combinator') || inherits(properties));
+	// A selector naming no harness vocabulary is refused unless its subject can only be the PAGE
+	// ITSELF. `h2 { background-color: red }` needs no ancestor and no inherited property to restyle
+	// every heading in a mounted entry — it simply matches them — and a fallback asking for a
+	// combinator or an inherited property let it through. `body` is the sheet's one exception and it
+	// is exempt because of WHAT IT MATCHES: exactly one element, outside the stage. `height: 100%`
+	// being non-inheriting is why that exception is harmless, not why it exists.
+	return !namesTheHarness(branch) && !isThePage(branch);
 };
+
 
 
 const reachesTheStage = (selector: Selector, properties: readonly string[] = []): boolean =>
@@ -330,6 +346,11 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a selector rooted above the harness', 'body h2 { color: red; }'],
 		['a selector rooted at the document', 'html .rp-entry-title { text-transform: uppercase; }'],
 		['a bare type selector', 'h2 { color: red; }'],
+		// No ancestor, no combinator, no inherited property — and it restyles every heading in every
+		// mounted entry, because it simply MATCHES them. The fallback asked for a combinator or an
+		// inherited property and this has neither.
+		['a bare type selector with a non-inherited property', 'h2 { background-color: red; }'],
+		['a bare class selector from outside the harness', '.rp-entry-title { border: 1px solid; }'],
 		// Harness chrome mentioned only inside `:has()`. The subject is `h2` under `body`, so this
 		// matches whenever the picker exists and restyles every heading in every entry — and a
 		// substring test on the rendered selector found the class and called it harness-scoped.

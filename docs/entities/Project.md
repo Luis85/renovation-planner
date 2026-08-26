@@ -54,14 +54,21 @@ the one entity whose filename is fixed while every other is derived from its nam
 
 ## Relationships
 
-- Owns [[Plan]], [[Construction section]], [[Work package]], [[Asset]], [[Supplier]],
-  [[Document]] — 0..n each (§59).
+- Owns [[Plan]], [[Construction section]], [[Work package]] and [[Document]] — 0..n each (§59).
+- **References, and does not own,** the three shared catalogues: [[Asset]], [[Supplier]] and
+  [[Trade]] (§59, amended 2026-08-26). They live in §36's `Library/`, are available to every
+  project, and carry no project id.
 - Owns at most one [[Site]], which is where the physical hierarchy starts.
 - Defines the currency every [[Money]] value in it is denominated in (§72).
 
 ## Rules
 
-- Every other entity resolves to exactly one project. There is no cross-project reference.
+- Every unit of *work* resolves to exactly one project, and between two projects' work there is no
+  reference. The catalogues are the exception and belong to no project at all — both halves are
+  [[Work belongs to one project, catalogues belong to the vault]].
+- What a project does with a shared catalogue entry is still its own: a [[Requirement]], a
+  [[Quote]] line and a [[Cost item]] belong to the project that raised them, however widely the
+  [[Asset]] they name is shared.
 - The budget here is the top of the [[Cost item]] hierarchy (§10), not a number typed twice.
 - Deleting it is not a modelled operation — that is deleting the folder, which belongs to
   [[The vault]] and its owner.

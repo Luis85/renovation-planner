@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import type { Selector } from 'lightningcss';
-import { compoundHasClass, compoundsOf, stylesheetRules, typeOf } from '../helpers/selectors';
+import { alternativesOf, compoundHasClass, compoundsOf, stylesheetRules, typeOf } from '../helpers/selectors';
 import { afterEach, describe, expect, it } from 'vitest';
 import { entryShots } from '../../scripts/entryShots.mjs';
 import { openIndex } from './indexApp';
@@ -123,19 +123,8 @@ const harnessSelectors = (css: string): Selector[] => stylesheetRules(css).flatM
  * say — is not modelled. Nothing here is written that way and the rules that come close stop
  * above the stage.
  */
-const reachesTheStage = (selector: Selector): boolean => {
-	const compounds = compoundsOf(selector);
-
-	// The WHOLE relationship can live inside a functional pseudo — `:is(.rp-harness-index > main
-	// h2)` — where the compound carrying the root is also the last one, and every question below
-	// would read it as a root with nothing after it. Its arguments are asked the same question.
-	const nested = compounds.some((compound) =>
-		compound.components
-			.flatMap((component) => (component.type === 'pseudo-class' && 'selectors' in component ? component.selectors : []))
-			.some((argument) => reachesTheStage(argument)),
-	);
-
-	if (nested) return true;
+const branchReachesTheStage = (branch: Selector): boolean => {
+	const compounds = compoundsOf(branch);
 
 	let insideLeaf = false;
 
@@ -162,6 +151,17 @@ const reachesTheStage = (selector: Selector): boolean => {
 
 	return false;
 };
+
+const reachesTheStage = (selector: Selector): boolean =>
+	// `:is()` is EXPANDED first, so every question below is asked of a plain selector. The
+	// alternative — recursing into each pseudo's arguments and asking them the same question — reads
+	// as equivalent and is not: an argument answers about ITSELF, with no idea what follows the
+	// pseudo it sits in. `:is(main) h2` is the counter-example. Asked alone, `main` is a lone
+	// compound with nothing after it, so it answers "the stage, not descended past" — correct about
+	// the fragment and wrong about the selector, which reaches every `h2` in the mounted entry.
+	// Expansion rebuilds `main h2` and the ordinary walk answers it.
+	alternativesOf(selector).some((branch) => branchReachesTheStage(branch));
+
 
 /** A selector rendered back to text, so a failure names something a reader can grep for. */
 const show = (selector: Selector): string =>
@@ -218,6 +218,13 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a rule rooted at the stage element', 'main h2 { color: red; }'],
 		['a descendant of the whole page', '.rp-harness-leaf h2 { color: red; }'],
 		['a child of the page, then a descent', '.rp-harness-leaf > div h2 { color: red; }'],
+		// The stage reached through a pseudo. `typeOf` reads a compound's DIRECT components, so the
+		// pseudo hid the type from the outer walk; asking the argument on its own hid what followed
+		// the pseudo from the argument. Expansion is what sees both at once.
+		['a pseudo-wrapped stage element', ':is(main) h2 { color: red; }'],
+		['a pseudo-wrapped stage class', ':is(.rp-harness-stage) h2 { color: red; }'],
+		['a pseudo-wrapped stage among alternatives', ':is(.other, main) h2 { color: red; }'],
+		['a pseudo-wrapped leaf', ':is(.rp-harness-leaf) h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
 		expect(harnessSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});
@@ -244,6 +251,10 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['the stage element itself', 'main { flex: 1; }'],
 		['the growth chain', '.rp-harness-leaf > div > div:last-child { flex: 1; }'],
 		['the leaf itself', '.rp-harness-leaf { display: flex; }'],
+		// The same wrapping on a shape that does not descend must stay silent, or expansion has
+		// simply become a blanket refusal of every pseudo.
+		['a pseudo-wrapped stage, not descended past', ':is(main) { flex: 1; }'],
+		['a pseudo-wrapped scoped child', ':is(.rp-harness-index) > nav li a { color: red; }'],
 	])('says nothing about %s', (_case, css) => {
 		expect(harnessSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);
 	});

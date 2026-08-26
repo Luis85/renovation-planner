@@ -289,6 +289,65 @@ const show = (selector: Selector): string =>
 		})
 		.join('');
 
+/**
+ * The button classes a stylesheet FLATTENS without giving back a ring, each mapped to where.
+ *
+ * Extracted so a fixture can drive it. The decision is per BRANCH and the branch is the whole
+ * point of the function existing: asked of a rule, one selector's focus state was credited to
+ * every other selector sharing its declaration block. Driving it through the real stylesheets
+ * cannot show that — every button class in them already has a genuine `:focus-visible` rule, so
+ * a mis-credited one changes no answer. The defect is only visible on a sheet written to expose
+ * it, which is what the cases below supply.
+ */
+const flattenedWithoutRing = (
+	scanned: readonly (readonly [string, string])[],
+	classes: Set<string>,
+): { readonly offenders: Map<string, string>; readonly seen: number } => {
+	const flattened = new Map<string, string>();
+	const ringed = new Set<string>();
+
+	// Both sets span every sheet, because the two halves need not share one. A class flattened in
+	// `editor.css` and ringed in `dialogs.css` is ringed; scanning a sheet at a time would report it.
+	for (const [where, css] of scanned)
+		for (const rule of stylesheetRules(css)) {
+		const flattens = rule.declarations.some(
+			(declaration) => propertyOf(declaration) === 'box-shadow' && !drawsAnIndicator([declaration]),
+		);
+		const draws = drawsAnIndicator(rule.declarations);
+
+		// `:focus-visible` is asked of each BRANCH, never of the rule. Asked of the rule,
+		// `.rp-editor-tool-button:hover, .other:focus-visible { outline: 2px solid red }` marked the
+		// button ringed for an outline it only ever draws under the pointer. It ran the other way
+		// too — a selector list containing ANY `:focus-visible` could not record a flattening sibling
+		// at all, so `.a, .b:focus-visible { box-shadow: none }` lost `.a`. One rule-level boolean,
+		// two opposite errors, and the second one is the quieter of the two.
+		for (const selector of rule.selectors) {
+			for (const branch of alternativesOf(selector)) {
+				const ringsFocus = branch.some(
+					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
+				);
+
+				for (const cls of buttonClassesOn(branch, classes)) {
+					if (ringsFocus && draws) ringed.add(cls);
+					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow says
+					// nothing about the resting state a ring is drawn on.
+					else if (!ringsFocus && flattens) flattened.set(cls, `${where}: ${show(selector)}`);
+				}
+			}
+		}
+	}
+
+	const seen = flattened.size;
+
+	for (const cls of ringed) flattened.delete(cls);
+
+	// `seen` is every class this scan found flattened, ringed or not. The real-sheet case asserts it
+	// is non-zero: an empty offender list is equally true of a scan that found no buttons at all —
+	// the same trap `accessibility.test.ts` names for an `it.each` over an empty array — and this
+	// check has already been silently out of scope twice for exactly that reason.
+	return { offenders: flattened, seen };
+};
+
 describe('the instrument', () => {
 	it.each([
 		['button:not(.clickable-icon)', [0, 1, 1]],
@@ -559,34 +618,61 @@ describe('every button rule against Obsidian\'s own', () => {
 	 * own ring token by measuring both in a browser; the numbers are in `styles/editor.css`).
 	 */
 	it('gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring', () => {
-		const classes = buttonClasses();
-		const flattened = new Map<string, string>();
-		const ringed = new Set<string>();
+		const { offenders, seen } = flattenedWithoutRing(
+			sheets.map((sheet) => [sheet, readFileSync(sheet, 'utf8')] as const),
+			buttonClasses(),
+		);
 
-		for (const sheet of sheets) {
-			for (const rule of stylesheetRules(readFileSync(sheet, 'utf8'))) {
-				const focusRule = rule.selectors.some((selector) =>
-					selector.some((component) => component.type === 'pseudo-class' && component.kind === 'focus-visible'),
-				);
-				const flattens = rule.declarations.some(
-					(declaration) => propertyOf(declaration) === 'box-shadow' && !drawsAnIndicator([declaration]),
-				);
+		expect([...offenders.values()]).toEqual([]);
+		expect(seen).toBeGreaterThan(2);
+	});
 
-				for (const selector of rule.selectors) {
-					for (const cls of buttonClassesOn(selector, classes)) {
-						if (focusRule && drawsAnIndicator(rule.declarations)) ringed.add(cls);
-						// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow
-						// says nothing about the resting state a ring is drawn on.
-						else if (!focusRule && flattens) flattened.set(cls, `${sheet}: ${show(selector)}`);
-					}
-				}
-			}
-		}
+	/**
+	 * The real sheets cannot show this one, and that is the reason these cases exist rather than an
+	 * excuse for them: every button class in them already carries a genuine `:focus-visible` rule,
+	 * so a mis-credited one changes no answer there. The defect only appears on a sheet written to
+	 * expose it.
+	 *
+	 * Both directions of the same rule-level boolean. Crediting a sibling's focus state marks a
+	 * button ringed for an outline it draws only under the pointer; the same boolean read the other
+	 * way stopped a flattening selector being recorded at all, because a sibling in its list happened
+	 * to carry `:focus-visible`. The second is the quieter defect — it removes a finding rather than
+	 * adding a false one.
+	 */
+	it.each([
+		[
+			'a ring credited from a sibling selector',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:hover, .other:focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'a flattening selector beside a focused sibling',
+			'.rp-dialog-button, .other:focus-visible { box-shadow: none; }',
+		],
+		[
+			'a ring credited from a sibling inside :is()',
+			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button:hover, .other:focus-visible) { outline: 2px solid red; }',
+		],
+	])('reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([
+			'.rp-dialog-button',
+		]);
+	});
 
-		expect([...flattened].filter(([cls]) => !ringed.has(cls)).map(([, where]) => where)).toEqual([]);
-		// The set must not be empty, or this passes by scanning nothing — the same trap
-		// `accessibility.test.ts` names for an `it.each` over an empty array.
-		expect(flattened.size).toBeGreaterThan(2);
+	// And stays silent on the shapes that genuinely ring, or the branch rule has become a refusal
+	// of every selector list.
+	it.each([
+		['a ring of its own', '.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }'],
+		[
+			'a ring shared with a sibling',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible, .other:focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'a ring reached through :is()',
+			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button, .other):focus-visible { outline: 2px solid red; }',
+		],
+		['no flattening at all', '.rp-dialog-button { color: red; }'],
+	])('says nothing about %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([]);
 	});
 
 	/**

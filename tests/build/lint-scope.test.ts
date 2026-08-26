@@ -2,7 +2,8 @@ import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { REPO, lintedFiles } from '../helpers/oxlint';
-import { ESLINT_BOOT_MS, resolveConfig, warmUpEslint } from '../helpers/eslint';
+import ts from 'typescript';
+import { ESLINT_BOOT_MS, resolveConfig, severityOf, warmUpEslint } from '../helpers/eslint';
 
 /**
  * The whole argument for a second linter is the tree the first one cannot reach: the
@@ -107,5 +108,78 @@ describe('the ESLint test-file size budget', () => {
 		const config = await resolveConfig(path.join(REPO, file));
 
 		expect(config.rules['max-lines']).toEqual([2, { max: 450, skipBlankLines: true, skipComments: true }]);
+	});
+});
+
+/**
+ * The harness's own SFCs, and the two gates that did not reach them until this check existed.
+ *
+ * `tests/harness/IndexPage.vue` is the largest Vue file in the repository and the surface every
+ * prototype is viewed through, and it was outside BOTH: `tsconfig.json`'s `include` named
+ * `src/**\/*.vue` and one test file, and `eslint.config.mjs`'s `VUE_FILES` was `**\/src/**\/*.vue`.
+ * What that cost was not hypothetical — the first `vue-tsc` run over it found `HARNESS_PLAN`
+ * missing a required `PlanDto` field, annotated as one for as long as it had existed.
+ *
+ * Both halves are asked of the TOOL rather than read off the glob, for the reason the oxlint
+ * scope check above states: a pattern that stops matching a directory does not fail a run, it
+ * makes one quieter. TypeScript's own config parser resolves the include list, with `.vue`
+ * declared as an extra extension exactly as `vue-tsc` declares it — a plain parse would answer
+ * "no files" for a `.vue` glob and that empty answer would pass a sampled check.
+ *
+ * The set is measured whole in both directions. Every SFC on disk must be in scope, so a new
+ * one cannot arrive unchecked; and `no-console` must still be an ERROR under `src/`, so the
+ * carve-out this widening required cannot spread past the directory whose job is the console.
+ */
+describe("the harness's own SFCs", () => {
+	beforeAll(warmUpEslint, ESLINT_BOOT_MS);
+
+	const harnessSfcs = walk('tests/harness').filter((file) => file.endsWith('.vue'));
+
+	// The instrument before the measurement: a walk that found nothing would make every case
+	// below vacuous and green.
+	it('are files this check can actually see', () => {
+		expect(harnessSfcs.length).toBeGreaterThan(0);
+	});
+
+	it('are all in the type gate', () => {
+		const config = ts.readConfigFile(path.join(REPO, 'tsconfig.json'), ts.sys.readFile);
+
+		expect(config.error, 'tsconfig.json did not parse').toBeUndefined();
+
+		const parsed = ts.parseJsonConfigFileContent(
+			config.config,
+			ts.sys,
+			REPO,
+			undefined,
+			'tsconfig.json',
+			undefined,
+			// What `vue-tsc` adds, and without it TypeScript resolves a `.vue` glob to nothing
+			// at all — the failure that would read as "no files out of scope".
+			[{ extension: '.vue', isMixedContent: true, scriptKind: ts.ScriptKind.Deferred }],
+		);
+		const included = new Set(parsed.fileNames.map((file) => path.relative(REPO, file).replaceAll('\\', '/')));
+
+		expect(harnessSfcs.filter((file) => !included.has(file))).toEqual([]);
+	});
+
+	it.each([['tests/harness/IndexPage.vue'], ['tests/harness/SharedWorldPrototype.vue']])(
+		'%s is linted by the Vue rules, with the console left to the harness',
+		async (file) => {
+			expect(existsSync(path.join(REPO, file)), `${file} is not on disk`).toBe(true);
+
+			const config = await resolveConfig(path.join(REPO, file));
+
+			// A rule only `VUE_FILES` supplies, so its presence is what says the block matched.
+			expect(severityOf(config, 'vue/max-attributes-per-line')).toBe(1);
+			expect(severityOf(config, 'no-console')).toBe(0);
+		},
+	);
+
+	// The other direction. The carve-out is one block setting one rule; a `files` entry that
+	// widened to `src/` would turn the logging policy off where it is the policy.
+	it('leaves the console ban in force under src/', async () => {
+		const config = await resolveConfig(path.join(REPO, 'src/presentation/editor/shell/EditorToolbar.vue'));
+
+		expect(severityOf(config, 'no-console')).toBe(2);
 	});
 });

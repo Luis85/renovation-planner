@@ -671,21 +671,34 @@ if (initial) void open(initial);
 	<div class="rp-harness-index">
 		<nav aria-label="Harness entries">
 			<h1>Harness</h1>
-			<p v-if="prototypes.length === 0">No prototypes yet — add a .vue file under src/prototypes/.</p>
+			<p v-if="prototypes.length === 0">
+				No prototypes yet — add a .vue file under src/prototypes/.
+			</p>
 			<ul>
-				<li v-for="entry in all" :key="entry.id">
-					<a :href="hrefFor(entry)" @click.exact.prevent="open(entry)">{{ entry.label }}</a>
+				<li
+					v-for="entry in all"
+					:key="entry.id"
+				>
+					<a
+						:href="hrefFor(entry)"
+						@click.exact.prevent="open(entry)"
+					>{{ entry.label }}</a>
 					<span>{{ entry.kind }}</span>
 				</li>
 			</ul>
 		</nav>
-		<main class="rp-harness-stage" :data-entry="renderedId ?? undefined">
+		<main
+			class="rp-harness-stage"
+			:data-entry="renderedId ?? undefined"
+		>
 			<p
 				v-if="failure"
 				role="alert"
 				class="rp-harness-failure"
 				:data-failure="failureKind ?? undefined"
-			>{{ failure }}</p>
+			>
+				{{ failure }}
+			</p>
 			<!--
 				`@resolve` fires once every async dependency in the subtree has settled, which is
 				the only signal that covers a mock composing a real component that composes
@@ -699,7 +712,11 @@ if (initial) void open(initial);
 				entries is `open()`'s own `renderedId.value = null`, which is where the invariant
 				is tested. This stays for the day a change makes Suspense patch instead.
 			-->
-			<Suspense v-else-if="openComponent" @pending="renderedId = null" @resolve="settle()">
+			<Suspense
+				v-else-if="openComponent"
+				@pending="renderedId = null"
+				@resolve="settle()"
+			>
 				<!--
 					Keyed by the MOUNT, so the boundary that hears a throw — and the one that
 					published `warningOwner` — is the one created for the mount that raised it.
@@ -718,11 +735,17 @@ if (initial) void open(initial);
 					correctness property on it would be resting it on the same accident the
 					`@pending` note above describes.
 				-->
-				<EntryBoundary :key="generation" :entry-id="pendingId ?? ''" :generation="generation">
+				<EntryBoundary
+					:key="generation"
+					:entry-id="pendingId ?? ''"
+					:generation="generation"
+				>
 					<component :is="openComponent" />
 				</EntryBoundary>
 			</Suspense>
-			<p v-else>Pick an entry.</p>
+			<p v-else>
+				Pick an entry.
+			</p>
 		</main>
 	</div>
 </template>

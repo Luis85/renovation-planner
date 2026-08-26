@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 20
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -44,12 +44,34 @@ failure in a test, or not at all.
   note is not contradicting that; it is pointing out that the exception list is now one file
   short of what the tree needs, because `tests/` gained a 700-line component.
 
-## What closes it
+## What closed it
 
-Adding `tests/harness/*.vue` to `tsconfig.json`'s `include` and widening `VUE_FILES` to reach
-them. Neither is free: the tsconfig include governs `vue-tsc`, so the file has to be
-type-clean against `src/`'s settings, and the Vue ruleset will have opinions about a file
-written without it. The size of that debt is unmeasured — measuring it is step one.
+`tsconfig.json`'s `include` gained `tests/harness/**/*.vue` and `VUE_FILES` gained
+`**/tests/harness/**/*.vue`. The debt was measured first and came to six things:
+
+- **A real defect, and the argument for the whole change.** `HARNESS_PLAN` in
+  `tests/harness/planEditor.ts` was annotated `PlanDto` and was missing the required
+  `calibration` field — the annotation had been asserting a shape nothing checked. It is
+  `null` now, with the reason written beside it: the harness plan has no background to have
+  been calibrated against, so a `Calibration` there would claim a measurement nobody took.
+- **`import.meta.glob` had no type.** Declared in `tests/harness/entries.ts` as a global
+  interface merge rather than by adding `vite/client` to `types`, which is program-wide and
+  would also make `*.css` importable from `src/` — typechecking cleanly while bypassing the
+  assembler that enforces SDD §84. The two `as` casts it existed without are gone.
+- **Three `no-console` errors**, which is the rule being backwards here: `console.error` is the
+  channel `harness-shot` records and exits non-zero on, and the index's `.ts` siblings have
+  always been free to call it. One carve-out block, one rule, parity restored rather than
+  permission granted.
+- **Thirteen formatting warnings**, all auto-fixed.
+- **No max-lines failure**: the 400-line budget skips comments, and `IndexPage.vue` is mostly
+  comment.
+- **A check on the wiring**, because everything above is a claim about two globs. Asking the
+  glob's shape is what a review round already got wrong once in this file, so
+  `tests/build/lint-scope.test.ts` asks the TOOLS: TypeScript's own config parser resolves the
+  include list — with `.vue` declared as an extra extension, without which it answers "no
+  files" and the check passes vacuously — and ESLint's `calculateConfigForFile` answers for
+  both directions, the Vue rules on under `tests/harness/` and `no-console` still an error
+  under `src/`. Each of the four assertions was watched failing against a reverted config.
 
 ## Why it matters
 

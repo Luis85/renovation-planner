@@ -95,19 +95,34 @@ export function discoverEntries(
 	return entries;
 }
 
+/**
+ * `import.meta.glob` is Vite's, and it is declared HERE rather than by adding `vite/client`
+ * to `tsconfig.json`'s `types`.
+ *
+ * The two are not equivalent, and the difference is the reason: a `types` entry is
+ * program-wide, so `vite/client` would also declare `*.css`, `*.svg` and `?raw` as importable
+ * modules for every file the compiler sees — `src/` included, where a stylesheet import would
+ * typecheck cleanly and then silently bypass `styles/index.css` and the assembler that
+ * enforces SDD §84. Declaring the one member this file uses widens nothing else.
+ *
+ * The declaration is TRUE of every module Vite transforms, `src/` among them, which is why it
+ * is a global interface merge rather than a local shim. It is narrower than Vite's own
+ * signature (no eager form, no `import` option) because narrower is what is used; a call
+ * needing more will not compile, which is the correct way to find out.
+ */
+declare global {
+	interface ImportMeta {
+		readonly glob: (pattern: string) => Record<string, () => Promise<unknown>>;
+	}
+}
+
 /** Every mock and prototype under `src/prototypes/`. */
 export const prototypeEntries = (): HarnessEntry[] =>
-	discoverEntries(
-		import.meta.glob('../../src/prototypes/**/*.vue') as Record<string, () => Promise<unknown>>,
-		'prototype',
-	);
+	discoverEntries(import.meta.glob('../../src/prototypes/**/*.vue'), 'prototype');
 
 /** Every real component under `src/presentation/`. */
 export const componentEntries = (): HarnessEntry[] =>
-	discoverEntries(
-		import.meta.glob('../../src/presentation/**/*.vue') as Record<string, () => Promise<unknown>>,
-		'component',
-	);
+	discoverEntries(import.meta.glob('../../src/presentation/**/*.vue'), 'component');
 
 /**
  * Everything a template-only prototype can name, keyed by the tag it would write —

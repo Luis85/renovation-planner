@@ -40,6 +40,13 @@ export const HARNESS_PLAN: PlanDto = {
 	projectId: 'harness-project',
 	name: 'Ground floor',
 	background: null,
+	// Uncalibrated, which is the honest value rather than the convenient one: this plan has no
+	// background to have been calibrated AGAINST, so the zones below are already in the world
+	// units they claim. A `Calibration` here would say a measurement was taken that was not.
+	//
+	// The field was simply ABSENT until `tsconfig.json` started type-checking this file — the
+	// annotation said `PlanDto` and nothing ever asked whether it was one.
+	calibration: null,
 	layers: [],
 };
 

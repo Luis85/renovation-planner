@@ -73,7 +73,7 @@ const SRC_EXTENSIONS = ['ts', 'tsx', 'mts', 'cts', 'vue', 'js', 'jsx', 'mjs', 'c
 const srcFiles = (subtree) => SRC_EXTENSIONS.map((ext) => `**/src/${subtree}/**/*.${ext}`);
 
 /** Every SFC under `src/`, and the only files any Vue rule may be pointed at. */
-const VUE_FILES = ['**/src/**/*.vue'];
+const VUE_FILES = ['**/src/**/*.vue', '**/tests/harness/**/*.vue'];
 
 /**
  * `groups` are sibling LAYERS this one may not reach; `packages` are npm packages it may
@@ -602,6 +602,31 @@ export default defineConfig([
 			'max-params': ['error', 5],
 			'no-console': 'error',
 		},
+	},
+	{
+		/**
+		 * The harness's OWN SFCs, which the block above now reaches — and the one rule it
+		 * hands them that does not belong to them.
+		 *
+		 * `VUE_FILES` was `src/` only, so `tests/harness/IndexPage.vue` was linted by no Vue
+		 * rules at all and type-checked by nothing either; widening it is what put the largest
+		 * component in this repository inside both gates. What came with the widening is
+		 * `no-console: 'error'`, and here that rule is backwards: `console.error` is the
+		 * channel `scripts/harness-shot.mjs` RECORDS and exits non-zero on, so an unattributable
+		 * Vue warning and a failed entry mount are reported through it deliberately. The index's
+		 * `.ts` siblings — `page.ts` chief among them — have always been free to call it, since
+		 * `no-console` is not in any recommended set and this file only ever turned it on for
+		 * `src/`. So this restores parity between a module and its own siblings rather than
+		 * granting the harness something new.
+		 *
+		 * ONE rule and nothing else, for the flat-config reason stated at the logging carve-out:
+		 * a second block matching the same file REPLACES the rule rather than merging, so the
+		 * budgets and every Vue rule above stay in force. `tests/build/lint-scope.test.ts` asks
+		 * ESLint itself for both halves — the Vue rules on, this one off — because a `files`
+		 * glob that stopped matching would make the gate quieter rather than redder.
+		 */
+		files: [`${TESTS}/harness/**/*.vue`],
+		rules: { 'no-console': 'off' },
 	},
 	{
 		/**

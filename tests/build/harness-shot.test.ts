@@ -183,7 +183,11 @@ describe('the headless harness capture script', () => {
 	 * feature exists for cannot tell from a real one.
 	 */
 	it('waits for the entry to have rendered, not merely for the stage to exist', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+		// Stripped, like every other scan in this file — including the POSITIVE pins below. A
+		// positive pin over raw source passes when a COMMENT carries the text and the code does
+		// not, which is the same vacuity the negative scans strip to avoid; the direction of the
+		// assertion does not change the hazard.
+		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
 
 		// The readiness question is asked in the page: the id is compared as a STRING against
 		// `dataset.entry`, never interpolated into a CSS attribute selector, because an id is

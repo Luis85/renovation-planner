@@ -24,9 +24,12 @@
 	// `src/prototypes/**/*.vue` is a fifth kind: the harness index reaches every one of them
 	// through `import.meta.glob`, which is a VITE feature resolved at build time and invisible
 	// to a static import graph — so fallow sees a tree nothing imports and reports every file
-	// dead. Declared as entries rather than as `dynamicallyLoaded` because they are modules
-	// that import other modules (a prototype composes real components), and fallow has to
-	// follow those edges or it reports the components dead instead.
+	// dead. Declared as entries rather than as `dynamicallyLoaded` because a prototype is a
+	// starting point of the harness's graph and fallow has to walk outward from it. NOT because
+	// a prototype imports anything: it cannot — `vue/no-restricted-block` bans `<script>` in
+	// that tree, so a prototype composes real components through the index's global registry,
+	// never through an import. An earlier version of this comment said otherwise, in the third
+	// of three places that made the same wrong claim.
 	// `tests/fixtures/promotion/ZoneSummary.promoted.vue` is a sixth kind: Task 7's
 	// `tests/build/prototype-promotion.test.ts` reads it with `readFileSync`, not `import`, so
 	// no import graph — static or dynamic — can ever reach it, the same way

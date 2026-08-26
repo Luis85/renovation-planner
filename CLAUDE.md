@@ -344,7 +344,7 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
-  **It has now caught four defects the whole of `npm run check` could not**, which is the
+  **It has now caught five defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
   pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
   clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
@@ -352,6 +352,20 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   the same grey because the harness page applied its theme class AFTER mounting, so the
   editor resolved its palette when no `--color-*` existed. Every one passed the suite:
   jsdom lays nothing out, and the tests set the theme variables themselves.
+
+  The fifth is the harness index's own entry list, where every row read `ZonePanelprototype`:
+  Vue's default `whitespace: 'condense'` removes whitespace between two elements when it
+  contains a newline, so an `<a>` and a `<span>` on adjacent template lines render with nothing
+  between them. It was found by CAPTURING a PNG and looking at it, on the first thing a designer
+  sees, after forty-four review rounds over that file.
+
+  **What that fifth one says about the instrument, and it is the reason to keep running it:** the
+  suite is not blind to the missing separator — jsdom's `textContent` reads `ZonePanelprototype`
+  perfectly well. It is blind to SPACING, so it cannot see the defect once the remedy is CSS, and
+  it could not have told anyone the rendered page looked wrong in the first place. Anything whose
+  symptom is a measurement no layout engine performs — spacing, wrapping, overflow, contrast, hit
+  size — is outside every gate this repository has, and a capture read by eye is the only
+  instrument here that reaches it.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.

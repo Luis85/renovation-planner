@@ -17,7 +17,10 @@ type: entity
 
 The whole renovation, and the root of everything else. §58's relationship model hangs off it
 and §59 states the rule plainly: a project owns 0..n [[Plan]]s, [[Construction section]]s,
-[[Work package]]s, [[Asset]]s, [[Supplier]]s and [[Document]]s.
+[[Work package]]s and [[Document]]s. It does **not** own the three catalogues — [[Asset]],
+[[Supplier]] and [[Trade]] are shared across projects (§59, amended 2026-08-26) and a project
+references them without containing them, which is what
+[[Work belongs to one project, catalogues belong to the vault]] states in full.
 
 It is a root rather than a container, which is a different claim. **Nothing here spans two
 projects** — the index (SDD §47) is scoped to one, the currency (§72) is defined once per
@@ -65,7 +68,7 @@ the one entity whose filename is fixed while every other is derived from its nam
 
 ## Business rules that reach this entity
 
-[[Every entity resolves to exactly one project]] · [[Each cost type has exactly one source of record]]
+[[Work belongs to one project, catalogues belong to the vault]] · [[Each cost type has exactly one source of record]]
 
 ## Sources
 

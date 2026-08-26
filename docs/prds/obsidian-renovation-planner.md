@@ -1168,25 +1168,33 @@ Recommended structure:
 ```text
 Renovation/
 │
-├── Project.md
-├── Plans/
-├── Zones/
-├── Construction Sections/
-├── Work Packages/
-├── Tasks/
-├── Assets/
-├── Requirements/
-├── Trades/
-├── Suppliers/
-├── Quotes/
-├── Orders/
-├── Invoices/
-├── Costs/
-├── Decisions/
-├── Risks/
-├── Documents/
-└── Photos/
+├── Library/                     ← shared across every project (§59)
+│   ├── Assets/
+│   ├── Suppliers/
+│   └── Trades/
+│
+└── Kitchen Refit/               ← one project folder, one per renovation
+    ├── Project.md
+    ├── Plans/
+    ├── Zones/
+    ├── Construction Sections/
+    ├── Work Packages/
+    ├── Tasks/
+    ├── Requirements/
+    ├── Quotes/
+    ├── Orders/
+    ├── Invoices/
+    ├── Costs/
+    ├── Decisions/
+    ├── Risks/
+    ├── Documents/
+    └── Photos/
 ```
+
+> **Amended 2026-08-26, by the product owner**, with §59. `Assets/`, `Suppliers/` and `Trades/`
+> were drawn inside the project folder; they are the three shared catalogues and are drawn in a
+> sibling `Library/` now. The project folder still moves, backs up and deletes as one unit, which
+> is the property the single-folder layout was drawn for.
 
 Paths must be configurable.
 
@@ -1818,7 +1826,18 @@ Project
 
 # 59. Entity Relationship Rules
 
-A Project owns 0..n Plans, Construction Sections, Work Packages, Assets, Suppliers, and Documents.
+> **Amended 2026-08-26, by the product owner.** The Asset, Supplier and Trade catalogues were
+> owned by a Project in the version of this document as received. They are shared across Projects
+> now, so that a renovator who has defined a tile, a builders' merchant or an electrician does not
+> define it again for their next renovation. §36's folder tree is amended in the same pass. This
+> block exists because everything under `docs/` derives from this document and cites it by section:
+> an edit made silently here would leave every citation pointing at text that had changed under it.
+
+A Project owns 0..n Plans, Construction Sections, Work Packages, and Documents.
+
+The Asset, Supplier and Trade catalogues are **shared across Projects**. They are defined once, in a
+library beside the Project folders rather than inside any one of them, and any Project may reference
+them. A catalogue entry therefore has no owning Project.
 
 A Plan belongs to exactly one Project.
 

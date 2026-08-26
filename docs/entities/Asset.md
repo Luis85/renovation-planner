@@ -2,7 +2,6 @@
 name: Asset
 layer: domain
 persistence: note
-partOf: "[[Project]]"
 sources:
   - PRD §8
   - PRD §17
@@ -35,13 +34,17 @@ necessarily a material. That is why the entity is called Asset rather than Mater
 
 ## Identity and persistence
 
-A Markdown note in a library (§36's `Assets/`) with a stable `id` (§60). Category, unit and
-unit price in frontmatter so the library is searchable and [[Bases]]-queryable; product data,
-links and photos in the body.
+A Markdown note in the shared library (§36's `Library/Assets/`) with a stable `id` (§60).
+Category, unit and unit price in frontmatter so the library is searchable and [[Bases]]-queryable;
+product data, links and photos in the body. It carries **no project id**, which is the rule being
+kept rather than a field somebody forgot — see
+[[Work belongs to one project, catalogues belong to the vault]].
 
 ## Relationships
 
-- Belongs to exactly one [[Project]] (§59) — the library is per project, not global.
+- Belongs to **no** [[Project]] (§59, amended 2026-08-26). The library is shared across every
+  project, so a tile defined for the bathroom is available to the next renovation without being
+  defined again. Referenced by any project; owned by none.
 - Referenced by 0..n [[Requirement]].
 - Priced by 0..n [[Quote]] line, from 0..n [[Supplier]].
 - May be placed on a [[Plan]] as a [[Spatial object]] (§17 asset placement).

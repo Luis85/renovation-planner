@@ -2,13 +2,13 @@
 name: Trade
 layer: domain
 persistence: note
-partOf: "[[Project]]"
 sources:
   - PRD §8
   - PRD §10
   - PRD §19
   - PRD §21
   - PRD §36
+  - PRD §59
   - PRD §60
   - PRD §84
 type: entity
@@ -31,11 +31,14 @@ package rather than an entity.
 
 ## Identity and persistence
 
-A note in a small catalog (§36's `Trades/`), with a stable `id` (§60).
+A note in the shared catalog (§36's `Library/Trades/`), with a stable `id` (§60). It carries
+**no project id** ([[Work belongs to one project, catalogues belong to the vault]]).
 
 ## Relationships
 
-- Belongs to exactly one [[Project]] as catalog content.
+- Belongs to **no** [[Project]] (§59, amended 2026-08-26). A trade is a vocabulary rather than
+  a per-renovation thing: *electrician* means the same in the second project as in the first, and
+  §84's custom trades are worth writing once.
 - Assigned to 0..n [[Work package]], one trade each.
 - Aggregates [[Cost item]]s and schedule across those work packages (§10, §21).
 - Appears in a [[Construction section]] indirectly, through its work packages.
@@ -54,6 +57,6 @@ A note in a small catalog (§36's `Trades/`), with a stable `id` (§60).
 
 ## Sources
 
-PRD §8 · PRD §10 · PRD §19 · PRD §21 · PRD §36 · PRD §60 · PRD §84, in
+PRD §8 · PRD §10 · PRD §19 · PRD §21 · PRD §36 · PRD §59 · PRD §60 · PRD §84, in
 [`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
 [`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).

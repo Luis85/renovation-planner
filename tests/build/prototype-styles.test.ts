@@ -26,7 +26,9 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  * The guarantee is narrower than "the mock looks right", and the narrowness is the point:
  *
  * - It reads DECLARATIONS, not the cascade — the same narrowing `cssVars.test.ts` states. A
- *   class declared in a block no page state reaches still counts.
+ *   class declared in a block no page state reaches still counts. It is a regex over the
+ *   assembled text with COMMENTS stripped, not a parse: a class named in a selector counts,
+ *   and one named only in prose does not.
  * - It reads STATIC `class` attributes. A `:class` binding is invisible here; there are none
  *   in the tree today (measured, and a template-only SFC has no script to compute one), and
  *   the day one arrives this check will not see it.
@@ -46,8 +48,24 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
 
 const CLASS_ATTRIBUTE = /\sclass="([^"]*)"/g;
 const CLASS_SELECTOR = /\.([A-Za-z_][\w-]*)/g;
+const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 
-const prototypes = readdirSync('src/prototypes').filter((file) => file.endsWith('.vue'));
+/**
+ * RECURSIVELY, because `entries.ts` discovers prototypes with `**\/*.vue` and a mock is free to
+ * live in `src/prototypes/editor/Panel.vue`. A flat `readdirSync` sees the subdirectory as one
+ * entry, filters it out for not ending in `.vue`, and leaves every mock inside it unchecked —
+ * the guard staying green over exactly the files it was written for. The instrument has to see
+ * the same set the harness does.
+ */
+const walk = (dir: string): string[] =>
+	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const child = `${dir}/${entry.name}`;
+
+		if (entry.isDirectory()) return walk(child);
+		return entry.name.endsWith('.vue') ? [child] : [];
+	});
+
+const prototypes = walk('src/prototypes').map((file) => file.replace('src/prototypes/', ''));
 
 const used = new Map(
 	prototypes.map((file) => {
@@ -58,7 +76,15 @@ const used = new Map(
 	}),
 );
 
-const declared = new Set([...assembleStyles().matchAll(CLASS_SELECTOR)].map(([, name]) => name));
+/**
+ * Comments STRIPPED first. `.rp-example` written in a header — explaining a rule, or explaining
+ * why a rule was deleted — is prose, not a declaration, and counting it would let a class keep
+ * passing after the rule that styled it was removed. That is the failure mode this whole file
+ * exists to catch, arriving through its own instrument.
+ */
+const declared = new Set(
+	[...assembleStyles().replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
+);
 
 describe('a prototype and the sheet that styles it', () => {
 	/**

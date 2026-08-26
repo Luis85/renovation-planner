@@ -194,20 +194,27 @@ describe('the headless harness capture script', () => {
 		// assertion does not change the hazard.
 		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
 
-		// The readiness question is asked in the page: the id is compared as a STRING against
-		// `dataset.entry`, never interpolated into a CSS attribute selector, because an id is
-		// built from a file path and a `"` is a legal filename character on POSIX.
-		expect(source).toContain('stage.dataset.entry === id');
+		// The predicate ITSELF moved to `captureReadiness.mjs`, where a test can import and drive
+		// it — `tests/build/entryDrawn.test.ts` is where what it decides is now settled, in both
+		// directions, against a real DOM. It moved because a review found it wrong: a stage
+		// holding only Vue's `<!--v-if-->` placeholder passed the old `childNodes.length > 0`,
+		// which is the empty PNG at exit 0 this whole pin exists to refuse. A source scan could
+		// never have caught that, and had recorded the function as having nothing to prove.
+		//
+		// What stays HERE is the wiring: the readiness question is asked in the page, with the id
+		// compared as a STRING against `dataset.entry` and never interpolated into a CSS
+		// attribute selector, because an id is built from a file path and a `"` is a legal
+		// filename character on POSIX.
+		expect(readFileSync(READINESS, 'utf8')).toContain('stage.dataset.entry');
 		// The POLL moved to `captureReadiness.mjs` when the wait became a race against the
 		// failure card — the predicate still lives here, and is still asked through
 		// `waitForFunction` rather than through a selector. Read from the file that now holds the
 		// call, because a pin that keeps naming the old home passes only until someone deletes
 		// the call it can no longer see.
 		expect(readFileSync(READINESS, 'utf8')).toContain('waitForFunction(hasDrawn, entry)');
-		// The stage must not be empty either — but by NODE, not by element: a template whose
-		// root is text renders no element, and an element check would refuse a capture of an
-		// entry the index drew correctly.
-		expect(source).toContain('stage.childNodes.length > 0');
+		// The capture reaches the predicate at all, which is the half a source scan can still
+		// answer for a module nothing may import.
+		expect(source).toContain('entryHasDrawn');
 		// The bare stage class must not be used as a wait target on its own.
 		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
 		// Two scans of the same class, both over the CODE only, with block comments stripped
@@ -234,9 +241,10 @@ describe('the headless harness capture script', () => {
 		// The narrower claim this leaves standing, stated rather than hidden: `withoutCommentary`
 		// strips only `/* … */` block comments. A `//` LINE comment carrying either forbidden
 		// substring would still slip through, and this file's own `//` lines are not proof
-		// otherwise — `harness-shot.mjs` has 32 of them today, so the style is this file's
-		// dominant explanatory form, not an unused one; the true claim is only that none of
-		// those 32 lines currently CARRIES either substring. Widening the strip to line comments
+		// otherwise — `//` is the dominant explanatory form in both files scanned here, not an
+		// unused one; the true claim is only that none of those lines currently CARRIES either
+		// substring. (Written without a count: an earlier version said 32, and the number went
+		// stale the moment the predicate moved between the two files.) Widening the strip to line comments
 		// was considered and rejected rather than left as a caveat by omission: a naive
 		// `/\/\/.*$/gm` strip would also eat the real code on `startHarnessServer`'s
 		// `` return { server, baseUrl: `http://127.0.0.1:${address.port}` }; `` line, since its
@@ -244,14 +252,28 @@ describe('the headless harness capture script', () => {
 		// line this exact check needs to see, which is a worse defect than the caveat it would
 		// remove. A correct line-comment strip needs a tokenizer aware of string boundaries; that
 		// is a bigger tool than one scan in one test file justifies today.
-		const stripped = withoutCommentary(source);
+		// BOTH files, because the predicate moved: the forbidden shapes are a selector built from
+		// an entry id and an element-only readiness check, and the code that could grow either
+		// now lives in `captureReadiness.mjs` while the capture that calls it stays here. Scanning
+		// only this one would leave the check watching the file the danger left.
+		const scanned = [
+			['harness-shot.mjs', withoutCommentary(source)],
+			['captureReadiness.mjs', withoutCommentary(readFileSync(READINESS, 'utf8'))],
+		] as const;
 
-		expect(stripped).not.toContain('firstElementChild');
-		expect(stripped).not.toMatch(/\[data-entry=/);
+		// Reported as the NAMES that offend rather than as two assertions per file: a bare
+		// `not.toContain` failure says only that some string was present somewhere, and with two
+		// files scanned the first question is which one. (`expect(value, message)` would say it
+		// too, and oxlint's `vitest/valid-expect` refuses that form on a negated matcher.)
+		expect(scanned.filter(([, text]) => text.includes('firstElementChild')).map(([name]) => name)).toEqual([]);
+		expect(scanned.filter(([, text]) => /\[data-entry=/.test(text)).map(([name]) => name)).toEqual([]);
+
 		// `withoutCommentary` must not be kinder than intended — stripping the comments and
 		// leaving no code behind would make every scan above vacuously pass. A known code
-		// substring, well outside any comment, has to survive the strip.
-		expect(stripped).toContain('stage.dataset.entry === id');
+		// substring has to survive the strip in EACH file: one anchor covering both would leave
+		// the other free to be emptied to nothing and still pass.
+		expect(scanned[0][1]).toContain('entryHasDrawn');
+		expect(scanned[1][1]).toContain('stage.dataset.entry');
 	});
 
 	/**

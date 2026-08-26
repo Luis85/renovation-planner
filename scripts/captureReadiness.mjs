@@ -151,3 +151,61 @@ export async function readFailureKind(page, entry) {
 	// the cost of every shot that failed without one.
 	return await page.getAttribute(FAILURE_CARD, 'data-failure', { timeout: 2000 }).catch(() => null);
 }
+
+/**
+ * What "the entry has drawn" means — and it is NOT `.rp-harness-stage`.
+ *
+ * HERE rather than in `harness-shot.mjs`, where it lived until a review found the defect
+ * below: that file runs its capture at module scope, so nothing defined in it can be called
+ * from a test, and the sibling test's own comment had written this off as "DOM-shaped code
+ * with nothing left to prove". It has a real behavioural claim — what counts as drawn — and
+ * that claim was wrong. It is still PASSED to `reportIfNoLongerDrawn` rather than called by
+ * it, which is the parameterization that keeps that function driveable with no `document`;
+ * only its home moved.
+ *
+ * The stage element is mounted synchronously on the first paint, while the selected SFC is
+ * still being imported. A capture waiting on the stage alone photographs "Pick an entry." and
+ * exits 0: a successful, empty PNG. That is the worst thing this script can produce, because
+ * the actor it exists for cannot see that the picture is blank — it would read a green exit
+ * as "the mock looks like that".
+ *
+ * `IndexPage.vue` sets `data-entry` from `<Suspense>`'s `@resolve`, so it means the entry AND
+ * every async component below it has settled — not merely that the outer module loaded, which
+ * would still be a placeholder wherever a mock composes a real component. The node check waits
+ * out the render tick after that and is belt and braces rather than the primary signal.
+ *
+ * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
+ * path, and a quote or a newline is a legal filename character on POSIX; interpolating one
+ * into an attribute-value selector produces one that parses as something else or does not
+ * parse at all, so the index could open an entry `harness-shot` could never capture.
+ * Comparing `dataset.entry` as a STRING has no escaping question to get wrong — the class of
+ * defect is removed rather than patched.
+ *
+ * Not `firstElementChild`. A template whose root is TEXT — `<template>Coming soon</template>`,
+ * which is a perfectly good early mock — mounts a text node and no element, so a check keyed on
+ * that property would time out on an entry the index drew correctly and refuse a capture the
+ * guarantee promises. The marker is what proves the screen settled; this is only the cheap
+ * sanity check that the stage is not literally empty, and it must not be narrower than what a
+ * valid entry can render.
+ *
+ * And not `childNodes.length` either, which is what it WAS. Vue renders a component whose root
+ * is `v-if="false"` as a comment placeholder, so a stage holding nothing but `<!--v-if-->` had
+ * a non-zero child count and passed — the empty PNG at exit 0 this whole predicate exists to
+ * refuse, reintroduced by the cheap version of the check. So: an element, or a text node with
+ * something in it. Whitespace is excluded for the same reason a comment is — an entry that
+ * rendered one space drew nothing a person can see.
+ *
+ * Naming `firstElementChild` here plainly, rather than around it, is safe now that the sibling
+ * test's scan (`tests/build/harness-shot.test.ts`) reads this file with block comments
+ * stripped first: the forbidden shape is CODE using that property, not prose explaining why
+ * this file does not.
+ */
+export const entryHasDrawn = (id) => {
+	const stage = document.querySelector('.rp-harness-stage');
+
+	if (!(stage instanceof HTMLElement) || stage.dataset.entry !== id) return false;
+
+	return [...stage.childNodes].some(
+		(node) => node.nodeType === 1 || (node.nodeType === 3 && (node.textContent ?? '').trim() !== ''),
+	);
+};

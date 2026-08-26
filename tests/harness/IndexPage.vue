@@ -64,6 +64,40 @@ const all = computed<HarnessEntry[]>(() => [...prototypes, ...components]);
  */
 const unusableLabels = computed(() => new Set(registrableComponents(all.value).ambiguous));
 
+/** A row's identity as a READER sees it: the two things the list actually prints. */
+const rowKey = (entry: HarnessEntry) => `${entry.kind}\u0000${entry.label}`;
+
+/**
+ * What each row says about sharing its name, keyed by entry id — `null` for the rows that say
+ * nothing, which is nearly all of them.
+ *
+ * TWO questions, and the first version of this asked only one. `ambiguous` answers "can a
+ * prototype compose this name" and is the stronger statement, so it wins where it applies. But
+ * a label with ONE mock and two components is not ambiguous — the mock takes the tag
+ * deterministically, which is the whole point of writing one — and those two component rows
+ * are still identical to each other, name and kind alike, distinguishable only by an `href`
+ * nobody reads. That is the defect this marker exists for, surviving the fix for it, and it was
+ * found by review rather than by any of the cases written at the time.
+ *
+ * So the second question is the LIST's own and is asked of the list: do two rows print the same
+ * two strings? `registrableComponents` cannot answer it, because it is not a question about the
+ * registry.
+ */
+const rowNotes = computed(() => {
+	const counts = new Map<string, number>();
+
+	for (const entry of all.value) counts.set(rowKey(entry), (counts.get(rowKey(entry)) ?? 0) + 1);
+
+	return new Map(
+		all.value.map((entry) => {
+			if (unusableLabels.value.has(entry.label)) return [entry.id, 'shares this name — no prototype can compose it'];
+			if ((counts.get(rowKey(entry)) ?? 0) > 1) return [entry.id, 'shares this name and kind with another entry'];
+
+			return [entry.id, null];
+		}),
+	);
+});
+
 const requested = new URLSearchParams(window.location.search).get('entry');
 const openComponent = shallowRef<unknown>(null);
 const failure = ref<string | null>(null);
@@ -826,9 +860,9 @@ if (initial) void open(initial);
 						to nothing.
 					-->
 					<span
-						v-if="unusableLabels.has(entry.label)"
+						v-if="rowNotes.get(entry.id)"
 						class="rp-harness-ambiguous"
-					>shares this name — no prototype can compose it</span>
+					>{{ rowNotes.get(entry.id) }}</span>
 				</li>
 			</ul>
 		</nav>

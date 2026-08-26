@@ -92,6 +92,29 @@ describe('the index list, on a label that resolves to nothing', () => {
 		wrapper.unmount();
 	});
 
+	/**
+	 * The case the first version of this fix let through, found by review. One mock and TWO
+	 * components sharing a label is not ambiguous — the mock takes the tag deterministically —
+	 * so the label never reaches `ambiguous`, and the two component rows went back to being
+	 * identical with nothing said about it. The mock's own row is fine: its kind differs, so a
+	 * reader can tell it apart.
+	 */
+	it('marks the component rows a mock shadows, which are still identical to each other', () => {
+		state.components = [entry('component:editor/ZoneList', 'component'), entry('component:panels/ZoneList', 'component')];
+		state.prototypes = [entry('prototype:ZoneList', 'prototype')];
+
+		const { wrapper, labels, kinds, markers } = rows();
+
+		expect(labels).toEqual(['ZoneList', 'ZoneList', 'ZoneList']);
+		expect(kinds).toEqual(['prototype', 'component', 'component']);
+		expect(markers).toEqual([
+			'shares this name and kind with another entry',
+			'shares this name and kind with another entry',
+		]);
+
+		wrapper.unmount();
+	});
+
 	it('says nothing about ordinary entries', () => {
 		state.components = [entry('component:editor/StatusBar', 'component')];
 		state.prototypes = [entry('prototype:ZonePanel', 'prototype')];

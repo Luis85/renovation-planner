@@ -4,6 +4,7 @@ import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import {
 	describeFailure,
+	entryHasDrawn,
 	readFailureKind,
 	reportIfNoLongerDrawn,
 	UNKNOWN_ENTRY,
@@ -69,45 +70,6 @@ const SHOTS = [
 	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
 ];
-
-/**
- * What "the entry has drawn" means — and it is NOT `.rp-harness-stage`.
- *
- * The stage element is mounted synchronously on the first paint, while the selected SFC is
- * still being imported. A capture waiting on the stage alone photographs "Pick an entry." and
- * exits 0: a successful, empty PNG. That is the worst thing this script can produce, because
- * the actor it exists for cannot see that the picture is blank — it would read a green exit
- * as "the mock looks like that".
- *
- * `IndexPage.vue` sets `data-entry` from `<Suspense>`'s `@resolve`, so it means the entry AND
- * every async component below it has settled — not merely that the outer module loaded, which
- * would still be a placeholder wherever a mock composes a real component. The node check waits
- * out the render tick after that and is belt and braces rather than the primary signal.
- *
- * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
- * path, and a quote or a newline is a legal filename character on POSIX; interpolating one
- * into an attribute-value selector produces one that parses as something else or does not
- * parse at all, so the index could open an entry `harness-shot` could never capture.
- * Comparing `dataset.entry` as a STRING has no escaping question to get wrong — the class of
- * defect is removed rather than patched.
- *
- * `childNodes`, deliberately not `firstElementChild`. A template whose root is TEXT —
- * `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a text
- * node and no element, so a check keyed on `firstElementChild` would time out on an entry the
- * index drew correctly and refuse a capture the guarantee promises. The marker is what proves
- * the screen settled; this is only the cheap sanity check that the stage is not literally
- * empty, and it must not be narrower than what a valid entry can render.
- *
- * Naming `firstElementChild` here plainly, rather than around it, is safe now that the sibling
- * test's scan (`tests/build/harness-shot.test.ts`) reads this file with block comments
- * stripped first: the forbidden shape is CODE using that property, not prose explaining why
- * this file does not.
- */
-const entryHasDrawn = (id) => {
-	const stage = document.querySelector('.rp-harness-stage');
-
-	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.childNodes.length > 0;
-};
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not

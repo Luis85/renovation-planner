@@ -89,6 +89,7 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
@@ -200,36 +201,51 @@ describe('axe against the mounted view', () => {
  * for the reason every case above gives: a fixture typed into this file would grade markup
  * nobody keeps in sync with what renders.
  *
- * Three states rather than one, because they draw different markup and only the first is
- * reachable by default: the picker, an entry OPEN on the stage (which grades the prototype's
- * own markup too — this is the case that would catch a mock shipping an unlabelled control),
- * and the failure card, which exists only when something went wrong and is the one piece of
- * live-region markup in the tree.
+ * Three states, because they draw different markup and only the first is reachable by default:
+ * the picker, an entry OPEN on the stage, and the failure card — which exists only when
+ * something went wrong and is the one piece of live-region markup in the tree.
+ *
+ * The open-entry state is EVERY prototype, from the real glob, not one hard-coded id. The first
+ * version scanned `ZonePanel` alone, which meant a mock shipping an unlabelled control anywhere
+ * else was invisible: the picker scan sees only that mock's row in the list, and this scan was
+ * looking at a different file. A mock is exactly the artefact nobody writes a test for, so the
+ * set has to come from the tree.
  */
 describe('axe against the harness index', () => {
 	it.each([
 		['the picker', 'index'],
-		['an entry open on the stage', 'entry=prototype:ZonePanel'],
 		['the failure card', 'entry=prototype:Nope'],
 	])('reports no semantic violations on %s', async (_state, query) => {
 		expect((await scan(query)).violations).toEqual([]);
 	});
 
 	/**
-	 * The case above is only worth its runtime if the page it scanned had the state's markup in
-	 * it. `?entry=` resolves against the real entry list, so a renamed prototype would leave the
-	 * middle case scanning a failure card — passing, and grading nothing it claims to.
+	 * Every prototype, and the entry has to have OPENED before the scan means anything: an
+	 * `?entry=` that resolved to nothing leaves a failure card on the stage, which axe grades
+	 * happily and which is not the markup this case names. A renamed or broken mock would
+	 * otherwise pass here while being scanned not at all.
 	 */
-	it('scanned the states it names', async () => {
-		const open = await openIndex('entry=prototype:ZonePanel');
+	it.each(prototypeEntries())('reports no semantic violations on $id', async ({ id }) => {
+		const wrapper = await openIndex(`entry=${id}`);
 
-		expect(open.find('.rp-harness-failure').exists(), 'the ZonePanel entry did not open').toBe(false);
-		expect(open.find('.rp-zone-summary').exists()).toBe(true);
-		open.unmount();
+		try {
+			expect(wrapper.find('.rp-harness-failure').exists(), `${id} did not open`).toBe(false);
+			expect(wrapper.find('.rp-harness-stage').attributes('data-entry')).toBe(id);
 
-		const failed = await openIndex('entry=prototype:Nope');
+			const results = await axe.run(wrapper.element as HTMLElement, runOptions);
 
-		expect(failed.find('.rp-harness-failure').attributes('role')).toBe('alert');
-		failed.unmount();
+			expect(results.violations).toEqual([]);
+		} finally {
+			wrapper.unmount();
+		}
+	});
+
+	/**
+	 * The loop above is generated from a glob, and an `it.each` over an empty array reports as a
+	 * pass. That is indistinguishable from "every mock is clean" and is exactly the state this
+	 * file was in when it scanned one hard-coded id.
+	 */
+	it('has prototypes to scan at all', () => {
+		expect(prototypeEntries().length).toBeGreaterThan(0);
 	});
 });

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 50
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -42,23 +42,31 @@ rule. It was found by capturing a PNG and looking at it; nothing else here can f
   element apart on purpose. That is the sharpest statement of the trap: it is sprung by a
   mock with no stylesheet of its own, and nothing anywhere notices that a mock has none.
 
-## What closes it
+## What closed it
 
-The immediate half is one rule in the prototype's own styles — and it has to be CSS rather
-than a template separator, because `ZoneSummary.vue`'s template block is byte-identical to
-`tests/fixtures/promotion/ZoneSummary.promoted.vue` by design: editing it forces the same
-edit on the twin and a new clone digest in `.fallowrc.json`. The open half is the general
-one, and it is why this is an issue rather than a one-line fix: **the next prototype has the
-same trap**, and a mock is exactly the artefact nobody writes a test for.
+**The spacing itself, in `styles/zone-panel.css`** — a `column-gap` on the row, plus
+`justify-content: space-between`, so the two spans are separated at every width rather than
+only at comfortable ones. It had to be CSS and not a template separator: `ZoneSummary.vue`'s
+template is byte-identical to `tests/fixtures/promotion/ZoneSummary.promoted.vue` by design.
 
-Candidates, none costed:
+**The precondition, in `tests/build/prototype-styles.test.ts`** — a prototype may not name a
+class the assembled sheet leaves undeclared. That is deliberately not the same claim as "the
+mock looks right", and the note has to say which one it is: the spacing is still measured by
+nobody, because jsdom lays nothing out and `textContent` reads `Kitchen12.60 m²` as two happy
+strings. What is now impossible is the CONDITION that produced it — a mock shipped with no
+styles of its own, which is how the defect got past forty-four rounds while `WorkPackages.vue`
+avoided it by having a stylesheet at all.
 
-- A lint rule refusing adjacent inline elements with no separator in a template — narrow,
-  checkable, and would have caught both instances.
-- A convention that prototype text nodes carry their own spacing, stated in
-  `src/prototypes/README.md` where the relaxed rules already live.
-- Baseline image diffing on `harness-shot`, which is a much larger commitment and would put a
-  capture step inside CI.
+Two things came out of building it, both worth keeping:
+
+- **It found a second instance on its first run.** `rp-wp-state-word`, in an hour-old mock, was
+  a class carrying no rule and never had one — invisible, because its parent's flex gap already
+  did the spacing. The class is gone rather than given a rule.
+- **The instrument was wrong first, and the probe caught it.** The check read the `styles/`
+  directory while its own comment claimed "the assembled sheet", and removing the `@import`
+  that was supposed to red it left it green. It calls `assembleStyles()` now — the build's own
+  function. The assembler happens to refuse an unimported partial anyway, so the two agree
+  today; measuring the set the sentence names is not something to leave resting on that.
 
 ## Why it matters
 

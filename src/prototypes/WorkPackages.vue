@@ -64,7 +64,7 @@
 						class="rp-wp-glyph"
 						aria-hidden="true"
 					>✓</span>
-					<span class="rp-wp-state-word">
+					<span>
 						Complete
 					</span>
 				</span>
@@ -108,7 +108,7 @@
 						class="rp-wp-glyph"
 						aria-hidden="true"
 					>◐</span>
-					<span class="rp-wp-state-word">
+					<span>
 						In progress
 					</span>
 				</span>
@@ -151,7 +151,7 @@
 						class="rp-wp-glyph"
 						aria-hidden="true"
 					>◐</span>
-					<span class="rp-wp-state-word">
+					<span>
 						In progress
 					</span>
 				</span>
@@ -199,7 +199,7 @@
 						class="rp-wp-glyph"
 						aria-hidden="true"
 					>!</span>
-					<span class="rp-wp-state-word">
+					<span>
 						Blocked
 					</span>
 				</span>
@@ -243,7 +243,7 @@
 						class="rp-wp-glyph"
 						aria-hidden="true"
 					>○</span>
-					<span class="rp-wp-state-word">
+					<span>
 						Not started
 					</span>
 				</span>
@@ -282,7 +282,7 @@
 						class="rp-wp-glyph"
 						aria-hidden="true"
 					>○</span>
-					<span class="rp-wp-state-word">
+					<span>
 						Not started
 					</span>
 				</span>

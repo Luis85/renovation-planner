@@ -173,6 +173,63 @@ describe('the instrument', () => {
 		expect(moreSpecific(reset, ring)).toBe(false);
 	});
 
+	/**
+	 * `show` is an IDENTITY, so two selectors that can match disjoint elements may not render alike.
+	 * Its header records the `[data-kind='a']`/`[data-kind='b']` instance; these are the same defect
+	 * in a pseudo's payload, which lives in a differently-named field per kind and so was dropped
+	 * one kind at a time. The last pair is the widest: the parser puts an unknown pseudo-class's
+	 * real name in `name` and reports `kind` as the literal string `custom`, so EVERY pseudo-class
+	 * it does not know rendered as `:custom` and shared one identity with all the others.
+	 *
+	 * The first two pairs are not hypothetical — `tests/harness/obsidian.css` carries both.
+	 */
+	it.each([
+		[':nth-child(2 of .scope-a)', ':nth-child(2 of .scope-b)'],
+		['.is-collapsed:dir(ltr)', '.is-collapsed:dir(rtl)'],
+		['::-webkit-scrollbar', '::-webkit-scrollbar-thumb'],
+	])('tells %s from %s', (one, other) => {
+		expect(show(parseSelector(one))).not.toEqual(show(parseSelector(other)));
+	});
+
+	/**
+	 * And where it cannot tell them apart it FAILS, rather than rendering the half it knows.
+	 * `:lang(en)` and `:lang(de)` are as disjoint as the pairs above; nothing in this project's
+	 * sheets uses either, so the honest answer is the one the header promises — an unmodelled
+	 * payload stops the build and gets modelled. Silence here is what put five pairs in the case
+	 * above, each found one at a time and only ever after it had already misled a check.
+	 */
+	it('refuses a payload it would drop rather than rendering the half it knows', () => {
+		expect(() => show(parseSelector(':lang(en)'))).toThrow(/carries languages/u);
+		expect(() => show(parseSelector(':state(open)'))).toThrow(/carries state/u);
+	});
+
+	/**
+	 * The guard against real content rather than against fixtures. A vendored `obsidian.css` update
+	 * is what would introduce the next unmodelled payload, and it arrives as a file nobody reads —
+	 * so the sweep is what turns that into a failure at the sheet rather than a collision noticed
+	 * three checks downstream.
+	 */
+	it('renders every selector in every sheet it guards', () => {
+		// The VENDORED sheet explicitly, on top of `sheets`, which does not include it. It is the one
+		// file here nobody writes and everybody re-vendors, and it is where both real pairs above
+		// were found — swept against `sheets` alone this case would have covered neither.
+		let rendered = 0;
+
+		for (const sheet of [...sheets, 'tests/harness/obsidian.css']) {
+			for (const rule of stylesheetRules(readFileSync(sheet, 'utf8'))) {
+				for (const selector of rule.selectors) {
+					expect(() => show(selector), `${sheet}: ${JSON.stringify(selector)}`).not.toThrow();
+					rendered += 1;
+				}
+			}
+		}
+
+		// A sweep that reached nothing passes every assertion it never made, and the two ways this one
+		// empties are both edits nobody would look at twice: a `sheets` list that stops resolving, and
+		// a vendored sheet whose parse aborts on the preserved prose that closes a comment early.
+		expect(rendered).toBeGreaterThan(700);
+	});
+
 	// The argument pattern cannot match nested parentheses, and one `String.replace` pass never
 	// re-scans what it rewrote — so an inner pseudo has to be resolved before the outer one.
 	it('scores a nested functional pseudo rather than skipping it', () => {

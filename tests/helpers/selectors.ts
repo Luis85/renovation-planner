@@ -407,10 +407,59 @@ const ATTRIBUTE_OPERATORS: Record<string, string> = {
  * and a serializer used as an IDENTITY has to fail closed. An unmodelled kind stops the build and
  * gets modelled.
  *
+ * That promise used to hold for a component's TYPE and not for its PAYLOAD, which is the same
+ * defect the paragraph above describes and the wider half of it. A pseudo node carries its
+ * argument in a differently-named field per kind, and every field this rendering did not name was
+ * dropped in silence — so `:dir(ltr)` and `:dir(rtl)` were both `:dir`, `::-webkit-scrollbar` and
+ * `::-webkit-scrollbar-thumb` were both `::webkit-scrollbar` (the vendored `obsidian.css` carries
+ * both pairs), `:nth-child(2 of .a)` and `:nth-child(2 of .b)` were both `:nth-child(0n+2)`, and
+ * EVERY pseudo-class the parser does not know became `:custom`, since it puts the real name in a
+ * `name` field. `RENDERED_KEYS` closes that: a node carrying a key this function does not consume
+ * throws, so the failure mode for the next unmodelled payload is a red build rather than two
+ * disjoint selectors sharing one identity.
+ *
  * One function rather than four, because the recursion through a functional pseudo's arguments
  * would otherwise be a mutually recursive set — the shape `specificityOf` above was collapsed out
  * of for the same reason.
  */
+/**
+ * The keys `show` below CONSUMES on a pseudo-class or pseudo-element node.
+ *
+ * A key outside this set is payload the rendering would drop, and a dropped payload is not a
+ * vaguer string — it is two disjoint selectors answering to one identity. Stated as the set of
+ * what IS rendered rather than a list of kinds to refuse, so a kind nobody here has heard of is
+ * refused by default: this is the check standing at the forbidden thing rather than at the
+ * places someone thought of.
+ */
+const RENDERED_KEYS: ReadonlySet<string> = new Set([
+	'type',
+	'kind',
+	'vendorPrefix',
+	'selectors',
+	'a',
+	'b',
+	'of',
+	'direction',
+	'value',
+]);
+
+/** The vendor prefix a node carries, rendered, or `''` when it is unprefixed. */
+const prefixOf = (component: SelectorComponent): string =>
+	'vendorPrefix' in component && Array.isArray(component.vendorPrefix) && component.vendorPrefix.length > 0
+		? `-${component.vendorPrefix.join('-')}-`
+		: '';
+
+/** Throw rather than render a node whose payload this serializer would silently drop. */
+function refuseUnrenderedPayload(component: SelectorComponent): void {
+	const dropped = Object.keys(component).filter((key) => !RENDERED_KEYS.has(key));
+
+	if (dropped.length > 0) {
+		const kind = 'kind' in component ? String(component.kind) : component.type;
+
+		throw new Error(`show(): "${kind}" carries ${dropped.join(', ')}, which this rendering would drop`);
+	}
+}
+
 export function show(selector: Selector): string {
 	return selector
 		.map((component) => {
@@ -434,7 +483,16 @@ export function show(selector: Selector): string {
 					return component.value === 'descendant' ? ' ' : ` ${component.value} `;
 				}
 				case 'pseudo-element': {
-					return `::${component.kind}`;
+					refuseUnrenderedPayload(component);
+
+					// The scrollbar family is SEVEN pseudo-elements under ONE kind, told apart by `value`
+					// alone — and the source spelling is not derivable from it (`resizer` is
+					// `::-webkit-resizer`, not `::-webkit-scrollbar-resizer`). So this one renders as a
+					// function: an identity that distinguishes them, which is what the caller needs,
+					// rather than a reconstruction of the text, which would need a lookup table.
+					if ('value' in component) return `::${component.kind}(${String(component.value)})`;
+
+					return `::${prefixOf(component)}${component.kind}`;
 				}
 				case 'attribute': {
 					const { name, operation } = component;
@@ -450,12 +508,25 @@ export function show(selector: Selector): string {
 					return `[${name}${operator}"${operation.value}"${operation.caseSensitivity === 'case-sensitive' ? '' : ' i'}]`;
 				}
 				case 'pseudo-class': {
+					refuseUnrenderedPayload(component);
+
+					const name = `:${prefixOf(component)}${component.kind}`;
 					const args = argumentsOf(component);
 
-					if (args.length > 0) return `:${component.kind}(${args.map((argument) => show(argument)).join(', ')})`;
-					if ('a' in component && 'b' in component) return `:${component.kind}(${String(component.a)}n+${String(component.b)})`;
+					if (args.length > 0) return `${name}(${args.map((argument) => show(argument)).join(', ')})`;
 
-					return `:${component.kind}`;
+					if ('a' in component && 'b' in component) {
+						const nth = `${String(component.a)}n+${String(component.b)}`;
+						// The `of` list is part of WHICH elements this matches, so two selectors differing
+						// only there are disjoint and may not share an identity.
+						const of = nthOfArgumentsOf(component);
+
+						return `${name}(${of.length > 0 ? `${nth} of ${of.map((argument) => show(argument)).join(', ')}` : nth})`;
+					}
+
+					if ('direction' in component) return `${name}(${String(component.direction)})`;
+
+					return name;
 				}
 				default: {
 					throw new Error(`show(): no rendering for a "${component.type}" component`);

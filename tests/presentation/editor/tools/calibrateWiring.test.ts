@@ -205,6 +205,55 @@ describe('the calibrate tool in a mounted editor', () => {
 	});
 
 	/**
+	 * The primary path for every plan that already has zones — the sample project
+	 * included — and the one no other case here drives end to end: confirm, THEN answer
+	 * the distance form, THEN dispatch. It is also the only case that opens two dialogs in
+	 * sequence against the real `DialogHost`/store stacking guard (`DialogStackingError`),
+	 * since `pointerUp` dispatches `complete()` with no `.catch` — a microtask-ordering
+	 * mistake between resolving the confirmation and opening the distance form would throw
+	 * there uncaught, and only a case that actually crosses both awaits can catch it.
+	 */
+	it('confirms, then asks for a distance, and dispatches the calibration once both are answered', async () => {
+		const calls: CalibratePlanInput[] = [];
+		const commands: PlanEditorCommandServices = {
+			...unavailablePlanEditorCommands(),
+			calibratePlan: () => ({
+				execute: (input) => {
+					calls.push(input);
+					return Promise.resolve(ok(undefined));
+				},
+				undo: () => Promise.resolve(ok(undefined)),
+			}),
+		};
+		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
+		const store = useDialogStore(harness.pinia);
+		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+
+		click(harness, { x: 0, y: 0 });
+		click(harness, { x: 100, y: 0 });
+		await settle();
+
+		expect(store.current?.kind).toBe('confirm');
+		await harness.wrapper.find('[data-rp-action="confirm"]').trigger('click');
+		await settle();
+
+		expect(store.current?.kind).toBe('form');
+		await harness.wrapper.find('.rp-dialog input').setValue('2400');
+		await harness.wrapper.find('.rp-dialog form').trigger('submit');
+		await settle();
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]).toEqual({
+			planId: 'plan-ground',
+			pointA: { x: -480, y: -480 },
+			pointB: { x: 520, y: -480 },
+			knownDistance: 2400,
+		});
+		expect(store.current).toBeNull();
+		harness.unmount();
+	});
+
+	/**
 	 * The load-bearing claim `runtime.ts`'s `CalibrateTool` registration makes in comment
 	 * form: both dialogs go through the LEAF's own store, so a calibration gesture in one
 	 * split pane cannot trap another. Two independent harnesses share nothing but the

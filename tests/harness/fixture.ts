@@ -28,8 +28,10 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  * it for a fresh one (Vue installs a plugin for the app's lifetime, and every component
  * resolves through it). So the "one seeded world" claim above does not hold merely because
  * `seedFixture()` ran once; it holds because `IndexPage.vue`'s `open()` calls
- * `reseedFixture()` — THIS function — at the top of every navigation, putting the SAME Pinia
- * back to these starting values before the next entry mounts. Without that call, an entry
+ * `reseedFixture()` — THIS function — on every navigation, putting the SAME Pinia back to
+ * these starting values before the next entry mounts. It runs once the outgoing entry's own
+ * teardown has actually completed rather than at the top of `open()` — see the call site's
+ * own comment for why that position is load-bearing. Without the call itself, an entry
  * that mutates a store — `PlanEditorRoot` mutates the editor store on pan and zoom,
  * `LayersPanel` mutates the workspace store, `SelectTool` mutates the selection store —
  * leaves that mutation for the next entry to draw against, and "reproducible" stops being

@@ -259,17 +259,6 @@ function hrefFor(entry: HarnessEntry): string {
 async function open(entry: HarnessEntry): Promise<void> {
 	const mine = ++generation.value;
 
-	// The seeded world goes back to its starting values before ANY entry mounts, including the
-	// very first: `PlanEditorRoot` mutates the editor store on pan and zoom, `LayersPanel`
-	// mutates the workspace store, `SelectTool` mutates the selection store, and none of that
-	// is per-entry state — it is the ONE Pinia `page.ts` built with `seedFixture()`, shared by
-	// every entry this index opens for the app's whole lifetime. Without this, the second entry
-	// draws against whatever the first one left behind, and "the same screen looks the same
-	// next week" (`fixture.ts`'s header) stops being true the moment a designer pans a plan and
-	// looks at something else. See `reseedFixture` for which stores that is and how the set was
-	// established.
-	reseedFixture();
-
 	// The address bar follows the click, with `replaceState` rather than `push` — the index is
 	// one page, and a back-button stack of every entry glanced at is not what a designer wants;
 	// back should leave the harness. Built from `hrefFor`, the same function the link itself
@@ -293,6 +282,34 @@ async function open(entry: HarnessEntry): Promise<void> {
 		const module = (await entry.component()) as { default: unknown };
 
 		if (mine !== generation.value) return;
+
+		// The seeded world goes back to its starting values HERE — after the outgoing entry's
+		// real teardown, not before it. `openComponent.value = null` above only QUEUES Vue's
+		// reactive flush; the flush that actually runs the outgoing entry's `onUnmounted`/
+		// `onBeforeUnmount` hooks completes on the microtask queue ahead of this `await`
+		// resuming (`warningOwner`'s header states the formal ordering: the null assignment
+		// queues that flush as microtask M1, this continuation is M2, and microtasks are FIFO).
+		// This call used to sit at the top of `open()`, ahead of that flush — round 8's fix —
+		// which let a store mutation made from the outgoing entry's teardown land AFTER the
+		// reset, so the incoming entry inherited it instead of the seeded value. Nothing under
+		// `src/presentation` mutates a store from an unmount hook today (grepped:
+		// `onUnmounted`/`onBeforeUnmount` reach four call sites — `useThemeTokens`,
+		// `BackgroundLayer`, `PlanEditorRoot`, `PlanCanvas` — and each disposes a listener, a
+		// counter or an observer, never a store), so the hole was unreachable at the time it
+		// was found. `fixture.ts`'s reproducibility guarantee is unconditional regardless, so an
+		// unreachable-today hole under it was still a hole — waiting for the next component that
+		// gains an unmount hook that touches Pinia.
+		//
+		// Sitting after the `mine !== generation.value` guard above is not incidental: without
+		// it, a STALE `open()` — a click already superseded by a later one — would reset the
+		// world out from under the entry that is actually live on the stage. `PlanEditorRoot`
+		// mutates the editor store on pan and zoom, `LayersPanel` mutates the workspace store,
+		// `SelectTool` mutates the selection store, and none of that is per-entry state — it is
+		// the ONE Pinia `page.ts` built with `seedFixture()`, shared by every entry this index
+		// opens for the app's whole lifetime. See `reseedFixture` for which stores that is and
+		// how the set was established. The very first open has no outgoing entry to wait for, so
+		// this still runs exactly once ahead of its mount, with nothing to race.
+		reseedFixture();
 
 		openComponent.value = module.default;
 		mountedGeneration = mine;
@@ -559,7 +576,19 @@ const initial = all.value.find((entry) => entry.id === requested);
 // An `?entry=` naming nothing is reported rather than silently ignored — `harness-shot`
 // exits non-zero on it, so a typo in a capture command fails loudly instead of writing a
 // picture of the index.
-if (requested && !initial) failure.value = `no entry named ${requested}`;
+//
+// `requested !== null` rather than truthy: `?entry=` (no value) makes `URLSearchParams.get`
+// answer `''`, not `null`, and `page.ts` routes here for it exactly as for a named entry —
+// it tests `has('entry')`, which is `true` for an empty value too. A truthy check here
+// treated that `''` the same as "no `entry` param at all" (the plain `?index` case, where
+// `requested` really is `null` and the picker is the correct, honest screen) and silently
+// showed the picker instead of a failure — the bad outcome for `harness-shot`, which would
+// then sit out its whole timeout waiting on a request the page knew was invalid at load.
+// `no entry named ` with nothing after it would be a worse message than saying so plainly,
+// so the empty case gets its own text.
+if (requested !== null && !initial) {
+	failure.value = requested === '' ? 'an entry was requested with an empty name' : `no entry named ${requested}`;
+}
 if (initial) void open(initial);
 </script>
 

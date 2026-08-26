@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, inject, onBeforeUnmount, onMounted, ref, resolveComponent } from 'vue';
+import { defineComponent, h, inject, onBeforeUnmount, onMounted, onUnmounted, ref, resolveComponent } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import type { HarnessEntry } from './entries';
@@ -10,6 +10,7 @@ import EmptyLayer from '../../src/presentation/editor/layers/EmptyLayer.vue';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
 import { installEditorEnvironment, settle as flushAsync, settleUntil } from '../helpers/editor';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
+import { drawSchemeToggle } from './theme';
 import { DEFAULT_VIEWPORT, screenPoint } from '../../src/presentation/editor/viewport/Viewport';
 
 /**
@@ -256,6 +257,27 @@ const ReadsTheCamera = defineComponent({
 });
 
 /**
+ * Round 8's reproduction. Nothing under `src/presentation` mutates a store from an unmount
+ * hook today (measured — `grep -rn "onUnmounted\|onBeforeUnmount" src/presentation` finds three
+ * hits and none touches Pinia), so this is a component built to have the shape the fix guards
+ * against: it mutates the editor store — the same `beginPan`/`continuePan`/`endPan` sequence
+ * `PansTheCamera` uses on a real drag — from `onUnmounted`, which fires once Vue's reactive
+ * flush actually tears this entry down rather than when `open()` merely queues that teardown.
+ */
+const PansOnUnmount = defineComponent({
+	setup() {
+		onUnmounted(() => {
+			const editor = useEditorStore();
+			editor.beginPan(screenPoint(0, 0));
+			editor.continuePan(screenPoint(120, 40));
+			editor.endPan();
+		});
+
+		return () => h('p', 'about to pan on the way out');
+	},
+});
+
+/**
  * Module loads this file finishes by hand, oldest first — one per CALL of `entry.component()`,
  * which is what `open()` awaits and what the generation guard sits on the far side of.
  */
@@ -346,6 +368,25 @@ describe('the harness index, with nothing to open', () => {
 
 		wrapper.unmount();
 	});
+
+	/**
+	 * Round 8. `?entry=` with no value: `URLSearchParams.get('entry')` answers `''`, not `null`
+	 * — measured — and `has('entry')` answers `true`, so `page.ts` routes here exactly as it
+	 * would for a named entry. The truthiness check this used to fail on (`if (requested &&
+	 * !initial)`) treated `''` the same as "no `entry` param at all" and suppressed the
+	 * failure, leaving the stage showing "Pick an entry." with nothing open — the bad outcome
+	 * for `harness-shot`, which would then sit through its whole timeout on a request the page
+	 * knew was invalid at load. This is the same shape `resolveShots` in `scripts/entryShots.mjs`
+	 * already refuses at the argv seam (Task 6 Minor 4); this is that shape at the URL seam.
+	 */
+	it('reports an `?entry=` with an empty name instead of showing the picker', async () => {
+		const wrapper = await openIndex('entry=');
+
+		expect(wrapper.find('.rp-harness-failure').text()).toBe('an entry was requested with an empty name');
+		expect(stageEntry(wrapper)).toBeUndefined();
+
+		wrapper.unmount();
+	});
 });
 
 /**
@@ -389,6 +430,39 @@ describe('the harness index, the address bar following the opened entry', () => 
 		expect(after.get('theme')).toBe('light');
 		expect(after.has('phone')).toBe(true);
 		expect(after.has('index')).toBe(false);
+
+		wrapper.unmount();
+	});
+
+	/**
+	 * Round 8. `hrefFor` clones `window.location.search`, so it is only ever as current as the
+	 * URL — and until this round, `drawSchemeToggle` (`theme.ts`) never touched the URL at all,
+	 * just a local `scheme` variable and the body classes. The divergence between the two was
+	 * always there; it became CONSEQUENTIAL once `hrefFor` started faithfully propagating
+	 * whatever the URL said, re-asserting a stale scheme instead of dropping it. The chosen
+	 * remedy makes the URL the single source of truth `wantedScheme` already assumes at
+	 * load — the toggle writes `theme` into it — rather than deriving links from the scheme on
+	 * screen, which would leave two places stating the same fact.
+	 *
+	 * `hrefFor` itself is not reactive to a `history.replaceState` call — nothing here asserts
+	 * that it magically re-runs on its own — so this drives it the way the page actually would:
+	 * opening a different entry re-renders the whole list, `hrefFor` included, against
+	 * whatever the URL says by then.
+	 */
+	it('carries the scheme the toggle switched to, once something re-renders the list', async () => {
+		const wrapper = await openIndex('index');
+
+		drawSchemeToggle();
+		document.body.querySelector<HTMLElement>('.rp-harness-scheme')?.click();
+
+		expect(new URLSearchParams(window.location.search).get('theme')).toBe('light');
+
+		await wrapper.findAll('nav li a')[0].trigger('click');
+		await flushAsync();
+
+		const other = wrapper.findAll('nav li a')[1].element as HTMLAnchorElement;
+
+		expect(new URLSearchParams(new URL(other.href).search).get('theme')).toBe('light');
 
 		wrapper.unmount();
 	});
@@ -440,9 +514,9 @@ describe('the harness index, opening an entry', () => {
 	/**
 	 * Finding A. Regression for `page.ts` calling `seedFixture()` once for the app's whole
 	 * lifetime while `PlanEditorRoot` (and other real components) mutate the shared editor
-	 * store on ordinary use — `open()` now calls `reseedFixture()` at the top of every
-	 * navigation, and this is what fails without that call: the second entry would draw the
-	 * PANNED viewport the first one left behind rather than the seeded default.
+	 * store on ordinary use — `open()` now calls `reseedFixture()` on every navigation, and
+	 * this is what fails without that call: the second entry would draw the PANNED viewport
+	 * the first one left behind rather than the seeded default.
 	 */
 	it('reseeds the world before the next entry, so a pan the first one made does not draw the second', async () => {
 		state.components = [
@@ -453,6 +527,30 @@ describe('the harness index, opening an entry', () => {
 		const wrapper = await openIndex('entry=component:PansTheCamera');
 
 		expect(stageEntry(wrapper)).toBe('component:PansTheCamera');
+
+		await wrapper.findAll('nav li a')[1].trigger('click');
+		await flushAsync();
+
+		expect(stageEntry(wrapper)).toBe('component:ReadsTheCamera');
+		expect(wrapper.find('.rp-harness-stage').text()).toBe(`pan:${DEFAULT_VIEWPORT.pan.x},${DEFAULT_VIEWPORT.pan.y}`);
+
+		wrapper.unmount();
+	});
+
+	/**
+	 * Round 8. `reseedFixture()` used to be `open()`'s FIRST statement, synchronous and ahead of
+	 * the outgoing entry's actual teardown: `openComponent.value = null` only QUEUES Vue's
+	 * reactive flush, which runs on the microtask queue ahead of the awaited module resuming — so
+	 * an outgoing entry's `onUnmounted` mutating a store lands AFTER the reset, and the incoming
+	 * entry inherits that mutation instead of the seeded value. `PansOnUnmount` is built to have
+	 * exactly that hook, since nothing under `src/presentation` does today.
+	 */
+	it('does not let the outgoing entry\'s unmount mutation survive the reset', async () => {
+		state.components = [entryFor('component:PansOnUnmount', moduleOf(PansOnUnmount)), entryFor('component:ReadsTheCamera', moduleOf(ReadsTheCamera))];
+
+		const wrapper = await openIndex('entry=component:PansOnUnmount');
+
+		expect(stageEntry(wrapper)).toBe('component:PansOnUnmount');
 
 		await wrapper.findAll('nav li a')[1].trigger('click');
 		await flushAsync();

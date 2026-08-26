@@ -11,11 +11,12 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { transform } from 'lightningcss';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountHarness } from '../harness/mount';
 import { mountPlanEditorHarness } from '../harness/planEditor';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
+import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { drawSchemeToggle } from '../harness/theme';
 
 /**
@@ -88,6 +89,7 @@ const sheetsImporting = (dir: string, skip: string[] = []): string[] =>
 beforeEach(() => {
 	document.body.innerHTML = '';
 	document.body.className = '';
+	document.head.innerHTML = '';
 });
 
 describe('the browser harness', () => {
@@ -264,8 +266,14 @@ describe('the browser harness', () => {
 	 * named only `'"` and not `` ` ``. Planted and watched failing before this was widened
 	 * (a template-literal specifier in `page.ts` reaches production and was invisible to
 	 * both this scan AND the rendered-document check in `indexPage.test.ts`, which mounts
-	 * `IndexPage` directly and never executes `page.ts` at all — this source scan is the
-	 * only one of the two that can see a `page.ts`-specific import at all).
+	 * `IndexPage` directly and never executes `page.ts` at all — this source scan remains
+	 * the only check in this file that can see a `page.ts`-specific IMPORT at all, `page.ts`
+	 * itself running below included: Vitest's default `css: false` stubs a real `.css`
+	 * import into an empty module rather than loading it, so executing the module graph
+	 * proves nothing about an import no matter how faithfully it runs — measured, not
+	 * assumed, by planting one and watching the execution check below stay green through
+	 * it while this one caught it; see that check's own comment for what running the
+	 * module graph closes instead).
 	 *
 	 * The widening touches only the DELIMITER class (`['"`` ` ``]`, both ends of the match);
 	 * the inner exclusion class stays `[^'"]` — backtick deliberately left out of it — so a
@@ -307,8 +315,14 @@ describe('the browser harness', () => {
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
-		// reachable as any other and its CSS import would load the same sheet.
-		const MODULE = /\.(?:ts|tsx|js|mjs|cjs|jsx|vue)$/;
+		// reachable as any other and its CSS import would load the same sheet. Matches
+		// `eslint.config.mjs`'s own `SRC_EXTENSIONS` — the repository's other answer to the
+		// same question — nine spellings rather than a list restated by eye; the two disagreed
+		// on `.mts`/`.cts` until this widening (measured: neither exists under `src/`, `tests/`
+		// or `scripts/` today, so nothing was actually missed yet, but `moduleResolution:
+		// "bundler"` and `allowJs` mean Vite compiles both, so a future helper written in
+		// either would have had its stylesheet import go unscanned).
+		const MODULE = /\.(?:ts|tsx|mts|cts|js|mjs|cjs|jsx|vue)$/;
 		const sources = (dir: string): string[] =>
 			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 				const full = path.join(dir, entry.name);
@@ -332,6 +346,46 @@ describe('the browser harness', () => {
 		);
 
 		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
+	});
+
+	/**
+	 * Round 8's item 5 — the route no source pattern can ever see, at any width: a stylesheet
+	 * inserted PROGRAMMATICALLY (`document.createElement('link'); el.rel = 'stylesheet'; …;
+	 * document.head.appendChild(el)`) is not distinguishable from any other `createElement`
+	 * call without running the code, so widening the regex above is not an available fix —
+	 * only running it and looking at the result is. The rendered-document check in
+	 * `indexPage.test.ts` already does that for what an ENTRY renders, but it mounts
+	 * `IndexPage` directly and never executes `page.ts` — the harness page's actual entry
+	 * point, and the one place with a route this specific: `applyPlatform`, `drawSchemeToggle`
+	 * and the real component registry all run from there, none of it through anything
+	 * `indexPage.test.ts` drives.
+	 *
+	 * So this executes `page.ts` itself. Its top-level code runs once per module instance, at
+	 * import time, branching on `window.location.search` — `vi.resetModules()` plus a fresh
+	 * dynamic `import` re-runs it for this test rather than reusing whatever a previous test
+	 * left behind, and `?index` takes the branch that mounts the real `IndexPage` against the
+	 * real glob, the same path `npm run harness` serves.
+	 *
+	 * **Proven to catch something, not merely to run**: a `document.createElement('link')`
+	 * stylesheet planted at `page.ts`'s top level was watched failing here (`CSS NODES` went
+	 * from 0 to 1) before being removed again — recorded in the round 8 report rather than
+	 * left in the tree, for the reason `tests/harness/harness.test.ts`'s other planted proofs
+	 * already give.
+	 *
+	 * **What this still does not close.** `?index` alone renders "Pick an entry." — no entry
+	 * mounts — so a stylesheet a specific ENTRY inserts programmatically is still the
+	 * `indexPage.test.ts` check's job, not this one's; this closes `page.ts`'s OWN route, the
+	 * one no other check executes at all.
+	 */
+	it('adds no stylesheet to the document when page.ts itself runs', async () => {
+		installEditorEnvironment();
+		window.history.replaceState({}, '', '/?index');
+		vi.resetModules();
+
+		await import('../harness/page');
+		await flushAsync();
+
+		expect(document.querySelectorAll('link[rel~=stylesheet i], style').length).toBe(0);
 	});
 
 	/**

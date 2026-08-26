@@ -193,6 +193,24 @@ export const indicatorOf = (
 			shadow = declaration.value.some((one) => paints(one.color) && spills(one));
 			continue;
 		}
+		// `all` IS BOTH PROPERTIES AT ONCE. Its grammar admits only a CSS-wide keyword, and this gate
+		// can prove an indicator from none of them — four reset the property and `inherit` takes a
+		// value no stylesheet holds — so every spelling blanks the whole indicator. That makes such a
+		// rule a FLATTENING one as surely as `box-shadow: none`, which is the half that matters: it
+		// is not merely uncredited, it takes away what an earlier rule drew.
+		//
+		// Reached here and not through `RESETS`, because the parser gives `all` a property of its own
+		// with a plain string value rather than leaving it unparsed. The sibling gate learned to hear
+		// `all` two commits ago, in `CONTESTED`; this reader had the identical blind spot and was not
+		// swept for it then.
+		if (declaration.property === 'all') {
+			for (const part of ['width', 'style', 'color'] as const) touched.add(part);
+			width = 'blank';
+			style = 'blank';
+			color = 'blank';
+			shadow = false;
+			continue;
+		}
 		if (declaration.property !== 'unparsed') continue;
 
 		const blank = isBlankKeyword(declaration);

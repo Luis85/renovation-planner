@@ -333,9 +333,10 @@ const flattenedWithoutRing = (
 		// important — the fix — treated that block as wholly normal, which over-reports rather than
 		// under-reports but is still a different answer from the browser's. Per longhand there is no
 		// approximation left to pick a safe side of.
+		// `all` counts for BOTH, since an important `all` makes every property it resets important.
 		const importantPart = (part: OutlinePart): boolean =>
-			rule.important.has('outline') || rule.important.has(`outline-${part}`);
-		const importantShadow = rule.important.has('box-shadow');
+			rule.important.has('all') || rule.important.has('outline') || rule.important.has(`outline-${part}`);
+		const importantShadow = rule.important.has('all') || rule.important.has('box-shadow');
 		const flattens = shadow === false;
 
 		// `:focus-visible` is asked of each BRANCH, never of the rule. Asked of the rule,
@@ -662,6 +663,20 @@ describe('a flattened button and its focus ring', () => {
 			'an outline whose width is zeroed by another rule',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:focus-visible { outline-width: 0; }',
 		],
+		// `all: unset` resets the outline AND the shadow, so a more specific rule spelled that way
+		// takes the ring away — and the reader modelled only explicit `outline`/`box-shadow`, so the
+		// earlier ring stood and this passed. The sibling gate learned to hear `all` two commits
+		// earlier, in `CONTESTED`; sweeping the neighbour for the same shape is what did not happen.
+		[
+			'a ring a more specific all-reset removes',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:focus-visible { all: unset; }',
+		],
+		// And its importance travels: an important `all` makes every property it resets important, so
+		// a later, more specific NORMAL ring cannot put the indicator back.
+		[
+			'an important all-reset a more specific normal ring cannot beat',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { all: unset !important; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
@@ -738,6 +753,11 @@ describe('a flattened button and its focus ring', () => {
 		// a flattened button with an indicator that is not there.
 		'outline: inherit',
 		'box-shadow: inherit',
+		// `all` is both properties at once, and its grammar admits only CSS-wide keywords — none of
+		// which this gate can prove an indicator from. It arrives as its own parsed property rather
+		// than as an unparsed keyword, so the `RESETS` path never saw it.
+		'outline: 2px solid red; all: unset',
+		'box-shadow: 0 0 0 3px red; all: revert',
 	])('does not count %s as a ring', (declarations) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
 	});
@@ -761,6 +781,7 @@ describe('a flattened button and its focus ring', () => {
 		['outline-style: solid', true],
 		['outline-style: solid; outline-color: red', true],
 		['outline: 2px solid red; outline-style: none; outline-style: solid', true],
+		['all: unset; outline: 2px solid red', true],
 	])('resolves %s to %s', (declarations, expected) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(expected);
 	});

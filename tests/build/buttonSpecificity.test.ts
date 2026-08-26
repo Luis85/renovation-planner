@@ -94,6 +94,32 @@ const moreSpecific = (a: [number, number, number], b: [number, number, number]):
 	beats(a, b) ? a : b;
 
 /**
+ * The FIRST functional pseudo in a selector, matched with balanced parentheses so a nested one is
+ * captured whole. Returns its name, its complete argument text, and the span it occupies.
+ *
+ * A regex cannot do this: `\([^()]*\)` matches only the INNERMOST parentheses, which is what
+ * forced the innermost-first loop this replaces — and that loop is exactly where the
+ * double-counting came from.
+ */
+const firstFunctional = (selector: string): { name: string; inner: string; from: number; to: number } | null => {
+	const opener = /:(not|is|has|where)\(/g;
+	const match = opener.exec(selector);
+
+	if (match === null) return null;
+
+	let depth = 1;
+	let end = match.index + match[0].length;
+
+	while (end < selector.length && depth > 0) {
+		if (selector[end] === '(') depth += 1;
+		else if (selector[end] === ')') depth -= 1;
+		if (depth > 0) end += 1;
+	}
+
+	return { name: match[1], inner: selector.slice(match.index + match[0].length, end), from: match.index, to: end + 1 };
+};
+
+/**
  * A selector's (id, class, type) specificity.
  *
  * `:not(...)`/`:is(...)`/`:has(...)` contribute their ARGUMENT's specificity and nothing of their
@@ -108,29 +134,35 @@ const moreSpecific = (a: [number, number, number], b: [number, number, number]):
  * specificity is (0,1,0) and it loses to Obsidian's rule. A gate that over-counts lets exactly
  * the rules it exists to catch through.
  *
- * Resolved INNERMOST-FIRST in a loop rather than in one pass, so a nested `:is(.a:not(.b))` is
- * scored rather than skipped: the argument pattern cannot match nested parentheses, and a single
- * `String.replace` never re-scans what it just rewrote.
+ * **Each pseudo is resolved as a WHOLE, outermost-first, and its arguments are scored in their own
+ * accumulator.** The previous version matched only innermost parentheses and folded every result
+ * into one shared total, so a nested pseudo was counted twice: for
+ * `:is(.rp-editor-tool-active, :not(.other))` the inner `:not(.other)` added (0,1,0) to the outer
+ * sum, then the surviving `:is()` added its own maximum (0,1,0) — (0,2,0) against CSS's (0,1,0).
+ * That is a FALSE PASS, the direction that matters: such a rule appears to beat Obsidian while
+ * actually losing. Balanced extraction is what makes outermost-first possible, and outermost-first
+ * is what keeps each branch's total inside its own branch.
  *
  * Deliberately not a full CSS parser: it answers for the selector shapes this repository writes,
  * and `describe('the instrument')` below drives it against the ones that matter — including the
- * three it would be easiest to get wrong.
+ * four it would be easiest to get wrong.
  */
 function specificityOf(selector: string): [number, number, number] {
 	let rest = selector;
 	let ids = 0;
 	let classes = 0;
 	let types = 0;
-	const functional = /:(not|is|has|where)\(([^()]*)\)/;
 
 	// A bound rather than `while (true)`: a malformed selector must not hang the suite. Twenty is
-	// far past any nesting depth a stylesheet here would write.
+	// far past any count of sibling pseudos a stylesheet here would write.
 	for (let guard = 0; guard < 20; guard += 1) {
-		const match = functional.exec(rest);
+		const found = firstFunctional(rest);
 
-		if (match === null) break;
-		if (match[1] !== 'where') {
-			const [i, c, t] = splitTopLevel(match[2])
+		if (found === null) break;
+		if (found.name !== 'where') {
+			// Each complete argument scored INDEPENDENTLY, then the maximum — recursion handles any
+			// nesting inside it without touching this accumulator.
+			const [i, c, t] = splitTopLevel(found.inner)
 				.map((argument) => specificityOf(argument))
 				.reduce((best, one) => moreSpecific(best, one), [0, 0, 0]);
 
@@ -139,7 +171,7 @@ function specificityOf(selector: string): [number, number, number] {
 			types += t;
 		}
 
-		rest = `${rest.slice(0, match.index)} ${rest.slice(match.index + match[0].length)}`;
+		rest = `${rest.slice(0, found.from)} ${rest.slice(found.to)}`;
 	}
 
 	// Pseudo-ELEMENTS are removed before anything else counts, and that ordering is the fix for a
@@ -324,10 +356,35 @@ const splitCombinators = (selector: string): string[] => {
  * than scoring it — a rule invisible to the check is a worse outcome than one scored wrongly,
  * because no threshold change can ever rescue it.
  */
+/**
+ * A compound with every `:not(...)` and `:has(...)` construct removed, balanced.
+ *
+ * They are the two functional pseudos whose contents are NOT worn by the subject.
+ * `button:not(.rp-dialog-button)` matches every button EXCEPT that one, and
+ * `button:has(.icon)` describes a descendant. `:is()` and `:where()` are the opposite — they list
+ * alternatives the subject may match — so their contents stay.
+ */
+const withoutNegations = (compound: string): string => {
+	let rest = compound;
+
+	for (let guard = 0; guard < 20; guard += 1) {
+		const found = firstFunctional(rest);
+
+		if (found === null) break;
+		// A kept pseudo still has to be stepped over, or the scan restarts on it forever.
+		rest =
+			found.name === 'not' || found.name === 'has'
+				? `${rest.slice(0, found.from)} ${rest.slice(found.to)}`
+				: `${rest.slice(0, found.from)} ${found.inner} ${rest.slice(found.to)}`;
+	}
+
+	return rest;
+};
+
 const subjectClasses = (selector: string): string[] => {
 	const subject = splitCombinators(selector).pop() ?? '';
 
-	return [...subject.matchAll(/\.[\w-]+/g)].map(([token]) => token);
+	return [...withoutNegations(subject).matchAll(/\.[\w-]+/g)].map(([token]) => token);
 };
 
 /** The button classes a selector's subject wears, as exact tokens. */
@@ -426,6 +483,38 @@ describe('the instrument', () => {
 
 		expect(buttonClassesOn('.rp-dialog .rp-dialog-button-danger', classes)).toEqual(['.rp-dialog-button-danger']);
 		expect(buttonClassesOn('.rp-dialog .rp-dialog-button', classes)).toEqual(['.rp-dialog-button']);
+	});
+
+	/**
+	 * `:not()` EXCLUDES, so its classes are not worn by the subject. Reading them as worn was a
+	 * false pass with a nasty shape: `button:not(.rp-dialog-button)` matched the one class on the
+	 * `DEFERS_TO_THE_HOST` list, inherited its exemption, and was skipped — while the rule
+	 * actually applies to every OTHER button in the project.
+	 *
+	 * `:has()` goes with it: its argument describes a DESCENDANT, not the subject. `:is()` and
+	 * `:where()` are the opposite — alternatives the subject may match — so their classes stay.
+	 */
+	it.each([
+		['button:not(.rp-dialog-button)', []],
+		['button:has(.rp-dialog-button)', []],
+		[':is(.rp-dialog-button, .other)', ['.rp-dialog-button']],
+		[':where(.rp-dialog-button)', ['.rp-dialog-button']],
+		['.rp-dialog-button:not(.other)', ['.rp-dialog-button']],
+	])('reads %s as wearing %j', (selector, expected) => {
+		expect(buttonClassesOn(selector, new Set(['.rp-dialog-button']))).toEqual(expected);
+	});
+
+	/**
+	 * A nested pseudo's specificity belongs to its own branch. Folding every result into one total
+	 * counted `:is(.a, :not(.b))` twice — (0,2,0) against CSS's (0,1,0) — which reads as beating
+	 * Obsidian's rule while actually losing.
+	 */
+	it.each([
+		[':is(.rp-editor-tool-active, :not(.other))', [0, 1, 0]],
+		[':is(.a:not(.b), .c)', [0, 2, 0]],
+		[':not(:is(.a, .b.c))', [0, 2, 0]],
+	])('keeps %s inside its own branch', (selector, expected) => {
+		expect(specificityOf(selector)).toEqual(expected);
 	});
 
 	it('reads only the subject, never an ancestor', () => {

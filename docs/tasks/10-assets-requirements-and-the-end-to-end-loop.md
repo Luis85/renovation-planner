@@ -2249,6 +2249,12 @@ re-run, and the `reassign` refusal list losing its Asset half.
 **Nothing below has been re-measured against the merged tree**, coverage included —
 `vitest.config.ts` says the same thing about its own figures and for the same reason.
 
+**Those seven items are the whole of
+[19 — The Asset Catalogue Leaves the Project](19-the-asset-catalogue-leaves-the-project.md)**,
+which carries the plan for satisfying them rather than restating them. The currency question
+this slice names and does not answer is
+[20 — The Currency the Pipeline Is Told](20-the-currency-the-pipeline-is-told.md).
+
 ### What the closing pass left open, and why (2026-08-26)
 
 Every box below is ticked and every one has a check behind it. Three things the design

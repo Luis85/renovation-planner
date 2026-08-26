@@ -106,6 +106,10 @@ interpolated one is item 6's row label. So it lands when item 6 does. `t(languag
 spells the three-argument form the row label needs, and that is a specification rather than a
 description of what ships today.
 
+**Both land in
+[19 — The Asset Catalogue Leaves the Project](19-the-asset-catalogue-leaves-the-project.md)**,
+because the amendment that rewrote item 6 is the one that slice implements.
+
 **What this slice DID reach:** `CalibrateTool`, which slice 7 built and slice 8 shipped
 registered nowhere. It is in `registerEditorTools` and in the toolbar now, its recalibration
 confirmation is a `ConfirmDialog` and its `supplyKnownDistance` is a `form` dialog over

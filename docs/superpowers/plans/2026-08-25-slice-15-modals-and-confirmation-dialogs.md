@@ -2589,6 +2589,8 @@ Follow `docs/tests/suites/Smoke Test the Editor.md` end to end first, unchanged.
 7. With the dialog open, press `Tab` repeatedly: focus must cycle inside the dialog and never reach the toolbar or the canvas behind it.
 8. Open a second Plan Editor leaf on the same plan, open a dialog in one, and confirm `Escape` closes only that one.
 9. Toggle the plugin off and on. No `Several Konva instances detected`, and no error in the console.
+10. With a dialog open, press `Ctrl+P`. **Added by the final review pass, and the one step here that nothing in the repository can stand in for.** `DialogHost` is not an Obsidian `Modal`: it pushes no `Scope`, and its `keydown` handler calls `preventDefault()` without `stopPropagation()`, so Obsidian's own document-level keymap is still live behind the `inert` background. Expect the command palette to open ON TOP of the dialog. Record what then happens to the dialog when the palette is dismissed — whether focus returns inside the panel, and whether `Escape` still cancels. If this vault has a hotkey bound to `Escape`, press that too: it fires alongside the dialog's own cancel. `inert` takes the VIEW away from the user, never the application, and that is the honest scope of "modal" here.
+11. With a dialog open, click the leaf's own view header — the tab title, or its "more options" menu. That is OUTSIDE the subtree the host inerts, so it stays clickable and takes focus out of the panel, after which `Escape` does nothing until the user clicks back inside. `DialogHost`'s header names this as an accepted boundary rather than a defect; the point of walking it is to find out how bad it actually feels, which is the only way to decide whether it stays accepted.
 
 - [ ] **Step 4: Write down what it found**
 
@@ -2712,6 +2714,20 @@ came out of it:
 - **The `Escape` listener is on the DIALOG element, not on `document`.** Focus is trapped
   inside, so every key arrives there anyway — and a document-level listener per host means
   one `Escape` closing the dialogs of two Plan Editor leaves at once.
+- **"Modal" here means the VIEW, never the application.** This is not an Obsidian `Modal`:
+  nothing pushes a `Scope`, and the `keydown` handler calls `preventDefault()` without
+  `stopPropagation()`, so Obsidian's own document-level keymap stays live behind the
+  `inert` background — a hotkey bound to `Escape` fires alongside the dialog's cancel, and
+  the command palette is one keystroke away while a dialog is open. Nothing in jsdom models
+  a host keymap, so no test here can see any of it; Task 14 step 10 is where it gets
+  looked at. Say the narrow thing, because the word "modal" reads wider than this is.
+- **A fifth dialog kind is five edits, four of them build failures — measured, not
+  assumed.** Adding one and reading `vue-tsc` reports twice at `DialogResultByKind` and
+  once at `DialogHost`'s last branch, with `cancelResultFor`'s `TS2366` appearing as soon
+  as the result-type entry exists. The one hole the measurement found: `DialogHost`'s check
+  is `FormDialog`'s declared prop type, so it is STRUCTURAL — a fifth descriptor that
+  happened to carry a `title` and a `component` would satisfy `FormDescriptor` and render
+  as a form rather than fail. Every kind that is not a form variant is caught.
 - **The background goes `inert`, and deliberately NOT `aria-hidden`.** The siblings hold
   focusable controls, so an aria-hidden subtree around them is itself a violation
   (`aria-hidden-focus`) that the axe check reports. `aria-modal="true"` on the dialog is

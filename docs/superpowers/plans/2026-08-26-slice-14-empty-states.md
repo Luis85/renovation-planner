@@ -51,7 +51,7 @@ Slice 14 edits exactly four files slice 11 also edits, and every one additively:
 
 Settled with the product owner on 2026-08-26, before any code:
 
-1. **`noProjects` ships with no action button.** Its hand-off (a project-creation modal) is slice 16's, and slice 16 `dependsOn` slice 11. `actionLabel` is optional in the registry exactly for this.
+1. **`noProjects` AND `noBackground` ship with no action button.** `noProjects`'s hand-off (a project-creation form) is slice 16's, and slice 16 `dependsOn` slice 11. `noBackground`'s hand-off is slice 5's `set-plan-background` plugin command, which is not a member of `PlanEditorCommandServices` — the editor's Vue tree cannot reach it without either widening `PlanEditorContext` (slice 5's surface) or reaching for the global `app` (refused by the marketplace rules). `actionLabel` is optional in the registry exactly for this; `noZones` is the only entry that keeps one.
 2. **`PlanCanvas` always mounts once `status === 'ready'`.** Both Plan Editor empty states are **overlays inside** it.
 3. **An overlay hides while any tool is active** (`runtime.activeToolId !== null`). One rule, no per-key branching.
 4. **The selectors stay pure `(plan, zones) → key | null`.** The tool-active gate is a rendering concern in the component, not an input to the selector.
@@ -98,8 +98,8 @@ Secondary but real: all three fixtures carry `background: null`
 | --- | --- |
 | `docs/tasks/14-empty-states.md` | The four decisions, and three corrections to its PRD citations. |
 | `styles/index.css` | One `@import`. |
-| `src/presentation/i18n/locales/en.ts` | Eight keys. |
-| `src/presentation/i18n/locales/de.ts` | The same eight, translated. |
+| `src/presentation/i18n/locales/en.ts` | Seven keys. |
+| `src/presentation/i18n/locales/de.ts` | The same seven, translated. |
 | `src/presentation/editor/PlanCanvas.vue` | A default `<slot />` inside `.rp-plan-canvas`. |
 | `src/presentation/editor/PlanEditorRoot.vue` | Keep `provideEditorRuntime`'s return; render the overlay into the canvas slot. |
 | `src/presentation/stores/ProjectStore.ts` | One computed getter, `emptyStateKey`. |
@@ -135,10 +135,21 @@ Insert this verbatim:
 Four decisions taken with the product owner. Where they disagree with the text below,
 these win and the text below is the bug.
 
-1. **`noProjects` ships with NO action button.** Its hand-off is slice 16's
-   project-creation form, and slice 16 `dependsOn` slice 11. `actionLabel` is optional in
-   `EmptyStateContent` precisely so a state can ship without one; Design §6's illustrative
-   `@action="openCreateProjectModal()"` has no target yet and is not wired.
+1. **`noProjects` AND `noBackground` ship with NO action button.** `noProjects`'s
+   hand-off is slice 16's project-creation form, and slice 16 `dependsOn` slice 11 —
+   the form does not exist yet. `noBackground`'s hand-off is slice 5's background
+   picker, the `set-plan-background` plugin COMMAND, which is not a member of
+   `PlanEditorCommandServices`: the editor's Vue tree cannot reach it without either
+   widening `PlanEditorContext` (slice 5's surface, not this slice's to widen) or
+   reaching for the global `app`, which the Obsidian marketplace rules refuse. A
+   rendered control that does nothing is the exact failure mode this amendment exists
+   to avoid, so shipping one for `noBackground` while refusing one for `noProjects`
+   would be incoherent. `actionLabel` is optional in `EmptyStateContent` precisely so a
+   state can ship without one; Design §6's illustrative `@action="openCreateProjectModal()"`
+   and `@action="openPlanBackgroundPicker(planId)"` have no target yet and are not
+   wired. `planEditor.noZones` is the only entry that keeps a button, because its
+   hand-off (`activeToolId = 'draw-polygon'`) already exists and is reachable from the
+   editor's own state.
 2. **`PlanCanvas` always mounts once `ProjectStore.status === 'ready'`.** Both Plan Editor
    empty states render as OVERLAYS inside it. Design §6's `<PlanCanvas v-else />` is
    withdrawn.
@@ -232,11 +243,19 @@ region makes create-sample-project's output unreachable (no background, five
 zones) and makes the browser harness draw an empty state where the Konva scene
 should be, which its own docblock refuses a background on SDD 55 grounds.
 
-noProjects ships without an action button, since its hand-off is slice 16's and
-slice 16 depends on slice 11.
+noProjects ships without an action button, since its hand-off is slice 16's
+and slice 16 depends on slice 11. noBackground ships without one too: its
+hand-off is a plugin command outside PlanEditorCommandServices, unreachable
+from the editor's Vue tree without widening PlanEditorContext or reaching for
+the global app, which the marketplace rules refuse. planEditor.noZones is now
+the only registry entry with an actionLabel, and the slice adds seven string
+keys in total.
 
 Also: PRD 94 is one sentence and carries no worked example, so the German copy
-is ours to write rather than a quotation.
+is ours to write rather than a quotation. Several passages that attributed the
+project-creation hand-off to slice 15 (which built only the dialog framework)
+are corrected to slice 16, and passages describing the empty state as replacing
+the PlanCanvas region are corrected to describe it as an overlay.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
@@ -645,7 +664,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 4: The content registry and the eight locale keys
+## Task 4: The content registry and the seven locale keys
 
 The registry holds `StringKey`s, not copy. Typing it that way is what makes "the registry and
 the locale tables agree" a compiler guarantee instead of a review item.
@@ -665,17 +684,18 @@ the locale tables agree" a compiler guarantee instead of a review item.
   - `interface EmptyStateProps { readonly headline: string; readonly body: string; readonly actionLabel?: string }`
   - `resolveEmptyState(content: EmptyStateContent): EmptyStateProps`
 
-- [ ] **Step 1: Add the eight keys to `en.ts`**
+- [ ] **Step 1: Add the seven keys to `en.ts`**
 
 Insert immediately before the closing `} as const;`. Sentence case — the obsidianmd ruleset
-lints this table.
+lints this table. `noBackground` gets no action-label key at all: it ships with no action
+button (amendment 1 — its hand-off is a plugin command the editor's Vue tree cannot reach),
+so there is no button label to translate.
 
 ```typescript
 	'empty.project.no-projects.headline': 'No renovation projects yet',
 	'empty.project.no-projects.body': 'A renovation project holds your plans, zones, assets and costs. Create one to get started.',
 	'empty.plan.no-background.headline': 'No plan document yet',
 	'empty.plan.no-background.body': 'Set a floor plan, site plan, sketch or garden plan as this plan\u2019s background, then calibrate it so areas come out in real units.',
-	'empty.plan.no-background.action': 'Set plan background',
 	'empty.plan.no-zones.headline': 'No zones yet',
 	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
 	'empty.plan.no-zones.action': 'Draw a zone',
@@ -685,18 +705,18 @@ lints this table.
 file written by tooling, and a literal `'` inside a single-quoted string would need escaping
 anyway. `tests/build/encoding.test.ts` refuses a BOM either way.
 
-- [ ] **Step 2: Add the same eight keys to `de.ts`**
+- [ ] **Step 2: Add the same seven keys to `de.ts`**
 
 Insert immediately before the closing `};`. German noun capitalization is why the
 sentence-case lint deliberately does not run on this file. This copy is **ours to write** —
-PRD §94 is one sentence and quotes nothing (see Task 1's citation corrections).
+PRD §94 is one sentence and quotes nothing (see Task 1's citation corrections). No
+action-label key for `noBackground` here either, for the same reason as `en.ts`.
 
 ```typescript
 	'empty.project.no-projects.headline': 'Noch keine Renovierungsprojekte',
 	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Materialien und Kosten. Erstellen Sie eines, um zu beginnen.',
 	'empty.plan.no-background.headline': 'Noch kein Plandokument',
 	'empty.plan.no-background.body': 'Legen Sie einen Grundriss, Lageplan, eine Skizze oder einen Gartenplan als Hintergrund dieses Plans fest und kalibrieren Sie ihn, damit Flächen in echten Einheiten herauskommen.',
-	'empty.plan.no-background.action': 'Planhintergrund festlegen',
 	'empty.plan.no-zones.headline': 'Noch keine Zonen',
 	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
 	'empty.plan.no-zones.action': 'Zone zeichnen',
@@ -741,6 +761,21 @@ describe('the empty-state content registry', () => {
 	 */
 	it('gives noProjects no action label, since it has no hand-off yet', () => {
 		expect(EMPTY_STATE_CONTENT.renovationProject.noProjects.actionLabel).toBeUndefined();
+	});
+
+	/**
+	 * Amendment 1 covers `noBackground` too: its hand-off is slice 5's `set-plan-background`
+	 * plugin command, which is not a member of `PlanEditorCommandServices` — the editor's Vue
+	 * tree cannot reach it without either widening `PlanEditorContext` or reaching for the
+	 * global `app`, both refused. `noZones` is the only entry left with a button, because its
+	 * hand-off (`activeToolId = 'draw-polygon'`) already exists and is reachable from here.
+	 */
+	it('gives noBackground no action label, since its hand-off is unreachable from the editor tree', () => {
+		expect(EMPTY_STATE_CONTENT.planEditor.noBackground.actionLabel).toBeUndefined();
+	});
+
+	it('gives noZones an action label, since its hand-off already exists', () => {
+		expect(EMPTY_STATE_CONTENT.planEditor.noZones.actionLabel).toBeDefined();
 	});
 
 	it.each(LANGUAGES)('resolves the two plan-editor entries to distinct copy in %s', (language) => {
@@ -796,12 +831,15 @@ export interface EmptyStateContent {
 	readonly headline: StringKey;
 	readonly body: StringKey;
 	/**
-	 * Absent means NO BUTTON, and `renovationProject.noProjects` is the reason the field is
-	 * optional rather than the exception to it. Its hand-off is slice 16's project-creation
-	 * form, which depends on slice 11 — so a button here would either do nothing or be a
-	 * second, independently-decided way to create a project. Slice 14's own dependencies
-	 * section permits exactly this: "a click on an action button whose target isn't built yet
-	 * is simply not wired."
+	 * Absent means NO BUTTON, and `renovationProject.noProjects` and `planEditor.noBackground`
+	 * are why the field is optional rather than the exception to it. `noProjects`'s hand-off is
+	 * slice 16's project-creation form, which depends on slice 11 — so a button here would
+	 * either do nothing or be a second, independently-decided way to create a project.
+	 * `noBackground`'s hand-off is slice 5's `set-plan-background` plugin command, which is not
+	 * a member of `PlanEditorCommandServices`: the editor's Vue tree cannot reach it without
+	 * either widening `PlanEditorContext` (slice 5's surface) or reaching for the global `app`,
+	 * both refused. `planEditor.noZones` is the only entry that keeps this field, because its
+	 * hand-off (`activeToolId = 'draw-polygon'`) already exists and is reachable from here.
 	 */
 	readonly actionLabel?: StringKey;
 }
@@ -823,7 +861,6 @@ export const EMPTY_STATE_CONTENT = {
 		noBackground: {
 			headline: 'empty.plan.no-background.headline',
 			body: 'empty.plan.no-background.body',
-			actionLabel: 'empty.plan.no-background.action',
 		},
 		/**
 		 * Deliberately distinct copy from `noBackground` — a plan WITH a background and no
@@ -1100,25 +1137,19 @@ against the shell.
 - Consumes: `selectPlanEditorEmptyState`, `PlanEditorEmptyStateKey` (Task 3); `EMPTY_STATE_CONTENT` (Task 4); `resolveEmptyState` (Task 4); `EmptyState.vue` (Task 5); `EditorRuntime.activeToolId: Ref<ToolId | null>` and `EditorRuntime.setTool` from `src/presentation/editor/runtime.ts`.
 - Produces: `useProjectStore().emptyStateKey: ComputedRef<PlanEditorEmptyStateKey | null>`; a default slot on `PlanCanvas` rendered inside `.rp-plan-canvas`.
 
-- [ ] **Step 1: Settle `noBackground`'s hand-off before writing the component**
+**`noBackground` has no action button — settled, not a choice to make here.** Slice 5's
+background picker is a **plugin command** (`command.set-plan-background`), not a member of
+`PlanEditorCommandServices`. The editor's Vue tree has no way to reach it, and the only routes
+are a new seam on `PlanEditorContext` or the view calling the global `app` — both refused
+(the first is slice 5's seam and not this slice's to widen; the second the marketplace rules
+refuse outright). Task 4 has already dropped `actionLabel` from
+`EMPTY_STATE_CONTENT.planEditor.noBackground` and omitted the corresponding `en.ts`/`de.ts`
+key for exactly this reason: `noBackground` renders headline and body only, exactly as
+`noProjects` does, for the same reason — no reachable hand-off. There is no second option to
+weigh; a member added to `PlanEditorContext` to reach the picker would be widening slice 5's
+own seam from this slice, which amendment 1 forecloses.
 
-Run: `grep -n "setPlanBackground" src/presentation/editor/planEditorCommands.ts src/presentation/editor/PlanEditorContext.ts src/plugin/RenovationPlannerPlugin.ts`
-
-Slice 5's background picker is a **plugin command** (`command.set-plan-background`), not a
-member of `PlanEditorCommandServices`. So the editor's Vue tree has no way to reach it, and
-the only routes are a new seam on `PlanEditorContext` or the view calling the global `app` —
-which the marketplace rules refuse.
-
-**Two acceptable outcomes; pick one and say which in the code:**
-
-- **(a)** Drop `actionLabel` from `EMPTY_STATE_CONTENT.planEditor.noBackground` (Task 4) and delete the corresponding `en.ts`/`de.ts` key. `noBackground` then renders headline and body only, exactly as `noProjects` does, for exactly the same reason: no reachable hand-off yet.
-- **(b)** Add one member to `PlanEditorContext` — an `openBackgroundPicker(): void` supplied by `planEditorDeps` from the same function the plugin command already calls, so it is one more caller of one action rather than a second decision-maker.
-
-**(a) is the smaller, honest change and this plan assumes it.** Take (b) only if the product
-owner wants the button now; it widens the view's dependency bundle, which is slice 5's seam
-and not this slice's.
-
-- [ ] **Step 2: Write the failing test**
+- [ ] **Step 1: Write the failing test**
 
 Create `tests/presentation/editor/emptyStateOverlay.test.ts`:
 
@@ -1230,16 +1261,12 @@ describe('the plan editor empty states', () => {
 });
 ```
 
-If step 1 chose outcome **(a)**, delete the `noBackground` action case — there is no button —
-and keep the `noZones` one. Do not leave a case asserting a control that deliberately does not
-exist.
-
-- [ ] **Step 3: Run it to verify it fails**
+- [ ] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run tests/presentation/editor/emptyStateOverlay.test.ts`
 Expected: FAIL — every case, `.rp-empty-state` not found.
 
-- [ ] **Step 4: Add the store getter**
+- [ ] **Step 3: Add the store getter**
 
 In `src/presentation/stores/ProjectStore.ts`: add `computed` to the `vue` import, add
 `import { selectPlanEditorEmptyState } from '../emptyStates/selectors';`, and insert before
@@ -1271,7 +1298,7 @@ attached to the `return`:
 	return { project, plan, zones, status, error, emptyStateKey, hydrate, reset };
 ```
 
-- [ ] **Step 5: Give `PlanCanvas` a default slot**
+- [ ] **Step 4: Give `PlanCanvas` a default slot**
 
 In `src/presentation/editor/PlanCanvas.vue`, add a slot as the last child of the
 `.rp-plan-canvas` div, immediately after `</VStage>`:
@@ -1289,7 +1316,7 @@ In `src/presentation/editor/PlanCanvas.vue`, add a slot as the last child of the
 		<slot />
 ```
 
-- [ ] **Step 6: Render the overlay from `PlanEditorRoot`**
+- [ ] **Step 5: Render the overlay from `PlanEditorRoot`**
 
 In `src/presentation/editor/PlanEditorRoot.vue`: add `computed` to the `vue` import, and add
 
@@ -1337,9 +1364,9 @@ const overlay = computed(() => {
  * with zero user-supplied geometry, so there is no `CreateZoneCommand` call to make — the
  * correct action is putting the user in the same drawing mode the toolbar's own button would.
  *
- * `noBackground` has no button (see the task's step 1): slice 5's picker is a PLUGIN COMMAND,
- * not a member of the editor's bundle, so there is nothing here to call that would not be
- * either a new seam or a reach for the global `app`.
+ * `noBackground` has no button (settled at the top of this task): slice 5's picker is a
+ * PLUGIN COMMAND, not a member of the editor's bundle, so there is nothing here to call that
+ * would not be either a new seam or a reach for the global `app`.
  */
 function onEmptyStateAction(): void {
 	runtime.setTool('draw-polygon');
@@ -1363,12 +1390,12 @@ Then wrap the canvas:
 			</PlanCanvas>
 ```
 
-- [ ] **Step 7: Lint both SFCs**
+- [ ] **Step 6: Lint both SFCs**
 
 Run: `npx eslint --fix src/presentation/editor/PlanCanvas.vue src/presentation/editor/PlanEditorRoot.vue && npx eslint src/presentation/editor/PlanCanvas.vue src/presentation/editor/PlanEditorRoot.vue`
 Expected: no output.
 
-- [ ] **Step 8: Run the new test and every editor suite it could disturb**
+- [ ] **Step 7: Run the new test and every editor suite it could disturb**
 
 Run: `npx vitest run tests/presentation/editor tests/harness/accessibility.test.ts`
 Expected: PASS throughout. The three fixtures all carry `background: null`, so the
@@ -1377,7 +1404,7 @@ which is why nothing asserting `.rp-plan-canvas`, `canvasEl` or `.stage` moves. 
 those 13 files goes red, the overlay has become a replacement somewhere; fix that rather than
 the test.
 
-- [ ] **Step 9: Look at it in a browser**
+- [ ] **Step 8: Look at it in a browser**
 
 ```bash
 npm run harness-shot
@@ -1390,7 +1417,7 @@ not cover the zone captions it is explaining, and at 460px — the width an Obsi
 leaf actually has, which has already hidden one layout defect the default 1280 could not show
 — it must not overflow the pane.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/presentation/stores/ProjectStore.ts src/presentation/editor/PlanCanvas.vue \
@@ -1838,9 +1865,10 @@ that is a normal outcome, not a failure.
 
 Go through all eight items against the code. Items 1, 5 and 7 are the amended ones. **Do not
 tick an item the code does not satisfy** — write down what is open and why instead, the way
-slice 15's document carries its two open items and names the amendment that reopened them. If
-Task 6 Step 1 took outcome (a), `noBackground` has no action button and item 7's wording
-already accommodates it; say so explicitly rather than leaving a reader to infer it.
+slice 15's document carries its two open items and names the amendment that reopened them.
+`noBackground` has no action button (settled in Task 6, not a choice taken there) and item
+7's wording already accommodates it; say so explicitly rather than leaving a reader to infer
+it.
 
 - [ ] **Step 4: Write the slice's section in `CLAUDE.md`**
 
@@ -1894,7 +1922,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ## Merge order against slice 11
 
 Slice 14 edits four files slice 11 also edits, all additively: `i18n/locales/en.ts`,
-`i18n/locales/de.ts` (eight keys appended before a closing brace), `composition-root.ts` (one
+`i18n/locales/de.ts` (seven keys appended before a closing brace), `composition-root.ts` (one
 field on `PersistenceServices`, one function beside `planEditorDeps`), and `ProjectStore.ts`
 (one computed and one name in the returned object).
 
@@ -1907,5 +1935,5 @@ lands first, tell the slice 11 worktree, because it is holding all four of those
 Checked against the amended spec:
 
 - **Covered:** `EmptyState.vue` (Task 5), the registry with exactly three entries and no literals under `emptyStates/` (Task 4), both pure selectors including the `plan === null` case (Task 3), `ListProjects` and the view's first data dependency (Tasks 7-8), the Plan Editor's render states (Task 6), the failed-`Result` case asserted by test rather than review (Tasks 6 and 8), one hand-off per wired action (Task 6), `npm run check` (Task 9).
-- **One spec item deliberately narrowed:** DoD 7's "each of the three actions" is now "each action that IS wired". `noProjects` has none by amendment 1; `noBackground` has none because slice 5's picker is a plugin command the editor's Vue tree cannot reach without a new seam (Task 6, Step 1). Both are stated in the code and in the DoD rather than resolved silently, because a rendered control that does nothing is the failure mode being avoided.
+- **One spec item deliberately narrowed:** DoD 7's "each of the three actions" is now "each action that IS wired". `noProjects` has none by amendment 1; `noBackground` has none because slice 5's picker is a plugin command the editor's Vue tree cannot reach without a new seam (settled at the top of Task 6). Both are stated in the code and in the DoD rather than resolved silently, because a rendered control that does nothing is the failure mode being avoided.
 - **One instrument deliberately weakened, and said so:** DoD 6's "never reaches either selector" is held at the store (`status === 'failed'`, `emptyStateKey === null`) rather than by spying on a module export through an SFC's import binding (Task 8, Step 1). The claim is narrower than the spec's wording; the task says which and does not delete the case.

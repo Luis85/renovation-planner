@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Declaration, Selector } from 'lightningcss';
-import { compoundsOf, moreSpecific, parseSelector, propertyOf, specificityOf, stylesheetRules, subjectClasses } from '../helpers/selectors';
+import { alternativesOf, compoundsOf, moreSpecific, parseSelector, propertyOf, specificityOf, stylesheetRules, subjectClasses } from '../helpers/selectors';
 
 /**
  * NO RULE THIS PROJECT WRITES FOR A `<button>` MAY LOSE TO OBSIDIAN'S OWN BUTTON RULE.
@@ -236,24 +236,39 @@ const targetsAButton = (selector: Selector, classes: Set<string>): boolean =>
 /**
  * Is this selector one the threshold GOVERNS — a button rule that has not deferred to the host?
  *
- * The two halves of the decision are here together rather than inline in the loop because they
- * cancelled each other out there and nothing noticed. `targetsAButton` brought a bare `button`
- * subject into scope; `onSubject` is empty for exactly those selectors, and `every` over an empty
- * list is TRUE, so the deferral clause immediately took every one of them back out. The fix was
- * one `length > 0`; the lesson is that the unit cases drove `targetsAButton` alone and so agreed
- * with a predicate that decided nothing. A test drives THIS.
+ * Asked of each ALTERNATIVE separately, and true if any one of them is governed. `:is()` is a
+ * union, so a selector can carry a deferring branch and a governed one at once:
+ * `:is(.rp-dialog-button, button)` folds down to the one class the exemption names, inherits its
+ * carve-out, and the `button` branch — every button in the project — rides out on it. Folding the
+ * branches together is the same defect as reading `:not()`'s contents as classes the subject
+ * wears, one layer up.
  *
- * EVERY class the subject wears must be a deferring one for the exemption to hold. A subject
- * wearing both `.rp-dialog-button` and `.rp-dialog-button-danger` is governed by the stricter of
- * the two, which is the case the substring bug got backwards.
+ * SPECIFICITY is asked of the original selector, never of a branch: `:is(.a, button)` scores its
+ * most specific argument for every element it matches, so a branch scored alone would rank the
+ * rule lower than the cascade does. Expansion answers WHICH elements a rule reaches; the ranking
+ * is a separate question with a separate answer.
+ *
+ * The two halves of the branch decision are here together rather than inline in the loop because
+ * they cancelled each other out there and nothing noticed. `targetsAButton` brought a bare
+ * `button` subject into scope; `onSubject` is empty for exactly those selectors, and `every` over
+ * an empty list is TRUE, so the deferral clause immediately took every one of them back out. The
+ * fix was one `length > 0`; the lesson is that the unit cases drove `targetsAButton` alone and so
+ * agreed with a predicate that decided nothing. A test drives THIS.
+ *
+ * EVERY class a branch's subject wears must be a deferring one for that branch to be exempt. A
+ * subject wearing both `.rp-dialog-button` and `.rp-dialog-button-danger` is governed by the
+ * stricter of the two, which is the case the substring bug got backwards.
  */
-const isGoverned = (selector: Selector, classes: Set<string>): boolean => {
-	if (!targetsAButton(selector, classes)) return false;
+const governsBranch = (branch: Selector, classes: Set<string>): boolean => {
+	if (!targetsAButton(branch, classes)) return false;
 
-	const onSubject = buttonClassesOn(selector, classes);
+	const onSubject = buttonClassesOn(branch, classes);
 
 	return !(onSubject.length > 0 && onSubject.every((token) => DEFERS_TO_THE_HOST.includes(token)));
 };
+
+const isGoverned = (selector: Selector, classes: Set<string>): boolean =>
+	alternativesOf(selector).some((branch) => governsBranch(branch, classes));
 
 /** One declaration list, parsed — so a value fixture is read the way a stylesheet's is. */
 const declarationsOf = (declarations: string): readonly Declaration[] =>
@@ -438,6 +453,38 @@ describe('the instrument', () => {
 		['.rp-editor-toolbar', false],
 	])('governs %s: %s', (selector, expected) => {
 		expect(isGoverned(parseSelector(selector), new Set(['.rp-dialog-button', '.rp-dialog-button-danger']))).toBe(expected);
+	});
+
+	/**
+	 * `:is()` is a UNION, so an exemption may cover one branch and not another. Folding the
+	 * alternatives into one set of classes let `:is(.rp-dialog-button, button)` inherit the
+	 * carve-out written for the deferring class and carry every button in the project out with it —
+	 * at (0,1,0), which loses to Obsidian's (0,1,1), so the rule the check exists to catch was
+	 * exempted by the check.
+	 *
+	 * The negative direction matters as much: a branch decision that governed every `:is()` would
+	 * pass the first two cases and destroy the exemption.
+	 */
+	it.each([
+		[':is(.rp-dialog-button, button)', true],
+		[':is(.rp-dialog-button, .rp-dialog-button-danger)', true],
+		[':is(.rp-dialog-button, .other) button', true],
+		[':is(.rp-dialog-button)', false],
+		[':is(.rp-dialog-button, .rp-dialog-button:hover)', false],
+		[':is(.rp-dialog-button, .other)', false],
+	])('governs each alternative of %s separately: %s', (selector, expected) => {
+		expect(isGoverned(parseSelector(selector), new Set(['.rp-dialog-button', '.rp-dialog-button-danger']))).toBe(expected);
+	});
+
+	// Expansion answers which elements a rule reaches. It must NOT be how the rule is ranked:
+	// `:is()` scores its most specific argument for every element it matches, so the `button`
+	// branch of the first selector ranks at (0,1,0) in the cascade, not at the (0,0,1) it would
+	// score alone. Scoring a branch would under-rank the rule and report a rule that actually wins.
+	it.each([
+		[':is(.rp-dialog-button, button)', [0, 1, 0]],
+		[':is(button, .a.b)', [0, 2, 0]],
+	])('scores %s as a whole, not per branch', (selector, expected) => {
+		expect(specificityOf(parseSelector(selector))).toEqual(expected);
 	});
 
 	it('reads only the subject, never an ancestor', () => {

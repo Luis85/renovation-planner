@@ -142,6 +142,43 @@ export function subjectClasses(selector: Selector): string[] {
 	return subject.flatMap((component) => classesIn(component));
 }
 
+/**
+ * Every selector this one is equivalent to, with `:is()` expanded into its alternatives.
+ *
+ * `:is(.a, .b) span` matches what `.a span, .b span` matches — it is sugar for a selector list,
+ * and the union is the point. A caller that folds the alternatives together loses exactly that:
+ * `:is(.rp-dialog-button, button)` reads as wearing `.rp-dialog-button`, and an exemption written
+ * for that class then covers the `button` branch, which matches every button in the project.
+ * Same defect as reading `:not()`'s contents as classes the subject wears, one function along.
+ *
+ * `:not()` and `:has()` are left whole, because their arguments are not alternatives for the
+ * subject — expanding those would be the original defect rather than the fix for it.
+ *
+ * **SPECIFICITY does not distribute over this.** `:is(.a, button)` scores its most specific
+ * argument for every element it matches, so a caller asking how a rule ranks must ask
+ * `specificityOf` about the ORIGINAL selector. Expansion answers which elements a rule reaches,
+ * and nothing else.
+ */
+export function alternativesOf(selector: Selector): Selector[] {
+	let branches: SelectorComponent[][] = [[]];
+
+	for (const component of selector) {
+		const expandable =
+			component.type === 'pseudo-class' && MATCHES_THE_SUBJECT.has(component.kind) && argumentsOf(component).length > 0;
+
+		if (!expandable) {
+			branches = branches.map((prefix) => [...prefix, component]);
+			continue;
+		}
+
+		const alternatives = argumentsOf(component).flatMap((argument) => alternativesOf(argument));
+
+		branches = branches.flatMap((prefix) => alternatives.map((alternative) => [...prefix, ...alternative]));
+	}
+
+	return branches;
+}
+
 /** Strictly more specific, comparing (id, class, type) in order. */
 export const moreSpecific = (a: readonly [number, number, number], b: readonly [number, number, number]): boolean =>
 	a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2];

@@ -41,7 +41,7 @@ A note, with a stable `id` (§60).
 
 ## Business rules that reach this entity
 
-[[A type this version does not know survives a round trip verbatim]] · [[Every entity resolves to exactly one project]]
+[[A type this version does not know survives a round trip verbatim]] · [[Work belongs to one project, catalogues belong to the vault]]
 
 ## Sources
 

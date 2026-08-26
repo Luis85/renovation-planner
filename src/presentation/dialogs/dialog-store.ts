@@ -19,6 +19,25 @@ import { shallowRef, type Component } from 'vue';
  * an English literal DEFAULT in here: `confirmLabel ?? 'Confirm'` would be the one
  * untranslated string every confirmation in the plugin flows through. `DialogHost`
  * resolves the defaults from `StringKey`s instead.
+ *
+ * **A DESCRIPTOR MUST BE SELF-SUFFICIENT: it says what it is about in words, and may not
+ * rely on anything behind it being visible.** A dialog is modal and centred in its own pane,
+ * and the pane is full of canvas — so the object the question is about is very often
+ * underneath the panel asking it. Measured in the browser harness: a calibration
+ * confirmation covered the segment the user had just drawn, completely.
+ *
+ * This is a content rule and not a positioning one, because there is no position that
+ * escapes it. Top-aligned covers the zone captions, bottom-aligned covers the status bar
+ * and whatever is drawn low, right-aligned still crosses ~270px of a 900px-wide canvas and
+ * reads as an Inspector popover. Moving the panel relocates what it hides and gives up the
+ * conventional centre; saying the thing out loud fixes it everywhere at once.
+ *
+ * Both shipped callers already comply — `KnownDistanceForm` prints the measured distance,
+ * and every `ConfirmDescriptor` carries its own `title` and `message`. The one that will
+ * feel it is slice 10's delete-with-references, where the user's confidence comes from
+ * knowing WHICH zone is about to go: that is what `DeleteReferenceDescriptor.entityLabel`
+ * is a required resolved string for, rather than something a caller may leave to a
+ * selection outline the dialog is sitting on top of.
  */
 
 export interface ConfirmDescriptor {

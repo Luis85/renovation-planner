@@ -224,6 +224,13 @@ Inspector's Delete action; **do not build a second dialog.** What to know before
   at those positions; it rests on review.
 - The dialog renders the rows it is handed and recomputes nothing. The command's own re-check
   is what enforces reference integrity, because a script or a migration never opens a dialog.
+- **Name the zone in `entityLabel`, and do not rely on the user being able to see which one
+  is selected.** The panel is centred in its own pane, the pane is full of canvas, and the
+  selection outline is very often directly underneath it — measured in the browser harness on
+  slice 15's own calibration dialog, which covered the segment it was asking about. This is
+  the case that feels it most: for a delete, the user's confidence comes from knowing WHICH
+  zone goes, so the words have to carry it. Repositioning is not the answer and was
+  considered — no alignment escapes a canvas that fills the pane.
 - `presentation/dialogs/` may not import `application/`, `infrastructure/`, `plugin/` or the
   event bus — an ESLint block with a meta-test. The query call belongs on this slice's side of
   the seam, not inside the dialog.

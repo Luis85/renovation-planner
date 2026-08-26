@@ -41,7 +41,7 @@ projects go straight to [[Zone]]s.
 
 ## Business rules that reach this entity
 
-[[Every entity resolves to exactly one project]]
+[[Work belongs to one project, catalogues belong to the vault]]
 
 ## Sources
 

@@ -72,9 +72,17 @@ these groups rather than to the entity list.
 | **Record** | What was decided, and what proves it? | [[Document]], [[Photo]], [[Decision]], [[Scenario]], [[Plan revision]] |
 | **Watch** | What could go wrong? | [[Risk]], [[Issue]], [[Constraint]] |
 
-[[Project]] is in no group: it is the root every one of the above resolves to, which is a
-business rule (*every entity resolves to exactly one project*) before it is an
-architecture.
+[[Project]] is in no group: it is the root the *work* above resolves to, which is a business rule
+(*work belongs to one project, catalogues belong to the vault*) before it is an architecture.
+
+**Three of the entities in those groups resolve to no project at all** — [[Asset]] under *Things*,
+[[Supplier]] under *Money* and [[Trade]] under *Work* are shared catalogues living in the vault's
+library (§59, amended 2026-08-26), referenced by every project and owned by none. They stay in the
+groups above, because a renovator asking *what goes in, how much?* is asking about assets whoever
+owns them; grouping answers a user's question and ownership answers a repository's, and this note
+is about the first. But the sentence above used to say *every one* of them resolves to Project, and
+that is the kind of claim a surface gets designed against — a picker scoped to one project would
+have hidden the shared library it was supposed to show.
 
 Two things this grouping is not. It is **not** the folder layout — folders are filing and
 the hierarchy lives in frontmatter, the same rule `docs/README.md` states for this register.
@@ -156,7 +164,7 @@ Stated rather than answered, because inventing an answer is what the interview r
   integration).
 - `docs/entities/` — all thirty-four, and specifically [[Zone]], [[Space]] and
   [[Spatial object]] for the distinction this note may not restate.
-- `docs/business-rules/` — *every entity resolves to exactly one project*, *a derived value is
+- `docs/business-rules/` — *work belongs to one project, catalogues belong to the vault*, *a derived value is
   recomputed on read, not persisted*, *a cost rollup is derived along its axis, never stored*,
   *money is rounded once, where the pipeline finalizes it*, *a manual override is stored as an
   override, beside what it replaced*, *an uncalibrated plan never presents a measurement as

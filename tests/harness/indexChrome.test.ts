@@ -155,6 +155,33 @@ const compoundsOf = (selector: string): Array<{ text: string; after: string }> =
  * not reached through `>`. `:not(.rp-harness-index)` in `theme.css`'s own growth chain is still
  * not a match — there the class sits in the LAST compound, with nothing after it at all.
  */
+/**
+ * The selector-list arguments of any functional pseudo in a compound, with balanced parentheses
+ * so a nested pseudo is captured whole rather than cut at the first `)`.
+ */
+const argumentsOf = (compound: string): string[] => {
+	const args: string[] = [];
+	const opener = /:(?:not|is|has|where)\(/g;
+	let match = opener.exec(compound);
+
+	while (match !== null) {
+		let depth = 1;
+		let end = match.index + match[0].length;
+
+		while (end < compound.length && depth > 0) {
+			if (compound[end] === '(') depth += 1;
+			else if (compound[end] === ')') depth -= 1;
+			if (depth > 0) end += 1;
+		}
+
+		args.push(...splitTopLevel(compound.slice(match.index + match[0].length, end)));
+		opener.lastIndex = end;
+		match = opener.exec(compound);
+	}
+
+	return args;
+};
+
 /** A compound's TYPE selector — its leading element name, or '' when it has none. */
 const typeOf = (compound: string): string => (/^[a-zA-Z][\w-]*/.exec(compound) ?? [''])[0];
 
@@ -162,7 +189,15 @@ const reachesTheStage = (selector: string): boolean => {
 	const compounds = compoundsOf(selector);
 	const at = compounds.findIndex((compound) => compound.text.includes('.rp-harness-index'));
 
-	if (at === -1 || at === compounds.length - 1) return false;
+	if (at === -1) return false;
+
+	// The WHOLE relationship can live inside a functional pseudo — `:is(.rp-harness-index > main
+	// h2)` — where `compoundsOf` deliberately keeps it as one compound and every question below
+	// then reads it as a root with nothing after it. So the arguments get asked the same question
+	// before that conclusion is drawn. Each argument is strictly shorter, so this terminates.
+	if (argumentsOf(compounds[at].text).some((argument) => reachesTheStage(argument))) return true;
+
+	if (at === compounds.length - 1) return false;
 	// A descendant hop reaches everything below, the stage included.
 	if (compounds[at].after !== '>') return true;
 
@@ -211,6 +246,9 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// Reaches the picker, then steps sideways onto the stage beside it.
 		['a sibling hop off the picker', '.rp-harness-index > nav + main h2 { color: red; }'],
 		['a general sibling hop off the picker', '.rp-harness-index > nav ~ main h2 { color: red; }'],
+		// The whole relationship nested inside the pseudo, where the compound scan sees one token.
+		['a relationship nested in a pseudo', ':is(.rp-harness-index > main h2) { color: red; }'],
+		['a descendant nested in a pseudo', ':is(.rp-harness-index h2) { color: red; }'],
 	])('reports %s', (_case, css) => {
 		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});
@@ -225,6 +263,9 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a scoped child', '.rp-harness-index > nav li a { color: red; }'],
 		// A sibling DEEPER than the nav stays inside it, so it is not a leak.
 		['a sibling inside the picker', '.rp-harness-index > nav li + li { color: red; }'],
+		// A safe relationship nested in a pseudo must stay silent too, or the recursion is just
+		// a blanket refusal of every pseudo that mentions the root.
+		['a safe relationship nested in a pseudo', ':is(.rp-harness-index > nav li) { color: red; }'],
 		['an exclusion', '.rp-harness-leaf > div:not(.rp-harness-index) { flex: 1; }'],
 	])('says nothing about %s', (_case, css) => {
 		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);

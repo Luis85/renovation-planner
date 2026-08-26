@@ -233,14 +233,36 @@ function buttonClasses(): Set<string> {
  * host's shadow and the host still removes the outline. A rule that exists and draws nothing is
  * exactly the state the ring check was written to refuse.
  *
- * The `outline` SHORTHAND or `box-shadow`, either one non-`none`. Deliberately not the outline
- * longhands: a ring assembled from `outline-style` and `outline-width` alone would draw and is
- * not recognised here, which is a narrower claim than "any visible ring" and is written to what
- * this repository actually spells. `outline\s*:` does not match `outline-offset:` or
- * `outline-color:` — the hyphen sits between the word and the colon.
+ * `none` was the only value refused at first, and that is not the only way to draw nothing:
+ * `outline: 0`, `outline: initial`, `box-shadow: initial` and `unset`/`revert` all satisfy a
+ * "not none" test while producing no indicator at all. A zero WIDTH is the sneakiest of them,
+ * because it reads as a real declaration. They are refused by name below.
+ *
+ * The `outline` SHORTHAND or `box-shadow`. Deliberately not the outline longhands: a ring
+ * assembled from `outline-style` and `outline-width` alone would draw and is not recognised
+ * here. `outline\s*:` does not match `outline-offset:` or `outline-color:` — the hyphen sits
+ * between the word and the colon.
+ *
+ * The residual limit, stated rather than implied: this reads the value as TEXT, so an indicator
+ * routed through a variable (`outline: var(--ring)`) counts as drawn whatever the variable holds.
+ * No gate here resolves `var()`, which is the same ceiling the specificity check declares.
  */
+const RESET = String.raw`none|initial|unset|revert(-layer)?`;
+/**
+ * A leading `0` means no ring for `outline`, whose first component is the WIDTH — and means
+ * nothing of the sort for `box-shadow`, whose first component is an OFFSET. `0 0 0 3px red` is
+ * the ordinary spelling of a focus ring, and a shared zero rule would have refused it. Caught by
+ * this file's own instrument case before it shipped, which is the argument for writing them.
+ */
+const DRAWS_NOTHING = {
+	outline: new RegExp(String.raw`^(${RESET}|0(px|em|rem|%)?)([\s;}]|$)`),
+	'box-shadow': new RegExp(String.raw`^(${RESET})([\s;}]|$)`),
+};
+
 const drawsAnIndicator = (body: string): boolean =>
-	/(^|[;{\s])(outline|box-shadow)\s*:\s*(?!none[\s;}])/.test(body);
+	[...body.matchAll(/(?:^|[;{\s])(outline|box-shadow)\s*:\s*([^;}]*)/g)].some(
+		([, property, value]) => !DRAWS_NOTHING[property as keyof typeof DRAWS_NOTHING].test(value.trim()),
+	);
 
 /** Every sheet that can style one: the ones that ship, plus the harness's own chrome. */
 const sheets = [
@@ -505,6 +527,43 @@ describe('every button rule against Obsidian\'s own', () => {
 	 * This drives the exact spelling every one of the five real defects had — a bare class on a
 	 * button, setting a contested property — through the same predicate.
 	 */
+	/**
+	 * The reset spellings. Each is a real declaration that draws no indicator, and each satisfied
+	 * the first version of `drawsAnIndicator` because it refused only the literal `none`. A zero
+	 * width is the sneakiest: it reads as a deliberate value rather than a switch-off.
+	 */
+	it.each(['none', '0', '0px', 'initial', 'unset', 'revert'])('does not count outline: %s as a ring', (value) => {
+		expect(drawsAnIndicator(`outline: ${value};`)).toBe(false);
+	});
+
+	it.each(['none', 'initial', 'unset'])('does not count box-shadow: %s as a ring', (value) => {
+		expect(drawsAnIndicator(`box-shadow: ${value};`)).toBe(false);
+	});
+
+	it('counts a real outline', () => {
+		expect(drawsAnIndicator('outline: 2px solid red;')).toBe(true);
+	});
+
+	/**
+	 * A box-shadow ring ordinarily STARTS with zeroes — `0 0 0 3px` is offset, offset, blur,
+	 * spread — so the zero rule belongs to `outline`, whose first component is the width, and to
+	 * nothing else. A shared rule refused the commonest focus ring there is; this case is what
+	 * caught it.
+	 */
+	it('counts a box-shadow ring that begins with zero offsets', () => {
+		expect(drawsAnIndicator('box-shadow: 0 0 0 3px red;')).toBe(true);
+	});
+
+	// A zero-width SHORTHAND draws nothing however its other components read.
+	it('does not count a zero-width outline shorthand', () => {
+		expect(drawsAnIndicator('outline: 0 solid red;')).toBe(false);
+	});
+
+	// `outline-offset` is not an indicator, and its hyphen is what keeps it out of the scan.
+	it('does not mistake outline-offset for an indicator', () => {
+		expect(drawsAnIndicator('outline-offset: 1px;')).toBe(false);
+	});
+
 	it('reports a bare class that sets one of the contested properties', () => {
 		const bare = '.rp-editor-tool-active';
 

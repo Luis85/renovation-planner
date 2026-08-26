@@ -41,7 +41,9 @@ value until the move has succeeded** — which is not a new invention: ADR-011 s
 behaviour for a configurable storage path, and named its cost as a reason to avoid having one where
 it could be avoided. Here it cannot: a shared library has no project folder to derive its location
 from. So the cost is accepted and written down rather than discovered. *How* the move is made
-atomic belongs to the slice that builds this surface.
+atomic belongs to the slice that builds this surface. It also **refuses a destination that
+overlaps any project folder** — §83's rule, checked from this side too, because the library is as
+able to move into a project folder as a project folder is to be set around the library.
 
 ## Outcome
 

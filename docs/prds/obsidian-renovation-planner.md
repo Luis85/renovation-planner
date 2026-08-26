@@ -2191,6 +2191,14 @@ Future: multiple control points.
 > setting is answered once per project, and the three catalogues belong to no project. One vault
 > has one library, wherever its owner puts it.
 
+**The library folder and a project folder may neither be equal nor contain one another.** Two
+independently configurable paths can otherwise overlap, and the consequence is not cosmetic:
+deleting a project is deleting its folder — the model has no delete operation of its own — so a
+project folder holding the library would take the shared Asset, Supplier and Trade catalogues of
+*every* project with it. The check therefore belongs at all three places a path is set — creating a
+project, changing a project's folder, and moving the library — and refuses in every direction,
+since either path can be the one that moves.
+
 ## Project Settings
 
 - project currency

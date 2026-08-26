@@ -7,7 +7,7 @@ dependsOn:
   - "[[02-core-primitives]]"
 status: Done
 started: 2026-08-25
-finished: 2026-08-25
+finished: 2026-08-27
 horizon: ""
 start: ""
 due: ""
@@ -105,12 +105,16 @@ things to know before designing the Error Boundary.
   well as on success, and re-throws the fault unchanged. The consequence for this slice:
   by the time a fault reaches the boundary, the stores may already show the post-write
   state. The fault is still a fault; the stores are not evidence either way.
-- **`runtime.ts`'s `reportFault` is a PLACEHOLDER for this slice's boundary, not a
-  design.** It exists because every dispatch in a leaf is ultimately bound to a click
-  handler that discards its promise, so a fault used to surface as a console unhandled
-  rejection and that button silently stopped working. It currently calls `notify()` with a
-  raw `Error.message`, which is the wrong text for a user and the right shape for a seam.
-  This slice owns what actually goes there.
+- **`runtime.ts`'s `reportFault` was a PLACEHOLDER for this slice's boundary, and this
+  slice filled it.** It exists because every dispatch in a leaf is ultimately bound to a
+  click handler that discards its promise, so a fault used to surface as a console
+  unhandled rejection and that button silently stopped working. It called `notify()` with a
+  raw `Error.message`, which was the wrong text for a user and the right shape for a seam;
+  it calls `notifyFault` now, which maps the cause through the same
+  `createVaultExceptionMapper` a guarded service uses and prints the locale table's copy
+  for the resulting code. The door stays open on purpose rather than becoming unreachable —
+  see item 1's withdrawn clause: the raw repository PORTS presentation holds are what can
+  still throw at it.
 - **The serialization queue must never reject.** `tools/serial-queue.ts` is shared by
   `CommandHistory` and the refresh decorator; its `tail.catch` is what stops one command's
   technical fault from poisoning the chain and wedging every later gesture in the leaf
@@ -442,6 +446,11 @@ will run.)
 - **Result-not-throw contract**: application command/query tests assert no
   command or query function can reject/throw past its public boundary for
   any input in its test matrix; failures always arrive as a resolved, failed `Result`.
+  A test matrix is a list, though, and the claim is a category — so the same rule is also
+  asked of the COMPOSITION: a walk of everything the root hands out, driving a fault
+  through every door it finds and requiring the mapped refusal back, with every exception
+  carved out by name. A service composed next month without a guard has to survive that
+  rather than be remembered.
 - **Resolved-failure-is-not-a-throw test**: given a repository test double
   configured to resolve a failed `Result` (never to reject), assert the Application
   Error Mapping site inspects and returns that result — a `try`/`catch` around
@@ -454,9 +463,14 @@ will run.)
   case asserts the same error resolves to different text under `'en'` and `'de'`, which
   is what proves the message is coming from the locale tables rather than from a
   literal that happens to read well in English.
-- **Diagnostics content test**: given a snapshot fixture with sample project
-  data loaded, assert the produced `DiagnosticsSnapshot` contains no zone
-  names, note bodies, or file paths — only the fields in the interface above.
+- **Diagnostics content test**: assert the produced `DiagnosticsSnapshot` carries only
+  the fields in the interface above, and that each of them is populated from the sources
+  named there. It is deliberately NOT the obvious shape — a fixture with sample project
+  data loaded, asserted to contain no zone names — because a ledger written content-free
+  by the same hand that writes the assertion proves only that the query adds nothing. The
+  no-content half lives at `DiagnosticsLedger.record`'s parameter list instead (a closed
+  kind union, a branded id, the whole `AppError`), where a caller could break it; see the
+  Definition of Done item below for what that reaches and what it still does not.
 - **Round-trip preservation test**: write a note with an unknown extra
   frontmatter key and a hand-authored body, run a command that patches one
   known property, and assert the unknown key and body are byte-for-byte
@@ -472,43 +486,183 @@ will run.)
 
 ## Definition of Done
 
-- [ ] An Infrastructure exception thrown anywhere under `infrastructure/` is
-    caught and mapped to a specific slice-2 `AppError` variant before it can
-    reach Application or Presentation code; no command or query's public
-    contract can throw.
-- [ ] A repository call that resolves to a failed `Result` (an expected read or write
+### What the closing pass measured, and what it left open (2026-08-27)
+
+Every box below is ticked and every one has a check behind it. Two of them are ticked
+against **narrower sentences than this document originally carried** — item 1's first
+clause and item 6's "demonstrably" — and both narrowings are written into the item itself
+rather than left for a reader to infer, because a claim this architecture cannot reach is
+the same defect as an unchecked comment.
+
+Seven things are true of the code and are NOT protected by a check. Each is here rather
+than hidden behind a tick:
+
+- **The repository PORTS handed to presentation are outside the Error Boundary.**
+  `PlanEditorCommandServices.zones` and `requirementEdits`' `requirements`/`assets` leave
+  the composition root raw, because the reversible adapters restore their snapshots through
+  them. Item 1 says so; `presentation/notices/notify.ts`'s `notifyFault` is what keeps a
+  fault from one of them presentable.
+- **The fail-closed gate is on the READ path only.** No save path calls `migrateNote`, so
+  "refuses to load" is the whole guarantee. Item 10 says so, `migrateNote`'s header says so
+  where the code is, and `errorPaths.test.ts`'s "is a READ gate" case pins today's truth: a
+  save holding a current expectation overwrites a future-version note.
+- **A `plan-geometry` read refusal never reaches the diagnostics ledger.** The sidecar
+  refuses a future `schemaVersion` with the same code and category a note read produces, but
+  `PlanGeometryStore` is not on the one `ledger.record` path, so that kind can appear in a
+  snapshot's `schemaVersions` and never in its `validationIssues`. Pinned as an absence in
+  `errorPaths.test.ts`, and expected to be deleted when the sidecar records.
+- **The set of codes with copy of their own is not a closed set.** The two override commands
+  re-emit the error they were handed, so a money or cost code can reach the Inspector and
+  render its category sentence. That is still `t()` copy, so item 3's claim holds — but it is
+  the general sentence rather than the specific one.
+- **German vocabulary has no gate.** The sentence-case lint runs over `en.ts` only, nothing
+  renders `de.ts`, and this slice found two drifts in it by reading (an Asset called
+  "Material" where the German UI says "Objekt", and a Reference pair using
+  "Verweis"/"umhaengen" where the delete dialog says "Referenz"/"neu zuweisen"). A glossary
+  comment in `de.ts` names the three terms and the keys that own them; a comment is not a
+  mechanism.
+- **Nothing keeps a log level's caller alive.** All four levels have real production callers
+  today (item 4), but `consoleLogger.test.ts` drives the adapter directly, so deleting
+  `warn`'s last call site would pass all four gates.
+- **An `EntityId` is branded, not validated.** `buildProjectIndexEntries` asserts a note's
+  raw frontmatter `id` into `EntityId<string>` after checking only that it is a non-empty
+  string, so a hand-edited `id:` reaches the ledger verbatim. The brand stops a call site
+  from passing content; it cannot stop the vault from having supplied it.
+
+**Data Safety rule 5 is no longer the exception it was recorded as.** Slice 11's own commit
+message closed with "Data safety rule 5 documented N/A until slice 10 referents exist",
+which was true of a tree in which nothing referenced anything. Slice 10 closed it, and
+closed it in the right place: `checkConsentedSet` in
+`application/reference/deleteResolution.ts` refuses a bare delete that has live referents
+and names them, and a resolution must carry the exact `resolvedReferents` set the dialog was
+built from, compared as a SET rather than as a count. The enforcement is in the COMMAND,
+which is what rule 5's own text demands, because a script or a migration never sees a
+dialog. Item 9 below is ticked on the command's tests, not on the flow's.
+
+- [x] **No command or query leaving the composition root can throw past the Application
+    layer.** An unexpected Infrastructure exception raised beneath one is caught, mapped to a
+    specific slice-2 `AppError` variant and logged with its original cause at that one step,
+    and the public contract resolves a failed `Result` instead of rejecting.
+    Checked at the forbidden thing rather than by listing the places:
+    `tests/plugin/guardCategory.test.ts` composes a real root, detonates every collaborator
+    beneath it, walks everything the root and the editor bundle hand out, drives a hostile
+    input through EVERY door it finds, and requires the mapped `vault.unexpected-failure`
+    back. Behavioural rather than structural on purpose — an "is this a wrapper?" check
+    cannot see a facade pairing a guarded `execute` with a raw `executeWithVersion`, which is
+    the door the Inspector dispatches through and the defect this slice shipped once. Two
+    carve-outs, each by name, with its reason, and both asserted so the keys cannot quietly
+    grow: the diagnostics query, which reads no vault and returns no `Result`, and
+    `calibratePlan()#undo` before any execute, which is driven at the wrapper by
+    `guardWiring.test.ts` instead.
+
+    **The wider clause this item used to open with — "an Infrastructure exception thrown
+    anywhere under `infrastructure/` is caught and mapped … before it can reach Application
+    or Presentation code" — is WITHDRAWN rather than met.** It is unsatisfiable while
+    `PlanEditorCommandServices` deliberately hands presentation raw repository PORTS
+    (`zones`, and `requirementEdits`' `requirements` and `assets`), a decision slices 6, 8
+    and 10 each made for the same reason: the reversible adapters read and restore their
+    snapshots through them. Guarding a port is a different mechanism — every method, not one
+    `execute` — so a fault inside one still arrives at presentation as a throw, and
+    `notifyFault` maps it there into the same coded refusal a guarded service would have
+    produced. Closing that seam belongs to a later slice; until then the sentence names it
+    rather than reading over it.
+- [x] A repository call that resolves to a failed `Result` (an expected read or write
     failure, per slice 3's port contract) is inspected and propagated at its Application
     Error Mapping site, never mistaken for the absence of failure because no
-    exception was thrown.
-- [ ] A user-facing error message never contains a raw exception message, stack trace, or
+    exception was thrown. The boundary logs that half too, with the `AppError` as its cause
+    (`guardAgainstThrowing.ts`, and its "logs a resolved failed Result" case), so a refusal
+    and a fault each produce one log line rather than one of them producing none.
+- [x] A user-facing error message never contains a raw exception message, stack trace, or
     internal file path, and is produced by `t()` from the locale tables rather than by a
     literal or by `AppError.message`; the corresponding `logger.error` call always carries
-    that full detail, in English, unaffected by the user's language.
-- [ ] Every level slice 1's port declares has a real caller by the end of this slice —
+    that full detail, in English, unaffected by the user's language. `toUserMessage` resolves
+    `error.code` -> suffix -> category, in that order, and its tests assert both the
+    no-raw-detail half and that one error reads differently under `'en'` and `'de'`.
+    `NOTICE_TEXT_BAN` in `eslint.config.mjs` puts the rule at the two notice doors this
+    repository has (`notify(...)`, `new Notice(...)`) rather than at the call sites someone
+    thought of; `tests/build/notice-text-boundary.test.ts` drives it through real fixture
+    paths, blind spots included — a value one hop away, a template literal, a notice raised
+    under a third name. Slice 10's nine reachable coded refusals have entries of their own in
+    both locales, bound to their raise sites by the table in `toUserMessage.test.ts`.
+- [x] Every level slice 1's port declares has a real caller by the end of this slice —
     `warn` in particular, which slice 1 leaves without one — and each is used for the
-    category stated above rather than being chosen by feel at the call site.
-- [ ] The logger (slice 1's, injected via the composition root) still writes only to a
+    category stated above rather than being chosen by feel at the call site. `debug`:
+    `plugin.load.started`/`plugin.loaded`. `info`: `persistence.index.rebuilt`. `warn`: the
+    index builder's and the change pipeline's recovered-from problems, plus slice 10's
+    reassignment recalculation. `error`: the boundary, and the sequence and cascade sites.
+- [x] The logger (slice 1's, injected via the composition root) still writes only to a
     local sink after this slice: no code path sends a log entry off the device
-    automatically, and nothing under `domain/` imports the port.
-- [ ] `GetDiagnosticsSnapshot` returns plugin version, Obsidian version, schema
-    versions, migration state, and validation issues, and demonstrably contains
-    zero project content (no entity names, note bodies, or content-bearing
-    file paths) unless a separate, explicit export action was taken.
-- [ ] No dependency on a network client, analytics SDK, or remote endpoint exists
-    in `infrastructure/logging/` or the diagnostics query.
-- [ ] A note with unknown extra frontmatter keys and a hand-authored body
+    automatically, and nothing under `domain/` imports the port — the second half is a
+    `no-restricted-imports` gate rather than a convention, and `noInlineConfig` means no
+    comment in a file can turn it off.
+- [x] `GetDiagnosticsSnapshot` returns plugin version, Obsidian version, schema
+    versions, migration state, and validation issues, and **carries no project content
+    because `DiagnosticsLedger.record` has nowhere to put any**: a closed
+    `DiagnosticEntityKind` union, a branded `EntityId`, and the whole `AppError` — off which
+    the ledger reads `error.code` and drops the rest. There is no free-text parameter at all.
+    `schemaVersions` derives from `MIGRATION_SET` through `MigrationRunner.latestVersions`,
+    so a kind reaches diagnostics because it was registered rather than because a second
+    table was remembered.
+
+    **"Demonstrably contains zero project content" was the wider claim, and it is
+    WITHDRAWN.** The snapshot is a shape that CAN carry content, so no fixture can
+    demonstrate its absence — a content-free ledger asserted to produce a content-free
+    snapshot proves only that the query adds nothing. The check has to sit where a caller
+    could break it, which is the parameter list. Two doors the types still leave open, both
+    disclosed in `application/ports/diagnostics.ts`: an `AppError` whose CODE is content
+    (codes come from a fixed vocabulary composed by error factories, so that is a review
+    boundary rather than a compiled one), and a branded id that was never format-validated.
+- [x] No dependency on a network client, analytics SDK, or remote endpoint exists
+    in `infrastructure/logging/` or the diagnostics query — and it is a lint rule over those
+    two subtrees now (the node network modules, `obsidian`'s `request`/`requestUrl`, and the
+    network globals) rather than a fact about today's imports.
+    `tests/build/network-boundary.test.ts` drives it through real virtual paths: each ban
+    with a snippet that MUST report, the shapes these directories actually use that must NOT,
+    the spellings the rule cannot see pinned as absences, and each subtree's resolved ban
+    compared against its parent layer's for superset — because two flat-config blocks
+    matching one file override rather than merge.
+- [x] A note with unknown extra frontmatter keys and a hand-authored body
     survives a targeted property-update round trip unchanged in both the
-    unknown keys and the body.
-- [ ] Deleting an entity with existing referents is either refused with a
+    unknown keys and the body — for every note-backed write path, rather than for one of
+    them. The rule is one shared helper (`tests/contracts/notePreservation.ts`); its callers
+    are `preservation.test.ts`, one per kind plus `markStale`, and the list is ANCHORED
+    against `Object.keys(MIGRATION_SET)` minus the sidecar, so a seventh note-backed kind
+    turns it red until it has a case. Each caller also declares owned keys the write must
+    have CHANGED, so a case cannot pass by doing nothing.
+- [x] Deleting an entity with existing referents is either refused with a
     `ReferenceError` naming the referents, or gated behind an explicit
-    confirmation step — never a silent cascade.
-- [ ] An entity whose `schema-version` is unsupported causes the plugin to refuse
+    confirmation step — never a silent cascade. Asserted on the COMMAND
+    (`deleteResolutions.test.ts`, `assetCommands.test.ts`), which is the path a script or a
+    migration takes; the dialog-gated branch is slice 15's and is covered beside it.
+    `DeleteRequirementCommand` needs no gate, and its absence is correct rather than an
+    oversight: nothing in the model references a Requirement.
+- [x] An entity whose `schema-version` is unsupported causes the plugin to refuse
     to load that entity with a clear, typed error, not a silent
     best-effort parse, coercion, or drop — and this failure is scoped to that
-    entity, not the whole plugin (per SDD §92 item 13).
-- [ ] All of the above is exercised by unit/application-level tests runnable
+    entity, not the whole plugin (per SDD §92 item 13). Both halves are driven for every
+    note-backed kind from one table anchored to `MIGRATION_SET`: a future version refuses as
+    a `MigrationError` (a malformed version field as a `ValidationError`, raised before any
+    chain runs) while a healthy sibling of the same kind still loads, and the index scan
+    never reads `schema-version` at all, so a poisoned note is indexed like any other.
+
+    **The gate is READ-side only, and "refuses to load" is the whole of the guarantee.**
+    Every save path resolves its note through `findNoteIdInFolder` + `versionOfFrontmatter`
+    and never calls `migrateNote`, so nothing in a write stops a build that predates a note
+    from overwriting its owned keys. Two things protect such a note today and NEITHER is this
+    gate: every command loads before it saves and the load refuses, which is a property of
+    the callers; and `schema-version` is an owned key, so an expectation minted before the
+    note changed refuses as an external modification. A writer holding a CURRENT expectation
+    meets nothing at all — pinned as true today by the "is a READ gate" case rather than
+    claimed as safe. No command bypasses the load, so this is a narrowing rather than a live
+    defect; closing it means running the check on the save side too, at four call sites
+    rather than one.
+- [x] All of the above is exercised by unit/application-level tests runnable
     independent of slice 12's fixture Vaults (slice 12 additionally proves it
-    end to end against real Vault-shaped fixtures).
+    end to end against real Vault-shaped fixtures). Every suite named above runs under vitest
+    against the in-memory `createRepositoryStack`, which builds its `MigrationRunner` from
+    the SAME `MIGRATION_SET` the composition root registers — one table with two importers,
+    after a fake built from its own four-kind copy spent several slices migrating a suite
+    against a different schema world than production.
 
 ## References
 

@@ -16,8 +16,10 @@ vault-change pipeline, and the migration runner.
 10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
 cost engine behind them, the reference-integrity engine that guards deleting either end of
 a link, and the recalculation cascade that keeps a figure honest when its inputs move.
-Everything past this point is feature work on a proven template. What is NOT done is the
-cross-cutting pair (slices 11–12) and every surface slices 13–17 name.
+Everything past this point is feature work on a proven template. Slice 11 has since closed
+the first half of the cross-cutting pair — the Error Boundary, the logging policy,
+diagnostics and the data-safety rules. What is NOT done is slice 12 (the fixture vaults and
+the architecture-enforcement harness) and every surface slices 13–17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -36,6 +38,101 @@ paragraph said "nothing on that canvas is editable" for four slices after it sto
 true, contradicting the sentence immediately below it. The one thing slice 5 writes is which
 document a Plan's background IS.
 
+**Design slice 11 has landed: no COMMAND or QUERY leaving the composition root can throw
+past the Application layer, and that is checked as a CATEGORY.** `guardCommand`/`guardQuery`
+wrap each of them (`src/plugin/guardedServices.ts`, beside the root rather than inside it),
+so a fault below that seam is caught, mapped by the vault's `ExceptionMapper` to a coded
+`PersistenceError`, logged with its original cause at that one step, and returned as a
+resolved failed `Result` — and a RESOLVED failed `Result` is logged there too, so a refusal
+and a fault each produce one log line at the boundary rather than one of them producing
+none.
+`toUserMessage(language, error)` is the only place an `AppError` becomes copy (`error.code`
+→ suffix → category, from the locale tables), `GetDiagnosticsSnapshot` reports versions,
+schema versions, migration state and this session's read refusals and nothing else, and the
+schema-version gate refuses a note from a build this one predates rather than parsing it.
+That diagnostics stay on the device is a LINT RULE over `infrastructure/logging/` and
+`application/queries/` now — the node network modules, `obsidian`'s `request`/`requestUrl`
+and the network globals — rather than a fact about today's imports.
+The rules that came out of it, and out of five review rounds that each found the same class
+of defect — a sentence promising more than its check delivers:
+
+- **A guard on the door nobody dispatches through is a guard nobody has.** `guardCommand`
+  wraps `execute`; the Inspector's reversible adapters dispatch an override through
+  `executeWithVersion`. The wrapper was present, the test was green, and the second door was
+  raw — `guardBothDoors` wraps both now, each under its own event name so a log line says
+  which entry point faulted.
+- **A category check that compares a SELF-DECLARED list is the shape it was written to
+  replace.** The first one rested on a runtime mark the guards stamped, and asked whether
+  the doors a service exposes match the ones it says it guarded — two things the same object
+  declares about itself. Mutating only the ROUTING left it green, which is the defect above,
+  uncaught, one round later. `tests/plugin/guardCategory.test.ts` is
+  behavioural now: compose a real root, DETONATE every collaborator beneath it, walk
+  everything the root and the editor bundle hand out, drive a hostile input through every
+  door, and require the mapped `vault.unexpected-failure` back. A raw command rejects, and
+  no amount of declaring makes it resolve a refusal. Two carve-outs, by name, with reasons,
+  asserted by exact key set AND proven to name paths the walk really finds — a carve-out for
+  a path that no longer exists is a comment that goes on reading as a live exception.
+- **An instrument that reaches nothing looks exactly like a clean tree**, so the walk is
+  driven against fixtures first (a raw command in a nested bundle, a facade with one raw
+  door, a factory, a cycle, a port), it fails CLOSED (a door answering success is a
+  finding), and where it gives up is RECORDED rather than skipped. Its stand-in throwers
+  preserve the real method's ARITY: the walk treats a zero-argument function as a factory
+  and calls it, so a bare `() => { throw }` replacing a one-argument port method would have
+  been mistaken for a factory that could not be constructed — a fake thinner than the real
+  thing, mangling the instrument pointed at it.
+- **The boundary stops at the repository PORTS, and both the spec and the code say so.**
+  `PlanEditorCommandServices.zones` and the requirement/asset ports leave the root raw
+  because the reversible adapters restore snapshots through them; guarding a port is a
+  different mechanism (every method, not one `execute`). So `notifyFault` in
+  `presentation/notices/notify.ts` stays — it maps a thrown cause into the same coded
+  refusal a guarded service would have produced. `docs/tasks/11`'s Definition of Done item 1
+  WITHDREW its wider first clause rather than being ticked over that hole.
+- **"Contains no project content" is a claim about a SHAPE, so no fixture can demonstrate
+  it** — a content-free ledger asserted to produce a content-free snapshot proves only that
+  the query adds nothing. The check moved to the end that can hold it:
+  `DiagnosticsLedger.record` takes a closed kind union, a branded `EntityId` and the whole
+  `AppError`, off which it reads `error.code` alone. There is no free-text parameter left to
+  spell a zone name into. What a type still cannot stop is written down beside it: a code
+  that IS content, and a branded id that was never VALIDATED — `buildProjectIndexEntries`
+  asserts a note's raw frontmatter `id` into `EntityId` after checking only that it is
+  non-empty.
+- **A user-facing sentence in `AppError.message` is the rule inverted, and the good copy
+  reached nobody.** The delete flow put an already-translated string into the field slice 11
+  defines as developer English for a log line; `notifyError` never reads `message`, so the
+  user got the Validation category sentence instead. And slice 10's ~20 codes had no locale
+  entries at all, which does not degrade to silence — it degrades to the WRONG sentence: two
+  refusals told the user "That entry no longer exists" about an entry whose continued
+  existence was the entire reason for the refusal. Nine reachable codes have copy in both
+  locales now, bound to their raise sites by a table in `toUserMessage.test.ts` that is
+  copied from the RAISE SITES rather than from `en.ts`, because a table derived from the
+  locale file would agree with a typo. `NOTICE_TEXT_BAN` puts the rule at the two notice
+  doors themselves. Neither reaches the second locale's VOCABULARY: the German copy called
+  an Asset "Material" where the German UI says "Objekt", found by reading, and nothing
+  renders `de.ts` in any gate.
+- **A docblock naming "the one list this derives from" is worth checking against the second
+  one.** `migrationSet()` claimed to be the single source of `schemaVersions` while
+  `MigrationRunner` spread a module-level `LATEST_VERSIONS` constant beside it, so a seventh
+  entity registered in the table alone would have appeared nowhere in diagnostics with every
+  test still green. `latestVersions` derives from the registered steps now, and
+  `MIGRATION_SET` moved out of the composition root so the test stack imports the SAME table
+  — `tests/helpers/vault.ts` had built its runner from its own four-kind copy while the
+  plugin registered six, which is a fake migrating a whole suite against a different schema
+  world than production, harmless only because every table is empty at version 1 and
+  invisible either way. One table with two importers cannot drift; two tables had nothing to
+  notice them drifting.
+- **The fail-closed schema gate is a READ gate**, and the claim is narrowed to that where
+  the code lives. No save path calls `migrateNote`, so a future-version note is protected
+  from being overwritten only because every command loads before it saves and the load
+  refuses — a property of the callers, plus `schema-version` being an owned key. Nothing
+  bypasses that today; `errorPaths.test.ts`'s "is a READ gate" case pins the exposure as
+  what is TRUE rather than leaving it as a claim in a comment.
+- **`recoverInterruptedSequences` had no `try`/`catch` on any of its five awaited calls**,
+  under a call-site comment asserting that it did. It runs fire-and-forget at load, so a
+  vault read that faulted rather than refusing was an unhandled rejection reaching nobody —
+  the exact defect `reportFault` exists to prevent, in the one entry point no guard wraps.
+  The handling belongs to the FUNCTION, not to its call site: a second caller would have to
+  remember a `.catch` that nothing checks.
+
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
 `withEditorStateRefresh` decorator — is wired per leaf by `runtime.ts`, which is built
@@ -43,7 +140,8 @@ inside the Vue tree (it hands out Pinia stores) and provided once per leaf. The 
 offers Pan/Select/Draw-zone plus undo/redo; the Inspector panel shows the selection DTO
 and a Delete button that dispatches through `InspectorStore.commit`'s `toCommand` — the
 §59 choke point, not a second seam. The composition root now hands the view a
-`PlanEditorCommandServices` bundle (plain zone commands, the `ZoneRepository` port, the
+`PlanEditorCommandServices` bundle (the plain zone commands rather than the reversible
+adapters — guarded ones since slice 11 — the `ZoneRepository` port, the
 Inspector query) beside slice 5's queries; with settings unrecovered it is the refusal
 bundle, mirroring `unavailablePlanEditorQueries`. These rules came out of it and of the
 review pass that followed:
@@ -434,15 +532,15 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.27/99.04/99.51/98.02 as of
-  slice 10. **Read branches again: 98.02 against a floor of 98, which is 0.02 of headroom
-  where ONE uncovered branch costs about 0.05.** So an untested new arm does not "reduce
+  99/99/99/98 (statements/functions/lines/branches), against 99.34/99.25/99.58/98.11 as of
+  slice 11. **Read branches again: 98.11 against a floor of 98, which is about two covered
+  branches of headroom, one branch costing 0.047.** So an untested new arm does not "reduce
   coverage", it fails the gate — plan the test with the code rather than after it. Do not
   read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
   which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slices 5 and 15 did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5, 15 and 11 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
@@ -826,9 +924,19 @@ that was fixing the previous instance.
 - `output.exports: 'named'` in `vite.config.ts` is about Obsidian's loader, not bundling: it
   produces the `exports.default` shape esbuild gave every plugin built from the sample repo.
   Which shape Obsidian accepts cannot be checked here, so it takes the one with a record.
-- Two flat-config blocks matching one file **override** `no-restricted-syntax` rather than
-  merging it. A per-directory block that forgets to repeat the shared selectors silently
-  drops every one of them.
+- Two flat-config blocks matching one file **override** a rule rather than merging it, and
+  it is the RULE KEY that decides, not the rule's purpose. A per-directory block that
+  forgets to repeat the shared `no-restricted-syntax` selectors silently drops every one of
+  them — and the same trap is live on `no-restricted-globals`, which
+  `eslint-plugin-obsidianmd` sets across `src/` to ban `app`, `fetch` and `localStorage`:
+  the `core`/`domain` DOM block had been overriding that list since it was written, so `app`
+  — the global the marketplace review bot rejects for — was rule-level unbanned in the two
+  layers least likely to notice. Both `no-restricted-globals` blocks spread the plugin's own
+  list now, derived from its config object rather than transcribed. Read the exposure
+  narrowly: `no-undef` still reported a bare `app` at severity 1 and `--max-warnings 0` fails
+  warnings, so the gate would have reddened — under the wrong rule, with the wrong message.
+  A different rule KEY merges, which is why the DOM block can add to the Obsidian ruleset's
+  globals only by restating them.
 - **PowerShell 5.1 writes a BOM** (`Set-Content`/`Out-File -Encoding utf8`), and
   `JSON.parse` refuses one — a BOM'd `manifest.json` broke every lint run here once, with
   an error pointing nowhere near the cause. Write files with node or an editor;

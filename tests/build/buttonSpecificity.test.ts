@@ -267,7 +267,21 @@ const flattenedWithoutRing = (
 	classes: Set<string>,
 ): { readonly offenders: Map<string, string>; readonly seen: number } => {
 	const flattened = new Map<string, string>();
-	const ringed = new Set<string>();
+
+	// NOT a set of "has been ringed once". A `:focus-visible` rule can also take a ring AWAY, and
+	// a later or more specific one wins: `.rp-dialog-button:focus-visible { outline: 2px solid red }`
+	// followed by `.rp-dialog .rp-dialog-button:focus-visible { outline: none }` leaves nothing on
+	// screen. A set recorded the first and had no way to hear the second, so the flattened button
+	// was cleared from the offender map by a ring the cascade had already removed.
+	//
+	// So the winner is kept per key, decided the way the cascade decides: more specific wins, and
+	// equal specificity goes to whichever comes later. THE CEILING, since this is a mini-cascade
+	// and not a browser: two rules sharing a key need not match the same elements —
+	// `.rp-dialog .rp-dialog-button` is a SUBSET of `.rp-dialog-button` — so a narrowly scoped
+	// reset is treated as beating a broad ring for every element, which over-reports. That is the
+	// safe direction for a gate about a missing focus indicator. `!important` between rules is not
+	// modelled at all.
+	const ringed = new Map<string, { readonly specificity: readonly [number, number, number]; readonly draws: boolean }>();
 
 	// Both sets span every sheet, because the two halves need not share one. A class flattened in
 	// `editor.css` and ringed in `dialogs.css` is ringed; scanning a sheet at a time would report it.
@@ -297,7 +311,14 @@ const flattenedWithoutRing = (
 				);
 
 				for (const cls of focusKeys(branch, classes)) {
-					if (ringsFocus && draws) ringed.add(cls);
+					if (ringsFocus) {
+						const specificity = specificityOf(branch);
+						const standing = ringed.get(cls);
+
+						if (standing === undefined || !moreSpecific(standing.specificity, specificity)) {
+							ringed.set(cls, { specificity, draws });
+						}
+					}
 					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow says
 					// nothing about the resting state a ring is drawn on.
 					else if (!ringsFocus && flattens) flattened.set(cls, `${where}: ${show(selector)}`);
@@ -308,7 +329,7 @@ const flattenedWithoutRing = (
 
 	const seen = flattened.size;
 
-	for (const cls of ringed) flattened.delete(cls);
+	for (const [cls, winner] of ringed) if (winner.draws) flattened.delete(cls);
 
 	// `seen` is every class this scan found flattened, ringed or not. The real-sheet case asserts it
 	// is non-zero: an empty offender list is equally true of a scan that found no buttons at all —
@@ -621,6 +642,21 @@ describe('every button rule against Obsidian\'s own', () => {
 			'a ring credited from a sibling inside :is()',
 			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button:hover, .other:focus-visible) { outline: 2px solid red; }',
 		],
+		// A `:focus-visible` rule can take a ring AWAY, and the cascade decides which one stands.
+		// Recorded as a set of "was ringed once", the first of these was heard and the second was
+		// not, so a button with no indicator at all was cleared from the offender map.
+		[
+			'a ring a more specific rule removes',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog .rp-dialog-button:focus-visible { outline: none; }',
+		],
+		[
+			'a ring a later rule of equal specificity removes',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
+		],
+		[
+			'a ring only a less specific rule draws',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
 	])('reports %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([
 			'.rp-dialog-button',
@@ -674,6 +710,12 @@ describe('every button rule against Obsidian\'s own', () => {
 		'outline: 2px solid red; outline-width: 0',
 		'outline: 2px solid red; outline: none',
 		'box-shadow: 0 0 0 3px red; box-shadow: none',
+		// A component nobody sets takes its CSS INITIAL value, and `outline-style`'s is `none`. So a
+		// block that sets only the colour, or only the width, paints nothing at all — the style
+		// nobody wrote is still refusing.
+		'outline-color: red',
+		'outline-width: 2px',
+		'outline-color: red; outline-width: 2px',
 	])('does not count %s as a ring', (declarations) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
 	});
@@ -691,6 +733,12 @@ describe('every button rule against Obsidian\'s own', () => {
 		['box-shadow: none; box-shadow: 0 0 0 3px red', true],
 		['outline: none !important; outline: 2px solid red', false],
 		['box-shadow: none !important; box-shadow: 0 0 0 3px red', false],
+		// The other two initials go the opposite way: `medium` and `currentColor` both paint, so a
+		// style on its own really does draw. Without these the initial-value fix could have been
+		// "treat every absent component as blank", which refuses a legitimate ring.
+		['outline-style: solid', true],
+		['outline-style: solid; outline-color: red', true],
+		['outline: 2px solid red; outline-style: none; outline-style: solid', true],
 	])('resolves %s to %s', (declarations, expected) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(expected);
 	});
@@ -703,6 +751,15 @@ describe('every button rule against Obsidian\'s own', () => {
 			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:focus-visible { outline: 2px solid red; }',
 		],
 		['a bare button ringed', 'button { box-shadow: none; } button:focus-visible { outline: 2px solid red; }'],
+		// And the other way down that cascade, or "the reset wins" has replaced "the set wins".
+		[
+			'a reset a more specific rule puts back',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'a reset a later rule of equal specificity puts back',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
 	])('says nothing about a type-targeted rule with %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([]);
 	});

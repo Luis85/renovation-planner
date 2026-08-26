@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import type { Selector } from 'lightningcss';
-import { alternativesOf, compoundHasClass, compoundsOf, stylesheetRules, typeOf } from '../helpers/selectors';
+import { alternativesOf, compoundHasClass, compoundsOf, propertyOf, stylesheetRules, typeOf } from '../helpers/selectors';
 import { afterEach, describe, expect, it } from 'vitest';
 import { entryShots } from '../../scripts/entryShots.mjs';
 import { openIndex } from './indexApp';
@@ -78,6 +78,54 @@ describe('the harness index, on which route drew it', () => {
  * same defect: a selector is a grammar and a regex is not a parser. `tests/helpers/selectors.ts`
  * carries the account and the shared reader.
  */
+/**
+ * What a rule on the STAGE ITSELF may declare — an allow-list, and it is one on purpose.
+ *
+ * `.rp-harness-stage { text-transform: uppercase }` never descends into anything, and restyles
+ * every entry the index opens anyway: the property INHERITS. That is the shipped defect's exact
+ * mechanism — `.rp-harness-index h2 { text-transform: uppercase }` — reached without a descendant
+ * selector, and a check that only looked at selector shape called it safe.
+ *
+ * A deny-list of inherited properties was the obvious answer and is refused: that is a value
+ * vocabulary, which is the shape that has been wrong four times in `indicators.ts` alone, and a
+ * new inherited property would pass it silently. An allow-list fails the other way — a property
+ * nobody has thought about stops the build and gets thought about. Everything on it is a
+ * non-inherited box or layout property, which is all the stage needs to be a container.
+ *
+ * Nothing here can ask the parser whether a property inherits; lightningcss models values, not
+ * that. So this list is the claim, and its being an ALLOW-list is what keeps the claim safe.
+ */
+const STAGE_MAY_DECLARE = new Set([
+	'flex',
+	'flex-basis',
+	'flex-direction',
+	'flex-grow',
+	'flex-shrink',
+	'display',
+	'position',
+	'overflow',
+	'overflow-x',
+	'overflow-y',
+	'width',
+	'height',
+	'min-width',
+	'min-height',
+	'max-width',
+	'max-height',
+	'margin',
+	'padding',
+	'gap',
+	'row-gap',
+	'column-gap',
+	'align-items',
+	'justify-content',
+	'box-sizing',
+	'background-color',
+	'border',
+	'contain',
+	'isolation',
+]);
+
 const PICKER_ROOT = 'rp-harness-index';
 const STAGE = 'rp-harness-stage';
 const LEAF = 'rp-harness-leaf';
@@ -92,7 +140,10 @@ const LEAF = 'rp-harness-leaf';
  * discarded before `reachesTheStage` ever saw it. A filter that names one root answers for one
  * root; the predicate is what decides, so nothing is filtered out ahead of it.
  */
-const harnessSelectors = (css: string): Selector[] => stylesheetRules(css).flatMap((rule) => rule.selectors);
+const harnessRules = (css: string): { selector: Selector; properties: string[] }[] =>
+	stylesheetRules(css).flatMap((rule) =>
+		rule.selectors.map((selector) => ({ selector, properties: rule.declarations.map((one) => propertyOf(one)) })),
+	);
 
 /**
  * Does this selector reach a DESCENDANT of the stage — the element every entry mounts into?
@@ -123,7 +174,7 @@ const harnessSelectors = (css: string): Selector[] => stylesheetRules(css).flatM
  * say — is not modelled. Nothing here is written that way and the rules that come close stop
  * above the stage.
  */
-const branchReachesTheStage = (branch: Selector): boolean => {
+const branchReachesTheStage = (branch: Selector, properties: readonly string[]): boolean => {
 	const compounds = compoundsOf(branch);
 
 	let insideLeaf = false;
@@ -131,7 +182,13 @@ const branchReachesTheStage = (branch: Selector): boolean => {
 	for (const [at, compound] of compounds.entries()) {
 		const last = at === compounds.length - 1;
 
-		if (compoundHasClass(compound, STAGE) || typeOf(compound) === 'main') return !last;
+		// Descending past the stage always reaches the entry. Landing ON it reaches the entry too
+		// whenever what the rule declares INHERITS, which is why this arm needs the declarations at
+		// all — `.rp-harness-stage { text-transform: uppercase }` styles no descendant and restyles
+		// every one of them.
+		if (compoundHasClass(compound, STAGE) || typeOf(compound) === 'main') {
+			return last ? properties.some((property) => !STAGE_MAY_DECLARE.has(property)) : true;
+		}
 
 		if (compoundHasClass(compound, PICKER_ROOT)) {
 			if (last) return false;
@@ -152,7 +209,7 @@ const branchReachesTheStage = (branch: Selector): boolean => {
 	return false;
 };
 
-const reachesTheStage = (selector: Selector): boolean =>
+const reachesTheStage = (selector: Selector, properties: readonly string[] = []): boolean =>
 	// `:is()` is EXPANDED first, so every question below is asked of a plain selector. The
 	// alternative — recursing into each pseudo's arguments and asking them the same question — reads
 	// as equivalent and is not: an argument answers about ITSELF, with no idea what follows the
@@ -160,7 +217,7 @@ const reachesTheStage = (selector: Selector): boolean =>
 	// compound with nothing after it, so it answers "the stage, not descended past" — correct about
 	// the fragment and wrong about the selector, which reaches every `h2` in the mounted entry.
 	// Expansion rebuilds `main h2` and the ordinary walk answers it.
-	alternativesOf(selector).some((branch) => branchReachesTheStage(branch));
+	alternativesOf(selector).some((branch) => branchReachesTheStage(branch, properties));
 
 
 /** A selector rendered back to text, so a failure names something a reader can grep for. */
@@ -178,9 +235,9 @@ const show = (selector: Selector): string =>
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
 	it('leaves the mounted entry alone, from every root that leads to it', () => {
-		const offenders = harnessSelectors(readFileSync('tests/harness/theme.css', 'utf8'))
-			.filter((selector) => reachesTheStage(selector))
-			.map((selector) => show(selector));
+		const offenders = harnessRules(readFileSync('tests/harness/theme.css', 'utf8'))
+			.filter((rule) => reachesTheStage(rule.selector, rule.properties))
+			.map((rule) => show(rule.selector));
 
 		expect(offenders).toEqual([]);
 	});
@@ -218,6 +275,13 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a rule rooted at the stage element', 'main h2 { color: red; }'],
 		['a descendant of the whole page', '.rp-harness-leaf h2 { color: red; }'],
 		['a child of the page, then a descent', '.rp-harness-leaf > div h2 { color: red; }'],
+		// No descendant selector anywhere, and the entry is restyled all the same: the property
+		// INHERITS into it. This is the shipped defect's exact mechanism reached by a shorter route,
+		// and a check reading only selector shape called it safe.
+		['an inherited property on the stage', '.rp-harness-stage { text-transform: uppercase; }'],
+		['an inherited property on the stage element', 'main { color: red; }'],
+		['an inherited property beside a safe one', '.rp-harness-stage { flex: 1; font-family: serif; }'],
+		['a pseudo-wrapped stage carrying one', ':is(main) { letter-spacing: 0.1em; }'],
 		// The stage reached through a pseudo. `typeOf` reads a compound's DIRECT components, so the
 		// pseudo hid the type from the outer walk; asking the argument on its own hid what followed
 		// the pseudo from the argument. Expansion is what sees both at once.
@@ -226,7 +290,7 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a pseudo-wrapped stage among alternatives', ':is(.other, main) h2 { color: red; }'],
 		['a pseudo-wrapped leaf', ':is(.rp-harness-leaf) h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
-		expect(harnessSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
+		expect(harnessRules(css).filter((rule) => reachesTheStage(rule.selector, rule.properties))).toHaveLength(1);
 	});
 
 	/**
@@ -251,11 +315,14 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['the stage element itself', 'main { flex: 1; }'],
 		['the growth chain', '.rp-harness-leaf > div > div:last-child { flex: 1; }'],
 		['the leaf itself', '.rp-harness-leaf { display: flex; }'],
+		// The real stage rule, which must stay silent or the allow-list has refused the one thing
+		// the stage exists to do.
+		['the stage as a container', '.rp-harness-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }'],
 		// The same wrapping on a shape that does not descend must stay silent, or expansion has
 		// simply become a blanket refusal of every pseudo.
 		['a pseudo-wrapped stage, not descended past', ':is(main) { flex: 1; }'],
 		['a pseudo-wrapped scoped child', ':is(.rp-harness-index) > nav li a { color: red; }'],
 	])('says nothing about %s', (_case, css) => {
-		expect(harnessSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);
+		expect(harnessRules(css).filter((rule) => reachesTheStage(rule.selector, rule.properties))).toEqual([]);
 	});
 });

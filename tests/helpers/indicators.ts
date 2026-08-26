@@ -92,30 +92,43 @@ const isReset = (declaration: Declaration & { property: 'unparsed' }): boolean =
  * "declared, and draws nothing" — a flattened button — from "not declared here at all".
  */
 export const indicatorOf = (declarations: readonly Declaration[]): { outline?: boolean; shadow?: boolean } => {
-	let width: Known | undefined;
-	let style: Known | undefined;
-	let color: Known | undefined;
+	// EACH COMPONENT STARTS AT ITS CSS INITIAL VALUE, not at "unset". `outline-style` is initially
+	// `none`, so a block that sets only `outline-color` or only `outline-width` draws NOTHING — the
+	// style nobody set is still refusing to paint. Started at `undefined` and treated as
+	// non-blank, `.button:focus-visible { outline-color: red }` read as a ring.
+	//
+	// The other two go the other way and for the same reason: `outline-width`'s initial is `medium`
+	// and `outline-color`'s is `currentColor`, both of which paint, so `outline-style: solid` alone
+	// really does draw a medium outline in the text colour.
+	let width: Known = 'draws';
+	let style: Known = 'blank';
+	let color: Known = 'draws';
+	let declared = false;
 	let shadow: boolean | undefined;
 
 	for (const declaration of declarations) {
 		if (declaration.property === 'outline') {
-			const { width: declared } = declaration.value;
+			declared = true;
+			const shorthandWidth = declaration.value.width;
 
 			// A keyword width (`medium`, `thin`, `thick`) is not a length and is never zero.
-			width = declared.type === 'length' && isZero(declared.value) ? 'blank' : 'draws';
+			width = shorthandWidth.type === 'length' && isZero(shorthandWidth.value) ? 'blank' : 'draws';
 			style = declaration.value.style.value === 'none' ? 'blank' : 'draws';
 			color = paints(declaration.value.color) ? 'draws' : 'blank';
 			continue;
 		}
 		if (declaration.property === 'outline-width') {
+			declared = true;
 			width = declaration.value.type === 'length' && isZero(declaration.value.value) ? 'blank' : 'draws';
 			continue;
 		}
 		if (declaration.property === 'outline-style') {
+			declared = true;
 			style = declaration.value.value === 'none' ? 'blank' : 'draws';
 			continue;
 		}
 		if (declaration.property === 'outline-color') {
+			declared = true;
 			color = paints(declaration.value) ? 'draws' : 'blank';
 			continue;
 		}
@@ -134,20 +147,24 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 
 		switch (propertyOf(declaration)) {
 			case 'outline': {
+				declared = true;
 				width = known;
 				style = known;
 				color = known;
 				break;
 			}
 			case 'outline-width': {
+				declared = true;
 				width = known;
 				break;
 			}
 			case 'outline-style': {
+				declared = true;
 				style = known;
 				break;
 			}
 			case 'outline-color': {
+				declared = true;
 				color = known;
 				break;
 			}
@@ -161,7 +178,6 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 		}
 	}
 
-	const declared = [width, style, color].some((part) => part !== undefined);
 	const outline = declared ? ![width, style, color].some((part) => part === 'blank') : undefined;
 
 	return { outline, shadow };

@@ -2381,6 +2381,2121 @@ Expected: FAIL on `captures a named entry` — neither `process.argv` nor `?entr
 
 - [ ] **Step 3: Add the entry shots, waiting on the ENTRY rather than the shell**
 
+**Executable snippets for this step were here and are gone, by the rule Task 4 Step 5 states at
+length: a plan under execution carries the argument and the acceptance criteria, and stops
+carrying executable code for a file once that file exists and has been reviewed.**
+
+They were annotated rather than removed at first, and a later review round was right that the
+annotation is not enough. The block still *instructed* an agent to put `createHash` and
+`entryShots` into `scripts/harness-shot.mjs`, which the committed
+`tests/build/harness-shot.test.ts` refuses outright (`not.toContain('createHash')`) — so
+following this plan produced a tree that cannot pass `npm run check`, and the plan supplied no
+steps for the modules that actually shipped. A caveat above stale code leaves stale code to be
+copied, which is the complaint.
+
+What shipped, and what it has to satisfy:
+
+**`scripts/entryShots.mjs`** — the entry's two shots and the argv seam, as a PURE module, so a
+test can call it instead of reading the script's source text. That is not tidiness: the whole
+of `harness-shot.mjs` runs a real capture the moment it is imported, so anything defined inside
+it can only ever be pinned by source scanning, and a scan cannot tell `process.argv[2]` from
+`process.argv[3]`. It owns the filename contract too — sanitised for humans, a digest of the
+REAL id for uniqueness (two ids that sanitise to one string are two entries), a length cap, and
+the width when one is given, since two widths of one entry are two pictures.
+
+**`scripts/captureReadiness.mjs`** — the wait, the failure-card race, the post-screenshot
+re-check, and `entryHasDrawn`, for the same reason: each is a decision, and a decision inside an
+unimportable module is a decision nothing drives. `entryHasDrawn` is the sharpest case. It sat
+in `harness-shot.mjs` with a sibling comment recording it as "DOM-shaped code with nothing left
+to prove", and it was wrong — a stage holding only Vue's `<!--v-if-->` placeholder passed a
+`childNodes.length > 0` check, which is the successful empty PNG this whole predicate exists to
+refuse.
+
+**The one thing that must not move into either module**: `reportIfNoLongerDrawn` takes the
+predicate as an ARGUMENT rather than importing it, so it stays driveable with a fake `page` and
+no `document` at all.
+
+`tests/build/entryShots.test.ts`, `tests/build/captureReadiness.test.ts` and
+`tests/build/entryDrawn.test.ts` are where those criteria are enforced. Read them beside the
+modules; they are the authority, and this section is only the argument for why the shape is
+what it is.
+
+- [ ] **Step 4: Read the argument in `run()`, and fail loudly on a name that draws nothing**
+
+`run()` reads the argument through the module above and nowhere else —
+`resolveShots(process.argv, SHOTS, process.env)` — and `captureAll` takes the resulting shot
+list. `process.env` is part of that call rather than an incidental: `npm run harness-shot X
+--width=460` never reaches the script, because npm claims an unknown flag as its own config, so
+`resolveShots` reads `npm_config_width` to refuse the spelling that would otherwise capture at
+the wrong width and exit 0.
+
+A name the index cannot find does not quietly produce a picture of the index, and the mechanism
+is worth stating because it changed: the page reports it, rather than the capture timing out.
+`IndexPage.vue` draws a failure card carrying `data-failure`, `waitUntilReady` races that card
+against the readiness marker, and `harness-shot` classifies by the ATTRIBUTE — never by the
+card's text, which an entry's own error can imitate — so an unknown name skips the second
+colour scheme instead of spending a whole timeout on it, and exits non-zero either way.
+
+- [ ] **Step 5: Run the test again**
+
+Run: `npx vitest run tests/build/prototypes-one-way-door.test.ts`
+
+Expected: PASS, 6 assertions.
+
+- [ ] **Step 6: Create the tree with a README that explains itself**
+
+Create `src/prototypes/README.md`:
+
+```markdown
+# src/prototypes — mocks and prototypes, never shipped
+
+Template-only `.vue` files: a `<template>` block and nothing else. Pure HTML to write, and
+already a real Vue component the harness mounts like any other, so **promotion adds a
+`<script setup>` and moves the file — the markup is never redrawn.** That is the whole point,
+and `tests/build/prototype-promotion.test.ts` holds it.
+
+**This tree is a one-way door.** It may import from the rest of `src/`; nothing in `src/` may
+import from it. Two checks, because neither is sufficient alone:
+
+- `eslint.config.mjs` bans the import from every other layer — checked at the forbidden thing,
+  so it holds for code nobody has written yet. `tests/build/prototypes-one-way-door.test.ts`.
+- `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  false`, so nothing is ever written to `dist/`) and inspects which modules composed each
+  chunk, catching the dynamic route lint cannot see. It derives what to look for from THIS
+  TREE — no file here has to remember a marker, because a marker only ever proves the marker
+  is absent.
+
+It is excluded from coverage (`vitest.config.ts`) because nothing ships it, and declared to
+fallow (`.fallowrc.json`) because `import.meta.glob` is a Vite feature its static graph cannot
+follow.
+
+Reachable at `npm run harness`, from the index at the root.
+```
+
+- [ ] **Step 7: Exclude the tree from coverage**
+
+In `vitest.config.ts`, change line 29 from:
+
+```typescript
+			exclude: ['src/main.ts'],
+```
+
+to:
+
+```typescript
+			// `src/main.ts` is registration glue needing the real Obsidian Plugin runtime.
+			// `src/prototypes/**` is design scaffolding that is never in a built plugin
+			// (`tests/build/prototypes-not-bundled.test.ts`), so measuring it would let a
+			// mock's untested branches move a gate that exists for shipped code — and the
+			// floors are a RATCHET, so a tree that drags them is a tree that lowers them.
+			exclude: ['src/main.ts', 'src/prototypes/**'],
+```
+
+- [ ] **Step 8: Declare the tree to fallow**
+
+In `.fallowrc.json`, add to the `entry` array after `"tests/harness/page.ts"`:
+
+```json
+		"src/prototypes/**/*.vue",
+```
+
+And add this to the comment block above `entry`, after the `type-safety.test-d.ts` paragraph:
+
+```
+	// `src/prototypes/**/*.vue` is a fifth kind: the harness index reaches every one of them
+	// through `import.meta.glob`, which is a VITE feature resolved at build time and invisible
+	// to a static import graph — so fallow sees a tree nothing imports and reports every file
+	// dead. Declared as entries rather than as `dynamicallyLoaded` because they are modules
+	// that import other modules (a prototype composes real components), and fallow has to
+	// follow those edges or it reports the components dead instead.
+```
+
+- [ ] **Step 9: Run the full gate**
+
+Run: `npm run check`
+
+Expected: PASS, all four steps. If `analyze` reports `src/prototypes/README.md` or the empty tree, the `entry` glob matched nothing — a `.vue` file arrives in Task 3, so if fallow objects to a glob with no matches, move the entry line to Task 3 Step 6 and note it in the commit message.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add src/prototypes/README.md eslint.config.mjs vitest.config.ts .fallowrc.json tests/build/prototypes-one-way-door.test.ts
+git commit -m "Add src/prototypes as a one-way door
+
+Nothing outside the tree may import from it, banned per layer in
+eslint.config.mjs so the rule holds for code nobody has written yet.
+plugin/ gains its first forbidden() call: it composes every layer, which
+is exactly why it is the one place that could pull scaffolding into a
+build.
+
+Excluded from coverage because nothing ships it and the floors are a
+ratchet, and declared to fallow because import.meta.glob is a Vite
+feature its static graph cannot follow."
+```
+
+---
+
+### Task 2: The bundle test
+
+The backstop the one-way door cannot be: lint reads static imports, and a dynamic specifier or a route nobody anticipated is what the built artifact catches.
+
+**Files:**
+- Test: `tests/build/prototypes-not-bundled.test.ts`
+
+**Interfaces:**
+- Consumes: `src/prototypes/` from Task 1.
+- Produces: nothing other tasks import. It asserts against the built bundle's own module
+  graph, in memory — nothing is ever written to `dist/`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `tests/build/prototypes-not-bundled.test.ts`.
+
+**It asks the build what went into it.** Two earlier drafts scanned the bundle text and both
+were wrong, in opposite directions, which is why this one does neither:
+
+- A **marker** (`rp-prototype`) proves only that the marker is absent. The next prototype
+  nobody remembered to mark ships past a green test.
+- A **basename** derived from the tree is worse than useless: naming a mock after the component
+  it stands in for is the workflow this whole feature is built for — `src/prototypes/StatusBar.vue`
+  beside the real `StatusBar.vue` — and the real one already puts that string in the bundle. The
+  gate would fail on correct work. Minification finishes the argument: `FIXTURE_PLAN`,
+  `seedFixture` and `HARNESS_PLAN` are module-scope names that a release build renames — and a
+  const holding an object literal can be inlined away entirely — so a fixture could ship with
+  every assertion green.
+
+Rollup reports the module ids that composed each chunk. That is provenance, and it is immune to
+both problems.
+
+```typescript
+import path from 'node:path';
+import { build } from 'vite';
+import type { Rolldown } from 'vite';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { REPO } from '../helpers/oxlint';
+
+/**
+ * The guarantee with a user on the other end: no prototype or fixture MODULE composes a
+ * built chunk. `prototypes-one-way-door.test.ts` refuses the import statement; this refuses
+ * the outcome — together they are what serve the wider claim that no mock, prototype or
+ * fixture ever reaches a user, by whichever route.
+ *
+ * Narrower than that wider claim on purpose: `chunk.modules` is where source provenance
+ * lives, so a prototype or fixture shipped as a separate output ASSET — a file with a
+ * `fileName` and emitted `source`, no module id list — is outside what this test can see.
+ * Not cheaply checkable, which is why the sentence above is narrowed rather than the check
+ * widened to cover it.
+ *
+ * Both exist because neither is sufficient. Lint reads static imports and a dynamic
+ * specifier slips past it; this sees whatever actually got in, and reports only after the
+ * fact.
+ *
+ * `write: false` — the modules that composed the chunk are in the returned output, so
+ * nothing is emitted to disk and this does not race `npm run build`'s own `dist/`.
+ *
+ * `Rolldown` comes from `vite` itself (`node_modules/vite/dist/node/index.d.ts` re-exports
+ * it), not from `rollup`: this repo's Vite (`^8`) bundles with Rolldown, and `rollup` is not
+ * an installed dependency here at all. Importing `RollupOutput` from `rollup` would
+ * type-check nowhere — this file is outside the one `tests/**` path that gets type-checked
+ * (CLAUDE.md's Testing section) — but would still trip `npm run analyze`'s
+ * unlisted-dependency scan, which reads import specifiers rather than resolved types.
+ */
+const BUILD_MS = 120_000;
+
+// Absolute, normalised to forward slashes exactly like `modules` below, so a module id can
+// be compared against it the same way on every platform — REPO holds backslashes on
+// Windows and the ids built below never do.
+const repoRoot = REPO.split(path.sep).join('/');
+
+let modules: string[] = [];
+
+beforeAll(async () => {
+	const result = (await build({
+		configFile: path.resolve(REPO, 'vite.config.ts'),
+		root: REPO,
+		build: { write: false },
+		logLevel: 'error',
+	})) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[];
+
+	const output = Array.isArray(result) ? result[0] : result;
+	// EVERY chunk, not the first. A dynamic import — the exact route this test exists to
+	// catch, since lint cannot see it — is what Rollup most likely emits as a SEPARATE chunk,
+	// so inspecting `output[0]` alone would leave the interesting case unexamined while
+	// looking thorough.
+	const chunks = output.output.filter((part): part is Rolldown.OutputChunk => part.type === 'chunk');
+
+	if (chunks.length === 0) throw new Error('the build produced no chunk to inspect');
+
+	// Absolute ids, normalised to forward slashes so this reads the same on Windows — which
+	// is one of the four legs `npm run check` rides.
+	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => id.split(path.sep).join('/')));
+}, BUILD_MS);
+
+describe('the built plugin', () => {
+	it('was built from real modules, so this test is asserting on something', () => {
+		expect(modules.length).toBeGreaterThan(0);
+		// A sanity anchor: the entry itself must be in there, or the shape of `chunk.modules`
+		// has changed under us and every assertion below would pass vacuously.
+		expect(modules.some((id) => id.endsWith('/src/main.ts'))).toBe(true);
+	});
+
+	it('contains no module from src/prototypes/', () => {
+		// Anchored on this repository's own tree rather than a bare `/src/prototypes/`
+		// substring, so a dependency at `node_modules/x/src/prototypes/…` cannot fail this
+		// on correct work — `repoRoot` is what excludes `node_modules` from matching at all,
+		// since a package inside it never starts with this repo's own absolute path.
+		const leaked = modules.filter((id) => id.startsWith(`${repoRoot}src/prototypes/`));
+
+		expect(leaked, `prototypes reached the bundle: ${leaked.join(', ')}`).toEqual([]);
+	});
+
+	/**
+	 * EVERY test path, not just `tests/harness/`. The guarantee names fixtures, and they do
+	 * not all live in one directory — Task 7 adds `tests/fixtures/promotion/` to hold the
+	 * promoted SFC, and a harness-only assertion would not have covered it.
+	 *
+	 * Stated as "nothing under `tests/`" rather than as a list of fixture directories, so the
+	 * next one somebody adds is covered without anybody remembering to come back here. Nothing
+	 * under `tests/` belongs in a plugin under any circumstances, which makes the broad rule
+	 * the correct one rather than merely the convenient one.
+	 */
+	it('contains no test module at all, fixtures included', () => {
+		// Anchored on this repository's own tree for the same reason as the prototypes check
+		// above — node_modules/x/tests/… must not trip this on correct work.
+		const leaked = modules.filter((id) => id.startsWith(`${repoRoot}tests/`));
+
+		expect(leaked, `test modules reached the bundle: ${leaked.join(', ')}`).toEqual([]);
+	});
+});
+```
+
+- [ ] **Step 2: Run it and watch the anchor tell you the shape is right**
+
+Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
+
+Expected: PASS, three tests — and the first one is what makes the other two mean anything. If it
+fails on `/src/main.ts`, `chunk.modules` is not the shape this test assumes and the other
+assertions are passing over nothing; fix that before continuing.
+
+- [ ] **Step 3: Prove it fails on a prototype — plant one and import it DYNAMICALLY**
+
+Temporarily create `src/prototypes/DoomedPrototype.vue`.
+
+**The name is two words on purpose.** `vue/multi-word-component-names` refuses a single-word
+SFC name here, so a probe called `Doomed.vue` makes `npm run lint` red for a reason that has
+nothing to do with the import boundary — and Step 5 below exists precisely to observe whether
+lint is red or green on a dynamic import. A probe whose failure cannot be attributed to the rule
+under test is the same defect as a green signal that means nothing. Measured.
+
+```vue
+<template>
+	<div>planted</div>
+</template>
+```
+
+It carries no marker, and its name deliberately does not collide with any component. Temporarily
+add to the top of `src/main.ts`:
+
+```typescript
+export const planted = import('./prototypes/DoomedPrototype.vue');
+```
+
+**An `export`, not a `console.log`.** `.oxlintrc.json` turns `no-console` on for every file under
+`src/**`, so a planted `console.log` fails `npm run lint` on the CONSOLE CALL — which would make
+Step 5's PASS impossible and, worse, make its FAIL prove nothing about `no-restricted-imports`,
+since the run would be red either way. An exported binding also holds the import better than a
+console call does: it is a live export, so nothing can tree-shake it away before Rollup reports
+the module.
+
+**A dynamic import, deliberately.** It is the route lint cannot see, so it is the one this test
+exists for — and it is also what Rollup is most likely to emit as a separate chunk, which is
+what the multi-chunk aggregation above is for. A static import would prove the easy half and
+leave the hard half untested while looking like a proof.
+
+- [ ] **Step 4: Watch it go red**
+
+Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
+
+Expected: FAIL on `contains no module from src/prototypes/`, naming `DoomedPrototype.vue`.
+
+If it PASSES, the aggregation is not reaching every chunk — print `chunks.length` and the file
+names before changing anything else, because a green result here means the whole test is
+decorative.
+
+- [ ] **Step 5: Confirm lint refuses the same thing**
+
+Run: `npm run lint`
+
+Expected: **PASS** — and that is the point rather than a problem. `no-restricted-imports` does
+not see a dynamic specifier, which is precisely why the bundle test exists. Swap the planted line
+for the static form to watch lint refuse it:
+
+```typescript
+import DoomedPrototype from './prototypes/DoomedPrototype.vue';
+export const planted = DoomedPrototype;
+```
+
+Run `npm run lint` again: FAIL with `no-restricted-imports` from Task 1's `forbidden('plugin', …)`
+block — and read the message, because that is the whole point of this step. It must name
+`no-restricted-imports` and nothing else; a run red for a second reason proves nothing about which
+rule is doing the work. The two halves cover different routes, and this step is what proves the division of labour
+rather than assuming it.
+
+- [ ] **Step 6: Prove it fails on a fixture too — the case a text scan could not catch**
+
+Revert the prototype and plant a fixture import instead:
+
+```bash
+git checkout src/main.ts
+rm src/prototypes/DoomedPrototype.vue
+```
+
+Then temporarily add to the top of `src/main.ts`:
+
+```typescript
+import { FIXTURE_PLAN } from '../tests/helpers/planFixtures';
+export const planted = FIXTURE_PLAN;
+```
+
+**`tests/helpers/planFixtures.ts` and not `tests/harness/fixture.ts`, because the second does
+not exist yet** — Task 3 creates it. Planting an import of a module that is not there makes Vite
+stop on an unresolved specifier before Rollup ever produces a module list, so the step would fail
+on the wrong thing and prove nothing about the assertion. `planFixtures.ts` is in the tree today,
+it is genuinely a fixture, and its only import is type-only, so it resolves cleanly and lands in
+the module list.
+
+- [ ] **Step 7: Watch the fixture assertion go red**
+
+Run: `npx vitest run tests/build/prototypes-not-bundled.test.ts`
+
+Expected: FAIL on `contains no test module at all, fixtures included`, naming `planFixtures.ts`.
+
+**This is the case that motivated the rewrite**: `FIXTURE_PLAN` is a module-scope const holding
+an object literal, and a release build both renames it and can inline it away entirely — so a
+text scan for that identifier stays green while every byte of the fixture's data ships.
+Provenance sees the module regardless of what minification did to its names.
+
+- [ ] **Step 8: Remove the planted import and run the full gate**
+
+```bash
+git checkout src/main.ts
+```
+
+Run: `npm run check`
+
+Expected: PASS.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add tests/build/prototypes-not-bundled.test.ts
+git commit -m "Assert no prototype or fixture reaches the built plugin
+
+Asks the build what went into it — Rollup reports the module ids that
+composed the chunk — rather than scanning the bundle text.
+
+Two text-scanning drafts were wrong in opposite directions. A marker
+proves only the marker is absent. A basename derived from the tree is
+worse: naming a mock after the component it stands in for is the
+workflow this feature exists for, and the real component already puts
+that string in the bundle, so the gate would fail on correct work.
+Minification settles it — a release build renames FIXTURE_PLAN and can
+inline the object it holds away entirely, so a fixture could ship with
+every text assertion green.
+
+Watched failing twice before being trusted: a planted prototype and a
+planted fixture import, the second being the case no text scan catches."
+```
+
+---
+
+### Task 3: The seeded fixture
+
+One world every entry mounts against, so what the designer sees is reproducible and two components on a screen agree. It reuses the plan and zones the Plan Editor harness already defines rather than inventing a second set that could disagree.
+
+**Files:**
+- Modify: `tests/harness/planEditor.ts` — export `HARNESS_PLAN`, `HARNESS_ZONES` and `harnessDeps` (named rather than given as a line range, per `CLAUDE.md`: a range is correct until the next insertion above it)
+- Create: `tests/harness/fixture.ts`
+- Test: `tests/harness/fixture.test.ts`
+
+**Interfaces:**
+- Consumes: `HARNESS_PLAN`, `HARNESS_ZONES` and `harnessDeps(): PlanEditorDeps` from `tests/harness/planEditor.ts`, all three made `export` by Step 1.
+- Produces, from `tests/harness/fixture.ts`: `seedFixture(): Pinia` — creates a Pinia, makes it
+  active, seeds `useProjectStore` with the harness plan and zones, returns it — and
+  `harnessEditorContext(): PlanEditorContext`, the value `app.provide(PLAN_EDITOR_CONTEXT, …)` needs.
+  Task 4 uses both.
+
+- [ ] **Step 1: Export the existing fixtures and the deps builder**
+
+In `tests/harness/planEditor.ts`, change `const HARNESS_PLAN` (line 25), `const HARNESS_ZONES`
+(line ~38) and `function harnessDeps` (line ~100) to `export`. Change nothing else in the file. Add this sentence to the file's header comment, after the "No background document" paragraph:
+
+```
+ * `HARNESS_PLAN` and `HARNESS_ZONES` are EXPORTED because the harness index mounts single
+ * components against the same world (`fixture.ts`). One fixture rather than two: a second
+ * set would be a second derivation that can answer differently, and two components drawn
+ * from two plans that differ in a way nobody notices is exactly the defect one world buys
+ * its way out of.
+```
+
+- [ ] **Step 2: Write the failing test**
+
+Create `tests/harness/fixture.test.ts`:
+
+```typescript
+// @vitest-environment jsdom
+import { describe, expect, it } from 'vitest';
+import { storeToRefs } from 'pinia';
+import { createApp } from 'vue';
+import { seedFixture, harnessEditorContext } from './fixture';
+import {
+	PLAN_EDITOR_CONTEXT,
+	usePlanEditorContext,
+	type PlanEditorContext,
+} from '../../src/presentation/editor/PlanEditorContext';
+import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
+import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
+
+/**
+ * The one world every index entry mounts against. Three claims worth a test: it is SEEDED
+ * (a component reading the store finds a plan, with no per-entry setup), it is ONE world
+ * (two stores created from it agree, which is what makes two components on a prototype
+ * consistent), and the editor context it hands out is one `usePlanEditorContext()` ACCEPTS.
+ *
+ * The third is driven through a real `createApp` rather than asserted on the returned
+ * object, because the failure it guards is a key mismatch: a context built correctly and
+ * provided under a symbol the consumer does not inject looks perfect in a shape assertion
+ * and throws on mount. `usePlanEditorContext` throws rather than warning, so the index would
+ * show Task 4's named-failure card for every component that reads it.
+ */
+describe('the harness fixture', () => {
+	it('seeds the project store with the harness plan and zones', () => {
+		seedFixture();
+
+		const { plan, zones } = storeToRefs(useProjectStore());
+
+		expect(plan.value?.id).toBe(HARNESS_PLAN.id);
+		expect(zones.value.size).toBe(HARNESS_ZONES.length);
+	});
+
+	it('gives two readers the same plan, which is what makes two components agree', () => {
+		seedFixture();
+
+		const first = storeToRefs(useProjectStore()).plan;
+		const second = storeToRefs(useProjectStore()).plan;
+
+		expect(first.value).toBe(second.value);
+	});
+
+	it('provides a context `usePlanEditorContext()` accepts, so a real component can mount', () => {
+		let seen: PlanEditorContext | undefined;
+
+		const app = createApp({
+			setup() {
+				seen = usePlanEditorContext();
+
+				return () => null;
+			},
+		});
+
+		app.provide(PLAN_EDITOR_CONTEXT, harnessEditorContext());
+		app.mount(document.createElement('div'));
+
+		expect(seen?.planId).toBe(HARNESS_PLAN.id);
+
+		app.unmount();
+	});
+});
+```
+
+- [ ] **Step 3: Run it and watch it fail**
+
+Run: `npx vitest run tests/harness/fixture.test.ts`
+
+Expected: FAIL with `Failed to resolve import "./fixture"`.
+
+- [ ] **Step 4: Write the fixture**
+
+Create `tests/harness/fixture.ts`:
+
+```typescript
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
+import type { PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
+import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
+
+/**
+ * ONE seeded world, behind every entry the harness index mounts.
+ *
+ * Real components read stores — `StatusBar` alone reads `useProjectStore` and
+ * `useEditorStore` — so mounting one in isolation needs state behind it. A single fixture
+ * rather than per-entry setup buys two things: what the designer sees is REPRODUCIBLE, and
+ * two components on one prototype AGREE, because they read the same plan rather than two
+ * invented ones that differ in a way nobody notices until production.
+ *
+ * The cost, stated rather than hidden: a component state this world does not cover cannot be
+ * shown without extending it, and extending it changes what every other entry draws.
+ *
+ * The plan and zones come from `planEditor.ts` rather than being declared here. A second set
+ * would be a second derivation answering differently the day one of them is edited.
+ */
+export function seedFixture(): Pinia {
+	const pinia = createPinia();
+
+	// Process-wide: the last call to `setActivePinia` wins, so calling `seedFixture()` again
+	// for a second entry replaces which Pinia `useProjectStore()` resolves to outside an
+	// explicit `app.use(pinia)`. Harmless for how Task 4 uses this — one fixture call per
+	// mounted entry, immediately consumed — but worth knowing before a caller relies on two
+	// live at once.
+	setActivePinia(pinia);
+
+	const project = useProjectStore();
+
+	// Assigned directly rather than through `hydrate`: `harnessDeps().queries` answers both
+	// queries perfectly well with no vault behind them, so that is not the reason. The real
+	// one is that `hydrate` is ASYNCHRONOUS (it awaits two query promises) and `seedFixture`
+	// is not — every index entry needs a world in place before its first synchronous mount,
+	// not one that lands a tick later. What a component needs is the post-hydration STATE,
+	// which is this.
+	project.plan = HARNESS_PLAN;
+	project.zones = new Map(HARNESS_ZONES.map((zone) => [zone.id, zone]));
+	project.status = 'ready';
+
+	return pinia;
+}
+
+/**
+ * The editor context, which is NOT optional and is easy to miss.
+ *
+ * `src/presentation/views/PlanEditorView.ts` does three things when it mounts: `createPinia()`,
+ * `use(VueKonva)` and **`provide(PLAN_EDITOR_CONTEXT, …)`**. Without the third, every component
+ * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything
+ * using `useThemeTokens` — so the index would render the named failure for exactly the
+ * components a designer most wants to look at, and a prototype composing one would too.
+ *
+ * Built from `harnessDeps()` rather than from a second set of stubs, for the same reason the
+ * plan and zones come from `planEditor.ts`: a second derivation answers differently the day one
+ * of them is edited.
+ */
+export function harnessEditorContext(): PlanEditorContext {
+	const deps = harnessDeps();
+
+	return {
+		planId: HARNESS_PLAN.id,
+		queries: deps.queries,
+		// Design slice 8's write side, which arrived on `main` while this branch was running.
+		// Taken from `harnessDeps()` like everything else here rather than stubbed: it answers
+		// `settings.unrecovered` for every write, which is the honest result for a page with no
+		// vault — a mock's gestures fail visibly instead of pretending to persist.
+		commands: deps.commands,
+		vault: deps.vault,
+		onThemeChange: deps.onThemeChange,
+		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
+	};
+}
+```
+
+- [ ] **Step 5: Run the test again**
+
+Run: `npx vitest run tests/harness/fixture.test.ts`
+
+Expected: PASS, 3 tests. If `project.status = 'ready'` is a type error, read the `ProjectStoreStatus` union in `src/presentation/stores/ProjectStore.ts` and use the member that means hydrated.
+
+- [ ] **Step 6: Run the full gate**
+
+Run: `npm run check`
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add tests/harness/fixture.ts tests/harness/fixture.test.ts tests/harness/planEditor.ts
+git commit -m "Add the one seeded fixture the harness index mounts against
+
+Real components read stores, so isolation needs a world behind them. One
+world rather than per-entry setup buys reproducibility and, more
+importantly, makes two components on one prototype agree.
+
+It reuses the plan and zones planEditor.ts already defines instead of
+declaring a second set. A second derivation answers differently the day
+one of them is edited, and two components drawn from two subtly
+different plans is the defect one world buys its way out of."
+```
+
+---
+
+### Task 4: Discovery and the index
+
+The index page: every prototype and every component, discovered from the tree so a saved file is reachable with no registration step to forget.
+
+**Files:**
+- Create: `tests/harness/entries.ts`
+- Create: `tests/harness/IndexPage.vue`
+- Modify: `tests/harness/page.ts`
+- Test: `tests/harness/entries.test.ts`
+
+**Interfaces:**
+- Consumes: `seedFixture()` and `harnessEditorContext()` from Task 3.
+- Also owns **criterion 7**, moved here from Task 3 by that task's review: only this task's app installs VueKonva, and without it the two prop-free components that read `useProjectStore` cannot both mount.
+- Produces, all from `tests/harness/entries.ts`: `interface HarnessEntry { id: string; label: string; kind: 'prototype' | 'component'; component: () => Promise<unknown> }`, `discoverEntries(modules: Record<string, () => Promise<unknown>>, kind: HarnessEntry['kind']): HarnessEntry[]`, and the two globbed accessors `prototypeEntries(): HarnessEntry[]` / `componentEntries(): HarnessEntry[]`. Task 5 uses the entries; Task 7 drives `prototypeEntries()` directly, which is the only place the real glob is exercised.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `tests/harness/entries.test.ts`:
+
+```typescript
+import { describe, expect, it } from 'vitest';
+import { discoverEntries, registrableComponents } from './entries';
+
+/**
+ * Discovery, tested here on the SHAPE `import.meta.glob` returns rather than on the glob
+ * itself: what can go wrong in these cases is the id derivation, and a hand-built map is the
+ * only way to drive a collision that does not exist on disk.
+ *
+ * That leaves the glob's own PATTERN unasserted, and a pattern that stops matching the tree
+ * is the failure where nothing a designer adds ever appears. Task 7 adds the case that closes
+ * it, in this file, once there is a real `.vue` under `src/prototypes/` to find: discovery
+ * against the tree walked independently. It waits for Task 7 because on an empty tree that
+ * assertion is `[] === []` — vacuous, and green for the wrong reason.
+ *
+ * The id is a URL, so it has to be UNIQUE across everything the index lists. A basename is
+ * not: `src/prototypes/StatusBar.vue` and `src/presentation/editor/shell/StatusBar.vue` are
+ * two different entries a designer would reasonably have at once — a mock of a component
+ * next to the component — and collapsing them makes the second unreachable by URL and
+ * uncapturable by `harness-shot`.
+ */
+describe('harness entry discovery', () => {
+	it('qualifies the id by kind, so a mock and its real component are both reachable', () => {
+		const [prototype] = discoverEntries({ '/src/prototypes/StatusBar.vue': () => Promise.resolve({}) }, 'prototype');
+		const [component] = discoverEntries(
+			{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
+			'component',
+		);
+
+		expect(prototype.id).not.toBe(component.id);
+		expect(prototype.id).toBe('prototype:StatusBar');
+		expect(component.id).toBe('component:editor/shell/StatusBar');
+	});
+
+	it('keeps two components with the same basename in different directories distinct', () => {
+		const entries = discoverEntries(
+			{
+				'/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}),
+				'/src/presentation/views/StatusBar.vue': () => Promise.resolve({}),
+			},
+			'component',
+		);
+
+		expect(new Set(entries.map((entry) => entry.id)).size).toBe(2);
+	});
+
+	/**
+	 * The case a FLATTENING id gets wrong, and the reason the separator is preserved rather
+	 * than replaced. `a-b/C.vue` and `a/b-C.vue` collapse to the same string the moment `/`
+	 * becomes `-`, because `-` is legal in a directory name — so the encoding has to be
+	 * reversible, not merely qualified.
+	 */
+	it('does not collapse a directory name containing the separator character', () => {
+		const entries = discoverEntries(
+			{
+				'/src/presentation/a-b/C.vue': () => Promise.resolve({}),
+				'/src/presentation/a/b-C.vue': () => Promise.resolve({}),
+			},
+			'component',
+		);
+
+		expect(new Set(entries.map((entry) => entry.id)).size).toBe(2);
+	});
+
+	it('keeps a human-readable label even though the id is qualified', () => {
+		const [entry] = discoverEntries(
+			{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
+			'component',
+		);
+
+		expect(entry.label).toBe('StatusBar');
+	});
+
+	it('sorts by id, so the index does not reorder itself between runs', () => {
+		const entries = discoverEntries(
+			{
+				'/src/prototypes/Zebra.vue': () => Promise.resolve({}),
+				'/src/prototypes/Alpha.vue': () => Promise.resolve({}),
+			},
+			'prototype',
+		);
+
+		expect(entries.map((entry) => entry.label)).toEqual(['Alpha', 'Zebra']);
+	});
+
+	it('returns nothing for an empty tree rather than throwing', () => {
+		expect(discoverEntries({}, 'prototype')).toEqual([]);
+	});
+});
+
+/**
+ * A template-only prototype writes `<StatusBar />`, so the registry is keyed by LABEL — an id
+ * containing `:` and `/` is not a valid tag. Labels are not unique, which is the third place
+ * that has mattered in this design.
+ *
+ * The two collisions are NOT the same question, and an earlier draft treating them alike broke
+ * the headline workflow. A mock named after the component it stands in for is not an ambiguity
+ * to refuse — replacing that component is the entire reason the mock exists, so the prototype
+ * takes the tag. A collision WITHIN one kind has no such answer and is still refused.
+ */
+describe('registering components for template-only prototypes', () => {
+	it('registers an unambiguous label under its tag', () => {
+		const { byTag, ambiguous, shadowed } = registrableComponents(
+			discoverEntries({ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) }, 'component'),
+		);
+
+		expect([...byTag.keys()]).toEqual(['StatusBar']);
+		expect(ambiguous).toEqual([]);
+		expect(shadowed).toEqual([]);
+	});
+
+	it('lets a mock take the tag from the component it stands in for', () => {
+		const { byTag, ambiguous, shadowed } = registrableComponents([
+			...discoverEntries({ '/src/prototypes/StatusBar.vue': () => Promise.resolve({}) }, 'prototype'),
+			...discoverEntries(
+				{ '/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}) },
+				'component',
+			),
+		]);
+
+		// The likeliest collision of all, and it is the WORKFLOW rather than a mistake: a
+		// designer redrawing `StatusBar` writes a mock called `StatusBar`, and `<StatusBar />`
+		// in their prototype has to mean the mock. Refusing both — the earlier draft — left the
+		// tag unresolved in exactly the case this feature exists to serve.
+		expect(byTag.get('StatusBar')?.kind).toBe('prototype');
+		expect(ambiguous).toEqual([]);
+		// Reported, because a component quietly replaced is worth one line in the console.
+		expect(shadowed).toEqual(['StatusBar']);
+	});
+
+	it('refuses a duplicated label rather than letting the last one win', () => {
+		const { byTag, ambiguous } = registrableComponents(
+			discoverEntries(
+				{
+					'/src/presentation/editor/shell/StatusBar.vue': () => Promise.resolve({}),
+					'/src/presentation/views/StatusBar.vue': () => Promise.resolve({}),
+				},
+				'component',
+			),
+		);
+
+		// Two of one kind: no winner exists, so neither is registered. `IndexPage.vue` turns the
+		// unresolved tag that follows into a named entry failure, so this is visible rather than
+		// a warning nobody reads.
+		expect(byTag.has('StatusBar')).toBe(false);
+		expect(ambiguous).toEqual(['StatusBar']);
+	});
+
+	it('refuses two mocks sharing a label, since neither stands in for the other', () => {
+		const { byTag, ambiguous, shadowed } = registrableComponents(
+			discoverEntries(
+				{
+					'/src/prototypes/StatusBar.vue': () => Promise.resolve({}),
+					'/src/prototypes/toolbar/StatusBar.vue': () => Promise.resolve({}),
+				},
+				'prototype',
+			),
+		);
+
+		expect(byTag.has('StatusBar')).toBe(false);
+		expect(ambiguous).toEqual(['StatusBar']);
+		expect(shadowed).toEqual([]);
+	});
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `npx vitest run tests/harness/entries.test.ts`
+
+Expected: FAIL with `Failed to resolve import "./entries"`.
+
+- [ ] **Step 3: Write the discovery module**
+
+Create `tests/harness/entries.ts`:
+
+```typescript
+/**
+ * What the harness index can mount, discovered from the tree rather than from a list.
+ *
+ * A hand-kept manifest is a step somebody has to remember, and `CLAUDE.md` refuses that
+ * shape elsewhere for the same reason it is refused here — "src/ is the list and it cannot
+ * go stale". The `Coding agent` actor note gives the sharper version: a registration step is
+ * one a stateless actor forgets across sessions.
+ *
+ * `discoverEntries` takes the glob RESULT rather than calling `import.meta.glob` itself, so the
+ * id derivation stays a pure function a node test can drive. The two globs live below, in this
+ * module rather than in `IndexPage.vue`, because `page.ts` needs the component list too — to
+ * register those components globally — and a second glob in a second file is a second answer
+ * that can disagree.
+ *
+ * `import.meta.glob` is a Vite feature, not a Vue one, so a `.ts` module can hold it.
+ */
+export interface HarnessEntry {
+	/** Unique across every entry, and the value `?entry=` carries. See `idFor`. */
+	readonly id: string;
+	/** The basename, for a human reading the list. Not unique, and never used as a URL. */
+	readonly label: string;
+	readonly kind: 'prototype' | 'component';
+	readonly component: () => Promise<unknown>;
+}
+
+/**
+ * An id that is unique across the whole index, because it is a URL.
+ *
+ * A basename alone is NOT unique and the collision is the likely case rather than the exotic
+ * one: a mock named after the component it stands in for is exactly what a designer builds,
+ * and two components sharing a basename in different directories is ordinary. Either would
+ * make the second entry unreachable by `?entry=` and uncapturable by `harness-shot`, with no
+ * error — the index would simply always open the first.
+ *
+ * So: the kind, then the path between the tree root and the file, then the basename.
+ */
+function idFor(file: string, kind: HarnessEntry['kind']): string {
+	const withoutExtension = file.replace(/\.vue$/, '');
+	// Everything after the tree root: `…/src/prototypes/X` → `X`, and
+	// `…/src/presentation/editor/shell/StatusBar` → `editor/shell/StatusBar`.
+	const root = kind === 'prototype' ? '/src/prototypes/' : '/src/presentation/';
+	const index = withoutExtension.indexOf(root);
+	const relative = index === -1 ? withoutExtension : withoutExtension.slice(index + root.length);
+
+	// The path separator is KEPT. Flattening it to `-` is not reversible — `-` is legal in a
+	// directory name, so `a-b/C` and `a/b-C` become one id and one of them stops being
+	// reachable, silently. Both `:` and `/` are legal in a query-string value and in a
+	// quoted attribute selector, which is everywhere this id has to survive.
+	return `${kind}:${relative}`;
+}
+
+/**
+ * One entry per globbed module, sorted so the index does not reorder itself between runs — a
+ * list whose order moves is one a designer cannot navigate by memory, and a screenshot of it
+ * would differ run to run for no reason.
+ */
+export function discoverEntries(
+	modules: Record<string, () => Promise<unknown>>,
+	kind: HarnessEntry['kind'],
+): HarnessEntry[] {
+	const entries = Object.entries(modules)
+		.map(([file, component]) => ({
+			id: idFor(file, kind),
+			label: file.split('/').pop()?.replace(/\.vue$/, '') ?? file,
+			kind,
+			component,
+		}))
+		.sort((left, right) => left.id.localeCompare(right.id));
+
+	// Belt and braces over a reversible id: if two entries ever do collide, the failure mode
+	// without this is SILENT — the index opens the first match and the second is simply
+	// unreachable, with nothing to notice. Throwing turns that into a page that says so.
+	const ids = new Set(entries.map((entry) => entry.id));
+
+	if (ids.size !== entries.length) throw new Error(`duplicate harness entry ids in ${kind}`);
+
+	return entries;
+}
+
+/** Every mock and prototype under `src/prototypes/`. */
+export const prototypeEntries = (): HarnessEntry[] =>
+	discoverEntries(
+		import.meta.glob('../../src/prototypes/**/*.vue') as Record<string, () => Promise<unknown>>,
+		'prototype',
+	);
+
+/** Every real component under `src/presentation/`. */
+export const componentEntries = (): HarnessEntry[] =>
+	discoverEntries(
+		import.meta.glob('../../src/presentation/**/*.vue') as Record<string, () => Promise<unknown>>,
+		'component',
+	);
+
+/**
+ * Everything a template-only prototype can name, keyed by the tag it would write —
+ * `<StatusBar />`, so by LABEL rather than by id, since an id containing `:` and `/` is not a
+ * valid tag.
+ *
+ * Called with BOTH kinds: a prototype composes the mocks beside it as well as the real
+ * components, and a template-only file can import neither.
+ *
+ * Labels are not unique, and this is the third place that has mattered — but the two kinds of
+ * collision are different questions and an earlier draft refused both alike, which broke the
+ * headline workflow.
+ *
+ * A MOCK sharing a label with a component is not an ambiguity. Naming a mock after the
+ * component it stands in for is the whole point of writing one, so `<StatusBar />` inside a
+ * prototype must mean the mock. The prototype takes the tag, deterministically, and the
+ * shadowing is reported rather than merely allowed.
+ *
+ * A collision WITHIN one kind — two mocks, or two components in different directories — has no
+ * such answer, so the label is registered for NOBODY and returned in `ambiguous`. That leaves
+ * an unresolved tag, which `IndexPage.vue` turns into a named entry FAILURE: Vue only warns
+ * about one, and a warning is invisible to `harness-shot`, which would otherwise photograph a
+ * prototype with a component silently missing and exit 0.
+ */
+export function registrableComponents(entries: HarnessEntry[]): {
+	byTag: Map<string, HarnessEntry>;
+	ambiguous: string[];
+	shadowed: string[];
+} {
+	const seen = new Map<string, HarnessEntry[]>();
+
+	for (const entry of entries) seen.set(entry.label, [...(seen.get(entry.label) ?? []), entry]);
+
+	const byTag = new Map<string, HarnessEntry>();
+	const ambiguous: string[] = [];
+	const shadowed: string[] = [];
+
+	for (const [label, found] of seen) {
+		if (found.length === 1) {
+			byTag.set(label, found[0]);
+			continue;
+		}
+
+		const mocks = found.filter((entry) => entry.kind === 'prototype');
+
+		// Exactly one mock: it wins, whatever number of components it stands in for. Two mocks
+		// is a collision within a kind again, and falls through to `ambiguous` with the rest.
+		if (mocks.length === 1) {
+			byTag.set(label, mocks[0]);
+			shadowed.push(label);
+			continue;
+		}
+
+		ambiguous.push(label);
+	}
+
+	return { byTag, ambiguous, shadowed };
+}
+```
+
+- [ ] **Step 4: Run the test again**
+
+Run: `npx vitest run tests/harness/entries.test.ts`
+
+Expected: PASS, 4 tests.
+
+- [ ] **Step 5: Write the index page component**
+
+Create `tests/harness/IndexPage.vue`:
+
+**This step no longer carries the file's source, and the deletion is deliberate — read this
+before reaching for git history to "restore" it.**
+
+An executable snippet for this file was here through round twenty-four. It then diverged from the
+committed `tests/harness/IndexPage.vue` across seven review rounds, and by round thirty-two the
+divergence was total: the snippet had no `EntryBoundary`, no `warningOwner`, no `reportLateDefect`
+and a `mountedId` the code no longer has. **Executing it would have rebuilt a page with none of the
+attribution apparatus rounds twenty-five through thirty-one installed** — five review rounds undone
+by following the plan.
+
+Two remedies were proposed and both were refused, which is why this section reads as it does.
+*Annotating* the stale snippet leaves stale code sitting there to be copied, which is the actual
+complaint. *Mirroring* the committed file means every future fix to it must be duplicated here — and
+that treadmill is not hypothetical, it is precisely what produced rounds twenty-nine and thirty-two.
+A second copy is a second derivation that answers differently the day one of them is edited, which
+is the pattern `tests/harness/fixture.ts` and `tests/harness/planEditor.ts` already refuse elsewhere
+in this repository for the same reason.
+
+**So the general rule, which the next plan should start from: a plan under execution carries the
+argument and the acceptance criteria, and stops carrying executable code for a file once that file
+exists and has been reviewed.** The code is the authority the moment it is committed; a snippet is
+only useful before there is a file to point at.
+
+`tests/harness/IndexPage.vue` is that authority. What it must satisfy:
+
+**Three ways an entry fails, and no one mechanism sees two of them.**
+
+1. A module that fails to IMPORT rejects the promise — caught around the `await` in `open()`.
+2. A module that imports and then THROWS — in `setup()`, in `render()`, or from an async lifecycle
+   hook a tick later — fails inside Vue's error cycle, where a try/catch around the import cannot
+   see it. A per-entry `onErrorCaptured` boundary covers it; a ROOT hook cannot, because it is
+   handed the error and the throwing instance and nothing that says which `open()` call put that
+   instance there.
+3. A module that neither rejects nor throws can still draw WRONGLY — an unresolved tag, a missing or
+   mistyped prop — which Vue only WARNS about. Every warning reaching the handler is a defect: the
+   classification is inverted rather than an allowlist, because an allowlist fails silently when it
+   is wrong and this one already did, twice.
+
+**All three are asynchronous, which is the harder half.** Any of them can land after the reader has
+opened something else, and a report on the wrong entry is worse than no report — it pulls a working
+component off the stage and accuses it. Four guards answer that, and they share ONE key.
+
+**The key is the MOUNT, not the entry.** An id cannot distinguish two mounts of the same entry, so
+A -> B -> A defeats any id-keyed guard: the stale mount and the live one compare equal. A monotonic
+generation, incremented in `open()`, is the key, and all four guards compare it — the loader await,
+the `<Suspense>` resolve, the error channel, and the warning channel.
+
+**Readiness means the whole SUBTREE, not the outer module.** Every component is registered as a
+`defineAsyncComponent`, so a prototype composing `<StatusBar />` starts loading it only once the
+outer module has rendered. `open()` may only ever CLEAR the readiness marker; `<Suspense>`'s
+`@resolve` is what sets it, because settling a whole subtree's async dependencies together is
+exactly what that boundary is for and it holds at any nesting depth.
+
+Every one of those was a real defect before it was a rule, each has a test that fails without it,
+and `tests/harness/indexPage.test.ts` drives all of them. Read that file beside the page: it is
+where the acceptance criteria above are actually enforced.
+
+- [ ] **Step 6: Mount the index from the page entry**
+
+In `tests/harness/page.ts`, replace the mount block. **The routing rule is what matters here,
+and getting it wrong silently breaks the existing capture workflow**: the three fixed shots in
+`scripts/harness-shot.mjs` use the queries `''`, `?theme=light` and `?phone`, none of which
+names a view. Routing on "has no `view` parameter → index" would send all three to the index
+while `captureOne` waits for `.renovation-planner-view`, and each would time out. So the index
+is reached by `?entry=` or by an explicit `?index`, and everything else keeps today's default.
+
+```typescript
+import { createApp, defineAsyncComponent, type Component } from 'vue';
+import VueKonva from 'vue-konva';
+import { mountHarness } from './mount';
+import { mountPlanEditorHarness } from './planEditor';
+import { seedFixture, harnessEditorContext } from './fixture';
+import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
+import { componentEntries, prototypeEntries, registrableComponents } from './entries';
+import IndexPage from './IndexPage.vue';
+import { installObsidianDom } from '../helpers/dom';
+import { applyPlatform, drawSchemeToggle } from './theme';
+
+applyPlatform(window.location.search);
+
+const params = new URLSearchParams(window.location.search);
+
+/**
+ * The index is OPT-IN, and that is a decision rather than an accident.
+ *
+ * `?view=plan-editor` keeps the Plan Editor and everything else keeps the project view,
+ * because `scripts/harness-shot.mjs`'s three fixed shots address the project surface with no
+ * `view` parameter at all — `''`, `?theme=light`, `?phone`. Making a bare URL mean "index"
+ * would break all three, and the test in Task 6 that asserts the fixed shots still exist
+ * would keep passing while the captures timed out.
+ *
+ * The PBI leaves "does the index displace the current root" open. This answers it: it does
+ * not, because displacing it costs a working workflow to save one query parameter.
+ */
+const wantsIndex = params.has('index') || params.has('entry');
+const wantsPlanEditor = params.get('view') === 'plan-editor';
+
+let view: unknown = null;
+
+if (wantsIndex) {
+	/**
+	 * The shim, on this branch too.
+	 *
+	 * `mountHarness` and `mountPlanEditorHarness` install Obsidian's DOM prototype extensions
+	 * and this branch calls neither — but `drawSchemeToggle()` below runs on EVERY branch and
+	 * uses `document.body.createEl`. Without this the index mounts and then throws, which
+	 * `harness-shot` records as a page error and exits non-zero on: a capture that looks
+	 * broken while the entry rendered perfectly.
+	 *
+	 * `tests/harness/theme.ts:44-47` carries the same rule for `applyPlatform`, with the
+	 * sentence that explains why no test catches it: every jsdom file installs these at module
+	 * top, so the shimmed spelling passes the suite and throws on the real page.
+	 */
+	installObsidianDom();
+	document.body.empty();
+
+	const root = document.body.createDiv('rp-harness-leaf');
+	/**
+	 * Pinia AND VueKonva, because the production mount installs both.
+	 * `src/presentation/views/PlanEditorView.ts` calls `app.use(VueKonva)` where it mounts, and without it
+	 * here every canvas component — `PlanCanvas`, `ZoneLayer`, `ZoneShape` — leaves `VStage`,
+	 * `VLayer` and `VLine` unresolved.
+	 *
+	 * That failure is SILENT in the worst way: Vue reports an unresolved component as a
+	 * warning, not an error, and the entry's outer element still satisfies the screenshot
+	 * selector. `harness-shot` would exit 0 with a PNG of a missing canvas — the exact shape
+	 * of failure this whole feature is built to make impossible.
+	 */
+	const app = createApp(IndexPage).use(seedFixture()).use(VueKonva);
+
+	/**
+	 * The third thing the production mount does, and the one with no `use()` to make it
+	 * obvious. `PlanEditorView` calls `app.provide(PLAN_EDITOR_CONTEXT, …)`; without it every
+	 * component reading `usePlanEditorContext()` throws, and the index would show the named
+	 * failure for precisely the components a designer most wants to see.
+	 */
+	app.provide(PLAN_EDITOR_CONTEXT, harnessEditorContext());
+
+	/**
+	 * Every real component, registered globally and lazily.
+	 *
+	 * Without this a template-only prototype cannot use one: `<StatusBar />` resolves through a
+	 * local import or the app registry, and a file with no `<script setup>` has no imports. The
+	 * prototype would render an unresolved custom element — silently, since Vue only warns —
+	 * and "compose mocks beside real components" would not work at all, which is the feature.
+	 *
+	 * `defineAsyncComponent` keeps the glob lazy: registering twelve components eagerly would
+	 * mount the presentation layer to draw a list of links.
+	 */
+	// BOTH kinds. A top-level prototype composes the mocks written beside it, and a
+	// template-only mock cannot import a sibling any more than it can import a component —
+	// registering only the real ones leaves `<MockToolbar />` unresolved, which is half the
+	// main flow. One registry across both is also what lets a mock TAKE the tag of the
+	// component it stands in for, which is the workflow rather than a collision to refuse.
+	const { byTag, ambiguous, shadowed } = registrableComponents([
+		...componentEntries(),
+		...prototypeEntries(),
+	]);
+
+	for (const [tag, entry] of byTag) {
+		app.component(tag, defineAsyncComponent(entry.component as () => Promise<Component>));
+	}
+
+	// The workflow, not a warning: a mock named after a component takes its tag.
+	if (shadowed.length > 0) console.info(`mocks standing in for components: ${shadowed.join(', ')}`);
+
+	// Two of one kind: registered for nobody rather than for whichever won a race. The
+	// unresolved tag that follows is NOT left as a console warning — `IndexPage.vue` catches
+	// Vue's resolution warning and turns it into a named entry failure, because a warning is
+	// invisible to `harness-shot` and it would photograph the gap and exit 0.
+	if (ambiguous.length > 0) console.warn(`ambiguous component tags, not registered: ${ambiguous.join(', ')}`);
+
+	app.mount(root);
+} else {
+	view = wantsPlanEditor ? mountPlanEditorHarness(document.body).view : mountHarness(document.body).view;
+}
+
+drawSchemeToggle();
+
+(window as unknown as Record<string, unknown>).__rp = { view };
+```
+
+- [ ] **Step 7: Look at it**
+
+Run: `npm run harness`, then open `?index` on the URL it prints.
+
+Expected: `?index` lists the twelve components under `src/presentation/` and says there are no
+prototypes yet. A bare URL still draws the project view and `?view=plan-editor` still draws the
+Plan Editor — check both, because those are the three fixed captures' addresses.
+
+- [ ] **Step 8: Hold criterion 7 — two DIFFERENT components reading one plan**
+
+This arrived from Task 3's review and it is the reason this step exists here rather than there.
+Criterion 7 reads: *"Two components mounted from one prototype read the same plan: a value shown by
+both matches."* Task 3 owned it and could not hold it — two prop-free components reading
+`useProjectStore` exist (`StatusBar.vue` and `PlanEditorRoot.vue`), but `PlanEditorRoot` needs
+`app.use(VueKonva)`, which only this task's app installs. Its first attempt read one store ref
+twice and compared it to itself, which passes whatever the fixture does.
+
+**The obvious pair does not work, and the reason decides the case.** `PlanEditorRoot` does not
+render a plan value itself — it reads `status` and gates its ready branch on it, and the plan NAME
+a reader sees inside it comes from the `StatusBar` nested in its own template. So "assert the
+fixture's plan name appears in standalone `StatusBar` and in `PlanEditorRoot`" exercises two
+`StatusBar` instances and passes even if `PlanEditorRoot` stops reading the store entirely.
+
+Measured on the tree after slice 8 merged: of the components reading `useProjectStore`, exactly one
+prop-free component renders a PLAN-level value — `StatusBar`, which renders `plan.name`.
+`PlanEditorRoot` reads `status`; `ZoneLayer`, `BackgroundLayer` and `InteractionLayer` all declare
+required props. So the criterion's literal form — one value rendered by two different components —
+has no honest pair available today.
+
+What IS available is the criterion's substance, and it is stronger than the literal form:
+
+**Write it in `tests/harness/entries.test.ts`**, beside the discovery cases, and add that file to
+Step 10's `git add` — an earlier draft of this step described the case without naming a file, which
+would have let an implementer complete every prescribed edit and commit with criterion 7 untested.
+
+Mount `StatusBar` and `PlanEditorRoot` against ONE `seedFixture()`, in an app configured the way
+Step 6 configures the index — Pinia, VueKonva and the editor context. Assert two DIFFERENT
+observable consequences of the one seeded world: that `StatusBar` renders the fixture's plan name,
+and that `PlanEditorRoot` renders its `status === 'ready'` branch rather than the missing or failed
+one. Then assert the negative, which is what makes it mean anything: **with the fixture's
+assignments removed, BOTH change** — the name disappears and the ready branch does not render.
+
+That holds what the spec is actually arguing for ("two components on one screen agree, because they
+read the same plan rather than two invented ones") through two different components reading two
+different fields of one store, and it fails if either stops reading it. State plainly in the test
+what it does NOT prove: that two components render the SAME value, which no pair in this tree can
+demonstrate until a second plan-level consumer exists.
+
+**Read the DOM SYNCHRONOUSLY, and understand why before you write it.** `PlanEditorRoot` calls
+`projectStore.hydrate(...)` from `onMounted`, and `harnessDeps().queries` answer `HARNESS_PLAN` for
+any plan id — so one microtask after mounting, `status === 'ready'` **whether or not the fixture
+seeded anything**, because the queries seeded it instead. A negative case that awaits a flush
+therefore passes for a reason that has nothing to do with `seedFixture`.
+
+That is not a race and the synchronous read is not a lucky window: `hydrate` awaits promises, so its
+effect lands on the microtask queue, and an assertion in the same tick as the mount runs strictly
+before it. What the fixture exists to provide is a world in place before the FIRST synchronous
+mount — every index entry mounts synchronously, which is why `seedFixture` is sync and `hydrate` is
+not — so the un-awaited DOM is measuring exactly the thing the criterion is about.
+
+Say that at the observation helper, because the next reader's instinct will be to add an `await`.
+If one is ever added the negative case goes RED rather than quietly green, which is the safe
+direction — but only if the reason is written down.
+
+Two things remain forbidden however you write it:
+
+- **Mounting one component twice.** That proves Pinia's store is a singleton, which is true
+  independent of the fixture, and it is the exact defect Task 3's first attempt shipped.
+- **A case that passes on an unseeded store.** Comment out the assignments in `seedFixture` and
+  watch it go red before you trust it. If it stays green, say so rather than shipping it.
+
+- [ ] **Step 9: Run the full gate**
+
+Run: `npm run check`
+
+Expected: PASS. If `analyze` reports `IndexPage.vue` or `entries.ts` dead, they are reached from `tests/harness/page.ts`, which is already a fallow entry — check the import chain rather than adding a declaration.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add tests/harness/entries.ts tests/harness/entries.test.ts tests/harness/IndexPage.vue tests/harness/page.ts
+git commit -m "Add the harness index, discovered from the tree
+
+Every prototype and every component, listed without a registration step:
+a step that must be remembered is one a stateless actor forgets across
+sessions, and CLAUDE.md refuses hand-kept lists elsewhere for the same
+reason.
+
+entries.ts owns both globs because page.ts needs the component list too
+— to register components for template-only prototypes — and a second
+glob in a second file is a second answer that can disagree. The id
+derivation stays a pure function so a node test can drive it.
+
+A failed mount names itself rather than blanking the stage, because a
+gap reads as a layout decision, and onErrorCaptured covers the render
+throw the loader catch cannot see."
+```
+
+---
+
+### Task 5: A stylesheet check, and the one-sheet claim
+
+The reason the whole feature exists: a mock and a real component drawn side by side must be styled by the same sheet, or an approved mock is approved against something that will not ship.
+
+**Files:**
+- Test: `tests/harness/harness.test.ts` (three cases over SOURCE — the page's CSS-bearing nodes, the module graph, and a stylesheet importing a stylesheet)
+- Test: `tests/harness/indexPage.test.ts` (one case over the RENDERED DOCUMENT, for the routes no source scan can see)
+
+**Interfaces:**
+- Consumes: `tests/harness/index.html`; every non-test module under `src/`, `tests/harness/` and `tests/helpers/` — the three trees the page can reach; every `.css` in `tests/harness/` and `styles/` except `index.css`; and the mounting helper `tests/harness/indexPage.test.ts` already has.
+- Produces: nothing.
+
+- [ ] **Step 1: Read what the file already asserts**
+
+Run: `grep -n "describe\|it(" tests/harness/harness.test.ts`
+
+This tells you the existing describe blocks so the new case is added inside the right one rather than creating a second file for one assertion.
+
+- [ ] **Step 2: Write the failing test**
+
+Append this case to the outermost `describe` in `tests/harness/harness.test.ts`:
+
+```typescript
+	/**
+	 * The one-sheet claim, which is the entire reason prototypes moved out of
+	 * `docs/user-experience/concepts/`. A mock drawn against a second sheet is approved
+	 * against something that will not ship, and the page offering one is all it would take.
+	 *
+	 * Asserted on the page rather than on a rendered screen: there is no rendering engine
+	 * here, and what CAN be checked — that the page links exactly the three sheets it means
+	 * to, and that `concept.css` is not among them — is the thing that would actually go
+	 * wrong.
+	 *
+	 * PARSED, not pattern-matched. This file already runs in jsdom (`@vitest-environment`
+	 * at the top), so `DOMParser` is right there, and HTML has more spellings of one link
+	 * than a regex written by hand keeps up with: attribute order is free, attribute values
+	 * may be UNQUOTED (`<link rel=stylesheet href=…/concept.css>` is valid HTML a browser
+	 * loads), tag and attribute names are case-insensitive, and `rel` is a space-separated
+	 * token list. Two hand-written patterns here were each defeated by the next spelling
+	 * somebody thought of. The parser knows all of them, and it is the same argument
+	 * `CLAUDE.md` already makes for checking colours on lightningcss's parsed tree rather
+	 * than on source text.
+	 *
+	 * `[rel~=stylesheet i]` is that knowledge spelled out: `~=` matches one token of the
+	 * list, `i` makes it case-insensitive. The `<link rel="icon">` this page carries is
+	 * excluded by it, which is checked below rather than assumed.
+	 *
+	 * `style` joins the selector because a `<style>` element is a second way this page can
+	 * introduce CSS, and an `@import` inside one is a way in that no other guard here sees:
+	 * the module scan reads `.ts`/`.vue`, the sheet scan reads the harness's own `.css`
+	 * files, and neither is this HTML. The expected list is therefore the whole CSS-bearing
+	 * set of the page, not its links — which is why a `<style>` appears in it as `<style>`
+	 * and fails the equality rather than being silently uncounted.
+	 */
+	it('offers prototypes exactly one plugin stylesheet and no proposal sheet', () => {
+		const html = readFileSync(path.join(REPO, 'tests', 'harness', 'index.html'), 'utf8');
+
+		const page = new DOMParser().parseFromString(html, 'text/html');
+		// EVERY node that can introduce CSS, not only the links: a `<style>` element in this
+		// page is another way in, and `<style>@import '…/concept.css';</style>` is a way in
+		// that no later guard sees either — they scan module sources and the harness's own
+		// `.css` files, neither of which is this HTML. Asked as one category so the set is
+		// what is asserted, rather than a list of the spellings somebody thought of.
+		const sheets = [...page.querySelectorAll('link[rel~=stylesheet i], style')].map((node) =>
+			node.tagName === 'STYLE' ? '<style>' : (node.getAttribute('href') ?? ''),
+		);
+
+		expect(sheets).toEqual(['./obsidian.css', './theme.css', '/styles.css']);
+		expect(sheets.some((href) => href.includes('concept'))).toBe(false);
+	});
+```
+
+If `readFileSync`, `path` or `REPO` are not already imported in that file, add them:
+
+```typescript
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { REPO } from '../helpers/oxlint';
+```
+
+- [ ] **Step 3: Write the second case — the route the HTML scan cannot see**
+
+The case above reads `index.html`, and a `<link>` is not the only way a sheet reaches the page.
+`import '../../docs/user-experience/concepts/concept.css'` — in `tests/harness/page.ts`, or in
+any module it can reach — or a `<style>` block in `tests/harness/IndexPage.vue`, loads a second
+sheet through Vite's module graph. The HTML has three links either way and the first case stays
+green.
+
+Three facts decide the scope, and all three were measured rather than assumed:
+
+- `eslint.config.mjs`'s `VUE_FILES` is `['**/src/**/*.vue']`, so `vue/no-restricted-block`
+  already refuses a `<style>` block anywhere under `src/`, prototypes included. That half needs
+  nothing here — and must not be duplicated by a text scan, which would report `ViewRoot.vue`,
+  whose comment spells the tag it promises never to use.
+- A `.vue` file under `tests/` matches **no ESLint configuration at all** (`eslint .` skips it
+  silently) and oxlint reports nothing on one either. So `tests/harness/IndexPage.vue` — a file
+  Task 4 creates — is linted by neither, and a `<style>` block in it is refused by nothing.
+- **Nothing refuses a `.css` import in either tree**, and the route is transitive: `page.ts`
+  imports the harness modules, those import `src/`, and Task 4's index globs `src/prototypes/**`
+  and `src/presentation/**`. A sheet imported by a component three levels down is loaded exactly
+  as surely as one imported in `page.ts`, and a scan of the harness directory alone would not
+  see it.
+
+Scanning both trees for the import closes the transitive route without building anything: if no
+file in either imports a stylesheet, nothing reachable through them does. Measured on the tree as
+it stands — 169 files, no importer, no `<style>` block outside that one comment.
+
+Hence a text scan, over what the page can reach rather than over the files that exist today:
+
+```typescript
+	/**
+	 * The same claim over every other route. A sheet reaches this page as a `<link>` in
+	 * `index.html`, through Vite's module graph — a `.css` import anywhere in what the page
+	 * can load, or an SFC `<style>` block — or as a `<link>` a TEMPLATE renders into the
+	 * body, which no build step and no import is involved in at all. The case above can see
+	 * only the first. The page's sheets are the three links in `index.html`, and nothing the
+	 * page can reach may add a fourth.
+	 *
+	 * The scanned set is what the page can reach, not the files that exist today: `page.ts`
+	 * imports the harness modules, those import `src/` AND `tests/helpers/`, and Task 4's
+	 * index globs `src/prototypes/**` and `src/presentation/**` — so a sheet imported by a
+	 * component three levels down, or by a DOM helper, is loaded exactly as surely as one
+	 * imported here. Scanning all three trees closes the transitive route without building
+	 * anything: if no file in any of them imports a stylesheet, nothing reachable through
+	 * them does.
+	 *
+	 * The three spellings are checked over different sets, and the asymmetry is deliberate:
+	 *
+	 * - A `<style>` block is checked in `tests/harness/` ONLY, because `eslint.config.mjs`
+	 *   already refuses one anywhere under `src/` (`vue/no-restricted-block`, over
+	 *   `VUE_FILES` = `['**​/src/**​/*.vue']`) while a `.vue` under `tests/` matches no
+	 *   ESLint block at all — measured. Scanning `src/` for it here would duplicate a live
+	 *   rule AND report `ViewRoot.vue`, whose comment spells the tag it is promising never
+	 *   to use. A text scan cannot tell a comment from a block; the linter can, and does.
+	 * - A `.css` IMPORT is checked over both, because no rule refuses one in either.
+	 * - A `<link rel="stylesheet">` IN A TEMPLATE is checked over both as well, and it is the
+	 *   spelling that needs no build step and no import at all: a browser honours a
+	 *   stylesheet link in the body, so a mock carrying one loads the proposal sheet while
+	 *   the import scan, the `<style>` scan and the `index.html` scan all stay green. Matched
+	 *   as `<link … stylesheet` rather than by attribute order, for the reason the case above
+	 *   already gives — and narrow enough that the prose in this repository that merely says
+	 *   "stylesheet" does not trip it. Measured: no hit in 169 files.
+	 *
+	 * The import pattern matches the SPECIFIER POSITION — a quoted string preceded by `from`,
+	 * by `import`, or by `import(` — rather than the bare substring `.css`. Both halves of
+	 * that are load-bearing:
+	 *
+	 * Not the bare substring, because prose naming `concept.css` is how this repository
+	 * explains itself, and a guard that fires on its own explanation gets deleted rather
+	 * than obeyed.
+	 *
+	 * And not `import` alone, because `import classes from './panel.module.css'` — Vite's
+	 * ordinary CSS-modules form — puts the specifier after `from`, and a pattern anchored
+	 * on the quote following `import` misses it while looking thorough. Measured on all
+	 * five spellings: side-effect, default binding, named binding, dynamic, and a
+	 * re-export.
+	 */
+	it('loads no stylesheet through anything the harness can reach', () => {
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.css['"]/;
+		const sheetLink = /<link[^>]*\bstylesheet\b/i;
+		// Every extension Vite will load as a module, not the two this repository happens to
+		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
+		// reachable as any other and its CSS import would load the same sheet.
+		const MODULE = /\.(?:ts|tsx|js|mjs|cjs|jsx|vue)$/;
+		const sources = (dir: string): string[] =>
+			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+				const full = path.join(dir, entry.name);
+				if (entry.isDirectory()) return sources(full);
+				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
+			});
+
+		const reachable = [
+			...sources(path.join(REPO, 'src')),
+			...sources(path.join(REPO, 'tests', 'harness')),
+			// `tests/helpers/` too: `mount.ts` and `planEditor.ts` are RUNTIME modules of this
+			// page and they import from there, so a stylesheet imported by a helper reaches the
+			// page exactly as surely as one imported here.
+			...sources(path.join(REPO, 'tests', 'helpers')),
+		];
+		const read = (file: string): string => readFileSync(file, 'utf8');
+
+		const importers = reachable.filter((file) => sheetImport.test(read(file)));
+		const linkers = reachable.filter((file) => sheetLink.test(read(file)));
+		const styleBlocks = sources(path.join(REPO, 'tests', 'harness')).filter((file) =>
+			/<style[\s>]/.test(read(file)),
+		);
+
+		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
+	});
+```
+
+`readdirSync` joins the existing `node:fs` import, and `import { transform } from 'lightningcss';`
+is new — the package is already a devDependency and `scripts/styles-assemble.mjs` already imports
+it, so nothing arrives for this.
+
+**A stylesheet can import a stylesheet, and that is a fourth route.** `@import
+'../../docs/user-experience/concepts/concept.css';` added to `tests/harness/theme.css` loads the
+proposal sheet: the HTML still has its three links, no module imports a `.css`, no template renders
+a `<link>`, and every list above stays empty. The walker excludes `.css` files entirely, so it
+cannot see it.
+
+The two linked harness sheets are the reachable ones, and neither has any legitimate use for
+`@import` — they are standalone files the page links directly. So the rule is simply that they
+carry none:
+
+```typescript
+	it('lets no stylesheet the page loads pull in another', () => {
+		// PARSED, for the same reason the page check is parsed rather than pattern-matched.
+		// `@IMPORT` is valid CSS and a browser honours it; `/@import/` does not match it, and
+		// `/@import/i` would then match one inside a comment. `lightningcss` answers both at
+		// once — it is already a devDependency, already used by the stylesheet gate, and the
+		// visitor sees exactly what the cascade would.
+		const importsIn = (file: string): string[] => {
+			const found: string[] = [];
+			transform({
+				filename: file,
+				code: readFileSync(file),
+				minify: false,
+				visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
+			});
+			return found;
+		};
+
+		const sheets = (dir: string, skip: string[] = []): string[] =>
+			readdirSync(dir)
+				.filter((name) => name.endsWith('.css') && !skip.includes(name))
+				.filter((name) => importsIn(path.join(dir, name)).length > 0)
+				.map((name) => path.posix.join(path.basename(dir), name));
+
+		const imported = [
+			...sheets(path.join(REPO, 'tests', 'harness')),
+			// `styles/` too, minus `index.css`. The assembler validates index.css's OWN lines
+			// against `@import "./<partial>.css";` — but it then concatenates each partial's
+			// body UNCHANGED (`scripts/styles-assemble.mjs`, the `parts` map: line count and
+			// hard-coded colours are checked, nothing else), so an `@import` inside a partial
+			// survives into the shipped sheet and into the page. Verified in the source, after
+			// an earlier version of this comment claimed the assembler owned the question and
+			// was wrong.
+			...sheets(path.join(REPO, 'styles'), ['index.css']),
+		];
+
+		expect(imported).toEqual([]);
+	});
+```
+
+One file is excluded and exactly one: **`styles/index.css`**, which uses `@import` for
+`./view.css`, `./editor.css` and `./chrome.css`. That is how the shipped sheet is assembled, and
+`scripts/styles-assemble.mjs` validates those lines itself — only `@import "./<partial>.css";` and
+comments are allowed in that file, flat, no subdirectories. Refusing `@import` there would refuse
+the mechanism the plugin's own stylesheet is built from.
+
+**The PARTIALS are not excluded, and an earlier version of this plan wrongly said they were.** It
+claimed the assembler owned an `@import` inside a partial. It does not: reading its `parts` map,
+each partial's body is checked for line count and hard-coded colours and then concatenated
+**unchanged**. So `@import '/prototype.css';` in `styles/view.css` reaches the assembled sheet, and
+therefore the page, with every other guard green. That is why the scan covers `styles/` too.
+
+- [ ] **Step 4: Run the cases**
+
+Run: `npx vitest run tests/harness/harness.test.ts`
+
+Expected: PASS. They are **regression guards**, not drivers, and that is worth being explicit
+about: they exist so that adding `concept.css` to the harness — by any of its routes — is a red
+test rather than a quiet reintroduction of the split.
+
+- [ ] **Step 5: Prove the link case can fail**
+
+Temporarily add to `tests/harness/index.html`, after the `/styles.css` link — **unquoted, and
+with `href` first**, which is valid HTML a browser loads and is the spelling both hand-written
+patterns before this one missed:
+
+```html
+		<link href=../../docs/user-experience/concepts/concept.css rel=stylesheet>
+```
+
+Plant the `<style>` spelling too, since it is the one no other guard would catch:
+
+```html
+		<style>@import '../../docs/user-experience/concepts/concept.css';</style>
+```
+
+Expected: FAIL, with `'<style>'` present in the reported list — which is the reading that tells you
+the category selector caught it rather than the equality failing for some other reason.
+
+Run: `npx vitest run tests/harness/harness.test.ts`
+
+Expected: FAIL on both assertions, with `concept.css` present in the reported list — which is the
+part worth reading rather than just seeing red. A parser that had quietly dropped the unquoted
+link would fail the first assertion too, on a list of three that no longer matched a list of four,
+and look identical at a glance.
+
+Then revert: `git checkout tests/harness/index.html`
+
+Worth one more run before moving on, because it is the assumption the case rests on: confirm the
+page's own `<link rel="icon">` is NOT in `sheets`. If it were, the expected list would be four
+entries and the assertion would have been written around the parser's behaviour rather than
+against the page.
+
+- [ ] **Step 6: Prove the module-graph case can fail**
+
+Temporarily add to `tests/harness/page.ts`, as its first line:
+
+```typescript
+import '../../docs/user-experience/concepts/concept.css';
+```
+
+Run: `npx vitest run tests/harness/harness.test.ts`
+
+Expected: FAIL, naming `page.ts` under `importers`. Then revert: `git checkout tests/harness/page.ts`
+
+Plant the **transitive** case too, because it is the one the previous version of this guard
+missed: put the same import at the top of `src/presentation/editor/shell/StatusBar.vue`'s script
+block. Expected: FAIL, naming that file — a sheet a component pulls in is loaded as surely as one
+`page.ts` pulls in. `git checkout` afterwards.
+
+Plant the remaining two spellings as well — a guard watched failing on one of its spellings has
+been watched failing on one of its spellings, and each of these has its own list to land in:
+
+- A `<style>` block in whichever `.vue` the harness directory holds at this point. Expected FAIL
+  under `styleBlocks`.
+- `<link rel="stylesheet" href="../../docs/user-experience/concepts/concept.css" />` inside a
+  `<template>` — put it in `src/prototypes/ZoneSummary.vue` if Task 7 has landed, otherwise in the
+  harness's own `.vue`. Expected FAIL under `linkers`. This is the spelling that reaches the page
+  with no import and no build step, which is why it is worth planting rather than reasoning about.
+
+`git checkout` after each.
+
+- [ ] **Step 7: The route no source scan can see — check the rendered document**
+
+Every guard above reads SOURCE. A template can render a stylesheet link without any of them
+seeing a `<link` at all: `<component is="link" rel="stylesheet" href="…/concept.css" />` is valid
+Vue and produces a real one, and `<component :is="tag">` with a computed value is not statically
+knowable even in principle.
+
+This is the sixth route found on this feature, and the fifth was already the point at which
+enumerating spellings stopped being the right shape. So this case does not add a spelling. It asks
+the DOCUMENT, after an entry has mounted, which is the only place every route converges:
+
+```typescript
+	const cssNodes = (): number => document.querySelectorAll('link[rel~=stylesheet i], style').length;
+
+	// The control. It proves the mounting path and the counting work, so the loop below is not
+	// silently doing nothing while the prototypes tree is empty.
+	it('adds no stylesheet to the document when a component mounts', async () => {
+		const before = cssNodes();
+
+		// Mount through the index the way a designer opens an entry, not by importing the
+		// component directly — the question is what the PAGE ends up with.
+		const page = await openEntryInIndex('component:editor/shell/StatusBar');
+
+		expect(cssNodes()).toBe(before);
+
+		page.unmount();
+	});
+
+	// The real ones, from the real glob. Empty until Task 7 adds `ZoneSummary.vue`, and covering
+	// it from that moment with no edit here — the tree being the registration, applied to the
+	// guard as well as to the index.
+	it.each(prototypeEntries())('adds no stylesheet when $id mounts', async ({ id }) => {
+		const before = cssNodes();
+
+		const page = await openEntryInIndex(id);
+
+		expect(cssNodes()).toBe(before);
+
+		page.unmount();
+	});
+```
+
+**Drive every REAL prototype, not one hard-coded entry — and mind where you put it.**
+`tests/harness/indexPage.test.ts` mounts the index for criterion 8, but it **mocks `./entries`**, so
+a check living there inspects fixtures rather than the tree. Mounting one hard-coded `StatusBar`
+would be worse still: the route this case exists for is a PROTOTYPE rendering a `<link>`, and a
+component entry cannot exercise it.
+
+So the case must iterate what `prototypeEntries()` actually returns — the real glob — and it must
+live somewhere discovery is not mocked. Reuse a mounting helper rather than writing a second one,
+but the entry list has to be real even where the helper is borrowed.
+
+**On an empty tree this covers nothing, and that is stated rather than hidden.** Task 5 runs before
+any prototype exists, so today the loop has no iterations. It becomes meaningful the moment Task 7
+puts `ZoneSummary.vue` in the tree — with no edit to this test, which is the same "the tree IS the
+registration" property the feature is built on, applied to its own guard. Add one component entry
+alongside as a control, so the case is not silently doing nothing before then: the control proves
+the mounting path and the counting work, and the loop proves it over whatever the tree holds.
+
+Say both of those in the test. A reader who finds a loop with no iterations and no explanation will
+reasonably assume it is dead.
+
+**Watch it fail on the route it exists for**: give a fixture entry the template
+`<component is="link" rel="stylesheet" href="../../docs/user-experience/concepts/concept.css" />`,
+and confirm the count goes up. That is the spelling no source scan sees, so it is the only planted
+proof worth taking here.
+
+**What this does and does not add.** It closes the category — any route a template takes to put a
+sheet on the page, including ones nobody has thought of — for the entries a test actually mounts.
+It does NOT replace the source scans: those catch a sheet in the edit loop, before anything runs,
+and they cover files no test mounts. Two checks, different reach, and the source scans stay because
+neither subsumes the other. Say that in the test, so the next reader does not delete one for the
+other.
+
+- [ ] **Step 8: Prove the `@import` case can fail, in both trees**
+
+Plant it in BOTH trees before trusting it, because they are guarded for different reasons — and
+plant one as `@IMPORT`, since answering case is half of why this parses rather than matching:
+
+- `tests/harness/theme.css` — expect FAIL naming `harness/theme.css`.
+- `styles/view.css` — expect FAIL naming `styles/view.css`. This is the one an earlier draft
+  believed was somebody else's problem, so it is the one worth seeing red.
+
+`git checkout` each afterwards.
+
+`*.test.ts` is skipped, and the reason is worth stating rather than discovering: the tests in
+`tests/harness/` name stylesheet paths as strings they READ — `cssVars.test.ts` and this file
+both do — and a test that reads a stylesheet is not a page that loads one.
+
+**The extension list is every module type Vite will load**, rather than the two this repository
+happens to hold. `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper under either tree is
+reachable and its CSS import loads the same sheet — and a scan admitting only what already exists
+is a scan of the past, which is the failure this guard has now had corrected three times in three
+different places. Measured with the widened list: still 169 files, still no hit.
+
+Report the two lists in one `toEqual` rather than two `expect([]).toEqual([])` calls, so a
+failure names WHICH file and WHICH half — a bare `expected [ '…' ] to equal []` sends the reader
+back to the source to find out which rule they broke.
+
+- [ ] **Step 9: Run the full gate**
+
+Run: `npm run check`
+
+Expected: PASS.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add tests/harness/harness.test.ts tests/harness/indexPage.test.ts
+git commit -m "Guard the one-sheet claim on the harness page
+
+A mock drawn against a second sheet is approved against something that
+will not ship, which is the entire reason prototypes moved out of
+docs/user-experience/concepts/. Adding concept.css to the harness page
+is now a red test rather than a quiet reintroduction of the split.
+
+Two routes, because a sheet reaches the page as a <link> or through
+Vite's module graph, and a scan of index.html can only see the first.
+A .vue under tests/ matches no ESLint configuration, so the second is
+refused by nothing else.
+
+Both watched failing with a sheet planted before being trusted."
+```
+
+---
+
+### Task 6: `harness-shot` takes an entry name
+
+The coding agent's eye. Without it every layout judgement is deferred to a human, and the agent cannot catch the class of defect `CLAUDE.md` records four instances of.
+
+**Files:**
+- Modify: `scripts/harness-shot.mjs:37-47` (the `SHOTS` array) and `run()`
+- Test: `tests/build/harness-shot.test.ts` (add cases)
+
+**Interfaces:**
+- Consumes: the `?entry=` URL from Task 4.
+- Produces: `npm run harness-shot <entry>` writing `harness-shots/entry-<name>-dark.png` and `-light.png`.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
+
+```typescript
+	/**
+	 * The agent's eye. `docs/actors/Coding agent.md` states the constraint this serves: the
+	 * actor has no browser, so a screen reachable only by clicking a row in an index cannot
+	 * be captured, scripted or diffed — and every layout judgement is deferred to a human.
+	 *
+	 * Asserted on the SOURCE rather than by running a capture, for the reason this file's
+	 * header already gives: driving Playwright here would trade the suite's speed for a
+	 * check `npm run harness-shot` gives a developer directly. What is checked is that the
+	 * argument is read and turned into the `?entry=` URL the index answers.
+	 *
+	 * **This stopped being true in fix round 1**, the same way the PNG-name-uniqueness case
+	 * below it did: `?entry=` moved out of `harness-shot.mjs` entirely when `entryShots`
+	 * (which builds that query) was lifted into `scripts/entryShots.mjs`, and the argv read
+	 * moved into `resolveShots` in the same file. `entryShots.test.ts` asserts the query
+	 * behaviourally now (`dark.query` equals `?entry=…`); the two `toMatch`/`toContain` calls
+	 * below are kept as the historical record of what Task 6 actually shipped, not as what the
+	 * repository asserts today — `harness-shot.test.ts`'s own wiring check covers the
+	 * `./entryShots.mjs` import instead.
+	 */
+	it('captures a named entry, using the index URL that entry is reachable at', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		// The argument is read from argv rather than hard-coded.
+		expect(source).toMatch(/process\.argv/);
+		// And becomes the query the index reads (`IndexPage.vue`).
+		expect(source).toContain('?entry=');
+	});
+
+	/**
+	 * The PNG name is derived from a file path, and a legal path must not produce an illegal
+	 * filename. Two ways it can, and both are the same criterion-4 failure — an entry the
+	 * index opens and the capture cannot write:
+	 *
+	 * - Two different ids flattening onto one name, so the second capture silently
+	 *   overwrites the first. The digest is what refuses that.
+	 * - One id flattening onto a name too long for the filesystem — `ENAMETOOLONG` from
+	 *   `page.screenshot()`. The cap is what refuses that, and it is safe only BECAUSE the
+	 *   digest holds the identity: truncating a part that no longer has to be unique costs
+	 *   nothing.
+	 *
+	 * Asserted on the source at the point this step is written, because `harness-shot.mjs`
+	 * runs its capture at module scope and cannot be imported to be called — a real limit,
+	 * stated rather than papered over: what these check is that the script still SAYS this,
+	 * not that a 300-character id was captured.
+	 *
+	 * **This stopped being true in fix round 1.** `entryShots` is a PURE function
+	 * (`(string) => Shot[]`, no browser, no module-scope side effect), so it was lifted into
+	 * its own module (`scripts/entryShots.mjs`) specifically so this claim and the three
+	 * beside it could be asserted by calling the function instead of reading its source text
+	 * — see `tests/build/entryShots.test.ts`. The source-text pins below are what Task 6
+	 * actually shipped and are kept here as the historical record of that step; they are not
+	 * what the repository asserts today.
+	 */
+	it('keeps the PNG name unique and short enough to exist', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		// Identity: a short hash of the REAL id, not of the flattened one.
+		expect(source).toContain("createHash('sha1').update(entry)");
+		// Length: the human-readable half is capped, since the digest is what makes it unique.
+		expect(source).toMatch(/\.slice\(0,\s*60\)/);
+	});
+
+	/**
+	 * The assertion that stops a green run from lying. Waiting on `.rp-harness-stage` alone
+	 * would photograph the placeholder — a successful, empty PNG, which the actor this
+	 * feature exists for cannot tell from a real one.
+	 */
+	it('waits for the entry to have rendered, not merely for the stage to exist', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		// The readiness question is asked in the page: the id is compared as a STRING against
+		// `dataset.entry`, never interpolated into a CSS attribute selector, because an id is
+		// built from a file path and a `"` is a legal filename character on POSIX.
+		expect(source).toContain('stage.dataset.entry === id');
+		expect(source).toContain('waitForFunction(entryHasDrawn');
+		// The stage must not be empty either — but by NODE, not by element: a template whose
+		// root is text renders no element, and an element check would refuse a capture of an
+		// entry the index drew correctly.
+		expect(source).toContain('stage.childNodes.length > 0');
+		expect(source).not.toContain('firstElementChild');
+		// The bare stage class must not be used as a wait target on its own, and no attribute
+		// selector may be built out of an entry id.
+		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
+		expect(source).not.toMatch(/\[data-entry=/);
+		// Historical record, superseded in fix round 2. Both negatives above read RAW source,
+		// and `scripts/harness-shot.mjs` now names `firstElementChild` three times in prose —
+		// because fix round 2 RELAXED a phrasing contortion that existed only to avoid tripping
+		// this scan. Copied verbatim today this block fails, which is the same defect this plan
+		// records twice elsewhere: a substring scan firing on the explanation of its own rule.
+		// The committed test reads `withoutCommentary(source)` for both scans instead, so the
+		// prose is free to name what it forbids. See `tests/build/harness-shot.test.ts`.
+	});
+
+	/**
+	 * The index app must install everything the production mount does, or a canvas component
+	 * renders nothing while every gate stays green — Vue warns rather than throws on an
+	 * unresolved component, and the outer element still satisfies the shot selector.
+	 */
+	it('installs VueKonva on the index app, as the production mount does', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const production = readFileSync(
+			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
+			'utf8',
+		);
+
+		// Read from production rather than hard-coded: if the plugin ever installs something
+		// else, this asks the question again instead of pinning today's answer.
+		expect(production).toContain('app.use(VueKonva)');
+		expect(page).toContain('.use(VueKonva)');
+	});
+
+	/**
+	 * The production mount does THREE things — Pinia, VueKonva and `provide(PLAN_EDITOR_CONTEXT)`.
+	 * The third has no `use()` to make it visible in a diff, which is why it was the one
+	 * missed, and why it gets its own assertion rather than being folded into the one above.
+	 */
+	it('provides PLAN_EDITOR_CONTEXT on the index app, as the production mount does', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const production = readFileSync(
+			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
+			'utf8',
+		);
+
+		expect(production).toContain('app.provide(PLAN_EDITOR_CONTEXT');
+		expect(page).toContain('provide(PLAN_EDITOR_CONTEXT');
+	});
+
+	/**
+	 * The index branch runs BEFORE any mount, so Obsidian's DOM prototype extensions do not
+	 * exist until it installs them itself — and it MUST, because `drawSchemeToggle()` runs on
+	 * every branch and calls `document.body.createEl`.
+	 *
+	 * The assertion is ORDER, not spelling: the shim call has to come before the first use of
+	 * an extension. Asserting "no extension calls here" was the earlier version and it was
+	 * wrong twice over — it forbade the working implementation, and it would have passed a
+	 * branch that used standard DOM and then let `drawSchemeToggle()` throw anyway.
+	 *
+	 * `tests/harness/theme.ts:44-47` carries the same rule for `applyPlatform` and names why
+	 * no runtime test catches it: every jsdom file installs the extensions at module top, so
+	 * the shimmed spelling passes the suite and throws on the real page.
+	 */
+	it('installs the Obsidian DOM shim before the index branch uses any extension', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const branch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
+
+		const install = branch.indexOf('installObsidianDom()');
+		const firstUse = branch.search(/\.empty\(\)|\.createDiv\(|\.createEl\(/);
+
+		expect(install, 'the index branch never installs the shim').toBeGreaterThanOrEqual(0);
+		// Written to avoid a CONDITIONAL expect (oxlint's `vitest/no-conditional-expect`, which
+		// `npm run check` fails on with zero tolerance): the literal
+		// `if (firstUse >= 0) expect(install).toBeLessThan(firstUse);` shown in an earlier
+		// version of this block is refused by that rule, and `linterOptions.noInlineConfig`
+		// rules out a suppression. Same claim either way — if no extension use is found in the
+		// branch, the ordering holds vacuously. Found executing Task 6, 2026-08-25.
+		const shimInstallsFirst = firstUse < 0 || install < firstUse;
+
+		expect(shimInstallsFirst, 'the shim installs before the first Obsidian DOM extension use').toBe(true);
+	});
+
+	/**
+	 * Readiness must mean the WHOLE subtree, not the outer module.
+	 *
+	 * Every component is registered as a `defineAsyncComponent`, so a prototype composing
+	 * `<StatusBar />` starts loading it only after the outer module renders. Marking the stage
+	 * ready when the outer loader resolves satisfies this file's own `> *` selector while every
+	 * nested component is still a placeholder — a half-drawn screen captured and exited 0 on,
+	 * which is the same defect as the "Pick an entry." capture, one level in.
+	 *
+	 * Asserted on the source for the reason this file's header gives, and the assertion is the
+	 * NEGATIVE one, because that is where the defect was: `open()` may clear `renderedId` and
+	 * must never set it to an id. `<Suspense>` is what sets it, on `@resolve`.
+	 */
+	it('marks the stage ready from Suspense, never from the entry loader', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		// The function body ONLY. Sliced to its own closing brace rather than to the next
+		// declaration, so that moving a neighbour cannot quietly widen what this reads.
+		const start = index.indexOf('async function open');
+		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+
+		// Every assignment's RIGHT-HAND SIDE, collected and then required to be `null` — rather
+		// than a negative lookahead, which is how the first version of this was WRONG.
+		//
+		// It read `expect(open).not.toMatch(/renderedId\.value\s*=\s*(?!null)/)`, and that regex
+		// MATCHES `renderedId.value = null`: the engine backtracks `\s*` to zero width, the
+		// lookahead then sees `" nul"` rather than `"null"`, and succeeds. With `.not.toMatch`
+		// around it, the case therefore went RED against a correct file — Task 6 failed on
+		// arrival rather than letting a defect through, which is the less dangerous direction and
+		// still made the task unrunnable.
+		//
+		// Measured, both ways, against the committed file: the repaired form passes on the file as
+		// it stands, goes red when an `renderedId.value = entry.id` is injected into `open()`, and
+		// goes red when the clear is deleted entirely. Enumerating what is assigned has no
+		// backtracking trap and names the offending right-hand side when it fails.
+		const assigned = [...open.matchAll(/renderedId\.value\s*=\s*([^;\n]+)/g)].map((m) => m[1].trim());
+
+		expect(assigned, 'open() never runs').not.toHaveLength(0);
+		expect([...new Set(assigned)], 'open() marks the stage ready before nested components load').toEqual([
+			'null',
+		]);
+		expect(index).toContain('<Suspense');
+		expect(index).toContain('@resolve="settle()"');
+	});
+
+	/**
+	 * A tag that resolves to nothing, and a required prop nobody passed, are Vue's most
+	 * invisible failures: a warning, a wrong element in the DOM, and a `<Suspense>` that
+	 * resolves perfectly happily. `harness-shot` records console ERRORS and page errors, so
+	 * without this the capture succeeds with a hole in it. Both are reachable from the plan's
+	 * own tree — two entries of one kind sharing a label, and `EmptyLayer.vue`'s three required
+	 * props against a bare `<component :is>`.
+	 */
+	it('turns an unresolved tag or a missing required prop into a named entry failure', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+
+		expect(index).toContain('config.warnHandler');
+		// The message ITSELF, with no fragment match in front of it. Pinning the two warning
+		// strings is what this assertion used to do, and it was wrong twice over: it went stale
+		// the moment the classification was inverted, and while it stood it described the
+		// allowlist that let `Invalid prop: type check failed` through. What must be true is
+		// that nothing filters — see `renderDefects` in `IndexPage.vue`.
+		expect(index).toContain('renderDefects.push(message)');
+		// Behaviour, not text, is held by `tests/harness/indexPage.test.ts`, which drives a real
+		// missing prop, a real wrong prop and a real unresolved tag through the mounted page.
+		// This case exists for the one thing that file cannot say: that the collection is
+		// unconditional at the point it is written.
+	});
+
+	/**
+	 * Two clicks in quick succession leave two `open()` awaits in flight. Without a generation
+	 * guard the LAST import to settle wins regardless of which entry the designer chose, so the
+	 * stage can draw A while `data-entry` says B — a capture of the wrong component, reported
+	 * as a success under the requested name, which is worse than an empty one.
+	 */
+	it('ignores a stale entry load', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		const start = index.indexOf('async function open');
+		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+
+		expect(open).toContain('const mine = ++generation');
+		// Both arms: a stale RESOLVE must not draw, and a stale REJECT must not overwrite a
+		// good entry's screen with the abandoned one's error.
+		expect(open.match(/if \(mine !== generation\.value\) return;/g) ?? []).toHaveLength(2);
+	});
+
+	/**
+	 * The other half of the same race, and it is NOT covered by the generation guards: those
+	 * protect `entry.component()`'s await, while `<Suspense>` settles on its own schedule. Entry
+	 * A can be on screen with a descendant still pending when a click moves `pendingId` to B;
+	 * A's descendant then resolves and, without this, the stage advertises `data-entry="B"` over
+	 * A's content — a capture of the wrong component under the requested name.
+	 */
+	it('unmounts the previous entry before awaiting, and settles only for what is mounted', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		const start = index.indexOf('async function open');
+		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+
+		// The clear happens BEFORE the await, or the stale subtree stays mounted through it.
+		expect(open.indexOf('openComponent.value = null')).toBeGreaterThanOrEqual(0);
+		expect(open.indexOf('openComponent.value = null')).toBeLessThan(open.indexOf('await entry.component()'));
+
+		const settleStart = index.indexOf('function settle');
+		const settle = index.slice(settleStart, index.indexOf('\n}', settleStart) + 2);
+
+		expect(settle).toContain('mountedGeneration !== generation.value');
+	});
+
+	/**
+	 * The index's own links have to survive a round trip through the URL, because that is the
+	 * path an agent uses: it never clicks, it opens `?entry=` directly. `&` and `#` are legal
+	 * in a filename and an id carries the path, so an interpolated link means something other
+	 * than the id it names — and the in-page click masks it by passing the object instead.
+	 *
+	 * **Updated in fix round 6 (Finding F), and the string this pins changed shape.** `hrefFor`
+	 * used to build a link from the id ALONE (`new URLSearchParams({ entry: entry.id })`),
+	 * which dropped `?theme`/`?phone` — real harness knobs `theme.ts` reads — off every link
+	 * and off the address bar `open()` now writes with it (Finding B's `history.replaceState`,
+	 * same round). It now clones the CURRENT `window.location.search`, deletes the `index`
+	 * routing key and sets `entry`, so a designer's variant survives a click same as an id
+	 * with `&`/`#` in it always did. The two assertions below moved with it: the positive pins
+	 * the new construction (`URLSearchParams(window.location.search)` plus `.set('entry', …)`)
+	 * rather than the old literal object-argument spelling, and the negative is unchanged —
+	 * a raw `` `?entry=${ `` interpolation is still the one thing refused either way.
+	 */
+	it('builds index links with URLSearchParams rather than interpolating the id', () => {
+		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		// `hrefFor`'s BODY, sliced the way the case above slices `open()`. Reading the whole file
+		// is what the first version did, and it could not work: the comment on `hrefFor` explains
+		// the defect by SPELLING the forbidden interpolation, so the negative matched the
+		// explanation and the guard was red against correct code. A comment naming a forbidden
+		// spelling is not the forbidden spelling.
+		//
+		// The narrower claim is stated rather than hidden: this covers the one function that
+		// builds the link. A second link built elsewhere by interpolation is not seen here.
+		const start = index.indexOf('function hrefFor');
+		const hrefFor = index.slice(start, index.indexOf('\n}', start) + 2);
+
+		expect(hrefFor).toContain('new URLSearchParams(window.location.search)');
+		expect(hrefFor).toContain("params.set('entry', entry.id)");
+		expect(hrefFor, 'a raw ?entry= interpolation is back').not.toContain('`?entry=${');
+	});
+
+	/**
+	 * Ids carry `:` and `/`; Windows filenames cannot. One of the four `npm run check` legs is
+	 * Windows, so an unsanitised PNG name is a leg-specific failure nobody would reproduce
+	 * locally on Linux or macOS.
+	 */
+	it('sanitises the entry id for the PNG filename without sanitising the URL', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/replace\(\/\[\^a-zA-Z0-9\]\+\/g/);
+		expect(source).toContain('encodeURIComponent(entry)');
+		// Sanitising alone collapses `a-b/C` and `a/b-C` onto one filename, so the hash is
+		// what actually keeps two captures from overwriting each other.
+		expect(source).toContain('createHash');
+		// Historical record, superseded in fix round 1. Both the allowlist regex and
+		// `createHash` moved OUT of `harness-shot.mjs` into `scripts/entryShots.mjs` when the
+		// filename derivation was lifted into a pure importable module — so both assertions now
+		// name a file that contains neither, and `tests/build/harness-shot.test.ts` asserts
+		// `not.toContain('createHash')` on it. What replaced them is better than a rename:
+		// `tests/build/entryShots.test.ts` DRIVES the derivation, so the collision case and the
+		// full Windows-illegal set `< > : " / \ | ? *` are computed rather than text-matched.
+	});
+
+	it('still defines the five fixed shots, so an argumentless run is unchanged', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		for (const name of ['dark', 'light', 'phone', 'plan-editor-dark', 'plan-editor-light']) {
+			expect(source).toContain(`name: '${name}'`);
+		}
+	});
+
+	/**
+	 * The fixed shots address the project surface with NO `view` parameter, so
+	 * `tests/harness/page.ts` must keep routing a bare URL there. Asserted from this side
+	 * because the previous test passes whether or not those URLs still reach anything — a
+	 * shot list that exists and times out is the failure it cannot see.
+	 */
+	it('keeps the three project-view shots on URLs that do not request the index', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		for (const query of ["query: ''", "query: '?theme=light'", "query: '?phone'"]) {
+			expect(source).toContain(query);
+		}
+
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+
+		// The index is opt-in. If this ever becomes `!params.has('view')`, all three fixed
+		// shots start timing out with nothing else to report it.
+		expect(page).toContain("params.has('index')");
+	});
+```
+
+- [ ] **Step 2: Run it and watch the first case fail**
+
+Run: `npx vitest run tests/build/harness-shot.test.ts`
+
+Expected: FAIL on `captures a named entry` — neither `process.argv` nor `?entry=` appears in the script. The second case PASSES already, which is its job: it pins the existing behaviour so Step 3 cannot quietly replace it.
+
+- [ ] **Step 3: Add the entry shots, waiting on the ENTRY rather than the shell**
+
 **Historical record, superseded in fix round 1 — same treatment as the two Step 1 test cases
 above.** `entryHasDrawn` still lives in `harness-shot.mjs` as this step describes, but
 `createHash` and `entryShots` moved to `scripts/entryShots.mjs` (a pure, importable module —
@@ -2558,7 +4673,9 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add scripts/harness-shot.mjs tests/build/harness-shot.test.ts
+git add scripts/harness-shot.mjs scripts/entryShots.mjs scripts/captureReadiness.mjs \
+  tests/build/harness-shot.test.ts tests/build/entryShots.test.ts \
+  tests/build/captureReadiness.test.ts tests/build/entryDrawn.test.ts
 git commit -m "harness-shot takes an entry name
 
 The coding agent's eye. That actor has no browser, so a screen reachable

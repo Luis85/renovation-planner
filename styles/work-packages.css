@@ -23,6 +23,17 @@
  */
 
 .rp-work-packages {
+	/*
+	 * An inline-size CONTAINER, so the narrow rules at the bottom of this file key off this
+	 * component's own width rather than the window's.
+	 *
+	 * They were a `@media` query, and in the environment they target that query is the wrong
+	 * question: an Obsidian sidebar leaf is routinely under 400px inside a window that is not,
+	 * so the fixed grid stayed and overflowed the pane while the breakpoint never fired. The
+	 * harness hid it too — a `--width=460` capture makes the window narrow as well, so both
+	 * questions had the same answer and the wrong one looked right.
+	 */
+	container-type: inline-size;
 	display: flex;
 	flex-direction: column;
 	height: 100%;
@@ -276,8 +287,11 @@
  * about 9em wide and every package name ellipsed to "Strip ou…", which is the one field on
  * the row that cannot be guessed from the others. So the row becomes a single column here and
  * the name is allowed to WRAP: two lines of a name beats one line of a prefix.
+ *
+ * `@container`, not `@media` — see `container-type` at the top of this file. The pane is what
+ * has to be measured; the window is not the pane.
  */
-@media (max-width: 700px) {
+@container (max-width: 700px) {
 	.rp-wp-row {
 		grid-template-columns: minmax(0, 1fr);
 		row-gap: var(--size-4-2);

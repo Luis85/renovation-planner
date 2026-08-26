@@ -31,10 +31,10 @@
 .rp-empty-state__panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-2);
+	gap: var(--size-4-3);
 	align-items: center;
 	max-width: 28em;
-	padding: var(--size-4-4);
+	padding: var(--size-4-6);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	background-color: var(--background-secondary);
@@ -46,7 +46,9 @@
 }
 
 .rp-empty-state__headline {
-	margin: 0;
+	/* Bottom margin adds to the flex `gap`, so headline->body (16px) leads body->button
+	   (12px) instead of sitting level with it — the asymmetry is deliberate. */
+	margin: 0 0 var(--size-4-1) 0;
 	color: var(--text-normal);
 	font-size: var(--font-ui-large);
 	font-weight: var(--font-semibold);

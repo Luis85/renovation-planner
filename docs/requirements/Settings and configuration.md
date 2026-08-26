@@ -34,6 +34,15 @@ shared [[Asset]], [[Supplier]] and [[Trade]] catalogues belong to no project (§
 location is answered once for the vault and no project overrides it. That is precisely why §83
 puts it in the plugin half, and why the outcome below has to be stated in two parts rather than one.
 
+**Changing the library folder is a migration, not a preference.** Once catalogue entries exist,
+persisting a new path alone would leave every project resolving an empty library while the notes
+sat at the old one. So the setting **moves the catalogues, rebuilds the index, and refuses the new
+value until the move has succeeded** — which is not a new invention: ADR-011 specified exactly that
+behaviour for a configurable storage path, and named its cost as a reason to avoid having one where
+it could be avoided. Here it cannot: a shared library has no project folder to derive its location
+from. So the cost is accepted and written down rather than discovered. *How* the move is made
+atomic belongs to the slice that builds this surface.
+
 ## Outcome
 
 A renovator sets their defaults and their own type vocabularies once, and every project starts from

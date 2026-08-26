@@ -62,8 +62,14 @@ kept rather than a field somebody forgot — see
   differs is told rather than served a number that is well-formed and wrong. This is
   [[A mismatched unit or currency is an error, not a coercion]] applied at the point sharing
   created: nothing here converts, because no exchange rate, and no date to read one at, exists
-  anywhere in this product. The project supplies its own price instead, which is what a [[Quote]]
-  already does to a default.
+  anywhere in this product. The project supplies its own price instead, as a **per-project price
+  override**: stored in its own field, marked as an override, with the shared default still
+  visible beside it — [[A manual override is stored as an override, beside what it replaced]],
+  which already governs the shape. A [[Quote]] beats both, and this is the MVP answer precisely
+  *because* a Quote is not one: [[Quotes and quote items]] is V1, so without the override an MVP
+  project in a second currency could not price a shared asset at all without duplicating the
+  definition. Where the override is persisted is a slice question; that it exists, and that it
+  never overwrites the shared default, is not.
 - One asset, one unit. An asset sold by both the piece and the m² is two assets, or the
   quantity chain has no defined arithmetic.
 - Package size and minimum order quantity belong here, and are what [[Procurement item]] rounds

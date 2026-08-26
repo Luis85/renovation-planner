@@ -25,8 +25,10 @@ import type { PluginCommandHost } from './commandHost';
  * had never been seen in the app. The suite passing is exactly why that went unnoticed.
  *
  * **What replaces it, so this does not become permanent by default:** slice 14's empty
- * states wire a "create a project" action to `createProject`, and slice 15's dialogs give
- * a real project and plan their names. When a user can create a project and a plan through
+ * states wire a "create a project" action to `createProject`, and slice 16's creation forms
+ * give a real project and plan their names. Slice 15 has landed and is NOT that: it built
+ * the dialog framework those forms will be mounted in, so the framework is ready and the
+ * forms are still owed. When a user can create a project and a plan through
  * either of those, delete this module and its command; nothing else imports it. What it
  * cannot be replaced by yet is a zone — a zone needs a polygon, and drawing one is slices
  * 6 and 8. Until then a seeded flat is the only way zones exist at all.

@@ -722,9 +722,14 @@ the sidecar unchanged.
 - [x] All calibration unit and application tests run with Obsidian, Vue, and Konva
       absent from the test environment.
 
-*(Also deferred with slice 8's toolbar: nothing in the composition root registers
-`CalibrateTool` yet — the capability is proven by tests, and wiring is the first task
-that adds a tool UI.)*
+*(Closed by slice 15, 2026-08-26: `registerEditorTools` registers `CalibrateTool`, the
+toolbar names it, the composition root hands the editor a `calibratePlan` factory, and the
+two prompts this tool declares are a `ConfirmDialog` and a `FormDialog` over
+`KnownDistanceForm`. A user can calibrate a plan. This note previously read "also deferred
+with slice 8's toolbar: nothing in the composition root registers `CalibrateTool` yet" —
+and slice 8 landed with a toolbar and without the tool, so the deferral outlived the slice
+it was pinned to. A capability proven by tests and registered nowhere is invisible to every
+gate, because nothing about the code is wrong.)*
 
 ## References
 

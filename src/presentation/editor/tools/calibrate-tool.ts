@@ -9,9 +9,15 @@ import type { UndoableCommand } from './undoable-command';
 /**
  * What asks the user for the known real-world distance once two points are placed,
  * answered in world millimetres like every length (ADR-009) — or `null` when the prompt
- * is dismissed. It exists because §59's Selection → Inspector pipeline has no Vue
- * Inspector panel yet: the tool states the seam it needs rather than reaching into a UI
- * that does not exist, and the Inspector plugs in here.
+ * is dismissed.
+ *
+ * Slice 15 filled it: `runtime.ts` binds this to a `FormDialog` carrying
+ * `KnownDistanceForm`. What it is NOT is the Inspector, which is what this comment said was
+ * coming — "§59's Selection → Inspector pipeline has no Vue Inspector panel yet … and the
+ * Inspector plugs in here". The panel exists now and is the wrong home anyway: a modal
+ * question that blocks the gesture until it is answered is not a property editor. The seam
+ * being a plain `Promise<number | null>` is what let the answer arrive from somewhere other
+ * than the place that predicted it, and that is the argument for declaring one.
  */
 export type KnownDistanceSupplier = (measuredWorldUnits: number) => Promise<number | null>;
 

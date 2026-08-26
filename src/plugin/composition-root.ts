@@ -132,8 +132,11 @@ export interface PersistenceServices {
 	 * command or a view consumes is an interface handed to it, never a repository it built.
 	 *
 	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
-	 * empty-state actions and slice 15's creation dialogs are what give them product-real
-	 * ones; neither needs a second wiring point, only a second call.
+	 * empty-state actions and slice 16's creation FORMS are what give them product-real ones;
+	 * neither needs a second wiring point, only a second call. (This used to name "slice 15's
+	 * creation dialogs" — slice 15 shipped the dialog framework those forms will be mounted
+	 * in, and no form of its own beyond the calibration prompt, so the promise outlived the
+	 * slice that was supposed to keep it.)
 	 */
 	readonly createProject: CreateProjectCommand;
 	readonly createPlan: CreatePlanCommand;

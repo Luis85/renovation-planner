@@ -34,19 +34,33 @@ mock may be called `Kitchen.vue` after the screen it draws; it is about the file
 the markup, and a promoted mock is simply renamed. `eslint.config.mjs` carries the reasoning and
 `tests/build/vue-rules.test.ts` drives all three spellings in both trees.
 
-**Composition happens through the app registry, not through imports.** A template-only file has
-no script block, so it can import nothing at all — `<StatusBar />` and `<ZoneSummary />` resolve
-because `tests/harness/page.ts` registers every discovered component AND every discovered mock on
-the index app (`registrableComponents` in `tests/harness/entries.ts`). A mock sharing a label with
+**Two ways to compose, and which one you get follows from whether the file has a script.** A
+template-only file can import nothing at all — it has nowhere to put the statement — so
+`<StatusBar />` and `<ZoneSummary />` resolve through the index's GLOBAL REGISTRY:
+`tests/harness/page.ts` registers every discovered component AND every discovered mock on the
+index app (`registrableComponents` in `tests/harness/entries.ts`). A mock sharing a label with
 a real component deliberately TAKES that tag, which is what writing a mock is for.
 `src/prototypes/ZonePanel.vue` is the worked example and
 `tests/harness/indexRealEntries.test.ts` is what holds it.
 
+A scripted mock may do that too — the registry is an app-level plugin and does not care what a
+component's script contains — or it may **import what it composes directly**, which is what a
+shipped component does and therefore the promotion-friendly route: a file whose imports are
+already the real ones promotes with nothing to rewire. The registry route promotes by ADDING
+those imports, since no shipped component resolves a tag globally. Prefer the import once a
+mock has a script; keep the registry for the template-only shape, where it is the only option.
+
 **This tree is a one-way door.** Nothing in `src/` may import from it. The reverse direction is
 open at the layer level — no `no-restricted-imports` rule stands in the way of a prototype naming
-a real component — but nothing in this tree can exercise that today, because the template-only
-rule leaves no place for an import statement to live. Two checks guard the closed direction,
-because neither is sufficient alone:
+`vue`, a real component, or anything else `src/` may name, which
+`tests/build/prototypes-one-way-door.test.ts` drives from the open side as well as the closed
+one — and a scripted mock is exactly how that gets exercised: `WorkPackageFilters.vue` imports
+`vue` today. This paragraph read
+"nothing in this tree can exercise that today, because the template-only rule leaves no place for
+an import statement to live", which was true for one increment and became false the moment a mock
+was allowed a script; it is recorded here rather than quietly deleted, because the direction it
+had authors avoiding is the supported one. Two checks guard the CLOSED direction, because neither
+is sufficient alone:
 
 - `eslint.config.mjs` bans the import from every other layer — checked at the forbidden thing,
   so it holds for code nobody has written yet. `tests/build/prototypes-one-way-door.test.ts`.

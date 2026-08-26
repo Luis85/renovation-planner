@@ -77,10 +77,19 @@ an eye are the only instrument.
 about.** Measured in the browser harness, not inferred: with the two points picked near the
 middle of the canvas, the confirmation panel covered the line completely. The segment is still
 there — `Escape` reveals it — and the distance form states the measured number in words, so
-nothing is unanswerable. It is recorded here because it is the obvious next thing to dislike
-about this flow, and because the fix is a change to where EVERY dialog in the plugin sits
-(`.rp-dialog-overlay`'s `align-items`), which is a design decision rather than part of drawing
-the segment. Pick two points away from the centre if you want to watch both at once.
+nothing is unanswerable. Pick two points away from the centre if you want to watch both at
+once.
+
+**This is deliberately NOT treated as a positioning bug**, and the first version of this note
+was wrong to call the fix "a change to where every dialog sits". No alignment escapes it: the
+canvas fills the pane, so top covers the zone captions, bottom covers the status bar and
+whatever is drawn low, and right still crosses about a third of the canvas while reading as an
+Inspector popover. Moving the panel relocates what it hides and gives up the conventional
+centre. The rule that actually holds is a content one, and it lives in `dialog-store.ts`: a
+descriptor says what it is about in words and may not lean on anything behind it. Both callers
+comply today. The case that will feel it is slice 10's delete-with-references, where the user
+needs to know WHICH zone is going — so do not file this as a defect here; check that the words
+in the dialog are sufficient on their own.
 
 Steps 17 and 18 are the two whose expected outcome is **"record what happens"** rather than
 a pass condition. They are not soft: they are the two places where the framework's guarantee

@@ -109,8 +109,19 @@ layer, held from the first click through both dialogs. Written up where the code
 case's step 3 covers it.
 
 One thing was recorded rather than fixed: the dialog is centred over the pane, so it can sit
-on top of the segment it is asking about. The fix is where every dialog in the plugin sits,
-which is a design decision rather than part of drawing the segment.
+on top of the segment it is asking about. It was first written up as a positioning problem —
+"the fix is where every dialog in the plugin sits" — and that was wrong. No alignment escapes
+a canvas that fills the pane: top-aligned covers the zone captions, bottom-aligned covers the
+status bar, right-aligned still crosses about a third of the canvas and reads as an Inspector
+popover. Moving the panel relocates what it hides and gives up the conventional centre.
+
+So the rule is a CONTENT one, and it lives in `dialog-store.ts` beside the descriptors it
+constrains: **a descriptor says what it is about in words and may not lean on anything behind
+it being visible.** Both callers in this slice already comply — `KnownDistanceForm` prints the
+measured distance and every `ConfirmDescriptor` carries its own title and message — so this
+cost nothing to adopt. Slice 10's delete-with-references is the caller that will feel it, and
+its own document now says so: for a delete the user's confidence comes from knowing WHICH
+zone goes, which is what `entityLabel` is a required resolved string for.
 
 ## Scope
 

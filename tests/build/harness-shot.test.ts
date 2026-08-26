@@ -30,6 +30,12 @@ const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {
 	devDependencies: Record<string, string>;
 };
 
+/** `source` with every `/* … *\/` block comment removed — see the one call site below for why
+ * a scan for a forbidden CODE shape needs this rather than reading raw text. */
+function withoutCommentary(source: string): string {
+	return source.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
 describe('the headless harness capture script', () => {
 	it('is wired as an npm script pointing at a file that exists', () => {
 		const command = pkg.scripts['harness-shot'];
@@ -107,44 +113,17 @@ describe('the headless harness capture script', () => {
 	 * actor has no browser, so a screen reachable only by clicking a row in an index cannot
 	 * be captured, scripted or diffed — and every layout judgement is deferred to a human.
 	 *
-	 * Asserted on the SOURCE rather than by running a capture, for the reason this file's
-	 * header already gives: driving Playwright here would trade the suite's speed for a
-	 * check `npm run harness-shot` gives a developer directly. What is checked is that the
-	 * argument is read and turned into the `?entry=` URL the index answers.
+	 * This is now a WIRING check, not a behavioural one — what the argument actually does
+	 * (selects `entryShots(entry)`, builds the `?entry=` URL, falls back to the fixed shots
+	 * with no argument) is asserted by calling `resolveShots` and `entryShots` directly in
+	 * `entryShots.test.ts`, which can see the real behaviour. Reading `harness-shot.mjs`'s
+	 * source text could only ever confirm it still SAYS the right thing; mutating
+	 * `process.argv[2]` to `process.argv[3]` inside `resolveShots` left every case that used
+	 * to live here green, which is exactly why that logic moved into an importable module.
 	 */
-	it('captures a named entry, using the index URL that entry is reachable at', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		// The argument is read from argv rather than hard-coded.
-		expect(source).toMatch(/process\.argv/);
-		// And becomes the query the index reads (`IndexPage.vue`).
-		expect(source).toContain('?entry=');
-	});
-
-	/**
-	 * The PNG name is derived from a file path, and a legal path must not produce an illegal
-	 * filename. Two ways it can, and both are the same criterion-4 failure — an entry the
-	 * index opens and the capture cannot write:
-	 *
-	 * - Two different ids flattening onto one name, so the second capture silently
-	 *   overwrites the first. The digest is what refuses that.
-	 * - One id flattening onto a name too long for the filesystem — `ENAMETOOLONG` from
-	 *   `page.screenshot()`. The cap is what refuses that, and it is safe only BECAUSE the
-	 *   digest holds the identity: truncating a part that no longer has to be unique costs
-	 *   nothing.
-	 *
-	 * Asserted on the source, like every case in this file, because `harness-shot.mjs` runs
-	 * its capture at module scope and cannot be imported to be called. That is a real limit
-	 * of these assertions and it is stated rather than papered over: what they check is that
-	 * the script still SAYS this, not that a 300-character id was captured.
-	 */
-	it('keeps the PNG name unique and short enough to exist', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		// Identity: a short hash of the REAL id, not of the flattened one.
-		expect(source).toContain("createHash('sha1').update(entry)");
-		// Length: the human-readable half is capped, since the digest is what makes it unique.
-		expect(source).toMatch(/\.slice\(0,\s*60\)/);
+	it('reads the entry argument through the importable resolveShots, not by hard-coding argv itself', () => {
+		expect(readFileSync(SCRIPT, 'utf8')).toContain("from './entryShots.mjs'");
+		expect(readFileSync(SCRIPT, 'utf8')).toContain('resolveShots(process.argv, SHOTS)');
 	});
 
 	/**
@@ -165,10 +144,28 @@ describe('the headless harness capture script', () => {
 		// entry the index drew correctly.
 		expect(source).toContain('stage.childNodes.length > 0');
 		expect(source).not.toContain('firstElementChild');
-		// The bare stage class must not be used as a wait target on its own, and no attribute
-		// selector may be built out of an entry id.
+		// The bare stage class must not be used as a wait target on its own.
 		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
-		expect(source).not.toMatch(/\[data-entry=/);
+		// No attribute selector may be built out of an entry id — scanned over the CODE only,
+		// with block comments stripped first (`withoutCommentary`, below). The bare substring
+		// scan this replaced fires on prose that EXPLAINS the rule as readily as on code that
+		// BREAKS it: this file's own review found the substring reintroduced not in this
+		// script but in the plan document's copy of this very JSDoc block, in a parenthetical
+		// added to say the earlier version had been reworded away from it
+		// (`docs/superpowers/plans/2026-08-25-harness-prototyping.md`, fixed in the same round
+		// this comment was added). `tests/harness/harness.test.ts` solves the equivalent
+		// problem for its own scan by excluding whole FILES whose text documents the pattern;
+		// that does not transfer here because the explanation and the code it explains live in
+		// the SAME file, so excluding the file would blind the check to the code it exists to
+		// watch. Stripping only what documents the rule — its comments — keeps the check on
+		// the actual danger (a selector built from an id) while leaving prose free to say
+		// anything, including the forbidden shape, without tripping it. The narrower claim
+		// this leaves standing, stated rather than hidden: a `//` line comment carrying the
+		// substring would still trip this, since only block comments are stripped — no comment
+		// in this file uses that style today, so it has not been exercised, and widening the
+		// strip to line comments if one ever does is a smaller change than reasoning through
+		// this again from scratch.
+		expect(withoutCommentary(source)).not.toMatch(/\[data-entry=/);
 	});
 
 	/**
@@ -383,15 +380,17 @@ describe('the headless harness capture script', () => {
 	 * Ids carry `:` and `/`; Windows filenames cannot. One of the four `npm run check` legs is
 	 * Windows, so an unsanitised PNG name is a leg-specific failure nobody would reproduce
 	 * locally on Linux or macOS.
+	 *
+	 * The sanitising itself moved to `scripts/entryShots.mjs` and is asserted BEHAVIOURALLY
+	 * there (`entryShots.test.ts`, driving real ids including `:` and `/` through the actual
+	 * function). What is left to check from this side is only that `harness-shot.mjs` still
+	 * gets its shots from that module rather than sanitising anything itself.
 	 */
-	it('sanitises the entry id for the PNG filename without sanitising the URL', () => {
+	it('sanitises the entry id for the PNG filename through entryShots, not by re-deriving it here', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
-		expect(source).toMatch(/replace\(\/\[\^a-zA-Z0-9\]\+\/g/);
-		expect(source).toContain('encodeURIComponent(entry)');
-		// Sanitising alone collapses `a-b/C` and `a/b-C` onto one filename, so the hash is
-		// what actually keeps two captures from overwriting each other.
-		expect(source).toContain('createHash');
+		expect(source).toContain("from './entryShots.mjs'");
+		expect(source).not.toContain('createHash');
 	});
 
 	it('still defines the five fixed shots, so an argumentless run is unchanged', () => {

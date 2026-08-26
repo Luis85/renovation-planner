@@ -2048,10 +2048,18 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 *   digest holds the identity: truncating a part that no longer has to be unique costs
 	 *   nothing.
 	 *
-	 * Asserted on the source, like every case in this file, because `harness-shot.mjs` runs
-	 * its capture at module scope and cannot be imported to be called. That is a real limit
-	 * of these assertions and it is stated rather than papered over: what they check is that
-	 * the script still SAYS this, not that a 300-character id was captured.
+	 * Asserted on the source at the point this step is written, because `harness-shot.mjs`
+	 * runs its capture at module scope and cannot be imported to be called — a real limit,
+	 * stated rather than papered over: what these check is that the script still SAYS this,
+	 * not that a 300-character id was captured.
+	 *
+	 * **This stopped being true in fix round 1.** `entryShots` is a PURE function
+	 * (`(string) => Shot[]`, no browser, no module-scope side effect), so it was lifted into
+	 * its own module (`scripts/entryShots.mjs`) specifically so this claim and the three
+	 * beside it could be asserted by calling the function instead of reading its source text
+	 * — see `tests/build/entryShots.test.ts`. The source-text pins below are what Task 6
+	 * actually shipped and are kept here as the historical record of that step; they are not
+	 * what the repository asserts today.
 	 */
 	it('keeps the PNG name unique and short enough to exist', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
@@ -2371,11 +2379,11 @@ Then, after the `SHOTS` array (line ~47), add:
  * out the render tick after that and is belt and braces rather than the primary signal.
  *
  * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
- * path, and a quote or a newline is a legal filename character on POSIX; interpolating one into
- * an attribute-value selector that parses as something else or does not parse at all,
- * so the index could open an entry `harness-shot` could never capture. Comparing `dataset.entry`
- * as a STRING has no escaping question to get wrong — the class of defect is removed rather
- * than patched.
+ * path, and a quote or a newline is a legal filename character on POSIX; interpolating one
+ * into an attribute-value selector produces one that parses as something else or does not
+ * parse at all, so the index could open an entry `harness-shot` could never capture.
+ * Comparing `dataset.entry` as a STRING has no escaping question to get wrong — the class of
+ * defect is removed rather than patched.
  *
  * `childNodes`, deliberately not the DOM's element-only equivalent. A template whose root is
  * TEXT — `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a
@@ -2387,8 +2395,9 @@ Then, after the `SHOTS` array (line ~47), add:
  * (Reworded away from naming the forbidden DOM property directly: the earlier phrasing put
  * that literal substring inside this very comment, and the sibling test two blocks up checks
  * the WHOLE script source for it — so the plan's own prescribed code failed its own
- * prescribed test. Found executing Task 6, 2026-08-25; the `[data-entry="…"]` example a few
- * lines up had the same shape and was reworded the same way.)
+ * prescribed test. Found executing Task 6, 2026-08-25; the quoted CSS attribute-selector
+ * example a few lines up had the same shape and was reworded the same way — see the paragraph
+ * on interpolating an id into an attribute-value selector, just above.)
  */
 const entryHasDrawn = (id) => {
 	const stage = document.querySelector('.rp-harness-stage');
@@ -2591,14 +2600,16 @@ and this command take the id.
 Expected: two PNGs under `harness-shots/`, named `entry-prototype-ZoneSummary-<hash>-dark.png`
 and `-light.png`. The colon becomes a dash because Windows forbids it in a filename, and the
 short hash of the real id is what stops two different entries sanitising onto one name. The
-command exits 0, and
-the command exits 0. Open one — it must show the zone list, not "Pick an entry."
+command exits 0. Open one — it must show the zone list, not "Pick an entry."
 
 Then prove the failure path, which is the half that matters for an actor that cannot see:
 
 Run: `npm run harness-shot NoSuchEntry`
 
-Expected: non-zero exit, with a timeout reported for both shots. A typo must never write a
+Expected: non-zero exit, reporting `no entry named NoSuchEntry` for both shots — not a bare
+`Timeout 30000ms exceeded`. `IndexPage.vue` sets `.rp-harness-failure` synchronously the moment
+an `?entry=` names nothing, and `captureOne` reads that text in its catch block rather than
+reporting only the timeout that follows it (fix round 1, Minor 3). A typo must never write a
 picture of the index and call it success.
 
 - [ ] **Step 4: Write the promoted fixture — an INDEPENDENT artifact**

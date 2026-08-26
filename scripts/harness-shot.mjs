@@ -1,16 +1,17 @@
-import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
+import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — the dark scheme, the light scheme and `?phone`
- * — for a look nobody has to open a browser for. This is how a real layout defect was
- * found earlier in this plan (the view collapsing to 39px of a 700px pane): nothing in the
- * suite could see it because jsdom draws nothing, and a screenshot is the only artifact
- * that shows it.
+ * Headless capture of the browser harness — either the five fixed surfaces (the project
+ * view's dark scheme, light scheme and `?phone`, plus the Plan Editor's dark and light
+ * schemes) or, given an entry id, one named prototype or component in both schemes — for a
+ * look nobody has to open a browser for. This is how a real layout defect was found earlier
+ * in this plan (the view collapsing to 39px of a 700px pane): nothing in the suite could see
+ * it because jsdom draws nothing, and a screenshot is the only artifact that shows it.
  *
  * What this is NOT: a test. It draws; it asserts no appearance, and there is no baseline
  * to diff against — the same reason `npm run harness` itself is outside `npm run check`.
@@ -62,11 +63,11 @@ const SHOTS = [
  * out the render tick after that and is belt and braces rather than the primary signal.
  *
  * Asked IN THE PAGE rather than as a CSS selector, deliberately. An id is built from a file
- * path, and a quote or a newline is a legal filename character on POSIX; interpolating one into
- * an attribute-value selector that parses as something else or does not parse at all,
- * so the index could open an entry `harness-shot` could never capture. Comparing `dataset.entry`
- * as a STRING has no escaping question to get wrong — the class of defect is removed rather
- * than patched.
+ * path, and a quote or a newline is a legal filename character on POSIX; interpolating one
+ * into an attribute-value selector produces one that parses as something else or does not
+ * parse at all, so the index could open an entry `harness-shot` could never capture.
+ * Comparing `dataset.entry` as a STRING has no escaping question to get wrong — the class of
+ * defect is removed rather than patched.
  *
  * `childNodes`, deliberately not the DOM's element-only equivalent. A template whose root is
  * TEXT — `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a
@@ -82,55 +83,61 @@ const entryHasDrawn = (id) => {
 };
 
 /**
- * The shots for ONE named entry, in both schemes.
+ * What actually went wrong with a named entry, read from the page rather than guessed.
  *
- * This is what makes the harness usable by an actor with no eyes: `docs/actors/Coding agent.md`
- * describes an agent that verifies by running something that writes a file it can then read,
- * or does not verify at all. Without an argument here, every layout judgement about a mock is
- * deferred to a human and every iteration costs a round.
+ * `.rp-harness-failure` carries the real reason for all four ways an entry can fail —
+ * `IndexPage.vue`'s `reportDefects`, the "no entry named …" check and the two `failure.value`
+ * assignments in `open()` all write into it before this function's caller would ever be
+ * waiting on it. Reading it is strictly more informative than the `Timeout 30000ms exceeded`
+ * a bare `waitForFunction`/`waitForSelector` rejection gives, which says nothing about WHICH
+ * of those four happened.
  *
- * No `?phone` shot: the fixed set has one for the project view because that surface is
- * responsive by design, and a prototype's own breakpoints are the prototype's business — add
- * `&phone` to the URL by hand when that is the question.
+ * A fixed shot (no `entry`) has no such card to read, so `fallback` — whatever the caller
+ * already knows — is returned as-is. For a named entry, `fallback` is the last resort too:
+ * the one case the card cannot cover, where the entry never loaded far enough to render
+ * anything, including the failure branch.
  */
-const entryShots = (entry) => {
-	// The id is a URL and may contain `:` and `/` — both legal in a query value, both ILLEGAL
-	// in a Windows filename, and Windows is one of the four legs `npm run check` rides.
-	//
-	// Sanitising ALONE is not enough, and the plan's own id test names the case: `a-b/C` and
-	// `a/b-C` are different entries that collapse to one string the moment `/` and `:` become
-	// `-`. Two captures would then write the same two PNGs, the second silently overwriting
-	// the first — the same collision `entries.ts` refuses, moved from the URL to the file
-	// system. So the readable part is sanitised for humans and a short hash of the REAL id
-	// keeps it unique.
-	//
-	// The readable part is also CAPPED, and the cap is safe precisely because identity lives
-	// in the digest rather than in it: a deep path or a long basename is legal on every
-	// platform this runs on, and flattening the whole id into a filename is how a legal
-	// source path becomes an `ENAMETOOLONG` from `page.screenshot()` — an entry the index
-	// opens and the capture cannot write, which is the same criterion-4 failure as the
-	// collision above wearing different clothes. 60 leaves room for the `entry-`, the
-	// digest, the scheme and `.png` well inside the 255-byte per-component limit, and inside
-	// Windows' 260-character whole-path limit once `harness-shots/` is in front of it —
-	// Windows being one of the four legs, and the stricter of the two constraints.
-	const readable = entry.replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 60);
-	const digest = createHash('sha1').update(entry).digest('hex').slice(0, 8);
-	const fileSafe = `${readable}-${digest}`;
+async function describeFailure(page, entry, fallback) {
+	if (entry === undefined) return fallback;
 
-	// `entry` rather than `selector`: `captureOne` waits on `entryHasDrawn` when it is present.
-	return [
-		{ name: `entry-${fileSafe}-dark`, query: `?entry=${encodeURIComponent(entry)}`, entry },
-		{
-			name: `entry-${fileSafe}-light`,
-			query: `?entry=${encodeURIComponent(entry)}&theme=light`,
-			entry,
-		},
-	];
-};
+	const text = await page.textContent('.rp-harness-failure').catch(() => null);
+
+	if (text) return `${entry}: ${text}`;
+	return fallback ?? `${entry} rendered nothing and left no failure text to explain why`;
+}
+
+/**
+ * The fixed shots name a selector; a named entry names itself, and is compared as a string
+ * in the page because a CSS attribute selector built from a file path is a quoting bug
+ * waiting for the first filename with a `"` in it.
+ */
+async function waitUntilReady(page, selector, entry) {
+	if (entry === undefined) await page.waitForSelector(selector, { state: 'attached' });
+	else await page.waitForFunction(entryHasDrawn, entry);
+}
+
+/**
+ * The wait can pass and still lie. `IndexPage.vue`'s `settle()` documents a window it cannot
+ * close from its own side: a defect first raised AFTER `<Suspense>` resolved clears
+ * `data-entry` on a MICROTASK, so `entryHasDrawn` can be true when the wait resolves and
+ * false again by the time a screenshot is taken. Re-asking the identical question after the
+ * screenshot is the only way to see that — a screenshot is not proof that what it captured is
+ * still what the wait certified.
+ *
+ * A no-op for a fixed shot (no `entry`): `waitForSelector`'s contract is presence, not "and
+ * stays clean", and none of today's five fixed surfaces ever clears itself the way an
+ * entry's Suspense boundary can.
+ */
+async function reportIfNoLongerDrawn(page, entry, name, errors) {
+	if (entry === undefined) return;
+	if (await page.evaluate(entryHasDrawn, entry)) return;
+
+	errors.push(`[${name}] captured a failure card, not the entry: ${await describeFailure(page, entry)}`);
+}
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not
- * cost the other two their PNGs. */
+ * cost the rest of the run its PNGs. */
 async function captureOne(browser, baseUrl, { name, query, selector, entry }, errors) {
 	const page = await browser.newPage({ viewport: VIEWPORT });
 
@@ -138,23 +145,32 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry }, er
 	page.on('console', (msg) => {
 		if (msg.type() === 'error') errors.push(`[${name}] console error: ${msg.text()}`);
 	});
+	// `console.warn` is deliberately NOT recorded here. `IndexPage.vue`'s `warnHandler` sends
+	// EVERY Vue warning there unconditionally (attributed or not, late or not) — it is the one
+	// channel a warning always reaches, on top of whatever else it does — so treating it as a
+	// failure signal would fail a shot on a warning that never touched the entry on stage at
+	// all, which is the false positive `warnHandler`'s own header goes out of its way to avoid
+	// (`console.error` is its channel for that; see "Not dropped" there). The late-clear window
+	// this file exists to close is closed by re-asking `entryHasDrawn` after the screenshot
+	// (`reportIfNoLongerDrawn`), which reads the one thing that actually failed rather than a
+	// channel carrying both real defects and noise.
 
 	try {
 		// 'load', not 'networkidle': Vite's dev server keeps an HMR websocket open, which
 		// networkidle waits forever for.
 		await page.goto(`${baseUrl}/${query}`, { waitUntil: 'load' });
-		// The fixed shots name a selector; a named entry names itself, and is compared as a
-		// string in the page because a CSS attribute selector built from a file path is a
-		// quoting bug waiting for the first filename with a `"` in it.
-		if (entry === undefined) await page.waitForSelector(selector, { state: 'attached' });
-		else await page.waitForFunction(entryHasDrawn, entry);
+		await waitUntilReady(page, selector, entry);
 
 		const file = path.join(OUT_DIR, `${name}.png`);
 
 		await page.screenshot({ path: file, fullPage: true });
+		await reportIfNoLongerDrawn(page, entry, name, errors);
+
 		console.log(`wrote ${file}`);
 	} catch (error) {
-		errors.push(`[${name}] ${error instanceof Error ? error.message : String(error)}`);
+		const reason = error instanceof Error ? error.message : String(error);
+
+		errors.push(`[${name}] ${await describeFailure(page, entry, reason)}`);
 	} finally {
 		await page.close();
 	}
@@ -198,8 +214,9 @@ async function startHarnessServer() {
 	}
 }
 
-/** All three shots, and the errors any of them raised — collected rather than thrown, so
- * one bad shot does not cost the other two their PNGs. */
+/** Every shot in the list — five for a bare run, two for a named entry — and the errors any
+ * of them raised, collected rather than thrown, so one bad shot does not cost the rest of
+ * the run its PNGs. */
 async function captureAll(browser, baseUrl, shots) {
 	const errors = [];
 
@@ -220,10 +237,14 @@ function reportErrors(errors) {
 async function run() {
 	const executablePath = resolveChromiumExecutable();
 
-	// `node scripts/harness-shot.mjs ZoneSummary` — one entry, both schemes. With no
-	// argument, the five fixed surfaces, exactly as before.
-	const entry = process.argv[2];
-	const shots = entry ? entryShots(entry) : SHOTS;
+	// `node scripts/harness-shot.mjs prototype:ZoneSummary` — one entry, both schemes. The
+	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
+	// the label, but the URL and this command both take the id, since a mock and the real
+	// component it stands in for share a basename and need to stay reachable as two entries.
+	// With no argument, the five fixed surfaces, exactly as before. `resolveShots` is what
+	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
+	// rather than reading this file's source text to check which index it uses.
+	const shots = resolveShots(process.argv, SHOTS);
 
 	mkdirSync(OUT_DIR, { recursive: true });
 

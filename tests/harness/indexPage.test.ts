@@ -40,8 +40,9 @@ import { DEFAULT_VIEWPORT, screenPoint } from '../../src/presentation/editor/vie
  *
  * The entry lists are mocked and the components are real. `import.meta.glob` is what discovery
  * uses in a browser, and it cannot produce a module that REJECTS or a component that throws —
- * which is every case here. `entries.test.ts` covers the derivation the glob feeds; Task 7
- * closes the glob's own pattern against the tree.
+ * which is every case here. `entries.test.ts` covers the derivation the glob feeds; its own
+ * "the prototypes tree IS the registration" case closes the glob's own pattern against the
+ * tree.
  */
 const state = vi.hoisted(() => ({
 	prototypes: [] as HarnessEntry[],
@@ -949,16 +950,17 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 
 	/**
 	 * The real ones, from the real glob — EMPTY until Task 7 adds a first file under
-	 * `src/prototypes/`. Task 5 runs before any prototype exists, so today this `it.each` has
-	 * zero iterations and covers nothing; that is stated here rather than left for a reader to
-	 * wonder about. The moment Task 7 lands `ZoneSummary.vue`, this starts covering it with NO
-	 * EDIT to this file — `real.prototypeEntries()` re-globs at file-load time, which is the same
+	 * `src/prototypes/`. Task 5 ran before any prototype existed; today, with `ZoneSummary.vue`
+	 * in the tree, this `it.each` has one iteration and covers it — stated here rather than
+	 * left for a reader to wonder about. The moment Task 7 lands `ZoneSummary.vue`, this starts
+	 * covering it with NO EDIT to this file — `real.prototypeEntries()` re-globs at file-load
+	 * time, which is the same
 	 * "the tree is the registration" property the whole feature is built on, turned on its own
 	 * guard.
 	 *
 	 * **Carries the control's `stageEntry` assertion too, and it is load-bearing here for the
-	 * same reason** (see the control's own comment): with zero iterations to run today, THIS is
-	 * the assertion that keeps the day Task 7 lands a prototype from silently proving nothing —
+	 * same reason** (see the control's own comment): with only one iteration running today,
+	 * THIS is the assertion that keeps a landed prototype from silently proving nothing —
 	 * without it, a prototype that fails to import or throws while rendering would still leave
 	 * the CSS count unchanged and this case green, having never actually inspected what mounted.
 	 * A round of review that added the control's assertion without this one found exactly that

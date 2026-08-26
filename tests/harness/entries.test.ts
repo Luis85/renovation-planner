@@ -27,10 +27,10 @@ import { installEditorEnvironment } from '../helpers/editor';
  * only way to drive a collision that does not exist on disk.
  *
  * That leaves the glob's own PATTERN unasserted, and a pattern that stops matching the tree
- * is the failure where nothing a designer adds ever appears. Task 7 adds the case that closes
- * it, in this file, once there is a real `.vue` under `src/prototypes/` to find: discovery
- * against the tree walked independently. It waits for Task 7 because on an empty tree that
- * assertion is `[] === []` — vacuous, and green for the wrong reason.
+ * is the failure where nothing a designer adds ever appears. "The prototypes tree IS the
+ * registration" below closes it, comparing discovery against the tree walked independently,
+ * now that a real `.vue` under `src/prototypes/` exists to find — on an empty tree that
+ * assertion would be `[] === []`, vacuous and green for the wrong reason.
  *
  * The id is a URL, so it has to be UNIQUE across everything the index lists. A basename is
  * not: `src/prototypes/StatusBar.vue` and `src/presentation/editor/shell/StatusBar.vue` are

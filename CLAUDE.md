@@ -271,7 +271,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
-  is 99.7/98.8/99.8/99.8 and the floors sit a covered unit or more below each. The exact
+  is 99.34/98.26/99.16/99.63 and the floors sit a covered unit or more below each. The exact
   numbers, which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
@@ -315,6 +315,19 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
   "faithful" read wider than it is.
+  **`?index`** draws an index of every prototype and every real component, discovered from the
+  tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
+  directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
+  and the bare root still draws the project view: the three fixed captures address that surface
+  with no query at all, so making the root an index would break them while the test asserting
+  they exist kept passing. Mocks live in `src/prototypes/` as template-only SFCs — pure HTML to
+  write, already a real component, and promoted by adding a `<script setup>` rather than
+  being redrawn. **Nothing in that tree ever reaches a built plugin**, refused twice: a
+  per-layer `no-restricted-imports` ban makes it a one-way door, and
+  `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
+  each chunk. Neither is sufficient — lint reads static imports, the bundle scan reports
+  after the fact.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
   scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`

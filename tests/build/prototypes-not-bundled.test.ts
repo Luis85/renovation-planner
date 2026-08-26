@@ -81,8 +81,8 @@ describe('the built plugin', () => {
 
 	/**
 	 * EVERY test path, not just `tests/harness/`. The guarantee names fixtures, and they do
-	 * not all live in one directory — Task 7 adds `tests/fixtures/promotion/` to hold the
-	 * promoted SFC, and a harness-only assertion would not have covered it.
+	 * not all live in one directory — `tests/fixtures/promotion/` holds the promoted SFC, and
+	 * a harness-only assertion would not have covered it.
 	 *
 	 * Stated as "nothing under `tests/`" rather than as a list of fixture directories, so the
 	 * next one somebody adds is covered without anybody remembering to come back here. Nothing

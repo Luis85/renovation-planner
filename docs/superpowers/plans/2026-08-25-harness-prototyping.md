@@ -344,9 +344,11 @@ import from it. Two checks, because neither is sufficient alone:
 
 - `eslint.config.mjs` bans the import from every other layer — checked at the forbidden thing,
   so it holds for code nobody has written yet. `tests/build/prototypes-one-way-door.test.ts`.
-- `tests/build/prototypes-not-bundled.test.ts` asserts against `dist/`, catching the dynamic
-  route lint cannot see. It derives what to look for from THIS TREE — no file here has to
-  remember a marker, because a marker only ever proves the marker is absent.
+- `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  false`, so nothing is ever written to `dist/`) and inspects which modules composed each
+  chunk, catching the dynamic route lint cannot see. It derives what to look for from THIS
+  TREE — no file here has to remember a marker, because a marker only ever proves the marker
+  is absent.
 
 It is excluded from coverage (`vitest.config.ts`) because nothing ships it, and declared to
 fallow (`.fallowrc.json`) because `import.meta.glob` is a Vite feature its static graph cannot
@@ -427,7 +429,8 @@ The backstop the one-way door cannot be: lint reads static imports, and a dynami
 
 **Interfaces:**
 - Consumes: `src/prototypes/` from Task 1.
-- Produces: nothing other tasks import. It asserts against `dist/`.
+- Produces: nothing other tasks import. It asserts against the built bundle's own module
+  graph, in memory — nothing is ever written to `dist/`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3019,8 +3022,10 @@ Find the `npm run harness` bullet in `CLAUDE.md` (it begins "a Vite dev server d
   write, already a real component, and promoted by adding a `<script setup>` rather than
   being redrawn. **Nothing in that tree ever reaches a built plugin**, refused twice: a
   per-layer `no-restricted-imports` ban makes it a one-way door, and
-  `tests/build/prototypes-not-bundled.test.ts` asserts against `dist/`. Neither is
-  sufficient — lint reads static imports, the bundle scan reports after the fact.
+  `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
+  each chunk. Neither is sufficient — lint reads static imports, the bundle scan reports
+  after the fact.
 ```
 
 - [ ] **Step 2: State the boundary from the concepts side**

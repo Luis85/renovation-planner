@@ -309,11 +309,6 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:hover { outline: 2px solid red; }',
 		],
 		['a bare button subject', 'button { box-shadow: none; }'],
-		// A third way to reach these buttons: by ATTRIBUTE, naming neither a class of ours nor the type.
-		// Every dialog button carries `type="button"` and `data-rp-action`, so this matches them and at
-		// (0,2,0) replaces the host ring — while `targetsAButton` saw no class and no `button` node and
-		// put the rule out of scope entirely, the same way a bare `button` subject was before it.
-		['an attribute-targeted subject', "[type='button'][data-rp-action] { box-shadow: 0 0 0 1px red; }"],
 	])('reports a type-targeted rule that %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toHaveLength(1);
 	});

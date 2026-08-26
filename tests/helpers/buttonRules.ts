@@ -105,37 +105,6 @@ export function buttonClassGroups(): ReadonlySet<string>[] {
 }
 
 /**
- * The attribute NAMES this project puts on a `<button>`, from the same markup the classes come from.
- *
- * Vue's own bindings are normalised to what they RENDER — `:disabled` is `disabled` on the element —
- * and its directives are dropped, because `v-for`, `@click` and `:key` reach no DOM attribute and so
- * no selector can name them. `class` is dropped too: it has its own scan, and admitting it here
- * would put every `[class]` selector in the project into the button gates.
- */
-let attributeCache: Set<string> | undefined;
-
-function buttonAttributes(): Set<string> {
-	// MEMOISED, because `targetsAButton` asks for this once per SELECTOR and the answer is a scan of
-	// every Vue file in two trees. The classes escape that by being hoisted at each call site; this
-	// one is consulted inside the predicate, so the cache belongs here.
-	if (attributeCache !== undefined) return attributeCache;
-
-	const found = new Set<string>();
-
-	for (const file of ['src/presentation', 'src/prototypes'].flatMap((dir) => filesUnder(dir, '.vue'))) {
-		for (const [tag] of readFileSync(file, 'utf8').matchAll(/<button\b[^>]*>/g)) {
-			for (const [, name] of tag.matchAll(/(?:^|\s)(?:v-bind:|:)?([\w-]+)\s*=/g)) {
-				if (!name.startsWith('v-') && name !== 'class' && name !== 'key') found.add(name);
-			}
-		}
-	}
-
-	attributeCache = found;
-
-	return found;
-}
-
-/**
  * Every `rp-*` class this project puts on a `<button>`, as one set.
  *
  * Derived from the groups rather than scanned again, so the two cannot answer differently about
@@ -195,29 +164,28 @@ export const buttonClassesOn = (selector: Selector, classes: Set<string>): strin
  * hole against the rewritten reader rather than by the unit cases, which is the argument for
  * keeping that sweep.
  */
-export const targetsAButton = (selector: Selector, classes: Set<string>): boolean => {
-	if (buttonClassesOn(selector, classes).length > 0) return true;
-
-	const subject = compoundsOf(selector).at(-1)?.components ?? [];
-
-	if (subject.some((component) => component.type === 'type' && component.name === 'button')) return true;
-
-	// AND BY ATTRIBUTE, which is the third way a selector reaches these buttons and was the third
-	// time this predicate has been one spelling short. `[type='button'][data-rp-action]` scores
-	// (0,2,0), replaces Obsidian's (0,1,1) focus shadow, and names neither a class of ours nor the
-	// type — so it was out of scope entirely, exactly as a bare `button` subject was before the type
-	// arm was added and a `:not()`-wrapped class was before that.
-	//
-	// The attribute NAMES are read off the scanned markup, the same source and for the same reason as
-	// the classes: a list written here would be the spellings someone thought of. Proving a selector
-	// MATCHES a button needs a matcher and is not attempted — an element of another kind carrying
-	// `disabled` puts its rule in scope too, which over-reports, and that is the safe side for a gate
-	// about a missing focus indicator. Measured: no subject in any scanned sheet carries one of these
-	// names today, so the widening reports nothing new (`data-type` is not `type`).
-	const attributes = buttonAttributes();
-
-	return subject.some((component) => component.type === 'attribute' && attributes.has(component.name));
-};
+/**
+ * STATED LIMITATION: an ATTRIBUTE-ONLY subject is out of scope, and putting it in was measured to be
+ * worse than leaving it out.
+ *
+ * `[type='button'][data-rp-action]` matches every dialog button, scores (0,2,0) and replaces
+ * Obsidian's (0,1,1) focus ring, so a rule spelled that way really can leave those buttons with no
+ * indicator and this predicate really does miss it. A widening was written, landed and REVERTED,
+ * because the miss is a false negative on a spelling nothing here writes while the widening is a
+ * false POSITIVE on valid CSS: a flattening site is keyed by its subject SHAPE and sites are never
+ * widened, so `[type='button'][data-rp-action] { box-shadow: none }` filed a site nothing could
+ * answer — a `.rp-dialog-button:focus-visible` ring is filed under the class and never reaches it —
+ * and the gate failed a stylesheet that visibly rings its buttons.
+ *
+ * Closing it properly means proving which scanned buttons a selector MATCHES, so that an
+ * attribute-keyed site can join the cascades of the buttons it reaches. That is a matcher, and a
+ * matcher is a far larger instrument than this file; the two spellings this predicate does know are
+ * decidable from the selector alone, and that is the line.
+ */
+export const targetsAButton = (selector: Selector, classes: Set<string>): boolean =>
+	buttonClassesOn(selector, classes).length > 0 ||
+	compoundsOf(selector).at(-1)?.components.some((component) => component.type === 'type' && component.name === 'button') ===
+		true;
 
 /** A branch's subject — the components after its last combinator, the element the rule styles. */
 export const subjectOf = (branch: Selector): SelectorComponent[] =>

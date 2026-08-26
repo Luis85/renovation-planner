@@ -35,8 +35,19 @@ import { describe, expect, it } from 'vitest';
 /** What Obsidian's `button:not(.clickable-icon)` scores, and therefore what a rule must beat. */
 const OBSIDIAN_BUTTON = [0, 1, 1] as const;
 
-/** The properties that rule actually sets. A rule touching none of them is not in this contest. */
-const CONTESTED = ['background-color', 'color', 'box-shadow'];
+/**
+ * The properties that rule actually sets, plus the SHORTHAND that resets one of them.
+ *
+ * `background: transparent` sets the `background-color` longhand and competes exactly as the
+ * longhand does, so a rule spelled that way was skipped entirely — the scan recognised only the
+ * literal `background-color`. Nothing in this repository writes the shorthand today, which is
+ * the same reason every other hole here was reachable: a check sees the spellings it was written
+ * against.
+ *
+ * `background\s*:` does not match `background-color:` — the hyphen sits between the word and the
+ * colon — so listing both matches each once rather than double-counting.
+ */
+const CONTESTED = ['background-color', 'background', 'color', 'box-shadow'];
 
 /**
  * Rules deliberately left to lose, by name and with the reason — the shape `.oxlintrc.json` uses

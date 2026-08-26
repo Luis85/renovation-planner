@@ -155,13 +155,22 @@ const compoundsOf = (selector: string): Array<{ text: string; after: string }> =
  * not reached through `>`. `:not(.rp-harness-index)` in `theme.css`'s own growth chain is still
  * not a match — there the class sits in the LAST compound, with nothing after it at all.
  */
+/** A compound's TYPE selector — its leading element name, or '' when it has none. */
+const typeOf = (compound: string): string => (/^[a-zA-Z][\w-]*/.exec(compound) ?? [''])[0];
+
 const reachesTheStage = (selector: string): boolean => {
 	const compounds = compoundsOf(selector);
 	const at = compounds.findIndex((compound) => compound.text.includes('.rp-harness-index'));
 
 	if (at === -1 || at === compounds.length - 1) return false;
+	// A descendant hop reaches everything below, the stage included.
+	if (compounds[at].after !== '>') return true;
 
-	return compounds[at].after !== '>';
+	// Reached by `>`, so the question becomes WHICH child. Treating every child combinator as safe
+	// was the hole: `.rp-harness-index > main h2` and `.rp-harness-index > .rp-harness-stage h2`
+	// both take one `>` and then descend into the stage's own contents. The picker is the `nav`;
+	// the stage is the `main`; only the first is a safe place to start descending from.
+	return typeOf(compounds[at + 1].text) !== 'nav';
 };
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
@@ -189,6 +198,10 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// The SELECTOR-LIST form, which the single-argument case above does not exercise: its
 		// comma is what a raw prelude split cuts the selector in half on.
 		['a root inside a selector list', ':is(.rp-harness-index, .other) h2 { color: red; }'],
+		// One `>` and then a descent into the STAGE. The child combinator is not the guarantee —
+		// which child it names is.
+		['a descent through the stage element', '.rp-harness-index > main h2 { color: red; }'],
+		['a descent through the stage class', '.rp-harness-index > .rp-harness-stage h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
 		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});

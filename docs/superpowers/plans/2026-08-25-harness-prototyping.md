@@ -2101,6 +2101,13 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		// selector may be built out of an entry id.
 		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
 		expect(source).not.toMatch(/\[data-entry=/);
+		// Historical record, superseded in fix round 2. Both negatives above read RAW source,
+		// and `scripts/harness-shot.mjs` now names `firstElementChild` three times in prose —
+		// because fix round 2 RELAXED a phrasing contortion that existed only to avoid tripping
+		// this scan. Copied verbatim today this block fails, which is the same defect this plan
+		// records twice elsewhere: a substring scan firing on the explanation of its own rule.
+		// The committed test reads `withoutCommentary(source)` for both scans instead, so the
+		// prose is free to name what it forbids. See `tests/build/harness-shot.test.ts`.
 	});
 
 	/**
@@ -2325,6 +2332,13 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 		// Sanitising alone collapses `a-b/C` and `a/b-C` onto one filename, so the hash is
 		// what actually keeps two captures from overwriting each other.
 		expect(source).toContain('createHash');
+		// Historical record, superseded in fix round 1. Both the allowlist regex and
+		// `createHash` moved OUT of `harness-shot.mjs` into `scripts/entryShots.mjs` when the
+		// filename derivation was lifted into a pure importable module — so both assertions now
+		// name a file that contains neither, and `tests/build/harness-shot.test.ts` asserts
+		// `not.toContain('createHash')` on it. What replaced them is better than a rename:
+		// `tests/build/entryShots.test.ts` DRIVES the derivation, so the collision case and the
+		// full Windows-illegal set `< > : " / \ | ? *` are computed rather than text-matched.
 	});
 
 	it('still defines the five fixed shots, so an argumentless run is unchanged', () => {
@@ -2659,6 +2673,12 @@ Neither comment spells the opening template tag, either: `templateBlock()` locat
 regex, so a comment naming that tag would make the extraction start mid-comment. That is not
 hypothetical — writing this plan hit it.
 
+**Stage it as soon as it is written: `git add tests/fixtures/promotion/ZoneSummary.promoted.vue`.**
+Not tidiness — Step 8 deliberately mutates this file to watch the promotion assertion fail, and then
+reverts it. A revert needs something to revert TO, and an untracked file has no staged text, so the
+restore silently does nothing and the mutation survives into the final gate. Step 10 stages it again
+along with everything else, which is harmless.
+
 ```vue
 <script setup lang="ts">
 /**
@@ -2840,7 +2860,18 @@ Run: `npx vitest run tests/build/prototype-promotion.test.ts`
 Expected: FAIL on `leaves the template byte-identical`.
 
 This is the assertion the whole tree exists to protect, so it is the one that must be watched
-failing. Then revert: `git checkout tests/fixtures/promotion/ZoneSummary.promoted.vue`
+failing.
+
+**Then revert — and NOT with `git checkout`, which is why Step 2 stages the fixture.** This file is
+created by Step 2 of this same task, so at this point it is untracked unless Step 2's `git add` has
+run: `git checkout tests/fixtures/promotion/ZoneSummary.promoted.vue` on an untracked path fails
+with a pathspec error, changes nothing, and leaves the `Rooms` mutation in place — so the run
+reaches Step 11's full gate with the promotion test still red, and the cause is a revert that
+reported nothing rather than the fix being wrong.
+
+With Step 2's staging done, `git checkout -- tests/fixtures/promotion/ZoneSummary.promoted.vue`
+restores the staged text and is safe. If you skipped that staging, put `<h2>Zones</h2>` back by hand
+and confirm the test is green before moving on.
 
 - [ ] **Step 9: Prove the tree IS the registration, against the REAL glob**
 

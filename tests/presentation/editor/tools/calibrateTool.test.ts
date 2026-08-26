@@ -114,6 +114,23 @@ function click(tool: CalibrateTool, event: EditorPointerEvent): void {
 }
 
 /**
+ * Builds a `CalibrateTool` from `h`'s deps and activates it — the construction boilerplate
+ * every case below needs, with `supplyKnownDistance` overridable for the few that script
+ * their own answer instead of `harness()`'s queue. The one case that must NOT activate
+ * ("events before activate() belong to no editor…") builds its own tool directly instead.
+ */
+function newTool(h: Harness, supplyKnownDistance = h.supplyKnownDistance): CalibrateTool {
+	const tool = new CalibrateTool({
+		supplyKnownDistance,
+		createCommand: h.createCommand,
+		hasSpatialObjects: h.hasSpatialObjects,
+		confirmRecalibration: h.confirmRecalibration,
+	});
+	tool.activate(h.context);
+	return tool;
+}
+
+/**
  * Drains the gesture's microtask chain — `complete()` crosses an awaited supplier and
  * the dispatcher before its dispatch lands, so a single `await Promise.resolve()` races
  * it instead of awaiting it. Counted rounds rather than one long chain so each round is
@@ -129,14 +146,8 @@ describe('CalibrateTool', () => {
 	it('dispatches once after two clicks, with both worldPoints and the supplied distance', async () => {
 		const h = harness();
 		h.supplyNextDistance(3200);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
+		const tool = newTool(h);
 
-		tool.activate(h.context);
 		click(tool, at(812, 240));
 		await flush();
 		expect(h.dispatched).toHaveLength(0); // still waiting for the second point
@@ -162,16 +173,32 @@ describe('CalibrateTool', () => {
 		expect(h.supplierMeasurements).toEqual([800]);
 	});
 
+	it('a drag between the completing pointerDown and its pointerUp still calibrates from the press position', async () => {
+		const h = harness();
+		h.supplyNextDistance(3200);
+		const tool = newTool(h);
+		click(tool, at(812, 240));
+		tool.pointerDown(at(812, 1040)); // the press
+		tool.pointerUp(at(900, 1140)); // released elsewhere — a drag, not a click
+		await flush();
+
+		// The PRESS position, not the release position: `pendingCompletion.pointB` is
+		// captured at `pointerDown` time, and `pointerUp` must not re-read `event.worldPoint`.
+		expect(h.inputs[0]).toEqual({
+			planId: 'plan-1',
+			pointA: { x: 812, y: 240 },
+			pointB: { x: 812, y: 1040 },
+			knownDistance: 3200,
+		});
+		// The same claim from the derived measurement: press-to-press is 800; press-to-release
+		// would be about 904.3, so this discriminates even if only `inputs` were compared loosely.
+		expect(h.supplierMeasurements).toEqual([800]);
+	});
+
 	it('reads ONLY event.worldPoint — the conversion already happened upstream', async () => {
 		const h = harness();
 		h.supplyNextDistance(100);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		click(tool, at(0, 0));
 		click(tool, at(30, 40));
 		await flush();
@@ -181,13 +208,7 @@ describe('CalibrateTool', () => {
 	it('cancel after the first click clears the pending point and dispatches nothing', async () => {
 		const h = harness();
 		h.supplyNextDistance(100);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 
 		tool.pointerDown(at(1, 1));
 		tool.cancel();
@@ -202,13 +223,7 @@ describe('CalibrateTool', () => {
 	it('deactivate before the prompt clears a pending FIRST point and dispatches nothing', async () => {
 		const h = harness();
 		h.supplyNextDistance(100);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		tool.pointerDown(at(1, 1));
 		tool.deactivate();
 		tool.activate(h.context);
@@ -223,13 +238,7 @@ describe('CalibrateTool', () => {
 		const gate = new Promise<number | null>((resolve) => {
 			answer = resolve;
 		});
-		const tool = new CalibrateTool({
-			supplyKnownDistance: () => gate,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h, () => gate);
 		click(tool, at(812, 240));
 		click(tool, at(812, 1040)); // the gesture is now parked at the prompt
 		tool.deactivate();
@@ -246,13 +255,7 @@ describe('CalibrateTool', () => {
 	it('a cancelled distance prompt dispatches nothing', async () => {
 		const h = harness();
 		h.supplyNextDistance(null);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		click(tool, at(0, 0));
 		click(tool, at(10, 0));
 		await flush();
@@ -261,13 +264,7 @@ describe('CalibrateTool', () => {
 
 	it('coincident clicks never reach the prompt or the dispatcher', async () => {
 		const h = harness();
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		click(tool, at(5, 5));
 		click(tool, at(5, 5));
 		await flush();
@@ -279,13 +276,7 @@ describe('CalibrateTool', () => {
 		for (const bad of [-4, Number.NaN]) {
 			const h = harness();
 			h.supplyNextDistance(bad);
-			const tool = new CalibrateTool({
-				supplyKnownDistance: h.supplyKnownDistance,
-				createCommand: h.createCommand,
-				hasSpatialObjects: h.hasSpatialObjects,
-				confirmRecalibration: h.confirmRecalibration,
-			});
-			tool.activate(h.context);
+			const tool = newTool(h);
 			click(tool, at(0, 0));
 			click(tool, at(10, 0));
 			await flush();
@@ -309,13 +300,7 @@ describe('CalibrateTool', () => {
 
 	it('pointerMove and a pointerUp with no matching pointerDown are inert', () => {
 		const h = harness();
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		// No `pointerDown` precedes either call — the gesture no real mouse produces (a
 		// release with no matching press), and the one this project has already recorded
 		// once as a rig defect (CLAUDE.md, slice 8's e2e rig). `pointerUp` must not throw
@@ -330,13 +315,7 @@ describe('CalibrateTool', () => {
 	it('a gesture cancelled between the completing pointerDown and its pointerUp dispatches nothing', async () => {
 		const h = harness();
 		h.supplyNextDistance(3200);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		click(tool, at(812, 240));
 		// The second point's `pointerDown` buffers `pendingCompletion` — `complete()` has
 		// not started yet, which is the whole point of deferring it to `pointerUp`.
@@ -359,14 +338,9 @@ describe('CalibrateTool', () => {
 	it('a secondary or auxiliary button places nothing and never starts a gesture', async () => {
 		const h = harness();
 		h.supplyNextDistance(3200);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		tool.pointerDown({ ...at(812, 240), button: 'secondary' });
+		tool.pointerDown({ ...at(812, 1040), button: 'auxiliary' });
 		await flush();
 		// Not merely "did not dispatch": neither click may have become the pending FIRST
 		// point either, or the next primary click would complete a gesture over a point the
@@ -375,9 +349,9 @@ describe('CalibrateTool', () => {
 		expect(h.dispatched).toHaveLength(0);
 
 		click(tool, at(812, 240));
-		// The completing pointerDown, buffered — then a stray secondary/auxiliary release
-		// (a mouse shares one pointerId across its buttons) must not consume it early; only
-		// the matching primary release below may.
+		// The completing pointerDown, buffered — then a stray auxiliary release (a mouse
+		// shares one pointerId across its buttons) must not consume it early; only the
+		// matching primary release below may.
 		tool.pointerDown(at(812, 1040));
 		tool.pointerUp({ ...at(812, 1040), button: 'auxiliary' });
 		await flush();
@@ -399,19 +373,13 @@ describe('CalibrateTool', () => {
 			release = resolve;
 		});
 		const asked: number[] = [];
-		const tool = new CalibrateTool({
-			// Records the ask BEFORE blocking, so "was a second prompt opened?" is answerable
-			// while the first one is still outstanding — which is the whole question here.
-			supplyKnownDistance: async (measured) => {
-				asked.push(measured);
-				await held;
-				return h.supplyKnownDistance(measured);
-			},
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
+		// Records the ask BEFORE blocking, so "was a second prompt opened?" is answerable
+		// while the first one is still outstanding — which is the whole question here.
+		const tool = newTool(h, async (measured) => {
+			asked.push(measured);
+			await held;
+			return h.supplyKnownDistance(measured);
 		});
-		tool.activate(h.context);
 		click(tool, at(0, 0));
 		click(tool, at(0, 800));
 		await flush();
@@ -434,13 +402,7 @@ describe('CalibrateTool', () => {
 	it('the dispatched history entry undoes through the same command instance', async () => {
 		const h = harness();
 		h.supplyNextDistance(3200);
-		const tool = new CalibrateTool({
-			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
-			confirmRecalibration: h.confirmRecalibration,
-		});
-		tool.activate(h.context);
+		const tool = newTool(h);
 		click(tool, at(812, 240));
 		click(tool, at(812, 1040));
 		await flush();

@@ -64,6 +64,16 @@ export class CalibrateTool implements EditorTool {
 	 * way. `cancel()` clears it, which is what makes a `pointercancel` (routed here through
 	 * `EditorTool.cancel()`) or an intervening Escape leave a later, unmatched `pointerUp`
 	 * with nothing to complete.
+	 *
+	 * The converse — that a buffered completion IS always consumed by its own gesture's
+	 * release, rather than surviving to be picked up by the next click's `pointerUp` — is
+	 * not this tool's doing: it rests on `PlanCanvas`'s `setPointerCapture` on the down
+	 * event, which is what guarantees the matching `pointerup` (or a `pointercancel` if the
+	 * capture is broken) reaches this element even when the release happens outside the
+	 * pane. Without it a release outside `.rp-plan-canvas` fires neither — `onPointerLeave`
+	 * calls no `cancelGesture()` — and this buffer would sit until an unrelated later click's
+	 * release completed it. `SelectTool` already depends on the same capture; this tool had
+	 * nothing that did until this buffer existed.
 	 */
 	private pendingCompletion: { readonly pointA: Point; readonly pointB: Point } | null = null;
 	/**

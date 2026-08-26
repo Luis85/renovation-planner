@@ -20,6 +20,10 @@
  * shape the real Chromium defect took. The FINAL colour — that `--background-modifier-error`
  * really resolves to something other than `--interactive-normal` in a themed vault — is
  * unchecked here and remains a harness claim (this task's report).
+ *
+ * The specificity loss broke TWO declarations in the same rule, not one: `color` as well as
+ * `background-color`. Both are pinned below, for the same reason `background-color` alone
+ * would understate the regression.
  */
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -72,5 +76,12 @@ describe('the danger dialog button against Obsidian\'s own button rule', () => {
 		// browser before the fix.
 		expect(dangerBackground).toBe('var(--background-modifier-error)');
 		expect(dangerBackground).not.toBe(plainBackground);
+
+		// The same specificity loss took `color` down with it: Obsidian's
+		// `button:not(.clickable-icon)` also sets `color: var(--text-color)` at (0,1,1),
+		// which is what a bare `.rp-dialog-button-danger` (0,1,0) would have lost to just as
+		// it lost the background — reverting the selector makes this read `var(--text-color)`
+		// too.
+		expect(window.getComputedStyle(danger).color).toBe('var(--text-on-accent)');
 	});
 });

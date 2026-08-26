@@ -35,6 +35,13 @@ export interface CalibrateToolDeps {
 	readonly confirmRecalibration: () => Promise<boolean>;
 	/** Per gesture — the reversible command holds that one transaction's inverse state. */
 	readonly createCommand: () => CalibratePlanTransaction;
+	/**
+	 * Where a refused calibration reaches the user — a revision conflict on the sidecar (a
+	 * second leaf, a synced file, `plan-geometry.external-modification`) or a degenerate
+	 * scale the form's own guard let through. `DrawPolygonTool` and `SelectTool` carry the
+	 * identical seam for their own refused dispatches.
+	 */
+	readonly reportRejected: (error: { message: string }) => void;
 }
 
 /**
@@ -161,10 +168,11 @@ export class CalibrateTool implements EditorTool {
 		this.pendingCompletion = null;
 		if (context === null || pending === null) return;
 		// Deliberately fire-and-forget with NO catch: every EXPECTED refusal resolves
-		// through the returned `Result` (derivation, revision conflict), so a rejection
-		// here can only be an unexpected technical fault — and that stays loud as an
-		// unhandled rejection instead of being silently swallowed. Surfacing the Result
-		// itself is Inspector/slice-15 work; nothing renders feedback yet.
+		// through the returned `Result`, and `complete()` reports a refused one through
+		// `deps.reportRejected` — the same seam `DrawPolygonTool` and `SelectTool` use for
+		// their own refused dispatches. A rejection here can only be an unexpected
+		// technical fault, which stays loud as an unhandled rejection instead of being
+		// silently swallowed.
 		void this.complete(context, pending.pointA, pending.pointB);
 	}
 
@@ -231,6 +239,7 @@ export class CalibrateTool implements EditorTool {
 			execute: () => command.execute(input),
 			undo: () => command.undo(),
 		};
-		await context.commandDispatcher.run(gesture);
+		const result = await context.commandDispatcher.run(gesture);
+		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 }

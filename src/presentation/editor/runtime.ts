@@ -187,6 +187,7 @@ function registerEditorTools(
 				return result.values;
 			},
 			createCommand: () => context.commands.calibratePlan(),
+			reportRejected: (error) => notify(error.message),
 		}),
 	);
 }
@@ -212,6 +213,18 @@ async function reportFault(operation: Promise<VoidResult>): Promise<VoidResult |
 		notify(cause instanceof Error ? cause.message : String(cause));
 		return null;
 	}
+}
+
+/**
+ * `reportFault`'s other half: an EXPECTED refusal that RESOLVES rather than throws
+ * (SDD §65). `CommandHistory.undoNow`/`redoNow` deliberately leave a refused undo/redo ON
+ * its stack rather than popping it, so without this the button stays enabled, does
+ * nothing, and says nothing about why. A caller chains `notifyIfRefused(reportFault(op))`
+ * to cover both halves — throw and resolved refusal — in one line.
+ */
+async function notifyIfRefused(operation: Promise<VoidResult | null>): Promise<void> {
+	const result = await operation;
+	if (result !== null && !result.ok) notify(result.error.message);
 }
 
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
@@ -342,16 +355,16 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		activeToolId.value = id;
 	};
 
-	// `notify`, not a bare `void`: these two are bound straight to toolbar clicks, and
-	// `CommandHistory` deliberately lets an unexpected technical fault reject rather than
-	// resolve a `Result` (SDD §65). Without this the user's Undo press would produce an
-	// unhandled promise rejection and no word of what happened — the same seam every
-	// refused gesture in this leaf already reports through.
+	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
+	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
+	// refuses with a revision conflict whenever anything else has touched the plan's
+	// sidecar since (every zone create, move and delete does), and this is what makes THAT
+	// refusal say something rather than nothing.
 	async function undo(): Promise<void> {
-		await reportFault(wrappedDispatcher.undo());
+		await notifyIfRefused(reportFault(wrappedDispatcher.undo()));
 	}
 	async function redo(): Promise<void> {
-		await reportFault(wrappedDispatcher.redo());
+		await notifyIfRefused(reportFault(wrappedDispatcher.redo()));
 	}
 
 	async function deleteZone(zoneId: ZoneId): Promise<void> {

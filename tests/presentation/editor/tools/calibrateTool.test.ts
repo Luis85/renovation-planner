@@ -4,7 +4,8 @@ import type { EditorContext } from '../../../../src/presentation/editor/tools/ed
 import type { EditorPointerEvent } from '../../../../src/presentation/editor/tools/editor-tool';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
-import { ok } from '../../../../src/core/result/Result';
+import { err, ok } from '../../../../src/core/result/Result';
+import type { AppError } from '../../../../src/core/errors/AppError';
 import type {
 	CalibratePlanInput,
 	ReversibleCalibratePlanCommand,
@@ -23,6 +24,11 @@ interface Harness {
 	createCommand: () => ReversibleCalibratePlanCommand;
 	hasSpatialObjects: () => boolean;
 	confirmRecalibration: () => Promise<boolean>;
+	/** Every error `reportRejected` was called with, in call order. */
+	rejected: AppError[];
+	reportRejected: (error: AppError) => void;
+	/** Makes the NEXT dispatched command's `execute()` resolve this refusal instead of `ok`. */
+	failNextExecute: (error: AppError) => void;
 }
 
 /**
@@ -36,11 +42,16 @@ const harness = (): Harness => {
 	const state = { undos: 0 };
 	const measurements: number[] = [];
 	const answers: (number | null)[] = [];
+	const rejected: AppError[] = [];
+	/** Set by `failNextExecute`; consumed (and cleared) by the next `execute()` call. */
+	let nextExecuteFailure: AppError | null = null;
 
 	const commandInstance = {
 		execute: (input: CalibratePlanInput) => {
 			inputs.push(input);
-			return Promise.resolve(ok(undefined));
+			const failure = nextExecuteFailure;
+			nextExecuteFailure = null;
+			return Promise.resolve(failure === null ? ok(undefined) : err(failure));
 		},
 		undo: () => {
 			state.undos += 1;
@@ -88,6 +99,11 @@ const harness = (): Harness => {
 			return Promise.resolve(answers.shift() ?? null);
 		},
 		createCommand: () => commandInstance,
+		rejected,
+		reportRejected: (error) => rejected.push(error),
+		failNextExecute: (error) => {
+			nextExecuteFailure = error;
+		},
 		// Permissive defaults: no existing case here is about the recalibration gate, so
 		// neither asking nor declining should change what any of them were testing.
 		hasSpatialObjects: () => false,
@@ -125,6 +141,7 @@ function newTool(h: Harness, supplyKnownDistance = h.supplyKnownDistance): Calib
 		createCommand: h.createCommand,
 		hasSpatialObjects: h.hasSpatialObjects,
 		confirmRecalibration: h.confirmRecalibration,
+		reportRejected: h.reportRejected,
 	});
 	tool.activate(h.context);
 	return tool;
@@ -291,6 +308,7 @@ describe('CalibrateTool', () => {
 			createCommand: h.createCommand,
 			hasSpatialObjects: h.hasSpatialObjects,
 			confirmRecalibration: h.confirmRecalibration,
+			reportRejected: h.reportRejected,
 		});
 		tool.pointerDown(at(1, 1));
 		tool.pointerDown(at(2, 2));
@@ -413,6 +431,40 @@ describe('CalibrateTool', () => {
 		if (!result.ok) throw new Error('expected ok');
 		expect(h.undoCount).toBe(1);
 	});
+
+	/**
+	 * A refused dispatch — a sidecar revision conflict, `plan-geometry.external-modification`,
+	 * a degenerate scale — used to vanish silently: the gesture's own `Result` was discarded
+	 * with no seam to report it through. `DrawPolygonTool` and `SelectTool` both surface a
+	 * refused dispatch through `reportRejected`; this is the same wiring for `CalibrateTool`.
+	 */
+	it('reports a refused dispatch through reportRejected', async () => {
+		const h = harness();
+		h.supplyNextDistance(3200);
+		h.failNextExecute({ category: 'Persistence', code: 'plan.revision-conflict', message: 'stale' });
+		const tool = newTool(h);
+
+		click(tool, at(0, 0));
+		click(tool, at(100, 0));
+		await flush();
+
+		expect(h.dispatched).toHaveLength(1); // dispatched — and refused, not silently dropped
+		expect(h.rejected).toHaveLength(1);
+		expect(h.rejected[0]?.message).toBe('stale');
+	});
+
+	it('reports nothing on a successful dispatch', async () => {
+		const h = harness();
+		h.supplyNextDistance(3200);
+		const tool = newTool(h);
+
+		click(tool, at(0, 0));
+		click(tool, at(100, 0));
+		await flush();
+
+		expect(h.dispatched).toHaveLength(1);
+		expect(h.rejected).toHaveLength(0);
+	});
 });
 
 /**
@@ -437,6 +489,7 @@ function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalib
 		createCommand: h.createCommand,
 		hasSpatialObjects: overrides.hasSpatialObjects,
 		confirmRecalibration: overrides.confirmRecalibration,
+		reportRejected: h.reportRejected,
 	});
 	tool.activate(h.context);
 	return { tool, dispatched: h.dispatched, distancePrompts: () => distancePromptCount };

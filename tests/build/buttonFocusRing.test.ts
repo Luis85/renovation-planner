@@ -664,6 +664,13 @@ describe('a flattened button and its focus ring', () => {
 		'outline-color: red',
 		'outline-width: 2px',
 		'outline-color: red; outline-width: 2px',
+		// A `box-shadow` is painted OUTSIDE the border box and clipped inside it, so a shadow that
+		// never reaches the edge draws nothing. With the offsets and the blur at zero the spread is
+		// the only thing that can push it out, and a negative one pulls it in: this contracts a pixel
+		// inside the box and paints nothing at all, while reading as a deliberate red ring. The test
+		// was "not every component is zero", which catches `0 0 0 0` and credits this.
+		'box-shadow: 0 0 0 -1px red',
+		'box-shadow: 0 0 0 -0.5em red',
 	])('does not count %s as a ring', (declarations) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
 	});

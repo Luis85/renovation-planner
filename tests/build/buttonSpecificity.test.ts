@@ -40,7 +40,7 @@ import { buttonClasses, buttonClassesOn, sheets, targetsAButton } from '../helpe
 const OBSIDIAN_BUTTON = [0, 1, 1] as const;
 
 /**
- * The properties that rule actually sets, plus the SHORTHAND that resets one of them.
+ * The properties that rule actually sets, plus the SHORTHANDS that reset them.
  *
  * `background: transparent` sets the `background-color` longhand and competes exactly as the
  * longhand does, so a rule spelled that way was skipped entirely — the scan recognised only the
@@ -48,10 +48,17 @@ const OBSIDIAN_BUTTON = [0, 1, 1] as const;
  * the same reason every other hole here was reachable: a check sees the spellings it was written
  * against.
  *
+ * `all` is that hole one shorthand further out, and it is the widest one there is: `all: unset`
+ * resets EVERY property, all three contested ones included, so a bare class spelled that way loses
+ * each of them to Obsidian's more specific rule — the exact cascade defect this gate exists to
+ * reject — while declaring none of them by name and being skipped. It is listed rather than
+ * detected, because a shorthand's longhands are not something the parsed declaration announces;
+ * the entry is cheap and the next one costs the same.
+ *
  * `background\s*:` does not match `background-color:` — the hyphen sits between the word and the
  * colon — so listing both matches each once rather than double-counting.
  */
-const CONTESTED = new Set(['background-color', 'background', 'color', 'box-shadow']);
+const CONTESTED = new Set(['background-color', 'background', 'color', 'box-shadow', 'all']);
 
 /**
  * Rules deliberately left to lose, by name and with the reason — the shape `.oxlintrc.json` uses
@@ -439,24 +446,58 @@ describe('the instrument', () => {
 	});
 });
 
-describe('every button rule against Obsidian\'s own', () => {
-	it('outranks button:not(.clickable-icon) wherever it sets a property that rule also sets', () => {
-		const classes = buttonClasses();
-		const losing: string[] = [];
+/**
+ * The governed button rules that fail to outrank Obsidian's own, each named by where it sits.
+ *
+ * Extracted so a FIXTURE can drive it, for the reason the sibling file gives about
+ * `flattenedWithoutRing`: the real sheets cannot show a defect they do not contain, and every rule
+ * in them already outranks the threshold — so the `CONTESTED` filter could stop recognising a
+ * spelling and this scan would go on reporting nothing at all. Which is what it did for
+ * `background:` until review found it, and for `all:` until the round after that.
+ */
+const losingButtonRules = (scanned: readonly (readonly [string, string])[], classes: Set<string>): string[] => {
+	const losing: string[] = [];
 
-		for (const sheet of sheets) {
-			for (const rule of stylesheetRules(readFileSync(sheet, 'utf8'))) {
-				if (!rule.declarations.some((declaration) => CONTESTED.has(propertyOf(declaration)))) continue;
+	for (const [where, css] of scanned)
+		for (const rule of stylesheetRules(css)) {
+			if (!rule.declarations.some((declaration) => CONTESTED.has(propertyOf(declaration)))) continue;
 
-				for (const selector of rule.selectors) {
-					if (!isGoverned(selector, classes)) continue;
-					if (!moreSpecific(specificityOf(selector), OBSIDIAN_BUTTON)) losing.push(`${sheet}: ${show(selector)}`);
-				}
+			for (const selector of rule.selectors) {
+				if (!isGoverned(selector, classes)) continue;
+				if (!moreSpecific(specificityOf(selector), OBSIDIAN_BUTTON)) losing.push(`${where}: ${show(selector)}`);
 			}
 		}
 
-		expect(losing).toEqual([]);
+	return losing;
+};
+
+describe('every button rule against Obsidian\'s own', () => {
+	it('outranks button:not(.clickable-icon) wherever it sets a property that rule also sets', () => {
+		expect(
+			losingButtonRules(
+				sheets.map((sheet) => [sheet, readFileSync(sheet, 'utf8')] as const),
+				buttonClasses(),
+			),
+		).toEqual([]);
 	});
+
+	/**
+	 * The SPELLINGS a contested property arrives in. Each of these loses all three of Obsidian's
+	 * properties at (0,1,0) and declares none of them by name, so each was skipped entirely — the
+	 * scan reporting nothing, which is indistinguishable from the scan being satisfied.
+	 *
+	 * `all: unset` is the widest of them and the reason this case is an `each` rather than one
+	 * assertion: the hole is not "one shorthand was forgotten", it is that a shorthand's longhands
+	 * are not something a parsed declaration announces, so every one of them has to be listed.
+	 */
+	it.each(['background: transparent', 'all: unset', 'all: revert', 'color: red'])(
+		'reports a bare button class that loses %s',
+		(declaration) => {
+			expect(
+				losingButtonRules([['fixture', `.rp-editor-tool-button { ${declaration} }`]], new Set(['.rp-editor-tool-button'])),
+			).toEqual(['fixture: .rp-editor-tool-button']);
+		},
+	);
 
 
 	/**

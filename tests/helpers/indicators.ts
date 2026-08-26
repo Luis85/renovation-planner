@@ -48,6 +48,30 @@ const isZero = (length: { type: string; value?: unknown }): boolean =>
 	length.type === 'value' && (length.value as { value: number }).value === 0;
 
 /**
+ * Does this shadow SPILL PAST THE BOX — the only part of an outset shadow anyone can see?
+ *
+ * A `box-shadow` is painted outside the border box and clipped inside it, so a shadow that never
+ * reaches past the edge draws nothing at all. With every offset and the blur at zero, the spread
+ * is the only thing that can push it out, and a spread of zero or less cannot:
+ * `box-shadow: 0 0 0 -1px red` contracts the shadow a pixel INSIDE the box and paints nothing,
+ * while reading as a deliberate red ring. The test used to be "not every component is zero", which
+ * caught `0 0 0 0 red` and credited that one.
+ *
+ * THE CEILING, stated because the safe direction here is refusal: a shadow that is offset or
+ * blurred is credited whatever its spread, so `1px 0 0 -5px red` — contracted further than it is
+ * offset, and equally invisible — still counts. Deciding that needs the element's rendered size,
+ * which no stylesheet holds and no gate here can reach.
+ */
+const spills = (shadow: {
+	xOffset: { type: string; value?: unknown };
+	yOffset: { type: string; value?: unknown };
+	blur: { type: string; value?: unknown };
+	spread: { type: string; value?: unknown };
+}): boolean =>
+	![shadow.xOffset, shadow.yOffset, shadow.blur].every((length) => isZero(length)) ||
+	!(shadow.spread.type === 'value' && (shadow.spread.value as { value: number }).value <= 0);
+
+/**
  * Would this colour paint anything?
  *
  * The parser folds every spelling of a fully transparent colour to the same node — `transparent`,
@@ -133,11 +157,7 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 			continue;
 		}
 		if (declaration.property === 'box-shadow') {
-			shadow = declaration.value.some(
-				(one) =>
-					paints(one.color) &&
-					![one.xOffset, one.yOffset, one.blur, one.spread].every((length) => isZero(length)),
-			);
+			shadow = declaration.value.some((one) => paints(one.color) && spills(one));
 			continue;
 		}
 		if (declaration.property !== 'unparsed') continue;

@@ -50,4 +50,10 @@ describe('unavailablePlanEditorCommands', () => {
 
 		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
 	});
+
+	it('refuses a calibration undo when settings could not be recovered', async () => {
+		const result = await unavailablePlanEditorCommands().calibratePlan().undo();
+
+		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+	});
 });

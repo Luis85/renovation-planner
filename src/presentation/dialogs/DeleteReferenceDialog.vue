@@ -40,8 +40,8 @@ const ACTIONS = [
 		</p>
 		<ul class="rp-dialog-references">
 			<li
-				v-for="row in descriptor.references"
-				:key="row.label"
+				v-for="(row, index) in descriptor.references"
+				:key="index"
 				class="rp-dialog-reference-row"
 			>
 				<span>{{ row.label }}</span>

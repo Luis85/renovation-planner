@@ -49,7 +49,7 @@ function onSubmit(): void {
 		@submit.prevent="onSubmit"
 	>
 		<p class="rp-dialog-message">
-			{{ tr('editor.calibrate.distance.measured') }}: {{ measuredLabel }}
+			{{ tr('editor.calibrate.distance.measured') }} {{ measuredLabel }}
 		</p>
 		<label class="rp-dialog-field">
 			{{ tr('editor.calibrate.distance.label') }}

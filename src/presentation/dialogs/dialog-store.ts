@@ -4,9 +4,14 @@ import { shallowRef, type Component } from 'vue';
 /**
  * The plugin's one dialog framework (design slice 15). Everything here is DISPLAY state:
  * which descriptor is open, and the resolver of the Promise the opener is awaiting.
- * Nothing in this directory reads a repository, runs a query, dispatches a command or
- * reaches the event bus — `eslint.config.mjs` has a block for `presentation/dialogs/` that
- * makes that a build failure rather than a review note.
+ * `eslint.config.mjs` has a block for `presentation/dialogs/` that fails the build on an
+ * import naming `application`, `infrastructure`, `plugin` or `core/events` — a repository,
+ * an application-layer command or query, or the event bus reached from here would put a
+ * domain decision inside a dialog. That is what the block actually delivers, and no wider:
+ * the dispatcher lives in `presentation/editor/`, and
+ * `presentation/read-models/planEditorQueries.ts` is a presentation-layer query surface, so
+ * a dispatch or a query reached through either of those is importable from this directory
+ * today and is a review question, not a compiler one.
  *
  * Every user-facing field below is a RESOLVED string, never a `StringKey`. A dialog's
  * title is usually built from a specific entity's name, so the caller — which knows both
@@ -68,10 +73,12 @@ export interface FormDescriptor {
 }
 
 /**
- * THE EXTENSION POINT. A new dialog kind is TWO additions and nothing else: a member here
- * and its result type in `DialogResultByKind`. `DialogHost` and `cancelResultFor` both
- * switch on `kind` exhaustively, so a member added without a result entry fails to compile
- * rather than falling through to a blank dialog.
+ * THE EXTENSION POINT. A new dialog kind is FIVE additions, not two: a member here, its
+ * result type in `DialogResultByKind`, a case in `cancelResultFor`, a branch in
+ * `DialogHost`, and the kind component itself. `DialogHost` and `cancelResultFor` both
+ * switch on `kind` exhaustively, so a member added without the other three fails to compile
+ * rather than falling through to a blank dialog — four of the five are build failures if
+ * forgotten; only the component file is not something the compiler makes you write.
  */
 export type DialogDescriptor =
 	| ConfirmDescriptor
@@ -194,8 +201,11 @@ export const useDialogStore = defineStore('dialog', () => {
 	}
 
 	/**
-	 * Called by `DialogHost` alone — see its header for why the host settles rather than
-	 * each kind component.
+	 * Called by `DialogHost` alone, BY CONVENTION — see its header for why the host settles
+	 * rather than each kind component. Nothing enforces the exclusivity: `resolve` is a
+	 * public store member and `current` comes back from `storeToRefs` as a writable ref, so
+	 * any other holder of the store could settle or strand a pending dialog. Not worth a
+	 * mechanism for a one-caller store; worth saying plainly that it is not one.
 	 *
 	 * `current` is cleared before `pending(result)` runs. What makes the Reassign branch
 	 * of the delete flow work — opening the next dialog the instant the awaited promise

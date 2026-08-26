@@ -88,6 +88,15 @@ let previouslyFocused: HTMLElement | null = null;
  * only because nothing else in this app sets `inert` on a sibling of a dialog host today;
  * a sibling that needed to stay inert for some OTHER reason while this dialog closes would
  * need this to track that instead of blindly clearing every element it backgrounded.
+ *
+ * It is also a SNAPSHOT taken once, when `inertBackground` runs at open time — not
+ * re-derived while the dialog stays open. A sibling added afterward by a `v-if` that flips
+ * while a dialog is open never goes `inert`, and a sibling removed afterward leaves
+ * `releaseBackground` clearing the attribute off a detached node. Harmless today: the Plan
+ * Editor's only conditional root-level siblings are non-focusable `<p>`s, and `ViewRoot` has
+ * none. A control added at either view's root by a later slice must account for this rather
+ * than assume the list stays current — re-deriving it in the `current` watcher would be a
+ * behaviour change, not a comment fix.
  */
 let backgrounded: HTMLElement[] = [];
 

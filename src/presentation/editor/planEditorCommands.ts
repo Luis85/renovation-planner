@@ -79,6 +79,8 @@ type CreateZoneResult = Awaited<ReturnType<PlanEditorCommandServices['createZone
 type MoveObjectResult = Awaited<ReturnType<PlanEditorCommandServices['moveObject']['execute']>>;
 type DeleteZoneResult = Awaited<ReturnType<PlanEditorCommandServices['deleteZone']['execute']>>;
 type ZoneInspectorResult = Awaited<ReturnType<PlanEditorCommandServices['zoneInspector']['execute']>>;
+type CalibratePlanExecuteResult = Awaited<ReturnType<CalibratePlanTransaction['execute']>>;
+type CalibratePlanUndoResult = Awaited<ReturnType<CalibratePlanTransaction['undo']>>;
 
 /**
  * The write side for a session whose settings could not be recovered — the same refusal
@@ -134,11 +136,11 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 			},
 		},
 		calibratePlan: () => ({
-			execute(): Promise<Result<void, PersistenceError>> {
-				return Promise.resolve(err(persistenceFailure()));
+			execute(): Promise<CalibratePlanExecuteResult> {
+				return Promise.resolve(err(persistenceFailure()) as CalibratePlanExecuteResult);
 			},
-			undo(): Promise<Result<void, PersistenceError>> {
-				return Promise.resolve(err(persistenceFailure()));
+			undo(): Promise<CalibratePlanUndoResult> {
+				return Promise.resolve(err(persistenceFailure()) as CalibratePlanUndoResult);
 			},
 		}),
 	};

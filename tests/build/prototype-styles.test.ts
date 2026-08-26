@@ -113,6 +113,29 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g;
 const styleBlocks = (sfc: string) =>
 	sfc.replace(HTML_COMMENT, '').match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
 
+/** A rule's prelude — the text before its `{`. At-rule preludes are matched too and filtered out. */
+const RULE_PRELUDE = /([^{}]+)\{/g;
+
+/** The selectors a style block declares, at any nesting depth, with at-rules skipped. */
+const selectorsIn = (block: string): string[] =>
+	[
+		...block
+			.replace(/^<style[^>]*>/, '')
+			.replace(/<\/style>$/, '')
+			.replace(CSS_COMMENT, '')
+			.matchAll(RULE_PRELUDE),
+	]
+		.map(([, prelude]) => prelude.trim())
+		.filter((prelude) => prelude !== '' && !prelude.startsWith('@'))
+		.flatMap((list) => list.split(',').map((one) => one.trim()))
+		.filter(Boolean);
+
+/**
+ * A selector's SUBJECT — its final compound, which is what the selector actually styles and
+ * what Vue attaches the scope attribute to.
+ */
+const subjectOf = (selector: string): string => selector.split(/[\s>+~]+/).filter(Boolean).at(-1) ?? '';
+
 /** An attribute NAME in an opening tag — the value, quoted or not, is consumed and discarded. */
 const ATTRIBUTE = /([\w:@.-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g;
 
@@ -171,6 +194,17 @@ const used = new Map(
  * passing after the rule that styled it was removed. That is the failure mode this whole file
  * exists to catch, arriving through its own instrument.
  */
+/**
+ * Every class the REAL components use, read with the same function that reads a mock's — so
+ * "a class a real component uses" means the same thing on both sides of the rule below.
+ *
+ * Recursive, like the prototype walk: `src/presentation/` is nested and a flat read would make
+ * the rule quietly weaker the deeper a component sits.
+ */
+const componentClasses = new Set(
+	walk('src/presentation').flatMap((file) => classesUsedBy(readFileSync(file, 'utf8'))),
+);
+
 const declared = new Set(
 	[...assembleStyles().replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
 );
@@ -190,6 +224,10 @@ describe('a prototype and the sheet that styles it', () => {
 		// stopped matching would silently hand every scripted mock an empty `own` set, turning
 		// the relaxation this file was rewritten for back into a failure nobody could read.
 		expect([...used.values()].some(({ own }) => own.size > 0)).toBe(true);
+		// And the real components' side of the isolation rule, which would be vacuous if the walk
+		// or the reader came back empty — the rule would then permit every class in the tree.
+		expect(componentClasses.size).toBeGreaterThan(0);
+		expect(componentClasses.has('rp-editor-status-bar')).toBe(true);
 	});
 
 	/**
@@ -204,6 +242,45 @@ describe('a prototype and the sheet that styles it', () => {
 	 * A mock with no block at all passes: the rule is about what a block must be, not about
 	 * having one.
 	 */
+	/**
+	 * `scoped` stops a mock's rules reaching the next ENTRY. It does not stop them reaching a
+	 * real component this one composes: Vue applies the parent's scope attribute to a child
+	 * component's ROOT element, by design, so `.rp-panel footer { … }` around a composed
+	 * `<StatusBar />` — whose root is a `<footer>` — still restyles it. That is criterion 5's
+	 * promise broken from inside the mock rather than across a navigation, and the scoping case
+	 * below cannot see it.
+	 *
+	 * Two rules close it, both about what a selector may be rather than what it happens to hit
+	 * today, since the composed component is chosen by the template and can change:
+	 *
+	 * The SUBJECT must carry a class. A bare element subject is the shape that reaches a child
+	 * root by accident, and a class of the mock's own is a thing a real component does not have.
+	 */
+	it.each(prototypes)('%s styles nothing by element alone', (file) => {
+		const bareSubjects = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8'))
+			.flatMap((block) => selectorsIn(block))
+			.filter((selector) => !/\.[A-Za-z_-]/.test(subjectOf(selector)));
+
+		expect(bareSubjects).toEqual([]);
+	});
+
+	/**
+	 * And no class it declares may be one a REAL component uses. The subject rule above stops a
+	 * mock reaching a child root by element; this stops it doing so by name — which is the more
+	 * likely spelling, because a designer wanting to nudge a composed component reaches for that
+	 * component's own class.
+	 *
+	 * Declaring, not using: a mock may name a real component's class in its MARKUP (laying one
+	 * out is legitimate). Putting a rule on it is what criterion 5 refuses.
+	 */
+	it.each(prototypes)('%s declares no class a real component uses', (file) => {
+		const declaredHere = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8')).flatMap((block) =>
+			[...block.replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
+		);
+
+		expect(declaredHere.filter((name) => componentClasses.has(name))).toEqual([]);
+	});
+
 	it.each(prototypes)('%s scopes every style block it has', (file) => {
 		const unscoped = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8'))
 			.map((block) => block.match(/<style[^>]*>/)?.[0] ?? '')

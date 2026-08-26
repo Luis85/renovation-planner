@@ -114,10 +114,21 @@ const runOptions: Parameters<typeof axe.run>[1] = {
 };
 
 /** One state of the index, scanned and torn down — the mount must not outlive the scan. */
+/**
+ * `document.body`, not the wrapper's own element.
+ *
+ * `<Teleport>` is a Vue built-in and a dialog, menu or tooltip is exactly what a prototype
+ * would reach for it with — and teleported content renders OUTSIDE the mounted tree, so a scan
+ * of `wrapper.element` stays green over an unlabelled button that a person can see and press.
+ * `openIndex` attaches its host to the body, so the body holds the mount AND anything it
+ * teleported, and `beforeEach` empties it between cases.
+ */
+const scanBody = () => axe.run(document.body, runOptions);
+
 const scan = async (query: string) => {
 	const wrapper = await openIndex(query);
 	try {
-		return await axe.run(wrapper.element as HTMLElement, runOptions);
+		return await scanBody();
 	} finally {
 		wrapper.unmount();
 	}
@@ -297,7 +308,7 @@ describe('axe against the harness index', () => {
 			expect(wrapper.find('.rp-harness-failure').exists(), `${id} did not open`).toBe(false);
 			expect(wrapper.find('.rp-harness-stage').attributes('data-entry')).toBe(id);
 
-			const results = await axe.run(wrapper.element as HTMLElement, runOptions);
+			const results = await scanBody();
 
 			expect(results.violations).toEqual([]);
 		} finally {

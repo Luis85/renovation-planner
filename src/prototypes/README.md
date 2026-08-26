@@ -75,6 +75,18 @@ inherits provisional rules, making what it looks like depend on the order entrie
 That is criterion 5's guarantee broken by the mechanism meant to be free.
 `tests/build/prototype-styles.test.ts` refuses an unscoped block.
 
+**And `scoped` alone is not enough, which is the part worth reading twice.** Vue applies the
+parent's scope attribute to a child component's ROOT element, by design — so a mock's rule can
+still reach a real component it composes, without crossing any navigation. Two rules close that,
+both checked:
+
+- **Every selector's subject carries a class.** `.rp-panel footer { … }` around a composed
+  `<StatusBar />`, whose root is a `<footer>`, restyles it; `.rp-panel .rp-panel__footer` cannot.
+- **No class a mock declares is one a real component uses.** That is the likelier spelling,
+  because a designer wanting to nudge a composed component reaches for that component's class.
+  Naming it in MARKUP stays legal — laying a composed component out is legitimate; putting a
+  rule on it is what criterion 5 refuses.
+
 **A `styles/` partial plus an `@import` in `styles/index.css`** — the assembler fails the build
 on a partial nothing imports, which is what stops that edit being half-done.
 `styles/work-packages.css` and `styles/zone-panel.css` are the worked examples. Reach for this

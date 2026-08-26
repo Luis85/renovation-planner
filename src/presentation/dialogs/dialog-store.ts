@@ -121,13 +121,19 @@ export interface DialogResultByKind {
 
 export type DialogResult = DialogResultByKind[DialogDescriptor['kind']];
 
-// No caller outside this file names `DialogResultFor` yet — this task is the slice's root
-// and nothing consumes it. `openDialog` below already depends on it (that is what keeps
-// its return type precise per descriptor), and a real external consumer arrives with the
-// dialog components later in this slice; deleting the alias now would just be re-adding it
-// then.
-// fallow-ignore-next-line unused-type
-export type DialogResultFor<D extends DialogDescriptor> = DialogResultByKind[D['kind']];
+/**
+ * What `openDialog` resolves for ONE descriptor, which is what keeps its return type precise
+ * per kind instead of the whole `DialogResult` union.
+ *
+ * Module-private, and the `fallow-ignore` suppression that used to sit here went with the
+ * `export`. It was public against a predicted consumer — "a real external consumer arrives
+ * with the dialog components later in this slice" — and the slice is finished: all four kind
+ * components, `DialogHost` and the calibration caller are in, and not one of them names it.
+ * A caller awaiting `openDialog` gets the precise type by inference without ever spelling
+ * this. Export it again when something genuinely needs to be generic over a descriptor;
+ * until then a suppressed dead export is a worse thing to carry than a re-add.
+ */
+type DialogResultFor<D extends DialogDescriptor> = DialogResultByKind[D['kind']];
 
 /**
  * What "the user cancelled" means in each kind's own result shape.

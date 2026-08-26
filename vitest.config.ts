@@ -386,6 +386,28 @@ export default defineConfig({
 			// Branches therefore remain the metric to watch, at 98.02 against a floor of 98 —
 			// about 0.4 of a branch of headroom, unchanged by the merge. One new uncovered
 			// branch fails this gate. Plan the test with the code.
+			//
+			// Measured 2026-08-27 at the end of design slice 14 — the two central views' empty
+			// states: `EmptyState.vue`, the typed content registry, the two pure selectors,
+			// `RenovationProjectView`'s first data dependency (`ListProjectsQuery` and its
+			// store), and `ProjectStore.emptyStateKey` as a getter over state it already
+			// hydrates: 4197/4227 statements, 2075/2116 branches, 1066/1076 functions,
+			// 3755/3773 lines — 99.29 / 98.06 / 99.07 / 99.52. NOTHING RATCHETS: rounded down
+			// these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// Every file this slice added is at 100% branches (`emptyStates/content.ts`,
+			// `resolve.ts`, `selectors.ts`, `RenovationProjectStore.ts`,
+			// `RenovationProjectContext.ts`, `RenovationProjectView.ts`,
+			// `renovationProjectQueries.ts`); the slice contributed no new uncovered arm.
+			// `ProjectStore.ts`'s single uncovered branch (20/19) is the pre-existing
+			// concurrent-hydrate ticket check at its second `superseded()` guard — reachable
+			// only by a hydration superseded strictly between `getPlan` and
+			// `findZonesByPlan` resolving, unchanged by this slice.
+			//
+			// Branches remain the metric to watch and are tighter than before: at n=2116 a
+			// branch is 0.047pp, so 98.06 against the 98 floor is only about 1.3 branches of
+			// headroom — the smallest margin this file has recorded. One new uncovered branch
+			// still fails this gate.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -563,6 +563,51 @@ export interface RenovationProjectQueryServices {
 8. `npm run check` (build, lint including the layer-dependency rules, coverage-
    thresholded tests, fallow) passes with this slice's code included.
 
+### Status (2026-08-27)
+
+All eight items are met, verified against the code rather than assumed:
+
+1. **Met.** `EmptyState.vue` (`src/presentation/components/`) is imported by
+   `ViewRoot.vue` (the Renovation Project view's root) and by `PlanEditorRoot.vue`;
+   `tests/presentation/components/emptyState.test.ts` drives the h2, the conditional
+   button, the one-event-per-click, and the untouched icon slot.
+2. **Met.** `EMPTY_STATE_CONTENT` holds exactly the three entries, typed as `StringKey`s;
+   `en.ts` and `de.ts` both carry all six keys the registry names, and
+   `planEditor.noBackground` and `planEditor.noZones` resolve to distinct headline/body
+   pairs in each locale.
+3. **Met.** `selectors.ts`'s table-driven tests cover all four `background`×`zones.length`
+   combinations plus `plan === null`, asserting the `null` case returns no key rather than
+   `'noBackground'`.
+4. **Met.** `RenovationProjectView`'s constructor takes a `ListProjectsQuery`;
+   `renovationProjectQueries.ts`/`RenovationProjectStore` hydrate it and `ViewRoot.vue`
+   renders `renovationProject.noProjects` on an empty result.
+5. **Met.** `PlanCanvas` mounts on `status === 'ready'` unconditionally;
+   `emptyStateOverlay.test.ts` asserts both overlays render/hide per the precedence table
+   and that the tool-active gate (`activeToolId !== null`) hides either one, with no
+   change to the five-region shell.
+6. **Met, by the narrower instrument the self-review notes already flagged.** The claim is
+   held at the store (`status === 'failed'` never computes a non-null `emptyStateKey`,
+   `renovationProjectStore.test.ts` and `stores.test.ts`), not by spying on a selector
+   import binding — narrower than the spec's literal wording, and said so rather than
+   silently.
+7. **Met, and the amendment widens what "met" covers.** Only `planEditor.noZones` ships an
+   action at all: its click sets `activeToolId = 'draw-polygon'` exactly once
+   (`emptyStateOverlay.test.ts`). `renovationProject.noProjects` **and**
+   `planEditor.noBackground` both render no button and have nothing to wire — the first
+   because its hand-off (slice 16's creation form) does not exist and itself depends on
+   slice 11; the second because slice 5's background picker is a plugin command the
+   editor's Vue tree cannot reach without widening `PlanEditorContext` or reaching for the
+   global `app`. Neither absence is a gap this slice left; both are Amendment 1's decision,
+   taken before implementation.
+8. **Met.** `npm run check` passes in full — see the slice's closing report
+   (`.superpowers/sdd/2026-08-26-slice-14-empty-states/task-9-report.md`) for the coverage
+   figures. Nothing ratchets: measured 99.29 / 98.06 / 99.07 / 99.52, which round down to
+   the 99 / 98 / 99 / 99 floors already in force.
+
+Nothing is left open. Unlike slice 15, this slice's Definition of Done was written and
+amended (2026-08-26) before implementation started, so there was no contract for a later
+amendment to outrun.
+
 ## References
 
 - PRD §94 Empty States — the one-sentence requirement this slice satisfies ("Every

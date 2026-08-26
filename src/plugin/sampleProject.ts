@@ -24,14 +24,16 @@ import type { PluginCommandHost } from './commandHost';
  * zones drawn by type and status, layer toggling, pan and zoom, a rendered background —
  * had never been seen in the app. The suite passing is exactly why that went unnoticed.
  *
- * **What replaces it, so this does not become permanent by default:** slice 14's empty
- * states wire a "create a project" action to `createProject`, and slice 16's creation forms
- * give a real project and plan their names. Slice 15 has landed and is NOT that: it built
- * the dialog framework those forms will be mounted in, so the framework is ready and the
- * forms are still owed. When a user can create a project and a plan through
- * either of those, delete this module and its command; nothing else imports it. What it
- * cannot be replaced by yet is a zone — a zone needs a polygon, and drawing one is slices
- * 6 and 8. Until then a seeded flat is the only way zones exist at all.
+ * **What replaces it, so this does not become permanent by default:** slice 16's creation
+ * forms give a real project and plan their names. Slice 14 has landed and is NOT that:
+ * `renovationProject.noProjects` ships with no action at all (Amendment 1, 2026-08-26) —
+ * its hand-off is this very form, and the form does not exist yet, so there is nothing to
+ * wire. Slice 15 has landed and is not that either: it built the dialog framework those
+ * forms will be mounted in, so the framework is ready and the forms are still owed. When a
+ * user can create a project and a plan through one of those forms, delete this module and
+ * its command; nothing else imports it. What it cannot be replaced by yet is a zone — a
+ * zone needs a polygon, and drawing one is slices 6 and 8. Until then a seeded flat is the
+ * only way zones exist at all.
  *
  * It goes through the REAL commands, never the vault: writing notes here would prove
  * nothing about the persistence layer and would breach `WRITE_BOUNDARY` besides. So a
@@ -44,8 +46,9 @@ import type { PluginCommandHost } from './commandHost';
  *
  * Deliberately NOT shared with `tests/harness/planEditor.ts`, which describes a similar
  * flat for the browser harness. The two have different lifetimes — that fixture is slice
- * 5's and stays; this table is scaffolding and goes at slice 14 — and a shared literal
- * would make deleting one a change to the other.
+ * 5's and stays; this table is scaffolding and goes with the whole module, at slice 16
+ * (not slice 14, which shipped no action that could have deleted it — see the module
+ * docblock above) — and a shared literal would make deleting one a change to the other.
  */
 interface SampleZone {
 	readonly nameKey: StringKey;

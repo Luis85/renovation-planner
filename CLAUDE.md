@@ -23,7 +23,8 @@ There are **two workspace surfaces**, both mounting their own isolated Vue app (
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
 a ribbon button and a command, and draws nothing of its own yet; the only thing mounted in
 it is slice 15's `DialogHost`, which is invisible until something opens a dialog, and slice
-14's empty states are what will give it content. The **Plan editor** is per-plan (several
+14's empty states are what give it content now: `renovationProject.noProjects` renders in
+its place whenever `ListProjects()` resolves to `[]`. The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
@@ -35,6 +36,59 @@ the framework into the editor for real, and slice 15 made slice 7's tool reachab
 paragraph said "nothing on that canvas is editable" for four slices after it stopped being
 true, contradicting the sentence immediately below it. The one thing slice 5 writes is which
 document a Plan's background IS.
+
+**Design slice 14 has landed: both central views have an actionable empty state.**
+`EmptyState.vue` is one reusable component — headline, body, an optional action button,
+an icon slot nothing populates yet — driven by a typed registry (`EMPTY_STATE_CONTENT`)
+holding `StringKey`s, never literal copy, and two pure selectors
+(`selectRenovationProjectEmptyState`, `selectPlanEditorEmptyState`) that turn an
+already-succeeded query result into which of three keys applies, if any.
+`RenovationProjectView` gained its first real data dependency — a `ListProjectsQuery` and
+a `RenovationProjectStore` to hold the result — and renders `renovationProject.noProjects`
+when it comes back empty; `ProjectStore` gained one getter, `emptyStateKey`, over state it
+already hydrates. Rules that came out of it:
+
+- **An empty state that replaces a region hides the thing the region exists to show.**
+  `create-sample-project` seeds a plan with no background and five zones, and the browser
+  harness refuses a background outright on SDD §55 grounds — both run on backgroundless
+  plans, so a canvas replaced by an empty state would have made a seeded scene unreachable
+  and left `?view=plan-editor` drawing nothing but guidance text. Both Plan Editor empty
+  states are OVERLAYS inside `PlanCanvas`, which always mounts; an overlay yields to an
+  active tool, because its own button is what activates one, and a user mid-gesture does
+  not need to be told the canvas is empty.
+- **A selector stays a function of query results; "is the user mid-task" is a rendering
+  rule.** Folding `activeToolId` into `selectPlanEditorEmptyState` would have made "which
+  state is this Plan in" unanswerable without a live `ToolManager` — a node test could no
+  longer ask it — for a gate the component applies in one line
+  (`overlay !== null && activeToolId === null`).
+- **An absent `actionLabel` is a decision with a reason, not a gap, and there are two of
+  them, not one.** `renovationProject.noProjects` has no button because its hand-off — a
+  project-creation form — is slice 16's, and slice 16 `dependsOn` slice 11, neither of
+  which exists yet. `planEditor.noBackground` has no button for a different reason:
+  slice 5's background picker is the `set-plan-background` plugin COMMAND, which is not a
+  member of `PlanEditorCommandServices`, and the editor's Vue tree cannot reach it without
+  either widening `PlanEditorContext` (not this slice's surface to widen) or reaching for
+  the global `app`, which the marketplace rules refuse. Both render no button rather than a
+  live control that does nothing — the exact failure mode the amendment exists to avoid —
+  and `content.test.ts` asserts both absences, so adding either is a deliberate, tested
+  change rather than an oversight closing quietly. `planEditor.noZones` is the one entry
+  that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
+  exists and is reachable from the editor's own state.
+- **Promoting a mock is not always a byte-for-byte move, and the honest account says which
+  file pair that criterion is actually held for.** `EmptyState.vue`'s template crossed from
+  `src/prototypes/` unchanged except for one added line, `@click="$emit('action')"` — the
+  mock was visual-only and wired no click at all, so the promoted contract's `action` event
+  was unreachable until that line existed. `tests/build/prototype-promotion.test.ts`, the
+  test that holds templates byte-identical across promotion, is scoped to exactly one file
+  pair (`ZoneSummary.vue`) and does not cover this one, so nothing here caught the gap
+  automatically — a mock whose button cannot be pressed is a worse mock regardless.
+- **PRD §94 is one sentence and quotes nothing.** An earlier draft of this slice's own task
+  document attributed a German worked example to it; the copy is ours to write, and `de.ts`
+  translates it like every other key. A citation nobody checks is the same defect as an
+  unchecked comment.
+- **The accessibility case for the project surface was an adoption placeholder until this
+  slice.** It has scanned an empty pane since slice 1; it grades real markup — a headline,
+  body copy and (where wired) a labelled button — now.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
@@ -288,10 +342,11 @@ entries now. The command ID did not change, because a user's hotkey is bound to 
 project, a plan and five zones through the real `CreateProjectCommand` /
 `CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
 vault-side equivalent of `npm run harness`, and the only way zones exist at all before
-slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it (slice
-14's empty-state actions and slice 16's creation forms — NOT slice 15, which built the
-dialog framework those forms mount in and no form that names a project) and why the partial
-notes a failed seed leaves behind are deliberate.
+slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it — slice
+16's creation forms, NOT slice 15, which built the dialog framework those forms mount in and
+no form that names a project, and NOT slice 14 either: `renovationProject.noProjects` ships
+with no action at all (Amendment 1), so slice 14 wired nothing that could have replaced this
+module — and why the partial notes a failed seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's

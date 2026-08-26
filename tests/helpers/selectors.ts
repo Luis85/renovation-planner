@@ -128,6 +128,21 @@ export function stylesheetRules(css: string): StyleRule[] {
 					return undefined;
 				}
 
+				// AN AT-RULE THAT CHANGES HOW THE CASCADE RANKS ITS CONTENTS IS REFUSED, not flattened.
+				// `@layer` does not condition a rule the way `@media` does — it RE-RANKS it, and a layered
+				// rule loses to an unlayered one whatever the specificity, so every caller comparing
+				// specificity here would be comparing the wrong thing. `@scope` likewise bounds which
+				// elements match by proximity, which no `Conditions` shape models. lightningcss visits the
+				// rules INSIDE both, so they arrive looking ordinary and unconditional: a ring in a layer
+				// would answer a flattening site it actually loses to, silently.
+				//
+				// Nothing in this repository writes either today, which is exactly why this is a refusal
+				// rather than an implementation — the same trade `show()` makes for an unmodelled payload.
+				// The first sheet to use one stops the build and gets the modelling it needs.
+				if (rule.type === 'layer-block' || rule.type === 'scope') {
+					throw new Error(`stylesheetRules(): "@${rule.type === 'scope' ? 'scope' : 'layer'}" changes how the cascade ranks its contents, which nothing reading this models`);
+				}
+
 				if (rule.type !== 'style') return undefined;
 
 				rules.push({

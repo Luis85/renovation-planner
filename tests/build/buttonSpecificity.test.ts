@@ -216,6 +216,27 @@ describe('the instrument', () => {
 	 * so the sweep is what turns that into a failure at the sheet rather than a collision noticed
 	 * three checks downstream.
 	 */
+	/**
+	 * `@layer` and `@scope` do not CONDITION a rule the way `@media` does — they change how the
+	 * cascade ranks it, or which elements it reaches by proximity. lightningcss visits the rules
+	 * inside both, so they arrive here looking ordinary and unconditional, and a ring inside a layer
+	 * would answer a flattening site it actually loses to. Refused rather than modelled, because
+	 * nothing in this repository writes either and a refusal is what makes the first one that does a
+	 * red build instead of a wrong answer.
+	 *
+	 * Found by sweeping for the shape rather than by review: the round before this one was `all`
+	 * missing from a second reader after being added to the first, and the lesson from it is that
+	 * adding a rule in one place is not applying it.
+	 */
+	it.each([
+		['@layer', '@layer base { .rp-dialog-button:focus-visible { outline: 2px solid red } }'],
+		['@scope', '@scope (.rp-dialog) { .rp-dialog-button:focus-visible { outline: 2px solid red } }'],
+	])('refuses %s, whose contents it would otherwise rank wrongly', (_case, css) => {
+		expect(() => stylesheetRules(css)).toThrow(/changes how the cascade ranks/u);
+	});
+
+	// And the refusal must not be reaching the sheets that exist — a gate that refuses everything
+	// guards nothing. The sweep below is what proves that positively, over real content.
 	it('renders every selector in every sheet it guards', () => {
 		// The VENDORED sheet explicitly, on top of `sheets`, which does not include it. It is the one
 		// file here nobody writes and everybody re-vendors, and it is where both real pairs above

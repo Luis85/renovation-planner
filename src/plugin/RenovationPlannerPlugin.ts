@@ -23,6 +23,8 @@ import {
 } from './composition-root';
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
+import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
+import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 
 /**
  * The floor bootstrap starts at, before settings can say otherwise: `loadSettings`
@@ -129,8 +131,15 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			this.ledger,
+			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger) },
 		);
+		// The cascade handlers registered at composition time are the first thing unload
+		// must stop — a geometry edit arriving during teardown must not start a write.
+		this.disposers.push(() => {
+			for (const subscription of this.root.persistence?.subscriptions ?? []) {
+				subscription.dispose();
+			}
+		});
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
@@ -173,8 +182,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 		// SCAFFOLDING, and its own module says so at length: one command that seeds a
 		// project, a plan and five zones through the real create commands, so slice 5's
-		// canvas can be looked at in a vault at all. Slice 14's empty states and slice 15's
-		// dialogs are what remove it.
+		// canvas can be looked at in a vault at all. Slice 14's empty states and slice 16's
+		// creation forms are what remove it — slice 15 built the dialog framework they mount in,
+		// which is not the same thing as being able to name a project.
 		registerSampleProjectCommand(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
@@ -254,7 +264,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			this.root.logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			this.ledger,
+			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger) },
 		);
 		// The new root carries an EMPTY index — and `projectFolder` is a setting, so the
 		// tree worth scanning may have moved. Re-running the build is what makes the swap
@@ -265,6 +275,24 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	private vaultStack: VaultStack | null = null;
+
+	/**
+	 * The durable marker store behind multi-entity deletes — one plugin-local FILE beside
+	 * `data.json`, deliberately not `data.json`'s settings object (`settingsFrom` drops
+	 * undeclared keys, which would silently discard an outstanding recovery). One instance
+	 * per session: the file it points at survives root swaps, and a store rebuilt per swap
+	 * would buy nothing but a second queue.
+	 */
+	private markerStore: SequenceMarkerFileStore | null = null;
+
+	private sequenceMarkerStore(logger: Logger): SequenceMarkerFileStore {
+		this.markerStore ??= new SequenceMarkerFileStore(
+			this.app.vault.adapter,
+			`${this.manifest.dir}/sequence-markers.json`,
+			logger,
+		);
+		return this.markerStore;
+	}
 
 	/**
 	 * Registered once per session, never per composition root — `registerEvent` hands
@@ -304,6 +332,21 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// longer exists" about a plan that does — reported from a real vault. The `void` is
 		// deliberate: publishing awaits its subscribers, and nothing here needs to.
 		void this.root.eventBus.publish(projectIndexRebuilt());
+
+		// Load-time recovery of an interrupted multi-entity sequence: conditional and
+		// idempotent (see the recovery module), so re-running it after a settings swap is
+		// safe, and with no outstanding marker it reads one small file and stops. The
+		// rejection cannot be discarded — but it IS logged inside, so `void` only skips an
+		// await nobody here needs.
+		if (persistence.markers) {
+			void recoverInterruptedSequences({
+				markers: persistence.markers,
+				requirements: persistence.requirements,
+				zones: persistence.zones,
+				assets: persistence.assets,
+				logger: this.root.logger,
+			});
+		}
 
 		if (this.listenersRegistered) return;
 		this.listenersRegistered = true;

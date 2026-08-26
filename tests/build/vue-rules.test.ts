@@ -10,9 +10,13 @@ beforeAll(warmUpEslint, ESLINT_BOOT_MS);
  *
  * A rule present in a flat config but scoped to files it never matches reports nothing and
  * looks correct — which is the failure this whole file is about, and the reason each
- * assertion reads the reported RULE ID rather than a pass/fail. Six rules, six fixtures,
- * each violating exactly one of them and otherwise conforming; plus the architecture blocks,
- * which are the ones that were `.ts`-scoped until the edit this file guards.
+ * assertion reads the reported RULE ID rather than a pass/fail. Each fixture below violates
+ * exactly one rule and otherwise conforms; the counts in each describe block's own title are
+ * the number of fixtures IN that block, not a total for the file, and stay accurate as long
+ * as each block's title is updated alongside its fixtures. Beside the six named rules sit the
+ * architecture blocks, which are the ones that were `.ts`-scoped until the edit this file
+ * guards, and the prototypes-only scope of `vue/no-restricted-block`, which is scoped to a
+ * subtree the others don't reach.
  *
  * `PARSE_ERROR` in a result means `vue-eslint-parser` is not configured for the block —
  * a distinct failure from a rule being absent, and worth reading as such.
@@ -158,5 +162,173 @@ describe('the architecture blocks, now that they match .vue', () => {
 		const reported = await lintText(conforming("console.warn('sink');"), SINK);
 
 		expect(reported).not.toContain('no-console');
+	});
+});
+
+/**
+ * `src/prototypes/**\/*.vue` carries its own `vue/no-restricted-block` block
+ * (`eslint.config.mjs`), turned OFF for this one directory while the wider VUE_FILES block
+ * refuses `<style>` everywhere else. Both directions are driven, because "off here and on
+ * there" is the whole claim and a config's own text cannot make it good: an `'off'` that
+ * leaked to `VUE_FILES` would let a `<style>` block into a shipped component, and a `files`
+ * glob edited away from this directory would put the ban back on mocks with nothing to say so.
+ */
+describe('the prototypes-only scope of vue/no-restricted-block', () => {
+	const PROTOTYPE = 'src/prototypes/PrototypeFixture.vue';
+	const SHIPPED = 'src/presentation/editor/PrototypeFixture.vue';
+	const STYLED = '<template>\n\t<div class="x" />\n</template>\n\n<style>\n.x { display: block; }\n</style>\n';
+
+	/**
+	 * A scripted mock is the point of the relaxation: every shipped component has a
+	 * `<script setup>`, so this is what makes promotion a file move for a mock that needs props,
+	 * a `v-for` or any state at all. `conforming` always writes `<script setup lang="ts">`, so
+	 * this is also the measured case for the rule matching a block by NAME with `setup` as an
+	 * attribute on it.
+	 */
+	it('accepts a script-setup block in a mock', async () => {
+		expect(await lintText(conforming(''), PROTOTYPE)).toEqual([]);
+	});
+
+	// The trade, and the half that does not travel: a mock's CSS does not ship, and promotion
+	// lifts it into a `styles/` partial because a shipped component is styled from the assembled
+	// sheet SDD §84's colour check runs over.
+	it('accepts a style block in a mock', async () => {
+		expect(await lintText(STYLED, PROTOTYPE)).toEqual([]);
+	});
+
+	// The other direction, which is what makes the two cases above a SCOPE rather than a
+	// deletion. An `'off'` that reached `VUE_FILES` would read exactly the same up there.
+	it('still refuses a style block in a shipped component', async () => {
+		expect(await lintText(STYLED, SHIPPED)).toContain('vue/no-restricted-block');
+	});
+
+	// Template-only stays legal, and stays the promotion pair's own shape.
+	it('lints clean with a template and nothing else', async () => {
+		const reported = await lintText('<template>\n\t<div class="x" />\n</template>\n', PROTOTYPE);
+
+		expect(reported).toEqual([]);
+	});
+});
+
+/**
+ * What `flat/recommended` still refuses inside `src/prototypes/`, and the one thing it does
+ * not — the check under `eslint.config.mjs`'s `vue/multi-word-component-names: 'off'` block
+ * and under `src/prototypes/README.md`'s narrowed sentence about what the relaxations cost.
+ *
+ * All three spellings are driven in BOTH trees, because the whole decision is where the line
+ * between them falls: turning a rule off in one directory is invisible from the config's own
+ * text if nothing asks for the other side, and a rule that quietly went off everywhere would
+ * read exactly the same here.
+ */
+describe('the Vue rules a prototype is and is not written to', () => {
+	const PROTOTYPE = 'src/prototypes/Kitchen.vue';
+	const PROMOTED = 'src/presentation/editor/Kitchen.vue';
+	const SINGLE_LINE = '<template>\n\t<div class="x">hello</div>\n</template>\n';
+	const SPACE_INDENTED = '<template>\n  <div class="x" />\n</template>\n';
+
+	/**
+	 * The relaxation. A single-word file name is what a designer writes when the mock is named
+	 * after the SCREEN it draws, and the rule is not auto-fixable because it is about the file
+	 * name rather than the markup — which is exactly why it is the one that gets turned off:
+	 * it costs the byte-identical template guarantee nothing.
+	 */
+	it('accepts a single-word mock name, which the rest of src/ does not', async () => {
+		expect(await lintText('<template>\n\t<div class="x" />\n</template>\n', PROTOTYPE)).toEqual([]);
+		expect(await lintText(conforming(''), PROMOTED)).toContain('vue/multi-word-component-names');
+	});
+
+	/**
+	 * The two that stay ON, and the reason is promotion: a template that breaks either of them
+	 * cannot move into `src/presentation/` unchanged, and "the markup is never redrawn" is the
+	 * criterion the whole feature exists for. Both are auto-fixable, which is what makes
+	 * keeping them affordable for an actor with no eyes — `eslint --fix` rewrites both.
+	 */
+	it('still refuses a single-line content element and space indentation in a mock', async () => {
+		expect(await lintText(SINGLE_LINE, PROTOTYPE)).toContain('vue/singleline-html-element-content-newline');
+		expect(await lintText(SPACE_INDENTED, PROTOTYPE)).toContain('vue/html-indent');
+	});
+});
+
+/**
+ * Design slice 15's own boundary. `presentation/dialogs/` is display-and-resolve only: a
+ * future edit that starts querying a repository from inside `DeleteReferenceDialog.vue`
+ * must fail the build rather than pass review by accident.
+ *
+ * A fixture path rather than a reading of the config object, for the reason this file
+ * already gives: two blocks matching one file OVERRIDE `no-restricted-imports` rather than
+ * merging, so the only honest question is what ESLint reports for a real path.
+ */
+describe('the dialogs boundary', () => {
+	const DIALOG = 'src/presentation/dialogs/DeleteReferenceDialog.vue';
+	const DIALOG_TS = 'src/presentation/dialogs/dialog-store.ts';
+
+	/**
+	 * This directory's first `.ts` fixtures in this file: every case above lints a `.vue`
+	 * path, and the `.vue` block deliberately carries no `parserOptions.projectService` (see
+	 * `eslint.config.mjs`), so none of them ever build TypeScript's project-service program.
+	 * `warmUpEslint`'s `calculateConfigForFile` only resolves configuration — no parsing, no
+	 * program — so it does not pay this cost either; the file-level `beforeAll` above warms
+	 * config resolution, not this. Without paying it up front, whichever `.ts` case happens
+	 * to run first inherits the full first-call cost on the suite's default per-test budget,
+	 * which is exactly what made `refuses the event bus` time out under `npm run check`'s
+	 * full parallel load before this existed. One `lintText` over a throwaway `.ts` path,
+	 * result discarded, pays it once for every case below.
+	 */
+	beforeAll(async () => {
+		await lintText('export const warm = 1;\n', DIALOG_TS);
+	}, ESLINT_BOOT_MS);
+
+	it('refuses an application import', async () => {
+		const reported = await lintText(
+			conforming("import type { Command } from '../../application/commands/Command';\nexport type C = Command<unknown, unknown>;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	it('refuses the event bus', async () => {
+		const reported = await lintText(
+			"import type { EventBus } from '../../core/events/EventBus';\nexport type B = EventBus;\n",
+			DIALOG_TS,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	/**
+	 * The half that would silently disappear: a per-directory block REPLACES the wider
+	 * `presentation` one, so a block that added `application` and forgot to repeat
+	 * `infrastructure` would open the bigger hole while looking like it closed a smaller one.
+	 */
+	it('still refuses infrastructure, which the wider presentation block owned', async () => {
+		const reported = await lintText(
+			conforming("import { createConsoleLogger } from '../../infrastructure/logging/consoleLogger';\nvoid createConsoleLogger;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	// The other half of the same hazard: `plugin` is repeated from the wider `presentation`
+	// block for the identical reason `infrastructure` is above, and had no fixture proving
+	// it — a future edit trimming `plugin` from this block's `groups` would pass every other
+	// case here and go unnoticed.
+	it('still refuses plugin, which the wider presentation block owned', async () => {
+		const reported = await lintText(
+			conforming("import { RenovationPlannerPlugin } from '../../plugin/RenovationPlannerPlugin';\nvoid RenovationPlannerPlugin;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	it('allows the i18n import every dialog legitimately needs', async () => {
+		const reported = await lintText(
+			conforming("import { tr } from '../i18n/strings';\nvoid tr;"),
+			DIALOG,
+		);
+
+		expect(reported).not.toContain('no-restricted-imports');
 	});
 });

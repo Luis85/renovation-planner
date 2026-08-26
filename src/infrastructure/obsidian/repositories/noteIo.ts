@@ -33,8 +33,11 @@ export function persistenceError(code: string, message: string, cause?: unknown)
  * `Persistence` — which matters because "this build is too old for this note" and
  * "the vault write failed" are different sentences to a user (SDD §87 rule 7).
  */
-function migrationError(code: string, message: string, cause?: unknown): MigrationError {
-	return { category: 'Migration', code, message, ...(cause === undefined ? {} : { cause }) };
+function migrationError(code: string, message: string, cause: unknown): MigrationError {
+	// `cause` is REQUIRED, not optional: this factory exists to translate something that
+	// was thrown, so there is always one, and the optional spelling left an arm nothing
+	// could take — an unreachable branch is deleted rather than tested around.
+	return { category: 'Migration', code, message, cause };
 }
 
 /**

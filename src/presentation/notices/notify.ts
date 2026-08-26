@@ -1,4 +1,6 @@
-import { Notice } from 'obsidian';
+import { Notice, getLanguage } from 'obsidian';
+import type { AppError } from '../../core/errors/AppError';
+import { toUserMessage } from '../i18n/toUserMessage';
 
 /**
  * Show a transient message in Obsidian's own notice area.
@@ -17,4 +19,18 @@ import { Notice } from 'obsidian';
  */
 export function notify(message: string): Notice {
 	return new Notice(message);
+}
+
+/**
+ * The OTHER way this plugin raises a notice, and the only one an `AppError` may take.
+ * An error's own `message` is developer text (SDD §65): English, untranslated, and
+ * written for a log line — so a raw one in a Notice is the defect design slice 11 exists
+ * to remove. `toUserMessage` resolves the locale table's copy from the error's `code`,
+ * its suffix, or its category, in that order.
+ *
+ * Beside `notify` rather than in a module of its own because the two are one decision:
+ * which of them a call site reaches for is entirely "do I hold text, or an error?".
+ */
+export function notifyError(error: AppError): Notice {
+	return notify(toUserMessage(getLanguage(), error));
 }

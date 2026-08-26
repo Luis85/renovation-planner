@@ -15,8 +15,9 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 export interface DrawPolygonToolDeps {
 	readonly createCommand: (input: CreateZoneInput) => ReversibleCreateZoneCommand;
 	/**
-	 * The new zone's display name — counted from what the editor has hydrated, until
-	 * slice 15's creation dialogs ask instead.
+	 * The new zone's display name — counted from what the editor has hydrated, until slice
+	 * 16's creation forms ask instead. Not slice 15, which shipped the dialog framework such
+	 * a form is mounted in and no form that names a zone.
 	 */
 	readonly nextZoneName: () => string;
 	/**

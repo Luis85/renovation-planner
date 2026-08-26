@@ -1,0 +1,70 @@
+/*
+ * The Zone panel — `src/prototypes/ZonePanel.vue` and the `ZoneSummary` mock it composes.
+ *
+ * Here rather than beside the mocks for the reason `work-packages.css` states at length:
+ * `vue/no-restricted-block` refuses a `<style>` block in every `.vue` file, and acceptance
+ * criterion 5 requires a mock and a real component on one screen to be styled by the SAME
+ * assembled sheet. The same cost applies — every vault downloads these rules until the screen
+ * exists — and deleting this file means deleting its `@import` too, since the assembler fails
+ * the build on a partial nothing imports.
+ *
+ * **The rule these exist for is `column-gap`, and it is not decoration.** Vue's default
+ * `whitespace: 'condense'` removes the whitespace between two elements when it contains a
+ * newline, so `ZoneSummary`'s name and area spans — adjacent lines in the template — render as
+ * `Kitchen12.60 m²` with nothing between them. The suite cannot see it: `textContent` reads
+ * both strings and every assertion about them passes. jsdom lays nothing out, so no gate here
+ * can measure the gap; a capture read by eye is what found it.
+ *
+ * The separator has to be CSS rather than a space in the markup: that template is
+ * byte-identical to `tests/fixtures/promotion/ZoneSummary.promoted.vue` by design, so editing
+ * it forces the same edit on the twin and a new clone digest in `.fallowrc.json`.
+ *
+ * Obsidian variables only, per SDD §84.
+ */
+
+.rp-zone-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+	background-color: var(--background-primary);
+}
+
+.rp-zone-summary {
+	flex: 1;
+	min-height: 0;
+	padding: var(--size-4-4);
+	overflow-y: auto;
+}
+
+.rp-zone-summary ul {
+	margin: var(--size-4-3) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rp-zone-summary li {
+	display: flex;
+	align-items: baseline;
+	/*
+	 * `justify-content` puts the area at the trailing edge and `column-gap` guarantees a
+	 * separator even when a row is too narrow to spread — the defect is that the two spans
+	 * ABUT, and a gap that only exists at comfortable widths would let it back in at the
+	 * width nobody screenshots.
+	 */
+	justify-content: space-between;
+	column-gap: var(--size-4-4);
+	padding: var(--size-4-1) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-zone-summary__name {
+	color: var(--text-normal);
+}
+
+.rp-zone-summary__area {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}

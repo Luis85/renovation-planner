@@ -1165,19 +1165,24 @@ AS-BUILT
 
 Recommended structure:
 
+Two locations, because two scopes. The **library folder** holds what every project shares and is
+one plugin setting (§83); a **project folder** holds one renovation and is a project setting. The
+drawing below shows them both at their defaults, and neither path is fixed.
+
 ```text
-Renovation/
-│
+Renovation/Library/              ← the library folder, one per vault (§83)
+├── Assets/
+├── Suppliers/
+└── Trades/
+
+Renovation/Kitchen Refit/        ← a project folder, one per renovation
 ├── Project.md
 ├── Plans/
 ├── Zones/
 ├── Construction Sections/
 ├── Work Packages/
 ├── Tasks/
-├── Assets/
 ├── Requirements/
-├── Trades/
-├── Suppliers/
 ├── Quotes/
 ├── Orders/
 ├── Invoices/
@@ -1187,6 +1192,14 @@ Renovation/
 ├── Documents/
 └── Photos/
 ```
+
+> **Amended 2026-08-26, by the product owner**, with §59 and §83. `Assets/`, `Suppliers/` and
+> `Trades/` were drawn inside the project folder; they are the three shared catalogues and live in
+> the library folder now. They are drawn as two separate roots rather than as siblings under one
+> parent **on purpose**: §83 lets every project choose its own folder, so a library nested beside
+> *a* project folder could not be found from the others. Each path resolves from its own setting.
+> The project folder still moves, backs up and deletes as one unit, which is the property the
+> single-folder layout was drawn for.
 
 Paths must be configurable.
 
@@ -1818,7 +1831,18 @@ Project
 
 # 59. Entity Relationship Rules
 
-A Project owns 0..n Plans, Construction Sections, Work Packages, Assets, Suppliers, and Documents.
+> **Amended 2026-08-26, by the product owner.** The Asset, Supplier and Trade catalogues were
+> owned by a Project in the version of this document as received. They are shared across Projects
+> now, so that a renovator who has defined a tile, a builders' merchant or an electrician does not
+> define it again for their next renovation. §36's folder tree is amended in the same pass. This
+> block exists because everything under `docs/` derives from this document and cites it by section:
+> an edit made silently here would leave every citation pointing at text that had changed under it.
+
+A Project owns 0..n Plans, Construction Sections, Work Packages, and Documents.
+
+The Asset, Supplier and Trade catalogues are **shared across Projects**. They are defined once, in a
+library beside the Project folders rather than inside any one of them, and any Project may reference
+them. A catalogue entry therefore has no owning Project.
 
 A Plan belongs to exactly one Project.
 
@@ -2159,7 +2183,21 @@ Future: multiple control points.
 - default units
 - default currency
 - default folders
+- **library folder** — where the shared Asset, Supplier and Trade catalogues live (§59)
 - editor preferences
+
+> **Amended 2026-08-26, by the product owner**, with §59 and §36. The library folder is a *plugin*
+> setting rather than a project one, and that is the whole reason it is named here: a project
+> setting is answered once per project, and the three catalogues belong to no project. One vault
+> has one library, wherever its owner puts it.
+
+**The library folder and a project folder may neither be equal nor contain one another.** Two
+independently configurable paths can otherwise overlap, and the consequence is not cosmetic:
+deleting a project is deleting its folder — the model has no delete operation of its own — so a
+project folder holding the library would take the shared Asset, Supplier and Trade catalogues of
+*every* project with it. The check therefore belongs at all three places a path is set — creating a
+project, changing a project's folder, and moving the library — and refuses in every direction,
+since either path can be the one that moves.
 
 ## Project Settings
 

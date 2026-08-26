@@ -25,8 +25,14 @@ export default defineConfig({
 			// nothing — component tests run, the numbers do not move, and the gate passes
 			// over code it never measured.
 			include: ['src/**/*.{ts,vue}'],
-			// Registration glue that needs the real Obsidian Plugin runtime.
-			exclude: ['src/main.ts'],
+			// `src/main.ts` is registration glue needing the real Obsidian Plugin runtime.
+			// `src/prototypes/**` is design scaffolding: nothing in the tree ships, so measuring
+			// it would let a mock's untested branches move a gate that exists for shipped code —
+			// and the floors are a RATCHET, so a tree that drags them is a tree that lowers them.
+			// `tests/build/prototypes-not-bundled.test.ts` proves the "never in a built plugin"
+			// half directly: a real `vite build` in memory (`write: false`, so nothing is ever
+			// written to `dist/`), asking Rolldown which modules composed each chunk.
+			exclude: ['src/main.ts', 'src/prototypes/**'],
 			reporter: ['text-summary', 'json', 'lcov'],
 			// THE RATCHET. Raise these to what a FINISHED increment measures, rounded
 			// down, and never lower one to accommodate a change. Three rules that the
@@ -318,6 +324,114 @@ export default defineConfig({
 			// - `createSerialQueue`'s tail catch, which exists so one command's technical
 			//   fault cannot wedge the shared chain - reached only by a throw the queue is
 			//   built to survive.
+			//
+			// Measured 2026-08-26 after the slice 8 review pass CLAUDE.md's harness section
+			// narrates (the WriteLedger, the single per-leaf dispatch funnel, the
+			// click-versus-drag epsilon and the handleMetrics split, the tool generation
+			// guards, the concurrent-hydrate tickets, the plan-change fan-out) and the
+			// harness prototyping capability built on top of it (Tasks 1-8) - the latter
+			// contributing nothing to this figure itself, since `IndexPage.vue` and
+			// `entries.ts` live under `tests/harness/`, outside `include`, and everything the
+			// capability added under `src/` is `src/prototypes/`, excluded by the `src/prototypes/**`
+			// pattern above rather than by naming a file: 2711/2729 statements, 1247/1269 branches, 711/717 functions,
+			// 2461/2470 lines - 99.34 / 98.26 / 99.16 / 99.63. NOTHING RATCHETS: rounded
+			// down these are 99 / 98 / 99 / 99, the floors already in force, with 9.3 / 3.3 /
+			// 1.15 / 15.6 covered units of headroom respectively (rule 1's `1 / total * 100`
+			// per metric) - functions the tightest of the four, same as every measurement
+			// since slice 4 introduced the first unreachable arms.
+			//
+			// Re-measured 2026-08-26 after the whole-branch fix wave (the index test app's
+			// missing component registry, the harness Inspector read, the prototypes Vue-rule
+			// decision, and the smaller repairs) - IDENTICAL on all four counts, denominators
+			// included. That is the expected result rather than a lucky one: everything the
+			// wave touched under `src/` is either a comment (`EditorStore.reset` and
+			// `WorkspaceStore.reset`'s docblocks) or inside `src/prototypes/`
+			// (`ZonePanel.vue`), which this config excludes. NOTHING RATCHETS.
+			// Measured 2026-08-26 at the end of design slice 10 - Asset and Requirement, the
+			// reference-integrity engine and its compensated sequences, the recalculation
+			// cascade, the Requirements panel and the delete-with-references flow:
+			// 4102/4132 statements, 2036/2077 branches, 1037/1047 functions, 3669/3687 lines
+			// - 99.27 / 98.02 / 99.04 / 99.51. NOTHING RATCHETS, for the third time and the
+			// same reason: rounded down these ARE the floors in force.
+			//
+			// Branches is the metric to watch now, and this is the entry that says so. It
+			// finished at 98.02 against a floor of 98 - about 0.4 of a branch of headroom,
+			// where the slice-6 measurement had eight. That is not a regression in testing:
+			// the denominator grew by a factor of two (919 -> 2077) while the same handful of
+			// structurally unreachable arms stayed uncovered, so their cost per arm fell but
+			// the ROUNDED figure landed just over the line instead of comfortably above it.
+			// The practical consequence for the next increment: one new uncovered branch
+			// fails this gate. Plan the test with the code.
+			//
+			// What slice 10 adds to the uncovered set, all of it the same shape as the list
+			// above - a `Result` forward whose only content is the error it carries, or an
+			// arm a caller cannot reach:
+			// - `deleteResolution.ts`'s `case undefined` in `applyResolutionToRequirement`
+			//   and its `resolvedReferents ?? []`: both are refused earlier, by
+			//   `checkConsentedSet` and `resolutionInputError` respectively, and kept because
+			//   the compiler cannot see that.
+			// - the repoint's `!repointed.ok` guard, over a domain method whose only refusal
+			//   is a shape the entity already had.
+			// - `compensate`'s `!snapshot` continue, for a progress entry naming something
+			//   `affectedBefore` does not carry. The mirror of it in `undoDeleteResolution`
+			//   IS covered, driven directly rather than through a command that cannot
+			//   produce the mismatch; this one is reachable only by hand-building a marker,
+			//   which `recovery.test.ts` does for the recovery path and not for this one.
+			//
+			// `undoDeleteResolution.ts` itself is at 100% of all four, which is what a module
+			// whose whole job is a failure path should be.
+			//
+			// **NEITHER OF THE TWO BLOCKS ABOVE MEASURES THIS TREE**, and this entry is the
+			// one that does. They are the trunk's and the slice-10 branch's respectively; the
+			// merge of 2026-08-26 joined a 2711-statement tree to a 4102-statement one, so both
+			// percentages above are records of trees that no longer exist. That has happened
+			// twice before here (the slice-7 paragraph is the first), and both times the claim
+			// left standing was FALSE rather than merely stale — which is why the merge was
+			// measured rather than reasoned about.
+			//
+			// Measured 2026-08-26 on the MERGED tree: 4111/4141 statements, 2036/2077 branches,
+			// 1039/1049 functions, 3678/3696 lines — 99.27 / 98.02 / 99.04 / 99.51. NOTHING
+			// RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// **The branch COUNT did not move across the merge — 2036/2077, identical to the
+			// slice-10 figure — and that is the expected result rather than a suspicious one.**
+			// Everything the harness-prototyping work added lives under `tests/harness/` or
+			// `src/prototypes/`, and `include` reaches neither. So the merge added 9 statements,
+			// 2 functions and 9 lines (the fixture and harness repairs that touched `src/`) and
+			// no branches at all.
+			//
+			// Branches therefore remain the metric to watch, at 98.02 against a floor of 98 —
+			// about 0.4 of a branch of headroom, unchanged by the merge. One new uncovered
+			// branch fails this gate. Plan the test with the code.
+			//
+			// **NOR DOES THE BLOCK ABOVE MEASURE THIS TREE.** It is main's, from the merge of
+			// design slices 10 and 15; this entry is the SLICE-11 branch after main was merged
+			// INTO it, which is a third tree again — slice 11's fail-closed schema gate, its
+			// guarded boundary and its diagnostics ledger over main's Asset/Requirement stack.
+			// The paragraph above already says what happens when a percentage is left standing
+			// for a tree that no longer exists, twice; this is the third time and it was
+			// measured rather than reasoned about.
+			//
+			// Measured 2026-08-26 on the MERGED slice-11 tree, with the Error Boundary extended
+			// over every slice-10 command and query (the eight commands, the four requirement
+			// queries) and slice 10's repository error unions widened to `RepositoryError` so a
+			// `MigrationError` from the gate can travel: 4212/4240 statements, 2080/2121
+			// branches, 1063/1071 functions, 3775/3791 lines — 99.33 / 98.06 / 99.25 / 99.57.
+			// NOTHING RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// Branches is still the metric to watch and the headroom BARELY moved: 98.06 against
+			// 98 is about 1.3 branches at 0.047pp each. Two things bought that back rather than
+			// one, and the second is the more useful lesson: a test was added for
+			// `mappedMigrationFailure`'s tagged NON-Error throw, and `noteIo`'s local
+			// `migrationError` lost its OPTIONAL `cause` — every caller passes one, so the
+			// `cause === undefined` arm was unreachable, and deleting an unreachable arm raises
+			// the figure on a smaller denominator, which is what the note near the top of this
+			// block tells the next reader to look for first.
+			//
+			// The uncovered set is otherwise the enumerated one from main plus slice 11's own:
+			// `mappedMigrationFailure`'s untagged fallback arms in `noteIo`, and nothing new.
+			// Everything design slice 11's merge ADDED under `src/` — `guardedServices.ts`,
+			// the restructured composition root, `notifyError` — measures 100% of all four.
 			thresholds: {
 				statements: 99,
 				functions: 99,

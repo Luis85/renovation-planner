@@ -89,8 +89,12 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { defineComponent, nextTick } from 'vue';
+import { prototypeEntries } from './entries';
+import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -107,6 +111,27 @@ const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'ta
 
 const runOptions: Parameters<typeof axe.run>[1] = {
 	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
+};
+
+/** One state of the index, scanned and torn down — the mount must not outlive the scan. */
+/**
+ * `document.body`, not the wrapper's own element.
+ *
+ * `<Teleport>` is a Vue built-in and a dialog, menu or tooltip is exactly what a prototype
+ * would reach for it with — and teleported content renders OUTSIDE the mounted tree, so a scan
+ * of `wrapper.element` stays green over an unlabelled button that a person can see and press.
+ * `openIndex` attaches its host to the body, so the body holds the mount AND anything it
+ * teleported, and `beforeEach` empties it between cases.
+ */
+const scanBody = () => axe.run(document.body, runOptions);
+
+const scan = async (query: string) => {
+	const wrapper = await openIndex(query);
+	try {
+		return await scanBody();
+	} finally {
+		wrapper.unmount();
+	}
 };
 
 beforeEach(() => {
@@ -172,5 +197,131 @@ describe('axe against the mounted view', () => {
 		} finally {
 			mounted?.unmount();
 		}
+	});
+
+	/**
+	 * A dialog is the one surface in this plugin that takes the keyboard away from
+	 * everything behind it, so it is the one most worth scanning: `role="dialog"` without
+	 * an accessible name and a button with no text are both real violations axe sees here.
+	 * A heading LEVEL is not one of them at this scope, and that is a limit of the scope
+	 * rather than a reason for choosing it. Every kind renders its title as an `<h2>`, and
+	 * the Renovation Project view draws no other heading, so the scanned subtree holds one
+	 * heading: axe's `heading-order` needs a PRECEDING heading to compare against and lands
+	 * a lone one in `passes`, while `page-has-heading-one` (which would otherwise catch "the
+	 * first heading is not `<h1>`") is scope-inapplicable per this file's own header.
+	 *
+	 * The earlier version of this paragraph read the other way round — that a dialog `<h4>`
+	 * following the Plan Editor's `<h2>` panel titles WOULD land in `violations`, and that
+	 * this was why the case mounts here. There is no `<h4>` anywhere in `src/`; measured
+	 * against this branch, the Plan Editor with a dialog open scans as three `<h2>`s and
+	 * zero violations, so either mount is clean and the real reason is the one below.
+	 *
+	 * Mounted through `mountHarness` — the Renovation Project view, which otherwise draws
+	 * nothing (see the header) — rather than the Plan Editor case above: `DialogHost`
+	 * mounts in both (design slice 15), but the dialog framework's own markup is identical
+	 * either way, so scanning it here keeps a finding about the dialog from being
+	 * conflated with the Plan Editor's own five regions. `useDialogStore()` with no Pinia
+	 * argument resolves to the SAME store `DialogHost` reads: `RenovationProjectView.
+	 * onOpen` calls `app.use(createPinia())` synchronously inside `mountHarness`, which is
+	 * what makes that instance Pinia's own active one, and `useStore` falls back to it when
+	 * called outside a component's `setup`.
+	 *
+	 * The `form` kind IS included, via the same trivial `StubForm` `dialogHost.test.ts`
+	 * already mounts for its own "fourth arm of the switch" case. That stub is slot content,
+	 * not the markup under test — `<component :is="descriptor.component">` is the one line
+	 * of `FormDialog.vue` it stands in for; the title, the body wrapper and the Cancel
+	 * button around it are real `FormDialog.vue` markup, unconditionally rendered no matter
+	 * what the caller supplies. No caller in this codebase supplies a real
+	 * `FormDescriptor.component` yet (the calibration flow's own form component is a later
+	 * task in this slice), so a stub is the only way to exercise this kind's container at
+	 * all before then.
+	 *
+	 * What this does NOT check is stated once, here, rather than implied: `inert` is not
+	 * modelled by jsdom, so "the background is genuinely unreachable" is asserted by
+	 * `dialogHost.test.ts` against the ATTRIBUTE, and verified for real only in a vault.
+	 */
+	it.each([
+		['confirm', { kind: 'confirm', title: 'Recalculate costs?', message: 'This overwrites your manual adjustments.' }],
+		['delete-reference', { kind: 'delete-reference', entityLabel: 'Kitchen', references: [{ label: 'Requirements', count: 2 }] }],
+		['entity-picker', { kind: 'entity-picker', title: 'Choose a replacement zone', candidates: [{ id: 'z-1', label: 'Bathroom' }] }],
+		['form', { kind: 'form', title: 'Add a new asset', component: defineComponent({ template: '<p>stub form</p>' }) }],
+	] as Array<[string, DialogDescriptor]>)(
+		'reports no semantic violation with a %s dialog open',
+		async (_kind, descriptor) => {
+			const { view } = mountHarness(document.body);
+			void useDialogStore().openDialog(descriptor);
+			await nextTick();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		},
+	);
+});
+
+/**
+ * The harness index, which this file did not touch until now — and which is the surface here
+ * most likely to hold a defect axe CAN see, since it is the only page built out of interactive
+ * controls rather than a canvas: a labelled `nav`, a list of links, an `h1`, a live
+ * `role="alert"` and a stage whose contents swap.
+ *
+ * "Developer tooling" is the usual reason to skip it and is not a good one: a designer using a
+ * screen reader is a person this tool would otherwise exclude. The file's whole ceiling still
+ * applies — see the header — so this grades semantics and nothing about how any of it looks.
+ *
+ * Mounted through `indexAppConfig()`, the same object the browser's page is configured from,
+ * for the reason every case above gives: a fixture typed into this file would grade markup
+ * nobody keeps in sync with what renders.
+ *
+ * Three states, because they draw different markup and only the first is reachable by default:
+ * the picker, an entry OPEN on the stage, and the failure card — which exists only when
+ * something went wrong and is the one piece of live-region markup in the tree.
+ *
+ * The open-entry state is EVERY prototype, from the real glob, not one hard-coded id. The first
+ * version scanned `ZonePanel` alone, which meant a mock shipping an unlabelled control anywhere
+ * else was invisible: the picker scan sees only that mock's row in the list, and this scan was
+ * looking at a different file. A mock is exactly the artefact nobody writes a test for, so the
+ * set has to come from the tree.
+ */
+describe('axe against the harness index', () => {
+	it.each([
+		['the picker', 'index'],
+		['the failure card', 'entry=prototype:Nope'],
+	])('reports no semantic violations on %s', async (_state, query) => {
+		expect((await scan(query)).violations).toEqual([]);
+	});
+
+	/**
+	 * Every prototype, and the entry has to have OPENED before the scan means anything: an
+	 * `?entry=` that resolved to nothing leaves a failure card on the stage, which axe grades
+	 * happily and which is not the markup this case names. A renamed or broken mock would
+	 * otherwise pass here while being scanned not at all.
+	 */
+	it.each(prototypeEntries())('reports no semantic violations on $id', async ({ id }) => {
+		// ENCODED, as `hrefFor` and `scripts/entryShots.mjs` both do. An id is built from a file
+		// path and `&` is a legal filename character, so an unencoded one would truncate the
+		// query and this case would report that a perfectly good prototype had failed to open —
+		// a red gate caused by adding a legal file, not by anything being wrong with it.
+		const wrapper = await openIndex(`entry=${encodeURIComponent(id)}`);
+
+		try {
+			expect(wrapper.find('.rp-harness-failure').exists(), `${id} did not open`).toBe(false);
+			expect(wrapper.find('.rp-harness-stage').attributes('data-entry')).toBe(id);
+
+			const results = await scanBody();
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			wrapper.unmount();
+		}
+	});
+
+	/**
+	 * The loop above is generated from a glob, and an `it.each` over an empty array reports as a
+	 * pass. That is indistinguishable from "every mock is clean" and is exactly the state this
+	 * file was in when it scanned one hard-coded id.
+	 */
+	it('has prototypes to scan at all', () => {
+		expect(prototypeEntries().length).toBeGreaterThan(0);
 	});
 });

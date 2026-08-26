@@ -2,6 +2,13 @@
 
 Drawings of the design, openable in a browser. Not backlog items and not implementations.
 
+**This folder takes no new pages.** New prototyping happens in `src/prototypes/`, against the
+plugin's real assembled stylesheet, per
+[`Prototype a screen in the harness before it is built`](../../requirements/Prototype%20a%20screen%20in%20the%20harness%20before%20it%20is%20built.md).
+The six pages here stay, frozen, as the record of what was proposed and of the six findings
+below — several of which no other instrument could have produced. A record that gets rewritten
+stops being one, which is why this is a boundary rather than a migration.
+
 Most of them draw [`docs/components/`](../../components/) and SDD §60. `renovation-canvas.html`
 draws [the concept & interaction design spec](../renovation-canvas-concept-interaction-design.md)
 instead, and proposes a **different shell for the same view** — see *Two shells* below before

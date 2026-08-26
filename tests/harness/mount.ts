@@ -9,7 +9,7 @@
  */
 import type { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';
-import { makeView } from '../helpers/workspace';
+import { makeView } from '../helpers/makeRenovationProjectView';
 
 export interface MountedHarness {
 	/** The workspace leaf the app would give the view. */

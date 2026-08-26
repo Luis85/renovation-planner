@@ -82,6 +82,12 @@ without thought and a path that can be overridden.
   remains the backstop for writes made with no human present; it is not what happens here.
 - **4c** — The renovation folder already exists. It is reused, and its contents are left
   alone. It is refused only if it already holds a project.
+- **4d** — The renovation folder equals the library folder, contains it, or sits inside it.
+  Refused before submit, naming the clash. This is §83's overlap rule, and the one refusal here
+  that protects *other* projects: a project folder holding the library would, when this project is
+  one day deleted, take the shared catalogues of every other project with it. It is deliberately
+  not folded into **4c** — the library folder holds no project note, so "reused, and its contents
+  are left alone" would accept it.
 - **5a** — The renovator cancels. Nothing is written: no note, and no folder.
 - **6a** — The folder is created and the note write fails. The folder *this flow created* is
   removed, and the failure is reported. A folder that already existed is never removed.

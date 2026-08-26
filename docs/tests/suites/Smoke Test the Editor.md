@@ -68,3 +68,13 @@ into an automated check will find the same thing again next release.
 - [[Editor Walkthrough]] — design slice 5's Definition of Done, end to end.
 - [[Zone Editing Walkthrough]] — design slice 8's Definition of Done: draw, select, move,
   reshape, delete, and every undo of those, by hand.
+- [[Calibrate a Plan]] — design slice 15's dialog framework and its first caller: the
+  confirmation, the focus trap, `Escape`, the `inert` background, and the calibration
+  itself, which slice 7 built and slice 8 shipped unreachable. Two of its steps ask what
+  Obsidian's own keymap does behind a dialog and record the answer rather than assert one.
+- [[Assign an Asset and Delete a Referenced Zone]] — design slice 10's end-to-end loop
+  (`Zone Geometry → Area → Requirement → Cost`) and the delete-with-references decision.
+  Three of its twenty steps are the only place anything can see them: a populated
+  requirement row's LAYOUT (jsdom lays nothing out, and the browser harness draws this
+  panel empty), the §64 decision panel over a pane that is entirely canvas, and the
+  round trip through a real reload.

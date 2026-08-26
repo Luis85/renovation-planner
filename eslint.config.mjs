@@ -31,18 +31,49 @@ import vueParser from 'vue-eslint-parser';
 const TESTS = '**/tests/**';
 
 /**
- * Both extensions for one `src/` subtree. A block widened to `.vue` on the ban but not on
- * its carve-out fails INWARD — the sink's own `.vue` files would be the one place a `.vue`
- * file could not use the console — so the two are spelled by the same function.
+ * Every extension `src/` can compile into the built plugin — not the extensions the tree
+ * happens to hold today. `tsconfig.json` sets `allowJs: true`, which is TypeScript's own
+ * JavaScript bucket: `.js`, `.jsx`, `.mjs`, `.cjs`, alongside `.ts`. Vite's bundler resolves
+ * and transforms every one of those on `import` regardless of what tsconfig's `include`
+ * names — Rollup/esbuild do not consult it — so `allowJs` is not a formality here, it is
+ * the difference between a `.js` file under `src/` shipping in `dist/main.js` and not.
+ * `.tsx`, `.mts` and `.cts` are TypeScript's OWN extension bucket, native regardless of
+ * `allowJs`, and Vite-resolvable the same way `.ts` is (`.cts` is not in Vite's own
+ * extension-less resolution list, but still compiles from an import that names it
+ * explicitly) — so the BAN covers all three, same as every other extension here.
  *
- * What actually catches a forgotten block is `tests/build/vue-rules.test.ts`, which
- * exercises a layer ban, `no-console` and the carve-out through real `.vue` paths. This
- * helper only makes the two spellings impossible to write apart by hand.
+ * What those three do NOT get is a TEST, and that is a narrower claim than the rest of
+ * this list gets — said plainly, because leaving it unsaid is the defect this repository's
+ * own guide refuses. `eslint-plugin-obsidianmd`'s own recommended config applies
+ * `tseslint.configs.recommendedTypeChecked` to `**\/*.{ts,cts,mts,tsx}`, and the only block
+ * in this file giving typescript-eslint's parser type information (`parserOptions.projectService`)
+ * is scoped to `files: ['**\/*.ts']` — `.cts`/`.mts`/`.tsx` get none. Measured against BOTH
+ * a nonexistent path (what this test file's fixtures use for `.vue`/`.js`) and a REAL file
+ * written to `src/` and then removed: both throw the identical
+ * `@typescript-eslint/await-thenable` error, which is what says the gap is the missing
+ * `parserOptions` itself, not a project-service "file not found" the way an absent `.ts`
+ * path was. No fixture this test file can build reaches them, so it does not try —
+ * banning them costs nothing (a glob matching no file on disk is free; `npm run lint`
+ * stays green with zero `.tsx`/`.mts`/`.cts` files under `src/` today), but PROVING the ban
+ * fires for them would need this file's own `parserOptions.projectService` gap closed
+ * first, which is a bigger, unrelated fix. `.json` is resolvable too but cannot contain an
+ * `import` statement, so there is nothing here for `no-restricted-imports` to catch.
+ *
+ * Every extension for one `src/` subtree. A block widened on the ban but not on its
+ * carve-out fails INWARD — the sink's own `.js` files would be the one place a `.js` file
+ * could not use the console — so every caller is spelled by the same function.
+ *
+ * What actually catches a forgotten block is `tests/build/vue-rules.test.ts` (`.vue`) and
+ * `tests/build/prototypes-one-way-door.test.ts` (`.ts` and `.js`, the root-of-`src/` block
+ * below) — `.tsx`, `.mts` and `.cts` are the three extensions this helper covers that no
+ * test drives, for the reason above. This helper only makes the spellings impossible to
+ * write apart by hand; it does not make every one of them equally verified.
  */
-const srcFiles = (subtree) => [`**/src/${subtree}/**/*.ts`, `**/src/${subtree}/**/*.vue`];
+const SRC_EXTENSIONS = ['ts', 'tsx', 'mts', 'cts', 'vue', 'js', 'jsx', 'mjs', 'cjs'];
+const srcFiles = (subtree) => SRC_EXTENSIONS.map((ext) => `**/src/${subtree}/**/*.${ext}`);
 
 /** Every SFC under `src/`, and the only files any Vue rule may be pointed at. */
-const VUE_FILES = ['**/src/**/*.vue'];
+const VUE_FILES = ['**/src/**/*.vue', '**/tests/harness/**/*.vue'];
 
 /**
  * `groups` are sibling LAYERS this one may not reach; `packages` are npm packages it may
@@ -77,6 +108,17 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
 		],
 	},
 });
+
+/**
+ * The three glob shapes ONE banned group name expands to: bare (the barrel spelling,
+ * `import … from '../prototypes'`), one level (`../prototypes/X`), and any depth
+ * (`../../a/prototypes/X`). `forbidden()`'s own `groups.flatMap` computes exactly this
+ * shape for every OTHER group it bans; `prototypes` needs its own copy of the same three
+ * because the root-of-`src/` block and the catch-all block below both ban ONLY this one
+ * group, from OUTSIDE `forbidden()`'s machinery — one constant so the two cannot spell it
+ * differently from each other, or from what `forbidden()` would have computed.
+ */
+const PROTOTYPES_GROUP = ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'];
 
 /**
  * The four the SDD prohibits in the inner layers (§3.4): a `Zone` is not a Konva polygon
@@ -320,33 +362,141 @@ export default defineConfig([
 		languageOptions: { parser: tsparser },
 		rules: { 'obsidianmd/validate-manifest': 'error' },
 	},
+	{
+		/**
+		 * `forbidden(...)` below names six SUBTREES that exist today — one per layer the
+		 * SDD's diagram draws. A subtree nobody has named yet (`src/shared/`, say) matches
+		 * none of their `srcFiles(layer)` globs, and it matches the root-of-`src/` block
+		 * below no better — that block only reaches files sitting directly AT the root, not
+		 * one level down. An import of `src/prototypes/` from a subtree with no
+		 * `forbidden(...)` call of its own would pass lint clean: the "list the places"
+		 * shape this repository's own guide refuses, hiding inside the very fix built to
+		 * check at the forbidden thing instead of enumerating them.
+		 *
+		 * **This block's POSITION in the array is load-bearing, and it is the entire fix —
+		 * not the rule it carries.** Two flat-config blocks matching one file OVERRIDE
+		 * `no-restricted-imports` rather than merging it (restated at the write-boundary
+		 * block below, for `no-restricted-syntax`, because the trap is the same one twice).
+		 * Placed AFTER the six `forbidden(...)` calls, this block would win the override for
+		 * EVERY layer file too — replacing each layer's full ban (which also covers its
+		 * sibling layers and its banned packages) with just this one's `prototypes`-only
+		 * rule. One hole, in an unnamed subtree, would be traded for six, in every named
+		 * one, silently: the prototypes ban would still fire everywhere and
+		 * `tests/build/prototypes-one-way-door.test.ts` would still read green, because
+		 * nothing in it checks that a LAYER ban survived — only that the prototypes ban did.
+		 *
+		 * Placed BEFORE them, as it is here, the same override becomes the fix instead: each
+		 * `forbidden(...)` call already restates `'prototypes'` in its own `groups` (added
+		 * when the one-way door was built), so for the six known layers the LATER, more
+		 * specific block overrides this one right back — restoring the FULL layer ban,
+		 * prototypes included, exactly as if this block did not exist. Only a subtree with no
+		 * `forbidden(...)` call of its own is left with just this block's rule, which is
+		 * exactly the coverage a subtree nobody has named yet should have.
+		 *
+		 * `tests/build/prototypes-one-way-door.test.ts` drives both halves of that claim: an
+		 * unnamed subtree refusing a prototype import, AND a named layer's own
+		 * cross-layer ban still firing — proof this block did not quietly take the second
+		 * one away. Proving only the first half is the trade above, passing.
+		 */
+		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: PROTOTYPES_GROUP,
+							message:
+								'src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.',
+						},
+					],
+				},
+			],
+		},
+	},
 	forbidden(
 		'core',
 		{
-			groups: ['domain', 'application', 'infrastructure', 'presentation', 'plugin'],
+			groups: ['domain', 'application', 'infrastructure', 'presentation', 'plugin', 'prototypes'],
 			packages: PRESENTATION_AND_HOST,
 		},
 		'core/ is generic technical ground — geometry, units, money, ids, results, events. It knows nothing about renovation and nothing about a host.',
 	),
 	forbidden(
 		'domain',
-		{ groups: ['application', 'infrastructure', 'presentation', 'plugin'], packages: PRESENTATION_AND_HOST },
+		{
+			groups: ['application', 'infrastructure', 'presentation', 'plugin', 'prototypes'],
+			packages: PRESENTATION_AND_HOST,
+		},
 		'domain/ decides what a Zone or a WorkPackage IS. A Konva polygon, a Pinia object and a Markdown file are representations of it, so it may name none of them (SDD §3.3, §3.4).',
 	),
 	forbidden(
 		'application',
-		{ groups: ['infrastructure', 'presentation', 'plugin'], packages: PRESENTATION_AND_HOST },
+		{ groups: ['infrastructure', 'presentation', 'plugin', 'prototypes'], packages: PRESENTATION_AND_HOST },
 		'application/ coordinates use cases against PORTS it declares itself. Infrastructure implements those ports and the composition root wires them; an import the other way inverts the dependency the ports exist to create.',
 	),
 	forbidden(
 		'infrastructure',
-		{ groups: ['presentation', 'plugin'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
+		{ groups: ['presentation', 'plugin', 'prototypes'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
 		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
 	),
 	forbidden(
 		'presentation',
-		{ groups: ['infrastructure', 'plugin'] },
+		{ groups: ['infrastructure', 'plugin', 'prototypes'] },
 		'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.',
+	),
+	forbidden(
+		'plugin',
+		{ groups: ['prototypes'] },
+		'plugin/ composes every layer, which is why it has no other ban — but src/prototypes/ is design scaffolding that must never reach a built plugin, and the composition root is the one place that could pull it in.',
+	),
+	{
+		/**
+		 * The root of `src/` — which today is `src/main.ts` and nothing else, and which no
+		 * `forbidden(...)` call can reach: that helper builds `**\/src/<subtree>/**\/*`, so a
+		 * file sitting directly in `src/` matches no subtree pattern at all.
+		 *
+		 * It is also the BUILD ENTRY (`vite.config.ts`, `lib.entry`). A prototype imported
+		 * here is a prototype in every user's plugin, so the file with the most to lose was
+		 * the one file the layer bans did not cover.
+		 *
+		 * Same `SRC_EXTENSIONS` list as `srcFiles()` above, and for the same reason: the
+		 * build entry could be reauthored in `.js` (`allowJs`) exactly as any subtree could,
+		 * and this block is the one place a widened `srcFiles()` cannot reach in turn — it
+		 * is spelled out rather than routed through the helper because it is not a subtree.
+		 */
+		files: SRC_EXTENSIONS.map((ext) => `**/src/*.${ext}`),
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: PROTOTYPES_GROUP,
+							message:
+								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
+						},
+					],
+				},
+			],
+		},
+	},
+	forbidden(
+		'presentation/dialogs',
+		// Repeats `infrastructure` and `plugin` from the `presentation` block above ON
+		// PURPOSE: two blocks matching one file OVERRIDE `no-restricted-imports` rather than
+		// merging it, so a block that named only its own additions would quietly widen the
+		// hole it was written to narrow. `tests/build/vue-rules.test.ts` drives all three
+		// through real fixture paths rather than reading this object.
+		//
+		// `prototypes` is in that list for exactly the reason the paragraph above gives, and it
+		// was ADDED WHEN THE TWO BRANCHES MET: this block arrived on `main` while the prototypes
+		// ban arrived on the harness branch, so each was complete on its own and the merge of
+		// the two would have left `presentation/dialogs/` as the one directory in `src/` free to
+		// import design scaffolding — the override trap this comment describes, sprung by a
+		// merge rather than by an edit.
+		{ groups: ['application', 'infrastructure', 'plugin', 'core/events', 'prototypes'] },
+		'presentation/dialogs/ renders what it is handed and resolves one typed value. A query, a command, a repository or the event bus reached from here would put a domain decision inside a dialog (design slice 15, Definition of Done 9).',
 	),
 	{
 		// -- invariants that are checked rather than described ----------------------
@@ -359,9 +509,17 @@ export default defineConfig([
 		// rather than merging it: the block below repeats the shared SVG selectors for
 		// that reason, and any further carve-out must do the same. `**/`-anchored like
 		// every other block, for the base-path reason TESTS states.
-		// Both globs literally rather than routed through `srcFiles`: `**/src/**/**/*.ts` is
-		// a needlessly clever spelling of the same set.
-		files: ['**/src/**/*.ts', '**/src/**/*.vue'],
+		// `SRC_EXTENSIONS`, spelled literally rather than routed through `srcFiles`:
+		// `srcFiles('**')` is a needlessly clever spelling of the same set. This glob went
+		// stale once already — it named only `.ts`/`.vue` after `SRC_EXTENSIONS` grew past
+		// those two, so a `.js` file was covered by every layer ban and still bypassed the
+		// vault write boundary. Built from the constant now, the same way the root-of-`src/`
+		// block above is, so the two cannot drift apart from `srcFiles()` again. Written
+		// without a COUNT deliberately: the earlier version said "grew to six" and the list
+		// is nine, having gained `.tsx`/`.mts`/`.cts` in a later round that did not come
+		// back here — and the number was never the point, since the whole repair was to stop
+		// restating the list at all.
+		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		ignores: ['**/src/infrastructure/obsidian/**'],
 		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
 	},
@@ -460,6 +618,99 @@ export default defineConfig([
 			'max-depth': ['error', 4],
 			'max-params': ['error', 5],
 			'no-console': 'error',
+		},
+	},
+	{
+		/**
+		 * The harness's OWN SFCs, which the block above now reaches — and the one rule it
+		 * hands them that does not belong to them.
+		 *
+		 * `VUE_FILES` was `src/` only, so `tests/harness/IndexPage.vue` was linted by no Vue
+		 * rules at all and type-checked by nothing either; widening it is what put the largest
+		 * component in this repository inside both gates. What came with the widening is
+		 * `no-console: 'error'`, and here that rule is backwards: `console.error` is the
+		 * channel `scripts/harness-shot.mjs` RECORDS and exits non-zero on, so an unattributable
+		 * Vue warning and a failed entry mount are reported through it deliberately. The index's
+		 * `.ts` siblings — `page.ts` chief among them — have always been free to call it, since
+		 * `no-console` is not in any recommended set and this file only ever turned it on for
+		 * `src/`. So this restores parity between a module and its own siblings rather than
+		 * granting the harness something new.
+		 *
+		 * ONE rule and nothing else, for the flat-config reason stated at the logging carve-out:
+		 * a second block matching the same file REPLACES the rule rather than merging, so the
+		 * budgets and every Vue rule above stay in force. `tests/build/lint-scope.test.ts` asks
+		 * ESLint itself for both halves — the Vue rules on, this one off — because a `files`
+		 * glob that stopped matching would make the gate quieter rather than redder.
+		 */
+		files: [`${TESTS}/harness/**/*.vue`],
+		rules: { 'no-console': 'off' },
+	},
+	{
+		/**
+		 * `src/prototypes/` may carry a `<script setup>` and a `<style>` block, and this is where
+		 * that stops being prose. Both are refused everywhere else in this repository; here the
+		 * rule is turned OFF entirely.
+		 *
+		 * **`<script setup>` makes a mock MORE like the thing it becomes, not less.** Every
+		 * shipped component has one, so a scripted mock promotes as a file move with nothing to
+		 * add — and it lifts the three limits a template-only file imposes, each of which a real
+		 * mock author hit and worked around: no props means no `v-for`, so repeated rows are
+		 * hand-copied; no bindings means a proportion cannot be drawn at all (an inline `style`
+		 * is what the marketplace refuses and what promotion would have to remove); and no state
+		 * means no hover, selection or focus to judge, which for a list view is half of what
+		 * there is to judge. Template-only remains legal and remains the promotion pair's own
+		 * shape — `ZoneSummary.vue` is still exactly that.
+		 *
+		 * **`<style>` is the trade, and it goes the other way, so it is stated plainly.** A
+		 * mock's block does NOT ship, which is the whole gain: nothing imports this tree, so a
+		 * screen's provisional CSS stops being downloaded by every vault while the screen it
+		 * draws does not exist. What it costs is that the block does not TRAVEL either — a
+		 * shipped component is styled from `styles/`, since SDD §84's colour check runs over the
+		 * assembled sheet — so promotion lifts the block into a partial. `styles/` stays
+		 * available for a mock whose CSS has outgrown the SFC budget: `WorkPackages.vue` is 306
+		 * code lines against 200 of CSS, and 506 is past the 400 this config allows an SFC.
+		 *
+		 * `'off'` EXPLICITLY, not by omission. Two flat-config blocks matching one file override
+		 * this rule's options rather than merging them, so leaving it out here would not relax
+		 * anything — the wider `VUE_FILES` block's `['error', 'style']` would simply apply. The
+		 * same trap this config documents for `no-restricted-syntax`, in the other direction.
+		 *
+		 * `tests/build/vue-rules.test.ts` drives both blocks in both trees, because "off here and
+		 * on there" is exactly the claim a config's own text cannot make good on.
+		 */
+		files: ['**/src/prototypes/**/*.vue'],
+		rules: {
+			'vue/no-restricted-block': 'off',
+			/**
+			 * OFF here, and the choice is between this and narrowing a promise — so the reason
+			 * has to be written down rather than assumed.
+			 *
+			 * `flat/recommended` applies whole to this tree, and three of its rules refuse what a
+			 * designer or an eyeless agent actually writes: a single-word screen name
+			 * (`Kitchen.vue`), a content-bearing element on one line (`<div class="x">hello</div>`),
+			 * and two-space indentation. All three measured against this config, not reasoned
+			 * about. `ZoneSummary.vue` passes only by accident — its single-line content elements
+			 * are `<span>`s, which are on `singleline-html-element-content-newline`'s inline-element
+			 * ignore list, and its `<h2>` carries no attributes.
+			 *
+			 * Only ONE of the three is turned off, and the line between them is `--fix`. The two
+			 * formatting rules are auto-fixable (measured: `eslint --fix` rewrites both spellings
+			 * above correctly), and they are what makes a mock's template LEGAL in
+			 * `src/presentation/` unchanged — `tests/build/prototype-promotion.test.ts` holds that
+			 * the promoted template is byte-identical, so relaxing formatting here would move the
+			 * failure to promotion, where the fix is redrawing the markup and the whole feature is
+			 * "the markup is never redrawn". This one is not fixable and never could be: it is
+			 * about the FILE NAME and says nothing about the template, so switching it off costs
+			 * that guarantee nothing. And naming a mock after the screen it draws is the likely
+			 * case, not the exotic one — `docs/actors/Designer.md`'s actor names screens, not
+			 * component-library entries.
+			 *
+			 * The cost, stated: a promoted mock still meets this rule in `src/presentation/`, so
+			 * `Kitchen.vue` is renamed at promotion. That is a rename of a file, not a redraw of a
+			 * template, and it is the trade this block is choosing. `tests/build/vue-rules.test.ts`
+			 * drives all three spellings, in both trees.
+			 */
+			'vue/multi-word-component-names': 'off',
 		},
 	},
 	{

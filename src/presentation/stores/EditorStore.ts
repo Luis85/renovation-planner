@@ -110,6 +110,30 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
+	 * The camera and every in-flight gesture back to the state a Plan Editor opens in.
+	 *
+	 * For a store holding nothing persisted (see the header), that is the whole definition:
+	 * there is no canonical value to re-read and nothing to discard, so "reset" is exactly
+	 * "assign the same defaults the module top declared" — which is why `DEFAULT_VIEWPORT` is
+	 * imported rather than restated, leaving one source of truth for what a fresh viewport is.
+	 * A store whose state DID outlive its component would need a reload here instead, and the
+	 * distinction is the reason this method can be four assignments and be complete.
+	 *
+	 * What that buys, and the thing that would notice it missing: any surface reusing one Pinia
+	 * across successive mounts — the harness index is the one that exists (`tests/harness/fixture.ts`
+	 * calls this before every entry it opens, so a pan left by one entry does not draw the next),
+	 * a later in-plugin surface would be another.
+	 */
+	function reset(): void {
+		viewport.value = DEFAULT_VIEWPORT;
+		activeToolId.value = null;
+		hoveredObjectId.value = null;
+		dragState.value = null;
+		temporaryPolygon.value = null;
+		pointerWorld.value = null;
+	}
+
+	/**
 	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
 	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
 	 * is this ref — so the toolbar's active state and `PlanCanvas`'s tool-versus-camera
@@ -139,5 +163,6 @@ export const useEditorStore = defineStore('editor', () => {
 		continuePan,
 		endPan,
 		setPointer,
+		reset,
 	};
 });

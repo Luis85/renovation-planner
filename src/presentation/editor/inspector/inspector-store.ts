@@ -5,7 +5,12 @@ import type { AppError, GeometryError } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
+import type { AssetId } from '../../../domain/asset/AssetId';
+import type { RequirementId } from '../../../domain/requirement/RequirementId';
+import type { Money } from '../../../core/money/Money';
 import type { ZoneInspectorFields } from '../../../application/queries/GetZoneInspector';
+import type { RequirementInspectorDTO } from '../../../application/queries/GetRequirementsForZone';
+import type { ReferenceResolution } from '../../../application/reference/deleteResolution';
 import type { UndoableCommand } from '../tools/undoable-command';
 
 /**
@@ -41,7 +46,28 @@ export type InspectorDto =
  * — the panel and the composition root both consume it (CLAUDE.md: "a type belongs with
  * the code that produces it").
  */
-export type InspectorEdit = { readonly kind: 'delete'; readonly zoneId: ZoneId };
+export type InspectorEdit =
+	/**
+	 * Slice 10's three reference-resolution fields ride along, all optional: a Zone with no
+	 * referents is deleted with none of them, which is the form the command refuses if
+	 * referents turn out to exist after all. Turning a zero count into a `resolution` the
+	 * user never chose is the one thing the delete flow may not do.
+	 */
+	| {
+			readonly kind: 'delete';
+			readonly zoneId: ZoneId;
+			readonly resolution?: ReferenceResolution;
+			readonly reassignTo?: ZoneId;
+			readonly resolvedReferents?: readonly RequirementId[];
+		}
+	/** Assign (or idempotently find) the link between a zone and an area-kind asset. */
+	| { readonly kind: 'assign'; readonly zoneId: ZoneId; readonly assetId: AssetId }
+	/**
+	 * `quantity === null` is "reset to calculated" — null is a VALUE in this seam, so
+	 * undoing a reset restores the typed figure.
+	 */
+	| { readonly kind: 'quantity-override'; readonly requirementId: RequirementId; readonly quantity: number | null }
+	| { readonly kind: 'cost-override'; readonly requirementId: RequirementId; readonly cost: Money | null };
 
 /**
  * What the composition root hands `createInspectorStoreDefinition`.
@@ -63,6 +89,10 @@ export type InspectorEdit = { readonly kind: 'delete'; readonly zoneId: ZoneId }
 export interface InspectorDeps {
 	readonly query: {
 		execute(input: { zoneId: ZoneId }): Promise<Result<ZoneInspectorFields | null, RepositoryError | GeometryError>>;
+	};
+	/** The Requirements panel's rows for one zone (design slice 10). */
+	readonly requirementsQuery: {
+		execute(input: { zoneId: ZoneId }): Promise<Result<readonly RequirementInspectorDTO[], RepositoryError>>;
 	};
 	readonly dispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
 	toCommand(edit: InspectorEdit): UndoableCommand;
@@ -93,6 +123,13 @@ function zoneDto(fields: ZoneInspectorFields): InspectorDto {
 export function createInspectorStoreDefinition(deps: InspectorDeps) {
 	return defineStore('inspector', () => {
 		const dto = ref<InspectorDto>({ kind: 'empty' });
+		/**
+		 * The Requirements panel's rows for the selected zone (slice 10). Hydrated by the
+		 * same ticket as `dto` — one selection change, one request id, both answers answer
+		 * it — so the two halves of the panel can never disagree about which zone they
+		 * describe. Empty while the selection is not exactly one zone.
+		 */
+		const requirements = ref<readonly RequirementInspectorDTO[]>([]);
 		// What the current `dto` was hydrated from — `InspectorDeps` hands over no
 		// `SelectionStore`, so this is the only way `refresh()` can re-read for the
 		// CURRENT selection rather than re-selecting (see that function below).
@@ -159,15 +196,20 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 			lastSelection.value = [...selectedIds];
 			if (selectedIds.length === 0) {
 				dto.value = { kind: 'empty' };
+				requirements.value = [];
 				return;
 			}
 			if (selectedIds.length > 1) {
 				dto.value = { kind: 'multiple', ids: [...selectedIds] };
+				requirements.value = [];
 				return;
 			}
 			const result = await queryZone(selectedIds[0] as ZoneId);
+			// The rows ride the same ticket: one query each, both answered together.
+			const rows = await deps.requirementsQuery.execute({ zoneId: selectedIds[0] as ZoneId });
 			if (request !== latestRequest) return; // a newer selection has superseded this read
 			dto.value = !isErr(result) && result.value !== null ? result.value : { kind: 'empty' };
+			requirements.value = isErr(rows) ? [] : rows.value;
 		}
 
 		/** Edit → Command (SDD §59's last arrow), through the same single choke point tools
@@ -211,12 +253,15 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		async function refresh(): Promise<void> {
 			if (lastSelection.value.length !== 1) return;
 			const request = ++latestRequest;
-			const result = await queryZone(lastSelection.value[0] as ZoneId);
+			const zoneId = lastSelection.value[0] as ZoneId;
+			const result = await queryZone(zoneId);
+			const rows = await deps.requirementsQuery.execute({ zoneId });
 			if (request !== latestRequest) return; // a newer selection has superseded this read
 			if (isErr(result)) return;
 			dto.value = result.value ?? { kind: 'empty' };
+			requirements.value = isErr(rows) ? [] : rows.value;
 		}
 
-		return { dto, hydrateFrom, commit, refresh };
+		return { dto, requirements, hydrateFrom, commit, refresh };
 	});
 }

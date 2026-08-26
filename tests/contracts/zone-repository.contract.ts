@@ -5,7 +5,7 @@ import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { Zone, ZoneId } from '../../src/domain/zone/Zone';
 import { expectErr, expectOk } from '../helpers/domain';
-import { assertSaveUpsertsById } from './upsert';
+import { expectIdKeyedUpsert } from './upsert';
 
 /**
  * The shared ZoneRepository contract (SDD §72) — the suite SDD §36's own interface
@@ -49,10 +49,9 @@ export function zoneRepositoryContract(make: () => ZoneFixture): void {
 		it('save is an ID-keyed upsert when given the version it returned', async () => {
 			const f = make();
 			const { zone } = seedNew(f);
-			const written = await assertSaveUpsertsById({
+			const written = await expectIdKeyedUpsert({
 				repository: f.repository,
 				entity: zone,
-				read: async () => expectOk(await f.repository.getById(zone.id))?.entity ?? null,
 				replacementName: 'After',
 			});
 			expect(written.version.revision).toBe(2);

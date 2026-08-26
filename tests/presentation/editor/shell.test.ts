@@ -8,6 +8,7 @@
  * each region exists, is labelled, and holds what this slice puts in it.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { err, ok } from '../../../src/core/result/Result';
 import { t } from '../../../src/presentation/i18n/strings';
 import {
@@ -77,6 +78,43 @@ describe('the five regions', () => {
 
 		expect(wrapper.find('.rp-editor-toolbar').attributes('aria-label')).toBe(t('en', 'editor.toolbar'));
 		expect(wrapper.find('.rp-editor-inspector').attributes('aria-label')).toBe(t('en', 'editor.inspector'));
+	});
+
+	/**
+	 * Slice 15's host, mounted per ItemView-scoped app. Asserted at the SHELL rather than
+	 * only in the dialogs' own tests: a host that exists but is mounted nowhere is exactly
+	 * the state `CalibrateTool` was in for a whole slice.
+	 */
+	it('mounts a dialog host that the leaf can open a dialog through', async () => {
+		harness = await mountPlanEditor();
+		const store = useDialogStore(harness.pinia);
+
+		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
+		await settle();
+
+		expect(harness.wrapper.find('.rp-dialog').exists()).toBe(true);
+	});
+
+	/**
+	 * Presence alone does not prove the mount point is correct: `DialogHost`'s
+	 * `inertBackground` walks exactly two levels up from `.rp-dialog` to reach the element
+	 * whose OTHER children it backgrounds. Mounted a level too deep, the toolbar would stay
+	 * live and clickable behind the dialog with nothing erroring anywhere — this is the case
+	 * that would catch that.
+	 */
+	it('makes a shell region inert while the dialog is open, and releases it on close', async () => {
+		harness = await mountPlanEditor();
+		const store = useDialogStore(harness.pinia);
+
+		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
+		await settle();
+
+		expect(harness.wrapper.find('.rp-editor-toolbar').element.hasAttribute('inert')).toBe(true);
+
+		store.resolve('cancel');
+		await settle();
+
+		expect(harness.wrapper.find('.rp-editor-toolbar').element.hasAttribute('inert')).toBe(false);
 	});
 });
 
@@ -291,7 +329,7 @@ describe('the camera', () => {
 describe('what the shell shows when there is no plan to draw', () => {
 	it('says so, and mounts no canvas, when the plan does not exist', async () => {
 		harness = await mountPlanEditor({
-			queries: { getPlan: () => Promise.resolve(ok(null)), findZonesByPlan: () => Promise.resolve(ok([])) },
+			queries: { getPlan: () => Promise.resolve(ok(null)), findZonesByPlan: () => Promise.resolve(ok([])), getRequirementsForZone: () => Promise.resolve(ok([])), listAssets: () => Promise.resolve(ok([])) },
 		});
 
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(false);
@@ -303,6 +341,8 @@ describe('what the shell shows when there is no plan to draw', () => {
 			queries: {
 				getPlan: () => Promise.resolve(err(READ_FAILED)),
 				findZonesByPlan: () => Promise.resolve(ok([])),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
 			},
 		});
 
@@ -320,6 +360,8 @@ describe('what the shell shows when there is no plan to draw', () => {
 				// Never settles: the editor is in its loading state for the whole of this test.
 				getPlan: () => new Promise(() => {}),
 				findZonesByPlan: () => Promise.resolve(ok([])),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
 			},
 		});
 

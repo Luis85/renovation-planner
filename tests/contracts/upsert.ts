@@ -22,15 +22,34 @@ export async function assertSaveUpsertsById<T extends { readonly id: string; rea
 	const first = await args.repository.save(args.entity, 'absent');
 	expect(first.ok).toBe(true);
 	if (!first.ok) {
-		return expect.unreachable('initial save failed');
+		throw new Error('initial save failed');
 	}
 	const second = await args.repository.save({ ...args.entity, name: args.replacementName }, first.value.version);
 	expect(second.ok).toBe(true);
 	if (!second.ok) {
-		return expect.unreachable('replacement save failed');
+		throw new Error('replacement save failed');
 	}
 	expect(second.value.version.revision).toBeGreaterThanOrEqual(2);
 	const reread = await args.read();
 	expect(reread?.name).toBe(args.replacementName);
 	return second.value;
+}
+
+/** The whole upsert term as one shared walk; the revision claim stays with each suite's test. */
+export async function expectIdKeyedUpsert<
+	R extends Upsertable<T> & {
+		getById(id: T['id']): Promise<{ ok: true; value: Loaded<T> | null } | { ok: false; error: unknown }>;
+	},
+	T extends { readonly id: string; readonly name: string },
+>(args: { repository: R; entity: T; replacementName: string }): Promise<Loaded<T>> {
+	const written = await assertSaveUpsertsById({
+		repository: args.repository,
+		entity: args.entity,
+		read: async () => {
+			const found = await args.repository.getById(args.entity.id);
+			return found.ok ? (found.value?.entity ?? null) : null;
+		},
+		replacementName: args.replacementName,
+	});
+	return written;
 }

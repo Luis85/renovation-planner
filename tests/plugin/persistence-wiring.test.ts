@@ -70,7 +70,17 @@ describe('persistence composition', () => {
 		const { plugin } = await loadedPlugin(DEFAULT_SETTINGS);
 		const snapshot = await plugin.root.persistence?.queries.diagnostics.execute();
 
-		expect(snapshot?.schemaVersions).toEqual({ project: 1, plan: 1, zone: 1, 'plan-geometry': 1 });
+		// Asset and Requirement appear here because they are in `migrationSet()` — the ONE
+		// table the runner is built from. Nothing hand-maintains a second list, which is why
+		// slice 10's two entity kinds arrived in diagnostics with no diagnostics edit.
+		expect(snapshot?.schemaVersions).toEqual({
+			project: 1,
+			plan: 1,
+			zone: 1,
+			asset: 1,
+			requirement: 1,
+			'plan-geometry': 1,
+		});
 		expect(snapshot?.migrationState.pending).toEqual([]);
 		expect(snapshot?.obsidianVersion).toBe(apiVersion);
 	});
@@ -177,6 +187,20 @@ describe('persistence composition', () => {
 		plugin.root.persistence?.changeAdapter.flush();
 
 		expect(plugin.root.persistence?.index.getPath(planId)).toBe(planPath);
+	});
+
+	/**
+	 * A FACTORY rather than a shared instance, for the reason `PlanEditorCommandServices`
+	 * already states about the zone adapters: a reversible command holds ONE transaction's
+	 * inverse state, so two overlapping gestures sharing one would have the second undo
+	 * restore the first's snapshot.
+	 */
+	it('hands the editor a calibrate factory that answers a fresh command each call', async () => {
+		const { planEditorDeps } = await import('../../src/plugin/composition-root');
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS);
+		const services = planEditorDeps(plugin.root, workspace as never, {} as never).commands;
+
+		expect(services.calibratePlan()).not.toBe(services.calibratePlan());
 	});
 
 	it('declares exactly one folder setting, and Geometry is not among them', async () => {

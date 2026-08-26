@@ -28,6 +28,23 @@ describe('migrateNote', () => {
 		expect(error.code).toBe('zone.schema-version-unsupported');
 	});
 
+	/**
+	 * The runner's own refusals are `Error`s, but a migration STEP is ordinary code and may
+	 * throw anything — including a plain object carrying the tag. The category has to
+	 * survive that, and the message falls back to `String(cause)` rather than to nothing:
+	 * a `Migration` refusal flattened into `Persistence` tells the user their data is bad
+	 * when the truth is that their build is too old.
+	 */
+	it('keeps the Migration category for a tagged throw that is not an Error', () => {
+		const result = migrateNote(runnerThat(() => {
+			throw { code: 'plan.schema-version-unsupported', category: 'Migration' };
+		}), 'plan', { 'schema-version': 99 });
+		const error = expectErr(result);
+		expect(error.category).toBe('Migration');
+		expect(error.code).toBe('plan.schema-version-unsupported');
+		expect(error.message).toBe('[object Object]');
+	});
+
 	it('falls back to Persistence for a throw without the runner tag', () => {
 		const result = migrateNote(runnerThat(() => {
 			throw new TypeError('cannot read properties of undefined');

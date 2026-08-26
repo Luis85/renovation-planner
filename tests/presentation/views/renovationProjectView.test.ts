@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../../helpers/dom';
 import { RENOVATION_PROJECT_VIEW, type RenovationProjectView } from '../../../src/presentation/views/RenovationProjectView';
 import { t } from '../../../src/presentation/i18n/strings';
-import { makeView } from '../../helpers/workspace';
+import { makeView } from '../../helpers/makeRenovationProjectView';
 // Regular type imports rather than an inline dynamic-import type annotation: oxlint's
 // `consistent-type-imports` forbids that form, and `noInlineConfig` means there is no
 // suppression for it. These are the module SHAPES the two wrappers below spread.

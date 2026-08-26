@@ -12,18 +12,28 @@ settings pane offers the one setting there is; and the persistence layer of desi
 is in place — Obsidian repositories, the geometry sidecar store, the project index and its
 vault-change pipeline, and the migration runner.
 
+**Every entity and mechanism the MVP architecture needs now exists**, which is what slice
+10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
+cost engine behind them, the reference-integrity engine that guards deleting either end of
+a link, and the recalculation cascade that keeps a figure honest when its inputs move.
+Everything past this point is feature work on a proven template. What is NOT done is the
+cross-cutting pair (slices 11–12) and every surface slices 13–17 name.
+
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
-a ribbon button and a command, and still draws an empty root. The **Plan editor** is
-per-plan (several leaves coexist, keyed by a plan id in Obsidian's own view state) and is
-design slice 5: §60's five shell regions around a Konva stage of §17's seven layers, the
-persisted Zones of one Plan rendered read-only, an image or PDF background, and a
-pan/zoom camera. Nothing on that canvas is editable: design slice 6 built the tool
-framework underneath it — `EditorTool` and its switching lifecycle, `CommandHistory`
-undo/redo, the reversible move-zone command, transformer normalization, the snap service,
-the selection store and the Inspector's selection-to-DTO-to-command pipeline. Slice 7
-(Calibration) added the first concrete tool; slice 8 (Zone Editing) wired the framework
-into the editor for real — see the next section. The one thing slice 5 writes is which
+a ribbon button and a command, and draws nothing of its own yet; the only thing mounted in
+it is slice 15's `DialogHost`, which is invisible until something opens a dialog, and slice
+14's empty states are what will give it content. The **Plan editor** is per-plan (several
+leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
+around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
+background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
+next section: slice 6 built the tool framework underneath it (`EditorTool` and its switching
+lifecycle, `CommandHistory` undo/redo, the reversible move-zone command, transformer
+normalization, the snap service, the selection store and the Inspector's
+selection-to-DTO-to-command pipeline), slice 7 added the first concrete tool, slice 8 wired
+the framework into the editor for real, and slice 15 made slice 7's tool reachable. This
+paragraph said "nothing on that canvas is editable" for four slices after it stopped being
+true, contradicting the sentence immediately below it. The one thing slice 5 writes is which
 document a Plan's background IS.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
@@ -102,16 +112,155 @@ review pass that followed:
   Vue injection context is `PlanEditorContext` now (`PLAN_EDITOR_CONTEXT`,
   `usePlanEditorContext`); the tool facade keeps the bare name, which is the SDD's.
 
-**Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`** — and it
-is still **unreachable in a vault after slice 8**, which is a defect rather than a plan.
-`registerEditorTools` registers `select` and `draw-polygon` and stops; the toolbar names
-Pan/Select/Draw-zone. So `CalibrateTool`, `ReversibleCalibratePlanCommand` and the sidecar
-port are proven by tests, wired to nothing, and no user can calibrate a plan — every area
-the Inspector prints is background pixels relabelled as millimetres at the placeholder
-scale of 1. Wiring it is a toolbar entry plus a `supplyKnownDistance` prompt; this sentence
-stays until one of those happens. (An earlier version said the toolbar "arrives with slice
-8", which stopped being true the moment slice 8 landed without it.) Two rules came out of
-its review pass and both are load-bearing:
+**Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
+descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the
+descriptor's own `kind` through `DialogResultByKind`, and THROWS if a dialog is already open
+— sequential, never stacked. `DialogHost` mounts once per ItemView-scoped Vue app (both of
+them, not the editor's alone) and owns every keyboard concern, so no kind reimplements one.
+Its first real caller is the calibration gesture. Rules that came out of it:
+
+- **`presentation/dialogs/` may not import `application/`, `infrastructure/`, `plugin/` or
+  the event bus** — a `forbidden('presentation/dialogs', …)` block in `eslint.config.mjs`,
+  driven through real fixture paths by `tests/build/vue-rules.test.ts`. It REPEATS the bans
+  the wider `presentation` block already carries, because two blocks matching one file
+  override rather than merge, and a block naming only its additions would open the bigger
+  hole while looking like it closed a smaller one.
+- **`DialogHost` is the single caller of `store.resolve`.** The kinds emit a typed `resolve`
+  event and settle nothing. Single-settle, focus restoration and the release of the
+  background's `inert` all hang off that one function; a kind that settled directly would
+  bypass all three and nothing would error. Nothing ENFORCES the exclusivity — `resolve` is
+  a public store member — and the store's own comment says so rather than implying a
+  mechanism.
+- **"Modal" here means the VIEW, never the application.** The background goes `inert`
+  (deliberately not `aria-hidden`: the siblings hold focusable controls, so an aria-hidden
+  subtree around them is itself the `aria-hidden-focus` violation the axe check reports;
+  `aria-modal="true"` tells a screen reader the same thing). But this is not an Obsidian
+  `Modal`: nothing pushes a `Scope`, and `onKeydown` calls `preventDefault()` without
+  `stopPropagation()`, so Obsidian's own keymap stays live behind it — a hotkey bound to
+  `Escape` fires alongside the dialog's cancel, and `Ctrl+P` opens the command palette on
+  top of an open dialog. jsdom models no host keymap, so no test here can see any of that;
+  `docs/tests/cases/Calibrate a Plan.md` steps 17 and 18 are where it gets looked at.
+- **The `Escape` listener is on the DIALOG element, not on `document`**, because two Plan
+  Editor leaves may each have a dialog open and one `Escape` must close the focused one
+  only. `onBeforeUnmount` releases the `inert`, because Obsidian REUSES a view and a leaf
+  closed with a dialog open would otherwise reopen into a pane nothing can be clicked in.
+- **A dialog opened during `pointerdown` loses its focus to the browser.** Chromium moves
+  focus to `<body>` as `pointerdown`'s own default action, which runs AFTER the handler
+  returns — so the dialog's focus lands first and is then thrown away, and `Escape` does
+  nothing. `CalibrateTool` therefore buffers the completing click and starts its dialog from
+  `pointerUp`. Found by driving a real browser; jsdom implements no focus-on-mousedown at
+  all, so the suite can only assert `defaultPrevented`.
+- **Obsidian's own `button:not(.clickable-icon)` outranks a single class.** It sets
+  `background-color` at (0,1,1) — `:not()` contributes its argument's specificity — so
+  `.rp-dialog-button-danger` at (0,1,0) lost and the destructive button rendered plain
+  white. It is `.rp-dialog .rp-dialog-button-danger` now. jsdom never resolves `var()` to a
+  colour, so the only instrument for this is a browser.
+- **A descriptor says what it is about IN WORDS, and may not lean on what is behind it.**
+  The panel is centred in its own pane and the pane is full of canvas, so the object being
+  asked about is usually underneath the question — measured in the harness, a calibration
+  confirmation covered the segment the user had just drawn. A content rule rather than a
+  positioning one on purpose: no alignment escapes it (top covers the zone captions, bottom
+  the status bar, right still crosses a third of the canvas), so moving the panel only
+  relocates what it hides. `KnownDistanceForm` printing the measured distance is what
+  compliance looks like; slice 10's delete flow is where it will matter most.
+- **A user-facing string in a dialog is resolved by the CALLER**, never by the dialog:
+  `title`, `message`, `entityLabel` and every `ReferenceRow.label` arrive already through
+  `t()`. Only the two label DEFAULTS are resolved inside the framework, from `StringKey`s —
+  `confirmLabel ?? 'Confirm'` would have been the one untranslated string every confirmation
+  in the plugin flowed through. Neither half is caught by lint: `I18N_LITERAL_BAN` fires at
+  four call sites and a descriptor's `title:` is none of them, so both rest on review.
+  What IS checked is that `de.ts` translates every key `en.ts` declares
+  (`tests/presentation/i18n/strings.test.ts`) — the type permits the gap on purpose, so an
+  incomplete locale is safe, and the fallback then hides a forgotten key from everyone but
+  the user reading it.
+- **A new dialog kind is FIVE edits, four of them build failures — measured, not asserted.**
+  Adding one and reading `vue-tsc` reports twice at `DialogResultByKind` and once at
+  `DialogHost`'s last branch, with `cancelResultFor`'s `TS2366` appearing as soon as the
+  result-type entry exists. Only the component file is something the compiler cannot make
+  you write. The one hole: `DialogHost`'s check is `FormDialog`'s declared prop type, so it
+  is STRUCTURAL — a fifth descriptor carrying a `title` and a `component` would satisfy
+  `FormDescriptor` and render as a form rather than fail.
+- **`DeleteReferenceDialog` and `EntityPickerDialog` have a caller now** — slice 10's
+  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button. They
+  shipped with none for two slices, which was the plan rather than dead code: the queries
+  feeding their rows and the command fields carrying their answer were slice 10's to define,
+  and declaring them in slice 15 would have been a second derivation of contracts it owns.
+  **Two of slice 15's items are still open, and the caller did not close them**, because the
+  shared-catalogue amendment rewrote them after that flow was built:
+  `ListRequirementsReferencing` returns a flat `RequirementId[]`, not the per-project GROUPS
+  carrying `projectName` and `projectPath` that item 6 now asks for; and item 6a's
+  `t(language, key, params?)` does not exist — `src/presentation/i18n/strings.ts` still
+  declares two parameters, and every string `en.ts` holds is fixed text. The two land
+  together, because the first interpolated string in the plugin is the row label item 6
+  names.
+- **A tool's transient visual goes in `RenderState`, and it needs its own field when it
+  means its own thing.** The calibration segment is `measurement`, not a two-point
+  `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
+  zone", while a measurement renders solid and open with a marker at each end. `pointerMove`
+  had been an empty method under a comment deferring the preview "until a rendering seam
+  exists", and that seam had existed since slice 8 — so the gesture drew nothing at all, and
+  an empty method has no behaviour for any test to disagree with. Found by a human
+  calibrating a plan.
+
+**Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
+Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the
+Inspector grew a Requirements panel (`RequirementRow.vue` per row) whose assign control and
+two override fields all dispatch through `InspectorStore.commit` like every other edit; and
+the Delete button finally has the reference decision slice 15 built two dialogs for.
+Rules that came out of it:
+
+- **The read informs and the command enforces, and they are allowed to disagree.**
+  `deleteZoneFlow.ts` reads the referents BEFORE the dialog, so its answer is stale by
+  construction. A zero count therefore dispatches the ABSENT-resolution form rather than a
+  `delete-anyway` the user was never offered: a refusal is recoverable by asking, while
+  consent is exactly what the command's re-check cannot argue with. A resolution travels
+  with `resolvedReferents` — the exact ids the dialog's row was built from — so the command
+  compares SETS, and `reference.set-changed` is re-asked exactly ONCE. Every one of those is
+  asserted on the COMMAND INPUT, because "a dialog opened" is equally true of a caller that
+  sent `delete-anyway` straight through.
+- **An undo is the same compensated sequence run backwards**, so it is written down once
+  (`application/reference/undoDeleteResolution.ts`) rather than derived a second time.
+  Entity first, then the Requirements in the exact reverse of the order the resolution wrote
+  them; every write hands back its OWN inverse, taken from what `getById` actually found
+  before it; both lock levels held through the rollback. Slice 8's `ReversibleDeleteZone`
+  header predicted this widening and now carries it.
+- **A lock only excludes participants that take it.** The delete resolution took level-2
+  locks over every Requirement it writes, and the override commands took none — so a legal
+  override landing between the forward write and the compensation was silently lost.
+  Both override commands acquire the level-2 lock now. `RecalculateRequirementCommand`
+  deliberately still does not, and the reason is in its sibling's header: the resolution
+  calls it inline while holding that very lock.
+- **A recording event bus is a fake with no cascade in it.** `tests/helpers/planEditorRig.ts`
+  used `RecordingEventBus`, whose `subscribe` discards its handler — so every
+  geometry-driven figure in the editor's own e2e rig was as stale as the day it was written
+  and no assertion could see it. It dispatches now and registers the same two handlers the
+  composition root does.
+- **A background failure that nobody is awaiting reaches nobody unless it is announced.**
+  `CascadeDeps.notify` was built, tested and passed by nothing, so a failed stale marker was
+  logged into the void — and that marker is precisely what lets a later reader see a wrong
+  figure as wrong. The composition root passes it now;
+  `tests/plugin/slice10CascadeWiring.test.ts` is what can tell a composition that wires it
+  from one that does not.
+- **`assetName` is nullable so the row can be BUILT.** A Requirement whose Asset was deleted
+  renders from its id plus the reason; typed `string`, the query would have had to fail or
+  drop the row, and the stale warning would be unreachable for exactly the rows that need
+  it. The Zone-side half has no surface at all in this slice, and the task document says so
+  rather than implying one.
+- **Three decimals, not two, is what catches a YAML float.** `594.005` is not representable
+  in binary floating point; `594.00` and `99.99` survive a coercion that would destroy it.
+  The check lives in the shared repository contract, so both implementations take it.
+
+**Design slice 7 has landed: `CalibrateTool` is the first concrete `EditorTool`, and since
+slice 15 a user can actually reach it.** `registerEditorTools` registers `calibrate` beside
+`select` and `draw-polygon`, the toolbar names it, and the composition root hands the editor
+a `calibratePlan` factory; the two prompts the tool declares are a `ConfirmDialog` and a
+`FormDialog` (`KnownDistanceForm`). For two whole slices this paragraph instead recorded that
+it was unreachable — proven by tests, wired to nothing, no user able to calibrate a plan,
+every area the Inspector printed being background pixels relabelled as millimetres at the
+placeholder scale of 1. That is the shape to remember rather than the fact: a tool absent
+from a registration list is invisible to all four gates, because nothing is wrong with the
+code. It took a human opening the toolbar. Two rules came out of its review pass and both
+are load-bearing:
 
 - **A `Calibration`'s two points are in the plan's CURRENT world units**, not the
   background's pixel space. The two coincide only while the plan is uncalibrated and its
@@ -140,8 +289,9 @@ project, a plan and five zones through the real `CreateProjectCommand` /
 `CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
 vault-side equivalent of `npm run harness`, and the only way zones exist at all before
 slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it (slice
-14's empty-state actions and slice 15's creation dialogs) and why the partial notes a
-failed seed leaves behind are deliberate.
+14's empty-state actions and slice 16's creation forms — NOT slice 15, which built the
+dialog framework those forms mount in and no form that names a project) and why the partial
+notes a failed seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
@@ -248,7 +398,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   It also mirrors ESLint's **`no-console`** and its `infrastructure/logging/**` carve-out,
   which is the one policy rule ESLint owned alone with nothing to notice its removal —
   and the mirror is what puts it in the EDIT LOOP, since `scripts/lint-edited.mjs` runs
-  oxlint and only oxlint. Scoped to `src/**` by measurement rather than taste: at the root
+  oxlint for every file it lints and ESLint for `.vue` alone. Scoped to `src/**` by measurement rather than taste: at the root
   it reports nine findings across `scripts/`, where a build script printing to the console
   is correct. The mirror is not total, and the sentence has to say so — inside the carve-out
   ESLint still fails `console.log`/`console.info` through the obsidianmd wrapper, oxlint has
@@ -270,19 +420,27 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   sees it.
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
-  reach — defensive double-fault logging, an Obsidian-runtime view callback — so the figure
-  is 99.7/98.8/99.8/99.8 and the floors sit a covered unit or more below each. The exact
-  numbers, which increment moved them, and what every remaining uncovered arm IS live in
+  reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
+  99/99/99/98 (statements/functions/lines/branches), against 99.27/99.04/99.51/98.02 as of
+  slice 10. **Read branches again: 98.02 against a floor of 98, which is 0.02 of headroom
+  where ONE uncovered branch costs about 0.05.** So an untested new arm does not "reduce
+  coverage", it fails the gate — plan the test with the code rather than after it. Do not
+  read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
+  which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slice 5 did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5 and 15 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
-  real mounted views (`mountHarness` and the real Plan Editor, never a fixture), checking
+  real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
+  three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It
   earns its place rather than merely running: pointed at the Plan Editor — the first
   surface here that draws anything — it immediately found three `aria-label`s on role-less
-  `<div>`s, which is a real violation and one no other gate can see. Read its header before trusting
+  `<div>`s, which is a real violation and one no other gate can see. The index is the only
+  page here built out of interactive controls rather than a canvas, which is why it is
+  scanned open, empty and failed rather than once: those three draw different markup, and
+  the failure card is the tree's one live region. Read its header before trusting
   the word "accessibility" any wider than that: it does NOT verify colour contrast, a
   visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
   of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
@@ -304,9 +462,9 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
   and **Obsidian's own app.css**, in a browser, with no Obsidian. `?view=plan-editor` draws
-  the Plan Editor instead of the project surface, `?theme=light` and `?phone` are the other
-  two knobs, and all three exist so a headless capture needs a URL and nothing to click.
-  Faithful about markup,
+  the Plan Editor instead of the project surface, `?theme=light`, `?phone`, `?index` and
+  `?entry=<id>` are the other knobs, and all of them exist so a headless capture needs a URL
+  and nothing to click. Faithful about markup,
   spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
   nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
   `.view-content`), which the fake `ItemView` in `tests/helpers/obsidian-mock.ts` nests the
@@ -315,14 +473,47 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
   "faithful" read wider than it is.
+
+  **`?index`** draws an index of every prototype and every real component, discovered from the
+  tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
+  directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
+  and the bare root still draws the project view: the three fixed captures address that surface
+  with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
+  `?phone`), just never a `view` one — so making a bare root mean "index" would break them
+  while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as
+  SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style scoped>` — written to the
+  same Vue lint rules as the rest of `src/` so that promotion is moving the file rather than
+  redrawing the markup. A template-only mock composes real components and sibling mocks through
+  the index's global registry, having no script block to put an import in; a scripted one may
+  import them directly, which is what a shipped component does. A `<style scoped>` block does not ship
+  and does not travel — promotion lifts it into a `styles/` partial, since SDD §84's colour
+  check runs over the assembled sheet and never sees inside an SFC. `scoped` is required rather
+  than preferred: Vite never removes an injected block, so an unscoped one would still be
+  styling the index after the designer opened something else.
+  `src/prototypes/README.md` carries the one rule that IS relaxed there and why. **No prototype or fixture MODULE ever composes a built chunk**, refused
+  twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
+  `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
+  each chunk. Neither is sufficient — lint reads static imports, the bundle scan reports
+  after the fact — and the bundle scan is narrower than the wider claim it serves: a
+  prototype or fixture shipped as a separate emitted ASSET, with no module id in the chunk
+  list, is outside what `chunk.modules` can see, and not cheaply checkable.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
   scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
-  folder — a look at rendered layout, which jsdom cannot produce at all.
+  folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
+  (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
+  basename the index displays) it captures that one prototype or component from the index
+  instead of the five fixed shots, in both colour schemes, with the index's own sidebar
+  dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
+  well, which is the width an Obsidian sidebar leaf actually has and the one that has already
+  hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
+  a bare `--width` as its own config, and the command refuses that spelling rather than
+  capturing at the wrong width and exiting 0.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
-  **It has now caught four defects the whole of `npm run check` could not**, which is the
+  **It has now caught five defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
   pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
   clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
@@ -330,6 +521,20 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   the same grey because the harness page applied its theme class AFTER mounting, so the
   editor resolved its palette when no `--color-*` existed. Every one passed the suite:
   jsdom lays nothing out, and the tests set the theme variables themselves.
+
+  The fifth is the harness index's own entry list, where every row read `ZonePanelprototype`:
+  Vue's default `whitespace: 'condense'` removes whitespace between two elements when it
+  contains a newline, so an `<a>` and a `<span>` on adjacent template lines render with nothing
+  between them. It was found by CAPTURING a PNG and looking at it, on the first thing a designer
+  sees, after forty-four review rounds over that file.
+
+  **What that fifth one says about the instrument, and it is the reason to keep running it:** the
+  suite is not blind to the missing separator — jsdom's `textContent` reads `ZonePanelprototype`
+  perfectly well. It is blind to SPACING, so it cannot see the defect once the remedy is CSS, and
+  it could not have told anyone the rendered page looked wrong in the first place. Anything whose
+  symptom is a measurement no layout engine performs — spacing, wrapping, overflow, contrast, hit
+  size — is outside every gate this repository has, and a capture read by eye is the only
+  instrument here that reaches it.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.
@@ -381,6 +586,19 @@ Two rules that follow from it and are worth stating because breaking them is che
 - **A view type and a command id are DATA, not text.** Obsidian persists the first in the
   workspace layout and binds a user's hotkey to the second, so renaming either orphans
   something a user has. The display names beside them are text.
+- **`src/prototypes/` is inside `src/` and outside the layering.** A mock may carry a script and
+  a style block, composes real components and sibling mocks through the harness index's registry
+  or — once it has a script — by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
+  makes that a one-way door and `tests/build/prototypes-not-bundled.test.ts` asks the real
+  build which modules composed each chunk. Its CSS has TWO homes and they differ in one thing,
+  whether the rules ship: a `<style scoped>` block in the mock does not — nothing imports this
+  tree — and does not travel at promotion either, while a `styles/` partial does both. `scoped`
+  is required rather than preferred, because Vite never removes an injected block and an
+  unscoped one would go on styling the index after the designer opened something else.
+  `tests/build/prototype-styles.test.ts` refuses a class NEITHER home declares, and refuses an
+  unscoped block. A real component is still drawn by the assembled sheet and by nothing else,
+  which is what criterion 5 actually guarantees. `src/prototypes/README.md` carries the whole
+  trade and the one lint rule that is relaxed there.
 
 There is deliberately no list of modules here. `src/` is the list and it cannot go stale.
 
@@ -393,9 +611,25 @@ script resolves its paths from the WORKING DIRECTORY rather than from its own lo
 ## The linter in the edit loop
 
 `.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which
-lints THAT ONE FILE and hands the agent whatever oxlint says. About 90ms, against
-`npm run check` several turns later — and by then the reasoning that produced the defect
+lints THAT ONE FILE and hands the agent what the linters say. About 90ms for most files
+(seconds for an SFC — see below), against `npm run check` several turns later — and by then the reasoning that produced the defect
 is gone, which is the whole reason to move the cheap half earlier.
+
+**oxlint for every file, and ESLint too when the file is a `.vue`.** oxlint has no port of
+`eslint-plugin-vue` — no Vue rules at all — so for that one extension the fast linter is blind
+to the entire ruleset governing the file, and an SFC came back clean from a hook that could not
+read it. That is not hypothetical: the first author to write a mock here tripped
+`vue/html-indent` and `vue/singleline-html-element-content-newline`, got a green hook, and met
+`npm run check` several turns later — the exact gap this hook exists to close, in the one tree
+whose authors are most likely to fall into it. The cost is measured and is why it is not
+extended to `.ts`: oxlint answers for one SFC in about 110ms and ESLint in seconds, and on
+`.ts` the two overlap enough that seconds per edit would buy little. **That second figure
+tracks the size of `src/`, not the size of the file** — the Vue ruleset is type-aware, so
+the project service loads the whole tree before it answers for one SFC. It was about 2.5s
+when this hook was built and is 5.4s now; the two SFC cases in
+`tests/build/lint-edited.test.ts` carry an explicit budget because growth alone pushed them
+past vitest's 5000ms default, and that budget is the instrument for whether this hook is
+still cheap enough to sit in the edit loop at all.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
@@ -433,9 +667,19 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
-only) **except one file**: `tests/presentation/editor/type-safety.test-d.ts` is named
-alongside `src/**` in `tsconfig.json`'s `include`, because slice 6's screen/world brand
+nothing type-checks `tests/**` (vitest transpiles without checking) **except two entries in
+`tsconfig.json`'s `include`**, each there for its own reason.
+
+`tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
+`IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
+viewed through, and it was reached by neither `vue-tsc` nor `eslint-plugin-vue` (whose
+`VUE_FILES` was `src/` only). The first run over it found `HARNESS_PLAN` missing a required
+`PlanDto` field while annotated as one. Both globs are asked of the tools rather than read,
+in `tests/build/lint-scope.test.ts` — TypeScript's own config parser, with `.vue` declared as
+an extra extension, and ESLint's `calculateConfigForFile`.
+
+`tests/presentation/editor/type-safety.test-d.ts` is the second, and it is a proof: slice 6's
+screen/world brand
 separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
 hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
 `npm run build` is the whole mechanism by which a compile-time proof exists here — a
@@ -448,7 +692,8 @@ the editor, not the gate.
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
   source project, six of ten review findings were comments precisely stating the rule the
   code beside them broke. A confident paragraph is evidence of intent and of nothing else.
-- **A fake must not be kinder than the real thing — and not thinner either.** A DOM helper
+- **A fake must not be kinder than the real thing, not thinner than it, and not HARSHER than
+  it.** A DOM helper
   that accepted what Obsidian rejects shipped a dead drag target while every test and the
   browser harness drew it happily; too kind. A fake `ItemView` that never nested a
   `.view-header` inside `.workspace-leaf-content` the way Obsidian does left
@@ -495,6 +740,20 @@ the editor, not the gate.
   input device — clicks are down+up pairs, drags are down/move…/up — and the rig now
   spells them that way (`click()` in `zoneEditing.test.ts`), so the next gesture test
   cannot accidentally model an impossible input.
+
+  **Fifth instance, and the THIRD face of the rule** — the one the heading gained the word
+  "harsher" for. `tests/harness/planEditor.ts` handed the browser harness
+  `unavailablePlanEditorCommands()`, the bundle a session with unrecovered settings gets, under
+  a comment reading "every write refuses". But that bundle also carries `zoneInspector`, a READ
+  (SDD §59 groups the Inspector query with the commands it shares a selection with), and the
+  refusal refused it too — on a page whose fixture holds the zone in full. `InspectorDto` has no
+  error variant, so a failed read and an empty selection are the same `{ kind: 'empty' }`: the
+  canvas showed the seeded Kitchen selected and the Inspector showed nothing, with no error
+  anywhere and two of the five shell regions contradicting each other. The lesson generalises
+  past this bundle: a stand-in that REFUSES what production answers turns a tool built for
+  looking into one that shows a false picture, and it does it silently wherever the consumer has
+  no shape for an error. A refusal bundle is the honest stand-in only where the real thing would
+  also have nothing to give.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`
@@ -581,9 +840,16 @@ that was fixing the previous instance.
 
 Not oversights; each has a trigger.
 
-- **decimal.js and dayjs**, and nothing else on the SDD's stack. Installing a dependency
-  nothing imports fails `npm run analyze`, so each arrives with its first real use — money
-  arithmetic (ADR-010) and scheduling respectively, neither of which exists yet.
+- **dayjs**, and nothing else on the SDD's stack. Installing a dependency nothing imports
+  fails `npm run analyze`, so each arrives with its first real use — scheduling, which does
+  not exist yet.
+
+  **decimal.js is NOT on this list any more.** It arrived with slice 9's money arithmetic
+  (ADR-010) and this line said otherwise for two slices. `core/money/Money.ts` is the ONLY
+  module that touches a `Decimal` for a monetary amount — `amount` is a decimal STRING
+  across every boundary, because a float is exactly what ADR-010 refuses — and quantities
+  carry a `Decimal` directly. Three decimals is the figure that catches a coercion:
+  `594.005` is not representable in binary floating point while `99.99` survives one.
 
   **Vue, Pinia, zod, konva and vue-konva are NOT on this list any more**, and
   this paragraph is the record of what their arrival cost, because the next arrival pays

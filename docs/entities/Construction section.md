@@ -58,7 +58,7 @@ dates in frontmatter, so [[Bases]] can group by any of them.
 
 ## Business rules that reach this entity
 
-[[Every entity resolves to exactly one project]] · [[A cost rollup is derived along its axis, never stored]]
+[[Work belongs to one project, catalogues belong to the vault]] · [[A cost rollup is derived along its axis, never stored]]
 
 ## Sources
 

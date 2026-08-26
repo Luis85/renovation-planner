@@ -1,13 +1,8 @@
 import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
-import type {
-	GeometryError,
-	ReferenceError,
-} from '../core/errors/AppError';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
-import type { Query } from '../application/queries/Query';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
@@ -16,12 +11,7 @@ import type { CreateProjectInput, CreateProjectError } from '../application/comm
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import type { CreateZoneInput, CreateZoneError } from '../application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
-import type { DeleteZoneInput } from '../application/commands/zone/DeleteZone';
-import { MoveSpatialObjectCommand } from '../application/commands/zone/MoveSpatialObject';
-import type { MoveSpatialObjectInput } from '../application/commands/zone/MoveSpatialObject';
-import { GetZoneInspector } from '../application/queries/GetZoneInspector';
-import type { GetZoneInspectorInput, ZoneInspectorFields } from '../application/queries/GetZoneInspector';
-import type { ZoneId } from '../domain/zone/ZoneId';
+import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type {
@@ -32,6 +22,25 @@ import type {
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
+import { ReferenceLocks } from '../application/reference/ReferenceLocks';
+import { CreateAssetCommand } from '../application/commands/asset/CreateAsset';
+import { UpdateAssetCommand } from '../application/commands/asset/UpdateAsset';
+import { DeleteAssetCommand } from '../application/commands/asset/DeleteAsset';
+import { AssignAssetCommand } from '../application/commands/requirement/AssignAsset';
+import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
+import { SetRequirementQuantityOverrideCommand } from '../application/commands/requirement/SetRequirementQuantityOverride';
+import { SetRequirementCostOverrideCommand } from '../application/commands/requirement/SetRequirementCostOverride';
+import { DeleteRequirementCommand } from '../application/commands/requirement/DeleteRequirement';
+import { GetRequirementsForZone } from '../application/queries/GetRequirementsForZone';
+import { ListAssets } from '../application/queries/ListAssets';
+import { ListRequirementsReferencing } from '../application/queries/ListRequirementsReferencing';
+import { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
+import { registerOnZoneGeometryChanged } from '../application/event-handlers/requirement/onZoneGeometryChanged';
+import { registerOnAssetUpdated } from '../application/event-handlers/requirement/onAssetUpdated';
+import { ASSET_MIGRATIONS } from '../infrastructure/persistence/migration/entities/asset/asset.migrations';
+import { REQUIREMENT_MIGRATIONS } from '../infrastructure/persistence/migration/entities/requirement/requirement.migrations';
+import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import {
 	createPlanEditorQueries,
 	unavailablePlanEditorQueries,
@@ -39,25 +48,23 @@ import {
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
-import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
-import type { FindZonesByPlanInput } from '../application/queries/FindZonesByPlan';
-import { GetPlan } from '../application/queries/GetPlan';
-import type { GetPlanInput } from '../application/queries/GetPlan';
-import { GetProject } from '../application/queries/GetProject';
-import type { GetProjectInput } from '../application/queries/GetProject';
-import { GetZone } from '../application/queries/GetZone';
-import type { GetZoneInput } from '../application/queries/GetZone';
+import { notify } from '../presentation/notices/notify';
+import { tr } from '../presentation/i18n/strings';
+import type { ProjectIndex } from '../application/ports/ProjectIndex';
+import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
+import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
+import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
+import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
+import type { PlanRepository } from '../application/ports/PlanRepository';
+import type { ProjectRepository } from '../application/ports/ProjectRepository';
+import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import type { Loaded } from '../application/ports/versioning';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
-import type { ProjectIndex } from '../application/ports/ProjectIndex';
-import type { PlanRepository } from '../application/ports/PlanRepository';
-import type { ProjectRepository } from '../application/ports/ProjectRepository';
-import type { ZoneRepository } from '../application/ports/ZoneRepository';
-import type { RepositoryError } from '../application/ports/repositoryErrors';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
+import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
@@ -69,11 +76,18 @@ import { PLAN_GEOMETRY_MIGRATIONS } from '../infrastructure/persistence/migratio
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
-import { createVaultExceptionMapper, type VaultExceptionMapper } from '../application/errors/exceptionMapper';
-import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
-import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
+import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
+import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
+import {
+	guardSlice10,
+	guardedEditorServices,
+	type GuardedEditorServices,
+	type GuardedSlice10Services,
+	type QueryServices,
+	type UnguardedSlice10Services,
+} from './guardedServices';
 import type { RenovationPlannerSettings } from './settings/settings';
 
 /**
@@ -124,24 +138,31 @@ export interface CompositionRoot {
 	readonly persistence: PersistenceServices | null;
 }
 
-/** The read side a view or command consumes; never a concrete repository type. */
-export interface QueryServices {
-	readonly getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>;
-	readonly getPlan: Query<GetPlanInput, Result<Loaded<Plan> | null, RepositoryError>>;
-	readonly getZone: Query<GetZoneInput, Result<Loaded<Zone> | null, RepositoryError>>;
-	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<Loaded<Zone>[], RepositoryError>>;
-	/** SDD §68's content-free snapshot — versions, schema versions, migration state, issues. */
-	readonly diagnostics: Query<void, DiagnosticsSnapshot>;
-}
-
-export interface PersistenceServices {
+/**
+ * Everything the persistence stack hands out, with the Error Boundary already around it:
+ * every `Command` and `Query` member here is a GUARDED wrapper (SDD §66), which is why the
+ * two guarded groups are EXTENDED rather than re-declared — the shapes and the guards that
+ * produce them live together in `guardedServices.ts`, so a member added there cannot be
+ * forgotten here.
+ */
+export interface PersistenceServices extends GuardedEditorServices, GuardedSlice10Services {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
 	readonly geometryStore: PlanGeometryStore;
+	/**
+	 * The slice-7 port over the same store, for `ReversibleCalibratePlanCommand` — the only
+	 * collaborator here that reads and writes calibration rather than an entity note.
+	 */
+	readonly geometry: PlanGeometrySidecar;
 	readonly projects: ProjectRepository;
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
+	/** Design slice 10's catalog and link entities. */
+	readonly assets: AssetRepositoryPort;
+	readonly requirements: RequirementRepositoryPort;
+	/** The one reference-lock set per plugin; every command that links or unlinks shares it. */
+	readonly locks: ReferenceLocks;
 	readonly queries: QueryServices;
 	/** Does a raw Vault file exist — what `SetPlanBackgroundCommand` validates through. */
 	readonly files: VaultFileProbe;
@@ -161,31 +182,47 @@ export interface PersistenceServices {
 	 * GUARDED (SDD §66): a wrapper object with the same `execute`, not the class itself.
 	 *
 	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
-	 * empty-state actions and slice 15's creation dialogs are what give them product-real
-	 * ones; neither needs a second wiring point, only a second call.
+	 * empty-state actions and slice 16's creation FORMS are what give them product-real ones;
+	 * neither needs a second wiring point, only a second call. (This used to name "slice 15's
+	 * creation dialogs" — slice 15 shipped the dialog framework those forms will be mounted
+	 * in, and no form of its own beyond the calibration prompt, so the promise outlived the
+	 * slice that was supposed to keep it.)
 	 */
 	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
 	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
 	readonly createZone: Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, CreateZoneError>>;
 	/**
-	 * Slice 5's one write, in both faces: the plain command, and the undoable adapter
-	 * slice 6's `CommandHistory` will hold. The adapter WRAPS the command rather than
-	 * duplicating it, so there is one forward write however it is dispatched. Both are
-	 * guarded like every other service here; the adapter's `undo` is slice 6's to guard,
-	 * when a history exists to hold it.
+	 * Slice 5's one write in its second face: the undoable adapter slice 6's
+	 * `CommandHistory` holds. It WRAPS the plain command rather than duplicating it, so
+	 * there is one forward write however it is dispatched, and both faces are guarded.
 	 */
-	readonly setPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
-	readonly reversibleSetPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
+	readonly reversibleSetPlanBackground: Command<
+		SetPlanBackgroundInput,
+		Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>
+	>;
 	/**
-	 * Design slice 8's write side for the Plan Editor, beside slice 5's background pair:
-	 * the plain zone commands the editor's reversible adapters wrap (one adapter per
-	 * gesture, built inside the editor), and the Inspector query. Composed here so
-	 * `presentation/` is handed interfaces and never builds a command from a repository.
-	 * GUARDED like every other service here (SDD §66) — structural shapes, not classes.
+	 * The one hole in the boundary, NAMED rather than hidden. The Inspector's reversible
+	 * override adapters dispatch through `executeWithVersion` — a second public entry point
+	 * that `guardCommand` does not wrap, since it returns an object carrying `execute`
+	 * alone — and they take the concrete classes by name, so the guarded twins above cannot
+	 * stand in for them. These three therefore leave the root UNGUARDED, and an unexpected
+	 * throw inside `executeWithVersion` still reaches the Inspector as a rejection. Closing
+	 * it needs a guard that wraps a whole OBJECT rather than one method, which is a wider
+	 * change than extending the existing seam over slice 10.
 	 */
-	readonly deleteZone: Command<DeleteZoneInput, Result<{ zoneId: ZoneId }, ReferenceError | RepositoryError>>;
-	readonly moveZone: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>>;
-	readonly zoneInspector: Query<GetZoneInspectorInput, Result<ZoneInspectorFields | null, RepositoryError | GeometryError>>;
+	readonly requirementEdits: {
+		readonly assignAsset: AssignAssetCommand;
+		readonly setQuantityOverride: SetRequirementQuantityOverrideCommand;
+		readonly setCostOverride: SetRequirementCostOverrideCommand;
+	};
+	/** Subscriptions the plugin must dispose on unload; filled at composition time. */
+	readonly subscriptions: { dispose(): void }[];
+	/**
+	 * The durable marker store behind multi-entity sequences, when composed over real
+	 * plugin-local storage — what load-time recovery walks. Absent only in tests that
+	 * compose without one.
+	 */
+	readonly markers?: SequenceMarkerStore;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -201,79 +238,281 @@ export interface VaultStack {
 }
 
 /**
- * The read side and the editor-facing write side, every member GUARDED (SDD §66): an
- * unexpected fault below this seam arrives as a resolved failed `Result` — never a
- * rejection past the application layer. The repositories map the failures they EXPECT
- * to coded errors; these wrappers catch what escapes that net. Each service gets its
- * own event name so a log line names the boundary it crossed.
+ * The collaborators that OUTLIVE a root, supplied by the plugin rather than built here.
+ * `saveSettings` rebuilds this whole stack, and neither of these may be rebuilt with it:
+ * validation issues recorded before the change describe the SESSION's vault reads rather
+ * than the previous settings object, and an outstanding delete sequence's marker file
+ * survives a settings change exactly the way it survives a reload.
  *
- * The three slice-8 locals are ANNOTATED with explicit guard type arguments rather than
- * left to inference: a contextual type from the PersistenceServices field makes E infer
- * from the TARGET instead of the command, and the widened union then mis-narrows.
+ * One parameter rather than two because `max-params` is five and `environment` already
+ * takes the fourth — and because these two are the same KIND of thing, which is what makes
+ * the grouping a statement instead of a workaround.
  */
-function guardedEditorServices(
-	repositories: {
-		projects: ObsidianProjectRepository;
-		plans: ObsidianPlanRepository;
-		zones: ObsidianZoneRepository;
-	},
-	deps: {
-		eventBus: EventBus;
-		files: VaultFileProbe;
-		logger: Logger;
-		map: VaultExceptionMapper;
-	},
-	diagnosticsSources: {
-		versions: RuntimeVersions;
-		migrations: MigrationRunner;
-		ledger: DiagnosticsLedger;
-	},
-) {
-	const { projects, plans, zones } = repositories;
-	const { eventBus, files, logger, map } = deps;
+export interface SessionCollaborators {
+	readonly ledger?: DiagnosticsLedger;
+	readonly markers?: SequenceMarkerStore;
+}
 
-	const queries: QueryServices = {
-		getProject: guardQuery(new GetProject(projects), 'query.getProject.failed', logger, map),
-		getPlan: guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, map),
-		getZone: guardQuery(new GetZone(zones), 'query.getZone.failed', logger, map),
-		findZonesByPlan: guardQuery(new FindZonesByPlan(zones), 'query.findZonesByPlan.failed', logger, map),
-		diagnostics: new GetDiagnosticsSnapshotQuery({
-			versions: diagnosticsSources.versions,
-			latestSchemaVersions: () => diagnosticsSources.migrations.latestVersions,
-			lastAppliedMigration: () => diagnosticsSources.migrations.lastApplied,
-			ledger: diagnosticsSources.ledger,
-		}),
+interface Slice10Wiring {
+	readonly zones: ZoneRepository;
+	readonly assets: AssetRepositoryPort;
+	readonly requirements: RequirementRepositoryPort;
+	readonly recalculate: RecalculateRequirementCommand;
+	readonly events: EventBus;
+	readonly locks: ReferenceLocks;
+	readonly logger: Logger;
+	readonly markers?: SequenceMarkerStore;
+}
+
+/**
+ * Design slice 10's write side, read side, and cascade handlers, composed as ONE block —
+ * the same seam discipline as every other service here, kept out of
+ * `createCompositionRoot`'s own body only by the size budget every function shares.
+ *
+ * Nothing this returns is guarded: it is the raw composition, and `guardSlice10` wraps the
+ * copy that LEAVES the root. `recalculate` reaches `DeleteAssetCommand` and both cascade
+ * handlers unguarded on purpose — those uses are INSIDE the application layer, which is
+ * not the boundary the guard defends.
+ */
+function composeSlice10(
+	wiring: Slice10Wiring,
+): UnguardedSlice10Services & { subscriptions: { dispose(): void }[] } {
+	const { zones, assets, requirements, recalculate, events, locks, logger, markers } = wiring;
+
+	/**
+	 * The cascade runs in the BACKGROUND — nothing the user clicked is waiting on it — so a
+	 * failure inside it reaches nobody unless it is announced. That matters most for exactly
+	 * the case this port is named after: the durable marker that lets a later reader see
+	 * "these figures are out of date" is itself the write that failed, so silence here means
+	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
+	 * suite's benefit; production always passes it, and this is the caller that makes the
+	 * whole port more than a tested no-op.
+	 */
+	const cascadeNotices = {
+		cascadeAborted: () => {
+			notify(tr('cascade.aborted'));
+		},
+		staleMarkerFailed: () => {
+			notify(tr('cascade.stale-marker-failed'));
+		},
 	};
 
-	const setPlanBackground = guardCommand(
-		new SetPlanBackgroundCommand(plans, files, eventBus),
-		'command.setPlanBackground.failed',
-		logger,
-		map,
-	);
-	const deleteZone =
-		guardCommand<DeleteZoneInput, { zoneId: ZoneId }, ReferenceError | RepositoryError>(
-			new DeleteZoneCommand(zones, eventBus),
-			'command.deleteZone.failed',
+	const subscriptions: { dispose(): void }[] = [
+		registerOnZoneGeometryChanged(events, {
+			requirements,
+			events,
 			logger,
-			map,
-		);
-	const moveZone =
-		guardCommand<MoveSpatialObjectInput, { zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>(
-			new MoveSpatialObjectCommand(zones, eventBus),
-			'command.moveZone.failed',
+			notify: cascadeNotices,
+			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
+		}),
+		registerOnAssetUpdated(events, {
+			requirements,
+			assets,
+			events,
 			logger,
-			map,
-		);
-	const zoneInspector =
-		guardQuery<GetZoneInspectorInput, ZoneInspectorFields | null, RepositoryError | GeometryError>(
-			new GetZoneInspector(zones),
-			'query.zoneInspector.failed',
-			logger,
-			map,
-		);
+			notify: cascadeNotices,
+			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
+		}),
+	];
 
-	return { queries, setPlanBackground, deleteZone, moveZone, zoneInspector };
+	return {
+		createAsset: new CreateAssetCommand(assets, events),
+		updateAsset: new UpdateAssetCommand(assets, requirements, events, locks),
+		deleteAsset: new DeleteAssetCommand({
+			assets,
+			requirements,
+			recalculate,
+			events,
+			locks,
+			logger,
+			markers,
+		}),
+		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
+		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
+		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
+		deleteRequirement: new DeleteRequirementCommand(requirements),
+		queries: {
+			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets),
+			listAssets: new ListAssets(assets),
+			listRequirementsReferencing: new ListRequirementsReferencing(requirements),
+			listReassignmentTargets: new ListReassignmentTargets(zones, assets),
+		},
+		subscriptions,
+	};
+}
+
+function composeRepositories(
+	deps: NoteVaultDeps,
+	vault: VaultStack,
+	index: ProjectIndex,
+	migrations: MigrationRunner,
+	echo: EchoWindow,
+) {
+	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
+	return {
+		geometryStore,
+		projects: new ObsidianProjectRepository(deps),
+		plans: new ObsidianPlanRepository(deps, geometryStore),
+		zones: new ObsidianZoneRepository(deps, geometryStore),
+		assets: new ObsidianAssetRepository(deps),
+		requirements: new ObsidianRequirementRepository(deps),
+	};
+}
+
+/**
+ * Every entity shape's migration table, keyed as the runner reads it — and the ONE list
+ * `GetDiagnosticsSnapshot`'s `schemaVersions` derives from, so a new entity appears in
+ * diagnostics because it was registered here rather than because a second list was
+ * remembered.
+ */
+function migrationSet() {
+	return {
+		project: PROJECT_MIGRATIONS,
+		plan: PLAN_MIGRATIONS,
+		zone: ZONE_MIGRATIONS,
+		asset: ASSET_MIGRATIONS,
+		requirement: REQUIREMENT_MIGRATIONS,
+		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
+	};
+}
+
+/**
+ * Everything that leaves the root through the Error Boundary, in ONE place: the guard is
+ * applied here and nowhere else, so "is this service guarded?" is answered by whether it
+ * is composed in this function. Its collaborators are the same ones the unguarded
+ * composition already built — nothing is constructed twice.
+ */
+function composeGuarded(
+	repositories: ReturnType<typeof composeRepositories>,
+	slice10: UnguardedSlice10Services,
+	wiring: Slice10Wiring,
+	files: VaultFileProbe,
+	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
+) {
+	const { projects, plans, zones, requirements } = repositories;
+	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
+	const map = createVaultExceptionMapper('vault');
+	const deleteZone = new DeleteZoneCommand({
+		zones,
+		requirements,
+		recalculate,
+		events: eventBus,
+		locks,
+		logger,
+		markers,
+	});
+	const editor = guardedEditorServices(
+		{ projects, plans, zones, deleteZone },
+		{ eventBus, files, logger, map },
+		diagnostics,
+	);
+	return {
+		...editor,
+		...guardSlice10(slice10, recalculate, logger, map),
+		createProject: guardCommand(new CreateProjectCommand(projects, eventBus), 'command.createProject.failed', logger, map),
+		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
+		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
+		reversibleSetPlanBackground: guardCommand(
+			new ReversibleSetPlanBackgroundCommand(new SetPlanBackgroundCommand(plans, files, eventBus), plans),
+			'command.setPlanBackground.undoable.failed',
+			logger,
+			map,
+		),
+	};
+}
+
+export function createCompositionRoot(
+	settings: RenovationPlannerSettings | null,
+	logger: Logger,
+	vault: VaultStack | null = null,
+	/** Defaults to 'unknown' pairs so a test double can compose without an Obsidian app. */
+	environment: RuntimeVersions = { pluginVersion: 'unknown', obsidianVersion: 'unknown' },
+	session: SessionCollaborators = {},
+): CompositionRoot {
+	// Wired to the logger from its first line: `createEventBus`'s `onError` is where a
+	// throwing subscriber goes, and a bus built without one loses those failures silently
+	// — which the bus's own docblock names as the thing to fix as soon as a logger exists.
+	const eventBus = createEventBus((error, event) => {
+		logger.error('events.subscriber.failed', { cause: error, event: event.type });
+	});
+
+	if (settings === null || vault === null) {
+		return { settings, logger, eventBus, persistence: null };
+	}
+
+	const ledger = session.ledger ?? new InMemoryDiagnosticsLedger();
+	const markers = session.markers;
+	const index = new InMemoryProjectIndex();
+	const echo = new EchoWindow();
+	const migrations = createMigrationRunner(migrationSet());
+
+	const deps: NoteVaultDeps = {
+		vault: vault.vault,
+		fileManager: vault.fileManager,
+		metadataCache: vault.metadataCache,
+		index,
+		echo,
+		migrations,
+		logger,
+		ledger,
+		projectFolder: settings.projectFolder,
+	};
+	const repositories = composeRepositories(deps, vault, index, migrations, echo);
+	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
+
+	// One lock set per plugin: assignment, unit changes and delete resolutions across
+	// every view serialize against the same keys.
+	const locks = new ReferenceLocks();
+	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus);
+	const wiring: Slice10Wiring = { zones, assets, requirements, recalculate, events: eventBus, locks, logger, markers };
+	const slice10 = composeSlice10(wiring);
+
+	const files = createVaultFileProbe(vault.vault);
+	const guarded = composeGuarded(repositories, slice10, wiring, files, {
+		versions: environment,
+		migrations,
+		ledger,
+	});
+
+	return {
+		settings,
+		logger,
+		eventBus,
+		persistence: {
+			index,
+			vaultDeps: deps,
+			migrations,
+			geometryStore,
+			geometry: new ObsidianPlanGeometrySidecar(geometryStore),
+			projects,
+			plans,
+			zones,
+			assets,
+			requirements,
+			locks,
+			files,
+			...guarded,
+			planEditorQueries: createPlanEditorQueries({
+				...guarded.queries,
+				...guarded.requirementQueries,
+			}),
+			requirementEdits: {
+				assignAsset: slice10.assignAsset,
+				setQuantityOverride: slice10.setRequirementQuantityOverride,
+				setCostOverride: slice10.setRequirementCostOverride,
+			},
+			subscriptions: slice10.subscriptions,
+			markers,
+			changeAdapter: new VaultChangeAdapter({
+				vault: vault.vault,
+				metadataCache: vault.metadataCache,
+				index,
+				echo,
+				logger,
+				projectFolder: settings.projectFolder,
+			}),
+		},
+	};
 }
 
 /**
@@ -306,110 +545,22 @@ export function planEditorDeps(
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,
 					zoneInspector: persistence.zoneInspector,
+					requirementEdits: {
+						...persistence.requirementEdits,
+						requirements: persistence.requirements,
+						assets: persistence.assets,
+						locks: persistence.locks,
+						logger: root.logger,
+					},
+					// A new command per call — see `CalibratePlanTransaction`. The three
+					// collaborators are the same ones every other write here is built from;
+					// only the lifetime differs.
+					calibratePlan: () =>
+						new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
 				}
 			: unavailablePlanEditorCommands(),
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
-	};
-}
-export function createCompositionRoot(
-	settings: RenovationPlannerSettings | null,
-	logger: Logger,
-	vault: VaultStack | null = null,
-	/** Defaults to 'unknown' pairs so a test double can compose without an Obsidian app. */
-	environment: RuntimeVersions = { pluginVersion: 'unknown', obsidianVersion: 'unknown' },
-	/**
-	 * Supplied by the plugin so the ledger OUTLIVES a root: `saveSettings` rebuilds this
-	 * whole stack, and validation issues recorded before the change describe the
-	 * session's vault reads, not the previous settings object's.
-	 */
-	ledger: DiagnosticsLedger = new InMemoryDiagnosticsLedger(),
-): CompositionRoot {
-	// Wired to the logger from its first line: `createEventBus`'s `onError` is where a
-	// throwing subscriber goes, and a bus built without one loses those failures silently
-	// — which the bus's own docblock names as the thing to fix as soon as a logger exists.
-	const eventBus = createEventBus((error, event) => {
-		logger.error('events.subscriber.failed', { cause: error, event: event.type });
-	});
-
-	if (settings === null || vault === null) {
-		return { settings, logger, eventBus, persistence: null };
-	}
-
-	const index = new InMemoryProjectIndex();
-	const echo = new EchoWindow();
-
-	const migrations = createMigrationRunner({
-		project: PROJECT_MIGRATIONS,
-		plan: PLAN_MIGRATIONS,
-		zone: ZONE_MIGRATIONS,
-		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
-	});
-
-	const deps: NoteVaultDeps = {
-		vault: vault.vault,
-		fileManager: vault.fileManager,
-		metadataCache: vault.metadataCache,
-		index,
-		echo,
-		migrations,
-		logger,
-		ledger,
-		projectFolder: settings.projectFolder,
-	};
-
-	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
-	const projects = new ObsidianProjectRepository(deps);
-	const plans = new ObsidianPlanRepository(deps, geometryStore);
-	const zones = new ObsidianZoneRepository(deps, geometryStore);
-
-	const vaultMapper = createVaultExceptionMapper('vault');
-	const files = createVaultFileProbe(vault.vault);
-	const guarded = guardedEditorServices(
-		{ projects, plans, zones },
-		{ eventBus, files, logger, map: vaultMapper },
-		{ versions: environment, migrations, ledger },
-	);
-
-	const changeAdapter = new VaultChangeAdapter({
-		vault: vault.vault,
-		metadataCache: vault.metadataCache,
-		index,
-		echo,
-		logger,
-		projectFolder: settings.projectFolder,
-	});
-
-	return {
-		settings,
-		logger,
-		eventBus,
-		persistence: {
-			index,
-			vaultDeps: deps,
-			migrations,
-			geometryStore,
-			projects,
-			plans,
-			zones,
-			queries: guarded.queries,
-			files,
-			createProject: guardCommand(new CreateProjectCommand(projects, eventBus), 'command.createProject.failed', logger, vaultMapper),
-			createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, vaultMapper),
-			createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, vaultMapper),
-			planEditorQueries: createPlanEditorQueries(guarded.queries),
-			setPlanBackground: guarded.setPlanBackground,
-			reversibleSetPlanBackground: guardCommand(
-				new ReversibleSetPlanBackgroundCommand(guarded.setPlanBackground, plans),
-				'command.setPlanBackground.undoable.failed',
-				logger,
-				vaultMapper,
-			),
-			deleteZone: guarded.deleteZone,
-			moveZone: guarded.moveZone,
-			zoneInspector: guarded.zoneInspector,
-			changeAdapter,
-		},
 	};
 }

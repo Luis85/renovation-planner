@@ -206,6 +206,36 @@ describe('SelectTool', () => {
 		expect(h.context.renderState.previewPolygon).toBeNull();
 	});
 
+	it('a pointerup arriving AFTER its gesture was cancelled is ignored, not committed', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerMove(eventAt(50, 50));
+		tool.cancel();
+
+		// The release of an abandoned drag belongs to nothing.
+		tool.pointerUp(eventAt(60, 60));
+
+		expect(h.gestures).toHaveLength(0);
+		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+	});
+
+	it('a pointerup after deactivation belongs to no editor', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+		tool.deactivate();
+
+		tool.pointerUp(eventAt(10, 10));
+
+		expect(h.gestures).toHaveLength(0);
+	});
+
 	it('ignores non-primary buttons, and events before activation', () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		const h = harness();

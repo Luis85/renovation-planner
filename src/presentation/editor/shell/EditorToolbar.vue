@@ -1,10 +1,13 @@
 <script setup lang="ts">
 /**
- * §60's toolbar region, filled by design slice 8: camera mode, select, draw-zone, and
- * undo/redo. Tool buttons mirror `EditorRuntime.activeToolId` (the reactive mirror of
- * `ToolManager`'s non-reactive pointer) and drive it through `setTool`; undo/redo go
- * through the same decorated dispatcher every other dispatch in the leaf uses, so their
- * refreshes and their history flags are the shared ones.
+ * §60's toolbar region: camera mode plus one button per registered `EditorTool` — the
+ * `MODES` table below is what makes registering the next tool a row rather than a fourth
+ * near-identical block, so this comment states that rule instead of enumerating today's
+ * tools, which the next tool would leave stale. Tool buttons mirror
+ * `EditorRuntime.activeToolId` (the reactive mirror of `ToolManager`'s non-reactive
+ * pointer) and drive it through `setTool`; undo/redo go through the same decorated
+ * dispatcher every other dispatch in the leaf uses, so their refreshes and their history
+ * flags are the shared ones.
  *
  * Camera mode (`null`) is what slice 5 shipped: drag pans. It is a toolbar STATE here
  * rather than an `EditorTool`, for the reason `PlanCanvas.vue` states — the camera is
@@ -32,6 +35,7 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 	{ id: null, label: 'editor.toolbar.pan' },
 	{ id: 'select', label: 'editor.toolbar.select' },
 	{ id: 'draw-polygon', label: 'editor.toolbar.draw-zone' },
+	{ id: 'calibrate', label: 'editor.toolbar.calibrate' },
 ];
 </script>
 

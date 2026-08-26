@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { makeDeleteZoneCommand } from '../../../helpers/slice10';
 import { CreateZoneCommand } from '../../../../src/application/commands/zone/CreateZone';
-import { DeleteZoneCommand } from '../../../../src/application/commands/zone/DeleteZone';
 import { MoveSpatialObjectCommand } from '../../../../src/application/commands/zone/MoveSpatialObject';
 import { ReversibleCreateZoneCommand } from '../../../../src/application/commands/zone/reversible-create-zone-command';
 import { SessionWriteLedger, type WriteLedger } from '../../../../src/application/editor/WriteLedger';
@@ -30,7 +30,7 @@ async function wired() {
 	const makeCommand = () =>
 		new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),
-			new DeleteZoneCommand(zones, events),
+			makeDeleteZoneCommand(zones, events),
 			zones,
 			ledger,
 			{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },
@@ -125,7 +125,7 @@ describe('ReversibleCreateZoneCommand', () => {
 		};
 		const command = new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),
-			new DeleteZoneCommand(zones, events),
+			makeDeleteZoneCommand(zones, events),
 			zones,
 			silentLedger,
 			{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },
@@ -149,7 +149,7 @@ describe('ReversibleCreateZoneCommand', () => {
 		const events = new RecordingEventBus();
 		const command = new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),
-			new DeleteZoneCommand(new InMemoryZoneRepository(), events),
+			makeDeleteZoneCommand(new InMemoryZoneRepository(), events),
 			zones,
 			new SessionWriteLedger(),
 			{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },

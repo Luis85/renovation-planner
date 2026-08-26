@@ -234,6 +234,10 @@ export function registrableComponents(entries: HarnessEntry[]): {
  * defect returns — which is the trade a list always makes, taken here because the alternative
  * (asking the compiler) is not a public API.
  *
+ * What is listed is the NAMES. Vue accepts each of those six in two spellings, and the second
+ * is derived below rather than written out beside the first — a spelling kept by hand is a
+ * spelling that gets forgotten, which is exactly how the hyphenated half came to be missing.
+ *
  * Worth saying that this is not merely a harness rule: a component named `Transition.vue` would
  * hit the same wall in `src/presentation/`, so a mock refused here is being told something true
  * about the name rather than something local to the index.
@@ -245,13 +249,33 @@ export function registrableComponents(entries: HarnessEntry[]): {
  * so the check below asks it rather than keeping a copy of HTML. Case matters and correctly so:
  * `Button.vue` is a fine component name and only the lowercase spelling collides.
  */
+const VUE_BUILT_IN_COMPONENTS = ['Transition', 'TransitionGroup', 'KeepAlive', 'Teleport', 'Suspense', 'BaseTransition'];
+
+/**
+ * `TransitionGroup` → `transition-group`, which is Vue's own second spelling and not a guess:
+ * the compiler resolves a built-in by its PascalCase name or by the hyphenation of it, both
+ * before any registry is consulted.
+ */
+const hyphenate = (name: string): string => name.replace(/\B([A-Z])/g, '-$1').toLowerCase();
+
+/**
+ * Every spelling the compiler takes for itself, DERIVED rather than typed out.
+ *
+ * The list held the PascalCase halves only, so `transition-group.vue` and `keep-alive.vue`
+ * registered cleanly and lost every composition of themselves — the same defect the PascalCase
+ * entries exist to refuse, arriving through the spelling nobody wrote down. Generating the
+ * second form from the first is what stops that being a question again: a built-in added here
+ * brings both of its names with it.
+ *
+ * Deliberately NOT a case-insensitive comparison with hyphens stripped, which reaches further
+ * than Vue does: `Slot`, `Component` and `transitiongroup` are all handed to the registry
+ * (measured), so folding them in would refuse a mock that works and red `npm run check` over
+ * a name that is merely similar. `component` and `slot` are literals because they are the two
+ * the compiler takes in their lowercase form ALONE — `Slot.vue` is a fine component.
+ */
 const VUE_BUILT_INS = new Set([
-	'Transition',
-	'TransitionGroup',
-	'KeepAlive',
-	'Teleport',
-	'Suspense',
-	'BaseTransition',
+	...VUE_BUILT_IN_COMPONENTS,
+	...VUE_BUILT_IN_COMPONENTS.map((name) => hyphenate(name)),
 	'component',
 	'slot',
 ]);

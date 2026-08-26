@@ -463,6 +463,45 @@ describe('registering entries on an app that already has globals', () => {
 	});
 
 	/**
+	 * The SAME built-in under Vue's other spelling. The compiler resolves a built-in by its
+	 * PascalCase name OR by the hyphenated form of it, so `<transition-group />` is taken before
+	 * any registry is consulted exactly as `<TransitionGroup />` is — while a set holding only
+	 * the PascalCase halves reports the name as free. A mock named `transition-group.vue` was
+	 * therefore registered, listed, openable on its own URL, and silently replaced by Vue's
+	 * built-in in every composition of it.
+	 *
+	 * Derived from the same list rather than typed out beside it: a spelling that has to be
+	 * remembered is a spelling that gets forgotten, which is how the PascalCase-only set was
+	 * written in the first place.
+	 */
+	it.each([['transition'], ['transition-group'], ['keep-alive'], ['teleport'], ['suspense'], ['base-transition']])(
+		'refuses %s, the hyphenated spelling of a built-in',
+		(tag) => {
+			const app = createApp({ template: '<p>host</p>' });
+
+			expect(app.component(tag), 'a built-in is not in the app registry').toBeUndefined();
+			expect(registerEntries(app, new Map([[tag, registrable(`prototype:${tag}`)]]))).toEqual([tag]);
+		},
+	);
+
+	/**
+	 * The direction that costs a build, and the reason the fix above is not "lowercase it and
+	 * strip the hyphens". That reading refuses more than Vue does: `Slot` and `transitiongroup`
+	 * are both handed to the registry by the compiler — measured — so refusing them would fail
+	 * `npm run check` over a mock that would have worked. Only the two spellings Vue itself
+	 * accepts are collisions; a third that merely resembles them is a normal component name.
+	 */
+	it.each([['Slot'], ['transitiongroup'], ['Component'], ['keepalive']])(
+		'registers %s, which the compiler hands to the registry',
+		(tag) => {
+			const app = createApp({ template: '<p>host</p>' });
+
+			expect(registerEntries(app, new Map([[tag, registrable(`prototype:${tag}`)]]))).toEqual([]);
+			expect(app.component(tag)).toBeDefined();
+		},
+	);
+
+	/**
 	 * A NATIVE element name, asked of Vue rather than of a list this file would have to keep.
 	 * `<button />` compiles to an element and never reaches the registry, so a mock named
 	 * `button.vue` would be registered, composed, and silently replaced by an empty native

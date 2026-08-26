@@ -399,7 +399,9 @@ mismatch *between two* `Money` values. On an initial calculation there is only o
 Asset's price, so nothing disagreed with it and the pipeline would have returned a
 well-formed estimate in the wrong currency and cleared the stale marker. Slice 9's
 `CostPipelineInput` therefore gains **`expectedCurrency`**, and `computeEstimatedCost`
-refuses before any arithmetic when `unitPrice.currency` differs from it.
+refuses before any arithmetic when `unitPrice.currency` differs from it — **specified there
+and not yet built**, tracked as
+[[The cost pipeline is told the currency it must produce]].
 
 **So the Project is read, and this note previously claimed otherwise.** An earlier version
 of this paragraph said `AssignAssetCommand` keeps loading exactly two entities and that no

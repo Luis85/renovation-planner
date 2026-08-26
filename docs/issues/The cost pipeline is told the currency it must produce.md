@@ -97,9 +97,10 @@ nobody has read against the source.
 
 The work is small and has an exact template beside it: **`pricedPer?` is the same shape** — an
 optional field whose own comment reads *"Omitted, no basis check runs"* — so `expectedCurrency`
-should be optional in the same way, buying a check when supplied and changing nothing when not.
-The only callers today are `tests/domain/cost/costPipeline.test.ts`, so nothing in production
-needs updating with it.
+*could* take the same shape, buying a check when supplied and changing nothing when not —
+which is one side of the open sub-question above, not a conclusion. Whichever way that
+settles, the only callers today are `tests/domain/cost/costPipeline.test.ts`, so no
+production call site changes with it.
 
 ## What was tried, and why each was withdrawn
 

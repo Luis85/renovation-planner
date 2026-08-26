@@ -2084,9 +2084,9 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
   **succeeds both times**, each Requirement carrying its own Zone's `projectId` — driven
   through the command with two fixture Projects. It replaces a test that required the
   opposite; written as a success rather than deleted, so that reintroducing the old
-  refusal fails something. A currency mismatch is **not** rejected here: it surfaces as a
-  failed recalculation, per **A mismatched unit or currency is an error, not a
-  coercion**, on the seam the cascade's error branch already describes. A test publishes
+  refusal fails something. What happens when the Asset's price is in another currency is
+  **not specified here** — see *Sharing did create one new way for a pairing to be wrong*
+  and the Issue it names. A test publishes
   `ZoneGeometryChanged` directly on an
   in-memory Event Bus and asserts the full cascade fires in order —
   `RequirementInvalidated` → `RequirementRecalculated` → `CostEstimateChanged`
@@ -2199,8 +2199,8 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
       identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
       check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
-- [ ] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset **whose currency
-      matches the Zone's Project**, regardless of which project the Zone is in — asserted
+- [ ] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset, regardless of
+      which project the Zone is in — asserted
       by driving the command directly with Zones from two different Projects against one
       Asset. The catalogue is shared (§59), so this pairing is correct rather than a leak;
       the Requirements it creates each carry their own Zone's `projectId`. This criterion

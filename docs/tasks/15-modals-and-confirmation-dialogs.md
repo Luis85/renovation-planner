@@ -375,7 +375,10 @@ ListRequirementsReferencing({ kind: 'zone', zoneId })   — slice 10's QUERY, no
                                                             never holds a repository
                                                             handle (§58, §59)
   ↓
-referents.length === 0?
+groups.length === 0?    — the query returns referents GROUPED BY PROJECT (slice 10).
+                          A Zone always yields exactly one group; the shape is what lets
+                          the Asset flow show a row per project. A group is never empty,
+                          so zero groups means zero referents.
   yes → dispatch the delete command with NO resolution — the form slice 10's table
         makes safe: the command refuses with a ReferenceError if referents exist after
         all. Whether a plain ConfirmDialog precedes that dispatch is the caller's
@@ -384,16 +387,20 @@ referents.length === 0?
   no  → dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zone.name,
-          references: [{ label: t(lang, 'entity.requirement.plural'),
-                         count: referents.length }],
+          references: groups.map((g) => ({
+            label: t(lang, 'entity.requirement.plural.in-project',
+                     { project: g.projectName }),
+            count: g.requirementIds.length,
+          })),
         })
   ↓
 await result
   ↓
 switch (result.action) { cancel | remove-references | reassign | delete-anyway }
   → the chosen resolution is passed INTO slice 8's zone-delete command as data,
-    together with `resolvedReferents: referents` — the exact IDs that were on
-    screen. This slice's contract is satisfied the moment the switch above
+    together with `resolvedReferents: groups.flatMap((g) => g.requirementIds)` — the
+    exact IDs that were on screen, FLATTENED: grouping is how they are shown, and the
+    set consented to is their union. This slice's contract is satisfied the moment the switch above
     receives a value; carrying the IDs onward is the caller's job, not the
     dialog's (the dialog is handed rows and never learns what an ID is)
   ↓

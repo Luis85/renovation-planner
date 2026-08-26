@@ -952,13 +952,18 @@ interface FindZonesByPlanQuery {
   invisible to the index *and* to the change pipeline, and a library note would never be
   resolvable or observed.
 
-  It does not bite today, because there is exactly one `projectFolder` and a library
-  defaulting to `Renovation/Library` sits inside a `Renovation/` root. It bites the
-  moment either path is configured away from that, and again when projects get folders of
-  their own. **Whoever next touches this pipeline owes it a decision** — scanning and
-  watching a list of roots is the obvious shape — and slice 10's shared-asset queries
-  depend on it. Recorded here rather than fixed in the slice that discovered it, because
-  this file owns the index.
+  **It bites in every valid configuration, not eventually.** An earlier version of this
+  paragraph said it did not bite while the library defaulted inside the project root —
+  which was wrong, and wrong against the very amendment that created it: §83 now *forbids*
+  the library folder and a project folder from being equal or containing one another
+  (a project folder holding the library would delete every project's catalogues with it),
+  and §36 draws the project folder as `Renovation/Kitchen Refit/`, not the `Renovation/`
+  parent. So the library is **never** inside the scanned root. There is no grace period.
+
+  **Whoever next touches this pipeline owes it a decision** — scanning and watching a list
+  of roots is the obvious shape — and slice 10's shared-asset queries cannot work until it
+  is made. Recorded here rather than fixed in the slice that discovered it, because this
+  file owns the index.
   User-supplied paths pass through `normalizePath` before any Vault call. There is no
   second location field: ADR-011 puts geometry in `Geometry/` inside this folder, so the
   sidecar path is derived rather than configured, and changing this one setting while

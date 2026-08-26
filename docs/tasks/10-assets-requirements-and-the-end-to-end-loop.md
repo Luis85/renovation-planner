@@ -1945,9 +1945,10 @@ being both.** Slice 4's `collectNotes` skips any file outside the project folder
 is invisible to the Project Index and to the vault-change pipeline — which would make a
 library Asset unresolvable, and would let `ListRequirementsReferencing` miss another
 project's Requirements, so an Asset update or delete could silently miss live referents.
-It does not bite while there is one `projectFolder` and the library defaults inside it.
-The decision belongs to slice 4, which owns the index and now records it; this note names
-it because an implementer starting here would otherwise meet it as a bug.
+It bites in **every** valid configuration rather than eventually: §83 forbids the library
+folder and a project folder from overlapping, so the library is never inside the scanned
+root. The decision belongs to slice 4, which owns the index and now records it; this note
+names it because an implementer starting here would otherwise meet it as a bug.
 Both are note-based entities per PRD §37, following slice 4's
 Markdown-frontmatter-plus-Zod-schema pattern with `schema-version: 1`. Neither
 owns a geometry sidecar — Requirement references a Zone by ID rather than

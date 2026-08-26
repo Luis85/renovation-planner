@@ -79,6 +79,14 @@ export interface FormDescriptor {
  * switch on `kind` exhaustively, so a member added without the other three fails to compile
  * rather than falling through to a blank dialog — four of the five are build failures if
  * forgotten; only the component file is not something the compiler makes you write.
+ *
+ * Measured rather than asserted, by adding a fifth kind and reading `vue-tsc`: the member
+ * alone reports at `DialogResultByKind` (twice) and at `DialogHost`'s last branch, and the
+ * `cancelResultFor` failure appears as `TS2366` as soon as the result-type entry exists.
+ * They surface in dependency order, not all at once, which is the same thing as long as you
+ * cannot finish without clearing every one. `DialogHost`'s own template comment carries the
+ * one hole the measurement turned up: its check is structural, so a fifth descriptor that
+ * happened to satisfy `FormDescriptor` would render as a form rather than fail.
  */
 export type DialogDescriptor =
 	| ConfirmDescriptor

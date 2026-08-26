@@ -282,7 +282,11 @@ onBeforeUnmount(releaseBackground);
 				A fifth `kind` fails `npm run build` because `FormDialog` declares
 				`descriptor: FormDescriptor`, and `vue-tsc`'s template narrowing rejects binding
 				the residual union `current` still carries after every `v-if`/`v-else-if` above —
-				not because this chain has no explicit `v-else`.
+				not because this chain has no explicit `v-else`. Measured by adding a fifth kind
+				and reading what `vue-tsc` reports, which is also how the one hole in it was
+				found: the rejection is STRUCTURAL, so a fifth descriptor that happened to carry
+				a `title` and a `component` would satisfy `FormDescriptor` and render here
+				silently instead. Every kind that is not a form variant is caught.
 			-->
 			<ConfirmDialog
 				v-if="current.kind === 'confirm'"

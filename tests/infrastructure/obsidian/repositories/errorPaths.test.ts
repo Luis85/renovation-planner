@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import {
 	makeAsset as makeAssetEntity,
@@ -9,7 +9,10 @@ import {
 	makeZone as makeZoneEntity,
 } from '../../../helpers/entities';
 import { MIGRATION_SET } from '../../../../src/infrastructure/persistence/migration/migrationSet';
+import { versionOfFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
 import type { DiagnosticEntityKind } from '../../../../src/application/ports/diagnostics';
+import type { AppError } from '../../../../src/core/errors/AppError';
+import type { Result } from '../../../../src/core/result/Result';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
 import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
@@ -28,6 +31,18 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 	expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
 	return { projectId, planId };
+}
+
+/**
+ * A note from a build this one predates, planted in a vault that otherwise loads: the
+ * exact input SDD §92 item 13's word "unsupported" names. Rewriting the field on disk
+ * rather than through a repository is the point — no writer in this plugin can produce
+ * it, and a user's synced vault can.
+ */
+function plantFutureSchemaVersion(stack: RepositoryStack, id: EntityId<string>): void {
+	const path = stack.index.getPath(id) ?? '';
+	expect(path).not.toBe('');
+	stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
 }
 
 function sidecarPathOf(stack: RepositoryStack, planId: PlanId): string {
@@ -68,25 +83,72 @@ describe('project repository failure branches', () => {
 		expect(error.category).toBe('Validation');
 	});
 
-	// SDD §87 rule 7 + §92 item 13: a note from a NEWER build refuses as a Migration
-	// error — never a best-effort parse of a shape this build does not know — and the
-	// refusal is scoped to that one entity, so the rest of the project still loads.
-	it('a future schema version refuses fail-closed while other entities load on', async () => {
-		const stack = createRepositoryStack();
-		const first = createProjectId();
-		const second = createProjectId();
-		expectOk(await stack.projects.save(makeProjectEntity({ id: first }), 'absent'));
-		expectOk(await stack.projects.save(makeProjectEntity({ id: second }), 'absent'));
-		const futurePath = stack.index.getPath(first) ?? '';
-		stack.vault.entries.set(futurePath, (stack.vault.entries.get(futurePath) ?? '').replace('schema-version: 1', 'schema-version: 99'));
-
-		const refused = expectErr(await stack.projects.getById(first));
-		expect(refused.category).toBe('Migration');
-		expect(refused.code).toBe('project.schema-version-unsupported');
-		expectOk(await stack.projects.getById(second));
-	});
+	// SDD §87 rule 7 + §92 item 13 — a note from a NEWER build refuses as a Migration
+	// error, and the refusal is scoped to that one entity — used to be driven HERE, for
+	// `project` alone. It is the per-kind table below now ("the fail-closed gate is scoped
+	// to one entity"): the gate is `migrateNote`'s, which every note-backed repository
+	// shares, so one kind was a sample of five and the four slice-10 kinds had never had
+	// their `unsupported` half driven at all.
 
 });
+
+/**
+ * One case per note-backed kind — seed a real entity through its real repository, and
+ * read it back through the same one. TWO suites below drive this list, because slice
+ * 11 makes two claims about the same broken note and neither implies the other: that
+ * the refusal is RECORDED content-free (§68), and that it is SCOPED to that entity
+ * (§92 item 13). Both were covered for `project` alone.
+ *
+ * The SET is checked rather than trusted — the anchor is the plugin's own migration
+ * table, so a seventh entity kind added to `MIGRATION_SET` makes this file red until
+ * its refusal is covered here too.
+ */
+const NOTE_BACKED_CASES: ReadonlyArray<{
+	kind: DiagnosticEntityKind;
+	seed: (stack: RepositoryStack) => Promise<EntityId<string>>;
+	read: (stack: RepositoryStack, id: EntityId<string>) => Promise<Result<unknown, AppError>>;
+}> = [
+	{
+		kind: 'project',
+		seed: async (stack) => {
+			const id = createProjectId();
+			expectOk(await stack.projects.save(makeProjectEntity({ id }), 'absent'));
+			return id;
+		},
+		read: (stack, id) => stack.projects.getById(id as ProjectId),
+	},
+	{
+		kind: 'plan',
+		seed: async (stack) => (await seed(stack)).planId,
+		read: (stack, id) => stack.plans.getById(id as PlanId),
+	},
+	{
+		kind: 'zone',
+		seed: async (stack) => {
+			const { projectId, planId } = await seed(stack);
+			return expectOk(await stack.zones.save(makeZoneEntity({ projectId, planId }), 'absent')).entity.id;
+		},
+		read: (stack, id) => stack.zones.getById(id as never),
+	},
+	{
+		kind: 'asset',
+		seed: async (stack) =>
+			expectOk(await stack.assets.save(makeAssetEntity({ projectId: createProjectId() }), 'absent')).entity.id,
+		read: (stack, id) => stack.assets.getById(id as never),
+	},
+	{
+		kind: 'requirement',
+		seed: async (stack) => {
+			const requirement = makeRequirementEntity({
+				projectId: createProjectId(),
+				assetId: createAssetId(),
+				origin: { kind: 'zone', zoneId: createZoneId() },
+			});
+			return expectOk(await stack.requirements.save(requirement, 'absent')).entity.id;
+		},
+		read: (stack, id) => stack.requirements.getById(id as never),
+	},
+];
 
 /**
  * SDD §68: a refusal is RECORDED content-free — opaque id + error code — so the diagnostics
@@ -103,66 +165,12 @@ describe('project repository failure branches', () => {
  * `AppError`, which is the shape `application/ports/diagnostics.ts` refuses free text in.
  */
 describe('read refusals reaching the diagnostics ledger', () => {
-	/**
-	 * One case per kind, and the SET is checked below rather than trusted — the anchor is
-	 * the plugin's own migration table, so a seventh entity kind added to `MIGRATION_SET`
-	 * makes this file red until its refusal is covered here too.
-	 */
-	const cases: ReadonlyArray<{
-		kind: DiagnosticEntityKind;
-		seed: (stack: RepositoryStack) => Promise<EntityId<string>>;
-		read: (stack: RepositoryStack, id: EntityId<string>) => Promise<unknown>;
-	}> = [
-		{
-			kind: 'project',
-			seed: async (stack) => {
-				const id = createProjectId();
-				expectOk(await stack.projects.save(makeProjectEntity({ id }), 'absent'));
-				return id;
-			},
-			read: (stack, id) => stack.projects.getById(id as ProjectId),
-		},
-		{
-			kind: 'plan',
-			seed: async (stack) => (await seed(stack)).planId,
-			read: (stack, id) => stack.plans.getById(id as PlanId),
-		},
-		{
-			kind: 'zone',
-			seed: async (stack) => {
-				const { projectId, planId } = await seed(stack);
-				return expectOk(await stack.zones.save(makeZoneEntity({ projectId, planId }), 'absent')).entity.id;
-			},
-			read: (stack, id) => stack.zones.getById(id as never),
-		},
-		{
-			kind: 'asset',
-			seed: async (stack) =>
-				expectOk(await stack.assets.save(makeAssetEntity({ projectId: createProjectId() }), 'absent')).entity.id,
-			read: (stack, id) => stack.assets.getById(id as never),
-		},
-		{
-			kind: 'requirement',
-			seed: async (stack) => {
-				const requirement = makeRequirementEntity({
-					projectId: createProjectId(),
-					assetId: createAssetId(),
-					origin: { kind: 'zone', zoneId: createZoneId() },
-				});
-				return expectOk(await stack.requirements.save(requirement, 'absent')).entity.id;
-			},
-			read: (stack, id) => stack.requirements.getById(id as never),
-		},
-	];
-
-	it.each(cases.map((testCase) => [testCase.kind, testCase] as const))(
+	it.each(NOTE_BACKED_CASES.map((testCase) => [testCase.kind, testCase] as const))(
 		'a refused %s read lands in the ledger as an opaque id and a code',
 		async (kind, testCase) => {
 			const stack = createRepositoryStack();
 			const id = await testCase.seed(stack);
-			const path = stack.index.getPath(id) ?? '';
-			expect(path).not.toBe('');
-			stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
+			plantFutureSchemaVersion(stack, id);
 
 			await testCase.read(stack, id);
 
@@ -196,7 +204,7 @@ describe('read refusals reaching the diagnostics ledger', () => {
 	 */
 	it('covers every migratable kind except the sidecar', () => {
 		const noteBacked = Object.keys(MIGRATION_SET).filter((kind) => kind !== 'plan-geometry');
-		expect(cases.map((testCase) => testCase.kind).toSorted()).toEqual(noteBacked.toSorted());
+		expect(NOTE_BACKED_CASES.map((testCase) => testCase.kind).toSorted()).toEqual(noteBacked.toSorted());
 	});
 
 	/**
@@ -229,6 +237,76 @@ describe('read refusals reaching the diagnostics ledger', () => {
 
 		// The gap. Not an assertion that this is right — an assertion of what is true today.
 		expect(stack.ledger.issues()).toEqual([]);
+	});
+});
+
+/**
+ * SDD §92 item 13, both halves, for every kind that has a repository: an entity whose
+ * `schema-version` this build does not support refuses to load with a typed error rather
+ * than a best-effort parse — and the refusal is SCOPED to that entity, so a sibling of the
+ * same kind in the same vault still loads.
+ *
+ * The scoping half is what was a sample of one. It was driven for `project` alone, and for
+ * the two slice-10 kinds not at all: `slice10ErrorPaths.test.ts` covers
+ * `schema-version-MALFORMED` for both, which is the `ValidationError` `migrateNote` raises
+ * BEFORE any chain runs — a different arm of a different function from the `MigrationError`
+ * the word "unsupported" names, and the only one of the two that reaches the runner.
+ *
+ * The sibling is read back with the SAME closure that refused, so a case that quietly
+ * refuses everything of its kind cannot pass: the read is the repository's, and the entity
+ * it answers with is identified by id.
+ */
+describe('the fail-closed gate is scoped to one entity', () => {
+	it.each(NOTE_BACKED_CASES.map((testCase) => [testCase.kind, testCase] as const))(
+		'a future-version %s refuses as a Migration error while its sibling loads on',
+		async (kind, testCase) => {
+			const stack = createRepositoryStack();
+			const poisoned = await testCase.seed(stack);
+			const healthy = await testCase.seed(stack);
+			expect(poisoned).not.toBe(healthy);
+			plantFutureSchemaVersion(stack, poisoned);
+
+			const refused = await testCase.read(stack, poisoned);
+			// `ok` first: `expectErr` on an ok Result throws its own message, which reads as
+			// a broken test rather than as a gate that stopped refusing.
+			expect(refused.ok).toBe(false);
+			const error = expectErr(refused);
+			expect(error.category).toBe('Migration');
+			expect(error.code).toBe(`${kind}.schema-version-unsupported`);
+
+			const sibling = expectOk(await testCase.read(stack, healthy)) as { entity: { id: string } } | null;
+			expect(sibling?.entity.id).toBe(healthy);
+		},
+	);
+
+	/**
+	 * The OTHER edge of the same gate, pinned as what is true today rather than left as a
+	 * claim in a comment — the same shape as the `plan-geometry` case above. `migrateNote`
+	 * is on the READ path only: every save resolves its note through `findNoteIdInFolder` +
+	 * `versionOfFrontmatter` and never runs the runner, so "refuses to load" is checked and
+	 * "refuses to write over" is not.
+	 *
+	 * What stands between a future-version note and this build's shape is therefore only
+	 * that every command LOADS before it saves, and that the poisoned `schema-version` is an
+	 * OWNED key — so an expectation taken before the poisoning refuses as an external
+	 * modification. A writer holding a CURRENT expectation, which is what every save path
+	 * mints for itself, meets no gate at all. No command does that today; this case is what
+	 * makes the day one does visible, and it goes red — correctly — when the gate moves into
+	 * the save path.
+	 */
+	it('is a READ gate: a save holding a current expectation overwrites a future-version note', async () => {
+		const stack = createRepositoryStack();
+		const asset = makeAssetEntity({ projectId: createProjectId() });
+		expectOk(await stack.assets.save(asset, 'absent'));
+		plantFutureSchemaVersion(stack, asset.id);
+		expect(expectErr(await stack.assets.getById(asset.id)).code).toBe('asset.schema-version-unsupported');
+
+		const path = stack.index.getPath(asset.id) ?? '';
+		const current = parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter;
+		expectOk(await stack.assets.save(asset, versionOfFrontmatter(current)));
+
+		// The newer build's note now carries this build's version, and nothing refused.
+		expect(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter['schema-version']).toBe(1);
 	});
 });
 

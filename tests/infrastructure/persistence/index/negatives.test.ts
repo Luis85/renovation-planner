@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../../../helpers/entities';
+import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
+import { createZoneId } from '../../../../src/domain/zone/ZoneId';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 import { buildProjectIndexEntries } from '../../../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { parsePersisted } from '../../../../src/infrastructure/persistence/mappers/parse';
@@ -337,5 +338,60 @@ describe('a sidecar whose plan is still being written', () => {
 		adapter.flush();
 
 		expect(stack.logged.some((line) => line.event === 'persistence.pipeline.sidecar-skipped')).toBe(true);
+	});
+});
+
+/**
+ * SDD §92 item 13's "not the whole plugin" half, at the one place a whole vault is read at
+ * once. `buildProjectIndexEntries` never reads `schema-version` and never runs the
+ * migration runner: a note from a newer build is indexed exactly like its neighbours and
+ * refuses only when something OPENS it. That is what confines the refusal to one entity,
+ * and it was true by inspection alone — nothing drove a poisoned note past the scan, so an
+ * index builder that started dropping or throwing on one would have been a silent, total
+ * load failure with every other gate green.
+ */
+describe('the index scan does not run the fail-closed gate', () => {
+	it('indexes a future-version note beside its neighbours, and only the read refuses', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
+		// A vault Obsidian has already parsed: without this the notes sit inside the fake's
+		// create window, where the scan reads them from the echo record — this plugin's own
+		// last write, which is not what a hand edit changed.
+		stack.metadataCache.catchUp();
+
+		const poisonedPath = stack.index.getPath(planId) ?? '';
+		stack.vault.entries.set(
+			poisonedPath,
+			(stack.vault.entries.get(poisonedPath) ?? '').replace('schema-version: 1', 'schema-version: 99'),
+		);
+
+		const entries = buildProjectIndexEntries({
+			vault: stack.vault as never,
+			metadataCache: stack.metadataCache as never,
+			echo: stack.echo,
+			logger: stack.logger,
+			projectFolder: stack.projectFolder,
+		});
+
+		// Every entry, not "most of them" — the poisoned note included.
+		expect(entries.map((entry) => String(entry.id)).toSorted()).toEqual(
+			[String(projectId), String(planId), String(zoneId)].toSorted(),
+		);
+		// And a FULL entry rather than a husk: a Plan reachable by path, of the right type,
+		// still joined to its geometry sidecar. A degraded entry would leave the editor
+		// unable to say anything better than "this plan no longer exists".
+		const poisoned = entries.find((entry) => entry.id === planId);
+		expect(poisoned?.path).toBe(poisonedPath);
+		expect(poisoned?.type).toBe('renovation-plan');
+		expect(poisoned?.geometrySidecarPath).toBeDefined();
+
+		// The refusal is where it belongs — at the read of that one entity, with the rest of
+		// the project loading through the very index this scan built.
+		stack.index.rebuild(entries);
+		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.schema-version-unsupported');
+		expectOk(await stack.projects.getById(projectId));
+		expectOk(await stack.zones.getById(zoneId));
 	});
 });

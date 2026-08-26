@@ -157,41 +157,14 @@ describe('conditional writes against real files', () => {
 	});
 
 	/**
-	 * DoD 5b's other half, and the direction a digest drawn too WIDE gets wrong while
-	 * looking correct: body prose and frontmatter keys this version does not declare belong
-	 * to the user, sit outside the observation token, and must therefore neither refuse the
-	 * next save nor be erased by it.
-	 *
-	 * `tests/.../digest.test.ts` pins the token function against both; this drives the whole
-	 * repository, which is where the erasure would actually happen — the token could ignore
-	 * a key that `writeOwnedFrontmatter` then drops on its way past.
+	 * DoD 5b's other half — body prose and undeclared frontmatter keys neither refusing the
+	 * next save nor being erased by it — used to be driven HERE, for the Zone repository
+	 * alone, under a title that read as a category. It is
+	 * `tests/infrastructure/obsidian/repositories/preservation.test.ts` now: the guarantee
+	 * belongs to `writeOwnedFrontmatter` and `observeFrontmatter`, which five repositories
+	 * and `markStale` share, so one entity's case was a sample of six.
+	 * `tests/.../digest.test.ts` still pins the token function itself against both.
 	 */
-	it('a save after body prose and an undeclared key succeeds and preserves both', async () => {
-		const stack = createRepositoryStack();
-		const { projectId, planId } = await seed(stack);
-		const zoneId = createZoneId();
-		const written = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
-
-		// Both edits at once, out of band: prose appended after the frontmatter block, and a
-		// key no schema of this version declares.
-		const path = stack.index.getPath(zoneId) ?? '';
-		const parsed = parseFrontmatter(stack.vault.entries.get(path) ?? '');
-		parsed.frontmatter['my-own-key'] = 'kept by the user';
-		const body = '## My notes\n\nRetile before winter.\n';
-		stack.vault.entries.set(path, `${serializeFrontmatter(parsed.frontmatter)}${body}`);
-
-		// Succeeds on the version the ORIGINAL save returned: neither edit moved the token.
-		const after = expectOk(
-			await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Renamed' }), written.version),
-		);
-		expect(after.version.revision).toBe(written.version.revision + 1);
-
-		const reparsed = parseFrontmatter(zoneNoteText(stack, zoneId) ?? '');
-		expect(reparsed.frontmatter['my-own-key']).toBe('kept by the user');
-		expect(reparsed.frontmatter['name']).toBe('Renamed');
-		// Byte-for-byte, not "contains": §87 rule 3 promises the user's prose back untouched.
-		expect(reparsed.body).toBe(body);
-	});
 
 	it('the sidecar honours expected versions: absent applies, stale refuses, hand edits refuse', async () => {
 		const stack = createRepositoryStack();

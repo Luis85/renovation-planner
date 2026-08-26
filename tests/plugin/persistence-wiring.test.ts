@@ -7,7 +7,7 @@ import { apiVersion } from '../helpers/obsidian-mock';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
-import { expectOk } from '../helpers/domain';
+import { expectErr, expectOk } from '../helpers/domain';
 import { createPlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -110,6 +110,43 @@ describe('persistence composition', () => {
 
 		// And vault listeners are registered for the change pipeline.
 		expect(plugin.eventRefs.length).toBeGreaterThanOrEqual(4);
+	});
+
+	/**
+	 * SDD §92 item 13's "not the whole plugin" half, at load. `startPersistence` scans the
+	 * whole vault, and the scan does not read `schema-version` at all — so one note from a
+	 * newer build must not cost a user their session. Driven through the REAL plugin rather
+	 * than through `buildProjectIndexEntries` alone (`tests/.../index/negatives.test.ts` is
+	 * where the builder's own half lives): what a user loses if this breaks is layout-ready
+	 * completing, and that is a plugin-level fact.
+	 */
+	it('completes the load-time scan with a future-version note in the vault', async () => {
+		const stack = createRepositoryStack(DEFAULT_SETTINGS.projectFolder);
+		const projectId = createProjectId();
+		const planId = createPlanId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+		// A vault from a previous session, which is the only way a future-version note can
+		// exist: nothing in this build writes one.
+		stack.metadataCache.catchUp();
+		const poisonedPath = stack.index.getPath(planId) ?? '';
+		stack.vault.entries.set(
+			poisonedPath,
+			(stack.vault.entries.get(poisonedPath) ?? '').replace('schema-version: 1', 'schema-version: 99'),
+		);
+
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+
+		// The scan finished and indexed BOTH notes — the poisoned one included, since the
+		// index is where the editor learns the plan exists at all.
+		const persistence = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
+		expect(persistence.index.getPath(projectId)).toBeDefined();
+		expect(persistence.index.getPath(planId)).toBe(poisonedPath);
+
+		// And the refusal is exactly one entity wide, through the plugin's own repositories.
+		expect(expectErr(await persistence.plans.getById(planId)).code).toBe('plan.schema-version-unsupported');
+		expectOk(await persistence.projects.getById(projectId));
 	});
 
 	it('vault listeners tolerate events that are not notes', async () => {

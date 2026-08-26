@@ -63,7 +63,24 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * (malformed data), while everything the runner refuses — a future version this build
  * predates, a gap in the chain — keeps the runner's `Migration` category. Both are
  * scoped to THIS note: the caller answers 'error' for this entity and the rest of the
- * project loads on (SDD §92 item 13).
+ * project loads on (SDD §92 item 13). The index scan is the other half of that scope and
+ * it works by NOT calling this: `buildProjectIndexEntries` never reads `schema-version`,
+ * so a note this refuses is indexed like any other and costs nobody their session.
+ *
+ * **This gate is READ-side only, and the guarantee is "refuses to LOAD" — never "refuses
+ * to write over".** Every save path resolves its existing note through
+ * `findNoteIdInFolder` + `versionOfFrontmatter` and never comes through here, so nothing
+ * in a write stops a build that predates a note from overwriting its owned keys with a
+ * shape it understands. Two things protect such a note today and NEITHER is this gate:
+ * every command loads before it saves, and the load refuses — a property of the callers;
+ * and `schema-version` is an owned key, so an expectation minted before the note changed
+ * refuses as an external modification. A writer holding a CURRENT expectation meets
+ * nothing at all, which is what the "is a READ gate" case in
+ * `tests/infrastructure/obsidian/repositories/errorPaths.test.ts` pins as true today.
+ * No command bypasses the load, so this is a narrowing of the claim rather than a live
+ * defect; closing it means running this check on the save side too, at FOUR call
+ * sites rather than one — `saveNoteBackedEntity` covers the Asset and the Requirement, and
+ * the Project, Plan and Zone repositories each carry a save of their own.
  */
 export function migrateNote(
 	migrations: MigrationRunner,

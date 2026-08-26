@@ -335,7 +335,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   It also mirrors ESLint's **`no-console`** and its `infrastructure/logging/**` carve-out,
   which is the one policy rule ESLint owned alone with nothing to notice its removal —
   and the mirror is what puts it in the EDIT LOOP, since `scripts/lint-edited.mjs` runs
-  oxlint and only oxlint. Scoped to `src/**` by measurement rather than taste: at the root
+  oxlint for every file it lints and ESLint for `.vue` alone. Scoped to `src/**` by measurement rather than taste: at the root
   it reports nine findings across `scripts/`, where a build script printing to the console
   is correct. The mirror is not total, and the sentence has to say so — inside the carve-out
   ESLint still fails `console.log`/`console.info` through the obsidianmd wrapper, oxlint has
@@ -369,11 +369,15 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   equal the floors already in force ratchets NOTHING, which is what slices 5 and 15 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
-  real mounted views (`mountHarness` and the real Plan Editor, never a fixture), checking
+  real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
+  three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It
   earns its place rather than merely running: pointed at the Plan Editor — the first
   surface here that draws anything — it immediately found three `aria-label`s on role-less
-  `<div>`s, which is a real violation and one no other gate can see. Read its header before trusting
+  `<div>`s, which is a real violation and one no other gate can see. The index is the only
+  page here built out of interactive controls rather than a canvas, which is why it is
+  scanned open, empty and failed rather than once: those three draw different markup, and
+  the failure card is the tree's one live region. Read its header before trusting
   the word "accessibility" any wider than that: it does NOT verify colour contrast, a
   visible focus indicator or hit-target size (jsdom has no rendering engine to measure any
   of the three), nor page-wide structural rules like duplicate ids or landmark uniqueness —
@@ -395,9 +399,9 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
   and **Obsidian's own app.css**, in a browser, with no Obsidian. `?view=plan-editor` draws
-  the Plan Editor instead of the project surface, `?theme=light` and `?phone` are the other
-  two knobs, and all three exist so a headless capture needs a URL and nothing to click.
-  Faithful about markup,
+  the Plan Editor instead of the project surface, `?theme=light`, `?phone`, `?index` and
+  `?entry=<id>` are the other knobs, and all of them exist so a headless capture needs a URL
+  and nothing to click. Faithful about markup,
   spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
   nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
   `.view-content`), which the fake `ItemView` in `tests/helpers/obsidian-mock.ts` nests the
@@ -406,14 +410,47 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
   "faithful" read wider than it is.
+
+  **`?index`** draws an index of every prototype and every real component, discovered from the
+  tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
+  directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
+  and the bare root still draws the project view: the three fixed captures address that surface
+  with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
+  `?phone`), just never a `view` one — so making a bare root mean "index" would break them
+  while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as
+  SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style scoped>` — written to the
+  same Vue lint rules as the rest of `src/` so that promotion is moving the file rather than
+  redrawing the markup. A template-only mock composes real components and sibling mocks through
+  the index's global registry, having no script block to put an import in; a scripted one may
+  import them directly, which is what a shipped component does. A `<style scoped>` block does not ship
+  and does not travel — promotion lifts it into a `styles/` partial, since SDD §84's colour
+  check runs over the assembled sheet and never sees inside an SFC. `scoped` is required rather
+  than preferred: Vite never removes an injected block, so an unscoped one would still be
+  styling the index after the designer opened something else.
+  `src/prototypes/README.md` carries the one rule that IS relaxed there and why. **No prototype or fixture MODULE ever composes a built chunk**, refused
+  twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
+  `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
+  each chunk. Neither is sufficient — lint reads static imports, the bundle scan reports
+  after the fact — and the bundle scan is narrower than the wider claim it serves: a
+  prototype or fixture shipped as a separate emitted ASSET, with no module id in the chunk
+  list, is outside what `chunk.modules` can see, and not cheaply checkable.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
   scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
-  folder — a look at rendered layout, which jsdom cannot produce at all.
+  folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
+  (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
+  basename the index displays) it captures that one prototype or component from the index
+  instead of the five fixed shots, in both colour schemes, with the index's own sidebar
+  dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
+  well, which is the width an Obsidian sidebar leaf actually has and the one that has already
+  hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
+  a bare `--width` as its own config, and the command refuses that spelling rather than
+  capturing at the wrong width and exiting 0.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
-  **It has now caught four defects the whole of `npm run check` could not**, which is the
+  **It has now caught five defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
   pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
   clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
@@ -421,6 +458,20 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   the same grey because the harness page applied its theme class AFTER mounting, so the
   editor resolved its palette when no `--color-*` existed. Every one passed the suite:
   jsdom lays nothing out, and the tests set the theme variables themselves.
+
+  The fifth is the harness index's own entry list, where every row read `ZonePanelprototype`:
+  Vue's default `whitespace: 'condense'` removes whitespace between two elements when it
+  contains a newline, so an `<a>` and a `<span>` on adjacent template lines render with nothing
+  between them. It was found by CAPTURING a PNG and looking at it, on the first thing a designer
+  sees, after forty-four review rounds over that file.
+
+  **What that fifth one says about the instrument, and it is the reason to keep running it:** the
+  suite is not blind to the missing separator — jsdom's `textContent` reads `ZonePanelprototype`
+  perfectly well. It is blind to SPACING, so it cannot see the defect once the remedy is CSS, and
+  it could not have told anyone the rendered page looked wrong in the first place. Anything whose
+  symptom is a measurement no layout engine performs — spacing, wrapping, overflow, contrast, hit
+  size — is outside every gate this repository has, and a capture read by eye is the only
+  instrument here that reaches it.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.
@@ -472,6 +523,19 @@ Two rules that follow from it and are worth stating because breaking them is che
 - **A view type and a command id are DATA, not text.** Obsidian persists the first in the
   workspace layout and binds a user's hotkey to the second, so renaming either orphans
   something a user has. The display names beside them are text.
+- **`src/prototypes/` is inside `src/` and outside the layering.** A mock may carry a script and
+  a style block, composes real components and sibling mocks through the harness index's registry
+  or — once it has a script — by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
+  makes that a one-way door and `tests/build/prototypes-not-bundled.test.ts` asks the real
+  build which modules composed each chunk. Its CSS has TWO homes and they differ in one thing,
+  whether the rules ship: a `<style scoped>` block in the mock does not — nothing imports this
+  tree — and does not travel at promotion either, while a `styles/` partial does both. `scoped`
+  is required rather than preferred, because Vite never removes an injected block and an
+  unscoped one would go on styling the index after the designer opened something else.
+  `tests/build/prototype-styles.test.ts` refuses a class NEITHER home declares, and refuses an
+  unscoped block. A real component is still drawn by the assembled sheet and by nothing else,
+  which is what criterion 5 actually guarantees. `src/prototypes/README.md` carries the whole
+  trade and the one lint rule that is relaxed there.
 
 There is deliberately no list of modules here. `src/` is the list and it cannot go stale.
 
@@ -484,9 +548,19 @@ script resolves its paths from the WORKING DIRECTORY rather than from its own lo
 ## The linter in the edit loop
 
 `.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which
-lints THAT ONE FILE and hands the agent whatever oxlint says. About 90ms, against
-`npm run check` several turns later — and by then the reasoning that produced the defect
+lints THAT ONE FILE and hands the agent what the linters say. About 90ms for most files
+(seconds for an SFC — see below), against `npm run check` several turns later — and by then the reasoning that produced the defect
 is gone, which is the whole reason to move the cheap half earlier.
+
+**oxlint for every file, and ESLint too when the file is a `.vue`.** oxlint has no port of
+`eslint-plugin-vue` — no Vue rules at all — so for that one extension the fast linter is blind
+to the entire ruleset governing the file, and an SFC came back clean from a hook that could not
+read it. That is not hypothetical: the first author to write a mock here tripped
+`vue/html-indent` and `vue/singleline-html-element-content-newline`, got a green hook, and met
+`npm run check` several turns later — the exact gap this hook exists to close, in the one tree
+whose authors are most likely to fall into it. The cost is measured and is why it is not
+extended to `.ts`: oxlint answers for one SFC in about 110ms and ESLint in about 2.5s, and on
+`.ts` the two overlap enough that seconds per edit would buy little.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
@@ -524,9 +598,19 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking; tsconfig covers `src/`
-only) **except one file**: `tests/presentation/editor/type-safety.test-d.ts` is named
-alongside `src/**` in `tsconfig.json`'s `include`, because slice 6's screen/world brand
+nothing type-checks `tests/**` (vitest transpiles without checking) **except two entries in
+`tsconfig.json`'s `include`**, each there for its own reason.
+
+`tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
+`IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
+viewed through, and it was reached by neither `vue-tsc` nor `eslint-plugin-vue` (whose
+`VUE_FILES` was `src/` only). The first run over it found `HARNESS_PLAN` missing a required
+`PlanDto` field while annotated as one. Both globs are asked of the tools rather than read,
+in `tests/build/lint-scope.test.ts` — TypeScript's own config parser, with `.vue` declared as
+an extra extension, and ESLint's `calculateConfigForFile`.
+
+`tests/presentation/editor/type-safety.test-d.ts` is the second, and it is a proof: slice 6's
+screen/world brand
 separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
 hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
 `npm run build` is the whole mechanism by which a compile-time proof exists here — a
@@ -539,7 +623,8 @@ the editor, not the gate.
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
   source project, six of ten review findings were comments precisely stating the rule the
   code beside them broke. A confident paragraph is evidence of intent and of nothing else.
-- **A fake must not be kinder than the real thing — and not thinner either.** A DOM helper
+- **A fake must not be kinder than the real thing, not thinner than it, and not HARSHER than
+  it.** A DOM helper
   that accepted what Obsidian rejects shipped a dead drag target while every test and the
   browser harness drew it happily; too kind. A fake `ItemView` that never nested a
   `.view-header` inside `.workspace-leaf-content` the way Obsidian does left
@@ -586,6 +671,20 @@ the editor, not the gate.
   input device — clicks are down+up pairs, drags are down/move…/up — and the rig now
   spells them that way (`click()` in `zoneEditing.test.ts`), so the next gesture test
   cannot accidentally model an impossible input.
+
+  **Fifth instance, and the THIRD face of the rule** — the one the heading gained the word
+  "harsher" for. `tests/harness/planEditor.ts` handed the browser harness
+  `unavailablePlanEditorCommands()`, the bundle a session with unrecovered settings gets, under
+  a comment reading "every write refuses". But that bundle also carries `zoneInspector`, a READ
+  (SDD §59 groups the Inspector query with the commands it shares a selection with), and the
+  refusal refused it too — on a page whose fixture holds the zone in full. `InspectorDto` has no
+  error variant, so a failed read and an empty selection are the same `{ kind: 'empty' }`: the
+  canvas showed the seeded Kitchen selected and the Inspector showed nothing, with no error
+  anywhere and two of the five shell regions contradicting each other. The lesson generalises
+  past this bundle: a stand-in that REFUSES what production answers turns a tool built for
+  looking into one that shows a false picture, and it does it silently wherever the consumer has
+  no shape for an error. A refusal bundle is the honest stand-in only where the real thing would
+  also have nothing to give.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`

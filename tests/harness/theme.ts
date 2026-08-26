@@ -66,14 +66,51 @@ function applyScheme(scheme: Scheme): void {
 }
 
 /**
+ * Writes the scheme into the URL, `replaceState`d rather than pushed for the same reason
+ * `IndexPage.vue`'s `open()` uses it: this is one page, and a back-button stack of every
+ * toggle click is not what a designer wants.
+ *
+ * The URL is the ONE source of truth for the scheme — `wantedScheme` already reads it that
+ * way at load — so the toggle writes here rather than `hrefFor` (in `IndexPage.vue`) or any
+ * other reader deriving a link from the scheme currently applied. A second source, kept in
+ * sync by hand, is how this diverged in the first place: the toggle used to mutate only the
+ * local `scheme` variable below and never touched the URL, which was harmless while nothing
+ * read the URL for its scheme — until `hrefFor` started building entry links from
+ * `window.location.search` and started faithfully propagating a value that was already
+ * stale. This also fixes a second, previously unreported gap the same way: a refresh after
+ * toggling used to revert the scheme, because the URL had never learned about the change.
+ */
+function writeSchemeToURL(scheme: Scheme): void {
+	const params = new URLSearchParams(window.location.search);
+	params.set('theme', scheme);
+	window.history.replaceState(null, '', `?${params.toString()}`);
+}
+
+/**
  * Draw the switch — the module's whole surface, since nothing outside the page needs to
  * ask for a scheme. It is the HARNESS's furniture, drawn outside the mounted view and
  * marked as such, because a control in a screenshot that nobody can find in the plugin is
  * worse than no control at all.
  */
-export function drawSchemeToggle(): void {
-	let scheme = wantedScheme(window.location.search);
+/**
+ * What the URL asks the page to be drawn in, applied — and nothing else.
+ *
+ * Split out of `drawSchemeToggle` because the two are different KINDS of thing and a capture
+ * wants exactly one of them: the scheme is the content's, the button is the harness's own
+ * furniture. `&bare` asks for a picture of the screen, and the toggle is fixed over the
+ * bottom-right corner of the viewport, so every "chromeless" capture had a dashed button
+ * sitting on the prototype.
+ */
+export function applyWantedScheme(): Scheme {
+	const scheme = wantedScheme(window.location.search);
+
 	applyScheme(scheme);
+
+	return scheme;
+}
+
+export function drawSchemeToggle(): void {
+	let scheme = applyWantedScheme();
 
 	const btn = document.body.createEl('button', {
 		cls: 'rp-harness-scheme',
@@ -87,6 +124,7 @@ export function drawSchemeToggle(): void {
 	btn.addEventListener('click', () => {
 		scheme = scheme === 'dark' ? 'light' : 'dark';
 		applyScheme(scheme);
+		writeSchemeToURL(scheme);
 		label();
 	});
 }

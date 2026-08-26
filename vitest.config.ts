@@ -25,8 +25,14 @@ export default defineConfig({
 			// nothing — component tests run, the numbers do not move, and the gate passes
 			// over code it never measured.
 			include: ['src/**/*.{ts,vue}'],
-			// Registration glue that needs the real Obsidian Plugin runtime.
-			exclude: ['src/main.ts'],
+			// `src/main.ts` is registration glue needing the real Obsidian Plugin runtime.
+			// `src/prototypes/**` is design scaffolding: nothing in the tree ships, so measuring
+			// it would let a mock's untested branches move a gate that exists for shipped code —
+			// and the floors are a RATCHET, so a tree that drags them is a tree that lowers them.
+			// `tests/build/prototypes-not-bundled.test.ts` proves the "never in a built plugin"
+			// half directly: a real `vite build` in memory (`write: false`, so nothing is ever
+			// written to `dist/`), asking Rolldown which modules composed each chunk.
+			exclude: ['src/main.ts', 'src/prototypes/**'],
 			reporter: ['text-summary', 'json', 'lcov'],
 			// THE RATCHET. Raise these to what a FINISHED increment measures, rounded
 			// down, and never lower one to accommodate a change. Three rules that the
@@ -301,6 +307,29 @@ export default defineConfig({
 			// - `createSerialQueue`'s tail catch, which exists so one command's technical
 			//   fault cannot wedge the shared chain - reached only by a throw the queue is
 			//   built to survive.
+			//
+			// Measured 2026-08-26 after the slice 8 review pass CLAUDE.md's harness section
+			// narrates (the WriteLedger, the single per-leaf dispatch funnel, the
+			// click-versus-drag epsilon and the handleMetrics split, the tool generation
+			// guards, the concurrent-hydrate tickets, the plan-change fan-out) and the
+			// harness prototyping capability built on top of it (Tasks 1-8) - the latter
+			// contributing nothing to this figure itself, since `IndexPage.vue` and
+			// `entries.ts` live under `tests/harness/`, outside `include`, and everything the
+			// capability added under `src/` is `src/prototypes/`, excluded by the `src/prototypes/**`
+			// pattern above rather than by naming a file: 2711/2729 statements, 1247/1269 branches, 711/717 functions,
+			// 2461/2470 lines - 99.34 / 98.26 / 99.16 / 99.63. NOTHING RATCHETS: rounded
+			// down these are 99 / 98 / 99 / 99, the floors already in force, with 9.3 / 3.3 /
+			// 1.15 / 15.6 covered units of headroom respectively (rule 1's `1 / total * 100`
+			// per metric) - functions the tightest of the four, same as every measurement
+			// since slice 4 introduced the first unreachable arms.
+			//
+			// Re-measured 2026-08-26 after the whole-branch fix wave (the index test app's
+			// missing component registry, the harness Inspector read, the prototypes Vue-rule
+			// decision, and the smaller repairs) - IDENTICAL on all four counts, denominators
+			// included. That is the expected result rather than a lucky one: everything the
+			// wave touched under `src/` is either a comment (`EditorStore.reset` and
+			// `WorkspaceStore.reset`'s docblocks) or inside `src/prototypes/`
+			// (`ZonePanel.vue`), which this config excludes. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

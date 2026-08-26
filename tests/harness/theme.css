@@ -54,8 +54,15 @@ body {
  * Obsidian class. They select by POSITION under `.rp-harness-leaf` (a harness class) and
  * a bare `div`, which is true of the container and the content pane only because of how
  * `obsidian-mock.ts` nests them, not because either selector says so.
+ *
+ * `.rp-harness-index` is excluded rather than overridden, and the exclusion is load-bearing: the
+ * index branch mounts a bare `div` into the same leaf, so this selector reached it BY ACCIDENT
+ * and — at one class plus one type to the index rule's one class — outranked it on
+ * `flex-direction`, pinning the index to a column whatever the rule below asked for. Narrowing
+ * here rather than raising specificity there keeps each rule owning one thing: this one stands
+ * in for a workspace leaf's children, and the index is not one.
  */
-.rp-harness-leaf > div {
+.rp-harness-leaf > div:not(.rp-harness-index) {
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -65,6 +72,114 @@ body {
 .rp-harness-leaf > div > div:last-child {
 	flex: 1;
 	min-height: 0;
+}
+
+/*
+ * The harness INDEX's own growth chain, down to the element an entry is mounted into.
+ *
+ * `page.ts`'s index branch reuses `.rp-harness-leaf` and mounts `IndexPage` inside it, so the
+ * leaf's `height: 100%` is there — but nothing carried it any further. `<main
+ * class="rp-harness-stage">` is not a `div`, so the positional rule above misses it, and it was
+ * left at `flex: 0 1 auto`: an auto-height containing block, against which a mounted entry's own
+ * `height: 100%` resolves to its CONTENT. Measured in a real browser before this rule existed —
+ * `?entry=component:editor/PlanEditorRoot` in a 1280x800 pane gave a leaf of 800px, a stage of
+ * 287px and a Konva canvas of 896x230. Konva sizes itself from the container it is given, so the
+ * editor was being LOOKED AT at the wrong size, which is the one thing this harness exists to
+ * get right.
+ *
+ * By CLASS and not by position, deliberately, even though `.rp-harness-index` happens to be a
+ * bare `div` the rule above already reaches. The two positional selectors stand in for what a
+ * real `.workspace-leaf` gives its children and depend on how `obsidian-mock.ts` nests them —
+ * their own comment is uneasy about exactly that — and the index branch involves no mock and no
+ * Obsidian nesting at all. A third positional rule would make this chain depend on an accident;
+ * these two selectors name elements the harness itself draws, which is this file's own rule.
+ *
+ * Here rather than in `IndexPage.vue`: a `<style>` block would be the second stylesheet this
+ * whole feature exists to not have, and the harness's chrome already lives in this file.
+ *
+ * A ROW, and that one declaration is the difference between most of the pane's height and all of
+ * it. Stacked, the list sits ABOVE the stage and takes its own content height out of it —
+ * measured, 345px of 800 for today's twelve components, leaving the stage 1280x455 and the
+ * editor's Konva canvas at 896x398 — and it gets worse with every prototype somebody adds, which
+ * is the same "measured at the wrong height" defect one step removed. Beside it, the list is a
+ * sidebar at its content width and the stage gets the pane's full height: 843x800, with the
+ * canvas at 459x743. All three figures are from the same 1280x800 browser pane.
+ *
+ * The sidebar's WIDTH is left as it falls (437px today, driven by the longest line in the list).
+ * That is appearance, not sizing, and NOBODY HAS DECIDED IT — deliberately, and it is not
+ * waiting on a numbered task. (An earlier version said "it is Task 5's to decide"; Task 5 was the
+ * stylesheet check and the one-sheet claim, and it decided nothing about how this list looks.)
+ *
+ * The list scrolls on its own for the same reason: `.rp-harness-leaf` is `overflow: hidden`, so
+ * a list longer than the pane would be clipped with no way to reach the entries past the fold —
+ * an index nobody can navigate, arriving silently the day the prototypes tree grows.
+ *
+ * This is a LAYOUT decision and not only a sizing fix, so it is said plainly: nothing here
+ * styles the index beyond giving an entry the pane it is being looked at in. Type, spacing and
+ * the look of the list are UNDECIDED, and this rule is not a claim on them — the first person to
+ * judge the index as a designed surface gets to make those calls.
+ */
+.rp-harness-index {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: row;
+}
+
+.rp-harness-index > nav {
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/*
+ * The kind label needs separating from the entry name, and CSS is where that belongs rather
+ * than a `&nbsp;` or a `{{ ' ' }}` in the template.
+ *
+ * Vue's default `whitespace: 'condense'` REMOVES whitespace between two elements when it
+ * contains a newline, so `<a>…</a>` and `<span>…</span>` on adjacent lines render with nothing
+ * between them: every row read `ZonePanelprototype`. Found by capturing a PNG and looking at it,
+ * after forty-four review rounds over that template.
+ *
+ * The template now carries a real space inside each following span as well, and the two are not
+ * redundant: that space is what the row's TEXT has — for a copy, or for assistive technology
+ * reading the row rather than the link — and this rule is what the row LOOKS like. An earlier
+ * version of this comment said CSS was where the separation belonged "rather than a `&nbsp;` or
+ * a `{{ ' ' }}`", which was right about the pixels and wrong about everything a stylesheet
+ * cannot reach.
+ *
+ * **Be exact about what the suite could and could not have caught, because the obvious reading is
+ * wrong.** jsdom is NOT blind to the missing separator — `textContent` reads `ZonePanelprototype`
+ * perfectly well, and a test could have asserted it. What no gate here can see is SPACING, which
+ * is what makes the defect invisible once the remedy is CSS: there is no layout engine in the
+ * suite to measure a margin. So the blindness is a property of this REMEDY, not of the defect.
+ *
+ * That has one consequence worth knowing rather than discovering: a CSS gap is not a text
+ * separator, so copied text and a screen reader still run the two words together. Fixing that
+ * would mean a real separator in the markup, which is a different decision about what the row IS
+ * — and nobody has made it. Said here rather than left for the next reader to notice.
+ */
+.rp-harness-index nav li span {
+	margin-inline-start: var(--size-4-2);
+	opacity: 0.6;
+}
+
+/*
+ * The one row note that is not an aside: a label two entries of the same kind claim, which
+ * `registrableComponents` registers for nobody. Full opacity and the warning colour, because
+ * the rule above dims every other `span` in the row to 0.6 and this one is the reason a
+ * designer's `<ThatName />` will resolve to nothing. Colour is the SECOND channel here, never
+ * the only one — the span says why in words (SDD §85).
+ */
+.rp-harness-index nav li span.rp-harness-ambiguous {
+	opacity: 1;
+	color: var(--text-warning);
+}
+
+.rp-harness-stage {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 }
 
 /*

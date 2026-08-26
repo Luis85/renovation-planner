@@ -1,0 +1,267 @@
+/*
+ * The Work Packages list — `src/prototypes/WorkPackages.vue`.
+ *
+ * The filter bar's rules are NOT here: `WorkPackageFilters.vue` carries its own `<style>`
+ * block, which is what a mock's CSS should do while the screen it draws does not exist — it
+ * stops being downloaded by every vault. These stay because this file is 200 lines of CSS
+ * against a 306-line SFC, and 506 is past the 400 lines this repository allows one component.
+ * That is the measured reason for the split, not a stylistic one.
+ *
+ * It lives HERE, in the shipped sheet, rather than beside the mock, because two rules leave
+ * nowhere else: `vue/no-restricted-block` refuses a `<style>` block in every `.vue` file in
+ * this repository, and acceptance criterion 5 of
+ * `docs/requirements/Prototype a screen in the harness before it is built.md` requires that a
+ * mock and a real component on one screen be styled by the SAME assembled stylesheet — "there
+ * is no second sheet in the harness page for prototypes to opt into". So a mock's CSS ships
+ * before the screen it draws does, and that is the trade the criterion is making: the design a
+ * designer approves is drawn by the bytes a vault will run, and the promotion this tree exists
+ * for is a file move rather than a redraw.
+ *
+ * The cost, stated rather than left to be discovered: until the screen is built, every vault
+ * downloads these rules and nothing matches them. Deleting this file is what a decision NOT to
+ * build the screen costs, and `styles/index.css` is the second edit — the assembler fails the
+ * build on a partial nothing imports, which is what stops that deletion being half-done.
+ *
+ * Obsidian variables only, per SDD §84 — `scripts/styles-assemble.mjs` fails the build on a
+ * colour literal, a named colour included. Status is carried by a glyph and a word in the
+ * markup as well as by the border colour here, because §85 refuses colour as the only channel;
+ * these rules are the redundant channel, not the only one.
+ */
+
+.rp-work-packages {
+	/*
+	 * An inline-size CONTAINER, so the narrow rules at the bottom of this file key off this
+	 * component's own width rather than the window's.
+	 *
+	 * They were a `@media` query, and in the environment they target that query is the wrong
+	 * question: an Obsidian sidebar leaf is routinely under 400px inside a window that is not,
+	 * so the fixed grid stayed and overflowed the pane while the breakpoint never fired. The
+	 * harness hid it too — a `--width=460` capture makes the window narrow as well, so both
+	 * questions had the same answer and the wrong one looked right.
+	 */
+	container-type: inline-size;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+	background-color: var(--background-primary);
+}
+
+.rp-wp-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-4-4);
+	padding: var(--size-4-4) var(--size-4-4) var(--size-4-2);
+}
+
+.rp-wp-title {
+	margin: 0;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	letter-spacing: -0.01em;
+}
+
+.rp-wp-new {
+	padding: var(--size-4-1) var(--size-4-3);
+	font-size: var(--font-ui-small);
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	border: none;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-wp-new:hover {
+	background-color: var(--interactive-accent-hover);
+}
+
+/* The filter bar. A row of trades and the result of applying them, at opposite ends. */
+.rp-wp-list {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	min-height: 0;
+	margin: 0;
+	padding: var(--size-4-3) var(--size-4-4);
+	overflow-y: auto;
+	list-style: none;
+}
+
+/*
+ * Four columns: state, identity, trade, progress. The state column is a fixed width so the
+ * glyphs form a single scannable rail down the left — the whole reason to prefer a row to a
+ * card here — and the identity column takes `minmax(0, 1fr)` so a long package name shortens
+ * rather than pushing the progress readout off the pane.
+ *
+ * The last two are FIXED widths rather than `auto`, which is what the first capture of this
+ * screen showed to be wrong: `auto` sizes each column to its own row's content, so the trade
+ * names ended up ragged against the progress readout and neither formed a column a reader
+ * could run an eye down. Both are left-aligned for the same reason.
+ */
+.rp-wp-row {
+	display: grid;
+	grid-template-columns: 8em minmax(0, 1fr) 9em 8em;
+	align-items: center;
+	gap: var(--size-4-4);
+	padding: var(--size-4-2) var(--size-4-3);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-left: var(--size-4-1) solid var(--text-faint);
+	border-radius: var(--radius-m);
+}
+
+.rp-wp-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-wp-row--done {
+	border-left-color: var(--color-green);
+}
+
+.rp-wp-row--running {
+	border-left-color: var(--color-blue);
+}
+
+.rp-wp-row--blocked {
+	border-left-color: var(--color-orange);
+}
+
+.rp-wp-state {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-wp-glyph {
+	font-size: var(--font-ui-medium);
+	line-height: 1;
+	color: var(--text-faint);
+}
+
+.rp-wp-row--done .rp-wp-glyph {
+	color: var(--color-green);
+}
+
+.rp-wp-row--running .rp-wp-glyph {
+	color: var(--color-blue);
+}
+
+.rp-wp-row--blocked .rp-wp-glyph {
+	color: var(--color-orange);
+}
+
+.rp-wp-identity {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	min-width: 0;
+}
+
+.rp-wp-name {
+	overflow: hidden;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The zones a package covers — a reference to them, never a copy, which the chip shape says. */
+.rp-wp-zones {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+}
+
+.rp-wp-zone {
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background-color: var(--background-secondary);
+	/* The border is what makes the chip a chip in a LIGHT theme, where
+	   `--background-secondary` is a hair off `--background-primary` and the fill alone
+	   disappeared — visible in the first capture, invisible in every test. */
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+/* Why a package is blocked, on the row rather than one click away: it is the answer to the
+   only question a blocked row raises. */
+.rp-wp-note {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+
+.rp-wp-trade {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.rp-wp-progress {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	align-items: flex-start;
+}
+
+/*
+ * One pip per task, filled when that task is finished. A percentage bar would need a width
+ * bound to a number, which a template-only mock cannot express without an inline style the
+ * marketplace refuses — but the shape is also the better answer: it shows the derivation
+ * `docs/requirements/Work package progress.md` asks for instead of a figure somebody typed.
+ */
+.rp-wp-pips {
+	display: flex;
+	gap: 2px;
+}
+
+.rp-wp-pip {
+	width: var(--size-4-2);
+	height: var(--size-4-2);
+	background-color: var(--background-modifier-border);
+	border-radius: 2px;
+}
+
+.rp-wp-pip--done {
+	background-color: var(--text-accent);
+}
+
+.rp-wp-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	white-space: nowrap;
+}
+
+/*
+ * Narrow panes — an Obsidian sidebar leaf is routinely under 400px, and this rule was
+ * rewritten after looking at one. The first version kept the 8em state column and dropped
+ * only the last two columns under it; at 250px of usable width that left the identity column
+ * about 9em wide and every package name ellipsed to "Strip ou…", which is the one field on
+ * the row that cannot be guessed from the others. So the row becomes a single column here and
+ * the name is allowed to WRAP: two lines of a name beats one line of a prefix.
+ *
+ * `@container`, not `@media` — see `container-type` at the top of this file. The pane is what
+ * has to be measured; the window is not the pane.
+ */
+@container (max-width: 700px) {
+	.rp-wp-row {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--size-4-2);
+	}
+
+	.rp-wp-trade,
+	.rp-wp-progress {
+		grid-column: 1;
+		align-items: flex-start;
+	}
+
+	.rp-wp-name {
+		overflow: visible;
+		white-space: normal;
+	}
+}

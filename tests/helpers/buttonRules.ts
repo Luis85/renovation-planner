@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import type { Selector, SelectorComponent } from 'lightningcss';
-import { compoundsOf, subjectClasses } from './selectors';
+import { compoundsOf, importsIn, subjectClasses } from './selectors';
 
 /**
  * Which elements in this project are BUTTONS, and what a selector says about one.
@@ -76,13 +76,37 @@ export function buttonClasses(): Set<string> {
 	return found;
 }
 
-/** Every sheet that can style one: the ones that ship, plus the harness's own chrome. */
-export const sheets = [
-	...readdirSync('styles')
-		.filter((file) => file.endsWith('.css') && file !== 'index.css')
-		.map((file) => `styles/${file}`),
-	'tests/harness/theme.css',
-];
+/**
+ * Every sheet that can style a button, IN THE ORDER A BROWSER LOADS THEM.
+ *
+ * The order is load-bearing and was wrong twice over, in the same three lines. It stopped being
+ * cosmetic the moment a check began resolving the cascade ACROSS rules — before that, this was a
+ * bag of files and any order did.
+ *
+ * Within `styles/`, the real order is `index.css`'s `@import` list, which is not alphabetical:
+ * `view, editor, editor-requirements, dialogs, chrome, work-packages, zone-panel` against
+ * `readdirSync`'s `chrome, dialogs, editor-requirements, editor, view, …`. And `theme.css` goes
+ * FIRST, not last — `tests/harness/index.html` links it before the assembled plugin sheet,
+ * because it stands in for Obsidian's own chrome and everything this project ships is meant to
+ * win against it.
+ *
+ * The imports are read through the parser (`importsIn`), so the order is the cascade's own rather
+ * than a pattern matched against text.
+ *
+ * The assertion below is the point of doing it this way rather than hard-coding the list: a
+ * partial nobody imports would silently drop OUT of the scan, and a check that quietly scans less
+ * is the failure mode this whole file keeps rediscovering.
+ */
+const imported = importsIn('styles/index.css', readFileSync('styles/index.css')).map((url) =>
+	`styles/${url.replace(/^\.\//, '')}`,
+);
+const onDisk = filesUnder('styles', '.css').filter((file) => file !== 'styles/index.css');
+
+if (imported.length !== onDisk.length || onDisk.some((file) => !imported.includes(file))) {
+	throw new Error(`styles/index.css imports ${imported.join(', ')}; the directory holds ${onDisk.join(', ')}`);
+}
+
+export const sheets = ['tests/harness/theme.css', ...imported];
 
 /** The button classes a selector's subject wears, as exact names with the leading dot. */
 export const buttonClassesOn = (selector: Selector, classes: Set<string>): string[] =>

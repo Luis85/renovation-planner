@@ -378,3 +378,35 @@ export function show(selector: Selector): string {
 		})
 		.join('');
 }
+
+/**
+ * Every `@import` URL a stylesheet declares, IN ORDER — the cascade's own view of the sheet.
+ *
+ * Read through the parser rather than matched against text, for the reason
+ * `tests/harness/harness.test.ts` gives at length about its own copy: `/@import/` is
+ * case-sensitive and misses `@IMPORT`, and `/@import/i` would then match one inside a comment.
+ *
+ * `errorRecovery` because the vendored `obsidian.css` contains preserved upstream prose that
+ * closes a comment early and cannot otherwise be parsed at all. Recovery skips the malformed rule
+ * and keeps visiting; it changes nothing for a file that already parses.
+ */
+export function importsIn(file: string, css: Buffer | string): string[] {
+	const found: string[] = [];
+
+	transform({
+		filename: file,
+		code: typeof css === 'string' ? Buffer.from(css) : css,
+		errorRecovery: true,
+		visitor: {
+			Rule: {
+				import: (rule) => {
+					found.push(rule.value.url);
+
+					return [];
+				},
+			},
+		},
+	});
+
+	return found;
+}

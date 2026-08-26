@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Selector } from 'lightningcss';
-import { alternativesOf, compoundsOf, moreSpecific, parseSelector, propertyOf, show, specificityOf, stylesheetRules } from '../helpers/selectors';
+import { alternativesOf, compoundsOf, importsIn, moreSpecific, parseSelector, propertyOf, show, specificityOf, stylesheetRules } from '../helpers/selectors';
 import { declarationsOf, drawsAnIndicator } from '../helpers/indicators';
 import { buttonClasses, buttonClassesOn, sheets, targetsAButton } from '../helpers/buttonRules';
 
@@ -328,6 +328,22 @@ describe('the instrument', () => {
 		expect(compounds).toHaveLength(2);
 		expect(compounds[0].after).toBe('descendant');
 		expect(compounds[1].after).toBeNull();
+	});
+
+	/**
+	 * THE ORDER IS PART OF THE ANSWER, since a check here resolves the cascade across rules. Both
+	 * halves of it were wrong: `readdirSync` is alphabetical and `index.css` is not, and `theme.css`
+	 * was last when the harness page links it FIRST. Asserted against the two sources that decide
+	 * it in reality — the import list and the harness page — rather than against a copy of either.
+	 */
+	it('lists the sheets in the order a browser loads them', () => {
+		const declared = importsIn('styles/index.css', readFileSync('styles/index.css', 'utf8')).map(
+			(url) => `styles/${url.replace(/^\.\//u, '')}`,
+		);
+		const page = readFileSync('tests/harness/index.html', 'utf8');
+
+		expect(sheets).toEqual(['tests/harness/theme.css', ...declared]);
+		expect(page.indexOf('theme.css')).toBeLessThan(page.indexOf('/styles.css'));
 	});
 
 	it('scans sheets that exist and hold rules', () => {

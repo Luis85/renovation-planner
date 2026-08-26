@@ -12,6 +12,14 @@
  *
  * `data-rp-action` on each button rather than position: a test that found the third button
  * would keep passing after a reorder that swapped which one deletes.
+ *
+ * The reference rows are keyed by INDEX, which is the spelling to be suspicious of and is
+ * correct here for a reason worth stating once rather than re-deriving: `references` is a
+ * readonly array inside a descriptor `DialogStore` holds in a `shallowRef` and replaces
+ * WHOLESALE, so no open dialog ever re-renders this list with rows added, removed or
+ * reordered — there is no reconciliation for a key to get wrong. `row.label` is not a
+ * candidate either (two entity types can legitimately share one), and inventing an id the
+ * caller did not supply would be this component computing something it was handed.
  */
 import { tr } from '../i18n/strings';
 import type { DeleteReferenceDescriptor, DeleteReferenceDialogResult } from './dialog-store';

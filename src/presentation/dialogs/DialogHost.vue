@@ -47,6 +47,16 @@ let hostCount = 0;
  * file explorer, another leaf) moves focus out of this view entirely, and `Escape` there
  * belongs to Obsidian, not to a dialog trapped inside one pane. That boundary is accepted,
  * not a defect.
+ *
+ * **This is not an Obsidian `Modal`, so Obsidian's own keymap stays live behind it.** No
+ * `Scope` is pushed anywhere in this framework, and `onKeydown` calls `preventDefault()`
+ * without `stopPropagation()` — so a key pressed inside the panel also reaches Obsidian's
+ * document-level handler. A user hotkey bound to `Escape` fires alongside this cancel, and
+ * the command palette is still one keystroke away while a dialog is open. `inert` takes the
+ * VIEW away from the user, never the application: that is the honest scope of what "modal"
+ * means here. Nothing in jsdom models a host keymap, so no test in this repository can see
+ * any of it — it is a vault-walkthrough question, and it is written down here so the next
+ * reader does not have to rediscover the boundary from an empty search.
  */
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';

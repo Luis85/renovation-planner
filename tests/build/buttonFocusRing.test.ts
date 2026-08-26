@@ -271,9 +271,17 @@ const flattenedWithoutRing = (
 
 						ringed.set(key, next);
 					}
-					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow says
-					// nothing about the resting state a ring is drawn on.
-					else if (!ringsFocus && flattens) {
+					// SUPPRESSING THE SHADOW IS A FLATTENING SITE WHEREVER IT HAPPENS, focus state included.
+					// Obsidian's ring for a button IS a `box-shadow` on `:focus-visible`, so
+					// `.rp-dialog-button:focus-visible { box-shadow: none }` removes exactly the indicator this
+					// check exists to protect — and routing every focus rule into the cascade instead meant it
+					// recorded no site at all, leaving nothing to report. Not an `else`: a focus rule can both
+					// take the host's shadow away and be the winner that answers for it, and one that draws an
+					// outline in the same block covers its own site.
+					//
+					// A `:hover` or `:disabled` variant still records a site, and the base focus ring answers it:
+					// its conditions are a subset of the variant's, which is what `covers` is for.
+					if (flattens) {
 							flattened.set(key, [
 								...(flattened.get(key) ?? []),
 								{ where: `${where}: ${show(selector)}`, conditions },
@@ -415,6 +423,14 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a ring inside two nested at-rules',
 			'@media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } } @supports (display: grid) { @media (prefers-color-scheme: dark) { .rp-dialog-button:focus-visible { outline: 2px solid red; } } }',
+		],
+		// Obsidian's ring for a button IS a `box-shadow` on `:focus-visible`, so suppressing it in the
+		// FOCUS state removes exactly the indicator this check protects. With no base rule to record
+		// a site, routing every focus rule into the cascade left nothing to report at all.
+		['a focus-state shadow reset with no replacement', '.rp-dialog-button:focus-visible { box-shadow: none; }'],
+		[
+			'a focus-state shadow reset whose replacement is scoped narrower',
+			'.rp-dialog-button:focus-visible { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
 		// A condition on the SUBJECT is a condition like any other: focus alone draws nothing here.
 		[
@@ -620,6 +636,17 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a ring under the same nested conditions as the rule that flattened',
 			'@supports (display: grid) { @media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } } }',
+		],
+		// A focus rule that takes the shadow and gives an outline in the SAME block answers its own
+		// site — or "a focus suppression is a site" has become "no focus rule may touch box-shadow".
+		[
+			'a focus-state shadow reset that draws an outline instead',
+			'.rp-dialog-button:focus-visible { box-shadow: none; outline: 2px solid red; }',
+		],
+		// And the replacement need not be in the same block, only in the same scope.
+		[
+			'a focus-state shadow reset answered by an equally scoped ring',
+			'.rp-dialog-button:focus-visible { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
 		// Both containers flattened and both ringed by ONE unscoped rule — which covers every site,
 		// or the per-site rule has become "more than one flattening rule can never be answered".

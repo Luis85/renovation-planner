@@ -85,13 +85,24 @@ const walk = (dir: string): string[] =>
 
 const prototypes = walk('src/prototypes').map((file) => file.replace('src/prototypes/', ''));
 
+/** An HTML comment, which in an SFC is PROSE — including any tag its sentences happen to name. */
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+
 /**
  * EVERY `<style>` block in an SFC, with opening tags — a valid SFC may carry more than one, and
  * the first version of this read only the first match. A mock whose first block was scoped and
  * whose second was not passed the scoping case AND had the second block's selectors missing from
  * `own`, so Vite would inject global CSS that this file had just certified as contained.
+ *
+ * COMMENTS FIRST, for the same reason the assembled sheet is read with its own stripped: a file
+ * that documents the rule by naming `<style scoped>` in prose had that sentence matched as its
+ * opening tag, and everything from there to the file's one `</style>` — the real block included —
+ * swallowed as that match's body. One block was reported, scoped, and the unscoped block actually
+ * shipping global CSS was never looked at. A comment is the one place in a source file where a
+ * tag is guaranteed to be a description of a tag rather than one.
  */
-const styleBlocks = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
+const styleBlocks = (sfc: string) =>
+	sfc.replace(HTML_COMMENT, '').match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
 
 /** An attribute NAME in an opening tag — the value, quoted or not, is consumed and discarded. */
 const ATTRIBUTE = /([\w:@.-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g;
@@ -190,6 +201,23 @@ describe('a prototype and the sheet that styles it', () => {
 			.filter((opening) => !isScoped(opening));
 
 		expect(unscoped).toEqual([]);
+	});
+
+	/**
+	 * A `<style ...>` written in PROSE is not a block, and this is the case that found the file
+	 * this whole guard is pointed at. `WorkPackageFilters.vue` explains itself in an HTML comment
+	 * naming `<style scoped>`; the extractor matched from THERE, ran non-greedily to the file's
+	 * one `</style>`, and reported a single block whose opening tag was the comment's. The real
+	 * `<style>` two-thirds down the file sat inside that match, unscoped, unread — so the mock
+	 * shipped exactly the global CSS the case below exists to refuse, certified by the sentence
+	 * describing the rule it broke.
+	 *
+	 * Both halves matter: the opening tag has to be the real one, and the count has to be one.
+	 */
+	it('does not read a style tag written in a comment as a block', () => {
+		const sfc = '<!-- The `<style scoped>` block does not ship -->\n<style>\n.rp-a { color: red; }\n</style>\n';
+
+		expect(styleBlocks(sfc).map((block) => block.match(/<style[^>]*>/)?.[0])).toEqual(['<style>']);
 	});
 
 	/**

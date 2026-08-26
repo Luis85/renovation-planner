@@ -68,7 +68,7 @@ const active = ref<string>(trades[0]);
 	</div>
 </template>
 
-<style>
+<style scoped>
 .rp-wp-filters {
 	display: flex;
 	flex-wrap: wrap;

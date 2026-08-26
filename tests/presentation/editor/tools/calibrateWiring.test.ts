@@ -77,6 +77,32 @@ function click(harness: EditorHarness, point: { x: number; y: number }): void {
 }
 
 /**
+ * The refusal bundle with a RECORDING `calibratePlan` over it — three cases below need
+ * exactly this, and each had its own copy. A fourth copy is how the four drift apart, and
+ * what every case here actually asserts on is `calls`, so the recorder is the fixture rather
+ * than incidental setup.
+ */
+function recordingCommands(): {
+	readonly calls: CalibratePlanInput[];
+	readonly commands: PlanEditorCommandServices;
+} {
+	const calls: CalibratePlanInput[] = [];
+	return {
+		calls,
+		commands: {
+			...unavailablePlanEditorCommands(),
+			calibratePlan: () => ({
+				execute: (input) => {
+					calls.push(input);
+					return Promise.resolve(ok(undefined));
+				},
+				undo: () => Promise.resolve(ok(undefined)),
+			}),
+		},
+	};
+}
+
+/**
  * The end-to-end wiring (Task 12): the tool registered in `ToolManager`, its toolbar row,
  * and the two dialogs it opens going through the mounted leaf's OWN `DialogHost`/store —
  * driven with a real click pair, never a bare `pointerdown`.
@@ -127,17 +153,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * below, so this case would fail exactly the way an unconverted wiring should.
 	 */
 	it('submits the distance and dispatches through the one command dispatcher', async () => {
-		const calls: CalibratePlanInput[] = [];
-		const commands: PlanEditorCommandServices = {
-			...unavailablePlanEditorCommands(),
-			calibratePlan: () => ({
-				execute: (input) => {
-					calls.push(input);
-					return Promise.resolve(ok(undefined));
-				},
-				undo: () => Promise.resolve(ok(undefined)),
-			}),
-		};
+		const { calls, commands } = recordingCommands();
 		const harness = await mountPlanEditor({ zones: [], commands });
 		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
 
@@ -175,17 +191,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * a silently-broken decline would actually be caught by.
 	 */
 	it('confirms before recalibrating a plan that has zones, and stops on a decline', async () => {
-		const calls: CalibratePlanInput[] = [];
-		const commands: PlanEditorCommandServices = {
-			...unavailablePlanEditorCommands(),
-			calibratePlan: () => ({
-				execute: (input) => {
-					calls.push(input);
-					return Promise.resolve(ok(undefined));
-				},
-				undo: () => Promise.resolve(ok(undefined)),
-			}),
-		};
+		const { calls, commands } = recordingCommands();
 		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
 		const store = useDialogStore(harness.pinia);
 		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
@@ -214,17 +220,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * there uncaught, and only a case that actually crosses both awaits can catch it.
 	 */
 	it('confirms, then asks for a distance, and dispatches the calibration once both are answered', async () => {
-		const calls: CalibratePlanInput[] = [];
-		const commands: PlanEditorCommandServices = {
-			...unavailablePlanEditorCommands(),
-			calibratePlan: () => ({
-				execute: (input) => {
-					calls.push(input);
-					return Promise.resolve(ok(undefined));
-				},
-				undo: () => Promise.resolve(ok(undefined)),
-			}),
-		};
+		const { calls, commands } = recordingCommands();
 		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
 		const store = useDialogStore(harness.pinia);
 		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));

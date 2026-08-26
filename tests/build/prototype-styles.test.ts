@@ -35,9 +35,18 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  *   class declared in a block no page state reaches still counts. It is a regex over the
  *   assembled text with COMMENTS stripped, not a parse: a class named in a selector counts,
  *   and one named only in prose does not.
- * - It reads STATIC `class` attributes. A `:class` binding is invisible here; there are none
- *   in the tree today (measured, and a template-only SFC has no script to compute one), and
- *   the day one arrives this check will not see it.
+ * - It reads static `class` attributes AND the object KEYS of a `:class` binding, quoted or
+ *   bare: `:class="{ 'rp-a--on': x, selected: y }"` yields both names. This bullet said a
+ *   binding was invisible here and that the tree held none, and both halves stopped being true
+ *   in the same increment that made them false — `WorkPackageFilters.vue` binds one, and the
+ *   scripted mocks it opened the door to will bind more.
+ * - What it does NOT read is a class produced any other way: an ARRAY element, either branch
+ *   of a ternary, or a string a script computes. Those need a real expression parser, and the
+ *   cheap reading that tried to reach them — every quoted literal in the binding — also
+ *   matched the operands of comparisons, demanding a rule for `selected` in
+ *   `{ active: mode === 'selected' }`. That reds `npm run check` over correct work, which is
+ *   the failure direction that matters here, so the narrow reading is the deliberate one and
+ *   this is the cost of it rather than an oversight.
  * - It says nothing about spacing, contrast, or anything else a layout engine decides.
  *
  * `styles/` only, never `tests/harness/theme.css`: criterion 5 requires a mock and a real

@@ -173,6 +173,18 @@ describe('resolveShots, on --width', () => {
 	});
 
 	/**
+	 * A repeated flag, which is the same defect as a second entry and was NOT refused: the
+	 * parse took `.at(-1)`, so `--width=460 --width=1280` captured 1280 and exited 0 with the
+	 * 460 silently dropped. The comment beside it claimed every malformed invocation here is
+	 * refused, so the file asserted the rule its own code broke.
+	 */
+	it('refuses a repeated width rather than serving the last one', () => {
+		expect(() => shotsFor('prototype:X', '--width=460', '--width=1280')).toThrow(
+			'one --width at a time; got 2: 460, 1280',
+		);
+	});
+
+	/**
 	 * Two entries is a mistake, not a request this command can serve. Taking the first and
 	 * discarding the rest would write successful PNGs for A and exit 0 while B — asked for in the
 	 * same breath — was never captured and never mentioned, which is the silent wrong-picture

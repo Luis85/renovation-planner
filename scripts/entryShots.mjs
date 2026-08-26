@@ -121,7 +121,7 @@ export function resolveShots(argv, fixedShots, env = {}) {
 	// same command. An unrecognised flag is an ERROR rather than an entry name: silently
 	// treating `--wdith=460` as the id would report "no entry named --wdith=460" from the
 	// browser, several seconds later, in a message about the wrong thing.
-	const width = args
+	const widths = args
 		.filter((arg) => arg.startsWith('--'))
 		.map((flag) => {
 			const match = WIDTH_FLAG.exec(flag);
@@ -129,8 +129,19 @@ export function resolveShots(argv, fixedShots, env = {}) {
 			if (match === null) throw new Error(`unknown option ${flag}`);
 
 			return parseWidth(match[1]);
-		})
-		.at(-1);
+		});
+
+	// A REPEATED option is the same mistake as a second entry and is refused for the same
+	// reason. `.at(-1)` served the last one: `--width=460 --width=1280` wrote successful PNGs
+	// at 1280 and exited 0 while the 460 asked for in the same breath was never captured and
+	// never mentioned. The comment below claims every malformed invocation here is refused,
+	// and until now this was the one that was not — the file stating the rule its own code
+	// broke, three lines above the code that broke it.
+	if (widths.length > 1) {
+		throw new Error(`one --width at a time; got ${widths.length}: ${widths.join(', ')}`);
+	}
+
+	const width = widths.at(-1);
 	const positional = args.filter((arg) => !arg.startsWith('--'));
 
 	// A SECOND entry is a mistake, not a request this command can serve: it captures one entry.

@@ -1,7 +1,9 @@
 <!--
 	A template-only SFC: pure HTML to write, and already a real Vue component. Promotion adds a
-	script-setup block above the template and moves the file into `src/presentation/`; the
+	<script setup> block above the template and moves the file into `src/presentation/`; the
 	markup goes across unchanged, which is what `tests/build/prototype-promotion.test.ts` holds.
+	(That test strips this comment before checking the file is template-only, precisely so this
+	sentence can say the tag plainly instead of dodging it.)
 
 	This comment is OUTSIDE the template on purpose, and it deliberately does not spell the
 	opening template tag anywhere. `templateBlock()` finds the block with a regex, so a comment

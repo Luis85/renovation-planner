@@ -10,9 +10,13 @@ beforeAll(warmUpEslint, ESLINT_BOOT_MS);
  *
  * A rule present in a flat config but scoped to files it never matches reports nothing and
  * looks correct — which is the failure this whole file is about, and the reason each
- * assertion reads the reported RULE ID rather than a pass/fail. Six rules, six fixtures,
- * each violating exactly one of them and otherwise conforming; plus the architecture blocks,
- * which are the ones that were `.ts`-scoped until the edit this file guards.
+ * assertion reads the reported RULE ID rather than a pass/fail. Each fixture below violates
+ * exactly one rule and otherwise conforms; the counts in each describe block's own title are
+ * the number of fixtures IN that block, not a total for the file, and stay accurate as long
+ * as each block's title is updated alongside its fixtures. Beside the six named rules sit the
+ * architecture blocks, which are the ones that were `.ts`-scoped until the edit this file
+ * guards, and the prototypes-only scope of `vue/no-restricted-block`, which is scoped to a
+ * subtree the others don't reach.
  *
  * `PARSE_ERROR` in a result means `vue-eslint-parser` is not configured for the block —
  * a distinct failure from a rule being absent, and worth reading as such.
@@ -158,5 +162,45 @@ describe('the architecture blocks, now that they match .vue', () => {
 		const reported = await lintText(conforming("console.warn('sink');"), SINK);
 
 		expect(reported).not.toContain('no-console');
+	});
+});
+
+/**
+ * `src/prototypes/**\/*.vue` carries its own `vue/no-restricted-block` block
+ * (`eslint.config.mjs`), widened from the wider VUE_FILES block's `['error', 'style']` to
+ * `['error', 'style', 'script']` — a mock in that directory has no script and gains one only
+ * on promotion, so `<script>` (setup included) is refused there same as `<style>`. This is
+ * the block the review found unproven: present in the config, matched to no fixture, so a
+ * dropped `'style'` or a `files` glob edited away from the directory would report nothing
+ * here while the comment above the rule kept claiming both are refused.
+ */
+describe('the prototypes-only scope of vue/no-restricted-block', () => {
+	const PROTOTYPE = 'src/prototypes/PrototypeFixture.vue';
+
+	// `'script'` matches the block by NAME, and `setup` is an attribute on it — `conforming`
+	// always writes `<script setup lang="ts">`, so this is the measured case for that claim.
+	it('refuses a script-setup block', async () => {
+		const reported = await lintText(conforming(''), PROTOTYPE);
+
+		expect(reported).toContain('vue/no-restricted-block');
+	});
+
+	// `'style'` is REPEATED in the prototypes block rather than inherited from VUE_FILES,
+	// because two flat-config blocks matching one file override the rule's options rather
+	// than merging them. Drop the repeated `'style'` and this goes from `toContain` to
+	// absent, silently permitting a `<style>` block in a mock.
+	it('refuses a style block', async () => {
+		const reported = await lintText('<template>\n\t<div class="x" />\n</template>\n\n<style>\n.x { display: block; }\n</style>\n', PROTOTYPE);
+
+		expect(reported).toContain('vue/no-restricted-block');
+	});
+
+	// The third measured claim: a template-only SFC — what every mock in this directory
+	// actually is before promotion — lints CLEAN under this whole merged config, not merely
+	// silent on this one rule.
+	it('lints clean with a template and nothing else', async () => {
+		const reported = await lintText('<template>\n\t<div class="x" />\n</template>\n', PROTOTYPE);
+
+		expect(reported).toEqual([]);
 	});
 });

@@ -25,11 +25,35 @@ import { REPO } from '../helpers/oxlint';
 const MOCK = path.join(REPO, 'src', 'prototypes', 'ZoneSummary.vue');
 const PROMOTED = path.join(REPO, 'tests', 'fixtures', 'promotion', 'ZoneSummary.promoted.vue');
 
-/** The `<template>` block, with its delimiters, or null when there is none. */
+/**
+ * The `<template>` block, with its delimiters, or null when there is none.
+ *
+ * Greedy on purpose: a real SFC can nest a bare `<template v-if="…">` grouping tag INSIDE
+ * its one top-level block, and that inner tag's own `</template>` closes before the real
+ * one does — a non-greedy match would stop there and silently truncate the block. Greedy
+ * matches to the LAST `</template>` in the file instead, which is correct for exactly one
+ * top-level block and wrong only if a file had a second one — invalid Vue (an SFC has one
+ * template root), so a widened match here would mean the file was already broken. `<template
+ * lang=…>` is the case that fails LOUDLY instead: this regex only matches the bare tag, so a
+ * `lang` attribute returns null and the caller's own labelled assertion catches it.
+ */
 function templateBlock(sfc: string): string | null {
 	const match = sfc.match(/<template>[\s\S]*<\/template>/);
 
 	return match ? match[0] : null;
+}
+
+/**
+ * `sfc` with every HTML comment (`<!-- … -->`) removed — the same move this branch already
+ * made for the harness's own comment-stripping scan of a forbidden CODE shape, and for the
+ * same reason: "is template-only" is a claim about the markup, not about prose explaining
+ * the markup, and a substring scan over the whole file cannot tell those apart. Without this,
+ * a mock's own commentary is refused the plain word `<script>` — the mock this file guards
+ * once dodged that by writing "script-setup" hyphenated, which is a comment obeying the test
+ * instead of the test checking the real invariant.
+ */
+function withoutCommentary(sfc: string): string {
+	return sfc.replace(/<!--[\s\S]*?-->/g, '');
 }
 
 describe('promoting a mock', () => {
@@ -43,7 +67,7 @@ describe('promoting a mock', () => {
 	});
 
 	it('is template-only before promotion', () => {
-		expect(readFileSync(MOCK, 'utf8')).not.toContain('<script');
+		expect(withoutCommentary(readFileSync(MOCK, 'utf8'))).not.toContain('<script');
 	});
 
 	it('gains a script block on promotion, which is what promotion IS', () => {

@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { err } from '../../../src/core/result/Result';
-import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
+import { DeleteAssetCommand } from '../../../src/application/commands/asset/DeleteAsset';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
-import { createZoneId } from '../../../src/domain/zone/ZoneId';
+import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
 
 /**
- * The per-kind closures the two delete commands hand `runDeleteResolution`: the
+ * The per-kind closures DeleteAssetCommand hands unDeleteResolution: the
  * reassignment-target validation, the repoint and markStale persistence arms, and the
  * compensation-facing restore. The engine's own arms live in
- * `deleteResolutionEngine.test.ts`; each failure here is injected at exactly one seam.
+ * deleteResolutionEngine.test.ts; each failure here is injected at exactly one seam.
  */
 
 function silentLogger() {
@@ -27,8 +27,7 @@ function injectedPersistenceError(): PersistenceError {
 function overridePort<T extends object>(inner: T, patch: Record<string, unknown>): T {
 	return Object.assign(Object.create(Object.getPrototypeOf(inner)), inner, patch) as T;
 }
-
-async function wiredZoneWithLink() {
+async function wiredAssetWithLink() {
 	const w = await requirementFixture();
 	const zoneEntity = expectOk(
 		await w.zones.save(
@@ -48,8 +47,8 @@ async function wiredZoneWithLink() {
 	);
 	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 	if (!assigned.ok) throw new Error('unexpected assign failure');
-	const command = new DeleteZoneCommand({
-		zones: w.zones,
+	const command = new DeleteAssetCommand({
+		assets: w.assets,
 		requirements: w.requirements,
 		recalculate: w.recalculate,
 		events: w.events,
@@ -64,101 +63,105 @@ async function wiredZoneWithLink() {
 		command,
 	};
 }
+describe('DeleteAssetCommand closure refusals', () => {
+	it('propagates a failed asset load before anything else happens', async () => {
+		const w = await wiredAssetWithLink();
+		const assets = overridePort(w.assets, {
+			getById: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const error = expectErr(
+			await new DeleteAssetCommand({
+				assets,
+				requirements: w.requirements,
+				recalculate: w.recalculate,
+				events: w.events,
+				locks: w.locks,
+				logger: silentLogger(),
+			}).execute({ assetId: w.assetId as never }),
+		);
+		expect(error.code).toBe('test.injected-failure');
+	});
 
-/** A second zone/asset pair in the SAME project, usable as a reassignment target. */
-async function saveTarget(w: Awaited<ReturnType<typeof wiredZoneWithLink>>) {
-	return expectOk(
-		await w.zones.save(
-			makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
-			'absent',
-		),
-	);
-}
-
-describe('DeleteZoneCommand closure refusals', () => {
-	it('answers reference.reassign-target-gone for a target zone that does not exist', async () => {
-		const w = await wiredZoneWithLink();
+	it('refuses reassignment to the asset itself', async () => {
+		const w = await wiredAssetWithLink();
 		const error = expectErr(
 			await w.command.execute({
-				zoneId: w.zoneId,
+				assetId: w.assetId,
 				resolution: 'reassign',
-				reassignTo: createZoneId(),
+				reassignTo: w.assetId,
+				resolvedReferents: [],
+			}),
+		);
+		expect(error.code).toBe('reference.self-reassign');
+	});
+
+	it('answers reference.reassign-target-gone for an unknown target asset', async () => {
+		const w = await wiredAssetWithLink();
+		const error = expectErr(
+			await w.command.execute({
+				assetId: w.assetId,
+				resolution: 'reassign',
+				reassignTo: createAssetId(),
 				resolvedReferents: [],
 			}),
 		);
 		expect(error.code).toBe('reference.reassign-target-gone');
 	});
 
-	it('propagates a failed target lookup made under the lock', async () => {
-		const w = await wiredZoneWithLink();
-		const targetId = createZoneId();
-		const zones = overridePort(w.zones, {
-			getById: async (id: never) => {
-				if (String(id) === targetId) return err(injectedPersistenceError()) as never;
-				return await w.zones.getById(id);
-			},
+	it('propagates a failed target lookup during validation', async () => {
+		const w = await wiredAssetWithLink();
+		const assets = overridePort(w.assets, {
+			getById: (id: never) =>
+				String(id) === w.assetId
+					? w.assets.getById(id)
+					: Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new DeleteZoneCommand({
-				zones,
+			await new DeleteAssetCommand({
+				assets,
 				requirements: w.requirements,
 				recalculate: w.recalculate,
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
 			}).execute({
-				zoneId: w.zoneId,
+				assetId: w.assetId,
 				resolution: 'reassign',
-				reassignTo: targetId,
+				reassignTo: createAssetId(),
 				resolvedReferents: [],
 			}),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
 
-	it('the repoint propagates a failed requirement read', async () => {
-		const w = await wiredZoneWithLink();
-		const target = await saveTarget(w);
-		let listed = false;
-		const requirements = overridePort(w.requirements, {
-			listByZone: async (zoneId: never) => {
-				const result = await w.requirements.listByZone(zoneId);
-				listed = true;
-				return result;
-			},
-			getById: async (id: never) => {
-				if (listed && String(id) === w.requirementId) return err(injectedPersistenceError()) as never;
-				return await w.requirements.getById(id);
-			},
-		});
+	it('refuses a cross-project reassignment target', async () => {
+		const w = await wiredAssetWithLink();
+		const foreign = expectOk(
+			await w.assets.save(makeAsset({ projectId: 'project-other' as never }), 'absent'),
+		);
 		const error = expectErr(
-			await new DeleteZoneCommand({
-				zones: w.zones,
-				requirements,
-				recalculate: w.recalculate,
-				events: w.events,
-				locks: w.locks,
-				logger: silentLogger(),
-			}).execute({
-				zoneId: w.zoneId,
+			await w.command.execute({
+				assetId: w.assetId,
 				resolution: 'reassign',
-				reassignTo: target.entity.id,
-				resolvedReferents: [w.requirementId as never],
+				reassignTo: foreign.entity.id,
+				resolvedReferents: [],
 			}),
 		);
-		expect(error.code).toBe('test.injected-failure');
+		expect(error.code).toBe('reference.cross-project-reassign');
 	});
 
 	it('the repoint refuses when the requirement vanished between listing and writing', async () => {
-		const w = await wiredZoneWithLink();
-		const target = await saveTarget(w);
-
-		// The referent list is what step 1 reads; everything after it sees the
-		// requirement gone — the concurrent-delete window.
+		const w = await wiredAssetWithLink();
+		const replacement = expectOk(
+			await w.assets.save(
+				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				'absent',
+			),
+		);
 		let listed = false;
 		const requirements = overridePort(w.requirements, {
-			listByZone: async (zoneId: never) => {
-				const result = await w.requirements.listByZone(zoneId);
+			listByAsset: async (assetId: never) => {
+				const result = await w.requirements.listByAsset(assetId);
 				listed = true;
 				return result;
 			},
@@ -170,26 +173,69 @@ describe('DeleteZoneCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteZoneCommand({
-				zones: w.zones,
+			await new DeleteAssetCommand({
+				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
 			}).execute({
-				zoneId: w.zoneId,
+				assetId: w.assetId,
 				resolution: 'reassign',
-				reassignTo: target.entity.id,
+				reassignTo: replacement.entity.id,
 				resolvedReferents: [w.requirementId as never],
 			}),
 		);
 		expect(error.code).toBe('requirement.not-found');
 	});
 
+	it('the repoint propagates a failed requirement read', async () => {
+		const w = await wiredAssetWithLink();
+		const replacement = expectOk(
+			await w.assets.save(
+				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				'absent',
+			),
+		);
+		let listed = false;
+		const requirements = overridePort(w.requirements, {
+			listByAsset: async (assetId: never) => {
+				const result = await w.requirements.listByAsset(assetId);
+				listed = true;
+				return result;
+			},
+			getById: async (id: never) => {
+				if (listed && String(id) === w.requirementId) return err(injectedPersistenceError()) as never;
+				return await w.requirements.getById(id);
+			},
+		});
+		const error = expectErr(
+			await new DeleteAssetCommand({
+				assets: w.assets,
+				requirements,
+				recalculate: w.recalculate,
+				events: w.events,
+				locks: w.locks,
+				logger: silentLogger(),
+			}).execute({
+				assetId: w.assetId,
+				resolution: 'reassign',
+				reassignTo: replacement.entity.id,
+				resolvedReferents: [w.requirementId as never],
+			}),
+		);
+		expect(error.code).toBe('test.injected-failure');
+	});
+
 	it('a failed repoint save compensates (nothing written yet) and fails the command', async () => {
-		const w = await wiredZoneWithLink();
-		const target = await saveTarget(w);
+		const w = await wiredAssetWithLink();
+		const replacement = expectOk(
+			await w.assets.save(
+				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				'absent',
+			),
+		);
 		const requirements = overridePort(w.requirements, {
 			save: async (requirement: never, expected: never) => {
 				if (expected !== 'absent') return err(injectedPersistenceError()) as never;
@@ -197,30 +243,29 @@ describe('DeleteZoneCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteZoneCommand({
-				zones: w.zones,
+			await new DeleteAssetCommand({
+				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
 			}).execute({
-				zoneId: w.zoneId,
+				assetId: w.assetId,
 				resolution: 'reassign',
-				reassignTo: target.entity.id,
+				reassignTo: replacement.entity.id,
 				resolvedReferents: [w.requirementId as never],
 			}),
 		);
 		expect(error.code).toBe('test.injected-failure');
-		// Compensated before any mutation: nothing stale, nothing deleted.
-		expect(expectOk(await w.zones.getById(w.zoneId))).not.toBeNull();
+		expect(expectOk(await w.assets.getById(w.assetId))).not.toBeNull();
 	});
 
 	it.each([
 		{ name: 'null', value: null, code: 'requirement.not-found' },
 		{ name: 'a read failure', value: 'error', code: 'test.injected-failure' },
-	])('markStalePersisted answers a persistence failure when its reread answers $name', async ({ value, code }) => {
-		const w = await wiredZoneWithLink();
+	])("markStalePersisted answers a persistence failure when its reread answers $name", async ({ value, code }) => {
+		const w = await wiredAssetWithLink();
 		let markedStale = false;
 		const requirements = overridePort(w.requirements, {
 			markStale: async (id: never) => {
@@ -236,15 +281,15 @@ describe('DeleteZoneCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteZoneCommand({
-				zones: w.zones,
+			await new DeleteAssetCommand({
+				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
 			}).execute({
-				zoneId: w.zoneId,
+				assetId: w.assetId,
 				resolution: 'delete-anyway',
 				resolvedReferents: [w.requirementId as never],
 			}),
@@ -253,20 +298,18 @@ describe('DeleteZoneCommand closure refusals', () => {
 	});
 
 	it('a restore that cannot write during compensation is logged and the cause stands', async () => {
-		const w = await wiredZoneWithLink();
-		// A SECOND asset on the same zone: two referents, so the forward sequence has a
-		// completed write in `progress` when the second one fails.
-		const secondAsset = expectOk(
-			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+		const w = await wiredAssetWithLink();
+		// A second ZONE assigned to the SAME asset: two referents on one asset, so the
+		// forward sequence has a completed write in `progress` when the second one fails.
+		const otherZone = expectOk(
+			await w.zones.save(
+				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
 				'absent',
 			),
 		);
-		const second = await w.assign.execute({ zoneId: w.zoneId, assetId: secondAsset.entity.id });
+		const second = await w.assign.execute({ zoneId: otherZone.entity.id, assetId: w.assetId });
 		if (!second.ok) throw new Error('unexpected assign failure');
 
-		// The SECOND forward write fails, so the first one is in `progress` and its
-		// compensation actually runs — and the compensation's own save refuses too.
 		let marks = 0;
 		const requirements = overridePort(w.requirements, {
 			markStale: async (id: never) => {
@@ -280,15 +323,15 @@ describe('DeleteZoneCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteZoneCommand({
-				zones: w.zones,
+			await new DeleteAssetCommand({
+				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
 			}).execute({
-				zoneId: w.zoneId,
+				assetId: w.assetId,
 				resolution: 'delete-anyway',
 				resolvedReferents: [w.requirementId, second.value.requirement.id] as never,
 			}),

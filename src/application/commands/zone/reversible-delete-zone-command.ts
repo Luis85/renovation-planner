@@ -66,11 +66,11 @@ export class ReversibleDeleteZoneCommand {
 		private readonly input: DeleteZoneInput,
 	) {}
 
-	// Both halves are driven only through the `UndoableCommand` shape at the dispatch
-	// site (`inspector.commit` → `dispatcher.run`), which is invisible to the dead-code
-	// tool that resolves members through declared annotations — the same mark
-	// `ReversibleCalibratePlanCommand` carries for the identical reason.
-	// fallow-ignore-next-line unused-class-member
+	// Driven only through the `UndoableCommand` shape at the dispatch site
+	// (`inspector.commit` → `dispatcher.run`), which is invisible to the dead-code tool
+	// that resolves members through declared annotations — the same mark
+	// `ReversibleCalibratePlanCommand` carries for the identical reason. (Slice 8's
+	// review pass made `execute` visible to it again; only undo still needs this.)
 	async execute(): Promise<Result<void, ReferenceError | ValidationError | PersistenceError>> {
 		const found = await this.zones.getById(this.input.zoneId);
 		if (isErr(found)) return found;

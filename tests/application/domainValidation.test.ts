@@ -23,6 +23,39 @@ const VALID_ASSET = {
 	unitCost: moneyOf('45.00', 'EUR'),
 };
 
+function requirementFromRaw(base: Requirement, areaM2: Decimal): ResultLike<Requirement> {
+	const quantity = { calculated: { value: base.quantity.calculated.value, unit: base.unit } };
+	return base.withRecalculation(quantity.calculated, base.estimatedCost.calculated, {
+		...base.calculatedFrom,
+		zoneArea: { value: areaM2, unit: base.unit },
+	});
+}
+
+type ResultLike<T> = { ok: true; value: T };
+
+async function wiredRecalculate() {
+	const w = await requirementFixture();
+	const zoneEntity = expectOk(
+		await w.zones.save(
+			expectOk(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({ points: TEN_SQUARE_METERS })),
+			'absent',
+		),
+	);
+	const assetEntity = expectOk(
+		await w.assets.save(
+			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			'absent',
+		),
+	);
+	return {
+		...w,
+		zoneId: zoneEntity.entity.id,
+		zoneVersion: zoneEntity.version,
+		assetId: assetEntity.entity.id,
+		recalculate: new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events),
+	};
+}
+
 describe('Asset validation', () => {
 	it('refuses an empty name, an unknown category, a negative price and out-of-range waste', () => {
 		expect(Asset.create({ id: 'asset-1' as never, projectId: 'p' as never, ...VALID_ASSET, name: '   ' }).ok).toBe(false);
@@ -32,7 +65,7 @@ describe('Asset validation', () => {
 			...VALID_ASSET,
 			category: 'vehicle' as never,
 		});
-		if (badCategory.ok) return expect.unreachable();
+		if (badCategory.ok) throw new Error('unexpected success');
 		expect(badCategory.error.code).toBe('asset.unknown-category');
 
 		const negative = Asset.create({
@@ -41,7 +74,7 @@ describe('Asset validation', () => {
 			...VALID_ASSET,
 			unitCost: createMoney('-5.00', 'EUR').value ?? moneyOf('-5.00', 'EUR'),
 		});
-		if (negative.ok) return expect.unreachable();
+		if (negative.ok) throw new Error('unexpected success');
 		expect(negative.error.code).toBe('asset.negative-unit-cost');
 	});
 
@@ -52,7 +85,7 @@ describe('Asset validation', () => {
 			...VALID_ASSET,
 			wasteFactorDefault: new Decimal('10'),
 		});
-		if (result.ok) return expect.unreachable();
+		if (result.ok) throw new Error('unexpected success');
 		expect(result.error.code).toBe('asset.waste-factor-default-above-one');
 		expect(result.error.message).toContain('fraction');
 	});
@@ -62,46 +95,23 @@ describe('Asset validation', () => {
 		const broken = asset.withChanges({ wasteFactorDefault: new Decimal('2') });
 		expect(broken.ok).toBe(false);
 		const fine = asset.withChanges({ name: 'Better tile', notes: null });
-		if (!fine.ok) return expect.unreachable(fine.error.message);
+		if (!fine.ok) throw new Error(fine.error.message);
 		expect(fine.value.name).toBe('Better tile');
 		expect(fine.value.unitCost.amount).toBe('45');
 	});
 });
 
 describe('RecalculateRequirementCommand edges', () => {
-	async function wired() {
-		const w = await requirementFixture();
-		const zoneEntity = expectOk(
-			await w.zones.save(
-				expectOk(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({ points: TEN_SQUARE_METERS })),
-				'absent',
-			),
-		);
-		const assetEntity = expectOk(
-			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
-				'absent',
-			),
-		);
-		return {
-			...w,
-			zoneId: zoneEntity.entity.id,
-			zoneVersion: zoneEntity.version,
-			assetId: assetEntity.entity.id,
-			recalculate: new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events),
-		};
-	}
-
 	it('answers requirement.not-found for an unknown id', async () => {
-		const w = await wired();
+		const w = await wiredRecalculate();
 		const error = expectErr(await w.recalculate.execute({ requirementId: 'requirement-x' as never }));
 		expect(error.category).toBe('Reference');
 	});
 
 	it('a dangling zone leaves the requirement stale rather than crashing', async () => {
-		const w = await wired();
+		const w = await wiredRecalculate();
 		const assigned = await w.assign.execute({ zoneId: w.zoneId, assetId: w.assetId });
-		if (!assigned.ok) return expect.unreachable();
+		if (!assigned.ok) throw new Error('unexpected success');
 
 		// Delete the zone OUT FROM UNDER the requirement (bare delete would refuse; this
 		// is the delete-anyway shape).
@@ -127,14 +137,14 @@ describe('RecalculateRequirementCommand edges', () => {
 	});
 
 	it('a hand-edited non-area asset refuses recalculation instead of relabeling area', async () => {
-		const w = await wired();
+		const w = await wiredRecalculate();
 		const assigned = await w.assign.execute({ zoneId: w.zoneId, assetId: w.assetId });
-		if (!assigned.ok) return expect.unreachable();
+		if (!assigned.ok) throw new Error('unexpected success');
 
 		// Bypass the update guard by writing the note directly through save().
 		const mutated = expectOk(await w.assets.getById(w.assetId));
 		const changed = mutated?.entity.withChanges({ unit: 'piece' });
-		if (!changed?.ok) return expect.unreachable();
+		if (!changed?.ok) throw new Error('unexpected success');
 		expectOk(await w.assets.save(changed.value, expectOk(await w.assets.getById(w.assetId)).version));
 
 		const error = expectErr(await w.recalculate.execute({ requirementId: assigned.value.requirement.id }));
@@ -164,7 +174,7 @@ describe('GetRequirementsForZone readings', () => {
 			),
 		);
 		const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
-		if (!assigned.ok) return expect.unreachable();
+		if (!assigned.ok) throw new Error('unexpected success');
 
 		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets);
 		const rows = expectOk(await readModel.execute(zoneEntity.entity.id));
@@ -188,7 +198,7 @@ describe('GetRequirementsForZone readings', () => {
 			),
 		);
 		const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
-		if (!assigned.ok) return expect.unreachable();
+		if (!assigned.ok) throw new Error('unexpected success');
 
 		// Hand-edit the persisted record's calculated-from-area to something else.
 		const loaded = expectOk(await w.requirements.getById(assigned.value.requirement.id));
@@ -206,13 +216,3 @@ describe('GetRequirementsForZone readings', () => {
 		void FailingListRepository;
 	});
 });
-
-function requirementFromRaw(base: Requirement, areaM2: Decimal): ResultLike<Requirement> {
-	const quantity = { calculated: { value: base.quantity.calculated.value, unit: base.unit } };
-	return base.withRecalculation(quantity.calculated, base.estimatedCost.calculated, {
-		...base.calculatedFrom,
-		zoneArea: { value: areaM2, unit: base.unit },
-	});
-}
-
-type ResultLike<T> = { ok: true; value: T };

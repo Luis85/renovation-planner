@@ -14,10 +14,10 @@ import type { Requirement } from '../../../domain/requirement/Requirement';
 import { costEstimateChanged } from '../../../domain/requirement/Requirement.events';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import { computeEstimatedCost } from '../../../domain/cost/costPipeline';
-import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { EntityVersion } from '../../ports/versioning';
+import { loadRequirement } from './loadRequirement';
 
 export interface SetRequirementQuantityOverrideInput {
 	readonly requirementId: RequirementId;
@@ -45,7 +45,7 @@ export type SetOverrideErrors =
  * status is touched: an override is a user's answer beside a derived value, never a claim
  * about the derivation.
  */
-export async function applyQuantityOverride(
+async function applyQuantityOverride(
 	requirements: RequirementRepository,
 	input: SetRequirementQuantityOverrideInput,
 ): Promise<
@@ -54,11 +54,8 @@ export async function applyQuantityOverride(
 		SetOverrideErrors
 	>
 > {
-	const loaded = await requirements.getById(input.requirementId);
-	if (isErr(loaded)) return loaded;
-	if (loaded.value === null) {
-		return err(referenceError('requirement.not-found', `Requirement ${input.requirementId} not found.`));
-	}
+	const loaded = await loadRequirement(requirements, input.requirementId);
+	if (!loaded.ok) return loaded;
 	const current = loaded.value.entity;
 	const previousEffectiveCost = effectiveValue(current.estimatedCost);
 
@@ -88,7 +85,8 @@ export async function applyQuantityOverride(
 	if (!cost.ok) {
 		return err({ category: 'Domain', code: cost.error.code, message: cost.error.message });
 	}
-	const withCost = updated.value.withCalculatedCost(cost.value.calculated);
+	const repriced: Requirement = updated.value;
+	const withCost = repriced.withCalculatedCost(cost.value.calculated);
 	if (isErr(withCost)) {
 		return err({ category: 'Domain', code: withCost.error.code, message: withCost.error.message });
 	}

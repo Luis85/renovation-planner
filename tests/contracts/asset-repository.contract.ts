@@ -5,7 +5,7 @@ import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import { expectErr, expectOk } from '../helpers/domain';
 import { makeAsset } from '../helpers/entities';
-import { assertSaveUpsertsById } from './upsert';
+import { expectIdKeyedUpsert } from './upsert';
 
 /**
  * The shared AssetRepository contract (SDD §72) — the same terms every entity port takes:
@@ -20,6 +20,13 @@ export interface AssetFixture {
 
 function fabricated(observed: EntityVersion['observed']): EntityVersion {
 	return { revision: 99, observed };
+}
+
+/** One fresh asset, already inserted — the pre-state most conditional terms need. */
+async function seedWritten(f: AssetFixture) {
+	const asset = makeAsset({ projectId: f.otherProject() });
+	const written = expectOk(await f.repository.save(asset, 'absent'));
+	return { asset, written };
 }
 
 export function assetRepositoryContract(make: () => AssetFixture): void {
@@ -40,11 +47,9 @@ export function assetRepositoryContract(make: () => AssetFixture): void {
 
 		it('save is an ID-keyed upsert when given the version it returned', async () => {
 			const f = make();
-			const asset = makeAsset({ projectId: f.otherProject() });
-			const written = await assertSaveUpsertsById({
+			const written = await expectIdKeyedUpsert({
 				repository: f.repository,
-				entity: asset,
-				read: async () => expectOk(await f.repository.getById(asset.id))?.entity ?? null,
+				entity: makeAsset({ projectId: f.otherProject() }),
 				replacementName: 'After',
 			});
 			expect(written.version.revision).toBe(2);
@@ -59,16 +64,14 @@ export function assetRepositoryContract(make: () => AssetFixture): void {
 
 		it('save refuses a stale revision', async () => {
 			const f = make();
-			const asset = makeAsset({ projectId: f.otherProject() });
-			const written = expectOk(await f.repository.save(asset, 'absent'));
+			const { asset, written } = await seedWritten(f);
 			const error = expectErr(await f.repository.save(asset, fabricated(written.version.observed)));
 			expect(error.code).toBe('asset.revision-conflict');
 		});
 
 		it('save refuses after an external modification', async () => {
 			const f = make();
-			const asset = makeAsset({ projectId: f.otherProject() });
-			const written = expectOk(await f.repository.save(asset, 'absent'));
+			const { asset, written } = await seedWritten(f);
 			f.touch(asset.id);
 			const error = expectErr(
 				await f.repository.save(asset, {
@@ -81,16 +84,14 @@ export function assetRepositoryContract(make: () => AssetFixture): void {
 
 		it('delete removes conditionally', async () => {
 			const f = make();
-			const asset = makeAsset({ projectId: f.otherProject() });
-			const written = expectOk(await f.repository.save(asset, 'absent'));
+			const { asset, written } = await seedWritten(f);
 			await f.repository.delete(asset.id, written.version);
 			expect(await f.repository.getById(asset.id)).toEqual({ ok: true, value: null });
 		});
 
 		it('delete refuses a stale expectation or an unknown id', async () => {
 			const f = make();
-			const asset = makeAsset({ projectId: f.otherProject() });
-			const written = expectOk(await f.repository.save(asset, 'absent'));
+			const { asset, written } = await seedWritten(f);
 			expect(
 				(await f.repository.delete(asset.id, fabricated(written.version.observed))).ok,
 			).toBe(false);

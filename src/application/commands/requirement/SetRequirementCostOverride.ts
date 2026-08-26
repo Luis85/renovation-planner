@@ -5,11 +5,11 @@ import type { Money } from '../../../core/money/Money';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
-import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { EntityVersion } from '../../ports/versioning';
 import { publishIfEffectiveCostChanged, type SetOverrideErrors } from './SetRequirementQuantityOverride';
+import { loadRequirement } from './loadRequirement';
 
 export interface SetRequirementCostOverrideInput {
 	readonly requirementId: RequirementId;
@@ -43,12 +43,9 @@ export class SetRequirementCostOverrideCommand
 	async executeWithVersion(
 		input: SetRequirementCostOverrideInput,
 	): Promise<Result<{ requirement: Requirement; version: EntityVersion }, SetOverrideErrors>> {
-		const loaded = await this.requirements.getById(input.requirementId);
+		const loaded = await loadRequirement(this.requirements, input.requirementId);
 		if (isErr(loaded)) return loaded;
-		if (loaded.value === null) {
-			return err(referenceError('requirement.not-found', `Requirement ${input.requirementId} not found.`));
-		}
-		const current = loaded.value.entity;
+		const current: Requirement = loaded.value.entity;
 		const previousEffective = effectiveValue(current.estimatedCost);
 
 		const updated = current.withCostOverride(input.cost ?? null);

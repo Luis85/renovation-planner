@@ -3,6 +3,7 @@ import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { err } from '../../src/core/result/Result';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
 import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZone';
@@ -35,7 +36,7 @@ export function makeDeleteZoneCommand(
 }
 
 /** A REAL dispatching bus recording publication order — for event-chain assertions. */
-export function dispatchingEventBus(): EventBus & {
+function dispatchingEventBus(): EventBus & {
 	readonly published: readonly DomainEvent[];
 } {
 	const published: DomainEvent[] = [];
@@ -48,6 +49,29 @@ export function dispatchingEventBus(): EventBus & {
 		},
 		subscribe: (type, handler) => inner.subscribe(type, handler),
 	} as unknown as EventBus & { readonly published: readonly DomainEvent[] };
+}
+
+/**
+ * Test seam: fail the repository's NEXT markStale — the cascade-abort fixture. Lives
+ * HERE rather than as a member of the in-memory repository, so production code carries
+ * no test-only branch.
+ */
+export function failMarkStaleOnce(repo: InMemoryRequirementRepository): void {
+	const inner = repo.markStale.bind(repo);
+	let armed = true;
+	repo.markStale = ((id: Parameters<typeof inner>[0]) => {
+		if (armed) {
+			armed = false;
+			return Promise.resolve(
+				err({
+					category: 'Persistence' as const,
+					code: 'requirement.mark-stale-failed',
+					message: `markStale was configured to fail for ${String(id)}.`,
+				}),
+			);
+		}
+		return inner(id);
+	}) as typeof repo.markStale;
 }
 
 /** The 4 m × 2.5 m rectangle in world millimeters: exactly 10 m², no rounding anywhere. */

@@ -32,25 +32,26 @@ function fabricated(observed: EntityVersion['observed']): EntityVersion {
 	return { revision: 99, observed };
 }
 
+/** One fresh requirement wired to fresh endpoints of the fixture under test. */
+function newRequirement(f: RequirementFixture) {
+	return makeRequirement({
+		projectId: f.otherProject(),
+		assetId: f.newAsset(),
+		origin: { kind: 'zone', zoneId: f.newZone() },
+	});
+}
+
 export function requirementRepositoryContract(make: () => RequirementFixture): void {
 	describe('RequirementRepository contract', () => {
 		it('getById answers ok(null) for a missing id', async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			expect(await f.repository.getById(requirement.id)).toEqual({ ok: true, value: null });
 		});
 
 		it("save with 'absent' inserts at revision 1 and reads back", async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			const written = expectOk(await f.repository.save(requirement, 'absent'));
 			expect(written.version.revision).toBe(1);
 			expect(expectOk(await f.repository.getById(requirement.id))?.entity.assetId).toBe(
@@ -73,7 +74,7 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 				...first.entity.estimatedCost.calculated,
 				amount: '1.00',
 			});
-			if (!changed.ok) return expect.unreachable();
+			if (!changed.ok) throw new Error('unexpected success');
 			const second = await f.repository.save(changed.value, first.version);
 			expect(second.ok).toBe(true);
 			if (!second.ok) return;
@@ -87,22 +88,14 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 
 		it("save with 'absent' refuses when something already holds the id", async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			expectOk(await f.repository.save(requirement, 'absent'));
 			expect((await f.repository.save(requirement, 'absent')).ok).toBe(false);
 		});
 
 		it('save refuses a stale revision', async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			const written = expectOk(await f.repository.save(requirement, 'absent'));
 			const error = expectErr(
 				await f.repository.save(requirement, fabricated(written.version.observed)),
@@ -112,11 +105,7 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 
 		it('save refuses after an external modification — even with revision untouched', async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			const written = expectOk(await f.repository.save(requirement, 'absent'));
 			f.touch(requirement.id);
 			const error = expectErr(
@@ -130,11 +119,7 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 
 		it("delete takes its own expected version and answers ok(null) afterwards", async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			const written = expectOk(await f.repository.save(requirement, 'absent'));
 			await f.repository.delete(requirement.id, written.version);
 			expect(await f.repository.getById(requirement.id)).toEqual({ ok: true, value: null });
@@ -142,30 +127,18 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 
 		it('delete refuses a stale expectation or an unknown id', async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			const written = expectOk(await f.repository.save(requirement, 'absent'));
 			expect(
 				(await f.repository.delete(requirement.id, fabricated(written.version.observed))).ok,
 			).toBe(false);
-			const stranger = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const stranger = newRequirement(f);
 			expect((await f.repository.delete(stranger.id, written.version)).ok).toBe(false);
 		});
 
 		it('markStale persists the marker and survives a reload', async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			const written = expectOk(await f.repository.save(requirement, 'absent'));
 			expectOk(await f.repository.markStale(requirement.id));
 			// Reload: discard in-memory state by reading back through getById only.
@@ -176,11 +149,7 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 
 		it('markStale refuses an id that does not exist rather than answering ok', async () => {
 			const f = make();
-			const requirement = makeRequirement({
-				projectId: f.otherProject(),
-				assetId: f.newAsset(),
-				origin: { kind: 'zone', zoneId: f.newZone() },
-			});
+			const requirement = newRequirement(f);
 			expect((await f.repository.markStale(requirement.id)).ok).toBe(false);
 		});
 

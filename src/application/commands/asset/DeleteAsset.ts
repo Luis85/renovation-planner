@@ -5,8 +5,8 @@ import type {
 	ValidationError,
 } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
-import { UNIT_KIND } from '../../../core/units/MeasurementUnit';
 import { assetDeleted } from '../../../domain/asset/Asset.events';
+import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import { referenceError } from '../../errors';
@@ -18,6 +18,7 @@ import type { SequenceMarkerStore } from '../../ports/SequenceMarkerStore';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import {
 	runDeleteResolution,
+	requirementResolutionSteps,
 	type ResolvedSequence,
 } from '../../reference/deleteResolution';
 import type { RecalculateRequirementCommand } from '../requirement/RecalculateRequirement';
@@ -97,7 +98,8 @@ export class DeleteAssetCommand
 							message: `Asset ${target} belongs to another project than the asset being deleted.`,
 						});
 					}
-					if (UNIT_KIND[found.value.entity.unit] !== 'area') {
+					const candidate: Asset = found.value.entity;
+					if (!candidate.isAreaKind()) {
 						return err({
 							category: 'Validation',
 							code: 'requirement.unit-not-area',
@@ -107,48 +109,11 @@ export class DeleteAssetCommand
 					}
 					return ok(undefined);
 				},
-				repointAndMarkStale: async (snapshot, target) => {
-					const current = await this.ops.requirements.getById(snapshot.entity.id);
-					if (isErr(current)) return err(current.error);
-					if (current.value === null) {
-						return err(
-							referenceError(
-								'requirement.not-found',
-								`Requirement ${snapshot.entity.id} not found.`,
-							),
-						);
-					}
-					const repointed = current.value.entity.repointedTo(
-						current.value.entity.origin,
-						target as AssetId,
-					);
-					if (isErr(repointed)) return err(repointed.error);
-					const saved = await this.ops.requirements.save(repointed.value, current.value.version);
-					if (isErr(saved)) return err(saved.error);
-					return ok(saved.value.version);
-				},
-				markStalePersisted: async (snapshot) => {
-					const marked = await this.ops.requirements.markStale(snapshot.entity.id);
-					if (isErr(marked)) return err(marked.error);
-					const reread = await this.ops.requirements.getById(snapshot.entity.id);
-					if (isErr(reread)) return err(reread.error);
-					if (reread.value === null) {
-						return err({
-							category: 'Persistence',
-							code: 'requirement.not-found',
-							message: `Requirement ${snapshot.entity.id} vanished during markStale.`,
-						});
-					}
-					return ok(reread.value.version);
-				},
-				removeRequirement: (snapshot) =>
-					this.ops.requirements.delete(snapshot.entity.id, snapshot.version),
-				recalculateInline: (id) => this.ops.recalculate.execute({ requirementId: id }),
-				restoreRequirement: async (snapshot, expected) => {
-					const saved = await this.ops.requirements.save(snapshot.entity, expected);
-					if (isErr(saved)) return err(saved.error);
-					return ok(saved.value.version);
-				},
+				// Deleting the Asset repoints at a new Asset; the Zone link survives.
+				...requirementResolutionSteps(this.ops.requirements, this.ops.recalculate, (requirement, target) => ({
+					origin: requirement.origin,
+					assetId: target as AssetId,
+				})),
 			},
 			input,
 			this.ops.locks,

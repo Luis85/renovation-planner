@@ -119,11 +119,11 @@ function makeOps(overrides?: {
 			if (result === undefined) throw new Error(`unexpected recalculate for ${String(id)}`);
 			return Promise.resolve(result);
 		},
-		restoreRequirement: async (snapshot, expected) => {
+		restoreRequirement: (snapshot, expected) => {
 			ops.restored.push({ id: String(snapshot.entity.id), expected });
 			const scripted = ops.restoreResult;
-			if (scripted && !scripted.ok) return scripted as never;
-			return ok({ ...(expected === 'absent' ? V1 : expected), observed: 'r' as ObservationToken });
+			if (scripted && !scripted.ok) return Promise.resolve(scripted as never);
+			return Promise.resolve(ok({ ...(expected === 'absent' ? V1 : expected), observed: 'r' as ObservationToken }));
 		},
 	};
 	// Two forward writes succeed by default; each test shifts in failures it needs.
@@ -146,20 +146,24 @@ class ScriptedMarkers implements SequenceMarkerStore {
 		private readonly failClearOn: readonly number[] = [],
 	) {}
 
-	async read(): Promise<Result<SequenceMarker | null, PersistenceError>> {
-		return ok(null);
+	read(): Promise<Result<SequenceMarker | null, PersistenceError>> {
+		return Promise.resolve(ok(null));
 	}
 
-	async write(marker: SequenceMarker): Promise<Result<void, PersistenceError>> {
+	write(marker: SequenceMarker): Promise<Result<void, PersistenceError>> {
 		this.writes += 1;
 		this.lastWrite = marker;
-		return this.failWriteOn.includes(this.writes) ? err(injectedPersistenceError()) : ok(undefined);
+		return Promise.resolve(
+			this.failWriteOn.includes(this.writes) ? err(injectedPersistenceError()) : ok(undefined),
+		);
 	}
 
-	async clear(entityId: string): Promise<Result<void, PersistenceError>> {
+	clear(entityId: string): Promise<Result<void, PersistenceError>> {
 		this.clears += 1;
 		void entityId;
-		return this.failClearOn.includes(this.clears) ? err(injectedPersistenceError()) : ok(undefined);
+		return Promise.resolve(
+			this.failClearOn.includes(this.clears) ? err(injectedPersistenceError()) : ok(undefined),
+		);
 	}
 }
 
@@ -169,9 +173,13 @@ describe('runDeleteResolution refusals before any write', () => {
 			referents: [],
 			loadEntity: () => Promise.resolve(ok(null)),
 		});
-		const error = (
-			await runDeleteResolution(ops, {}, { beginSession: () => ({ acquire: async () => undefined, release: () => undefined }) } as never)
-		) as { ok: false; error: AppError };
+		const locks = {
+			beginSession: () => ({
+				acquire: () => Promise.resolve(undefined),
+				release: () => undefined,
+			}),
+		} as never;
+		const error = (await runDeleteResolution(ops, {}, locks)) as { ok: false; error: AppError };
 		expect(error.error.code).toBe('reference.entity-gone');
 		expect(ops.deletedAtVersions).toHaveLength(0);
 	});

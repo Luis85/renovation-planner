@@ -2,92 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { err } from '../../../../src/core/result/Result';
 import { AssignAssetCommand } from '../../../../src/application/commands/requirement/AssignAsset';
-import { RecalculateRequirementCommand } from '../../../../src/application/commands/requirement/RecalculateRequirement';
 import { UpdateAssetCommand } from '../../../../src/application/commands/asset/UpdateAsset';
-import { CreateAssetCommand } from '../../../../src/application/commands/asset/CreateAsset';
 import { SetRequirementCostOverrideCommand } from '../../../../src/application/commands/requirement/SetRequirementCostOverride';
 import { SetRequirementQuantityOverrideCommand } from '../../../../src/application/commands/requirement/SetRequirementQuantityOverride';
-import { DeleteRequirementCommand } from '../../../../src/application/commands/requirement/DeleteRequirement';
-import {
-	assetMatchesCalculatedFrom,
-	deriveRequirementFigures,
-} from '../../../../src/application/commands/requirement/deriveRequirementFigures';
-import { ListReassignmentTargets } from '../../../../src/application/queries/ListReassignmentTargets';
 import { of as moneyOf } from '../../../../src/core/money/Money';
-import type { PersistenceError } from '../../../../src/core/errors/AppError';
-import type { RequirementRepository } from '../../../../src/application/ports/RequirementRepository';
-import { expectErr, expectOk } from '../../../helpers/domain';
-import { makeAsset, makeRequirement, makeZone } from '../../../helpers/entities';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import { expectErr, expectOk, injectedPersistenceError } from '../../../helpers/domain';
+import { makeAsset, makeZone } from '../../../helpers/entities';
+import {
+	overridePort,
+	withConflictingReads,
+	wiredWithLink,
+} from './refusalFixtures';
 
 /**
  * The refusal and error-propagation arms of slice 10's requirement commands: every seam
  * is injected once, and each test asserts the outcome the caller sees -- never merely
- * that a line ran.
+ * that a line ran. The recalculation, derivation and picker arms live in
+ * `recalculateAndDerivation.test.ts`.
  */
-
-function injectedPersistenceError(): PersistenceError {
-	return { category: 'Persistence', code: 'test.injected-failure', message: 'Injected.' };
-}
-
-/** A port double that keeps the inner's behaviour and overrides the patched members. */
-function overridePort<T extends object>(inner: T, patch: Record<string, unknown>): T {
-	return Object.assign(Object.create(Object.getPrototypeOf(inner)), inner, patch) as T;
-}
-
-/**
- * A repository whose reads advance the observed token behind the caller's back -- the
- * stand-in for "another tab wrote between your read and your write", which turns the
- * NEXT conditional save into an external-modification conflict.
- */
-function withConflictingReads(inner: RequirementRepository): RequirementRepository {
-	return overridePort(inner, {
-		getById: async (id: never) => {
-			const result = await inner.getById(id);
-			if (result.ok && result.value !== null) inner.poke(id);
-			return result;
-		},
-	});
-}
-
-async function wiredWithLink() {
-	const w = await requirementFixture();
-	const zoneEntity = expectOk(
-		await w.zones.save(
-			expectOk(
-				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({
-					points: TEN_SQUARE_METERS,
-				}),
-			),
-			'absent',
-		),
-	);
-	const assetEntity = expectOk(
-		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
-			'absent',
-		),
-	);
-	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
-	if (!assigned.ok) throw new Error(`assign failed: ${JSON.stringify(assigned.error)}`);
-	return {
-		...w,
-		zoneId: zoneEntity.entity.id,
-		assetId: assetEntity.entity.id,
-		requirementId: assigned.value.requirement.id,
-	};
-}
-
-/** One saved 10 square-meter zone in the fixture's plan -- shared by the arms below. */
-async function wiredZoneFor(w: Awaited<ReturnType<typeof requirementFixture>>) {
-	const geometry = expectOk(
-		makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({
-			points: TEN_SQUARE_METERS,
-		}),
-	);
-	const zoneEntity = expectOk(await w.zones.save(geometry, 'absent'));
-	return { zoneId: zoneEntity.entity.id };
-}
 
 describe('AssignAssetCommand refusals', () => {
 	it('answers requirement.asset-not-found for an unknown asset', async () => {
@@ -421,196 +353,5 @@ describe('override command refusals beyond not-found', () => {
 			}),
 		);
 		expect(error.category).toBe('Validation');
-	});
-});
-
-describe('RecalculateRequirementCommand refusals', () => {
-	it('propagates a failed read', async () => {
-		const w = await wiredWithLink();
-		const requirements = overridePort(w.requirements, {
-			getById: () => Promise.resolve(err(injectedPersistenceError())),
-		});
-		const error = expectErr(
-			await new RecalculateRequirementCommand(requirements, w.zones, w.assets, w.events).execute({
-				requirementId: w.requirementId,
-			}),
-		);
-		expect(error.code).toBe('test.injected-failure');
-	});
-
-	it('wraps a vanished zone as requirement.zone-gone', async () => {
-		const w = await wiredWithLink();
-		const zone = expectOk(await w.zones.getById(w.zoneId));
-		expectOk(await w.zones.delete(w.zoneId, zone.version));
-		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
-		expect(error.category).toBe('Calculation');
-		expect((error as { code: string }).code).toBe('requirement.zone-gone');
-	});
-
-	it('wraps a vanished asset as requirement.asset-gone', async () => {
-		const w = await wiredWithLink();
-		const asset = expectOk(await w.assets.getById(w.assetId));
-		expectOk(await w.assets.delete(w.assetId, asset.version));
-		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
-		expect((error as { code: string }).code).toBe('requirement.asset-gone');
-	});
-
-	it('wraps a failing area computation as requirement.area-failed', async () => {
-		const w = await wiredWithLink();
-		const stored = expectOk(await w.zones.getById(w.zoneId));
-		Object.assign(stored?.entity as object, {
-			area: () => ({ ok: false, error: { category: 'Calculation', code: 'test.no-area', message: 'x' } }),
-		});
-		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
-		expect((error as { code: string }).code).toBe('requirement.area-failed');
-	});
-
-	it('refuses figures a hand-tampered waste factor cannot produce', async () => {
-		const w = await wiredWithLink();
-		const stored = expectOk(await w.requirements.getById(w.requirementId));
-		Object.assign(stored?.entity as object, { wasteFactor: new Decimal('-0.05') });
-		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
-		expect((error as { code: string }).code).toContain('negative');
-	});
-
-	it('propagates a lost race on its conditional save', async () => {
-		const w = await wiredWithLink();
-		const error = expectErr(
-			await new RecalculateRequirementCommand(
-				withConflictingReads(w.requirements),
-				w.zones,
-				w.assets,
-				w.events,
-			).execute({ requirementId: w.requirementId }),
-		);
-		expect(error.category).toBe('Validation');
-	});
-});
-
-describe('DeleteRequirementCommand error propagation', () => {
-	it('propagates a failed read', async () => {
-		const w = await wiredWithLink();
-		const requirements = overridePort(w.requirements, {
-			getById: () => Promise.resolve(err(injectedPersistenceError())),
-		});
-		const error = expectErr(
-			await new DeleteRequirementCommand(requirements).execute({ requirementId: w.requirementId }),
-		);
-		expect(error.code).toBe('test.injected-failure');
-	});
-
-	it('propagates a refused delete', async () => {
-		const w = await wiredWithLink();
-		const requirements = overridePort(w.requirements, {
-			delete: () => Promise.resolve(err(injectedPersistenceError())),
-		});
-		const error = expectErr(
-			await new DeleteRequirementCommand(requirements).execute({ requirementId: w.requirementId }),
-		);
-		expect(error.code).toBe('test.injected-failure');
-	});
-});
-
-describe('deriveRequirementFigures stage refusals', () => {
-	it('refuses a negative raw area at the measurement stage', () => {
-		const result = deriveRequirementFigures({
-			zoneAreaMm2: -1000,
-			assetUnit: 'm2',
-			unitCost: moneyOf('45.00', 'EUR'),
-			wasteFactor: new Decimal('0.10'),
-		});
-		expect(result).toMatchObject({ ok: false, error: { code: 'quantity.negative' } });
-	});
-
-	it('refuses a negative waste factor at the waste stage', () => {
-		const result = deriveRequirementFigures({
-			zoneAreaMm2: 10_000_000,
-			assetUnit: 'm2',
-			unitCost: moneyOf('45.00', 'EUR'),
-			wasteFactor: new Decimal('-0.10'),
-		});
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error('expected a refusal');
-		expect(result.error.code).toContain('negative');
-	});
-
-	it('refuses a negative recorded price at the cost stage', () => {
-		const result = deriveRequirementFigures({
-			zoneAreaMm2: 10_000_000,
-			assetUnit: 'm2',
-			unitCost: moneyOf('-45.00', 'EUR'),
-			wasteFactor: new Decimal('0.10'),
-		});
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error('expected a refusal');
-		expect(result.error.code).toContain('cost.negative');
-	});
-
-	it('assetMatchesCalculatedFrom compares amount, currency AND unit symbol', () => {
-		const calculatedFrom = {
-			zoneArea: { value: new Decimal(10), unit: 'm2' as const },
-			unitCost: moneyOf('45.00', 'EUR'),
-			assetUnit: 'm2' as const,
-		};
-		expect(assetMatchesCalculatedFrom(calculatedFrom, { unitCost: moneyOf('45.00', 'EUR'), unit: 'm2' })).toBe(true);
-		expect(assetMatchesCalculatedFrom(calculatedFrom, { unitCost: moneyOf('30.00', 'EUR'), unit: 'm2' })).toBe(false);
-		expect(assetMatchesCalculatedFrom(calculatedFrom, { unitCost: moneyOf('45.00', 'USD'), unit: 'm2' })).toBe(false);
-		expect(assetMatchesCalculatedFrom(calculatedFrom, { unitCost: moneyOf('45.00', 'EUR'), unit: 'm' })).toBe(false);
-	});
-});
-
-describe('CreateAssetCommand save refusals', () => {
-	it('propagates a refused create save', async () => {
-		const w = await requirementFixture();
-		const assets = overridePort(w.assets, {
-			save: () => Promise.resolve(err(injectedPersistenceError())),
-		});
-		const error = expectErr(
-			await new CreateAssetCommand(assets, w.events).execute({
-				projectId: w.project.entity.id,
-				name: 'Grout',
-				category: 'material',
-				unit: 'piece',
-				unitCostAmount: '2.50',
-				currency: 'EUR',
-			}),
-		);
-		expect(error.code).toBe('test.injected-failure');
-	});
-});
-
-describe('InMemoryRequirementRepository.markStale validation arm', () => {
-	it('refuses to mark stale a record whose fields no longer construct', async () => {
-		const w = await requirementFixture();
-		const { zoneId } = await wiredZoneFor(w);
-		const requirement = makeRequirement({
-			projectId: w.project.entity.id,
-			assetId: 'asset-x' as never,
-			origin: { kind: 'zone', zoneId },
-		});
-		expectOk(await w.requirements.save(requirement, 'absent'));
-		// A hand edit that breaks the smart constructor must fail the MARKER WRITE,
-		// loudly -- not silently leave the entity as it was.
-		const stored = expectOk(await w.requirements.getById(requirement.id));
-		Object.assign(stored?.entity as object, { requiredDate: 'not a date' });
-
-		const error = expectErr(await w.requirements.markStale(requirement.id));
-		expect(error.code).toBe('requirement.mark-stale-invalid');
-	});
-});
-
-describe('picker query supplement', () => {
-	it('ListReassignmentTargets maps area-kind assets other than the deleted one', async () => {
-		const w = await wiredWithLink();
-		const replacement = expectOk(
-			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
-				'absent',
-			),
-		);
-		const targets = expectOk(
-			await new ListReassignmentTargets(w.zones, w.assets).execute({ kind: 'asset', assetId: w.assetId }),
-		);
-		expect(targets.map((target) => target.id)).toEqual([replacement.entity.id]);
 	});
 });

@@ -17,7 +17,7 @@ import { mountPlanEditor, settle } from '../../helpers/editor';
 import { click, PLAN_DTO, PROJECT_ID, toolbarButton, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { expectOk, RecordingEventBus } from '../../helpers/domain';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
-import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
+import { makeDeleteZoneCommand } from '../../helpers/slice10';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
@@ -70,7 +70,7 @@ async function faultRig() {
 		commands: {
 			createZone: new CreateZoneCommand(zonesRepo, plans, events),
 			moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
-			deleteZone: new DeleteZoneCommand(zonesRepo, events),
+			deleteZone: makeDeleteZoneCommand(zonesRepo, events),
 			zones: zonesRepo,
 			zoneInspector: new GetZoneInspector(zonesRepo),
 		},

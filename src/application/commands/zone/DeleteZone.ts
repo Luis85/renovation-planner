@@ -17,6 +17,7 @@ import type { SequenceMarkerStore } from '../../ports/SequenceMarkerStore';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import {
 	runDeleteResolution,
+	requirementResolutionSteps,
 	type ResolvedSequence,
 } from '../../reference/deleteResolution';
 import { loadZone } from './loadZone';
@@ -110,48 +111,11 @@ export class DeleteZoneCommand
 					}
 					return ok(undefined);
 				},
-				repointAndMarkStale: async (snapshot, target) => {
-					const current = await this.ops.requirements.getById(snapshot.entity.id);
-					if (isErr(current)) return err(current.error);
-					if (current.value === null) {
-						return err(
-							referenceError(
-								'requirement.not-found',
-								`Requirement ${snapshot.entity.id} not found.`,
-							),
-						);
-					}
-					const repointed = current.value.entity.repointedTo(
-						{ kind: 'zone', zoneId: target as ZoneId },
-						current.value.entity.assetId,
-					);
-					if (isErr(repointed)) return err(repointed.error);
-					const saved = await this.ops.requirements.save(repointed.value, current.value.version);
-					if (isErr(saved)) return err(saved.error);
-					return ok(saved.value.version);
-				},
-				markStalePersisted: async (snapshot) => {
-					const marked = await this.ops.requirements.markStale(snapshot.entity.id);
-					if (isErr(marked)) return err(marked.error);
-					const reread = await this.ops.requirements.getById(snapshot.entity.id);
-					if (isErr(reread)) return err(reread.error);
-					if (reread.value === null) {
-						return err({
-							category: 'Persistence',
-							code: 'requirement.not-found',
-							message: `Requirement ${snapshot.entity.id} vanished during markStale.`,
-						});
-					}
-					return ok(reread.value.version);
-				},
-				removeRequirement: (snapshot) =>
-					this.ops.requirements.delete(snapshot.entity.id, snapshot.version),
-				recalculateInline: (id) => this.ops.recalculate.execute({ requirementId: id }),
-				restoreRequirement: async (snapshot, expected) => {
-					const saved = await this.ops.requirements.save(snapshot.entity, expected);
-					if (isErr(saved)) return err(saved.error);
-					return ok(saved.value.version);
-				},
+				// Deleting the Zone repoints at a new Zone reference; the Asset link survives.
+				...requirementResolutionSteps(this.ops.requirements, this.ops.recalculate, (requirement, target) => ({
+					origin: { kind: 'zone', zoneId: target as ZoneId },
+					assetId: requirement.assetId,
+				})),
 			},
 			input,
 			this.ops.locks,

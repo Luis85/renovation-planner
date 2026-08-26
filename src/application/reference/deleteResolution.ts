@@ -7,10 +7,14 @@ import type {
 } from '../../core/errors/AppError';
 import type { Loaded, EntityVersion, Expected } from '../ports/versioning';
 import type { Requirement } from '../../domain/requirement/Requirement';
+import type { RequirementOrigin } from '../../domain/requirement/RequirementOrigin';
+import type { AssetId } from '../../domain/asset/AssetId';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
 import type { Logger } from '../ports/Logger';
 import type { SequenceMarkerStore } from '../ports/SequenceMarkerStore';
 import type { ReferenceLocks, LockSession } from './ReferenceLocks';
+import type { RequirementRepository } from '../ports/RequirementRepository';
+import { loadRequirement } from '../commands/requirement/loadRequirement';
 
 /**
  * The compensated multi-entity sequence behind every non-bare delete of a referenced
@@ -46,7 +50,7 @@ export type SequenceProgress =
 	| { readonly id: RequirementId; readonly outcome: 'written'; readonly version: EntityVersion }
 	| { readonly id: RequirementId; readonly outcome: 'deleted' };
 
-export const SEQUENCE_MARKER_SCHEMA_VERSION = 1;
+const SEQUENCE_MARKER_SCHEMA_VERSION = 1;
 
 /**
  * The durable record written BEFORE a multi-entity sequence's first mutation. Plugin-local
@@ -71,7 +75,7 @@ export interface SequenceMarker {
 
 export type DeleteResolutionErrors = ValidationError | ReferenceError | PersistenceError;
 
-export function referenceSetChanged(liveCount: number): ReferenceError {
+function referenceSetChanged(liveCount: number): ReferenceError {
 	return {
 		category: 'Reference',
 		code: 'reference.set-changed',
@@ -94,9 +98,13 @@ export interface ResolutionOps<TEntity> {
 		requirement: Loaded<Requirement>,
 		reassignTo: string,
 	): Promise<Result<EntityVersion, DeleteResolutionErrors>>;
+	/**
+	 * The stale marker is persistence's own conditional write; its reread can also answer
+	 * the requirement gone, which surfaces as the load preamble's ReferenceError.
+	 */
 	markStalePersisted(
 		requirement: Loaded<Requirement>,
-	): Promise<Result<EntityVersion, PersistenceError>>;
+	): Promise<Result<EntityVersion, PersistenceError | ReferenceError>>;
 	removeRequirement(
 		requirement: Loaded<Requirement>,
 	): Promise<Result<void, PersistenceError | ValidationError>>;
@@ -131,6 +139,52 @@ function resolutionInputError(input: ResolutionInput): DeleteResolutionErrors | 
 		};
 	}
 	return null;
+}
+
+/**
+ * Every per-referent step both driving commands hand in IDENTICALLY, plus the repoint
+ * whose only per-kind fact is what the TARGET means: deleting a Zone repoints at a new
+ * Zone reference (the Asset link survives), deleting an Asset repoints at a new Asset
+ * (the Zone link survives). `repointTo` names that one fact.
+ */
+export function requirementResolutionSteps(
+	requirements: RequirementRepository,
+	recalculate: { execute(input: { requirementId: RequirementId }): Promise<Result<unknown, AppError>> },
+	repointTo: (
+		requirement: Requirement,
+		target: string,
+	) => { origin: RequirementOrigin; assetId: AssetId },
+): Pick<
+	ResolutionOps<never>,
+	'repointAndMarkStale' | 'markStalePersisted' | 'removeRequirement' | 'recalculateInline' | 'restoreRequirement'
+> {
+	return {
+		repointAndMarkStale: async (snapshot, target) => {
+			const current = await loadRequirement(requirements, snapshot.entity.id);
+			if (!current.ok) return err(current.error);
+			const referent: Requirement = current.value.entity;
+			const destination = repointTo(referent, target);
+			const repointed = referent.repointedTo(destination.origin, destination.assetId);
+			if (!repointed.ok) return err(repointed.error);
+			const saved = await requirements.save(repointed.value, current.value.version);
+			if (!saved.ok) return err(saved.error);
+			return ok(saved.value.version);
+		},
+		markStalePersisted: async (snapshot) => {
+			const marked = await requirements.markStale(snapshot.entity.id);
+			if (isErr(marked)) return err(marked.error);
+			const reread = await loadRequirement(requirements, snapshot.entity.id);
+			if (isErr(reread)) return err(reread.error);
+			return ok(reread.value.version);
+		},
+		removeRequirement: (snapshot) => requirements.delete(snapshot.entity.id, snapshot.version),
+		recalculateInline: (id) => recalculate.execute({ requirementId: id }),
+		restoreRequirement: async (snapshot, expected) => {
+			const saved = await requirements.save(snapshot.entity, expected);
+			if (isErr(saved)) return err(saved.error);
+			return ok(saved.value.version);
+		},
+	};
 }
 
 interface Prepared<TEntity> {

@@ -17,6 +17,7 @@ import { of as moneyOf } from '../../../src/core/money/Money';
 import type { DomainEvent, EventBus } from '../../../src/core/events/EventBus';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { expectOk } from '../../helpers/domain';
+import { failMarkStaleOnce } from '../../helpers/slice10';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
 
 /**
@@ -179,7 +180,7 @@ describe('the recalculation cascade', () => {
 
 		const logged: string[] = [];
 		const notified: string[] = [];
-		w.requirements.failMarkStaleOnce();
+		failMarkStaleOnce(w.requirements);
 		registerOnZoneGeometryChanged(w.events, {
 			...w.deps,
 			logger: {

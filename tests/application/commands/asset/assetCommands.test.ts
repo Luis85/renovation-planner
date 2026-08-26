@@ -44,7 +44,7 @@ async function wiredWithLink() {
 		),
 	);
 	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
-	if (!assigned.ok) return expect.unreachable(assigned.error.message);
+	if (!assigned.ok) throw new Error(assigned.error.message);
 	const deleteAsset = new DeleteAssetCommand({
 		assets: w.assets,
 		requirements: w.requirements,
@@ -76,7 +76,7 @@ describe('CreateAssetCommand', () => {
 			unitCostAmount: '2.50',
 			currency: 'EUR',
 		});
-		if (!result.ok) return expect.unreachable(result.error.message);
+		if (!result.ok) throw new Error(result.error.message);
 		expect(result.value.unitCost.amount).toBe('2.5');
 		expect(
 			expectOk(await w.assets.listByProject(w.project.entity.id)).map((a) => a.entity.id),
@@ -251,7 +251,7 @@ describe('DeleteAssetCommand', () => {
 			),
 		);
 		const second = await w.assign.execute({ zoneId: w.zoneId, assetId: replacement.entity.id });
-		if (!second.ok) return expect.unreachable();
+		if (!second.ok) throw new Error('unexpected success');
 		const error = expectErr(
 			await w.deleteAsset.execute({
 				assetId: replacement.entity.id,

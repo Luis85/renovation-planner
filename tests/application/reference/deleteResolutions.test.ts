@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { AssignAssetCommand } from '../../../src/application/commands/requirement/AssignAsset';
-import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { recorder as logger } from '../../helpers/logger';
 import {
+	failMarkStaleOnce,
 	requirementFixture,
 	TEN_SQUARE_METERS,
 } from '../../helpers/slice10';
@@ -164,31 +164,14 @@ describe('DeleteZoneCommand reference integrity', () => {
 		if (!second.ok) throw new Error('unexpected failure');
 		const ids = [w.requirementId, second.value.requirement.id].toSorted();
 
-		class FailingAfterOne implements Partial<RequirementRepository> {
-			constructor(private readonly inner: RequirementRepository) {}
-			markStale(id: never) {
-				this.calls += 1;
-				if (this.calls === 2) {
-					return Promise.resolve({
-						ok: false,
-						error: { category: 'Persistence', code: 'test.injected-failure', message: 'injected' },
-					} as never);
-				}
-				return this.inner.markStale(id);
-			}
-			private calls = 0;
-		}
-		void FailingAfterOne;
 
-		// Inject via the repository seam the in-memory double already exposes.
-		const requirements: RequirementRepository & { failMarkStaleOnce(): void } =
-			w.requirements;
-		requirements.failMarkStaleOnce();
+		// Inject via the test seam in helpers/slice10 — production carries no test-only branch.
+		failMarkStaleOnce(w.requirements);
 
 		const error = expectErr(
 			await new DeleteZoneCommand({
 				zones: w.zones,
-				requirements,
+				requirements: w.requirements,
 				recalculate: w.recalculate,
 				events: w.events,
 				locks: w.locks,

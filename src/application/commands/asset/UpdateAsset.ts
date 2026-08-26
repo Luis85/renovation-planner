@@ -70,40 +70,25 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 		const loaded = await this.assets.getById(input.assetId);
 		if (isErr(loaded)) return loaded;
 		if (loaded.value === null) return err(notFound(input.assetId));
-		const current = loaded.value.entity;
+		const current: Asset = loaded.value.entity;
 		const nextUnit = input.changes.unit ?? current.unit;
 		const kindChanges = UNIT_KIND[nextUnit] !== UNIT_KIND[current.unit];
 
 		const release = await this.locks.acquire(kindChanges ? [current.id] : [], []);
 		try {
 			let expected: Expected = loaded.value.version;
-			let candidate = current.withChanges(input.changes);
-			if (isErr(candidate)) return candidate;
+			const firstCandidate = current.withChanges(input.changes);
+			if (isErr(firstCandidate)) return firstCandidate;
+			let candidate: Asset = firstCandidate.value;
 
 			if (kindChanges) {
-				// Re-read under the lock: the entity another tab may have moved is the one
-				// being judged, and its version is the expectation the write presents.
-				const reread = await this.assets.getById(current.id);
-				if (isErr(reread)) return reread;
-				if (reread.value === null) return err(notFound(current.id));
-				candidate = reread.value.entity.withChanges(input.changes);
-				if (isErr(candidate)) return candidate;
-				expected = reread.value.version;
-
-				const referents = await this.requirements.listByAsset(current.id);
-				if (isErr(referents)) return referents;
-				if (referents.value.length > 0) {
-					return err({
-						category: 'Validation',
-						code: 'asset.unit-kind-referenced',
-						message: `Cannot change ${current.id} from ${current.unit} to ${nextUnit}: `
-							+ `${referents.value.length} requirement(s) reference it, and their areas `
-							+ `would become ${UNIT_KIND[nextUnit]} figures. Reassign or delete them first.`,
-					});
-				}
+				const refreshed = await this.resolveKindChange(current, input.changes, nextUnit);
+				if (isErr(refreshed)) return refreshed;
+				candidate = refreshed.value.candidate;
+				expected = refreshed.value.expected;
 			}
 
-			const saved = await this.assets.save(candidate.value, expected);
+			const saved = await this.assets.save(candidate, expected);
 			if (isErr(saved)) return saved;
 			await this.events.publish(
 				assetUpdated({ assetId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
@@ -112,5 +97,36 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 		} finally {
 			release();
 		}
+	}
+
+	/**
+	 * The kind-change half of execute, so the lock-and-save skeleton above stays readable:
+	 * re-read under the lock (the entity another tab may have moved is the one being
+	 * judged, and its version is the expectation the write presents), then refuse while
+	 * any Requirement still references the asset.
+	 */
+	private async resolveKindChange(
+		current: Asset,
+		changes: UpdateAssetInput['changes'],
+		nextUnit: MeasurementUnit,
+	): Promise<Result<{ candidate: Asset; expected: Expected }, UpdateAssetErrors>> {
+		const reread = await this.assets.getById(current.id);
+		if (isErr(reread)) return reread;
+		if (reread.value === null) return err(notFound(current.id));
+		const candidate = reread.value.entity.withChanges(changes);
+		if (isErr(candidate)) return candidate;
+
+		const referents = await this.requirements.listByAsset(current.id);
+		if (isErr(referents)) return referents;
+		if (referents.value.length > 0) {
+			return err({
+				category: 'Validation',
+				code: 'asset.unit-kind-referenced',
+				message: `Cannot change ${current.id} from ${current.unit} to ${nextUnit}: `
+					+ `${referents.value.length} requirement(s) reference it, and their areas `
+					+ `would become ${UNIT_KIND[nextUnit]} figures. Reassign or delete them first.`,
+			});
+		}
+		return ok({ candidate: candidate.value, expected: reread.value.version });
 	}
 }

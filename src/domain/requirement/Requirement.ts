@@ -155,6 +155,9 @@ export class Requirement {
 		});
 	}
 
+	// Still unconsumed in src/ — the per-requirement waste-factor edit is slice 16's form
+	// field. Suppressed rather than deleted: deleting it is how a declared capability rots.
+	// fallow-ignore-next-line unused-class-member
 	withWasteFactor(wasteFactor: Decimal): Result<Requirement, ValidationError> {
 		return this.with({ wasteFactor });
 	}

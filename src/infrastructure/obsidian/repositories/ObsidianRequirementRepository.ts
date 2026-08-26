@@ -5,45 +5,38 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../../application/ports/RequirementRepository';
+import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import {
-	revisionConflict,
-	type EntityVersion,
-	type Expected,
-	type Loaded,
-} from '../../../application/ports/versioning';
-import {
-	ensureFolder,
 	findNoteIdInFolder,
-	frontmatterOf,
-	openNoteById,
 	persistenceError,
-	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from '../repositories/noteIo';
-import { checkExpectedVersion, versionOfFrontmatter } from '../repositories/versionCheck';
-import { observeFrontmatter } from '../repositories/digest';
-import { freshNotePath, normalizeFolder, requirementsFolderFor } from '../repositories/paths';
+import { normalizeFolder, requirementsFolderFor } from '../repositories/paths';
 import { KeyedQueues } from '../repositories/KeyedQueues';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import {
 	requirementFromPersistence,
 	requirementToPersistence,
 } from '../../persistence/mappers/requirementMapper';
+import {
+	readNoteBackedEntity,
+	saveNoteBackedEntity,
+	trashNoteBackedEntity,
+	type NoteWriteSpec,
+} from './noteEntityWrite';
 
-function validationFailure(message: string): ValidationError {
-	return { category: 'Validation', code: 'requirement.pre-write-invalid', message };
-}
-
-/** Filename is never identity (�83); the id alone keeps requirement notes findable and unambiguous. */
+/** Filename is never identity (§83); the id alone keeps requirement notes findable and unambiguous. */
 function requirementFileName(requirement: Requirement): string {
 	return `${requirement.id}`;
 }
+
 /**
  * The note-backed half of the conditional-write contract, without a sidecar — a
  * requirement references its Zone by ID and stores no geometry (§3.6). `markStale` is the
  * one method no other repository has: it sets ONE field in ONE direction, inside the same
  * per-entity queue section as every other write, so its read-modify-write cannot
- * interleave with a concurrent override or recalculation.
+ * interleave with a concurrent override or recalculation. The shared save/delete
+ * SEQUENCE lives once in `noteEntityWrite`.
  */
 export class ObsidianRequirementRepository implements RequirementRepository {
 	private readonly queues = new KeyedQueues();
@@ -54,16 +47,13 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 	}
 
 	getById(id: RequirementId): Promise<Result<Loaded<Requirement> | null, PersistenceError>> {
-		const opened = openNoteById(this.deps, 'requirement', id);
-		if (opened.status === 'missing') return Promise.resolve(ok(null));
-		if (opened.status === 'error') return Promise.resolve(err(opened.error));
-		const entity = requirementFromPersistence(opened.migrated);
-		if (!entity.ok) {
-			return Promise.resolve(
-				err(persistenceError('requirement.entity-invalid', entity.error.message)),
-			);
-		}
-		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(opened.raw) }));
+		return readNoteBackedEntity(
+			this.deps,
+			'requirement',
+			id,
+			requirementFromPersistence,
+			'requirement.entity-invalid',
+		);
 	}
 
 	save(
@@ -75,80 +65,27 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 		);
 	}
 
-	private async saveQueued(
+	private saveQueued(
 		requirement: Requirement,
 		expected: Expected,
 	): Promise<Result<Loaded<Requirement>, PersistenceError | ValidationError>> {
-		const notesFolder = requirementsFolderFor(this.folder);
-		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, requirement.id);
-		const currentVersion = existing
-			? versionOfFrontmatter(frontmatterOf(this.deps, existing))
-			: undefined;
-
-		const conflict = checkExpectedVersion('requirement', requirement.id, currentVersion, expected);
-		if (conflict) return err(conflict);
-
-		const nextRevision = (currentVersion?.revision ?? 0) + 1;
-		const dto = requirementToPersistence(requirement, nextRevision);
-		if (!requirementFromPersistence({ ...dto }).ok) {
-			return err(validationFailure('The requirement failed pre-write validation.'));
-		}
-
-		let notePath: string;
-		try {
-			if (existing) {
-				notePath = existing.path;
-				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto);
-			} else {
-				await ensureFolder(this.deps.vault, notesFolder);
-				notePath = freshNotePath(
-					this.deps.vault,
-					notesFolder,
-					requirementFileName(requirement),
-					requirement.id,
-				);
-				await this.deps.vault.create(notePath, serializeFrontmatter(dto));
-			}
-		} catch (cause) {
-			return err(
-				persistenceError(
-					'requirement.write-failed',
-					`Could not write requirement ${requirement.id}.`,
-					cause,
-				),
-			);
-		}
-
-		this.deps.index.upsert({
-			id: requirement.id,
-			type: 'renovation-requirement',
-			path: notePath,
-			projectId: requirement.projectId,
-		});
-		this.deps.echo.markFrontmatter(notePath, dto);
-		return ok({
-			entity: requirement,
-			version: { revision: nextRevision, observed: observeFrontmatter(dto) },
-		});
+		const spec: NoteWriteSpec<Requirement> = {
+			kind: 'requirement',
+			indexType: 'renovation-requirement',
+			notesFolder: requirementsFolderFor(this.folder),
+			entryName: requirementFileName,
+			toPersistence: requirementToPersistence,
+			preWriteValid: (dto) => requirementFromPersistence({ ...dto }).ok,
+			validationCode: 'requirement.pre-write-invalid',
+			writeFailedCode: 'requirement.write-failed',
+		};
+		return saveNoteBackedEntity(this.deps, spec, requirement, expected);
 	}
 
 	delete(id: RequirementId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>> {
-		return this.queues.run(`requirement:${id}`, async () => {
-			const opened = openNoteById(this.deps, 'requirement', id);
-			if (opened.status === 'missing') {
-				return err(revisionConflict('requirement', id));
-			}
-			if (opened.status === 'error') return err(opened.error);
-			const conflict = checkExpectedVersion('requirement', id, versionOfFrontmatter(opened.raw), expected);
-			if (conflict) return err(conflict);
-			try {
-				await this.deps.fileManager.trashFile(opened.file);
-			} catch (cause) {
-				return err(persistenceError('requirement.delete-failed', `Could not delete requirement ${id}.`, cause));
-			}
-			this.deps.index.remove(id);
-			return ok(undefined);
-		});
+		return this.queues.run(`requirement:${id}`, () =>
+			trashNoteBackedEntity(this.deps, 'requirement', id, 'requirement.delete-failed', expected),
+		);
 	}
 
 	listByZone(zoneId: ZoneId): Promise<Result<Loaded<Requirement>[], PersistenceError>> {
@@ -163,7 +100,7 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 
 	markStale(id: RequirementId): Promise<Result<void, PersistenceError>> {
 		return this.queues.run(`requirement:${id}`, async () => {
-			const loaded = await this.getById(id);
+			const loaded: Result<Loaded<Requirement> | null, PersistenceError> = await this.getById(id);
 			if (isErr(loaded)) return err(loaded.error);
 			if (loaded.value === null) {
 				return err(
@@ -173,7 +110,8 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 					),
 				);
 			}
-			const marked = loaded.value.entity.markedStale();
+			const entity: Requirement = loaded.value.entity;
+			const marked = entity.markedStale();
 			if (!marked.ok) {
 				return err(persistenceError('requirement.mark-stale-invalid', marked.error.message));
 			}
@@ -215,4 +153,3 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 		return ok(loaded);
 	}
 }
-

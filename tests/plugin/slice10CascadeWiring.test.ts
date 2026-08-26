@@ -3,7 +3,6 @@
 // tests/plugin/persistence-wiring.test.ts does.
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
-import { installObsidianDom } from '../helpers/dom';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack } from '../helpers/vault';
 import { expectOk } from '../helpers/domain';
@@ -127,7 +126,6 @@ describe('slice-10 cascade wiring', () => {
 
 		// Obsidian hands TAbstractFile to `rename`; only notes interest the pipeline.
 		const planPath = plugin.root.persistence?.index.getPath(plan.id) as string;
-		console.log('HANDLERS', vaultHandlers.length);
 		const rename = vaultHandlers[3];
 		expect(rename).toBeInstanceOf(Function);
 		rename(stack.vault.getAbstractFileByPath(planPath) as never, 'Renovation/old-name.md');
@@ -137,8 +135,13 @@ describe('slice-10 cascade wiring', () => {
 		await plugin.onunload();
 	});
 
-	it('unloading a session whose settings were unrecovered is a no-op', async () => {
+	it('unloading a session whose settings were unrecovered is a no-op that disposes nothing', async () => {
+		const stack = createRepositoryStack();
+		const before = [...stack.vault.entries.keys()];
 		const { plugin } = await loadedPlugin(null, new Error('unreadable'), true);
 		await plugin.onunload();
+
+		// No persistence was ever composed, so unloading must not have written anything.
+		expect([...stack.vault.entries.keys()]).toEqual(before);
 	});
 });

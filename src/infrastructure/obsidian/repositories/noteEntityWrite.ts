@@ -1,0 +1,131 @@
+import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
+import { ok, err, type Result } from '../../../core/result/Result';import type { ProjectId } from '../../../domain/project/ProjectId';
+import type { EntityId } from '../../../core/identity/EntityId';
+import type {
+	EntityVersion,
+	Expected,
+	Loaded,
+} from '../../../application/ports/versioning';
+import { revisionConflict } from '../../../application/ports/versioning';
+import {
+	ensureFolder,
+	findNoteIdInFolder,
+	frontmatterOf,
+	openNoteById,
+	persistenceError,
+	serializeFrontmatter,
+	writeOwnedFrontmatter,
+} from './noteIo';
+import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
+import { observeFrontmatter } from './digest';
+import { freshNotePath } from './paths';
+import type { NoteVaultDeps } from './NoteVaultDeps';
+
+/**
+ * The conditional note write the asset and requirement repositories share — the Zone
+ * repository's six-step save contract without a geometry sidecar: validate fully before
+ * any I/O, snapshot, compare-and-swap, write, sync index upsert + echo. Parameterised by
+ * a small spec so each repository keeps its own mapper, folder and error codes while the
+ * SEQUENCE lives here once.
+ */
+export interface NoteWriteSpec<TEntity> {
+	readonly kind: string;
+	readonly indexType: 'renovation-asset' | 'renovation-requirement';
+	readonly notesFolder: string;
+	/** The fresh-note file name base — an Asset's name, a Requirement's composed name. */
+	readonly entryName: (entity: TEntity) => string;
+	readonly toPersistence: (entity: TEntity, revision: number) => Record<string, unknown>;
+	readonly preWriteValid: (dto: Record<string, unknown>) => boolean;
+	readonly validationCode: string;
+	readonly writeFailedCode: string;
+}
+
+export async function saveNoteBackedEntity<TEntity extends { readonly id: EntityId<string>; readonly projectId: ProjectId }>(
+	deps: NoteVaultDeps,
+	spec: NoteWriteSpec<TEntity>,
+	entity: TEntity,
+	expected: Expected,
+): Promise<Result<Loaded<TEntity>, PersistenceError | ValidationError>> {
+	const existing = findNoteIdInFolder(deps, deps.vault, spec.notesFolder, entity.id);
+	const currentVersion = existing
+		? versionOfFrontmatter(frontmatterOf(deps, existing))
+		: undefined;
+
+	const conflict = checkExpectedVersion(spec.kind, entity.id, currentVersion, expected);
+	if (conflict) return err(conflict);
+
+	const nextRevision = (currentVersion?.revision ?? 0) + 1;
+	const dto = spec.toPersistence(entity, nextRevision);
+	if (!spec.preWriteValid(dto)) {
+		return err({ category: 'Validation', code: spec.validationCode, message: 'Pre-write validation failed.' });
+	}
+
+	let notePath: string;
+	try {
+		if (existing) {
+			notePath = existing.path;
+			await writeOwnedFrontmatter(deps.fileManager, existing, dto);
+		} else {
+			await ensureFolder(deps.vault, spec.notesFolder);
+			notePath = freshNotePath(deps.vault, spec.notesFolder, spec.entryName(entity), entity.id);
+			await deps.vault.create(notePath, serializeFrontmatter(dto));
+		}
+	} catch (cause) {
+		return err(persistenceError(spec.writeFailedCode, `Could not write ${spec.kind} ${entity.id}.`, cause));
+	}
+
+	deps.index.upsert({
+		id: entity.id,
+		type: spec.indexType,
+		path: notePath,
+		projectId: entity.projectId,
+	});
+	deps.echo.markFrontmatter(notePath, dto);
+	return ok({
+		entity,
+		version: { revision: nextRevision, observed: observeFrontmatter(dto) },
+	});
+}
+
+/** A missing note fails the conditional delete the same way a stale revision does. */
+export async function trashNoteBackedEntity(
+	deps: NoteVaultDeps,
+	kind: string,
+	id: EntityId<string>,
+	deleteFailedCode: string,
+	expected: EntityVersion,
+): Promise<Result<void, PersistenceError | ValidationError>> {
+	const opened = openNoteById(deps, kind, id);
+	if (opened.status === 'missing') return err(revisionConflict(kind, id));
+	if (opened.status === 'error') return err(opened.error);
+	const conflict = checkExpectedVersion(kind, id, versionOfFrontmatter(opened.raw), expected);
+	if (conflict) return err(conflict);
+	try {
+		await deps.fileManager.trashFile(opened.file);
+	} catch (cause) {
+		return err(persistenceError(deleteFailedCode, `Could not delete ${kind} ${id}.`, cause));
+	}
+	deps.index.remove(id);
+	return ok(undefined);
+}
+
+/**
+ * The read half of the same contract: resolve through the index, answer ok(null) for a
+ * missing note, surface a read error as itself, and hand the mapper what migrated.
+ */
+export function readNoteBackedEntity<T>(
+	deps: NoteVaultDeps,
+	kind: string,
+	id: EntityId<string>,
+	fromPersistence: (migrated: unknown) => Result<T, ValidationError>,
+	entityInvalidCode: string,
+): Promise<Result<Loaded<T> | null, PersistenceError>> {
+	const opened = openNoteById(deps, kind, id);
+	if (opened.status === 'missing') return Promise.resolve(ok(null));
+	if (opened.status === 'error') return Promise.resolve(err(opened.error));
+	const entity = fromPersistence(opened.migrated);
+	if (!entity.ok) {
+		return Promise.resolve(err(persistenceError(entityInvalidCode, entity.error.message)));
+	}
+	return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(opened.raw) }));
+}

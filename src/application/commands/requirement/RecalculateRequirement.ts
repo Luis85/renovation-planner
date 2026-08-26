@@ -5,19 +5,20 @@ import type {
 	ReferenceError,
 	ValidationError,
 } from '../../../core/errors/AppError';
-import { UNIT_KIND } from '../../../core/units/MeasurementUnit';
 import { effectiveValue } from '../../../core/derived/DerivedValue';
 import type { Requirement } from '../../../domain/requirement/Requirement';
+import type { Asset } from '../../../domain/asset/Asset';
 import { requirementRecalculated } from '../../../domain/requirement/Requirement.events';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { EventBus } from '../../../core/events/EventBus';
-import { referenceError, calculationError } from '../../errors';
+import { calculationError } from '../../errors';
 import type { Command } from '../Command';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
 import { loadAsset } from './AssignAsset';
 import { loadZone } from '../zone/loadZone';
+import { loadRequirement } from './loadRequirement';
 import { deriveRequirementFigures } from './deriveRequirementFigures';
 import { publishIfEffectiveCostChanged } from './SetRequirementQuantityOverride';
 
@@ -57,16 +58,8 @@ export class RecalculateRequirementCommand
 	async execute(
 		input: RecalculateRequirementInput,
 	): Promise<Result<Requirement, RecalculateRequirementErrors>> {
-		const loaded = await this.requirements.getById(input.requirementId);
-		if (isErr(loaded)) return loaded;
-		if (loaded.value === null) {
-			return err(
-				referenceError(
-					'requirement.not-found',
-					`Requirement ${input.requirementId} not found.`,
-				),
-			);
-		}
+		const loaded = await loadRequirement(this.requirements, input.requirementId);
+		if (isErr(loaded)) return err(loaded.error);
 		const requirement = loaded.value.entity;
 
 		if (requirement.origin.kind !== 'zone') {
@@ -89,7 +82,8 @@ export class RecalculateRequirementCommand
 		// The guard at creation can be bypassed by a hand-edited note or a migration; a
 		// recalculation that relabeled an area as a length would be the silent-mislabeling
 		// bug the assignment check exists to prevent, so it refuses here too.
-		if (UNIT_KIND[asset.value.unit] !== 'area') {
+		const pricedAgainst: Asset = asset.value;
+		if (!pricedAgainst.isAreaKind()) {
 			return err(
 				calculationError(
 					'requirement.unit-not-area',

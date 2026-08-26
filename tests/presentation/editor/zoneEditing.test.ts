@@ -17,7 +17,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent } from 'vue';
 import { mount } from '@vue/test-utils';
 import { Notice } from 'obsidian';
-import { mountPlanEditor, settle, settleUntil as until, type EditorHarness } from '../../helpers/editor';
+import { mountPlanEditor, settle, settleUntil as until } from '../../helpers/editor';
 import {
 	click,
 	PLAN_DTO,

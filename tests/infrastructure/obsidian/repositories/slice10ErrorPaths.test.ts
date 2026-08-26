@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
-import { makeAsset, makeRequirement } from '../../../helpers/entities';
+import {
+	makeAsset,
+	makePlan,
+	makeProject,
+	makeRequirement,
+	makeZone,
+} from '../../../helpers/entities';
 import { createAssetId, type AssetId } from '../../../../src/domain/asset/AssetId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
-import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
+import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createZoneId, type ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { Asset } from '../../../../src/domain/asset/Asset';
-import { makePlan, makeProject, makeZone } from '../../../helpers/entities';
 import { fileNameFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
 /**
@@ -42,6 +47,17 @@ async function seedAsset(stack: RepositoryStack, overrides?: Parameters<typeof m
 	const written = expectOk(await stack.assets.save(asset, 'absent'));
 	const path = stack.index.getPath(written.entity.id) ?? '';
 	return { projectId, asset, assetId: written.entity.id, version: written.version, path };
+}
+
+async function seedPlanWithZone(stack: RepositoryStack) {
+	const projectId = createProjectId();
+	const planId = createPlanId();
+	expectOk(await stack.projects.save(makeProject({ id: projectId }), 'absent'));
+	expectOk(await stack.plans.save(makePlan({ id: planId, projectId }), 'absent'));
+	const zone = expectOk(
+		await stack.zones.save(makeZone({ projectId, planId }), 'absent'),
+	);
+	return { projectId, planId, zone };
 }
 
 describe('ObsidianRequirementRepository failure branches', () => {
@@ -254,20 +270,22 @@ describe('ObsidianAssetRepository failure branches', () => {
 		const listed = await stack.assets.listByProject(projectId);
 		expect(listed.ok).toBe(false);
 	});
+
+	it('listByProject skips an indexed id whose note has vanished entirely', async () => {
+		const stack = createRepositoryStack();
+		const first = await seedAsset(stack);
+		const second = await seedAsset(stack, { projectId: first.projectId });
+
+		// The note is gone WITHOUT the index being told — a vault-level deletion this
+		// plugin did not observe. The listing skips it rather than failing the whole read.
+		stack.vault.entries.delete(second.path);
+
+		const listed = expectOk(await stack.assets.listByProject(first.projectId));
+		expect(listed.map((loaded) => loaded.entity.id)).toEqual([first.assetId]);
+	});
 });
 
 describe('ObsidianZoneRepository compensation arms', () => {
-	async function seedPlanWithZone(stack: RepositoryStack) {
-		const projectId = createProjectId();
-		const planId = createPlanId();
-		expectOk(await stack.projects.save(makeProject({ id: projectId }), 'absent'));
-		expectOk(await stack.plans.save(makePlan({ id: planId, projectId }), 'absent'));
-		const zone = expectOk(
-			await stack.zones.save(makeZone({ projectId, planId }), 'absent'),
-		);
-		return { projectId, planId, zone };
-	}
-
 	it('an insert whose sidecar write fails deletes the just-created note', async () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();

@@ -600,6 +600,27 @@ export default defineConfig([
 		},
 	},
 	{
+		/**
+		 * `src/prototypes/` is TEMPLATE-ONLY, and this is where that stops being prose.
+		 * Promotion is "add a `<script setup>`", so a mock that already has one has been
+		 * promoted in place and there is nothing left for the byte-identical template claim
+		 * to compare. A mock needs no script either: the index registers every discovered
+		 * component and mock on the app, so a template resolves its tags without importing
+		 * them.
+		 *
+		 * `'style'` is REPEATED rather than inherited. Two flat-config blocks matching one
+		 * file override `vue/no-restricted-block`'s options rather than merging them, so a
+		 * block naming only `'script'` would silently permit the `<style>` block the wider
+		 * VUE_FILES block refuses — the same trap this config already documents for
+		 * `no-restricted-syntax`.
+		 *
+		 * `'script'` covers `<script setup>` as well as a plain `<script>`: the rule matches
+		 * the block name, and `setup` is an attribute on it. Measured, both forms.
+		 */
+		files: ['**/src/prototypes/**/*.vue'],
+		rules: { 'vue/no-restricted-block': ['error', 'style', 'script'] },
+	},
+	{
 		// The one directory whose job IS the console. A per-directory block REPLACES this
 		// rule for these files rather than merging with it — the same flat-config
 		// behaviour `no-restricted-syntax` has to work around, wanted here — so this block

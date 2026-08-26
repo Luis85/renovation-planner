@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createPinia, type Pinia } from 'pinia';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import type { Component } from 'vue';
-import { discoverEntries, registrableComponents } from './entries';
+import { discoverEntries, prototypeEntries, registrableComponents } from './entries';
 import { harnessEditorContext, seedFixture } from './fixture';
 import { HARNESS_PLAN } from './planEditor';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
@@ -291,5 +293,57 @@ describe('two different components against one seeded world', () => {
 		expect(observed.statusBarText).not.toContain(HARNESS_PLAN.name);
 		expect(observed.rootHasCanvas).toBe(false);
 		expect(observed.rootMessage).toBe(true);
+	});
+});
+
+/** Every `.vue` under a directory, walked rather than globbed — the independent side. */
+function vueFilesUnder(directory: string, prefix = ''): string[] {
+	return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+		const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+		if (entry.isDirectory()) return vueFilesUnder(path.join(directory, entry.name), relative);
+
+		return entry.name.endsWith('.vue') ? [relative] : [];
+	});
+}
+
+/**
+ * Criterion 1, and the only case in this file that drives the real `import.meta.glob`.
+ *
+ * The test does NOT write the `.vue` file itself, and could not: `import.meta.glob` is resolved
+ * when Vite transforms this module, so a file created at run time is invisible to it and the
+ * assertion would fail for a reason that says nothing about registration. The file added by
+ * Step 1 is the one being added; what is asserted is that adding it to the TREE was the whole
+ * of adding it — nothing names it anywhere else.
+ *
+ * The id is mapped back to a path rather than the path forward to an id, deliberately: an
+ * expected id built by the test's own copy of `idFor` would be a second derivation agreeing
+ * with itself. The inverse is also the reversibility `idFor` claims when it keeps the path
+ * separator, so a flattened id would fail here.
+ *
+ * `src/prototypes` is resolved against `process.cwd()` rather than through `REPO`
+ * (`../helpers/oxlint`'s `fileURLToPath(new URL('../..', import.meta.url))`): this file runs
+ * under `@vitest-environment jsdom`, where `import.meta.url` for a module vitest transforms is
+ * not a `file:` URL and `fileURLToPath` throws `The URL must be of scheme file` before a single
+ * test runs — measured, not assumed. `harness.test.ts` and `fixture.test.ts` are the same
+ * jsdom-scoped file and already read the tree by a bare path (`'styles/chrome.css'`, …) for
+ * exactly this reason: `npm run check`'s vitest step runs from the repository root, so a path
+ * relative to `process.cwd()` is the one spelling that works in both environments.
+ */
+describe('the prototypes tree IS the registration', () => {
+	it('discovers every .vue on disk, with nothing registering them', () => {
+		const onDisk = vueFilesUnder(path.join(process.cwd(), 'src', 'prototypes')).toSorted();
+
+		// First, because an empty tree would make the equality below `[] === []` — vacuous, and
+		// exactly the "only passes while empty" failure the PBI's criterion 9 names.
+		expect(onDisk).toContain('ZoneSummary.vue');
+
+		// `toSorted`, not `sort`: `unicorn/no-array-sort` is on for `tests/` under
+		// `--deny-warnings`, which is what forced the same change in `entries.ts`.
+		const discovered = prototypeEntries()
+			.map((entry) => `${entry.id.replace(/^prototype:/, '')}.vue`)
+			.toSorted();
+
+		expect(discovered).toEqual(onDisk);
 	});
 });

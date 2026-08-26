@@ -11,12 +11,16 @@ today, the other lands in Task 2:
 
 - `eslint.config.mjs` bans the import from every other layer — checked at the forbidden thing,
   so it holds for code nobody has written yet. `tests/build/prototypes-one-way-door.test.ts`.
-- Task 2 adds `tests/build/prototypes-not-bundled.test.ts`, asserting against `dist/` and
-  catching the dynamic route lint cannot see. It will derive what to look for from THIS TREE —
-  no file here has to remember a marker, because a marker only ever proves the marker is absent.
+- Task 2 adds `tests/build/prototypes-not-bundled.test.ts`, running a real `vite build` in
+  memory (`write: false`, so it never touches `dist/`) and inspecting which modules composed
+  each chunk — catching the dynamic route lint cannot see. It derives what to look for from
+  THIS TREE: no file here has to remember a marker, because a marker only ever proves the
+  marker is absent.
 
 It is excluded from coverage (`vitest.config.ts`) because nothing ships it, and declared to
 fallow (`.fallowrc.json`) because `import.meta.glob` is a Vite feature its static graph cannot
 follow.
 
-Task 4 makes it reachable at `npm run harness`, from the index at the root.
+Task 4 makes it reachable at `npm run harness`, on the index page — opt-in at `?index` (or
+any `?entry=`), not at the bare URL, which keeps `npm run harness-shot`'s three fixed shots of
+the project surface addressable with no `view` parameter at all.

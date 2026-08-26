@@ -27,6 +27,12 @@
 	// dead. Declared as entries rather than as `dynamicallyLoaded` because they are modules
 	// that import other modules (a prototype composes real components), and fallow has to
 	// follow those edges or it reports the components dead instead.
+	// `tests/fixtures/promotion/ZoneSummary.promoted.vue` is a sixth kind: Task 7's
+	// `tests/build/prototype-promotion.test.ts` reads it with `readFileSync`, not `import`, so
+	// no import graph — static or dynamic — can ever reach it, the same way
+	// `type-safety.test-d.ts` above is read by `vue-tsc` rather than imported. Named rather
+	// than globbing `tests/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives
+	// about the concept stylesheets: a glob absorbs the next fixture and tells nobody.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",
@@ -35,7 +41,8 @@
 		"scripts/concept-shots.mjs",
 		"scripts/background-fixture.mjs",
 		"tests/presentation/editor/type-safety.test-d.ts",
-		"src/prototypes/**/*.vue"
+		"src/prototypes/**/*.vue",
+		"tests/fixtures/promotion/ZoneSummary.promoted.vue"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML
@@ -75,7 +82,15 @@
 	// and fails in a vault.
 	"ignoreDependencies": ["playwright-core", "@napi-rs/canvas", "konva"],
 	"duplicates": {
-		"ignore": ["tests/harness/obsidian.css"]
+		"ignore": ["tests/harness/obsidian.css"],
+		// The one clone group this repository WANTS: `src/prototypes/ZoneSummary.vue`'s
+		// `<template>` block and `tests/fixtures/promotion/ZoneSummary.promoted.vue`'s are
+		// byte-identical on purpose — that is the whole criterion
+		// `tests/build/prototype-promotion.test.ts` holds, so a clone-detector finding here is
+		// the feature working, not copy-paste to refactor away. `ignoredClones` rather than
+		// `ignore`, so only this REVIEWED pair is silenced and the two files still get every
+		// other duplication check a future edit to either might trip.
+		"ignoredClones": ["dup:7fd5d625:2"]
 	},
 	// The harness page's plugin stylesheet is SERVED, not imported: the dev server answers
 	// `/styles.css` from styles/ (scripts/vite-assembled-styles.mjs), so there is no file on

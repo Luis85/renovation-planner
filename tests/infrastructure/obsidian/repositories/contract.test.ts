@@ -7,11 +7,15 @@ import {
 } from '../../../helpers/vault';
 import { expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { assetRepositoryContract } from '../../../contracts/asset-repository.contract';
+import { requirementRepositoryContract } from '../../../contracts/requirement-repository.contract';
 import {
 	createPlanId,
 	type PlanId,
 } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
+import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
 import type { Plan } from '../../../../src/domain/plan/Plan';
 import type { Project } from '../../../../src/domain/project/Project';
@@ -254,4 +258,24 @@ describe('writing into a folder nothing has created yet', () => {
 
 		expect(expectOk(await stack.zones.listByPlan(plan.id))).toHaveLength(1);
 	});
+});
+
+assetRepositoryContract(() => {
+	const stack = createRepositoryStack();
+	return {
+		repository: stack.assets,
+		touch: (id) => handEdit(stack, id),
+		otherProject: () => createProjectId(),
+	};
+});
+
+requirementRepositoryContract(() => {
+	const stack = createRepositoryStack();
+	return {
+		repository: stack.requirements,
+		touch: (id) => handEdit(stack, id),
+		otherProject: () => createProjectId(),
+		newZone: () => createZoneId(),
+		newAsset: () => createAssetId(),
+	};
 });

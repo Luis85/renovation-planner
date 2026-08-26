@@ -36,6 +36,30 @@ const OWNED_KEYS = [
 	'background-kind',
 	'background-page',
 	'layers',
+	// Asset notes (design slice 10).
+	'category',
+	'supplier',
+	'sku',
+	'unit',
+	'unit-cost',
+	'currency',
+	'waste-factor-default',
+	'notes',
+	// Requirement notes (design slice 10) — including every `calculated-from-*` input,
+	// whose loss is invisible precisely because the read model keeps working without them.
+	'asset',
+	'origin-kind',
+	'origin-zone',
+	'waste-factor',
+	'quantity-calculated',
+	'quantity-override',
+	'cost-calculated',
+	'cost-override',
+	'calculated-from-area',
+	'calculated-from-unit-cost',
+	'calculated-from-asset-unit',
+	'recalculation-status',
+	'required-date',
 ] as const;
 
 /** 64-bit FNV-1a over UTF-8 bytes, hex-encoded — stable across sessions and platforms. */

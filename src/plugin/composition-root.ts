@@ -13,6 +13,25 @@ import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBa
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
+import { ReferenceLocks } from '../application/reference/ReferenceLocks';
+import { CreateAssetCommand } from '../application/commands/asset/CreateAsset';
+import { UpdateAssetCommand } from '../application/commands/asset/UpdateAsset';
+import { DeleteAssetCommand } from '../application/commands/asset/DeleteAsset';
+import { AssignAssetCommand } from '../application/commands/requirement/AssignAsset';
+import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
+import { SetRequirementQuantityOverrideCommand } from '../application/commands/requirement/SetRequirementQuantityOverride';
+import { SetRequirementCostOverrideCommand } from '../application/commands/requirement/SetRequirementCostOverride';
+import { DeleteRequirementCommand } from '../application/commands/requirement/DeleteRequirement';
+import { GetRequirementsForZone } from '../application/queries/GetRequirementsForZone';
+import { ListAssets } from '../application/queries/ListAssets';
+import { ListRequirementsReferencing } from '../application/queries/ListRequirementsReferencing';
+import { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
+import { registerOnZoneGeometryChanged } from '../application/event-handlers/requirement/onZoneGeometryChanged';
+import { registerOnAssetUpdated } from '../application/event-handlers/requirement/onAssetUpdated';
+import { ASSET_MIGRATIONS } from '../infrastructure/persistence/migration/entities/asset/asset.migrations';
+import { REQUIREMENT_MIGRATIONS } from '../infrastructure/persistence/migration/entities/requirement/requirement.migrations';
+import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import {
 	createPlanEditorQueries,
 	unavailablePlanEditorQueries,
@@ -25,6 +44,8 @@ import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
 import { GetZone } from '../application/queries/GetZone';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
+import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
+import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
@@ -107,6 +128,11 @@ export interface PersistenceServices {
 	readonly projects: ProjectRepository;
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
+	/** Design slice 10's catalog and link entities. */
+	readonly assets: AssetRepositoryPort;
+	readonly requirements: RequirementRepositoryPort;
+	/** The one reference-lock set per plugin; every command that links or unlinks shares it. */
+	readonly locks: ReferenceLocks;
 	readonly queries: QueryServices;
 	/** Does a raw Vault file exist — what `SetPlanBackgroundCommand` validates through. */
 	readonly files: VaultFileProbe;
@@ -146,6 +172,24 @@ export interface PersistenceServices {
 	readonly deleteZone: DeleteZoneCommand;
 	readonly moveZone: MoveSpatialObjectCommand;
 	readonly zoneInspector: GetZoneInspector;
+	/** Design slice 10's write side for assets and requirements. */
+	readonly createAsset: CreateAssetCommand;
+	readonly updateAsset: UpdateAssetCommand;
+	readonly deleteAsset: DeleteAssetCommand;
+	readonly assignAsset: AssignAssetCommand;
+	readonly recalculateRequirement: RecalculateRequirementCommand;
+	readonly setRequirementQuantityOverride: SetRequirementQuantityOverrideCommand;
+	readonly setRequirementCostOverride: SetRequirementCostOverrideCommand;
+	readonly deleteRequirement: DeleteRequirementCommand;
+	/** Slice 10's read side, beside the zone inspector query. */
+	readonly requirementQueries: {
+		readonly getRequirementsForZone: GetRequirementsForZone;
+		readonly listAssets: ListAssets;
+		readonly listRequirementsReferencing: ListRequirementsReferencing;
+		readonly listReassignmentTargets: ListReassignmentTargets;
+	};
+	/** Subscriptions the plugin must dispose on unload; filled at composition time. */
+	readonly subscriptions: { dispose(): void }[];
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -158,6 +202,96 @@ export interface VaultStack {
 	readonly vault: Vault;
 	readonly fileManager: FileManager;
 	readonly metadataCache: MetadataCache;
+}
+
+interface Slice10Wiring {
+	readonly zones: ZoneRepository;
+	readonly assets: AssetRepositoryPort;
+	readonly requirements: RequirementRepositoryPort;
+	readonly recalculate: RecalculateRequirementCommand;
+	readonly events: EventBus;
+	readonly locks: ReferenceLocks;
+	readonly logger: Logger;
+}
+
+/**
+ * Design slice 10's write side, read side, and cascade handlers, composed as ONE block —
+ * the same seam discipline as every other service here, kept out of
+ * `createCompositionRoot`'s own body only by the size budget every function shares.
+ */
+function composeSlice10(wiring: Slice10Wiring) {
+	const { zones, assets, requirements, recalculate, events, locks, logger } = wiring;
+
+	const subscriptions: { dispose(): void }[] = [
+		registerOnZoneGeometryChanged(events, {
+			requirements,
+			events,
+			logger,
+			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
+		}),
+		registerOnAssetUpdated(events, {
+			requirements,
+			assets,
+			events,
+			logger,
+			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
+		}),
+	];
+
+	return {
+		createAsset: new CreateAssetCommand(assets, events),
+		updateAsset: new UpdateAssetCommand(assets, requirements, events, locks),
+		deleteAsset: new DeleteAssetCommand({
+			assets,
+			requirements,
+			recalculate,
+			events,
+			locks,
+			logger,
+		}),
+		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
+		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events),
+		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events),
+		deleteRequirement: new DeleteRequirementCommand(requirements),
+		queries: {
+			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets),
+			listAssets: new ListAssets(assets),
+			listRequirementsReferencing: new ListRequirementsReferencing(requirements),
+			listReassignmentTargets: new ListReassignmentTargets(zones, assets),
+		},
+		subscriptions,
+	};
+}
+
+function composeRepositories(
+	deps: NoteVaultDeps,
+	vault: VaultStack,
+	index: ProjectIndex,
+	migrations: MigrationRunner,
+	echo: EchoWindow,
+) {
+	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
+	return {
+		geometryStore,
+		projects: new ObsidianProjectRepository(deps),
+		plans: new ObsidianPlanRepository(deps, geometryStore),
+		zones: new ObsidianZoneRepository(deps, geometryStore),
+		assets: new ObsidianAssetRepository(deps),
+		requirements: new ObsidianRequirementRepository(deps),
+	};
+}
+/** The read side every view and command consumes; one composition, no second wiring point. */
+function composeQueryServices(
+	zones: ZoneRepository,
+	plans: PlanRepository,
+	projects: ProjectRepository,
+): QueryServices {
+	return {
+		getProject: new GetProject(projects),
+		getPlan: new GetPlan(plans),
+		getZone: new GetZone(zones),
+		findZonesByPlan: new FindZonesByPlan(zones),
+	};
 }
 
 export function createCompositionRoot(
@@ -178,11 +312,12 @@ export function createCompositionRoot(
 
 	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
-
 	const migrations = createMigrationRunner({
 		project: PROJECT_MIGRATIONS,
 		plan: PLAN_MIGRATIONS,
 		zone: ZONE_MIGRATIONS,
+		asset: ASSET_MIGRATIONS,
+		requirement: REQUIREMENT_MIGRATIONS,
 		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
 	});
 
@@ -196,30 +331,15 @@ export function createCompositionRoot(
 		logger,
 		projectFolder: settings.projectFolder,
 	};
+	const { geometryStore, projects, plans, zones, assets, requirements } = composeRepositories(deps, vault, index, migrations, echo);
 
-	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
-	const projects = new ObsidianProjectRepository(deps);
-	const plans = new ObsidianPlanRepository(deps, geometryStore);
-	const zones = new ObsidianZoneRepository(deps, geometryStore);
-
-	const queries: QueryServices = {
-		getProject: new GetProject(projects),
-		getPlan: new GetPlan(plans),
-		getZone: new GetZone(zones),
-		findZonesByPlan: new FindZonesByPlan(zones),
-	};
-
+	// One lock set per plugin: assignment, unit changes and delete resolutions across
+	// every view serialize against the same keys.
+	const locks = new ReferenceLocks();
+	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus);
+	const slice10 = composeSlice10({ zones, assets, requirements, recalculate, events: eventBus, locks, logger });
+	const queries = composeQueryServices(zones, plans, projects);
 	const files = createVaultFileProbe(vault.vault);
-	const setPlanBackground = new SetPlanBackgroundCommand(plans, files, eventBus);
-
-	const changeAdapter = new VaultChangeAdapter({
-		vault: vault.vault,
-		metadataCache: vault.metadataCache,
-		index,
-		echo,
-		logger,
-		projectFolder: settings.projectFolder,
-	});
 
 	return {
 		settings,
@@ -233,21 +353,52 @@ export function createCompositionRoot(
 			projects,
 			plans,
 			zones,
+			assets,
+			requirements,
+			locks,
 			queries,
 			files,
 			createProject: new CreateProjectCommand(projects, eventBus),
 			createPlan: new CreatePlanCommand(plans, projects, eventBus),
 			createZone: new CreateZoneCommand(zones, plans, eventBus),
 			planEditorQueries: createPlanEditorQueries(queries),
-			setPlanBackground,
-			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(setPlanBackground, plans),
-			deleteZone: new DeleteZoneCommand(zones, eventBus),
+			setPlanBackground: new SetPlanBackgroundCommand(plans, files, eventBus),
+			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(
+				new SetPlanBackgroundCommand(plans, files, eventBus),
+				plans,
+			),
+			deleteZone: new DeleteZoneCommand({
+				zones,
+				requirements,
+				recalculate,
+				events: eventBus,
+				locks,
+				logger,
+			}),
 			moveZone: new MoveSpatialObjectCommand(zones, eventBus),
 			zoneInspector: new GetZoneInspector(zones),
-			changeAdapter,
+			createAsset: slice10.createAsset,
+			updateAsset: slice10.updateAsset,
+			deleteAsset: slice10.deleteAsset,
+			assignAsset: slice10.assignAsset,
+			recalculateRequirement: recalculate,
+			setRequirementQuantityOverride: slice10.setRequirementQuantityOverride,
+			setRequirementCostOverride: slice10.setRequirementCostOverride,
+			deleteRequirement: slice10.deleteRequirement,
+			requirementQueries: slice10.queries,
+			subscriptions: slice10.subscriptions,
+			changeAdapter: new VaultChangeAdapter({
+				vault: vault.vault,
+				metadataCache: vault.metadataCache,
+				index,
+				echo,
+				logger,
+				projectFolder: settings.projectFolder,
+			}),
 		},
 	};
 }
+
 
 /**
  * The Plan Editor's own dependency bundle, assembled from a composed root.

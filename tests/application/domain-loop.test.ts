@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { makeDeleteZoneCommand } from '../helpers/slice10';
 import { ReversibleCalibratePlanCommand } from '../../src/application/commands/plan/ReversibleCalibratePlan';
 import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
-import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import { GetPlan } from '../../src/application/queries/GetPlan';
 import { GetProject } from '../../src/application/queries/GetProject';
@@ -73,7 +73,7 @@ describe('the domain loop, end to end', () => {
 			}),
 		);
 
-		expectOk(await new DeleteZoneCommand(zones, events).execute({ zoneId: created.id }));
+		expectOk(await makeDeleteZoneCommand(zones, events).execute({ zoneId: created.id }));
 
 		// Queries read what the commands left behind.
 		const queriedProject = await new GetProject(projects).execute({ projectId: project.id });

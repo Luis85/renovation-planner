@@ -13,7 +13,13 @@ import type { ProjectId } from '../../domain/project/ProjectId';
  * of the list — three spellings of one vocabulary, with nothing to notice them drifting.
  * Same shape as `UNITS`/`Units` in the settings module.
  */
-export const ENTITY_TYPES = ['renovation-project', 'renovation-plan', 'renovation-zone'] as const;
+export const ENTITY_TYPES = [
+	'renovation-project',
+	'renovation-plan',
+	'renovation-zone',
+	'renovation-asset',
+	'renovation-requirement',
+] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 /**

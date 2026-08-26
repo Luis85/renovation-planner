@@ -15,6 +15,8 @@ export const GEOMETRY_FOLDER = 'Geometry';
 
 const PLANS_FOLDER = 'Plans';
 const ZONES_FOLDER = 'Zones';
+const ASSETS_FOLDER = 'Assets';
+const REQUIREMENTS_FOLDER = 'Requirements';
 
 /** The user-editable setting passes through `normalizePath` before any Vault call. */
 export function normalizeFolder(raw: string): string {
@@ -41,6 +43,15 @@ export function plansFolderFor(projectFolder: string): string {
 
 export function zonesFolderFor(projectFolder: string): string {
 	return `${projectFolder}/${ZONES_FOLDER}`;
+}
+
+/** PRD §36 names both new folders; neither owns a sidecar. */
+export function assetsFolderFor(projectFolder: string): string {
+	return `${projectFolder}/${ASSETS_FOLDER}`;
+}
+
+export function requirementsFolderFor(projectFolder: string): string {
+	return `${projectFolder}/${REQUIREMENTS_FOLDER}`;
 }
 
 export function sidecarPathFor(projectFolder: string, planId: PlanId | string): string {

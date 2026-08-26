@@ -109,6 +109,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 			this.vaultStack,
 		);
+		// The cascade handlers registered at composition time are the first thing unload
+		// must stop — a geometry edit arriving during teardown must not start a write.
+		this.disposers.push(() => {
+			for (const subscription of this.root.persistence?.subscriptions ?? []) {
+				subscription.dispose();
+			}
+		});
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.

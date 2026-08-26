@@ -12,6 +12,8 @@ import { PLAN_GEOMETRY_MIGRATIONS } from '../../src/infrastructure/persistence/m
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
+import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { PlanGeometryStore } from '../../src/infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { Line, Logger } from './logger';
 
@@ -279,6 +281,8 @@ export interface RepositoryStack {
 	projects: ObsidianProjectRepository;
 	plans: ObsidianPlanRepository;
 	zones: ObsidianZoneRepository;
+	assets: ObsidianAssetRepository;
+	requirements: ObsidianRequirementRepository;
 	projectFolder: string;
 	/** Rebuilds the index from the vault contents — the scan the plugin runs at load. */
 	rebuildIndex(): void;
@@ -335,6 +339,8 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		projects: new ObsidianProjectRepository(deps),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
+	assets: new ObsidianAssetRepository(deps),
+	requirements: new ObsidianRequirementRepository(deps),
 		projectFolder,
 		rebuildIndex() {
 			index.rebuild(

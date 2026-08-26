@@ -6,6 +6,8 @@ export const LATEST_VERSIONS: Record<string, number> = {
 	project: 1,
 	plan: 1,
 	zone: 1,
+	asset: 1,
+	requirement: 1,
 	'plan-geometry': 1,
 };
 

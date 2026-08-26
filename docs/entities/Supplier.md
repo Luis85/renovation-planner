@@ -2,7 +2,6 @@
 name: Supplier
 layer: domain
 persistence: note
-partOf: "[[Project]]"
 sources:
   - PRD §10
   - PRD §22
@@ -29,16 +28,24 @@ suppliers competing, and the reason to compare [[Quote]]s at all is that both ar
 
 ## Identity and persistence
 
-A Markdown note (§36's `Suppliers/`) with a stable `id` (§60). Contact details in
-frontmatter, everything else — what they were like, what they got wrong — in the body, where
-prose belongs.
+A Markdown note in the library folder's `Suppliers/` (§83, §36) with a stable `id` (§60).
+Contact details in frontmatter, everything else — what they were like, what they got wrong — in the
+body, where prose belongs. It carries **no project id**
+([[Work belongs to one project, catalogues belong to the vault]]).
 
 ## Relationships
 
-- Belongs to exactly one [[Project]] (§59). Not a global address book.
+- Belongs to **no** [[Project]] (§59, amended 2026-08-26). It *is* an address book, shared
+  across projects: a builders' merchant does not stop existing between renovations, and retyping
+  one is the friction this change removes. What they quoted, delivered and invoiced still belongs
+  to the project that asked.
 - Gives 0..n [[Quote]].
 - Receives 0..n [[Order]], sends 0..n [[Invoice]].
-- Aggregates [[Cost item]]s across everything bought from them (§10).
+- Aggregates [[Cost item]]s across everything bought from them **within one project** (§10). The
+  supplier is shared; the total is not. A rollup spanning two projects would mix two currencies
+  (§72) and belong to no budget — which is what
+  [[Work belongs to one project, catalogues belong to the vault]] means when it says a catalogue
+  entry enters no rollup of its own.
 - Covers 0..n [[Trade]], and supplies 0..n [[Asset]].
 
 ## Rules

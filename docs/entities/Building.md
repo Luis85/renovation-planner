@@ -40,7 +40,7 @@ project where the building and the site are the same thing.
 
 ## Business rules that reach this entity
 
-[[Every entity resolves to exactly one project]]
+[[Work belongs to one project, catalogues belong to the vault]]
 
 ## Sources
 

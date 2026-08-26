@@ -24,8 +24,9 @@ the path would make the plugin's data quietly hostile to normal use of the edito
 **Where it holds.** Every repository in `infrastructure/` resolves by `id`; a rename is a
 [[A manual edit in the vault is never silently overwritten|vault event]] to be absorbed, not a
 delete followed by a create. [[Zone]] states the same rule from its own side, and [[Project]]
-adds the scoping half: every other entity resolves to exactly one project, and there is no
-cross-project reference.
+adds the scoping half: a project owns its *work* and no reference crosses between two projects'
+work, while the three catalogues are shared and owned by none — the two halves of
+[[Work belongs to one project, catalogues belong to the vault]].
 
 **Checked by.** Not yet. Slice 04 owns persistence and the rename path.
 

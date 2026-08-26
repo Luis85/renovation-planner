@@ -48,3 +48,9 @@ An item beneath this epic is done when:
   is kept as written.
 - The catalog is searchable, and reachable through Bases (§41) rather than only through this
   plugin's own views.
+- **A project can record its own price against a shared definition**, as an override stored
+  beside the shared default rather than replacing it (§89). The definition is shared across
+  projects (§59) and the currency is not (§72), so a project whose currency differs from an
+  asset's default has no other way to price it — and [[Quotes and quote items]], which would
+  otherwise be that way, is V1 while this epic is MVP. An epic that shares a catalogue owes the
+  projects that share it a way to disagree about price.

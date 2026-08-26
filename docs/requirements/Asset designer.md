@@ -100,12 +100,15 @@ An item beneath this epic is done when:
   to state this differently.
 - A designed object round-trips as plain Markdown plus a geometry sidecar, readable and useful
   with the plugin uninstalled (§3.2), and a renovator's own words for a category or a kind of
-  object survive the round trip unchanged (§84). **Where that sidecar lives is a question this
-  epic does not answer, and ADR-011 does not answer it either**: that ADR scopes geometry to one
-  `.rpgeo` file per *plan*, named by the plan's id and carrying a `planId`, on ADR-002's
-  per-plan-not-per-spatial-object rule. A footprint belonging to a definition that many plans
-  reference cannot live in any one of their sidecars without breaking the correct-it-once
-  guarantee this epic exists for. What is ruled out is the *plan* scope and only that: an
-  [[Asset]] belongs to exactly one [[Project]] (§59), so a location inside that project's own
-  `Geometry/` folder is available in principle. An asset-scoped storage decision is owed to
-  `docs/adrs/` beside the surface decision above.
+  object survive the round trip unchanged (§84). **That sidecar lives with the shared library, not
+  with any plan and not with any project**, which follows from where its definition lives: §59 as
+  amended makes [[Asset]] a catalogue shared across projects, in the library folder's `Assets/`
+  (§83)
+  ([[Work belongs to one project, catalogues belong to the vault]]). Neither scope ADR-011 offers
+  will do — that ADR puts one `.rpgeo` per *plan*, named by the plan's id and carrying a `planId`,
+  on ADR-002's per-plan-not-per-spatial-object rule, inside a *project's* `Geometry/` folder — and
+  a footprint many plans across many projects reference cannot live in any one of their sidecars
+  without breaking the correct-it-once guarantee this epic exists for. **What is still owed to
+  `docs/adrs/`, beside the surface decision above, is the file layout rather than the scope**: what
+  an asset's geometry file is called, what it carries in place of a `planId`, and whether it sits
+  beside its note or in a `Geometry/` folder of the library's own.

@@ -53,6 +53,8 @@ const subjectOf = (branch: Selector): SelectorComponent[] =>
  * beside the key and is asked only at the moment a ring would clear a flatten.
  */
 interface Conditions {
+	/** The `@media`/`@supports`/`@container` query the rule sits inside, or `''` for none. */
+	readonly condition: string;
 	/** Everything above the subject, rendered losslessly — combinators included. */
 	readonly ancestors: string;
 	/** The subject's own components, each rendered on its own, minus the focus pseudo. */
@@ -64,7 +66,7 @@ interface FocusSite {
 	readonly conditions: Conditions;
 }
 
-const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean): FocusSite[] => {
+const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
 	const subject = subjectOf(branch).filter(
@@ -79,6 +81,7 @@ const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean): F
 	// hold the same compounds and match different elements — every nested `.button` is flattened by
 	// the first and unreachable by the second — and a list of compounds is identical for both.
 	const conditions: Conditions = {
+		condition,
 		ancestors: show(branch.slice(0, branch.length - subjectOf(branch).length)),
 		subject: subject.map((component) => show([component])),
 	};
@@ -132,8 +135,13 @@ const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean): F
  * is the safe direction for a gate about a MISSING focus indicator.
  */
 const covers = (ring: Conditions, flattened: Conditions): boolean =>
+	// The at-rule the ring sits inside is a condition like the rest, and behaves like the ancestor
+	// chain: none at all covers everything, the same one covers itself, anything else is refused. A
+	// ring inside `@media (prefers-color-scheme: dark)` leaves the button bare in light mode, and
+	// flattening it unconditionally is exactly what a check reading a flat list of rules cannot see.
+	(ring.condition === '' || ring.condition === flattened.condition) &&
 	(ring.ancestors === '' || ring.ancestors === flattened.ancestors) &&
-	ring.subject.every((condition) => flattened.subject.includes(condition));
+	ring.subject.every((one) => flattened.subject.includes(one));
 
 /**
  * The button classes a stylesheet FLATTENS without giving back a ring, each mapped to where.
@@ -208,7 +216,7 @@ const flattenedWithoutRing = (
 					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
 				);
 
-				for (const { key, conditions } of focusSites(branch, classes, ringsFocus && !draws)) {
+				for (const { key, conditions } of focusSites(branch, classes, ringsFocus && !draws, rule.condition)) {
 					if (ringsFocus) {
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
 						// says so and this call site said otherwise. `:where()` contributes ZERO, argument
@@ -368,6 +376,21 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a type-targeted reset outranking a class-targeted ring',
 			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog.rp-dialog button:focus-visible { outline: none; }',
+		],
+		// The ring only exists in one colour scheme; the suppression exists in both. A flat list of
+		// rules cannot see the difference — the at-rule and the rules inside it are visited
+		// separately and nothing links them, so the ring arrived looking unconditional.
+		[
+			'a ring that only exists in dark mode',
+			'.rp-dialog-button { box-shadow: none; } @media (prefers-color-scheme: dark) { .rp-dialog-button:focus-visible { outline: 2px solid red; } }',
+		],
+		[
+			'a ring that only exists in a narrow container',
+			'.rp-dialog-button { box-shadow: none; } @container (max-width: 700px) { .rp-dialog-button:focus-visible { outline: 2px solid red; } }',
+		],
+		[
+			'a ring conditioned differently from the rule that flattened',
+			'@media (prefers-color-scheme: light) { .rp-dialog-button { box-shadow: none; } } @media (prefers-color-scheme: dark) { .rp-dialog-button:focus-visible { outline: 2px solid red; } }',
 		],
 		// `:where()` contributes ZERO specificity, argument included, so this ring ties the reset that
 		// follows it and the LATER one wins. Scored from the expanded branch it looked ID-specific,
@@ -532,6 +555,18 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a type-targeted reset the class-targeted ring outranks',
 			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; } button:focus-visible { outline: none; }',
+		],
+		// Both under the SAME query is the same world, and must stay silent — or the at-rule test has
+		// become "a ring inside any at-rule never counts", which would refuse every responsive sheet.
+		[
+			'a ring under the same query as the rule that flattened',
+			'@media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } }',
+		],
+		// An unconditional ring covers a conditional flattening rule: it applies wherever that one
+		// does, and everywhere else besides.
+		[
+			'an unconditional ring over a conditional flattening rule',
+			'@media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
 		// And a type-targeted FLATTENING rule must not be filed under every class — that would demand
 		// each class's ring answer for a rule that may not reach it.

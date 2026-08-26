@@ -31,10 +31,19 @@ import { transform, type Declaration, type Selector, type SelectorComponent, typ
  * of being tangled up with the business of finding a bracket.
  */
 
-/** A style rule as these checks need it: its selector list, and its declarations. */
+/** Where a rule sits in its source, used only to match a nested rule against its at-rule parent. */
+const sourceKey = (loc: { line: number; column: number }): string => `${String(loc.line)}:${String(loc.column)}`;
+
+/** A style rule as these checks need it: its selector list, its declarations, and its CONDITION. */
 export interface StyleRule {
 	readonly selectors: SelectorList;
 	readonly declarations: readonly Declaration[];
+	/**
+	 * The `@media`/`@supports`/`@container` query this rule sits inside, or `''` for one that
+	 * always applies. An identity rather than prose — callers compare it, nothing reads it — so it
+	 * is the parsed query serialized, not a rendering of the source text.
+	 */
+	readonly condition: string;
 }
 
 /**
@@ -50,6 +59,21 @@ export interface StyleRule {
  */
 export function stylesheetRules(css: string): StyleRule[] {
 	const rules: StyleRule[] = [];
+	// A conditional at-rule and the style rules inside it are visited SEPARATELY, parent first and
+	// with nothing linking them — so a rule that only applies in dark mode arrived looking
+	// unconditional. `styles/work-packages.css` has a real `@container` block, so this is not
+	// hypothetical. The parent's visit records its descendants by source location; the child's own
+	// visit then finds its condition waiting.
+	const conditions = new Map<string, string>();
+
+	const markNested = (nested: readonly { type: string; value: unknown }[], condition: string): void => {
+		for (const rule of nested) {
+			const value = rule.value as { loc?: { line: number; column: number }; rules?: { type: string; value: unknown }[] };
+
+			if (rule.type === 'style' && value.loc !== undefined) conditions.set(sourceKey(value.loc), condition);
+			if (value.rules !== undefined) markNested(value.rules, condition);
+		}
+	};
 
 	transform({
 		filename: 'read.css',
@@ -57,14 +81,20 @@ export function stylesheetRules(css: string): StyleRule[] {
 		errorRecovery: true,
 		visitor: {
 			Rule(rule) {
+				if (rule.type === 'media' || rule.type === 'supports' || rule.type === 'container') {
+					const { rules: nested, ...query } = rule.value as { rules: { type: string; value: unknown }[] };
+
+					markNested(nested, JSON.stringify(query));
+
+					return undefined;
+				}
+
 				if (rule.type !== 'style') return undefined;
 
 				rules.push({
 					selectors: rule.value.selectors,
-					declarations: [
-						...rule.value.declarations.declarations,
-						...rule.value.declarations.importantDeclarations,
-					],
+					declarations: [...rule.value.declarations.declarations, ...rule.value.declarations.importantDeclarations],
+					condition: conditions.get(sourceKey(rule.value.loc)) ?? '',
 				});
 
 				return undefined;

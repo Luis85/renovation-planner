@@ -253,7 +253,16 @@
 	border-right: 1px solid var(--background-modifier-border);
 }
 
+/*
+ * Wider than the layers panel since slice 10, and the two therefore stopped sharing a
+ * width. The Requirements panel puts two labelled text inputs and four buttons per row in
+ * here; at 12rem those wrap to one control per line and a three-requirement zone is taller
+ * than the pane. The number is a judgement rather than a measurement — jsdom lays nothing
+ * out, and the harness draws this panel EMPTY (its fixture selects no zone), so no gate
+ * here has seen a populated row. `npm run test-build` is where it gets looked at.
+ */
 .rp-editor-inspector {
+	width: 17rem;
 	border-left: 1px solid var(--background-modifier-border);
 }
 
@@ -363,4 +372,84 @@
 	flex: 0 0 auto;
 	min-width: var(--size-4-8);
 	text-align: right;
+}
+
+/*
+ * Design slice 10's Requirements panel. Everything below is inside `.rp-editor-inspector`,
+ * which already scrolls — these rules give the rows structure and keep the override
+ * controls from inheriting Obsidian's document-width form defaults.
+ */
+.rp-editor-panel-subtitle {
+	margin: var(--size-4-3) 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	line-height: var(--line-height-tight);
+}
+
+.rp-editor-requirement-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rp-editor-requirement {
+	padding: var(--size-4-2) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * A persisted state the user has to resolve, not an event that just happened — slice 17
+ * routes it as a badge rather than a toast, which is what this rule renders.
+ */
+.rp-editor-requirement-stale {
+	margin: 0 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+
+.rp-editor-requirement-badge {
+	margin-left: var(--size-4-1);
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	border-radius: var(--radius-s);
+}
+
+.rp-editor-requirement-overrides,
+.rp-editor-requirement-assign {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	align-items: center;
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-editor-requirement-assign {
+	margin-top: var(--size-4-3);
+}
+
+/*
+ * `width: 100%` on the labels is what puts each control on its own line inside the wrapping
+ * flex row above, so a label never ends up beside the input belonging to the field after it.
+ */
+.rp-editor-requirement-overrides label,
+.rp-editor-requirement-assign label {
+	width: 100%;
+	color: var(--text-muted);
+}
+
+.rp-editor-requirement-overrides input,
+.rp-editor-requirement-assign select {
+	flex: 1;
+	min-width: 0;
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-editor-requirement-overrides button,
+.rp-editor-requirement-assign button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
 }

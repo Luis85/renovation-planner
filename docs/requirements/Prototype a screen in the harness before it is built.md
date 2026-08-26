@@ -1,11 +1,11 @@
 ---
 type: PBI
 parent: "[[User Interface]]"
-order: 70
+order: -10
 status: New
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: MVP
 start: ""
 due: ""
 risk: ""

@@ -85,6 +85,12 @@ const plant = (contents: string) => {
 	return file;
 };
 
+/**
+ * What one SFC may cost the edit-loop hook before the suite calls it broken. See the docblock
+ * on the first SFC case for why this is measured against the tree rather than the fixture.
+ */
+const SFC_LINT_BUDGET = 60_000;
+
 describe('the edit-loop hook', () => {
 	it('tells the agent what oxlint found, on the code that reaches the agent', () => {
 		const { code, said } = hook(edited(plant(OFFENCE)));
@@ -118,6 +124,26 @@ describe('the edit-loop hook', () => {
 	 * flat config resolves `files` globs against the project, so a temp-directory path — what
 	 * `plant` produces for every other case here — matches no block and would be reported as
 	 * nothing at all. Removed in `afterEach` whatever happens.
+	 *
+	 * **Both SFC cases carry their own timeout, and the number is a measurement rather than a
+	 * cushion.** ESLint's ruleset here is type-aware, so its project service loads the whole of
+	 * `src/` before it can answer for one file — which means this test's cost tracks the SIZE of
+	 * the tree, not the size of the fixture. It was about 2.5s when the hook was built and is
+	 * 5.4s now that slice 10's modules are in `src/`, so it crossed vitest's 5000ms default by
+	 * growth alone and failed with a timeout that named nothing.
+	 *
+	 * **Measure it under the suite, not on its own, and this is the paragraph that says why.**
+	 * The first repair here budgeted three times the ISOLATED cost and failed again at 15s: the
+	 * gate runs 173 files across parallel workers, and this case shells out to a second linter
+	 * that competes with all of them for CPU. Measured with `--reporter=verbose` over the whole
+	 * suite it is **17.2s** and **13.4s**, against 5.4s alone — so the isolated figure is not
+	 * the one this budget is for. 60s is roughly 3.5× the loaded measurement: high enough that
+	 * ordinary growth and a busier machine do not turn a green suite red, low enough that a
+	 * hook which genuinely HANGS still fails instead of blocking the gate for ten minutes.
+	 *
+	 * Re-measure it, do not raise it blindly, if it starts failing again — under the suite, and
+	 * the thing it is really watching is whether this hook is still cheap enough to sit in the
+	 * edit loop, where the number that matters is the 5.4s one.
 	 */
 	it('tells the agent what ESLint found in an SFC, which oxlint cannot see at all', () => {
 		const spaced = '<template>\n  <p>x</p>\n</template>\n';
@@ -126,7 +152,7 @@ describe('the edit-loop hook', () => {
 
 		expect(said).toContain('vue/html-indent');
 		expect(code).toBe(2);
-	});
+	}, SFC_LINT_BUDGET);
 
 	// The other direction, so the case above is not passing because ESLint reports on every SFC:
 	// a conforming template must still come back silent.
@@ -134,7 +160,7 @@ describe('the edit-loop hook', () => {
 		const tabbed = '<template>\n\t<p>x</p>\n</template>\n';
 
 		expect(hook(edited(plantSfc(tabbed)))).toEqual({ code: 0, said: '' });
-	});
+	}, SFC_LINT_BUDGET);
 
 	/**
 	 * Fails OPEN, on every internal failure. A hook that failed closed on its own bug

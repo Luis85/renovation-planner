@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DeleteZoneCommand } from '../../../../src/application/commands/zone/DeleteZone';
+import { makeDeleteZoneCommand, zoneUndoDeps } from '../../../helpers/slice10';
 import { ReversibleDeleteZoneCommand } from '../../../../src/application/commands/zone/reversible-delete-zone-command';
 import { SessionWriteLedger, type WriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -45,10 +45,11 @@ describe('ReversibleDeleteZoneCommand', () => {
 		await zones.save(zone, 'absent');
 		const makeCommand = () =>
 			new ReversibleDeleteZoneCommand(
-				new DeleteZoneCommand(zones, events),
+				makeDeleteZoneCommand(zones, events),
 				zones,
 				ledger,
 				{ zoneId: zone.id },
+				zoneUndoDeps(),
 			);
 		return { zones, events, zone, ledger, makeCommand };
 	};

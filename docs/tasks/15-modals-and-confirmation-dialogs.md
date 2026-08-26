@@ -71,18 +71,44 @@ The framework is complete and in use: `DialogStore`, `DialogHost`, all four kind
 trap, `Escape`, background `inert`, focus restoration, the stacking guard, the import
 boundary and its meta-test. Definition of Done items 1, 2, 3, 4, 5, 7, 9, 10 and 11 are met.
 
-**Items 6, 8 and 8a are NOT met, and were not attempted.** They are the Zone-delete worked
-example, and every collaborator they name — `ListRequirementsReferencing`,
+**Items 8 and 8a were met by slice 10 (2026-08-26); items 6 and 6a were not.** All four are
+the Zone-delete worked example, and every collaborator they name — `ListRequirementsReferencing`,
 `ListReassignmentTargets`, and a `reversibleDeleteZone` taking `resolution` /
 `resolvedReferents` and refusing with `reference.set-changed` — belongs to slice 10, which
 was in flight while this slice was built. Declaring those shapes here would have been a
 second derivation of contracts slice 10 owns, which this document's own "Out of scope"
-section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` are built and tested and
-have no production caller for the same reason: that is the plan, not dead code.
+section forbids. `DeleteReferenceDialog` and `EntityPickerDialog` were built and tested with
+no production caller for the same reason: that was the plan, not dead code.
 
-The Inspector's Delete button still dispatches straight through `InspectorStore.commit`'s
-`toCommand`, unchanged. Wiring it to `DeleteReferenceDialog` is slice 10's closing task;
-this sentence stays until it happens.
+**Both have a caller now.** `presentation/editor/deleteZoneFlow.ts` is it, reached from the
+Inspector's Delete button through `runtime.ts`'s `createDeleteZoneAction`. Items 8 and 8a are
+covered where that flow lives: `tests/presentation/editor/deleteZoneFlow.test.ts` asserts the
+decisions on the COMMAND INPUT (a zero count carries no `resolution`; every resolution carries
+the exact `resolvedReferents` the row was built from; `reference.set-changed` re-asks once and
+a second one is surfaced), and
+`tests/presentation/editor/shell/deleteZoneWithReferences.test.ts` drives the real mounted
+editor with the real `DialogHost` — which is what would catch a flow with the right logic and
+a query nobody passed it.
+
+**Item 6 stayed open, and it stayed open because it changed underneath that flow.** The
+shared-catalogue amendment (§59, 2026-08-26) rewrote it after `deleteZoneFlow.ts` was built:
+it now asks for referents grouped **per project**, each group carrying `projectName` and — for
+any group whose name is not unique on screen — `projectPath`. `ListRequirementsReferencing`
+returns a flat `readonly RequirementId[]`, so nothing downstream can build those rows. The
+flow satisfies the item this document carried when it was written and not the item it carries
+now, which is the honest state and not a regression in the flow.
+
+Item **6a** is unmet for a different reason again, and it is worth separating: `t`
+interpolation is not slice 10's, it is this slice's own, and it was not built because nothing
+had asked for it — every string the framework itself renders is fixed text, and the first
+interpolated one is item 6's row label. So it lands when item 6 does. `t(language, key)` in
+`src/presentation/i18n/strings.ts` still takes two arguments; the executable example below
+spells the three-argument form the row label needs, and that is a specification rather than a
+description of what ships today.
+
+**Both land in
+[19 — The Asset Catalogue Leaves the Project](19-the-asset-catalogue-leaves-the-project.md)**,
+because the amendment that rewrote item 6 is the one that slice implements.
 
 **What this slice DID reach:** `CalibrateTool`, which slice 7 built and slice 8 shipped
 registered nowhere. It is in `registerEditorTools` and in the toolbar now, its recalibration
@@ -145,6 +171,14 @@ zone goes, which is what `entityLabel` is a required resolved string for.
   already computed, and resolves to one of the four PRD §64 actions.
 - The modal-stacking rule: one dialog at a time, enforced by `DialogStore` itself, with
   a stated rationale.
+- **Placeholder interpolation in `t`**, because this slice is the first thing in the
+  plugin that needs a user-facing string with a value inside it: the reference rows name
+  a project. Every string shipped before this one is fixed text, which is why
+  `t(language, key)` takes no parameters today. This slice cannot compose the label from
+  fragments instead — its own call-site rule is that a COMPLETE label is resolved through
+  `t()`, since word order and punctuation around an interpolated name are the
+  translator's to choose — so the row label and the interpolation arrive together or
+  neither does. See *Interpolation* under Interfaces & Contracts.
 
 ### Out of scope (covered by other slices)
 
@@ -386,7 +420,10 @@ ListRequirementsReferencing({ kind: 'zone', zoneId })   — slice 10's QUERY, no
                                                             never holds a repository
                                                             handle (§58, §59)
   ↓
-referents.length === 0?
+groups.length === 0?    — the query returns referents GROUPED BY PROJECT (slice 10).
+                          A Zone always yields exactly one group; the shape is what lets
+                          the Asset flow show a row per project. A group is never empty,
+                          so zero groups means zero referents.
   yes → dispatch the delete command with NO resolution — the form slice 10's table
         makes safe: the command refuses with a ReferenceError if referents exist after
         all. Whether a plain ConfirmDialog precedes that dispatch is the caller's
@@ -395,16 +432,21 @@ referents.length === 0?
   no  → dialogStore.openDialog({
           kind: 'delete-reference',
           entityLabel: zone.name,
-          references: [{ label: t(lang, 'entity.requirement.plural'),
-                         count: referents.length }],
+          references: groups.map((g) => ({
+            label: <the project's name, plus its path when that name is not
+                     unique among these groups — one `t()` key per form; the
+                     executable example below is the spelling>,
+            count: g.requirementIds.length,
+          })),
         })
   ↓
 await result
   ↓
 switch (result.action) { cancel | remove-references | reassign | delete-anyway }
   → the chosen resolution is passed INTO slice 8's zone-delete command as data,
-    together with `resolvedReferents: referents` — the exact IDs that were on
-    screen. This slice's contract is satisfied the moment the switch above
+    together with `resolvedReferents: groups.flatMap((g) => g.requirementIds)` — the
+    exact IDs that were on screen, FLATTENED: grouping is how they are shown, and the
+    set consented to is their union. This slice's contract is satisfied the moment the switch above
     receives a value; carrying the IDs onward is the caller's job, not the
     dialog's (the dialog is handed rows and never learns what an ID is)
   ↓
@@ -444,15 +486,26 @@ PRD §64's own example lists four reference categories — Work Packages, Tasks,
 Items, Documents. At the build stage slices 1–10 reach, only `Requirement` exists as an
 entity that can reference a `Zone`; Work Package, Task, and Document arrive in later,
 unsliced feature epics (see `docs/requirements/Architecture and Software Design.md`, "Explicitly deferred"). The worked
-example's actual dialog therefore shows one row, `Requirements: N`, not the PRD's
-illustrative four. `DeleteReferenceDialog`'s `references` field is an arbitrary-length
-array precisely so each later epic's slice adds its own row (`Work Packages: N`,
-`Tasks: N`, ...) without changing this dialog's shape or contract.
+example's actual dialog therefore shows one row per referencing **project** — for a Zone
+always exactly one, since a Zone belongs to one Plan and that to one Project — labelled
+with the entity type *and* that project's name, not the PRD's illustrative four.
+`DeleteReferenceDialog`'s `references` field is an arbitrary-length array precisely so each
+later epic's slice adds its own rows (`Work Packages`, `Tasks`, …) without changing this
+dialog's shape or contract.
+
+**The row is project-qualified even in the single-row Zone case**, and that is deliberate
+rather than incidental: the same rows are what an Asset deletion renders, where a shared
+catalogue entry may be referenced from several projects at once (§59, amended 2026-08-26),
+and a bare `Requirements: N` there would read as "in the project I am looking at". A label
+shape that is only correct in the Zone case would be rebuilt the first time an Asset used it.
+A project's *name* is the qualifier only while it is unique, which nothing guarantees; what
+the rows fall back to when it is not is the executable example's, stated once there.
 
 The identical shape applies to Asset deletion: slice 10's `DeleteAssetCommand` queries
-`requirementRepository.listByAsset(assetId)` and opens the same
-`DeleteReferenceDialog` kind with a different `entityLabel` and count — nothing about
-the dialog changes between the Zone and Asset cases; only the caller and the query do.
+`ListRequirementsReferencing({ kind: 'asset', assetId })` and opens the same
+`DeleteReferenceDialog` kind with a different `entityLabel` and, usually, **more than one
+row** — nothing about the dialog changes between the Zone and Asset cases; only the caller,
+the query and the number of groups do.
 
 ### Modal stacking rule: one at a time, enforced structurally
 
@@ -631,18 +684,61 @@ async function onInspectorDeleteZone(
   return askThenDelete(zoneId, zoneName, relisted.value);
 }
 
+// `groups` rather than a flat id list: slice 10's `ListRequirementsReferencing` returns
+// referents grouped by project, because a shared Asset's referents may sit in projects
+// other than the one on screen (§59, amended 2026-08-26). A Zone target always yields
+// exactly ONE group — a Zone belongs to one Plan, which belongs to one Project — so this
+// flow renders one row as it always did; the shape is what lets the Asset flow render
+// several without a second query. Dispatch still takes a FLAT set: grouping is how the
+// referents are SHOWN, and the set consented to is their union.
 async function askThenDelete(
   zoneId: ZoneId,
   zoneName: string,
-  referents: readonly RequirementId[],
+  groups: readonly ReferencingProject[],
   isRetry = false,
 ): Promise<void> {
+  const referents = groups.flatMap((g) => g.requirementIds);
+  // The names that appear more than once, computed over the whole set before any row is
+  // built. Keyed by name rather than by group so that BOTH colliding rows are qualified:
+  // qualifying only the second one leaves the first reading as though it were the only
+  // "Kitchen", which is worse than qualifying neither.
+  const ambiguousNames = new Set(
+    groups.map((g) => g.projectName).filter((name, i, all) => all.indexOf(name) !== i),
+  );
   const result: DeleteReferenceDialogResult = await dialogStore.openDialog({
     kind: 'delete-reference',
     entityLabel: zoneName,
     // Resolved by the caller from its own StringKey — the dialog renders rows, it does
     // not name entity types (see ReferenceRow in Interfaces & Contracts).
-    references: [{ label: t(lang, 'entity.requirement.plural'), count: referents.length }],
+    // One row per project. For a Zone that is always one row; the label carries the
+    // project name so the Asset flow's several rows are distinguishable, and a count with
+    // no project on it would read as "in the project I am looking at".
+    //
+    // A NAME does not always distinguish them. Nothing refuses a second project called
+    // "Kitchen" — `Project.create` trims and rejects only an empty name — so two groups
+    // can carry one name and the rows a user is deciding between become identical. The
+    // path qualifies those rows and only those: always showing it would put a vault path
+    // on every row of the overwhelmingly common case where the names already differ, and
+    // a row is a thing to read at a glance. The qualification is therefore a property of
+    // the SET on screen, not of a group, which is worth stating because it means no test
+    // of a single row can establish it.
+    //
+    // ONE key per label with everything interpolated, never a translated fragment with a
+    // name concatenated after it: word order and punctuation between the parts are the
+    // translator's to choose, and `'Requirements' + ' — ' + name` takes both away. That
+    // is why the qualified form is its OWN key rather than the plain key plus a suffix.
+    // This file's own call-site rule is that every COMPLETE row label is resolved through
+    // `t()`, and a template literal wrapping a `t()` call satisfies the letter of it
+    // while breaking what it is for.
+    references: groups.map((g) => ({
+      label: ambiguousNames.has(g.projectName)
+        ? t(lang, 'entity.requirement.plural.in-project-at', {
+            project: g.projectName,
+            path: g.projectPath,
+          })
+        : t(lang, 'entity.requirement.plural.in-project', { project: g.projectName }),
+      count: g.requirementIds.length,
+    })),
   });
 
   if (result.action === 'cancel') return;
@@ -724,6 +820,47 @@ presentation/dialogs/
 └── DeleteReferenceDialog.vue
 ```
 
+### Interpolation: `t` gains a third parameter
+
+The shipped signature is `t(language: string, key: StringKey): string`
+(`src/presentation/i18n/strings.ts`), and every string in `en.ts` today is fixed text.
+The reference rows are the first strings in the plugin with a value inside them, so this
+slice extends it:
+
+```typescript
+type Interpolations = Readonly<Record<string, string>>;
+
+// `params` is optional, so every existing two-argument call is unchanged — this is an
+// addition, not a migration. `tr(key, params?)` takes the same third argument and
+// forwards it, since it is `t` in the app's own language and nothing more.
+function t(language: string, key: StringKey, params?: Interpolations): string;
+
+// A template names its holes as `{name}`:
+//   'entity.requirement.plural.in-project':    'Requirements in {project}'
+//   'entity.requirement.plural.in-project-at': 'Requirements in {project} ({path})'
+```
+
+Four rules, because each is a decision that could have gone the other way:
+
+- **ONE pass over the template, never a `replace` per parameter.** Iterating the
+  parameters means a substituted value is itself scanned by the next iteration: a project
+  a user named `{path}` would have the real vault path substituted into its own name.
+  A single `replace(/\{(\w+)\}/g, …)` over the template cannot do that, because it only
+  ever visits the template's own text.
+- **An unmatched placeholder is left standing**, rendered literally as `{project}`, not
+  replaced with an empty string. Both are wrong; one is visible. A blank where a project
+  name belongs is a row a user cannot read and a defect nobody reports.
+- **The compiler cannot check that a key's parameters match its template.** `StringKey`
+  is a union of key names and carries nothing about holes, so `t(lang, 'x.in-project')`
+  with no params compiles and renders `{project}` to a user. Saying so is the honest
+  sentence; what IS checkable is the *locale* half, below.
+- **A locale's translation must name the same holes as `en`'s.** `de.ts` is a
+  `Partial<Record<StringKey, string>>` on purpose — an incomplete locale falls back and
+  is safe — but a PRESENT translation that spells `{projekt}` renders a literal brace to
+  a German user and to nobody else. `tests/presentation/i18n/strings.test.ts` already
+  asserts `de` translates every key `en` declares; it gains the placeholder-set
+  comparison, which is a set equality over the same regex, per key.
+
 ## Persistence Impact
 
 None. `DialogStore` holds only which dialog descriptor is currently open and the
@@ -776,10 +913,49 @@ contract ends at the typed result, before any write occurs.
   than passing review by accident.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
-  `references: [{ label: t(lang, 'entity.requirement.plural'), count: 2 }]` sourced from a fake
-  `ListRequirementsReferencing` double, and that choosing each of the four actions
-  resolves the awaited call with the corresponding value — the test stops at the
+  `references: [{ label: t(lang, 'entity.requirement.plural.in-project', { project: 'Kitchen Refit' }), count: 2 }]`
+  sourced from a fake `ListRequirementsReferencing` double **returning one
+  `ReferencingProject` group** — which is what a Zone target always yields, since a Zone
+  belongs to one Plan and that to one Project. Then assert that choosing each of the four
+  actions resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
+- **Grouped-rows test**, which no Zone fixture can reach: a double returning two groups
+  produces **two rows**, each counting its own group. It is worth its own test precisely
+  because every Zone case is single-group, so a caller that rendered `groups[0]` and ignored
+  the rest would pass every other test in this file.
+- **Interpolation tests** (`tests/presentation/i18n/strings.test.ts`, extending what is
+  there). `t` with no third argument is byte-identical to today for every existing key —
+  the addition is checked not to be a migration. A template's holes are filled from
+  `params`; a hole with no matching parameter renders as its own `{name}`; and a
+  parameter VALUE containing `{path}` is passed through untouched while the template's
+  real `{path}` is filled from `params` — the one-pass property, which an implementation
+  that iterated `replace` per parameter would fail and no other assertion here would
+  notice. Plus the locale half: for every key `de` translates, its placeholder set equals
+  `en`'s, which is a real gap today rather than a hypothetical — an incomplete locale is
+  safe by design, a *mis-holed* one renders a brace to exactly one language's users.
+- **Same-name test**, which the grouped-rows test does not reach either: a double returning
+  two groups **whose `projectName` is the same string** produces two rows carrying
+  `entity.requirement.plural.in-project-at` with each group's own `projectPath`, and a
+  third group with a distinct name in the same set still carries the plain key. Three
+  assertions, because the rule has three halves and dropping any one of them still passes
+  the other two: **both** colliding rows are qualified (not just the second), the
+  unaffected row is **not** qualified, and the two qualified rows differ from each other.
+  It is a property of the set on screen, so the single-group fixtures above can no more
+  reach it than they can reach grouping itself.
+
+  **It cannot be driven through `onInspectorDeleteZone`**, which hard-codes the Zone query,
+  `ZoneId` and `reversibleDeleteZone` — feeding it two groups would assert a Zone result
+  that cannot occur. The multi-group case belongs to the **Asset** delete caller, and NO
+  slice in the register specifies one. `DeleteAssetCommand` is slice 10's, but slice 10's
+  in-scope Inspector work is the Requirements panel *for the selected Zone* — there is no
+  surface anywhere that selects an Asset, so there is nowhere for a user to press Delete on
+  one. An earlier version of this paragraph said the entry point "arrives with" the command;
+  that was a pointer at a slice which does not carry it, and pointing at a wrong owner is
+  worse than naming a gap, because it reads as assigned. Slice 10 records the gap on its own
+  side under *Deletion & reference integrity*. So this test targets the **row-mapping**
+  directly rather than a flow, and the end-to-end version is owed by whichever slice first
+  gives an Asset a delete affordance. Naming that here rather than leaving a test nobody can
+  write: the mapping is the part this slice owns, and it is testable today.
 - **Stale-count test**, the one the zero branch exists for: a query double answering `[]`
   and a command double refusing with a `ReferenceError`. Assert on the command's *input*
   — the first dispatch carries no `resolution` — because a test that only checked "a
@@ -788,9 +964,10 @@ contract ends at the typed result, before any write occurs.
   re-read count, and that a re-read of `[]` surfaces the refusal instead of opening a
   dialog with an empty row.
 - **Consented-set test**, the mirror of the above and the one that protects data rather
-  than clarity: a query double answering `[r1, r2]`, then a command double returning
-  `reference.set-changed`. Assert the first dispatch carried `resolvedReferents:
-  [r1, r2]` exactly — the IDs the dialog's row was built from, not a count and not the
+  than clarity: a query double answering one group whose `requirementIds` are `[r1, r2]`,
+  then a command double returning `reference.set-changed`. Assert the first dispatch
+  carried `resolvedReferents: [r1, r2]` exactly — **flattened**, since grouping is how the
+  referents are shown and the consented set is their union — the IDs the dialog's row was built from, not a count and not the
   live set — then assert the dialog re-opens with the re-read set, and that the second
   dispatch carries the *new* IDs. Assert on the input again for the same reason as
   above: a caller that dropped `resolvedReferents` entirely would still open a dialog
@@ -815,10 +992,29 @@ contract ends at the typed result, before any write occurs.
 5. `DeleteReferenceDialog` renders an arbitrary-length `references` array exactly as
    supplied — no recomputation, no invented default rows when the caller supplies only
    one.
-6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly
-   `Requirements: 2`, sourced from slice 10's `ListRequirementsReferencing` query —
-   verified by an integration test asserting the value passed into the dialog
-   descriptor, not a value this slice's component recomputed.
+6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly **one**
+   row counting 2, its label naming the owning project through a single localized key
+   per label — the plain form here, since one group's name cannot collide with another's,
+   and `entity.requirement.plural.in-project-at` carrying `projectPath` for **each** row
+   whose `projectName` is not unique among the groups on screen, which a separate
+   row-mapping test drives with two same-named groups plus a third distinct one —
+   sourced from slice 10's `ListRequirementsReferencing` query, verified by an
+   integration test asserting the value passed into the dialog descriptor, not a value
+   this slice's component recomputed. **One row because a Zone always yields one group.**
+   That an Asset referenced from two projects renders two rows is asserted against the
+   **row-mapping directly**, not through a flow: no slice in the register specifies an Asset
+   delete caller — `DeleteAssetCommand` is slice 10's, but nothing anywhere selects an Asset
+   for a user to delete — so the end-to-end version belongs to whichever slice first gives an
+   Asset a delete affordance. The mapping test still
+   earns its place here, because every Zone fixture is single-group and would pass a caller
+   that read `groups[0]` alone.
+6a. `t(language, key, params?)` fills `{name}` holes from `params` in a single pass over
+    the template, leaves an unmatched hole standing as `{name}`, and is unchanged for
+    every two-argument call that exists today. `tr` forwards the same third argument.
+    `de.ts`'s translation of any key names the same holes as `en.ts`'s, asserted per key
+    rather than for the two keys this slice adds — the rule is about the locale files,
+    not about these labels, and a check that enumerated them would go stale on the next
+    interpolated string.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
    stacking or queueing a second one — the modal-stacking rule is enforced by
    `DialogStore`, checked by a unit test, not left to caller discipline.

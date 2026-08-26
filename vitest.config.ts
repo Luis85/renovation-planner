@@ -330,6 +330,62 @@ export default defineConfig({
 			// wave touched under `src/` is either a comment (`EditorStore.reset` and
 			// `WorkspaceStore.reset`'s docblocks) or inside `src/prototypes/`
 			// (`ZonePanel.vue`), which this config excludes. NOTHING RATCHETS.
+			// Measured 2026-08-26 at the end of design slice 10 - Asset and Requirement, the
+			// reference-integrity engine and its compensated sequences, the recalculation
+			// cascade, the Requirements panel and the delete-with-references flow:
+			// 4102/4132 statements, 2036/2077 branches, 1037/1047 functions, 3669/3687 lines
+			// - 99.27 / 98.02 / 99.04 / 99.51. NOTHING RATCHETS, for the third time and the
+			// same reason: rounded down these ARE the floors in force.
+			//
+			// Branches is the metric to watch now, and this is the entry that says so. It
+			// finished at 98.02 against a floor of 98 - about 0.4 of a branch of headroom,
+			// where the slice-6 measurement had eight. That is not a regression in testing:
+			// the denominator grew by a factor of two (919 -> 2077) while the same handful of
+			// structurally unreachable arms stayed uncovered, so their cost per arm fell but
+			// the ROUNDED figure landed just over the line instead of comfortably above it.
+			// The practical consequence for the next increment: one new uncovered branch
+			// fails this gate. Plan the test with the code.
+			//
+			// What slice 10 adds to the uncovered set, all of it the same shape as the list
+			// above - a `Result` forward whose only content is the error it carries, or an
+			// arm a caller cannot reach:
+			// - `deleteResolution.ts`'s `case undefined` in `applyResolutionToRequirement`
+			//   and its `resolvedReferents ?? []`: both are refused earlier, by
+			//   `checkConsentedSet` and `resolutionInputError` respectively, and kept because
+			//   the compiler cannot see that.
+			// - the repoint's `!repointed.ok` guard, over a domain method whose only refusal
+			//   is a shape the entity already had.
+			// - `compensate`'s `!snapshot` continue, for a progress entry naming something
+			//   `affectedBefore` does not carry. The mirror of it in `undoDeleteResolution`
+			//   IS covered, driven directly rather than through a command that cannot
+			//   produce the mismatch; this one is reachable only by hand-building a marker,
+			//   which `recovery.test.ts` does for the recovery path and not for this one.
+			//
+			// `undoDeleteResolution.ts` itself is at 100% of all four, which is what a module
+			// whose whole job is a failure path should be.
+			//
+			// **NEITHER OF THE TWO BLOCKS ABOVE MEASURES THIS TREE**, and this entry is the
+			// one that does. They are the trunk's and the slice-10 branch's respectively; the
+			// merge of 2026-08-26 joined a 2711-statement tree to a 4102-statement one, so both
+			// percentages above are records of trees that no longer exist. That has happened
+			// twice before here (the slice-7 paragraph is the first), and both times the claim
+			// left standing was FALSE rather than merely stale — which is why the merge was
+			// measured rather than reasoned about.
+			//
+			// Measured 2026-08-26 on the MERGED tree: 4111/4141 statements, 2036/2077 branches,
+			// 1039/1049 functions, 3678/3696 lines — 99.27 / 98.02 / 99.04 / 99.51. NOTHING
+			// RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// **The branch COUNT did not move across the merge — 2036/2077, identical to the
+			// slice-10 figure — and that is the expected result rather than a suspicious one.**
+			// Everything the harness-prototyping work added lives under `tests/harness/` or
+			// `src/prototypes/`, and `include` reaches neither. So the merge added 9 statements,
+			// 2 functions and 9 lines (the fixture and harness repairs that touched `src/`) and
+			// no branches at all.
+			//
+			// Branches therefore remain the metric to watch, at 98.02 against a floor of 98 —
+			// about 0.4 of a branch of headroom, unchanged by the merge. One new uncovered
+			// branch fails this gate. Plan the test with the code.
 			thresholds: {
 				statements: 99,
 				functions: 99,

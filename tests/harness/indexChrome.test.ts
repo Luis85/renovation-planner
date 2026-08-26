@@ -372,6 +372,14 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a pseudo-wrapped stage class', ':is(.rp-harness-stage) h2 { color: red; }'],
 		['a pseudo-wrapped stage among alternatives', ':is(.other, main) h2 { color: red; }'],
 		['a pseudo-wrapped leaf', ':is(.rp-harness-leaf) h2 { color: red; }'],
+		// A NEGATED name is not a name. `compoundHasClass` read `:not()` and `:has()` contents as classes
+		// the compound WEARS, so this reported as BEING the stage and took the stage's allow-list —
+		// while it matches virtually every element inside a mounted entry. The same defect this file's
+		// sibling header already records for `subjectClasses`, in a predicate written afterwards with
+		// its own copy of the recursion and without its rule.
+		['a negated stage class', ':not(.rp-harness-stage) { background-color: red; }'],
+		['a negated leaf class', ':not(.rp-harness-leaf) { background-color: red; }'],
+		['a stage class reached through :has()', ':has(.rp-harness-stage) { background-color: red; }'],
 	])('reports %s', (_case, css) => {
 		expect(harnessRules(css).filter((rule) => reachesTheStage(rule.selector, rule.properties))).toHaveLength(1);
 	});

@@ -383,11 +383,26 @@ export function compoundsOf(selector: Selector): Compound[] {
 
 const hasClass = (component: SelectorComponent, name: string): boolean => {
 	if (component.type === 'class') return component.name === name;
+	if (component.type !== 'pseudo-class') return false;
+	// POSITIVE POSITION ONLY, the same rule `subjectClasses` states one function up and for the same
+	// reason: `:is()` and `:where()` describe the element itself, while `:not()` and `:has()` describe
+	// what it is NOT and what hangs below it. Reading all four alike is the defect this file's header
+	// already records — an exemption written for a class, inherited by every selector that NEGATES it.
+	//
+	// Here it inverted a leakage gate: `:not(.rp-harness-stage)` reported as BEING the stage, took the
+	// stage's allow-list, and so `:not(.rp-harness-stage) { background-color: red }` — which matches
+	// virtually every element inside a mounted entry — passed as if it were the stage styling itself.
+	// This predicate was written after `subjectClasses` was fixed, with its own copy of the recursion
+	// and without its rule.
+	if (!MATCHES_THE_SUBJECT.has(component.kind)) return false;
 
 	return argumentsOf(component).some((argument) => argument.some((part) => hasClass(part, name)));
 };
 
-/** Does any component of this compound — at any nesting depth — carry the class? */
+/**
+ * Does any component of this compound carry the class IN POSITIVE POSITION — at any nesting depth
+ * through `:is()`/`:where()`, and never through `:not()`/`:has()`?
+ */
 export const compoundHasClass = (compound: Compound, name: string): boolean =>
 	compound.components.some((component) => hasClass(component, name));
 

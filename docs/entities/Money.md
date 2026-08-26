@@ -23,8 +23,19 @@ number and a wrong one, and a renovation budget accumulates thousands of those. 
 is the answer, and the constraint is not that it be *available* but that no code path routes
 around it.
 
-§72 puts the currency on the [[Project]] — one project, one currency. That is a real
-simplification with a real cost: a [[Quote]] in another currency has no home in the model today.
+§72 puts the currency on the [[Project]] — one project, one currency — and that governs every
+Money value *inside* a project: a [[Quote]] in another currency still has no home there, which is
+a real simplification with a real cost.
+
+**One Money value is not inside any project**, since §59 was amended (2026-08-26) to share the
+catalogues: an [[Asset]]'s default unit price belongs to a definition that projects in different
+currencies may each reference. So it is denominated in **its own** currency rather than a
+project's, and reading it into a project whose currency differs is an error rather than a
+coercion — [[A mismatched unit or currency is an error, not a coercion]], which is the rule that
+makes this safe rather than a second currency model. Nothing converts: there is no exchange rate
+in this product and no date to read one at. The two cases are distinguished here rather than
+blurred, because a Money with no project is exactly the shape a reader would otherwise assume
+was a bug.
 
 ## Identity and persistence
 
@@ -33,8 +44,11 @@ None. It is stored as part of whatever holds it — a [[Cost item]]'s amount, a 
 
 ## Relationships
 
-- Held by [[Cost item]], [[Quote]], [[Order]], [[Invoice]] and the [[Project]] budget.
-- Denominated in the [[Project]]'s currency (§72).
+- Held by [[Cost item]], [[Quote]], [[Order]], [[Invoice]], the [[Project]] budget, and an
+  [[Asset]]'s default unit price — the last of which this list omitted even before the catalogues
+  were shared.
+- Denominated in the [[Project]]'s currency (§72) **wherever it is held by something a project
+  owns**. The catalogue exception is the [[Asset]] price above, which carries its own.
 
 ## Rules
 

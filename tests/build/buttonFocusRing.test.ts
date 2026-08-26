@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Selector } from 'lightningcss';
-import { alternativesOf, moreSpecific, show, specificityOf, stylesheetRules } from '../helpers/selectors';
+import { alternativesOf, moreSpecific, propertyOf, show, specificityOf, stylesheetRules } from '../helpers/selectors';
 import { declarationsOf, drawsAnIndicator, indicatorOf } from '../helpers/indicators';
 import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, subjectOf, targetsAButton } from '../helpers/buttonRules';
 
@@ -218,13 +218,26 @@ const flattenedWithoutRing = (
 		// declaration, `box-shadow: none; box-shadow: 0 0 0 3px red` counted as flattening on the
 		// strength of a declaration the next line overrides.
 		const { outline, shadow } = indicatorOf(rule.declarations);
-		// Per FAMILY: an outline is set by four properties, and any of them arriving important makes
-		// the resolved outline important. An over-approximation — a block mixing an important
-		// `outline-color` with a normal `outline-style` is treated as wholly important — and it errs
-		// toward letting a rule win its cascade, which is the direction that reports.
-		const importantOutline = ['outline', 'outline-width', 'outline-style', 'outline-color'].some((one) =>
-			rule.important.has(one),
+		// An outline is set by four properties, and this resolves ONE importance for all of them — a
+		// per-component cascade is a bigger instrument than the rest of this file is built to be. So
+		// the approximation has to fall on the safe side, and the first version fell on the wrong one:
+		// it took ANY important component as making the whole outline important, and its comment
+		// claimed that "errs toward letting a rule win its cascade, which is the direction that
+		// reports". That is backwards. A rule that WINS is a ring that STANDS, which is the direction
+		// that stays silent.
+		//
+		// So `outline: 2px solid red; outline-color: red !important` was treated as wholly important,
+		// and a later more specific normal `outline-style: none` — which beats the normal shorthand
+		// style in the browser and makes the outline invisible — could not replace it.
+		//
+		// EVERY declared component must be important now. A block that mixes them is treated as normal,
+		// so a later rule can beat it and the site is reported. Over-reporting is the safe side here,
+		// and this time the sentence matches the code.
+		const declaredOutline = ['outline', 'outline-width', 'outline-style', 'outline-color'].filter((one) =>
+			rule.declarations.some((declaration) => propertyOf(declaration) === one),
 		);
+		const importantOutline =
+			declaredOutline.length > 0 && declaredOutline.every((one) => rule.important.has(one));
 		const importantShadow = rule.important.has('box-shadow');
 		const flattens = shadow === false;
 		const draws = outline === true || shadow === true;
@@ -445,6 +458,12 @@ describe('a flattened button and its focus ring', () => {
 		// adding an ancestor — so `covers` cannot decide this and importance is the only thing that
 		// can. Written the obvious way, with the ring under `.rp-dialog`, it reported under the
 		// specificity-only reading too, for the unrelated reason that its scope does not cover.
+		// A block that MIXES importance across the outline's components is not wholly important: the
+		// normal shorthand style can still be beaten by a later normal rule, and then nothing draws.
+		[
+			'a mixed-importance outline a later normal reset beats',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; outline-color: red !important; } .rp-dialog-button.rp-dialog-button:focus-visible { outline-style: none; }',
+		],
 		[
 			'an important reset a more specific normal ring cannot beat',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none !important; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: 2px solid red; }',
@@ -667,6 +686,12 @@ describe('a flattened button and its focus ring', () => {
 		// without this, "importance first" could have become "an important declaration always loses
 		// the moment anything more specific exists", or only ever been checked in the resetting
 		// direction.
+		// EVERY component important is still wholly important, or "all of them" has become "none of
+		// them" and the round-26 fix is undone.
+		[
+			'a wholly important outline a more specific normal reset cannot beat',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-width: 2px !important; outline-style: solid !important; outline-color: red !important; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: none; }',
+		],
 		[
 			'an important ring a more specific normal reset cannot beat',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red !important; } .rp-dialog .rp-dialog-button:focus-visible { outline: none; }',

@@ -270,7 +270,12 @@ const branchReachesTheStage = (branch: Selector, properties: readonly string[]):
 	// combinator or an inherited property let it through. `body` is the sheet's one exception and it
 	// is exempt because of WHAT IT MATCHES: exactly one element, outside the stage. `height: 100%`
 	// being non-inheriting is why that exception is harmless, not why it exists.
-	return !namesTheHarness(branch) && !isThePage(branch);
+	// BOTH tests, not either. `body` is exempt because of what it MATCHES — one element, outside the
+	// stage — and that is necessary and not sufficient: `body { color: red }` inherits into every
+	// mounted entry from there. The previous version asked only about the property and let a bare
+	// `h2` through; correcting that, I dropped the property test instead of adding to it, which is
+	// the same mistake pointing the other way.
+	return !namesTheHarness(branch) && !(isThePage(branch) && !inherits(properties));
 };
 
 
@@ -351,6 +356,10 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// inherited property and this has neither.
 		['a bare type selector with a non-inherited property', 'h2 { background-color: red; }'],
 		['a bare class selector from outside the harness', '.rp-entry-title { border: 1px solid; }'],
+		// The page exception is about what `body` MATCHES, which is necessary and not sufficient: an
+		// inherited declaration reaches every mounted entry from there just the same.
+		['an inherited property on body', 'body { color: red; }'],
+		['an inherited property on html', 'html { font-family: serif; }'],
 		// Harness chrome mentioned only inside `:has()`. The subject is `h2` under `body`, so this
 		// matches whenever the picker exists and restyles every heading in every entry — and a
 		// substring test on the rendered selector found the class and called it harness-scoped.

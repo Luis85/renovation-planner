@@ -111,6 +111,15 @@
 	gap: var(--size-4-2);
 }
 
+/*
+ * `background-color` here is redundant with Obsidian's own `button:not(.clickable-icon)`
+ * (`tests/harness/obsidian.css`), which already sets `--interactive-normal` on every
+ * `<button>` and outranks this single-class selector at (0,1,1) vs (0,1,0) — source order
+ * never gets consulted, specificity settles it first. Left as-is on purpose: it states the
+ * SAME value Obsidian's own rule would apply anyway, so it is harmless, and NOT raising its
+ * specificity is what lets a themed vault's own button appearance win here undisturbed —
+ * only `.rp-dialog-button-danger` below genuinely needs to beat Obsidian's rule.
+ */
 .rp-dialog-button {
 	padding: var(--size-4-1) var(--size-4-3);
 	border: 1px solid var(--background-modifier-border);
@@ -128,12 +137,24 @@
  * Appearance only. `danger` changes no result and gates no action — the four-outcome
  * decision is `DeleteReferenceDialog`'s job, and a colour that implied one would be
  * stating a rule the type system already carries.
+ *
+ * Qualified with `.rp-dialog` on purpose, not simplified back to the bare class: Obsidian's
+ * own `button:not(.clickable-icon)` (`tests/harness/obsidian.css`) sets the SAME
+ * `background-color` property at specificity (0,1,1) — `:not()` contributes its argument's
+ * specificity, so one element plus one pseudo-class beats one bare class, (0,1,0), and
+ * source order is never even consulted. Measured in a real Chromium: with the bare class
+ * this rule LOST and the danger button rendered with Obsidian's plain white
+ * `--interactive-normal`. Qualifying with `.rp-dialog` — `.rp-dialog .rp-dialog-button-danger`,
+ * (0,2,0) — is enough to outrank it; do not shrink this back to the bare class without
+ * re-measuring, since `tests/presentation/dialogs/dangerButtonSpecificity.test.ts` only
+ * proves which of the two DECLARATIONS the cascade picks (jsdom never resolves `var()` to a
+ * colour), not the final colour a browser paints.
  */
-.rp-dialog-button-danger {
+.rp-dialog .rp-dialog-button-danger {
 	background-color: var(--background-modifier-error);
 	color: var(--text-on-accent);
 }
 
-.rp-dialog-button-danger:hover {
+.rp-dialog .rp-dialog-button-danger:hover {
 	background-color: var(--background-modifier-error-hover);
 }

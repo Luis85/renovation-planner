@@ -30,10 +30,6 @@ import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, subjectOf, t
  * see a bare `button` subject (`targetsAButton`); this one had not, and its `seen` guard could not
  * notice, because unrelated class-based rules keep that count non-zero.
  */
-/** A branch's subject — the components after its last combinator, the element the rule styles. */
-const subjectOf = (branch: Selector): SelectorComponent[] =>
-	branch.slice(branch.map((component) => component.type).lastIndexOf('combinator') + 1);
-
 /**
  * What a branch is filed under, and WHERE it applies — two answers, because they are two questions
  * and collapsing them broke one of the other.
@@ -83,7 +79,16 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	const conditions: Conditions = {
 		condition,
 		ancestors: show(branch.slice(0, branch.length - subjectOf(branch).length)),
-		subject: subject.map((component) => show([component])),
+		// A `button` TYPE is dropped, and it is the ONE type that may be: every site this scan keeps
+		// stands for a button already — a subject reaches `focusSites` by wearing a known button class
+		// or by naming that exact type — so `button` narrows nothing a site does not already impose.
+		// Kept, it read as a condition the site failed to meet, and `button:focus-visible { outline: … }`
+		// could not answer a `.rp-dialog-button` flattened elsewhere. Any OTHER type is a real
+		// narrowing — `a.rp-dialog-button` is the anchors wearing that class and not the buttons — so
+		// this names the one it drops rather than dropping the category.
+		subject: subject
+			.filter((component) => !(component.type === 'type' && component.name === 'button'))
+			.map((component) => show([component])),
 	};
 	const onSubject = buttonClassesOn(branch, classes);
 
@@ -113,12 +118,7 @@ const beats = (a: FocusRule, b: FocusRule): boolean =>
 
 
 /**
- * The cascade keys a REVOKING focus rule competes in, beyond the one it is filed under.
- *
- * A rule that draws can only ever ADD a ring, and `covers` already refuses to let it clear
- * anything whose conditions it does not satisfy. A rule that draws NOTHING is the only one that
- * can take a ring away, so it is the only one that needs to be heard in a cascade it was not
- * filed under.
+ * The cascade keys a focus rule competes in, beyond the one it is filed under.
  *
  * TWO overlaps, and the difference between them is the whole reason this is not "every key".
  *
@@ -132,6 +132,25 @@ const beats = (a: FocusRule, b: FocusRule): boolean =>
  * FLATTENING SITES ARE NEVER WIDENED. A site belongs to the classes its subject actually wears;
  * filed under a co-occurring class as well, an ordinary suppression would demand an answer from a
  * cascade it has nothing to do with.
+ *
+ * A DRAWING RULE IS WIDENED TOO, and this used to say the opposite: "a rule that draws can only
+ * ever ADD a ring, so it is the only one that need not be heard in a cascade it was not filed
+ * under." True premise, wrong conclusion — adding a ring is exactly what a flattening site is
+ * waiting for. `button:focus-visible { outline: 2px solid red }` rings a `.rp-dialog-button` as
+ * surely as a type-targeted reset revokes one, and filed under `button` alone it could not answer
+ * a site filed under the class. The gate REJECTED that valid pair, a false positive where every
+ * other approximation in this file is deliberately the other way.
+ *
+ * What keeps the CLASS-GROUP half of that honest for a ring is `covers`, not this key set, and the
+ * distinction is worth stating because the obvious fix is to withhold the group overlap here.
+ * Withholding it changes nothing: `.rp-dialog-button-danger:focus-visible` reaching the
+ * `.rp-dialog-button` cascade still fails `covers`, whose subject test asks that every condition
+ * the ring imposes be imposed by the site too — and the danger class is such a condition. So the
+ * key set answers WHICH cascades a rule is heard in and `covers` answers whether it may clear a
+ * site, which is the same division of labour `focusSites` describes for the key and its conditions.
+ * A `draws` parameter here was written first and removed: no case could tell it from its absence,
+ * and an unexercised branch with a confident comment on it is the shape this repository keeps
+ * finding defects in.
  */
 const cascadeKeys = (
 	key: string,
@@ -283,7 +302,6 @@ const flattenedWithoutRing = (
 			declaredOutline.length > 0 && declaredOutline.every((one) => rule.important.has(one));
 		const importantShadow = rule.important.has('box-shadow');
 		const flattens = shadow === false;
-		const draws = outline === true || shadow === true;
 
 		// `:focus-visible` is asked of each BRANCH, never of the rule. Asked of the rule,
 		// `.rp-editor-tool-button:hover, .other:focus-visible { outline: 2px solid red }` marked the
@@ -302,12 +320,12 @@ const flattenedWithoutRing = (
 				);
 
 				for (const { key, conditions } of focusSites(branch, classes, rule.condition)) {
-					// A revoking rule is heard in every cascade it can REACH, not only the one it is filed
-					// under. `cascadeKeys` says which, and why the two overlaps differ.
-					const reaches =
-						ringsFocus && !draws
-							? cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0)
-							: [key];
+					// A focus rule is heard in every cascade it can REACH, not only the one it is filed
+					// under. `cascadeKeys` says which, and why the two overlaps differ — and why a rule
+					// that DRAWS gets only the type one.
+					const reaches = ringsFocus
+						? cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0)
+						: [key];
 
 					if (ringsFocus) {
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
@@ -574,6 +592,15 @@ describe('a flattened button and its focus ring', () => {
 		//
 		// Both rules are scoped identically on purpose: the covering test would otherwise report this
 		// whatever the ranking said, and the case would prove nothing about specificity.
+		// AND THE CLASS-GROUP OVERLAP STAYS ONE-WAY, which is what stops the fix above becoming round
+		// 23's over-correction wearing the other hat. `.rp-dialog-button-danger` is worn by SOME
+		// `.rp-dialog-button`s, so a ring there answers only the buttons wearing both while the site
+		// stands for all of them — every plain `.rp-dialog-button` is still bare. A revoking rule at
+		// that class DOES reach the site, which is the case two blocks below.
+		[
+			'a ring on a class only some of the flattened buttons wear',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button-danger:focus-visible { outline: 2px solid red; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
@@ -672,6 +699,15 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:focus-visible { outline: 2px solid red; }',
 		],
 		['a bare button ringed', 'button { box-shadow: none; } button:focus-visible { outline: 2px solid red; }'],
+		// THE RING AND THE FLATTENING RULE NEED NOT NAME THE BUTTON THE SAME WAY. A bare `button`
+		// subject matches every button, so this ring reaches the flattened class as surely as a
+		// type-targeted RESET reaches it — which the case below this block already covered. Only the
+		// revoking direction was widened, so the drawing rule stayed filed under `button`, could not
+		// answer a site filed under `.rp-dialog-button`, and the gate rejected CSS that rings.
+		[
+			'a class flattened and a type-targeted ring',
+			'.rp-dialog-button { box-shadow: none; } button:focus-visible { outline: 2px solid red; }',
+		],
 		// And the other way down that cascade, or "the reset wins" has replaced "the set wins". At
 		// EQUAL scope only — the more-specific version of this puts the ring back inside `.rp-dialog`
 		// and nowhere else, which is a reporting case below rather than a silent one.

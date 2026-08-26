@@ -1,9 +1,18 @@
 <!--
-	A template-only SFC: pure HTML to write, and already a real Vue component. Promotion adds a
-	<script setup> block above the template and moves the file into `src/presentation/`; the
-	markup goes across unchanged, which is what `tests/build/prototype-promotion.test.ts` holds.
-	(That test strips this comment before checking the file is template-only, precisely so this
-	sentence can say the tag plainly instead of dodging it.)
+	A template-only SFC: HTML plus Vue's template syntax, and already a real Vue component.
+	Promotion adds a <script setup> block above the template and moves the file into
+	`src/presentation/`; the markup goes across unchanged, which is what
+	`tests/build/prototype-promotion.test.ts` holds. (That test strips this comment before
+	checking the file is template-only, precisely so this sentence can say the tag plainly
+	instead of dodging it.)
+
+	**Editing the template below costs a `.fallowrc.json` edit**, and it is better said here than
+	discovered. The block is byte-identical to `tests/fixtures/promotion/ZoneSummary.promoted.vue`
+	by design, so fallow reports the pair as a clone and the pair is silenced by DIGEST
+	(`duplicates.ignoredClones`). The digest is over the content, so any change to this template —
+	together with the identical change the promotion test forces on the twin — produces a new one
+	and reds `npm run analyze` until `.fallowrc.json` carries it. `npm run analyze` prints the new
+	id in the finding; paste it over the old one.
 
 	This comment is OUTSIDE the template on purpose, and it deliberately does not spell the
 	opening template tag anywhere. `templateBlock()` finds the block with a regex, so a comment

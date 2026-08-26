@@ -1,4 +1,6 @@
-import { ok } from '../../src/core/result/Result';
+import { isErr, ok } from '../../src/core/result/Result';
+import { area } from '../../src/core/geometry/operations';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
@@ -27,8 +29,10 @@ import { FakeLeaf } from '../helpers/workspace';
  * set would be a second derivation that can answer differently, and two components drawn
  * from two plans that differ in a way nobody notices is exactly the defect one world buys
  * its way out of. `harnessDeps` is exported for the same reason and carries more surface —
- * a cast vault and two always-answering queries — that `fixture.ts`'s editor context now
- * hands to every component the index mounts, not only to this page's own view.
+ * a cast vault, two always-answering queries and an Inspector query answered from the zones
+ * above — that `fixture.ts`'s editor context now hands to every component the index mounts,
+ * not only to this page's own view. Its WRITES all refuse; see `commands` below for why the
+ * one read in that bundle does not.
  */
 
 export const HARNESS_PLAN: PlanDto = {
@@ -116,10 +120,54 @@ export function harnessDeps(): PlanEditorDeps {
 			getPlan: () => Promise.resolve(ok(HARNESS_PLAN)),
 			findZonesByPlan: () => Promise.resolve(ok(HARNESS_ZONES)),
 		},
-		// Every write refuses with `settings.unrecovered`, the honest answer for a page with
-		// no vault behind it — the buttons render and the gestures fail like any other
-		// failed write rather than pretending to persist.
-		commands: unavailablePlanEditorCommands(),
+		/**
+		 * Every WRITE refuses with `settings.unrecovered`, the honest answer for a page with no
+		 * vault behind it — the buttons render and the gestures fail like any other failed write
+		 * rather than pretending to persist.
+		 *
+		 * **`zoneInspector` is a READ, and it is answered here rather than refused.** The bundle
+		 * carries it because SDD §59 groups the Inspector query with the commands it shares a
+		 * selection with, and for that bundle's PRODUCTION purpose — settings unrecovered, no
+		 * vault — refusing the read is correct, because there is nothing to read. On this page
+		 * there is: `HARNESS_ZONES` is right there. Reaching for the refusal bundle wholesale
+		 * made a stand-in HARSHER than the thing it stands in for, and the harness is a tool for
+		 * LOOKING: `InspectorStore` maps a failed read onto `{ kind: 'empty' }` (its own docblock
+		 * names the gap — `InspectorDto` has no error variant), so selecting the seeded Kitchen
+		 * showed it selected on the canvas and empty in the Inspector, with no error anywhere and
+		 * two of the five shell regions contradicting each other. `docs/actors/Designer.md` asks
+		 * for the opposite: a component that cannot mount says so and names itself.
+		 *
+		 * The area is computed with the same `core/geometry` operation `Zone.area()` calls rather
+		 * than being written down beside each fixture zone — a second derivation would answer
+		 * differently the day either changes, and the number on screen has to be the one the
+		 * domain would produce.
+		 *
+		 * **`zones` — the `ZoneRepository` — is deliberately left refusing**, and the reason is
+		 * not that it matters less. Its reads are reached in this bundle only by the reversible
+		 * adapters' RESTORE halves, i.e. only after a successful write, and no write on this page
+		 * succeeds; nothing else here calls one. Answering them would mean handing back
+		 * `Loaded<Zone>` — real domain entities with real revision handles — built from these
+		 * DTOs, which is a second derivation of the fixture world in a second shape, maintained
+		 * for a path the page cannot reach. When a harness entry does reach one, the honest fix
+		 * is a fixture repository, not a cast; until then the refusal is what "nothing can be
+		 * written, so nothing can be restored" actually means.
+		 */
+		commands: {
+			...unavailablePlanEditorCommands(),
+			zoneInspector: {
+				execute: ({ zoneId }) => {
+					const zone = HARNESS_ZONES.find((candidate) => candidate.id === zoneId);
+
+					if (!zone) return Promise.resolve(ok(null));
+
+					const measured = area({ points: zone.points });
+
+					if (isErr(measured)) return Promise.resolve(measured);
+
+					return Promise.resolve(ok({ id: zone.id as ZoneId, name: zone.name, areaMm2: measured.value }));
+				},
+			},
+		},
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',

@@ -17,6 +17,9 @@ import { REPO } from '../helpers/oxlint';
 
 const PACKAGE_JSON = path.join(REPO, 'package.json');
 const SCRIPT = path.join(REPO, 'scripts', 'harness-shot.mjs');
+// The wait, the post-screenshot re-check and the failure-card reader, split out of SCRIPT so a
+// test can call them (`captureReadiness.test.ts`) — see that file's header.
+const READINESS = path.join(REPO, 'scripts', 'captureReadiness.mjs');
 // Where the browser resolution actually lives, since `concept-shots.mjs` needs the same
 // answer and two copies of it is the shape of the defect the block below describes.
 const RESOLVER = path.join(REPO, 'scripts', 'chromium.mjs');
@@ -122,8 +125,15 @@ describe('the headless harness capture script', () => {
 	 * to live here green, which is exactly why that logic moved into an importable module.
 	 */
 	it('reads the entry argument through the importable resolveShots, not by hard-coding argv itself', () => {
-		expect(readFileSync(SCRIPT, 'utf8')).toContain("from './entryShots.mjs'");
-		expect(readFileSync(SCRIPT, 'utf8')).toContain('resolveShots(process.argv, SHOTS)');
+		// STRIPPED, like every negative scan in this file. A wiring pin over raw text is
+		// satisfied by a COMMENT carrying the call — including a comment that says the call was
+		// removed — which is the exact inversion of what a pin is for. The two pins here read
+		// raw source until this round while the negatives below them already read stripped;
+		// having both spellings in one file is how the asymmetry survived review.
+		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+
+		expect(source).toContain("from './entryShots.mjs'");
+		expect(source).toContain('resolveShots(process.argv, SHOTS)');
 	});
 
 	/**
@@ -137,13 +147,34 @@ describe('the headless harness capture script', () => {
 	 * still calls it, on the real screenshot path, with the real readiness predicate.
 	 */
 	it('re-checks readiness after the screenshot through the importable reportIfNoLongerDrawn', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+		// Stripped, for the reason the case above gives: this one asserts an ORDER between two
+		// calls, and a block comment mentioning either would move an index and could satisfy the
+		// comparison with one of the calls gone.
+		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
 
 		expect(source).toContain("from './captureReadiness.mjs'");
 		expect(source).toContain('await page.screenshot(');
 		expect(source.indexOf('reportIfNoLongerDrawn(page, entry, name, errors, entryHasDrawn)')).toBeGreaterThan(
 			source.indexOf('await page.screenshot('),
 		);
+	});
+
+	/**
+	 * The race, and the skip — both wiring pins, because `captureAll` and the wait's call site
+	 * live in a module that runs a real capture the moment it is imported. What each of them
+	 * DECIDES is driven directly in `captureReadiness.test.ts`, against the real functions with a
+	 * fake `page`; this is only that the capture still reaches them.
+	 *
+	 * Stripped source, like every other scan here.
+	 */
+	it('races the failure card and does not attempt a second scheme for an entry the index lacks', () => {
+		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+
+		expect(source).toContain('waitUntilReady(page, selector, entry, entryHasDrawn)');
+		expect(source).toContain('namesNoEntry(failure)');
+		// The wait is the imported one, not a local that shadows it — the defect this replaces
+		// was a local `waitUntilReady` awaiting the readiness predicate alone.
+		expect(source).not.toMatch(/function\s+waitUntilReady/);
 	});
 
 	/**
@@ -158,7 +189,12 @@ describe('the headless harness capture script', () => {
 		// `dataset.entry`, never interpolated into a CSS attribute selector, because an id is
 		// built from a file path and a `"` is a legal filename character on POSIX.
 		expect(source).toContain('stage.dataset.entry === id');
-		expect(source).toContain('waitForFunction(entryHasDrawn');
+		// The POLL moved to `captureReadiness.mjs` when the wait became a race against the
+		// failure card — the predicate still lives here, and is still asked through
+		// `waitForFunction` rather than through a selector. Read from the file that now holds the
+		// call, because a pin that keeps naming the old home passes only until someone deletes
+		// the call it can no longer see.
+		expect(readFileSync(READINESS, 'utf8')).toContain('waitForFunction(hasDrawn, entry)');
 		// The stage must not be empty either — but by NODE, not by element: a template whose
 		// root is text renders no element, and an element check would refuse a capture of an
 		// entry the index drew correctly.
@@ -231,6 +267,10 @@ describe('the headless harness capture script', () => {
 	 * The production mount does THREE things — Pinia, VueKonva and `provide(PLAN_EDITOR_CONTEXT)`.
 	 * The third has no `use()` to make it visible in a diff, which is why it was the one
 	 * missed, and why it gets its own assertion rather than being folded into the one above.
+	 *
+	 * `page.ts` does a FOURTH that production does not, and it is pinned by the case below this
+	 * one — added after "two of three named" turned out to be how the missing one stayed
+	 * invisible.
 	 */
 	it('provides PLAN_EDITOR_CONTEXT on the index app, as the production mount does', () => {
 		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
@@ -241,6 +281,37 @@ describe('the headless harness capture script', () => {
 
 		expect(production).toContain('app.provide(PLAN_EDITOR_CONTEXT');
 		expect(page).toContain('provide(PLAN_EDITOR_CONTEXT');
+	});
+
+	/**
+	 * `page.ts`'s FOURTH step, and the one with no production twin to read it from — production
+	 * mounts one known view, while the index mounts whatever the tree holds, so the global
+	 * component registry is the index's own. Two of the three steps above were pinned by name
+	 * for forty-three review rounds and this one was pinned by nothing, which is exactly how a
+	 * mirror of `page.ts` came to be missing it: `indexPage.test.ts`'s `openIndex` claimed to
+	 * mirror this file and installed three of four, so the feature's headline workflow — a
+	 * template-only mock resolving `<StatusBar />`, which it cannot import — was exercised by no
+	 * test, and the next prototype that composed anything turned `npm run check` red against
+	 * correct work.
+	 *
+	 * So this pins BOTH ends: `page.ts` registers what `registrableComponents` returns, and
+	 * `indexApp.ts` — the config every mounted test of the index now takes — calls the same
+	 * function over the same two entry kinds. A source scan rather than a behavioural check
+	 * because `page.ts` runs its mount at module scope; what the registry DOES once installed is
+	 * held behaviourally by `tests/harness/indexRealEntries.test.ts`.
+	 */
+	it('registers every discovered component and mock on the index app, and mirrors that in tests', () => {
+		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const testConfig = readFileSync(path.join(REPO, 'tests', 'harness', 'indexApp.ts'), 'utf8');
+
+		for (const source of [page, testConfig]) {
+			expect(source).toContain('registrableComponents([');
+			expect(source).toContain('...componentEntries()');
+			expect(source).toContain('...prototypeEntries()');
+			expect(source).toContain('defineAsyncComponent(');
+		}
+
+		expect(page).toContain('app.component(tag,');
 	});
 
 	/**

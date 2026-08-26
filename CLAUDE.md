@@ -322,9 +322,12 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   and the bare root still draws the project view: the three fixed captures address that surface
   with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
   `?phone`), just never a `view` one — so making a bare root mean "index" would break them
-  while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as template-only SFCs — pure HTML to
-  write, already a real component, and promoted by adding a `<script setup>` rather than
-  being redrawn. **No prototype or fixture MODULE ever composes a built chunk**, refused
+  while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as
+  template-only SFCs — HTML plus Vue's template syntax, written to the same Vue lint rules as
+  the rest of `src/` so that promotion is adding a `<script setup>` and moving the file rather
+  than redrawing the markup. They compose real components and sibling mocks through the index's
+  global registry, never through imports: a template-only file has no script block to put one in.
+  `src/prototypes/README.md` carries the one rule that IS relaxed there and why. **No prototype or fixture MODULE ever composes a built chunk**, refused
   twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
   `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
   false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
@@ -467,7 +470,8 @@ the editor, not the gate.
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
   source project, six of ten review findings were comments precisely stating the rule the
   code beside them broke. A confident paragraph is evidence of intent and of nothing else.
-- **A fake must not be kinder than the real thing — and not thinner either.** A DOM helper
+- **A fake must not be kinder than the real thing, not thinner than it, and not HARSHER than
+  it.** A DOM helper
   that accepted what Obsidian rejects shipped a dead drag target while every test and the
   browser harness drew it happily; too kind. A fake `ItemView` that never nested a
   `.view-header` inside `.workspace-leaf-content` the way Obsidian does left
@@ -514,6 +518,20 @@ the editor, not the gate.
   input device — clicks are down+up pairs, drags are down/move…/up — and the rig now
   spells them that way (`click()` in `zoneEditing.test.ts`), so the next gesture test
   cannot accidentally model an impossible input.
+
+  **Fifth instance, and the THIRD face of the rule** — the one the heading gained the word
+  "harsher" for. `tests/harness/planEditor.ts` handed the browser harness
+  `unavailablePlanEditorCommands()`, the bundle a session with unrecovered settings gets, under
+  a comment reading "every write refuses". But that bundle also carries `zoneInspector`, a READ
+  (SDD §59 groups the Inspector query with the commands it shares a selection with), and the
+  refusal refused it too — on a page whose fixture holds the zone in full. `InspectorDto` has no
+  error variant, so a failed read and an empty selection are the same `{ kind: 'empty' }`: the
+  canvas showed the seeded Kitchen selected and the Inspector showed nothing, with no error
+  anywhere and two of the five shell regions contradicting each other. The lesson generalises
+  past this bundle: a stand-in that REFUSES what production answers turns a tool built for
+  looking into one that shows a false picture, and it does it silently wherever the consumer has
+  no shape for an error. A refusal bundle is the honest stand-in only where the real thing would
+  also have nothing to give.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`

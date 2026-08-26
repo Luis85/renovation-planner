@@ -494,10 +494,14 @@ export default defineConfig([
 		// every other block, for the base-path reason TESTS states.
 		// `SRC_EXTENSIONS`, spelled literally rather than routed through `srcFiles`:
 		// `srcFiles('**')` is a needlessly clever spelling of the same set. This glob went
-		// stale once already — it named only `.ts`/`.vue` after `SRC_EXTENSIONS` grew to
-		// six, so a `.js` file was covered by every layer ban and still bypassed the vault
-		// write boundary. Built from the constant now, the same way the root-of-`src/`
-		// block above is, so the two cannot drift apart from `srcFiles()` again.
+		// stale once already — it named only `.ts`/`.vue` after `SRC_EXTENSIONS` grew past
+		// those two, so a `.js` file was covered by every layer ban and still bypassed the
+		// vault write boundary. Built from the constant now, the same way the root-of-`src/`
+		// block above is, so the two cannot drift apart from `srcFiles()` again. Written
+		// without a COUNT deliberately: the earlier version said "grew to six" and the list
+		// is nine, having gained `.tsx`/`.mts`/`.cts` in a later round that did not come
+		// back here — and the number was never the point, since the whole repair was to stop
+		// restating the list at all.
 		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		ignores: ['**/src/infrastructure/obsidian/**'],
 		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
@@ -618,7 +622,39 @@ export default defineConfig([
 		 * the block name, and `setup` is an attribute on it. Measured, both forms.
 		 */
 		files: ['**/src/prototypes/**/*.vue'],
-		rules: { 'vue/no-restricted-block': ['error', 'style', 'script'] },
+		rules: {
+			'vue/no-restricted-block': ['error', 'style', 'script'],
+			/**
+			 * OFF here, and the choice is between this and narrowing a promise — so the reason
+			 * has to be written down rather than assumed.
+			 *
+			 * `flat/recommended` applies whole to this tree, and three of its rules refuse what a
+			 * designer or an eyeless agent actually writes: a single-word screen name
+			 * (`Kitchen.vue`), a content-bearing element on one line (`<div class="x">hello</div>`),
+			 * and two-space indentation. All three measured against this config, not reasoned
+			 * about. `ZoneSummary.vue` passes only by accident — its single-line content elements
+			 * are `<span>`s, which are on `singleline-html-element-content-newline`'s inline-element
+			 * ignore list, and its `<h2>` carries no attributes.
+			 *
+			 * Only ONE of the three is turned off, and the line between them is `--fix`. The two
+			 * formatting rules are auto-fixable (measured: `eslint --fix` rewrites both spellings
+			 * above correctly), and they are what makes a mock's template LEGAL in
+			 * `src/presentation/` unchanged — `tests/build/prototype-promotion.test.ts` holds that
+			 * the promoted template is byte-identical, so relaxing formatting here would move the
+			 * failure to promotion, where the fix is redrawing the markup and the whole feature is
+			 * "the markup is never redrawn". This one is not fixable and never could be: it is
+			 * about the FILE NAME and says nothing about the template, so switching it off costs
+			 * that guarantee nothing. And naming a mock after the screen it draws is the likely
+			 * case, not the exotic one — `docs/actors/Designer.md`'s actor names screens, not
+			 * component-library entries.
+			 *
+			 * The cost, stated: a promoted mock still meets this rule in `src/presentation/`, so
+			 * `Kitchen.vue` is renamed at promotion. That is a rename of a file, not a redraw of a
+			 * template, and it is the trade this block is choosing. `tests/build/vue-rules.test.ts`
+			 * drives all three spellings, in both trees.
+			 */
+			'vue/multi-word-component-names': 'off',
+		},
 	},
 	{
 		// The one directory whose job IS the console. A per-directory block REPLACES this

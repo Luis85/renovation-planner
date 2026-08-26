@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
-import { describeFailure, reportIfNoLongerDrawn } from './captureReadiness.mjs';
+import { describeFailure, namesNoEntry, reportIfNoLongerDrawn, waitUntilReady } from './captureReadiness.mjs';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
@@ -88,19 +88,15 @@ const entryHasDrawn = (id) => {
 	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.childNodes.length > 0;
 };
 
-/**
- * The fixed shots name a selector; a named entry names itself, and is compared as a string
- * in the page because a CSS attribute selector built from a file path is a quoting bug
- * waiting for the first filename with a `"` in it.
- */
-async function waitUntilReady(page, selector, entry) {
-	if (entry === undefined) await page.waitForSelector(selector, { state: 'attached' });
-	else await page.waitForFunction(entryHasDrawn, entry);
-}
-
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
  * console error back onto the shared list rather than throwing — one bad shot should not
- * cost the rest of the run its PNGs. */
+ * cost the rest of the run its PNGs.
+ *
+ * Returns the failure reason it recorded, or `undefined` on a clean capture: `captureAll` reads
+ * it to decide whether the SECOND colour scheme of the same entry is worth attempting at all.
+ * The reason is returned as well as pushed rather than instead of it — the errors list is what
+ * the exit code is built from, and a caller that forgot to push would turn a failure into a
+ * green run. */
 async function captureOne(browser, baseUrl, { name, query, selector, entry }, errors) {
 	const page = await browser.newPage({ viewport: VIEWPORT });
 
@@ -122,7 +118,11 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry }, er
 		// 'load', not 'networkidle': Vite's dev server keeps an HMR websocket open, which
 		// networkidle waits forever for.
 		await page.goto(`${baseUrl}/${query}`, { waitUntil: 'load' });
-		await waitUntilReady(page, selector, entry);
+		// `entryHasDrawn` is passed in rather than imported over there: `captureReadiness.mjs`
+		// only ever hands it to `page.waitForFunction`, so it stays free of DOM-shaped code and a
+		// fake `page` can drive the race with no browser. Same bargain `reportIfNoLongerDrawn`
+		// already makes below.
+		await waitUntilReady(page, selector, entry, entryHasDrawn);
 
 		const file = path.join(OUT_DIR, `${name}.png`);
 
@@ -132,11 +132,15 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry }, er
 		console.log(`wrote ${file}`);
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : String(error);
+		const described = await describeFailure(page, entry, reason);
 
-		errors.push(`[${name}] ${await describeFailure(page, entry, reason)}`);
+		errors.push(`[${name}] ${described}`);
+		return described;
 	} finally {
 		await page.close();
 	}
+
+	return undefined;
 }
 
 /** Boot the harness's own dev server (`vite.harness.config.ts`) on a free port, the JS API
@@ -177,13 +181,49 @@ async function startHarnessServer() {
 	}
 }
 
+/** Why this shot is not being attempted, or `undefined` to attempt it. Its own function so
+ * `captureAll` stays one decision per line — fallow's complexity budget reads the loop, and a
+ * capture loop is the wrong place to spend it. */
+function skipReason({ name, entry }, missing) {
+	if (entry === undefined || !missing.has(entry)) return undefined;
+
+	return `[${name}] not attempted: the index has no entry named ${entry}`;
+}
+
+/** Whether a shot's failure means the ENTRY is missing rather than that it drew badly — the
+ * only failure whose answer the other colour scheme cannot change. `undefined` is a clean
+ * capture, which is never a reason to skip anything. */
+const isMissingEntry = ({ entry }, failure) =>
+	entry !== undefined && failure !== undefined && namesNoEntry(failure);
+
 /** Every shot in the list — five for a bare run, two for a named entry — and the errors any
  * of them raised, collected rather than thrown, so one bad shot does not cost the rest of
- * the run its PNGs. */
+ * the run its PNGs.
+ *
+ * An entry the index says it does not HAVE is not attempted twice. The two shots of one entry
+ * differ only by `?theme`, and a mistyped id fails identically in both schemes — so the second
+ * one is a page load, a race and a `describeFailure` read spent to be told the same sentence.
+ * It is still REPORTED, with the reason: silently writing one PNG where two were promised, and
+ * saying nothing about the second, is the shape of quiet this whole script is against. Only
+ * "no such entry" qualifies (`namesNoEntry`); an entry that exists and drew badly is attempted
+ * in both schemes, because a defect can be scheme-specific and looking is the point. */
 async function captureAll(browser, baseUrl, shots) {
 	const errors = [];
+	const missing = new Set();
 
-	for (const shot of shots) await captureOne(browser, baseUrl, shot, errors);
+	for (const shot of shots) {
+		const skipped = skipReason(shot, missing);
+
+		if (skipped !== undefined) {
+			errors.push(skipped);
+			continue;
+		}
+
+		const failure = await captureOne(browser, baseUrl, shot, errors);
+
+		if (isMissingEntry(shot, failure)) missing.add(shot.entry);
+	}
+
 	return errors;
 }
 

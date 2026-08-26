@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { storeToRefs } from 'pinia';
+import { createPinia, setActivePinia, storeToRefs } from 'pinia';
 import { mount } from '@vue/test-utils';
 import { createApp } from 'vue';
 import { seedFixture, harnessEditorContext } from './fixture';
@@ -11,7 +11,10 @@ import {
 	usePlanEditorContext,
 	type PlanEditorContext,
 } from '../../src/presentation/editor/PlanEditorContext';
-import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
+import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
+import { createInspectorStoreDefinition } from '../../src/presentation/editor/inspector/inspector-store';
+import { isErr, ok } from '../../src/core/result/Result';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
 
@@ -117,5 +120,50 @@ describe('the harness fixture', () => {
 			.map((file) => file.split(path.sep).join('/'));
 
 		expect(readers).toEqual(['src/presentation/editor/shell/InspectorPanel.vue']);
+	});
+});
+
+/**
+ * The Inspector's READ, which the harness used to refuse along with every write.
+ *
+ * `PlanEditorCommandServices` carries `zoneInspector` beside the commands (SDD §59: the query
+ * shares a selection with them), and `harnessDeps()` reached for `unavailablePlanEditorCommands()`
+ * wholesale — so the one read in that bundle answered `settings.unrecovered` on a page whose
+ * fixture holds the zone in full. `InspectorStore` has no error variant to show for it
+ * (`InspectorDto` is `empty | zone | multiple`), so the canvas showed Kitchen selected and the
+ * Inspector showed nothing, with no error anywhere. A stand-in must not be kinder than the real
+ * thing, must not be thinner than it, and must not be HARSHER than it either.
+ *
+ * Driven through `InspectorStore` rather than only against the query, because the defect was
+ * only ever visible one level up: the query returning `err` and the query returning `ok(null)`
+ * produce the SAME `{ kind: 'empty' }`, so a case asserting on the query alone would go on
+ * passing against a store that discarded the answer.
+ */
+describe('the harness Inspector query', () => {
+	it('answers a seeded zone instead of refusing it, so the panel is not silently empty', async () => {
+		setActivePinia(createPinia());
+
+		const kitchen = HARNESS_ZONES[0];
+		const useInspector = createInspectorStoreDefinition({
+			query: harnessDeps().commands.zoneInspector,
+			// Neither is reached by `hydrateFrom`; both are required by the deps type.
+			dispatcher: { run: () => Promise.resolve(ok(undefined)) },
+			toCommand: () => ({}) as never,
+		});
+		const inspector = useInspector();
+
+		await inspector.hydrateFrom([kitchen.id as ZoneId]);
+
+		// 4200 x 3000 mm, through the same `core/geometry` operation `Zone.area()` calls — the
+		// number is asserted rather than only the kind, since `areaMm2` is what the panel prints.
+		expect(inspector.dto).toEqual({ kind: 'zone', id: kitchen.id, name: 'Kitchen', areaMm2: 4200 * 3000 });
+	});
+
+	it('still refuses every write, which is the honest answer for a page with no vault', async () => {
+		const { commands } = harnessDeps();
+
+		const created = await commands.createZone.execute({} as never);
+
+		expect(isErr(created) && created.error.code).toBe('settings.unrecovered');
 	});
 });

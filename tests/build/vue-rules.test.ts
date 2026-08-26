@@ -204,3 +204,42 @@ describe('the prototypes-only scope of vue/no-restricted-block', () => {
 		expect(reported).toEqual([]);
 	});
 });
+
+/**
+ * What `flat/recommended` still refuses inside `src/prototypes/`, and the one thing it does
+ * not — the check under `eslint.config.mjs`'s `vue/multi-word-component-names: 'off'` block
+ * and under `src/prototypes/README.md`'s narrowed sentence about what "template-only" costs.
+ *
+ * All three spellings are driven in BOTH trees, because the whole decision is where the line
+ * between them falls: turning a rule off in one directory is invisible from the config's own
+ * text if nothing asks for the other side, and a rule that quietly went off everywhere would
+ * read exactly the same here.
+ */
+describe('the Vue rules a prototype is and is not written to', () => {
+	const PROTOTYPE = 'src/prototypes/Kitchen.vue';
+	const PROMOTED = 'src/presentation/editor/Kitchen.vue';
+	const SINGLE_LINE = '<template>\n\t<div class="x">hello</div>\n</template>\n';
+	const SPACE_INDENTED = '<template>\n  <div class="x" />\n</template>\n';
+
+	/**
+	 * The relaxation. A single-word file name is what a designer writes when the mock is named
+	 * after the SCREEN it draws, and the rule is not auto-fixable because it is about the file
+	 * name rather than the markup — which is exactly why it is the one that gets turned off:
+	 * it costs the byte-identical template guarantee nothing.
+	 */
+	it('accepts a single-word mock name, which the rest of src/ does not', async () => {
+		expect(await lintText('<template>\n\t<div class="x" />\n</template>\n', PROTOTYPE)).toEqual([]);
+		expect(await lintText(conforming(''), PROMOTED)).toContain('vue/multi-word-component-names');
+	});
+
+	/**
+	 * The two that stay ON, and the reason is promotion: a template that breaks either of them
+	 * cannot move into `src/presentation/` unchanged, and "the markup is never redrawn" is the
+	 * criterion the whole feature exists for. Both are auto-fixable, which is what makes
+	 * keeping them affordable for an actor with no eyes — `eslint --fix` rewrites both.
+	 */
+	it('still refuses a single-line content element and space indentation in a mock', async () => {
+		expect(await lintText(SINGLE_LINE, PROTOTYPE)).toContain('vue/singleline-html-element-content-newline');
+		expect(await lintText(SPACE_INDENTED, PROTOTYPE)).toContain('vue/html-indent');
+	});
+});

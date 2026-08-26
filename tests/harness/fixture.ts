@@ -22,9 +22,10 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  * would be a second derivation answering differently the day one of them is edited.
  *
  * **Reproducibility needs a reset, not just a seed, which is why this is two functions.**
- * `seedFixture()`, below `reseedFixture` in this file, is called exactly ONCE by `page.ts`,
- * to build and install the Pinia the index app runs on for its whole lifetime — every entry
- * the index opens afterwards shares that one Pinia, and `app.use()` cannot be re-run to swap
+ * `seedFixture()`, below `reseedFixture` in this file, is called ONCE PER INDEX APP — by
+ * `page.ts` on the real page, and by `indexApp.ts` for each index a test mounts — to build and
+ * install the Pinia that app runs on for its whole lifetime. Every entry the index opens
+ * afterwards shares that one Pinia, and `app.use()` cannot be re-run to swap
  * it for a fresh one (Vue installs a plugin for the app's lifetime, and every component
  * resolves through it). So the "one seeded world" claim above does not hold merely because
  * `seedFixture()` ran once; it holds because `IndexPage.vue`'s `open()` calls
@@ -112,10 +113,12 @@ export function seedFixture(): Pinia {
 	const pinia = createPinia();
 
 	// Process-wide: the last call to `setActivePinia` wins, so a SECOND `seedFixture()` call
-	// — a second test in this file, say — replaces which Pinia `useXStore()` resolves to
-	// outside an explicit `app.use(pinia)`. Harmless here: nothing in this codebase creates a
-	// second Pinia while an index app built from the first one is still on screen, so the
-	// global stays pointed at the one this function just built for as long as that app lives
+	// — the next test mounting an index through `indexApp.ts`, say — replaces which Pinia
+	// `useXStore()` resolves to outside an explicit `app.use(pinia)`. Harmless in both places
+	// that call it: the real page builds exactly one index app, and a test mounts one at a
+	// time, so nothing creates a second Pinia while an index built from the first is still on
+	// screen and the global stays pointed at the one this call just built for as long as that
+	// app lives
 	// — which is what lets `reseedFixture()` call `useXStore()` from `open()`, outside any
 	// component's injection context, and still reach the SAME stores every mounted component
 	// gets via `app.use(pinia)`'s injection.
@@ -145,9 +148,12 @@ export function harnessEditorContext(): PlanEditorContext {
 		planId: HARNESS_PLAN.id,
 		queries: deps.queries,
 		// Design slice 8's write side, which arrived on `main` while this branch was running.
-		// Taken from `harnessDeps()` like everything else here rather than stubbed: it answers
-		// `settings.unrecovered` for every write, which is the honest result for a page with no
-		// vault — a mock's gestures fail visibly instead of pretending to persist.
+		// Taken from `harnessDeps()` like everything else here rather than stubbed: every WRITE
+		// answers `settings.unrecovered`, the honest result for a page with no vault — a mock's
+		// gestures fail visibly instead of pretending to persist. The bundle's one READ, the
+		// Inspector query, is answered from `HARNESS_ZONES` instead, because a page that HAS the
+		// zone and refuses to describe it shows a false picture rather than an honest failure;
+		// `harnessDeps` carries the whole reasoning, including why `zones` is left refusing.
 		commands: deps.commands,
 		vault: deps.vault,
 		onThemeChange: deps.onThemeChange,

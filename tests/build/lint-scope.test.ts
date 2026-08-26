@@ -1,7 +1,8 @@
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { REPO, lintedFiles } from '../helpers/oxlint';
+import { ESLINT_BOOT_MS, resolveConfig, warmUpEslint } from '../helpers/eslint';
 
 /**
  * The whole argument for a second linter is the tree the first one cannot reach: the
@@ -69,5 +70,42 @@ describe('the oxlint gate', () => {
 		const excluded = ['node_modules/', 'coverage/', 'dist/', '.obsidian/', '.claude/'];
 
 		expect([...linted].filter((file) => excluded.some((dir) => file.startsWith(dir)))).toEqual([]);
+	});
+});
+
+/**
+ * The other gate's scope, for the one claim about it that turned out to be believed wrongly:
+ * the 450-line budget on test files.
+ *
+ * A review round asserted — as a measurement — that the budget "does not reach
+ * `tests/harness/indexPage.test.ts` at all", reading `files: [`${TESTS}/*.ts`]` as one level
+ * deep. It is not: `TESTS` is `**\/tests/**`, so the pattern is `**\/tests/**\/*.ts` and `**`
+ * matches any depth including none. Asked of ESLint's own `calculateConfigForFile`, the budget
+ * resolves for a nested test file exactly as it does for a top-level one, and `indexPage.test.ts`
+ * measured 449 of its 450 lines — one under, which is why a review round that read the glob
+ * instead of asking the linter could believe the cap was absent while it was in fact about to
+ * fire.
+ *
+ * So the repair is not to widen anything. It is to stop the glob's SHAPE being the evidence: a
+ * budget that quietly stopped reaching the deepest test directories would make the gate looser
+ * with nothing to say so, which is the same failure mode the oxlint scope check above exists for.
+ * Both depths are asked, because a case at one depth alone is what could not tell them apart.
+ */
+describe('the ESLint test-file size budget', () => {
+	beforeAll(warmUpEslint, ESLINT_BOOT_MS);
+
+	it.each([
+		['tests/helpers/editor.ts', 'one level'],
+		['tests/harness/indexPage.test.ts', 'two levels'],
+		['tests/presentation/editor/tools/selectTool.test.ts', 'three levels'],
+	])('reaches %s, %s under tests/', async (file) => {
+		// A real file on disk, asserted as such: `calculateConfigForFile` answers happily for a
+		// path that does not exist, so a typo'd or moved fixture would make this case measure the
+		// config for nothing at all and still pass.
+		expect(existsSync(path.join(REPO, file)), `${file} is not on disk`).toBe(true);
+
+		const config = await resolveConfig(path.join(REPO, file));
+
+		expect(config.rules['max-lines']).toEqual([2, { max: 450, skipBlankLines: true, skipComments: true }]);
 	});
 });

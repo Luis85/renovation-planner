@@ -68,8 +68,8 @@ deals with.
 [[Prototype a screen in the harness before it is built]], which is BUILT. `src/prototypes/` holds
 template-only mocks, the harness index lists every prototype and component discovered from the
 tree (open it with `npm run harness` and then `?index`), and one assembled stylesheet styles both
-— `tests/harness/harness.test.ts` and `tests/harness/indexPage.test.ts` hold that from three
-directions, since no single instrument reaches every way a second sheet could arrive.
+— `tests/harness/harness.test.ts` and `tests/harness/indexRealEntries.test.ts` hold that from
+three directions, since no single instrument reaches every way a second sheet could arrive.
 
 **What is NOT checked, because this actor's judgement is the part no test replaces.** Whether a
 prototype LOOKS right — spacing, hierarchy, whether it reads against a real theme — is exactly

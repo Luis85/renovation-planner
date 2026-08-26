@@ -29,9 +29,10 @@ proposal, and the concepts README records six findings those pages produced that
 would have. What it cannot do is hand its output forward.
 
 So this use case moves the drawing to where the real components already live: a mock is a
-**template-only Vue SFC**, which is pure HTML to write and is already a real component the
-harness mounts like any other. Promotion adds a `<script setup>` block. The markup is never
-redrawn.
+**template-only Vue SFC**, which is HTML plus Vue's template syntax and is already a real
+component the harness mounts like any other. Promotion adds a `<script setup>` block. The markup
+is never redrawn — which is also why the template is written to the same Vue lint rules the
+presentation tree uses: markup that broke them could not cross unchanged.
 
 ## Actors
 

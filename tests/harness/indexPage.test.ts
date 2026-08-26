@@ -2,13 +2,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, inject, onBeforeUnmount, onMounted, onUnmounted, ref, resolveComponent } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import VueKonva from 'vue-konva';
 import type { HarnessEntry } from './entries';
 import type * as EntriesModule from './entries';
-import { harnessEditorContext, seedFixture } from './fixture';
+import { indexAppConfig } from './indexApp';
 import EmptyLayer from '../../src/presentation/editor/layers/EmptyLayer.vue';
-import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
-import { installEditorEnvironment, settle as flushAsync, settleUntil } from '../helpers/editor';
+import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { drawSchemeToggle } from './theme';
 import { DEFAULT_VIEWPORT, screenPoint } from '../../src/presentation/editor/viewport/Viewport';
@@ -49,7 +47,13 @@ const state = vi.hoisted(() => ({
 	components: [] as HarnessEntry[],
 }));
 
-vi.mock('./entries', () => ({
+// Spread over the REAL module rather than declared as two exports: `registrableComponents`
+// lives here too, `indexApp.ts` calls it to build the component registry `page.ts` installs,
+// and a mock naming only the two globs would have left that call `undefined` at the moment
+// the registry stopped being optional. A pass-through mock is thinner than the module it
+// stands in for in exactly the way this file's own registry gap was thinner than `page.ts`.
+vi.mock('./entries', async () => ({
+	...(await vi.importActual<typeof EntriesModule>('./entries')),
 	prototypeEntries: () => state.prototypes,
 	componentEntries: () => state.components,
 }));
@@ -78,15 +82,17 @@ const stageEntry = (wrapper: VueWrapper): string | undefined =>
  * Mount the index at a URL, the way the page is reached. `?entry=` is read in `setup()`, so it
  * has to be on `window.location` BEFORE the mount rather than after it.
  *
- * `seedFixture()` and `PLAN_EDITOR_CONTEXT` mirror the app config `page.ts` gives the index in
- * production — Pinia and the editor context alongside `VueKonva` — so a REAL component reading
- * a store or `usePlanEditorContext()` mounts into the thing being asserted about rather than a
- * lighter stand-in that only the fake entries in this file happened not to need. Harmless to
- * most cases here: `seedFixture()`'s `setActivePinia` call only matters to a component that
- * calls `useProjectStore()`/`useEditorStore()`, and most of the fakes below read no store and
- * inject no context. `PansTheCamera`/`ReadsTheCamera` (Finding A's regression) are the
- * deliberate exception — they exist specifically to call `useEditorStore()` against this same
- * Pinia, the way a real interaction does.
+ * `indexAppConfig()` is the app config `page.ts` gives the index in production — Pinia, VueKonva,
+ * the editor context AND the component registry — taken from one shared module rather than
+ * restated here, so a REAL component reading a store or `usePlanEditorContext()`, and a
+ * template-only mock resolving `<StatusBar />`, both mount into the thing being asserted about
+ * rather than a lighter stand-in that only the fake entries in this file happened not to need.
+ * The registry is the step this function used to be missing; `indexApp.ts` carries what that
+ * cost. Harmless to most cases here: `seedFixture()`'s `setActivePinia` call only matters to a
+ * component that calls `useProjectStore()`/`useEditorStore()`, and most of the fakes below read
+ * no store and inject no context. `PansTheCamera`/`ReadsTheCamera` (Finding A's regression) are
+ * the deliberate exception — they exist specifically to call `useEditorStore()` against this
+ * same Pinia, the way a real interaction does.
  */
 async function openIndex(query: string): Promise<VueWrapper> {
 	window.history.replaceState({}, '', query === '' ? '/' : `/?${query}`);
@@ -95,57 +101,9 @@ async function openIndex(query: string): Promise<VueWrapper> {
 
 	document.body.appendChild(host);
 
-	const wrapper = mount(IndexPage, {
-		attachTo: host,
-		global: {
-			plugins: [seedFixture(), VueKonva],
-			provide: { [PLAN_EDITOR_CONTEXT as symbol]: harnessEditorContext() },
-		},
-	});
+	const wrapper = mount(IndexPage, { attachTo: host, global: indexAppConfig() });
 
 	await flushAsync();
-
-	return wrapper;
-}
-
-/**
- * The REAL discovery, bypassing the mock above. `./entries` is mocked file-wide for this file
- * — `vi.mock` above has no per-test opt-out — and the mock is a deliberate pass-through
- * (`() => state.prototypes` / `() => state.components`), so pointing `state` at what the ACTUAL
- * glob returns (via `vi.importActual`, which reads past the mock) makes `IndexPage` render the
- * real tree through the exact same mounting path every other case in this file uses, rather
- * than a second one built to bypass it.
- */
-const real = await vi.importActual<typeof EntriesModule>('./entries');
-
-/**
- * Opens one entry through the index the way a designer actually would — by id, with the REAL
- * `prototypeEntries()`/`componentEntries()` behind it — for the rendered-document case below.
- * Reuses `openIndex` rather than mounting a second way, and overwrites `state` only for the
- * duration of this one open; `beforeEach` puts the fixtures back before the next test.
- *
- * `openIndex`'s own `settle()` is a FIXED four microtasks and one macrotask, tuned for the
- * fixtures elsewhere in this file — `component: () => Promise.resolve({ default: … })`, which
- * resolves in one microtask. A real entry's `component()` is a genuine dynamic `import()`
- * through the module runner, real I/O whose duration this file does not control, and the fixed
- * wait is not long enough for it: measured against the first real prototype tried here, the
- * stage was still showing "Pick an entry." after `openIndex` returned. So this waits for the
- * OUTCOME instead of a tick count — either the stage names what it rendered, or the entry
- * reported a failure — which is `settleUntil`, already built for exactly this shape of race
- * (`tests/helpers/editor.ts`, written for a real image decode).
- */
-async function openEntryInIndex(id: string): Promise<VueWrapper> {
-	state.prototypes = real.prototypeEntries();
-	state.components = real.componentEntries();
-
-	const wrapper = await openIndex(`entry=${encodeURIComponent(id)}`);
-
-	await settleUntil(
-		() =>
-			wrapper.find('.rp-harness-stage').attributes('data-entry') !== undefined ||
-			wrapper.find('.rp-harness-failure').exists(),
-		`${id} to settle`,
-	);
 
 	return wrapper;
 }
@@ -259,9 +217,12 @@ const ReadsTheCamera = defineComponent({
 
 /**
  * Round 8's reproduction. Nothing under `src/presentation` mutates a store from an unmount
- * hook today (measured — `grep -rn "onUnmounted\|onBeforeUnmount" src/presentation` finds three
- * hits and none touches Pinia), so this is a component built to have the shape the fix guards
- * against: it mutates the editor store — the same `beginPan`/`continuePan`/`endPan` sequence
+ * hook today (measured — `onUnmounted`/`onBeforeUnmount` reach FOUR call sites there:
+ * `useThemeTokens`, `BackgroundLayer`, `PlanEditorRoot` and `PlanCanvas`, each disposing a
+ * listener, a counter or an observer, never a store). This comment said "three hits" while
+ * `IndexPage.vue`'s paragraph on the same measurement said four and named all four; four is
+ * what the grep answers, counting call sites rather than the import lines it also matches. So
+ * this is a component built to have the shape the fix guards against: it mutates the editor store — the same `beginPan`/`continuePan`/`endPan` sequence
  * `PansTheCamera` uses on a real drag — from `onUnmounted`, which fires once Vue's reactive
  * flush actually tears this entry down rather than when `open()` merely queues that teardown.
  */
@@ -380,8 +341,12 @@ describe('the harness index, with nothing to open', () => {
 	 * knew was invalid at load. This is the same shape `resolveShots` in `scripts/entryShots.mjs`
 	 * already refuses at the argv seam (Task 6 Minor 4); this is that shape at the URL seam.
 	 */
-	it('reports an `?entry=` with an empty name instead of showing the picker', async () => {
-		const wrapper = await openIndex('entry=');
+	// `%20` is the same mistake wearing a space, and the message it used to produce —
+	// `no entry named ` with an invisible payload after it — is unreadable to a person and
+	// useless to `harness-shot`, which prints this card's text as the reason a capture failed.
+	// `resolveShots` already trims at the argv seam; this is the other end of the same seam.
+	it.each(['entry=', 'entry=%20'])('reports `?%s` as an empty name instead of showing the picker', async (query) => {
+		const wrapper = await openIndex(query);
 
 		expect(wrapper.find('.rp-harness-failure').text()).toBe('an entry was requested with an empty name');
 		expect(stageEntry(wrapper)).toBeUndefined();
@@ -445,12 +410,15 @@ describe('the harness index, the address bar following the opened entry', () => 
 	 * load — the toggle writes `theme` into it — rather than deriving links from the scheme on
 	 * screen, which would leave two places stating the same fact.
 	 *
-	 * `hrefFor` itself is not reactive to a `history.replaceState` call — nothing here asserts
-	 * that it magically re-runs on its own — so this drives it the way the page actually would:
-	 * opening a different entry re-renders the whole list, `hrefFor` included, against
-	 * whatever the URL says by then.
+	 * `history.replaceState` fires no event a framework can observe, so this used to hold only
+	 * "once something ELSE re-renders the list" — which left the one path that actually reads an
+	 * `href` broken: a Cmd/Ctrl-click straight after a toggle opened a new tab at the scheme the
+	 * designer had just switched away from, since nothing re-renders in between. `IndexPage.vue`
+	 * bumps `schemeEpoch` on the `rp-harness-theme` event the toggle already dispatches, and
+	 * `hrefFor` reads it for the dependency — so the assertion below now takes the anchors
+	 * WITHOUT navigating first, which is what the modified-click path does.
 	 */
-	it('carries the scheme the toggle switched to, once something re-renders the list', async () => {
+	it('carries the scheme the toggle switched to, with nothing else re-rendering the list', async () => {
 		const wrapper = await openIndex('index');
 
 		drawSchemeToggle();
@@ -458,12 +426,12 @@ describe('the harness index, the address bar following the opened entry', () => 
 
 		expect(new URLSearchParams(window.location.search).get('theme')).toBe('light');
 
-		await wrapper.findAll('nav li a')[0].trigger('click');
+		// No click on an entry, and no other prompt to re-render: the toggle alone.
 		await flushAsync();
 
-		const other = wrapper.findAll('nav li a')[1].element as HTMLAnchorElement;
+		const link = wrapper.findAll('nav li a')[1].element as HTMLAnchorElement;
 
-		expect(new URLSearchParams(new URL(other.href).search).get('theme')).toBe('light');
+		expect(new URLSearchParams(new URL(link.href).search).get('theme')).toBe('light');
 
 		wrapper.unmount();
 	});
@@ -889,89 +857,5 @@ describe('the harness index, refusing to advertise a hole', () => {
 		expect(wrapper.find('.rp-harness-failure').text()).toContain('component:GrowsADefect did not render cleanly');
 
 		wrapper.unmount();
-	});
-});
-
-/**
- * CRITERION 5's sixth route, and the one no source scan can see: a template can render a real
- * stylesheet `<link>` with no import and no build step at all.
- * `<component is="link" rel="stylesheet" href="…/concept.css" />` is valid Vue and produces a
- * genuine one, and `<component :is="tag">` with a computed value is not statically knowable
- * even in principle. `harness.test.ts`'s three cases all read SOURCE — the page's HTML, the
- * module graph, a sheet's own `@import`s — and none of them can see a node a render produces.
- *
- * So this asks the DOCUMENT instead, once an entry has mounted through the index — the only
- * place every route, thought of or not, converges on. **It does not replace the source scans**:
- * those catch a sheet in the edit loop, before anything runs, and they cover the whole of `src/`
- * and `tests/helpers/`, most of which nothing here ever mounts. This closes the category for the
- * entries a test actually drives; neither instrument subsumes the other, and the next reader
- * should not delete one for the other.
- *
- * Lives in THIS file rather than in `harness.test.ts` for a specific, measured reason: `./entries`
- * is mocked file-wide above (`vi.mock('./entries', …)`), and the whole point of the loop below is
- * to drive the REAL glob (`real`, via `vi.importActual`) rather than a fixture — a case that mounted
- * one hard-coded component, or that read the mocked `state`, would not exercise the route it
- * exists for. Mounting through `IndexPage` (`openEntryInIndex`, which reuses `openIndex` above)
- * rather than importing a component directly is what makes the check mean anything: the question
- * is what the PAGE ends up with, which is exactly what `open()`'s async pipeline and `<Suspense>`
- * decide — not what one component renders in isolation.
- */
-
-/** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
-const cssNodes = (): number => document.querySelectorAll('link[rel~=stylesheet i], style').length;
-
-describe('the harness index, the one-sheet claim over the rendered document', () => {
-	/**
-	 * The control. It proves the mounting path and the counting work, so the loop below is not
-	 * silently doing nothing while the prototypes tree is empty — a reader who finds an
-	 * `it.each` with zero iterations and no control has no way to tell "covers nothing today"
-	 * from "broken". A COMPONENT rather than a prototype, and deliberately so: it cannot exercise
-	 * the `<component is="link">` route at all (nothing here composes one into it), which is
-	 * exactly why the loop beneath it — over real PROTOTYPES — is not redundant with this one.
-	 *
-	 * **The `stageEntry` assertion is load-bearing, not decoration.** `openEntryInIndex` settles
-	 * on EITHER the stage naming what it rendered OR a failure card — so an id that resolves to
-	 * nothing, a module that fails to import, or one that throws would all still leave the CSS
-	 * count unchanged and this test green, while silently proving nothing about a mount that
-	 * actually happened. Asserting the id the stage actually rendered is what keeps this case
-	 * failing when `component:editor/shell/StatusBar` stops resolving — a renamed file, a moved
-	 * one, a broken glob — rather than degrading into "a failure card adds no stylesheet".
-	 */
-	it('adds no stylesheet to the document when a component mounts', async () => {
-		const before = cssNodes();
-
-		const page = await openEntryInIndex('component:editor/shell/StatusBar');
-
-		expect(stageEntry(page)).toBe('component:editor/shell/StatusBar');
-		expect(cssNodes()).toBe(before);
-
-		page.unmount();
-	});
-
-	/**
-	 * The real ones, from the real glob — EMPTY when Task 5 ran, before any prototype
-	 * existed. Task 7 landed a first file under `src/prototypes/`, `ZoneSummary.vue`; today,
-	 * with it in the tree, this `it.each` has one iteration and covers it — stated here
-	 * rather than left for a reader to wonder about. Task 7's file landed with NO EDIT to this
-	 * file — `real.prototypeEntries()` re-globs at file-load time, which is the same "the tree
-	 * is the registration" property the whole feature is built on, turned on its own guard.
-	 *
-	 * **Carries the control's `stageEntry` assertion too, and it is load-bearing here for the
-	 * same reason** (see the control's own comment): with only one iteration running today,
-	 * THIS is the assertion that keeps a landed prototype from silently proving nothing —
-	 * without it, a prototype that fails to import or throws while rendering would still leave
-	 * the CSS count unchanged and this case green, having never actually inspected what mounted.
-	 * A round of review that added the control's assertion without this one found exactly that
-	 * gap: a prototype planted to throw made the loop pass.
-	 */
-	it.each(real.prototypeEntries())('adds no stylesheet when $id mounts', async ({ id }) => {
-		const before = cssNodes();
-
-		const page = await openEntryInIndex(id);
-
-		expect(stageEntry(page)).toBe(id);
-		expect(cssNodes()).toBe(before);
-
-		page.unmount();
 	});
 });

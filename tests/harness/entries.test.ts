@@ -320,8 +320,9 @@ function vueFilesUnder(directory: string, prefix = ''): string[] {
  * expected id built by the test's own copy of `idFor` would be a second derivation agreeing
  * with itself. The inverse is also the reversibility `idFor` claims when it keeps the path
  * separator — a flattened id would fail here once a nested prototype exists, but the tree
- * today holds one top-level `.vue` and no nesting, so a flattened id would currently be
- * byte-identical to the real one and pass; this case does not yet exercise that guarantee.
+ * today holds two top-level `.vue` files (`ZoneSummary.vue` and `ZonePanel.vue`) and no
+ * nesting, so a flattened id would currently be byte-identical to the real one and pass; this
+ * case does not yet exercise that guarantee.
  *
  * `src/prototypes` is resolved against `process.cwd()` rather than through `REPO`
  * (`../helpers/oxlint`'s `fileURLToPath(new URL('../..', import.meta.url))`): this file runs

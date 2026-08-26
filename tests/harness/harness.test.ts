@@ -265,7 +265,7 @@ describe('the browser harness', () => {
 	 * analysable Vite syntax the first five checks did not cover, since the delimiter class
 	 * named only `'"` and not `` ` ``. Planted and watched failing before this was widened
 	 * (a template-literal specifier in `page.ts` reaches production and was invisible to
-	 * both this scan AND the rendered-document check in `indexPage.test.ts`, which mounts
+	 * both this scan AND the rendered-document check in `indexRealEntries.test.ts`, which mounts
 	 * `IndexPage` directly and never executes `page.ts` at all — this source scan remains
 	 * the only check in this file that can see a `page.ts`-specific IMPORT at all, `page.ts`
 	 * itself running below included: Vitest's default `css: false` stubs a real `.css`
@@ -354,11 +354,13 @@ describe('the browser harness', () => {
 	 * document.head.appendChild(el)`) is not distinguishable from any other `createElement`
 	 * call without running the code, so widening the regex above is not an available fix —
 	 * only running it and looking at the result is. The rendered-document check in
-	 * `indexPage.test.ts` already does that for what an ENTRY renders, but it mounts
+	 * `indexRealEntries.test.ts` already does that for what an ENTRY renders, but it mounts
 	 * `IndexPage` directly and never executes `page.ts` — the harness page's actual entry
-	 * point, and the one place with a route this specific: `applyPlatform`, `drawSchemeToggle`
-	 * and the real component registry all run from there, none of it through anything
-	 * `indexPage.test.ts` drives.
+	 * point, and the one place with a route this specific: `applyPlatform` and
+	 * `drawSchemeToggle` run from there and from nowhere a test mounts. (The component
+	 * registry no longer belongs on that list: `indexApp.ts` gives every mounted test of the
+	 * index the same registry `page.ts` installs, which is what made a prototype composing a
+	 * real component testable at all.)
 	 *
 	 * So this executes `page.ts` itself. Its top-level code runs once per module instance, at
 	 * import time, branching on `window.location.search` — `vi.resetModules()` plus a fresh
@@ -374,8 +376,8 @@ describe('the browser harness', () => {
 	 *
 	 * **What this still does not close.** `?index` alone renders "Pick an entry." — no entry
 	 * mounts — so a stylesheet a specific ENTRY inserts programmatically is still the
-	 * `indexPage.test.ts` check's job, not this one's; this closes `page.ts`'s OWN route, the
-	 * one no other check executes at all.
+	 * `indexRealEntries.test.ts` check's job, not this one's; this closes `page.ts`'s OWN
+	 * route, the one no other check executes at all.
 	 */
 	it('adds no stylesheet to the document when page.ts itself runs', async () => {
 		installEditorEnvironment();

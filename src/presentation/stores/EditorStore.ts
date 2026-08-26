@@ -110,12 +110,19 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
-	 * Every field back to the value its `ref()` started at — the harness fixture's reset hook
-	 * (`tests/harness/fixture.ts`), called before every entry the index opens so a pan or a
-	 * zoom left by one entry does not draw the next. Nothing here is persisted (see the header),
-	 * so "reset" is exactly "assign the same defaults the module top declared" — there is no
-	 * second source of truth for what a fresh viewport is, since `DEFAULT_VIEWPORT` is imported
-	 * rather than restated.
+	 * The camera and every in-flight gesture back to the state a Plan Editor opens in.
+	 *
+	 * For a store holding nothing persisted (see the header), that is the whole definition:
+	 * there is no canonical value to re-read and nothing to discard, so "reset" is exactly
+	 * "assign the same defaults the module top declared" — which is why `DEFAULT_VIEWPORT` is
+	 * imported rather than restated, leaving one source of truth for what a fresh viewport is.
+	 * A store whose state DID outlive its component would need a reload here instead, and the
+	 * distinction is the reason this method can be four assignments and be complete.
+	 *
+	 * What that buys, and the thing that would notice it missing: any surface reusing one Pinia
+	 * across successive mounts — the harness index is the one that exists (`tests/harness/fixture.ts`
+	 * calls this before every entry it opens, so a pan left by one entry does not draw the next),
+	 * a later in-plugin surface would be another.
 	 */
 	function reset(): void {
 		viewport.value = DEFAULT_VIEWPORT;

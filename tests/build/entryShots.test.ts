@@ -27,16 +27,26 @@ describe('entryShots', () => {
 		expect(dark.entry).toBe('prototype:ZoneSummary');
 		expect(dark.query).toBe('?entry=prototype%3AZoneSummary');
 		expect(light.query).toBe('?entry=prototype%3AZoneSummary&theme=light');
-		// The filename may not carry `:` or `/` — both legal in the URL, both illegal in a
-		// Windows filename, and Windows is one of the four `npm run check` legs. The FULL set
-		// is covered by the dedicated case below; this one is the readable id example above it.
+		// The filename may not carry `:` or `/` — both legal in the URL, both reserved in a
+		// Windows filename, and Windows is one of the four `npm run check` legs. All nine
+		// reserved characters are covered by the dedicated case below, which also states what
+		// "reserved" leaves out; this one is the readable id example above it.
 		expect(dark.name).not.toMatch(/[:/\\]/);
 		expect(dark.name).toBe(`entry-prototype-ZoneSummary-${digestOf('prototype:ZoneSummary')}-dark`);
 	});
 
 	/**
-	 * The set the sanitiser has to cover is `< > : " / \ | ? *` — every character Windows
-	 * refuses in a filename — and the id itself is not what limits the check: `entryShots`
+	 * The set the sanitiser has to cover is `< > : " / \ | ? *` — the nine PRINTABLE characters
+	 * Windows reserves in a filename, which is narrower than "every character Windows refuses"
+	 * and is the honest sentence: Windows also rejects the control characters 0–31 and the
+	 * reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…). Both of those are covered by
+	 * the allowlist BY CONSTRUCTION rather than by this case, and saying so costs a clause: only
+	 * `[a-zA-Z0-9]` survives, so no control character can, and the result always carries
+	 * `entry-` in front of it and `-<digest>-<scheme>` behind it, which no device name can equal.
+	 * The nine are the ones a real id can plausibly carry and the ones a DENYLIST would get
+	 * wrong, so they are the ones driven.
+	 *
+	 * The id itself is not what limits the check: `entryShots`
 	 * sanitises with an ALLOWLIST (`replace(/[^a-zA-Z0-9]+/g, '-')`), which covers the whole
 	 * set by construction. A previous version of this coverage drove only `:` and `/`, the two
 	 * characters a URL-shaped id happens to carry; that passed just as readily against a
@@ -44,7 +54,7 @@ describe('entryShots', () => {
 	 * would still be a leg-specific failure nobody reproduces locally. Driving every illegal
 	 * character at once is what actually distinguishes the two implementations.
 	 */
-	it('strips every Windows-illegal filename character, not merely the two a URL-shaped id carries', () => {
+	it('strips every reserved Windows filename character, not merely the two a URL-shaped id carries', () => {
 		const illegal = '<>:"/\\|?*';
 		const [dark] = entryShots(`a${illegal}b`);
 

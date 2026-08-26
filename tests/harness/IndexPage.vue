@@ -228,6 +228,26 @@ let mountedGeneration: number | null = null;
 let warningOwner: { readonly id: string; readonly generation: number } | null = null;
 
 /**
+ * How many times the scheme toggle has written to the URL — a counter with no value, existing
+ * only so that something reactive changes when `window.location.search` does.
+ *
+ * `theme.ts`'s `applyScheme` already dispatches `rp-harness-theme` on every scheme change (the
+ * Plan Editor listens for it to re-resolve its palette), and `drawSchemeToggle` `replaceState`s
+ * the new scheme into the URL. Neither is reactive: `history.replaceState` fires no event a
+ * framework can observe, so `hrefFor` — which builds every anchor from the CURRENT search
+ * string — had no way to know it had gone stale.
+ *
+ * Not removed on unmount, deliberately: `IndexPage` is this app's root and lives as long as the
+ * page. Under test each mount adds one more listener to `window`, which is bounded by the test
+ * file and costs a counter increment nobody reads.
+ */
+const schemeEpoch = ref(0);
+
+window.addEventListener('rp-harness-theme', () => {
+	schemeEpoch.value += 1;
+});
+
+/**
  * The link an entry is reachable at, and the URL `open()` writes into the address bar for it
  * — ONE function for both, so a copied link and a followed one always name the same screen.
  *
@@ -250,6 +270,14 @@ let warningOwner: { readonly id: string; readonly generation: number } | null = 
  * this one.
  */
 function hrefFor(entry: HarnessEntry): string {
+	// Read for its DEPENDENCY, not its value: this function is called from the template, so
+	// touching the ref here is what makes the list's render effect track it and re-run when the
+	// toggle bumps it. Without that, `hrefFor` was evaluated once at render and nothing
+	// re-rendered on a toggle, so every anchor kept the PRE-toggle scheme — invisible on a plain
+	// click (`open()` recomputes the URL itself) and wrong on the one path that uses the `href`:
+	// a Cmd/Ctrl-click, which opens a new tab at the scheme the designer just switched away from.
+	void schemeEpoch.value;
+
 	const params = new URLSearchParams(window.location.search);
 	params.delete('index');
 	params.set('entry', entry.id);
@@ -414,10 +442,26 @@ const EntryBoundary = defineComponent({
 	},
 });
 
-/** Whatever has been collected, as a named failure, with the readiness marker taken off. */
+/**
+ * Whatever has been collected, as a named failure, with the readiness marker taken off.
+ *
+ * `mountedGeneration` is cleared here for the same reason `reportEntryFailure` clears it, and
+ * the reason is the FIELD'S OWN MEANING rather than a reachable defect: it means "which mount
+ * is assigned to the stage", and after this function nothing is — `openComponent` is null and
+ * the failure card is what the stage holds. Leaving it set made that definition false on one of
+ * the two reporting paths while the other one's docblock called the clear load-bearing, which
+ * reads to the next person as an invariant that holds everywhere.
+ *
+ * Unlike `reportEntryFailure`'s, this clear changes no observable behaviour today and no test
+ * can be written that fails without it: `settle()` runs only from `<Suspense>`'s `@resolve`,
+ * which does not fire again for a boundary being torn down, and `reportLateDefect`'s own guard
+ * is unreachable afterwards because `renderedId` is null. Said plainly rather than left for a
+ * reader to discover that the sibling paragraph promised more than the code did.
+ */
 function reportDefects(): void {
 	openComponent.value = null;
 	renderedId.value = null;
+	mountedGeneration = null;
 	failure.value = `${pendingId.value ?? 'the entry'} did not render cleanly: ${[...new Set(renderDefects)].join('; ')}`;
 }
 
@@ -587,7 +631,14 @@ const initial = all.value.find((entry) => entry.id === requested);
 // `no entry named ` with nothing after it would be a worse message than saying so plainly,
 // so the empty case gets its own text.
 if (requested !== null && !initial) {
-	failure.value = requested === '' ? 'an entry was requested with an empty name' : `no entry named ${requested}`;
+	// `.trim()`, matching `resolveShots`'s check at the argv seam (`scripts/entryShots.mjs`):
+	// `?entry=%20` is a blank name too, and reporting `no entry named ` with an invisible payload
+	// after it tells a reader — and an eyeless `harness-shot` reading this card — nothing at all.
+	// Only the MESSAGE is trimmed-aware; the lookup above stays exact, because an id with a space
+	// around it is not the id and must not resolve to it.
+	failure.value = requested.trim() === ''
+		? 'an entry was requested with an empty name'
+		: `no entry named ${requested}`;
 }
 if (initial) void open(initial);
 </script>

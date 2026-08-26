@@ -86,3 +86,11 @@ than a named few — and it re-asks after the screenshot, so a defect landing in
 microtask cannot leave a green exit on a picture of a failure card. An agent with no eyes can
 therefore trust "exit 0" to mean the screen rendered, and must still not read it as meaning the
 screen looks right. Nothing here can see that.
+
+**And what a FAILURE costs in time, because waiting is its own kind of silence to this actor.**
+The wait races `data-entry` against the failure card the index puts up, so a mistyped id or a
+mock that will not mount is reported as soon as the page says so rather than after a
+thirty-second timeout; and an id the index does not have is not attempted a second time for the
+other colour scheme, which cannot answer differently. Both are still REPORTED — the second shot
+says it was not attempted and why — because a run that quietly writes one PNG where it promised
+two is the same unreadable silence in a different place.

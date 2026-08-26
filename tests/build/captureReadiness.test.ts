@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { describeFailure, reportIfNoLongerDrawn } from '../../scripts/captureReadiness.mjs';
+import {
+	describeFailure,
+	namesNoEntry,
+	reportIfNoLongerDrawn,
+	waitUntilReady,
+} from '../../scripts/captureReadiness.mjs';
 
 // Module scope, not inline: `unicorn/consistent-function-scoping` is right that a function
 // capturing nothing from its call site should not be rebuilt on every invocation, and identity
@@ -137,5 +142,89 @@ describe('describeFailure', () => {
 
 		expect(seenTimeout).toBeTypeOf('number');
 		expect(seenTimeout).toBeLessThan(30000);
+	});
+});
+
+/**
+ * A promise that never settles — the loser of every race below. Module scope because it
+ * captures nothing per-call (`unicorn/consistent-function-scoping`), and the executor's body is
+ * a statement rather than an expression so it returns nothing (`no-promise-executor-return`).
+ */
+const pending = (): Promise<never> => new Promise(() => {});
+
+/**
+ * The race the wait had to become. Driven with a fake `page` for the reason the header gives:
+ * `waitForFunction`/`waitForSelector` are asked for promises and nothing here needs a DOM.
+ *
+ * The defect being closed: an entry that FAILS puts its card on screen at first paint, and the
+ * old wait — the readiness predicate alone — then sat out Playwright's whole 30-second timeout
+ * before anyone was told, twice, once per colour scheme. A minute of silence for something the
+ * page said immediately, to the one actor who cannot look and check.
+ */
+describe('waitUntilReady', () => {
+	it('waits on the fixed shot selector alone, and never looks for a failure card', async () => {
+		const asked: string[] = [];
+		const page = {
+			waitForSelector: (selector: string) => (asked.push(selector), Promise.resolve()),
+			waitForFunction: () => {
+				throw new Error('a fixed shot has no entry to poll for');
+			},
+		};
+
+		await waitUntilReady(page, '.renovation-planner-view', undefined, () => true);
+
+		expect(asked).toEqual(['.renovation-planner-view']);
+	});
+
+	it('resolves as soon as the entry draws, without waiting out the failure-card selector', async () => {
+		const page = { waitForFunction: () => Promise.resolve(true), waitForSelector: pending };
+
+		await expect(waitUntilReady(page, '.ignored', 'prototype:ZonePanel', () => true)).resolves.toBeUndefined();
+	});
+
+	/**
+	 * The half that saves the 30 seconds: the readiness predicate never resolves — a mistyped id
+	 * never sets `data-entry` — and the failure card is what settles the wait instead. It throws
+	 * rather than returning a flag, so `captureOne`'s existing catch does the reporting and there
+	 * is only ever one place the message is built.
+	 */
+	it('rejects as soon as the failure card appears, rather than waiting the predicate out', async () => {
+		const page = { waitForFunction: pending, waitForSelector: () => Promise.resolve({}) };
+
+		await expect(waitUntilReady(page, '.ignored', 'prototype:Ghost', () => true)).rejects.toThrow('prototype:Ghost');
+	});
+
+	it('polls with the caller-supplied predicate and the entry id, not one of its own', async () => {
+		const seen: unknown[] = [];
+		const page = {
+			waitForFunction: (fn: unknown, arg: unknown) => (seen.push([fn, arg]), Promise.resolve(true)),
+			waitForSelector: pending,
+		};
+
+		await waitUntilReady(page, '.ignored', 'x', isX);
+
+		expect(seen).toEqual([[isX, 'x']]);
+	});
+});
+
+/**
+ * Which failures make the SECOND colour scheme worth attempting. Only "the index has no such
+ * entry" is scheme-independent by construction; anything an entry does while drawing can differ
+ * between schemes, and looking at both is the whole point of taking two shots.
+ *
+ * The two strings are `IndexPage.vue`'s own, and the coupling is checked here rather than
+ * asserted in prose: a reworded message makes this answer false, which costs one extra page load
+ * and reports the same errors. It fails OPEN, which is the direction that cannot hide anything.
+ */
+describe('namesNoEntry', () => {
+	it('recognises the index refusing an id it does not have', () => {
+		expect(namesNoEntry('prototype:Ghost: no entry named prototype:Ghost')).toBe(true);
+		expect(namesNoEntry(': an entry was requested with an empty name')).toBe(true);
+	});
+
+	it('does not claim an entry is missing when it merely drew badly', () => {
+		expect(namesNoEntry('component:X: component:X did not render cleanly: Missing required prop')).toBe(false);
+		expect(namesNoEntry('component:X: component:X failed to render: boom')).toBe(false);
+		expect(namesNoEntry('Timeout 30000ms exceeded')).toBe(false);
 	});
 });

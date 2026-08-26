@@ -15,6 +15,15 @@
  */
 
 /**
+ * The one element the index shows when an entry cannot be drawn — `IndexPage.vue`'s
+ * `<p role="alert" class="rp-harness-failure">`, written by all four failure paths.
+ *
+ * Not exported: both readers are in this file, and an export with no consumer outside it is
+ * what `npm run analyze` calls dead — correctly.
+ */
+const FAILURE_CARD = '.rp-harness-failure';
+
+/**
  * What actually went wrong with a named entry, read from the page rather than guessed.
  *
  * `.rp-harness-failure` carries the real reason for all four ways an entry can fail —
@@ -39,7 +48,7 @@
 export async function describeFailure(page, entry, fallback) {
 	if (entry === undefined) return fallback;
 
-	const text = await page.textContent('.rp-harness-failure', { timeout: 2000 }).catch(() => null);
+	const text = await page.textContent(FAILURE_CARD, { timeout: 2000 }).catch(() => null);
 
 	if (text) return `${entry}: ${text}`;
 	return fallback ?? `${entry} rendered nothing and left no failure text to explain why`;
@@ -78,3 +87,51 @@ export async function reportIfNoLongerDrawn(page, entry, name, errors, hasDrawn)
 
 	errors.push(`[${name}] captured a failure card, not the entry: ${await describeFailure(page, entry)}`);
 }
+
+/**
+ * Wait for the entry to draw OR for the index to say it will not, whichever comes first.
+ *
+ * The fixed shots have no such card and wait on their own mount point, unchanged.
+ *
+ * For a named entry the wait used to be the readiness predicate alone, so an entry that
+ * FAILED — the mistyped id, the mock that throws — spent Playwright's full 30-second timeout
+ * learning what the page had already said at first paint, and then did it again for the second
+ * colour scheme. A minute of silence to be told something the page put on screen immediately is
+ * the opposite of what this script exists for, and the actor it exists for is the one with the
+ * least ability to guess what the wait is doing.
+ *
+ * The loser of the race stays pending and eventually rejects — a 30-second timeout, or the page
+ * closing under it in `captureOne`'s `finally`. That is not an unhandled rejection:
+ * `Promise.race` attaches handlers to every input, so both are handled whichever way it settles.
+ *
+ * Throwing on the failure card rather than returning a flag keeps ONE reporting path:
+ * `captureOne` already catches, runs `describeFailure` and records, and a second path would be
+ * a second place for the message format to drift.
+ */
+export async function waitUntilReady(page, selector, entry, hasDrawn) {
+	if (entry === undefined) {
+		await page.waitForSelector(selector, { state: 'attached' });
+		return;
+	}
+
+	const drawn = page.waitForFunction(hasDrawn, entry).then(() => 'drawn');
+	const failed = page.waitForSelector(FAILURE_CARD, { state: 'attached' }).then(() => 'failed');
+
+	if ((await Promise.race([drawn, failed])) === 'failed') {
+		throw new Error(`${entry} reported a failure instead of drawing`);
+	}
+}
+
+/**
+ * Whether a failure means this ENTRY does not exist, rather than that it drew badly — the one
+ * distinction worth acting on, because the second colour scheme cannot answer differently.
+ * `captureAll` skips it instead of loading the page again to be told the same thing.
+ *
+ * It reads `IndexPage.vue`'s own two messages for the unresolvable case, and that coupling is
+ * stated rather than hidden: a reworded message makes this stop matching, which costs one extra
+ * page load and reports the same errors. It fails OPEN — never the other way, which would skip a
+ * scheme that had something real to show.
+ */
+const UNRESOLVABLE = ['no entry named', 'an entry was requested with an empty name'];
+
+export const namesNoEntry = (reason) => UNRESOLVABLE.some((message) => reason.includes(message));

@@ -314,14 +314,22 @@ export default defineConfig({
 			// guards, the concurrent-hydrate tickets, the plan-change fan-out) and the
 			// harness prototyping capability built on top of it (Tasks 1-8) - the latter
 			// contributing nothing to this figure itself, since `IndexPage.vue` and
-			// `entries.ts` live under `tests/harness/`, outside `include`, and the one file
-			// the capability added under `src/` (`src/prototypes/ZoneSummary.vue`) is
-			// excluded by name: 2711/2729 statements, 1247/1269 branches, 711/717 functions,
+			// `entries.ts` live under `tests/harness/`, outside `include`, and everything the
+			// capability added under `src/` is `src/prototypes/`, excluded by the `src/prototypes/**`
+			// pattern above rather than by naming a file: 2711/2729 statements, 1247/1269 branches, 711/717 functions,
 			// 2461/2470 lines - 99.34 / 98.26 / 99.16 / 99.63. NOTHING RATCHETS: rounded
 			// down these are 99 / 98 / 99 / 99, the floors already in force, with 9.3 / 3.3 /
 			// 1.15 / 15.6 covered units of headroom respectively (rule 1's `1 / total * 100`
 			// per metric) - functions the tightest of the four, same as every measurement
 			// since slice 4 introduced the first unreachable arms.
+			//
+			// Re-measured 2026-08-26 after the whole-branch fix wave (the index test app's
+			// missing component registry, the harness Inspector read, the prototypes Vue-rule
+			// decision, and the smaller repairs) - IDENTICAL on all four counts, denominators
+			// included. That is the expected result rather than a lucky one: everything the
+			// wave touched under `src/` is either a comment (`EditorStore.reset` and
+			// `WorkspaceStore.reset`'s docblocks) or inside `src/prototypes/`
+			// (`ZonePanel.vue`), which this config excludes. NOTHING RATCHETS.
 			thresholds: {
 				statements: 99,
 				functions: 99,

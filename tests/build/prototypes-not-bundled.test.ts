@@ -35,7 +35,15 @@ const BUILD_MS = 120_000;
 // Absolute, normalised to forward slashes exactly like `modules` below, so a module id can
 // be compared against it the same way on every platform — REPO holds backslashes on
 // Windows and the ids built below never do.
-const repoRoot = REPO.split(path.sep).join('/');
+//
+// The trailing separator is APPENDED rather than inherited. `REPO` gets one today from
+// `fileURLToPath(new URL('../..', …))`, and both leak filters below build their prefix as
+// `${repoRoot}src/prototypes/` — so if it ever loses that slash, both prefixes become
+// `…/renovation-plannersrc/prototypes/`, both filters match nothing, and both `toEqual([])`
+// assertions pass vacuously. That is the strongest guarantee in this feature going green while
+// checking nothing, on a change to a helper in another file. The `.replace` is idempotent, so
+// it is correct whichever way `REPO` is spelled.
+const repoRoot = `${REPO.split(path.sep).join('/').replace(/\/$/, '')}/`;
 
 let modules: string[] = [];
 
@@ -66,7 +74,13 @@ describe('the built plugin', () => {
 		expect(modules.length).toBeGreaterThan(0);
 		// A sanity anchor: the entry itself must be in there, or the shape of `chunk.modules`
 		// has changed under us and every assertion below would pass vacuously.
-		expect(modules.some((id) => id.endsWith('/src/main.ts'))).toBe(true);
+		//
+		// Asserted at the WHOLE prefix the two leak filters use, not as `endsWith('/src/main.ts')`
+		// — which is what this was, and which cannot catch the hazard `repoRoot` names above: it
+		// is true whether or not `repoRoot` ends in a separator, so the anchor read correct while
+		// both filters matched nothing. The prefix is the thing that has to be right, so the
+		// prefix is what this asserts.
+		expect(modules).toContain(`${repoRoot}src/main.ts`);
 	});
 
 	it('contains no module from src/prototypes/', () => {

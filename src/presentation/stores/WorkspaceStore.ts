@@ -42,11 +42,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	}
 
 	/**
-	 * Every field back to the value its `ref()` started at — the harness fixture's reset hook
-	 * (`tests/harness/fixture.ts`), called before every entry the index opens so a panel closed
-	 * or a layer hidden by one entry does not draw the next. `defaultLayerVisibility()` is
-	 * called again rather than a snapshot kept from the first call, for the same reason
-	 * `EditorStore.reset` imports `DEFAULT_VIEWPORT` rather than restating it.
+	 * Both panels open and every layer visible again — the state a Plan Editor opens in.
+	 *
+	 * Nothing here is persisted either, so "reset" means the same thing it means in
+	 * `EditorStore.reset`: assign the declared defaults, because there is no stored value to
+	 * re-read and no edit to discard. `defaultLayerVisibility()` is CALLED again rather than a
+	 * snapshot being kept from the first call, so the record handed out is fresh and the
+	 * defaults have one definition — the same bargain `EditorStore.reset` makes by importing
+	 * `DEFAULT_VIEWPORT` rather than restating it.
+	 *
+	 * The consumer that exists today is the harness index (`tests/harness/fixture.ts` calls this
+	 * before every entry it opens, so a panel closed or a layer hidden by one entry does not
+	 * draw the next); it is an example of what needs this, not the reason it exists.
 	 */
 	function reset(): void {
 		layersPanelOpen.value = true;

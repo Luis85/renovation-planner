@@ -2,9 +2,15 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
 
 /**
- * `src/prototypes/` is a ONE-WAY DOOR: it may import from the rest of `src/`, and nothing may
- * import from it. That keeps design scaffolding out of a built plugin at the IMPORT rather
- * than only at the bundle, so it holds for code nobody has written yet.
+ * `src/prototypes/` is a ONE-WAY DOOR: nothing in `src/` may import from it, and no layer ban
+ * stands in the way of the reverse. That keeps design scaffolding out of a built plugin at the
+ * IMPORT rather than only at the bundle, so it holds for code nobody has written yet.
+ *
+ * The open direction is a fact about THIS rule, not a licence a prototype can use: a mock is
+ * template-only (`vue/no-restricted-block` refuses `<script>` there), so it has nowhere to put
+ * an import statement at all, and it composes real components through the harness index's global
+ * registry instead — see `src/prototypes/README.md`. The last case below is what keeps the ban
+ * from becoming symmetric anyway; its own comment says what that is worth.
  *
  * Every layer is driven, not just one, because the ban is eight separate config blocks (six
  * `forbidden(...)` calls, the root-of-`src/` block, and the catch-all block below that covers
@@ -151,9 +157,17 @@ describe('the prototypes one-way door', () => {
 	});
 
 	/**
-	 * The complement, and the reason this is not simply "prototypes is banned everywhere":
-	 * a prototype composes REAL components, so the door has to be open in that direction. A
-	 * rule that closed both ways would pass the test above and make the feature unusable.
+	 * The complement, and the reason this is not simply "prototypes is banned everywhere".
+	 *
+	 * The reason is NOT "a prototype imports real components" — it cannot, and the earlier
+	 * version of this comment claiming so was false the day the template-only rule landed. What
+	 * this case actually holds is that the ban is DIRECTIONAL: a rule closed both ways would
+	 * pass every case above while making this tree a layer nothing may reach out of, and the
+	 * error it produced would be about layers rather than about the template-only rule that is
+	 * the real constraint. It also keeps the door open for the one direction promotion needs —
+	 * the moment a `<script setup>` is added, the file is a component in `src/presentation/` and
+	 * the imports it gains are ordinary; nothing about the move should turn on a prototypes-only
+	 * ban that was never meant to fire that way.
 	 *
 	 * Both a positive and a negative check on `no-restricted-imports`, and a check that
 	 * parsing itself succeeded: `not.toContain('no-restricted-imports')` alone cannot tell a

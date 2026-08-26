@@ -21,6 +21,14 @@ import { REPO } from '../helpers/oxlint';
  * And no comment may SPELL the opening template tag: this function finds the block by regex,
  * so a comment naming it makes the extraction start mid-comment and the two files can never
  * match. Writing the plan this came from hit exactly that.
+ *
+ * **What iterating on the design costs, said here because this test is what forces it.** The two
+ * templates being byte-identical is also a CLONE, and fallow reports it; `.fallowrc.json`'s
+ * `duplicates.ignoredClones` silences that one reviewed pair by a content digest. So editing the
+ * mock's template means editing the promoted fixture's to match (this test) and pasting a new
+ * digest into `.fallowrc.json` (`npm run analyze`, which prints it). An opaque hash in the design
+ * iteration loop is a real cost of holding this criterion by an independent pair; it is named in
+ * all three places rather than being discovered on a red `npm run analyze`.
  */
 const MOCK = path.join(REPO, 'src', 'prototypes', 'ZoneSummary.vue');
 const PROMOTED = path.join(REPO, 'tests', 'fixtures', 'promotion', 'ZoneSummary.promoted.vue');

@@ -7,6 +7,9 @@ status: Active
 ---
 ## 1. Prototype Mission
 
+[[Product Vision]]
+[[Problem Definition]]
+
 Validate the project-first renovation experience before production implementation.
 
 > Build the experience needed to answer UX questions, not the finished product.
@@ -21,6 +24,7 @@ The prototype must prove that a user can start a project, establish spaces, unde
 
 - [[renovation-planner-competitive-market-landscape]]
 - [[renovation-planner-user-research-synthesis]]
+- [[Product Capability Map]]
 
 ## Related Specs and concepts
 

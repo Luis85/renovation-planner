@@ -867,6 +867,22 @@ interface ReferencingProject {
   // The dialog shows a name; resolving it here keeps the presentation layer from
   // holding a repository to look one up, which is the same §58/§59 rule as above.
   projectName: string;
+  // And a name is NOT unique. `Project.create` trims its name and rejects only an empty
+  // one (`src/domain/project/Project.ts`); nothing in the domain, the repository or the
+  // project index refuses a second project called "Kitchen". Two same-named groups would
+  // render two rows a user cannot tell apart — which is the whole reason the rows are
+  // grouped by project rather than totalled. So the query resolves the disambiguator
+  // too, rather than leaving the presentation layer to look one up (§58/§59 again).
+  //
+  // The project NOTE's vault path, because it is the one unique, human-meaningful thing
+  // that already exists here: `ProjectIndexEntry` carries `path`, and it is what Obsidian
+  // itself shows under a name in the quick switcher when two notes share one. `projectId`
+  // is unique and unreadable, so it is not a label. The index's own duplicate-id warning
+  // is the edge this does not cover and does not need to: when two notes declare one id
+  // only one is reachable, so among the entries a query can return, path is unique.
+  //
+  // Every group carries it; whether a row SHOWS it is slice 15's rule, not this query's.
+  projectPath: string;
   requirementIds: readonly RequirementId[];
 }
 
@@ -2222,6 +2238,12 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       covered by a fixture where one Asset is referenced from two Projects; the delete
       dialog renders a row per project. A bare total is refused by this test, because it
       reads as "in the project I am looking at" while a shared asset's references are not.
+- [ ] Every group carries `projectPath` alongside `projectName`, asserted against a
+      fixture whose two Projects share one `name` — the case nothing refuses, since
+      `Project.create` trims the name and rejects only an empty one. Without the path
+      those two groups are indistinguishable to the caller, and slice 15's rows are then
+      identical for the two things a user is choosing between. The assertion is on the
+      QUERY returning it; whether a row shows it is slice 15's rule and slice 15's test.
 - [ ] `reassignTo` on an **Asset** delete accepts a target regardless of project, and on
       a **Zone** delete still refuses one whose `projectId` differs from the deleted
       Zone's. Both halves asserted, since the asymmetry is the thing a later reader is

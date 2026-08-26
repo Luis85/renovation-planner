@@ -388,8 +388,9 @@ groups.length === 0?    — the query returns referents GROUPED BY PROJECT (slic
           kind: 'delete-reference',
           entityLabel: zone.name,
           references: groups.map((g) => ({
-            label: t(lang, 'entity.requirement.plural.in-project',
-                     { project: g.projectName }),
+            label: <the project's name, plus its path when that name is not
+                     unique among these groups — one `t()` key per form; the
+                     executable example below is the spelling>,
             count: g.requirementIds.length,
           })),
         })
@@ -452,6 +453,8 @@ rather than incidental: the same rows are what an Asset deletion renders, where 
 catalogue entry may be referenced from several projects at once (§59, amended 2026-08-26),
 and a bare `Requirements: N` there would read as "in the project I am looking at". A label
 shape that is only correct in the Zone case would be rebuilt the first time an Asset used it.
+A project's *name* is the qualifier only while it is unique, which nothing guarantees; what
+the rows fall back to when it is not is the executable example's, stated once there.
 
 The identical shape applies to Asset deletion: slice 10's `DeleteAssetCommand` queries
 `ListRequirementsReferencing({ kind: 'asset', assetId })` and opens the same
@@ -650,6 +653,13 @@ async function askThenDelete(
   isRetry = false,
 ): Promise<void> {
   const referents = groups.flatMap((g) => g.requirementIds);
+  // The names that appear more than once, computed over the whole set before any row is
+  // built. Keyed by name rather than by group so that BOTH colliding rows are qualified:
+  // qualifying only the second one leaves the first reading as though it were the only
+  // "Kitchen", which is worse than qualifying neither.
+  const ambiguousNames = new Set(
+    groups.map((g) => g.projectName).filter((name, i, all) => all.indexOf(name) !== i),
+  );
   const result: DeleteReferenceDialogResult = await dialogStore.openDialog({
     kind: 'delete-reference',
     entityLabel: zoneName,
@@ -659,14 +669,29 @@ async function askThenDelete(
     // project name so the Asset flow's several rows are distinguishable, and a count with
     // no project on it would read as "in the project I am looking at".
     //
-    // ONE key with the name interpolated, never a translated fragment with the name
-    // concatenated after it: word order and punctuation between the two are the
-    // translator's to choose, and `'Requirements' + ' — ' + name` takes both away. This
-    // file's own call-site rule is that every COMPLETE row label is resolved through
+    // A NAME does not always distinguish them. Nothing refuses a second project called
+    // "Kitchen" — `Project.create` trims and rejects only an empty name — so two groups
+    // can carry one name and the rows a user is deciding between become identical. The
+    // path qualifies those rows and only those: always showing it would put a vault path
+    // on every row of the overwhelmingly common case where the names already differ, and
+    // a row is a thing to read at a glance. The qualification is therefore a property of
+    // the SET on screen, not of a group, which is worth stating because it means no test
+    // of a single row can establish it.
+    //
+    // ONE key per label with everything interpolated, never a translated fragment with a
+    // name concatenated after it: word order and punctuation between the parts are the
+    // translator's to choose, and `'Requirements' + ' — ' + name` takes both away. That
+    // is why the qualified form is its OWN key rather than the plain key plus a suffix.
+    // This file's own call-site rule is that every COMPLETE row label is resolved through
     // `t()`, and a template literal wrapping a `t()` call satisfies the letter of it
     // while breaking what it is for.
     references: groups.map((g) => ({
-      label: t(lang, 'entity.requirement.plural.in-project', { project: g.projectName }),
+      label: ambiguousNames.has(g.projectName)
+        ? t(lang, 'entity.requirement.plural.in-project-at', {
+            project: g.projectName,
+            path: g.projectPath,
+          })
+        : t(lang, 'entity.requirement.plural.in-project', { project: g.projectName }),
       count: g.requirementIds.length,
     })),
   });
@@ -812,6 +837,15 @@ contract ends at the typed result, before any write occurs.
   produces **two rows**, each counting its own group. It is worth its own test precisely
   because every Zone case is single-group, so a caller that rendered `groups[0]` and ignored
   the rest would pass every other test in this file.
+- **Same-name test**, which the grouped-rows test does not reach either: a double returning
+  two groups **whose `projectName` is the same string** produces two rows carrying
+  `entity.requirement.plural.in-project-at` with each group's own `projectPath`, and a
+  third group with a distinct name in the same set still carries the plain key. Three
+  assertions, because the rule has three halves and dropping any one of them still passes
+  the other two: **both** colliding rows are qualified (not just the second), the
+  unaffected row is **not** qualified, and the two qualified rows differ from each other.
+  It is a property of the set on screen, so the single-group fixtures above can no more
+  reach it than they can reach grouping itself.
 
   **It cannot be driven through `onInspectorDeleteZone`**, which hard-codes the Zone query,
   `ZoneId` and `reversibleDeleteZone` — feeding it two groups would assert a Zone result
@@ -858,8 +892,12 @@ contract ends at the typed result, before any write occurs.
    supplied — no recomputation, no invented default rows when the caller supplies only
    one.
 6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly **one**
-   row counting 2, its label naming the owning project through a single localized key,
-   sourced from slice 10's `ListRequirementsReferencing` query — verified by an
+   row counting 2, its label naming the owning project through a single localized key
+   per label — the plain form here, since one group's name cannot collide with another's,
+   and `entity.requirement.plural.in-project-at` carrying `projectPath` for **each** row
+   whose `projectName` is not unique among the groups on screen, which a separate
+   row-mapping test drives with two same-named groups plus a third distinct one —
+   sourced from slice 10's `ListRequirementsReferencing` query, verified by an
    integration test asserting the value passed into the dialog descriptor, not a value
    this slice's component recomputed. **One row because a Zone always yields one group.**
    That an Asset referenced from two projects renders two rows is asserted against the

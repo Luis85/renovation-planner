@@ -93,6 +93,21 @@ const prototypes = walk('src/prototypes').map((file) => file.replace('src/protot
  */
 const styleBlocks = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
 
+/** An attribute NAME in an opening tag — the value, quoted or not, is consumed and discarded. */
+const ATTRIBUTE = /([\w:@.-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g;
+
+/**
+ * Whether a `<style>` block carries the `scoped` ATTRIBUTE.
+ *
+ * Asked of the attributes rather than of the tag's text, which is what this did first: a
+ * substring test answers yes to `<style src="./scoped.css">`, where the word appears inside a
+ * VALUE and the attribute is absent. Vite would install those rules globally and the
+ * navigation-order guard below would stay green — the exact defect it exists to refuse, waved
+ * through by the shape of the question rather than by its answer.
+ */
+const isScoped = (openingTag: string): boolean =>
+	[...openingTag.replace(/^<style/, '').replace(/>$/, '').matchAll(ATTRIBUTE)].some(([, name]) => name === 'scoped');
+
 /**
  * Every class name an SFC's markup NAMES, by both readings — one function, so the cases below
  * drive the extraction rather than restating it.
@@ -172,9 +187,25 @@ describe('a prototype and the sheet that styles it', () => {
 	it.each(prototypes)('%s scopes every style block it has', (file) => {
 		const unscoped = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8'))
 			.map((block) => block.match(/<style[^>]*>/)?.[0] ?? '')
-			.filter((opening) => !opening.includes('scoped'));
+			.filter((opening) => !isScoped(opening));
 
 		expect(unscoped).toEqual([]);
+	});
+
+	/**
+	 * The attribute reading itself, driven through the same function the loop above uses. The
+	 * first case is the one a substring test gets wrong, and it is not contrived — `<style src>`
+	 * is an ordinary Vue SFC feature and `scoped.css` an ordinary filename.
+	 */
+	it.each([
+		['<style scoped>', true],
+		['<style lang="scss" scoped>', true],
+		['<style scoped lang="scss">', true],
+		['<style>', false],
+		['<style src="./scoped.css">', false],
+		['<style data-scoped-later>', false],
+	])('reads %s as scoped=%s', (opening, expected) => {
+		expect(isScoped(opening)).toBe(expected);
 	});
 
 	/**

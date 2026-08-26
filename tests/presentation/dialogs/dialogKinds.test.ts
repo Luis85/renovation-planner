@@ -266,3 +266,38 @@ describe('FormDialog', () => {
 		expect(wrapper.emitted('resolve')).toEqual([['cancel']]);
 	});
 });
+
+/**
+ * `DialogHost` binds `.rp-dialog`'s `aria-labelledby` to an id it generates and then relies
+ * on the kind it rendered to put that id on a titled element — its own header calls that
+ * "this decision's one unstated assumption", which it was: the cases above find
+ * `.rp-dialog-title` by class and never read its `id`, and two of the four kinds asserted no
+ * title element at all. An `aria-labelledby` pointing at nothing leaves the dialog with no
+ * accessible name, which axe reports; one pointing at the WRONG element leaves it with a
+ * name axe accepts and a screen-reader user cannot use.
+ *
+ * Enumerated rather than derived, because there is nothing to derive it from — the kinds are
+ * four hand-written components. That is as wide as this check reaches: a fifth kind that
+ * forgot its title is caught by review and by `dialogHost.test.ts`'s own pairing case, not
+ * by anything here.
+ */
+describe('every kind labels the dialog with the id it is handed', () => {
+	const StubForm = defineComponent({ template: '<p>stub form</p>' });
+
+	it.each([
+		['ConfirmDialog', ConfirmDialog, { kind: 'confirm', title: 'T', message: 'M' }],
+		[
+			'DeleteReferenceDialog',
+			DeleteReferenceDialog,
+			{ kind: 'delete-reference', entityLabel: 'Kitchen', references: [] },
+		],
+		['EntityPickerDialog', EntityPickerDialog, { kind: 'entity-picker', title: 'T', candidates: [] }],
+		['FormDialog', FormDialog, { kind: 'form', title: 'T', component: StubForm }],
+	])('%s renders exactly one titled element carrying it', (_name, component, descriptor) => {
+		const wrapper = mount(component, { props: { descriptor, titleId: TITLE_ID } });
+		const titles = wrapper.findAll('.rp-dialog-title');
+
+		expect(titles).toHaveLength(1);
+		expect(titles[0]?.attributes('id')).toBe(TITLE_ID);
+	});
+});

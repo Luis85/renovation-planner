@@ -2628,7 +2628,15 @@ rule explains itself: what is in `<template>` is what crosses unchanged.
 
 - [ ] **Step 2: Look at it**
 
-Run: `npm run harness`
+Run: `npm run harness`, then open **`?index`** on the URL it prints.
+
+The `?index` is not optional and a bare URL does not work: `tests/harness/page.ts` routes to the
+prototype index only when the query carries `index` or `entry`
+(`params.has('index') || params.has('entry')`), and everything else keeps the project view. That
+routing rule is deliberate — the three fixed `harness-shot` captures use `''`, `?theme=light` and
+`?phone`, none of which names a view, so "no `view` parameter means the index" would have sent all
+three to the index and timed them out. Task 4's own step spells the URL correctly; this one did not,
+which is the same stale-sibling shape this plan records elsewhere.
 
 Expected: `ZoneSummary` appears in the index under prototypes. Open it; it draws, unstyled beyond what the plugin's own sheet gives it.
 

@@ -171,7 +171,7 @@ describe('the headless harness capture script', () => {
 		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
 
 		expect(source).toContain('waitUntilReady(page, selector, entry, entryHasDrawn)');
-		expect(source).toContain('namesNoEntry(failure)');
+		expect(source).toContain('kind === UNKNOWN_ENTRY');
 		// The wait is the imported one, not a local that shadows it — the defect this replaces
 		// was a local `waitUntilReady` awaiting the readiness predicate alone.
 		expect(source).not.toMatch(/function\s+waitUntilReady/);

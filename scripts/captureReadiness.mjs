@@ -123,15 +123,31 @@ export async function waitUntilReady(page, selector, entry, hasDrawn) {
 }
 
 /**
- * Whether a failure means this ENTRY does not exist, rather than that it drew badly — the one
- * distinction worth acting on, because the second colour scheme cannot answer differently.
- * `captureAll` skips it instead of loading the page again to be told the same thing.
- *
- * It reads `IndexPage.vue`'s own two messages for the unresolvable case, and that coupling is
- * stated rather than hidden: a reworded message makes this stop matching, which costs one extra
- * page load and reports the same errors. It fails OPEN — never the other way, which would skip a
- * scheme that had something real to show.
+ * `IndexPage.vue`'s own name for "this entry does not exist" — the one failure whose answer the
+ * other colour scheme cannot change, and therefore the one distinction `captureAll` acts on.
  */
-const UNRESOLVABLE = ['no entry named', 'an entry was requested with an empty name'];
+export const UNKNOWN_ENTRY = 'unknown-entry';
 
-export const namesNoEntry = (reason) => UNRESOLVABLE.some((message) => reason.includes(message));
+/**
+ * WHY the failure card is showing, as the page itself classified it: `data-failure` on
+ * `.rp-harness-failure`, either `unknown-entry` or `render`.
+ *
+ * It reads the ATTRIBUTE rather than the message, and the difference is a defect this used to
+ * have. `namesNoEntry` searched the failure TEXT for `no entry named`, so a valid entry whose
+ * own error or warning happened to contain that phrase — a component throwing it, a Vue warning
+ * quoting it — was classified as missing, and `captureAll` then skipped its second colour scheme
+ * even though render failures are retried precisely because they can be scheme-specific. The
+ * page has always known which of the two it was; only the script was guessing.
+ *
+ * `null` for a fixed shot (no `entry` to be unknown), for a page with no card, and for a card
+ * with no attribute — every one of which fails OPEN, into attempting the other scheme. The
+ * opposite direction is the one that loses a capture, so nothing here may guess towards it.
+ */
+export async function readFailureKind(page, entry) {
+	if (entry === undefined) return null;
+
+	// The same short timeout `describeFailure` uses, for the same reason: by the time anything
+	// calls this the card is either there or never will be, and a 30-second default would double
+	// the cost of every shot that failed without one.
+	return await page.getAttribute(FAILURE_CARD, 'data-failure', { timeout: 2000 }).catch(() => null);
+}

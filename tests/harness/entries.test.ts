@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import Konva from 'konva';
 import { createPinia, type Pinia } from 'pinia';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import type { Component } from 'vue';
-import { discoverEntries, prototypeEntries, registrableComponents } from './entries';
+import { componentEntries, discoverEntries, prototypeEntries, registrableComponents } from './entries';
 import { harnessEditorContext, seedFixture } from './fixture';
-import { HARNESS_PLAN } from './planEditor';
+import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
+import SharedWorldPrototype from './SharedWorldPrototype.vue';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
-import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
-import StatusBar from '../../src/presentation/editor/shell/StatusBar.vue';
 import { installEditorEnvironment } from '../helpers/editor';
 
 /**
@@ -187,19 +187,23 @@ describe('registering components for template-only prototypes', () => {
  * by both matches", held here because only this task's app installs the VueKonva that
  * `PlanEditorRoot` needs, and Task 3's fixture could not.
  *
- * **What it does NOT prove, stated first because the criterion's literal wording promises it
- * and this tree cannot deliver it:** that two components render the SAME value. Of the
- * prop-free components reading `useProjectStore`, exactly one renders a PLAN-level value —
- * `StatusBar`, which renders `plan.name`. `PlanEditorRoot` reads `status`; `ZoneLayer`,
- * `BackgroundLayer` and `InteractionLayer` all declare required props. The plan name a reader
- * sees inside `PlanEditorRoot` comes from the `StatusBar` nested in its own template, so
- * "the name appears in both" would exercise two `StatusBar` instances and would still pass
- * with `PlanEditorRoot` no longer reading the store at all. The honest pair arrives with the
- * second plan-level consumer.
+ * **One prototype, not two roots.** An earlier version mounted `StatusBar` and `PlanEditorRoot`
+ * as separate roots sharing a Pinia, which is two prototypes' worth of mounting and says nothing
+ * about one prototype's children seeing one world. `SharedWorldPrototype.vue` is the prototype:
+ * template-only, composing both through the registry, exactly as a discovered one would.
  *
- * What is held instead is the criterion's substance, and it is what the fixture's own header
- * argues for: two DIFFERENT components, two DIFFERENT fields of one store, one seeded world —
- * and it fails if either component stops reading it.
+ * **Where the criterion's literal wording outruns this tree, stated rather than glossed.** Of
+ * the prop-free components reading `useProjectStore`, exactly one renders a PLAN-level value —
+ * `StatusBar`, which renders `plan.name`. `PlanEditorRoot` reads `status`; `ZoneLayer`,
+ * `BackgroundLayer` and `InteractionLayer` all declare required props. So the value shown by
+ * BOTH — asserted first below, because it is what the criterion asks for — is necessarily
+ * rendered by two `StatusBar` instances, the prototype's own and the one `PlanEditorRoot`
+ * nests, and that assertion alone would survive `PlanEditorRoot` no longer reading the store.
+ *
+ * Which is why it is not alone. `PlanEditorRoot`'s own read is asserted twice more, on paths
+ * that never reach a `StatusBar`: `status` deciding the canvas, and the seeded ZONES it draws
+ * as captions. Two different components, three fields of one store, one seeded world — and it
+ * fails if either component stops reading it.
  *
  * Two shapes are forbidden here however this is written, both because they pass whatever the
  * fixture does. Mounting ONE component twice proves that Pinia returns one store instance per
@@ -220,7 +224,12 @@ describe('registering components for template-only prototypes', () => {
  * would have been immaterial to the assertions and would have made this comment's claim of
  * fidelity false, which is the more expensive of the two.
  */
-function mountLikeTheIndex(component: Component, pinia: Pinia, context: PlanEditorContext): VueWrapper {
+function mountLikeTheIndex(
+	component: Component,
+	pinia: Pinia,
+	context: PlanEditorContext,
+	components: Record<string, Component>,
+): VueWrapper {
 	const host = document.createElement('div');
 
 	document.body.appendChild(host);
@@ -230,12 +239,47 @@ function mountLikeTheIndex(component: Component, pinia: Pinia, context: PlanEdit
 		global: {
 			plugins: [pinia, VueKonva],
 			provide: { [PLAN_EDITOR_CONTEXT as symbol]: context },
+			components,
 		},
 	});
 }
 
 /**
- * The two observations, taken from the DOM the mount produced and never from the store.
+ * The tags a template-only prototype writes, mapped to what they resolve to — discovered by the
+ * real glob and keyed by `registrableComponents`, the index's own answer to "what may a mock
+ * name". Only the TAG mapping is taken from it; the modules are resolved once, up front.
+ *
+ * RESOLVED rather than `defineAsyncComponent`, which is the one place this deviates from
+ * `indexApp.ts`, and the deviation is what makes the case below able to fail. An async child
+ * mounts a microtask later, and `PlanEditorRoot`'s `onMounted` hydration would have had a turn
+ * by then — `harnessDeps()` answers `HARNESS_PLAN` for any plan id, so an UNSEEDED store would
+ * be seeded by the query instead and the negative case would go green having proved nothing.
+ * `indexApp.ts` needs async children because `IndexPage`'s `<Suspense>` is what it is asserting
+ * about; nothing here mounts `IndexPage`, so nothing here needs them.
+ */
+async function registryFor(tags: readonly string[]): Promise<Record<string, Component>> {
+	const { byTag } = registrableComponents([...componentEntries(), ...prototypeEntries()]);
+	const resolved = await Promise.all(
+		tags.map(async (tag) => {
+			const entry = byTag.get(tag);
+
+			if (entry === undefined) throw new Error(`the harness registry has no tag ${tag}`);
+
+			return [tag, ((await entry.component()) as { default: Component }).default] as const;
+		}),
+	);
+
+	return Object.fromEntries(resolved);
+}
+
+/** Every Konva `Text` in a stage, or nothing when there is no stage. Module scope because it
+ * captures nothing per call — `unicorn/consistent-function-scoping`. */
+const captionsOn = (stage: Konva.Stage | undefined): string[] =>
+	(stage?.find('Text') ?? []).map((node) => (node as Konva.Text).text());
+
+/**
+ * The observations, taken from the DOM and the scene graph the mount produced, never from the
+ * store — a test that read the store back would assert that Pinia stores what it was given.
  *
  * Deliberately NOT awaited: `PlanEditorRoot` re-hydrates from `context.queries` in
  * `onMounted`, and `harnessDeps()` answers `HARNESS_PLAN` for any plan id — so a settled
@@ -243,36 +287,59 @@ function mountLikeTheIndex(component: Component, pinia: Pinia, context: PlanEdit
  * the fixture exists to provide is a world in place before the FIRST synchronous mount, and
  * that is exactly what the un-awaited DOM shows.
  */
-function observe(pinia: Pinia): { statusBarText: string; rootHasCanvas: boolean; rootMessage: boolean } {
-	// ONE context across both mounts, as the index provides one across the whole app.
-	const context = harnessEditorContext();
-	const statusBar = mountLikeTheIndex(StatusBar, pinia, context);
-	const root = mountLikeTheIndex(PlanEditorRoot, pinia, context);
-
+function observe(pinia: Pinia, components: Record<string, Component>): {
+	statusTexts: string[];
+	rootHasCanvas: boolean;
+	rootMessage: boolean;
+	zoneCaptions: string[];
+} {
+	// ONE prototype, ONE context — as `page.ts` provides one across the whole app.
+	const prototype = mountLikeTheIndex(SharedWorldPrototype, pinia, harnessEditorContext(), components);
+	const hasCanvas = prototype.find('.rp-plan-canvas').exists();
 	const observed = {
-		statusBarText: statusBar.text(),
-		rootHasCanvas: root.find('.rp-plan-canvas').exists(),
-		rootMessage: root.find('.rp-editor-canvas-message').exists(),
+		// Both `StatusBar`s the prototype ends up with: its own, and `PlanEditorRoot`'s.
+		statusTexts: prototype.findAll('.rp-editor-status').map((region) => region.text()),
+		rootHasCanvas: hasCanvas,
+		rootMessage: prototype.find('.rp-editor-canvas-message').exists(),
+		// `ZoneShape` writes `model.label` into a Konva `VText`, so the zone names live in the
+		// scene graph rather than in the DOM. `Konva.stages` is process-global and the mount
+		// above is the newest, which is the same reach `tests/helpers/editor.ts` already takes —
+		// and gated on the canvas existing for the same reason it is there: with no canvas this
+		// mount added no stage, and `at(-1)` would answer some EARLIER test's, making the
+		// unseeded case read a seeded scene graph.
+		zoneCaptions: hasCanvas ? captionsOn(Konva.stages.at(-1)) : [],
 	};
 
-	root.unmount();
-	statusBar.unmount();
+	prototype.unmount();
 
 	return observed;
 }
 
-describe('two different components against one seeded world', () => {
-	it("shows the fixture's plan name in StatusBar and PlanEditorRoot's ready branch", () => {
+describe('two different components mounted from one prototype', () => {
+	let components: Record<string, Component>;
+
+	beforeAll(async () => {
+		components = await registryFor(['StatusBar', 'PlanEditorRoot']);
+	});
+
+	it("shows the fixture's plan in both components the prototype composes", () => {
 		installEditorEnvironment();
 
-		const observed = observe(seedFixture());
+		const observed = observe(seedFixture(), components);
 
-		// `StatusBar` reads `plan`.
-		expect(observed.statusBarText).toContain(HARNESS_PLAN.name);
-		// `PlanEditorRoot` reads `status`, and draws its canvas only on `ready` — the message
-		// element is what it draws for missing, failed and still-loading instead.
+		// The literal half of the criterion: a value shown by both, and the same value.
+		// It is TWO `StatusBar` instances by construction — the prototype's own and the one
+		// `PlanEditorRoot` nests — so on its own this says the world reached both MOUNT POINTS
+		// and nothing about two readers. The two assertions below are what say that.
+		expect(observed.statusTexts).toEqual([HARNESS_PLAN.name, HARNESS_PLAN.name]);
+		// `PlanEditorRoot`'s own read of the same store: `status`, which draws the canvas only
+		// on `ready` — the message element is what it draws for missing, failed and loading.
 		expect(observed.rootHasCanvas).toBe(true);
 		expect(observed.rootMessage).toBe(false);
+		// And a plan-derived VALUE it renders itself, on a path that never touches `StatusBar`:
+		// `zones` from the same store, drawn as `ZoneShape`'s captions. This is what fails if
+		// `PlanEditorRoot` stops reading the seeded world while still nesting a status bar.
+		expect(observed.zoneCaptions).toEqual(expect.arrayContaining(HARNESS_ZONES.map((zone) => zone.name)));
 	});
 
 	/**
@@ -285,14 +352,15 @@ describe('two different components against one seeded world', () => {
 	 * difference against a bare `createPinia()` here. So this is still the "comment out the
 	 * assignments and watch it go red" check, kept rather than performed once and thrown away.
 	 */
-	it('loses BOTH observations when the world is not seeded', () => {
+	it('loses EVERY observation when the world is not seeded', () => {
 		installEditorEnvironment();
 
-		const observed = observe(createPinia());
+		const observed = observe(createPinia(), components);
 
-		expect(observed.statusBarText).not.toContain(HARNESS_PLAN.name);
+		expect(observed.statusTexts).not.toContain(HARNESS_PLAN.name);
 		expect(observed.rootHasCanvas).toBe(false);
 		expect(observed.rootMessage).toBe(true);
+		expect(observed.zoneCaptions).toEqual([]);
 	});
 });
 

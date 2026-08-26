@@ -326,6 +326,10 @@ describe('the harness index, with nothing to open', () => {
 		const wrapper = await openIndex('entry=prototype:Nope');
 
 		expect(wrapper.find('.rp-harness-failure').text()).toBe('no entry named prototype:Nope');
+		// The half `scripts/harness-shot.mjs` acts on, and the half no message can be trusted
+		// for: `readFailureKind` reads this attribute to decide that the second colour scheme
+		// would only be told the same thing. See `captureReadiness.mjs` for why not the text.
+		expect(wrapper.find('.rp-harness-failure').attributes('data-failure')).toBe('unknown-entry');
 		expect(stageEntry(wrapper)).toBeUndefined();
 
 		wrapper.unmount();
@@ -349,6 +353,9 @@ describe('the harness index, with nothing to open', () => {
 		const wrapper = await openIndex(query);
 
 		expect(wrapper.find('.rp-harness-failure').text()).toBe('an entry was requested with an empty name');
+		// Same KIND as a mistyped id, different message — which is exactly the distinction the
+		// script cannot make from the text and does not have to make from the attribute.
+		expect(wrapper.find('.rp-harness-failure').attributes('data-failure')).toBe('unknown-entry');
 		expect(stageEntry(wrapper)).toBeUndefined();
 
 		wrapper.unmount();
@@ -549,6 +556,9 @@ describe('the harness index, opening an entry', () => {
 		const wrapper = await openIndex('entry=component:Exploding');
 
 		expect(wrapper.find('.rp-harness-failure').text()).toContain('component:Exploding failed to render: boom');
+		// `render`, not `unknown-entry`: this entry EXISTS, so the other colour scheme is worth
+		// attempting — a defect can be scheme-specific, and looking is the point.
+		expect(wrapper.find('.rp-harness-failure').attributes('data-failure')).toBe('render');
 		expect(wrapper.findAll('nav li')).toHaveLength(1);
 		expect(stageEntry(wrapper)).toBeUndefined();
 

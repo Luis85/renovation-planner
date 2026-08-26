@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
 	describeFailure,
-	namesNoEntry,
+	readFailureKind,
 	reportIfNoLongerDrawn,
+	UNKNOWN_ENTRY,
 	waitUntilReady,
 } from '../../scripts/captureReadiness.mjs';
 
@@ -212,19 +213,45 @@ describe('waitUntilReady', () => {
  * entry" is scheme-independent by construction; anything an entry does while drawing can differ
  * between schemes, and looking at both is the whole point of taking two shots.
  *
- * The two strings are `IndexPage.vue`'s own, and the coupling is checked here rather than
- * asserted in prose: a reworded message makes this answer false, which costs one extra page load
- * and reports the same errors. It fails OPEN, which is the direction that cannot hide anything.
+ * This reads the page's OWN classification — `data-failure` on the failure card — rather than
+ * searching the card's text, and the first case below is the defect that forced the change: a
+ * real entry whose error or warning quotes `no entry named` was classified as missing by the
+ * substring predicate this replaced, and silently lost its second colour scheme. The message is
+ * prose an entry can imitate; the attribute is the page answering the question actually asked.
+ *
+ * Everything else fails OPEN, into attempting the other scheme, which is the direction that
+ * cannot hide anything: a fixed shot, a page with no card, a card with no attribute, and a read
+ * that rejects all answer `null`.
  */
-describe('namesNoEntry', () => {
-	it('recognises the index refusing an id it does not have', () => {
-		expect(namesNoEntry('prototype:Ghost: no entry named prototype:Ghost')).toBe(true);
-		expect(namesNoEntry(': an entry was requested with an empty name')).toBe(true);
+describe('readFailureKind', () => {
+	it('reads the kind the page declared, not the words in its message', async () => {
+		const page = { getAttribute: () => Promise.resolve('unknown-entry') };
+
+		await expect(readFailureKind(page, 'prototype:Ghost')).resolves.toBe(UNKNOWN_ENTRY);
 	});
 
-	it('does not claim an entry is missing when it merely drew badly', () => {
-		expect(namesNoEntry('component:X: component:X did not render cleanly: Missing required prop')).toBe(false);
-		expect(namesNoEntry('component:X: component:X failed to render: boom')).toBe(false);
-		expect(namesNoEntry('Timeout 30000ms exceeded')).toBe(false);
+	it('does not claim an entry is missing when its own failure text merely says so', async () => {
+		// The card text here is `component:X did not render cleanly: Error: no entry named Bob` —
+		// a real entry, a real render defect, and a message the old substring predicate read as
+		// "this entry does not exist". The attribute says `render`, which is what it is.
+		const page = { getAttribute: () => Promise.resolve('render') };
+
+		await expect(readFailureKind(page, 'component:X')).resolves.not.toBe(UNKNOWN_ENTRY);
+	});
+
+	it('answers null for a fixed shot, which has no entry to be unknown', async () => {
+		const page = {
+			getAttribute: () => {
+				throw new Error('a fixed shot has no failure card to read');
+			},
+		};
+
+		await expect(readFailureKind(page, undefined)).resolves.toBeNull();
+	});
+
+	it('answers null when the card read itself fails, rather than throwing', async () => {
+		const page = { getAttribute: () => Promise.reject(new Error('Timeout 2000ms exceeded')) };
+
+		await expect(readFailureKind(page, 'component:X')).resolves.toBeNull();
 	});
 });

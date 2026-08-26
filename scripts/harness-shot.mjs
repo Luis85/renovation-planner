@@ -2,7 +2,13 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
-import { describeFailure, namesNoEntry, reportIfNoLongerDrawn, waitUntilReady } from './captureReadiness.mjs';
+import {
+	describeFailure,
+	readFailureKind,
+	reportIfNoLongerDrawn,
+	UNKNOWN_ENTRY,
+	waitUntilReady,
+} from './captureReadiness.mjs';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
@@ -92,11 +98,12 @@ const entryHasDrawn = (id) => {
  * console error back onto the shared list rather than throwing — one bad shot should not
  * cost the rest of the run its PNGs.
  *
- * Returns the failure reason it recorded, or `undefined` on a clean capture: `captureAll` reads
- * it to decide whether the SECOND colour scheme of the same entry is worth attempting at all.
- * The reason is returned as well as pushed rather than instead of it — the errors list is what
- * the exit code is built from, and a caller that forgot to push would turn a failure into a
- * green run. */
+ * Returns the page's own CLASSIFICATION of the failure it recorded (`readFailureKind`), or
+ * `undefined` on a clean capture: `captureAll` reads it to decide whether the SECOND colour
+ * scheme of the same entry is worth attempting at all. The kind rather than the reason, because
+ * the reason is prose an entry's own error can imitate — see `readFailureKind`. The reason is
+ * still pushed here rather than returned: the errors list is what the exit code is built from,
+ * and a caller that forgot to push would turn a failure into a green run. */
 async function captureOne(browser, baseUrl, { name, query, selector, entry }, errors) {
 	const page = await browser.newPage({ viewport: VIEWPORT });
 
@@ -135,7 +142,7 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry }, er
 		const described = await describeFailure(page, entry, reason);
 
 		errors.push(`[${name}] ${described}`);
-		return described;
+		return (await readFailureKind(page, entry)) ?? undefined;
 	} finally {
 		await page.close();
 	}
@@ -193,8 +200,7 @@ function skipReason({ name, entry }, missing) {
 /** Whether a shot's failure means the ENTRY is missing rather than that it drew badly — the
  * only failure whose answer the other colour scheme cannot change. `undefined` is a clean
  * capture, which is never a reason to skip anything. */
-const isMissingEntry = ({ entry }, failure) =>
-	entry !== undefined && failure !== undefined && namesNoEntry(failure);
+const isMissingEntry = ({ entry }, kind) => entry !== undefined && kind === UNKNOWN_ENTRY;
 
 /** Every shot in the list — five for a bare run, two for a named entry — and the errors any
  * of them raised, collected rather than thrown, so one bad shot does not cost the rest of
@@ -205,8 +211,9 @@ const isMissingEntry = ({ entry }, failure) =>
  * one is a page load, a race and a `describeFailure` read spent to be told the same sentence.
  * It is still REPORTED, with the reason: silently writing one PNG where two were promised, and
  * saying nothing about the second, is the shape of quiet this whole script is against. Only
- * "no such entry" qualifies (`namesNoEntry`); an entry that exists and drew badly is attempted
- * in both schemes, because a defect can be scheme-specific and looking is the point. */
+ * "no such entry" qualifies, and it is the PAGE that says so (`readFailureKind` reads
+ * `data-failure`, not the message); an entry that exists and drew badly is attempted in both
+ * schemes, because a defect can be scheme-specific and looking is the point. */
 async function captureAll(browser, baseUrl, shots) {
 	const errors = [];
 	const missing = new Set();

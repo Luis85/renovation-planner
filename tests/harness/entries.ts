@@ -131,6 +131,16 @@ export const componentEntries = (): HarnessEntry[] =>
  * an unresolved tag, which `IndexPage.vue` turns into a named entry FAILURE: Vue only warns
  * about one, and a warning is invisible to `harness-shot`, which would otherwise photograph a
  * prototype with a component silently missing and exit 0.
+ *
+ * **What the INDEX does not yet say about that, recorded here because it is where the two
+ * sides disagree.** `label` is the basename and only the `id` carries the path, so the day two
+ * components in different directories share one — a case `discoverEntries` supports on purpose,
+ * and which no file in the tree produces today (measured) — the list renders two rows reading
+ * the same name and the same kind, distinguishable only by their `href`. Criterion 4 still
+ * holds (both are reachable at their own URL); what fails is the reading of it. The fix worth
+ * making is not "show the path": it is to surface what THIS function already decided, since a
+ * designer composing either of those two names into a prototype meets an unresolved tag with
+ * no explanation, while the index shows them as two ordinary entries.
  */
 export function registrableComponents(entries: HarnessEntry[]): {
 	byTag: Map<string, HarnessEntry>;

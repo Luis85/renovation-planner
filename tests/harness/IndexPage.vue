@@ -37,6 +37,22 @@ const requested = new URLSearchParams(window.location.search).get('entry');
 const openComponent = shallowRef<unknown>(null);
 const failure = ref<string | null>(null);
 /**
+ * WHY the card above is showing, as data rather than as prose — `data-failure` on the card.
+ *
+ * The distinction the capture script acts on is exactly one: an entry the index does not HAVE
+ * fails identically in both colour schemes, so `scripts/harness-shot.mjs` reports the second
+ * shot rather than loading the page again to be told the same sentence; an entry that exists
+ * and drew badly is attempted in both, because a defect can be scheme-specific.
+ *
+ * It reads this attribute rather than the card's TEXT, and that is the whole reason the ref
+ * exists. `namesNoEntry` used to search the failure text for `no entry named`, which a real
+ * entry's own error or warning can contain — a component throwing `Error('no entry named X')`,
+ * a Vue warning quoting one — and a valid entry misclassified that way silently loses its
+ * second scheme. A message is prose that a reader may reword; the kind is the page's own
+ * answer to a question the script is actually asking.
+ */
+const failureKind = ref<'unknown-entry' | 'render' | null>(null);
+/**
  * The id of what is actually RENDERED, and it means the WHOLE subtree — null until every
  * async dependency below the entry has settled, and null again once one fails — immediately
  * for a defect the resolving render itself raised, and on the next microtask for one raised
@@ -298,6 +314,7 @@ async function open(entry: HarnessEntry): Promise<void> {
 	window.history.replaceState(null, '', hrefFor(entry));
 
 	failure.value = null;
+	failureKind.value = null;
 	renderedId.value = null;
 	pendingId.value = entry.id;
 	renderDefects.length = 0;
@@ -350,6 +367,7 @@ async function open(entry: HarnessEntry): Promise<void> {
 		// says what is missing, because a gap reads as a layout decision.
 		openComponent.value = null;
 		failure.value = `${entry.id} failed to load: ${error instanceof Error ? error.message : String(error)}`;
+		failureKind.value = 'render';
 	}
 }
 
@@ -392,6 +410,7 @@ function reportEntryFailure(id: string, whose: number, error: unknown): void {
 	renderedId.value = null;
 	mountedGeneration = null;
 	failure.value = `${id} failed to render: ${detail}`;
+	failureKind.value = 'render';
 }
 
 /**
@@ -463,6 +482,7 @@ function reportDefects(): void {
 	renderedId.value = null;
 	mountedGeneration = null;
 	failure.value = `${pendingId.value ?? 'the entry'} did not render cleanly: ${[...new Set(renderDefects)].join('; ')}`;
+	failureKind.value = 'render';
 }
 
 /**
@@ -639,6 +659,10 @@ if (requested !== null && !initial) {
 	failure.value = requested.trim() === ''
 		? 'an entry was requested with an empty name'
 		: `no entry named ${requested}`;
+	// BOTH spellings are the same kind: an id the index does not hold, whether it was mistyped
+	// or left empty. `harness-shot` treats them identically — one page load answers for both
+	// colour schemes — and the two messages differ only in what they can usefully SAY.
+	failureKind.value = 'unknown-entry';
 }
 if (initial) void open(initial);
 </script>
@@ -656,7 +680,12 @@ if (initial) void open(initial);
 			</ul>
 		</nav>
 		<main class="rp-harness-stage" :data-entry="renderedId ?? undefined">
-			<p v-if="failure" role="alert" class="rp-harness-failure">{{ failure }}</p>
+			<p
+				v-if="failure"
+				role="alert"
+				class="rp-harness-failure"
+				:data-failure="failureKind ?? undefined"
+			>{{ failure }}</p>
 			<!--
 				`@resolve` fires once every async dependency in the subtree has settled, which is
 				the only signal that covers a mock composing a real component that composes

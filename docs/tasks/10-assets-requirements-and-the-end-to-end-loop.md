@@ -190,6 +190,37 @@ slice subscribes to. Read these before writing the cascade.
   be, and `spatialObjects()` is materialised ONCE per gesture now rather than twice, so
   widening the candidate set costs one traversal per click, not two.
 
+### Waiting for this slice, from slice 15 (2026-08-26)
+
+Slice 15's dialog framework is built and mounted in both view roots. `DeleteReferenceDialog`
+and `EntityPickerDialog` exist, are unit-tested, and have **no production caller** — because
+their caller is this slice's Inspector delete flow, and the queries it reads
+(`ListRequirementsReferencing`, `ListReassignmentTargets`) and the command input it carries
+(`resolution`, `resolvedReferents`, and a `reference.set-changed` refusal) are this slice's to
+define. Slice 15 deliberately did not declare those shapes: a second derivation of contracts
+this slice owns is what its own "Out of scope" section forbids.
+
+Slice 15's Definition of Done items 6, 8 and 8a — including the stale-count, consented-set
+and bounded-retry tests, written out in full in that document's Testing Strategy — are the
+closing task here. Open `dialogStore.openDialog({ kind: 'delete-reference', … })` from the
+Inspector's Delete action; **do not build a second dialog.** What to know before doing it:
+
+- `openDialog` THROWS if a dialog is already open — sequential, never stacked. The Reassign
+  branch works because the store clears `current` before the awaiting caller resumes, so
+  opening the picker the instant the first promise resolves is correct and nesting is not.
+- The result type is derived from the descriptor's `kind`. Switch on `result.action` for
+  `delete-reference`; a bare `'cancel'` string is what the other kinds resolve, and reading
+  `.action` off one yields `undefined`.
+- Every user-facing string is resolved by the CALLER through `t()` before the descriptor is
+  built — `entityLabel` and every `ReferenceRow.label` included. Nothing under
+  `presentation/dialogs/` resolves a key on its own behalf, and lint does not catch a literal
+  at those positions; it rests on review.
+- The dialog renders the rows it is handed and recomputes nothing. The command's own re-check
+  is what enforces reference integrity, because a script or a migration never opens a dialog.
+- `presentation/dialogs/` may not import `application/`, `infrastructure/`, `plugin/` or the
+  event bus — an ESLint block with a meta-test. The query call belongs on this slice's side of
+  the seam, not inside the dialog.
+
 ## Design
 
 ### Asset

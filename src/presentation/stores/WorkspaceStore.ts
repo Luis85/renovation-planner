@@ -41,6 +41,26 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		setLayerVisible(layer, !layerVisibility.value[layer]);
 	}
 
+	/**
+	 * Both panels open and every layer visible again — the state a Plan Editor opens in.
+	 *
+	 * Nothing here is persisted either, so "reset" means the same thing it means in
+	 * `EditorStore.reset`: assign the declared defaults, because there is no stored value to
+	 * re-read and no edit to discard. `defaultLayerVisibility()` is CALLED again rather than a
+	 * snapshot being kept from the first call, so the record handed out is fresh and the
+	 * defaults have one definition — the same bargain `EditorStore.reset` makes by importing
+	 * `DEFAULT_VIEWPORT` rather than restating it.
+	 *
+	 * The consumer that exists today is the harness index (`tests/harness/fixture.ts` calls this
+	 * before every entry it opens, so a panel closed or a layer hidden by one entry does not
+	 * draw the next); it is an example of what needs this, not the reason it exists.
+	 */
+	function reset(): void {
+		layersPanelOpen.value = true;
+		inspectorPanelOpen.value = true;
+		layerVisibility.value = defaultLayerVisibility();
+	}
+
 	return {
 		layersPanelOpen,
 		inspectorPanelOpen,
@@ -48,5 +68,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		toggleLayersPanel,
 		toggleInspectorPanel,
 		toggleLayer,
+		reset,
 	};
 });

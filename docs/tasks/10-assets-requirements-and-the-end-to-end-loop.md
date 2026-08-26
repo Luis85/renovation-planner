@@ -190,27 +190,28 @@ slice subscribes to. Read these before writing the cascade.
   be, and `spatialObjects()` is materialised ONCE per gesture now rather than twice, so
   widening the candidate set costs one traversal per click, not two.
 
-### Waiting for this slice, from slice 15 (2026-08-26) — DONE
-
-**Both dialogs have a production caller now**: `presentation/editor/deleteZoneFlow.ts`, driven
-by the Inspector's Delete button through `runtime.ts`'s `createDeleteZoneAction`. Slice 15's
-Definition of Done items 6, 8 and 8a are covered by `tests/presentation/editor/deleteZoneFlow.test.ts`
-(the decisions, asserted on the COMMAND INPUT) and `tests/presentation/editor/shell/deleteZoneWithReferences.test.ts`
-(the wiring, through the real mounted editor and the real `DialogHost`). What follows is the
-brief as it was written; it is kept because every constraint in it still binds the code.
+### Waiting for this slice, from slice 15 (2026-08-26)
 
 Slice 15's dialog framework is built and mounted in both view roots. `DeleteReferenceDialog`
-and `EntityPickerDialog` exist, are unit-tested, and had **no production caller** — because
+and `EntityPickerDialog` exist, are unit-tested, and have **no production caller** — because
 their caller is this slice's Inspector delete flow, and the queries it reads
 (`ListRequirementsReferencing`, `ListReassignmentTargets`) and the command input it carries
 (`resolution`, `resolvedReferents`, and a `reference.set-changed` refusal) are this slice's to
 define. Slice 15 deliberately did not declare those shapes: a second derivation of contracts
 this slice owns is what its own "Out of scope" section forbids.
 
-Slice 15's Definition of Done items 6, 8 and 8a — including the stale-count, consented-set
-and bounded-retry tests, written out in full in that document's Testing Strategy — are the
-closing task here. Open `dialogStore.openDialog({ kind: 'delete-reference', … })` from the
-Inspector's Delete action; **do not build a second dialog.** What to know before doing it:
+Slice 15's Definition of Done items 6, 6a, 8 and 8a — including the stale-count,
+consented-set and bounded-retry tests, written out in full in that document's Testing
+Strategy — are the closing task here. Open
+`dialogStore.openDialog({ kind: 'delete-reference', … })` from the Inspector's Delete
+action; **do not build a second dialog.** What to know before doing it:
+
+- **Item 6a is `t` interpolation, and it lands here because item 6 does.** The row label
+  names a project, `t(language, key)` takes two arguments today, and every string shipped
+  before it is fixed text — so the first interpolated string in the plugin is the one this
+  task writes. Slice 15 specifies the three-argument form and its four rules; this task
+  builds it. It is not extra scope discovered late: a label that names a project cannot be
+  assembled from translated fragments, which is that document's own call-site rule.
 
 - `openDialog` THROWS if a dialog is already open — sequential, never stacked. The Reassign
   branch works because the store clears `current` before the awaiting caller resumes, so
@@ -249,7 +250,9 @@ type AssetCategory =
 
 interface Asset {
   readonly id: AssetId;            // "asset-01JDEF..." — SDD §82
-  readonly projectId: ProjectId;
+  // No projectId. The catalogue is shared across every project (§59, amended
+  // 2026-08-26); Requirement below keeps its own, because a USE belongs to the
+  // project that made it even when the definition does not.
   name: string;
   category: AssetCategory;
   supplier?: string;               // free text this slice; Supplier entity is Epic 11
@@ -381,21 +384,61 @@ valid assignments the day `ft2` is added, and would do it by returning a plausib
 validation error rather than failing loudly. The picker (`ListAssets`, below) still
 lists every project Asset unfiltered; the command is what enforces the rule.
 
-**The Zone and the Asset must belong to the same Project.** `AssignAssetInput` is two
-bare IDs, so nothing in its shape stops a caller pairing a Zone from Project A with an
-Asset from Project B — and `AssignAssetCommand` already loads both entities (it needs
-the Zone's area and the Asset's unit/cost regardless), so the check costs nothing:
-`zone.projectId !== asset.projectId` is a `ValidationError`, refused before any
-Requirement is constructed. Without it the command would persist a `Requirement` whose
-own `projectId` came from one Project while its `assetId` points into another's
-catalog, leaking one project's unit costs into another's estimates and producing a
-Requirement that `ListAssets(projectId)` can never surface a matching Asset for.
+**There is no same-project check between a Zone and an Asset, and its absence is the
+point.** An earlier version of this slice refused `zone.projectId !== asset.projectId`
+as a `ValidationError`, on the reasoning that such a Requirement would leak one
+project's unit costs into another's estimates and could never be surfaced by
+`ListAssets(projectId)`. §59 as amended (2026-08-26) removes both halves: an [[Asset]]
+belongs to no project, so there is no second `projectId` to compare, and the picker
+lists the whole shared library rather than one project's slice of it. Pairing any Zone
+with any Asset is now **correct**, not a leak — that is what sharing a catalogue means.
 
-The UI cannot be the guard here: `ListAssets(projectId)` filtering the picker to one
-project makes the bad pairing *unreachable through the Inspector*, which is exactly the
+What survives is the half that was never about projects: the `UNIT_KIND` area check. A
+Zone's area is not an identity input for a `piece` or `hour` Asset, and that is as true
+of a shared catalogue as of a per-project one.
+
+The Requirement still resolves to exactly one project — the Zone's. Nothing about
+sharing the definition shares its *use*
+([[Work belongs to one project, catalogues belong to the vault]]).
+
+**Sharing did create one new way for a pairing to be wrong, and this slice does not
+answer it.** A [[Project]] denominates every [[Money]] value in it in its own currency
+(§72) and two projects may legitimately disagree, while the shared definition they both
+reference holds one price — so an Asset priced in EUR can now be assigned to a Zone in a
+GBP project, which was impossible while catalogues were project-scoped.
+
+**Where that is detected, and what happens to the Requirement meanwhile, is an open
+question**, tracked as [[The cost pipeline is told the currency it must produce]] under
+this slice's own PBI. It is open rather than answered here because answering it needs
+three things the register does not yet have, each verified against the current tree
+rather than assumed:
+
+- **A [[Project]] has no currency field.** Neither slice 3's property table nor
+  `src/domain/project/Project.ts` declares one; only `budget` carries a currency, and it
+  is nullable. So nothing can supply an expected currency to compare against.
+- **Nothing invalidates a Requirement when a project's currency changes.** The only
+  invalidation subscribers are `ZoneGeometryChanged` and `AssetUpdated`, and
+  `calculatedFrom` snapshots `zoneArea`, `unitCost` and `assetUnit` — no currency — so a
+  Requirement stays `"current"` with an estimate in the former currency.
+- **`Requirement.estimatedCost` is not optional.** A Requirement whose cost cannot be
+  computed has no valid initial value to be constructed with, so "create it and let
+  recalculation fail" is not available without changing that shape.
+
+Three designs were drafted here and each rested on one of those three absences, which is
+why this paragraph now names the question instead of answering it. The related gap is the
+**per-project price override** [[Asset library]]'s definition of done requires and no
+slice defines; the Issue carries both, since neither is settleable without the other.
+
+The UI cannot be the guard for what remains, either. A picker that offers only area-kind
+Assets makes a bad pairing *unreachable through the Inspector*, which is exactly the
 kind of "it can't happen from the UI" reasoning that leaves a script, a migration, or a
 later epic's caller free to do it. The command owns the invariant, per §3.3's
 Domain-First rule that a handler is not a trusted caller.
+
+This paragraph used to make that argument about the project check, which was the
+stronger case for it and is now gone. It is kept, repointed at the `UNIT_KIND` check,
+because the reasoning was never about *which* invariant — a rule enforced only where the
+UI happens to call it is not enforced.
 
 **Unit conversion at this boundary, not a shared convention.** `Requirement.wasteFactor`
 is a fraction in `[0, 1]` (`0.10` meaning "10% waste") because that is the natural range
@@ -811,7 +854,7 @@ backed by one new query and reusing the asset catalog:
 
 ```typescript
 function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
-function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>; // the "assign asset" picker
+function ListAssets(): Promise<Result<Asset[], PersistenceError>>; // the "assign asset" picker — the whole shared library (§59)
 
 // Used by slice 15's delete-confirmation flow. The Inspector needs the referents
 // before offering Delete, and §58/§59 route that through a query, never a repository
@@ -819,9 +862,44 @@ function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceEr
 // caller owes the command the exact set the user consented to, not just how many there
 // were (see "A resolution consents to a specific set of referents"); the dialog's row
 // renders `.length`.
+//
+// GROUPED BY PROJECT, because an Asset is shared across every project (§59, amended
+// 2026-08-26) and a bare total would read as "in the project I am looking at". A Zone
+// target always yields exactly one group — a Zone belongs to one Plan, which belongs to
+// one Project — so the shape costs that case nothing and tells the truth about the other.
+// The exact-set property is unchanged: the union of the groups IS the set the user
+// consented to.
 function ListRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
-): Promise<Result<readonly RequirementId[], PersistenceError>>;
+): Promise<Result<readonly ReferencingProject[], PersistenceError>>;
+
+interface ReferencingProject {
+  // A group is NEVER empty: a project with no referencing Requirements is absent from
+  // the array, not present with a count of zero. Callers test `groups.length === 0` for
+  // "no referents at all" — slice 15's delete flow does exactly that — and an empty group
+  // would make that test answer wrongly while every row still rendered.
+  projectId: ProjectId;
+  // The dialog shows a name; resolving it here keeps the presentation layer from
+  // holding a repository to look one up, which is the same §58/§59 rule as above.
+  projectName: string;
+  // And a name is NOT unique. `Project.create` trims its name and rejects only an empty
+  // one (`src/domain/project/Project.ts`); nothing in the domain, the repository or the
+  // project index refuses a second project called "Kitchen". Two same-named groups would
+  // render two rows a user cannot tell apart — which is the whole reason the rows are
+  // grouped by project rather than totalled. So the query resolves the disambiguator
+  // too, rather than leaving the presentation layer to look one up (§58/§59 again).
+  //
+  // The project NOTE's vault path, because it is the one unique, human-meaningful thing
+  // that already exists here: `ProjectIndexEntry` carries `path`, and it is what Obsidian
+  // itself shows under a name in the quick switcher when two notes share one. `projectId`
+  // is unique and unreadable, so it is not a label. The index's own duplicate-id warning
+  // is the edge this does not cover and does not need to: when two notes declare one id
+  // only one is reachable, so among the entries a query can return, path is unique.
+  //
+  // Every group carries it; whether a row SHOWS it is slice 15's rule, not this query's.
+  projectPath: string;
+  requirementIds: readonly RequirementId[];
+}
 
 interface RequirementInspectorDTO {
   requirementId: RequirementId;
@@ -1024,7 +1102,7 @@ wrong. Deleting either endpoint in the same window has the same shape and produc
 dangling reference instead.
 
 So redo re-acquires both endpoint locks and re-runs `AssignAssetCommand`'s checks — both
-endpoints resolve, `projectId`s match, the Asset is still area-kind — against the
+endpoints resolve and the Asset is still area-kind — against the
 current world, and carries over only the ID. It can therefore fail, which is correct and
 already handled: slice 6's `redo()` inspects the resolved `Result` and leaves the command
 on `redoStack` when it errors, so a refused redo neither half-applies nor vanishes from
@@ -1051,6 +1129,24 @@ different reasons**, and keeping them apart is what makes the flow work:
   is also what catches the set *moving* between the two reads — the display read is
   advisory and stale by construction, so the command compares what it finds against
   `resolvedReferents` rather than trusting either count.
+
+**`DeleteAssetCommand` has no caller, and no slice in the register gives it one.** The
+first half above says "the Inspector asks", and for a Zone it does — slice 8 selects a
+Zone on the canvas and this slice's Requirements panel hangs off that selection. For an
+**Asset** there is no equivalent: nothing anywhere selects an Asset, so there is no
+surface on which a user could press Delete. The command is still built here and still
+enforces the refusal, because §87 rule 5 puts enforcement in the command precisely so a
+script or a later caller cannot walk past it — a command with no UI is doing its job.
+What does NOT follow is a test of the flow, and the Definition of Done says so rather
+than asking for one.
+
+Naming it here rather than in an Issue because it is a scope gap with an obvious owner —
+whichever slice first gives an Asset a delete affordance, most likely an asset-library
+surface — not an open design question. The register said otherwise for a while: slice 15
+described the entry point as arriving with `DeleteAssetCommand`, which pointed at this
+slice, whose in-scope Inspector work is the Zone panel alone. Two documents each pointing
+at the other is how a gap survives review, and it is worth more than the one sentence that
+fixes it.
 
 The dialog's resolution reaches the command as data, which means a command input has to
 carry it. **This slice is what adds those fields**, because this slice introduces the first
@@ -1129,7 +1225,7 @@ outcomes rather than three synonyms for "delete":
 | --- | --- |
 | *(absent)* | Refuse with a `ReferenceError` naming the referents, if any exist. This is the path a script or a migration takes. |
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
-| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, belongs to a **different Project** than the entity being deleted, or (for an Asset) is not of `area` kind is a `ValidationError` and nothing is written. |
+| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, or (for a **Zone**) belongs to a different Project than the Zone being deleted, or (for an **Asset**) is not of `area` kind, is a `ValidationError` and nothing is written. The project clause is Zone-only: a shared Asset has no project to differ about (§59). |
 | `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Requirements panel shows wherever it still has a row to show it on (see below). |
 
 **`reassign` changes a Requirement's inputs, so it owes the same cascade a geometry edit
@@ -1242,8 +1338,8 @@ inside a repository:
    being deleted, and — when the resolution is `reassign` — the reassignment target as
    well, taken as one sorted acquisition. Both IDs are known from the input, which is
    what lets the set be taken at once rather than one lock at a time. Then validate the
-   resolution's own input (`reassignTo` resolves, is not the entity being deleted, shares
-   the deleted entity's `projectId`, and for an Asset is of `area` kind) — before any
+   resolution's own input (`reassignTo` resolves, is not the entity being deleted, for a
+   Zone shares the deleted Zone's `projectId`, and for an Asset is of `area` kind) — before any
    write, so a rejected reassignment has nothing to compensate. Validating *after*
    acquiring is deliberate: `reassignTo` resolving is a fact about an entity another tab
    could be deleting, and a check made outside the lock is one the lock does not keep
@@ -1615,7 +1711,8 @@ function ListReassignmentTargets(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
 ): Promise<Result<readonly ReassignmentTargetDto[], PersistenceError>>;
 // Zone case:  every other Zone in the same Project.
-// Asset case: every other Asset in the same Project whose unit is of `area` kind.
+// Asset case: every other area-kind Asset in the shared library — NOT filtered by
+//             project, because an Asset belongs to none (§59, amended 2026-08-26).
 // Both exclude the entity being deleted — the self-reference the command refuses.
 interface ReassignmentTargetDto { id: ZoneId | AssetId; label: string }
 ```
@@ -1637,24 +1734,25 @@ reason below.
 
 What the command does **not** delegate to that picker is validating what it is
 handed. An Asset `reassignTo` goes through **both** of `AssignAssetCommand`'s checks —
-the same `UNIT_KIND` area check and the same `zone.projectId === asset.projectId`
-check — for the identical reason: a Zone's area is not an identity input for a `piece`
-or `hour` Asset, a Requirement must not point into another Project's catalog, and a
-rule enforced on one of the two paths that can create the link is a rule a user reaches
-around by deleting an Asset instead of assigning one. Both paths read the same
-`UNIT_KIND` map rather than each comparing against a literal `'m2'`, and both compare
-the two entities' `projectId`s rather than trusting whichever picker supplied the
-target.
+the same `UNIT_KIND` area check — for the identical reason: a Zone's area is not an
+identity input for a `piece` or `hour` Asset, and a rule enforced on one of the two
+paths that can create the link is a rule a user reaches around by deleting an Asset
+instead of assigning one. Both paths read the same `UNIT_KIND` map rather than each
+comparing against a literal `'m2'`.
 
-**The project check binds a Zone `reassignTo` too, not only an Asset one.** The unit
-check is genuinely Asset-only — a Zone has no unit to be incompatible — but nothing
-about "stay inside one Project" is. Repointing a Requirement's `origin` at a Zone in
-another Project produces exactly the inconsistency the Asset check exists to prevent,
-arrived at from the other side: the Requirement keeps the deleted Zone's `projectId`
-while its origin now names geometry another Project owns, so its area is computed from
-a Zone that Project's own queries will never list it under. So `reassignTo` is
-validated against the entity being deleted for **both** kinds — `target.projectId ===
-deleted.projectId` — and only the `UNIT_KIND` half is conditional on which kind it is.
+**The project check on `reassignTo` is now Zone-only, and that asymmetry is the point.**
+It used to bind both kinds as `target.projectId === deleted.projectId`. For a **Zone**
+it still does, unchanged and for its original reason: repointing a Requirement's
+`origin` at a Zone in another Project leaves the Requirement holding the deleted Zone's
+`projectId` while its origin names geometry another Project owns, so its area is
+computed from a Zone that Project's own queries will never list it under.
+
+For an **Asset** the check is gone, because neither operand exists: an Asset has no
+`projectId` (§59, amended 2026-08-26), and reassigning Requirements from one shared
+definition to another crosses no boundary. So the two halves have swapped which kind
+they are conditional on — `UNIT_KIND` was always Asset-only, and the project check is
+now Zone-only. Neither is "both kinds" any more, which is worth stating because the
+previous version's whole point was that one of them was.
 
 ## Interfaces & Contracts
 
@@ -1684,7 +1782,10 @@ interface AssetRepository {
   getById(id: AssetId): Promise<Result<Loaded<Asset> | null, PersistenceError>>;
   save(asset: Asset, expected: Expected): Promise<Result<Loaded<Asset>, PersistenceError | ValidationError>>;
   delete(id: AssetId, expected: EntityVersion): Promise<Result<void, PersistenceError | ValidationError>>;
-  listByProject(projectId: ProjectId): Promise<Result<Loaded<Asset>[], PersistenceError>>;
+  // No listByProject: an Asset belongs to no project (§59, amended 2026-08-26). The
+  // catalogue is shared across every project and lives in the library folder, so the
+  // only listing there is of the whole library.
+  listAll(): Promise<Result<Loaded<Asset>[], PersistenceError>>;
 }
 
 interface RequirementRepository {
@@ -1712,7 +1813,8 @@ interface RequirementRepository {
 }
 
 // application/commands/asset
-interface CreateAssetInput { projectId: ProjectId; name: string; category: AssetCategory;
+// No projectId: the definition is shared, so there is no project to attribute it to.
+interface CreateAssetInput { name: string; category: AssetCategory;
   unit: MeasurementUnit; unitCost: Money; wasteFactorDefault?: Decimal; supplier?: string; sku?: string; notes?: string; }
 type CreateAssetCommand = Command<CreateAssetInput, Result<Asset, ValidationError | PersistenceError>>;
 
@@ -1728,9 +1830,9 @@ interface AssignAssetInput { zoneId: ZoneId; assetId: AssetId; }
 interface AssignAssetResult { requirement: Requirement; created: boolean; }
 type AssignAssetCommand = Command<AssignAssetInput, Result<AssignAssetResult, ValidationError | DomainError | ReferenceError | PersistenceError>>;
 // idempotent: if a Requirement already links this (zoneId, assetId), returns the existing one.
-// ValidationError if the Asset's unit is not area-kind, or if zone.projectId !==
-// asset.projectId — both checked before any Requirement is constructed, see
-// "The derivation pipeline" above
+// ValidationError if the Asset's unit is not area-kind. There is no longer a project
+// check: an Asset has no projectId to compare the Zone's against, and pairing any Zone
+// with any Asset is now correct rather than a leak. See "The derivation pipeline" above
 
 // application/commands/requirement/ReversibleAssignAssetCommand.ts — the adapter the
 // Inspector's "Assign Asset" control actually dispatches. PRD §68 names
@@ -1757,8 +1859,8 @@ class ReversibleAssignAssetCommand implements UndoableCommand {
   // Redo restores the recorded snapshot UNDER ITS ORIGINAL ID, but it is a
   // create like any other and revalidates before saving: it re-acquires both
   // endpoint locks, re-reads the current Zone and Asset, and re-runs exactly the
-  // checks AssignAssetCommand runs — both endpoints still exist, their projectIds
-  // still match, the Asset's unit is still area-kind — failing with the same errors
+  // checks AssignAssetCommand runs — both endpoints still exist and the Asset's unit
+  // is still area-kind — failing with the same errors
   // if any no longer holds. Only the ID is carried over from the snapshot; the
   // validity is re-established against the world as it is now.
   execute(): Promise<Result<void, AppError>>;
@@ -1819,10 +1921,15 @@ class ReversibleSetRequirementCostOverrideCommand implements UndoableCommand {
 // neither fails nor drops them. There is deliberately no project-wide sibling to this
 // query for the Zone-less case: see "Deletion & reference integrity" and Out of scope.
 function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], PersistenceError>>;
-function ListAssets(projectId: ProjectId): Promise<Result<Asset[], PersistenceError>>;
+function ListAssets(): Promise<Result<Asset[], PersistenceError>>;
 function ListRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
-): Promise<Result<readonly RequirementId[], PersistenceError>>;
+): Promise<Result<readonly ReferencingProject[], PersistenceError>>;
+// Grouped, as declared under Queries above — the two declarations are one contract and
+// must not drift. The delete flow still dispatches a FLAT set: the dialog renders a row
+// per group, and the caller passes
+// `groups.flatMap(g => g.requirementIds)` as `resolvedReferents`. Grouping is how the
+// set is SHOWN; the set the user consents to is its union, unchanged.
 ```
 
 ```text
@@ -1862,20 +1969,32 @@ in; naming the split here is what stops the next one.
 
 ## Persistence Impact
 
-New Vault folders (already named in PRD §36): `Assets/`, `Requirements/`.
+New Vault folders (PRD §36): `Requirements/` inside the project folder, and `Assets/`
+inside the **library folder** — a plugin setting (§83), one per vault, because the
+catalogue belongs to no project (§59, amended 2026-08-26).
+
+**That storage location is not indexed or observed yet, and this slice depends on it
+being both.** Slice 4's `collectNotes` skips any file outside the project folder and
+`VaultChangeAdapter` returns early on the same test, so a library that is a separate root
+is invisible to the Project Index and to the vault-change pipeline — which would make a
+library Asset unresolvable, and would let `ListRequirementsReferencing` miss another
+project's Requirements, so an Asset update or delete could silently miss live referents.
+It bites in **every** valid configuration rather than eventually: §83 forbids the library
+folder and a project folder from overlapping, so the library is never inside the scanned
+root. The decision belongs to slice 4, which owns the index and now records it; this note
+names it because an implementer starting here would otherwise meet it as a bug.
 Both are note-based entities per PRD §37, following slice 4's
 Markdown-frontmatter-plus-Zod-schema pattern with `schema-version: 1`. Neither
 owns a geometry sidecar — Requirement references a Zone by ID rather than
 storing geometry (§3.6).
 
 ```yaml
-# Assets/Porcelain Terrace Tile.md
+# <library folder>/Assets/Porcelain Terrace Tile.md
 ---
 type: renovation-asset
 schema-version: 1
 
 id: asset-01JDEF7Q3K
-project: project-01HABC
 
 name: Porcelain Terrace Tile
 category: material
@@ -2010,10 +2129,13 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
   (zone, asset) pair. `AssignAssetCommand` against an Asset whose `unit` is
   `m`, `m3`, `piece`, `hour`, `day`, or `fixed` resolves a `ValidationError`
   and creates no Requirement — table-driven over all six rejected units, not just
-  one. `AssignAssetCommand` given a Zone and an Asset with different `projectId`s
-  likewise resolves a `ValidationError` and creates no Requirement — driven through
-  the command with two fixture Projects, never through the picker, since the picker
-  is precisely the path that cannot produce this input. A test publishes
+  one. `AssignAssetCommand` given Zones from two different Projects and one shared Asset
+  **succeeds both times**, each Requirement carrying its own Zone's `projectId` — driven
+  through the command with two fixture Projects. It replaces a test that required the
+  opposite; written as a success rather than deleted, so that reintroducing the old
+  refusal fails something. What happens when the Asset's price is in another currency is
+  **not specified here** — see *Sharing did create one new way for a pairing to be wrong*
+  and the Issue it names. A test publishes
   `ZoneGeometryChanged` directly on an
   in-memory Event Bus and asserts the full cascade fires in order —
   `RequirementInvalidated` → `RequirementRecalculated` → `CostEstimateChanged`
@@ -2105,6 +2227,28 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
 
 ## Definition of Done
 
+### What this branch's merge with `main` means for the boxes below (2026-08-26)
+
+`main` rewrote this Definition of Done for the shared-catalogue amendment (§59) while this
+branch was building the previous one. The merge takes **`main`'s text** — it is the current
+specification — and re-ticks a box only where its wording is unchanged, on one rule stated
+here because it is what the ticks now mean:
+
+> **Identical wording ⇒ the test behind it is the same test, and `npm run check` is what says
+> it still passes.** 47 of the 54 criteria below are word-for-word what this branch built and
+> ticked. The other **seven** are new or rewritten, are unticked, and are the whole of the
+> work the amendment creates in this document.
+
+Those seven, so nobody has to diff for them: the storage-location criterion (Assets move to the
+library folder), `AssignAssetCommand` **accepting** a cross-project pairing rather than refusing
+it, `ListRequirementsReferencing` returning referents **grouped by project**, every group
+carrying `projectPath` beside `projectName`, `reassignTo` being project-free for an Asset and
+project-checked for a Zone, `ReversibleAssignAssetCommand` having no project check left to
+re-run, and the `reassign` refusal list losing its Asset half.
+
+**Nothing below has been re-measured against the merged tree**, coverage included —
+`vitest.config.ts` says the same thing about its own figures and for the same reason.
+
 ### What the closing pass left open, and why (2026-08-26)
 
 Every box below is ticked and every one has a check behind it. Three things the design
@@ -2143,7 +2287,9 @@ empty.
       rules from slice 1/12).
 - [x] `AssetRepository` and `RequirementRepository` have in-memory and
       Obsidian implementations passing one shared contract test suite (§72).
-- [x] Asset and Requirement notes persist under `Assets/` and `Requirements/`
+- [ ] Requirement notes persist under the project's `Requirements/`, and Asset notes
+      under the **library folder's** `Assets/` — one per vault, resolved from the plugin
+      setting (§83), never from the project folder — each
       with `schema-version: 1`, validated through Zod on read (§43); invalid
       frontmatter is rejected before it reaches the domain, not silently
       coerced.
@@ -2154,10 +2300,43 @@ empty.
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
       identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
       check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
-- [x] `AssignAssetCommand` rejects a Zone and Asset belonging to different Projects
-      with a `ValidationError` and creates no Requirement, asserted by driving the
-      command directly rather than the project-filtered picker — no Requirement can
-      reference an Asset from another Project's catalog.
+- [ ] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset, regardless of
+      which project the Zone is in — asserted
+      by driving the command directly with Zones from two different Projects against one
+      Asset. The catalogue is shared (§59), so this pairing is correct rather than a leak;
+      the Requirements it creates each carry their own Zone's `projectId`. This criterion
+      replaces one requiring the opposite, and is written as a positive assertion on
+      purpose — a deleted refusal leaves no test behind, and nothing would then notice the
+      guard being reintroduced. What it asserts is the **project pairing**, and it settles
+      nothing about the currency of the estimate that pairing produces — see *Sharing did
+      create one new way for a pairing to be wrong* and the Issue it names. The two do not
+      collide, and the reason is worth stating because it reads as though they must: the
+      mismatch case is constructible today, so this criterion does not cover an impossible
+      input. `costPipeline` takes its currency from `input.unitPrice` and compares it
+      against nothing, so an EUR Asset assigned into a GBP project yields a Requirement
+      whose `estimatedCost.calculated` is arithmetically correct and denominated in EUR.
+      The criterion above it — a correct estimate on first creation — is met by that
+      figure. Whether a figure in the Asset's currency is the *right* one for the Zone's
+      project is the open question, and it is open in the shipped code rather than in this
+      criterion.
+- [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
+      covered by a fixture where one Asset is referenced from two Projects. A bare total is
+      refused by this test, because it reads as "in the project I am looking at" while a
+      shared asset's references are not. The assertion stops at the QUERY: that those groups
+      become a row each is slice 15's row-mapping test, and no end-to-end version is possible
+      until something can delete an Asset — see the gap under *Deletion & reference
+      integrity*. This criterion asked for the dialog until that gap was noticed, which made
+      it uncompletable through any specified path.
+- [ ] Every group carries `projectPath` alongside `projectName`, asserted against a
+      fixture whose two Projects share one `name` — the case nothing refuses, since
+      `Project.create` trims the name and rejects only an empty one. Without the path
+      those two groups are indistinguishable to the caller, and slice 15's rows are then
+      identical for the two things a user is choosing between. The assertion is on the
+      QUERY returning it; whether a row shows it is slice 15's rule and slice 15's test.
+- [ ] `reassignTo` on an **Asset** delete accepts a target regardless of project, and on
+      a **Zone** delete still refuses one whose `projectId` differs from the deleted
+      Zone's. Both halves asserted, since the asymmetry is the thing a later reader is
+      most likely to "tidy" back into symmetry.
 - [x] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
@@ -2197,13 +2376,14 @@ empty.
       Asset after the delete removed or reassigned its Requirements. The resurrection
       case gets its own test — it is the one the reference lock does not cover, since a
       field edit creates no reference for that lock to serialize against.
-- [x] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
+- [ ] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
       Requirement this gesture created, redo restores it under the same
       `RequirementId`, and undo on the idempotent path — where the Requirement already
       existed — deletes nothing and preserves its overrides. Redo restores the ID but
       not the validity: it re-acquires both endpoint locks and re-runs
-      `AssignAssetCommand`'s existence, project and unit-kind checks against the
-      current entities, refusing rather than recreating a link that is no longer legal.
+      `AssignAssetCommand`'s existence and unit-kind checks against the current
+      entities, refusing rather than recreating a link that is no longer legal. There is
+      no project check left to re-run — an Asset has none (§59, amended 2026-08-26).
 - [x] The adapter reads `created` from `AssignAssetResult`, never from its own
       pre-dispatch read: two adapters assigning the same (zone, asset) concurrently see
       `created: true` and `created: false` respectively, and the second's undo deletes
@@ -2340,14 +2520,16 @@ empty.
       or a failed `markStale` compensates and fails it. The two halves are asserted
       separately, since one policy applied to both would be wrong in one direction or the
       other.
-- [x] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, an
-      Asset whose unit is not of `area` kind, or a target (Zone **or** Asset) belonging
-      to a different Project than the entity being deleted resolves a `ValidationError`,
-      writes nothing, and deletes nothing — the unit check reading slice 9's `UNIT_KIND`
-      and the project check comparing the two entities' `projectId`s, the same two checks
-      `AssignAssetCommand` applies, so the two paths that can create a link cannot
-      disagree about what a valid one is. The cross-project case is asserted for a Zone
-      target as well as an Asset one: only the unit half is kind-specific.
+- [ ] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, an
+      Asset whose unit is not of `area` kind, or a **Zone** in a different Project than
+      the Zone being deleted resolves a `ValidationError`, writes nothing, and deletes
+      nothing — the unit check reading slice 9's `UNIT_KIND`, so this path and
+      `AssignAssetCommand` cannot disagree about what a valid link is.
+      **Each check is now kind-specific, and in opposite directions**: the unit half is
+      Asset-only, and the project half is Zone-only, because a shared Asset has no
+      project to differ about (§59). The previous version required the project check on
+      *both* kinds, so a reader restoring symmetry here would be reintroducing a refusal
+      the amendment removed — asserted in both directions for that reason.
 - [x] Both override fields dispatch their reversible adapter through
       `CommandHistory.run()` — no plain override command reaches the panel — and undo
       restores the full pre-edit Requirement in each of the three cases that differ:

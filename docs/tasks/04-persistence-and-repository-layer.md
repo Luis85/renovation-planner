@@ -943,6 +943,27 @@ interface FindZonesByPlanQuery {
 - **New setting:** the project folder for entity notes — added to the settings surface
   Slice 1 established, and read and written through `settingsFrom` like `units`, since
   `data.json` is a trust boundary and a folder path is user-editable text.
+- **Known prerequisite for shared catalogues, added 2026-08-26 and not built here.** Both
+  halves of this pipeline are scoped to **one** root: `collectNotes` skips any file whose
+  path does not start with the project folder, and `VaultChangeAdapter` returns early on
+  the same test. §59 as amended makes the [[Asset]], [[Supplier]] and [[Trade]]
+  catalogues shared, living in a **library folder** resolved from its own plugin setting
+  (§83) rather than from any project folder — so a library that is a separate root is
+  invisible to the index *and* to the change pipeline, and a library note would never be
+  resolvable or observed.
+
+  **It bites in every valid configuration, not eventually.** An earlier version of this
+  paragraph said it did not bite while the library defaulted inside the project root —
+  which was wrong, and wrong against the very amendment that created it: §83 now *forbids*
+  the library folder and a project folder from being equal or containing one another
+  (a project folder holding the library would delete every project's catalogues with it),
+  and §36 draws the project folder as `Renovation/Kitchen Refit/`, not the `Renovation/`
+  parent. So the library is **never** inside the scanned root. There is no grace period.
+
+  **Whoever next touches this pipeline owes it a decision** — scanning and watching a list
+  of roots is the obvious shape — and slice 10's shared-asset queries cannot work until it
+  is made. Recorded here rather than fixed in the slice that discovered it, because this
+  file owns the index.
   User-supplied paths pass through `normalizePath` before any Vault call. There is no
   second location field: ADR-011 puts geometry in `Geometry/` inside this folder, so the
   sidecar path is derived rather than configured, and changing this one setting while

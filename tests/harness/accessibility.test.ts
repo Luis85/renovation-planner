@@ -180,16 +180,18 @@ describe('axe against the mounted view', () => {
 	 * A dialog is the one surface in this plugin that takes the keyboard away from
 	 * everything behind it, so it is the one most worth scanning: `role="dialog"` without
 	 * an accessible name and a button with no text are both real violations axe sees here.
-	 * A heading level is NOT one of them at this scope: measured directly (a lone `<h4>`
-	 * inside a `role="dialog"` subtree with nothing else present), axe's `heading-order`
-	 * lands the case in `passes`, not `violations` — the rule needs a PRECEDING heading to
-	 * compare against, and `page-has-heading-one` (which would otherwise catch "the first
-	 * heading is not `<h1>`") is scope-inapplicable per this file's own header. Heading
-	 * LEVEL only becomes checkable in the composite this file deliberately avoids —
-	 * measured the same way, an `<h2>` panel heading followed by a dialog `<h4>` in the SAME
-	 * scanned subtree DOES land in `violations` — which is exactly why this case is mounted
-	 * through the otherwise-empty Renovation Project view rather than the Plan Editor's own
-	 * panel headings.
+	 * A heading LEVEL is not one of them at this scope, and that is a limit of the scope
+	 * rather than a reason for choosing it. Every kind renders its title as an `<h2>`, and
+	 * the Renovation Project view draws no other heading, so the scanned subtree holds one
+	 * heading: axe's `heading-order` needs a PRECEDING heading to compare against and lands
+	 * a lone one in `passes`, while `page-has-heading-one` (which would otherwise catch "the
+	 * first heading is not `<h1>`") is scope-inapplicable per this file's own header.
+	 *
+	 * The earlier version of this paragraph read the other way round — that a dialog `<h4>`
+	 * following the Plan Editor's `<h2>` panel titles WOULD land in `violations`, and that
+	 * this was why the case mounts here. There is no `<h4>` anywhere in `src/`; measured
+	 * against this branch, the Plan Editor with a dialog open scans as three `<h2>`s and
+	 * zero violations, so either mount is clean and the real reason is the one below.
 	 *
 	 * Mounted through `mountHarness` — the Renovation Project view, which otherwise draws
 	 * nothing (see the header) — rather than the Plan Editor case above: `DialogHost`

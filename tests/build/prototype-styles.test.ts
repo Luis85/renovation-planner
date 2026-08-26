@@ -281,6 +281,31 @@ describe('a prototype and the sheet that styles it', () => {
 		expect(declaredHere.filter((name) => componentClasses.has(name))).toEqual([]);
 	});
 
+	/**
+	 * The escapes Vue provides FROM scoping, refused by name.
+	 *
+	 * `:global(…)` is emitted with no scope attribute at all, so a rule inside a `<style scoped>`
+	 * block can still be global — and Vite never removes an injected block, so it goes on styling
+	 * whatever the designer opens next. The scoping case below reads the opening TAG and cannot
+	 * see it.
+	 *
+	 * `:deep(…)` and its older spellings are the same hole pointed the other way: they emit
+	 * `[data-v-x] .foo`, which reaches INTO a composed component's markup — precisely what the
+	 * two isolation rules above exist to prevent, handed back as a one-word opt-out that both of
+	 * them pass.
+	 *
+	 * `:slotted(…)` is deliberately not here: it is bounded to content the mock was handed, which
+	 * is the mock's own markup by another route.
+	 */
+	it.each(prototypes)('%s uses no escape from its own scope', (file) => {
+		const escapes = [':global(', ':deep(', '::v-deep', '::v-global', '>>>', '/deep/'];
+		const blocks = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8')).map((block) =>
+			block.replace(CSS_COMMENT, ''),
+		);
+
+		expect(escapes.filter((escape) => blocks.some((block) => block.includes(escape)))).toEqual([]);
+	});
+
 	it.each(prototypes)('%s scopes every style block it has', (file) => {
 		const unscoped = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8'))
 			.map((block) => block.match(/<style[^>]*>/)?.[0] ?? '')

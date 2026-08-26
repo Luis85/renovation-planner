@@ -86,6 +86,10 @@ both checked:
   because a designer wanting to nudge a composed component reaches for that component's class.
   Naming it in MARKUP stays legal — laying a composed component out is legitimate; putting a
   rule on it is what criterion 5 refuses.
+- **No escape from the scope.** `:global(…)` is emitted with no scope attribute, so a rule
+  inside a scoped block can still be global; `:deep(…)` (and `::v-deep`, `>>>`, `/deep/`) reaches
+  into a composed component's markup, which is a one-word opt-out from both rules above. Both are
+  refused by name. `:slotted(…)` is allowed: it is bounded to content the mock was handed.
 
 **A `styles/` partial plus an `@import` in `styles/index.css`** — the assembler fails the build
 on a partial nothing imports, which is what stops that edit being half-done.

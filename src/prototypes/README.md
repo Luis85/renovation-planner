@@ -60,13 +60,20 @@ because neither is sufficient alone:
 
 **Two homes, and they differ in one thing: whether the rules ship.**
 
-**Its own `<style>` block — prefer this while the screen is provisional.** Nothing imports this
-tree, so the block never reaches `dist/`: a screen that does not exist yet costs every vault
-nothing. `WorkPackageFilters.vue` is the worked example. What it costs is that the block does
-not TRAVEL: a shipped component is styled from the assembled sheet, because SDD §84's colour
-check runs over that sheet with lightningcss and never sees inside an SFC — so promotion lifts
-the block into a partial. `tests/build/prototype-promotion.test.ts` pins that a promoted
+**Its own `<style scoped>` block — prefer this while the screen is provisional.** Nothing
+imports this tree, so the block never reaches `dist/`: a screen that does not exist yet costs
+every vault nothing. `WorkPackageFilters.vue` is the worked example. What it costs is that the
+block does not TRAVEL: a shipped component is styled from the assembled sheet, because SDD §84's
+colour check runs over that sheet with lightningcss and never sees inside an SFC — so promotion
+lifts the block into a partial. `tests/build/prototype-promotion.test.ts` pins that a promoted
 component carries no `<style>`.
+
+**`scoped` is required, and it is not a preference.** Vite injects a component's CSS when its
+module loads and never removes it, so an unscoped block goes on styling the index after the
+designer has navigated away — and any later entry sharing a selector, a real component included,
+inherits provisional rules, making what it looks like depend on the order entries were opened.
+That is criterion 5's guarantee broken by the mechanism meant to be free.
+`tests/build/prototype-styles.test.ts` refuses an unscoped block.
 
 **A `styles/` partial plus an `@import` in `styles/index.css`** — the assembler fails the build
 on a partial nothing imports, which is what stops that edit being half-done.

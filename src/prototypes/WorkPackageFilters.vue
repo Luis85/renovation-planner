@@ -20,7 +20,7 @@
 	Both were worked around rather than designed, and a reviewer looking at a static bar could
 	not judge the one thing a filter bar is: what it does when you press it.
 
-	The `<style>` block does not ship — nothing imports this tree — which is the whole gain
+	The `<style scoped>` block does not ship — nothing imports this tree — which is the whole gain
 	over a `styles/` partial for a screen that does not exist yet. What it costs is that the
 	block does not travel either: promotion moves this file into `src/presentation/` and lifts
 	the CSS into a partial, because a shipped component is styled from the assembled sheet that

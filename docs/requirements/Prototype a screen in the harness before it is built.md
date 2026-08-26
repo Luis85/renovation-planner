@@ -69,7 +69,8 @@ per *One seeded fixture* below.
    discovered from the tree; they open the one in question, or go straight to its URL.
 5. Every real component on the screen is drawn by the **assembled stylesheet the plugin ships**,
    so the judgement is about the thing that will exist. A mock's own provisional rules may live
-   in its `<style>` block, where they cost no vault anything.
+   in its `<style scoped>` block, where they cost no vault anything and cannot reach the next
+   entry opened.
 6. When the design settles, a mock is promoted: the file moves into the presentation tree, its
    template and its script go unchanged, and a `<style>` block — if it has one — is lifted into
    a `styles/` partial.
@@ -185,10 +186,12 @@ shown without extending the fixture, and extending it changes what every other e
    open and the shot command cannot.
 5. A **real component** in a prototype is styled by the assembled stylesheet the plugin ships,
    and by nothing else — there is no second sheet in the harness page for a shipped component to
-   be drawn from. A MOCK may carry its own `<style>` block instead: it does not ship, which is
-   the point, and it does not travel at promotion either — the block is lifted into a `styles/`
-   partial, because SDD §84's colour check runs over the assembled sheet and never sees inside an
-   SFC. **Amended after the first author used this tree**, whose report is what made the cost of
+   be drawn from. A MOCK may carry its own `<style scoped>` block instead: it does not
+   ship, which is the point, and it does not travel at promotion either — the block is lifted
+   into a `styles/` partial, because SDD §84's colour check runs over the assembled sheet and
+   never sees inside an SFC. **Scoped**, because Vite never removes an injected block: unscoped,
+   a mock's provisional rules would go on styling every entry opened after it, and this
+   criterion's own guarantee about real components would depend on navigation order. **Amended after the first author used this tree**, whose report is what made the cost of
    the original wording visible: 296 lines of a mock's CSS were being downloaded by every vault
    for a screen that does not exist.
 6. A real component mounts in the index with no per-entry setup, because the fixture is already

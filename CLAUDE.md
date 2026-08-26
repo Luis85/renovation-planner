@@ -327,13 +327,15 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
   `?phone`), just never a `view` one — so making a bare root mean "index" would break them
   while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as
-  SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style>` — written to the
+  SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style scoped>` — written to the
   same Vue lint rules as the rest of `src/` so that promotion is moving the file rather than
   redrawing the markup. A template-only mock composes real components and sibling mocks through
   the index's global registry, having no script block to put an import in; a scripted one may
-  import them directly, which is what a shipped component does. A `<style>` block does not ship
+  import them directly, which is what a shipped component does. A `<style scoped>` block does not ship
   and does not travel — promotion lifts it into a `styles/` partial, since SDD §84's colour
-  check runs over the assembled sheet and never sees inside an SFC.
+  check runs over the assembled sheet and never sees inside an SFC. `scoped` is required rather
+  than preferred: Vite never removes an injected block, so an unscoped one would still be
+  styling the index after the designer opened something else.
   `src/prototypes/README.md` carries the one rule that IS relaxed there and why. **No prototype or fixture MODULE ever composes a built chunk**, refused
   twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
   `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:

@@ -53,6 +53,9 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  */
 
 const CLASS_ATTRIBUTE = /\sclass="([^"]*)"/g;
+/** A `:class` binding, whose statically knowable names are its quoted string literals. */
+const CLASS_BINDING = /\s:class="([^"]*)"/g;
+const QUOTED = /'([^']+)'/g;
 const CLASS_SELECTOR = /\.([A-Za-z_][\w-]*)/g;
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 
@@ -73,13 +76,23 @@ const walk = (dir: string): string[] =>
 
 const prototypes = walk('src/prototypes').map((file) => file.replace('src/prototypes/', ''));
 
-/** A mock's own `<style>` block, or `''` when it has none. */
+/** A mock's own `<style>` block WITH its opening tag, or `''` when it has none. */
 const styleBlock = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/)?.[0] ?? '';
 
 const used = new Map(
 	prototypes.map((file) => {
 		const source = readFileSync(`src/prototypes/${file}`, 'utf8');
-		const classes = [...source.matchAll(CLASS_ATTRIBUTE)].flatMap(([, list]) => list.split(/\s+/).filter(Boolean));
+		const classes = [
+			...[...source.matchAll(CLASS_ATTRIBUTE)].flatMap(([, list]) => list.split(/\s+/).filter(Boolean)),
+			// A `:class` binding's quoted names — `:class="{ 'rp-x--on': cond }"`. Not every bound
+			// class is knowable (a computed string never will be), but a quoted literal is, and
+			// leaving it out was a real hole the moment the first scripted mock arrived: the
+			// active-filter selector was bound, so deleting its rule left the state unstyled with
+			// this file green.
+			...[...source.matchAll(CLASS_BINDING)].flatMap(([, expression]) =>
+				[...expression.matchAll(QUOTED)].map(([, name]) => name),
+			),
+		];
 		// A mock may style itself, so its OWN block is a declaration source alongside the
 		// assembled sheet — and only its own: one mock's block says nothing about another's,
 		// since neither ships and neither is loaded when the other is on the stage.
@@ -116,6 +129,24 @@ describe('a prototype and the sheet that styles it', () => {
 		// stopped matching would silently hand every scripted mock an empty `own` set, turning
 		// the relaxation this file was rewritten for back into a failure nobody could read.
 		expect([...used.values()].some(({ own }) => own.size > 0)).toBe(true);
+	});
+
+	/**
+	 * SCOPED, and this is the one rule here that is about the page rather than about the mock.
+	 *
+	 * Vite injects a component's CSS when its module loads and never removes it, so an unscoped
+	 * block goes on styling the index after the designer has navigated away — and any later
+	 * entry sharing a selector, a REAL component included, inherits provisional rules. What that
+	 * component looks like would then depend on the order entries were opened, which is exactly
+	 * the guarantee criterion 5 makes, broken by the mechanism that was supposed to be free.
+	 *
+	 * A mock with no block at all passes: the rule is about what a block must be, not about
+	 * having one.
+	 */
+	it.each(prototypes)('%s scopes its style block, if it has one', (file) => {
+		const opening = styleBlock(readFileSync(`src/prototypes/${file}`, 'utf8')).match(/<style[^>]*>/)?.[0] ?? '';
+
+		expect(opening === '' || opening.includes('scoped'), `${file}: ${opening}`).toBe(true);
 	});
 
 	it.each(prototypes)('%s names no class nothing styles', (file) => {

@@ -5,6 +5,7 @@
  * slice 8 shipped unreachable. Two dialogs and a command, in that order.
  */
 import { describe, expect, it } from 'vitest';
+import type Konva from 'konva';
 import { mount } from '@vue/test-utils';
 import KnownDistanceForm from '../../../../src/presentation/editor/shell/KnownDistanceForm.vue';
 import { useDialogStore } from '../../../../src/presentation/dialogs/dialog-store';
@@ -246,6 +247,33 @@ describe('the calibrate tool in a mounted editor', () => {
 			knownDistance: 2400,
 		});
 		expect(store.current).toBeNull();
+		harness.unmount();
+	});
+
+	/**
+	 * The VISUAL half, asserted on the Konva layer rather than on `RenderState`, because the
+	 * walkthrough finding was literally "nothing is drawn": a field the tool sets that no
+	 * renderer reads would satisfy every tool test and still leave the user staring at two
+	 * clicks and a dialog with no idea which points were picked.
+	 *
+	 * A plan with NO zones, so nothing else is on that layer — no selection outline, no
+	 * handles — and the counts belong to the segment alone. It is asserted while the distance
+	 * form is still open, which is the state the segment exists for.
+	 */
+	it('draws the measured segment on the interaction layer while the prompt is open', async () => {
+		const harness = await mountPlanEditor({ zones: [] });
+		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+
+		click(harness, { x: 0, y: 0 });
+		click(harness, { x: 100, y: 0 });
+		await settle();
+
+		expect(useDialogStore(harness.pinia).current?.kind).toBe('form');
+		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
+		// One line between the two points, and one marker at each end.
+		expect(interaction?.find('Line')).toHaveLength(1);
+		expect(interaction?.find('Circle')).toHaveLength(2);
+
 		harness.unmount();
 	});
 

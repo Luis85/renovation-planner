@@ -180,13 +180,23 @@ const flattenedWithoutRing = (
 	//
 	// The winner carries its CONTEXT, which is asked at clearing time rather than here — see
 	// `focusSites` for why the two cannot be one key.
+	// PER PROPERTY, not per rule. CSS resolves `outline` and `box-shadow` independently, so a
+	// specific rule setting only `box-shadow: none` does not take away a broad rule's outline — and
+	// one winner per key replaced the whole standing with that rule's "draws nothing", reporting a
+	// button whose ring is on screen. A rule competes only for the properties it DECLARES, which is
+	// what `indicatorOf` returning `undefined` for an unmentioned property already told us.
 	const ringed = new Map<
 		string,
-		{
-			readonly specificity: readonly [number, number, number];
-			readonly draws: boolean;
-			readonly conditions: Conditions;
-		}
+		Partial<
+			Record<
+				'outline' | 'shadow',
+				{
+					readonly specificity: readonly [number, number, number];
+					readonly draws: boolean;
+					readonly conditions: Conditions;
+				}
+			>
+		>
 	>();
 
 	// Both sets span every sheet, because the two halves need not share one. A class flattened in
@@ -225,11 +235,23 @@ const flattenedWithoutRing = (
 						// actually outranks it, and the flattened button was credited a ring the cascade never
 						// draws. Expansion answers WHICH elements a rule reaches; ranking is a separate question.
 						const specificity = specificityOf(selector);
-						const standing = ringed.get(key);
+						const standing = ringed.get(key) ?? {};
+						const next = { ...standing };
 
-						if (standing === undefined || !moreSpecific(standing.specificity, specificity)) {
-							ringed.set(key, { specificity, draws, conditions });
+						for (const [property, declared] of [
+							['outline', outline],
+							['shadow', shadow],
+						] as const) {
+							if (declared === undefined) continue;
+
+							const holder = standing[property];
+
+							if (holder === undefined || !moreSpecific(holder.specificity, specificity)) {
+								next[property] = { specificity, draws: declared, conditions };
+							}
 						}
+
+						ringed.set(key, next);
 					}
 					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow says
 					// nothing about the resting state a ring is drawn on.
@@ -246,12 +268,18 @@ const flattenedWithoutRing = (
 
 	const seen = flattened.size;
 
-	for (const [key, winner] of ringed) {
+	// A button is answered where EITHER surviving property draws. The two are resolved separately
+	// and each covers separately, so an outline that wins in one scope and a shadow that wins in
+	// another answer the sites each of them reaches.
+	for (const [key, winners] of ringed) {
 		const sites = flattened.get(key);
 
-		if (!winner.draws || sites === undefined) continue;
+		if (sites === undefined) continue;
 
-		const uncovered = sites.filter((site) => !covers(winner.conditions, site.conditions));
+		const drawing = [winners.outline, winners.shadow].filter((winner) => winner?.draws === true);
+		const uncovered = sites.filter(
+			(site) => !drawing.some((winner) => winner !== undefined && covers(winner.conditions, site.conditions)),
+		);
 
 		if (uncovered.length === 0) flattened.delete(key);
 		else flattened.set(key, uncovered);
@@ -391,6 +419,12 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a ring conditioned differently from the rule that flattened',
 			'@media (prefers-color-scheme: light) { .rp-dialog-button { box-shadow: none; } } @media (prefers-color-scheme: dark) { .rp-dialog-button:focus-visible { outline: 2px solid red; } }',
+		],
+		// And the property split must not become "a reset can never win": a specific rule resetting
+		// the SAME property the broad one drew still takes the ring away.
+		[
+			'a specific rule resetting the same property',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog.rp-dialog .rp-dialog-button:focus-visible { outline: none; }',
 		],
 		// `:where()` contributes ZERO specificity, argument included, so this ring ties the reset that
 		// follows it and the LATER one wins. Scored from the expanded branch it looked ID-specific,
@@ -567,6 +601,20 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'an unconditional ring over a conditional flattening rule',
 			'@media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+		// CSS resolves `outline` and `box-shadow` independently. The more specific rule says nothing
+		// about the outline the broad one draws, so the ring is on screen — and one winner per key
+		// replaced the whole standing with "draws nothing" and reported a button that is fine.
+		[
+			'a broad outline a specific rule does not touch',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog.rp-dialog .rp-dialog-button:focus-visible { box-shadow: none; }',
+		],
+		// Two identical `@media` blocks are the same condition. Carrying the at-rule's source
+		// location into its identity made them different, so a ring could not answer a suppression
+		// written in a separate block — ordinary stylesheet organisation, refused.
+		[
+			'a ring in a second block with the same query',
+			'@media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } } @media (prefers-color-scheme: dark) { .rp-dialog-button:focus-visible { outline: 2px solid red; } }',
 		],
 		// And a type-targeted FLATTENING rule must not be filed under every class — that would demand
 		// each class's ring answer for a rule that may not reach it.

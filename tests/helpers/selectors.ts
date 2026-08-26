@@ -82,9 +82,20 @@ export function stylesheetRules(css: string): StyleRule[] {
 		visitor: {
 			Rule(rule) {
 				if (rule.type === 'media' || rule.type === 'supports' || rule.type === 'container') {
-					const { rules: nested, ...query } = rule.value as { rules: { type: string; value: unknown }[] };
+					const value = rule.value as {
+						rules: { type: string; value: unknown }[];
+						query?: unknown;
+						condition?: unknown;
+						name?: unknown;
+					};
 
-					markNested(nested, JSON.stringify(query));
+					// The SEMANTIC fields only, named one at a time. Spreading everything but `rules` also
+					// carried `loc`, so two identical `@media` blocks in the same sheet had different
+					// identities and a ring in the second could not answer a suppression in the first —
+					// a gate blocking a stylesheet organised in the ordinary way. The field names are
+					// read off the parser (`query` for media; `condition` for supports; `name` and
+					// `condition` for container) rather than written from memory.
+					markNested(value.rules, JSON.stringify([rule.type, value.query, value.name, value.condition]));
 
 					return undefined;
 				}

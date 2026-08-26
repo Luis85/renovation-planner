@@ -58,10 +58,11 @@ An item beneath this epic is done when:
   This epic extends those rules from price to geometry and deliberately does not restate them — a
   rule stated in two notes is two rules the day one of them is edited.
 - The calibration a designer surface takes belongs to **that object** and never reaches a plan's.
-  The act itself — two points, a known distance, mm normalization (§70), the separation of
-  internal from display precision (§71), and loud invalidation when a background changes — stays
-  [[Calibration and measurement]]'s, and every rule it states about a calibration holds here
-  unchanged.
+  The act itself stays [[Calibration and measurement]]'s, and this epic inherits its rules on
+  units (§70), on the separation of internal from display precision (§71), and on loud
+  invalidation when a background changes. The one rule it does **not** inherit is that epic's
+  *calibration belongs to the plan*: an object's calibration belongs to the object. That is a
+  replacement rather than an exception, because the two notes cannot both be read as owning it.
 - An object is usable before it is accurate. Typing 120 × 80 yields a rectangle a renovator can
   place immediately; tracing a technical drawing is the refinement and never the entry fee (§3.5's
   progressive complexity — this persona abandons a plugin rather than learn a schema).
@@ -69,11 +70,19 @@ An item beneath this epic is done when:
   placement carries onto the plan an outline nothing has to guess the meaning of. What the plan
   then does with it — drawing it, flagging an overlap between two of them — belongs to
   [[Plan editor]] and [[Asset placement]] and is **not promised by this epic**.
-- Height is **stored and read by nothing**: recorded for the renovator's own reference and for
-  export, with no check anywhere in the product. *Does the worktop clear the window sill* is
-  therefore a question this epic does not answer, and no item beneath it may claim otherwise. The
-  first epic that needs a vertical answer is the one that earns the right to state this
-  differently.
-- A designed object round-trips as plain Markdown plus its geometry sidecar (ADR-011), readable
-  and useful with the plugin uninstalled (§3.2), and a renovator's own words for a category or a
-  kind of object survive the round trip unchanged (§84).
+- Height is **stored, shown and exported, and interpreted by nothing**: no calculation, no
+  clearance check and no fit test anywhere in the product reads it. Displaying a number and
+  computing with one are different acts, and only the second is refused here. *Does the worktop
+  clear the window sill* is therefore a question this epic does not answer, and no item beneath it
+  may claim otherwise. The first epic that needs a vertical answer is the one that earns the right
+  to state this differently.
+- A designed object round-trips as plain Markdown plus a geometry sidecar, readable and useful
+  with the plugin uninstalled (§3.2), and a renovator's own words for a category or a kind of
+  object survive the round trip unchanged (§84). **Where that sidecar lives is a question this
+  epic does not answer, and ADR-011 does not answer it either**: that ADR scopes geometry to one
+  `.rpgeo` file per *plan*, named by the plan's id and carrying a `planId`, inside a *project's*
+  `Geometry/` folder, on ADR-002's per-plan-not-per-spatial-object rule. An asset definition is
+  reusable across plans **and projects** ([[Asset library]]), so its footprint fits none of those
+  three scopes, and storing one inside a plan's sidecar would break the correct-it-once guarantee
+  this epic exists for. An asset-scoped storage decision is owed to `docs/adrs/` beside the
+  surface decision above.

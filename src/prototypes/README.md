@@ -79,7 +79,12 @@ Two constraints that are easy to meet mid-file rather than at the start, and nei
 - **No repetition.** No props means no `v-for` over data, so six rows are six hand-written
   blocks. The composable unit can therefore be a REGION — a filter bar, a summary panel — and
   never the repeated row. Decide your decomposition knowing that, rather than discovering it
-  at line 300.
+  at line 300. `npm run analyze` will report the repeated blocks as clones, which is correct
+  and is the price of the constraint.
+- **No interaction states.** No script block means no state, so there is no hover, selection,
+  focus or empty state to judge — and for a list view those are half of what there is to judge.
+  A mock answers what a screen LOOKS like at rest. When the question is what it does, the
+  answer is a real component and a slice, not a bigger mock.
 
 ## Running one
 

@@ -219,11 +219,41 @@ export function registrableComponents(entries: HarnessEntry[]): {
  * `app.component(tag)` with one argument is Vue's own getter — `undefined` when nothing holds
  * the tag — so what counts as taken is asked of the app rather than kept in a list beside it.
  */
+/**
+ * The tags Vue's COMPILER resolves itself, before any registry is consulted.
+ *
+ * `app.component('Transition')` answers `undefined` — a built-in is not in the app registry —
+ * so the collision check below cannot see these, and registering one appears to work. What
+ * fails is composition: a template writing `<Transition />` gets Vue's, and a mock named
+ * `Transition.vue` would be listed, registered, openable on its own, and silently substituted
+ * everywhere it was composed.
+ *
+ * A literal list because it is VUE'S list, not this repository's: six components at the pinned
+ * version, plus `component` and `slot`, which the compiler treats the same way. It is short and
+ * it is stable; if Vue adds one, a mock named after it stops being refused and the composition
+ * defect returns — which is the trade a list always makes, taken here because the alternative
+ * (asking the compiler) is not a public API.
+ *
+ * Worth saying that this is not merely a harness rule: a component named `Transition.vue` would
+ * hit the same wall in `src/presentation/`, so a mock refused here is being told something true
+ * about the name rather than something local to the index.
+ */
+const VUE_BUILT_INS = new Set([
+	'Transition',
+	'TransitionGroup',
+	'KeepAlive',
+	'Teleport',
+	'Suspense',
+	'BaseTransition',
+	'component',
+	'slot',
+]);
+
 export function registerEntries(app: App, byTag: Map<string, HarnessEntry>): string[] {
 	const refused: string[] = [];
 
 	for (const [tag, entry] of byTag) {
-		if (app.component(tag) !== undefined) {
+		if (VUE_BUILT_INS.has(tag) || app.component(tag) !== undefined) {
 			refused.push(tag);
 			continue;
 		}

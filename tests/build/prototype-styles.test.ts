@@ -55,8 +55,6 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
 const CLASS_ATTRIBUTE = /\sclass="([^"]*)"/g;
 /** A `:class` binding, whose statically knowable names this file reads two ways. */
 const CLASS_BINDING = /\s:class="([^"]*)"/g;
-/** Any quoted literal — `['rp-a', x && 'rp-b']`, `x ? 'rp-a' : 'rp-b'`. */
-const QUOTED = /'([^']+)'/g;
 /**
  * An object-literal KEY: `{ 'rp-a--on': x }` and, the case a quoted-only reading missed,
  * `{ selected: x }` — a valid and ordinary binding whose class name carries no quotes.
@@ -95,21 +93,30 @@ const prototypes = walk('src/prototypes').map((file) => file.replace('src/protot
  */
 const styleBlocks = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
 
+/**
+ * Every class name an SFC's markup NAMES, by both readings — one function, so the cases below
+ * drive the extraction rather than restating it.
+ *
+ * The first version of the false-positive case restated it, and the probe that was supposed to
+ * red it stayed green: re-adding the over-reading regex to this function changed nothing the
+ * case could see, because the case had its own copy. A test that re-implements what it is
+ * testing asserts about itself.
+ */
+const classesUsedBy = (source: string): string[] => [
+	...[...source.matchAll(CLASS_ATTRIBUTE)].flatMap(([, list]) => list.split(/\s+/).filter(Boolean)),
+	// A `:class` binding's object KEYS — `:class="{ 'rp-x--on': cond }"`. Not every bound class
+	// is knowable (a computed string never will be), but a key is, and leaving bindings out
+	// entirely was a real hole the moment the first scripted mock arrived: the active-filter
+	// selector was bound, so deleting its rule left the state unstyled with this file green.
+	...[...source.matchAll(CLASS_BINDING)].flatMap(([, expression]) =>
+		[...expression.matchAll(BINDING_KEY)].map(([, quoted, bare]) => quoted ?? bare),
+	),
+];
+
 const used = new Map(
 	prototypes.map((file) => {
 		const source = readFileSync(`src/prototypes/${file}`, 'utf8');
-		const classes = [
-			...[...source.matchAll(CLASS_ATTRIBUTE)].flatMap(([, list]) => list.split(/\s+/).filter(Boolean)),
-			// A `:class` binding's quoted names — `:class="{ 'rp-x--on': cond }"`. Not every bound
-			// class is knowable (a computed string never will be), but a quoted literal is, and
-			// leaving it out was a real hole the moment the first scripted mock arrived: the
-			// active-filter selector was bound, so deleting its rule left the state unstyled with
-			// this file green.
-			...[...source.matchAll(CLASS_BINDING)].flatMap(([, expression]) => [
-				...[...expression.matchAll(QUOTED)].map(([, name]) => name),
-				...[...expression.matchAll(BINDING_KEY)].map(([, quoted, bare]) => quoted ?? bare),
-			]),
-		];
+		const classes = classesUsedBy(source);
 		// A mock may style itself, so its OWN block is a declaration source alongside the
 		// assembled sheet — and only its own: one mock's block says nothing about another's,
 		// since neither ships and neither is loaded when the other is on the stage.
@@ -168,6 +175,22 @@ describe('a prototype and the sheet that styles it', () => {
 			.filter((opening) => !opening.includes('scoped'));
 
 		expect(unscoped).toEqual([]);
+	});
+
+	/**
+	 * The direction that can cost a build, driven directly rather than left to prose. A quoted
+	 * string inside a CONDITION is not a class name, and reading it as one made a valid mock
+	 * fail for a `.selected` rule it never needed. The fixture is a string rather than a planted
+	 * file because the extraction is what is under test, not the tree.
+	 */
+	it('does not demand a rule for a string a condition compares against', () => {
+		expect(classesUsedBy(' :class="{ active: mode === \'selected\' }"')).toEqual(['active']);
+	});
+
+	// The coverage that reading keys buys, driven through the same function so the two cases
+	// cannot disagree about what the extractor is.
+	it('reads a quoted key and a bare one alike', () => {
+		expect(classesUsedBy(' :class="{ \'rp-a--on\': x, selected: y }"')).toEqual(['rp-a--on', 'selected']);
 	});
 
 	it.each(prototypes)('%s names no class nothing styles', (file) => {

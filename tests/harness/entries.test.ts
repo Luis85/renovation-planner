@@ -446,6 +446,22 @@ const registrable = (id: string): HarnessEntry => ({
 });
 
 describe('registering entries on an app that already has globals', () => {
+	/**
+	 * A Vue BUILT-IN, which `app.component(tag)` cannot report: it answers `undefined`, because a
+	 * built-in is not in the app registry at all. The compiler resolves `<Transition />` before
+	 * any registry is consulted, so registering a mock under that name looks like it worked and
+	 * silently loses every composition of it.
+	 */
+	it('refuses a name Vue resolves for itself, which the app registry cannot report', () => {
+		const app = createApp({ template: '<p>host</p>' });
+
+		expect(app.component('Transition'), 'a built-in is not in the app registry').toBeUndefined();
+
+		const refused = registerEntries(app, new Map([['Transition', registrable('prototype:Transition')]]));
+
+		expect(refused).toEqual(['Transition']);
+	});
+
 	it('refuses a tag a plugin already holds, and registers the rest', () => {
 		const app = createApp({ template: '<p>host</p>' }).use(VueKonva);
 		const konvaStage = app.component('VStage');

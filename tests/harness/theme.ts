@@ -92,9 +92,25 @@ function writeSchemeToURL(scheme: Scheme): void {
  * marked as such, because a control in a screenshot that nobody can find in the plugin is
  * worse than no control at all.
  */
-export function drawSchemeToggle(): void {
-	let scheme = wantedScheme(window.location.search);
+/**
+ * What the URL asks the page to be drawn in, applied — and nothing else.
+ *
+ * Split out of `drawSchemeToggle` because the two are different KINDS of thing and a capture
+ * wants exactly one of them: the scheme is the content's, the button is the harness's own
+ * furniture. `&bare` asks for a picture of the screen, and the toggle is fixed over the
+ * bottom-right corner of the viewport, so every "chromeless" capture had a dashed button
+ * sitting on the prototype.
+ */
+export function applyWantedScheme(): Scheme {
+	const scheme = wantedScheme(window.location.search);
+
 	applyScheme(scheme);
+
+	return scheme;
+}
+
+export function drawSchemeToggle(): void {
+	let scheme = applyWantedScheme();
 
 	const btn = document.body.createEl('button', {
 		cls: 'rp-harness-scheme',

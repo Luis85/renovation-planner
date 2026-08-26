@@ -17,7 +17,7 @@ import { mountPlanEditorHarness } from '../harness/planEditor';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
-import { drawSchemeToggle } from '../harness/theme';
+import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -163,6 +163,35 @@ describe('the browser harness', () => {
 
 		expect(document.body.classList.contains('theme-light')).toBe(true);
 		expect(document.body.classList.contains('theme-dark')).toBe(false);
+	});
+
+	/**
+	 * The scheme is the CONTENT's and the toggle is the harness's own furniture, which is why
+	 * they are two functions.
+	 *
+	 * A `&bare` capture asks for a picture of the screen — `scripts/entryShots.mjs` puts that
+	 * parameter on every named entry — and the toggle is positioned fixed over the bottom-right
+	 * of the viewport, so every "chromeless" PNG this branch produced had a dashed
+	 * `Harness: dark` button sitting on the prototype. Including the ones that were captured and
+	 * LOOKED AT: it appears in the corner of each and was read as part of the page.
+	 *
+	 * Only the split is driven here. Which of the two `page.ts` calls is a source pin in
+	 * `tests/build/harness-shot.test.ts`, because that module mounts at import.
+	 */
+	it.each([
+		['/', 'theme-dark'],
+		['/?theme=light', 'theme-light'],
+	])('applies the scheme %s asks for, without drawing the harness furniture', (url, expected) => {
+		// The URL is SET rather than assumed: the case above clicks the toggle, which writes the
+		// scheme back to the URL, so a case reading the default here would be asserting about
+		// whatever ran before it. Driving both values also makes this about reading the URL
+		// rather than about one hard-coded outcome.
+		window.history.replaceState({}, '', url);
+		mountHarness(document.body);
+		applyWantedScheme();
+
+		expect(document.body.classList.contains(expected)).toBe(true);
+		expect(document.body.querySelector('.rp-harness-scheme')).toBeNull();
 	});
 
 	/**

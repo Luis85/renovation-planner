@@ -277,6 +277,24 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
+	 * WHICH of the two scheme functions each route calls — a source pin, because `page.ts` runs
+	 * its mount the moment it is imported. What the two functions DO is driven in
+	 * `tests/harness/harness.test.ts`.
+	 *
+	 * `&bare` means "a picture of the screen", and the toggle is fixed over the viewport's
+	 * bottom-right corner, so a capture that drew it photographed harness furniture on top of
+	 * the prototype. The scheme still has to be applied on that route: it is what `?theme=light`
+	 * asks for, and dropping the whole call would have made every light capture dark.
+	 */
+	it('skips the harness furniture on a bare capture, and still applies the scheme', () => {
+		const source = withoutCommentary(readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8'));
+
+		expect(source).toContain("has('bare')");
+		expect(source).toContain('applyWantedScheme()');
+		expect(source).toContain('drawSchemeToggle()');
+	});
+
+	/**
 	 * The index app must install everything the production mount does, or a canvas component
 	 * renders nothing while every gate stays green — Vue warns rather than throws on an
 	 * unresolved component, and the outer element still satisfies the shot selector.

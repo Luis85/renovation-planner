@@ -76,8 +76,13 @@ const walk = (dir: string): string[] =>
 
 const prototypes = walk('src/prototypes').map((file) => file.replace('src/prototypes/', ''));
 
-/** A mock's own `<style>` block WITH its opening tag, or `''` when it has none. */
-const styleBlock = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/)?.[0] ?? '';
+/**
+ * EVERY `<style>` block in an SFC, with opening tags — a valid SFC may carry more than one, and
+ * the first version of this read only the first match. A mock whose first block was scoped and
+ * whose second was not passed the scoping case AND had the second block's selectors missing from
+ * `own`, so Vite would inject global CSS that this file had just certified as contained.
+ */
+const styleBlocks = (sfc: string) => sfc.match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
 
 const used = new Map(
 	prototypes.map((file) => {
@@ -97,7 +102,9 @@ const used = new Map(
 		// assembled sheet — and only its own: one mock's block says nothing about another's,
 		// since neither ships and neither is loaded when the other is on the stage.
 		const own = new Set(
-			[...styleBlock(source).replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
+			styleBlocks(source).flatMap((block) =>
+				[...block.replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
+			),
 		);
 
 		return [file, { classes: new Set(classes), own }] as const;
@@ -143,10 +150,12 @@ describe('a prototype and the sheet that styles it', () => {
 	 * A mock with no block at all passes: the rule is about what a block must be, not about
 	 * having one.
 	 */
-	it.each(prototypes)('%s scopes its style block, if it has one', (file) => {
-		const opening = styleBlock(readFileSync(`src/prototypes/${file}`, 'utf8')).match(/<style[^>]*>/)?.[0] ?? '';
+	it.each(prototypes)('%s scopes every style block it has', (file) => {
+		const unscoped = styleBlocks(readFileSync(`src/prototypes/${file}`, 'utf8'))
+			.map((block) => block.match(/<style[^>]*>/)?.[0] ?? '')
+			.filter((opening) => !opening.includes('scoped'));
 
-		expect(opening === '' || opening.includes('scoped'), `${file}: ${opening}`).toBe(true);
+		expect(unscoped).toEqual([]);
 	});
 
 	it.each(prototypes)('%s names no class nothing styles', (file) => {

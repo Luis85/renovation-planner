@@ -16,7 +16,7 @@ import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorCon
 import { componentEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
-import { applyPlatform, drawSchemeToggle } from './theme';
+import { applyPlatform, applyWantedScheme, drawSchemeToggle } from './theme';
 
 // Before the mount: `is-phone` is a body class that a toolbar's own fit measurement can
 // see, and applying it afterwards would leave that measurement made against the other
@@ -127,7 +127,14 @@ if (wantsIndex) {
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,
 // which `mountHarness` empties.
-drawSchemeToggle();
+//
+// `&bare` asks for a picture of the SCREEN, and `scripts/entryShots.mjs` puts it on every named
+// capture — so the furniture is skipped there while the scheme, which is the content's and not
+// the harness's, is still applied. Without the split every "chromeless" PNG carried a dashed
+// `Harness: dark` button fixed over its bottom-right corner, including the ones this branch
+// captured and looked at.
+if (new URLSearchParams(window.location.search).has('bare')) applyWantedScheme();
+else drawSchemeToggle();
 
 /**
  * The view, for a throwaway probe pasted into a console — does the scroll position survive

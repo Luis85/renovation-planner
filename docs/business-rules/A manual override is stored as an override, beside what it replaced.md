@@ -25,6 +25,12 @@ would raise it.
 manual override are three separate §32 properties. The same shape applies wherever
 [[A derived value is recomputed on read, not persisted]] leaves a user wanting the last word.
 
+It also holds over a value that is **shared rather than derived**, since §59 was amended
+(2026-08-26): an [[Asset]]'s default price belongs to a catalogue every project reads, so a project
+that disagrees with it — most sharply when its currency differs (§72) — records a per-project
+override and the shared default stays visible beside it. The reason is the rule's own: overwriting
+the shared value would carry one project's disagreement into every other project that reads it.
+
 **Checked by.** Not yet.
 
 **Sources.** PRD §89 · PRD §32.

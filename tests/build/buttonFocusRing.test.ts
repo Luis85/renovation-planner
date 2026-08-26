@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Selector } from 'lightningcss';
-import { alternativesOf, moreSpecific, propertyOf, show, specificityOf, stylesheetRules } from '../helpers/selectors';
-import { declarationsOf, drawsAnIndicator, indicatorOf } from '../helpers/indicators';
+import { alternativesOf, moreSpecific, show, specificityOf, stylesheetRules } from '../helpers/selectors';
+import { declarationsOf, drawsAnIndicator, indicatorOf, type OutlinePart } from '../helpers/indicators';
 import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, subjectOf, targetsAButton } from '../helpers/buttonRules';
 
 /**
@@ -100,7 +100,7 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 
 /** One `:focus-visible` declaration, as the per-site cascade needs it. */
 interface FocusRule {
-	readonly property: 'outline' | 'shadow';
+	readonly property: OutlinePart | 'shadow';
 	readonly draws: boolean;
 	readonly important: boolean;
 	readonly specificity: readonly [number, number, number];
@@ -210,12 +210,53 @@ const covers = (ring: Conditions, flattened: Conditions): boolean =>
  * identical scope or none at all and nothing between, so it cannot tell disjoint from narrower, and
  * over-reporting is the safe side of that.
  */
+/**
+ * What each outline longhand is when NOBODY sets it — the CSS initial values.
+ *
+ * `outline-style` is `none` and the other two are `medium` and `currentColor`, so an outline that
+ * no rule mentions draws nothing, and one where only the style is set draws a medium outline in the
+ * text colour. This is the same table `indicatorOf` starts a block from; it is here as well because
+ * a CASCADE with no covering rule for a longhand lands on the initial too, and reading "no rule" as
+ * "no outline" would refuse the legitimate `outline-style: solid` on its own.
+ */
+const INITIAL: Record<OutlinePart, boolean> = { width: true, style: false, color: true };
+
+/**
+ * Does ONE outline longhand come out drawing at this site?
+ *
+ * THE OUTLINE CASCADES PER LONGHAND, and collapsing it into a single winner is a false NEGATIVE —
+ * the one direction this file may not err in. `outline-color: transparent` in one rule and
+ * `outline-style: solid` in a more specific one combine, in the browser, into a solid outline in a
+ * transparent colour: invisible. Read as two whole-outline verdicts, the second says "draws", wins
+ * on specificity, and the site is reported as answered while the button has no indicator at all.
+ * The block-level reading each rule gets from `indicatorOf` is right about that BLOCK and says
+ * nothing about which longhand survives across blocks, which is what a cascade decides.
+ *
+ * Two clauses, and they are the two the whole-outline version already had, per longhand now:
+ * the winner among rules that COVER the site must draw, and nothing blank may beat it. A blank rule
+ * that does not cover still reaches some of the elements the site stands for, so it disqualifies
+ * rather than being filtered out — over-reporting where two scopes are disjoint rather than nested,
+ * which `covers` cannot tell apart and which is the safe side of that.
+ */
+const partDraws = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }, part: OutlinePart): boolean => {
+	const forPart = rules.filter((one) => one.property === part);
+	const winner = forPart
+		.filter((one) => covers(one.conditions, site.conditions))
+		.reduce<FocusRule | undefined>((best, one) => (best === undefined || beats(one, best) ? one : best), undefined);
+
+	if (!(winner === undefined ? INITIAL[part] : winner.draws)) return false;
+
+	return !forPart.some((blank) => !blank.draws && (winner === undefined || beats(blank, winner)));
+};
+
 const answers = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
+	(['width', 'style', 'color'] as const).every((part) => partDraws(rules, site, part)) ||
 	rules.some(
 		(drawing) =>
+			drawing.property === 'shadow' &&
 			drawing.draws &&
 			covers(drawing.conditions, site.conditions) &&
-			!rules.some((reset) => !reset.draws && reset.property === drawing.property && beats(reset, drawing)),
+			!rules.some((reset) => !reset.draws && reset.property === 'shadow' && beats(reset, drawing)),
 	);
 
 /**
@@ -279,27 +320,21 @@ const flattenedWithoutRing = (
 		// Both read from ONE resolution of the block, in cascade order. Asked declaration by
 		// declaration, `box-shadow: none; box-shadow: 0 0 0 3px red` counted as flattening on the
 		// strength of a declaration the next line overrides.
-		const { outline, shadow } = indicatorOf(rule.declarations);
-		// An outline is set by four properties, and this resolves ONE importance for all of them — a
-		// per-component cascade is a bigger instrument than the rest of this file is built to be. So
-		// the approximation has to fall on the safe side, and the first version fell on the wrong one:
-		// it took ANY important component as making the whole outline important, and its comment
-		// claimed that "errs toward letting a rule win its cascade, which is the direction that
-		// reports". That is backwards. A rule that WINS is a ring that STANDS, which is the direction
-		// that stays silent.
+		const { shadow, parts } = indicatorOf(rule.declarations);
+		// IMPORTANCE IS PER LONGHAND, because the cascade below is. A part is important when any
+		// important declaration touched it — the shorthand or its own longhand — which is exact rather
+		// than an approximation: `stylesheetRules` hands back normal declarations before important
+		// ones, so an important declaration touching a part is the last one to set it.
 		//
-		// So `outline: 2px solid red; outline-color: red !important` was treated as wholly important,
-		// and a later more specific normal `outline-style: none` — which beats the normal shorthand
-		// style in the browser and makes the outline invisible — could not replace it.
-		//
-		// EVERY declared component must be important now. A block that mixes them is treated as normal,
-		// so a later rule can beat it and the site is reported. Over-reporting is the safe side here,
-		// and this time the sentence matches the code.
-		const declaredOutline = ['outline', 'outline-width', 'outline-style', 'outline-color'].filter((one) =>
-			rule.declarations.some((declaration) => propertyOf(declaration) === one),
-		);
-		const importantOutline =
-			declaredOutline.length > 0 && declaredOutline.every((one) => rule.important.has(one));
+		// This used to resolve ONE importance for the whole outline, and both versions of that were
+		// wrong in the same place. Taking ANY important component as making the outline important let
+		// `outline: 2px solid red; outline-color: red !important` outrank a later normal
+		// `outline-style: none` that beats it in the browser. Requiring EVERY component to be
+		// important — the fix — treated that block as wholly normal, which over-reports rather than
+		// under-reports but is still a different answer from the browser's. Per longhand there is no
+		// approximation left to pick a safe side of.
+		const importantPart = (part: OutlinePart): boolean =>
+			rule.important.has('outline') || rule.important.has(`outline-${part}`);
 		const importantShadow = rule.important.has('box-shadow');
 		const flattens = shadow === false;
 
@@ -336,11 +371,16 @@ const flattenedWithoutRing = (
 						// draws. Expansion answers WHICH elements a rule reaches; ranking is a separate question.
 						const specificity = specificityOf(selector);
 
+						const declarations: (readonly [OutlinePart | 'shadow', boolean | undefined, boolean])[] = [
+							...Object.entries(parts).map(
+								(entry) =>
+									[entry[0] as OutlinePart, entry[1] !== 'blank', importantPart(entry[0] as OutlinePart)] as const,
+							),
+							['shadow', shadow, importantShadow] as const,
+						];
+
 						for (const reached of reaches) {
-							for (const [property, declared, important] of [
-								['outline', outline, importantOutline],
-								['shadow', shadow, importantShadow],
-							] as const) {
+							for (const [property, declared, important] of declarations) {
 								if (declared === undefined) continue;
 
 								// APPENDED, never compared here. Which rule wins is a question about one element,
@@ -601,6 +641,23 @@ describe('a flattened button and its focus ring', () => {
 			'a ring on a class only some of the flattened buttons wear',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button-danger:focus-visible { outline: 2px solid red; }',
 		],
+		// THE OUTLINE CASCADES PER LONGHAND. The colour is transparent from the first rule and the style
+		// solid from the second, and the browser combines the winning longhands into a solid outline
+		// nobody can see. Collapsed into one verdict per rule, the second says "draws", wins on
+		// specificity, and this site read as answered while the button had no indicator at all — a
+		// false NEGATIVE, the one direction this file may not err in.
+		[
+			'an outline whose colour and style are won by different rules',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-color: transparent; } .rp-dialog-button.rp-dialog-button:focus-visible { outline-style: solid; }',
+		],
+		// The WIDTH blanked instead, and this is the case that requires all three longhands to be
+		// resolved rather than the style alone — the obvious narrowing, since the style is the one
+		// whose initial refuses to paint. Measured: resolving only `style` leaves this silent and the
+		// case above reporting, so the two of them together pin the set.
+		[
+			'an outline whose width is zeroed by another rule',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:focus-visible { outline-width: 0; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
@@ -718,6 +775,13 @@ describe('a flattened button and its focus ring', () => {
 		// And the other way down that cascade, or "the reset wins" has replaced "the set wins". At
 		// EQUAL scope only — the more-specific version of this puts the ring back inside `.rp-dialog`
 		// and nowhere else, which is a reporting case below rather than a silent one.
+		// And the twin of the reporting case above, which is what keeps the per-longhand cascade from
+		// becoming "two rules setting different longhands never draw": these two combine into a solid
+		// red outline of the initial medium width, and that is a ring.
+		[
+			'an outline assembled from two rules',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-color: red; } .rp-dialog-button:focus-visible { outline-style: solid; }',
+		],
 		[
 			'a reset a later rule of equal specificity puts back',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',

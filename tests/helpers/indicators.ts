@@ -88,6 +88,22 @@ const paints = (color: { alpha?: number }): boolean => color.alpha !== 0;
  */
 type Known = 'draws' | 'blank' | 'unknown';
 
+/** The three longhands an `outline` resolves to, which the CASCADE decides one at a time. */
+export type OutlinePart = 'width' | 'style' | 'color';
+
+/**
+ * What each part of the outline resolves to in this block, for the parts the block DECLARES.
+ *
+ * A block resolves its own declarations against the CSS initial values, which is right within one
+ * block and wrong across several: `outline-color: transparent` in one rule and
+ * `outline-style: solid` in a more specific one combine, in the browser, into a solid outline in a
+ * transparent colour — invisible — while each block read alone says "no ring" and "a ring", and the
+ * more specific answer wins. A caller resolving a cascade therefore needs the parts, not the
+ * verdict; `outline` below stays for callers asking about one block, which is the honest question
+ * to ask of it.
+ */
+export type OutlineParts = Partial<Record<OutlinePart, Known>>;
+
 /** Is an unparsed value a single bare keyword that resets the property? */
 const isReset = (declaration: Declaration & { property: 'unparsed' }): boolean => {
 	const tokens = declaration.value.value;
@@ -115,7 +131,9 @@ const isReset = (declaration: Declaration & { property: 'unparsed' }): boolean =
  * Returns `undefined` for a property the block never mentions, which is what lets the caller tell
  * "declared, and draws nothing" — a flattened button — from "not declared here at all".
  */
-export const indicatorOf = (declarations: readonly Declaration[]): { outline?: boolean; shadow?: boolean } => {
+export const indicatorOf = (
+	declarations: readonly Declaration[],
+): { outline?: boolean; shadow?: boolean; parts: OutlineParts } => {
 	// EACH COMPONENT STARTS AT ITS CSS INITIAL VALUE, not at "unset". `outline-style` is initially
 	// `none`, so a block that sets only `outline-color` or only `outline-width` draws NOTHING — the
 	// style nobody set is still refusing to paint. Started at `undefined` and treated as
@@ -127,12 +145,12 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 	let width: Known = 'draws';
 	let style: Known = 'blank';
 	let color: Known = 'draws';
-	let declared = false;
+	const touched = new Set<OutlinePart>();
 	let shadow: boolean | undefined;
 
 	for (const declaration of declarations) {
 		if (declaration.property === 'outline') {
-			declared = true;
+			for (const part of ['width', 'style', 'color'] as const) touched.add(part);
 			const shorthandWidth = declaration.value.width;
 
 			// A keyword width (`medium`, `thin`, `thick`) is not a length and is never zero.
@@ -142,17 +160,17 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 			continue;
 		}
 		if (declaration.property === 'outline-width') {
-			declared = true;
+			touched.add('width');
 			width = declaration.value.type === 'length' && isZero(declaration.value.value) ? 'blank' : 'draws';
 			continue;
 		}
 		if (declaration.property === 'outline-style') {
-			declared = true;
+			touched.add('style');
 			style = declaration.value.value === 'none' ? 'blank' : 'draws';
 			continue;
 		}
 		if (declaration.property === 'outline-color') {
-			declared = true;
+			touched.add('color');
 			color = paints(declaration.value) ? 'draws' : 'blank';
 			continue;
 		}
@@ -167,24 +185,24 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 
 		switch (propertyOf(declaration)) {
 			case 'outline': {
-				declared = true;
+				for (const part of ['width', 'style', 'color'] as const) touched.add(part);
 				width = known;
 				style = known;
 				color = known;
 				break;
 			}
 			case 'outline-width': {
-				declared = true;
+				touched.add('width');
 				width = known;
 				break;
 			}
 			case 'outline-style': {
-				declared = true;
+				touched.add('style');
 				style = known;
 				break;
 			}
 			case 'outline-color': {
-				declared = true;
+				touched.add('color');
 				color = known;
 				break;
 			}
@@ -198,9 +216,11 @@ export const indicatorOf = (declarations: readonly Declaration[]): { outline?: b
 		}
 	}
 
-	const outline = declared ? ![width, style, color].some((part) => part === 'blank') : undefined;
+	const resolved: Record<OutlinePart, Known> = { width, style, color };
+	const parts: OutlineParts = Object.fromEntries([...touched].map((part) => [part, resolved[part]]));
+	const outline = touched.size > 0 ? ![width, style, color].some((part) => part === 'blank') : undefined;
 
-	return { outline, shadow };
+	return { outline, shadow, parts };
 };
 
 /** Does this block leave a visible focus indicator — an outline or a shadow — behind it? */

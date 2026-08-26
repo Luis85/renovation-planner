@@ -18,10 +18,16 @@
  *
  * The IDENTITY half used to live here too, as twelve `not.toBeInstanceOf` lines, and it is
  * gone rather than kept beside its replacement: `tests/plugin/guardCategory.test.ts` walks
- * everything the root hands out and requires the guard's own mark on every `execute`-bearing
- * member it finds, which is a stronger statement than the twelve — it covers members nobody
- * listed, and it also asks whether every DOOR is wrapped rather than just the object. Two
- * mechanisms for one guarantee is how the weaker of them goes on being maintained.
+ * everything the root hands out and drives a fault through every DOOR it finds, requiring
+ * the boundary's mapped refusal back. That is a stronger statement than the twelve — it
+ * covers members nobody listed, it asks about doors rather than about objects, and it
+ * proves the guarantee rather than an identity. Two mechanisms for one guarantee is how the
+ * weaker of them goes on being maintained.
+ *
+ * What stays here is what the category check cannot say: the boundary's own EVENT NAME.
+ * `guards undo under its own event name` below is also the covering test for the one door
+ * the category check carves out — an `undo` before any `execute` refuses without throwing,
+ * so no fault can be driven through it there.
  */
 import { describe, expect, it } from 'vitest';
 import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';

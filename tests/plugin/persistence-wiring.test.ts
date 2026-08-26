@@ -47,9 +47,9 @@ describe('persistence composition', () => {
 		// Every command and query leaves the root GUARDED (SDD §66): a wrapper with the
 		// same `execute`, never the bare class — so the assertions here are about the shape
 		// being present and callable. That the wrapper IS a guard is not asked here at all:
-		// `tests/plugin/guardCategory.test.ts` asks it of every member the root hands out,
-		// without naming one, which is what replaced the twelve `not.toBeInstanceOf` lines
-		// this file used to carry.
+		// `tests/plugin/guardCategory.test.ts` drives a fault through every door the root
+		// hands out and requires the mapped refusal back, without naming one, which is what
+		// replaced the twelve `not.toBeInstanceOf` lines this file used to carry.
 		expect(typeof plugin.root.persistence?.queries.findZonesByPlan.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.queries.diagnostics.execute).toBe('function');
 		// The three creates, composed here since the sample-project seed became their first

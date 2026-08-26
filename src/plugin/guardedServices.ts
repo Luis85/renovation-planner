@@ -8,7 +8,7 @@ import type { RepositoryError } from '../application/ports/repositoryErrors';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
-import { guardCommand, guardQuery, markGuarded } from '../application/errors/guardAgainstThrowing';
+import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
 import { GetPlan, type GetPlanInput } from '../application/queries/GetPlan';
@@ -267,15 +267,14 @@ function guardBothDoors<TInput, TVersioned, E extends AppError>(
 		logger,
 		map,
 	);
-	// Marked with BOTH names: the facade is one object with two doors, and a mark naming
-	// only `execute` would describe exactly the state this function exists to end.
-	return markGuarded(
-		{
-			execute: (input: TInput) => guardedExecute.execute(input),
-			executeWithVersion: (input: TInput) => guardedVersioned.execute(input),
-		},
-		['execute', 'executeWithVersion'],
-	);
+	// BOTH doors route through a wrapper. `tests/plugin/guardCategory.test.ts` drives a
+	// fault through every door this facade exposes and requires the mapped refusal back,
+	// which is what makes "the guard is on the door the app dispatches through" checkable
+	// rather than asserted here.
+	return {
+		execute: (input: TInput) => guardedExecute.execute(input),
+		executeWithVersion: (input: TInput) => guardedVersioned.execute(input),
+	};
 }
 
 /**
@@ -365,11 +364,8 @@ export function guardCalibratePlan(
 		map,
 	);
 	const guardedExecute = guardCommand(transaction, 'command.calibratePlan.failed', logger, map);
-	return markGuarded(
-		{
-			execute: (input: Parameters<CalibratePlanTransaction['execute']>[0]) => guardedExecute.execute(input),
-			undo: () => guardedUndo.execute(undefined),
-		},
-		['execute', 'undo'],
-	);
+	return {
+		execute: (input) => guardedExecute.execute(input),
+		undo: () => guardedUndo.execute(undefined),
+	};
 }

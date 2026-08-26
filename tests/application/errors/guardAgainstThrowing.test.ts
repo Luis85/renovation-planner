@@ -51,8 +51,8 @@ import { ListReassignmentTargets } from '../../../src/application/queries/ListRe
  * This file is about the MECHANISM: a guard applied to a service of that shape behaves.
  * Whether the composition root actually applies one is a different claim with its own
  * check - `tests/plugin/guardCategory.test.ts` walks everything the root hands out and
- * refuses an unguarded `execute`-bearing member without naming any of them, which is the
- * category form this file cannot reach by construction. `undo`'s half of the calibration
+ * drives a fault through every door it finds, naming none of them, which is the category
+ * form this file cannot reach by construction. `undo`'s half of the calibration
  * transaction is driven where the wrapper is BUILT (`tests/plugin/guardWiring.test.ts`),
  * because an `undo` before any `execute` refuses with a coded Result rather than throwing,
  * and this loop is about thrown faults.

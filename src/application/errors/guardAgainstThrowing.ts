@@ -28,34 +28,6 @@ import type { VaultExceptionMapper } from './exceptionMapper';
  * — the compiler, not a comment, refuses a guard whose mapped error its contract
  * cannot carry.
  */
-/**
- * The doors a guard wraps, recorded ON the wrapper it hands back.
- *
- * A symbol, and non-enumerable, so it changes nothing a caller can observe: it is absent
- * from `Object.keys`, from a spread and from JSON, and only code importing this module can
- * name it. What reads it is `tests/plugin/guardCategory.test.ts`, which walks everything
- * the composition root hands out and refuses an `execute`-bearing service that carries no
- * mark — the category form of SDD §66, checked at the forbidden thing rather than by
- * listing the members somebody remembered.
- *
- * It records the method NAMES rather than a bare `true`, because "is this a wrapper?"
- * already had a green answer while the wrapper sat on the wrong method: `guardCommand`
- * wraps `execute`, and the Inspector's reversible adapters dispatch an override through
- * `executeWithVersion`. Naming the doors lets the check compare what is guarded against
- * what a caller can actually reach, and fail on the difference.
- */
-export const GUARDED_DOORS: unique symbol = Symbol('renovation-planner.guarded-doors');
-
-/**
- * Stamp a wrapper with the doors it guards. Every guard in the app returns through here —
- * the two below, and the composite guards in `plugin/guardedServices.ts` that build a
- * multi-door facade out of them.
- */
-export function markGuarded<T extends object>(wrapper: T, doors: readonly string[]): T {
-	Object.defineProperty(wrapper, GUARDED_DOORS, { value: doors });
-	return wrapper;
-}
-
 function withBoundary<I, T, E extends AppError>(
 	execute: (input: I) => Promise<Result<T, E>>,
 	event: string,
@@ -83,7 +55,7 @@ export function guardCommand<I, T, E extends AppError>(
 	logger: Logger,
 	map: VaultExceptionMapper,
 ): Command<I, Result<T, E | PersistenceError>> {
-	return markGuarded({ execute: withBoundary(command.execute.bind(command), event, logger, map) }, ['execute']);
+	return { execute: withBoundary(command.execute.bind(command), event, logger, map) };
 }
 
 export function guardQuery<I, T, E extends AppError>(
@@ -92,5 +64,5 @@ export function guardQuery<I, T, E extends AppError>(
 	logger: Logger,
 	map: VaultExceptionMapper,
 ): Query<I, Result<T, E | PersistenceError>> {
-	return markGuarded({ execute: withBoundary(query.execute.bind(query), event, logger, map) }, ['execute']);
+	return { execute: withBoundary(query.execute.bind(query), event, logger, map) };
 }

@@ -131,6 +131,21 @@ body {
 	overflow-y: auto;
 }
 
+/*
+ * The kind label needs separating from the entry name, and CSS is where that belongs rather
+ * than a `&nbsp;` or a `{{ ' ' }}` in the template.
+ *
+ * Vue's default `whitespace: 'condense'` REMOVES whitespace between two elements when it
+ * contains a newline, so `<a>…</a>` and `<span>…</span>` on adjacent lines render with nothing
+ * between them: every row read `ZonePanelprototype`. Found by looking at a captured PNG, which
+ * is the only instrument here that can see it — jsdom lays nothing out, so the suite is blind to
+ * it by construction, and it had survived every gate and forty-four review rounds.
+ */
+.rp-harness-index nav li span {
+	margin-inline-start: var(--size-4-2);
+	opacity: 0.6;
+}
+
 .rp-harness-stage {
 	flex: 1;
 	min-height: 0;

@@ -325,7 +325,22 @@ body {
  * both the cascade and the accessibility tree read it.
  */
 .rp-harness-index > nav li a[aria-current='page'] {
-	color: var(--text-accent);
+	/*
+	 * `--nav-item-color-active` and not `--text-accent`. The accent measured **3.38:1 in light**
+	 * and 4.39:1 in dark on this background — the ONE row the reader is actually looking at was
+	 * the one row under the floor, after a pass whose whole subject was the rest state's
+	 * contrast.
+	 *
+	 * The host's own file explorer answers this exact question, and its answer is
+	 * `--nav-item-color-active` (which resolves to `--text-normal`) on
+	 * `--nav-item-background-active` — so the compliant value here is also the NATIVE one, which
+	 * is the happy case and worth noting because the two have pulled apart three times in this
+	 * pull request.
+	 *
+	 * Still three channels without the accent: the raised background, the weight, and the colour
+	 * step up from `--nav-item-color`. `aria-current` in the template is the fourth.
+	 */
+	color: var(--nav-item-color-active);
 	background-color: var(--nav-item-background-active);
 	font-weight: var(--bold-weight);
 }

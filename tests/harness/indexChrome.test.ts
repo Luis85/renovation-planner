@@ -53,6 +53,36 @@ describe('the harness index, on which route drew it', () => {
 });
 
 /**
+ * Split a selector list on its TOP-LEVEL commas only.
+ *
+ * This file split preludes with a raw `String.split(',')`, and the comma inside
+ * `:is(.rp-harness-index, .other) h2` separates nothing at the outer level — so that selector
+ * arrived as `:is(.rp-harness-index` and `.other) h2`. The first fragment looks like the root
+ * with nothing after it and the second contains no root at all, so the stage-leaking rule passed.
+ * The same bug, in the same shape, as the one `tests/build/buttonSpecificity.test.ts` already
+ * carries a fix for — fixing the COMPOUND parsing here in the previous round and leaving the
+ * PRELUDE split raw is exactly the half-measure that hid it.
+ */
+const splitTopLevel = (list: string): string[] => {
+	const parts: string[] = [];
+	let depth = 0;
+	let current = '';
+
+	for (const char of list) {
+		if (char === '(') depth += 1;
+		else if (char === ')') depth -= 1;
+
+		if (char === ',' && depth === 0) {
+			parts.push(current);
+			current = '';
+		} else current += char;
+	}
+
+	parts.push(current);
+	return parts.map((part) => part.trim()).filter(Boolean);
+};
+
+/**
  * THE PICKER'S RULES MAY NOT REACH THE STAGE, which is `theme.css`'s second header rule and the
  * one its first cannot imply.
  *
@@ -74,8 +104,7 @@ describe('the harness index, on which route drew it', () => {
  */
 const indexSelectors = (css: string): string[] =>
 	[...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^{}]*\}/g)]
-		.flatMap(([, prelude]) => prelude.split(','))
-		.map((selector) => selector.trim())
+		.flatMap(([, prelude]) => splitTopLevel(prelude))
 		.filter((selector) => selector.includes('.rp-harness-index'));
 
 /**
@@ -157,6 +186,9 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// exists today; the check is written to the shape so that adding one cannot open the hole.
 		['a qualified root', '.rp-harness-index.theme-dark h2 { color: red; }'],
 		['a root inside a functional pseudo', ':is(.rp-harness-index) h2 { color: red; }'],
+		// The SELECTOR-LIST form, which the single-argument case above does not exercise: its
+		// comma is what a raw prelude split cuts the selector in half on.
+		['a root inside a selector list', ':is(.rp-harness-index, .other) h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
 		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});

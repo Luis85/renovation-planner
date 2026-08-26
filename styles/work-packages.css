@@ -79,15 +79,28 @@
 .rp-wp-header .rp-wp-new {
 	padding: var(--size-4-1) var(--size-4-3);
 	font-size: var(--font-ui-small);
-	color: var(--text-on-accent);
-	background-color: var(--interactive-accent);
-	border: none;
+	/*
+	 * An accent OUTLINE rather than an accent fill, for the reason `styles/editor.css` records at
+	 * the active tool: white on `--interactive-accent` measures 4.26:1 in dark and 3.43:1 in
+	 * light, and `--interactive-accent-hover` takes the hover state to 2.75:1 in both. There is
+	 * no foreground lighter than white, so a filled accent button cannot carry a label at this
+	 * size — the pairing is Obsidian's own `.mod-cta`, and it does not clear AA for small text.
+	 *
+	 * This mock is where a screen is JUDGED before it is built, so it has to be judged against
+	 * something shippable. A primary action drawn in a pairing the plugin could not ship would
+	 * make every later screen copy it.
+	 */
+	color: var(--text-normal);
+	background-color: var(--background-modifier-active-hover);
+	border: 1px solid var(--interactive-accent);
 	border-radius: var(--radius-s);
+	font-weight: var(--bold-weight);
 	cursor: pointer;
 }
 
 .rp-wp-header .rp-wp-new:hover {
-	background-color: var(--interactive-accent-hover);
+	background-color: var(--background-modifier-hover);
+	border-color: var(--interactive-accent-hover);
 }
 
 /* The filter bar. A row of trades and the result of applying them, at opposite ends. */

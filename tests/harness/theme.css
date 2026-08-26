@@ -106,7 +106,9 @@ body {
  * canvas at 459x743. All three figures are from the same 1280x800 browser pane.
  *
  * The sidebar's WIDTH is left as it falls (437px today, driven by the longest line in the list).
- * That is appearance, not sizing, and it is Task 5's to decide.
+ * That is appearance, not sizing, and NOBODY HAS DECIDED IT — deliberately, and it is not
+ * waiting on a numbered task. (An earlier version said "it is Task 5's to decide"; Task 5 was the
+ * stylesheet check and the one-sheet claim, and it decided nothing about how this list looks.)
  *
  * The list scrolls on its own for the same reason: `.rp-harness-leaf` is `overflow: hidden`, so
  * a list longer than the pane would be clipped with no way to reach the entries past the fold —
@@ -114,7 +116,8 @@ body {
  *
  * This is a LAYOUT decision and not only a sizing fix, so it is said plainly: nothing here
  * styles the index beyond giving an entry the pane it is being looked at in. Type, spacing and
- * the look of the list are Task 5's, and this rule is not a claim on them.
+ * the look of the list are UNDECIDED, and this rule is not a claim on them — the first person to
+ * judge the index as a designed surface gets to make those calls.
  */
 .rp-harness-index {
 	flex: 1;

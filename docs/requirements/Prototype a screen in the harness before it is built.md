@@ -95,8 +95,16 @@ That is enforced **twice, in different places**:
   thought of, so it holds for code nobody has written yet — the same shape as `eslint.config.mjs`'s
   layer bans and `WRITE_BOUNDARY`.
 - **A bundle test is the backstop.** Lint reads imports; a dynamic specifier or a route nobody
-  anticipated is what the built artifact catches. It asserts against `dist/` — the thing that
-  actually reaches a user — not against the source it was built from.
+  anticipated is what the built artifact catches. It runs a real `vite build` in memory
+  (`write: false`, so nothing is written to `dist/` and it cannot race `npm run build`) and asks
+  Rolldown which modules composed each chunk — the built artifact's own account of itself, rather
+  than the source it was built from.
+
+  The guarantee is narrower than "nothing in the tree ever ships", and the narrower sentence is
+  the honest one: `chunk.modules` is where source provenance lives, so what the check delivers is
+  **no prototype or fixture MODULE composes a built chunk**. A file shipped as a separate emitted
+  ASSET is outside what it can see. That was measured rather than assumed, and the sentence was
+  narrowed instead of the check being widened.
 
 Neither alone is sufficient and the note does not pretend otherwise: lint refuses the import in
 the edit loop, the bundle test refuses the outcome, and the second exists because the first
@@ -193,8 +201,16 @@ shown without extending the fixture, and extending it changes what every other e
 4. **The index is reached by `?index`, and does NOT displace the harness root.** This note first
    assumed the root, leaving displacement open as a design decision. Planning it closed the
    question with a reason worth keeping here: `scripts/harness-shot.mjs`'s three fixed captures
-   address the project surface with **no query parameter at all**, so a root that meant "index"
-   would break all three — while the test asserting those captures still exist kept passing.
+   address the project surface with **no `view` parameter** — their queries are `''`,
+   `?theme=light` and `?phone`, so two of the three DO carry a query and only the absence of a
+   view is common to them — so a root that meant "index" would break all three, while the test
+   asserting those captures still exist kept passing.
+
+   The precise predicate matters because it is what the code says: `tests/harness/page.ts` routes
+   on `params.has('index') || params.has('entry')`, and `tests/build/harness-shot.test.ts` guards
+   the three as "URLs that do not request the index". A reader who took "no query parameter" as
+   the rule could give the query-less capture an explicit `?view=project`, believe the hazard
+   closed, and still send `?theme=light` and `?phone` to the index.
    The bare root stays the project view.
 5. **`src/prototypes/` is the path.** Named for what it holds rather than for who writes it —
    `src/mocks/` would read as test doubles, which these are not.

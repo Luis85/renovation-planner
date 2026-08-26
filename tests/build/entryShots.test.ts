@@ -25,8 +25,11 @@ describe('entryShots', () => {
 		const [dark, light] = entryShots('prototype:ZoneSummary');
 
 		expect(dark.entry).toBe('prototype:ZoneSummary');
-		expect(dark.query).toBe('?entry=prototype%3AZoneSummary');
-		expect(light.query).toBe('?entry=prototype%3AZoneSummary&theme=light');
+		// `&bare` on both: a capture asks the index to draw the stage and nothing else, since
+		// the picker is a fixed-width sidebar that a narrow shot would otherwise spend a third
+		// of its width on. `tests/harness/indexChrome.test.ts` drives the other end of it.
+		expect(dark.query).toBe('?entry=prototype%3AZoneSummary&bare');
+		expect(light.query).toBe('?entry=prototype%3AZoneSummary&theme=light&bare');
 		// The filename may not carry `:` or `/` — both legal in the URL, both reserved in a
 		// Windows filename, and Windows is one of the four `npm run check` legs. All nine
 		// reserved characters are covered by the dedicated case below, which also states what
@@ -101,7 +104,7 @@ describe('resolveShots', () => {
 	 * the five fixed PNGs and exited 0. Driving this function with a real argv array is what
 	 * makes the choice of index an assertion rather than a comment.
 	 */
-	it('reads the entry from argv[2] and turns it into the entry shots', () => {
+	it('reads the entry from the first non-flag argument and turns it into the entry shots', () => {
 		const argv = ['node', 'scripts/harness-shot.mjs', 'prototype:ZoneSummary'];
 
 		expect(resolveShots(argv, FIXED)).toEqual(entryShots('prototype:ZoneSummary'));
@@ -119,5 +122,81 @@ describe('resolveShots', () => {
 	it('rejects a blank entry rather than silently falling back to the fixed shots', () => {
 		expect(() => resolveShots(['node', 'scripts/harness-shot.mjs', ''], FIXED)).toThrow(/empty/);
 		expect(() => resolveShots(['node', 'scripts/harness-shot.mjs', '   '], FIXED)).toThrow(/empty/);
+	});
+});
+
+/**
+ * `--width`, which exists because the first real use of `harness-shot <id>` hit exactly the
+ * defect the fixed 1280 cannot see: a mock that looked right wide had every name ellipsed to a
+ * prefix at 460, with `npm run check` green for both. An Obsidian sidebar leaf is routinely
+ * under 400px, so the single width this command offered was one the host often does not give.
+ */
+describe('resolveShots, on --width', () => {
+	const fixed = [{ name: 'dark', query: '', selector: '.renovation-planner-view' }];
+	const shotsFor = (...args: string[]) => resolveShots(['node', 'script', ...args], fixed);
+
+	it.each([
+		['after the entry', ['prototype:X', '--width=460']],
+		['before it', ['--width=460', 'prototype:X']],
+	])('takes the flag %s, since a flag is recognised by its shape and not its position', (_where, args) => {
+		expect(shotsFor(...args).map((shot) => shot.width)).toEqual([460, 460]);
+	});
+
+	/**
+	 * The width is in the FILENAME, and this is the case that matters most: without it a narrow
+	 * capture overwrites the wide one of the same entry, which is the same silent collision the
+	 * digest exists to prevent — two different pictures, one pair of files, no error.
+	 */
+	it('names the file after the width, so two widths of one entry are two pictures', () => {
+		const wide = shotsFor('prototype:X').map((shot) => shot.name);
+		const narrow = shotsFor('prototype:X', '--width=460').map((shot) => shot.name);
+
+		expect(narrow).toEqual(wide.map((name) => name.replace(/-(dark|light)$/, '-w460-$1')));
+		expect(new Set([...wide, ...narrow]).size).toBe(4);
+	});
+
+	// Absent from the name when absent from the command, so default filenames do not churn.
+	it('leaves the filename and the width alone when the flag is not given', () => {
+		expect(shotsFor('prototype:X').map((shot) => shot.width)).toEqual([undefined, undefined]);
+		expect(shotsFor('prototype:X')[0].name).not.toContain('-w');
+	});
+
+	it.each([
+		['a value that is not a number', '--width=wide', '--width takes a number of pixels'],
+		['a width of zero', '--width=0', '--width must be between 1 and 4096'],
+		['a width past the cap', '--width=99999', '--width must be between 1 and 4096'],
+		// A typo'd flag taken as the entry name would be reported by the BROWSER, seconds
+		// later, as "no entry named --wdith=460" — a message about the wrong thing.
+		['a misspelt flag', '--wdith=460', 'unknown option --wdith=460'],
+	])('refuses %s', (_what, flag, message) => {
+		expect(() => shotsFor('prototype:X', flag)).toThrow(message);
+	});
+
+	// The fixed set carries its own viewports, `?phone` among them, so this command cannot mean
+	// what it says and is refused rather than quietly ignored.
+	it('refuses a width with no entry to apply it to', () => {
+		expect(() => shotsFor('--width=460')).toThrow('--width applies to a named entry');
+	});
+
+	/**
+	 * The mistake this repository's own README shipped with: `npm run harness-shot X
+	 * --width=460` never reaches the script, because npm claims an unknown flag as its own
+	 * config and exports it as `npm_config_width`. The capture then runs at the DEFAULT width,
+	 * writes two PNGs and exits 0 — a wrong picture with no signal at all, which is the precise
+	 * failure `--width` exists to prevent. Found by running the documented line.
+	 */
+	it('refuses the spelling npm eats, rather than capturing at the wrong width', () => {
+		expect(() => resolveShots(['node', 'script', 'prototype:X'], fixed, { npm_config_width: '460' })).toThrow(
+			'npm run harness-shot <id> -- --width=460',
+		);
+	});
+
+	// Only when the flag is genuinely absent: the correct spelling sets both, since npm exports
+	// its config either way, and reporting an error for a command that worked would be worse
+	// than the silence this replaces.
+	it('says nothing when the flag arrived properly, even with npm config set beside it', () => {
+		const shots = resolveShots(['node', 'script', 'prototype:X', '--width=460'], fixed, { npm_config_width: '460' });
+
+		expect(shots.map((shot) => shot.width)).toEqual([460, 460]);
 	});
 });

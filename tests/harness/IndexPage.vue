@@ -775,12 +775,35 @@ if (requested !== null && !initial) {
 	// colour schemes — and the two messages differ only in what they can usefully SAY.
 	failureKind.value = 'unknown-entry';
 }
+/**
+ * Whether the page draws its own picker beside the stage.
+ *
+ * `&bare` and not `?entry=` alone, which is what this tried first and had to give up. The
+ * picker is a fixed-width sidebar, and at the narrow viewport that matters most it took
+ * roughly 210px of a 460px capture — so a mock laid itself out in 250px while the picture
+ * claimed 460, and the author compensated by eye. That is the arithmetic this tool exists to
+ * remove, and `scripts/entryShots.mjs` adds this parameter to every named-entry capture.
+ *
+ * Hiding it for every `?entry=` was the obvious version and is wrong: the list is how a person
+ * moves between entries, so a directly-opened entry became a dead end reachable only by editing
+ * the URL. Seven cases in `indexPage.test.ts` navigate exactly that way, which is how this was
+ * caught. It also collides with criterion 8 — an entry that fails "names itself in the index
+ * rather than blanking the page", and the list is half of what makes that true.
+ *
+ * So this is opt-in and means one thing: draw the stage and nothing else. A capture asks for
+ * it; a person browsing never does.
+ */
+const chromeless = new URLSearchParams(window.location.search).has('bare');
+
 if (initial) void open(initial);
 </script>
 
 <template>
 	<div class="rp-harness-index">
-		<nav aria-label="Harness entries">
+		<nav
+			v-if="!chromeless"
+			aria-label="Harness entries"
+		>
 			<h1>Harness</h1>
 			<p v-if="prototypes.length === 0">
 				No prototypes yet — add a .vue file under src/prototypes/.

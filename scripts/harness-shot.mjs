@@ -43,6 +43,21 @@ const VIEWPORT = { width: 1280, height: 800 };
 const PROJECT_VIEW = '.renovation-planner-view';
 const PLAN_EDITOR_VIEW = '.renovation-plan-editor-view';
 
+/**
+ * The viewport for one shot: `VIEWPORT`, with `width` overriding its one field when a shot
+ * carries one.
+ *
+ * Height is deliberately NOT a second knob. What a narrow capture answers is how the layout
+ * WRAPS, and the page scrolls, so a shorter viewport would only crop the answer.
+ *
+ * A named function rather than a ternary inside `captureOne`, and that is a gate talking rather
+ * than taste: `captureOne` runs at module scope behind a browser, so no test covers it, and one
+ * more branch took its CRAP score to exactly the threshold `npm run analyze` fails at. Lifting
+ * the decision out is the honest fix — the branch is about viewport policy and not about
+ * capturing, and out here it can be read on its own.
+ */
+const viewportFor = (width) => (width === undefined ? VIEWPORT : { ...VIEWPORT, width });
+
 const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
@@ -104,8 +119,8 @@ const entryHasDrawn = (id) => {
  * the reason is prose an entry's own error can imitate — see `readFailureKind`. The reason is
  * still pushed here rather than returned: the errors list is what the exit code is built from,
  * and a caller that forgot to push would turn a failure into a green run. */
-async function captureOne(browser, baseUrl, { name, query, selector, entry }, errors) {
-	const page = await browser.newPage({ viewport: VIEWPORT });
+async function captureOne(browser, baseUrl, { name, query, selector, entry, width }, errors) {
+	const page = await browser.newPage({ viewport: viewportFor(width) });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
 	page.on('console', (msg) => {
@@ -254,7 +269,7 @@ async function run() {
 	// With no argument, the five fixed surfaces, exactly as before. `resolveShots` is what
 	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
 	// rather than reading this file's source text to check which index it uses.
-	const shots = resolveShots(process.argv, SHOTS);
+	const shots = resolveShots(process.argv, SHOTS, process.env);
 
 	mkdirSync(OUT_DIR, { recursive: true });
 

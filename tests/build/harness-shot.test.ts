@@ -133,7 +133,12 @@ describe('the headless harness capture script', () => {
 		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
 
 		expect(source).toContain("from './entryShots.mjs'");
-		expect(source).toContain('resolveShots(process.argv, SHOTS)');
+		// `process.env` is the third argument, and it is part of the wiring rather than an
+		// incidental: `resolveShots` refuses `npm run harness-shot X --width=460` — the spelling
+		// npm claims as its own config and never passes through — by reading `npm_config_width`
+		// from it. Dropped here, that command would go back to capturing at the default width
+		// and exiting 0.
+		expect(source).toContain('resolveShots(process.argv, SHOTS, process.env)');
 	});
 
 	/**

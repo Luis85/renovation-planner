@@ -248,7 +248,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   It also mirrors ESLint's **`no-console`** and its `infrastructure/logging/**` carve-out,
   which is the one policy rule ESLint owned alone with nothing to notice its removal —
   and the mirror is what puts it in the EDIT LOOP, since `scripts/lint-edited.mjs` runs
-  oxlint and only oxlint. Scoped to `src/**` by measurement rather than taste: at the root
+  oxlint for every file it lints and ESLint for `.vue` alone. Scoped to `src/**` by measurement rather than taste: at the root
   it reports nine findings across `scripts/`, where a build script printing to the console
   is correct. The mirror is not total, and the sentence has to say so — inside the carve-out
   ESLint still fails `console.log`/`console.info` through the obsidianmd wrapper, oxlint has
@@ -343,8 +343,14 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
   scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
   folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
-  (`npm run harness-shot <id>`) it captures that one prototype or component from the index
-  instead of the five fixed shots, in both colour schemes.
+  (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
+  basename the index displays) it captures that one prototype or component from the index
+  instead of the five fixed shots, in both colour schemes, with the index's own sidebar
+  dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
+  well, which is the width an Obsidian sidebar leaf actually has and the one that has already
+  hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
+  a bare `--width` as its own config, and the command refuses that spelling rather than
+  capturing at the wrong width and exiting 0.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
@@ -441,9 +447,19 @@ script resolves its paths from the WORKING DIRECTORY rather than from its own lo
 ## The linter in the edit loop
 
 `.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which
-lints THAT ONE FILE and hands the agent whatever oxlint says. About 90ms, against
-`npm run check` several turns later — and by then the reasoning that produced the defect
+lints THAT ONE FILE and hands the agent what the linters say. About 90ms for most files
+(seconds for an SFC — see below), against `npm run check` several turns later — and by then the reasoning that produced the defect
 is gone, which is the whole reason to move the cheap half earlier.
+
+**oxlint for every file, and ESLint too when the file is a `.vue`.** oxlint has no port of
+`eslint-plugin-vue` — no Vue rules at all — so for that one extension the fast linter is blind
+to the entire ruleset governing the file, and an SFC came back clean from a hook that could not
+read it. That is not hypothetical: the first author to write a mock here tripped
+`vue/html-indent` and `vue/singleline-html-element-content-newline`, got a green hook, and met
+`npm run check` several turns later — the exact gap this hook exists to close, in the one tree
+whose authors are most likely to fall into it. The cost is measured and is why it is not
+extended to `.ts`: oxlint answers for one SFC in about 110ms and ESLint in about 2.5s, and on
+`.ts` the two overlap enough that seconds per edit would buy little.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own

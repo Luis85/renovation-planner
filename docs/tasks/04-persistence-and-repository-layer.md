@@ -943,6 +943,22 @@ interface FindZonesByPlanQuery {
 - **New setting:** the project folder for entity notes — added to the settings surface
   Slice 1 established, and read and written through `settingsFrom` like `units`, since
   `data.json` is a trust boundary and a folder path is user-editable text.
+- **Known prerequisite for shared catalogues, added 2026-08-26 and not built here.** Both
+  halves of this pipeline are scoped to **one** root: `collectNotes` skips any file whose
+  path does not start with the project folder, and `VaultChangeAdapter` returns early on
+  the same test. §59 as amended makes the [[Asset]], [[Supplier]] and [[Trade]]
+  catalogues shared, living in a **library folder** resolved from its own plugin setting
+  (§83) rather than from any project folder — so a library that is a separate root is
+  invisible to the index *and* to the change pipeline, and a library note would never be
+  resolvable or observed.
+
+  It does not bite today, because there is exactly one `projectFolder` and a library
+  defaulting to `Renovation/Library` sits inside a `Renovation/` root. It bites the
+  moment either path is configured away from that, and again when projects get folders of
+  their own. **Whoever next touches this pipeline owes it a decision** — scanning and
+  watching a list of roots is the obvious shape — and slice 10's shared-asset queries
+  depend on it. Recorded here rather than fixed in the slice that discovered it, because
+  this file owns the index.
   User-supplied paths pass through `normalizePath` before any Vault call. There is no
   second location field: ADR-011 puts geometry in `Geometry/` inside this folder, so the
   sidecar path is derived rather than configured, and changing this one setting while

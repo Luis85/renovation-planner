@@ -1917,6 +1917,16 @@ in; naming the split here is what stops the next one.
 New Vault folders (PRD §36): `Requirements/` inside the project folder, and `Assets/`
 inside the **library folder** — a plugin setting (§83), one per vault, because the
 catalogue belongs to no project (§59, amended 2026-08-26).
+
+**That storage location is not indexed or observed yet, and this slice depends on it
+being both.** Slice 4's `collectNotes` skips any file outside the project folder and
+`VaultChangeAdapter` returns early on the same test, so a library that is a separate root
+is invisible to the Project Index and to the vault-change pipeline — which would make a
+library Asset unresolvable, and would let `ListRequirementsReferencing` miss another
+project's Requirements, so an Asset update or delete could silently miss live referents.
+It does not bite while there is one `projectFolder` and the library defaults inside it.
+The decision belongs to slice 4, which owns the index and now records it; this note names
+it because an implementer starting here would otherwise meet it as a bug.
 Both are note-based entities per PRD §37, following slice 4's
 Markdown-frontmatter-plus-Zod-schema pattern with `schema-version: 1`. Neither
 owns a geometry sidecar — Requirement references a Zone by ID rather than

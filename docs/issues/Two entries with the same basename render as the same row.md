@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 40
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-26
+finished: 2026-08-26
 horizon: "MVP"
 start: ""
 due: ""
@@ -44,14 +44,27 @@ disagree rather than living in a review thread.
 - Composition already degrades loudly — a designer writing either name into a prototype gets a
   failure card. Only the picker is silent, which is the disagreement.
 
-## What closes it
+## What closed it
 
-Not "show the path", which is the obvious fix and the wrong one: it disambiguates the rows and
-still leaves a designer meeting an unresolved tag with no explanation. The fix worth making is
-to surface what `registrableComponents` **already decided** — mark the ambiguous pair in the
-list as unusable in a prototype, for the reason it is unusable — plus a test mounting two
-same-basename fixtures and asserting the rows say so. The test is the part that matters: it is
-what stops the next reorganisation from reintroducing the silence.
+`IndexPage.vue` reads `registrableComponents(...).ambiguous` and marks BOTH rows — in words,
+not a colour or an icon, because §85 refuses colour as the only channel and because the row has
+to say *why* the name cannot be composed, not merely that something is off with it. The entry
+stays a link: it opens perfectly well on its own, and it is the TAG that resolves to nothing.
+
+Not "show the path", as recorded: separating the rows would leave a designer composing either
+name with the same unexplained failure. What the list was missing is the decision that function
+already took, so that is what it shows.
+
+`tests/harness/indexAmbiguity.test.ts` plants the pair the tree does not contain — the entries
+are fake because a latent defect can only be driven by planting the state that triggers it, and
+everything else is real, the mock spreading over the actual module so the page calls the same
+`registrableComponents` a browser does. Three cases, because the silent half matters as much:
+a MOCK shadowing a component of the same name is deterministic rather than ambiguous, and
+marking it would report the headline workflow as a defect. Watched failing in both directions
+— marker removed, and marker shown on every row.
+
+`entries.ts`'s own paragraph recording this as unfixed is rewritten in the same change, since a
+fix that leaves its sibling stale is the shape this whole exercise kept producing.
 
 ## Why it matters
 

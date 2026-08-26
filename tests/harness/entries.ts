@@ -147,15 +147,21 @@ export const componentEntries = (): HarnessEntry[] =>
  * about one, and a warning is invisible to `harness-shot`, which would otherwise photograph a
  * prototype with a component silently missing and exit 0.
  *
- * **What the INDEX does not yet say about that, recorded here because it is where the two
- * sides disagree.** `label` is the basename and only the `id` carries the path, so the day two
- * components in different directories share one — a case `discoverEntries` supports on purpose,
- * and which no file in the tree produces today (measured) — the list renders two rows reading
- * the same name and the same kind, distinguishable only by their `href`. Criterion 4 still
- * holds (both are reachable at their own URL); what fails is the reading of it. The fix worth
- * making is not "show the path": it is to surface what THIS function already decided, since a
- * designer composing either of those two names into a prototype meets an unresolved tag with
- * no explanation, while the index shows them as two ordinary entries.
+ * **What the INDEX says about that, which for a while was nothing.** `label` is the basename
+ * and only the `id` carries the path, so the day two components in different directories share
+ * one — a case `discoverEntries` supports on purpose, and which no file in the tree produces
+ * today (measured) — the list renders two rows reading the same name and the same kind,
+ * distinguishable only by their `href`. Criterion 4 still holds (both are reachable at their
+ * own URL); what failed was the reading of it, and a designer composing either name met an
+ * unresolved tag with no explanation while the picker showed two ordinary entries.
+ *
+ * `IndexPage.vue` reads `ambiguous` now and marks both rows with the reason, in words. The fix
+ * deliberately is not "show the path": separating the rows would leave that same designer with
+ * the same unexplained failure, so what the list shows is the decision THIS function took.
+ * `tests/harness/indexAmbiguity.test.ts` plants the pair the tree does not contain and drives
+ * it, including the half that must stay silent — a mock shadowing a component of the same name
+ * is deterministic, not ambiguous, and marking it would report the headline workflow as a
+ * defect.
  */
 export function registrableComponents(entries: HarnessEntry[]): {
 	byTag: Map<string, HarnessEntry>;

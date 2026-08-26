@@ -34,13 +34,33 @@ import {
 	ref,
 	shallowRef,
 } from 'vue';
-import { componentEntries, prototypeEntries, type HarnessEntry } from './entries';
+import { componentEntries, prototypeEntries, registrableComponents, type HarnessEntry } from './entries';
 import { reseedFixture } from './fixture';
 
 const prototypes = prototypeEntries();
 const components = componentEntries();
 
 const all = computed<HarnessEntry[]>(() => [...prototypes, ...components]);
+
+/**
+ * The labels `registrableComponents` refuses to register, surfaced in the list.
+ *
+ * Two entries of the same KIND sharing a basename — two mocks, or two components in different
+ * directories — have no deterministic answer to `<ThatName />`, so that function registers the
+ * label for NOBODY and returns it in `ambiguous`. It reasoned that through and stopped at its
+ * own module boundary: the list went on drawing two rows with the same name and the same kind,
+ * distinguishable only by an `href` nobody reads, and a designer who composed either one met an
+ * unresolved tag with no explanation.
+ *
+ * Showing the PATH is the obvious repair and the wrong one — it separates the rows and still
+ * leaves that designer with an unexplained failure. What the list was missing is the decision
+ * this function already took, so that is what it shows.
+ *
+ * `all` is what feeds it, so the two lists cannot disagree about which entries exist. Nothing
+ * in the tree produces an ambiguous label today (measured), which is why this is drawn from a
+ * derivation rather than from a state anybody can see by opening the page.
+ */
+const unusableLabels = computed(() => new Set(registrableComponents(all.value).ambiguous));
 
 const requested = new URLSearchParams(window.location.search).get('entry');
 const openComponent = shallowRef<unknown>(null);
@@ -738,6 +758,17 @@ if (initial) void open(initial);
 						@click.exact.prevent="open(entry)"
 					>{{ entry.label }}</a>
 					<span>{{ entry.kind }}</span>
+					<!--
+						Words, not a colour or an icon: SDD §85 refuses colour as the only
+						channel, and this row has to say WHY the name cannot be written into a
+						prototype, not merely that something is off about it. The entry is still
+						a link — it opens perfectly well on its own; it is the TAG that resolves
+						to nothing.
+					-->
+					<span
+						v-if="unusableLabels.has(entry.label)"
+						class="rp-harness-ambiguous"
+					>shares this name — no prototype can compose it</span>
 				</li>
 			</ul>
 		</nav>

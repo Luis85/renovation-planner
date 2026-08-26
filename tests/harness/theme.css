@@ -156,6 +156,18 @@ body {
 	opacity: 0.6;
 }
 
+/*
+ * The one row note that is not an aside: a label two entries of the same kind claim, which
+ * `registrableComponents` registers for nobody. Full opacity and the warning colour, because
+ * the rule above dims every other `span` in the row to 0.6 and this one is the reason a
+ * designer's `<ThatName />` will resolve to nothing. Colour is the SECOND channel here, never
+ * the only one — the span says why in words (SDD §85).
+ */
+.rp-harness-index nav li span.rp-harness-ambiguous {
+	opacity: 1;
+	color: var(--text-warning);
+}
+
 .rp-harness-stage {
 	flex: 1;
 	min-height: 0;

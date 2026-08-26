@@ -43,7 +43,15 @@ now needs it.
 > `CalculationError` when `unitPrice.currency` differs from it, before any arithmetic.**
 
 Written as a proposal rather than a decision, because it cannot be implemented yet — see
-*What blocks it* below. It is recorded because three attempts at this question were drafted
+*What blocks it* below.
+
+**Whether the field is optional is an open sub-question**, and both sides are worth keeping.
+`pricedPer?` in that same interface is the optional precedent — supplied, it buys a check;
+omitted, nothing changes — which makes an optional field the smaller edit and leaves existing
+callers untouched. Against that: an invariant a caller can omit is one a caller can silently
+bypass, and a currency check is exactly the kind whose absence is invisible, since the result
+is a well-formed number either way. It only becomes decidable once a [[Project]] has a
+currency to require. It is recorded because three attempts at this question were drafted
 in one pull request and each was withdrawn, and losing the reasoning would mean a fourth
 attempt starting from nothing.
 

@@ -927,12 +927,17 @@ contract ends at the typed result, before any write occurs.
 
   **It cannot be driven through `onInspectorDeleteZone`**, which hard-codes the Zone query,
   `ZoneId` and `reversibleDeleteZone` — feeding it two groups would assert a Zone result
-  that cannot occur. The multi-group case belongs to the **Asset** delete caller, and this
-  slice does not specify one: `DeleteAssetCommand` is slice 10's, and its Inspector entry
-  point arrives with it. So this test targets the **row-mapping** directly rather than a
-  flow, and the end-to-end version is owed by whichever slice writes that caller. Naming
-  that here rather than leaving a test nobody can write: the mapping is the part this slice
-  owns, and it is testable today.
+  that cannot occur. The multi-group case belongs to the **Asset** delete caller, and NO
+  slice in the register specifies one. `DeleteAssetCommand` is slice 10's, but slice 10's
+  in-scope Inspector work is the Requirements panel *for the selected Zone* — there is no
+  surface anywhere that selects an Asset, so there is nowhere for a user to press Delete on
+  one. An earlier version of this paragraph said the entry point "arrives with" the command;
+  that was a pointer at a slice which does not carry it, and pointing at a wrong owner is
+  worse than naming a gap, because it reads as assigned. Slice 10 records the gap on its own
+  side under *Deletion & reference integrity*. So this test targets the **row-mapping**
+  directly rather than a flow, and the end-to-end version is owed by whichever slice first
+  gives an Asset a delete affordance. Naming that here rather than leaving a test nobody can
+  write: the mapping is the part this slice owns, and it is testable today.
 - **Stale-count test**, the one the zero branch exists for: a query double answering `[]`
   and a command double refusing with a `ReferenceError`. Assert on the command's *input*
   — the first dispatch carries no `resolution` — because a test that only checked "a
@@ -979,9 +984,10 @@ contract ends at the typed result, before any write occurs.
    integration test asserting the value passed into the dialog descriptor, not a value
    this slice's component recomputed. **One row because a Zone always yields one group.**
    That an Asset referenced from two projects renders two rows is asserted against the
-   **row-mapping directly**, not through a flow: this slice specifies no Asset delete caller —
-   `DeleteAssetCommand` is slice 10's and its Inspector entry point arrives with it — so the
-   end-to-end version belongs to whichever slice writes that caller. The mapping test still
+   **row-mapping directly**, not through a flow: no slice in the register specifies an Asset
+   delete caller — `DeleteAssetCommand` is slice 10's, but nothing anywhere selects an Asset
+   for a user to delete — so the end-to-end version belongs to whichever slice first gives an
+   Asset a delete affordance. The mapping test still
    earns its place here, because every Zone fixture is single-group and would pass a caller
    that read `groups[0]` alone.
 6a. `t(language, key, params?)` fills `{name}` holes from `params` in a single pass over

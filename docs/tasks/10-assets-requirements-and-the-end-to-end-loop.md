@@ -1130,6 +1130,24 @@ different reasons**, and keeping them apart is what makes the flow work:
   advisory and stale by construction, so the command compares what it finds against
   `resolvedReferents` rather than trusting either count.
 
+**`DeleteAssetCommand` has no caller, and no slice in the register gives it one.** The
+first half above says "the Inspector asks", and for a Zone it does — slice 8 selects a
+Zone on the canvas and this slice's Requirements panel hangs off that selection. For an
+**Asset** there is no equivalent: nothing anywhere selects an Asset, so there is no
+surface on which a user could press Delete. The command is still built here and still
+enforces the refusal, because §87 rule 5 puts enforcement in the command precisely so a
+script or a later caller cannot walk past it — a command with no UI is doing its job.
+What does NOT follow is a test of the flow, and the Definition of Done says so rather
+than asking for one.
+
+Naming it here rather than in an Issue because it is a scope gap with an obvious owner —
+whichever slice first gives an Asset a delete affordance, most likely an asset-library
+surface — not an open design question. The register said otherwise for a while: slice 15
+described the entry point as arriving with `DeleteAssetCommand`, which pointed at this
+slice, whose in-scope Inspector work is the Zone panel alone. Two documents each pointing
+at the other is how a gap survives review, and it is worth more than the one sentence that
+fixes it.
+
 The dialog's resolution reaches the command as data, which means a command input has to
 carry it. **This slice is what adds those fields**, because this slice introduces the first
 entity that can reference a Zone — exactly the deferral slice 8 makes ("deferred to
@@ -2250,9 +2268,13 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       project is the open question, and it is open in the shipped code rather than in this
       criterion.
 - [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
-      covered by a fixture where one Asset is referenced from two Projects; the delete
-      dialog renders a row per project. A bare total is refused by this test, because it
-      reads as "in the project I am looking at" while a shared asset's references are not.
+      covered by a fixture where one Asset is referenced from two Projects. A bare total is
+      refused by this test, because it reads as "in the project I am looking at" while a
+      shared asset's references are not. The assertion stops at the QUERY: that those groups
+      become a row each is slice 15's row-mapping test, and no end-to-end version is possible
+      until something can delete an Asset — see the gap under *Deletion & reference
+      integrity*. This criterion asked for the dialog until that gap was noticed, which made
+      it uncompletable through any specified path.
 - [ ] Every group carries `projectPath` alongside `projectName`, asserted against a
       fixture whose two Projects share one `name` — the case nothing refuses, since
       `Project.create` trims the name and rejects only an empty one. Without the path

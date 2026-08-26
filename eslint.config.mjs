@@ -118,6 +118,122 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
  * group, from OUTSIDE `forbidden()`'s machinery — one constant so the two cannot spell it
  * differently from each other, or from what `forbidden()` would have computed.
  */
+/**
+ * Design slice 11's Definition of Done item 7 — "no dependency on a network client,
+ * analytics SDK, or remote endpoint exists in `infrastructure/logging/` or the diagnostics
+ * query" — as a rule rather than as an inspection. Nothing checked it: the diagnostics
+ * snapshot is content-free BY POLICY and never leaves the device BY POLICY, and both
+ * policies were one edit away from being false with `npm run check` green.
+ *
+ * The two directories are where the snapshot is assembled and where refusals accumulate,
+ * which makes them the two places a "just send us the diagnostics" line would be written.
+ *
+ * **What these lists SEE**, because a guarantee wider than its check is this repository's
+ * most expensive recurring defect:
+ *
+ * - `NETWORK_GLOBALS` are bare identifier references, which is what `no-restricted-globals`
+ *   resolves — `fetch(...)` and `navigator.sendBeacon(...)`. `window`, `globalThis` and
+ *   `self` are in the list for the indirect spelling (`globalThis.fetch`), not because a
+ *   host object is otherwise interesting here. Neither directory names any of them today,
+ *   which is what made adopting them one line each.
+ * - `NETWORK_MODULES` and `NETWORK_MEMBERS` are static `import` specifiers. `requestUrl`
+ *   and `request` are Obsidian's own network door and they are IMPORTS, not globals, so
+ *   they need the member half of the rule — and `application/` already bans the whole
+ *   `obsidian` package, so the member ban is added only where the package itself is legal,
+ *   which is `infrastructure/`.
+ *
+ * **What they CANNOT see**: a dynamic `import()`; a global reached through a computed
+ * member (`globalThis['fetch']`); a network call made in a module these two directories
+ * merely CALL rather than import from — the ban is per-directory, so a helper elsewhere in
+ * `infrastructure/` that fetches is invisible here; and a dependency that wraps one of
+ * these, since a package name nobody listed is a package this rule has never heard of.
+ * `npm run analyze`'s dependency hygiene sees packages but not calls, so nothing else in
+ * the gate closes those. `tests/build/network-boundary.test.ts` pins each blind spot as an
+ * absence rather than leaving it in prose.
+ */
+/**
+ * `eslint-plugin-obsidianmd`'s OWN `no-restricted-globals` list, read out of its config
+ * rather than copied — and this constant exists because of a trap sprung during the review
+ * that added the network ban below.
+ *
+ * That plugin bans `app`, `fetch` and `localStorage` across every file in `src/`, at `warn`
+ * (which `--max-warnings 0` fails anyway). Two flat-config blocks matching one file OVERRIDE
+ * `no-restricted-globals` rather than merging it — the same trap this file documents twice
+ * for `no-restricted-syntax` and `no-restricted-imports` — so ANY later block naming that
+ * rule for a subtree of `src/` silently takes the marketplace's three bans away from it. The
+ * `core`/`domain` DOM block below had already done exactly that: it happens to restate
+ * `fetch` and `localStorage`, so the loss was invisible, but `app` — the global the
+ * marketplace review bot actually rejects plugins for — has not been banned in `core/` or
+ * `domain/` since that block was written.
+ *
+ * Derived rather than transcribed, because a hand copy is the second list this repository
+ * keeps paying for: a global the plugin adds in a future version would reach every directory
+ * except the ones that had restated its list. The severity element is dropped (index 0) and
+ * the options are deduplicated by name, LAST WINS — so a caller appending its own entry for
+ * a name the plugin also bans replaces the message with the one that fits its subtree, which
+ * is what `NETWORK_GLOBALS` does for `fetch`: the plugin's advice there is "use `requestUrl`
+ * instead", and `requestUrl` is precisely what the network ban also refuses. In these two
+ * directories the point is not to make the request a different way.
+ *
+ * A bare string entry is `no-restricted-globals`' other accepted spelling (a name with no
+ * message); the plugin's list contains one by accident, and it is carried through as-is
+ * rather than filtered, because narrowing someone else's ban is not this constant's job.
+ */
+const namedGlobals = (...entries) => [
+	...new Map(entries.flat(Infinity).map((entry) => (typeof entry === 'string' ? { name: entry } : entry)).map((entry) => [entry.name, entry])).values(),
+];
+const OBSIDIAN_RESTRICTED_GLOBALS = namedGlobals(
+	obsidianmd.configs.recommendedWithLocalesEn.map((config) => (config.rules?.['no-restricted-globals'] ?? []).slice(1)),
+);
+
+const NETWORK_REASON =
+	'Diagnostics are computed on demand and never leave the device (SDD §68, §86). infrastructure/logging/ and application/queries/ may not reach the network — no fetch, no socket, no requestUrl, no beacon.';
+const NETWORK_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'navigator', 'window', 'globalThis', 'self'];
+const NETWORK_MODULES = ['http', 'https', 'http2', 'net', 'tls', 'dgram', 'node:http', 'node:https', 'node:http2', 'node:net', 'node:tls', 'node:dgram', 'electron'];
+const NETWORK_MEMBERS = [{ name: 'obsidian', importNames: ['request', 'requestUrl'] }];
+
+/**
+ * A layer ban PLUS the network ban, for a subtree that has both.
+ *
+ * It composes `forbidden(...)`'s own output rather than restating a layer's groups and
+ * packages, and that is the whole point: two flat-config blocks matching one file OVERRIDE
+ * `no-restricted-imports` rather than merging it, so a block for `src/application/queries/`
+ * written by hand would replace the `application` layer ban with a network-only rule —
+ * quietly letting a query import a repository while looking like it had closed a hole. The
+ * caller passes the SAME `{ groups, packages }` its parent layer passes; `tests/build/
+ * network-boundary.test.ts` drives a cross-layer import through these paths to prove the
+ * parent ban survived, the way `vue-rules.test.ts` does for `presentation/dialogs/`.
+ *
+ * `no-restricted-globals` is a different rule KEY from anything else matching these files,
+ * so it merges rather than overrides — the same relationship the `core`/`domain` DOM block
+ * below has with the write-boundary block above it.
+ */
+const networkFree = (layer, layerBan, reason) => {
+	const base = forbidden(layer, layerBan, reason);
+	const [, options] = base.rules['no-restricted-imports'];
+	const members = NETWORK_MEMBERS.filter(({ name }) => !(layerBan.packages ?? []).includes(name));
+	return {
+		files: base.files,
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [
+						...options.paths,
+						...NETWORK_MODULES.map((name) => ({ name, message: NETWORK_REASON })),
+						...members.map((member) => ({ ...member, message: NETWORK_REASON })),
+					],
+					patterns: [...options.patterns, { group: NETWORK_MODULES.map((name) => `${name}/*`), message: NETWORK_REASON }],
+				},
+			],
+			'no-restricted-globals': [
+				'error',
+				...namedGlobals(OBSIDIAN_RESTRICTED_GLOBALS, NETWORK_GLOBALS.map((name) => ({ name, message: NETWORK_REASON }))),
+			],
+		},
+	};
+};
+
 const PROTOTYPES_GROUP = ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'];
 
 /**
@@ -568,6 +684,16 @@ export default defineConfig([
 		{ groups: ['application', 'infrastructure', 'plugin', 'core/events', 'prototypes'] },
 		'presentation/dialogs/ renders what it is handed and resolves one typed value. A query, a command, a repository or the event bus reached from here would put a domain decision inside a dialog (design slice 15, Definition of Done 9).',
 	),
+	networkFree(
+		'application/queries',
+		{ groups: ['infrastructure', 'presentation', 'plugin', 'prototypes'], packages: PRESENTATION_AND_HOST },
+		'application/ coordinates use cases against PORTS it declares itself. Infrastructure implements those ports and the composition root wires them; an import the other way inverts the dependency the ports exist to create.',
+	),
+	networkFree(
+		'infrastructure/logging',
+		{ groups: ['presentation', 'plugin', 'prototypes'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
+		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
+	),
 	{
 		// -- invariants that are checked rather than described ----------------------
 		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`
@@ -610,10 +736,19 @@ export default defineConfig([
 		// globals rather than a category — this check sees exactly these spellings.
 		files: [...srcFiles('core'), ...srcFiles('domain')],
 		rules: {
+			// `OBSIDIAN_RESTRICTED_GLOBALS` first, and it is not decoration: this block
+			// OVERRIDES `eslint-plugin-obsidianmd`'s own `no-restricted-globals` for these
+			// two subtrees rather than merging with it, so before this spread `app` was
+			// unbanned in `core/` and `domain/` — the one global the marketplace review bot
+			// rejects plugins for, lost in the layers least likely to notice. The DOM list
+			// comes second so its own message wins for the two names both lists carry.
 			'no-restricted-globals': [
 				'error',
-				...['window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'fetch', 'HTMLElement', 'Element', 'customElements'].map(
-					(name) => ({ name, message: 'core/ and domain/ are host-free (SDD §3.4): no DOM or browser APIs.' }),
+				...namedGlobals(
+					OBSIDIAN_RESTRICTED_GLOBALS,
+					['window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'fetch', 'HTMLElement', 'Element', 'customElements'].map(
+						(name) => ({ name, message: 'core/ and domain/ are host-free (SDD §3.4): no DOM or browser APIs.' }),
+					),
 				),
 			],
 		},

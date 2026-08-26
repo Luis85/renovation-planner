@@ -2,6 +2,7 @@ import type { ValidationError } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { ok, err, type Result } from '../../../core/result/Result';import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityId } from '../../../core/identity/EntityId';
+import type { DiagnosticEntityKind } from '../../../application/ports/diagnostics';
 import type {
 	EntityVersion,
 	Expected,
@@ -91,7 +92,7 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 /** A missing note fails the conditional delete the same way a stale revision does. */
 export async function trashNoteBackedEntity(
 	deps: NoteVaultDeps,
-	kind: string,
+	kind: DiagnosticEntityKind,
 	id: EntityId<string>,
 	deleteFailedCode: string,
 	expected: EntityVersion,
@@ -116,7 +117,7 @@ export async function trashNoteBackedEntity(
  */
 export function readNoteBackedEntity<T>(
 	deps: NoteVaultDeps,
-	kind: string,
+	kind: DiagnosticEntityKind,
 	id: EntityId<string>,
 	fromPersistence: (migrated: unknown) => Result<T, ValidationError>,
 	entityInvalidCode: string,

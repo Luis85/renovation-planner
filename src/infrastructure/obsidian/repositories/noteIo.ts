@@ -1,7 +1,8 @@
 import { TFile as TFileValue, TFolder, type FileManager, type MetadataCache, type TFile, type Vault } from 'obsidian';
 import { type MigrationError, type PersistenceError, type ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
-import type { DiagnosticsLedger } from '../../../application/ports/diagnostics';
+import type { DiagnosticEntityKind, DiagnosticsLedger } from '../../../application/ports/diagnostics';
+import type { EntityId } from '../../../core/identity/EntityId';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
@@ -152,17 +153,22 @@ export function openNoteById(
 		migrations: MigrationRunner;
 		ledger: DiagnosticsLedger;
 	},
-	kind: string,
-	id: string,
+	// `kind` is the closed diagnostics vocabulary rather than a free string, and `id` is a
+	// branded `EntityId` rather than one: those two are what this function hands the ledger
+	// below, so narrowing them HERE is what leaves the recording call site nothing to put
+	// content into. Narrowing `id` also retired an `as never` at the index lookup, which
+	// was the cast covering exactly this mismatch.
+	kind: DiagnosticEntityKind,
+	id: EntityId<string>,
 ): OpenedNote {
-	const path = deps.index.getPath(id as never);
+	const path = deps.index.getPath(id);
 	if (!path) return { status: 'missing' };
 	const abstractFile = deps.vault.getAbstractFileByPath(path);
 	if (!(abstractFile instanceof TFileValue)) return { status: 'missing' };
 	const raw = frontmatterOf(deps, abstractFile);
 	const migrated = migrateNote(deps.migrations, kind, raw);
 	if (!migrated.ok) {
-		deps.ledger.record({ entityType: kind, entityId: id, issue: migrated.error.code });
+		deps.ledger.record(kind, id, migrated.error);
 		return { status: 'error', error: migrated.error };
 	}
 	return { status: 'ok', file: abstractFile, raw, migrated: migrated.value };

@@ -73,9 +73,14 @@ describe('persistence composition', () => {
 		const { plugin } = await loadedPlugin(DEFAULT_SETTINGS);
 		const snapshot = await plugin.root.persistence?.queries.diagnostics.execute();
 
-		// Asset and Requirement appear here because they are in `migrationSet()` — the ONE
-		// table the runner is built from. Nothing hand-maintains a second list, which is why
-		// slice 10's two entity kinds arrived in diagnostics with no diagnostics edit.
+		// `toEqual`, never `toMatchObject`: this is the ONE place the real kind SET is
+		// asserted, so an extra key has to fail here. Asset and Requirement appear because
+		// they are in `migrationSet()`, and `migrationSet()` is now the only table there is
+		// — `MigrationRunner.latestVersions` derives each version from the steps registered
+		// for that kind rather than spreading a second, hand-maintained constant. Until that
+		// derivation landed this comment was false: a kind added to `migrationSet()` alone
+		// changed nothing here, and this assertion passed either way. Adding a seventh kind
+		// to `migrationSet()` and running this file is what proves it now.
 		expect(snapshot?.schemaVersions).toEqual({
 			project: 1,
 			plan: 1,

@@ -6,10 +6,7 @@ import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindo
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryDiagnosticsLedger } from '../../src/infrastructure/logging/diagnosticsLedger';
 import { createMigrationRunner, type MigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
-import { PLAN_MIGRATIONS } from '../../src/infrastructure/persistence/migration/entities/plan/plan.migrations';
-import { ZONE_MIGRATIONS } from '../../src/infrastructure/persistence/migration/entities/zone/zone.migrations';
-import { PROJECT_MIGRATIONS } from '../../src/infrastructure/persistence/migration/project/project.migrations';
-import { PLAN_GEOMETRY_MIGRATIONS } from '../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
+import { MIGRATION_SET } from '../../src/infrastructure/persistence/migration/migrationSet';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
@@ -321,12 +318,12 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		};
 	const logger: Logger = { debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error') };
 
-	const migrations = createMigrationRunner({
-		project: PROJECT_MIGRATIONS,
-		plan: PLAN_MIGRATIONS,
-		zone: ZONE_MIGRATIONS,
-		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
-	});
+	// The PLUGIN's table, not a copy of it. This used to be four kinds hand-written here
+	// while the composition root registered six — a fake thinner than the real thing, so
+	// every repository test drove a runner that had never heard of an Asset or a
+	// Requirement. Sharing the constant is what makes the drift impossible rather than
+	// merely fixed.
+	const migrations = createMigrationRunner(MIGRATION_SET);
 	const ledger = new InMemoryDiagnosticsLedger();
 
 	const deps = {

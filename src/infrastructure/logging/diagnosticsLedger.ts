@@ -1,4 +1,6 @@
-import type { DiagnosticsLedger, ValidationIssue } from '../../application/ports/diagnostics';
+import type { AppError } from '../../core/errors/AppError';
+import type { EntityId } from '../../core/identity/EntityId';
+import type { DiagnosticEntityKind, DiagnosticsLedger, ValidationIssue } from '../../application/ports/diagnostics';
 
 /**
  * The in-memory diagnostics ledger (SDD §68): where read-path refusals accumulate so
@@ -24,7 +26,16 @@ export class InMemoryDiagnosticsLedger implements DiagnosticsLedger {
 	private readonly recorded: ValidationIssue[] = [];
 	private readonly seen = new Set<string>();
 
-	record(issue: ValidationIssue): void {
+	/**
+	 * The one place a `ValidationIssue` is CONSTRUCTED, which is what makes the port's
+	 * no-content guarantee structural rather than a convention. `error.code` is taken and
+	 * the rest of the error is dropped on the floor: `message` is prose that quotes what it
+	 * read (`migrateNote` interpolates the frontmatter value it refused) and `cause` is
+	 * whatever was thrown, so both are exactly the content diagnostics may not hold. A
+	 * caller handing the whole error over cannot choose which half survives.
+	 */
+	record(entityType: DiagnosticEntityKind, entityId: EntityId<string>, error: AppError): void {
+		const issue: ValidationIssue = { entityType, entityId, issue: error.code };
 		const key = keyOf(issue);
 		if (this.seen.has(key)) return;
 		this.seen.add(key);

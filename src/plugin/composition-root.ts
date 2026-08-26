@@ -37,8 +37,6 @@ import { ListRequirementsReferencing } from '../application/queries/ListRequirem
 import { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
 import { registerOnZoneGeometryChanged } from '../application/event-handlers/requirement/onZoneGeometryChanged';
 import { registerOnAssetUpdated } from '../application/event-handlers/requirement/onAssetUpdated';
-import { ASSET_MIGRATIONS } from '../infrastructure/persistence/migration/entities/asset/asset.migrations';
-import { REQUIREMENT_MIGRATIONS } from '../infrastructure/persistence/migration/entities/requirement/requirement.migrations';
 import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import {
@@ -69,10 +67,7 @@ import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
-import { PLAN_MIGRATIONS } from '../infrastructure/persistence/migration/entities/plan/plan.migrations';
-import { ZONE_MIGRATIONS } from '../infrastructure/persistence/migration/entities/zone/zone.migrations';
-import { PROJECT_MIGRATIONS } from '../infrastructure/persistence/migration/project/project.migrations';
-import { PLAN_GEOMETRY_MIGRATIONS } from '../infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
+import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
@@ -346,23 +341,6 @@ function composeRepositories(
 }
 
 /**
- * Every entity shape's migration table, keyed as the runner reads it — and the ONE list
- * `GetDiagnosticsSnapshot`'s `schemaVersions` derives from, so a new entity appears in
- * diagnostics because it was registered here rather than because a second list was
- * remembered.
- */
-function migrationSet() {
-	return {
-		project: PROJECT_MIGRATIONS,
-		plan: PLAN_MIGRATIONS,
-		zone: ZONE_MIGRATIONS,
-		asset: ASSET_MIGRATIONS,
-		requirement: REQUIREMENT_MIGRATIONS,
-		'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
-	};
-}
-
-/**
  * Everything that leaves the root through the Error Boundary, in ONE place: the guard is
  * applied here and nowhere else, so "is this service guarded?" is answered by whether it
  * is composed in this function. Its collaborators are the same ones the unguarded
@@ -430,7 +408,7 @@ export function createCompositionRoot(
 	const markers = session.markers;
 	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
-	const migrations = createMigrationRunner(migrationSet());
+	const migrations = createMigrationRunner(MIGRATION_SET);
 
 	const deps: NoteVaultDeps = {
 		vault: vault.vault,

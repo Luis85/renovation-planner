@@ -45,8 +45,10 @@ export class ObsidianProjectRepository {
 		if (!file) return Promise.resolve(ok(null));
 		const read = this.readEntity(file);
 		if (!read.ok) {
-			// Content-free (SDD §68): opaque id + error code into the diagnostics ledger.
-			this.deps.ledger.record({ entityType: 'project', entityId: id, issue: read.error.code });
+			// Content-free (SDD §68): opaque id + the error, of which the ledger keeps only
+			// the code. The whole error goes in because the ledger is the one module allowed
+			// to decide what diagnostics may hold — see `application/ports/diagnostics.ts`.
+			this.deps.ledger.record('project', id, read.error);
 			return Promise.resolve(err(read.error));
 		}
 		return Promise.resolve(ok(read.value));

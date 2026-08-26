@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import {
+	makeAsset as makeAssetEntity,
+	makePlan as makePlanEntity,
+	makeProject as makeProjectEntity,
+	makeRequirement as makeRequirementEntity,
+	makeZone as makeZoneEntity,
+} from '../../../helpers/entities';
+import { MIGRATION_SET } from '../../../../src/infrastructure/persistence/migration/migrationSet';
+import type { DiagnosticEntityKind } from '../../../../src/application/ports/diagnostics';
+import type { EntityId } from '../../../../src/core/identity/EntityId';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
@@ -76,18 +86,103 @@ describe('project repository failure branches', () => {
 		expectOk(await stack.projects.getById(second));
 	});
 
-	// SDD §68: a refusal is RECORDED content-free — opaque id + error code — so the
-	// diagnostics snapshot can report it without ever holding project data.
-	it('a refused read lands in the diagnostics ledger as an opaque id and a code', async () => {
-		const stack = createRepositoryStack();
-		const projectId = createProjectId();
-		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
-		const path = stack.index.getPath(projectId) ?? '';
-		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
-		await stack.projects.getById(projectId);
-		expect(stack.ledger.issues()).toEqual([
-			{ entityType: 'project', entityId: projectId, issue: 'project.schema-version-unsupported' },
-		]);
+});
+
+/**
+ * SDD §68: a refusal is RECORDED content-free — opaque id + error code — so the diagnostics
+ * snapshot can report it without ever holding project data.
+ *
+ * Every note-backed kind, driven through its REAL repository against a real broken note.
+ * Only `project` was covered for two slices, which read as a category and was a sample of
+ * one: `ObsidianProjectRepository` records at its own `getById`, while the other four go
+ * through `openNoteById` — so the one covered case was the one path the shared helper is
+ * NOT on, and whether slice 10's kinds recorded at all was a matter of inspection.
+ *
+ * It is also where the narrowed `record` signature meets a real caller rather than a fake:
+ * the ids below are generated `EntityId`s and the third argument is the repository's own
+ * `AppError`, which is the shape `application/ports/diagnostics.ts` refuses free text in.
+ */
+describe('read refusals reaching the diagnostics ledger', () => {
+	/**
+	 * One case per kind, and the SET is checked below rather than trusted — the anchor is
+	 * the plugin's own migration table, so a seventh entity kind added to `MIGRATION_SET`
+	 * makes this file red until its refusal is covered here too.
+	 */
+	const cases: ReadonlyArray<{
+		kind: DiagnosticEntityKind;
+		seed: (stack: RepositoryStack) => Promise<EntityId<string>>;
+		read: (stack: RepositoryStack, id: EntityId<string>) => Promise<unknown>;
+	}> = [
+		{
+			kind: 'project',
+			seed: async (stack) => {
+				const id = createProjectId();
+				expectOk(await stack.projects.save(makeProjectEntity({ id }), 'absent'));
+				return id;
+			},
+			read: (stack, id) => stack.projects.getById(id as ProjectId),
+		},
+		{
+			kind: 'plan',
+			seed: async (stack) => (await seed(stack)).planId,
+			read: (stack, id) => stack.plans.getById(id as PlanId),
+		},
+		{
+			kind: 'zone',
+			seed: async (stack) => {
+				const { projectId, planId } = await seed(stack);
+				return expectOk(await stack.zones.save(makeZoneEntity({ projectId, planId }), 'absent')).entity.id;
+			},
+			read: (stack, id) => stack.zones.getById(id as never),
+		},
+		{
+			kind: 'asset',
+			seed: async (stack) =>
+				expectOk(await stack.assets.save(makeAssetEntity({ projectId: createProjectId() }), 'absent')).entity.id,
+			read: (stack, id) => stack.assets.getById(id as never),
+		},
+		{
+			kind: 'requirement',
+			seed: async (stack) => {
+				const requirement = makeRequirementEntity({
+					projectId: createProjectId(),
+					assetId: createAssetId(),
+					origin: { kind: 'zone', zoneId: createZoneId() },
+				});
+				return expectOk(await stack.requirements.save(requirement, 'absent')).entity.id;
+			},
+			read: (stack, id) => stack.requirements.getById(id as never),
+		},
+	];
+
+	it.each(cases.map((testCase) => [testCase.kind, testCase] as const))(
+		'a refused %s read lands in the ledger as an opaque id and a code',
+		async (kind, testCase) => {
+			const stack = createRepositoryStack();
+			const id = await testCase.seed(stack);
+			const path = stack.index.getPath(id) ?? '';
+			expect(path).not.toBe('');
+			stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
+
+			await testCase.read(stack, id);
+
+			expect(stack.ledger.issues()).toEqual([
+				{ entityType: kind, entityId: id, issue: `${kind}.schema-version-unsupported` },
+			]);
+		},
+	);
+
+	/**
+	 * The instrument, checked before the cases are believed. A table of five is a listing,
+	 * and a listing goes stale silently — so it is compared against the runtime table the
+	 * plugin actually registers (`MIGRATION_SET`, shared with the composition root), minus
+	 * the one kind that is not a note: `plan-geometry` is a sidecar with no repository and
+	 * no `openNoteById` call, so it has no read refusal to record and is excluded BY NAME
+	 * rather than by the list happening not to mention it.
+	 */
+	it('covers every migratable kind except the sidecar', () => {
+		const noteBacked = Object.keys(MIGRATION_SET).filter((kind) => kind !== 'plan-geometry');
+		expect(cases.map((testCase) => testCase.kind).toSorted()).toEqual(noteBacked.toSorted());
 	});
 });
 

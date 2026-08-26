@@ -1,16 +1,3 @@
-/**
- * The latest known version per migratable kind. A schema bump edits its DTO module AND
- * this table in the same change — the table is what tells the runner when to stop.
- */
-export const LATEST_VERSIONS: Record<string, number> = {
-	project: 1,
-	plan: 1,
-	zone: 1,
-	asset: 1,
-	requirement: 1,
-	'plan-geometry': 1,
-};
-
 function migrationError(code: string, message: string): Error & { readonly code: string; readonly category: 'Migration' } {
 	// An ERROR instance rather than a bare object: the runner THROWS (its contract has no
 	// Result channel), and a thrown non-Error loses its stack at every catch site.
@@ -54,13 +41,53 @@ export class MigrationRunner {
 		}
 	}
 
-	/** Registers every migration of one kind, oldest first — what the composition root calls. */
+	/**
+	 * Registers every migration of one kind, oldest first — what the composition root calls.
+	 *
+	 * An EMPTY list still registers the kind, and that is the whole reason this is not a
+	 * loop over `register`: at schema version 1 no shape has a step yet, so every kind the
+	 * composition names arrives here with `[]` — and a kind the runner has never heard of
+	 * is a kind `latestVersions` cannot report.
+	 */
 	registerAll(kind: string, migrations: readonly Migration[]): void {
-		for (const migration of migrations) this.register(kind, migration);
+		const list = this.byKind.get(kind) ?? [];
+		this.byKind.set(kind, list);
+		for (const migration of migrations) list.push(migration);
 	}
 
+	/**
+	 * The latest version per kind, DERIVED from what was registered rather than declared
+	 * beside it. This accessor is what `GetDiagnosticsSnapshot.schemaVersions` reports, so
+	 * the derivation is what makes the composition root's registration table the ONE list a
+	 * new entity has to appear in: registering a kind is what puts it in diagnostics, and
+	 * there is no second table to remember.
+	 *
+	 * It replaced a module-level `LATEST_VERSIONS` constant, which was exactly that second
+	 * table — a kind added to the composition's registrations alone appeared nowhere in
+	 * diagnostics, and the comment claiming otherwise had no check under it.
+	 *
+	 * **What the derivation costs, stated because it is a real constraint and not a
+	 * formality:** a version can no longer be pinned independently of its steps. Bumping a
+	 * kind to version 2 means registering a step that ENDS at 2 — a no-op step, if the
+	 * reshape is genuinely nothing. That is a narrower vocabulary than the constant allowed,
+	 * and deliberately: the one thing the constant made easy was bumping a version with no
+	 * step to reach it, which `migrateToLatest` then refused at read time as a chain gap.
+	 */
 	get latestVersions(): Readonly<Record<string, number>> {
-		return { ...LATEST_VERSIONS };
+		const versions: Record<string, number> = {};
+		for (const kind of this.byKind.keys()) versions[kind] = this.latestVersionOf(kind);
+		return versions;
+	}
+
+	/**
+	 * 1 is the FLOOR, not a fallback for an unregistered kind: a shape with no steps ships
+	 * at version 1, which is every shape today. An unregistered kind answers 1 for the same
+	 * arithmetic, which keeps `migrateToLatest` total — a v1 note of a kind nobody registered
+	 * passes through unchanged, and a note claiming a higher version is still refused as
+	 * unsupported rather than best-effort parsed.
+	 */
+	private latestVersionOf(kind: string): number {
+		return Math.max(1, ...(this.byKind.get(kind) ?? []).map((migration) => migration.toVersion));
 	}
 
 	get lastApplied(): string | null {
@@ -68,7 +95,7 @@ export class MigrationRunner {
 	}
 
 	migrateToLatest(kind: string, raw: unknown, fromVersion: number): unknown {
-		const latest = LATEST_VERSIONS[kind];
+		const latest = this.latestVersionOf(kind);
 		// Fail closed on the FUTURE (SDD §44, §87 rule 7): a note written by a newer
 		// plugin build must be refused outright, never best-effort parsed — the loop
 		// below would otherwise exit immediately on `version >= latest` and hand the

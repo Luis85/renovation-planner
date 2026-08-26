@@ -447,6 +447,24 @@ export default defineConfig({
 			// `notifyFault` replaced two `cause instanceof Error ? … : String(cause)` ternaries
 			// (four arms, two of them untaken) with one call, and the mapper it delegates to
 			// already had both of its own arms driven.
+			//
+			// Re-measured 2026-08-26 after the diagnostics claims were made checkable — the
+			// derived `latestVersions`, `DiagnosticsLedger.record` narrowed to a kind, a
+			// branded id and an `AppError`, and the network ban: 4235/4263 statements,
+			// 2081/2121 branches, 1072/1080 functions, 3796/3812 lines —
+			// 99.34 / 98.11 / 99.25 / 99.58. NOTHING RATCHETS: rounded down these are the
+			// 99 / 98 / 99 / 99 already in force.
+			//
+			// Branches held at 98.11 across a denominator that GREW by four, and the way that
+			// was paid for is the note worth keeping. The first pass measured 98.01 — the
+			// derivation replaced a constant lookup with `this.byKind.get(kind) ?? []` twice,
+			// and both fallbacks are reachable only for a kind nobody registered, which is a
+			// state no existing test produced. The repair was not a coverage exercise: the
+			// accessor's own docblock CLAIMED that an unregistered kind answers 1 and passes
+			// through, which was an invariant asserted in a comment with nothing under it. The
+			// test that says so covers both arms, and `MigrationRunner.ts` is at 100% of all
+			// four. An uncovered arm is usually an unchecked sentence somewhere; look for the
+			// sentence first.
 			thresholds: {
 				statements: 99,
 				functions: 99,

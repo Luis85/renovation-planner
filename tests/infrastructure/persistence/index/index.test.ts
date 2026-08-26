@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LATEST_VERSIONS, MigrationRunner, type Migration } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
+import { createMigrationRunner, MigrationRunner, type Migration } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import type { ProjectIndexEntry } from '../../../../src/application/ports/ProjectIndex';
 
@@ -12,31 +12,22 @@ describe('the migration runner', () => {
 			return { ...raw, 'schema-version': 1, renamed: raw['old-name'] };
 		},
 	};
+	const v1toV2: Migration = { fromVersion: 1, toVersion: 2, migrate: (input) => input };
 
 	it('chains a synthetic v0→v1 migration deterministically', () => {
 		const runner = new MigrationRunner();
 		runner.register('fixture', v0toV1);
-		LATEST_VERSIONS['fixture'] = 1;
-		try {
-			const input = { 'old-name': 'a' };
-			const once = runner.migrateToLatest('fixture', input, 0);
-			const twice = runner.migrateToLatest('fixture', input, 0);
-			expect(once).toEqual({ 'old-name': 'a', 'schema-version': 1, renamed: 'a' });
-			expect(once).toEqual(twice);
-		} finally {
-			delete LATEST_VERSIONS['fixture'];
-		}
+		const input = { 'old-name': 'a' };
+		const once = runner.migrateToLatest('fixture', input, 0);
+		const twice = runner.migrateToLatest('fixture', input, 0);
+		expect(once).toEqual({ 'old-name': 'a', 'schema-version': 1, renamed: 'a' });
+		expect(once).toEqual(twice);
 	});
 
 	it('refuses a gap in the chain instead of guessing', () => {
 		const runner = new MigrationRunner();
 		runner.register('gap', { fromVersion: 2, toVersion: 3, migrate: (x) => x });
-		LATEST_VERSIONS['gap'] = 3;
-		try {
-			expect(() => runner.migrateToLatest('gap', {}, 0)).toThrow(/No migration step/);
-		} finally {
-			delete LATEST_VERSIONS['gap'];
-		}
+		expect(() => runner.migrateToLatest('gap', {}, 0)).toThrow(/No migration step/);
 	});
 
 	// SDD §87 rule 7, fail closed: a FUTURE version must be refused as its own defect —
@@ -44,32 +35,58 @@ describe('the migration runner', () => {
 	// wrong failure ("frontmatter-invalid") for what is really "this build is too old".
 	it('refuses a version newer than this build supports with a tagged Migration error', () => {
 		const runner = new MigrationRunner();
-		LATEST_VERSIONS['future'] = 1;
-		try {
-			const thrown = (() => {
-				try {
-					runner.migrateToLatest('future', { 'schema-version': 2 }, 2);
-					return null;
-				} catch (cause) {
-					return cause as Error & { code: string; category: 'Migration' };
-				}
-			})();
-			expect(thrown).not.toBeNull();
-			expect(thrown?.code).toBe('future.schema-version-unsupported');
-			expect(thrown?.category).toBe('Migration');
-			expect(thrown?.message).toMatch(/newer than this build supports/);
-		} finally {
-			delete LATEST_VERSIONS['future'];
-		}
+		runner.registerAll('future', []);
+		const thrown = (() => {
+			try {
+				runner.migrateToLatest('future', { 'schema-version': 2 }, 2);
+				return null;
+			} catch (cause) {
+				return cause as Error & { code: string; category: 'Migration' };
+			}
+		})();
+		expect(thrown).not.toBeNull();
+		expect(thrown?.code).toBe('future.schema-version-unsupported');
+		expect(thrown?.category).toBe('Migration');
+		expect(thrown?.message).toMatch(/newer than this build supports/);
 	});
 
-	it('ships with every real kind at version 1 and no steps to run', () => {
-		expect(LATEST_VERSIONS['project']).toBe(1);
-		expect(LATEST_VERSIONS['plan']).toBe(1);
-		expect(LATEST_VERSIONS['zone']).toBe(1);
-		expect(LATEST_VERSIONS['plan-geometry']).toBe(1);
+	/**
+	 * The MECHANISM behind `GetDiagnosticsSnapshot.schemaVersions`, which is the whole
+	 * reason `latestVersions` is derived rather than declared: the versions the runner
+	 * reports are exactly the kinds its registration table names, at exactly the version
+	 * their steps reach.
+	 *
+	 * This case used to be "ships with every real kind at version 1 and no steps to run",
+	 * and it listed four of the six kinds that existed — a title claiming a category while
+	 * checking a hand-written subset, which is the listing defect this repository keeps
+	 * paying for. The real kind SET is asserted in exactly one place now, and it is not
+	 * here: `tests/plugin/persistence-wiring.test.ts` asks the real composition root for a
+	 * real snapshot, so it cannot go stale against a constant a test edited for itself.
+	 * What is left here is the rule that makes that one assertion sufficient, driven
+	 * through a fixture table so a seventh kind needs no edit to this file.
+	 */
+	it('reports a version for exactly the kinds its registration table names', () => {
+		const runner = createMigrationRunner({ stepless: [], stepped: [v0toV1, v1toV2] });
+		expect(runner.latestVersions).toEqual({ stepless: 1, stepped: 2 });
+		// A kind with no steps is at version 1 and has nothing to run — the state every
+		// real shape ships in today.
+		expect(runner.migrateToLatest('stepless', { already: 'v1' }, 1)).toEqual({ already: 'v1' });
+	});
+
+	/**
+	 * The floor, and the arm the derivation's docblock claims: 1 is what a kind with no
+	 * steps is at, and an UNREGISTERED kind answers the same, which keeps `migrateToLatest`
+	 * total rather than needing a defensive throw for a kind nobody named. Asserted rather
+	 * than described — the accessor reads `this.byKind.get(kind) ?? []` twice and both
+	 * fallbacks are only reachable this way, so a comment was the only thing saying what
+	 * happens here.
+	 */
+	it('passes an unregistered kind through at version 1, and still refuses a future one', () => {
 		const runner = new MigrationRunner();
-		expect(runner.migrateToLatest('zone', { already: 'v1' }, 1)).toEqual({ already: 'v1' });
+		expect(runner.migrateToLatest('never-registered', { a: 1 }, 1)).toEqual({ a: 1 });
+		// Not in the version table either: `latestVersions` reports what was registered.
+		expect(runner.latestVersions).toEqual({});
+		expect(() => runner.migrateToLatest('never-registered', {}, 2)).toThrow(/newer than this build supports/);
 	});
 
 	// SDD §68's migrationState.lastApplied: content-free ("kind: from -> to"), null until
@@ -78,14 +95,8 @@ describe('the migration runner', () => {
 		const runner = new MigrationRunner();
 		expect(runner.lastApplied).toBeNull();
 		runner.register('fixture', v0toV1);
-		LATEST_VERSIONS['fixture'] = 1;
-		try {
-			runner.migrateToLatest('fixture', { 'old-name': 'a' }, 0);
-			expect(runner.lastApplied).toBe('fixture: 0 -> 1');
-			expect(Object.keys(runner.latestVersions).length).toBeGreaterThanOrEqual(4);
-		} finally {
-			delete LATEST_VERSIONS['fixture'];
-		}
+		runner.migrateToLatest('fixture', { 'old-name': 'a' }, 0);
+		expect(runner.lastApplied).toBe('fixture: 0 -> 1');
 	});
 });
 

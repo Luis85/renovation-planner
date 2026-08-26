@@ -8,12 +8,18 @@ import { describe, expect, it } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
+import { ListProjects } from '../../../src/application/queries/ListProjects';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import {
 	createPlanEditorQueries,
 	unavailablePlanEditorQueries,
 } from '../../../src/presentation/read-models/planEditorQueries';
+import {
+	createRenovationProjectQueries,
+	unavailableRenovationProjectQueries,
+} from '../../../src/presentation/read-models/renovationProjectQueries';
 import {
 	toPlanDto,
 	toProjectSummaryDto,
@@ -214,5 +220,54 @@ describe('the plan editor query boundary', () => {
 		expect(expectOk(await bare.listAssets('project-1'))).toEqual([]);
 		expect(expectOk(await bare.listRequirementsReferencing('zone-1'))).toEqual([]);
 		expect(expectOk(await bare.listReassignmentTargets('zone-1'))).toEqual([]);
+	});
+});
+
+describe('the renovation project query boundary', () => {
+	it('answers every project as a DTO, not as an entity', async () => {
+		const projects = new InMemoryProjectRepository();
+		const project = makeProject({ name: 'Barn conversion' });
+		expectOk(await projects.save(project, 'absent'));
+		const queries = createRenovationProjectQueries(new ListProjects(projects));
+
+		const found = expectOk(await queries.listProjects());
+
+		expect(found).toEqual([toProjectSummaryDto(project)]);
+		// Flat and serializable all the way down — no domain method survived the boundary.
+		expect(JSON.parse(JSON.stringify(found))).toEqual(found);
+	});
+
+	it('answers an empty vault with ok([]), not an error', async () => {
+		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository()));
+
+		expect(expectOk(await queries.listProjects())).toEqual([]);
+	});
+
+	/**
+	 * The `isErr` branch of `createRenovationProjectQueries` — a failed read must stay
+	 * distinguishable from a legitimately empty vault, which is the whole reason the
+	 * `Result` travels through unflattened.
+	 */
+	it('answers a failed read with isErr, never with an empty list', async () => {
+		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
+
+		const result = await createRenovationProjectQueries(failing as never).listProjects();
+
+		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
+	});
+
+	/**
+	 * A session whose settings could not be read composes no repository at all, so the view
+	 * is handed a query service that REFUSES — the same reasoning
+	 * `unavailablePlanEditorQueries` states, and the same `settings.unrecovered` code rather
+	 * than a second one for the identical fact.
+	 */
+	it('refuses the read when settings were never recovered', async () => {
+		const queries = unavailableRenovationProjectQueries();
+
+		expect(expectErr(await queries.listProjects())).toMatchObject({
+			category: 'Persistence',
+			code: 'settings.unrecovered',
+		});
 	});
 });

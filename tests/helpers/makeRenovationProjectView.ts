@@ -1,9 +1,12 @@
 /**
  * Builds the real `RenovationProjectView` against a fake leaf — the `as never` cast lives
- * HERE, once. Both the jsdom suite (`renovationProjectView.test.ts`) and the browser
- * harness mount (`tests/harness/mount.ts`) build their view through this, so a grown
- * constructor requirement meets every consumer at the same time instead of fixing the
- * suite and silently stranding the harness page.
+ * HERE, once. The jsdom suites (`renovationProjectView.test.ts`,
+ * `renovationProjectEmptyState.test.ts`) and the browser harness mount
+ * (`tests/harness/mount.ts`) all build their view through this, so a grown constructor
+ * requirement meets every consumer at the same time instead of fixing the suite and
+ * silently stranding the harness page. Design slice 14's `deps` parameter is exactly that:
+ * it is the first time this promise is called in, because the view had no second
+ * constructor argument until this slice gave it one.
  *
  * Split out of `./workspace` on purpose, and that split IS the point of this file existing
  * separately: `RenovationProjectView` mounts `ViewRoot.vue`, a real Vue SFC, and importing
@@ -21,6 +24,22 @@
  * `FakeWorkspace` cannot reopen this by accident.
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
+import { ok } from '../../src/core/result/Result';
 import { FakeLeaf } from './workspace';
+import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
-export const makeView = (): RenovationProjectView => new RenovationProjectView(new FakeLeaf() as never);
+/**
+ * The default `deps` answers `ok([])` — an empty project list — rather than the refusal
+ * bundle: `unavailableRenovationProjectQueries()` is what settings.unrecovered actually
+ * looks like, and defaulting every caller of this factory to that would make the harness
+ * page and every un-migrated test look like a broken session rather than a fresh, empty
+ * vault. Optional rather than required, so `tests/harness/mount.ts` keeps compiling
+ * unchanged: the harness page therefore shows the empty state now, which is the new thing
+ * worth looking at — the populated surface has nothing to draw until a later slice builds
+ * an actual project list (this slice explicitly does not).
+ */
+export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
+	new RenovationProjectView(
+		new FakeLeaf() as never,
+		deps ?? { queries: { listProjects: () => Promise.resolve(ok([])) } },
+	);

@@ -1,7 +1,8 @@
-import { ItemView } from 'obsidian';
+import { ItemView, type WorkspaceLeaf } from 'obsidian';
 import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import ViewRoot from './ViewRoot.vue';
+import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps } from './RenovationProjectContext';
 import { tr } from '../i18n/strings';
 
 /**
@@ -21,15 +22,27 @@ export const RENOVATION_PROJECT_VIEW = 'renovation-project';
 export const RENOVATION_PROJECT_ICON = 'hammer';
 
 /**
- * Draws nothing yet, and that is the increment's success criterion rather than an omission:
- * what this proves is the LIFECYCLE the SDD's §12 asks for — one isolated Vue app per
- * Obsidian view, created in `onOpen` and unmounted in `onClose` — before slice 5 gives the
- * component a canvas to draw. Nothing outside this file learns that a view is Vue.
+ * The Renovation Project view's first data dependency (design slice 14): a list of
+ * projects, and an empty state when there are none.
+ *
+ * Slice 1 reserved this seam in writing: "Query-service access is constructor-injected …
+ * exactly like `RenovationProjectView` would be once it has data needs." `deps` is that
+ * need — extending the seam by a constructor field rather than relocating it. What this
+ * class itself still proves is the LIFECYCLE the SDD's §12 asks for — one isolated Vue app
+ * per Obsidian view, created in `onOpen` and unmounted in `onClose`. Nothing outside this
+ * file learns that a view is Vue.
  *
  * `contentEl`, not `containerEl`: the outer element carries Obsidian's own view chrome —
  * the header and the tab actions — and emptying it takes those with it.
  */
 export class RenovationProjectView extends ItemView {
+	constructor(
+		leaf: WorkspaceLeaf,
+		private readonly deps: RenovationProjectDeps,
+	) {
+		super(leaf);
+	}
+
 	getViewType(): string {
 		return RENOVATION_PROJECT_VIEW;
 	}
@@ -68,6 +81,10 @@ export class RenovationProjectView extends ItemView {
 		// chain.
 		const app = createApp(ViewRoot);
 		app.use(createPinia());
+		// Provided BEFORE mount, the same order `PlanEditorView` uses: a component's setup
+		// runs during `mount`, and `useRenovationProjectContext` throws if it runs before the
+		// context is there to find.
+		app.provide(RENOVATION_PROJECT_CONTEXT, this.deps);
 		app.mount(this.contentEl);
 		this.vueApp = app;
 		return Promise.resolve();

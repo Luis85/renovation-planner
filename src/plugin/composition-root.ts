@@ -40,12 +40,18 @@ import {
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
+import {
+	createRenovationProjectQueries,
+	unavailableRenovationProjectQueries,
+} from '../presentation/read-models/renovationProjectQueries';
+import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { notify } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import { FindZonesByPlan } from '../application/queries/FindZonesByPlan';
 import { GetPlan } from '../application/queries/GetPlan';
 import { GetProject } from '../application/queries/GetProject';
 import { GetZone } from '../application/queries/GetZone';
+import { ListProjects } from '../application/queries/ListProjects';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
@@ -153,6 +159,13 @@ export interface PersistenceServices {
 	 * an interface and never a repository.
 	 */
 	readonly planEditorQueries: PlanEditorQueryServices;
+	/**
+	 * The Renovation Project view's own read side (design slice 14): `ListProjects` mapped
+	 * into presentation read models, one query today — composed here for the same reason
+	 * `planEditorQueries` is: the view is handed an interface and never builds one from a
+	 * repository.
+	 */
+	readonly listProjects: ListProjects;
 	/**
 	 * The three creates, which existed with full test coverage and NO caller outside
 	 * `application/` until something in the app asked for one — so a vault contained no
@@ -418,6 +431,7 @@ export function createCompositionRoot(
 				listRequirementsReferencing: slice10.queries.listRequirementsReferencing,
 				listReassignmentTargets: slice10.queries.listReassignmentTargets,
 			}),
+			listProjects: new ListProjects(projects),
 			setPlanBackground: new SetPlanBackgroundCommand(plans, files, eventBus),
 			reversibleSetPlanBackground: new ReversibleSetPlanBackgroundCommand(
 				new SetPlanBackgroundCommand(plans, files, eventBus),
@@ -507,5 +521,25 @@ export function planEditorDeps(
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
+	};
+}
+
+/**
+ * The Renovation Project view's own dependency bundle (design slice 14) — the seam slice 1
+ * reserved in writing, extended by a field rather than relocated.
+ *
+ * Needs no `Workspace` and no `Vault`, unlike `planEditorDeps`: this view's only dependency
+ * today is a read side. `unavailableRenovationProjectQueries()` when `root.persistence` is
+ * `null` is the same total-rather-than-nullable shape as `planEditorDeps`, for the same
+ * stated reason — a nullable dependency would make every caller branch on it, and refusing
+ * to register the view at all would leave a restored leaf pointing at a view type Obsidian
+ * does not know.
+ */
+export function renovationProjectDeps(root: CompositionRoot): RenovationProjectDeps {
+	const persistence = root.persistence;
+	return {
+		queries: persistence
+			? createRenovationProjectQueries(persistence.listProjects)
+			: unavailableRenovationProjectQueries(),
 	};
 }

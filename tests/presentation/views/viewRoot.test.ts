@@ -14,6 +14,21 @@ import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import ViewRoot from '../../../src/presentation/views/ViewRoot.vue';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
+import {
+	RENOVATION_PROJECT_CONTEXT,
+	useRenovationProjectContext,
+} from '../../../src/presentation/views/RenovationProjectContext';
+import { ok } from '../../../src/core/result/Result';
+import type { RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
+
+/**
+ * A context this file's cases can mount against, answering `ok([])`: neither case here is
+ * about the project list or its empty state (that is
+ * `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job) — it is about
+ * `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING the view can
+ * hydrate against without throwing.
+ */
+const deps: RenovationProjectDeps = { queries: { listProjects: () => Promise.resolve(ok([])) } };
 
 describe('the view root', () => {
 	/**
@@ -22,10 +37,14 @@ describe('the view root', () => {
 	 * stylesheet's only entry point into this view.
 	 *
 	 * Mounted with a Pinia now too: `DialogHost` (slice 15) lives in this tree and reads
-	 * `useDialogStore()` on setup, which throws with no active Pinia to find.
+	 * `useDialogStore()` on setup, which throws with no active Pinia to find. Design slice
+	 * 14 adds the second requirement this mount has to satisfy: `useRenovationProjectContext`
+	 * throws with no provided context, so `global.provide` supplies one here.
 	 */
 	it('renders the element the stylesheet keys off', () => {
-		const wrapper = mount(ViewRoot, { global: { plugins: [createPinia()] } });
+		const wrapper = mount(ViewRoot, {
+			global: { plugins: [createPinia()], provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: deps } },
+		});
 
 		expect(wrapper.classes()).toContain('renovation-planner-view');
 	});
@@ -37,12 +56,26 @@ describe('the view root', () => {
 	 */
 	it('mounts a dialog host that the view can open a dialog through', async () => {
 		const pinia = createPinia();
-		const wrapper = mount(ViewRoot, { global: { plugins: [pinia] } });
+		const wrapper = mount(ViewRoot, {
+			global: { plugins: [pinia], provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: deps } },
+		});
 		const store = useDialogStore(pinia);
 
 		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
 		await nextTick();
 
 		expect(wrapper.find('.rp-dialog').exists()).toBe(true);
+	});
+});
+
+/**
+ * `useRenovationProjectContext` mirrors `usePlanEditorContext`'s guard (see
+ * `tests/presentation/editor/units.test.ts`'s "the editor context guard"): there is no
+ * sensible degraded behaviour for a view with no query services, so it throws rather than
+ * mounting a plausible-looking empty pane over a composition mistake.
+ */
+describe('the renovation project context guard', () => {
+	it('throws rather than mounting a view with nothing behind it', () => {
+		expect(() => useRenovationProjectContext()).toThrow(/RenovationProjectContext/);
 	});
 });

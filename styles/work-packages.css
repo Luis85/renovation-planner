@@ -63,7 +63,20 @@
 	letter-spacing: -0.01em;
 }
 
-.rp-wp-new {
+/*
+ * Qualified with `.rp-wp-header`, for the reason `styles/editor.css`'s toolbar block gives at
+ * length: Obsidian's `button:not(.clickable-icon)` sets `background-color` and `color` at (0,1,1)
+ * and a bare class at (0,1,0) loses. Measured in the harness, the primary action of this screen
+ * rendered as a plain grey Obsidian button rather than the accent-filled one these declarations
+ * describe — visible in the mock's own capture, beside filter chips that DID draw in the accent
+ * because `WorkPackageFilters.vue` styles them from a `<style scoped>` block, and Vue's scope
+ * attribute takes those selectors to (0,2,0).
+ *
+ * That contrast is the argument for the qualifier rather than for moving these rules into a
+ * scoped block: a `styles/` partial is what a PROMOTED component is styled from, so the shape
+ * that survives promotion has to be the one that wins the cascade on its own.
+ */
+.rp-wp-header .rp-wp-new {
 	padding: var(--size-4-1) var(--size-4-3);
 	font-size: var(--font-ui-small);
 	color: var(--text-on-accent);
@@ -73,7 +86,7 @@
 	cursor: pointer;
 }
 
-.rp-wp-new:hover {
+.rp-wp-header .rp-wp-new:hover {
 	background-color: var(--interactive-accent-hover);
 }
 

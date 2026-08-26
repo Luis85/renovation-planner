@@ -79,19 +79,66 @@ const indexSelectors = (css: string): string[] =>
 		.filter((selector) => selector.includes('.rp-harness-index'));
 
 /**
- * A descendant of `.rp-harness-index` that is not reached through `>`.
+ * A selector's compounds, each with the combinator that FOLLOWS it — descendant (empty), `>`, `+`
+ * or `~` — ignoring anything inside parentheses, so `:is(.a > .b)` stays one compound.
  *
- * `\\s+(?![>{])` is the whole test: a child combinator is spelled with `>`, a rule's own body
- * opens with `{`, and anything else after whitespace is a descendant. `:not(.rp-harness-index)`
- * — which `theme.css` really does contain — has no whitespace after the class and so is not a
- * match, which is the case that makes a blunter pattern wrong.
+ * The combinator is attached to the compound before it rather than emitted separately, because
+ * the question this file asks is about ONE hop: what follows `.rp-harness-index`, and how.
+ * Whitespace around a combinator is not itself a combinator, which is the case that broke the
+ * first version — `.rp-harness-index > nav` has a space on each side of the `>`, and flushing on
+ * every whitespace character dropped the `>` entirely, making a scoped child look like a
+ * descendant.
  */
-const REACHES_THE_STAGE = /\.rp-harness-index\s+(?![>{])/;
+const compoundsOf = (selector: string): Array<{ text: string; after: string }> => {
+	const parts: Array<{ text: string; after: string }> = [];
+	let depth = 0;
+	let current = '';
+	const flush = (): void => {
+		if (current !== '') parts.push({ text: current, after: '' });
+		current = '';
+	};
+
+	for (const char of selector) {
+		if (char === '(') depth += 1;
+		else if (char === ')') depth -= 1;
+
+		if (depth === 0 && /[\s>+~]/.test(char)) {
+			flush();
+			if (/[>+~]/.test(char) && parts.length > 0) parts[parts.length - 1].after = char;
+		} else current += char;
+	}
+
+	flush();
+	return parts;
+};
+
+/**
+ * Does this selector reach a DESCENDANT of `.rp-harness-index`?
+ *
+ * Read from the selector's COMPOUNDS rather than from the text immediately after the class, which
+ * is the correction this needed. It was `/\.rp-harness-index\s+(?![>{])/` — whitespace directly
+ * after the class — so `.rp-harness-index.theme-dark h2` and `:is(.rp-harness-index) h2` both
+ * passed while reaching every heading in every mounted entry. The picker has no root qualifier
+ * today, which is exactly why the pattern has to be written to the SHAPE rather than to today's
+ * rules: the first person to add one would have opened the hole silently.
+ *
+ * The rule as it actually is: a compound CONTAINING the class, with something after it that is
+ * not reached through `>`. `:not(.rp-harness-index)` in `theme.css`'s own growth chain is still
+ * not a match — there the class sits in the LAST compound, with nothing after it at all.
+ */
+const reachesTheStage = (selector: string): boolean => {
+	const compounds = compoundsOf(selector);
+	const at = compounds.findIndex((compound) => compound.text.includes('.rp-harness-index'));
+
+	if (at === -1 || at === compounds.length - 1) return false;
+
+	return compounds[at].after !== '>';
+};
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
 	it('roots every index rule at a direct-child nav, so no rule reaches a mounted entry', () => {
 		const offenders = indexSelectors(readFileSync('tests/harness/theme.css', 'utf8')).filter((selector) =>
-			REACHES_THE_STAGE.test(selector),
+			reachesTheStage(selector),
 		);
 
 		expect(offenders).toEqual([]);
@@ -106,8 +153,12 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 	it.each([
 		['the rule that shipped', '.rp-harness-index h2 { text-transform: uppercase; }'],
 		['a deeper descendant', '.rp-harness-index section p em { color: red; }'],
+		// The two a pattern anchored on "whitespace right after the class" lets through. Neither
+		// exists today; the check is written to the shape so that adding one cannot open the hole.
+		['a qualified root', '.rp-harness-index.theme-dark h2 { color: red; }'],
+		['a root inside a functional pseudo', ':is(.rp-harness-index) h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
-		expect(indexSelectors(css).filter((selector) => REACHES_THE_STAGE.test(selector))).toHaveLength(1);
+		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});
 
 	/**
@@ -120,6 +171,6 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['a scoped child', '.rp-harness-index > nav li a { color: red; }'],
 		['an exclusion', '.rp-harness-leaf > div:not(.rp-harness-index) { flex: 1; }'],
 	])('says nothing about %s', (_case, css) => {
-		expect(indexSelectors(css).filter((selector) => REACHES_THE_STAGE.test(selector))).toEqual([]);
+		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);
 	});
 });

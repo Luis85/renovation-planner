@@ -183,7 +183,12 @@ function buttonClasses(): Set<string> {
 		for (const [cls] of text.matchAll(/\brp-[\w-]+/g)) found.add(`.${cls}`);
 	};
 
-	for (const file of filesUnder('src/presentation', '.vue')) {
+	// `src/prototypes` as well as `src/presentation`. A mock is never shipped, but the sheet that
+	// styles it IS — `styles/work-packages.css` is a real partial — and the harness is where that
+	// mock is LOOKED AT, which is the whole point of drawing it. Omitting the tree left
+	// `.rp-wp-new` undiscovered while its rule lost the cascade, so the screen's primary action
+	// was being judged as a plain grey button.
+	for (const file of ['src/presentation', 'src/prototypes'].flatMap((dir) => filesUnder(dir, '.vue'))) {
 		// The OPENING TAG only, so a class on a sibling element inside the button's own markup is
 		// not collected as if the button wore it. Both `class="…"` and `:class="{ x: … }"` live in
 		// there, and `rp-editor-tool-active` arrives only through the second.
@@ -349,6 +354,15 @@ describe('the instrument', () => {
 	 */
 	it('finds a button created through createEl, not only one written as a tag', () => {
 		expect(buttonClasses()).toContain('.rp-harness-scheme');
+	});
+
+	/**
+	 * And one in a PROTOTYPE. The tree is never shipped, but `styles/work-packages.css` is, and
+	 * the harness is where a mock is looked at — a rule that loses the cascade there is a mock
+	 * being judged wrongly, which is the one thing that tree exists to prevent.
+	 */
+	it('finds a button in a prototype, whose sheet ships even though the mock does not', () => {
+		expect(buttonClasses()).toContain('.rp-wp-new');
 	});
 
 	/**

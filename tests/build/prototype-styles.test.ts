@@ -53,9 +53,20 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  */
 
 const CLASS_ATTRIBUTE = /\sclass="([^"]*)"/g;
-/** A `:class` binding, whose statically knowable names are its quoted string literals. */
+/** A `:class` binding, whose statically knowable names this file reads two ways. */
 const CLASS_BINDING = /\s:class="([^"]*)"/g;
+/** Any quoted literal — `['rp-a', x && 'rp-b']`, `x ? 'rp-a' : 'rp-b'`. */
 const QUOTED = /'([^']+)'/g;
+/**
+ * An object-literal KEY: `{ 'rp-a--on': x }` and, the case a quoted-only reading missed,
+ * `{ selected: x }` — a valid and ordinary binding whose class name carries no quotes.
+ *
+ * Anchored to `{` or `,` because that is where a key actually sits. Without the anchor,
+ * `{ active: a ? b : c }` would also yield `b` from the ternary inside the VALUE, and the
+ * check would then demand a rule for a class nobody wrote — a red build for no defect, which
+ * is the failure direction that matters here.
+ */
+const BINDING_KEY = /[{,]\s*(?:'([^']+)'|([A-Za-z_$][\w$]*))\s*:/g;
 const CLASS_SELECTOR = /\.([A-Za-z_][\w-]*)/g;
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 
@@ -94,9 +105,10 @@ const used = new Map(
 			// leaving it out was a real hole the moment the first scripted mock arrived: the
 			// active-filter selector was bound, so deleting its rule left the state unstyled with
 			// this file green.
-			...[...source.matchAll(CLASS_BINDING)].flatMap(([, expression]) =>
-				[...expression.matchAll(QUOTED)].map(([, name]) => name),
-			),
+			...[...source.matchAll(CLASS_BINDING)].flatMap(([, expression]) => [
+				...[...expression.matchAll(QUOTED)].map(([, name]) => name),
+				...[...expression.matchAll(BINDING_KEY)].map(([, quoted, bare]) => quoted ?? bare),
+			]),
 		];
 		// A mock may style itself, so its OWN block is a declaration source alongside the
 		// assembled sheet — and only its own: one mock's block says nothing about another's,

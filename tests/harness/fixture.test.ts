@@ -6,7 +6,8 @@ import { createPinia, setActivePinia, storeToRefs } from 'pinia';
 import { mount } from '@vue/test-utils';
 import { createApp } from 'vue';
 import { reseedFixture, seedFixture, harnessEditorContext } from './fixture';
-import { cancelResultFor, DialogStackingError, useDialogStore } from '../../src/presentation/dialogs/dialog-store';
+import { DialogStackingError, useDialogStore } from '../../src/presentation/dialogs/dialog-store';
+import { settle } from '../helpers/editor';
 import {
 	PLAN_EDITOR_CONTEXT,
 	usePlanEditorContext,
@@ -183,28 +184,39 @@ describe('the harness Inspector query', () => {
  * and correct alone.
  */
 describe('reseedFixture, on a dialog nobody closed', () => {
-	it('abandons it, so the next entry can open one', async () => {
+	it('forgets it, so the next entry can open one', async () => {
 		setActivePinia(seedFixture());
 
 		const store = useDialogStore();
-		// Awaited below rather than dropped: abandoning has to SETTLE the promise, not merely
-		// clear the ref — a caller left awaiting forever is the failure that would replace the
-		// one being fixed.
-		const pending = store.openDialog({ kind: 'confirm', title: 'Delete', body: 'Sure?', confirmLabel: 'Delete' });
+		let resumed = false;
+		// A flag rather than an await: the assertion at the end is that this continuation NEVER
+		// runs, and awaiting a promise that must not settle would hang the case instead of
+		// failing it.
+		const noteResumption = (): boolean => (resumed = true);
+
+		void store
+			.openDialog({ kind: 'confirm', title: 'Delete', body: 'Sure?', confirmLabel: 'Delete' })
+			.then(noteResumption);
 
 		expect(store.current).not.toBeNull();
 
 		reseedFixture();
+		await settle();
 
-		// Compared against `cancelResultFor` rather than a literal: each kind has its OWN cancel
-		// shape (`confirm` settles to `'cancel'`, a form to `{ action: 'cancel' }`), and what this
-		// case is about is that an abandoned dialog ends the way a DISMISSED one does — not what
-		// that value happens to be for this kind.
-		expect(await pending).toEqual(cancelResultFor('confirm'));
 		expect(store.current).toBeNull();
 		expect(() => store.openDialog({ kind: 'confirm', title: 'Next', body: 'Again?', confirmLabel: 'Go' })).not.toThrow(
 			DialogStackingError,
 		);
+
+		/**
+		 * The half that makes this an ABANDONMENT rather than a cancellation, and the reason the
+		 * first version of this fix was wrong. Settling the promise resumes the OUTGOING entry's
+		 * continuation a microtask later — after everything has been re-seeded — so whatever it
+		 * writes lands on the world the next entry is about to draw. `DialogHost.vue` states the
+		 * same policy at its own `onBeforeUnmount`: it deliberately does not resolve, because the
+		 * view is gone and there is nothing left to dispatch on its behalf.
+		 */
+		expect(resumed, 'the outgoing entry resumed after the world was re-seeded').toBe(false);
 	});
 
 	// The other direction: reseeding with nothing open must not invent a settle or throw.

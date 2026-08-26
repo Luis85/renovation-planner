@@ -1,9 +1,9 @@
-import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { createPinia, setActivePinia, storeToRefs, type Pinia } from 'pinia';
 import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { useWorkspaceStore } from '../../src/presentation/stores/WorkspaceStore';
 import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
-import { cancelResultFor, useDialogStore } from '../../src/presentation/dialogs/dialog-store';
+import { useDialogStore } from '../../src/presentation/dialogs/dialog-store';
 import type { PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
 
@@ -107,21 +107,33 @@ export function reseedFixture(): void {
 	useWorkspaceStore().reset();
 	useSelectionStore().clear();
 
-	// The dialog store, ABANDONED rather than reset — it has no `reset()` and should not grow
-	// one for this: a pending dialog is a promise somebody is awaiting, and dropping `current`
-	// without settling would strand that caller forever. `resolve` with the kind's own cancel
-	// result is what `DialogHost`'s Escape handler does, so the abandoned dialog ends the way a
-	// dismissed one does.
-	//
-	// It is here because `DialogHost` unmounts WITHOUT settling when the entry it belongs to
-	// leaves the stage, while the index keeps one Pinia for its whole life. So the next entry
-	// inherited an open dialog, and its first `openDialog` threw `DialogStackingError` — an
-	// entry that worked or not depending on what had been opened before it. Which is precisely
-	// what the paragraph below predicted: this store arrived on `main` with design slice 15
-	// while this function was being written on another branch, and neither side was wrong.
-	const dialog = useDialogStore();
-
-	if (dialog.current !== null) dialog.resolve(cancelResultFor(dialog.current.kind));
+	/*
+	 * The dialog store: FORGOTTEN, not resolved.
+	 *
+	 * It is here because `DialogHost` unmounts without settling when the entry it belongs to
+	 * leaves the stage, while the index keeps one Pinia for its whole life. So the next entry
+	 * inherited an open dialog and its first `openDialog` threw `DialogStackingError` — an
+	 * entry that worked or not depending on what had been opened before it. Which is precisely
+	 * what the paragraph above predicted: this store arrived on `main` with design slice 15
+	 * while this function was being written on another branch, and neither side was wrong.
+	 *
+	 * **Why not `resolve(cancelResultFor(kind))`, which is what this did first.** That settles
+	 * the promise, so the OUTGOING entry's continuation resumes — in a microtask, after
+	 * everything above has been re-seeded — and whatever it writes lands on the world the next
+	 * entry is about to draw. The history-dependence would have moved rather than gone. It also
+	 * contradicts a policy `DialogHost.vue` states outright at its own `onBeforeUnmount`: it
+	 * deliberately does not call `store.resolve`, because "the view is gone, so there is nothing
+	 * left to dispatch anything on its behalf". The harness has to abandon the way production
+	 * abandons, or it is a stand-in behaving differently from the thing it stands in for.
+	 *
+	 * Clearing `current` through `storeToRefs` rather than through a store method, because there
+	 * is no method for this and the store should not grow one for the harness's sake. Its own
+	 * header already names this reachable: `current` comes back from `storeToRefs` as a writable
+	 * ref, so "any other holder of the store could settle or strand a pending dialog". This is
+	 * that, deliberately, in the one place where the awaiter is known to be gone. The stale
+	 * resolver is dropped by the next `openDialog`, which overwrites it.
+	 */
+	storeToRefs(useDialogStore()).current.value = null;
 }
 
 /**

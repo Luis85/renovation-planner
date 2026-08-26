@@ -1,5 +1,6 @@
 import { Notice, getLanguage } from 'obsidian';
 import type { AppError } from '../../core/errors/AppError';
+import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
 import { toUserMessage } from '../i18n/toUserMessage';
 
 /**
@@ -33,4 +34,28 @@ export function notify(message: string): Notice {
  */
 export function notifyError(error: AppError): Notice {
 	return notify(toUserMessage(getLanguage(), error));
+}
+
+/**
+ * The mapper the fault door below uses. The same shape the composition root's guards take,
+ * built here because this door stands OUTSIDE them: what reaches it has already escaped
+ * every guarded service, so there is no boundary left to have mapped it.
+ */
+const mapUnexpected = createVaultExceptionMapper('vault');
+
+/**
+ * The last door of all: something THROWN that no guard turned into a `Result`.
+ *
+ * A raw `Error.message` in a Notice is forbidden outright — it is developer text, often an
+ * engine's own words and sometimes a file path — so the cause is mapped to the same coded
+ * `PersistenceError` a guarded service would have produced, and printed from the locale
+ * table like any other refusal. The original stays on `cause` for whoever logs it.
+ *
+ * This exists because presentation still holds things the boundary does not cover: the raw
+ * `ZoneRepository`/`RequirementRepository`/`AssetRepository` ports that
+ * `PlanEditorCommandServices` hands the reversible adapters. Every COMMAND and QUERY it
+ * holds is guarded; the ports are not, and this is what keeps their faults presentable.
+ */
+export function notifyFault(cause: unknown): Notice {
+	return notifyError(mapUnexpected(cause));
 }

@@ -14,8 +14,15 @@ import type { MoveSpatialObjectInput } from '../../application/commands/zone/Mov
 import type { DeleteZoneInput } from '../../application/commands/zone/DeleteZone';
 import type { GetZoneInspectorInput, ZoneInspectorFields } from '../../application/queries/GetZoneInspector';
 import { AssignAssetCommand } from '../../application/commands/requirement/AssignAsset';
+import type {
+	AssignAssetInput,
+	AssignAssetResult,
+	AssignAssetErrors,
+} from '../../application/commands/requirement/AssignAsset';
 import { SetRequirementQuantityOverrideCommand } from '../../application/commands/requirement/SetRequirementQuantityOverride';
+import type { SetRequirementQuantityOverrideDoor } from '../../application/commands/requirement/SetRequirementQuantityOverride';
 import { SetRequirementCostOverrideCommand } from '../../application/commands/requirement/SetRequirementCostOverride';
+import type { SetRequirementCostOverrideDoor } from '../../application/commands/requirement/SetRequirementCostOverride';
 import { ReferenceLocks } from '../../application/reference/ReferenceLocks';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Loaded } from '../../application/ports/versioning';
@@ -95,9 +102,16 @@ export interface PlanEditorCommandServices {
 	 * ports, never concrete repositories.
 	 */
 	readonly requirementEdits: {
-		readonly assignAsset: AssignAssetCommand;
-		readonly setQuantityOverride: SetRequirementQuantityOverrideCommand;
-		readonly setCostOverride: SetRequirementCostOverrideCommand;
+		/**
+		 * STRUCTURAL, like every other command on this interface, and for the reason this
+		 * interface already gives: what leaves the composition root is a GUARDED wrapper
+		 * with the same doors, never the class. These three named their concrete classes
+		 * until round 1 of slice 11's review, and that nominal spelling was the only thing
+		 * keeping them outside the Error Boundary.
+		 */
+		readonly assignAsset: Command<AssignAssetInput, Result<AssignAssetResult, AssignAssetErrors>>;
+		readonly setQuantityOverride: SetRequirementQuantityOverrideDoor;
+		readonly setCostOverride: SetRequirementCostOverrideDoor;
 		readonly requirements: RequirementRepository;
 		readonly assets: AssetRepository;
 		readonly locks: ReferenceLocks;

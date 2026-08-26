@@ -8,6 +8,9 @@ import { CreatePlanCommand } from '../../../src/application/commands/plan/Create
 import { CreateProjectCommand } from '../../../src/application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
+import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
+import type { RecalculateRequirementCommand } from '../../../src/application/commands/requirement/RecalculateRequirement';
+import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { ReversibleCalibratePlanCommand } from '../../../src/application/commands/plan/ReversibleCalibratePlan';
 import { SetPlanBackgroundCommand } from '../../../src/application/commands/plan/SetPlanBackground';
@@ -24,8 +27,15 @@ import type { ZoneRepository } from '../../../src/application/ports/ZoneReposito
 import type { VaultFileProbe } from '../../../src/application/ports/VaultFileProbe';
 
 /**
- * The Result-not-throw contract (SDD §65–66), asserted over EVERY command and query
- * class there is: constructed against dependencies that REJECT — the unexpected fault
+ * The Result-not-throw contract (SDD §65–66), asserted over the command and query classes
+ * NAMED BELOW — every one through slice 8, plus both halves of the calibration
+ * transaction — `undo`'s half of which is driven where the wrapper is BUILT
+ * (`tests/plugin/guardWiring.test.ts`), because an `undo` before any `execute` refuses
+ * with a coded Result rather than throwing, and this loop is about thrown faults. It is
+ * not "every class there is": design slice 10's eight commands and four
+ * queries are driven through the composed root instead, by
+ * `tests/plugin/slice10GuardWiring.test.ts`, which can also tell a guarded composition
+ * from an unguarded one. Each service here is constructed against dependencies that REJECT — the unexpected fault
  * the repositories' coded `Result`s do not cover — and wrapped exactly as the
  * composition root wraps them, each must answer a RESOLVED failed `Result` carrying a
  * `PersistenceError`, never a rejection.
@@ -109,8 +119,27 @@ function services(): Array<{ name: string; run: () => Promise<unknown> }> {
 				} as never),
 		},
 		{
+			// ONE deps object since slice 10, not `(zones, events)`. Spelled wrongly here for
+			// a whole slice and green throughout: `rejecting()` is a Proxy answering EVERY
+			// property with a thrower, so the malformed construction threw a `TypeError` that
+			// looked exactly like the rejecting repository this case is about, and `tests/**`
+			// is not type-checked. The lock set is REAL and the logger is this file's, so the
+			// only thing that can throw is the collaborator the case names.
 			name: 'DeleteZoneCommand',
-			run: () => guardCommand(new DeleteZoneCommand(zones, events), 'command.deleteZone.failed', logger, map).execute({ zoneId: zone.id }),
+			run: () =>
+				guardCommand(
+					new DeleteZoneCommand({
+						zones,
+						requirements: rejecting<RequirementRepository>('requirements'),
+						recalculate: rejecting<Pick<RecalculateRequirementCommand, 'execute'>>('recalculate'),
+						events,
+						locks: new ReferenceLocks(),
+						logger,
+					}),
+					'command.deleteZone.failed',
+					logger,
+					map,
+				).execute({ zoneId: zone.id }),
 		},
 		{
 			name: 'GetZoneInspector',

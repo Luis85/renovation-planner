@@ -13,10 +13,11 @@ import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { EntityVersion } from '../../ports/versioning';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
+import type { Command } from '../Command';
 import type {
-	AssignAssetCommand,
 	AssignAssetInput,
 	AssignAssetResult,
+	AssignAssetErrors,
 } from './AssignAsset';
 
 /**
@@ -64,7 +65,7 @@ export class ReversibleAssignAssetCommand {
 		| undefined;
 
 	constructor(
-		private readonly assignCommand: AssignAssetCommand,
+		private readonly assignCommand: Command<AssignAssetInput, Result<AssignAssetResult, AssignAssetErrors>>,
 		private readonly deps: ReversibleAssignDeps,
 		private readonly input: AssignAssetInput,
 	) {}

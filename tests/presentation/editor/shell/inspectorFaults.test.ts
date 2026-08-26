@@ -65,7 +65,14 @@ describe('a failure at an Inspector control', () => {
 		await assign(r);
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
-		expect(Notice.shown.at(-1)).toContain('the vault exploded');
+		// MAPPED, not printed. The exception's own message is developer text — often an
+		// engine's words, sometimes a file path — and the DoD forbids it in a user-facing
+		// message outright. `notifyFault` turns the cause into the same coded
+		// `PersistenceError` a guarded service would have produced and prints the locale
+		// table's copy for it. The negative assertion is the one that fails if anybody
+		// reverts to `notify(cause.message)`.
+		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
+		expect(Notice.shown.at(-1)).not.toContain('the vault exploded');
 		r.harness.unmount();
 	});
 
@@ -101,16 +108,21 @@ describe('a failure at an Inspector control', () => {
 		toolbarButton(r.harness, 'Delete zone').click();
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
-		expect(Notice.shown.at(-1)).toContain('the index is gone');
+		// Mapped rather than printed, for the reason the first case gives — this is the
+		// SECOND of the two thrown-fault doors in `runtime.ts`, and both go through
+		// `notifyFault` so neither can drift back into printing the raw text.
+		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
+		expect(Notice.shown.at(-1)).not.toContain('the index is gone');
 		// Still there: nothing was dispatched.
 		expect(expectOk(await r.zonesRepo.getById('zone-a' as never))).not.toBeNull();
 		r.harness.unmount();
 	});
 
-	it('a thrown NON-Error still reaches the user, as its own string', async () => {
-		// `throw 'a string'` is legal JavaScript and a real hazard at a library boundary;
-		// `cause instanceof Error` is false for it, and a notice reading "[object Object]"
-		// or nothing at all is what the other arm of that expression exists to prevent.
+	it('a thrown NON-Error still reaches the user, as a mapped refusal', async () => {
+		// `throw 'a string'` is legal JavaScript and a real hazard at a library boundary.
+		// It used to be printed verbatim; now it is mapped like any other cause, so the user
+		// gets the same sentence either way and a notice reading "[object Object]" or nothing
+		// at all is impossible by construction rather than by a ternary.
 		const r = await selectedZone();
 		const before = Notice.shown.length;
 		const notAnError: unknown = 'the index is a string fault';
@@ -121,7 +133,8 @@ describe('a failure at an Inspector control', () => {
 		toolbarButton(r.harness, 'Delete zone').click();
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
-		expect(Notice.shown.at(-1)).toContain('the index is a string fault');
+		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
+		expect(Notice.shown.at(-1)).not.toContain('the index is a string fault');
 		r.harness.unmount();
 	});
 

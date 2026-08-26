@@ -44,6 +44,19 @@ export interface SetRequirementCostOverrideInput {
  * a wider change than this slice's Definition of Done asks for. So a cascade recalculation
  * can still overtake a compensation; an override cannot.
  */
+/**
+ * What the reversible adapter dispatches through, structurally. The adapter names only
+ * `executeWithVersion`, and naming the CLASS there made this command a NOMINAL dependency — which is
+ * what kept it out of the Error Boundary, since a guarded service is a wrapper object and
+ * never an instance. `Pick` is the same relaxation `DeleteZoneDeps.recalculate` already
+ * makes of `RecalculateRequirementCommand`, and it is what lets the composition root hand
+ * presentation a guarded facade carrying BOTH doors.
+ */
+export type SetRequirementCostOverrideDoor = Pick<
+	SetRequirementCostOverrideCommand,
+	'executeWithVersion'
+>;
+
 export class SetRequirementCostOverrideCommand
 	implements Command<SetRequirementCostOverrideInput, Result<Requirement, SetOverrideErrors>>
 {

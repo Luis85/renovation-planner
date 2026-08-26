@@ -1,5 +1,5 @@
 import type { Result } from '../core/result/Result';
-import type { GeometryError, ReferenceError } from '../core/errors/AppError';
+import type { AppError, GeometryError, PersistenceError, ReferenceError } from '../core/errors/AppError';
 import type { Command } from '../application/commands/Command';
 import type { Query } from '../application/queries/Query';
 import type { Logger } from '../application/ports/Logger';
@@ -7,6 +7,7 @@ import type { Loaded } from '../application/ports/versioning';
 import type { RepositoryError } from '../application/ports/repositoryErrors';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
+import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
@@ -39,11 +40,13 @@ import type {
 } from '../application/commands/requirement/RecalculateRequirement';
 import type {
 	SetRequirementQuantityOverrideCommand,
+	SetRequirementQuantityOverrideDoor,
 	SetRequirementQuantityOverrideInput,
 	SetOverrideErrors,
 } from '../application/commands/requirement/SetRequirementQuantityOverride';
 import type {
 	SetRequirementCostOverrideCommand,
+	SetRequirementCostOverrideDoor,
 	SetRequirementCostOverrideInput,
 } from '../application/commands/requirement/SetRequirementCostOverride';
 import type {
@@ -69,6 +72,7 @@ import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { EventBus } from '../core/events/EventBus';
+import type { CalibratePlanTransaction } from '../presentation/editor/planEditorCommands';
 import type { MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
 
 /**
@@ -91,6 +95,14 @@ import type { MigrationRunner } from '../infrastructure/persistence/migration/Mi
  *   rather than from the command — a widened union that mis-narrows at the call site.
  *   Computing the locals first means the argument is the only thing inference can read.
  */
+
+/**
+ * The ONE mapper every guard here wraps with. Stateless and a pure function of its scope,
+ * so a second `createVaultExceptionMapper('vault')` elsewhere would behave identically —
+ * which is exactly why it is stated once: two spellings of the same decision are two
+ * places to change it, and `planEditorDeps` needs it as well as `composeGuarded` does.
+ */
+export const VAULT_EXCEPTION_MAPPER = createVaultExceptionMapper('vault');
 
 /** The read side a view or command consumes; never a concrete repository or query class. */
 export interface QueryServices {
@@ -121,8 +133,17 @@ export interface GuardedSlice10Services {
 	readonly deleteAsset: Command<DeleteAssetInput, Result<ResolvedSequence, DeleteAssetErrors>>;
 	readonly assignAsset: Command<AssignAssetInput, Result<AssignAssetResult, AssignAssetErrors>>;
 	readonly recalculateRequirement: Command<RecalculateRequirementInput, Result<Requirement, RecalculateRequirementErrors>>;
-	readonly setRequirementQuantityOverride: Command<SetRequirementQuantityOverrideInput, Result<Requirement, SetOverrideErrors>>;
-	readonly setRequirementCostOverride: Command<SetRequirementCostOverrideInput, Result<Requirement, SetOverrideErrors>>;
+	/**
+	 * BOTH doors of each override command, each guarded on its own. `execute` is what a
+	 * plain caller dispatches; `executeWithVersion` is what the Inspector's reversible
+	 * adapters dispatch, and it is a second public entry point — so guarding `execute`
+	 * alone would have wrapped the door nobody in this app actually uses and left the
+	 * other one throwing past the application layer.
+	 */
+	readonly setRequirementQuantityOverride: Command<SetRequirementQuantityOverrideInput, Result<Requirement, SetOverrideErrors>> &
+		SetRequirementQuantityOverrideDoor;
+	readonly setRequirementCostOverride: Command<SetRequirementCostOverrideInput, Result<Requirement, SetOverrideErrors>> &
+		SetRequirementCostOverrideDoor;
 	readonly deleteRequirement: Command<DeleteRequirementInput, Result<{ requirementId: RequirementId }, ReferenceError | RepositoryError>>;
 	/** Slice 10's read side, beside the zone inspector query — guarded member by member. */
 	readonly requirementQueries: {
@@ -220,6 +241,39 @@ export function guardedEditorServices(
 }
 
 /**
+ * An override command's two doors, guarded separately so each names its own boundary in
+ * the log. A single event for both would make "which entry point faulted" unanswerable
+ * from a log line, and the two are reached by different callers.
+ */
+function guardBothDoors<TInput, TVersioned, E extends AppError>(
+	command: {
+		execute(input: TInput): Promise<Result<Requirement, E>>;
+		executeWithVersion(input: TInput): Promise<Result<TVersioned, E>>;
+	},
+	events: { readonly execute: string; readonly executeWithVersion: string },
+	logger: Logger,
+	map: VaultExceptionMapper,
+): {
+	execute(input: TInput): Promise<Result<Requirement, E | PersistenceError>>;
+	executeWithVersion(input: TInput): Promise<Result<TVersioned, E | PersistenceError>>;
+} {
+	// Both doors are called THROUGH their wrapper rather than lifted off it: a bare
+	// `….execute` is an unbound method, which `@typescript-eslint/unbound-method` refuses
+	// on principle and which would break the day `guardCommand` returns a class.
+	const guardedExecute = guardCommand(command, events.execute, logger, map);
+	const guardedVersioned = guardCommand(
+		{ execute: (input: TInput) => command.executeWithVersion(input) },
+		events.executeWithVersion,
+		logger,
+		map,
+	);
+	return {
+		execute: (input) => guardedExecute.execute(input),
+		executeWithVersion: (input) => guardedVersioned.execute(input),
+	};
+}
+
+/**
  * Slice 10's half of the same seam. Separate from `guardedEditorServices` only because one
  * function holding both would outgrow the size budget every function here shares — the
  * rule is identical and there is exactly one of it.
@@ -235,15 +289,21 @@ export function guardSlice10(
 	const deleteAsset = guardCommand(slice10.deleteAsset, 'command.deleteAsset.failed', logger, map);
 	const assignAsset = guardCommand(slice10.assignAsset, 'command.assignAsset.failed', logger, map);
 	const recalculateRequirement = guardCommand(recalculate, 'command.recalculateRequirement.failed', logger, map);
-	const setRequirementQuantityOverride = guardCommand(
+	const setRequirementQuantityOverride = guardBothDoors(
 		slice10.setRequirementQuantityOverride,
-		'command.setRequirementQuantityOverride.failed',
+		{
+			execute: 'command.setRequirementQuantityOverride.failed',
+			executeWithVersion: 'command.setRequirementQuantityOverride.with-version.failed',
+		},
 		logger,
 		map,
 	);
-	const setRequirementCostOverride = guardCommand(
+	const setRequirementCostOverride = guardBothDoors(
 		slice10.setRequirementCostOverride,
-		'command.setRequirementCostOverride.failed',
+		{
+			execute: 'command.setRequirementCostOverride.failed',
+			executeWithVersion: 'command.setRequirementCostOverride.with-version.failed',
+		},
 		logger,
 		map,
 	);
@@ -272,5 +332,36 @@ export function guardSlice10(
 		setRequirementCostOverride,
 		deleteRequirement,
 		requirementQueries,
+	};
+}
+
+/**
+ * The calibration transaction, guarded on BOTH halves.
+ *
+ * It is not a `Command` and never leaves the root through `PersistenceServices`: the
+ * editor is handed a FACTORY, because each gesture needs its own inverse state. That made
+ * it the one command in the app that presentation held raw — and the tool's dispatch path
+ * has no `.catch`, so a throw inside it was an unhandled rejection rather than a refusal.
+ * `CalibratePlanTransaction` is already a structural interface, so the wrapper satisfies it
+ * without the command class having to change.
+ *
+ * `undo()` takes no input, so it is presented to the guard as a `Command` over `void` —
+ * the guard cares about the shape of the call, not about who supplies the argument.
+ */
+export function guardCalibratePlan(
+	transaction: CalibratePlanTransaction,
+	logger: Logger,
+	map: VaultExceptionMapper,
+): CalibratePlanTransaction {
+	const guardedUndo = guardCommand(
+		{ execute: () => transaction.undo() },
+		'command.calibratePlan.undo.failed',
+		logger,
+		map,
+	);
+	const guardedExecute = guardCommand(transaction, 'command.calibratePlan.failed', logger, map);
+	return {
+		execute: (input) => guardedExecute.execute(input),
+		undo: () => guardedUndo.execute(undefined),
 	};
 }

@@ -118,6 +118,19 @@ export async function publishIfEffectiveCostChanged(
 	);
 }
 
+/**
+ * What the reversible adapter dispatches through, structurally. The adapter names only
+ * `executeWithVersion`, and naming the CLASS there made this command a NOMINAL dependency — which is
+ * what kept it out of the Error Boundary, since a guarded service is a wrapper object and
+ * never an instance. `Pick` is the same relaxation `DeleteZoneDeps.recalculate` already
+ * makes of `RecalculateRequirementCommand`, and it is what lets the composition root hand
+ * presentation a guarded facade carrying BOTH doors.
+ */
+export type SetRequirementQuantityOverrideDoor = Pick<
+	SetRequirementQuantityOverrideCommand,
+	'executeWithVersion'
+>;
+
 export class SetRequirementQuantityOverrideCommand
 	implements
 		Command<SetRequirementQuantityOverrideInput, Result<Requirement, SetOverrideErrors>>

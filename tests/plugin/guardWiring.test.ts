@@ -1,7 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Design slice 11's Error Boundary over design slice 10's services.
+ * Design slice 11's Error Boundary, as the COMPOSITION applies it — slice 10's twelve
+ * services, and the calibration transaction, which is the one command presentation gets
+ * from a factory rather than from `PersistenceServices`.
  *
  * The claim under test is the composition, not the guard: `guardCommand`/`guardQuery` have
  * their own suite (`tests/application/errors/guardAgainstThrowing.test.ts`), and a wrapper
@@ -22,7 +24,8 @@
  * exactly the twelve services it names.
  */
 import { describe, expect, it } from 'vitest';
-import { createCompositionRoot } from '../../src/plugin/composition-root';
+import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';
+import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/guardedServices';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
@@ -102,19 +105,31 @@ describe('slice 10 leaves the composition root guarded', () => {
 	});
 
 	/**
-	 * The two override commands are the exception this root writes down rather than hides:
-	 * the Inspector's reversible adapters dispatch through `executeWithVersion`, which the
-	 * guard does not wrap, so `requirementEdits` carries the CONCRETE commands beside their
-	 * guarded twins. Asserted so the exception cannot be closed by accident and cannot be
-	 * widened by accident either.
+	 * The override commands have TWO public doors, and the one the app actually uses is the
+	 * second: the Inspector's reversible adapters dispatch through `executeWithVersion`.
+	 * Guarding `execute` alone would have wrapped the door nobody reaches, so the composed
+	 * service carries both, each wrapped and each with its own event.
 	 */
-	it('carries the unguarded concrete override commands under requirementEdits, and only there', () => {
-		const { requirementEdits } = composed();
+	it('guards BOTH doors of each override command', async () => {
+		resetRecorder();
+		const persistence = composed();
+		detonate(persistence.requirements);
 
-		expect(requirementEdits.setQuantityOverride).toBeInstanceOf(SetRequirementQuantityOverrideCommand);
-		expect(requirementEdits.setCostOverride).toBeInstanceOf(SetRequirementCostOverrideCommand);
-		expect(requirementEdits.assignAsset).toBeInstanceOf(AssignAssetCommand);
-		expect(Object.keys(requirementEdits)).toEqual(['assignAsset', 'setQuantityOverride', 'setCostOverride']);
+		const quantity = await persistence.setRequirementQuantityOverride.executeWithVersion({
+			requirementId: 'req-1' as never,
+			quantity: 3,
+		});
+		const cost = await persistence.setRequirementCostOverride.executeWithVersion({
+			requirementId: 'req-1' as never,
+			cost: null,
+		});
+
+		expect(quantity.ok).toBe(false);
+		expect(cost.ok).toBe(false);
+		expect(lines.map((line) => line.event)).toEqual([
+			'command.setRequirementQuantityOverride.with-version.failed',
+			'command.setRequirementCostOverride.with-version.failed',
+		]);
 	});
 
 	it('turns a thrown fault inside a slice-10 command into a resolved refusal, logged at the boundary', async () => {
@@ -143,5 +158,68 @@ describe('slice 10 leaves the composition root guarded', () => {
 		expect(result.ok).toBe(false);
 		const logged = lines.filter((line) => line.event === 'query.listAssets.failed');
 		expect(logged).toHaveLength(1);
+	});
+});
+
+/**
+ * `calibratePlan` is the one command presentation is handed as a FACTORY — each gesture
+ * needs its own inverse state — so it never passes through `PersistenceServices` and
+ * `composeGuarded` cannot reach it. It was therefore the last raw command in the app, and
+ * `CalibrateToolDeps`' own docblock records that the dispatch path has no `.catch`: a throw
+ * inside it was an unhandled rejection, not a refusal. `planEditorDeps` wraps it per call.
+ *
+ * Both halves are driven, because a calibration is undone long after it was executed and
+ * the two carry different event names for exactly that reason.
+ */
+describe('the calibration transaction leaves the composition root guarded', () => {
+	function editorCommands() {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const deps = planEditorDeps(root, {} as never, {} as never);
+		return { persistence, deps };
+	}
+
+	it('turns a thrown fault inside execute into a resolved refusal, logged at the boundary', async () => {
+		resetRecorder();
+		const { persistence, deps } = editorCommands();
+		detonate(persistence.plans);
+
+		const result = await deps.commands.calibratePlan().execute({
+			planId: 'plan-1' as never,
+			pointA: { x: 0, y: 0 },
+			pointB: { x: 10, y: 0 },
+			knownDistance: 1000,
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.code).toBe('vault.unexpected-failure');
+		expect(lines.filter((line) => line.event === 'command.calibratePlan.failed')).toHaveLength(1);
+	});
+
+	/**
+	 * Driven at the WRAPPER rather than through a real gesture: an `undo` before any
+	 * `execute` refuses with a coded Result and never throws, so the only way to reach the
+	 * undo half's catch is to hand the guard a transaction whose `undo` throws. This is the
+	 * assertion that says `command.calibratePlan.undo.failed` names something real.
+	 */
+	it('guards undo under its own event name', async () => {
+		resetRecorder();
+		const guarded = guardCalibratePlan(
+			{
+				execute: () => Promise.reject(new Error('never reached')),
+				undo: () => {
+					throw new Error('the sidecar exploded');
+				},
+			},
+			recorder,
+			VAULT_EXCEPTION_MAPPER,
+		);
+
+		const result = await guarded.undo();
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.code).toBe('vault.unexpected-failure');
+		expect(lines.map((line) => line.event)).toEqual(['command.calibratePlan.undo.failed']);
 	});
 });

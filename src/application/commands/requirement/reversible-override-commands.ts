@@ -5,11 +5,11 @@ import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { EntityVersion } from '../../ports/versioning';
 import type {
-	SetRequirementQuantityOverrideCommand,
+	SetRequirementQuantityOverrideDoor,
 	SetRequirementQuantityOverrideInput,
 } from './SetRequirementQuantityOverride';
 import type {
-	SetRequirementCostOverrideCommand,
+	SetRequirementCostOverrideDoor,
 	SetRequirementCostOverrideInput,
 } from './SetRequirementCostOverride';
 
@@ -91,7 +91,7 @@ abstract class ReversibleOverrideBase<TInput> {
 
 export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleOverrideBase<SetRequirementQuantityOverrideInput> {
 	constructor(
-		private readonly setCommand: SetRequirementQuantityOverrideCommand,
+		private readonly setCommand: SetRequirementQuantityOverrideDoor,
 		requirements: RequirementRepository,
 	) {
 		super(requirements);
@@ -110,7 +110,7 @@ export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleO
 
 export class ReversibleSetRequirementCostOverrideCommand extends ReversibleOverrideBase<SetRequirementCostOverrideInput> {
 	constructor(
-		private readonly setCommand: SetRequirementCostOverrideCommand,
+		private readonly setCommand: SetRequirementCostOverrideDoor,
 		requirements: RequirementRepository,
 	) {
 		super(requirements);

@@ -76,11 +76,12 @@ import { PLAN_GEOMETRY_MIGRATIONS } from '../infrastructure/persistence/migratio
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
-import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import {
+	VAULT_EXCEPTION_MAPPER,
+	guardCalibratePlan,
 	guardSlice10,
 	guardedEditorServices,
 	type GuardedEditorServices,
@@ -200,21 +201,6 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 		SetPlanBackgroundInput,
 		Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>
 	>;
-	/**
-	 * The one hole in the boundary, NAMED rather than hidden. The Inspector's reversible
-	 * override adapters dispatch through `executeWithVersion` — a second public entry point
-	 * that `guardCommand` does not wrap, since it returns an object carrying `execute`
-	 * alone — and they take the concrete classes by name, so the guarded twins above cannot
-	 * stand in for them. These three therefore leave the root UNGUARDED, and an unexpected
-	 * throw inside `executeWithVersion` still reaches the Inspector as a rejection. Closing
-	 * it needs a guard that wraps a whole OBJECT rather than one method, which is a wider
-	 * change than extending the existing seam over slice 10.
-	 */
-	readonly requirementEdits: {
-		readonly assignAsset: AssignAssetCommand;
-		readonly setQuantityOverride: SetRequirementQuantityOverrideCommand;
-		readonly setCostOverride: SetRequirementCostOverrideCommand;
-	};
 	/** Subscriptions the plugin must dispose on unload; filled at composition time. */
 	readonly subscriptions: { dispose(): void }[];
 	/**
@@ -391,7 +377,7 @@ function composeGuarded(
 ) {
 	const { projects, plans, zones, requirements } = repositories;
 	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
-	const map = createVaultExceptionMapper('vault');
+	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
 		zones,
 		requirements,
@@ -496,11 +482,6 @@ export function createCompositionRoot(
 				...guarded.queries,
 				...guarded.requirementQueries,
 			}),
-			requirementEdits: {
-				assignAsset: slice10.assignAsset,
-				setQuantityOverride: slice10.setRequirementQuantityOverride,
-				setCostOverride: slice10.setRequirementCostOverride,
-			},
 			subscriptions: slice10.subscriptions,
 			markers,
 			changeAdapter: new VaultChangeAdapter({
@@ -546,17 +527,28 @@ export function planEditorDeps(
 					zones: persistence.zones,
 					zoneInspector: persistence.zoneInspector,
 					requirementEdits: {
-						...persistence.requirementEdits,
+						// The GUARDED services, not the composed classes: the adapters take
+						// structural doors (`Command`, `…Door`) precisely so a wrapper can
+						// stand where the class used to, which is what puts these three
+						// inside the Error Boundary instead of beside it.
+						assignAsset: persistence.assignAsset,
+						setQuantityOverride: persistence.setRequirementQuantityOverride,
+						setCostOverride: persistence.setRequirementCostOverride,
 						requirements: persistence.requirements,
 						assets: persistence.assets,
 						locks: persistence.locks,
 						logger: root.logger,
 					},
-					// A new command per call — see `CalibratePlanTransaction`. The three
-					// collaborators are the same ones every other write here is built from;
-					// only the lifetime differs.
+					// A new command per call — see `CalibratePlanTransaction` — and GUARDED
+					// per call, because the factory is the only door this one has: it never
+					// passes through `PersistenceServices`, so `composeGuarded` cannot reach
+					// it, and the tool's dispatch path has no `.catch` of its own.
 					calibratePlan: () =>
-						new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
+						guardCalibratePlan(
+							new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
+							root.logger,
+							VAULT_EXCEPTION_MAPPER,
+						),
 				}
 			: unavailablePlanEditorCommands(),
 		vault,

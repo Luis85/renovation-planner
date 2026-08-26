@@ -37,7 +37,7 @@ import KnownDistanceForm from './shell/KnownDistanceForm.vue';
 import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
-import { notify, notifyError } from '../notices/notify';
+import { notifyError, notifyFault } from '../notices/notify';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 
@@ -296,10 +296,14 @@ async function reportFault(operation: Promise<VoidResult>): Promise<VoidResult |
 	try {
 		return await operation;
 	} catch (cause) {
-		// A technical fault escaping a dispatch: its message is developer text, but this
-		// is the one site with no AppError to translate - the guards below the editor turn
-		// everything else into typed errors before it gets here.
-		notify(cause instanceof Error ? cause.message : String(cause));
+		// A technical fault escaping a dispatch. There is no `AppError` to translate here —
+		// it never reached a guard, or it came from one of the raw repository PORTS this
+		// interface still hands out — so `notifyFault` maps it into the same coded
+		// `PersistenceError` a guarded service would have produced and prints THAT. The
+		// exception's own message never reaches the user. This is one of TWO such doors in
+		// this file; the other is `createDeleteZoneAction`'s catch, and both go through the
+		// same function so neither can drift into printing the raw text again.
+		notifyFault(cause);
 		return null;
 	}
 }
@@ -427,8 +431,9 @@ function createDeleteZoneAction(
 			outcome = await deleteZoneWithReferences(deps, zoneId, zoneName);
 		} catch (cause) {
 			// The last stop for a THROWN fault, exactly as `reportFault` is for a plain
-			// dispatch: this is bound to a click handler that discards its promise.
-			notify(cause instanceof Error ? cause.message : String(cause));
+			// dispatch: this is bound to a click handler that discards its promise. Mapped
+			// rather than printed, for the reason `notifyFault` gives.
+			notifyFault(cause);
 			return;
 		}
 		if (outcome.kind === 'failed') {

@@ -432,6 +432,21 @@ export default defineConfig({
 			// `mappedMigrationFailure`'s untagged fallback arms in `noteIo`, and nothing new.
 			// Everything design slice 11's merge ADDED under `src/` — `guardedServices.ts`,
 			// the restructured composition root, `notifyError` — measures 100% of all four.
+			//
+			// Re-measured 2026-08-26 after round 1 of that merge's review closed the last three
+			// unguarded commands — `calibratePlan` (a FACTORY, so `composeGuarded` never saw
+			// it), `assignAsset`, and BOTH doors of the two override commands — and routed the
+			// two remaining thrown-fault notices through `notifyFault`: 4226/4255 statements,
+			// 2077/2117 branches, 1071/1080 functions, 3789/3806 lines —
+			// 99.31 / 98.11 / 99.16 / 99.55. NOTHING RATCHETS: rounded down these are the
+			// 99 / 98 / 99 / 99 already in force.
+			//
+			// Branches gained headroom for the first time since slice 10 — 98.02 → 98.11, about
+			// 2.3 branches at 0.047pp each — and the reason is worth recording because it is
+			// counter-intuitive: guarding MORE removed uncovered arms rather than adding them.
+			// `notifyFault` replaced two `cause instanceof Error ? … : String(cause)` ternaries
+			// (four arms, two of them untaken) with one call, and the mapper it delegates to
+			// already had both of its own arms driven.
 			thresholds: {
 				statements: 99,
 				functions: 99,

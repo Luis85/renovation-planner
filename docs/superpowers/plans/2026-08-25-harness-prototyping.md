@@ -2026,6 +2026,15 @@ Append to `tests/build/harness-shot.test.ts`, inside its existing `describe`:
 	 * header already gives: driving Playwright here would trade the suite's speed for a
 	 * check `npm run harness-shot` gives a developer directly. What is checked is that the
 	 * argument is read and turned into the `?entry=` URL the index answers.
+	 *
+	 * **This stopped being true in fix round 1**, the same way the PNG-name-uniqueness case
+	 * below it did: `?entry=` moved out of `harness-shot.mjs` entirely when `entryShots`
+	 * (which builds that query) was lifted into `scripts/entryShots.mjs`, and the argv read
+	 * moved into `resolveShots` in the same file. `entryShots.test.ts` asserts the query
+	 * behaviourally now (`dark.query` equals `?entry=…`); the two `toMatch`/`toContain` calls
+	 * below are kept as the historical record of what Task 6 actually shipped, not as what the
+	 * repository asserts today — `harness-shot.test.ts`'s own wiring check covers the
+	 * `./entryShots.mjs` import instead.
 	 */
 	it('captures a named entry, using the index URL that entry is reachable at', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
@@ -2355,6 +2364,16 @@ Expected: FAIL on `captures a named entry` — neither `process.argv` nor `?entr
 
 - [ ] **Step 3: Add the entry shots, waiting on the ENTRY rather than the shell**
 
+**Historical record, superseded in fix round 1 — same treatment as the two Step 1 test cases
+above.** `entryHasDrawn` still lives in `harness-shot.mjs` as this step describes, but
+`createHash` and `entryShots` moved to `scripts/entryShots.mjs` (a pure, importable module —
+see its own header for why), and `tests/build/harness-shot.test.ts` now asserts
+`not.toContain('createHash')` on `harness-shot.mjs`. The literal code below therefore FAILS
+that test if copied verbatim into that file today; it documents what Task 6 actually shipped
+at the time it shipped, not the current file. Fix round 2 of the review found this block
+prescribing code the repository's own tests refuse and asked that it be reconciled one way or
+the other rather than left silently stale, which is why this paragraph exists.
+
 In `scripts/harness-shot.mjs`, add `createHash` to the imports at the top:
 
 ```javascript
@@ -2482,6 +2501,16 @@ async function captureAll(browser, baseUrl, shots) {
 ```
 
 In `run()`, immediately after `const executablePath = resolveChromiumExecutable();`:
+
+**Historical record, superseded in fix round 1, same treatment as Step 3 above.** Two things
+in this block changed before landing: the usage comment's bare basename `ZoneSummary` became
+the qualified id `prototype:ZoneSummary` (last round's Minor 2 — the URL and the command both
+take the id, not the label, and a mock and the real component it stands in for share a
+basename), and `entry ? entryShots(entry) : SHOTS` became a presence check rather than a
+truthiness check (last round's Minor 4 — `''` is falsy and would otherwise silently run the
+five fixed shots instead of reporting an empty entry name). Both landed as `resolveShots` in
+`scripts/entryShots.mjs`, called as `resolveShots(process.argv, SHOTS)`; the snippet below is
+what this step actually wrote, not what the repository asserts today.
 
 ```javascript
 	// `node scripts/harness-shot.mjs ZoneSummary` — one entry, both schemes. With no
@@ -3204,7 +3233,7 @@ Round fourteen, on a legal path that makes an illegal filename:
 
 | Finding | What was wrong | Fixed in |
 | --- | --- | --- |
-| **The readable half of a PNG name was uncapped** | `readable` is the whole id flattened, so a deep path or a long basename produces a filename past the filesystem's 255-byte per-component limit — and past Windows' 260-character whole-path limit sooner, `harness-shots/` being in front of it and Windows being one of the four legs. `page.screenshot()` fails with `ENAMETOOLONG` on an entry the index opened perfectly: criterion 4's failure again, from the third direction now — first a collision, then a wait selector, now a length | Task 6: `.slice(0, 60)` on the readable half, which is safe precisely because identity lives in the digest beside it. A test pins both halves, and states the limit of a source-text assertion rather than implying it captured anything |
+| **The readable half of a PNG name was uncapped** | `readable` is the whole id flattened, so a deep path or a long basename produces a filename past the filesystem's 255-byte per-component limit — and past Windows' 260-character whole-path limit sooner, `harness-shots/` being in front of it and Windows being one of the four legs. `page.screenshot()` fails with `ENAMETOOLONG` on an entry the index opened perfectly: criterion 4's failure again, from the third direction now — first a collision, then a wait selector, now a length | Task 6, at the time it shipped: `.slice(0, 60)` on the readable half, which is safe precisely because identity lives in the digest beside it, pinned by a source-text test that stated the limit of a source-text assertion rather than implying it captured anything. **Superseded in fix round 1**: that source-text pin was replaced by `entryShots.test.ts`'s behavioural cases, which call the real function instead of reading what it says — a strictly stronger check than the one this row describes, not merely a different one |
 
 Round fifteen, on the spelling that needs no import at all:
 

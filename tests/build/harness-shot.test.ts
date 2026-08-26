@@ -127,6 +127,26 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
+	 * The post-screenshot re-check, wired the same way `entryShots`/`resolveShots` are: this
+	 * file's own review found the re-check shipped with NO check of any kind — ten source-text
+	 * pins covered the rest of this script and this call had none, because
+	 * `reportIfNoLongerDrawn` used to be defined at this file's own module scope, which cannot
+	 * be imported and called without launching a browser. It now lives in
+	 * `scripts/captureReadiness.mjs` for exactly that reason, and `captureReadiness.test.ts`
+	 * drives the real function with a fake `page` — what this checks is only that the capture
+	 * still calls it, on the real screenshot path, with the real readiness predicate.
+	 */
+	it('re-checks readiness after the screenshot through the importable reportIfNoLongerDrawn', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toContain("from './captureReadiness.mjs'");
+		expect(source).toContain('await page.screenshot(');
+		expect(source.indexOf('reportIfNoLongerDrawn(page, entry, name, errors, entryHasDrawn)')).toBeGreaterThan(
+			source.indexOf('await page.screenshot('),
+		);
+	});
+
+	/**
 	 * The assertion that stops a green run from lying. Waiting on `.rp-harness-stage` alone
 	 * would photograph the placeholder — a successful, empty PNG, which the actor this
 	 * feature exists for cannot tell from a real one.
@@ -143,29 +163,50 @@ describe('the headless harness capture script', () => {
 		// root is text renders no element, and an element check would refuse a capture of an
 		// entry the index drew correctly.
 		expect(source).toContain('stage.childNodes.length > 0');
-		expect(source).not.toContain('firstElementChild');
 		// The bare stage class must not be used as a wait target on its own.
 		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
-		// No attribute selector may be built out of an entry id — scanned over the CODE only,
-		// with block comments stripped first (`withoutCommentary`, below). The bare substring
-		// scan this replaced fires on prose that EXPLAINS the rule as readily as on code that
-		// BREAKS it: this file's own review found the substring reintroduced not in this
-		// script but in the plan document's copy of this very JSDoc block, in a parenthetical
-		// added to say the earlier version had been reworded away from it
-		// (`docs/superpowers/plans/2026-08-25-harness-prototyping.md`, fixed in the same round
-		// this comment was added). `tests/harness/harness.test.ts` solves the equivalent
-		// problem for its own scan by excluding whole FILES whose text documents the pattern;
-		// that does not transfer here because the explanation and the code it explains live in
-		// the SAME file, so excluding the file would blind the check to the code it exists to
-		// watch. Stripping only what documents the rule — its comments — keeps the check on
-		// the actual danger (a selector built from an id) while leaving prose free to say
-		// anything, including the forbidden shape, without tripping it. The narrower claim
-		// this leaves standing, stated rather than hidden: a `//` line comment carrying the
-		// substring would still trip this, since only block comments are stripped — no comment
-		// in this file uses that style today, so it has not been exercised, and widening the
-		// strip to line comments if one ever does is a smaller change than reasoning through
-		// this again from scratch.
-		expect(withoutCommentary(source)).not.toMatch(/\[data-entry=/);
+		// Two scans of the same class, both over the CODE only, with block comments stripped
+		// first (`withoutCommentary`, below): no attribute selector may be built out of an
+		// entry id, and the element-only readiness check this file replaced (`firstElementChild`)
+		// may not return. The bare substring scan this replaced fires on prose that EXPLAINS the
+		// rule as readily as on code that BREAKS it: this file's own review found the
+		// `[data-entry=` substring reintroduced not in this script but in the plan document's
+		// copy of this very JSDoc block, in a parenthetical added to say the earlier version had
+		// been reworded away from it (`docs/superpowers/plans/2026-08-25-harness-prototyping.md`,
+		// fixed in the same round this comment was added) — and a second-round review found the
+		// sibling `firstElementChild` scan one line above still reading raw text, the same class
+		// of gap one line apart. `tests/harness/harness.test.ts` solves the equivalent problem
+		// for its own scan by excluding whole FILES whose text documents the pattern; that does
+		// not transfer here because the explanation and the code it explains live in the SAME
+		// file, so excluding the file would blind the check to the code it exists to watch.
+		// Stripping only what documents the rule — its comments — keeps the check on the actual
+		// danger (a selector built from an id, an element-only readiness check) while leaving
+		// prose free to say anything, including either forbidden shape, without tripping it. Now
+		// that both scans read stripped text, `harness-shot.mjs`'s own comment names
+		// `firstElementChild` directly rather than working around it — the phrasing contortion
+		// existed only because this scan used to read raw source.
+		//
+		// The narrower claim this leaves standing, stated rather than hidden: `withoutCommentary`
+		// strips only `/* … */` block comments. A `//` LINE comment carrying either forbidden
+		// substring would still slip through, and this file's own `//` lines are not proof
+		// otherwise — `harness-shot.mjs` has 32 of them today, so the style is this file's
+		// dominant explanatory form, not an unused one; the true claim is only that none of
+		// those 32 lines currently CARRIES either substring. Widening the strip to line comments
+		// was considered and rejected rather than left as a caveat by omission: a naive
+		// `/\/\/.*$/gm` strip would also eat the real code on `startHarnessServer`'s
+		// `` return { server, baseUrl: `http://127.0.0.1:${address.port}` }; `` line, since its
+		// `//` sits inside a URL literal rather than starting a comment — silently truncating a
+		// line this exact check needs to see, which is a worse defect than the caveat it would
+		// remove. A correct line-comment strip needs a tokenizer aware of string boundaries; that
+		// is a bigger tool than one scan in one test file justifies today.
+		const stripped = withoutCommentary(source);
+
+		expect(stripped).not.toContain('firstElementChild');
+		expect(stripped).not.toMatch(/\[data-entry=/);
+		// `withoutCommentary` must not be kinder than intended — stripping the comments and
+		// leaving no code behind would make every scan above vacuously pass. A known code
+		// substring, well outside any comment, has to survive the strip.
+		expect(stripped).toContain('stage.dataset.entry === id');
 	});
 
 	/**

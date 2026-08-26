@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
+import { describeFailure, reportIfNoLongerDrawn } from './captureReadiness.mjs';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
@@ -69,42 +70,23 @@ const SHOTS = [
  * Comparing `dataset.entry` as a STRING has no escaping question to get wrong — the class of
  * defect is removed rather than patched.
  *
- * `childNodes`, deliberately not the DOM's element-only equivalent. A template whose root is
- * TEXT — `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a
- * text node and no element, so a check that required an ELEMENT child would time out on an
- * entry the index drew correctly and refuse a capture the guarantee promises. The marker is
- * what proves the screen settled; this is only the cheap sanity check that the stage is not
- * literally empty, and it must not be narrower than what a valid entry can render.
+ * `childNodes`, deliberately not `firstElementChild`. A template whose root is TEXT —
+ * `<template>Coming soon</template>`, which is a perfectly good early mock — mounts a text
+ * node and no element, so a check keyed on `firstElementChild` would time out on an entry the
+ * index drew correctly and refuse a capture the guarantee promises. The marker is what proves
+ * the screen settled; this is only the cheap sanity check that the stage is not literally
+ * empty, and it must not be narrower than what a valid entry can render.
+ *
+ * Naming `firstElementChild` here plainly, rather than around it, is safe now that the sibling
+ * test's scan (`tests/build/harness-shot.test.ts`) reads this file with block comments
+ * stripped first: the forbidden shape is CODE using that property, not prose explaining why
+ * this file does not.
  */
 const entryHasDrawn = (id) => {
 	const stage = document.querySelector('.rp-harness-stage');
 
 	return stage instanceof HTMLElement && stage.dataset.entry === id && stage.childNodes.length > 0;
 };
-
-/**
- * What actually went wrong with a named entry, read from the page rather than guessed.
- *
- * `.rp-harness-failure` carries the real reason for all four ways an entry can fail —
- * `IndexPage.vue`'s `reportDefects`, the "no entry named …" check and the two `failure.value`
- * assignments in `open()` all write into it before this function's caller would ever be
- * waiting on it. Reading it is strictly more informative than the `Timeout 30000ms exceeded`
- * a bare `waitForFunction`/`waitForSelector` rejection gives, which says nothing about WHICH
- * of those four happened.
- *
- * A fixed shot (no `entry`) has no such card to read, so `fallback` — whatever the caller
- * already knows — is returned as-is. For a named entry, `fallback` is the last resort too:
- * the one case the card cannot cover, where the entry never loaded far enough to render
- * anything, including the failure branch.
- */
-async function describeFailure(page, entry, fallback) {
-	if (entry === undefined) return fallback;
-
-	const text = await page.textContent('.rp-harness-failure').catch(() => null);
-
-	if (text) return `${entry}: ${text}`;
-	return fallback ?? `${entry} rendered nothing and left no failure text to explain why`;
-}
 
 /**
  * The fixed shots name a selector; a named entry names itself, and is compared as a string
@@ -114,25 +96,6 @@ async function describeFailure(page, entry, fallback) {
 async function waitUntilReady(page, selector, entry) {
 	if (entry === undefined) await page.waitForSelector(selector, { state: 'attached' });
 	else await page.waitForFunction(entryHasDrawn, entry);
-}
-
-/**
- * The wait can pass and still lie. `IndexPage.vue`'s `settle()` documents a window it cannot
- * close from its own side: a defect first raised AFTER `<Suspense>` resolved clears
- * `data-entry` on a MICROTASK, so `entryHasDrawn` can be true when the wait resolves and
- * false again by the time a screenshot is taken. Re-asking the identical question after the
- * screenshot is the only way to see that — a screenshot is not proof that what it captured is
- * still what the wait certified.
- *
- * A no-op for a fixed shot (no `entry`): `waitForSelector`'s contract is presence, not "and
- * stays clean", and none of today's five fixed surfaces ever clears itself the way an
- * entry's Suspense boundary can.
- */
-async function reportIfNoLongerDrawn(page, entry, name, errors) {
-	if (entry === undefined) return;
-	if (await page.evaluate(entryHasDrawn, entry)) return;
-
-	errors.push(`[${name}] captured a failure card, not the entry: ${await describeFailure(page, entry)}`);
 }
 
 /** One capture: navigate, wait for the real view to mount, screenshot, report any page or
@@ -164,7 +127,7 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry }, er
 		const file = path.join(OUT_DIR, `${name}.png`);
 
 		await page.screenshot({ path: file, fullPage: true });
-		await reportIfNoLongerDrawn(page, entry, name, errors);
+		await reportIfNoLongerDrawn(page, entry, name, errors, entryHasDrawn);
 
 		console.log(`wrote ${file}`);
 	} catch (error) {

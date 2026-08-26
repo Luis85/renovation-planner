@@ -28,9 +28,27 @@ describe('entryShots', () => {
 		expect(dark.query).toBe('?entry=prototype%3AZoneSummary');
 		expect(light.query).toBe('?entry=prototype%3AZoneSummary&theme=light');
 		// The filename may not carry `:` or `/` — both legal in the URL, both illegal in a
-		// Windows filename, and Windows is one of the four `npm run check` legs.
+		// Windows filename, and Windows is one of the four `npm run check` legs. The FULL set
+		// is covered by the dedicated case below; this one is the readable id example above it.
 		expect(dark.name).not.toMatch(/[:/\\]/);
 		expect(dark.name).toBe(`entry-prototype-ZoneSummary-${digestOf('prototype:ZoneSummary')}-dark`);
+	});
+
+	/**
+	 * The set the sanitiser has to cover is `< > : " / \ | ? *` — every character Windows
+	 * refuses in a filename — and the id itself is not what limits the check: `entryShots`
+	 * sanitises with an ALLOWLIST (`replace(/[^a-zA-Z0-9]+/g, '-')`), which covers the whole
+	 * set by construction. A previous version of this coverage drove only `:` and `/`, the two
+	 * characters a URL-shaped id happens to carry; that passed just as readily against a
+	 * DENYLIST sanitiser (`replace(/[:/]+/g, '-')`) that left `< > " | ? *` untouched, which
+	 * would still be a leg-specific failure nobody reproduces locally. Driving every illegal
+	 * character at once is what actually distinguishes the two implementations.
+	 */
+	it('strips every Windows-illegal filename character, not merely the two a URL-shaped id carries', () => {
+		const illegal = '<>:"/\\|?*';
+		const [dark] = entryShots(`a${illegal}b`);
+
+		expect(dark.name).not.toMatch(/[<>:"/\\|?*]/);
 	});
 
 	it('gives two different ids two different filenames even when sanitising collapses them onto one string', () => {

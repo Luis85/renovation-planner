@@ -64,7 +64,7 @@ interface FocusSite {
 	readonly conditions: Conditions;
 }
 
-const focusSites = (branch: Selector, classes: Set<string>): FocusSite[] => {
+const focusSites = (branch: Selector, classes: Set<string>, revokes: boolean): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
 	const subject = subjectOf(branch).filter(
@@ -87,7 +87,29 @@ const focusSites = (branch: Selector, classes: Set<string>): FocusSite[] => {
 	if (onSubject.length > 0) return onSubject.map((key) => ({ key, conditions }));
 	if (!targetsAButton(branch, classes)) return [];
 
-	return [{ key: show(subject), conditions }];
+	// A TYPE-TARGETED FOCUS RULE THAT DRAWS NOTHING COMPETES IN EVERY CLASS'S CASCADE, because it
+	// matches buttons wearing those classes too. Filed under its shape alone, a reset like
+	// `.rp-dialog.rp-dialog button:focus-visible { outline: none }` never met the ring it outranks —
+	// `.rp-dialog .rp-dialog-button:focus-visible` — and the two sat in separate cascades while the
+	// browser applied both to one element and picked the reset.
+	//
+	// ONLY WHEN IT REVOKES, and that condition was measured rather than reasoned. Letting every
+	// type-targeted focus rule join turned `.rp-editor-toolbar button:focus-visible { outline: … }`
+	// into a false positive against an unrelated `.rp-dialog-button`: it is the more specific of the
+	// two, so it WON that cascade, and then failed `covers` because its ancestors are not the class
+	// rule's — converting a correct arrangement into a report.
+	//
+	// A rule that draws can only ever ADD a ring, and adding is already handled: `covers` refuses to
+	// let `button:focus-visible` clear `.rp-dialog-button`, since `button` is not among that rule's
+	// conditions. A rule that draws NOTHING is the only one that can take a ring away, which is the
+	// case worth widening for.
+	//
+	// Flattening rules never join, for the same reason in reverse: filed under every class, a
+	// type-targeted suppression would demand that each class's ring answer for a rule that may not
+	// reach it.
+	const shape = { key: show(subject), conditions };
+
+	return revokes ? [shape, ...[...classes].map((key) => ({ key, conditions }))] : [shape];
 };
 
 /**
@@ -186,7 +208,7 @@ const flattenedWithoutRing = (
 					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
 				);
 
-				for (const { key, conditions } of focusSites(branch, classes)) {
+				for (const { key, conditions } of focusSites(branch, classes, ringsFocus && !draws)) {
 					if (ringsFocus) {
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
 						// says so and this call site said otherwise. `:where()` contributes ZERO, argument
@@ -340,6 +362,12 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'one of two flattened containers left unringed',
 			'.dialog-a .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button { box-shadow: none; } .dialog-b .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+		// The reset selects the same button by its ELEMENT TYPE and outranks the ring that selects it
+		// by class. Filed under separate keys the two never met, and the browser applies both.
+		[
+			'a type-targeted reset outranking a class-targeted ring',
+			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog.rp-dialog button:focus-visible { outline: none; }',
 		],
 		// `:where()` contributes ZERO specificity, argument included, so this ring ties the reset that
 		// follows it and the LATER one wins. Scored from the expanded branch it looked ID-specific,
@@ -497,6 +525,19 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a child-scoped ring over a child-scoped flattening rule',
 			'.rp-dialog > .rp-dialog-button { box-shadow: none; } .rp-dialog > .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+		// The same shape with the type rule LESS specific than the class ring: the ring stands, and
+		// the type rule joining the cascade must not change that. Without this, "compete everywhere"
+		// could have become "a type-targeted reset always wins".
+		[
+			'a type-targeted reset the class-targeted ring outranks',
+			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; } button:focus-visible { outline: none; }',
+		],
+		// And a type-targeted FLATTENING rule must not be filed under every class — that would demand
+		// each class's ring answer for a rule that may not reach it.
+		[
+			'a type-targeted flattening rule beside a ringed class',
+			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:focus-visible { outline: 2px solid red; } .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
 		// The flattening question is asked of the RESOLVED block too, not of each declaration: the
 		// `none` here is overridden on the next line, so nothing is flattened and there is nothing

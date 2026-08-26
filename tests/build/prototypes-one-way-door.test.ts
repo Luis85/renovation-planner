@@ -84,6 +84,21 @@ beforeAll(async () => {
 }, ESLINT_BOOT_MS);
 
 describe('the prototypes one-way door', () => {
+	/**
+	 * `presentation/dialogs/` needs its OWN case, and the reason is the trap its own config
+	 * comment names: a per-directory block OVERRIDES `no-restricted-imports` rather than merging
+	 * it, so the `presentation` entry in the loop below says nothing about a file inside it.
+	 *
+	 * It is here because the two arrived separately — the dialogs block on `main`, the prototypes
+	 * ban on this branch — and each was complete alone. Merging them would have left this one
+	 * directory in `src/` free to import design scaffolding, with every case above still green.
+	 */
+	it('refuses an import of src/prototypes/ from presentation/dialogs/, which overrides its parent', async () => {
+		const reported = await lintText(PROTOTYPE_IMPORT, 'src/presentation/dialogs/Fixture.vue');
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
 	it.each(LAYERS)('refuses an import of src/prototypes/ from %s/', async (layer) => {
 		const reported = await lintText(PROTOTYPE_IMPORT, IMPORTER(layer));
 

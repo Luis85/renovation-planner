@@ -15,6 +15,7 @@ import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
+import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import PlanCanvas from './PlanCanvas.vue';
 import EditorToolbar from './shell/EditorToolbar.vue';
@@ -101,5 +102,11 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			{{ tr('editor.background-failed') }}
 		</p>
 		<StatusBar />
+		<!--
+			Last child, and a sibling of the five regions rather than nested in one: the host
+			makes its parent's OTHER children inert while a dialog is open, so every region
+			has to be a sibling of it for the background to actually go inert.
+		-->
+		<DialogHost />
 	</div>
 </template>

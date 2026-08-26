@@ -248,3 +248,87 @@ describe('the Vue rules a prototype is and is not written to', () => {
 		expect(await lintText(SPACE_INDENTED, PROTOTYPE)).toContain('vue/html-indent');
 	});
 });
+
+/**
+ * Design slice 15's own boundary. `presentation/dialogs/` is display-and-resolve only: a
+ * future edit that starts querying a repository from inside `DeleteReferenceDialog.vue`
+ * must fail the build rather than pass review by accident.
+ *
+ * A fixture path rather than a reading of the config object, for the reason this file
+ * already gives: two blocks matching one file OVERRIDE `no-restricted-imports` rather than
+ * merging, so the only honest question is what ESLint reports for a real path.
+ */
+describe('the dialogs boundary', () => {
+	const DIALOG = 'src/presentation/dialogs/DeleteReferenceDialog.vue';
+	const DIALOG_TS = 'src/presentation/dialogs/dialog-store.ts';
+
+	/**
+	 * This directory's first `.ts` fixtures in this file: every case above lints a `.vue`
+	 * path, and the `.vue` block deliberately carries no `parserOptions.projectService` (see
+	 * `eslint.config.mjs`), so none of them ever build TypeScript's project-service program.
+	 * `warmUpEslint`'s `calculateConfigForFile` only resolves configuration — no parsing, no
+	 * program — so it does not pay this cost either; the file-level `beforeAll` above warms
+	 * config resolution, not this. Without paying it up front, whichever `.ts` case happens
+	 * to run first inherits the full first-call cost on the suite's default per-test budget,
+	 * which is exactly what made `refuses the event bus` time out under `npm run check`'s
+	 * full parallel load before this existed. One `lintText` over a throwaway `.ts` path,
+	 * result discarded, pays it once for every case below.
+	 */
+	beforeAll(async () => {
+		await lintText('export const warm = 1;\n', DIALOG_TS);
+	}, ESLINT_BOOT_MS);
+
+	it('refuses an application import', async () => {
+		const reported = await lintText(
+			conforming("import type { Command } from '../../application/commands/Command';\nexport type C = Command<unknown, unknown>;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	it('refuses the event bus', async () => {
+		const reported = await lintText(
+			"import type { EventBus } from '../../core/events/EventBus';\nexport type B = EventBus;\n",
+			DIALOG_TS,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	/**
+	 * The half that would silently disappear: a per-directory block REPLACES the wider
+	 * `presentation` one, so a block that added `application` and forgot to repeat
+	 * `infrastructure` would open the bigger hole while looking like it closed a smaller one.
+	 */
+	it('still refuses infrastructure, which the wider presentation block owned', async () => {
+		const reported = await lintText(
+			conforming("import { createConsoleLogger } from '../../infrastructure/logging/consoleLogger';\nvoid createConsoleLogger;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	// The other half of the same hazard: `plugin` is repeated from the wider `presentation`
+	// block for the identical reason `infrastructure` is above, and had no fixture proving
+	// it — a future edit trimming `plugin` from this block's `groups` would pass every other
+	// case here and go unnoticed.
+	it('still refuses plugin, which the wider presentation block owned', async () => {
+		const reported = await lintText(
+			conforming("import { RenovationPlannerPlugin } from '../../plugin/RenovationPlannerPlugin';\nvoid RenovationPlannerPlugin;"),
+			DIALOG,
+		);
+
+		expect(reported).toContain('no-restricted-imports');
+	});
+
+	it('allows the i18n import every dialog legitimately needs', async () => {
+		const reported = await lintText(
+			conforming("import { tr } from '../i18n/strings';\nvoid tr;"),
+			DIALOG,
+		);
+
+		expect(reported).not.toContain('no-restricted-imports');
+	});
+});

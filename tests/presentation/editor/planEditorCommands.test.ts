@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { isErr } from '../../../src/core/result/Result';
+import type { PlanId } from '../../../src/domain/plan/PlanId';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 
 /**
@@ -39,5 +41,19 @@ describe('unavailablePlanEditorCommands', () => {
 			ok: false,
 			error: { code: 'settings.unrecovered' },
 		});
+	});
+
+	it('refuses a calibration when settings could not be recovered', async () => {
+		const result = await unavailablePlanEditorCommands()
+			.calibratePlan()
+			.execute({ planId: 'p-1' as PlanId, pointA: { x: 0, y: 0 }, pointB: { x: 10, y: 0 }, knownDistance: 1000 });
+
+		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+	});
+
+	it('refuses a calibration undo when settings could not be recovered', async () => {
+		const result = await unavailablePlanEditorCommands().calibratePlan().undo();
+
+		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
 	});
 });

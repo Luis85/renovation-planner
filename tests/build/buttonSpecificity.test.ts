@@ -224,6 +224,24 @@ function buttonClasses(): Set<string> {
 	return found;
 }
 
+/**
+ * Does this rule body actually DRAW a focus indicator?
+ *
+ * Presence of `:focus-visible` in the selector was the whole test, and presence is not effect:
+ * deleting `outline: 2px solid …` while leaving `outline-offset` behind kept the rule, kept this
+ * check green, and left keyboard focus invisible again — the base rule still suppresses the
+ * host's shadow and the host still removes the outline. A rule that exists and draws nothing is
+ * exactly the state the ring check was written to refuse.
+ *
+ * The `outline` SHORTHAND or `box-shadow`, either one non-`none`. Deliberately not the outline
+ * longhands: a ring assembled from `outline-style` and `outline-width` alone would draw and is
+ * not recognised here, which is a narrower claim than "any visible ring" and is written to what
+ * this repository actually spells. `outline\s*:` does not match `outline-offset:` or
+ * `outline-color:` — the hyphen sits between the word and the colon.
+ */
+const drawsAnIndicator = (body: string): boolean =>
+	/(^|[;{\s])(outline|box-shadow)\s*:\s*(?!none[\s;}])/.test(body);
+
 /** Every sheet that can style one: the ones that ship, plus the harness's own chrome. */
 const sheets = [
 	...readdirSync('styles')
@@ -467,7 +485,7 @@ describe('every button rule against Obsidian\'s own', () => {
 			for (const [prelude, body] of rulesIn(readFileSync(sheet, 'utf8'))) {
 				for (const selector of splitTopLevel(prelude)) {
 					for (const cls of buttonClassesOn(selector, classes)) {
-						if (selector.includes(':focus-visible')) ringed.add(cls);
+						if (selector.includes(':focus-visible') && drawsAnIndicator(body)) ringed.add(cls);
 						// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow
 						// says nothing about the resting state a ring is drawn on.
 						else if (/box-shadow\s*:\s*none/.test(body)) flattened.set(cls, `${sheet}: ${selector}`);

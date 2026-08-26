@@ -170,7 +170,13 @@ const reachesTheStage = (selector: string): boolean => {
 	// was the hole: `.rp-harness-index > main h2` and `.rp-harness-index > .rp-harness-stage h2`
 	// both take one `>` and then descend into the stage's own contents. The picker is the `nav`;
 	// the stage is the `main`; only the first is a safe place to start descending from.
-	return typeOf(compounds[at + 1].text) !== 'nav';
+	if (typeOf(compounds[at + 1].text) !== 'nav') return true;
+
+	// And reaching the nav is not the end of the walk. `.rp-harness-index > nav + main h2` lands
+	// on the picker and then steps SIDEWAYS onto the stage, which is the nav's sibling. Only the
+	// hop directly after the nav can do that: anything deeper is already a descendant of the nav,
+	// and a sibling of a descendant shares its parent, so it is inside the nav too.
+	return compounds[at + 1].after === '+' || compounds[at + 1].after === '~';
 };
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
@@ -202,6 +208,9 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		// which child it names is.
 		['a descent through the stage element', '.rp-harness-index > main h2 { color: red; }'],
 		['a descent through the stage class', '.rp-harness-index > .rp-harness-stage h2 { color: red; }'],
+		// Reaches the picker, then steps sideways onto the stage beside it.
+		['a sibling hop off the picker', '.rp-harness-index > nav + main h2 { color: red; }'],
+		['a general sibling hop off the picker', '.rp-harness-index > nav ~ main h2 { color: red; }'],
 	])('reports %s', (_case, css) => {
 		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toHaveLength(1);
 	});
@@ -214,6 +223,8 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 	it.each([
 		['the root rule', '.rp-harness-index { display: flex; }'],
 		['a scoped child', '.rp-harness-index > nav li a { color: red; }'],
+		// A sibling DEEPER than the nav stays inside it, so it is not a leak.
+		['a sibling inside the picker', '.rp-harness-index > nav li + li { color: red; }'],
 		['an exclusion', '.rp-harness-leaf > div:not(.rp-harness-index) { flex: 1; }'],
 	])('says nothing about %s', (_case, css) => {
 		expect(indexSelectors(css).filter((selector) => reachesTheStage(selector))).toEqual([]);

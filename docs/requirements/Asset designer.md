@@ -86,9 +86,10 @@ An item beneath this epic is done when:
   with the plugin uninstalled (§3.2), and a renovator's own words for a category or a kind of
   object survive the round trip unchanged (§84). **Where that sidecar lives is a question this
   epic does not answer, and ADR-011 does not answer it either**: that ADR scopes geometry to one
-  `.rpgeo` file per *plan*, named by the plan's id and carrying a `planId`, inside a *project's*
-  `Geometry/` folder, on ADR-002's per-plan-not-per-spatial-object rule. An asset definition is
-  reusable across plans **and projects** ([[Asset library]]), so its footprint fits none of those
-  three scopes, and storing one inside a plan's sidecar would break the correct-it-once guarantee
-  this epic exists for. An asset-scoped storage decision is owed to `docs/adrs/` beside the
-  surface decision above.
+  `.rpgeo` file per *plan*, named by the plan's id and carrying a `planId`, on ADR-002's
+  per-plan-not-per-spatial-object rule. A footprint belonging to a definition that many plans
+  reference cannot live in any one of their sidecars without breaking the correct-it-once
+  guarantee this epic exists for. What is ruled out is the *plan* scope and only that: an
+  [[Asset]] belongs to exactly one [[Project]] (§59), so a location inside that project's own
+  `Geometry/` folder is available in principle. An asset-scoped storage decision is owed to
+  `docs/adrs/` beside the surface decision above.

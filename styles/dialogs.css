@@ -82,6 +82,15 @@
 	background-color: var(--background-modifier-hover);
 }
 
+/*
+ * Two names for one rule, because they are two things: the `<form>` a caller mounts inside
+ * a `form` dialog, and each labelled field inside that form. Both are plain columns, so the
+ * declarations are shared rather than duplicated — but the form had been wearing
+ * `.rp-dialog-field` itself, which read as a claim that a form IS a field, and left this
+ * sheet with one spelling covering two ideas. Grouped rather than split so the rename
+ * changes no pixel.
+ */
+.rp-dialog-form,
 .rp-dialog-field {
 	display: flex;
 	flex-direction: column;

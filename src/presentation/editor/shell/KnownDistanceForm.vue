@@ -45,7 +45,7 @@ function onSubmit(): void {
 
 <template>
 	<form
-		class="rp-dialog-field"
+		class="rp-dialog-form"
 		@submit.prevent="onSubmit"
 	>
 		<p class="rp-dialog-message">

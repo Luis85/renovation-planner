@@ -31,6 +31,14 @@ import { transform, type Declaration, type Selector, type SelectorComponent, typ
  * of being tangled up with the business of finding a bracket.
  */
 
+/** The parsed name of a declaration's property, whatever shape the parser gave the value. */
+export function propertyOf(declaration: Declaration): string {
+	if (declaration.property === 'unparsed') return declaration.value.propertyId.property;
+	if (declaration.property === 'custom') return declaration.value.name;
+
+	return declaration.property;
+}
+
 /** Where a rule sits in its source, used only to match a nested rule against its at-rule parent. */
 const sourceKey = (loc: { line: number; column: number }): string => `${String(loc.line)}:${String(loc.column)}`;
 
@@ -44,6 +52,15 @@ export interface StyleRule {
 	 * is the parsed query serialized, not a rendering of the source text.
 	 */
 	readonly condition: string;
+	/**
+	 * The properties this rule declares with `!important`, by name.
+	 *
+	 * `declarations` is the two lists concatenated, normal first, which makes last-wins correct
+	 * WITHIN a block and says nothing ACROSS them. An important declaration beats every normal one
+	 * in every other rule regardless of specificity, so a caller resolving a cascade across rules
+	 * needs to know which properties arrived that way.
+	 */
+	readonly important: ReadonlySet<string>;
 }
 
 /**
@@ -66,11 +83,22 @@ export function stylesheetRules(css: string): StyleRule[] {
 	// visit then finds its condition waiting.
 	const conditions = new Map<string, string>();
 
+	// COMPOSED, not replaced. Conditional at-rules nest, and each one's visit walks its own
+	// descendants — so an inner `@media` inside an outer `@supports` overwrote the outer's entry and
+	// the rule ended up recorded as needing the media query alone. The outer visit runs first, so
+	// the inner has something to add to; sorted, so the conjunction is the same whichever way the
+	// nesting was written.
 	const markNested = (nested: readonly { type: string; value: unknown }[], condition: string): void => {
 		for (const rule of nested) {
 			const value = rule.value as { loc?: { line: number; column: number }; rules?: { type: string; value: unknown }[] };
 
-			if (rule.type === 'style' && value.loc !== undefined) conditions.set(sourceKey(value.loc), condition);
+			if (rule.type === 'style' && value.loc !== undefined) {
+				const key = sourceKey(value.loc);
+				const standing = conditions.get(key);
+
+				conditions.set(key, standing === undefined ? condition : [standing, condition].toSorted().join(' and '));
+			}
+
 			if (value.rules !== undefined) markNested(value.rules, condition);
 		}
 	};
@@ -106,6 +134,7 @@ export function stylesheetRules(css: string): StyleRule[] {
 					selectors: rule.value.selectors,
 					declarations: [...rule.value.declarations.declarations, ...rule.value.declarations.importantDeclarations],
 					condition: conditions.get(sourceKey(rule.value.loc)) ?? '',
+					important: new Set(rule.value.declarations.importantDeclarations.map((one) => propertyOf(one))),
 				});
 
 				return undefined;
@@ -137,13 +166,6 @@ export function parseSelector(selector: string): Selector {
 	return parsed;
 }
 
-/** The parsed name of a declaration's property, whatever shape the parser gave the value. */
-export function propertyOf(declaration: Declaration): string {
-	if (declaration.property === 'unparsed') return declaration.value.propertyId.property;
-	if (declaration.property === 'custom') return declaration.value.name;
-
-	return declaration.property;
-}
 
 /**
  * The functional pseudo-classes whose argument describes the SUBJECT — alternatives it may match

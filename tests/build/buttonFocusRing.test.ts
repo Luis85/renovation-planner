@@ -191,6 +191,7 @@ const flattenedWithoutRing = (
 			Record<
 				'outline' | 'shadow',
 				{
+					readonly important: boolean;
 					readonly specificity: readonly [number, number, number];
 					readonly draws: boolean;
 					readonly conditions: Conditions;
@@ -207,6 +208,14 @@ const flattenedWithoutRing = (
 		// declaration, `box-shadow: none; box-shadow: 0 0 0 3px red` counted as flattening on the
 		// strength of a declaration the next line overrides.
 		const { outline, shadow } = indicatorOf(rule.declarations);
+		// Per FAMILY: an outline is set by four properties, and any of them arriving important makes
+		// the resolved outline important. An over-approximation — a block mixing an important
+		// `outline-color` with a normal `outline-style` is treated as wholly important — and it errs
+		// toward letting a rule win its cascade, which is the direction that reports.
+		const importantOutline = ['outline', 'outline-width', 'outline-style', 'outline-color'].some((one) =>
+			rule.important.has(one),
+		);
+		const importantShadow = rule.important.has('box-shadow');
 		const flattens = shadow === false;
 		const draws = outline === true || shadow === true;
 
@@ -238,17 +247,26 @@ const flattenedWithoutRing = (
 						const standing = ringed.get(key) ?? {};
 						const next = { ...standing };
 
-						for (const [property, declared] of [
-							['outline', outline],
-							['shadow', shadow],
+						for (const [property, declared, important] of [
+							['outline', outline, importantOutline],
+							['shadow', shadow, importantShadow],
 						] as const) {
 							if (declared === undefined) continue;
 
 							const holder = standing[property];
+							// IMPORTANCE FIRST, then specificity. An important declaration beats every normal
+							// one in every other rule wherever it was written, so comparing specificity alone
+							// credited a visible ring to `.dialog .button:focus-visible { outline: 2px solid
+							// red }` while `.button:focus-visible { outline: none !important }` was what the
+							// browser drew. This was declared as a ceiling for three rounds rather than fixed;
+							// a stated ceiling that produces a MISSING focus indicator is worth closing.
+							const beaten =
+								holder !== undefined &&
+								(holder.important !== important
+									? holder.important
+									: moreSpecific(holder.specificity, specificity));
 
-							if (holder === undefined || !moreSpecific(holder.specificity, specificity)) {
-								next[property] = { specificity, draws: declared, conditions };
-							}
+							if (!beaten) next[property] = { important, specificity, draws: declared, conditions };
 						}
 
 						ringed.set(key, next);
@@ -379,6 +397,24 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a ring in a container the flattening rule does not cover',
 			".dialog[data-kind='a'] .rp-dialog-button { box-shadow: none; } .dialog[data-kind='b'] .rp-dialog-button:focus-visible { outline: 2px solid red; }",
+		],
+		// An IMPORTANT reset beats every normal declaration in every other rule, wherever it was
+		// written. Ranked on specificity alone, the more specific normal ring won and the button was
+		// credited an indicator the browser never draws.
+		// Both rules are scoped identically on purpose — the doubled class raises specificity without
+		// adding an ancestor — so `covers` cannot decide this and importance is the only thing that
+		// can. Written the obvious way, with the ring under `.rp-dialog`, it reported under the
+		// specificity-only reading too, for the unrelated reason that its scope does not cover.
+		[
+			'an important reset a more specific normal ring cannot beat',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none !important; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+		// The condition on a NESTED at-rule is the conjunction of both. Recording only the innermost
+		// made this ring look like it needed the media query alone, and a suppression in a separate
+		// identical `@media` block then read as answered even where the `@supports` is false.
+		[
+			'a ring inside two nested at-rules',
+			'@media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } } @supports (display: grid) { @media (prefers-color-scheme: dark) { .rp-dialog-button:focus-visible { outline: 2px solid red; } } }',
 		],
 		// A condition on the SUBJECT is a condition like any other: focus alone draws nothing here.
 		[
@@ -571,6 +607,19 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a ring in the same attributed container',
 			".dialog[data-kind='a'] .rp-dialog-button { box-shadow: none; } .dialog[data-kind='a'] .rp-dialog-button:focus-visible { outline: 2px solid red; }",
+		],
+		// An important RING beats a more specific normal reset, the same rule the other way up —
+		// without this, "importance first" could have become "an important declaration always loses
+		// the moment anything more specific exists", or only ever been checked in the resetting
+		// direction.
+		[
+			'an important ring a more specific normal reset cannot beat',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red !important; } .rp-dialog .rp-dialog-button:focus-visible { outline: none; }',
+		],
+		// Both rules under the SAME conjunction is the same world.
+		[
+			'a ring under the same nested conditions as the rule that flattened',
+			'@supports (display: grid) { @media (prefers-color-scheme: dark) { .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } } }',
 		],
 		// Both containers flattened and both ringed by ONE unscoped rule — which covers every site,
 		// or the per-site rule has become "more than one flattening rule can never be answered".

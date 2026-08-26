@@ -386,6 +386,32 @@ The Requirement still resolves to exactly one project — the Zone's. Nothing ab
 sharing the definition shares its *use*
 ([[Work belongs to one project, catalogues belong to the vault]]).
 
+**Sharing did create one new way for a pairing to be wrong, and it is about money rather
+than ownership.** A [[Project]] denominates every [[Money]] value in it in its own
+currency (§72), and two projects may legitimately disagree; the shared definition they
+both reference holds one price. So an Asset priced in EUR can now be assigned to a Zone
+in a GBP project, which it could not be while catalogues were project-scoped.
+
+**That is caught at recalculation, not at assignment, and deliberately on the seam that
+already exists.** [[A mismatched unit or currency is an error, not a coercion]] is
+enforced by the cost pipeline, so `RecalculateRequirement` fails for that pair and the
+Requirement stays `recalculationStatus: "stale"` — never cleared, surfaced by the
+Inspector, and explicitly not allowed to block its siblings (see the cascade's error
+branch, which already says *one Asset's bad currency/unit must not block the others*).
+`AssignAssetCommand` keeps loading exactly two entities. Checking at assign time would
+mean reading the Project as well, for feedback the recalculation path already gives, and
+a project's currency is a setting the user may change afterwards — which would put the
+check on the wrong side of the fact it depends on.
+
+**What turns that stale Requirement into a usable one is a per-project price override,
+and this slice does not define one.** [[Asset library]]'s definition of done requires it —
+a project records its own price beside the shared default rather than replacing it
+(§89) — and neither the schema nor the UI path for it is here. Until it is, an Asset
+priced in another project's currency can be assigned but not costed. That is a **named
+gap, not an oversight**: stated so the slice adding the override knows what it unblocks,
+and so nobody reads the accepting behaviour above as meaning every pairing yields a
+number.
+
 The UI cannot be the guard for what remains, either. A picker that offers only area-kind
 Assets makes a bad pairing *unreachable through the Inspector*, which is exactly the
 kind of "it can't happen from the UI" reasoning that leaves a script, a migration, or a
@@ -1144,7 +1170,7 @@ outcomes rather than three synonyms for "delete":
 | --- | --- |
 | *(absent)* | Refuse with a `ReferenceError` naming the referents, if any exist. This is the path a script or a migration takes. |
 | `remove-references` | Delete the referencing Requirements, then the entity — one logical operation. |
-| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, belongs to a **different Project** than the entity being deleted, or (for an Asset) is not of `area` kind is a `ValidationError` and nothing is written. |
+| `reassign` | Validate `reassignTo`, then for every referencing Requirement: repoint its `origin`/`assetId`, mark it `"stale"`, recalculate it, and only then delete the entity. A `reassignTo` that is missing, self-referencing, resolves to nothing, or (for a **Zone**) belongs to a different Project than the Zone being deleted, or (for an **Asset**) is not of `area` kind, is a `ValidationError` and nothing is written. The project clause is Zone-only: a shared Asset has no project to differ about (§59). |
 | `delete-anyway` | Delete the entity and leave the Requirements, marking each `recalculationStatus: "stale"` — they now reference something gone, which the Requirements panel shows wherever it still has a row to show it on (see below). |
 
 **`reassign` changes a Requirement's inputs, so it owes the same cascade a geometry edit
@@ -1257,8 +1283,8 @@ inside a repository:
    being deleted, and — when the resolution is `reassign` — the reassignment target as
    well, taken as one sorted acquisition. Both IDs are known from the input, which is
    what lets the set be taken at once rather than one lock at a time. Then validate the
-   resolution's own input (`reassignTo` resolves, is not the entity being deleted, shares
-   the deleted entity's `projectId`, and for an Asset is of `area` kind) — before any
+   resolution's own input (`reassignTo` resolves, is not the entity being deleted, for a
+   Zone shares the deleted Zone's `projectId`, and for an Asset is of `area` kind) — before any
    write, so a rejected reassignment has nothing to compensate. Validating *after*
    acquiring is deliberate: `reassignTo` resolving is a fact about an entity another tab
    could be deleting, and a check made outside the lock is one the lock does not keep
@@ -1630,7 +1656,8 @@ function ListReassignmentTargets(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
 ): Promise<Result<readonly ReassignmentTargetDto[], PersistenceError>>;
 // Zone case:  every other Zone in the same Project.
-// Asset case: every other Asset in the same Project whose unit is of `area` kind.
+// Asset case: every other area-kind Asset in the shared library — NOT filtered by
+//             project, because an Asset belongs to none (§59, amended 2026-08-26).
 // Both exclude the entity being deleted — the self-reference the command refuses.
 interface ReassignmentTargetDto { id: ZoneId | AssetId; label: string }
 ```
@@ -1842,7 +1869,12 @@ function GetRequirementsForZone(zoneId: ZoneId): Promise<Result<RequirementInspe
 function ListAssets(): Promise<Result<Asset[], PersistenceError>>;
 function ListRequirementsReferencing(
   target: { kind: 'zone'; zoneId: ZoneId } | { kind: 'asset'; assetId: AssetId },
-): Promise<Result<readonly RequirementId[], PersistenceError>>;
+): Promise<Result<readonly ReferencingProject[], PersistenceError>>;
+// Grouped, as declared under Queries above — the two declarations are one contract and
+// must not drift. The delete flow still dispatches a FLAT set: the dialog renders a row
+// per group, and the caller passes
+// `groups.flatMap(g => g.requirementIds)` as `resolvedReferents`. Grouping is how the
+// set is SHOWN; the set the user consents to is its union, unchanged.
 ```
 
 ```text
@@ -1897,7 +1929,6 @@ type: renovation-asset
 schema-version: 1
 
 id: asset-01JDEF7Q3K
-project: project-01HABC
 
 name: Porcelain Terrace Tile
 category: material
@@ -2032,10 +2063,13 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
   (zone, asset) pair. `AssignAssetCommand` against an Asset whose `unit` is
   `m`, `m3`, `piece`, `hour`, `day`, or `fixed` resolves a `ValidationError`
   and creates no Requirement — table-driven over all six rejected units, not just
-  one. `AssignAssetCommand` given a Zone and an Asset with different `projectId`s
-  likewise resolves a `ValidationError` and creates no Requirement — driven through
-  the command with two fixture Projects, never through the picker, since the picker
-  is precisely the path that cannot produce this input. A test publishes
+  one. `AssignAssetCommand` given Zones from two different Projects and one shared Asset
+  **succeeds both times**, each Requirement carrying its own Zone's `projectId` — driven
+  through the command with two fixture Projects. It replaces a test that required the
+  opposite; written as a success rather than deleted, so that reintroducing the old
+  refusal fails something. A currency mismatch is **not** rejected here: it surfaces as a
+  failed recalculation, per **A mismatched unit or currency is an error, not a
+  coercion**, on the seam the cascade's error branch already describes. A test publishes
   `ZoneGeometryChanged` directly on an
   in-memory Event Bus and asserts the full cascade fires in order —
   `RequirementInvalidated` → `RequirementRecalculated` → `CostEstimateChanged`
@@ -2148,13 +2182,22 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
       identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
       check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
-- [ ] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset regardless of
-      which project the Zone is in, asserted by driving the command directly with Zones
-      from two different Projects against one Asset. The catalogue is shared (§59), so
-      this pairing is correct rather than a leak; the Requirements it creates each carry
-      their own Zone's `projectId`. This criterion replaces one requiring the opposite,
-      and is written as a positive assertion on purpose — a deleted refusal leaves no
-      test behind, and nothing would then notice the guard being reintroduced.
+- [ ] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset **whose currency
+      matches the Zone's Project**, regardless of which project the Zone is in — asserted
+      by driving the command directly with Zones from two different Projects against one
+      Asset. The catalogue is shared (§59), so this pairing is correct rather than a leak;
+      the Requirements it creates each carry their own Zone's `projectId`. This criterion
+      replaces one requiring the opposite, and is written as a positive assertion on
+      purpose — a deleted refusal leaves no test behind, and nothing would then notice the
+      guard being reintroduced.
+- [ ] A Requirement pairing a Zone with an Asset priced in **another currency** is created
+      by `AssignAssetCommand` and then **fails to recalculate**, staying
+      `recalculationStatus: "stale"` while its sibling Requirements on the same Zone
+      recalculate normally. Asserted end to end rather than at the command, because that
+      is where the check lives: ownership stopped being a reason a pairing can be wrong,
+      currency became one, and the seam catching it is the cost pipeline's existing one.
+      The per-project price override that would make such a Requirement costable is not in
+      this slice — see "Sharing did create one new way for a pairing to be wrong".
 - [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
       covered by a fixture where one Asset is referenced from two Projects; the delete
       dialog renders a row per project. A bare total is refused by this test, because it

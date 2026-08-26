@@ -1,7 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { Declaration, Selector } from 'lightningcss';
+import type { Selector, SelectorComponent } from 'lightningcss';
 import { alternativesOf, compoundsOf, moreSpecific, parseSelector, propertyOf, specificityOf, stylesheetRules, subjectClasses } from '../helpers/selectors';
+import { declarationsOf, drawsAnIndicator, indicatorOf } from '../helpers/indicators';
 
 /**
  * NO RULE THIS PROJECT WRITES FOR A `<button>` MAY LOSE TO OBSIDIAN'S OWN BUTTON RULE.
@@ -127,78 +128,6 @@ function buttonClasses(): Set<string> {
 	return found;
 }
 
-/**
- * Does this rule DRAW a focus indicator?
- *
- * Read from the PARSED declaration rather than from the rule's text. Presence of `:focus-visible`
- * in the selector was the whole test once, and presence is not effect: deleting `outline: 2px
- * solid …` while leaving `outline-offset` kept the rule, kept this check green, and left keyboard
- * focus invisible. Then the text version refused only the literal `none`, while `outline: 0`,
- * `initial`, `unset` and `revert` draw nothing either.
- *
- * The parser answers both without a value vocabulary of this file's own. `outline: 0` and
- * `outline: none` both arrive with `style` resolved to `none`, so ONE question — is the line
- * style something other than `none` — covers the whole family, including the zero width that
- * reads as a deliberate value rather than a switch-off. `box-shadow` arrives as a list.
- *
- * **An UNPARSED value is one the parser could not resolve, which here means it holds `var()`** —
- * the shape almost every real rule in this project takes. A value that is a single bare keyword
- * is a reset; anything else draws, because what a variable holds is outside what any gate here
- * can see. That is the same ceiling the specificity check declares, stated rather than implied.
- */
-const RESETS = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer']);
-
-/** Is this a length the parser resolved to exactly zero? */
-const isZero = (length: { type: string; value?: unknown }): boolean =>
-	length.type === 'value' && (length.value as { value: number }).value === 0;
-
-/**
- * Would this colour paint anything?
- *
- * The parser folds every spelling of a fully transparent colour to the same node — `transparent`,
- * `#0000`, `rgba(0,0,0,0)`, `hsla(0,0%,0%,0)` and even `light-dark(transparent, transparent)` all
- * arrive as `rgb` with `alpha: 0`, which is exactly why this is one comparison rather than a list
- * of spellings. A node carrying no numeric alpha at all — `currentcolor` — is assumed to paint.
- */
-const paints = (color: { alpha?: number }): boolean => color.alpha !== 0;
-
-const drawsAnIndicator = (declarations: readonly Declaration[]): boolean =>
-	declarations.some((declaration) => {
-		const property = propertyOf(declaration);
-
-		if (property !== 'outline' && property !== 'box-shadow') return false;
-		// An outline draws when its STYLE is not `none`, its WIDTH is not zero, and its COLOUR paints.
-		// `outline: none` and `outline: 0` both resolve style to `none`, so the style test alone
-		// covers those two; `outline: 0 solid red` needs the width and `outline: 2px none red` is back
-		// under the style test. `outline: 2px solid transparent` is the fourth spelling and is the one
-		// a value vocabulary would never have reached — every component reads as a deliberate value
-		// and the rule still draws nothing.
-		if (declaration.property === 'outline') {
-			const { style, width, color } = declaration.value;
-
-			if (style.value === 'none') return false;
-			if (width.type === 'length' && isZero(width.value)) return false;
-
-			return paints(color);
-		}
-		// A shadow draws when it paints AND has a non-zero geometry. All four at zero is a shadow
-		// exactly the size of the box with no blur, which is nothing; any one of them non-zero puts
-		// something outside the border box — an offset slab, a glow, a ring. `box-shadow: 0 0 0 3px
-		// <accent>` is this project's own focus ring and is precisely the spread case.
-		if (declaration.property === 'box-shadow') {
-			return declaration.value.some(
-				(shadow) =>
-					paints(shadow.color) &&
-					![shadow.xOffset, shadow.yOffset, shadow.blur, shadow.spread].every((length) => isZero(length)),
-			);
-		}
-		if (declaration.property !== 'unparsed') return true;
-
-		const tokens = declaration.value.value;
-		const only = tokens.length === 1 ? tokens[0] : null;
-
-		return !(only?.type === 'token' && only.value.type === 'ident' && RESETS.has(only.value.value.toLowerCase()));
-	});
 
 /** Every sheet that can style one: the ones that ship, plus the harness's own chrome. */
 const sheets = [
@@ -270,9 +199,6 @@ const governsBranch = (branch: Selector, classes: Set<string>): boolean => {
 const isGoverned = (selector: Selector, classes: Set<string>): boolean =>
 	alternativesOf(selector).some((branch) => governsBranch(branch, classes));
 
-/** One declaration list, parsed — so a value fixture is read the way a stylesheet's is. */
-const declarationsOf = (declarations: string): readonly Declaration[] =>
-	stylesheetRules(`a { ${declarations} }`)[0]?.declarations ?? [];
 
 /** A selector rendered back to text, so a failure names something a reader can grep for. */
 const show = (selector: Selector): string =>
@@ -305,13 +231,25 @@ const show = (selector: Selector): string =>
  * see a bare `button` subject (`targetsAButton`); this one had not, and its `seen` guard could not
  * notice, because unrelated class-based rules keep that count non-zero.
  */
+/** A branch's subject — the components after its last combinator, the element the rule styles. */
+const subjectOf = (branch: Selector): SelectorComponent[] =>
+	branch.slice(branch.map((component) => component.type).lastIndexOf('combinator') + 1);
+
 const focusKeys = (branch: Selector, classes: Set<string>): string[] => {
 	const onSubject = buttonClassesOn(branch, classes);
 
 	if (onSubject.length > 0) return onSubject;
 	if (!targetsAButton(branch, classes)) return [];
 
-	return [show(branch.filter((component) => !(component.type === 'pseudo-class' && component.kind === 'focus-visible')))];
+	// Only the SUBJECT's `:focus-visible` is stripped. An ancestor's is part of what the rule is
+	// scoped to and belongs in the key, or two rules that apply under different conditions would
+	// answer each other.
+	const ancestors = branch.slice(0, branch.length - subjectOf(branch).length);
+	const subject = subjectOf(branch).filter(
+		(component) => !(component.type === 'pseudo-class' && component.kind === 'focus-visible'),
+	);
+
+	return [show([...ancestors, ...subject])];
 };
 
 /**
@@ -335,10 +273,12 @@ const flattenedWithoutRing = (
 	// `editor.css` and ringed in `dialogs.css` is ringed; scanning a sheet at a time would report it.
 	for (const [where, css] of scanned)
 		for (const rule of stylesheetRules(css)) {
-		const flattens = rule.declarations.some(
-			(declaration) => propertyOf(declaration) === 'box-shadow' && !drawsAnIndicator([declaration]),
-		);
-		const draws = drawsAnIndicator(rule.declarations);
+		// Both read from ONE resolution of the block, in cascade order. Asked declaration by
+		// declaration, `box-shadow: none; box-shadow: 0 0 0 3px red` counted as flattening on the
+		// strength of a declaration the next line overrides.
+		const { outline, shadow } = indicatorOf(rule.declarations);
+		const flattens = shadow === false;
+		const draws = outline === true || shadow === true;
 
 		// `:focus-visible` is asked of each BRANCH, never of the rule. Asked of the rule,
 		// `.rp-editor-tool-button:hover, .other:focus-visible { outline: 2px solid red }` marked the
@@ -348,7 +288,11 @@ const flattenedWithoutRing = (
 		// two opposite errors, and the second one is the quieter of the two.
 		for (const selector of rule.selectors) {
 			for (const branch of alternativesOf(selector)) {
-				const ringsFocus = branch.some(
+				// On the SUBJECT compound, never anywhere in the branch. Focusing a button does not make
+				// its ancestor match `:focus-visible`, so
+				// `.rp-editor-toolbar:focus-visible .rp-editor-tool-button` says nothing about the button's
+				// own focus state — and a branch-wide search credited it a ring for one.
+				const ringsFocus = subjectOf(branch).some(
 					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
 				);
 
@@ -700,6 +644,57 @@ describe('every button rule against Obsidian\'s own', () => {
 		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toHaveLength(1);
 	});
 
+	/**
+	 * A RING BELONGS TO THE ELEMENT THAT IS FOCUSED. Focusing a button does not make its ancestor
+	 * match `:focus-visible`, so a rule keyed on the ancestor draws nothing when the button is
+	 * tabbed to — and a search over the whole branch credited the button a ring for it.
+	 */
+	it.each([
+		[
+			'an ancestor carrying the focus pseudo',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog:focus-visible .rp-dialog-button { outline: 2px solid red; }',
+		],
+		[
+			'a focused ancestor of a type-targeted button',
+			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar:focus-visible button { outline: 2px solid red; }',
+		],
+	])('reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toHaveLength(1);
+	});
+
+	/**
+	 * A CASCADE IS AN ORDER, and asking each declaration in isolation has none in it. Every block
+	 * below leaves nothing on screen while its FIRST declaration, read alone, says a ring is drawn:
+	 * a longhand overriding one component of the shorthand before it, and the same property written
+	 * twice. Both are ordinary CSS, neither is exotic, and `some` accepted all of them.
+	 */
+	it.each([
+		'outline: 2px solid red; outline-color: transparent',
+		'outline: 2px solid red; outline-style: none',
+		'outline: 2px solid red; outline-width: 0',
+		'outline: 2px solid red; outline: none',
+		'box-shadow: 0 0 0 3px red; box-shadow: none',
+	])('does not count %s as a ring', (declarations) => {
+		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
+	});
+
+	/**
+	 * And the other way down the cascade, or "resolve in order" has quietly become "the last
+	 * declaration wins outright". A reset FOLLOWED by a real value draws; an important reset beats
+	 * a later normal declaration wherever it was written, which is why `stylesheetRules` hands back
+	 * normal declarations before important ones.
+	 */
+	it.each([
+		['outline: none; outline: 2px solid red', true],
+		['outline-color: transparent; outline: 2px solid red', true],
+		['outline: 2px solid transparent; outline-color: red', true],
+		['box-shadow: none; box-shadow: 0 0 0 3px red', true],
+		['outline: none !important; outline: 2px solid red', false],
+		['box-shadow: none !important; box-shadow: 0 0 0 3px red', false],
+	])('resolves %s to %s', (declarations, expected) => {
+		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(expected);
+	});
+
 	// The ring rule reduces to the same shape as the rule that flattened, which is what makes the
 	// two answer each other. `:hover` above deliberately does not.
 	it.each([
@@ -725,6 +720,10 @@ describe('every button rule against Obsidian\'s own', () => {
 			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button, .other):focus-visible { outline: 2px solid red; }',
 		],
 		['no flattening at all', '.rp-dialog-button { color: red; }'],
+		// The flattening question is asked of the RESOLVED block too, not of each declaration: the
+		// `none` here is overridden on the next line, so nothing is flattened and there is nothing
+		// to demand a ring for.
+		['a suppression its own block overrides', '.rp-dialog-button { box-shadow: none; box-shadow: 0 0 0 3px red; }'],
 	])('says nothing about %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], new Set(['.rp-dialog-button'])).offenders.keys()]).toEqual([]);
 	});

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import type { Selector } from 'lightningcss';
+import { compoundHasClass, compoundsOf, stylesheetRules, typeOf } from '../helpers/selectors';
 import { afterEach, describe, expect, it } from 'vitest';
 import { entryShots } from '../../scripts/entryShots.mjs';
 import { openIndex } from './indexApp';
@@ -53,36 +55,6 @@ describe('the harness index, on which route drew it', () => {
 });
 
 /**
- * Split a selector list on its TOP-LEVEL commas only.
- *
- * This file split preludes with a raw `String.split(',')`, and the comma inside
- * `:is(.rp-harness-index, .other) h2` separates nothing at the outer level — so that selector
- * arrived as `:is(.rp-harness-index` and `.other) h2`. The first fragment looks like the root
- * with nothing after it and the second contains no root at all, so the stage-leaking rule passed.
- * The same bug, in the same shape, as the one `tests/build/buttonSpecificity.test.ts` already
- * carries a fix for — fixing the COMPOUND parsing here in the previous round and leaving the
- * PRELUDE split raw is exactly the half-measure that hid it.
- */
-const splitTopLevel = (list: string): string[] => {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
-
-	for (const char of list) {
-		if (char === '(') depth += 1;
-		else if (char === ')') depth -= 1;
-
-		if (char === ',' && depth === 0) {
-			parts.push(current);
-			current = '';
-		} else current += char;
-	}
-
-	parts.push(current);
-	return parts.map((part) => part.trim()).filter(Boolean);
-};
-
-/**
  * THE PICKER'S RULES MAY NOT REACH THE STAGE, which is `theme.css`'s second header rule and the
  * one its first cannot imply.
  *
@@ -98,127 +70,75 @@ const splitTopLevel = (list: string): string[] => {
  * is on the FORBIDDEN THING — the shape of the selector — per `CLAUDE.md`'s rule about category
  * invariants, and it therefore holds for rules nobody has written yet.
  *
- * The prelude sweep is `harness.test.ts`'s own `harnessGrowthSelectors` pattern: comments
- * stripped, then every `selector { body }` pair. It sees the file as text rather than as a
- * cascade, which is enough here because the property being checked IS textual.
+ * **Read through `lightningcss`, the parser this project already ships with.** This file grew a
+ * hand-rolled reader and review found four holes in it in four consecutive rounds — a pattern
+ * anchored on the whitespace after a class, a raw comma split cutting `:is(.a, .b)` in half, a
+ * combinator split that lost `>` because whitespace sat on both sides of it, and a relationship
+ * nested inside a pseudo that the scanner kept whole and never looked into. Every one was the
+ * same defect: a selector is a grammar and a regex is not a parser. `tests/helpers/selectors.ts`
+ * carries the account and the shared reader.
  */
-const indexSelectors = (css: string): string[] =>
-	[...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^{}]*\}/g)]
-		.flatMap(([, prelude]) => splitTopLevel(prelude))
-		.filter((selector) => selector.includes('.rp-harness-index'));
+const PICKER_ROOT = 'rp-harness-index';
 
-/**
- * A selector's compounds, each with the combinator that FOLLOWS it — descendant (empty), `>`, `+`
- * or `~` — ignoring anything inside parentheses, so `:is(.a > .b)` stays one compound.
- *
- * The combinator is attached to the compound before it rather than emitted separately, because
- * the question this file asks is about ONE hop: what follows `.rp-harness-index`, and how.
- * Whitespace around a combinator is not itself a combinator, which is the case that broke the
- * first version — `.rp-harness-index > nav` has a space on each side of the `>`, and flushing on
- * every whitespace character dropped the `>` entirely, making a scoped child look like a
- * descendant.
- */
-const compoundsOf = (selector: string): Array<{ text: string; after: string }> => {
-	const parts: Array<{ text: string; after: string }> = [];
-	let depth = 0;
-	let current = '';
-	const flush = (): void => {
-		if (current !== '') parts.push({ text: current, after: '' });
-		current = '';
-	};
-
-	for (const char of selector) {
-		if (char === '(') depth += 1;
-		else if (char === ')') depth -= 1;
-
-		if (depth === 0 && /[\s>+~]/.test(char)) {
-			flush();
-			if (/[>+~]/.test(char) && parts.length > 0) parts[parts.length - 1].after = char;
-		} else current += char;
-	}
-
-	flush();
-	return parts;
-};
+/** Every selector in a stylesheet whose text mentions the index root, at any depth. */
+const indexSelectors = (css: string): Selector[] =>
+	stylesheetRules(css)
+		.flatMap((rule) => rule.selectors)
+		.filter((selector) => compoundsOf(selector).some((compound) => compoundHasClass(compound, PICKER_ROOT)));
 
 /**
  * Does this selector reach a DESCENDANT of `.rp-harness-index`?
  *
- * Read from the selector's COMPOUNDS rather than from the text immediately after the class, which
- * is the correction this needed. It was `/\.rp-harness-index\s+(?![>{])/` — whitespace directly
- * after the class — so `.rp-harness-index.theme-dark h2` and `:is(.rp-harness-index) h2` both
- * passed while reaching every heading in every mounted entry. The picker has no root qualifier
- * today, which is exactly why the pattern has to be written to the SHAPE rather than to today's
- * rules: the first person to add one would have opened the hole silently.
+ * The rule, stated once: a compound carrying the root, with something after it that is not
+ * reached through a child hop INTO THE PICKER. Four spellings have had to be taught to it and
+ * every one is a case below — a plain descendant, a qualified root, a root inside a functional
+ * pseudo, and a sibling hop off the nav.
  *
- * The rule as it actually is: a compound CONTAINING the class, with something after it that is
- * not reached through `>`. `:not(.rp-harness-index)` in `theme.css`'s own growth chain is still
- * not a match — there the class sits in the LAST compound, with nothing after it at all.
+ * The nav is the only safe child. Treating every `>` as safe let `.rp-harness-index > main h2`
+ * through: one child hop, then a descent into the stage. And reaching the nav is not the end of
+ * the walk either — `.rp-harness-index > nav + main h2` steps sideways onto the stage beside it.
+ * Only the hop DIRECTLY after the nav can escape, because anything deeper is already a
+ * descendant of the nav and a sibling of a descendant shares its parent.
  */
-/**
- * The selector-list arguments of any functional pseudo in a compound, with balanced parentheses
- * so a nested pseudo is captured whole rather than cut at the first `)`.
- */
-const argumentsOf = (compound: string): string[] => {
-	const args: string[] = [];
-	const opener = /:(?:not|is|has|where)\(/g;
-	let match = opener.exec(compound);
-
-	while (match !== null) {
-		let depth = 1;
-		let end = match.index + match[0].length;
-
-		while (end < compound.length && depth > 0) {
-			if (compound[end] === '(') depth += 1;
-			else if (compound[end] === ')') depth -= 1;
-			if (depth > 0) end += 1;
-		}
-
-		args.push(...splitTopLevel(compound.slice(match.index + match[0].length, end)));
-		opener.lastIndex = end;
-		match = opener.exec(compound);
-	}
-
-	return args;
-};
-
-/** A compound's TYPE selector — its leading element name, or '' when it has none. */
-const typeOf = (compound: string): string => (/^[a-zA-Z][\w-]*/.exec(compound) ?? [''])[0];
-
-const reachesTheStage = (selector: string): boolean => {
+const reachesTheStage = (selector: Selector): boolean => {
 	const compounds = compoundsOf(selector);
-	const at = compounds.findIndex((compound) => compound.text.includes('.rp-harness-index'));
+	const at = compounds.findIndex((compound) => compoundHasClass(compound, PICKER_ROOT));
 
 	if (at === -1) return false;
 
 	// The WHOLE relationship can live inside a functional pseudo — `:is(.rp-harness-index > main
-	// h2)` — where `compoundsOf` deliberately keeps it as one compound and every question below
-	// then reads it as a root with nothing after it. So the arguments get asked the same question
-	// before that conclusion is drawn. Each argument is strictly shorter, so this terminates.
-	if (argumentsOf(compounds[at].text).some((argument) => reachesTheStage(argument))) return true;
+	// h2)` — where the compound carrying the root is also the last one, and every question below
+	// would read it as a root with nothing after it. Its arguments are asked the same question.
+	const nested = compounds[at].components
+		.flatMap((component) => (component.type === 'pseudo-class' && 'selectors' in component ? component.selectors : []))
+		.some((argument) => reachesTheStage(argument));
 
+	if (nested) return true;
 	if (at === compounds.length - 1) return false;
-	// A descendant hop reaches everything below, the stage included.
-	if (compounds[at].after !== '>') return true;
+	if (compounds[at].after !== 'child') return true;
+	if (typeOf(compounds[at + 1]) !== 'nav') return true;
 
-	// Reached by `>`, so the question becomes WHICH child. Treating every child combinator as safe
-	// was the hole: `.rp-harness-index > main h2` and `.rp-harness-index > .rp-harness-stage h2`
-	// both take one `>` and then descend into the stage's own contents. The picker is the `nav`;
-	// the stage is the `main`; only the first is a safe place to start descending from.
-	if (typeOf(compounds[at + 1].text) !== 'nav') return true;
-
-	// And reaching the nav is not the end of the walk. `.rp-harness-index > nav + main h2` lands
-	// on the picker and then steps SIDEWAYS onto the stage, which is the nav's sibling. Only the
-	// hop directly after the nav can do that: anything deeper is already a descendant of the nav,
-	// and a sibling of a descendant shares its parent, so it is inside the nav too.
-	return compounds[at + 1].after === '+' || compounds[at + 1].after === '~';
+	return compounds[at + 1].after === 'next-sibling' || compounds[at + 1].after === 'later-sibling';
 };
+
+/** A selector rendered back to text, so a failure names something a reader can grep for. */
+const show = (selector: Selector): string =>
+	selector
+		.map((component) => {
+			if (component.type === 'class') return `.${component.name}`;
+			if (component.type === 'type') return component.name;
+			if (component.type === 'combinator') return component.value === 'descendant' ? ' ' : ` ${component.value} `;
+			if (component.type === 'pseudo-class') return `:${component.kind}`;
+
+			return '';
+		})
+		.join('');
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
 	it('roots every index rule at a direct-child nav, so no rule reaches a mounted entry', () => {
-		const offenders = indexSelectors(readFileSync('tests/harness/theme.css', 'utf8')).filter((selector) =>
-			reachesTheStage(selector),
-		);
+		const offenders = indexSelectors(readFileSync('tests/harness/theme.css', 'utf8'))
+			.filter((selector) => reachesTheStage(selector))
+			.map((selector) => show(selector));
 
 		expect(offenders).toEqual([]);
 	});

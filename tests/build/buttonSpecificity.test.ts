@@ -1,5 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import type { Declaration, Selector } from 'lightningcss';
+import { compoundsOf, moreSpecific, parseSelector, propertyOf, specificityOf, stylesheetRules, subjectClasses } from '../helpers/selectors';
 
 /**
  * NO RULE THIS PROJECT WRITES FOR A `<button>` MAY LOSE TO OBSIDIAN'S OWN BUTTON RULE.
@@ -47,7 +49,7 @@ const OBSIDIAN_BUTTON = [0, 1, 1] as const;
  * `background\s*:` does not match `background-color:` — the hyphen sits between the word and the
  * colon — so listing both matches each once rather than double-counting.
  */
-const CONTESTED = ['background-color', 'background', 'color', 'box-shadow'];
+const CONTESTED = new Set(['background-color', 'background', 'color', 'box-shadow']);
 
 /**
  * Rules deliberately left to lose, by name and with the reason — the shape `.oxlintrc.json` uses
@@ -59,137 +61,6 @@ const CONTESTED = ['background-color', 'background', 'color', 'box-shadow'];
  * carries the same reasoning at the rule itself.
  */
 const DEFERS_TO_THE_HOST = ['.rp-dialog-button'];
-
-const beats = (a: readonly [number, number, number], b: readonly [number, number, number]): boolean =>
-	a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2];
-
-/**
- * Split a selector list on its TOP-LEVEL commas only.
- *
- * `:is(.a, .b)` carries a comma that separates nothing at the outer level, and splitting on it
- * cuts one selector into `:is(.a` and `.b)` — two fragments whose specificities are both wrong
- * and neither of which is a selector. Used for a rule's prelude and for the argument of a
- * functional pseudo-class, which is the same problem twice.
- */
-const splitTopLevel = (list: string): string[] => {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
-
-	for (const char of list) {
-		if (char === '(') depth += 1;
-		else if (char === ')') depth -= 1;
-
-		if (char === ',' && depth === 0) {
-			parts.push(current);
-			current = '';
-		} else current += char;
-	}
-
-	parts.push(current);
-	return parts.map((part) => part.trim()).filter(Boolean);
-};
-
-const moreSpecific = (a: [number, number, number], b: [number, number, number]): [number, number, number] =>
-	beats(a, b) ? a : b;
-
-/**
- * The FIRST functional pseudo in a selector, matched with balanced parentheses so a nested one is
- * captured whole. Returns its name, its complete argument text, and the span it occupies.
- *
- * A regex cannot do this: `\([^()]*\)` matches only the INNERMOST parentheses, which is what
- * forced the innermost-first loop this replaces — and that loop is exactly where the
- * double-counting came from.
- */
-const firstFunctional = (selector: string): { name: string; inner: string; from: number; to: number } | null => {
-	const opener = /:(not|is|has|where)\(/g;
-	const match = opener.exec(selector);
-
-	if (match === null) return null;
-
-	let depth = 1;
-	let end = match.index + match[0].length;
-
-	while (end < selector.length && depth > 0) {
-		if (selector[end] === '(') depth += 1;
-		else if (selector[end] === ')') depth -= 1;
-		if (depth > 0) end += 1;
-	}
-
-	return { name: match[1], inner: selector.slice(match.index + match[0].length, end), from: match.index, to: end + 1 };
-};
-
-/**
- * A selector's (id, class, type) specificity.
- *
- * `:not(...)`/`:is(...)`/`:has(...)` contribute their ARGUMENT's specificity and nothing of their
- * own, which is the whole reason Obsidian's rule scores (0,1,1) rather than (0,0,1) — get that
- * wrong and this file computes the wrong threshold for every case at once. An ordinary
- * pseudo-class (`:hover`, `:disabled`) counts as a class and a pseudo-ELEMENT (`::after`) counts
- * as a type.
- *
- * **A selector LIST inside one of them contributes its MOST SPECIFIC argument, never the sum**
- * (CSS Selectors 4). This summed them, which is a FALSE PASS rather than a false alarm:
- * `:is(.rp-editor-tool-active, .other)` scored (0,2,0) and cleared the threshold while its real
- * specificity is (0,1,0) and it loses to Obsidian's rule. A gate that over-counts lets exactly
- * the rules it exists to catch through.
- *
- * **Each pseudo is resolved as a WHOLE, outermost-first, and its arguments are scored in their own
- * accumulator.** The previous version matched only innermost parentheses and folded every result
- * into one shared total, so a nested pseudo was counted twice: for
- * `:is(.rp-editor-tool-active, :not(.other))` the inner `:not(.other)` added (0,1,0) to the outer
- * sum, then the surviving `:is()` added its own maximum (0,1,0) — (0,2,0) against CSS's (0,1,0).
- * That is a FALSE PASS, the direction that matters: such a rule appears to beat Obsidian while
- * actually losing. Balanced extraction is what makes outermost-first possible, and outermost-first
- * is what keeps each branch's total inside its own branch.
- *
- * Deliberately not a full CSS parser: it answers for the selector shapes this repository writes,
- * and `describe('the instrument')` below drives it against the ones that matter — including the
- * four it would be easiest to get wrong.
- */
-function specificityOf(selector: string): [number, number, number] {
-	let rest = selector;
-	let ids = 0;
-	let classes = 0;
-	let types = 0;
-
-	// A bound rather than `while (true)`: a malformed selector must not hang the suite. Twenty is
-	// far past any count of sibling pseudos a stylesheet here would write.
-	for (let guard = 0; guard < 20; guard += 1) {
-		const found = firstFunctional(rest);
-
-		if (found === null) break;
-		if (found.name !== 'where') {
-			// Each complete argument scored INDEPENDENTLY, then the maximum — recursion handles any
-			// nesting inside it without touching this accumulator.
-			const [i, c, t] = splitTopLevel(found.inner)
-				.map((argument) => specificityOf(argument))
-				.reduce((best, one) => moreSpecific(best, one), [0, 0, 0]);
-
-			ids += i;
-			classes += c;
-			types += t;
-		}
-
-		rest = `${rest.slice(0, found.from)} ${rest.slice(found.to)}`;
-	}
-
-	// Pseudo-ELEMENTS are removed before anything else counts, and that ordering is the fix for a
-	// defect this file's own instrument cases caught: `::after` ends in `:after`, so a
-	// pseudo-CLASS pattern guarded only by "the next character is not a colon" matched its SECOND
-	// colon and scored it as a class as well as an element. Taking them out first leaves no
-	// second colon for anything to match.
-	types += (rest.match(/::[\w-]+/g) ?? []).length;
-	rest = rest.replace(/::[\w-]+/g, ' ');
-
-	ids += (rest.match(/#[\w-]+/g) ?? []).length;
-	// A class, an attribute selector, or a plain pseudo-class.
-	classes += (rest.match(/\.[\w-]+|\[[^\]]*\]|:[\w-]+/g) ?? []).length;
-	// A type selector: a bare name not preceded by `.`, `#`, `:` or `-`.
-	types += (rest.match(/(?<![.#:\w-])[a-zA-Z][\w-]*/g) ?? []).length;
-
-	return [ids, classes, types];
-}
 
 /** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
 const filesUnder = (dir: string, ext: string): string[] =>
@@ -257,44 +128,52 @@ function buttonClasses(): Set<string> {
 }
 
 /**
- * Does this rule body actually DRAW a focus indicator?
+ * Does this rule DRAW a focus indicator?
  *
- * Presence of `:focus-visible` in the selector was the whole test, and presence is not effect:
- * deleting `outline: 2px solid …` while leaving `outline-offset` behind kept the rule, kept this
- * check green, and left keyboard focus invisible again — the base rule still suppresses the
- * host's shadow and the host still removes the outline. A rule that exists and draws nothing is
- * exactly the state the ring check was written to refuse.
+ * Read from the PARSED declaration rather than from the rule's text. Presence of `:focus-visible`
+ * in the selector was the whole test once, and presence is not effect: deleting `outline: 2px
+ * solid …` while leaving `outline-offset` kept the rule, kept this check green, and left keyboard
+ * focus invisible. Then the text version refused only the literal `none`, while `outline: 0`,
+ * `initial`, `unset` and `revert` draw nothing either.
  *
- * `none` was the only value refused at first, and that is not the only way to draw nothing:
- * `outline: 0`, `outline: initial`, `box-shadow: initial` and `unset`/`revert` all satisfy a
- * "not none" test while producing no indicator at all. A zero WIDTH is the sneakiest of them,
- * because it reads as a real declaration. They are refused by name below.
+ * The parser answers both without a value vocabulary of this file's own. `outline: 0` and
+ * `outline: none` both arrive with `style` resolved to `none`, so ONE question — is the line
+ * style something other than `none` — covers the whole family, including the zero width that
+ * reads as a deliberate value rather than a switch-off. `box-shadow` arrives as a list.
  *
- * The `outline` SHORTHAND or `box-shadow`. Deliberately not the outline longhands: a ring
- * assembled from `outline-style` and `outline-width` alone would draw and is not recognised
- * here. `outline\s*:` does not match `outline-offset:` or `outline-color:` — the hyphen sits
- * between the word and the colon.
- *
- * The residual limit, stated rather than implied: this reads the value as TEXT, so an indicator
- * routed through a variable (`outline: var(--ring)`) counts as drawn whatever the variable holds.
- * No gate here resolves `var()`, which is the same ceiling the specificity check declares.
+ * **An UNPARSED value is one the parser could not resolve, which here means it holds `var()`** —
+ * the shape almost every real rule in this project takes. A value that is a single bare keyword
+ * is a reset; anything else draws, because what a variable holds is outside what any gate here
+ * can see. That is the same ceiling the specificity check declares, stated rather than implied.
  */
-const RESET = String.raw`none|initial|unset|revert(-layer)?`;
-/**
- * A leading `0` means no ring for `outline`, whose first component is the WIDTH — and means
- * nothing of the sort for `box-shadow`, whose first component is an OFFSET. `0 0 0 3px red` is
- * the ordinary spelling of a focus ring, and a shared zero rule would have refused it. Caught by
- * this file's own instrument case before it shipped, which is the argument for writing them.
- */
-const DRAWS_NOTHING = {
-	outline: new RegExp(String.raw`^(${RESET}|0(px|em|rem|%)?)([\s;}]|$)`),
-	'box-shadow': new RegExp(String.raw`^(${RESET})([\s;}]|$)`),
-};
+const RESETS = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer']);
 
-const drawsAnIndicator = (body: string): boolean =>
-	[...body.matchAll(/(?:^|[;{\s])(outline|box-shadow)\s*:\s*([^;}]*)/g)].some(
-		([, property, value]) => !DRAWS_NOTHING[property as keyof typeof DRAWS_NOTHING].test(value.trim()),
-	);
+const drawsAnIndicator = (declarations: readonly Declaration[]): boolean =>
+	declarations.some((declaration) => {
+		const property = propertyOf(declaration);
+
+		if (property !== 'outline' && property !== 'box-shadow') return false;
+		// An outline draws when its STYLE is not `none` and its WIDTH is not zero. `outline: none`
+		// and `outline: 0` both resolve style to `none`, so the style test alone covers those two;
+		// `outline: 0 solid red` is the third spelling and needs the width — a zero width with a
+		// real style is the one that reads most like a deliberate value. The parser hands both
+		// components over already resolved, which is the whole reason this is two comparisons
+		// rather than a per-property leading-zero pattern.
+		if (declaration.property === 'outline') {
+			const { style, width } = declaration.value;
+
+			if (style.value === 'none') return false;
+
+			return !(width.type === 'length' && width.value.type === 'value' && width.value.value.value === 0);
+		}
+		if (declaration.property === 'box-shadow') return declaration.value.length > 0;
+		if (declaration.property !== 'unparsed') return true;
+
+		const tokens = declaration.value.value;
+		const only = tokens.length === 1 ? tokens[0] : null;
+
+		return !(only?.type === 'token' && only.value.type === 'ident' && RESETS.has(only.value.value.toLowerCase()));
+	});
 
 /** Every sheet that can style one: the ones that ship, plus the harness's own chrome. */
 const sheets = [
@@ -304,92 +183,71 @@ const sheets = [
 	'tests/harness/theme.css',
 ];
 
-/** Each rule as `[selector, declarations]`, comments stripped so prose cannot be read as CSS. */
-const rulesIn = (css: string): Array<[string, string]> =>
-	[...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selector, body]) => [
-		selector.trim(),
-		body,
-	]);
+/** The button classes a selector's subject wears, as exact names with the leading dot. */
+const buttonClassesOn = (selector: Selector, classes: Set<string>): string[] =>
+	subjectClasses(selector)
+		.map((name) => `.${name}`)
+		.filter((name) => classes.has(name));
 
 /**
- * The class tokens on a selector's SUBJECT — its last compound, the element the rule actually
- * styles. An ancestor mention does not count: `.rp-dialog-button .icon` styles the icon.
+ * Does this rule style a BUTTON at all?
  *
- * WHOLE TOKENS, which is one of two corrections this needed. It was `subject.includes(cls)`, a
- * substring test, and `.rp-dialog-button` is a PREFIX of `.rp-dialog-button-danger` — so a danger
- * rule matched the base class first, inherited its `DEFERS_TO_THE_HOST` exemption, and was
- * skipped. Measured: reverting `.rp-dialog .rp-dialog-button-danger` to the bare selector that
- * caused the original defect left this file green. The one rule this whole check was written for
- * was the one rule it could not see. The other correction is below.
+ * A known class on the subject is the ordinary case. The other one is a bare `button` type
+ * selector — `button:not(.rp-dialog-button)`, `.rp-editor-toolbar button` — which targets buttons
+ * without naming any of this project's classes and so was outside the sweep entirely.
+ *
+ * That gap survived a review finding about the same selector. The finding was that `:not()`'s
+ * contents were read as classes the subject WEARS, which exempted the rule; fixing that stopped
+ * the exemption and left the rule matching no class at all, so it went from wrongly exempt to
+ * silently out of scope — a quieter version of the same miss. Found by re-running every historical
+ * hole against the rewritten reader rather than by the unit cases, which is the argument for
+ * keeping that sweep.
  */
+const targetsAButton = (selector: Selector, classes: Set<string>): boolean =>
+	buttonClassesOn(selector, classes).length > 0 ||
+	compoundsOf(selector).at(-1)?.components.some((component) => component.type === 'type' && component.name === 'button') ===
+		true;
+
 /**
- * Split on top-level combinators only — descendant, `>`, `+`, `~` — ignoring any inside
- * parentheses. `:is(.a > .b)` carries a `>` that separates nothing at the outer level, the same
- * way `:is(.a, .b)` carries a comma that does not.
+ * Is this selector one the threshold GOVERNS — a button rule that has not deferred to the host?
+ *
+ * The two halves of the decision are here together rather than inline in the loop because they
+ * cancelled each other out there and nothing noticed. `targetsAButton` brought a bare `button`
+ * subject into scope; `onSubject` is empty for exactly those selectors, and `every` over an empty
+ * list is TRUE, so the deferral clause immediately took every one of them back out. The fix was
+ * one `length > 0`; the lesson is that the unit cases drove `targetsAButton` alone and so agreed
+ * with a predicate that decided nothing. A test drives THIS.
+ *
+ * EVERY class the subject wears must be a deferring one for the exemption to hold. A subject
+ * wearing both `.rp-dialog-button` and `.rp-dialog-button-danger` is governed by the stricter of
+ * the two, which is the case the substring bug got backwards.
  */
-const splitCombinators = (selector: string): string[] => {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
+const isGoverned = (selector: Selector, classes: Set<string>): boolean => {
+	if (!targetsAButton(selector, classes)) return false;
 
-	for (const char of selector) {
-		if (char === '(') depth += 1;
-		else if (char === ')') depth -= 1;
+	const onSubject = buttonClassesOn(selector, classes);
 
-		if (depth === 0 && /[\s>+~]/.test(char)) {
-			if (current !== '') parts.push(current);
-			current = '';
-		} else current += char;
-	}
-
-	if (current !== '') parts.push(current);
-	return parts;
+	return !(onSubject.length > 0 && onSubject.every((token) => DEFERS_TO_THE_HOST.includes(token)));
 };
 
-/**
- * The class tokens on a selector's SUBJECT — its last compound, the element the rule actually
- * styles. An ancestor mention does not count: `.rp-dialog-button .icon` styles the icon.
- *
- * Tokens INSIDE a functional pseudo-class count, because they select the subject just as a bare
- * class does: `:is(.rp-editor-tool-active, .other)` styles the active tool. Reading only bare
- * tokens made that rule match no button class at all, so the gate skipped it entirely rather
- * than scoring it — a rule invisible to the check is a worse outcome than one scored wrongly,
- * because no threshold change can ever rescue it.
- */
-/**
- * A compound with every `:not(...)` and `:has(...)` construct removed, balanced.
- *
- * They are the two functional pseudos whose contents are NOT worn by the subject.
- * `button:not(.rp-dialog-button)` matches every button EXCEPT that one, and
- * `button:has(.icon)` describes a descendant. `:is()` and `:where()` are the opposite — they list
- * alternatives the subject may match — so their contents stay.
- */
-const withoutNegations = (compound: string): string => {
-	let rest = compound;
+/** One declaration list, parsed — so a value fixture is read the way a stylesheet's is. */
+const declarationsOf = (declarations: string): readonly Declaration[] =>
+	stylesheetRules(`a { ${declarations} }`)[0]?.declarations ?? [];
 
-	for (let guard = 0; guard < 20; guard += 1) {
-		const found = firstFunctional(rest);
+/** A selector rendered back to text, so a failure names something a reader can grep for. */
+const show = (selector: Selector): string =>
+	selector
+		.map((component) => {
+			if (component.type === 'class') return `.${component.name}`;
+			if (component.type === 'id') return `#${component.name}`;
+			if (component.type === 'type') return component.name;
+			if (component.type === 'combinator') return component.value === 'descendant' ? ' ' : ` ${component.value} `;
+			if (component.type === 'pseudo-class') return `:${component.kind}`;
+			if (component.type === 'pseudo-element') return `::${component.kind}`;
 
-		if (found === null) break;
-		// A kept pseudo still has to be stepped over, or the scan restarts on it forever.
-		rest =
-			found.name === 'not' || found.name === 'has'
-				? `${rest.slice(0, found.from)} ${rest.slice(found.to)}`
-				: `${rest.slice(0, found.from)} ${found.inner} ${rest.slice(found.to)}`;
-	}
-
-	return rest;
-};
-
-const subjectClasses = (selector: string): string[] => {
-	const subject = splitCombinators(selector).pop() ?? '';
-
-	return [...withoutNegations(subject).matchAll(/\.[\w-]+/g)].map(([token]) => token);
-};
-
-/** The button classes a selector's subject wears, as exact tokens. */
-const buttonClassesOn = (selector: string, classes: Set<string>): string[] =>
-	subjectClasses(selector).filter((token) => classes.has(token));
+			return '';
+		})
+		.join('');
 
 describe('the instrument', () => {
 	it.each([
@@ -400,21 +258,21 @@ describe('the instrument', () => {
 		['.rp-editor-toolbar .rp-editor-tool-button:disabled', [0, 3, 0]],
 		['#id div.a::after', [1, 1, 2]],
 	])('scores %s', (selector, expected) => {
-		expect(specificityOf(selector)).toEqual(expected);
+		expect(specificityOf(parseSelector(selector))).toEqual(expected);
 	});
 
 	// The two the threshold itself depends on. Score `:not()` as if it were free and Obsidian's
 	// rule reads (0,0,1), which every bare class would then beat — this file would pass while
 	// every rule it guards lost in the browser.
 	it('gives :not() its argument, which is the whole reason the threshold is (0,1,1)', () => {
-		expect(specificityOf('button:not(.clickable-icon)')).toEqual([...OBSIDIAN_BUTTON]);
-		expect(beats(specificityOf('.rp-dialog-button'), OBSIDIAN_BUTTON)).toBe(false);
-		expect(beats(specificityOf('.rp-dialog .rp-dialog-button-danger'), OBSIDIAN_BUTTON)).toBe(true);
+		expect(specificityOf(parseSelector('button:not(.clickable-icon)'))).toEqual([...OBSIDIAN_BUTTON]);
+		expect(moreSpecific(specificityOf(parseSelector('.rp-dialog-button')), OBSIDIAN_BUTTON)).toBe(false);
+		expect(moreSpecific(specificityOf(parseSelector('.rp-dialog .rp-dialog-button-danger')), OBSIDIAN_BUTTON)).toBe(true);
 	});
 
 	// `:where()` is the exception in the same family — specificity ZERO, argument included.
 	it('gives :where() nothing', () => {
-		expect(specificityOf(':where(.a, .b) .c')).toEqual([0, 1, 0]);
+		expect(specificityOf(parseSelector(':where(.a, .b) .c'))).toEqual([0, 1, 0]);
 	});
 
 	/**
@@ -428,23 +286,26 @@ describe('the instrument', () => {
 		[':is(.rp-editor-tool-active, .other)', [0, 1, 0]],
 		[':not(.a, .b.c)', [0, 2, 0]],
 	])('takes the most specific argument of %s, not their sum', (selector, expected) => {
-		expect(specificityOf(selector)).toEqual(expected);
+		expect(specificityOf(parseSelector(selector))).toEqual(expected);
 	});
 
 	// The argument pattern cannot match nested parentheses, and one `String.replace` pass never
 	// re-scans what it rewrote — so an inner pseudo has to be resolved before the outer one.
 	it('scores a nested functional pseudo rather than skipping it', () => {
-		expect(specificityOf(':is(.a:not(.b))')).toEqual([0, 2, 0]);
+		expect(specificityOf(parseSelector(':is(.a:not(.b))'))).toEqual([0, 2, 0]);
 	});
 
 	/**
-	 * The comma inside `:is(.a, .b)` separates nothing at the outer level. Splitting on it cuts
-	 * one selector into two fragments, both scored wrongly and neither of them a selector —
-	 * which is how the false pass above reached the gate in the first place.
+	 * A selector LIST arrives as a list. The comma inside `:is(.a, .b)` separates nothing at the
+	 * outer level, and a text split once cut that selector into two fragments — neither of them a
+	 * selector, both scored wrongly. The parser makes the mistake unrepresentable: the outer list
+	 * has one entry and the pseudo owns its own.
 	 */
-	it('splits a prelude only on its top-level commas', () => {
-		expect(splitTopLevel(':is(.a, .b), .c')).toEqual([':is(.a, .b)', '.c']);
-		expect(splitTopLevel('.a, .b')).toEqual(['.a', '.b']);
+	it('reads a selector list as a list, and a nested one as the pseudo\'s own', () => {
+		const rules = stylesheetRules(':is(.a, .b), .c { color: red }');
+
+		expect(rules[0].selectors).toHaveLength(2);
+		expect(specificityOf(rules[0].selectors[0])).toEqual([0, 1, 0]);
 	});
 
 	it('reads the classes off real buttons, and finds the ones only a :class binding carries', () => {
@@ -481,8 +342,8 @@ describe('the instrument', () => {
 	it('does not read a longer class as the shorter one it starts with', () => {
 		const classes = new Set(['.rp-dialog-button', '.rp-dialog-button-danger']);
 
-		expect(buttonClassesOn('.rp-dialog .rp-dialog-button-danger', classes)).toEqual(['.rp-dialog-button-danger']);
-		expect(buttonClassesOn('.rp-dialog .rp-dialog-button', classes)).toEqual(['.rp-dialog-button']);
+		expect(buttonClassesOn(parseSelector('.rp-dialog .rp-dialog-button-danger'), classes)).toEqual(['.rp-dialog-button-danger']);
+		expect(buttonClassesOn(parseSelector('.rp-dialog .rp-dialog-button'), classes)).toEqual(['.rp-dialog-button']);
 	});
 
 	/**
@@ -501,7 +362,7 @@ describe('the instrument', () => {
 		[':where(.rp-dialog-button)', ['.rp-dialog-button']],
 		['.rp-dialog-button:not(.other)', ['.rp-dialog-button']],
 	])('reads %s as wearing %j', (selector, expected) => {
-		expect(buttonClassesOn(selector, new Set(['.rp-dialog-button']))).toEqual(expected);
+		expect(buttonClassesOn(parseSelector(selector), new Set(['.rp-dialog-button']))).toEqual(expected);
 	});
 
 	/**
@@ -514,11 +375,48 @@ describe('the instrument', () => {
 		[':is(.a:not(.b), .c)', [0, 2, 0]],
 		[':not(:is(.a, .b.c))', [0, 2, 0]],
 	])('keeps %s inside its own branch', (selector, expected) => {
-		expect(specificityOf(selector)).toEqual(expected);
+		expect(specificityOf(parseSelector(selector))).toEqual(expected);
+	});
+
+	/**
+	 * A rule can target buttons without naming one of this project's classes. `button:not(.x)` and
+	 * `.rp-editor-toolbar button` both do, and both compete with Obsidian's rule at (0,1,1) or
+	 * worse — a TIE, decided by source order, which is the fragility this whole check exists to
+	 * remove.
+	 */
+	it.each([
+		['button:not(.rp-dialog-button)', true],
+		['.rp-editor-toolbar button', true],
+		['.rp-dialog-button', true],
+		['.rp-editor-toolbar', false],
+		['.rp-dialog-button .icon', false],
+	])('reads %s as targeting a button: %s', (selector, expected) => {
+		expect(targetsAButton(parseSelector(selector), new Set(['.rp-dialog-button']))).toBe(expected);
+	});
+
+	/**
+	 * The SAME selectors again, one clause further down — and this is the case that matters, because
+	 * the two above it all passed while the check governed none of them.
+	 *
+	 * `targetsAButton` brought a bare `button` subject into scope and the deferral clause took it
+	 * straight back out: those selectors wear no known class, `every` over an empty list is true, and
+	 * the exemption written for `.rp-dialog-button` swallowed every button in the project that
+	 * happened not to name a class. The predicate above answered `true` throughout. Drive the
+	 * decision, not its first half.
+	 */
+	it.each([
+		['button:not(.rp-dialog-button)', true],
+		['.rp-editor-toolbar button', true],
+		['.rp-dialog-button-danger', true],
+		['.rp-dialog-button.rp-dialog-button-danger', true],
+		['.rp-dialog-button', false],
+		['.rp-editor-toolbar', false],
+	])('governs %s: %s', (selector, expected) => {
+		expect(isGoverned(parseSelector(selector), new Set(['.rp-dialog-button', '.rp-dialog-button-danger']))).toBe(expected);
 	});
 
 	it('reads only the subject, never an ancestor', () => {
-		expect(buttonClassesOn('.rp-dialog-button .icon', new Set(['.rp-dialog-button']))).toEqual([]);
+		expect(buttonClassesOn(parseSelector('.rp-dialog-button .icon'), new Set(['.rp-dialog-button']))).toEqual([]);
 	});
 
 	/**
@@ -530,18 +428,25 @@ describe('the instrument', () => {
 	it('sees a subject class inside a functional pseudo', () => {
 		const classes = new Set(['.rp-editor-tool-active']);
 
-		expect(buttonClassesOn(':is(.rp-editor-tool-active, .other)', classes)).toEqual(['.rp-editor-tool-active']);
+		expect(buttonClassesOn(parseSelector(':is(.rp-editor-tool-active, .other)'), classes)).toEqual(['.rp-editor-tool-active']);
 	});
 
-	// A combinator inside parentheses separates nothing at the outer level, so the subject of
-	// `:is(.a > .b)` is the whole pseudo rather than `.b)`.
-	it('splits on top-level combinators only', () => {
-		expect(splitCombinators('.rp-dialog :is(.a > .b)')).toEqual(['.rp-dialog', ':is(.a > .b)']);
+	/**
+	 * A combinator inside parentheses is not an outer combinator. A text split once lost `>`
+	 * entirely, because `.a > .b` carries whitespace on both sides of it; a parsed combinator is a
+	 * NODE, so neither mistake has a representation here.
+	 */
+	it('compounds a selector at its own combinators, not at ones inside a pseudo', () => {
+		const compounds = compoundsOf(parseSelector('.rp-dialog :is(.a > .b)'));
+
+		expect(compounds).toHaveLength(2);
+		expect(compounds[0].after).toBe('descendant');
+		expect(compounds[1].after).toBeNull();
 	});
 
 	it('scans sheets that exist and hold rules', () => {
 		expect(sheets.length).toBeGreaterThan(3);
-		expect(rulesIn(readFileSync('styles/editor.css', 'utf8')).length).toBeGreaterThan(5);
+		expect(stylesheetRules(readFileSync('styles/editor.css', 'utf8')).length).toBeGreaterThan(5);
 	});
 });
 
@@ -551,18 +456,12 @@ describe('every button rule against Obsidian\'s own', () => {
 		const losing: string[] = [];
 
 		for (const sheet of sheets) {
-			for (const [prelude, body] of rulesIn(readFileSync(sheet, 'utf8'))) {
-				if (!CONTESTED.some((property) => new RegExp(`(^|[;{\\s])${property}\\s*:`).test(body))) continue;
+			for (const rule of stylesheetRules(readFileSync(sheet, 'utf8'))) {
+				if (!rule.declarations.some((declaration) => CONTESTED.has(propertyOf(declaration)))) continue;
 
-				for (const selector of splitTopLevel(prelude)) {
-					const onSubject = buttonClassesOn(selector, classes);
-
-					if (onSubject.length === 0) continue;
-					// EVERY token must be a deferring one for the rule to be exempt. A subject wearing
-					// both `.rp-dialog-button` and `.rp-dialog-button-danger` is governed by the
-					// stricter of the two, which is the case the substring bug got backwards.
-					if (onSubject.every((token) => DEFERS_TO_THE_HOST.includes(token))) continue;
-					if (!beats(specificityOf(selector), OBSIDIAN_BUTTON)) losing.push(`${sheet}: ${selector}`);
+				for (const selector of rule.selectors) {
+					if (!isGoverned(selector, classes)) continue;
+					if (!moreSpecific(specificityOf(selector), OBSIDIAN_BUTTON)) losing.push(`${sheet}: ${show(selector)}`);
 				}
 			}
 		}
@@ -593,13 +492,20 @@ describe('every button rule against Obsidian\'s own', () => {
 		const ringed = new Set<string>();
 
 		for (const sheet of sheets) {
-			for (const [prelude, body] of rulesIn(readFileSync(sheet, 'utf8'))) {
-				for (const selector of splitTopLevel(prelude)) {
+			for (const rule of stylesheetRules(readFileSync(sheet, 'utf8'))) {
+				const focusRule = rule.selectors.some((selector) =>
+					selector.some((component) => component.type === 'pseudo-class' && component.kind === 'focus-visible'),
+				);
+				const flattens = rule.declarations.some(
+					(declaration) => propertyOf(declaration) === 'box-shadow' && !drawsAnIndicator([declaration]),
+				);
+
+				for (const selector of rule.selectors) {
 					for (const cls of buttonClassesOn(selector, classes)) {
-						if (selector.includes(':focus-visible') && drawsAnIndicator(body)) ringed.add(cls);
+						if (focusRule && drawsAnIndicator(rule.declarations)) ringed.add(cls);
 						// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow
 						// says nothing about the resting state a ring is drawn on.
-						else if (/box-shadow\s*:\s*none/.test(body)) flattened.set(cls, `${sheet}: ${selector}`);
+						else if (!focusRule && flattens) flattened.set(cls, `${sheet}: ${show(selector)}`);
 					}
 				}
 			}
@@ -622,15 +528,15 @@ describe('every button rule against Obsidian\'s own', () => {
 	 * width is the sneakiest: it reads as a deliberate value rather than a switch-off.
 	 */
 	it.each(['none', '0', '0px', 'initial', 'unset', 'revert'])('does not count outline: %s as a ring', (value) => {
-		expect(drawsAnIndicator(`outline: ${value};`)).toBe(false);
+		expect(drawsAnIndicator(declarationsOf(`outline: ${value}`))).toBe(false);
 	});
 
 	it.each(['none', 'initial', 'unset'])('does not count box-shadow: %s as a ring', (value) => {
-		expect(drawsAnIndicator(`box-shadow: ${value};`)).toBe(false);
+		expect(drawsAnIndicator(declarationsOf(`box-shadow: ${value}`))).toBe(false);
 	});
 
 	it('counts a real outline', () => {
-		expect(drawsAnIndicator('outline: 2px solid red;')).toBe(true);
+		expect(drawsAnIndicator(declarationsOf('outline: 2px solid red;'))).toBe(true);
 	});
 
 	/**
@@ -640,23 +546,23 @@ describe('every button rule against Obsidian\'s own', () => {
 	 * caught it.
 	 */
 	it('counts a box-shadow ring that begins with zero offsets', () => {
-		expect(drawsAnIndicator('box-shadow: 0 0 0 3px red;')).toBe(true);
+		expect(drawsAnIndicator(declarationsOf('box-shadow: 0 0 0 3px red;'))).toBe(true);
 	});
 
 	// A zero-width SHORTHAND draws nothing however its other components read.
 	it('does not count a zero-width outline shorthand', () => {
-		expect(drawsAnIndicator('outline: 0 solid red;')).toBe(false);
+		expect(drawsAnIndicator(declarationsOf('outline: 0 solid red;'))).toBe(false);
 	});
 
 	// `outline-offset` is not an indicator, and its hyphen is what keeps it out of the scan.
 	it('does not mistake outline-offset for an indicator', () => {
-		expect(drawsAnIndicator('outline-offset: 1px;')).toBe(false);
+		expect(drawsAnIndicator(declarationsOf('outline-offset: 1px;'))).toBe(false);
 	});
 
 	it('reports a bare class that sets one of the contested properties', () => {
 		const bare = '.rp-editor-tool-active';
 
 		expect(buttonClasses()).toContain(bare);
-		expect(beats(specificityOf(bare), OBSIDIAN_BUTTON)).toBe(false);
+		expect(moreSpecific(specificityOf(bare), OBSIDIAN_BUTTON)).toBe(false);
 	});
 });

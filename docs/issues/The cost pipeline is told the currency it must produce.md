@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Quantity, cost and the end-to-end loop]]"
 order: 30
-status: Ready
+status: New
 started: ""
 finished: ""
 horizon: "MVP"
@@ -37,13 +37,34 @@ catalogue's currency, and clears the Requirement's stale marker.
 **A rule that cannot fire is not a check**, and this one could not fire at the one point that
 now needs it.
 
-## The decision
+## The shape most likely to be right
 
 > **`CostPipelineInput` gains `expectedCurrency`, and `computeEstimatedCost` refuses with a
 > `CalculationError` when `unitPrice.currency` differs from it, before any arithmetic.**
 
-`RecalculateRequirementCommand` supplies it from the owning [[Project]], which is why that
-command reads a third entity where it previously read two.
+Written as a proposal rather than a decision, because it cannot be implemented yet — see
+*What blocks it* below. It is recorded because three attempts at this question were drafted
+in one pull request and each was withdrawn, and losing the reasoning would mean a fourth
+attempt starting from nothing.
+
+## What blocks it — three absences, each verified against the current tree
+
+1. **A [[Project]] has no currency.** Neither slice 3's property table nor
+   `src/domain/project/Project.ts` declares one; only `budget` carries a currency, and it is
+   nullable, so it cannot stand in. There is nothing to pass as `expectedCurrency`.
+2. **Nothing invalidates a Requirement when a project's currency changes.** The only
+   invalidation subscribers are `ZoneGeometryChanged` and `AssetUpdated`, and
+   `calculatedFrom` snapshots `zoneArea`, `unitCost` and `assetUnit` — no currency. A
+   Requirement therefore stays `"current"` indefinitely holding an estimate in a currency
+   the project has since stopped using, and the read model sees no mismatch to report.
+3. **`Requirement.estimatedCost` is not optional.** It is a `DerivedValue<Money>`, so a
+   Requirement whose cost cannot be computed has no valid initial value: storing the
+   Asset-currency figure breaks the project-currency invariant, and inventing a
+   project-currency figure is not a calculation. "Create it and let recalculation fail" is
+   unavailable without changing that shape.
+
+Any answer has to settle all three, which is why this is an Issue rather than a paragraph
+in a slice.
 
 ## Why here rather than at the call site
 
@@ -53,7 +74,7 @@ between an invariant and a convention. It also puts the refusal where
 [[A derived value is recomputed on read, not persisted]] puts the computation, so a currency
 changed after the fact is caught on the next read rather than never.
 
-## What is owed, and is not done
+## What is owed once the blockers are cleared
 
 `src/domain/cost/costPipeline.ts` is **shipped without this field**. `CostPipelineInput`
 declares `quantity`, `unitPrice`, `pricedPer?`, `discount?`, `shipping?`, `surcharge?` and
@@ -71,6 +92,20 @@ optional field whose own comment reads *"Omitted, no basis check runs"* — so `
 should be optional in the same way, buying a check when supplied and changing nothing when not.
 The only callers today are `tests/domain/cost/costPipeline.test.ts`, so nothing in production
 needs updating with it.
+
+## What was tried, and why each was withdrawn
+
+Recorded because each looked correct until the next fact arrived, and a reader who does not
+know that will try them again in the same order.
+
+- **Refuse at `AssignAssetCommand`.** Withdrawn: a project's currency is a setting the user
+  may change afterwards, so the refusal sits on the wrong side of the fact it depends on.
+- **Let recalculation catch it.** Withdrawn: the rule is enforced by `add`/`subtract`/
+  `compare`, which need *two* `Money` values, and an initial calculation has one. The rule
+  could not fire.
+- **Give the pipeline `expectedCurrency`.** Withdrawn from that pull request: the contract
+  would have been written ahead of shipped code, and blockers 1 and 3 above make it
+  unimplementable regardless.
 
 ## Alternatives rejected
 

@@ -418,28 +418,6 @@ interface DiscountRule {
 interface CostPipelineInput {
   readonly quantity: Quantity; // effective Purchase Quantity
   readonly unitPrice: Money;
-  // The currency the RESULT must be denominated in — the owning Project's (§72).
-  // `computeEstimatedCost` refuses with a `CalculationError` when `unitPrice.currency`
-  // differs from it, before any arithmetic.
-  //
-  // SPECIFIED, NOT YET BUILT. `src/domain/cost/costPipeline.ts` ships without this field
-  // and derives the result currency from `unitPrice` unchecked, so this line is a
-  // contract ahead of its code — which is the one thing CLAUDE.md asks a document here
-  // never to be. It is tracked as an Issue rather than left to be discovered:
-  // [[The cost pipeline is told the currency it must produce]], under this slice's own
-  // PBI, which carries the decision, what is owed, and `pricedPer?` as the template to
-  // build it from. Optional in the same way that field is: supplied, it buys a check;
-  // omitted, nothing changes.
-  //
-  // Added 2026-08-26, and it exists because §59 was amended: the Asset catalogue is
-  // shared across projects, so a price may legitimately arrive in a currency the project
-  // does not use. `add`/`subtract`/`compare` already refuse a mismatch BETWEEN two Money
-  // values — but on an initial calculation there is only one, the price, so nothing was
-  // there to disagree with it and the pipeline would return a well-formed estimate in the
-  // wrong currency. Naming the expected currency is what gives
-  // "a mismatched unit or currency is an error, not a coercion" a second operand at the
-  // one point it never had one.
-  readonly expectedCurrency: CurrencyCode;
   readonly discount?: DiscountRule;
   readonly shipping?: Money;
   readonly surcharge?: Money; // ADR-012 — additive with shipping, before tax

@@ -386,44 +386,33 @@ The Requirement still resolves to exactly one project — the Zone's. Nothing ab
 sharing the definition shares its *use*
 ([[Work belongs to one project, catalogues belong to the vault]]).
 
-**Sharing did create one new way for a pairing to be wrong, and it is about money rather
-than ownership.** A [[Project]] denominates every [[Money]] value in it in its own
-currency (§72), and two projects may legitimately disagree; the shared definition they
-both reference holds one price. So an Asset priced in EUR can now be assigned to a Zone
-in a GBP project, which it could not be while catalogues were project-scoped.
+**Sharing did create one new way for a pairing to be wrong, and this slice does not
+answer it.** A [[Project]] denominates every [[Money]] value in it in its own currency
+(§72) and two projects may legitimately disagree, while the shared definition they both
+reference holds one price — so an Asset priced in EUR can now be assigned to a Zone in a
+GBP project, which was impossible while catalogues were project-scoped.
 
-**That is caught in the cost pipeline, which owns the rule — but the pipeline had to be
-given the operand to catch it with.** [[A mismatched unit or currency is an error, not a
-coercion]] is enforced by `core/money`'s `add`/`subtract`/`compare`, and those refuse a
-mismatch *between two* `Money` values. On an initial calculation there is only one, the
-Asset's price, so nothing disagreed with it and the pipeline would have returned a
-well-formed estimate in the wrong currency and cleared the stale marker. Slice 9's
-`CostPipelineInput` therefore gains **`expectedCurrency`**, and `computeEstimatedCost`
-refuses before any arithmetic when `unitPrice.currency` differs from it — **specified there
-and not yet built**, tracked as
-[[The cost pipeline is told the currency it must produce]].
+**Where that is detected, and what happens to the Requirement meanwhile, is an open
+question**, tracked as [[The cost pipeline is told the currency it must produce]] under
+this slice's own PBI. It is open rather than answered here because answering it needs
+three things the register does not yet have, each verified against the current tree
+rather than assumed:
 
-**So the Project is read, and this note previously claimed otherwise.** An earlier version
-of this paragraph said `AssignAssetCommand` keeps loading exactly two entities and that no
-new dependency was needed — which was wrong, and wrong in the direction that makes a
-design look cheaper than it is. Whichever end the check sits at, the project's currency
-has to reach the pipeline. It reaches it through the recalculation path: the Requirement
-is created, `RecalculateRequirement` supplies the owning Project's currency, and a
-mismatch leaves the Requirement `recalculationStatus: "stale"` — never cleared, surfaced
-by the Inspector, and explicitly not allowed to block its siblings (see the cascade's
-error branch, which already says *one Asset's bad currency/unit must not block the
-others*). Recalculation rather than assignment because a project's currency is a setting
-the user may change afterwards, and recalculation re-reads it while an assign-time refusal
-would sit on the wrong side of the fact it depends on.
+- **A [[Project]] has no currency field.** Neither slice 3's property table nor
+  `src/domain/project/Project.ts` declares one; only `budget` carries a currency, and it
+  is nullable. So nothing can supply an expected currency to compare against.
+- **Nothing invalidates a Requirement when a project's currency changes.** The only
+  invalidation subscribers are `ZoneGeometryChanged` and `AssetUpdated`, and
+  `calculatedFrom` snapshots `zoneArea`, `unitCost` and `assetUnit` — no currency — so a
+  Requirement stays `"current"` with an estimate in the former currency.
+- **`Requirement.estimatedCost` is not optional.** A Requirement whose cost cannot be
+  computed has no valid initial value to be constructed with, so "create it and let
+  recalculation fail" is not available without changing that shape.
 
-**What turns that stale Requirement into a usable one is a per-project price override,
-and this slice does not define one.** [[Asset library]]'s definition of done requires it —
-a project records its own price beside the shared default rather than replacing it
-(§89) — and neither the schema nor the UI path for it is here. Until it is, an Asset
-priced in another project's currency can be assigned but not costed. That is a **named
-gap, not an oversight**: stated so the slice adding the override knows what it unblocks,
-and so nobody reads the accepting behaviour above as meaning every pairing yields a
-number.
+Three designs were drafted here and each rested on one of those three absences, which is
+why this paragraph now names the question instead of answering it. The related gap is the
+**per-project price override** [[Asset library]]'s definition of done requires and no
+slice defines; the Issue carries both, since neither is settleable without the other.
 
 The UI cannot be the guard for what remains, either. A picker that offers only area-kind
 Assets makes a bad pairing *unreachable through the Inspector*, which is exactly the
@@ -730,11 +719,7 @@ Safety rules put the authority in the domain and the detection in the read model
 is that split, applied to one field.
 
 `RecalculateRequirementCommand` (named in SDD §29) re-fetches the current Zone
-and Asset — **and the owning Project, for its currency**, which slice 9's
-`CostPipelineInput.expectedCurrency` requires and which a shared Asset made necessary
-(§59, amended 2026-08-26): the price may arrive in a currency this project does not use,
-and the pipeline cannot detect that without being told what it should be. It re-runs the
-pipeline above, saves the Requirement (quantity, cost, and
+and Asset, re-runs the pipeline above, saves the Requirement (quantity, cost, and
 `recalculationStatus: "current"` together, one write), and publishes
 `RequirementRecalculated`. A second handler runs the Cost Pipeline off the
 freshly recalculated quantity and publishes `CostEstimateChanged`:
@@ -2222,21 +2207,6 @@ shape, is at the marker's own declaration under "Compensated multi-entity sequen
       replaces one requiring the opposite, and is written as a positive assertion on
       purpose — a deleted refusal leaves no test behind, and nothing would then notice the
       guard being reintroduced.
-- [ ] A Requirement pairing a Zone with an Asset priced in **another currency** is created
-      by `AssignAssetCommand` and then **fails to recalculate**, staying
-      `recalculationStatus: "stale"` while its sibling Requirements on the same Zone
-      recalculate normally. Asserted end to end rather than at the command, because that
-      is where the check lives: ownership stopped being a reason a pairing can be wrong,
-      and currency became one.
-- [ ] `RecalculateRequirementCommand` passes the owning **Project's** currency as
-      `CostPipelineInput.expectedCurrency`, asserted by a test that would pass without it:
-      an EUR Asset against a GBP Project must not produce a `"current"` Requirement
-      carrying a EUR estimate. Named as its own criterion because the failure mode is
-      silence — `add`/`subtract` refuse a mismatch between two `Money` values, and an
-      initial calculation has only one, so without this operand the pipeline succeeds and
-      is wrong. The per-project price override that would make such a Requirement costable
-      is not in this slice — see "Sharing did create one new way for a pairing to be
-      wrong".
 - [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
       covered by a fixture where one Asset is referenced from two Projects; the delete
       dialog renders a row per project. A bare total is refused by this test, because it

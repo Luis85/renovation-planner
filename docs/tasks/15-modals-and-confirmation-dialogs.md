@@ -642,8 +642,15 @@ async function askThenDelete(
     // One row per project. For a Zone that is always one row; the label carries the
     // project name so the Asset flow's several rows are distinguishable, and a count with
     // no project on it would read as "in the project I am looking at".
+    //
+    // ONE key with the name interpolated, never a translated fragment with the name
+    // concatenated after it: word order and punctuation between the two are the
+    // translator's to choose, and `'Requirements' + ' — ' + name` takes both away. This
+    // file's own call-site rule is that every COMPLETE row label is resolved through
+    // `t()`, and a template literal wrapping a `t()` call satisfies the letter of it
+    // while breaking what it is for.
     references: groups.map((g) => ({
-      label: `${t(lang, 'entity.requirement.plural')} — ${g.projectName}`,
+      label: t(lang, 'entity.requirement.plural.in-project', { project: g.projectName }),
       count: g.requirementIds.length,
     })),
   });
@@ -779,10 +786,16 @@ contract ends at the typed result, before any write occurs.
   than passing review by accident.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
-  `references: [{ label: t(lang, 'entity.requirement.plural'), count: 2 }]` sourced from a fake
-  `ListRequirementsReferencing` double, and that choosing each of the four actions
-  resolves the awaited call with the corresponding value — the test stops at the
+  `references: [{ label: t(lang, 'entity.requirement.plural.in-project', { project: 'Kitchen Refit' }), count: 2 }]`
+  sourced from a fake `ListRequirementsReferencing` double **returning one
+  `ReferencingProject` group** — which is what a Zone target always yields, since a Zone
+  belongs to one Plan and that to one Project. Then assert that choosing each of the four
+  actions resolves the awaited call with the corresponding value — the test stops at the
   resolved value and does not assert what slice 8's command does with it.
+- **Grouped-rows test**, which a Zone fixture cannot reach and an Asset one can: a double
+  returning two groups produces **two rows**, each counting its own group. It is worth its
+  own test precisely because every Zone case is single-group, so a caller that rendered
+  `groups[0]` and ignored the rest would pass every other test in this file.
 - **Stale-count test**, the one the zero branch exists for: a query double answering `[]`
   and a command double refusing with a `ReferenceError`. Assert on the command's *input*
   — the first dispatch carries no `resolution` — because a test that only checked "a
@@ -791,9 +804,10 @@ contract ends at the typed result, before any write occurs.
   re-read count, and that a re-read of `[]` surfaces the refusal instead of opening a
   dialog with an empty row.
 - **Consented-set test**, the mirror of the above and the one that protects data rather
-  than clarity: a query double answering `[r1, r2]`, then a command double returning
-  `reference.set-changed`. Assert the first dispatch carried `resolvedReferents:
-  [r1, r2]` exactly — the IDs the dialog's row was built from, not a count and not the
+  than clarity: a query double answering one group whose `requirementIds` are `[r1, r2]`,
+  then a command double returning `reference.set-changed`. Assert the first dispatch
+  carried `resolvedReferents: [r1, r2]` exactly — **flattened**, since grouping is how the
+  referents are shown and the consented set is their union — the IDs the dialog's row was built from, not a count and not the
   live set — then assert the dialog re-opens with the re-read set, and that the second
   dispatch carries the *new* IDs. Assert on the input again for the same reason as
   above: a caller that dropped `resolvedReferents` entirely would still open a dialog
@@ -818,10 +832,13 @@ contract ends at the typed result, before any write occurs.
 5. `DeleteReferenceDialog` renders an arbitrary-length `references` array exactly as
    supplied — no recomputation, no invented default rows when the caller supplies only
    one.
-6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly
-   `Requirements: 2`, sourced from slice 10's `ListRequirementsReferencing` query —
-   verified by an integration test asserting the value passed into the dialog
-   descriptor, not a value this slice's component recomputed.
+6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly **one**
+   row counting 2, its label naming the owning project through a single localized key,
+   sourced from slice 10's `ListRequirementsReferencing` query — verified by an
+   integration test asserting the value passed into the dialog descriptor, not a value
+   this slice's component recomputed. **One row because a Zone always yields one group**;
+   the same flow on an Asset referenced from two projects shows two rows, which is its own
+   test since every Zone fixture would pass a caller that read `groups[0]` alone.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
    stacking or queueing a second one — the modal-stacking rule is enforced by
    `DialogStore`, checked by a unit test, not left to caller discipline.

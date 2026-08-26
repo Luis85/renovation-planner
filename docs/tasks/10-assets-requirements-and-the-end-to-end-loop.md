@@ -872,6 +872,10 @@ function ListRequirementsReferencing(
 ): Promise<Result<readonly ReferencingProject[], PersistenceError>>;
 
 interface ReferencingProject {
+  // A group is NEVER empty: a project with no referencing Requirements is absent from
+  // the array, not present with a count of zero. Callers test `groups.length === 0` for
+  // "no referents at all" — slice 15's delete flow does exactly that — and an empty group
+  // would make that test answer wrongly while every row still rendered.
   projectId: ProjectId;
   // The dialog shows a name; resolving it here keeps the presentation layer from
   // holding a repository to look one up, which is the same §58/§59 rule as above.

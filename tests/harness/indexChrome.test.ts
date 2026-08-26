@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import type { Selector } from 'lightningcss';
-import { alternativesOf, compoundHasClass, compoundsOf, propertyOf, stylesheetRules, typeOf } from '../helpers/selectors';
+import { alternativesOf, compoundHasClass, compoundsOf, propertyOf, show, stylesheetRules, typeOf } from '../helpers/selectors';
 import { afterEach, describe, expect, it } from 'vitest';
 import { entryShots } from '../../scripts/entryShots.mjs';
 import { openIndex } from './indexApp';
@@ -145,6 +145,28 @@ const harnessRules = (css: string): { selector: Selector; properties: string[] }
 		rule.selectors.map((selector) => ({ selector, properties: rule.declarations.map((one) => propertyOf(one)) })),
 	);
 
+/** Does this rule declare anything that INHERITS past the element it was written for? */
+const inherits = (properties: readonly string[]): boolean =>
+	properties.some((property) => !STAGE_MAY_DECLARE.has(property));
+
+/**
+ * Does this branch name any part of the harness — a `rp-harness-*` class, or the missing-icon
+ * attribute no Obsidian selector can be spelled as?
+ *
+ * `body` alone is not enough, and is the exception `theme.css`'s header carves out: it is held to
+ * `height`, which does not inherit, so the caller's own property test lets it through.
+ *
+ * The attribute is named here rather than guessed at: `[data-icon-missing]` is what
+ * `obsidian-mock.ts` stamps when `setIcon` is called and the mock draws no SVG. Getting the
+ * spelling wrong fails LOUDLY — that rule becomes an offender in the real sheet — which is the
+ * useful direction for a name this has to match exactly.
+ */
+const namesTheHarness = (branch: Selector): boolean => {
+	const text = show(branch);
+
+	return text.includes('.rp-harness-') || text.includes('[data-icon-missing]');
+};
+
 /**
  * Does this selector reach a DESCENDANT of the stage — the element every entry mounts into?
  *
@@ -191,7 +213,11 @@ const branchReachesTheStage = (branch: Selector, properties: readonly string[]):
 		}
 
 		if (compoundHasClass(compound, PICKER_ROOT)) {
-			if (last) return false;
+			// Landing on the PICKER reaches the entry for exactly the same reason landing on the stage
+			// does: the stage is inside the picker, so an inherited declaration passes straight
+			// through it. The stage arm was widened for this a round earlier and its two ANCESTORS
+			// were left universally exempt — the same fix, not applied to the same shape twice.
+			if (last) return inherits(properties);
 			if (compound.after !== 'child') return true;
 			if (typeOf(compounds[at + 1]) !== 'nav') return true;
 
@@ -201,13 +227,24 @@ const branchReachesTheStage = (branch: Selector, properties: readonly string[]):
 		if (insideLeaf && compound.after === 'descendant') return true;
 		if (compoundHasClass(compound, LEAF)) {
 			if (compound.after === 'descendant') return true;
+			if (last) return inherits(properties);
 
 			insideLeaf = compound.after === 'child';
 		}
 	}
 
-	return false;
+	// NOTHING in this branch names a part of the harness, and that is not a reason to pass it.
+	// `body h2` and `html .rp-entry-title` reach every mounted entry while naming neither the leaf,
+	// the picker, the stage nor `main`, and this walk fell straight through to `false` for them —
+	// so the sentence above, which says every selector in the sheet is checked, was answering for a
+	// set it had quietly excluded.
+	//
+	// `theme.css`'s FIRST header rule already says every selector must name something the harness
+	// draws, with `body` as its single exception; that rule was enforced nowhere. It is enforced
+	// here, in the one place that is already reading every selector in the sheet.
+	return !namesTheHarness(branch) && (branch.some((component) => component.type === 'combinator') || inherits(properties));
 };
+
 
 const reachesTheStage = (selector: Selector, properties: readonly string[] = []): boolean =>
 	// `:is()` is EXPANDED first, so every question below is asked of a plain selector. The
@@ -220,18 +257,6 @@ const reachesTheStage = (selector: Selector, properties: readonly string[] = [])
 	alternativesOf(selector).some((branch) => branchReachesTheStage(branch, properties));
 
 
-/** A selector rendered back to text, so a failure names something a reader can grep for. */
-const show = (selector: Selector): string =>
-	selector
-		.map((component) => {
-			if (component.type === 'class') return `.${component.name}`;
-			if (component.type === 'type') return component.name;
-			if (component.type === 'combinator') return component.value === 'descendant' ? ' ' : ` ${component.value} `;
-			if (component.type === 'pseudo-class') return `:${component.kind}`;
-
-			return '';
-		})
-		.join('');
 
 describe('the picker stylesheet, on what its selectors can reach', () => {
 	it('leaves the mounted entry alone, from every root that leads to it', () => {
@@ -282,6 +307,16 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['an inherited property on the stage element', 'main { color: red; }'],
 		['an inherited property beside a safe one', '.rp-harness-stage { flex: 1; font-family: serif; }'],
 		['a pseudo-wrapped stage carrying one', ':is(main) { letter-spacing: 0.1em; }'],
+		// The stage's two ANCESTORS. An inherited declaration passes straight through the stage from
+		// either, so the arm widened for the stage a round earlier had to be applied to both.
+		['an inherited property on the picker root', '.rp-harness-index { text-transform: uppercase; }'],
+		['an inherited property on the leaf', '.rp-harness-leaf { font-family: serif; }'],
+		// Named nowhere in this sheet's vocabulary, and reaching every entry regardless. The walk
+		// fell through to `false` for these, so the invariant's own sentence was answering for a set
+		// it had quietly excluded.
+		['a selector rooted above the harness', 'body h2 { color: red; }'],
+		['a selector rooted at the document', 'html .rp-entry-title { text-transform: uppercase; }'],
+		['a bare type selector', 'h2 { color: red; }'],
 		// The stage reached through a pseudo. `typeOf` reads a compound's DIRECT components, so the
 		// pseudo hid the type from the outer walk; asking the argument on its own hid what followed
 		// the pseudo from the argument. Expansion is what sees both at once.
@@ -315,6 +350,11 @@ describe('the picker stylesheet, on what its selectors can reach', () => {
 		['the stage element itself', 'main { flex: 1; }'],
 		['the growth chain', '.rp-harness-leaf > div > div:last-child { flex: 1; }'],
 		['the leaf itself', '.rp-harness-leaf { display: flex; }'],
+		// `body` is the sheet's one exception to naming something the harness draws, and it is held
+		// to a non-inheriting property — which is what lets it through here rather than a carve-out.
+		['the body height rule', 'body { height: 100%; }'],
+		// The missing-icon attribute is harness vocabulary too, and the rule that uses it is real.
+		['the missing-icon rule', '[data-icon-missing]::after { content: attr(data-icon-missing); }'],
 		// The real stage rule, which must stay silent or the allow-list has refused the one thing
 		// the stage exists to do.
 		['the stage as a container', '.rp-harness-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }'],

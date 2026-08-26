@@ -297,3 +297,84 @@ export const typeOf = (compound: Compound): string | null => {
 
 	return type !== undefined && type.type === 'type' ? type.name : null;
 };
+
+const ATTRIBUTE_OPERATORS: Record<string, string> = {
+	equal: '=',
+	includes: '~=',
+	'dash-match': '|=',
+	prefix: '^=',
+	substring: '*=',
+	suffix: '$=',
+};
+
+/**
+ * A selector rendered back to text, LOSSLESSLY.
+ *
+ * Two callers had a copy of this, both written for a failure message, where dropping a component
+ * only makes the message vaguer. Then `buttonSpecificity` began comparing the rendered string to
+ * decide whether one rule's scope covers another's, and lossy became unsound:
+ * `.dialog[data-kind='a']` and `.dialog[data-kind='b']` both rendered `.dialog`, so a ring drawn
+ * in one container cleared a flattening rule in a disjoint one.
+ *
+ * It THROWS on a component kind, or an attribute operator, it does not model. That is the point
+ * rather than an oversight: returning `''` for the unknown is how it was lossy in the first place,
+ * and a serializer used as an IDENTITY has to fail closed. An unmodelled kind stops the build and
+ * gets modelled.
+ *
+ * One function rather than four, because the recursion through a functional pseudo's arguments
+ * would otherwise be a mutually recursive set — the shape `specificityOf` above was collapsed out
+ * of for the same reason.
+ */
+export function show(selector: Selector): string {
+	return selector
+		.map((component) => {
+			switch (component.type) {
+				case 'universal': {
+					return '*';
+				}
+				case 'nesting': {
+					return '&';
+				}
+				case 'type': {
+					return component.name;
+				}
+				case 'id': {
+					return `#${component.name}`;
+				}
+				case 'class': {
+					return `.${component.name}`;
+				}
+				case 'combinator': {
+					return component.value === 'descendant' ? ' ' : ` ${component.value} `;
+				}
+				case 'pseudo-element': {
+					return `::${component.kind}`;
+				}
+				case 'attribute': {
+					const { name, operation } = component;
+
+					if (operation === null || operation === undefined) return `[${name}]`;
+
+					const operator = ATTRIBUTE_OPERATORS[operation.operator];
+
+					if (operator === undefined) {
+						throw new Error(`show(): no rendering for the "${operation.operator}" attribute operator`);
+					}
+
+					return `[${name}${operator}"${operation.value}"${operation.caseSensitivity === 'case-sensitive' ? '' : ' i'}]`;
+				}
+				case 'pseudo-class': {
+					const args = argumentsOf(component);
+
+					if (args.length > 0) return `:${component.kind}(${args.map((argument) => show(argument)).join(', ')})`;
+					if ('a' in component && 'b' in component) return `:${component.kind}(${String(component.a)}n+${String(component.b)})`;
+
+					return `:${component.kind}`;
+				}
+				default: {
+					throw new Error(`show(): no rendering for a "${component.type}" component`);
+				}
+			}
+		})
+		.join('');
+}

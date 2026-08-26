@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Selector, SelectorComponent } from 'lightningcss';
-import { alternativesOf, compoundsOf, moreSpecific, parseSelector, propertyOf, specificityOf, stylesheetRules, subjectClasses } from '../helpers/selectors';
+import { alternativesOf, compoundsOf, moreSpecific, parseSelector, propertyOf, show, specificityOf, stylesheetRules, subjectClasses } from '../helpers/selectors';
 import { declarationsOf, drawsAnIndicator, indicatorOf } from '../helpers/indicators';
 
 /**
@@ -200,20 +200,6 @@ const isGoverned = (selector: Selector, classes: Set<string>): boolean =>
 	alternativesOf(selector).some((branch) => governsBranch(branch, classes));
 
 
-/** A selector rendered back to text, so a failure names something a reader can grep for. */
-const show = (selector: Selector): string =>
-	selector
-		.map((component) => {
-			if (component.type === 'class') return `.${component.name}`;
-			if (component.type === 'id') return `#${component.name}`;
-			if (component.type === 'type') return component.name;
-			if (component.type === 'combinator') return component.value === 'descendant' ? ' ' : ` ${component.value} `;
-			if (component.type === 'pseudo-class') return `:${component.kind}`;
-			if (component.type === 'pseudo-element') return `::${component.kind}`;
-
-			return '';
-		})
-		.join('');
 
 /**
  * What the focus scan KEYS a branch by — the identity a flattening rule and its ring rule must
@@ -254,7 +240,7 @@ const subjectOf = (branch: Selector): SelectorComponent[] =>
  */
 interface FocusSite {
 	readonly key: string;
-	readonly context: string;
+	readonly conditions: readonly string[];
 }
 
 const focusSites = (branch: Selector, classes: Set<string>): FocusSite[] => {
@@ -263,24 +249,40 @@ const focusSites = (branch: Selector, classes: Set<string>): FocusSite[] => {
 	const subject = subjectOf(branch).filter(
 		(component) => !(component.type === 'pseudo-class' && component.kind === 'focus-visible'),
 	);
-	const context = show(branch.slice(0, branch.length - subjectOf(branch).length));
+	// EVERY condition the rule imposes, not just the ancestor chain. A subject can carry its own
+	// conditions beside the focus pseudo: `.rp-dialog-button:hover:focus-visible` draws only while
+	// the button is BOTH hovered and focused, so it cannot answer for an unconditional flattening
+	// rule — and a context of ancestors alone dropped the `:hover` and let it.
+	const conditions = compoundsOf([...branch.slice(0, branch.length - subjectOf(branch).length), ...subject]).map(
+		(compound) => show(compound.components),
+	);
 	const onSubject = buttonClassesOn(branch, classes);
 
-	if (onSubject.length > 0) return onSubject.map((key) => ({ key, context }));
+	if (onSubject.length > 0) return onSubject.map((key) => ({ key, conditions }));
 	if (!targetsAButton(branch, classes)) return [];
 
-	return [{ key: show(subject), context }];
+	return [{ key: show(subject), conditions }];
 };
 
 /**
- * Does a ring drawn in this context cover a button flattened in that one?
+ * Does a ring drawn under these conditions cover a button flattened under those?
  *
- * Only when the ring is scoped no more narrowly — the same context, or none at all. Proving that
- * one selector matches every element another does is not something this can do in general, so it
- * answers the two cases it can prove and refuses the rest. Refusing over-reports, which is the
- * safe direction for a gate about a MISSING focus indicator.
+ * Only when every condition the RING imposes is also imposed by the flattening rule. An unscoped
+ * ring covers a scoped flatten (it applies everywhere that one does); a scoped ring does not cover
+ * an unscoped flatten (the button outside that scope is still bare); and a `:hover` on the ring's
+ * subject is a condition like any other.
+ *
+ * Compared as whole COMPOUNDS, rendered losslessly. Comparing rendered ancestor STRINGS was the
+ * previous shape and it collided: `.dialog[data-kind='a']` and `.dialog[data-kind='b']` are
+ * disjoint and rendered identically, because the serializer dropped what it did not model.
+ *
+ * Proving that one selector matches every element another does is not something this can do in
+ * general — a subset of compounds is a sound approximation, not the relation itself — so it
+ * refuses whatever it cannot show. Refusing over-reports, which is the safe direction for a gate
+ * about a MISSING focus indicator.
  */
-const covers = (ring: string, flattened: string): boolean => ring === '' || ring === flattened;
+const covers = (ring: readonly string[], flattened: readonly string[]): boolean =>
+	ring.every((condition) => flattened.includes(condition));
 
 /**
  * The button classes a stylesheet FLATTENS without giving back a ring, each mapped to where.
@@ -296,7 +298,7 @@ const flattenedWithoutRing = (
 	scanned: readonly (readonly [string, string])[],
 	classes: Set<string>,
 ): { readonly offenders: Map<string, string>; readonly seen: number } => {
-	const flattened = new Map<string, { readonly where: string; readonly context: string }>();
+	const flattened = new Map<string, { readonly where: string; readonly conditions: readonly string[] }>();
 
 	// NOT a set of "has been ringed once". A `:focus-visible` rule can also take a ring AWAY, and
 	// a later or more specific one wins: `.rp-dialog-button:focus-visible { outline: 2px solid red }`
@@ -316,7 +318,11 @@ const flattenedWithoutRing = (
 	// `focusSites` for why the two cannot be one key.
 	const ringed = new Map<
 		string,
-		{ readonly specificity: readonly [number, number, number]; readonly draws: boolean; readonly context: string }
+		{
+			readonly specificity: readonly [number, number, number];
+			readonly draws: boolean;
+			readonly conditions: readonly string[];
+		}
 	>();
 
 	// Both sets span every sheet, because the two halves need not share one. A class flattened in
@@ -346,7 +352,7 @@ const flattenedWithoutRing = (
 					(component) => component.type === 'pseudo-class' && component.kind === 'focus-visible',
 				);
 
-				for (const { key, context } of focusSites(branch, classes)) {
+				for (const { key, conditions } of focusSites(branch, classes)) {
 					if (ringsFocus) {
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
 						// says so and this call site said otherwise. `:where()` contributes ZERO, argument
@@ -358,12 +364,12 @@ const flattenedWithoutRing = (
 						const standing = ringed.get(key);
 
 						if (standing === undefined || !moreSpecific(standing.specificity, specificity)) {
-							ringed.set(key, { specificity, draws, context });
+							ringed.set(key, { specificity, draws, conditions });
 						}
 					}
 					// The base rule only — a `:hover` or `:disabled` variant suppressing the shadow says
 					// nothing about the resting state a ring is drawn on.
-					else if (!ringsFocus && flattens) flattened.set(key, { where: `${where}: ${show(selector)}`, context });
+					else if (!ringsFocus && flattens) flattened.set(key, { where: `${where}: ${show(selector)}`, conditions });
 				}
 			}
 		}
@@ -374,7 +380,7 @@ const flattenedWithoutRing = (
 	for (const [key, winner] of ringed) {
 		const flat = flattened.get(key);
 
-		if (winner.draws && flat !== undefined && covers(winner.context, flat.context)) flattened.delete(key);
+		if (winner.draws && flat !== undefined && covers(winner.conditions, flat.conditions)) flattened.delete(key);
 	}
 
 	// `seen` is every class this scan found flattened, ringed or not. The real-sheet case asserts it
@@ -716,6 +722,17 @@ describe('every button rule against Obsidian\'s own', () => {
 			'a ring a more specific rule puts back in one container only',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none; } .rp-dialog .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
+		// Two DISJOINT containers. Both contexts rendered `.dialog ` while the serializer dropped
+		// what it did not model, so a ring drawn in one cleared a flattening rule in the other.
+		[
+			'a ring in a container the flattening rule does not cover',
+			".dialog[data-kind='a'] .rp-dialog-button { box-shadow: none; } .dialog[data-kind='b'] .rp-dialog-button:focus-visible { outline: 2px solid red; }",
+		],
+		// A condition on the SUBJECT is a condition like any other: focus alone draws nothing here.
+		[
+			'a ring that also requires hover',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:hover:focus-visible { outline: 2px solid red; }',
+		],
 		// `:where()` contributes ZERO specificity, argument included, so this ring ties the reset that
 		// follows it and the LATER one wins. Scored from the expanded branch it looked ID-specific,
 		// outranked the reset, and stood — the one thing `alternativesOf`'s header says a caller must
@@ -855,6 +872,12 @@ describe('every button rule against Obsidian\'s own', () => {
 		[
 			'an unscoped ring over a scoped flattening rule',
 			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+		// The same attribute on both sides is the same container, and must stay silent — or the
+		// lossless comparison has become "any attribute anywhere means no coverage".
+		[
+			'a ring in the same attributed container',
+			".dialog[data-kind='a'] .rp-dialog-button { box-shadow: none; } .dialog[data-kind='a'] .rp-dialog-button:focus-visible { outline: 2px solid red; }",
 		],
 		// The flattening question is asked of the RESOLVED block too, not of each declaration: the
 		// `none` here is overridden on the next line, so nothing is flattened and there is nothing

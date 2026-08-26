@@ -7,9 +7,16 @@
  * The ORDER below is behaviour, not organisation: two rules of equal specificity are
  * decided by which came last. State here which positions are load-bearing and why, as
  * soon as one is.
+ *
+ * ONE position is load-bearing and here it is: `editor-requirements.css` must follow
+ * `editor.css` immediately, because its rules were split OUT of that file — they sat at its
+ * end, and moving them earlier or later in this list changes which of an equal-specificity
+ * pair wins. The split was forced by the assembler's 400-line cap, which `editor.css` crossed
+ * when this branch and `main` both grew it; that partial's own header carries the account.
  */
 @import "./view.css";
 @import "./editor.css";
+@import "./editor-requirements.css";
 @import "./dialogs.css";
 @import "./chrome.css";
 @import "./work-packages.css";

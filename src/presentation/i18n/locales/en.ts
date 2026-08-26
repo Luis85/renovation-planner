@@ -97,6 +97,13 @@ export const en = {
 	'dialog.delete-reference.delete-anyway': 'Delete anyway',
 	'dialog.entity-picker.empty': 'Nothing to choose from.',
 	'dialog.form.submit': 'Save',
+	'empty.project.no-projects.headline': 'No renovation projects yet',
+	'empty.project.no-projects.body': 'A renovation project holds your plans, zones, assets and costs. Create one to get started.',
+	'empty.plan.no-background.headline': 'No plan document yet',
+	'empty.plan.no-background.body': 'Set a floor plan, site plan, sketch or garden plan as this plan\u2019s background, then calibrate it so areas come out in real units.',
+	'empty.plan.no-zones.headline': 'No zones yet',
+	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
+	'empty.plan.no-zones.action': 'Draw a zone',
 } as const;
 
 export type StringKey = keyof typeof en;

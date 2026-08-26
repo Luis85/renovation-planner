@@ -78,9 +78,15 @@ in a slice.
 
 The rule is the pipeline's already. Giving it the second operand means every future caller
 inherits the check instead of each one remembering to perform it — which is the difference
-between an invariant and a convention. It also puts the refusal where
-[[A derived value is recomputed on read, not persisted]] puts the computation, so a currency
-changed after the fact is caught on the next read rather than never.
+between an invariant and a convention.
+
+**It does not, on its own, catch a currency changed after the fact.** An earlier version of
+this paragraph claimed the refusal would be reached on the next read, which blocker 2 above
+rules out: slice 10 persists the calculated cost and does not re-invoke the pipeline while
+reading it, and the provenance it compares holds `zoneArea`, `unitCost` and `assetUnit` and no
+currency. Detection after a currency change needs an invalidation path or currency in the
+persisted provenance — part of what any answer here has to settle, not something this proposal
+delivers by itself.
 
 ## What is owed once the blockers are cleared
 
@@ -159,9 +165,11 @@ merely satisfies it.
 
 - PRD §59 (as amended 2026-08-26 — the shared catalogues), §72 (a project's currency), §89
   (manual overrides).
-- `docs/tasks/09-quantity-and-cost-engine.md` — `CostPipelineInput`, the contract this note
-  says is ahead of its code. `docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md` —
-  `RecalculateRequirementCommand`, and the named override gap.
+- `docs/tasks/09-quantity-and-cost-engine.md` — `CostPipelineInput` as it currently stands,
+  which is the **baseline this proposal would change**, not a contract it violates: that slice
+  specifies no expected currency and the code provides none, so the two agree.
+  `docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md` — where the question is named,
+  and the override gap it is entangled with.
 - `src/domain/cost/costPipeline.ts` — the shipped interface, and `pricedPer?` as the template.
   `tests/domain/cost/costPipeline.test.ts` — the only callers.
 - [[A mismatched unit or currency is an error, not a coercion]] — the rule, and the reason it

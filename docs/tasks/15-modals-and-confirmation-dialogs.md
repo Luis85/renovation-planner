@@ -861,9 +861,13 @@ contract ends at the typed result, before any write occurs.
    row counting 2, its label naming the owning project through a single localized key,
    sourced from slice 10's `ListRequirementsReferencing` query — verified by an
    integration test asserting the value passed into the dialog descriptor, not a value
-   this slice's component recomputed. **One row because a Zone always yields one group**;
-   the same flow on an Asset referenced from two projects shows two rows, which is its own
-   test since every Zone fixture would pass a caller that read `groups[0]` alone.
+   this slice's component recomputed. **One row because a Zone always yields one group.**
+   That an Asset referenced from two projects renders two rows is asserted against the
+   **row-mapping directly**, not through a flow: this slice specifies no Asset delete caller —
+   `DeleteAssetCommand` is slice 10's and its Inspector entry point arrives with it — so the
+   end-to-end version belongs to whichever slice writes that caller. The mapping test still
+   earns its place here, because every Zone fixture is single-group and would pass a caller
+   that read `groups[0]` alone.
 7. Calling `openDialog` while a dialog is already open throws, rather than silently
    stacking or queueing a second one — the modal-stacking rule is enforced by
    `DialogStore`, checked by a unit test, not left to caller discipline.

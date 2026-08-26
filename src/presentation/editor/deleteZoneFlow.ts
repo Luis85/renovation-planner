@@ -61,11 +61,17 @@ export interface DeleteZoneFlowDeps {
 	): Promise<{ readonly id: string } | 'cancel'>;
 	/** The Inspector's ONE commit path (SDD §59), so the delete is one history entry like any other. */
 	dispatch(edit: InspectorEdit): Promise<Result<void, AppError>>;
-	/** Resolved copy, supplied by the caller — nothing under `presentation/dialogs/` names a key. */
+	/**
+	 * Resolved copy for the DIALOGS, supplied by the caller — nothing under
+	 * `presentation/dialogs/` names a key. Refusal copy is deliberately NOT here: an
+	 * `AppError` carries a code, and the sentence a user reads for it is resolved from the
+	 * locale tables at the notice by `toUserMessage`. This object once carried a
+	 * `noReassignTarget` sentence that was stuffed into `AppError.message` and then
+	 * discarded unread — see `NO_REASSIGNMENT_TARGET` below.
+	 */
 	readonly copy: {
 		readonly referenceLabel: string;
 		readonly reassignTitle: string;
-		readonly noReassignTarget: string;
 	};
 }
 
@@ -74,9 +80,22 @@ function isStaleReadRefusal(error: AppError): boolean {
 	return error.code === 'reference.referents-exist';
 }
 
-function noTargets(message: string): ValidationError {
-	return { category: 'Validation', code: 'reference.no-reassignment-target', message };
-}
+/**
+ * A project with one zone has nothing to reassign to.
+ *
+ * `message` is developer English for a log line (SDD §65) and nothing else: the sentence
+ * the USER reads is `reference.no-reassignment-target` in the locale tables, resolved by
+ * `toUserMessage` when `notifyError` prints this. It used to be a PARAMETER — the caller
+ * handed in the already-translated string — which inverted slice 11's rule and then wasted
+ * the translation, because `notifyError` never reads `message`: the localized sentence
+ * reached nobody and the user got the Validation category fallback instead. A constant
+ * rather than a factory, because it now depends on nothing.
+ */
+const NO_REASSIGNMENT_TARGET: ValidationError = {
+	category: 'Validation',
+	code: 'reference.no-reassignment-target',
+	message: 'This project has no other zone to repoint the referencing requirements at.',
+};
 
 /** The one refusal that earns a re-ask: the live set is no longer what was consented to. */
 function isSetChanged(outcome: DeleteZoneOutcome): boolean {
@@ -104,10 +123,10 @@ async function askAndDispatch(
 	if (chosen.action === 'reassign') {
 		const targets = await deps.listReassignmentTargets(zoneId);
 		if (isErr(targets)) return { kind: 'failed', error: targets.error };
-		// A project with one zone has nothing to reassign to. Reported rather than opened:
-		// a dialog whose only possible action is Cancel is a dead end presented as a choice.
+		// Reported rather than opened: a dialog whose only possible action is Cancel is a
+		// dead end presented as a choice.
 		if (targets.value.length === 0) {
-			return { kind: 'failed', error: noTargets(deps.copy.noReassignTarget) };
+			return { kind: 'failed', error: NO_REASSIGNMENT_TARGET };
 		}
 		const picked = await deps.askReassignTarget(deps.copy.reassignTitle, targets.value);
 		if (picked === 'cancel') return { kind: 'cancelled' };

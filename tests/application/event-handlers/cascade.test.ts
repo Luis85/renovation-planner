@@ -221,6 +221,57 @@ describe('the recalculation cascade', () => {
 		expect(rows[0]?.recalculationStatus).toBe('stale');
 	});
 
+	/**
+	 * The sibling branch, and the one that was silent. `requirement.stale-marker.failed`
+	 * above passes `cause: stale.error` correctly; the recalculation branch held the same
+	 * typed `AppError` in scope and logged only the id — so the single line a developer
+	 * ever reads about a failed background recalculation said WHICH requirement and never
+	 * WHY. Design slice 11's rule is that every mapped `AppError` is logged WITH the
+	 * original that produced it.
+	 *
+	 * Asserted on the log CONTEXT, never on the event key: the key was already correct
+	 * while the defect was live, so a test checking that `logged` contains
+	 * `requirement.recalculation.failed` is precisely the test this defect walked past.
+	 *
+	 * `recalculate` is substituted rather than provoked, because the point is the LOG and
+	 * not the arithmetic: a real failure would have to be manufactured through a repository
+	 * fake, which would then be what the assertion depended on.
+	 */
+	it('logs a failed recalculation WITH the cause it is holding', async () => {
+		const w = await wired();
+		const assigned = await w.assign.execute({ zoneId: w.zone.entity.id, assetId: w.asset.entity.id });
+		if (!assigned.ok) throw new Error('unexpected failure');
+		const requirementId = String(assigned.value.requirement.id);
+
+		const cause = {
+			category: 'Calculation',
+			code: 'requirement.area-failed',
+			message: 'Zone geometry could not be measured.',
+		};
+		const logged: { event: string; context?: Record<string, unknown> }[] = [];
+		registerOnZoneGeometryChanged(w.events, {
+			...w.deps,
+			recalculate: () => Promise.resolve({ ok: false, error: cause }),
+			logger: {
+				...silentLogger(),
+				error(event: string, context?: Record<string, unknown>) {
+					logged.push({ event, context });
+				},
+			},
+		});
+
+		await w.events.publish(
+			zoneGeometryChanged({
+				zoneId: w.zone.entity.id,
+				planId: w.plan.entity.id,
+				projectId: w.project.entity.id,
+			}),
+		);
+
+		const entry = logged.find((one) => one.event === 'requirement.recalculation.failed');
+		expect(entry?.context).toEqual({ requirementId, cause });
+	});
+
 	it('calculatedFrom never moves a reading the other way: persisted stale stays stale on matching inputs', async () => {
 		const w = await wired();
 		const assigned = await w.assign.execute({ zoneId: w.zone.entity.id, assetId: w.asset.entity.id });

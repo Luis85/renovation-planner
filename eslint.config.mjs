@@ -298,6 +298,76 @@ const I18N_LITERAL_BAN = [
 	},
 ];
 
+/**
+ * Design slice 11's Definition of Done, item 3, at the forbidden call:
+ *
+ * > A user-facing error message never contains a raw exception message, stack trace, or
+ * > internal file path, and is produced by `t()` from the locale tables rather than by a
+ * > literal or by `AppError.message`.
+ *
+ * Nothing checked that. `notify(message: string)` accepts any string, and
+ * `I18N_LITERAL_BAN` above reaches exactly four call sites — `.setText`, and the `text:`
+ * option of `createEl`/`createDiv`/`createSpan` — of which a `notify(...)` argument is
+ * none. So the whole notice door sat outside every gate: two raw `Error.message` notices
+ * shipped, and design slice 10's twenty-odd error codes reached users as the wrong
+ * category sentence, with `npm run check` green throughout. It is a category invariant —
+ * "no developer text reaches a Notice" cannot be verified by driving the call sites
+ * someone thought of, because the next call site is the one that breaks it — so it is a
+ * rule at the call, by the same argument that put `WRITE_BOUNDARY` and
+ * `I18N_LITERAL_BAN` there.
+ *
+ * The two doors it watches are `notify(...)` (the one wrapper in
+ * `src/presentation/notices/notify.ts`) and `new Notice(...)` (Obsidian's own
+ * constructor, so bypassing the wrapper is not an escape). `notifyError` and `notifyFault`
+ * need no selector: they take an `AppError` and an unknown cause, not a string, and
+ * resolve the user's sentence themselves.
+ *
+ * The spellings these SEE, honestly:
+ *
+ *   - `.message` or `.stack` read ANYWHERE inside the call — a descendant combinator, not
+ *     a child one, so a bare `notify(err.message)`, a wrapped `notify(format(e.message))`
+ *     and an interpolated one are all refused. The correct shapes contain no such member
+ *     access at all: `notify(tr('key'))` and
+ *     `notify(toUserMessage(getLanguage(), result.error))` pass untouched, which is the
+ *     whole mechanism.
+ *   - a bare string LITERAL as a direct argument, which is the "rather than by a literal"
+ *     half. `[value=/\S/]` for the reason `I18N_LITERAL_BAN` gives: an empty or
+ *     whitespace-only string carries nothing to translate.
+ *
+ * What they CANNOT see, pinned as absences in `tests/build/notice-text-boundary.test.ts`
+ * rather than left in prose:
+ *
+ *   - a value one hop away — a local assigned `error.message` and then passed — the same
+ *     blind spot `I18N_LITERAL_BAN` and `WRITE_BOUNDARY` both declare, and a reviewer is
+ *     the backstop for all three.
+ *   - a TEMPLATE literal carrying raw English with no member access in it, which is a
+ *     TemplateLiteral node and not a Literal — again exactly where `I18N_LITERAL_BAN`
+ *     stops.
+ *   - a differently-named local alias of `notify`, and a notice raised through a
+ *     re-exported wrapper under another name. `notify` and `Notice` are the two names this
+ *     repository uses; a third would need adding here.
+ *
+ * Narrowing `notify`'s PARAMETER TYPE to a branded "came from the locale tables" string
+ * was the other candidate and is refused for now: `t`, `tr` and `toUserMessage` all return
+ * `string` and are consumed by dialogs, components and templates, so the brand would have
+ * to travel through every one of them to buy what these two selectors buy at the door.
+ * Worth revisiting when a second string-producing seam appears — it would close the
+ * one-hop hole a selector structurally cannot.
+ */
+const NOTICE_DOOR = ":matches(CallExpression[callee.name='notify'], NewExpression[callee.name='Notice'])";
+const NOTICE_TEXT_BAN = [
+	{
+		selector: NOTICE_DOOR + " MemberExpression[property.name=/^(message|stack)$/]",
+		message:
+			"A notice received an error's own message or stack. That is developer English written for a log line (SDD 65): pass the AppError to notifyError, or a thrown fault to notifyFault, which resolve the user's sentence from the locale tables.",
+	},
+	{
+		selector: NOTICE_DOOR + " > Literal[value=/\\S/]",
+		message:
+			'A notice received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).',
+	},
+];
+
 export default defineConfig([
 	{
 		// Everything that is not this plugin's source. The build scripts are Node, not
@@ -521,15 +591,17 @@ export default defineConfig([
 		// restating the list at all.
 		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		ignores: ['**/src/infrastructure/obsidian/**'],
-		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
+		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN] },
 	},
 	{
 		// The sanctioned writer. Vault writes are this directory's job; every OTHER
 		// shared ban still applies, restated per the override warning above — including
 		// I18N_LITERAL_BAN: infrastructure/obsidian/ may show its own UI (a Notice, an
-		// error surface) and that text is exactly as translatable as a view's.
+		// error surface) and that text is exactly as translatable as a view's — and
+		// NOTICE_TEXT_BAN for the same reason, since the layer holding the raw exception is
+		// the likeliest place for one to be printed.
 		files: srcFiles('infrastructure/obsidian'),
-		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN] },
+		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN] },
 	},
 	{
 		// SDD §3.4 prohibits DOM APIs in domain/ and core/, not only the framework

@@ -49,12 +49,26 @@ async function recalculateOne(deps: CascadeDeps, requirementId: string): Promise
 		return;
 	}
 	await deps.events.publish(requirementInvalidated(requirementId as never));
-	const result = await deps.recalculate({ requirementId });
-	const failed = (result as { ok: boolean }).ok === false;
-	if (failed) {
+	// `recalculate` stays a `Promise<unknown>` port (the handler must not depend on the
+	// command's own module), so both the flag and the cause are read through one narrowing
+	// rather than two. `error` is optional in that shape because `unknown` cannot promise
+	// it; a `Result` that refused always carries one.
+	const result = (await deps.recalculate({ requirementId })) as {
+		readonly ok: boolean;
+		readonly error?: unknown;
+	};
+	if (!result.ok) {
 		// No event fires for this failure — RequirementRecalculated would misrepresent
 		// what happened. The persisted status stays "stale", which the Inspector renders.
-		deps.logger.error('requirement.recalculation.failed', { requirementId });
+		//
+		// The CAUSE travels, exactly as the stale-marker branch above passes `stale.error`.
+		// Slice 11's rule is that every mapped `AppError` is logged with the original that
+		// produced it; without it, the single line a developer ever reads about a failed
+		// background recalculation named the requirement and never said why.
+		deps.logger.error('requirement.recalculation.failed', {
+			requirementId,
+			cause: result.error,
+		});
 	}
 }
 

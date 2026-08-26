@@ -9,6 +9,9 @@ import {
 	deleteZoneWithReferences,
 	type DeleteZoneFlowDeps,
 } from '../../../src/presentation/editor/deleteZoneFlow';
+import { toUserMessage } from '../../../src/presentation/i18n/toUserMessage';
+import { en } from '../../../src/presentation/i18n/locales/en';
+import { de } from '../../../src/presentation/i18n/locales/de';
 
 /**
  * The Inspector's delete-with-references flow (design slice 10's closing task, and slice
@@ -81,7 +84,6 @@ function rig(options: {
 		copy: {
 			referenceLabel: 'Requirements',
 			reassignTitle: 'Move to which zone?',
-			noReassignTarget: 'Nothing to reassign to.',
 		},
 	};
 	return { deps, dispatched, asked, pickerOpened };
@@ -152,6 +154,33 @@ describe('the Inspector delete-with-references flow', () => {
 		expect(outcome).toMatchObject({ kind: 'failed', error: { code: 'reference.no-reassignment-target' } });
 		expect(r.pickerOpened).toEqual([]);
 		expect(r.dispatched).toEqual([]);
+	});
+
+	/**
+	 * The assertion that would have caught the defect the case above could not see, because
+	 * asserting the CODE says nothing about what a user reads.
+	 *
+	 * This refusal used to be built from a `message` the caller passed in — already
+	 * translated, resolved by `runtime.ts` from the string table — into the field slice 11
+	 * defines as developer English for a log line. `notifyError` never reads `message`, so
+	 * the sentence somebody wrote and translated reached nobody and the user got the
+	 * Validation category fallback: "This data is not in the expected form." about a project
+	 * that simply has one zone.
+	 *
+	 * Both halves are pinned. That the code RESOLVES (an entry exists, in both locales, and
+	 * it is not the category sentence), and that `message` is NOT the user's string — which
+	 * is what makes putting one back there a red rather than a silent regression.
+	 */
+	it("resolves that refusal's user text from the locale table, never from AppError.message", async () => {
+		const r = rig({ reads: [[R1]], answers: [{ action: 'reassign' }], targets: [] });
+
+		const outcome = await deleteZoneWithReferences(r.deps, ZONE, 'Bathroom');
+		const { error } = outcome as { error: AppError };
+
+		expect(toUserMessage('en', error)).toBe(en['reference.no-reassignment-target']);
+		expect(toUserMessage('de', error)).toBe(de['reference.no-reassignment-target']);
+		expect(toUserMessage('en', error)).not.toBe(en['error.category.validation']);
+		expect(error.message).not.toBe(en['reference.no-reassignment-target']);
 	});
 
 	describe('the zero branch (DoD 8)', () => {

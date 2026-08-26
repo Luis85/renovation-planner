@@ -62,7 +62,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.inspector.override.apply': 'Übernehmen',
 	'entity.requirement.plural': 'Anforderungen',
 	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
-	'editor.inspector.delete-zone.no-reassign-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
 	'cascade.aborted': 'Mit dieser Änderung verknüpfte Anforderungen konnten nicht aktualisiert werden. Ihre Werte können veraltet sein.',
 	'editor.zone.default-name': 'Zone',
@@ -99,6 +98,16 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Fehlers selbst, die Logtext ist.
 	'vault.unexpected-failure': 'Das Tresor konnte unerwartet nicht gelesen oder geschrieben werden. Bitte erneut versuchen.',
 	'migration.chain-gap': 'Diese Notiz verwendet ein Format, das dieses Plugin nicht lesen kann.',
+	// Slice 10: Referenzintegrität und Anforderungen. Feste Sätze, keine Interpolation.
+	'reference.referents-exist': 'Andere Einträge verweisen noch hierauf. Entfernen oder weisen Sie sie zuerst neu zu.',
+	'reference.set-changed': 'Die Verweise hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
+	'reference.resolution-required': 'Hierauf wird noch verwiesen. Entscheiden Sie vor dem Löschen, was mit diesen Verweisen geschieht.',
+	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
+	'reference.self-reassign': 'Verweise können nicht auf den zu löschenden Eintrag umgehängt werden. Bitte einen anderen wählen.',
+	'reference.cross-project-reassign': 'Verweise können nur innerhalb desselben Projekts umgehängt werden.',
+	'requirement.unit-not-area': 'Dieses Material wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
+	'requirement.cross-project': 'Eine Zone und ein Material aus verschiedenen Projekten können nicht verknüpft werden.',
+	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
 	'error.suffix.schema-version-unsupported':
 		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',
 	'error.suffix.revision-conflict':

@@ -351,13 +351,26 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   an identifier. `scripts/styles-assemble.mjs` carries the full account.
 - **lint** — TWO linters in one step, because they refuse different things and neither
   subsumes the other. **ESLint** is where the architecture lives: the layer rule below is
-  `no-restricted-imports`, and `no-restricted-syntax` carries the write boundary and
-  `I18N_LITERAL_BAN` (`eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule) —
-  not prose. `I18N_LITERAL_BAN` is narrower than "every user-visible string": it refuses a
+  `no-restricted-imports`, and `no-restricted-syntax` carries the write boundary,
+  `I18N_LITERAL_BAN` (`eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule)
+  and `NOTICE_TEXT_BAN` — not prose. `I18N_LITERAL_BAN` is narrower than "every
+  user-visible string": it refuses a
   literal at exactly FOUR call sites — `.setText(...)`, and the `text:` option of
   `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
-  It does not reach `new Notice('…')`, `addCommand({ name: '…' })`,
+  **`NOTICE_TEXT_BAN` is the notice door, and it is a SECOND rule rather than a widening of
+  that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)` or
+  `new Notice(...)` call, and a bare string literal as a direct argument to either — slice
+  11's Definition of Done item 3 ("never a raw exception message, stack trace or internal
+  file path; produced by `t()` rather than by a literal or by `AppError.message`") put at
+  the forbidden call, because that door was the one user-facing surface no gate could see.
+  It cannot see a value one hop away (`const text = e.message; notify(text)`), a template
+  literal carrying raw English with no member access in it, or a notice raised under a third
+  name; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
+  paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
+  repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
+  measured.
+  `I18N_LITERAL_BAN` still does not reach `addCommand({ name: '…' })`,
   `addRibbonIcon(icon, 'title', …)`, a `title` or `attr:` value, `el.textContent = '…'`, or
   a literal held in a variable first — today's actual UI text (settings `name`/`desc`, the
   command name, the ribbon title, `getDisplayText`) reaches none of those four call sites,

@@ -59,7 +59,6 @@ export const en = {
 	'editor.inspector.override.apply': 'Apply',
 	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
-	'editor.inspector.delete-zone.no-reassign-target': 'There is no other zone in this project to reassign these requirements to.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',
 	'editor.zone.default-name': 'Zone',
@@ -95,6 +94,21 @@ export const en = {
 	// suffixes, and by category — never by the error's own `message`, which is log text.
 	'vault.unexpected-failure': 'Reading or writing the vault failed unexpectedly. Try again.',
 	'migration.chain-gap': 'This note uses a format this plugin cannot read.',
+	// Design slice 10's reference-integrity and requirement refusals. Each earns an entry
+	// because its CATEGORY sentence is wrong or unactionable for it: the two Reference
+	// refusals below are about an entry that emphatically still exists, and every
+	// Validation one would otherwise read 'This data is not in the expected form.' about a
+	// decision the user just made. Fixed sentences, no interpolation and no count — the
+	// delete dialog enumerates the referents; the notice is the refusal.
+	'reference.referents-exist': 'Other entries still reference this. Remove or reassign them first.',
+	'reference.set-changed': 'The references to this changed while you were deciding. Check them and confirm again.',
+	'reference.resolution-required': 'This is still referenced. Decide what happens to those references before deleting it.',
+	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
+	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
+	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
+	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
+	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
+	'requirement.negative-quantity': 'A quantity cannot be negative.',
 	'error.suffix.schema-version-unsupported':
 		'This note was written by a newer version of this plugin. Update the plugin to open it.',
 	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',

@@ -421,7 +421,6 @@ function createDeleteZoneAction(
 		copy: {
 			referenceLabel: tr('entity.requirement.plural'),
 			reassignTitle: tr('editor.inspector.delete-zone.reassign-title'),
-			noReassignTarget: tr('editor.inspector.delete-zone.no-reassign-target'),
 		},
 	};
 

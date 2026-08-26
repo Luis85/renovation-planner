@@ -176,13 +176,59 @@ describe('read refusals reaching the diagnostics ledger', () => {
 	 * The instrument, checked before the cases are believed. A table of five is a listing,
 	 * and a listing goes stale silently — so it is compared against the runtime table the
 	 * plugin actually registers (`MIGRATION_SET`, shared with the composition root), minus
-	 * the one kind that is not a note: `plan-geometry` is a sidecar with no repository and
-	 * no `openNoteById` call, so it has no read refusal to record and is excluded BY NAME
-	 * rather than by the list happening not to mention it.
+	 * the one kind that is not a note, excluded BY NAME rather than by the list happening not
+	 * to mention it.
+	 *
+	 * **Why `plan-geometry` is excluded, stated as what is true rather than as an absence.**
+	 * It is a sidecar: no repository, no `openNoteById` call, and so no path through the one
+	 * `ledger.record` site the other five share. It does NOT lack a read refusal —
+	 * `PlanGeometryStore` runs `migrations.migrateToLatest('plan-geometry', …)` and turns a
+	 * future `schemaVersion` into `mappedMigrationFailure('plan-geometry', cause)`, which is
+	 * the same refusal the note-backed kinds produce. That refusal is simply never RECORDED.
+	 *
+	 * So the gap is real and worth naming rather than papering over: `plan-geometry` appears
+	 * in a snapshot's `schemaVersions` and can never appear in its `validationIssues`, so a
+	 * user whose geometry sidecar is unreadable sees a diagnostics report that says nothing
+	 * about it. Closing it means recording at the sidecar read, which is a change to
+	 * `PlanGeometryStore` rather than to this table — and on the day it lands, this exclusion
+	 * comes out and the case table gains a sixth entry. An earlier version of this comment
+	 * said `plan-geometry` had "no read refusal to record", which the code contradicts.
 	 */
 	it('covers every migratable kind except the sidecar', () => {
 		const noteBacked = Object.keys(MIGRATION_SET).filter((kind) => kind !== 'plan-geometry');
 		expect(cases.map((testCase) => testCase.kind).toSorted()).toEqual(noteBacked.toSorted());
+	});
+
+	/**
+	 * The excluded kind, PINNED as an absence rather than left as a claim in the comment
+	 * above — the same shape `tests/build/network-boundary.test.ts` uses for the spellings its
+	 * lint rule cannot see, and for the same reason: writing down that a gap exists is not an
+	 * endorsement of it, it is what stops the next reader believing the coverage is total.
+	 *
+	 * Both halves, because the interesting part is that they disagree. The sidecar read DOES
+	 * refuse a future `schemaVersion`, with the identical code and category a note read
+	 * produces — so "no read refusal" would be false. The ledger stays EMPTY, because
+	 * `PlanGeometryStore` is not on the `openNoteById` path where the one `ledger.record` site
+	 * for note-backed entities lives.
+	 *
+	 * This case is expected to be DELETED, not maintained: on the day the sidecar records, it
+	 * goes red, the exclusion above comes out, and the case table gains a sixth entry.
+	 */
+	it('has a plan-geometry refusal that reaches the user and never reaches the ledger', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const path = sidecarPathOf(stack, planId);
+		stack.vault.entries.set(
+			path,
+			JSON.stringify({ planId, revision: 1, unit: 'mm', calibration: null, objects: [], schemaVersion: 99 }),
+		);
+
+		const refused = expectErr(await stack.store.read(planId));
+		expect(refused.code).toBe('plan-geometry.schema-version-unsupported');
+		expect(refused.category).toBe('Migration');
+
+		// The gap. Not an assertion that this is right — an assertion of what is true today.
+		expect(stack.ledger.issues()).toEqual([]);
 	});
 });
 

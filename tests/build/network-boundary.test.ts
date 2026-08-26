@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { ESLINT_BOOT_MS, lintText, warmUpEslint } from '../helpers/eslint';
+import obsidianmd from 'eslint-plugin-obsidianmd';
+import { ESLINT_BOOT_MS, lintText, resolveConfig, warmUpEslint } from '../helpers/eslint';
+import flatConfig from '../../eslint.config.mjs';
 
 /**
  * Design slice 11's Definition of Done item 7 as a gate: **no dependency on a network
@@ -37,6 +39,20 @@ const QUERY = 'src/application/queries/GetDiagnosticsSnapshot.ts';
 /** Where the ban deliberately does NOT reach, so "scoped" is measured rather than assumed. */
 const REPOSITORY = 'src/infrastructure/obsidian/repositories/noteIo.ts';
 const DOMAIN = 'src/domain/zone/Zone.ts';
+
+/**
+ * The GLOBAL NAMES a resolved `no-restricted-globals` rule value carries. Index 0 is the
+ * severity; every entry after it is an option, and an option is either `{ name, message }`
+ * or the bare-string spelling the rule also accepts.
+ */
+const namesIn = (rule: readonly unknown[]): string[] =>
+	rule.slice(1).map((entry) => (typeof entry === 'string' ? entry : (entry as { name: string }).name));
+
+/** Just enough of `no-restricted-imports`' option object for the superset comparison below. */
+interface RestrictedImports {
+	readonly paths?: ReadonlyArray<{ readonly name: string }>;
+	readonly patterns?: ReadonlyArray<{ readonly group: readonly string[] }>;
+}
 
 /**
  * Which of `paths` reported `rule` for `code`, in order — an ARRAY compared against the
@@ -140,6 +156,34 @@ describe('the network boundary around diagnostics', () => {
 	});
 
 	/**
+	 * **The layer ban a `networkFree` block repeats is the PARENT's own object, not a copy**,
+	 * and this is what says so without reading `eslint.config.mjs`'s source: the resolved
+	 * `no-restricted-imports` for each of the two subtrees must be a SUPERSET of the resolved
+	 * one for its parent layer.
+	 *
+	 * The six survival cases above drive the groups that exist today, which is exactly what a
+	 * transcribed list defeats — a group added to `forbidden('application', ...)` and not to
+	 * the copy would leave every one of them green. This compares two resolved configs against
+	 * each other, so it holds for groups nobody has written yet, and it fails if the constants
+	 * are ever un-hoisted and allowed to drift.
+	 */
+	it.each([
+		['application/queries', QUERY, 'src/application/commands/zone/CreateZone.ts'],
+		['infrastructure/logging', LOGGING, 'src/infrastructure/persistence/index/EchoWindow.ts'],
+	])('%s repeats every group and package its parent layer bans', async (_what, child, parent) => {
+		const banned = async (file: string): Promise<string[]> => {
+			const [, options] = (await resolveConfig(file)).rules['no-restricted-imports'] as [unknown, RestrictedImports];
+			return [
+				...(options.paths ?? []).map((entry) => 'path:' + entry.name),
+				...(options.patterns ?? []).flatMap((entry) => entry.group.map((glob) => 'group:' + glob)),
+			].toSorted();
+		};
+		const parentBan = await banned(parent);
+		expect(parentBan.length, 'the parent layer bans nothing - this comparison would be vacuous').toBeGreaterThan(0);
+		expect((await banned(child)).filter((entry) => parentBan.includes(entry))).toEqual(parentBan);
+	});
+
+	/**
 	 * **The override trap on the GLOBALS key, which is the one that nearly shipped.**
 	 * `eslint-plugin-obsidianmd` already sets `no-restricted-globals` across every file in
 	 * `src/` — `app`, `fetch`, `localStorage` — and a later block naming that rule for a
@@ -152,8 +196,10 @@ describe('the network boundary around diagnostics', () => {
 	 * and `localStorage`, which is why nobody noticed `app` going missing from the two layers
 	 * least likely to reach for it. Both spread `OBSIDIAN_RESTRICTED_GLOBALS` now.
 	 *
-	 * Driven at the four subtrees that matter rather than asserted off the config object: a
-	 * test that read `eslint.config.mjs` would be checking the same list twice.
+	 * Two halves, because neither is sufficient alone. This one DRIVES the four paths that
+	 * exist today, which is what says the resolution actually works end to end; the case
+	 * after it checks the CATEGORY, over every block the config declares rather than over
+	 * the ones someone thought of.
 	 */
 	it.each([
 		['app', 'export const use = () => app;\n'],
@@ -161,6 +207,49 @@ describe('the network boundary around diagnostics', () => {
 	])('keeps the marketplace ban on %s in every subtree that names the rule', async (_what, code) => {
 		const subtrees = [LOGGING, QUERY, DOMAIN, REPOSITORY];
 		expect(await reportsIn(subtrees, code, GLOBALS)).toEqual(subtrees);
+	});
+
+	/**
+	 * **The same invariant as a CATEGORY**, because the case above is a list of four places
+	 * and the next block to name `no-restricted-globals` for a subtree of `src/` is the one
+	 * that reintroduces the hole. This repository's own rule: a category invariant is checked
+	 * at the forbidden thing, not by driving the paths someone thought of.
+	 *
+	 * The forbidden thing is a block that OVERRIDES the marketplace list without carrying it,
+	 * so the subject is every block in the config whose `rules['no-restricted-globals']` is
+	 * set — discovered from the imported config array, so a fifth block is in scope the moment
+	 * it exists. It is compared against `eslint-plugin-obsidianmd`'s OWN declaration, read
+	 * here from the plugin package rather than from `OBSIDIAN_RESTRICTED_GLOBALS`: that is the
+	 * source of truth, and checking a block against it is a different list, not the same one
+	 * twice. An earlier version of this file gave "the same list twice" as the reason for not
+	 * doing this at all, which was wrong, and a four-place listing was what it bought.
+	 *
+	 * The plugin's own two blocks are in the discovered set and pass trivially — they ARE the
+	 * declaration. Excluding them would need a rule for telling them apart, and a filter is
+	 * one more thing that can quietly stop matching.
+	 *
+	 * What it does NOT check: which FILES a block applies to. A block could carry every
+	 * marketplace name and be scoped to nothing at all. That is what the driven case above is
+	 * for, and neither case is written as if it covered the other.
+	 */
+	it('carries the marketplace globals in every block that names the rule', () => {
+		const declared = new Set(
+			obsidianmd.configs.recommendedWithLocalesEn.flatMap((config: { rules?: Record<string, readonly unknown[]> }) =>
+				namesIn(config.rules?.['no-restricted-globals'] ?? []),
+			),
+		);
+		expect(declared.size, 'the plugin declares no restricted globals - the derivation has gone silent').toBeGreaterThan(0);
+
+		const blocks = (flatConfig as Array<{ files?: unknown; rules?: Record<string, readonly unknown[]> }>)
+			.map((config, index) => ({ index, files: config.files, rule: config.rules?.['no-restricted-globals'] }))
+			.filter((block): block is { index: number; files: unknown; rule: readonly unknown[] } => block.rule !== undefined);
+		expect(blocks.length, 'no block names the rule - the discovery has gone silent').toBeGreaterThan(2);
+
+		const missing = blocks
+			.map((block) => ({ block, absent: [...declared].filter((name) => !namesIn(block.rule).includes(name)) }))
+			.filter((entry) => entry.absent.length > 0)
+			.map((entry) => 'block ' + String(entry.block.index) + ' ' + JSON.stringify(entry.block.files) + ' drops ' + entry.absent.join(', '));
+		expect(missing).toEqual([]);
 	});
 
 	/**

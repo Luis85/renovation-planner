@@ -199,10 +199,19 @@ const NETWORK_MEMBERS = [{ name: 'obsidian', importNames: ['request', 'requestUr
  * packages, and that is the whole point: two flat-config blocks matching one file OVERRIDE
  * `no-restricted-imports` rather than merging it, so a block for `src/application/queries/`
  * written by hand would replace the `application` layer ban with a network-only rule —
- * quietly letting a query import a repository while looking like it had closed a hole. The
- * caller passes the SAME `{ groups, packages }` its parent layer passes; `tests/build/
- * network-boundary.test.ts` drives a cross-layer import through these paths to prove the
- * parent ban survived, the way `vue-rules.test.ts` does for `presentation/dialogs/`.
+ * quietly letting a query import a repository while looking like it had closed a hole.
+ *
+ * The caller passes the SAME OBJECT its parent layer is built from — `APPLICATION_LAYER` and
+ * `INFRASTRUCTURE_LAYER` above — never a copy of its contents. The first version of these two
+ * blocks transcribed the groups, the packages and the reason string character for character,
+ * which made them a second list: a group added to the parent would have reached the layer and
+ * not the subtree, and the survival cases in the test can only name the groups that exist
+ * today. Sharing the constant is what makes divergence impossible rather than merely absent.
+ *
+ * `tests/build/network-boundary.test.ts` still checks the outcome instead of trusting the
+ * sharing: it drives a cross-layer import through these paths the way `vue-rules.test.ts`
+ * does for `presentation/dialogs/`, AND compares each subtree's resolved ban against its
+ * parent's for superset, which is what would catch an un-hoisting.
  *
  * `no-restricted-globals` is a different rule KEY from anything else matching these files,
  * so it merges rather than overrides — the same relationship the `core`/`domain` DOM block
@@ -246,6 +255,39 @@ const PROTOTYPES_GROUP = ['**/prototypes', '**/prototypes/*', '**/prototypes/**/
  * a port `application/` declares.
  */
 const PRESENTATION_AND_HOST = ['vue', 'pinia', 'konva', 'vue-konva', 'obsidian'];
+
+/**
+ * The two layer bans that have a SECOND block below repeating them, hoisted so the repeat
+ * cannot be a transcription.
+ *
+ * `networkFree('application/queries', …)` and `networkFree('infrastructure/logging', …)`
+ * exist only to survive the flat-config override — two blocks matching one file replace
+ * `no-restricted-imports` rather than merging it — so each has to restate its parent
+ * layer's ban verbatim. Spelling that restatement out by hand made it a SECOND LIST, which
+ * is the exact defect the network work was fixing: a group added to `forbidden('application', …)`
+ * would silently not reach `application/queries/`, and nothing would report it, because the
+ * survival cases in `tests/build/network-boundary.test.ts` can only name the groups that
+ * exist today.
+ *
+ * One constant per layer, passed to BOTH calls, so divergence is not something a reviewer
+ * has to notice. `tests/build/network-boundary.test.ts` still checks the outcome rather than
+ * trusting this: it compares the two subtrees' RESOLVED configs against their parents' and
+ * requires a superset, which catches an un-hoisting as well as an omission.
+ *
+ * `presentation/dialogs` is deliberately NOT hoisted with them: its list is a genuine
+ * superset of `presentation`'s (it adds `application` and `core/events`), so there is
+ * nothing there for two callers to share.
+ */
+const APPLICATION_LAYER = {
+	ban: { groups: ['infrastructure', 'presentation', 'plugin', 'prototypes'], packages: PRESENTATION_AND_HOST },
+	reason:
+		'application/ coordinates use cases against PORTS it declares itself. Infrastructure implements those ports and the composition root wires them; an import the other way inverts the dependency the ports exist to create.',
+};
+const INFRASTRUCTURE_LAYER = {
+	ban: { groups: ['presentation', 'plugin', 'prototypes'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
+	reason:
+		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
+};
 
 /**
  * The Obsidian ruleset is about *shipped plugin* code, and it is type-aware, which
@@ -616,16 +658,8 @@ export default defineConfig([
 		},
 		'domain/ decides what a Zone or a WorkPackage IS. A Konva polygon, a Pinia object and a Markdown file are representations of it, so it may name none of them (SDD §3.3, §3.4).',
 	),
-	forbidden(
-		'application',
-		{ groups: ['infrastructure', 'presentation', 'plugin', 'prototypes'], packages: PRESENTATION_AND_HOST },
-		'application/ coordinates use cases against PORTS it declares itself. Infrastructure implements those ports and the composition root wires them; an import the other way inverts the dependency the ports exist to create.',
-	),
-	forbidden(
-		'infrastructure',
-		{ groups: ['presentation', 'plugin', 'prototypes'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
-		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
-	),
+	forbidden('application', APPLICATION_LAYER.ban, APPLICATION_LAYER.reason),
+	forbidden('infrastructure', INFRASTRUCTURE_LAYER.ban, INFRASTRUCTURE_LAYER.reason),
 	forbidden(
 		'presentation',
 		{ groups: ['infrastructure', 'plugin', 'prototypes'] },
@@ -684,16 +718,10 @@ export default defineConfig([
 		{ groups: ['application', 'infrastructure', 'plugin', 'core/events', 'prototypes'] },
 		'presentation/dialogs/ renders what it is handed and resolves one typed value. A query, a command, a repository or the event bus reached from here would put a domain decision inside a dialog (design slice 15, Definition of Done 9).',
 	),
-	networkFree(
-		'application/queries',
-		{ groups: ['infrastructure', 'presentation', 'plugin', 'prototypes'], packages: PRESENTATION_AND_HOST },
-		'application/ coordinates use cases against PORTS it declares itself. Infrastructure implements those ports and the composition root wires them; an import the other way inverts the dependency the ports exist to create.',
-	),
-	networkFree(
-		'infrastructure/logging',
-		{ groups: ['presentation', 'plugin', 'prototypes'], packages: ['vue', 'pinia', 'konva', 'vue-konva'] },
-		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
-	),
+	// The SAME constants the two layer blocks above are built from, never a copy of them —
+	// see `APPLICATION_LAYER`'s docblock for what a copy silently costs.
+	networkFree('application/queries', APPLICATION_LAYER.ban, APPLICATION_LAYER.reason),
+	networkFree('infrastructure/logging', INFRASTRUCTURE_LAYER.ban, INFRASTRUCTURE_LAYER.reason),
 	{
 		// -- invariants that are checked rather than described ----------------------
 		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`

@@ -63,17 +63,30 @@ export interface ValidationIssue {
  *
  * - `entityType` is a closed union of kinds.
  * - `entityId` is a branded `EntityId`, so a name, a path or any other plain string is a
- *   compile error. Only a generated id — or a cast, which review can see — reaches it.
+ *   compile error at the call site.
  * - the failure arrives as the whole `AppError`, and the ledger reads `error.code` off it.
  *   There is no parameter for free text at all. The error's own `message` and `cause` DO
  *   hold content (a migration refusal quotes the frontmatter value it read), and they are
  *   handed over precisely so that the one module allowed to decide what diagnostics may
  *   hold is the one that drops them.
  *
- * What this still does not stop, said plainly rather than left implied: a caller that
- * builds an `AppError` whose `code` is content (`code: zone.name`). Codes come from error
- * factories that compose a fixed vocabulary, so that is a review boundary, not a compiled
- * one — but it is a much narrower door than a free `issue: string` was.
+ * **What this still does not stop, said plainly rather than left implied — TWO doors, and
+ * the second is the one a reader would otherwise miss:**
+ *
+ * 1. A caller that builds an `AppError` whose `code` is content (`code: zone.name`). Codes
+ *    come from error factories composing a fixed vocabulary, so that is a review boundary,
+ *    not a compiled one — but it is a much narrower door than a free `issue: string` was.
+ * 2. **A branded id is not a VALIDATED id.** `EntityId` is a compile-time brand over
+ *    `string`, and `buildProjectIndexEntries` asserts a note's raw frontmatter `id` into it
+ *    with `as EntityId<string>` after checking only that it is a non-empty string — no
+ *    `<prefix>-<ULID>` format check anywhere. So a hand-edited `id: Renovation/Zones/Kitchen.md`
+ *    is indexed, reaches `openNoteById`, and is recorded and reported verbatim. The brand
+ *    stops a call site from PASSING content; it cannot stop the vault from having supplied
+ *    it. Closing that needs format validation where the index is built, which is a
+ *    different change from this one and is not claimed here.
+ *
+ * A deliberate `as` cast at a record call site is a third way in and is not listed with
+ * them: it is not a hole the type can close, and it is visible in review.
  */
 export interface DiagnosticsLedger {
 	record(entityType: DiagnosticEntityKind, entityId: EntityId<string>, error: AppError): void;

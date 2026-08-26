@@ -51,27 +51,49 @@
  * small toggle states inside a toolbar, so they carry only what the states need, all of
  * it through variables.
  */
-.rp-editor-tool-button {
+/*
+ * QUALIFIED WITH `.rp-editor-toolbar`, and every rule below it for the same reason.
+ *
+ * Obsidian's own `button:not(.clickable-icon)` (`tests/harness/obsidian.css`) sets
+ * `background-color`, `color` AND `box-shadow` at specificity (0,1,1) — `:not()` contributes
+ * its argument's specificity — which outranks a bare class at (0,1,0), and source order is
+ * never even consulted. This is the same defect `styles/dialogs.css` records for
+ * `.rp-dialog-button-danger`; it was fixed there and left standing here.
+ *
+ * What it cost, measured in a real Chromium against the assembled sheet: `--interactive-accent`
+ * and `--text-on-accent` both lost, so **the active tool rendered identically to the inactive
+ * ones** — Pan, Select, Draw zone and Calibrate all at `rgb(51,51,51)`/`rgb(218,218,218)`, with
+ * no way for a sighted user to tell which tool was selected. `aria-pressed` is bound in
+ * `EditorToolbar.vue`, so a screen reader was told what the screen would not say: the inverse
+ * of the usual failure, and invisible to every gate here.
+ *
+ * `box-shadow: none` is part of the fix rather than tidying. Obsidian's rule also sets
+ * `var(--input-shadow)`, which this sheet never overrode, so the toolbar's buttons carried the
+ * raised chrome of a standalone button while asking for a transparent background — the flat
+ * toolbar these declarations describe was never what rendered.
+ */
+.rp-editor-toolbar .rp-editor-tool-button {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 	background-color: transparent;
+	box-shadow: none;
 	border: 1px solid transparent;
 	border-radius: var(--radius-s);
 	cursor: pointer;
 }
 
-.rp-editor-tool-button:hover {
+.rp-editor-toolbar .rp-editor-tool-button:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.rp-editor-tool-button:disabled {
+.rp-editor-toolbar .rp-editor-tool-button:disabled {
 	color: var(--text-faint);
 	cursor: default;
 }
 
-.rp-editor-tool-active,
-.rp-editor-tool-active:hover {
+.rp-editor-toolbar .rp-editor-tool-active,
+.rp-editor-toolbar .rp-editor-tool-active:hover {
 	color: var(--text-on-accent);
 	background-color: var(--interactive-accent);
 }
@@ -104,18 +126,27 @@
 	overflow-wrap: anywhere;
 }
 
-.rp-editor-inspector-delete {
+/*
+ * Qualified with `.rp-editor-inspector` for the reason the toolbar block above gives at length.
+ * This one lost the most: a DESTRUCTIVE action whose whole visual argument is `--text-error`
+ * rendered as an ordinary grey Obsidian button (`rgb(51,51,51)`/`rgb(218,218,218)` measured),
+ * with only its red border surviving — Obsidian's rule sets no border, so that one declaration
+ * was never contested. A delete button that looks like every other button is the case where
+ * losing the cascade costs more than appearance.
+ */
+.rp-editor-inspector .rp-editor-inspector-delete {
 	width: 100%;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-error);
 	background-color: transparent;
+	box-shadow: none;
 	border: 1px solid var(--text-error);
 	border-radius: var(--radius-s);
 	cursor: pointer;
 }
 
-.rp-editor-inspector-delete:hover {
+.rp-editor-inspector .rp-editor-inspector-delete:hover {
 	background-color: var(--background-modifier-error);
 }
 

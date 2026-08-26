@@ -469,7 +469,26 @@ body {
  * parked out of the way: a control in a screenshot that nobody can find in the plugin is
  * worse than no control at all, so it says whose it is.
  */
-.rp-harness-scheme {
+/*
+ * THE CLASS IS DOUBLED, and that is deliberate rather than a typo.
+ *
+ * Obsidian's `button:not(.clickable-icon)` sets `background-color`, `color` and `box-shadow` at
+ * (0,1,1) — `:not()` contributes its argument's specificity — so a bare `.rp-harness-scheme` at
+ * (0,1,0) lost all three: measured at `rgb(51,51,51)`/`rgb(218,218,218)` where this rule asks
+ * for `--background-secondary` and `--text-faint`. The dashed border survived only because
+ * Obsidian's rule sets no border, which is why the control still looked deliberate while being
+ * louder and heavier than it asks to be.
+ *
+ * Every other instance of this in the repository is fixed by qualifying with the container the
+ * button sits in (`.rp-dialog`, `.rp-editor-toolbar`, `.rp-editor-inspector`). This one has no
+ * container: `theme.ts` appends it straight to `<body>`. The alternatives were each worse —
+ * `body .rp-harness-scheme` and `button.rp-harness-scheme` both land on (0,1,1), a TIE that
+ * resolves by source order and would silently flip if a sheet were ever linked after this one;
+ * and naming `body` would break this file's own header rule, which holds that exception to
+ * `height` alone. Repeating the class is the one spelling that beats (0,1,1) outright while
+ * naming nothing but a harness class.
+ */
+.rp-harness-scheme.rp-harness-scheme {
 	position: fixed;
 	right: var(--size-4-3);
 	bottom: var(--size-4-3);
@@ -478,13 +497,14 @@ body {
 	border: 1px dashed var(--background-modifier-border-hover);
 	border-radius: var(--radius-s);
 	background-color: var(--background-secondary);
+	box-shadow: none;
 	color: var(--text-faint);
 	font-family: ui-monospace, monospace;
 	font-size: 11px;
 	cursor: var(--cursor, pointer);
 }
 
-.rp-harness-scheme:hover {
+.rp-harness-scheme.rp-harness-scheme:hover {
 	color: var(--text-muted);
 	background-color: var(--background-modifier-hover);
 }

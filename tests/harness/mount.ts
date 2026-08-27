@@ -9,10 +9,10 @@
  *
  * `makeView()` is called with no `deps` argument, which is what keeps this file compiling
  * unchanged now that design slice 14 gave the constructor a second parameter: the default
- * answers `ok([])`, an empty project list, so the harness page shows the "no renovation
- * projects yet" empty state — that is the new thing worth looking at here. The populated
- * surface has nothing else to draw until a later slice builds an actual project list; this
- * slice explicitly does not.
+ * answers `ok({ projects: [], unreadable: 0 })` — an empty project list with nothing refused
+ * — so the harness page shows the "no renovation projects yet" empty state, and that is the
+ * new thing worth looking at here. The populated surface has nothing else to draw until a
+ * later slice builds an actual project list; this slice explicitly does not.
  */
 import type { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';

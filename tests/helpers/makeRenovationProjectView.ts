@@ -29,11 +29,12 @@ import { FakeLeaf } from './workspace';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
 /**
- * The default `deps` answers `ok([])` — an empty project list — rather than the refusal
- * bundle: `unavailableRenovationProjectQueries()` is what settings.unrecovered actually
- * looks like, and defaulting every caller of this factory to that would make the harness
- * page and every un-migrated test look like a broken session rather than a fresh, empty
- * vault. Optional rather than required, so `tests/harness/mount.ts` keeps compiling
+ * The default `deps` answers an empty project list with nothing refused —
+ * `ok({ projects: [], unreadable: 0 })` — rather than the refusal bundle:
+ * `unavailableRenovationProjectQueries()` is what settings.unrecovered actually looks like,
+ * and defaulting every caller of this factory to that would make the harness page and every
+ * un-migrated test look like a broken session rather than a fresh, empty vault. Optional
+ * rather than required, so `tests/harness/mount.ts` keeps compiling
  * unchanged: the harness page therefore shows the empty state now, which is the new thing
  * worth looking at — the populated surface has nothing to draw until a later slice builds
  * an actual project list (this slice explicitly does not).

@@ -50,16 +50,26 @@ describe('RenovationProjectStore hydration', () => {
 	 * Requirement 2: a failed read leaves no stale list behind. `fail` is what states this
 	 * rule for `ProjectStore` too — drawing a list beside an error saying it could not be
 	 * read is the worse of the two wrong answers.
+	 *
+	 * The refusal COUNT is under the same rule and is asserted here for that reason: a
+	 * wholesale failure has no per-note count behind it, so a `1` surviving from the read
+	 * before it would be rendered as a fact about a read that never happened. The preceding
+	 * hydration therefore carries a non-zero count, or this assertion would pass against a
+	 * `fail` that resets nothing.
 	 */
 	it('a failed read empties the list rather than keeping what it had', async () => {
 		const store = useRenovationProjectStore();
-		await store.hydrate(queries());
+		await store.hydrate(
+			queries({ listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 1 })) }),
+		);
 		expect(store.projects).toEqual([PROJECT]);
+		expect(store.unreadable).toBe(1);
 
 		await store.hydrate(queries({ listProjects: () => Promise.resolve(err(READ_FAILED)) }));
 
 		expect(store.status).toBe('failed');
 		expect(store.projects).toEqual([]);
+		expect(store.unreadable).toBe(0);
 		expect(store.error).toEqual(READ_FAILED);
 	});
 
@@ -136,14 +146,23 @@ describe('RenovationProjectStore hydration', () => {
 		expect(store.status).toBe('idle');
 	});
 
+	/**
+	 * "Its opening state" includes the refusal count, which is why the hydration this reset
+	 * undoes carries a non-zero one: against a `reset` that leaves `unreadable` alone, a
+	 * fixture reading `0` would assert nothing at all.
+	 */
 	it('is fully rebuildable — a reset returns it to its opening state', async () => {
 		const store = useRenovationProjectStore();
-		await store.hydrate(queries());
+		await store.hydrate(
+			queries({ listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 4 })) }),
+		);
+		expect(store.unreadable).toBe(4);
 
 		store.reset();
 
 		expect(store.status).toBe('idle');
 		expect(store.projects).toEqual([]);
+		expect(store.unreadable).toBe(0);
 		expect(store.error).toBeNull();
 	});
 

@@ -4,7 +4,8 @@
  * An Application Test in the SDD §71 sense: the query against an in-memory repository, with
  * no Obsidian anywhere. What it has to establish is small but not nothing — that a failed
  * read is handed back as a failure rather than flattened into an empty list, because an empty
- * list is what the view renders an empty state for.
+ * list is what the view renders an empty state for; and that a read which SKIPPED some notes
+ * is a third fact again, carried out as `unreadable` rather than collapsed into either.
  */
 import { describe, expect, it } from 'vitest';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
@@ -29,9 +30,10 @@ describe('ListProjects', () => {
 	});
 
 	/**
-	 * The distinction the empty state depends on. `ok([])` means "legitimately nothing yet"
-	 * and gets onboarding copy; `isErr` means a real problem and must NOT be downgraded into
-	 * it, or a persistence failure renders as a cheerful invitation to create something.
+	 * The distinction the empty state depends on. `ok` with an empty list and `unreadable: 0`
+	 * means "legitimately nothing yet" and gets onboarding copy; `isErr` means a real problem
+	 * and must NOT be downgraded into it, or a persistence failure renders as a cheerful
+	 * invitation to create something.
 	 *
 	 * Built as an explicit object literal declaring every `ProjectRepository` member, per the
 	 * task ruling: spreading an `InMemoryProjectRepository` instance would copy only its own

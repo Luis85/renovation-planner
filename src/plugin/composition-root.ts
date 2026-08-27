@@ -160,10 +160,15 @@ export interface PersistenceServices {
 	 */
 	readonly planEditorQueries: PlanEditorQueryServices;
 	/**
-	 * The Renovation Project view's own read side (design slice 14): `ListProjects` mapped
-	 * into presentation read models, one query today — composed here for the same reason
-	 * `planEditorQueries` is: the view is handed an interface and never builds one from a
-	 * repository.
+	 * The Renovation Project view's own read side (design slice 14): the raw
+	 * `ListProjects` application class, one query today. Unlike `planEditorQueries`
+	 * above, this field is NOT mapped into presentation read models here — that mapping
+	 * happens one level down, in `renovationProjectDeps`'s call to
+	 * `createRenovationProjectQueries` (below). The asymmetry is real, not an
+	 * inconsistency to fix: the view is still handed an interface
+	 * (`RenovationProjectQueryServices`) and never builds one from the raw class itself,
+	 * which is the guarantee this field exists to preserve; only WHERE the mapping is
+	 * composed differs from `planEditorQueries`.
 	 */
 	readonly listProjects: ListProjects;
 	/**

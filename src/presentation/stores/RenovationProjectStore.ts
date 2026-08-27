@@ -51,7 +51,21 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 		status.value = 'failed';
 	}
 
-	/** The one hydration routine, run on open. */
+	/**
+	 * The one hydration routine, run on open.
+	 *
+	 * `status` drops to `'loading'` on every call, unconditionally — unlike
+	 * `ProjectStore.hydrate`, which deliberately stays at `'ready'` on a re-hydration so a
+	 * committed command's refresh does not unmount and rebuild the Konva stage. There is
+	 * one caller here today (the view's own `onMounted`), so the difference is invisible:
+	 * nothing yet re-hydrates a view that is already `'ready'`. It stops being invisible
+	 * the day a later slice re-hydrates this store after creating a project (the same
+	 * post-command-refresh shape `ProjectStore` already has) — at that point `emptyStateKey`
+	 * drops to `null` for one tick (loading is not `'ready'`) and back, and the empty state
+	 * will blink out and back in rather than holding steady the way the Plan Editor's does.
+	 * Not fixed here: the reason is known and stated so the day it matters, fixing it is a
+	 * one-line change rather than a rediscovery.
+	 */
 	async function hydrate(queries: RenovationProjectQueryServices): Promise<void> {
 		const request = ++latestHydration;
 		const superseded = (): boolean => request !== latestHydration;
@@ -83,7 +97,15 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 		status.value === 'ready' ? selectRenovationProjectEmptyState(projects.value) : null,
 	);
 
-	/** What the view calls on close, so a reused leaf never opens onto the last read. */
+	/**
+	 * Rebuilds this store to its opening state (ADR-005). Nothing calls this today —
+	 * `RenovationProjectView.onOpen` creates a fresh Pinia per open rather than reusing one
+	 * across closes, so there is no reused leaf yet for this to protect. Declared for the
+	 * same reason `Zone.area()` is kept rather than trimmed: a shape that is deleted
+	 * whenever nothing calls it stops being a declared shape, and the guarantee it states
+	 * — that this store is fully rebuildable from the same query at any time — is worth
+	 * keeping stated and tested even with zero callers.
+	 */
 	function reset(): void {
 		// Invalidates any hydration still in flight, exactly as `ProjectStore.reset` does.
 		latestHydration += 1;

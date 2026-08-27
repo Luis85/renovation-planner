@@ -81,15 +81,21 @@
  * duplicate ids or landmark uniqueness. The word "accessibility" in this filename should
  * be read no wider than that.
  *
- * The Renovation Project view still draws one empty mount div, so its case below reports
- * nothing — that was this project's stated adoption window ("a rule is adopted while it
- * reports nothing", CLAUDE.md), and the Plan Editor is the payoff arriving: the first
- * surface with real content in it is graded from its first commit, rather than an
- * accessibility pass arriving once twenty views already fail one.
+ * The Renovation Project view drew one empty mount div through slice 13, so its case below
+ * reported nothing for every slice up to this file's own adoption — that was this project's
+ * stated adoption window ("a rule is adopted while it reports nothing", CLAUDE.md). Design
+ * slice 14 gave it a real empty state (a headline and body, no button on this entry), so its
+ * case below now grades that markup rather than an empty subtree — proven by an assertion
+ * that `.rp-empty-state` is actually in the scanned DOM, not merely by the absence of
+ * violations, which a scan of nothing would also report. The Plan Editor's case was the
+ * first surface here with real content graded from its own first commit; this one caught up
+ * a slice later, rather than an accessibility pass arriving once twenty views already fail
+ * one.
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
+import { flushPromises } from '@vue/test-utils';
 import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
@@ -165,6 +171,16 @@ describe('axe against the mounted view', () => {
 
 	it('reports no semantic violations on the surface RenovationProjectView actually draws', async () => {
 		const { view } = mountHarness(document.body);
+		// `onOpen` mounts synchronously but `RenovationProjectStore.hydrate` — kicked off from
+		// `ViewRoot`'s `onMounted` — resolves its query and applies the empty state one
+		// microtask tick later; without waiting, `axe.run` below scanned the placeholder
+		// `<!--v-if-->` comment nodes Vue leaves before the store settles, and the "no
+		// violations" result was true of an empty subtree, not of the empty state. Measured
+		// directly: a scan without this line finds zero elements at all under any rule bucket
+		// (passes/incomplete/inapplicable/violations combined) — proof it never reached the
+		// headline or body this case exists to grade. `flushPromises` (not a fixed count of
+		// `nextTick`s) drains both the query's promise and the reactive re-render it triggers.
+		await flushPromises();
 
 		// Scoped to `contentEl`, not the whole mounted leaf: `containerEl` also carries
 		// Obsidian's own `.view-header` chrome (see `tests/helpers/obsidian-mock.ts`),
@@ -173,15 +189,22 @@ describe('axe against the mounted view', () => {
 		// future Vue app lands in unchanged.
 		const results = await axe.run(view.contentEl, runOptions);
 
+		// The `.rp-empty-state` assertion is load-bearing, not decorative: `results.violations`
+		// is `[]` on a scan of nothing at all, exactly as it is on a scan of a real, compliant
+		// empty state — the two are indistinguishable without this line. Asserted on the DOM
+		// this scan actually ran against, so a future regression that reintroduces the timing
+		// gap above fails HERE rather than passing vacuously again.
+		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 	});
 
 	/**
-	 * The Plan Editor, which unlike the project surface actually draws something: five §60
-	 * regions, seven labelled layer checkboxes, two panel headings and a focusable canvas.
-	 * Every one of those is a thing axe CAN grade under this file ceiling — roles,
-	 * accessible names, form labels, heading order — so this is the first case here that is
-	 * a real check rather than an adoption placeholder.
+	 * The Plan Editor: five §60 regions, seven labelled layer checkboxes, two panel headings
+	 * and a focusable canvas. Every one of those is a thing axe CAN grade under this file
+	 * ceiling — roles, accessible names, form labels, heading order. The project surface case
+	 * above grades real markup now too (design slice 14's empty state), so this is no longer
+	 * the only non-placeholder case in this file — see that case's own comment for the timing
+	 * gap that had to be closed before it could make the same claim.
 	 *
 	 * Mounted through the same harness the editor suites use, so it grades what
 	 *  actually renders and not a fixture typed into this file.

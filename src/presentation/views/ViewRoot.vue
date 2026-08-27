@@ -13,9 +13,14 @@
  * marketplace rejects inline styles and this plugin's CSS lives in `styles/`, assembled
  * into one sheet. The class below is that sheet's only entry point into this view.
  *
- * Slice 15's `DialogHost` mounts here too, not only in the Plan Editor: slice 14's
- * "Create a project" empty-state action opens a dialog from THIS view, and a host that
- * only ever mounted beside a `PlanCanvas` would leave that click with nothing to open.
+ * Slice 15's `DialogHost` mounts here too, not only in the Plan Editor. Not because of an
+ * empty-state action: `renovationProject.noProjects` ships with no button at all (slice
+ * 14's Amendment 1), so there is no click here yet for `DialogHost` to answer. It mounts
+ * because this is one of the two ItemView-scoped Vue apps SDD §12 has the dialog
+ * framework mount into (slice 15), and because a later slice's project-creation form —
+ * the "Create a project" hand-off `noProjects` names but does not wire — will open from
+ * this tree once it exists. A host that mounted only beside a `PlanCanvas` would leave
+ * that future form with nothing to open from.
  */
 import { computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';

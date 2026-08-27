@@ -43,7 +43,7 @@ an icon slot nothing populates yet — driven by a typed registry (`EMPTY_STATE_
 holding `StringKey`s, never literal copy, and two pure selectors
 (`selectRenovationProjectEmptyState`, `selectPlanEditorEmptyState`) that turn an
 already-succeeded query result into which of three keys applies, if any.
-`RenovationProjectView` gained its first real data dependency — a `ListProjectsQuery` and
+`RenovationProjectView` gained its first real data dependency — a `ListProjects` query and
 a `RenovationProjectStore` to hold the result — and renders `renovationProject.noProjects`
 when it comes back empty; `ProjectStore` gained one getter, `emptyStateKey`, over state it
 already hydrates. Rules that came out of it:
@@ -87,8 +87,21 @@ already hydrates. Rules that came out of it:
   translates it like every other key. A citation nobody checks is the same defect as an
   unchecked comment.
 - **The accessibility case for the project surface was an adoption placeholder until this
-  slice.** It has scanned an empty pane since slice 1; it grades real markup — a headline,
-  body copy and (where wired) a labelled button — now.
+  slice, and closing that gap took more than adding markup.** It scanned an empty pane
+  since slice 1; it grades a real headline and body now — but `mountHarness` is
+  synchronous and `void`s `onOpen`, so the case's first version called `axe.run`
+  immediately after mounting, one tick before `RenovationProjectStore.hydrate`'s query
+  resolved and the empty state actually rendered. Measured directly: without a
+  `flushPromises()` first, the scan found zero elements under any rule bucket at
+  all — a pass that was true of an empty subtree, indistinguishable from a pass on a
+  compliant one. `tests/harness/accessibility.test.ts` now awaits `flushPromises()`
+  before scanning and asserts `.rp-empty-state` is actually present in the scanned DOM,
+  so a regression that reopens the timing gap fails there rather than passing quietly.
+  **No empty state carrying a button is graded by that case or any other**:
+  `renovationProject.noProjects` has none, and the Plan Editor case's default fixture
+  resolves to `planEditor.noBackground`, the other buttonless entry — `noZones`'s
+  action button is exercised by `emptyStateOverlay.test.ts` alone, and by no
+  accessibility scan.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the

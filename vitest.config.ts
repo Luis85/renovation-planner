@@ -389,7 +389,7 @@ export default defineConfig({
 			//
 			// Measured 2026-08-27 at the end of design slice 14 — the two central views' empty
 			// states: `EmptyState.vue`, the typed content registry, the two pure selectors,
-			// `RenovationProjectView`'s first data dependency (`ListProjectsQuery` and its
+			// `RenovationProjectView`'s first data dependency (`ListProjects` and its
 			// store), and `ProjectStore.emptyStateKey` as a getter over state it already
 			// hydrates: 4197/4227 statements, 2075/2116 branches, 1066/1076 functions,
 			// 3755/3773 lines — 99.29 / 98.06 / 99.07 / 99.52. NOTHING RATCHETS: rounded down
@@ -399,7 +399,7 @@ export default defineConfig({
 			// `resolve.ts`, `selectors.ts`, `RenovationProjectStore.ts`,
 			// `RenovationProjectContext.ts`, `RenovationProjectView.ts`,
 			// `renovationProjectQueries.ts`); the slice contributed no new uncovered arm.
-			// `ProjectStore.ts`'s single uncovered branch (20/19) is the pre-existing
+			// `ProjectStore.ts`'s single uncovered branch (19/20) is the pre-existing
 			// concurrent-hydrate ticket check at its second `superseded()` guard — reachable
 			// only by a hydration superseded strictly between `getPlan` and
 			// `findZonesByPlan` resolving, unchanged by this slice.

@@ -15,9 +15,14 @@
  * `pointer-events` pair off this modifier: the panel lets a pan or a zoom through, the button
  * does not.
  *
- * Promoted from `src/prototypes/EmptyState.vue` by MOVING the file. The template below is the
- * markup that was drawn and captured in the harness, unchanged; only this block differs, and
- * only by losing the mock's placeholder defaults.
+ * Promoted from `src/prototypes/EmptyState.vue` by MOVING the file. Only this script block
+ * differs from the mock, and not only by losing the mock's placeholder defaults: the mock
+ * was visual-only and wired no click at all, so the template also gained
+ * `@click="$emit('action')"` here — without it the promoted component's `action` event
+ * would have been unreachable. `tests/build/prototype-promotion.test.ts` holds templates
+ * byte-identical across promotion for exactly one file pair (`ZoneSummary.vue`) and does
+ * not cover this one, so nothing caught that gap automatically; CLAUDE.md's design-slice-14
+ * entry records it as the reason promotion is not always a byte-for-byte move.
  */
 import type { EmptyStateProps } from '../emptyStates/resolve';
 

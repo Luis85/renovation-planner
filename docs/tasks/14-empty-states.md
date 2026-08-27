@@ -466,6 +466,20 @@ interface ListProjectsQuery {
 }
 ```
 
+**This block is wrong, and the implementation correctly refused it rather than following
+it verbatim.** `ProjectSummaryDto` is a `presentation/read-models/` type, and
+`application/` may not name `presentation/` (the layer bans this document's own
+References section cites at SDD §92 item 15) — a class named `ListProjectsQuery` and
+shaped exactly as drawn above would be a layer violation the moment it compiled. The
+real `application/queries/ListProjects.ts` returns `Result<Project[], PersistenceError>`
+— domain entities — and the mapping into `ProjectSummaryDto` happens in
+`presentation/read-models/renovationProjectQueries.ts`, beside every other `to*Dto`. The
+class is also named `ListProjects`, not `ListProjectsQuery` — the References section
+below already says why (`ListAssets` is the naming pattern it follows, per §80). A future
+slice implementing this block verbatim would reintroduce both the layer violation and the
+naming mismatch; read the Status section's item 4 correction and `ListProjects.ts` itself
+for what actually ships.
+
 ```typescript
 // presentation/views/RenovationProjectView.ts — constructor extended, not replaced
 export interface RenovationProjectQueryServices {
@@ -572,24 +586,50 @@ All eight items are met, verified against the code rather than assumed:
    `tests/presentation/components/emptyState.test.ts` drives the h2, the conditional
    button, the one-event-per-click, and the untouched icon slot.
 2. **Met.** `EMPTY_STATE_CONTENT` holds exactly the three entries, typed as `StringKey`s;
-   `en.ts` and `de.ts` both carry all six keys the registry names, and
+   `en.ts` and `de.ts` both carry all seven keys the registry names (headline and body
+   for each of the three entries, plus `noZones`'s one `actionLabel`), and
    `planEditor.noBackground` and `planEditor.noZones` resolve to distinct headline/body
    pairs in each locale.
 3. **Met.** `selectors.ts`'s table-driven tests cover all four `background`×`zones.length`
    combinations plus `plan === null`, asserting the `null` case returns no key rather than
    `'noBackground'`.
-4. **Met.** `RenovationProjectView`'s constructor takes a `ListProjectsQuery`;
-   `renovationProjectQueries.ts`/`RenovationProjectStore` hydrate it and `ViewRoot.vue`
-   renders `renovationProject.noProjects` on an empty result.
+4. **Met, with the Design section's own interface name corrected.** No `ListProjectsQuery`
+   symbol exists anywhere in `src/`. `RenovationProjectView`'s constructor takes a
+   `RenovationProjectDeps` (holding `queries: RenovationProjectQueryServices`); the query
+   class the composition root instantiates is `ListProjects`
+   (`application/queries/ListProjects.ts`), named without the `Query` suffix per §80's
+   `ListAssets` pattern, exactly as this document's own References section already says.
+   `renovationProjectQueries.ts` maps its domain `Project[]` result into
+   `ProjectSummaryDto[]`, and `RenovationProjectStore` hydrates from that; `ViewRoot.vue`
+   renders `renovationProject.noProjects` on an empty result. See the note on the Design
+   section's `ListProjectsQuery` block above: that block's interface name and its
+   `application/` importing a `presentation/` DTO were both wrong, and this is where the
+   correction is recorded.
 5. **Met.** `PlanCanvas` mounts on `status === 'ready'` unconditionally;
    `emptyStateOverlay.test.ts` asserts both overlays render/hide per the precedence table
    and that the tool-active gate (`activeToolId !== null`) hides either one, with no
    change to the five-region shell.
-6. **Met, by the narrower instrument the self-review notes already flagged.** The claim is
-   held at the store (`status === 'failed'` never computes a non-null `emptyStateKey`,
-   `renovationProjectStore.test.ts` and `stores.test.ts`), not by spying on a selector
-   import binding — narrower than the spec's literal wording, and said so rather than
-   silently.
+6. **Met, by the narrower instrument the self-review notes already flagged, and with a
+   citation this pass corrected.** The claim is held at the store rather than by spying
+   on a selector import binding — narrower than the spec's literal wording, and said so
+   rather than silently. For `RenovationProjectStore`, that is a direct, named
+   assertion: `tests/presentation/stores/renovationProjectStore.test.ts` sets
+   `status === 'failed'` via a fixture and asserts `store.emptyStateKey` is `null`,
+   because that store's getter is guarded by `status === 'ready'` structurally.
+   `ProjectStore` (the Plan Editor) has no such status guard and no test asserting
+   `emptyStateKey` by name against a failed read — `tests/presentation/stores/stores.test.ts`
+   contains no reference to `emptyStateKey` at all, which was this document's actual
+   citation and is corrected here rather than left standing. What IS covered for
+   `ProjectStore`: `plan === null` is the mechanism the getter relies on (see
+   `ProjectStore.ts`'s own comment above `emptyStateKey`), and the `missing` half of
+   that — `plan === null` with no error — is driven through the mounted editor by
+   `tests/presentation/editor/emptyStateOverlay.test.ts`'s "renders no empty state for a
+   plan that does not resolve" case. The `failed` half reaches the identical `plan ===
+   null` state through `ProjectStore.fail()`, exercised by `stores.test.ts`'s two
+   failed-read cases — but neither of those two cases reads `emptyStateKey`, so
+   `ProjectStore.emptyStateKey` itself has no direct unit test of its own for that
+   branch, only the shared mechanism's coverage via the sibling `missing` path and the
+   selector's own exhaustive `plan === null` case in `selectors.test.ts`.
 7. **Met, and the amendment widens what "met" covers.** Only `planEditor.noZones` ships an
    action at all: its click sets `activeToolId = 'draw-polygon'` exactly once
    (`emptyStateOverlay.test.ts`). `renovationProject.noProjects` **and**

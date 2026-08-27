@@ -138,13 +138,35 @@ export const useProjectStore = defineStore('project', () => {
 	 * store that mixed the two would make "which state is this plan in" unanswerable without
 	 * a live tool manager, and this getter's whole value is that it is answerable.
 	 *
-	 * A failed or missing read never reaches the selector: `plan` is `null` in both cases and
-	 * the selector returns no key for that — which is the `Ok(null)`-is-a-broken-reference
-	 * rule, not an accident of ordering.
+	 * A missing read never reaches the selector: `plan` is `null` after `fail()` and after
+	 * the `foundPlan.value === null` branch above, and the selector returns no key for
+	 * that — the `Ok(null)`-is-a-broken-reference rule, not an accident of ordering.
+	 *
+	 * **A FAILED read is not held to the same guarantee, and that is deliberate, not a gap.**
+	 * `keepPreviousOnFailure` (above) exists precisely so a post-command re-read failing
+	 * does not blank a canvas that a moment ago showed real content — the empty state has to
+	 * agree with what the canvas beside it still shows, not blank out on its own schedule.
+	 * So on that path, `status` stays `'ready'`, `plan` stays whatever it already was, and
+	 * this getter computes exactly what it would for a normal ready render — a non-null
+	 * `plan` can therefore compute a real key while `error` is also set. This store holds
+	 * "a failed read is never rendered as an empty state" through `plan === null` PLUS this
+	 * stated exception, not structurally the way `RenovationProjectStore.emptyStateKey` does
+	 * with its `status === 'ready'` guard — that guard would be redundant everywhere else
+	 * here (`missing` and the non-`keepOnFailure` `failed` path already have `plan === null`;
+	 * a re-hydration deliberately never drops `status` back to `'loading'`, see the note
+	 * above `hydrate`), so adding it would not change behaviour, only appear to promise a
+	 * guarantee this store does not keep in the one case that actually needs stating.
 	 */
 	const emptyStateKey = computed(() => selectPlanEditorEmptyState(plan.value, [...zones.value.values()]));
 
-	/** What the view calls on close, so a reused leaf never opens onto the last Plan. */
+	/**
+	 * Rebuilds this store to its opening state (ADR-005). Nothing calls this today — the
+	 * Plan Editor mounts a fresh Pinia per leaf and this method has no caller yet — but a
+	 * reused leaf reopening onto a stale Plan is exactly the failure this exists to
+	 * prevent once something does call it, and a declared, tested shape with no caller is
+	 * the same choice `RenovationProjectStore.reset` and `Zone.area()` make for the same
+	 * reason.
+	 */
 	function reset(): void {
 		// Invalidates any hydration still in flight: a leaf closing must not have the plan
 		// it was reading painted back in a tick later.

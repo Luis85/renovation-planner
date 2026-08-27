@@ -67,11 +67,18 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * it works by NOT calling this: `buildProjectIndexEntries` never reads `schema-version`,
  * so a note this refuses is indexed like any other and costs nobody their session.
  *
- * **This gate is READ-side only, and the guarantee is "refuses to LOAD" — never "refuses
- * to write over".** Every save path resolves its existing note through
- * `findNoteIdInFolder` + `versionOfFrontmatter` and never comes through here, so nothing
- * in a write stops a build that predates a note from overwriting its owned keys with a
- * shape it understands. Two things protect such a note today and NEITHER is this gate:
+ * **The guarantee is "refuses to LOAD", never "refuses to write over" — and one WRITE
+ * reaches it anyway.** Every SAVE path resolves its existing note through
+ * `findNoteIdInFolder` + `versionOfFrontmatter` and never comes through here, so nothing in
+ * a save stops a build that predates a note from overwriting its owned keys with a shape it
+ * understands. A DELETE is the exception, and this docblock denied it for a whole slice:
+ * `trashNoteBackedEntity` calls `openNoteById` before `checkExpectedVersion`, so an Asset or
+ * Requirement note from a future build can be neither loaded nor removed from inside the
+ * plugin. That refusal is deliberate rather than incidental — trashing a note this build
+ * cannot parse is not obviously safer than declining to — and it is pinned by the
+ * 'refuses to DELETE a future-version note' case in `errorPaths.test.ts` rather than
+ * described here, which is what the previous version of this paragraph got wrong.
+ * Two things protect such a note today and NEITHER is this gate:
  * every command loads before it saves, and the load refuses — a property of the callers;
  * and `schema-version` is an owned key, so an expectation minted before the note changed
  * refuses as an external modification. A writer holding a CURRENT expectation meets

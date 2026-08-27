@@ -310,6 +310,29 @@ describe('the fail-closed gate is scoped to one entity', () => {
 		// The newer build's note now carries this build's version, and nothing refused.
 		expect(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter['schema-version']).toBe(1);
 	});
+
+	/**
+	 * The other half of the same narrowing, and the half `migrateNote`'s docblock used to
+	 * DENY: a delete is a write, and it does come through the read gate. `trashNoteBackedEntity`
+	 * opens the note before it checks the expected version, so a note from a build this one
+	 * predates can be neither loaded nor removed from inside the plugin.
+	 *
+	 * Asserted rather than described, because the docblock describing it was wrong for a whole
+	 * slice. The refusal itself is deliberate — trashing a note this build cannot parse is not
+	 * obviously safer than refusing — so this case pins behaviour that is meant to stay.
+	 */
+	it('refuses to DELETE a future-version note, not only to load one', async () => {
+		const stack = createRepositoryStack();
+		const asset = makeAssetEntity({ projectId: createProjectId() });
+		const written = expectOk(await stack.assets.save(asset, 'absent'));
+		plantFutureSchemaVersion(stack, asset.id);
+
+		const refusal = expectErr(await stack.assets.delete(asset.id, written.version));
+
+		expect(refusal.code).toBe('asset.schema-version-unsupported');
+		// Still there: the refusal is a refusal, not a partial delete.
+		expect(stack.index.getPath(asset.id)).not.toBe(null);
+	});
 });
 
 describe('plan repository failure branches', () => {

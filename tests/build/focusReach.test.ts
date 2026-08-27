@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { buttonClassGroups, buttonClasses, sheets } from '../helpers/buttonRules';
 import { flattenedWithoutRing } from '../helpers/focusCascade';
 
 /**
@@ -176,6 +178,66 @@ describe('which elements a focus rule reaches', () => {
 		],
 	])('says nothing about %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
+	});
+
+	/**
+	 * A BORDER SET AT REST IS NOT A FOCUS TREATMENT — it is the box the button already has — so it
+	 * cannot buy silence for a button with no ring. This was a LIVE hole rather than a latent one:
+	 * `.rp-editor-toolbar .rp-editor-tool-button` sets `box-shadow: none` and a transparent border in
+	 * the shipped sheet, so with its real `:focus-visible` rule deleted this scan stayed green.
+	 *
+	 * The abstention was correct when written, and stopped being so three commits later: it was filed
+	 * for focus branches only until base rules were admitted so they could RANK. One change, two
+	 * channels, and the second was not swept.
+	 */
+	it.each([
+		['a border set only at rest', '.rp-dialog-button { box-shadow: none; border: 1px solid red; }'],
+		[
+			'a border set only on hover',
+			'.rp-dialog-button { box-shadow: none; border: 1px solid red; } .rp-dialog-button:hover { border-color: blue; }',
+		],
+	])('still reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([
+			'.rp-dialog-button',
+		]);
+	});
+
+	it('says nothing about a base border beside a real focus ring', () => {
+		expect([
+			...flattenedWithoutRing(
+				[
+					[
+						'fixture',
+						'.rp-dialog-button { box-shadow: none; border: 1px solid red; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+					],
+				],
+				BUTTONS,
+				GROUPS,
+			).offenders.keys(),
+		]).toEqual([]);
+	});
+
+	/**
+	 * AND THE SAME QUESTION ASKED OF THE REAL SHEETS, by deleting the one rule that answers for a real
+	 * button and checking the scan notices. Every other real-sheet assertion here is a NEGATIVE — it
+	 * passes equally if the scan has stopped seeing that button at all — and this is the case that
+	 * tells those apart. It is what the at-rest border hole slipped past.
+	 */
+	it('reports a real button whose only focus rule is removed', () => {
+		const scanned = sheets.map(
+			(sheet) =>
+				[
+					sheet,
+					readFileSync(sheet, 'utf8').replace(
+						/\.rp-editor-toolbar \.rp-editor-tool-button:focus-visible \{[^}]*\}/g,
+						'',
+					),
+				] as const,
+		);
+
+		expect([...flattenedWithoutRing(scanned, buttonClasses(), buttonClassGroups()).offenders.keys()]).toContain(
+			'.rp-editor-tool-button',
+		);
 	});
 
 	/**

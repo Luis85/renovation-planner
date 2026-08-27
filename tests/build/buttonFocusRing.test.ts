@@ -447,6 +447,15 @@ describe('a flattened button and its focus ring', () => {
 			'a focused colour over a base that reserves no geometry',
 			'.rp-dialog-button { box-shadow: none; outline-color: transparent; } .rp-dialog-button:focus-visible { outline-color: red; }',
 		],
+		// AN UNPARSED COLOUR IS NOT THE KEYWORD. `fromCurrentColor` starts true, because
+		// `outline-color`'s initial IS `currentcolor`, and the unparsed arms overwrote the colour while
+		// leaving that provenance set — so `deferred.color` survived and this cascade replaced the blank
+		// with the button's text colour, reading an inherited outline as a visible one. The block reader
+		// answered correctly throughout; only a caller resolving the cascade could see it.
+		[
+			'a focus outline whose colour is inherited rather than named',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-style: solid; outline-color: inherit; }',
+		],
 		// The outline channel had the identical hole and was not named in the report.
 		[
 			'a winning base outline that leaves the focused button unchanged',

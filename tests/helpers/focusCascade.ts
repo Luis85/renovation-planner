@@ -538,7 +538,17 @@ const paintsABorder = (property: string): boolean =>
 	!['border-radius', 'border-image', 'border-collapse', 'border-spacing'].some((one) => property.startsWith(one));
 
 const abstains = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
-	rules.some((one) => one.property === 'border' && covers(one.conditions, site.conditions));
+	// `!atRest`, and its absence was a LIVE hole rather than a latent one. A border set at rest is not
+	// a focus treatment — it is the box the button already has — so abstaining for it silences a button
+	// with no ring at all. `.rp-editor-toolbar .rp-editor-tool-button` sets `box-shadow: none` and
+	// `border: 1px solid transparent` in the shipped sheet, so deleting its real `:focus-visible` rule
+	// left this scan green: measured, not reasoned about.
+	//
+	// It was correct when written. Round 34 filed the border channel only for focus branches, and round
+	// 37 removed that guard to let base rules RANK — a change about the indicator channels that reached
+	// this one too, because the filing loop is shared. `atRest` is the distinction now, and this is the
+	// place it had to be repeated and was not.
+	rules.some((one) => one.property === 'border' && !one.atRest && covers(one.conditions, site.conditions));
 
 /**
  * IT MUST DRAW, AND IT MUST BE THE CHANGE — two conditions, and four rounds of review found this

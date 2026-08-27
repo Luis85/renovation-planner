@@ -353,6 +353,12 @@ export const indicatorOf = (
 				width = known;
 				style = known;
 				color = known;
+				// AN UNPARSED VALUE IS NOT THE KEYWORD, so the provenance has to be cleared with the value.
+				// `fromCurrentColor` starts TRUE — `outline-color`'s initial IS `currentcolor` — and these
+				// arms overwrote the colour while leaving that flag alone, so `deferred.color` stayed set
+				// and a caller resolving the cascade replaced the blank with the text-colour channel.
+				// `outline-color: inherit` then read as a visible outline in whatever the button's text is.
+				fromCurrentColor = false;
 				break;
 			}
 			case 'outline-width': {
@@ -368,6 +374,7 @@ export const indicatorOf = (
 			case 'outline-color': {
 				touched.add('color');
 				color = known;
+				fromCurrentColor = false;
 				break;
 			}
 			case 'box-shadow': {

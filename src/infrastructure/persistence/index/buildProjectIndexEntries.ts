@@ -4,14 +4,11 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import { ENTITY_TYPES, type EntityType, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { Logger } from '../../../application/ports/Logger';
-import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
 import type { EchoWindow } from './EchoWindow';
 
-function listSidecars(vault: Vault, geometryPrefix: string): TFile[] {
-	return vault
-		.getFiles()
-		.filter((file) => file.path.startsWith(geometryPrefix) && file.path.endsWith('.rpgeo'));
+function listSidecars(vault: Vault): TFile[] {
+	return vault.getFiles().filter((file) => file.path.endsWith('.rpgeo'));
 }
 
 /**
@@ -52,7 +49,6 @@ interface ScanInput {
 	metadataCache: MetadataCache;
 	echo: EchoWindow;
 	logger: Logger;
-	projectFolder: string;
 }
 
 /**
@@ -73,10 +69,9 @@ function warnOnDuplicate(logger: Logger, previous: ProjectIndexEntry | undefined
 	});
 }
 
-/** Pass one: every note of ours under the project folder, keyed by its declared id. */
-function collectNotes(input: ScanInput, folder: string, entries: Map<string, ProjectIndexEntry>): void {
+/** Pass one: every note of ours in the vault, keyed by its declared id. */
+function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>): void {
 	for (const file of input.vault.getMarkdownFiles()) {
-		if (!file.path.startsWith(`${folder}/`)) continue;
 		// Through `frontmatterOf`, so a note whose cache entry Obsidian has not produced yet
 		// is still scanned from what this plugin last wrote there. At `onLayoutReady` the
 		// echo is empty and this is exactly the cache read it always was; it earns its keep
@@ -107,8 +102,8 @@ function collectNotes(input: ScanInput, folder: string, entries: Map<string, Pro
 }
 
 /** Pass two: join each sidecar to its Plan entry by filename (see the header on why). */
-function joinSidecars(input: ScanInput, geometryPrefix: string, entries: Map<string, ProjectIndexEntry>): void {
-	for (const file of listSidecars(input.vault, geometryPrefix)) {
+function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>): void {
+	for (const file of listSidecars(input.vault)) {
 		const planId = file.basename;
 		const planEntry = entries.get(planId);
 		if (!planEntry || planEntry.type !== 'renovation-plan') {
@@ -128,6 +123,21 @@ function joinSidecars(input: ScanInput, geometryPrefix: string, entries: Map<str
  * restoration on the main thread, and `MetadataCache` is incomplete until layout-ready,
  * so an earlier scan would build a partial index that looks complete.
  *
+ * **The scan is bounded by what a note DECLARES, not by where it sits.** Every note this
+ * plugin owns carries `type` and `id`, and every child entity carries `project:` — the
+ * frontmatter is what makes the index correct, and the path prefix this used to filter on
+ * never was. A prefix also could not see a second root at all, which is why slice 4
+ * recorded a library outside the scanned folder as invisible to both this scan and the
+ * vault-change pipeline. Nothing is registered, so nothing has to be.
+ *
+ * **What that costs, stated rather than discovered:** `frontmatterOf` is called for every
+ * markdown file in the vault, not for the handful under one folder. It is a
+ * `MetadataCache` map lookup plus an `EchoWindow` digest check — not a file read and not a
+ * parse — which is why the cost is acceptable at §102's budgets. It is NOT, as slice 18's
+ * document first claimed, "the same set either way": the prefix used to be tested before
+ * this call, and a 10,000-note vault with twenty notes under `Renovation/` cost twenty
+ * calls and now costs ten thousand lookups.
+ *
  * Notes are read through `MetadataCache`, never by parsing files; sidecars are joined to
  * their Plan entries by FILENAME — the fast path — because reading and schema-parsing
  * every `.rpgeo` would be hundreds of whole-file reads at the one moment startup is
@@ -135,15 +145,18 @@ function joinSidecars(input: ScanInput, geometryPrefix: string, entries: Map<str
  * sidecar (`PlanGeometryStore.read` compares the document's own `planId`). A file whose
  * name is not a plan ID is skipped with a diagnostic rather than guessed at.
  *
+ * A hand-written note carrying one of our types anywhere in the vault is therefore
+ * indexed. That is the intended behaviour of a declared bound; a template note carrying a
+ * literal id becomes a duplicate-id finding, which `warnOnDuplicate` already reports.
+ *
  * Two named passes rather than one body: the sidecar join can only run once every note
  * entry exists, so the ORDER here is the contract, and it is worth being able to read.
  */
 export function buildProjectIndexEntries(input: ScanInput): ProjectIndexEntry[] {
-	const folder = normalizeFolder(input.projectFolder);
 	const entries = new Map<string, ProjectIndexEntry>();
 
-	collectNotes(input, folder, entries);
-	joinSidecars(input, `${folder}/${GEOMETRY_FOLDER}/`, entries);
+	collectNotes(input, entries);
+	joinSidecars(input, entries);
 
 	// §67's `info` — a notable state transition, content-free: the index was REBUILT and
 	// this is how many entities it now knows. The warns above are per-note problems; this

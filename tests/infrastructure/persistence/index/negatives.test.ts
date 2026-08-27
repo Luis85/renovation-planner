@@ -164,7 +164,6 @@ describe('index builder negatives', () => {
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
 			logger: stack.logger,
-			projectFolder: stack.projectFolder,
 		});
 
 		expect(entries.some((entry) => entry.path === 'Elsewhere/x.md')).toBe(false);
@@ -192,7 +191,6 @@ describe('duplicate frontmatter ids', () => {
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
 			logger: stack.logger,
-			projectFolder: stack.projectFolder,
 		});
 
 		// One entry for the id, and a warning naming BOTH paths — a diagnostic that named
@@ -372,7 +370,6 @@ describe('the index scan does not run the fail-closed gate', () => {
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
 			logger: stack.logger,
-			projectFolder: stack.projectFolder,
 		});
 
 		// Every entry, not "most of them" — the poisoned note included.

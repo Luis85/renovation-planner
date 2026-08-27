@@ -363,7 +363,6 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 					metadataCache: metadataCache as never,
 					echo,
 					logger,
-					projectFolder,
 				}),
 			);
 		},

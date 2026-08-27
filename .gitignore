@@ -56,3 +56,18 @@ __pycache__/
 # with the session. Anchored, like everything else here: the tool writes it at the repo
 # root and nowhere else.
 /.superpowers/
+
+# Worktrees, one directory per branch in flight. They used to live in a SIBLING directory
+# (`../renovation-planner-worktrees/`), which needed no ignore rule and was the reason to
+# reconsider: a path outside the repository is invisible to `git status` here, so an
+# abandoned worktree holding uncommitted work was findable only by `git worktree list`,
+# and four of them accumulated before anyone looked.
+#
+# Inside the repository they are visible and ignored. What that costs is worth stating,
+# because a worktree is a FULL COPY of `src/`, `tests/` and `styles/`: every gate that
+# walks the tree could see two of every file. The leading dot plus this rule is what stops
+# that, and it was measured rather than assumed — `npm run check` was run with a real
+# worktree sitting in here, so the claim is that all four steps ignore it, not that they
+# ought to. If a future tool starts reporting duplicate findings, this directory is the
+# first place to look.
+/.worktrees/

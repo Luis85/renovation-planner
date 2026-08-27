@@ -551,6 +551,14 @@ export default defineConfig([
 			'dist/**',
 			'.obsidian/**',
 			'.claude/**',
+			// Worktrees, which live inside the repository and hold a FULL COPY of `src/`.
+			// Not optional and not tidiness: ESLint's flat config does not read `.gitignore`
+			// and no longer skips dot-directories, so `eslint .` walks in, finds a second
+			// `tsconfig.json` beside the root's, and fails EVERY file in the run with
+			// "multiple candidate TSConfigRootDirs are present". Measured with a real
+			// worktree in place — build and oxlint both ignored it and only this step broke,
+			// which is the sentence above about this list being load-bearing, proved.
+			'.worktrees/**',
 			'scripts/**',
 			'docs/**',
 			'**/*.md',

@@ -848,6 +848,18 @@ says why, and it is a real constraint rather than taste. Everything `npm run` in
 vitest, Vite (build and harness), TypeScript, fallow, npm and editor configs — and every
 script resolves its paths from the WORKING DIRECTORY rather than from its own location.
 
+**Worktrees live in `.worktrees/`, inside the repository and gitignored.** They used to sit in a
+sibling directory, which needed no ignore rule and was exactly the problem: a path outside the
+repository is invisible to `git status`, so an abandoned worktree holding uncommitted work was
+findable only by `git worktree list`, and four accumulated before anyone looked. A worktree is a
+FULL COPY of `src/`, `tests/` and `styles/`, so moving them inside had to be measured rather
+than assumed — `npm run check` was run with one in place. **`build` and `oxlint` ignored it and
+`eslint .` did not**: flat config reads no `.gitignore` and no longer skips dot-directories, so
+it walked in, found a second `tsconfig.json` beside the root's, and failed EVERY file with
+"multiple candidate TSConfigRootDirs are present". `.worktrees/**` is in `eslint.config.mjs`'s
+global `ignores` for that reason, which is the load-bearing claim that block's own comment
+already made about itself. `fallow` counted the same 1193 files either way.
+
 ## The linter in the edit loop
 
 `.claude/settings.json` runs `scripts/lint-edited.mjs` after every Edit and Write, which

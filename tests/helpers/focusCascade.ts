@@ -566,7 +566,7 @@ export const flattenedWithoutRing = (
 								},
 							]);
 
-					if (ringsFocus) {
+					{
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
 						// says so and this call site said otherwise. `:where()` contributes ZERO, argument
 						// included, so `:where(#scope) .button:focus-visible` expands to something scoring an ID
@@ -588,6 +588,23 @@ export const flattenedWithoutRing = (
 						for (const reached of reaches) {
 							for (const [property, declared, important] of declarations) {
 								if (declared === undefined) continue;
+
+								// A BASE RULE FILES ITS RESETS AND NOT ITS RINGS, which is the whole of what this
+								// guard says and both halves are load-bearing.
+								//
+								// Its resets belong in the cascade because a `box-shadow` set at rest is still set
+								// while focused: `.button { box-shadow: none !important }` beats a normal
+								// `.button:focus-visible { box-shadow: 0 0 0 3px red }` in the browser and leaves
+								// the button bare, while this scan heard only the focus half and cleared the site.
+								// Filed with its own importance, specificity and order, so `beats` decides it — a
+								// NORMAL base reset at (0,1,0) still loses to a (0,2,0) focus ring and disqualifies
+								// nothing, which is what keeps this from reporting every button in the project.
+								//
+								// Its rings do not, because a rule that draws at REST is not a focus indicator. An
+								// outline on screen before the button is tabbed to cannot be what tells a keyboard
+								// user where focus went, so crediting it would answer the question with the thing
+								// whose absence the question is about.
+								if (!ringsFocus && declared !== false) continue;
 
 								// APPENDED, never compared here. Which rule wins is a question about one element,
 								// and this key stands for many — so it is asked per flattening site, by `answers`.

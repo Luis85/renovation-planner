@@ -45,9 +45,15 @@ Vitest runs test files in parallel workers. If the walk catches a planted probe 
 before the parse, the file is in `harnessSfcs` and absent from `included`, and the assertion
 fails naming a file that no longer exists.
 
-**Only one direction races.** An extra entry in `included` fails nothing — the assertion filters
-the walk against the include set, not the reverse — which is why this is rare rather than
-constant.
+**Only one direction races** in that pair: an extra entry in `included` fails nothing, since the
+assertion filters the walk against the include set and not the reverse. That is why it is rare
+rather than constant.
+
+**There is a SECOND window in the same file, and it runs the other way.** The oxlint gate a
+hundred lines above snapshots `lintedFiles()` at MODULE LOAD and walks `tests/` inside its case,
+so a probe planted between those two is on disk and absent from the snapshot — the mirror of the
+type gate, where the walk is early and the parse is late. A review of the first fix found it,
+after that fix had closed one window and left the other.
 
 ## What is not established
 
@@ -61,18 +67,23 @@ they disagree, and that the observed symptom is what that window would produce.
 
 ## Fix
 
-`lint-scope.test.ts` excludes the transient name from the walk:
+`lint-scope.test.ts` excludes the transient name inside `walk` itself, which is what covers both
+windows:
 
 ```js
-const harnessSfcs = walk('tests/harness').filter(
-    (file) => file.endsWith('.vue') && !path.basename(file).startsWith('lint-edited-probe-'),
-);
+const isPlantedProbe = (name: string): boolean => name.startsWith('lint-edited-probe-');
 ```
 
-**What was demonstrated, and what was not.** The predicate was measured against the directory
-with a probe planted and without: three `.vue` files become two, the excluded one is
-`lint-edited-probe-99.vue`, and with no probe present the set is unchanged. So the filter takes
-the transient file and nothing else.
+**In the walk rather than at a call site**, and that placement is the fix's whole content. The
+first attempt filtered `harnessSfcs` alone, which closed the type gate's window and left the
+oxlint gate's — one filter where the file expresses the same distinction twice. This repository
+already names that shape: a distinction between kinds of thing is repeated everywhere it is
+expressed, or it is repeated nowhere reliably.
+
+**What was demonstrated, and what was not.** The predicate was measured with a probe planted and
+without, at both scopes it has to reach: `tests/harness` goes from three `.vue` files to two, and
+`tests` from 223 linted files to 222, the excluded entry being the probe in each case; with no
+probe present neither set moves.
 
 The race itself was not reproduced and could not be — it needs the file present at collection
 time and gone at parse time, which is a window between two workers rather than a state a test

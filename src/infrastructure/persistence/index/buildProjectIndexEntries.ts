@@ -23,6 +23,29 @@ export function stringField(value: unknown): string | undefined {
 	return typeof value === 'string' && value ? value : undefined;
 }
 
+/**
+ * What a note DECLARES itself to be — the one answer both the full scan and the
+ * incremental pipeline resolve, so the two cannot disagree about a note. Same reason
+ * `stringField` above is exported, one level up.
+ *
+ * Three answers rather than two, because the callers need three: `not-ours` is silent
+ * and correct, while `no-id` is a note of ours that cannot be indexed and is therefore a
+ * diagnostic. The two used to be told apart by each caller re-spelling the whole test.
+ */
+export type EntityRef =
+	| { kind: 'ours'; type: EntityType; id: string }
+	| { kind: 'no-id' }
+	| { kind: 'not-ours' };
+
+export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
+	const type = frontmatter['type'];
+	if (typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) {
+		return { kind: 'not-ours' };
+	}
+	const id = stringField(frontmatter['id']);
+	return id === undefined ? { kind: 'no-id' } : { kind: 'ours', type: type as EntityType, id };
+}
+
 /** What both passes need: the vault surface, the diagnostics sink, and the echo window. */
 interface ScanInput {
 	vault: Vault;
@@ -60,13 +83,10 @@ function collectNotes(input: ScanInput, folder: string, entries: Map<string, Pro
 		// on the RE-scan `saveSettings` triggers mid-session, where notes written moments
 		// ago would otherwise be dropped from the index they had just been added to.
 		const frontmatter = frontmatterOf(input, file);
-		if (Object.keys(frontmatter).length === 0) continue;
 
-		const type = frontmatter['type'];
-		if (typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) continue;
-
-		const id = frontmatter['id'];
-		if (typeof id !== 'string' || !id) {
+		const ref = entityRefOf(frontmatter);
+		if (ref.kind === 'not-ours') continue;
+		if (ref.kind === 'no-id') {
 			input.logger.warn('persistence.index.note-excluded', {
 				path: file.path,
 				reason: 'a note of this plugin must declare a non-empty id',
@@ -74,10 +94,10 @@ function collectNotes(input: ScanInput, folder: string, entries: Map<string, Pro
 			continue;
 		}
 
-		warnOnDuplicate(input.logger, entries.get(id), id, file.path);
-		entries.set(id, {
-			id: id as EntityId<string>,
-			type: type as EntityType,
+		warnOnDuplicate(input.logger, entries.get(ref.id), ref.id, file.path);
+		entries.set(ref.id, {
+			id: ref.id as EntityId<string>,
+			type: ref.type,
 			path: file.path,
 			projectId: stringField(frontmatter['project']) as ProjectId | undefined,
 			planId: stringField(frontmatter['plan']) as PlanId | undefined,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isTFolder } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import {
 	freshProjectFolder,
 	joinFolder,
@@ -80,5 +81,15 @@ describe('a project owns its folder', () => {
 		await stack.projects.save(kitchen, 'absent');
 
 		expect(stack.index.getPath('p1' as never)).toBe('Somewhere Else/Kitchen Refit/Kitchen Refit.md');
+	});
+});
+
+describe('FakeVault.getAbstractFileByPath', () => {
+	// The root resolves to a folder rather than null, matching `folderExists('')`'s own
+	// standing answer and real Obsidian — see the method's own comment for why leaving the
+	// two disagree would be the thin-fake shape this repository keeps finding.
+	it('resolves the vault root to a folder rather than null', () => {
+		const stack = createRepositoryStack('Renovation');
+		expect(isTFolder(stack.vault.getAbstractFileByPath(''))).toBe(true);
 	});
 });

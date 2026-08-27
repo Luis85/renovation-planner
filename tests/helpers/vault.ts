@@ -63,6 +63,13 @@ class FakeVault {
 	 * would pass the suite while doing nothing in a real vault. Files are checked first,
 	 * because a path cannot be both — `entries` and `folders` are disjoint namespaces here
 	 * as they are in Obsidian.
+	 *
+	 * The vault ROOT (`''`) resolves to a folder too, deliberately, rather than being a
+	 * second case this method disagrees with `folderExists` about: `folderExists('')` has
+	 * always answered `true` (the root always "exists"), and a fake where one method treats
+	 * the root as a folder while its sibling treats the identical path as nothing is the
+	 * thin-fake shape this repository has been burned by more than once. Real Obsidian
+	 * resolves the root to its `TFolder` as well.
 	 */
 	getAbstractFileByPath(path: string): TFile | MockTFolder | null {
 		if (this.entries.has(path)) {
@@ -74,7 +81,7 @@ class FakeVault {
 			file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
 			return file;
 		}
-		if (path !== '' && this.folderExists(path)) {
+		if (this.folderExists(path)) {
 			const segments = path.split('/');
 			const folder = new MockTFolder();
 			folder.path = path;

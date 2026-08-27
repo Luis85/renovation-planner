@@ -327,22 +327,17 @@ function composeSlice10(
 	};
 }
 
-function composeRepositories(
-	deps: NoteVaultDeps,
-	vault: VaultStack,
-	index: ProjectIndex,
-	migrations: MigrationRunner,
-	echo: EchoWindow,
-) {
-	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
+function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string) {
+	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
 	return {
 		geometryStore,
-		// `deps.projectFolder` is the same setting `newProjectRoot` names — this repository
-		// is the only one that reads it as anything other than a shared root, which is why
-		// it takes it as its own constructor argument rather than reaching into `deps` on
-		// every save. Task 6/7 retire the shared field once every other repository has
-		// stopped needing it too; until then this is still where the value lives.
-		projects: new ObsidianProjectRepository(deps, deps.projectFolder),
+		// `newProjectRoot` is a real argument, not `deps.projectFolder` read inline — this
+		// repository is the only one that ever writes a note whose folder does not already
+		// exist to be derived from, so it takes the setting as its own constructor
+		// argument rather than through the shared `NoteVaultDeps` field. That field is what
+		// Task 7 deletes; reading it here would have left this call site needing a second
+		// edit the day it goes.
+		projects: new ObsidianProjectRepository(deps, newProjectRoot),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps),
@@ -431,7 +426,7 @@ export function createCompositionRoot(
 		ledger,
 		projectFolder: settings.projectFolder,
 	};
-	const repositories = composeRepositories(deps, vault, index, migrations, echo);
+	const repositories = composeRepositories(deps, vault, settings.projectFolder);
 	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
 
 	// One lock set per plugin: assignment, unit changes and delete resolutions across

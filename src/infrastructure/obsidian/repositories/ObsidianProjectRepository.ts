@@ -71,12 +71,13 @@ export class ObsidianProjectRepository {
 		project: Project,
 		expected: Expected,
 	): Promise<Result<Loaded<Project>, RepositoryError>> {
-		// Through the INDEX, not a folder scan. Under ADR-0013 a project's folder is where
-		// its note sits, so scanning "the project's folder" for the project's own note
-		// presumes the answer. The index is also the more reliable half of what the folder
-		// scan's own comment worried about — `save` upserts synchronously before returning,
-		// so a note created moments ago is known here before any MetadataCache has parsed it.
-		const existing = fileAt(this.deps.vault, this.deps.index.getPath(project.id));
+		// Through the INDEX, not a folder scan — `locate`, the same lookup `getById` and
+		// `delete` use. Under ADR-0013 a project's folder is where its note sits, so
+		// scanning "the project's folder" for the project's own note presumes the answer.
+		// The index is also the more reliable half of what the folder scan's own comment
+		// worried about — `save` upserts synchronously before returning, so a note created
+		// moments ago is known here before any MetadataCache has parsed it.
+		const existing = this.locate(project.id);
 		const currentVersion = existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
 		const conflict = checkExpectedVersion('project', project.id, currentVersion, expected);

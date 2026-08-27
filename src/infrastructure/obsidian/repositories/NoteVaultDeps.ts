@@ -1,4 +1,4 @@
-import type { FileManager, MetadataCache, TFile, Vault } from 'obsidian';
+import { TFile, type FileManager, type MetadataCache, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { DiagnosticsLedger } from '../../../application/ports/diagnostics';
@@ -25,6 +25,19 @@ export interface NoteVaultDeps {
 	readonly projectFolder: string;
 }
 
+/**
+ * Narrows with `instanceof TFile`, like every sibling call site (`openNoteById` in
+ * `noteIo.ts`) — a cast here used to be indistinguishable from the narrow, because nothing
+ * in the suite could make `getAbstractFileByPath` answer anything but a file or `null`.
+ * `FakeVault`'s folder-resolving widening (design slice 18, task 5) made the gap real: a
+ * path that resolves to a FOLDER — which cannot happen through the index today, since
+ * nothing upserts a project's own path as a folder, but is exactly the shape ADR-0013
+ * makes possible one level up — must answer `null` here rather than a `TFolder` wearing a
+ * `TFile` cast, or every caller of `locate`/`fileAt` would call file-only operations
+ * (`frontmatterOf`, `vault.read`, `trashFile`) on an object that is not one.
+ */
 export function fileAt(vault: Vault, path: string | undefined): TFile | null {
-	return path ? (vault.getAbstractFileByPath(path) as TFile | null) : null;
+	if (!path) return null;
+	const found = vault.getAbstractFileByPath(path);
+	return found instanceof TFile ? found : null;
 }

@@ -546,16 +546,31 @@ export default defineConfig({
 			// `VaultChangeAdapter.ts`, `ObsidianProjectRepository.ts`, `ObsidianPlanRepository.ts`,
 			// `ObsidianZoneRepository.ts`, `ObsidianRequirementRepository.ts`,
 			// `ObsidianAssetRepository.ts`, `composition-root.ts`, `RenovationPlannerPlugin.ts`,
-			// `settings/settings.ts`) carries no new uncovered branch, line or function. The three
-			// uncovered arms still present in files this slice touched predate it and are
-			// untouched by it: `ObsidianZoneRepository`'s two `deleteCreatedNote` arms (the
-			// non-`TFile` guard and the `trashFile` catch, both compensation-path double-fault
-			// shapes already named above) and its update/insert compensation-logging arm; and
-			// `ObsidianRequirementRepository.markStale`'s `!marked.ok` branch, which guards
-			// `Requirement.markedStale()` refusing a transition no caller here can produce — none
-			// of the three is the new `folder === undefined` refusal this slice added beside each
-			// one, which IS driven (the unresolvable-project-folder test removes the index entry
-			// between the read and the save).
+			// `settings/settings.ts`) carries no new uncovered branch, line or function. FOUR of
+			// those twelve files still carry an uncovered arm, and all five arms across them
+			// predate this slice — confirmed by diffing each one against `3384084`, not
+			// assumed from the shape alone:
+			// - `ObsidianZoneRepository`'s two `deleteCreatedNote` arms (the non-`TFile` guard
+			//   and the `trashFile` catch, both compensation-path double-fault shapes already
+			//   named above) and its update/insert compensation-logging arm — three arms,
+			//   identical in the pre-slice file.
+			// - `ObsidianRequirementRepository.markStale`'s `!marked.ok` branch, guarding
+			//   `Requirement.markedStale()` refusing a transition no caller here can produce —
+			//   identical in the pre-slice file.
+			// - `RenovationPlannerPlugin.startPersistence`'s `if (persistence.markers)` false
+			//   arm and its rename handler's `file instanceof TFile` false arm — both on lines
+			//   this slice's diff never touches (only a docblock two paragraphs above the first,
+			//   and an object literal shedding the deleted `projectFolder` field, changed in this
+			//   file at all).
+			// - `composition-root.ts`'s `cascadeNotices.cascadeAborted` — an anonymous function
+			//   never invoked in the suite, byte-identical to the pre-slice file; this slice's
+			//   edits to the file are all inside `composeRepositories` and its two call sites,
+			//   `newProjectRoot` becoming a real argument in place of a `deps.projectFolder`
+			//   read, dozens of lines away.
+			// None of the five is the new `folder === undefined` refusal this slice added beside
+			// each of the five repositories' save paths, which IS driven (the
+			// unresolvable-project-folder test removes the index entry between the read and the
+			// save, once per entity kind).
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -528,25 +528,32 @@ id on a name collision. Two rules came out of it:
   Slice 4 handed that consequence to whoever next touched the pipeline; this is that slice.
 - **`npm run analyze` catches an unimported FILE, not a dead export a test still calls.** An
   earlier draft of this slice's own plan asserted the opposite — "a pure export with no `src/`
-  caller fails `npm run analyze`" — and a reviewer measured it false before it shipped: fallow
-  counts this repository's 235 test files as entry points, so an export with only a test caller
-  (`projectFolderOf`, briefly, at the end of one task) stayed invisible to the gate the whole
-  time. What actually fails is a new file nothing imports at all, reported as an unused FILE —
-  a different rule from the dead-export one. `foldersOverlap` still ships in slice 19 rather
-  than here, and that call is still right: the predicate has no job in this slice — there is no
-  command that changes a project's folder under the derived shape, and no library to overlap
-  with until slice 19 exists — but the reason is that it has nothing to do, not that a gate
-  would have refused it for having no caller.
+  caller fails `npm run analyze`" — and a reviewer measured it false before it shipped, and then
+  measured the FIRST correction's own number false too: `npm run analyze` reports "235 entry
+  points detected (203 plugin, 14 dynamically loaded, 13 manual entry, 5 package.json)", and 235
+  is the TOTAL, not a count of test files. `fallow list --entry-points --format json` is what
+  breaks the 203 "plugin" figure open: 200 of them come from fallow's own vitest plugin, which
+  seeds this repository's 198 `*.test.ts` files plus `vitest.config.ts` and the aliased
+  `obsidian` mock module as always-used. Whichever figure is read, the mechanism is the same: an
+  export with only a test caller (`projectFolderOf`, briefly, at the end of one task) stayed
+  invisible to the gate the whole time. What actually fails is a new file nothing imports at
+  all, reported as an unused FILE — a different rule from the dead-export one. `foldersOverlap`
+  still ships in slice 19 rather than here, and that call is still right: the predicate has no
+  job in this slice — there is no command that changes a project's folder under the derived
+  shape, and no library to overlap with until slice 19 exists — but the reason is that it has
+  nothing to do, not that a gate would have refused it for having no caller.
 
 Three more things this slice measured rather than assumed, because each is this repository's
 own recurring shape:
 
-- **A fake too THIN, the fourth instance of the rule.** `FakeVault.getAbstractFileByPath`
+- **A fake too THIN, the sixth instance of the rule** (the Testing section below numbers five
+  already, ending at "Fifth instance, and the THIRD face of the rule"). `FakeVault.getAbstractFileByPath`
   answered `null` for every folder, where Obsidian answers a `TFolder`; `freshProjectFolder`'s
   collision arm could not be driven at all until the fake was widened to tell the two apart.
   Its blast radius was 0 tests — nothing had shipped yet to be wrong — which is worth recording
-  beside the 86-test and 65-test instances above for the same reason those two are recorded: the
-  number is not the point, the shape is.
+  beside the 86-test and 65-test instances below (roughly 540 lines down, in that same Testing
+  section) for the same reason those two are recorded: the number is not the point, the shape
+  is.
 - **A test can pass on the wrong refusal.** Converting the repositories moved the folder check
   ahead of other guards, and several tests named for a different path — a compensation, a
   conflict — started passing on a folder refusal instead, green for the wrong reason. Task 6

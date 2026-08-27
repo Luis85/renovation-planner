@@ -55,6 +55,24 @@ two disagree **this document is the later measurement**.
   root-list types, with nobody calling them" — would fail the gate it was written to keep
   green. The predicate ships in slice 19, with its caller.
 
+  **Corrected by Task 9's measurement, later still.** The "pure export with no caller in `src/`
+  fails `npm run analyze`" sentence above is itself false, and a reviewer measured it rather than
+  assuming it: fallow treats every file this repository's tests import as a live entry point, so
+  an export with only a TEST caller stays invisible to the dead-export check the whole time —
+  `projectFolderOf` had exactly that shape, briefly, at the end of Task 5, and `npm run analyze`
+  reported nothing. Measured with `fallow list --entry-points --format json`, which is what
+  breaks `npm run analyze`'s own summary line open: "235 entry points detected (203 plugin, 14
+  dynamically loaded, 13 manual entry, 5 package.json)" counts 200 of the 203 "plugin" entries as
+  sourced from fallow's vitest plugin, which seeds this repository's 198 `*.test.ts` files plus
+  `vitest.config.ts` and the aliased `obsidian` mock module as always-used. What `npm run analyze`
+  actually refuses is a new FILE nothing imports at all, reported as an unused file — a different
+  rule from a dead export with a caller nobody wanted counted. **This does not reopen the
+  deferral**, which is the reason slice 19 needs to inherit correctly: `foldersOverlap` still
+  ships there because it has no WORK to do in this slice — no command changes a project's folder
+  under the derived shape, and no library exists yet to overlap with — not because a gate would
+  have refused it for lacking a caller. See `CLAUDE.md`'s slice 18 record for the same
+  measurement.
+
 - **"A single-project vault, which is every vault this plugin has ever produced" is not
   true.** `create-sample-project` run twice seeds two projects into the same folder:
   `freshNotePath` dedupes the second `Project.md` with an id suffix, so the write succeeds.
@@ -366,7 +384,12 @@ Four commits, ordered so `npm run check` passes at each:
 - [ ] **Withdrawn, not ticked:** the orphan diagnostic. Under a declared bound there are no
       orphans, so there is nothing to report.
 - [ ] **Deferred to slice 19, not ticked:** `foldersOverlap` and the multi-root types. Neither
-      has a caller in this slice, and a dead export fails `npm run analyze`.
+      has a caller in this slice. **Corrected by Task 9's measurement:** "and a dead export
+      fails `npm run analyze`" was the reason first given here, and it is false — fallow counts
+      a test caller as live, so an export with only one stays invisible to that check. The true
+      reason to keep reading for slice 19: neither has any WORK to do in this slice, not because
+      a gate would have refused either for lacking a caller. See the correction above and
+      `CLAUDE.md`'s slice 18 record.
 - [ ] **Withdrawn, not ticked:** the one-time folder migration and its partial-move diagnostic.
       The derived shape makes the existing layout valid; nothing has to move.
 - [ ] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — floors rise

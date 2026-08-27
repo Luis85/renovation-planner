@@ -77,9 +77,13 @@ setting and rewrites what resolves a path.
   the library — is slice 19's, and calls the same function.~~ **Corrected.** `foldersOverlap` has
   no caller in this slice: under the derived shape, changing a project's folder is a user
   dragging a folder in Obsidian's file explorer, with no command and no refusal point, and §83's
-  overlap rule is library-versus-project, which does not exist until slice 19. A pure export with
-  no caller in `src/` fails `npm run analyze`. `foldersOverlap` and `IndexRoots` move to slice 19,
-  with their caller. See the design document's *The three corrections*
+  overlap rule is library-versus-project, which does not exist until slice 19. ~~A pure export
+  with no caller in `src/` fails `npm run analyze`.~~ **Corrected again — Task 9 measured this
+  false too.** fallow treats a test file as an entry point, so an export with only a TEST caller
+  stays live; what actually fails the gate is a new FILE nothing imports at all, reported as
+  unused. `foldersOverlap` and `IndexRoots` still move to slice 19, with their caller — because
+  they have no work to do in this slice, not because a gate would refuse them for lacking one.
+  See `CLAUDE.md`'s slice 18 record and the design document's *The three corrections*
   (`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`).
 
 ### Out of scope (covered by other slices)
@@ -198,9 +202,14 @@ reasoning ("a setting that names a path is not a preference") applies here uncha
 slice does not ship. `foldersOverlap` has no caller in this slice: under the derived shape there
 is no command that changes a project's folder (a user drags a folder in Obsidian's file
 explorer instead), and §83's overlap rule is library-versus-project, which slice 19 introduces.
-A pure export with no caller in `src/` fails `npm run analyze`, so building it here would fail
-the gate it exists to keep green. `foldersOverlap` and `IndexRoots` move to slice 19, with their
-caller. See the design document's *The three corrections*
+~~A pure export with no caller in `src/` fails `npm run analyze`, so building it here would fail
+the gate it exists to keep green.~~ **Corrected again — Task 9 measured this false too.** fallow
+treats a test file as an entry point, so an export with only a TEST caller stays live; what
+actually fails the gate is a new FILE nothing imports at all, reported as unused. `foldersOverlap`
+and `IndexRoots` still move to slice 19, with their caller — because they have no work to do in
+this slice (no command changes a project's folder, and no library exists yet to overlap with),
+not because a gate would refuse them for lacking one. See `CLAUDE.md`'s slice 18 record and the
+design document's *The three corrections*
 (`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`). The subsection below
 is left as written, as the record of what was proposed.
 
@@ -359,9 +368,13 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
    to keep green.** `foldersOverlap` has no caller in this slice: under the derived shape,
    "changing a project's folder" is a user dragging a folder in Obsidian's file explorer, with
    no command and therefore no refusal point, and §83's overlap rule is library-versus-project,
-   which does not exist until slice 19. A pure export with no caller in `src/` fails
-   `npm run analyze`. `foldersOverlap` and `IndexRoots` move to slice 19, with their caller — see
-   the design document's *The three corrections*
+   which does not exist until slice 19. ~~A pure export with no caller in `src/` fails
+   `npm run analyze`.~~ **Corrected again — Task 9 measured this false too.** fallow treats a
+   test file as an entry point, so an export with only a TEST caller stays live; what actually
+   fails the gate is a new FILE nothing imports at all, reported as unused. `foldersOverlap` and
+   `IndexRoots` still move to slice 19, with their caller — because they have no work to do in
+   this slice, not because a gate would refuse them for lacking one — see `CLAUDE.md`'s slice 18
+   record and the design document's *The three corrections*
    (`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`).
 2. **The conversion.** `NoteVaultDeps.projectFolder` deleted, five repositories and both pipeline
    modules converted, index tests extended. Atomic by necessity — the deletion is what fails the
@@ -379,8 +392,14 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
 - [ ] ~~`foldersOverlap` refuses equal paths and containment **in both directions**, and accepts
       two paths sharing a name prefix without a segment boundary (`Renovation` and
       `Renovation Library`). The third case is watched failing against a plain `startsWith`.~~
-      **Deferred to slice 19, not ticked:** `foldersOverlap` has no caller in this slice, and a
-      dead export fails `npm run analyze`. See the correction under *`foldersOverlap`* above.
+      **Deferred to slice 19, not ticked:** `foldersOverlap` has no caller in this slice.
+      ~~A dead export fails `npm run analyze`~~ was the reason first given, and Task 9 measured
+      it false: fallow treats a test file as an entry point, so an export with only a test
+      caller stays live. `foldersOverlap` still moves to slice 19 because it has no WORK to do
+      in this slice — no command changes a project's folder under the derived shape, and no
+      library exists yet to overlap with — not because a gate would refuse it for lacking a
+      caller. See the correction under *`foldersOverlap`* above and `CLAUDE.md`'s slice 18
+      record.
 - [x] ~~The Project Index scans a LIST of roots~~, covered by a fixture with **two** projects in
       **different** folders, both fully resolvable. A single-project fixture passes against the
       single-prefix scan this replaces, so the two-project fixture is the check. **Corrected:**

@@ -68,7 +68,9 @@ describe('project repository failure branches', () => {
 	it('an insert whose note create fails reports write-failed', async () => {
 		const stack = createRepositoryStack();
 		const project = makeProjectEntity({ name: 'Collision' });
-		stack.vault.failures.add(`create:${stack.projectFolder}/${project.name}.md`);
+		// Under ADR-0013 a new project's note is created inside ITS OWN folder — derived from
+		// the same name — rather than directly under the shared root.
+		stack.vault.failures.add(`create:${stack.projectFolder}/${project.name}/${project.name}.md`);
 		expect(expectErr(await stack.projects.save(project, 'absent')).code).toBe('project.write-failed');
 	});
 

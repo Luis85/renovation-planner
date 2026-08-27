@@ -1,4 +1,4 @@
-import { TFile as MockTFile, type TFile } from 'obsidian';
+import { TFile as MockTFile, TFolder as MockTFolder, type TFile } from 'obsidian';
 import type { LogLevel } from '../../src/application/ports/Logger';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
@@ -54,15 +54,34 @@ class FakeVault {
 	 */
 	readonly operations: string[] = [];
 
-	getAbstractFileByPath(path: string): TFile | null {
-		if (!this.entries.has(path)) return null;
-		const segments = path.split('/');
-		const file = new MockTFile();
-		file.path = path;
-		file.name = segments.at(-1) ?? '';
-		file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
-		file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
-		return file;
+	/**
+	 * A `TFile` for a path that is a note, a `TFolder` for a path Obsidian would know as a
+	 * folder — one that was `createFolder`ed, or one something already lives in
+	 * (`folderExists`) — and `null` for neither. It used to answer `null` for every folder,
+	 * which never resolves a real folder at all: `freshProjectFolder`'s collision arm asks
+	 * this exact question, and a fake that cannot answer "yes, a folder is already there"
+	 * would pass the suite while doing nothing in a real vault. Files are checked first,
+	 * because a path cannot be both — `entries` and `folders` are disjoint namespaces here
+	 * as they are in Obsidian.
+	 */
+	getAbstractFileByPath(path: string): TFile | MockTFolder | null {
+		if (this.entries.has(path)) {
+			const segments = path.split('/');
+			const file = new MockTFile();
+			file.path = path;
+			file.name = segments.at(-1) ?? '';
+			file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
+			file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+			return file;
+		}
+		if (path !== '' && this.folderExists(path)) {
+			const segments = path.split('/');
+			const folder = new MockTFolder();
+			folder.path = path;
+			folder.name = segments.at(-1) ?? '';
+			return folder;
+		}
+		return null;
 	}
 
 	// The fake mirrors Obsidian's async API: failures REJECT, never throw synchronously,
@@ -350,7 +369,7 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		logger,
 		ledger,
 		store,
-		projects: new ObsidianProjectRepository(deps),
+		projects: new ObsidianProjectRepository(deps, projectFolder),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
 	assets: new ObsidianAssetRepository(deps),

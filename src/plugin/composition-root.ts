@@ -337,7 +337,12 @@ function composeRepositories(
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
 	return {
 		geometryStore,
-		projects: new ObsidianProjectRepository(deps),
+		// `deps.projectFolder` is the same setting `newProjectRoot` names — this repository
+		// is the only one that reads it as anything other than a shared root, which is why
+		// it takes it as its own constructor argument rather than reaching into `deps` on
+		// every save. Task 6/7 retire the shared field once every other repository has
+		// stopped needing it too; until then this is still where the value lives.
+		projects: new ObsidianProjectRepository(deps, deps.projectFolder),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps),

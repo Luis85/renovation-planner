@@ -1,9 +1,14 @@
 import { normalizePath, type Vault } from 'obsidian';
 import type { PlanId } from '../../../domain/plan/PlanId';
+import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
+import type { ProjectId } from '../../../domain/project/ProjectId';
 
 /**
- * Where entities live inside the vault. The project folder is THE one location setting
- * (ADR-011); every other path is derived here — and only here — from it.
+ * Where entities live inside the vault. A project's folder is DERIVED — the folder its
+ * `Project.md` sits in (ADR-0013) — never a stored field and never the shared plugin
+ * setting. The plugin setting names only where a NEW project's folder is created
+ * (`freshProjectFolder`); every other path is built from the per-project folder an
+ * existing project's own note already answers (`projectFolderOf`).
  *
  * Deriving a SIDECAR path at read time is forbidden (ADR-011): reads resolve through the
  * Project Index. This module's sidecar function has exactly two callers, both legitimate:
@@ -33,25 +38,36 @@ export function parentOf(path: string): string {
 	return path.slice(0, Math.max(path.lastIndexOf('/'), 0));
 }
 
+/**
+ * A folder and a child, with exactly one separator — and the child alone when the folder
+ * is the vault ROOT. A project's folder is derived from where its note sits (ADR-0013), so
+ * a `Project.md` at the root derives `''`, and `` `${''}/Plans` `` is `/Plans`, which
+ * Obsidian refuses. That case is why this is a function rather than a template literal in
+ * five places.
+ */
+export function joinFolder(folder: string, child: string): string {
+	return folder ? `${folder}/${child}` : child;
+}
+
 function geometryFolderFor(projectFolder: string): string {
-	return `${projectFolder}/${GEOMETRY_FOLDER}`;
+	return joinFolder(projectFolder, GEOMETRY_FOLDER);
 }
 
 export function plansFolderFor(projectFolder: string): string {
-	return `${projectFolder}/${PLANS_FOLDER}`;
+	return joinFolder(projectFolder, PLANS_FOLDER);
 }
 
 export function zonesFolderFor(projectFolder: string): string {
-	return `${projectFolder}/${ZONES_FOLDER}`;
+	return joinFolder(projectFolder, ZONES_FOLDER);
 }
 
 /** PRD §36 names both new folders; neither owns a sidecar. */
 export function assetsFolderFor(projectFolder: string): string {
-	return `${projectFolder}/${ASSETS_FOLDER}`;
+	return joinFolder(projectFolder, ASSETS_FOLDER);
 }
 
 export function requirementsFolderFor(projectFolder: string): string {
-	return `${projectFolder}/${REQUIREMENTS_FOLDER}`;
+	return joinFolder(projectFolder, REQUIREMENTS_FOLDER);
 }
 
 export function sidecarPathFor(projectFolder: string, planId: PlanId | string): string {
@@ -92,6 +108,29 @@ export function fileNameFor(name: string): string {
  * produce a free path, not a predictable one.
  */
 export function freshNotePath(vault: Vault, folder: string, name: string, id: string): string {
-	const base = `${folder}/${fileNameFor(name)}`;
+	const base = joinFolder(folder, fileNameFor(name));
 	return vault.getAbstractFileByPath(`${base}.md`) ? `${base} ${id}.md` : `${base}.md`;
+}
+
+/**
+ * A project's folder: the folder its `Project.md` sits in (ADR-0013). Resolved through the
+ * index, which is the single answer to "where is entity X" (SDD §47) — never by rescanning
+ * the vault, and never from the plugin setting, which names only where a NEW project goes.
+ *
+ * `undefined` is a REFUSAL, not a prompt to fall back: writing to a defaulted path when the
+ * real one is unknown is how a note lands in a parallel tree beside the user's work.
+ */
+export function projectFolderOf(index: ProjectIndex, projectId: ProjectId): string | undefined {
+	const path = index.getPath(projectId);
+	return path === undefined ? undefined : parentOf(path);
+}
+
+/**
+ * Where a NEW project's folder goes: the configured root, the name, and the project id when
+ * a folder of that name already sits there. `freshNotePath`'s rule, one level up — filename
+ * is never identity (§83), so this only has to produce a free path, not a predictable one.
+ */
+export function freshProjectFolder(vault: Vault, root: string, name: string, id: string): string {
+	const base = joinFolder(normalizeFolder(root), fileNameFor(name));
+	return vault.getAbstractFileByPath(base) ? `${base} ${id}` : base;
 }

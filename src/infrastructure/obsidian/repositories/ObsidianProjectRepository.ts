@@ -9,7 +9,6 @@ import { revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
 	ensureFolder,
-	findNoteIdInFolder,
 	frontmatterOf,
 	migrateNote,
 	persistenceError,
@@ -18,7 +17,7 @@ import {
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
-import { freshNotePath, normalizeFolder } from './paths';
+import { freshNotePath, freshProjectFolder } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import { fileAt } from './NoteVaultDeps';
@@ -35,11 +34,17 @@ import { fileAt } from './NoteVaultDeps';
  */
 export class ObsidianProjectRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
-	constructor(private readonly deps: NoteVaultDeps) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	/**
+	 * `newProjectRoot` is the plugin setting — where a NEW project's folder is created, and
+	 * nothing else. It is this repository's alone rather than a shared `NoteVaultDeps`
+	 * field, because it is the only one that ever writes a note whose folder does not
+	 * already exist to be derived from.
+	 */
+	constructor(
+		private readonly deps: NoteVaultDeps,
+		private readonly newProjectRoot: string,
+	) {}
 
 	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, RepositoryError>> {
 		const file = this.locate(id);
@@ -66,9 +71,12 @@ export class ObsidianProjectRepository {
 		project: Project,
 		expected: Expected,
 	): Promise<Result<Loaded<Project>, RepositoryError>> {
-		// Existence is established BEFORE anything is written — the insert/update fork the
-		// conditional-write comparison needs (SDD §42's rule, applied to a single file).
-		const existing = findNoteIdInFolder(this.deps, this.deps.vault, this.folder, project.id);
+		// Through the INDEX, not a folder scan. Under ADR-0013 a project's folder is where
+		// its note sits, so scanning "the project's folder" for the project's own note
+		// presumes the answer. The index is also the more reliable half of what the folder
+		// scan's own comment worried about — `save` upserts synchronously before returning,
+		// so a note created moments ago is known here before any MetadataCache has parsed it.
+		const existing = fileAt(this.deps.vault, this.deps.index.getPath(project.id));
 		const currentVersion = existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
 		const conflict = checkExpectedVersion('project', project.id, currentVersion, expected);
@@ -86,9 +94,10 @@ export class ObsidianProjectRepository {
 				return err(persistenceError('project.write-failed', `Could not write the note for project ${project.id}.`, cause));
 			}
 		} else {
-			path = freshNotePath(this.deps.vault, this.folder, project.name, project.id);
+			const folder = freshProjectFolder(this.deps.vault, this.newProjectRoot, project.name, project.id);
+			path = freshNotePath(this.deps.vault, folder, project.name, project.id);
 			try {
-				await ensureFolder(this.deps.vault, this.folder);
+				await ensureFolder(this.deps.vault, folder);
 				await this.deps.vault.create(path, serializeFrontmatter(dto));
 			} catch (cause) {
 				return err(persistenceError('project.write-failed', `Could not create the note for project ${project.id}.`, cause));

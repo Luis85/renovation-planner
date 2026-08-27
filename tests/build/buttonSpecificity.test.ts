@@ -503,7 +503,21 @@ const losingButtonRules = (scanned: readonly (readonly [string, string])[], clas
 
 	for (const [where, css] of scanned)
 		for (const rule of stylesheetRules(css)) {
-			if (!rule.declarations.some((declaration) => CONTESTED.has(propertyOf(declaration)))) continue;
+			// IMPORTANCE BEATS SPECIFICITY, so the threshold applies only to contested declarations that
+			// are NORMAL priority. `.rp-editor-tool-button { color: red !important }` at (0,1,0) wins
+			// over Obsidian's normal declaration however the selectors rank, and reporting it rejects
+			// valid CSS — the direction this scan must not err in, since a false offender has no fix
+			// except restructuring a rule that already works.
+			//
+			// A rule that MIXES them is still governed on the normal half: `color: red !important;
+			// background-color: blue` keeps the colour and loses the background, so the site is real.
+			// `rule.important` is keyed by property, which also settles a property declared both ways in
+			// one block — the important declaration is the one that stands.
+			const contested = rule.declarations
+				.map((declaration) => propertyOf(declaration))
+				.filter((property) => CONTESTED.has(property) && !rule.important.has(property));
+
+			if (contested.length === 0) continue;
 
 			for (const selector of rule.selectors) {
 				if (!isGoverned(selector, classes)) continue;
@@ -541,6 +555,33 @@ describe('every button rule against Obsidian\'s own', () => {
 			).toEqual(['fixture: .rp-editor-tool-button']);
 		},
 	);
+
+	/**
+	 * IMPORTANCE BEATS SPECIFICITY, so a bare class that declares its contested property `!important`
+	 * wins over Obsidian's normal declaration however the selectors rank. Reporting it rejects valid
+	 * CSS, and a false offender here has no fix except restructuring a rule that already works — the
+	 * one direction this scan must not err in.
+	 *
+	 * The MIXED case is what keeps that from becoming "any `!important` exempts the rule": the normal
+	 * half still loses, so the rule is still an offender.
+	 */
+	it.each(['color: red !important', 'background: transparent !important', 'all: unset !important'])(
+		'says nothing about a bare button class that wins %s',
+		(declaration) => {
+			expect(
+				losingButtonRules([['fixture', `.rp-editor-tool-button { ${declaration} }`]], new Set(['.rp-editor-tool-button'])),
+			).toEqual([]);
+		},
+	);
+
+	it('still reports a rule whose OTHER contested property is normal', () => {
+		expect(
+			losingButtonRules(
+				[['fixture', '.rp-editor-tool-button { color: red !important; background-color: blue; }']],
+				new Set(['.rp-editor-tool-button']),
+			),
+		).toEqual(['fixture: .rp-editor-tool-button']);
+	});
 
 
 	/**

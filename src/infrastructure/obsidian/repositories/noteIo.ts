@@ -63,7 +63,13 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * (malformed data), while everything the runner refuses — a future version this build
  * predates, a gap in the chain — keeps the runner's `Migration` category. Both are
  * scoped to THIS note: the caller answers 'error' for this entity and the rest of the
- * project loads on (SDD §92 item 13). The index scan is the other half of that scope and
+ * project loads on (SDD §92 item 13). **That second half is a property of the CALLER, and
+ * exactly one listing has it today**: `ObsidianProjectRepository.listAll` skips a note this
+ * refuses and returns the rest. `ObsidianPlanRepository.listByProject` and
+ * `ObsidianZoneRepository.findByPlan` still `return one` on the first failure they meet, so
+ * one unreadable Zone note blanks every Zone on a Plan Editor canvas rather than costing the
+ * user that one Zone. Written down here rather than fixed here, because the sentence above
+ * read as settled for two listings that disprove it. The index scan is the other half of that scope and
  * it works by NOT calling this: `buildProjectIndexEntries` never reads `schema-version`,
  * so a note this refuses is indexed like any other and costs nobody their session.
  *
@@ -78,7 +84,7 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * cannot parse is not obviously safer than declining to — and it is pinned by the
  * 'refuses to DELETE a future-version note' case in `errorPaths.test.ts` rather than
  * described here, which is what the previous version of this paragraph got wrong.
- * Two things protect such a note today and NEITHER is this gate:
+ * Against a SAVE, two things protect such a note today and NEITHER is this gate:
  * every command loads before it saves, and the load refuses — a property of the callers;
  * and `schema-version` is an owned key, so an expectation minted before the note changed
  * refuses as an external modification. A writer holding a CURRENT expectation meets

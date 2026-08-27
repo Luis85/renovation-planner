@@ -149,7 +149,11 @@ export const en = {
 	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
 	'empty.plan.no-zones.action': 'Draw a zone',
 	'view.project.loading': 'Loading projects…',
-	'view.project.some-unreadable': 'Some projects could not be read from the vault. Open the diagnostics report for details.',
+	// No second sentence pointing at a diagnostics report: `GetDiagnosticsSnapshotQuery` is
+	// composed and consumed by nobody — no command, no settings entry, no view — so "open the
+	// diagnostics report" was an instruction the user cannot follow. Slice 14's Amendment 1
+	// refuses a button that does nothing; a sentence that does nothing is the same defect.
+	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
 } as const;
 
 export type StringKey = keyof typeof en;

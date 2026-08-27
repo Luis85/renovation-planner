@@ -25,10 +25,18 @@ the architecture-enforcement harness) and every surface slices 13–17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
-a ribbon button and a command, and draws nothing of its own yet; the only thing mounted in
-it is slice 15's `DialogHost`, which is invisible until something opens a dialog, and slice
-14's empty states are what give it content now: `renovationProject.noProjects` renders in
-its place whenever `ListProjects()` resolves to `[]`. The **Plan editor** is per-plan (several
+a ribbon button and a command, and it draws **four things and still no project list** —
+slice 17 owns the list, and until it lands every one of these is what the pane holds instead
+of one, never beside one. `ViewRoot.vue` renders slice 14's `renovationProject.noProjects`
+empty state; the mapped failure sentence for the refusing `AppError`'s own code
+(`.rp-view-message`, via `trError`, so unrecovered settings and a vault fault say different
+things); a loading line in that same region while the read is in flight; and
+`.rp-view-notice`, the one ADDITIVE one, when SOME project notes refused
+(`view.project.some-unreadable`). Slice 15's `DialogHost` mounts here too and is invisible
+until something opens a dialog. `ListProjects()` resolves to a `ProjectListing` —
+`{ projects, unreadable }`, not a bare array — and the empty state is the `'ready'` status
+with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
+build could not read, so it gets the notice and no "no projects yet". The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
@@ -173,7 +181,7 @@ holding `StringKey`s, never literal copy, and two pure selectors
 already-succeeded query result into which of three keys applies, if any.
 `RenovationProjectView` gained its first real data dependency — a `ListProjects` query and
 a `RenovationProjectStore` to hold the result — and renders `renovationProject.noProjects`
-when it comes back empty; `ProjectStore` gained one getter, `emptyStateKey`, over state it
+when it comes back empty and nothing refused; `ProjectStore` gained one getter, `emptyStateKey`, over state it
 already hydrates. Rules that came out of it:
 
 - **An empty state that replaces a region hides the thing the region exists to show.**
@@ -218,8 +226,8 @@ already hydrates. Rules that came out of it:
   comment recording that slice 11 had replaced that very word with "Objekt".** Nothing
   rendered `de.ts` in any gate, so its only reader was a human who happened to look — and
   the first one who did found two more defects beside it: a garbled `Tresnornder` for
-  `Tresorordner`, and `Das Tresor` at one key against `Der Tresor` two keys away, a gender
-  disagreement about the same noun. The polishing pass over slices 11 and 14 fixed all
+  `Tresorordner`, and `Das Tresor` at one key against `Der Tresor` at another — two keys
+  naming the same noun, each giving it a different gender. The polishing pass over slices 11 and 14 fixed all
   three and gave the file its first check. **Read what that check reaches before trusting
   the word "checked" any wider**: `tests/presentation/i18n/strings.test.ts` pins TWO terms
   and nothing else — it refuses the value `Material` (the German UI says `Objekt`), and it
@@ -902,6 +910,16 @@ when this hook was built and is 5.4s now; the two SFC cases in
 `tests/build/lint-edited.test.ts` carry an explicit budget because growth alone pushed them
 past vitest's 5000ms default, and that budget is the instrument for whether this hook is
 still cheap enough to sit in the edit loop at all.
+
+**The same cost has a second face, in the SUITE, and it looks like a regression when it is
+not one.** Every `tests/build/` file that drives ESLint boots its own instance — vitest gives
+each test file its own module registry — and each boot loads the whole type-aware project
+service. Under vitest's DEFAULT file-parallelism on Windows those boots contend, and
+`beforeAll(warmUpEslint)` can exceed even its deliberately large `ESLINT_BOOT_MS` (60s):
+measured, six such files timed out in one `npm run check` and all 95 files passed on a
+`--no-file-parallelism` re-run of the same tree. A parallelism artifact, not a broken gate
+— so re-run serially before believing a `beforeAll` timeout in that directory, and count the
+cost of the next ESLint-booting test file against it.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own

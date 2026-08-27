@@ -132,9 +132,15 @@ export class ObsidianProjectRepository {
 	 * note ... and the rest of the project loads on" (SDD §92 item 13). This method
 	 * contradicted that claim by returning the first failure it met.
 	 *
-	 * Nothing is lost by skipping: `getById` records every refusal into the diagnostics
-	 * ledger before returning it, so the per-entity detail reaches the snapshot and only the
-	 * count travels to the view. A VANISHED note is a third case, neither loaded nor counted:
+	 * Nothing is lost by skipping, up to a bound worth naming: `getById` records every refusal
+	 * into the diagnostics ledger before returning it, so the per-entity detail reaches the
+	 * snapshot and only the count travels to the view. The ledger holds `MAX_ISSUES = 200`
+	 * and evicts OLDEST FIRST (`infrastructure/logging/diagnosticsLedger.ts`), so past 200
+	 * DISTINCT `(kind, id, code)` triples the earliest refusals do fall off the snapshot while
+	 * still being counted here. Deduplication on that triple is what keeps the bound out of
+	 * reach in practice — one broken note re-read on every hydrate records once — but "nothing
+	 * is lost" is a category word and this is where it stops being one.
+	 * A VANISHED note is a third case, neither loaded nor counted:
 	 * `getById` answers `ok(null)` for it, and it was already skipped here.
 	 */
 	async listAll(): Promise<Result<ProjectListing, RepositoryError>> {

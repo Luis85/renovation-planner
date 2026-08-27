@@ -116,7 +116,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	// eine Regel, die nur als Kommentar existiert, genau so lange hält, wie sie jemand
 	// liest. `Vault` steht dort ebenfalls: es ist Obsidians eigener Name und wird nicht
 	// übersetzt — fünf Schlüssel übersetzten ihn vorher, VIER davon als `Tresor` (einer
-	// als `Das Tresor`, einer als `Der Tresor` — zwei Zeilen auseinander), der fünfte als
+	// als `Das Tresor`, einer als `Der Tresor` — zwei Schlüssel, ein Substantiv, zwei
+	// Genera), der fünfte als
 	// das verstümmelte `Tresnornder`. Genau diese Vier-gegen-Fünf ist der Grund für die
 	// zweite Prüfung: eine verbotene Schreibweise fängt nur das falsche Wort, an das
 	// jemand gedacht hat, und `Tresnornder` enthält `Tresor` nicht.
@@ -160,5 +161,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
 	'empty.plan.no-zones.action': 'Zone zeichnen',
 	'view.project.loading': 'Projekte werden geladen …',
-	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden. Details stehen im Diagnosebericht.',
+	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
+	// den Kommentar am gleichen Schlüssel in `en.ts`.
+	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
 };

@@ -331,3 +331,15 @@ measurement did to it stay separately readable.
    verbatim test code declared `const error` beside the file's existing `error()` factory;
    `oxlint --deny-warnings` fires `no-shadow` on it at the repository root, which the
    per-file edit-loop invocation does not reach. Renamed to `refusal`.
+
+6. **Item 6a specified FIVE pinned terms and TWO shipped.** `tests/presentation/i18n/strings.test.ts`
+   holds *Objekt* (by refusing the synonym *Material*) and *Vault* (by requiring the term wherever
+   `en.ts` says "vault"). **Zone, Grundriss and Anforderung are pinned by nothing.** The table above
+   assigns them "pinned by presence, not by exclusion", and that half of the design was never built:
+   presence needs a key-to-substring assertion per term, and only the two rows carrying a refused
+   synonym got a row in the shipped table. Recorded here because the section's own next sentence
+   says it is stated "so a later reader does not read the blank as an omission" — leaving three of
+   the five silently unbuilt is exactly that blank, one level up. `CLAUDE.md` already describes the
+   delivered check honestly ("pins TWO terms and nothing else"); only this spec was stale. The three
+   are cheap to add, and adding them is a decision for whoever wants them rather than a debt this
+   pass is claiming to have paid.

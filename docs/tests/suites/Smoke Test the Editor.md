@@ -29,6 +29,16 @@ Three of those four are the same defect wearing different clothes: **a test fake
 accepted what Obsidian refuses.** That is the thing to be suspicious of when a case here
 fails and the suite disagrees.
 
+**A clean walkthrough is a result too, and slice 14's was the first.** Its run on 2026-08-27
+([[Empty States Walkthrough]]) found nothing — the first slice touching a rendered surface to
+go through this suite without a finding. Read that as the suite still earning its place rather
+than as a reason to skip it: the slice's central decision was that the Plan Editor's empty
+states OVERLAY a canvas that stays mounted, and the two things that protects —
+`create-sample-project`'s backgroundless plan, and this harness's own refusal of a background
+— are both unreachable from the automated suite. A replacement would have drawn an empty
+state where the scene belongs with all 1976 tests green. The walkthrough is what said it did
+not. **A pass here means a claim was checked, not that checking was unnecessary.**
+
 ## Running it
 
 ```bash
@@ -78,3 +88,10 @@ into an automated check will find the same thing again next release.
   requirement row's LAYOUT (jsdom lays nothing out, and the browser harness draws this
   panel empty), the §64 decision panel over a pane that is entirely canvas, and the
   round trip through a real reload.
+- [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
+  is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
+  empty states are OVERLAYS over a canvas that stays mounted, and the two things that
+  protects are both unreachable from the suite — `create-sample-project` seeds a
+  backgroundless plan with five zones, and the browser harness refuses a background outright.
+  A replacement would draw an empty state where the scene belongs with every test still
+  green.

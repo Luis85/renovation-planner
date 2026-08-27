@@ -11,9 +11,14 @@
  * A service composed next month without a guard passed all four gates, because nothing is
  * wrong with the code.
  *
- * So this file NAMES no service. It composes a real root, DETONATES every collaborator
- * underneath it — each port method replaced by a thrower — walks everything the root hands
- * out, and drives a hostile input through EVERY DOOR of everything it finds. Each door must
+ * So this file NAMES no service. It composes a real root, DETONATES seven named
+ * collaborators underneath it — the five repositories, the geometry port and the file probe,
+ * each port method replaced by a thrower — walks everything the root hands out, and drives a
+ * hostile input through EVERY DOOR of everything it finds. That detonation array is the one
+ * hand-written list here and it is deliberately not a rule: `index`, `vaultDeps`,
+ * `migrations`, `geometryStore`, `locks`, `markers` and `changeAdapter` are left intact, which
+ * costs nothing only because of the fail-closed property below — a service whose
+ * collaborators were not detonated answers a SUCCESS, and a success is a finding. Each door must
  * answer a resolved `vault.unexpected-failure`, which is the boundary's mapped refusal and
  * the only thing that can come back when the vault below a guarded service throws.
  *

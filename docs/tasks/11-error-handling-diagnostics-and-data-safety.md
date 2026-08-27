@@ -521,19 +521,34 @@ than hidden behind a tick:
   "Verweis"/"umhaengen" where the delete dialog says "Referenz"/"neu zuweisen"). A glossary
   comment in `de.ts` names the three terms and the keys that own them; a comment is not a
   mechanism.
-- **Nothing checks that a level is used for its CATEGORY, and only two of `warn`'s seven
-  call sites are asserted at all.** Measured rather than argued, by converting every
+- **Nothing checks that a level is used for its CATEGORY: five of `warn`'s seven call sites
+  can change level with every gate green.** Measured rather than argued, by converting every
   `logger.warn` in `src/` to `logger.error` and running the gates: `npm run build` and
   `npm run lint` pass, `npm run analyze` passes and reports nothing whatever about a
   `Logger.warn` no production code calls (dead exports 0.0%, and only the 13 pre-existing
-  private-type leaks), and the suite reds exactly two of 2055 tests — the reassignment
-  recalculation in `deleteResolutionEngine.test.ts` and the excluded note in
-  `pipeline.test.ts`. So the level cannot reach zero callers silently, because those two
-  stand in the way; but the other five sites can change level with every gate green, and
-  §67's "which events take which level" is checked by nobody. An earlier version of this
-  bullet claimed the last call site could go with all four gates green — that was the audit's
-  own unmeasured hypothesis, repeated here as fact, and the measurement above is what
-  replaced it.
+  private-type leaks), and the suite reds exactly two of 2055 tests. The seven sites fall
+  into three groups, counted one at a time rather than inferred from that total:
+
+    - **Two are protected against a level change.** `requirement.reassignment-recalculation.failed`,
+      through a fake in `deleteResolutionEngine.test.ts` that records warnings only; and
+      `persistence.index.note-excluded`, through `pipeline.test.ts`'s "excludes a malformed
+      note", which filters `level === 'warn'` and names no event at all — attributed by
+      mutating that ONE site and watching that one test red.
+    - **Three are asserted by event NAME and are blind to the level**:
+      `persistence.index.duplicate-id` and `persistence.pipeline.duplicate-id`
+      (`negatives.test.ts`), `persistence.pipeline.sidecar-skipped` (`negatives.test.ts` and
+      `branches.test.ts`). Each reads `line.event` off a recorded line and never `line.level`,
+      so the event survives the level being wrong.
+    - **Two are referenced by no test in any form**: `persistence.index.sidecar-skipped` and
+      `persistence.pipeline.note-excluded`.
+
+    So `warn` cannot reach zero callers silently — the two protected sites stand in the way —
+    while §67's "which events take which level" is checked by nobody. Two corrections are
+    recorded here rather than quietly applied, because both were sentences written from a
+    correct measurement: this bullet first claimed the last call site could go with all four
+    gates green (the audit's own unmeasured hypothesis, repeated as fact), and then that only
+    two sites were "asserted at all", which conflated "asserted" with "asserted against a
+    level change" and undercounted the name assertions.
 - **The boundary check's detonation list is HAND-WRITTEN.** `guardCategory.test.ts` blows up
   seven collaborators by name — the five repositories, the geometry port and the file probe —
   while `index`, `vaultDeps`, `migrations`, `geometryStore`, `locks`, `markers` and

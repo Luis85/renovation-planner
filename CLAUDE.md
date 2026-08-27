@@ -33,8 +33,9 @@ empty state; the mapped failure sentence for the refusing `AppError`'s own code
 things); a loading line in that same region while the read is in flight; and
 `.rp-view-notice`, the one ADDITIVE one, when SOME project notes refused
 (`view.project.some-unreadable`). Slice 15's `DialogHost` mounts here too and is invisible
-until something opens a dialog. `ListProjects()` resolves to a `ProjectListing` —
-`{ projects, unreadable }`, not a bare array — and the empty state is the `'ready'` status
+until something opens a dialog. `ListProjects()` resolves to a `ProjectListResult` —
+`{ projects, unreadable }`, not a bare array; the PORT below it answers a `ProjectListing`,
+`{ loaded, refused }`, and the rename across that seam is deliberate — and the empty state is the `'ready'` status
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
 build could not read, so it gets the notice and no "no projects yet". The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
@@ -916,8 +917,10 @@ not one.** Every `tests/build/` file that drives ESLint boots its own instance �
 each test file its own module registry — and each boot loads the whole type-aware project
 service. Under vitest's DEFAULT file-parallelism on Windows those boots contend, and
 `beforeAll(warmUpEslint)` can exceed even its deliberately large `ESLINT_BOOT_MS` (60s):
-measured, six such files timed out in one `npm run check` and all 95 files passed on a
-`--no-file-parallelism` re-run of the same tree. A parallelism artifact, not a broken gate
+measured, six such files timed out in one run and every one of them passed on a
+`--no-file-parallelism` re-run of the same tree. (An earlier draft of this sentence put a
+file count on that re-run. No subtree of `tests/` has that many files, so the figure was
+unverifiable and is gone rather than replaced by a second guess.) A parallelism artifact, not a broken gate
 — so re-run serially before believing a `beforeAll` timeout in that directory, and count the
 cost of the next ESLint-booting test file against it.
 

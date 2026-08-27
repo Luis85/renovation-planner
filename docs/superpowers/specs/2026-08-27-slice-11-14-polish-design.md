@@ -343,3 +343,10 @@ measurement did to it stay separately readable.
    delivered check honestly ("pins TWO terms and nothing else"); only this spec was stale. The three
    are cheap to add, and adding them is a decision for whoever wants them rather than a debt this
    pass is claiming to have paid.
+
+7. **Item 6b's "two keys away" was never measured, and it is wrong.** `vault.unexpected-failure`
+   and `error.category.persistence` are 42 lines and 17 keys apart in `de.ts`. The claim reached
+   three more files before anyone counted; all three now say what is load-bearing and true —
+   two keys naming the same noun gave it two different genders — with no distance at all. The
+   sentence in Item 6b above is left standing as the record of what was believed while the
+   design was written, which is what this section is for.

@@ -66,10 +66,12 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * project loads on (SDD §92 item 13). **That second half is a property of the CALLER, and
  * exactly one listing has it today**: `ObsidianProjectRepository.listAll` skips a note this
  * refuses and returns the rest. `ObsidianPlanRepository.listByProject` and
- * `ObsidianZoneRepository.findByPlan` still `return one` on the first failure they meet, so
+ * `ObsidianZoneRepository`'s private `list` — which is where both `listByPlan` and
+ * `listByProject` end up, so it is ONE site and THREE entry points — still `return one` on
+ * the first failure they meet, so
  * one unreadable Zone note blanks every Zone on a Plan Editor canvas rather than costing the
  * user that one Zone. Written down here rather than fixed here, because the sentence above
- * read as settled for two listings that disprove it. The index scan is the other half of that scope and
+ * read as settled for three entry points that disprove it. The index scan is the other half of that scope and
  * it works by NOT calling this: `buildProjectIndexEntries` never reads `schema-version`,
  * so a note this refuses is indexed like any other and costs nobody their session.
  *

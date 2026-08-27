@@ -204,7 +204,15 @@ export const indicatorOf = (
 	// `deferred` for a caller that has the other rules, and `focusCascade.ts` resolves it as a fourth
 	// channel. A caller with no cascade — `drawsAnIndicator` — gets the block-local answer, which for
 	// an unseen colour is "credited", the same direction a `var()` takes.
-	let fromCurrentColor = false;
+	// STARTS TRUE, because `outline-color`'s INITIAL VALUE IS `currentcolor` — the keyword is what an
+	// outline takes when nothing sets its colour, so the dependency is there before any declaration
+	// is read. Started `false`, `color: transparent; outline-style: solid` drew a solid outline in a
+	// colour nobody can see and answered "a ring": the ONE spelling of this defect that needs no
+	// `currentcolor` anywhere in the CSS, and the last of three the keyword produced.
+	//
+	// `outline: 2px solid` with the colour omitted needs no special case — the parser resolves the
+	// missing component to `currentcolor`, so the shorthand arm sets this to `true` on its own.
+	let fromCurrentColor = true;
 	let blockColor: boolean | undefined;
 	const touched = new Set<OutlinePart>();
 	// `undefined` is "no `box-shadow` in this block at all", which is what lets a caller tell a

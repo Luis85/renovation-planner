@@ -345,6 +345,20 @@ describe('a flattened button and its focus ring', () => {
 			'an outline in currentcolor over a transparent colour set at rest',
 			'.rp-dialog-button { box-shadow: none; color: transparent; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
 		],
+		// A TYPE-TARGETED colour reaches every button, focus state or not — so it is widened through
+		// `cascadeKeys` like a type-targeted ring. Filed under `button` alone it was never heard here,
+		// while the identical rule spelled `*:focus-visible` was: one value, two answers, decided by a
+		// pseudo-class that has nothing to do with `color`.
+		[
+			'an outline in currentcolor over a transparent colour set on the button type',
+			'.rp-dialog-button { box-shadow: none; } button { color: transparent; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
+		],
+		// And the cascade half of the initial: no `currentcolor` anywhere in the CSS, and the outline
+		// still takes the text colour.
+		[
+			'an outline with no colour of its own over a transparent colour from another rule',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-style: solid; } .rp-dialog-button.rp-dialog-button:focus-visible { color: transparent; }',
+		],
 		// IMPORTANCE FIRST on this channel too, or the fourth channel has quietly become the one that
 		// ranks on specificity alone. It takes BOTH colour rules to ask that: written with one, the
 		// transparent colour wins for having no rival and the case passes with importance ignored —
@@ -436,6 +450,11 @@ describe('a flattened button and its focus ring', () => {
 		// before the shadow did, in this same reader, and the shadow was not swept for it then.
 		'color: transparent; box-shadow: 0 0 0 3px currentColor',
 		'box-shadow: 0 0 0 3px currentColor; color: transparent',
+		// THE KEYWORD NEED NOT APPEAR AT ALL. `outline-color`'s initial IS `currentcolor`, so an
+		// outline whose colour nobody sets is the same value spelled by omission — solid, medium, and
+		// invisible over a transparent text colour.
+		'color: transparent; outline-style: solid',
+		'outline-style: solid; color: transparent',
 		// `all` is both properties at once, and its grammar admits only CSS-wide keywords — none of
 		// which this gate can prove an indicator from. It arrives as its own parsed property rather
 		// than as an unparsed keyword, so the `RESETS` path never saw it.
@@ -561,6 +580,17 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a currentcolor ring with no colour rule anywhere',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
+		],
+		// The initial must not become "an outline that sets no colour never rings" — which is what
+		// `outline-style: solid` on its own has always meant, and still must.
+		[
+			'an outline with no colour of its own and no colour rule anywhere',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-style: solid; }',
+		],
+		// A ring that names its OWN colour is not deferred at all, however transparent the text is.
+		[
+			'an explicitly coloured ring over a transparent colour set on the button type',
+			'.rp-dialog-button { box-shadow: none; } button { color: transparent; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
 		],
 		[
 			'a currentcolor shadow list with an item that paints on its own',

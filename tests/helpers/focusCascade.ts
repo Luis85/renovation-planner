@@ -186,14 +186,16 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
  * `.button:focus-visible { outline: 2px solid currentColor }` leaves a solid two-pixel outline nobody
  * can see, while each block alone reads as drawing. That is what this channel is for.
  *
- * ONLY THE WRITTEN KEYWORD DEFERS, and the boundary is deliberate rather than an oversight.
- * `outline-color`'s INITIAL is `currentColor` too, so an outline no rule colours has the same
- * exposure — but gating THAT would make every unset outline-color in the project depend on this
- * channel being collected exactly right, turning a latent false negative into a possible
- * build-failing false positive on CSS that rings its buttons today. Measured: this project writes
- * the keyword in no stylesheet at all, so the narrow form can only ever fire on a sheet written to
- * exercise it, while the wide one would decide real rules. That is the same trade the attribute
- * widening got wrong, and this time it is taken the other way round.
+ * THE INITIAL DEFERS TOO, and the first version of this said it deliberately would not. That refusal
+ * cited a risk — every unset `outline-color` in the project coming to depend on this channel — and
+ * offered a measurement of something else: that no stylesheet here writes the keyword. Two different
+ * claims, and the one that mattered was never taken. Measured properly, deferring the initial
+ * changes NO answer on the real sheets: nothing real reaches `text-color: false`, because every
+ * `color` this project writes is a `var()`, which is unparsed and therefore never filed at all.
+ *
+ * The lesson is the more useful half. `outline-color: currentColor` and an outline whose colour
+ * nobody sets are THE SAME VALUE — the second is the first spelled by omission — so a boundary
+ * between them was never a boundary between two risks. It was one value read two ways.
  */
 type Channel = OutlinePart | 'shadow' | 'text-color';
 
@@ -334,10 +336,15 @@ const covers = (ring: Conditions, flattened: Conditions): boolean =>
  * a CASCADE with no covering rule for a longhand lands on the initial too, and reading "no rule" as
  * "no outline" would refuse the legitimate `outline-style: solid` on its own.
  */
-const INITIAL: Record<OutlinePart | 'text-color', boolean> = {
+const INITIAL: Record<OutlinePart | 'text-color', boolean | 'deferred'> = {
 	width: true,
 	style: false,
-	color: true,
+	// `'deferred'`, not `true`: `outline-color`'s initial IS `currentcolor`, so an outline no rule
+	// colours is exactly as dependent on the winning `color` as one that writes the keyword out.
+	// `true` here credited `.button:focus-visible { outline-style: solid }` under a covering
+	// `color: transparent` — a solid outline nobody can see, and the one spelling of this defect that
+	// needs no `currentcolor` in the CSS at all.
+	color: 'deferred',
 	// AN ELEMENT NO RULE COLOURS INHERITS ONE, and no stylesheet holds what an ancestor happened to
 	// have — so an unseen text colour is credited, exactly as a `var()` is and exactly as
 	// `indicatorOf` credits it within one block. The two tables agree on this on purpose.
@@ -376,12 +383,8 @@ const partDraws = (
 	// refuses whichever way round the two are written. The recursion is one level deep and provably
 	// so: a `text-color` rule's `draws` is a boolean, never `'deferred'`, so the arm below cannot be
 	// taken twice.
-	const winnerDraws =
-		winner === undefined
-			? INITIAL[part]
-			: winner.draws === 'deferred'
-				? partDraws(rules, site, 'text-color')
-				: winner.draws;
+	const settled = winner === undefined ? INITIAL[part] : winner.draws;
+	const winnerDraws = settled === 'deferred' ? partDraws(rules, site, 'text-color') : settled;
 
 	if (!winnerDraws) return false;
 
@@ -537,13 +540,20 @@ export const flattenedWithoutRing = (
 					// `color` IS NOT A FOCUS DECLARATION and is filed outside the `ringsFocus` guard for
 					// that reason: a button's text colour while focused is whatever wins at rest unless a
 					// focus rule changes it, so `.button { color: transparent }` decides a `currentcolor`
-					// ring drawn by a rule three sheets away. Filed under the same keys the branch reaches,
-					// which for a non-focus branch is its own key alone — a bare `button { color: … }` is
-					// therefore NOT widened across the class cascades. That under-reaches, and it is the
-					// credit direction: an unheard `color` leaves the ring credited, which is the same side
-					// every other gap in this file falls on.
+					// ring drawn by a rule three sheets away.
+					//
+					// `cascadeKeys` RATHER THAN `reaches`, which is the only place in this loop the two
+					// differ. `reaches` widens a focus branch and leaves a non-focus one under its own key,
+					// and that is right for an INDICATOR — but a `color` rule is not one, and a
+					// type-targeted `button { color: transparent }` reaches every button whether it names a
+					// focus state or not. Filed under `button` alone it was never heard in the
+					// `.rp-dialog-button` cascade, while the identical rule spelled `*:focus-visible` was —
+					// one value, two answers, decided by a pseudo-class that has nothing to do with `color`.
+					// Widening it states a fact by the same argument `cascadeKeys` already makes for a
+					// type-targeted ring, and `covers` keeps the class-group half honest exactly as it does
+					// there.
 					if (textColor !== undefined)
-						for (const reached of reaches)
+						for (const reached of cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0))
 							ringed.set(reached, [
 								...(ringed.get(reached) ?? []),
 								{

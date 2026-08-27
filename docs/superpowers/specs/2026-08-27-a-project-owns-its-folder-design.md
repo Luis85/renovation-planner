@@ -411,7 +411,7 @@ Four commits, ordered so `npm run check` passes at each:
       that no migration is owed.
 - [ ] `CreateProjectCommand` and `create-sample-project` create a project in its own folder
       under the default root, deduped on collision.
-- [x] **The default projects folder is still configurable and still governs where a new project
+- [ ] **The default projects folder is still configurable and still governs where a new project
       goes**, asserted end to end: change the setting, create a project, and its folder is under
       the NEW root. The setting keeps a job in this slice — it is the home new projects live
       under — and losing that quietly is the failure this item exists to catch.

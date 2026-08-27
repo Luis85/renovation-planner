@@ -22,6 +22,13 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	return { projectId, planId };
 }
 
+// The one LIVE use of the `?? stack.projectFolder` fallback among this task's
+// `sidecarPathOf` helpers: 'delete honours the path hint when the index mapping does
+// not exist yet' deliberately passes an unregistered project (it exercises
+// `PlanGeometryStore.delete`'s explicit-path-hint branch, not folder derivation), so
+// `projectFolderOf` genuinely returns `undefined` there and this is what keeps that
+// call constructing the same path `PlanGeometryStore.delete` is handed. Every other
+// caller in this file seeds a real project first, so the fallback never fires for them.
 function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
 	return sidecarPathFor(projectFolderOf(stack.index, projectId) ?? stack.projectFolder, planId);
 }

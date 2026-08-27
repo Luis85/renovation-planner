@@ -7,7 +7,7 @@ import { createProjectId, type ProjectId } from '../../../../src/domain/project/
 import { createZoneId, type ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { Loaded } from '../../../../src/application/ports/versioning';
 import type { Zone } from '../../../../src/domain/zone/Zone';
-import { normalizeFolder, plansFolderFor, projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { plansFolderFor, projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { serializeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 
 /**
@@ -24,8 +24,14 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	return { projectId, planId };
 }
 
+// No `?? normalizeFolder(stack.projectFolder)` fallback: every caller in this file
+// seeds a real project first, so `projectFolderOf` always resolves — a fallback that
+// never fires is dead tolerance that would silently reconstruct the old flat path the
+// day a caller stops seeding one.
 function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
-	return sidecarPathFor(projectFolderOf(stack.index, projectId) ?? normalizeFolder(stack.projectFolder), planId);
+	const folder = projectFolderOf(stack.index, projectId);
+	if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+	return sidecarPathFor(folder, planId);
 }
 
 function zoneNoteText(stack: RepositoryStack, zoneId: ZoneId): string | undefined {
@@ -105,11 +111,20 @@ describe('compensated sequences', () => {
 		// insert now steps around a taken filename onto `<name> <id>.md` and succeeds, which
 		// is the point of that fallback — so this drives the failure at the `create` call
 		// itself, which is what the compensation is actually about.
-		const folder = projectFolderOf(stack.index, projectId) ?? normalizeFolder(stack.projectFolder);
+		// No fallback: the project was just saved above, so `projectFolderOf` always
+		// resolves here — a `?? normalizeFolder(stack.projectFolder)` would be dead
+		// tolerance quietly reconstructing the old flat path if it ever fired.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error('the just-saved project has no folder');
 		const notePath = `${plansFolderFor(folder)}/${plan.name}.md`;
 		stack.vault.failures.add(`create:${notePath}`);
 
-		expect((await stack.plans.save(plan, 'absent')).ok).toBe(false);
+		const result = await stack.plans.save(plan, 'absent');
+		// The CODE, not merely `ok === false`: any pre-write refusal (including the
+		// folder-unresolved one this task added) would also satisfy a bare `ok` check,
+		// which is exactly how this case went silently untested against the wrong branch
+		// during the ADR-0013 conversion.
+		expect(result.ok === false && result.error.code).toBe('plan.write-failed');
 		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toBeUndefined();
 	});
 

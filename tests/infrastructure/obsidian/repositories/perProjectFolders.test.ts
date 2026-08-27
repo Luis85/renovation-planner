@@ -8,7 +8,7 @@ import {
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack } from '../../../helpers/vault';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../../../helpers/entities';
+import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import type { ProjectId } from '../../../../src/domain/project/ProjectId';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
 
@@ -130,6 +130,28 @@ describe('plans and zones land in their own project folder', () => {
 
 		expect(result.ok).toBe(false);
 		expect(result.ok === false && result.error.category).toBe('Persistence');
+		expect(result.ok === false && result.error.code).toBe('plan.project-folder-unresolved');
+		expect([...stack.vault.entries.keys()]).toEqual(before);
+	});
+
+	it('refuses a zone save whose project folder cannot be resolved, and writes nothing', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		await stack.projects.save(kitchen, 'absent');
+		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
+		await stack.plans.save(groundFloor, 'absent');
+		const livingRoom = makeZoneEntity({ projectId: 'p1' as ProjectId, planId: 'pl1' as PlanId });
+		const before = [...stack.vault.entries.keys()];
+
+		// Same route as the plan case: the index entry disappears between the read and the
+		// save, which is the only way to reach the arm — and it must never fall back to the
+		// configured root.
+		stack.index.remove('p1' as never);
+		const result = await stack.zones.save(livingRoom, 'absent');
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.category).toBe('Persistence');
+		expect(result.ok === false && result.error.code).toBe('zone.project-folder-unresolved');
 		expect([...stack.vault.entries.keys()]).toEqual(before);
 	});
 });

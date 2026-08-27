@@ -46,8 +46,14 @@ function plantFutureSchemaVersion(stack: RepositoryStack, id: EntityId<string>):
 	stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
 }
 
+// No `?? stack.projectFolder` fallback: every caller in this file seeds a real project
+// first (via `seed()` or its own `stack.projects.save`), so `projectFolderOf` always
+// resolves — a fallback that never fires is dead tolerance that would silently
+// reconstruct the old flat path the day a caller stops seeding one.
 function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
-	return sidecarPathFor(projectFolderOf(stack.index, projectId) ?? stack.projectFolder, planId);
+	const folder = projectFolderOf(stack.index, projectId);
+	if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+	return sidecarPathFor(folder, planId);
 }
 
 describe('project repository failure branches', () => {

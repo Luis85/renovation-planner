@@ -67,16 +67,21 @@ function plantNote(
 
 /**
  * A project the caller never intends to touch through `ObsidianProjectRepository` — the
- * shared contract's `otherProject()` mints a bare id and expects a Plan or Zone built
+ * shared contract's `otherProject()` mints a project and expects a Plan or Zone built
  * against it to save normally. Folder resolution now goes through the index (ADR-0013),
- * so that id needs an index entry of its own; a real note is not required, since only
- * `projectFolderOf` ever reads it here.
+ * so that project needs a real note, planted in exactly the layout and byte shape the
+ * repository itself produces — `plantNote` plus the real `projectToPersistence` mapper,
+ * the same pair `provision()` below already uses for a Plan's owning project, rather than
+ * a bare index entry pointing at a filename no repository would ever write. Nothing reads
+ * this note today, but a fixture note that could not survive being read is the thin-fake
+ * shape this repository keeps finding.
  */
 function registerOtherProject(stack: RepositoryStack): ProjectId {
-	const id = createProjectId();
 	const folder = normalizeFolder(stack.projectFolder);
-	stack.index.upsert({ id, type: 'renovation-project', path: `${folder}/Other ${id}.md` });
-	return id;
+	const project = makeProjectEntity();
+	const path = `${folder}/${project.name} ${project.id}.md`;
+	plantNote(stack, path, 'renovation-project', projectToPersistence(project, 1));
+	return project.id;
 }
 
 function fixEntry(

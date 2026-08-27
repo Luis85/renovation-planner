@@ -135,12 +135,34 @@ export type OutlineParts = Partial<Record<OutlinePart, Known>>;
  * here; they are guesses in opposite directions, and this one is the conservative guess about a
  * keyword nothing in this repository writes.
  */
-const isBlankKeyword = (declaration: Declaration & { property: 'unparsed' }): boolean => {
+const keyword = (declaration: Declaration & { property: 'unparsed' }): string | null => {
 	const tokens = declaration.value.value;
 	const only = tokens.length === 1 ? tokens[0] : null;
 
-	return only?.type === 'token' && only.value.type === 'ident' && NOT_KNOWN_TO_PAINT.has(only.value.value.toLowerCase());
+	return only?.type === 'token' && only.value.type === 'ident' ? only.value.value.toLowerCase() : null;
 };
+
+const isBlankKeyword = (declaration: Declaration & { property: 'unparsed' }): boolean =>
+	NOT_KNOWN_TO_PAINT.has(keyword(declaration) ?? '');
+
+/**
+ * The CSS-wide keywords that leave `color` UNKNOWABLE from a stylesheet, which is a SHORTER list than
+ * `NOT_KNOWN_TO_PAINT` and the difference is the whole reason it exists.
+ *
+ * `color` is an inherited property whose initial value PAINTS (`canvastext`), so `initial` and
+ * `revert` name real colours here — the opposite of `outline-style`, whose initial is `none` and for
+ * which every one of those keywords means "no ring". Only `inherit` and `unset` — which IS `inherit`
+ * on an inherited property — take a value no stylesheet holds. Reusing the outline's set would have
+ * made `color: initial` blank every `currentcolor` ring under it, which is a false POSITIVE and the
+ * direction this file may not err in either.
+ *
+ * `var()` is not here and must not be, for the reason the outline's `var()` arm gives: a variable's
+ * value is chosen by this project or by the theme and is overwhelmingly a real colour. It is also
+ * the case that matters — this project writes 36 `color: var(…)` declarations and not one CSS-wide
+ * keyword, so refusing the whole unparsed class (the literal shape of the report that prompted this)
+ * would have filed all 36 as blank and reported rings that are on screen.
+ */
+const UNKNOWABLE_COLOR = new Set(['inherit', 'unset']);
 
 /**
  * THE INDICATOR A DECLARATION BLOCK ACTUALLY LEAVES, resolved in cascade order.
@@ -249,7 +271,11 @@ export const indicatorOf = (
 			continue;
 		}
 		if (declaration.property === 'color') {
-			blockColor = paints(declaration.value);
+			// `color: currentColor` IS A SELF-REFERENCE, which CSS resolves to the inherited value — so
+			// it says nothing about what this element paints in. `paints` sees a node with no numeric
+			// alpha and answers true, which is right for an outline drawn in the keyword and wrong for
+			// the keyword used as the `color` itself. Not known to paint, like `inherit` below.
+			blockColor = isCurrentColor(declaration.value) ? false : paints(declaration.value);
 			continue;
 		}
 		if (declaration.property === 'box-shadow') {
@@ -309,6 +335,10 @@ export const indicatorOf = (
 			case 'box-shadow': {
 				shadowPaints = !blank;
 				shadowFromCurrentColor = false;
+				break;
+			}
+			case 'color': {
+				blockColor = !UNKNOWABLE_COLOR.has(keyword(declaration) ?? '');
 				break;
 			}
 			default: {

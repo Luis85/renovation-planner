@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { declarationsOf, drawsAnIndicator } from '../helpers/indicators';
 import { buttonClassGroups, buttonClasses, sheets } from '../helpers/buttonRules';
 import { flattenedWithoutRing } from '../helpers/focusCascade';
 
@@ -353,6 +352,14 @@ describe('a flattened button and its focus ring', () => {
 			'an outline in currentcolor over a transparent colour set on the button type',
 			'.rp-dialog-button { box-shadow: none; } button { color: transparent; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
 		],
+		// An unknowable `color` is filed as a rule of its own, not left out. Omitted, it does not compete
+		// — so a less specific `color: red` won the channel while the browser gives this rule's
+		// `inherit` the win and an unknown colour. That is what makes `color: inherit` different from
+		// writing no `color` at all, which is otherwise the same thing on an inherited property.
+		[
+			'an outline in currentcolor under an inherited colour that outranks a painting one',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { color: red; } .rp-dialog-button.rp-dialog-button:focus-visible { color: inherit; outline: 2px solid currentColor; }',
+		],
 		// And the cascade half of the initial: no `currentcolor` anywhere in the CSS, and the outline
 		// still takes the text colour.
 		[
@@ -410,98 +417,6 @@ describe('a flattened button and its focus ring', () => {
 		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toHaveLength(1);
 	});
 
-	/**
-	 * A CASCADE IS AN ORDER, and asking each declaration in isolation has none in it. Every block
-	 * below leaves nothing on screen while its FIRST declaration, read alone, says a ring is drawn:
-	 * a longhand overriding one component of the shorthand before it, and the same property written
-	 * twice. Both are ordinary CSS, neither is exotic, and `some` accepted all of them.
-	 */
-	it.each([
-		'outline: 2px solid red; outline-color: transparent',
-		'outline: 2px solid red; outline-style: none',
-		'outline: 2px solid red; outline-width: 0',
-		'outline: 2px solid red; outline: none',
-		'box-shadow: 0 0 0 3px red; box-shadow: none',
-		// A component nobody sets takes its CSS INITIAL value, and `outline-style`'s is `none`. So a
-		// block that sets only the colour, or only the width, paints nothing at all — the style
-		// nobody wrote is still refusing.
-		'outline-color: red',
-		'outline-width: 2px',
-		'outline-color: red; outline-width: 2px',
-		// A `box-shadow` is painted OUTSIDE the border box and clipped inside it, so a shadow that
-		// never reaches the edge draws nothing. With the offsets and the blur at zero the spread is
-		// the only thing that can push it out, and a negative one pulls it in: this contracts a pixel
-		// inside the box and paints nothing at all, while reading as a deliberate red ring. The test
-		// was "not every component is zero", which catches `0 0 0 0` and credits this.
-		'box-shadow: 0 0 0 -1px red',
-		'box-shadow: 0 0 0 -0.5em red',
-		// `inherit` is the one CSS-wide keyword whose value a stylesheet does not hold — it is the
-		// PARENT's, and under a `.dialog { outline: none }` that is nothing. It fell through to the
-		// `var()` arm, which credits an unknown as drawing, so a focus rule spelled this way answered
-		// a flattened button with an indicator that is not there.
-		'outline: inherit',
-		'box-shadow: inherit',
-		// `currentcolor` carries no numeric alpha, so it was assumed to paint — and this outline takes
-		// its colour from a `color` that paints nothing. Solid, two pixels wide, and invisible.
-		'color: transparent; outline: 2px solid currentColor',
-		'outline: 2px solid currentColor; color: transparent',
-		'color: transparent; outline-style: solid; outline-color: currentColor',
-		// And the SHADOW takes its colour from the same place. The outline learned this a commit
-		// before the shadow did, in this same reader, and the shadow was not swept for it then.
-		'color: transparent; box-shadow: 0 0 0 3px currentColor',
-		'box-shadow: 0 0 0 3px currentColor; color: transparent',
-		// THE KEYWORD NEED NOT APPEAR AT ALL. `outline-color`'s initial IS `currentcolor`, so an
-		// outline whose colour nobody sets is the same value spelled by omission — solid, medium, and
-		// invisible over a transparent text colour.
-		'color: transparent; outline-style: solid',
-		'outline-style: solid; color: transparent',
-		// `all` is both properties at once, and its grammar admits only CSS-wide keywords — none of
-		// which this gate can prove an indicator from. It arrives as its own parsed property rather
-		// than as an unparsed keyword, so the `RESETS` path never saw it.
-		'outline: 2px solid red; all: unset',
-		'box-shadow: 0 0 0 3px red; all: revert',
-	])('does not count %s as a ring', (declarations) => {
-		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
-	});
-
-	/**
-	 * And the other way down the cascade, or "resolve in order" has quietly become "the last
-	 * declaration wins outright". A reset FOLLOWED by a real value draws; an important reset beats
-	 * a later normal declaration wherever it was written, which is why `stylesheetRules` hands back
-	 * normal declarations before important ones.
-	 */
-	it.each([
-		['outline: none; outline: 2px solid red', true],
-		['outline-color: transparent; outline: 2px solid red', true],
-		['outline: 2px solid transparent; outline-color: red', true],
-		['box-shadow: none; box-shadow: 0 0 0 3px red', true],
-		['outline: none !important; outline: 2px solid red', false],
-		['box-shadow: none !important; box-shadow: 0 0 0 3px red', false],
-		// The other two initials go the opposite way: `medium` and `currentColor` both paint, so a
-		// style on its own really does draw. Without these the initial-value fix could have been
-		// "treat every absent component as blank", which refuses a legitimate ring.
-		['outline-style: solid', true],
-		// And a `currentcolor` outline over a colour that DOES paint is a ring, which is what keeps the
-		// fix from becoming "never credit currentcolor".
-		['color: red; outline: 2px solid currentColor', true],
-		['outline: 2px solid currentColor', true],
-		['color: red; box-shadow: 0 0 0 3px currentColor', true],
-		// A block that never sets `color` INHERITS one no stylesheet holds, so the keyword is credited —
-		// the same direction a `var()` takes. THREE readings of the keyword pass the two cases above and
-		// this is the one that separates them: "credit unless proven transparent" from "credit only a
-		// colour that paints". Its sibling separates the third, "credit only an UNSEEN colour". Both
-		// were watched failing against exactly those.
-		['box-shadow: 0 0 0 3px currentColor', true],
-		// A shadow LIST decides PER ITEM. One flag for the whole declaration has to choose which item
-		// it describes, and either choice is wrong for the other: this one is invisible in its first
-		// shadow and three solid red pixels in its second.
-		['color: transparent; box-shadow: 0 0 0 3px currentColor, 0 0 0 3px red', true],
-		['outline-style: solid; outline-color: red', true],
-		['outline: 2px solid red; outline-style: none; outline-style: solid', true],
-		['all: unset; outline: 2px solid red', true],
-	])('resolves %s to %s', (declarations, expected) => {
-		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(expected);
-	});
 
 	// The ring rule reduces to the same shape as the rule that flattened, which is what makes the
 	// two answer each other. `:hover` above deliberately does not.

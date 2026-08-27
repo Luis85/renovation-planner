@@ -7,7 +7,7 @@ import { createProjectId, type ProjectId } from '../../../../src/domain/project/
 import { createZoneId, type ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { Loaded } from '../../../../src/application/ports/versioning';
 import type { Zone } from '../../../../src/domain/zone/Zone';
-import { normalizeFolder, plansFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { normalizeFolder, plansFolderFor, projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { serializeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 
 /**
@@ -24,8 +24,8 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	return { projectId, planId };
 }
 
-function sidecarPathOf(stack: RepositoryStack, planId: PlanId): string {
-	return `${normalizeFolder(stack.projectFolder)}/Geometry/${planId}.rpgeo`;
+function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
+	return sidecarPathFor(projectFolderOf(stack.index, projectId) ?? normalizeFolder(stack.projectFolder), planId);
 }
 
 function zoneNoteText(stack: RepositoryStack, zoneId: ZoneId): string | undefined {
@@ -36,14 +36,14 @@ function zoneNoteText(stack: RepositoryStack, zoneId: ZoneId): string | undefine
 describe('compensated sequences', () => {
 	it('a failed sidecar write after an UPDATE restores the prior frontmatter bytes', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		const zoneId = createZoneId();
-		const zone = makeZoneEntity({ id: zoneId, projectId: createProjectId(), planId });
+		const zone = makeZoneEntity({ id: zoneId, projectId, planId });
 		const written = expectOk(await stack.zones.save(zone, 'absent'));
 
 		const moved = makeZoneEntity({ id: zoneId, projectId: zone.projectId, planId, name: 'Moved', geometry: squareAt(5, 5) });
 		const before = zoneNoteText(stack, zoneId);
-		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 
 		const result = await stack.zones.save(moved, written.version);
 		const failure = expectErr(result);
@@ -63,7 +63,7 @@ describe('compensated sequences', () => {
 		const zoneId = createZoneId();
 		const zone = makeZoneEntity({ id: zoneId, projectId, planId });
 
-		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		expect((await stack.zones.save(zone, 'absent')).ok).toBe(false);
 
 		// A restore-the-snapshot compensation would pass the update test above while
@@ -71,7 +71,7 @@ describe('compensated sequences', () => {
 		expect(zoneNoteText(stack, zoneId)).toBeUndefined();
 
 		// And no orphan geometry either: the plan's sidecar is back at its pre-save content.
-		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, planId)) ?? '{}');
+		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId)) ?? '{}');
 		expect(sidecar.objects).toEqual([]);
 	});
 
@@ -83,7 +83,7 @@ describe('compensated sequences', () => {
 		const written = expectOk(await stack.zones.save(zone, 'absent'));
 		const before = zoneNoteText(stack, zoneId);
 
-		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		const deleted = await stack.zones.delete(zoneId, written.version);
 		expect(deleted.ok).toBe(false);
 
@@ -98,26 +98,28 @@ describe('compensated sequences', () => {
 	it('a failed note write after the sidecar was created (plan INSERT) deletes the sidecar', async () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		const planId = createPlanId();
 		const plan = makePlanEntity({ id: planId, projectId, name: 'Collision' });
 		// Force the note-create to fail. NOT by occupying the derived path any more: an
 		// insert now steps around a taken filename onto `<name> <id>.md` and succeeds, which
 		// is the point of that fallback — so this drives the failure at the `create` call
 		// itself, which is what the compensation is actually about.
-		const notePath = `${plansFolderFor(normalizeFolder(stack.projectFolder))}/${plan.name}.md`;
+		const folder = projectFolderOf(stack.index, projectId) ?? normalizeFolder(stack.projectFolder);
+		const notePath = `${plansFolderFor(folder)}/${plan.name}.md`;
 		stack.vault.failures.add(`create:${notePath}`);
 
 		expect((await stack.plans.save(plan, 'absent')).ok).toBe(false);
-		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBeUndefined();
+		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toBeUndefined();
 	});
 
 	it('a failed sidecar removal during plan DELETE restores the note bytes', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		const planNotePath = stack.index.getPath(planId);
 		const before = planNotePath ? stack.vault.entries.get(planNotePath) : undefined;
 
-		stack.vault.failures.add(`delete:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`delete:${sidecarPathOf(stack, projectId, planId)}`);
 		const read = expectOk(await stack.plans.getById(planId));
 		const result = await stack.plans.delete(planId, read.version);
 
@@ -168,12 +170,12 @@ describe('conditional writes against real files', () => {
 
 	it('the sidecar honours expected versions: absent applies, stale refuses, hand edits refuse', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 
 		const first = expectOk(await stack.store.mutate(planId, (dto) => ({ ...dto, objects: [...dto.objects] })));
 		expect(first.version.revision).toBeGreaterThanOrEqual(2);
 
-		const sidecarPath = sidecarPathOf(stack, planId);
+		const sidecarPath = sidecarPathOf(stack, projectId, planId);
 		const before = stack.vault.entries.get(sidecarPath) ?? '';
 
 		// Revision matches; the FILE does not — trailing whitespace is still a hand touch
@@ -201,7 +203,7 @@ describe('conditional writes against real files', () => {
 		// this asserts the schema DECLARES the field.
 		const noteText = zoneNoteText(stack, zoneId) ?? '';
 		expect(parseFrontmatter(noteText).frontmatter['revision']).toBe(1);
-		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, planId)) ?? '{}');
+		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId)) ?? '{}');
 		expect(sidecar.revision).toBe(2);
 
 		const reread = expectOk(await stack.zones.getById(zoneId));
@@ -225,7 +227,7 @@ describe('concurrency', () => {
 		expectOk(resultA);
 		expectOk(resultB);
 
-		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, planId)) ?? '{}');
+		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId)) ?? '{}');
 		expect(sidecar.objects.map((o: { id: string }) => o.id).toSorted()).toEqual([zoneA.id, zoneB.id].toSorted());
 	});
 });
@@ -247,16 +249,23 @@ describe('immediate usability and location', () => {
 
 	it('writes sidecars under <project folder>/Geometry/, keyed by the full plan ID', async () => {
 		const stack = createRepositoryStack('Somewhere/My Renovation');
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		const planId = createPlanId();
-		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId: createProjectId() }), 'absent'));
-		expect(stack.vault.entries.has(`Somewhere/My Renovation/Geometry/${planId}.rpgeo`)).toBe(true);
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+		const folder = projectFolderOf(stack.index, projectId);
+		expect(stack.vault.entries.has(`${folder}/Geometry/${planId}.rpgeo`)).toBe(true);
 	});
 
 	it('keeps two projects in two folders isolated', async () => {
 		const stackA = createRepositoryStack('Projects/A');
 		const stackB = createRepositoryStack('Projects/B');
-		const planA = makePlanEntity({ id: createPlanId(), projectId: createProjectId() });
-		const planB = makePlanEntity({ id: createPlanId(), projectId: createProjectId() });
+		const projectA = makeProjectEntity();
+		const projectB = makeProjectEntity();
+		expectOk(await stackA.projects.save(projectA, 'absent'));
+		expectOk(await stackB.projects.save(projectB, 'absent'));
+		const planA = makePlanEntity({ id: createPlanId(), projectId: projectA.id });
+		const planB = makePlanEntity({ id: createPlanId(), projectId: projectB.id });
 		expectOk(await stackA.plans.save(planA, 'absent'));
 		expectOk(await stackB.plans.save(planB, 'absent'));
 

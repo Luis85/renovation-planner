@@ -13,7 +13,7 @@ import { createProjectId, type ProjectId } from '../../../../src/domain/project/
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createZoneId, type ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { Asset } from '../../../../src/domain/asset/Asset';
-import { fileNameFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { fileNameFor, projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
 /**
  * The slice-10 repositories' failure branches — the diagnostics a broken or
@@ -302,20 +302,22 @@ describe('ObsidianZoneRepository compensation arms', () => {
 		expectOk(await stack.plans.save(makePlan({ id: planId, projectId }), 'absent'));
 
 		const zone = makeZone({ projectId, planId });
-		const sidecarPath = `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+		const folder = projectFolderOf(stack.index, projectId) ?? stack.projectFolder;
+		const sidecarPath = sidecarPathFor(folder, planId);
 		stack.vault.failures.add(`modify:${sidecarPath}`);
 
 		const error = expectErr(await stack.zones.save(zone, 'absent'));
 		expect(error.code).toBe('zone.sidecar-insert-failed');
 		// Compensated: the half-written insert left NOTHING behind.
-		const notePath = `${stack.projectFolder}/Zones/${fileNameFor(zone.name)}.md`;
+		const notePath = `${zonesFolderFor(folder)}/${fileNameFor(zone.name)}.md`;
 		expect(stack.vault.entries.has(notePath)).toBe(false);
 	});
 
 	it('an update whose sidecar write fails restores the note bytes it replaced', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId, zone } = await seedPlanWithZone(stack);
-		const sidecarPath = `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+		const folder = projectFolderOf(stack.index, projectId) ?? stack.projectFolder;
+		const sidecarPath = sidecarPathFor(folder, planId);
 
 		stack.vault.failures.add(`modify:${sidecarPath}`);
 		const renamed = makeZone({ id: zone.entity.id, projectId, planId, name: 'Renamed room' });
@@ -323,7 +325,7 @@ describe('ObsidianZoneRepository compensation arms', () => {
 		expect(error.code).toBe('zone.sidecar-update-failed');
 
 		// The note text was byte-restored: the OLD name is back, nothing half-updated.
-		const noteText = [...stack.vault.entries.entries()].find(([path]) => path.startsWith(`${stack.projectFolder}/Zones/`))?.[1] ?? '';
+		const noteText = [...stack.vault.entries.entries()].find(([path]) => path.startsWith(`${zonesFolderFor(folder)}/`))?.[1] ?? '';
 		expect(noteText).toContain('Living room');
 	});
 });

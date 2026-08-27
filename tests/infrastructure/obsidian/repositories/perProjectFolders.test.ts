@@ -8,8 +8,9 @@ import {
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack } from '../../../helpers/vault';
-import { makeProject as makeProjectEntity } from '../../../helpers/entities';
+import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../../../helpers/entities';
 import type { ProjectId } from '../../../../src/domain/project/ProjectId';
+import type { PlanId } from '../../../../src/domain/plan/PlanId';
 
 describe('joinFolder', () => {
 	it('joins a folder and a child with one separator', () => {
@@ -81,6 +82,55 @@ describe('a project owns its folder', () => {
 		await stack.projects.save(kitchen, 'absent');
 
 		expect(stack.index.getPath('p1' as never)).toBe('Somewhere Else/Kitchen Refit/Kitchen Refit.md');
+	});
+});
+
+describe('plans and zones land in their own project folder', () => {
+	it('writes two projects\' plans into two different folders', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		const bathroom = makeProjectEntity({ id: 'p2' as ProjectId, name: 'Bathroom' });
+		await stack.projects.save(kitchen, 'absent');
+		await stack.projects.save(bathroom, 'absent');
+
+		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
+		const upstairs = makePlanEntity({ id: 'pl2' as PlanId, projectId: 'p2' as ProjectId, name: 'Upstairs' });
+		await stack.plans.save(groundFloor, 'absent');
+		await stack.plans.save(upstairs, 'absent');
+
+		expect(stack.index.getPath('pl1' as never)).toBe('Renovation/Kitchen Refit/Plans/Ground floor.md');
+		expect(stack.index.getPath('pl2' as never)).toBe('Renovation/Bathroom/Plans/Upstairs.md');
+	});
+
+	it('puts a plan\'s geometry sidecar in its own project folder', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		await stack.projects.save(kitchen, 'absent');
+		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
+		await stack.plans.save(groundFloor, 'absent');
+
+		expect(stack.index.getGeometrySidecarPath('pl1' as never)).toBe(
+			'Renovation/Kitchen Refit/Geometry/pl1.rpgeo',
+		);
+	});
+
+	it('refuses a save whose project folder cannot be resolved, and writes nothing', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		await stack.projects.save(kitchen, 'absent');
+		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
+		await stack.plans.save(groundFloor, 'absent');
+		const before = [...stack.vault.entries.keys()];
+
+		// The read happened; the index entry disappears between it and the save. This is
+		// the only way to reach the arm, and it is the arm that must never fall back to the
+		// configured root.
+		stack.index.remove('p1' as never);
+		const result = await stack.plans.save(groundFloor, 'absent');
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.category).toBe('Persistence');
+		expect([...stack.vault.entries.keys()]).toEqual(before);
 	});
 });
 

@@ -21,8 +21,8 @@ import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import {
 	freshNotePath,
-	normalizeFolder,
 	plansFolderFor,
+	projectFolderOf,
 	sidecarPathFor,
 } from './paths';
 import { KeyedQueues } from './KeyedQueues';
@@ -61,14 +61,11 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  */
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
 	constructor(
 		private readonly deps: NoteVaultDeps,
 		private readonly geometry: PlanGeometryStore,
-	) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	) {}
 
 	async getById(id: PlanId): Promise<Result<Loaded<Plan> | null, RepositoryError>> {
 		const opened = openNoteById(this.deps, 'plan', id);
@@ -116,8 +113,15 @@ export class ObsidianPlanRepository {
 		plan: Plan,
 		expected: Expected,
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
+		const folder = projectFolderOf(this.deps.index, plan.projectId);
+		if (folder === undefined) {
+			return Promise.resolve(
+				err(persistenceError('plan.project-folder-unresolved', `Could not resolve the folder of project ${plan.projectId} for plan ${plan.id}.`)),
+			);
+		}
+		const notesFolder = plansFolderFor(folder);
+
 		// Existence before writes — the fork the conditional-write comparison needs.
-		const notesFolder = plansFolderFor(this.folder);
 		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, plan.id);
 		const currentVersion =
 			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
@@ -128,7 +132,9 @@ export class ObsidianPlanRepository {
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...planToPersistence(plan, nextRevision) };
 
-		return existing ? this.updateExisting(plan, existing, dto, nextRevision) : this.insertNew(plan, dto, notesFolder);
+		return existing
+			? this.updateExisting(plan, existing, dto, nextRevision)
+			: this.insertNew(plan, dto, notesFolder, folder);
 	}
 
 	/** Sidecar first, note second, delete-the-sidecar compensation on a failed note write. */
@@ -136,8 +142,9 @@ export class ObsidianPlanRepository {
 		plan: Plan,
 		dto: Record<string, unknown>,
 		notesFolder: string,
+		projectFolder: string,
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
-		const sidecarPath = sidecarPathFor(this.folder, plan.id);
+		const sidecarPath = sidecarPathFor(projectFolder, plan.id);
 		const created = await this.geometry.create(plan.id, sidecarPath);
 		if (!created.ok) {
 			return err(persistenceError('plan.sidecar-create-failed', `Could not create the geometry sidecar for plan ${plan.id}.`, created.error));

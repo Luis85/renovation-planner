@@ -22,7 +22,7 @@ import type { Project } from '../../../../src/domain/project/Project';
 import { projectRepositoryContract } from '../../../contracts/project-repository.contract';
 import { planRepositoryContract } from '../../../contracts/plan-repository.contract';
 import { zoneRepositoryContract } from '../../../contracts/zone-repository.contract';
-import { normalizeFolder, plansFolderFor, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { normalizeFolder, plansFolderFor, projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { projectToPersistence } from '../../../../src/infrastructure/persistence/mappers/projectMapper';
 import { planToPersistence } from '../../../../src/infrastructure/persistence/mappers/planMapper';
 
@@ -65,6 +65,20 @@ function plantNote(
 	});
 }
 
+/**
+ * A project the caller never intends to touch through `ObsidianProjectRepository` — the
+ * shared contract's `otherProject()` mints a bare id and expects a Plan or Zone built
+ * against it to save normally. Folder resolution now goes through the index (ADR-0013),
+ * so that id needs an index entry of its own; a real note is not required, since only
+ * `projectFolderOf` ever reads it here.
+ */
+function registerOtherProject(stack: RepositoryStack): ProjectId {
+	const id = createProjectId();
+	const folder = normalizeFolder(stack.projectFolder);
+	stack.index.upsert({ id, type: 'renovation-project', path: `${folder}/Other ${id}.md` });
+	return id;
+}
+
 function fixEntry(
 	stack: RepositoryStack,
 	id: EntityId<string>,
@@ -96,7 +110,7 @@ planRepositoryContract(() => {
 		repository: stack.plans,
 		makePlan: (projectId: ProjectId, name?: string) => makePlanEntity({ projectId, ...(name ? { name } : {}) }),
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 	};
 });
 
@@ -141,7 +155,7 @@ zoneRepositoryContract(() => {
 		makeZone: (projectId, planId, name?) => makeZoneEntity({ projectId, planId, ...(name ? { name } : {}) }),
 		touch: (id) => handEdit(stack, id),
 		otherParents: () => provision(),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 	};
 });
 
@@ -235,9 +249,11 @@ describe('writing into a folder nothing has created yet', () => {
 		expectOk(await stack.plans.save(plan, 'absent'));
 
 		// The sidecar exists, at the path the index maps the plan to — not merely "the save
-		// returned ok", which is what a fake with no folders would have allowed.
+		// returned ok", which is what a fake with no folders would have allowed. Under its
+		// project's OWN folder (ADR-0013), not the bare configured root.
 		const sidecarPath = stack.index.getGeometrySidecarPath(plan.id);
-		expect(sidecarPath).toBe(sidecarPathFor(normalizeFolder(stack.projectFolder), plan.id));
+		const projectFolder = projectFolderOf(stack.index, project.id) ?? normalizeFolder(stack.projectFolder);
+		expect(sidecarPath).toBe(sidecarPathFor(projectFolder, plan.id));
 		expect(stack.vault.entries.has(sidecarPath as string)).toBe(true);
 	});
 

@@ -32,7 +32,7 @@ import {
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import { revisionConflict } from '../../../application/ports/versioning';
-import { freshNotePath, normalizeFolder, zonesFolderFor } from './paths';
+import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
@@ -74,14 +74,11 @@ function validationFailure(message: string): ValidationError {
 
 export class ObsidianZoneRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
 	constructor(
 		private readonly deps: NoteVaultDeps,
 		private readonly geometry: PlanGeometryStore,
-	) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	) {}
 
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		return this.loadOne(id, (planId) => this.geometry.read(planId));
@@ -143,8 +140,13 @@ export class ObsidianZoneRepository {
 		zone: Zone,
 		expected: Expected,
 	): Promise<Result<Loaded<Zone>, RepositoryError>> {
+		const folder = projectFolderOf(this.deps.index, zone.projectId);
+		if (folder === undefined) {
+			return err(persistenceError('zone.project-folder-unresolved', `Could not resolve the folder of project ${zone.projectId} for zone ${zone.id}.`));
+		}
+
 		// Step 2: existence and snapshots BEFORE any write.
-		const notesFolder = zonesFolderFor(this.folder);
+		const notesFolder = zonesFolderFor(folder);
 		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, zone.id);
 		const currentVersion =
 			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;

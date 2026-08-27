@@ -14,7 +14,7 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the nine fixed surfaces (the project
+ * Headless capture of the browser harness — either the ten fixed surfaces (the project
  * view's dark scheme, light scheme and `?phone`, the Plan Editor's dark and light schemes,
  * and the harness index at rest in both schemes, focused, and showing its failure card) or, given an entry id, one named prototype or component
  * in both schemes — for a
@@ -141,6 +141,20 @@ const SHOTS = [
 	// `focus` is what makes this shot differ from `index-dark` at all — see `focusForShot` for
 	// why it is reached with a Tab press rather than set programmatically.
 	{ name: 'index-focus', query: '?index&theme=light', selector: HARNESS_INDEX, focus: `${HARNESS_INDEX} > nav li a` },
+	// AND THE SAME RING ON THE CURRENT ROW, which is a different pairing rather than the same shot
+	// with one entry open. `outline-offset` is negative, so the ring's neighbour is whatever the ROW
+	// is painted in — `--nav-item-background-active` here, the sidebar in the shot above — and the
+	// accent that cleared 3:1 against the sidebar measured 2.72:1 against this one. `?index` opens no
+	// entry, so no row is ever current there and that pairing had no capture at all.
+	//
+	// The focus selector names `[aria-current='page']`, so the Tab walk stops on the OPEN row rather
+	// than the first one; without it this shot would photograph the pairing already covered.
+	{
+		name: 'index-focus-current',
+		query: '?entry=prototype:WorkPackages&theme=light',
+		selector: HARNESS_INDEX,
+		focus: `${HARNESS_INDEX} > nav li a[aria-current='page']`,
+	},
 	// An id no entry can have, so the index draws its failure card. Deliberately WITHOUT an
 	// `entry` field: that field means "wait for this entry to draw and report if it did not",
 	// which is the opposite of what this shot wants. With none, the wait is on the card's own
@@ -309,7 +323,7 @@ async function run() {
 	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
 	// the label, but the URL and this command both take the id, since a mock and the real
 	// component it stands in for share a basename and need to stay reachable as two entries.
-	// With no argument, the nine fixed surfaces, exactly as before. `resolveShots` is what
+	// With no argument, the ten fixed surfaces, exactly as before. `resolveShots` is what
 	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
 	// rather than reading this file's source text to check which index it uses.
 	const shots = resolveShots(process.argv, SHOTS, process.env);

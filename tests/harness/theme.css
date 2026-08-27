@@ -310,9 +310,23 @@ body {
  *
  * `outline-offset` is negative so the ring is drawn INSIDE the row: the sidebar scrolls, and a
  * ring outside the box is clipped by `overflow-y: auto` on the first and last rows.
+ *
+ * `--text-normal` AND NOT THE ACCENT, which is the second time this file has had to make that
+ * swap and for the same reason as the first. Because the offset is negative, the ring's neighbour
+ * is whatever the ROW is painted in — and on the current row that is
+ * `--nav-item-background-active`, not the sidebar. Sampled from a real capture, the accent ring
+ * measured **2.72:1 in light and 2.84:1 in dark** against it, both under the 3:1 floor of WCAG 1.4.11
+ * that `PRODUCT.md` binds. Against the sidebar it measured 3.17 and 3.46 — a bare pass, and the
+ * figure this rule was originally written to.
+ *
+ * So one colour rather than a rule per row: `--text-normal` measures 12.63/14.72 in light and
+ * 8.64/10.55 in dark against the two backgrounds, so every row clears the floor and a future change
+ * to either background cannot quietly drop one below it. It is also the NATIVE answer — the current
+ * row's own text already had to abandon the accent for `--nav-item-color-active`, which resolves to
+ * this same value, so the two now agree rather than having pulled apart a fourth time.
  */
 .rp-harness-index > nav li a:focus-visible {
-	outline: 2px solid var(--interactive-accent);
+	outline: 2px solid var(--text-normal);
 	outline-offset: -2px;
 }
 

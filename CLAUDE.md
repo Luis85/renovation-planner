@@ -507,7 +507,7 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
   (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
   basename the index displays) it captures that one prototype or component from the index
-  instead of the nine fixed shots, in both colour schemes, with the index's own sidebar
+  instead of the ten fixed shots, in both colour schemes, with the index's own sidebar
   dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
   well, which is the width an Obsidian sidebar leaf actually has and the one that has already
   hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims

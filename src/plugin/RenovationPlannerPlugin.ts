@@ -18,6 +18,7 @@ import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import {
 	createCompositionRoot,
 	planEditorDeps,
+	renovationProjectDeps,
 	type CompositionRoot,
 	type VaultStack,
 } from './composition-root';
@@ -145,7 +146,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// nothing below this line can be configured before it exists.
 		this.addSettingTab(new SettingsTab(this));
 
-		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf));
+		this.registerView(
+			RENOVATION_PROJECT_VIEW,
+			// Per CALL, not captured — the same reason the Plan Editor's factory resolves per
+			// call: `saveSettings` replaces `this.root`, and a view built against the old one
+			// would read through query services pointed at the previous project folder.
+			(leaf) => new RenovationProjectView(leaf, renovationProjectDeps(this.root)),
+		);
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times — the dependencies are resolved PER CALL from the current root, not
 		// captured, because `saveSettings` replaces that root and a view built against the old

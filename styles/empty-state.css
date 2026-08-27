@@ -1,0 +1,68 @@
+/*
+ * The empty state (design slice 14, PRD §94): one panel, used two ways.
+ *
+ * `.rp-empty-state` on its own is the BLOCK form — the Renovation Project view, where the
+ * empty state is the whole pane. `--overlay` adds the positioning that puts the same panel
+ * over a live Konva canvas, which is what the Plan Editor uses: the canvas is always
+ * mounted (see the slice's amendment), so the panel floats and the stage keeps its pointer
+ * gestures.
+ *
+ * `pointer-events` is the load-bearing pair. The overlay's own box must not swallow a pan,
+ * a zoom or a click on a zone, so it is `none` there and re-enabled on the one child that
+ * has to be pressable. Setting it on `.rp-empty-state__panel` instead would make the whole
+ * card a pointer trap over a canvas the user is trying to draw on.
+ */
+.rp-empty-state {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	padding: var(--size-4-4);
+}
+
+.rp-empty-state--overlay {
+	position: absolute;
+	inset: 0;
+	flex: 0 1 auto;
+	pointer-events: none;
+}
+
+.rp-empty-state__panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+	align-items: center;
+	max-width: 28em;
+	padding: var(--size-4-6);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	text-align: center;
+}
+
+.rp-empty-state__icon:empty {
+	display: none;
+}
+
+.rp-empty-state__headline {
+	/* Bottom margin adds to the flex `gap`, so headline->body (16px) leads body->button
+	   (12px) instead of sitting level with it — the asymmetry is deliberate. */
+	margin: 0 0 var(--size-4-1) 0;
+	color: var(--text-normal);
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+}
+
+.rp-empty-state__body {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+}
+
+.rp-empty-state__action {
+	/* Re-enabled against `--overlay`'s `none`, so the one control a user must be able to
+	   press is pressable while the canvas underneath keeps every other gesture. */
+	pointer-events: auto;
+}

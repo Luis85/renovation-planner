@@ -49,3 +49,10 @@ node_modules/
 # Python bytecode — `lookup.py` and `sections.py` in docs/reviews/ are run directly.
 __pycache__/
 *.pyc
+
+# The subagent-driven-development workspace: one directory per plan, holding that plan's
+# ledger, task briefs, implementer reports and review packages. Scratch by design — the
+# git history is the record once a plan lands, and the ledger's own recovery value ends
+# with the session. Anchored, like everything else here: the tool writes it at the repo
+# root and nowhere else.
+/.superpowers/

@@ -465,6 +465,59 @@ export default defineConfig({
 			// test that says so covers both arms, and `MigrationRunner.ts` is at 100% of all
 			// four. An uncovered arm is usually an unchecked sentence somewhere; look for the
 			// sentence first.
+			//
+			// Measured 2026-08-27 at the end of design slice 14, **on the slice-14 branch BEFORE
+			// the merge above landed** — so like the two entries this block already scolds, the
+			// percentages below describe a tree that no longer exists. Kept rather than deleted
+			// because WHICH FILES the slice added and which arm stayed uncovered are still true
+			// of the merged tree; only the four figures are not. The merged measurement follows
+			// this entry. That this file's own warning caught its author in the act, a fourth
+			// time, is the argument for the warning.
+			// Measured 2026-08-27 at the end of design slice 14 — the two central views' empty
+			// states: `EmptyState.vue`, the typed content registry, the two pure selectors,
+			// `RenovationProjectView`'s first data dependency (`ListProjects` and its
+			// store), and `ProjectStore.emptyStateKey` as a getter over state it already
+			// hydrates: 4197/4227 statements, 2075/2116 branches, 1066/1076 functions,
+			// 3755/3773 lines — 99.29 / 98.06 / 99.07 / 99.52. NOTHING RATCHETS: rounded down
+			// these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// Every file this slice added is at 100% branches (`emptyStates/content.ts`,
+			// `resolve.ts`, `selectors.ts`, `RenovationProjectStore.ts`,
+			// `RenovationProjectContext.ts`, `RenovationProjectView.ts`,
+			// `renovationProjectQueries.ts`); the slice contributed no new uncovered arm.
+			// `ProjectStore.ts`'s single uncovered branch (19/20) is the pre-existing
+			// concurrent-hydrate ticket check at its second `superseded()` guard — reachable
+			// only by a hydration superseded strictly between `getPlan` and
+			// `findZonesByPlan` resolving, unchanged by this slice.
+			//
+			// Branches remain the metric to watch and are tighter than before: at n=2116 a
+			// branch is 0.047pp, so 98.06 against the 98 floor is only about 1.3 branches of
+			// headroom — the smallest margin this file has recorded. One new uncovered branch
+			// still fails this gate.
+			//
+			// Re-measured 2026-08-27 on the MERGED tree — slice 14 merged into a main that already
+			// carried slice 11 — which is the tree that actually ships and the fourth distinct one
+			// this block describes: 4324/4352 statements, 2120/2160 branches, 1100/1107 functions,
+			// 3876/3892 lines — 99.35 / 98.14 / 99.36 / 99.58. NOTHING RATCHETS: rounded down these
+			// are the 99 / 98 / 99 / 99 already in force.
+			//
+			// Branches gained headroom against both parents (98.06 on slice 14 alone, 98.11 on
+			// slice 11 alone, 98.14 merged) — about 3 branches at 0.046pp each. The merge itself
+			// bought that: `ListProjects` arrived composed RAW, which broke the build (the port
+			// now answers `RepositoryError`, a union admitting `ValidationError`, and the query
+			// still declared `PersistenceError`) and broke slice 11's category check, which
+			// detonated the repositories and watched `persistence.listProjects.execute` REJECT
+			// instead of answering the boundary's mapped refusal. Routing it through `guardQuery`
+			// like every sibling query is what fixed both, and a guarded query has fewer
+			// uncovered arms than a raw one — the same counter-intuitive direction slice 11's own
+			// entry above records.
+			//
+			// **The lesson is about the instrument, not the number.** Both parent branches were
+			// green alone; neither figure above predicted the merged one, and two REAL defects
+			// lived only in the combination. Worse, the first three verification runs of that
+			// merge reported "exit 0" because they were piped (`npm run check 2>&1 | tail`), and a
+			// pipeline's status is the LAST stage's — `tail` always succeeds. Capture the gate as
+			// `npm run check > log 2>&1; echo $?` and read the code, or the gate is decoration.
 			thresholds: {
 				statements: 99,
 				functions: 99,

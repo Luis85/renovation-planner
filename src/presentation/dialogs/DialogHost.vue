@@ -102,11 +102,18 @@ let previouslyFocused: HTMLElement | null = null;
  * It is also a SNAPSHOT taken once, when `inertBackground` runs at open time — not
  * re-derived while the dialog stays open. A sibling added afterward by a `v-if` that flips
  * while a dialog is open never goes `inert`, and a sibling removed afterward leaves
- * `releaseBackground` clearing the attribute off a detached node. Harmless today: the Plan
- * Editor's only conditional root-level siblings are non-focusable `<p>`s, and `ViewRoot` has
- * none. A control added at either view's root by a later slice must account for this rather
- * than assume the list stays current — re-deriving it in the `current` watcher would be a
- * behaviour change, not a comment fix.
+ * `releaseBackground` clearing the attribute off a detached node. Harmless today, but for
+ * different reasons on the two hosts this mounts in. The Plan Editor's only conditional
+ * root-level siblings are non-focusable `<p>`s, so even an untracked toggle costs nothing
+ * reachable. `ViewRoot` (design slice 14) now has one too — `<EmptyState v-if="empty !==
+ * null">`, gated on the project list's hydration status — which IS the shape this paragraph
+ * warns about: a root-level sibling that can appear or disappear on its own. It is harmless
+ * only because nothing in this slice ever opens a dialog from `ViewRoot` (the "Create a
+ * project" action named in `EMPTY_STATE_CONTENT` has no hand-off yet, so there is no dialog
+ * whose open window could overlap a hydration in flight), not because the hazard stopped
+ * applying. A later slice that wires a dialog into `ViewRoot` inherits this exactly: check
+ * whether `empty` can still be toggling while that dialog is open, and if so, this snapshot
+ * is what needs to widen, not a fresh mechanism beside it.
  */
 let backgrounded: HTMLElement[] = [];
 

@@ -143,9 +143,14 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const themeListeners = new Set<() => void>();
 	const planListeners = new Set<() => void>();
 
+	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
+	// OMITTED (default to the fixture), `null` means the caller explicitly asked for no
+	// plan at all (a broken reference — status `missing`). `??` cannot tell those apart —
+	// it treats `null` as absent too — so this checks `undefined` on its own.
+	const plan = options.plan === undefined ? FIXTURE_PLAN : options.plan;
 	const context: PlanEditorContext = {
-		planId: options.plan?.id ?? FIXTURE_PLAN.id,
-		queries: options.queries ?? fakeQueries(options.plan ?? FIXTURE_PLAN, options.zones ?? FIXTURE_ZONES),
+		planId: plan?.id ?? FIXTURE_PLAN.id,
+		queries: options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES),
 		commands: options.commands ?? unavailablePlanEditorCommands(),
 		vault: options.vault ?? EMPTY_VAULT,
 		onThemeChange: (listener) => {

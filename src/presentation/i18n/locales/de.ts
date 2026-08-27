@@ -141,4 +141,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	'dialog.delete-reference.delete-anyway': 'Trotzdem löschen',
 	'dialog.entity-picker.empty': 'Nichts zur Auswahl.',
 	'dialog.form.submit': 'Speichern',
+	'empty.project.no-projects.headline': 'Noch keine Renovierungsprojekte',
+	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Materialien und Kosten. Erstellen Sie eines, um zu beginnen.',
+	'empty.plan.no-background.headline': 'Noch kein Plandokument',
+	'empty.plan.no-background.body': 'Legen Sie einen Grundriss, Lageplan, eine Skizze oder einen Gartenplan als Hintergrund dieses Plans fest und kalibrieren Sie ihn, damit Flächen in echten Einheiten herauskommen.',
+	'empty.plan.no-zones.headline': 'Noch keine Zonen',
+	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
+	'empty.plan.no-zones.action': 'Zone zeichnen',
 };

@@ -11,6 +11,7 @@ import { createVaultExceptionMapper } from '../application/errors/exceptionMappe
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
+import { ListProjects } from '../application/queries/ListProjects';
 import { GetPlan, type GetPlanInput } from '../application/queries/GetPlan';
 import { GetZone, type GetZoneInput } from '../application/queries/GetZone';
 import { FindZonesByPlan, type FindZonesByPlanInput } from '../application/queries/FindZonesByPlan';
@@ -124,6 +125,19 @@ export interface GuardedEditorServices {
 	readonly deleteZone: Command<DeleteZoneInput, Result<ResolvedSequence & { zoneId: ZoneId }, ReferenceError | RepositoryError>>;
 	readonly moveZone: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>>;
 	readonly zoneInspector: Query<GetZoneInspectorInput, Result<ZoneInspectorFields | null, RepositoryError | GeometryError>>;
+	/**
+	 * The Renovation Project view's own read side (design slice 14), guarded like every
+	 * other door here (design slice 11) rather than composed raw. It used to leave the root
+	 * as the bare `ListProjects` application class — a throw past the application layer that
+	 * `tests/plugin/guardCategory.test.ts` was built to catch and did. Zero-argument, like
+	 * `diagnostics` above: `guardQuery` presents it as `Query<void, …>` and a caller invokes
+	 * it with no argument, same as every other zero-input query composed here.
+	 *
+	 * `renovationProjectDeps`'s call to `createRenovationProjectQueries` is still where this
+	 * gets mapped into `ProjectSummaryDto` — that mapping happens one level down from the
+	 * root, unlike `planEditorQueries`'s, and guarding it here does not change where.
+	 */
+	readonly listProjects: Query<void, Result<Project[], RepositoryError>>;
 }
 
 /** Design slice 10's write and read side, guarded — the same seam, one slice later. */
@@ -230,6 +244,7 @@ export function guardedEditorServices(
 		map,
 	);
 	const zoneInspector = guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map);
+	const listProjects = guardQuery(new ListProjects(projects), 'query.listProjects.failed', logger, map);
 
 	return {
 		queries: { getProject, getPlan, getZone, findZonesByPlan, diagnostics },
@@ -237,6 +252,7 @@ export function guardedEditorServices(
 		deleteZone,
 		moveZone,
 		zoneInspector,
+		listProjects,
 	};
 }
 

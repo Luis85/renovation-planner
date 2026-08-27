@@ -46,6 +46,11 @@ import {
 } from '../presentation/read-models/planEditorQueries';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
+import {
+	createRenovationProjectQueries,
+	unavailableRenovationProjectQueries,
+} from '../presentation/read-models/renovationProjectQueries';
+import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { notify } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
@@ -177,12 +182,12 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 	 * Typed as `Command` rather than the concrete class because what leaves this root is
 	 * GUARDED (SDD §66): a wrapper object with the same `execute`, not the class itself.
 	 *
-	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
-	 * empty-state actions and slice 16's creation FORMS are what give them product-real ones;
-	 * neither needs a second wiring point, only a second call. (This used to name "slice 15's
-	 * creation dialogs" — slice 15 shipped the dialog framework those forms will be mounted
-	 * in, and no form of its own beyond the calibration prompt, so the promise outlived the
-	 * slice that was supposed to keep it.)
+	 * `create-sample-project` is their only caller today (`sampleProject.ts`). This sentence
+	 * has already named the wrong next caller twice: "slice 15's creation dialogs" (slice 15
+	 * shipped only the dialog framework those forms mount in, no caller of its own), then
+	 * "slice 14's empty-state actions" (slice 14 shipped no create action — two empty states
+	 * render no button, the third activates a tool instead of dispatching a command). Slice
+	 * 16's creation forms are the only wiring left to name; read that as a name, not a caller.
 	 */
 	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
 	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
@@ -536,5 +541,25 @@ export function planEditorDeps(
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
+	};
+}
+
+/**
+ * The Renovation Project view's own dependency bundle (design slice 14) — the seam slice 1
+ * reserved in writing, extended by a field rather than relocated.
+ *
+ * Needs no `Workspace` and no `Vault`, unlike `planEditorDeps`: this view's only dependency
+ * today is a read side. `unavailableRenovationProjectQueries()` when `root.persistence` is
+ * `null` is the same total-rather-than-nullable shape as `planEditorDeps`, for the same
+ * stated reason — a nullable dependency would make every caller branch on it, and refusing
+ * to register the view at all would leave a restored leaf pointing at a view type Obsidian
+ * does not know.
+ */
+export function renovationProjectDeps(root: CompositionRoot): RenovationProjectDeps {
+	const persistence = root.persistence;
+	return {
+		queries: persistence
+			? createRenovationProjectQueries(persistence.listProjects)
+			: unavailableRenovationProjectQueries(),
 	};
 }

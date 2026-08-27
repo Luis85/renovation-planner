@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { isErr } from '../../core/result/Result';
+import { selectPlanEditorEmptyState } from '../emptyStates/selectors';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
 
@@ -127,7 +128,45 @@ export const useProjectStore = defineStore('project', () => {
 		status.value = 'ready';
 	}
 
-	/** What the view calls on close, so a reused leaf never opens onto the last Plan. */
+	/**
+	 * Which empty state this Plan Editor is in, or `null` for a normal render (design slice
+	 * 14). A getter over state this store already hydrates — no new field and no new query,
+	 * which is why it is here rather than in a store of its own.
+	 *
+	 * It reads `plan` and `zones` and NOTHING about the editor: whether an active tool
+	 * currently displaces the overlay is a rendering rule, decided in `PlanEditorRoot`. A
+	 * store that mixed the two would make "which state is this plan in" unanswerable without
+	 * a live tool manager, and this getter's whole value is that it is answerable.
+	 *
+	 * A missing read never reaches the selector: `plan` is `null` after `fail()` and after
+	 * the `foundPlan.value === null` branch above, and the selector returns no key for
+	 * that — the `Ok(null)`-is-a-broken-reference rule, not an accident of ordering.
+	 *
+	 * **A FAILED read is not held to the same guarantee, and that is deliberate, not a gap.**
+	 * `keepPreviousOnFailure` (above) exists precisely so a post-command re-read failing
+	 * does not blank a canvas that a moment ago showed real content — the empty state has to
+	 * agree with what the canvas beside it still shows, not blank out on its own schedule.
+	 * So on that path, `status` stays `'ready'`, `plan` stays whatever it already was, and
+	 * this getter computes exactly what it would for a normal ready render — a non-null
+	 * `plan` can therefore compute a real key while `error` is also set. This store holds
+	 * "a failed read is never rendered as an empty state" through `plan === null` PLUS this
+	 * stated exception, not structurally the way `RenovationProjectStore.emptyStateKey` does
+	 * with its `status === 'ready'` guard — that guard would be redundant everywhere else
+	 * here (`missing` and the non-`keepOnFailure` `failed` path already have `plan === null`;
+	 * a re-hydration deliberately never drops `status` back to `'loading'`, see the note
+	 * above `hydrate`), so adding it would not change behaviour, only appear to promise a
+	 * guarantee this store does not keep in the one case that actually needs stating.
+	 */
+	const emptyStateKey = computed(() => selectPlanEditorEmptyState(plan.value, [...zones.value.values()]));
+
+	/**
+	 * Rebuilds this store to its opening state (ADR-005). Nothing calls this today — the
+	 * Plan Editor mounts a fresh Pinia per leaf and this method has no caller yet — but a
+	 * reused leaf reopening onto a stale Plan is exactly the failure this exists to
+	 * prevent once something does call it, and a declared, tested shape with no caller is
+	 * the same choice `RenovationProjectStore.reset` and `Zone.area()` make for the same
+	 * reason.
+	 */
 	function reset(): void {
 		// Invalidates any hydration still in flight: a leaf closing must not have the plan
 		// it was reading painted back in a tick later.
@@ -147,5 +186,5 @@ export const useProjectStore = defineStore('project', () => {
 	 * being a declared shape.
 	 */
 	// fallow-ignore-next-line unused-store-member
-	return { project, plan, zones, status, error, hydrate, reset };
+	return { project, plan, zones, status, error, emptyStateKey, hydrate, reset };
 });

@@ -119,10 +119,48 @@ const isFocusPseudo = (component: SelectorComponent, negated = false): boolean =
 	return isFocusPseudo(args[0][0], !negated);
 };
 
+/**
+ * Is this subject condition NECESSARILY TRUE of anything that can be focused, and so no condition at
+ * all once the element is?
+ *
+ * Exactly one spelling qualifies, and the narrowness is the point rather than an omission.
+ * `:not(:disabled)` holds for every focusable element there is: a disabled form control is not in the
+ * tab order at all, and nothing else matches `:disabled`, so the negation is satisfied by everything
+ * that could ever receive focus. Keeping it made `.button:not(:disabled):focus-visible` — a perfectly
+ * ordinary and rather careful way to write a ring — fail to cover an unconditional flattening site,
+ * and the gate REPORTED a button whose ring is on screen. A false positive on valid CSS, which is the
+ * one direction this file may not err in at all.
+ *
+ * TWO NEAR-SPELLINGS ARE REFUSED, and they are refused because they are not the same claim:
+ *
+ * - `:enabled` matches form elements that are not disabled, so it is FALSE for a focusable
+ *   `<a class="rp-dialog-button">` or `<div tabindex="0">`. Dropping it would credit those elements a
+ *   ring the rule never reaches. It is often described as the complement of `:disabled`; it is not.
+ * - `:not([disabled])` is an ATTRIBUTE test, and the attribute disables nothing outside form
+ *   elements — a `<div disabled tabindex="0">` is focusable and fails it.
+ *
+ * The shape test is one argument of one component, the same bound `isFocusPseudo` takes and for the
+ * same reason: whatever answers true here is DROPPED, and dropping is only sound when nothing else is
+ * inside.
+ */
+const impliedByFocus = (component: SelectorComponent): boolean => {
+	if (component.type !== 'pseudo-class' || component.kind !== 'not') return false;
+
+	const args = argumentsOf(component);
+
+	if (args.length !== 1 || args[0].length !== 1) return false;
+
+	const only = args[0][0];
+
+	return only.type === 'pseudo-class' && only.kind === 'disabled';
+};
+
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
-	const subject = subjectOf(branch).filter((component) => !isFocusPseudo(component));
+	const subject = subjectOf(branch).filter(
+		(component) => !isFocusPseudo(component) && !impliedByFocus(component),
+	);
 	// EVERY condition the rule imposes, not just the ancestor chain. A subject can carry its own
 	// conditions beside the focus pseudo: `.rp-dialog-button:hover:focus-visible` draws only while
 	// the button is BOTH hovered and focused, so it cannot answer for an unconditional flattening

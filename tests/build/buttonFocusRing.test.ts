@@ -321,6 +321,31 @@ describe('a flattened button and its focus ring', () => {
 			'a doubly negated focus reset',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:not(:not(:focus-visible)) { outline: none; }',
 		],
+		// AND THE NEAR-SPELLINGS ARE NOT THE SAME CLAIM, which is what stops the drop from becoming
+		// "anything mentioning disabled is vacuous". `:enabled` is FALSE for a focusable
+		// `<a class="rp-dialog-button">` or `<div tabindex="0">`, since it matches form elements only;
+		// `:not([disabled])` is an attribute test and the attribute disables nothing outside a form
+		// control. Dropping either would credit elements a ring the rule never reaches.
+		[
+			'a ring limited to enabled form elements',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:enabled:focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'a ring limited by the disabled attribute',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not([disabled]):focus-visible { outline: 2px solid red; }',
+		],
+		// A REAL condition beside the vacuous one still counts, or the filter has become "a subject
+		// carrying :not(:disabled) has no conditions at all".
+		[
+			'a ring limited to hovered buttons that are not disabled',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:disabled):hover:focus-visible { outline: 2px solid red; }',
+		],
+		// One argument of one component, the same bound `isFocusPseudo` takes: this `:not()` also
+		// excludes another class, so dropping it would drop that exclusion with it.
+		[
+			'a ring whose negation mixes the vacuous condition with a real one',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:disabled, .other):focus-visible { outline: 2px solid red; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
@@ -514,6 +539,14 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button, .other):focus-visible { outline: 2px solid red; }',
 		],
 		['no flattening at all', '.rp-dialog-button { color: red; }'],
+		// `:not(:disabled)` IS NO CONDITION ON A FOCUSED ELEMENT — a disabled form control is not in the
+		// tab order and nothing else matches `:disabled` — so a ring written this careful way covers an
+		// unconditional site. Kept, it made the gate FAIL valid CSS whose ring is on screen, which is
+		// the one direction this file may not err in.
+		[
+			'a ring limited to buttons that are not disabled',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:disabled):focus-visible { outline: 2px solid red; }',
+		],
 		// And the base reset must be RANKED, not merely heard. A normal one at (0,1,0) loses to the
 		// (0,2,0) focus ring above it and disqualifies nothing — without this, filing base resets would
 		// report every flattened button in the project, since the flattening rule is itself a base reset.

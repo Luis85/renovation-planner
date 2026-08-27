@@ -148,6 +148,8 @@ export const en = {
 	'empty.plan.no-zones.headline': 'No zones yet',
 	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
 	'empty.plan.no-zones.action': 'Draw a zone',
+	'view.project.loading': 'Loading projects…',
+	'view.project.some-unreadable': 'Some projects could not be read from the vault. Open the diagnostics report for details.',
 } as const;
 
 export type StringKey = keyof typeof en;

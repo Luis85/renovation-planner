@@ -116,4 +116,64 @@ describe('the renovation project view', () => {
 		expect(store.emptyStateKey).toBeNull();
 		await view.onClose();
 	});
+
+	/**
+	 * The defect this pass exists to close on this surface. `emptyStateKey` is correctly
+	 * `null` for a failed read, and until now that was the view's ONLY conditional — so an
+	 * unreadable project note, a vault fault or unrecovered settings drew an empty div: no
+	 * message, no notice, and `store.error` read by nobody. `PlanEditorRoot` rendered all
+	 * three states in the same slice.
+	 *
+	 * The copy comes from `trError`, so the sentence is the mapped one for the actual code
+	 * (`settings.unrecovered` has its own) rather than a generic second answer.
+	 */
+	it('renders the mapped failure message for a failed read', async () => {
+		const view = await open(refusing());
+
+		const message = view.contentEl.querySelector('.rp-view-message');
+		expect(message?.textContent?.trim()).toBe(t('en', 'settings.unrecovered'));
+		expect(view.contentEl.querySelector('.rp-empty-state')).toBeNull();
+		await view.onClose();
+	});
+
+	/**
+	 * A vault holding projects that cannot be read is the third state, and the one a
+	 * one-conditional view could not express at all: it is neither `ready`-with-projects nor
+	 * "nothing here yet". Onboarding copy would be wrong and unactionable here.
+	 */
+	it('warns instead of inviting when every project note refused', async () => {
+		const view = await open(answering([], 3));
+
+		const notice = view.contentEl.querySelector('.rp-view-notice');
+		expect(notice?.textContent?.trim()).toBe(t('en', 'view.project.some-unreadable'));
+		expect(view.contentEl.querySelector('.rp-empty-state')).toBeNull();
+		await view.onClose();
+	});
+
+	it('renders no warning when nothing refused', async () => {
+		const view = await open(answering([PROJECT]));
+
+		expect(view.contentEl.querySelector('.rp-view-notice')).toBeNull();
+		await view.onClose();
+	});
+
+	/**
+	 * The loading arm, reached by NOT settling: `open` awaits the hydration, so this case
+	 * mounts and asserts before the query resolves. Without a case here the arm is an
+	 * untested branch, and at this coverage headroom that fails the gate rather than denting
+	 * a number.
+	 */
+	it('says it is loading before the query resolves', async () => {
+		installObsidianDom();
+		const view = makeView({
+			queries: { listProjects: () => new Promise(() => {}) },
+		});
+		await view.onOpen();
+		await Promise.resolve();
+
+		expect(view.contentEl.querySelector('.rp-view-message')?.textContent?.trim()).toBe(
+			t('en', 'view.project.loading'),
+		);
+		await view.onClose();
+	});
 });

@@ -148,4 +148,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.plan.no-zones.headline': 'Noch keine Zonen',
 	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
 	'empty.plan.no-zones.action': 'Zone zeichnen',
+	'view.project.loading': 'Projekte werden geladen …',
+	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden. Details stehen im Diagnosebericht.',
 };

@@ -21,11 +21,17 @@ export function t(language: string, key: StringKey): string {
 }
 
 /**
- * `t` in the app's own language — the ONE place that decides how the language is
- * resolved, so no call site re-decides it (and none can drift to a cached value or a
- * setting of its own, which the plugin guidelines reject). Resolved per call: cheap, and
- * what keeps a rendered-per-open surface correct after the app language changes.
+ * The app's language, resolved per call from Obsidian's own setting. THE one resolution
+ * point: `tr` and `trError` both come through here, so no call site re-decides it and none
+ * can drift to a cached value or to a plugin-local language setting (a recurring review
+ * rejection). Resolved per call rather than once: cheap, and what keeps a
+ * rendered-per-open surface correct after the app language changes.
  */
+export function currentLanguage(): string {
+	return getLanguage();
+}
+
+/** `t` in the app's own language. */
 export function tr(key: StringKey): string {
-	return t(getLanguage(), key);
+	return t(currentLanguage(), key);
 }

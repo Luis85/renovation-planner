@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toUserMessage } from '../../../src/presentation/i18n/toUserMessage';
+import { toUserMessage, trError } from '../../../src/presentation/i18n/toUserMessage';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import type { AppError, ErrorCategory } from '../../../src/core/errors/AppError';
@@ -119,5 +119,19 @@ describe("design slice 10's coded refusals", () => {
 		expect(toUserMessage('en', refusal)).toBe(t('en', code as StringKey));
 		expect(toUserMessage('en', refusal)).not.toBe(t('en', categoryKey));
 		expect(toUserMessage('de', refusal)).not.toBe(t('de', categoryKey));
+	});
+});
+
+/**
+ * `trError` is `tr` for the error path. The mock's `getLanguage()` answers 'en', so this pins
+ * the DELEGATION — that it resolves the language through the one resolution point and maps
+ * through `toUserMessage` — and the per-locale behaviour is already driven through
+ * `toUserMessage` directly, per locale, above.
+ */
+describe('trError', () => {
+	it('maps an error in the app language', () => {
+		const error = { category: 'Persistence', code: 'settings.unrecovered', message: 'dev' } as const;
+
+		expect(trError(error)).toBe(toUserMessage('en', error));
 	});
 });

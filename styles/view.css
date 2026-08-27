@@ -19,3 +19,34 @@
 	   happens to position above it instead of against this view. */
 	position: relative;
 }
+
+/*
+ * The pane's stand-in for content: shown whenever the project list is not `ready`, which is
+ * a load in flight or a read that failed. Centred and muted, the same shape
+ * `.rp-editor-canvas-message` uses for the identical job in the Plan Editor — one look for
+ * "this region has nothing to draw yet", declared twice because the two views size
+ * themselves differently.
+ */
+.rp-view-message {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	padding: var(--size-4-4);
+	color: var(--text-muted);
+	text-align: center;
+}
+
+/*
+ * The partial-read warning. A strip rather than a replacement, because what loaded is still
+ * worth showing: this sits beside the list, never over it.
+ */
+.rp-view-notice {
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+	background-color: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}

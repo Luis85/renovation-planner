@@ -1,5 +1,5 @@
 import { en, type StringKey } from './locales/en';
-import { t } from './strings';
+import { currentLanguage, t } from './strings';
 import type { AppError, ErrorCategory } from '../../core/errors/AppError';
 
 /**
@@ -53,4 +53,17 @@ export function toUserMessage(language: string, error: AppError): string {
 		if (error.code.endsWith(suffix)) return t(language, key);
 	}
 	return t(language, CATEGORY_KEYS[error.category]);
+}
+
+/**
+ * `toUserMessage` in the app's own language — the `tr` of the error path, and the way a
+ * component turns a stored `AppError` into copy.
+ *
+ * The language comes from `currentLanguage()` rather than from a second `getLanguage()` call
+ * here, so `strings.ts`'s claim to be the one resolution point stays true. That claim is why
+ * this function lives in this file and not beside `tr`: `toUserMessage.ts` already imports
+ * from `strings.ts`, and putting it the other way round would be a cycle.
+ */
+export function trError(error: AppError): string {
+	return toUserMessage(currentLanguage(), error);
 }

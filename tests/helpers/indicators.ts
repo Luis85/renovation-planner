@@ -160,10 +160,20 @@ const isBlankKeyword = (declaration: Declaration & { property: 'unparsed' }): bo
  *
  * Returns `undefined` for a property the block never mentions, which is what lets the caller tell
  * "declared, and draws nothing" — a flattened button — from "not declared here at all".
+ *
+ * `textColor` and `deferred` are for a caller resolving a CASCADE, and they are the same shape as
+ * `parts`: this block's own answer, plus what it could not answer alone. `outline` and `shadow` stay
+ * resolved against this block's `color`, which is the honest answer to the question they are asked.
  */
 export const indicatorOf = (
 	declarations: readonly Declaration[],
-): { outline?: boolean; shadow?: boolean; parts: OutlineParts } => {
+): {
+	outline?: boolean;
+	shadow?: boolean;
+	parts: OutlineParts;
+	textColor?: boolean;
+	deferred: Partial<Record<'color' | 'shadow', boolean>>;
+} => {
 	// EACH COMPONENT STARTS AT ITS CSS INITIAL VALUE, not at "unset". `outline-style` is initially
 	// `none`, so a block that sets only `outline-color` or only `outline-width` draws NOTHING — the
 	// style nobody set is still refusing to paint. Started at `undefined` and treated as
@@ -188,9 +198,12 @@ export const indicatorOf = (
 	// depends on the keyword and the other does not, and collapsing them into a single flag would
 	// have to choose which one lies.
 	//
-	// THE CEILING, and it is a real one: only THIS block's `color` is seen. A `color: transparent`
-	// winning from another rule leaves the indicator credited, because resolving that needs `color` as
-	// a fourth channel in the cross-rule cascade and it is not one.
+	// ONE BLOCK IS ALL THIS FUNCTION MAY SEE, and that is a limit of the question rather than of the
+	// answer: `outline` and `shadow` are asked about a BLOCK. A `color: transparent` winning from
+	// another rule is a CASCADE's business, so what this block could not settle alone is handed up in
+	// `deferred` for a caller that has the other rules, and `focusCascade.ts` resolves it as a fourth
+	// channel. A caller with no cascade — `drawsAnIndicator` — gets the block-local answer, which for
+	// an unseen colour is "credited", the same direction a `var()` takes.
 	let fromCurrentColor = false;
 	let blockColor: boolean | undefined;
 	const touched = new Set<OutlinePart>();
@@ -311,7 +324,17 @@ export const indicatorOf = (
 	const parts: OutlineParts = Object.fromEntries([...touched].map((part) => [part, resolved[part]]));
 	const outline = touched.size > 0 ? !Object.values(resolved).some((part) => part === 'blank') : undefined;
 
-	return { outline, shadow, parts };
+	// WHAT THIS BLOCK COULD NOT ANSWER ALONE, for a caller that can. A channel is deferred when its
+	// colour is the keyword AND this block sets no `color` of its own — then the winner is decided by
+	// whichever rule's `color` covers the element, which is a cascade question and not a block one.
+	// A block that DOES set `color` has already been resolved above and defers nothing; a shadow with
+	// an item that paints on its own draws whatever the text colour is, so it defers nothing either.
+	const deferred = {
+		color: fromCurrentColor && blockColor === undefined,
+		shadow: shadowFromCurrentColor && shadowPaints === false && blockColor === undefined,
+	};
+
+	return { outline, shadow, parts, textColor: blockColor, deferred };
 };
 
 /** Does this block leave a visible focus indicator — an outline or a shadow — behind it? */

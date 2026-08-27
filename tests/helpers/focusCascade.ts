@@ -175,10 +175,36 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	return [{ key: show(subject), conditions }];
 };
 
+/**
+ * A CHANNEL of this cascade. Three outline longhands and a shadow are the indicator itself;
+ * `text-color` is here because `currentcolor` REFERS to it, so an indicator drawn in the keyword is
+ * only as visible as the `color` that wins at that element — which is a cascade question and not a
+ * block one. It carries no indicator of its own and `answers` never asks it directly.
+ *
+ * `indicatorOf` settles the keyword within one block and cannot settle it across blocks:
+ * `.button.button:focus-visible { color: transparent }` beating a
+ * `.button:focus-visible { outline: 2px solid currentColor }` leaves a solid two-pixel outline nobody
+ * can see, while each block alone reads as drawing. That is what this channel is for.
+ *
+ * ONLY THE WRITTEN KEYWORD DEFERS, and the boundary is deliberate rather than an oversight.
+ * `outline-color`'s INITIAL is `currentColor` too, so an outline no rule colours has the same
+ * exposure — but gating THAT would make every unset outline-color in the project depend on this
+ * channel being collected exactly right, turning a latent false negative into a possible
+ * build-failing false positive on CSS that rings its buttons today. Measured: this project writes
+ * the keyword in no stylesheet at all, so the narrow form can only ever fire on a sheet written to
+ * exercise it, while the wide one would decide real rules. That is the same trade the attribute
+ * widening got wrong, and this time it is taken the other way round.
+ */
+type Channel = OutlinePart | 'shadow' | 'text-color';
+
 /** One `:focus-visible` declaration, as the per-site cascade needs it. */
 interface FocusRule {
-	readonly property: OutlinePart | 'shadow';
-	readonly draws: boolean;
+	readonly property: Channel;
+	/**
+	 * `'deferred'` is `currentcolor` in a block that sets no `color`: this rule draws exactly when
+	 * the `text-color` channel does at the same site, which only `partDraws` can say.
+	 */
+	readonly draws: boolean | 'deferred';
 	readonly important: boolean;
 	readonly specificity: readonly [number, number, number];
 	readonly conditions: Conditions;
@@ -308,7 +334,15 @@ const covers = (ring: Conditions, flattened: Conditions): boolean =>
  * a CASCADE with no covering rule for a longhand lands on the initial too, and reading "no rule" as
  * "no outline" would refuse the legitimate `outline-style: solid` on its own.
  */
-const INITIAL: Record<OutlinePart, boolean> = { width: true, style: false, color: true };
+const INITIAL: Record<OutlinePart | 'text-color', boolean> = {
+	width: true,
+	style: false,
+	color: true,
+	// AN ELEMENT NO RULE COLOURS INHERITS ONE, and no stylesheet holds what an ancestor happened to
+	// have — so an unseen text colour is credited, exactly as a `var()` is and exactly as
+	// `indicatorOf` credits it within one block. The two tables agree on this on purpose.
+	'text-color': true,
+};
 
 /**
  * Does ONE outline longhand come out drawing at this site?
@@ -327,15 +361,35 @@ const INITIAL: Record<OutlinePart, boolean> = { width: true, style: false, color
  * rather than being filtered out — over-reporting where two scopes are disjoint rather than nested,
  * which `covers` cannot tell apart and which is the safe side of that.
  */
-const partDraws = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }, part: OutlinePart): boolean => {
+const partDraws = (
+	rules: readonly FocusRule[],
+	site: { readonly conditions: Conditions },
+	part: OutlinePart | 'text-color',
+): boolean => {
 	const forPart = rules.filter((one) => one.property === part);
 	const winner = forPart
 		.filter((one) => covers(one.conditions, site.conditions))
 		.reduce<FocusRule | undefined>((best, one) => (best === undefined || beats(one, best) ? one : best), undefined);
 
-	if (!(winner === undefined ? INITIAL[part] : winner.draws)) return false;
+	// RESOLVED HERE rather than in a helper the two callers share, because a helper that calls back
+	// into this function and is called from it is mutual recursion, which `no-use-before-define`
+	// refuses whichever way round the two are written. The recursion is one level deep and provably
+	// so: a `text-color` rule's `draws` is a boolean, never `'deferred'`, so the arm below cannot be
+	// taken twice.
+	const winnerDraws =
+		winner === undefined
+			? INITIAL[part]
+			: winner.draws === 'deferred'
+				? partDraws(rules, site, 'text-color')
+				: winner.draws;
 
-	return !forPart.some((blank) => !blank.draws && (winner === undefined || beats(blank, winner)));
+	if (!winnerDraws) return false;
+
+	// `=== false` rather than `!draws`, and it is a CLARITY change with no behaviour in it: `'deferred'`
+	// is a truthy string, so `!draws` already answers false for one. Spelled out because the next value
+	// added to this union may not be, and a falsy one would silently make every deferred rule a
+	// disqualifier. Probed rather than assumed — the two spellings flip no case here.
+	return !forPart.some((blank) => blank.draws === false && (winner === undefined || beats(blank, winner)));
 };
 
 const answers = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
@@ -343,9 +397,9 @@ const answers = (rules: readonly FocusRule[], site: { readonly conditions: Condi
 	rules.some(
 		(drawing) =>
 			drawing.property === 'shadow' &&
-			drawing.draws &&
+			(drawing.draws === 'deferred' ? partDraws(rules, site, 'text-color') : drawing.draws) &&
 			covers(drawing.conditions, site.conditions) &&
-			!rules.some((reset) => !reset.draws && reset.property === 'shadow' && beats(reset, drawing)),
+			!rules.some((reset) => reset.draws === false && reset.property === 'shadow' && beats(reset, drawing)),
 	);
 
 /**
@@ -409,7 +463,7 @@ export const flattenedWithoutRing = (
 		// Both read from ONE resolution of the block, in cascade order. Asked declaration by
 		// declaration, `box-shadow: none; box-shadow: 0 0 0 3px red` counted as flattening on the
 		// strength of a declaration the next line overrides.
-		const { shadow, parts } = indicatorOf(rule.declarations);
+		const { shadow, parts, textColor, deferred } = indicatorOf(rule.declarations);
 		// IMPORTANCE IS PER LONGHAND, because the cascade below is. A part is important when any
 		// important declaration touched it — the shorthand or its own longhand — which is exact rather
 		// than an approximation: `stylesheetRules` hands back normal declarations before important
@@ -426,6 +480,7 @@ export const flattenedWithoutRing = (
 		const importantPart = (part: OutlinePart): boolean =>
 			rule.important.has('all') || rule.important.has('outline') || rule.important.has(`outline-${part}`);
 		const importantShadow = rule.important.has('all') || rule.important.has('box-shadow');
+		const importantTextColor = rule.important.has('all') || rule.important.has('color');
 
 		// `:focus-visible` is asked of each BRANCH, never of the rule. Asked of the rule,
 		// `.rp-editor-tool-button:hover, .other:focus-visible { outline: 2px solid red }` marked the
@@ -479,6 +534,28 @@ export const flattenedWithoutRing = (
 						? cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0)
 						: [key];
 
+					// `color` IS NOT A FOCUS DECLARATION and is filed outside the `ringsFocus` guard for
+					// that reason: a button's text colour while focused is whatever wins at rest unless a
+					// focus rule changes it, so `.button { color: transparent }` decides a `currentcolor`
+					// ring drawn by a rule three sheets away. Filed under the same keys the branch reaches,
+					// which for a non-focus branch is its own key alone — a bare `button { color: … }` is
+					// therefore NOT widened across the class cascades. That under-reaches, and it is the
+					// credit direction: an unheard `color` leaves the ring credited, which is the same side
+					// every other gap in this file falls on.
+					if (textColor !== undefined)
+						for (const reached of reaches)
+							ringed.set(reached, [
+								...(ringed.get(reached) ?? []),
+								{
+									property: 'text-color',
+									draws: textColor,
+									important: importantTextColor,
+									specificity: specificityOf(selector),
+									conditions,
+									order: order++,
+								},
+							]);
+
 					if (ringsFocus) {
 						// Of the ORIGINAL selector, never of the expanded branch — `alternativesOf`'s own header
 						// says so and this call site said otherwise. `:where()` contributes ZERO, argument
@@ -488,12 +565,14 @@ export const flattenedWithoutRing = (
 						// draws. Expansion answers WHICH elements a rule reaches; ranking is a separate question.
 						const specificity = specificityOf(selector);
 
-						const declarations: (readonly [OutlinePart | 'shadow', boolean | undefined, boolean])[] = [
-							...Object.entries(parts).map(
-								(entry) =>
-									[entry[0] as OutlinePart, entry[1] !== 'blank', importantPart(entry[0] as OutlinePart)] as const,
-							),
-							['shadow', shadow, importantShadow] as const,
+						const declarations: (readonly [Channel, boolean | 'deferred' | undefined, boolean])[] = [
+							...Object.entries(parts).map((entry) => {
+								const part = entry[0] as OutlinePart;
+								const draws = part === 'color' && deferred.color ? ('deferred' as const) : entry[1] !== 'blank';
+
+								return [part, draws, importantPart(part)] as const;
+							}),
+							['shadow', deferred.shadow ? ('deferred' as const) : shadow, importantShadow] as const,
 						];
 
 						for (const reached of reaches) {

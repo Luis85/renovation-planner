@@ -326,6 +326,35 @@ describe('a flattened button and its focus ring', () => {
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',
 		],
+		// `currentcolor` IS A REFERENCE, not a value, and the rule it refers to need not be the rule it
+		// is written in. Each block alone reads as drawing: one sets a solid two-pixel outline, the
+		// other sets only a colour. Together they are a ring nobody can see, and only a cascade with a
+		// FOURTH channel in it can say so.
+		[
+			'an outline in currentcolor over a transparent colour from another rule',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; } .rp-dialog-button.rp-dialog-button:focus-visible { color: transparent; }',
+		],
+		[
+			'a shadow in currentcolor over a transparent colour from another rule',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px currentColor; } .rp-dialog-button.rp-dialog-button:focus-visible { color: transparent; }',
+		],
+		// `color` is NOT a focus declaration, which is why it is collected outside the focus guard: a
+		// focused button's text colour is whatever wins at REST unless a focus rule changes it. Filed
+		// only from focus branches, this one is never heard and the ring stands.
+		[
+			'an outline in currentcolor over a transparent colour set at rest',
+			'.rp-dialog-button { box-shadow: none; color: transparent; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
+		],
+		// IMPORTANCE FIRST on this channel too, or the fourth channel has quietly become the one that
+		// ranks on specificity alone. It takes BOTH colour rules to ask that: written with one, the
+		// transparent colour wins for having no rival and the case passes with importance ignored —
+		// watched doing exactly that before this fixture was rewritten. In separate BLOCKS, too: written
+		// beside the outline, the colour is resolved by `indicatorOf` within the block and the case
+		// never reaches this channel at all.
+		[
+			'an outline in currentcolor over an important transparent colour a more specific one cannot beat',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; } .rp-dialog-button:focus-visible { color: transparent !important; } .rp-dialog-button.rp-dialog-button:focus-visible { color: red; }',
+		],
 	])('reports %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([
 			'.rp-dialog-button',
@@ -520,6 +549,23 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button, .other):focus-visible { outline: 2px solid red; }',
 		],
 		['no flattening at all', '.rp-dialog-button { color: red; }'],
+		// The fourth channel must not become "a currentcolor ring never counts". Three shapes hold that
+		// line, and each fails against a different over-correction: a colour that PAINTS wins the
+		// channel; NO colour rule at all lands on the initial, which is credited exactly as a `var()`
+		// is; and a shadow LIST with one item that paints on its own does not depend on the keyword at
+		// all, so it must not be deferred.
+		[
+			'a currentcolor ring over a colour that paints',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; } .rp-dialog-button.rp-dialog-button:focus-visible { color: red; }',
+		],
+		[
+			'a currentcolor ring with no colour rule anywhere',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
+		],
+		[
+			'a currentcolor shadow list with an item that paints on its own',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px currentColor, 0 0 0 3px red; } .rp-dialog-button.rp-dialog-button:focus-visible { color: transparent; }',
+		],
 		// The covering test must not become "a scoped ring never counts": a ring in the SAME scope as
 		// the flattening rule covers all of it, which is how every real rule in this project is
 		// written.

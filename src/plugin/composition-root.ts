@@ -515,8 +515,12 @@ export function planEditorDeps(
 						requirements: persistence.requirements,
 						assets: persistence.assets,
 						locks: persistence.locks,
-						logger: root.logger,
 					},
+					// The LEAF's logger, beside the bundles rather than inside one of them:
+					// a failed compensation inside a reversible adapter's undo writes to it,
+					// and so does `notifyFault` at the two raw-port fault doors in
+					// `runtime.ts` — and the second of those is not about requirement edits.
+					logger: root.logger,
 					// A new command per call — see `CalibratePlanTransaction` — and GUARDED
 					// per call, because the factory is the only door this one has: it never
 					// passes through `PersistenceServices`, so `composeGuarded` cannot reach

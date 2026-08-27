@@ -70,9 +70,12 @@ describe('the notice text boundary', () => {
 	 */
 	it.each([
 		['a translated string', "export const show = (notify: any, tr: any) => notify(tr('plan.none'));\n"],
-		['copy resolved from an AppError', 'export const show = (notify: any, toUserMessage: any, r: any) => notify(toUserMessage("en", r.error));\n'],
+		// The selector permits this shape and no production call site uses it any more: an
+		// `AppError` goes to `notifyError`, which is the one door slices 13 and 17 change.
+		// Pinned because what a gate PERMITS is as much a fact about it as what it refuses.
+		['copy resolved by hand from an AppError', 'export const show = (notify: any, toUserMessage: any, r: any) => notify(toUserMessage("en", r.error));\n'],
 		['an AppError handed to notifyError', 'export const show = (notifyError: any, r: any) => notifyError(r.error);\n'],
-		['a thrown cause handed to notifyFault', 'export const show = (notifyFault: any, c: unknown) => notifyFault(c);\n'],
+		['a thrown cause handed to notifyFault', "export const show = (notifyFault: any, l: any, c: unknown) => notifyFault(c, l, 'x.faulted');\n"],
 		['an empty literal, which carries no copy', "export const clear = (notify: any) => notify('');\n"],
 	])('allows %s', async (_what, code) => {
 		expect(await lintText(code, PRESENTATION)).not.toContain(RULE);
@@ -117,6 +120,11 @@ describe('the notice text boundary', () => {
 	it.each([
 		['a message one hop away', 'export const show = (notify: any, e: any) => { const text = e.message; return notify(text); };\n'],
 		['a template literal with no member access', 'export const show = (notify: any) => notify(`Saving failed.`);\n'],
+		// The CALL FORM, not a third name: both selectors key on `callee.name`, which a
+		// MemberExpression callee does not have, so the same two functions reached through an
+		// object escape both. `notify` and `Notice` are only ever called bare here.
+		['a notify reached through a member expression', 'export const show = (o: any, e: any) => o.notify(e.message);\n'],
+		['a Notice constructed from a member expression', 'export const show = (n: any, e: any) => new n.Notice(e.message);\n'],
 	])('cannot see %s, which the config says in prose and this pins', async (_what, code) => {
 		expect(await lintText(code, PRESENTATION)).not.toContain(RULE);
 	});

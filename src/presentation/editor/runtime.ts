@@ -9,6 +9,7 @@ import {
 	ReversibleSetRequirementQuantityOverrideCommand,
 } from '../../application/commands/requirement/reversible-override-commands';
 import type { AppError } from '../../core/errors/AppError';
+import type { Logger } from '../../application/ports/Logger';
 import { ok, type Result } from '../../core/result/Result';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
@@ -171,7 +172,7 @@ function createInspector(
 						{
 							requirements: context.commands.requirementEdits.requirements,
 							locks: context.commands.requirementEdits.locks,
-							logger: context.commands.requirementEdits.logger,
+							logger: context.commands.logger,
 						},
 					);
 				case 'assign': {
@@ -292,18 +293,21 @@ type VoidResult = Result<void, AppError>;
  * and the UI simply stopped responding to that button, which is the one failure mode worse
  * than an error message.
  */
-async function reportFault(operation: Promise<VoidResult>): Promise<VoidResult | null> {
+async function reportFault(logger: Logger, operation: Promise<VoidResult>): Promise<VoidResult | null> {
 	try {
 		return await operation;
 	} catch (cause) {
 		// A technical fault escaping a dispatch. There is no `AppError` to translate here —
 		// it never reached a guard, or it came from one of the raw repository PORTS this
 		// interface still hands out — so `notifyFault` maps it into the same coded
-		// `PersistenceError` a guarded service would have produced and prints THAT. The
-		// exception's own message never reaches the user. This is one of TWO such doors in
-		// this file; the other is `createDeleteZoneAction`'s catch, and both go through the
-		// same function so neither can drift into printing the raw text again.
-		notifyFault(cause);
+		// `PersistenceError` a guarded service would have produced, LOGS the raw cause under
+		// this door's event name, and prints the mapped copy. The exception's own message
+		// never reaches the user, and the developer half is not lost with it: no guard ran
+		// below this, so this is the only step in THIS path where both representations can be
+		// produced together (SDD §66). This is one of TWO such doors in this file; the other is
+		// `createDeleteZoneAction`'s catch, and both go through the same function so neither
+		// can drift into printing the raw text or into notifying without logging.
+		notifyFault(cause, logger, 'editor.dispatch.faulted');
 		return null;
 	}
 }
@@ -431,8 +435,9 @@ function createDeleteZoneAction(
 		} catch (cause) {
 			// The last stop for a THROWN fault, exactly as `reportFault` is for a plain
 			// dispatch: this is bound to a click handler that discards its promise. Mapped
-			// rather than printed, for the reason `notifyFault` gives.
-			notifyFault(cause);
+			// and LOGGED rather than printed, for the reason `notifyFault` gives — its own
+			// event name, so a log line says which of the two doors this came through.
+			notifyFault(cause, context.commands.logger, 'editor.deleteZone.faulted');
 			return;
 		}
 		if (outcome.kind === 'failed') {
@@ -558,10 +563,10 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	// sidecar since (every zone create, move and delete does), and this is what makes THAT
 	// refusal say something rather than nothing.
 	async function undo(): Promise<void> {
-		await notifyIfRefused(reportFault(wrappedDispatcher.undo()));
+		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.undo()));
 	}
 	async function redo(): Promise<void> {
-		await notifyIfRefused(reportFault(wrappedDispatcher.redo()));
+		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.redo()));
 	}
 
 	/**
@@ -571,7 +576,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * because some callers clear state on success only.
 	 */
 	async function commitEdit(edit: InspectorEdit): Promise<boolean> {
-		const result = await reportFault(inspector.commit(edit));
+		const result = await reportFault(context.commands.logger, inspector.commit(edit));
 		if (result === null) return false;
 		if (!result.ok) {
 			// Same seam the tools use: a refused edit must not just do nothing — and it

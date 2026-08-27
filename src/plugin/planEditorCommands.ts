@@ -1,4 +1,4 @@
-import { getLanguage, type App, type TFile } from 'obsidian';
+import type { App, TFile } from 'obsidian';
 import { isErr, type Result } from '../core/result/Result';
 import type { ProjectIndex, ProjectIndexEntry } from '../application/ports/ProjectIndex';
 import type { PlanId } from '../domain/plan/PlanId';
@@ -12,10 +12,9 @@ import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
-import { notify } from '../presentation/notices/notify';
+import { notify, notifyError } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
-import { toUserMessage } from '../presentation/i18n/toUserMessage';
 import type { PluginCommandHost } from './commandHost';
 
 /**
@@ -74,9 +73,13 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
 	});
 
 	if (isErr(result)) {
-		// Through `toUserMessage` (SDD §66's last step): a translated sentence keyed by
-		// the error's code, never the error's own `message`, which is developer text.
-		notify(toUserMessage(getLanguage(), result.error));
+		// Through `notifyError` (SDD §66's last step): a translated sentence keyed by the
+		// error's code, never the error's own `message`, which is developer text.
+		// `notifyError` is the ONE door an `AppError` takes to a notice. Spelling
+		// `notify(toUserMessage(getLanguage(), …))` here would produce the same string
+		// today and is refused for CLAUDE.md's "one action, every input" reason: slices 13
+		// and 17 change what an error notice IS, once, at that function.
+		notifyError(result.error);
 	}
 	// Nothing else to do on success: the command published `PlanBackgroundChanged`, and the
 	// open Plan Editor re-hydrates off that. This code does not know a canvas exists.

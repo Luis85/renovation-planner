@@ -87,9 +87,11 @@ describe('project repository failure branches', () => {
 	// error, and the refusal is scoped to that one entity — used to be driven HERE, for
 	// `project` alone. It is the per-kind table below now ("the fail-closed gate is scoped
 	// to one entity"): the gate is `migrateNote`'s, which every note-backed repository
-	// shares, so one kind was a sample of five and the four slice-10 kinds had never had
-	// their `unsupported` half driven at all.
-
+	// shares, so one kind was a sample of five and the OTHER FOUR had never had their
+	// `unsupported` half driven at all. Four, not "the four slice-10 kinds", which is what
+	// this said and which conflated two counts: slice 10 added TWO of them (asset and
+	// requirement) and plan and zone predate it. The narrower claim, about slice 10's two
+	// alone, is the one the table's own docblock below makes.
 });
 
 /**

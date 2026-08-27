@@ -485,9 +485,15 @@ const I18N_LITERAL_BAN = [
  *   - `.message` or `.stack` read ANYWHERE inside the call — a descendant combinator, not
  *     a child one, so a bare `notify(err.message)`, a wrapped `notify(format(e.message))`
  *     and an interpolated one are all refused. The correct shapes contain no such member
- *     access at all: `notify(tr('key'))` and
- *     `notify(toUserMessage(getLanguage(), result.error))` pass untouched, which is the
- *     whole mechanism.
+ *     access at all and pass untouched, which is the whole mechanism: `notify(tr('key'))`
+ *     for TEXT, and — for an `AppError` — `notifyError(result.error)`, which takes the
+ *     error rather than a string and never reaches these selectors at all.
+ *     `notify(toUserMessage(getLanguage(), result.error))` would ALSO pass, and it is not
+ *     a shape this repository uses any more: `notifyError` is the one door an `AppError`
+ *     takes to a notice, so slices 13 and 17 change what an error notice is in ONE place.
+ *     That last part is a convention a reviewer holds, not something these selectors can
+ *     see — a rule refusing it would have to refuse `toUserMessage` at a notice, which is
+ *     exactly what `notifyError` does internally.
  *   - a bare string LITERAL as a direct argument, which is the "rather than by a literal"
  *     half. `[value=/\S/]` for the reason `I18N_LITERAL_BAN` gives: an empty or
  *     whitespace-only string carries nothing to translate.
@@ -504,6 +510,12 @@ const I18N_LITERAL_BAN = [
  *   - a differently-named local alias of `notify`, and a notice raised through a
  *     re-exported wrapper under another name. `notify` and `Notice` are the two names this
  *     repository uses; a third would need adding here.
+ *   - either door reached through a MEMBER EXPRESSION: `o.notify(e.message)` and
+ *     `new n.Notice(e.message)`. This is the CALL FORM rather than a third name — both
+ *     selectors key on `callee.name`, and a MemberExpression callee has none, so the same
+ *     two functions escape whenever they are reached through an object. Both are called
+ *     bare everywhere here; closing it would mean a second pair of selectors on
+ *     `callee.property.name`, which would then also refuse every unrelated `x.notify(…)`.
  *
  * Narrowing `notify`'s PARAMETER TYPE to a branded "came from the locale tables" string
  * was the other candidate and is refused for now: `t`, `tr` and `toUserMessage` all return

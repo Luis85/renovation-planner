@@ -501,14 +501,24 @@ than hidden behind a tick:
   `PlanEditorCommandServices.zones` and `requirementEdits`' `requirements`/`assets` leave
   the composition root raw, because the reversible adapters restore their snapshots through
   them. Item 1 says so; `presentation/notices/notify.ts`'s `notifyFault` is what keeps a
-  fault from one of them presentable.
+  fault from one of them presentable, and what produces its log line — it takes the leaf's
+  `Logger` and maps ONCE, so the two representations item 3 demands come out of one step
+  here exactly as they do at a guard.
+
+  **When those ports are guarded in a later slice, `notifyFault` and both `runtime.ts` doors
+  are what should DISAPPEAR**, rather than being kept beside a boundary that now covers
+  them. A guard maps and logs before the throw ever leaves the application layer; a second
+  door doing the same thing afterwards would be exactly the independent second path this
+  slice's Design section forbids. The signal that the moment has come is `notifyFault` no
+  longer being reachable by any fault the suite can inject.
 - **The fail-closed gate is on the READ path only.** No save path calls `migrateNote`, so
   "refuses to load" is the whole guarantee. Item 10 says so, `migrateNote`'s header says so
   where the code is, and `errorPaths.test.ts`'s "is a READ gate" case pins today's truth: a
   save holding a current expectation overwrites a future-version note.
 - **A `plan-geometry` read refusal never reaches the diagnostics ledger.** The sidecar
   refuses a future `schemaVersion` with the same code and category a note read produces, but
-  `PlanGeometryStore` is not on the one `ledger.record` path, so that kind can appear in a
+  `PlanGeometryStore` is on NEITHER `ledger.record` path — there are two, `openNoteById`'s
+  and `ObsidianProjectRepository.getById`'s own read — so that kind can appear in a
   snapshot's `schemaVersions` and never in its `validationIssues`. Pinned as an absence in
   `errorPaths.test.ts`, and expected to be deleted when the sidecar records.
 - **The set of codes with copy of their own is not a closed set.** The two override commands
@@ -581,7 +591,9 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     collaborators beneath it (the five repositories, the geometry port and the file probe),
     walks everything the root and the editor bundle hand out, drives a hostile input through
     EVERY door it finds, and requires the mapped `vault.unexpected-failure` back. Seven is a
-    hand-written list and the last one in that file; it does not weaken the check, because a
+    hand-written list, and it is the only one in that file that no assertion pins — the two
+    carve-out tables and the skipped-owners list are each checked by exact key set. It does
+    not weaken the check, because a
     service whose collaborators were not detonated answers a SUCCESS and a success is
     reported as a finding — the instrument fails CLOSED. See the open section above. Behavioural rather than structural on purpose — an "is this a wrapper?" check
     cannot see a facade pairing a guarded `execute` with a raw `executeWithVersion`, which is
@@ -618,8 +630,26 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     repository has (`notify(...)`, `new Notice(...)`) rather than at the call sites someone
     thought of; `tests/build/notice-text-boundary.test.ts` drives it through real fixture
     paths, blind spots included — a value one hop away, a template literal, a notice raised
-    under a third name. Slice 10's nine reachable coded refusals have entries of their own in
-    both locales, bound to their raise sites by the table in `toUserMessage.test.ts`.
+    under a third name, and either door reached through a member expression. Slice 10's nine
+    reachable coded refusals have entries of their own in both locales, bound to their raise
+    sites by the table in `toUserMessage.test.ts`.
+
+    **"Always" includes the doors OUTSIDE the boundary, and that is what makes it a
+    guarantee rather than a claim about guarded services.** `notifyFault` — the last stop
+    for a throw from one of the raw repository ports item 1 names — took no logger and
+    called none until this branch's closing pass, so a fault there reached the user as a
+    translated sentence and reached a developer as nothing — and there the raw cause is the
+    ONLY detail that exists, because no guard ran below it to have recorded one. It takes
+    the leaf's `Logger` and an event name
+    now, maps once, and produces both halves from that step; `runtime.ts`'s two doors pass
+    their own event names, so a log line says which faulted.
+    `tests/presentation/editor/shell/inspectorFaults.test.ts` asserts the notice AND the
+    logged cause on every thrown-fault case, through the real mounted editor. An `AppError`
+    reaching a notice takes `notifyError` and only `notifyError` — the two `src/plugin/`
+    call sites that hand-spelled `notify(toUserMessage(getLanguage(), …))` were routed
+    through it in the same pass, which is CLAUDE.md's "one action, every input" applied to
+    the seam slices 13 and 17 will change. That last part is a convention review holds:
+    `NOTICE_TEXT_BAN` permits the hand-spelled form, since it carries no `.message` read.
 - [x] Every level slice 1's port declares has a real caller by the end of this slice —
     `warn` in particular, which slice 1 leaves without one — and each is used for the
     category stated above rather than being chosen by feel at the call site. `debug`:

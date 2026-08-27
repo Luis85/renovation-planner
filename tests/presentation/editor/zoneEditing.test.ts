@@ -29,6 +29,7 @@ import {
 } from '../../helpers/planEditorRig';
 import { makeDeleteZoneCommand } from '../../helpers/slice10';
 import { useEditorRuntime } from '../../../src/presentation/editor/runtime';
+import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { expectOk, injectedPersistenceError, RecordingEventBus } from '../../helpers/domain';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
@@ -331,6 +332,11 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			zones: [ZONE_A_DTO],
 			queries,
 			commands: {
+				// Spread over the refusal bundle so every member of the interface EXISTS —
+				// slice 10's requirement collaborators and the leaf's logger among them. The
+				// five below are the ones these rigs actually drive; the rest refuse, which is
+				// right for a rig whose project references nothing.
+				...unavailablePlanEditorCommands(),
 				createZone: new CreateZoneCommand(zonesRepo, plans, events),
 				moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
 				deleteZone: makeDeleteZoneCommand(zonesRepo, events),
@@ -420,6 +426,11 @@ describe('the wired Plan Editor (design slice 8)', () => {
 				findZonesByPlan: new FindZonesByPlan(zonesRepo),
 			}),
 			commands: {
+				// Spread over the refusal bundle so every member of the interface EXISTS —
+				// slice 10's requirement collaborators and the leaf's logger among them. The
+				// five below are the ones these rigs actually drive; the rest refuse, which is
+				// right for a rig whose project references nothing.
+				...unavailablePlanEditorCommands(),
 				createZone: new CreateZoneCommand(zonesRepo, plans, events),
 				moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
 				deleteZone: makeDeleteZoneCommand(zonesRepo, events),

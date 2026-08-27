@@ -14,11 +14,16 @@
  * So this file NAMES no service. It composes a real root, DETONATES seven named
  * collaborators underneath it — the five repositories, the geometry port and the file probe,
  * each port method replaced by a thrower — walks everything the root hands out, and drives a
- * hostile input through EVERY DOOR of everything it finds. That detonation array is the one
- * hand-written list here and it is deliberately not a rule: `index`, `vaultDeps`,
- * `migrations`, `geometryStore`, `locks`, `markers` and `changeAdapter` are left intact, which
- * costs nothing only because of the fail-closed property below — a service whose
- * collaborators were not detonated answers a SUCCESS, and a success is a finding. Each door must
+ * hostile input through EVERY DOOR of everything it finds.
+ *
+ * Four hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
+ * `DOOR_CARVE_OUTS`, and the skip test's `owners`. The last three are each asserted by exact
+ * key set, so a drift is named at an assertion. The detonation array is the one that is NOT,
+ * deliberately: `index`, `vaultDeps`, `migrations`, `geometryStore`, `locks`, `markers` and
+ * `changeAdapter` are left intact, which costs nothing only because of the fail-closed
+ * property below — a service whose collaborators were not detonated answers a SUCCESS, and a
+ * success is a finding, so a missing name is caught indirectly rather than by nothing at
+ * all. Each door must
  * answer a resolved `vault.unexpected-failure`, which is the boundary's mapped refusal and
  * the only thing that can come back when the vault below a guarded service throws.
  *
@@ -50,8 +55,8 @@
  *   member whose name begins with `execute`, which covers `execute` and
  *   `executeWithVersion`, the two entry-point spellings this codebase has. An object whose
  *   only door were `undo`, or `run`, would not be recognised as a service — though `undo`
- *   IS driven once a service is recognised, since `reachableDoors` returns every callable
- *   member rather than the ones matching that prefix.
+ *   IS driven once a service is recognised, since `reachableDoors` returns every reachable
+ *   member (methods and accessors alike) rather than the ones matching that prefix.
  * - **anything past depth 8, a function that takes arguments, and a factory whose call
  *   throws.** Those three are RECORDED rather than silently skipped — see `Skip` — because
  *   a recorded skip is something review can see. The most probable next hole is the second:
@@ -132,6 +137,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * Every method a caller can reach — own properties AND the prototype chain, because a
  * class instance keeps its methods on the prototype and it is exactly a class instance
  * that must not be here.
+ *
+ * An ACCESSOR counts, and that is not a formality: `get execute() { … }` is a door a
+ * caller reaches by exactly the same expression as a method, and a version of this that
+ * asked only for `descriptor.value` was structurally blind to it — `isService` would not
+ * have recognised the object, `discover` would not have collected it, and `auditDoors`
+ * would never have driven it. A whole raw service could sit in the tree looking guarded.
+ * The getter itself is NOT called here (that would be a side effect on a walk whose whole
+ * job is to look); it is called once, in `driveDoor`, by the same property read a caller
+ * makes.
+ *
+ * What that widening costs, said rather than left to be discovered: a NON-function
+ * accessor — `get canUndo(): boolean` — is now reported as a door too, and `driveDoor`
+ * would call it and report the resulting `TypeError` as a finding. No service the walk
+ * DISCOVERS has one today, which is what the green run of the real-composition cases below
+ * measures rather than asserts; the instrument stays fail-closed either way, and the fix
+ * when one appears is a door carve-out by name, like the two above.
  */
 function reachableDoors(service: object): string[] {
 	const names = new Set<string>();
@@ -140,7 +161,7 @@ function reachableDoors(service: object): string[] {
 		for (const key of Object.getOwnPropertyNames(level)) {
 			if (key === 'constructor') continue;
 			const descriptor = Object.getOwnPropertyDescriptor(level, key);
-			if (typeof descriptor?.value === 'function') names.add(key);
+			if (typeof descriptor?.value === 'function' || descriptor?.get !== undefined) names.add(key);
 		}
 		level = Object.getPrototypeOf(level) as object | null;
 	}
@@ -339,6 +360,28 @@ describe('the instrument that checks the boundary', () => {
 		expect(findings[0]?.problem).toContain('answered a SUCCESS');
 	});
 
+	/**
+	 * A door defined as an ACCESSOR, which `reachableDoors` was blind to until this branch's
+	 * closing pass. A caller reaches `service.execute(input)` identically either way, so a
+	 * walk that asked only for `descriptor.value` would have passed a raw service by without
+	 * recognising it as a service at all — no finding, no carve-out, no recorded skip.
+	 */
+	it('finds a raw door defined as a getter', async () => {
+		class AccessorCommand {
+			get execute(): () => Promise<never> {
+				return () => {
+					throw new Error('the vault exploded');
+				};
+			}
+		}
+		const discovery = discover({ raw: new AccessorCommand() }, 'root');
+		const findings = await auditDoors(discovery);
+
+		expect(discovery.discovered.map((entry) => entry.path)).toEqual(['root.raw']);
+		expect(findings).toHaveLength(1);
+		expect(findings[0]?.problem).toContain('REJECTED');
+	});
+
 	it('follows a factory to the service it hands back', async () => {
 		const discovery = discover({ make: () => rawThrower() }, 'root');
 
@@ -528,7 +571,7 @@ describe('every service leaving the composition root is guarded', () => {
 		expect(skipped.filter((skip) => skip.kind !== 'function-with-arguments')).toEqual([]);
 		expect(owners).toEqual([
 			'editorDeps',
-			'editorDeps.commands.requirementEdits.logger',
+			'editorDeps.commands.logger',
 			'editorDeps.queries',
 			'persistence.files',
 			'persistence.planEditorQueries',

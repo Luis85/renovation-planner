@@ -1,6 +1,7 @@
 import { Notice, getLanguage } from 'obsidian';
 import type { AppError } from '../../core/errors/AppError';
 import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
+import type { Logger } from '../../application/ports/Logger';
 import { toUserMessage } from '../i18n/toUserMessage';
 
 /**
@@ -49,13 +50,26 @@ const mapUnexpected = createVaultExceptionMapper('vault');
  * A raw `Error.message` in a Notice is forbidden outright — it is developer text, often an
  * engine's own words and sometimes a file path — so the cause is mapped to the same coded
  * `PersistenceError` a guarded service would have produced, and printed from the locale
- * table like any other refusal. The original stays on `cause` for whoever logs it.
+ * table like any other refusal.
  *
  * This exists because presentation still holds things the boundary does not cover: the raw
  * `ZoneRepository`/`RequirementRepository`/`AssetRepository` ports that
  * `PlanEditorCommandServices` hands the reversible adapters. Every COMMAND and QUERY it
  * holds is guarded; the ports are not, and this is what keeps their faults presentable.
+ *
+ * **The `logger` is not optional, and the reason is SDD §66 rather than convenience.** A
+ * guarded service produces two representations of one failure at ONE step — a terse user
+ * message and a log line carrying the original cause — and the spec's own words are that
+ * they "must not drift into being produced from two independent code paths". This door
+ * stands where no guard did, so a print-only version of it would be exactly that second
+ * path: the user gets a sentence and a developer gets nothing — and here, uniquely, the
+ * cause is an unmapped exception, so no guard below has already recorded it and this line
+ * is the only place that detail survives. So the mapping happens ONCE and both halves come
+ * out of it. The event name is the caller's, for the same reason `guardCommand` takes one:
+ * it says which door faulted.
  */
-export function notifyFault(cause: unknown): Notice {
-	return notifyError(mapUnexpected(cause));
+export function notifyFault(cause: unknown, logger: Logger, event: string): Notice {
+	const mapped = mapUnexpected(cause);
+	logger.error(event, { cause, code: mapped.code });
+	return notifyError(mapped);
 }

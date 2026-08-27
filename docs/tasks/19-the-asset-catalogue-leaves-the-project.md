@@ -134,7 +134,10 @@ requirements by asset — which the compiler confirms by the payload type narrow
 
 ### The schema: version 1 is redefined, not bumped
 
-`project` is removed from `AssetFrontmatterSchemaV1` and `LATEST_VERSIONS.asset` **stays at 1**.
+`project` is removed from `AssetFrontmatterSchemaV1` and `ASSET_MIGRATIONS` **stays empty**, so
+the asset schema stays at version 1. The version is DERIVED from the registered steps
+(`MigrationRunner.latestVersions`), so "stays at 1" is a consequence of adding no step rather
+than a constant left alone.
 
 The justification is a fact rather than a preference: **slice 10 has never been merged to
 `main`** (`git log main..HEAD` at the time of writing shows the whole slice unmerged), so
@@ -366,7 +369,8 @@ this slice owes **beyond** them.
 - [ ] `Asset` declares no `projectId`, `AssetEventPayload` carries none, and
       `AssetFrontmatterSchemaV1` has no `project` key — checked by the type and by
       `tests/build/` finding no `asset` module naming `ProjectId`.
-- [ ] `LATEST_VERSIONS.asset` is still 1, **and `git log main..` plus `tests/release/` confirm no
+- [ ] `ASSET_MIGRATIONS` is still empty and the snapshot's `schemaVersions.asset` is still 1,
+      **and `git log main..` plus `tests/release/` confirm no
       Asset schema has been released.** If either says otherwise this box cannot be ticked and a
       v1→v2 migration is required instead — the criterion carries its own falsifier because the
       justification is a fact about history, not a judgement.

@@ -241,8 +241,11 @@ converted in the same commit because `vue-tsc` runs first in `npm run build`.
 ## Persistence Impact
 
 No new note kind and no frontmatter change **if ADR-012 chooses the derived shape**. If it
-chooses the stored field, `Project` gains `folder:` and `LATEST_VERSIONS.project` goes to 2 with
-a real migration step.
+chooses the stored field, `Project` gains `folder:` and the project schema goes to 2 — which means
+registering a real v1→v2 step in `PROJECT_MIGRATIONS`. There is no version CONSTANT to edit:
+`MigrationRunner.latestVersions` derives each kind's version from the steps registered for it, so
+a step ending at 2 is what makes the version 2, and a bump with no step to reach it is not
+expressible.
 
 New vault layout, per PRD §36:
 

@@ -146,8 +146,8 @@ export async function rig(seed?: (repos: {
 			requirements: requirementsRepo,
 			assets: assetsRepo,
 			locks,
-			logger: recorder,
 		},
+		logger: recorder,
 	};
 
 	if (seed) {

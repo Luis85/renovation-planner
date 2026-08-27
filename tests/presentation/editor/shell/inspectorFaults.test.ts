@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from 'obsidian';
 import { Decimal } from 'decimal.js';
 import { settleUntil as until } from '../../../helpers/editor';
 import { click, PROJECT_ID, rig, toolbarButton } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
+import { lines, resetRecorder } from '../../../helpers/logger';
 
 /**
  * SDD §65's two failure halves, at the Inspector's own controls: a THROWN technical fault
@@ -16,6 +17,14 @@ import { makeAsset } from '../../../helpers/entities';
  * Driven through the REAL mounted editor because the seam being checked is the wiring:
  * every one of these paths is a `catch` or an `if (!result.ok)` that no unit test of the
  * flow or the store can reach, since neither owns the notice.
+ *
+ * **Each thrown-fault case asserts BOTH representations**, which is SDD §66's "produced
+ * together and must not drift into being produced from two independent code paths" turned
+ * into an assertion rather than left as prose. These two doors stand where no guard did —
+ * the ports beneath them are outside the Error Boundary by design — so if they printed
+ * alone, the user would get a sentence and a developer would get nothing, and the raw cause
+ * would be gone for good. The notice half is asserted on `Notice.shown`; the log half on
+ * the recorder's `lines`, checking that the ORIGINAL exception is what `cause` carries.
  */
 
 async function selectedZone(seedAssets = 1) {
@@ -52,7 +61,16 @@ async function assign(r: Awaited<ReturnType<typeof selectedZone>>): Promise<void
 	await button.trigger('click');
 }
 
+/** One door's log line, or undefined — the recorder is shared across this file. */
+function faultLine(event: string) {
+	return lines.find((line) => line.event === event);
+}
+
 describe('a failure at an Inspector control', () => {
+	beforeEach(() => {
+		resetRecorder();
+	});
+
 	it('a THROWN fault during an assignment reaches the user as a notice', async () => {
 		const r = await selectedZone();
 		const before = Notice.shown.length;
@@ -73,6 +91,14 @@ describe('a failure at an Inspector control', () => {
 		// reverts to `notify(cause.message)`.
 		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
 		expect(Notice.shown.at(-1)).not.toContain('the vault exploded');
+
+		// The DEVELOPER half, from the same mapping step. The notice is deliberately free of
+		// the exception's own words, so this line is the only place they survive at all —
+		// which is why its absence would be a silent loss rather than a visible one.
+		const logged = faultLine('editor.dispatch.faulted');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('the vault exploded');
+		expect(logged?.context?.['code']).toBe('vault.unexpected-failure');
 		r.harness.unmount();
 	});
 
@@ -113,6 +139,12 @@ describe('a failure at an Inspector control', () => {
 		// `notifyFault` so neither can drift back into printing the raw text.
 		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
 		expect(Notice.shown.at(-1)).not.toContain('the index is gone');
+
+		// Its OWN event name, so a log line says which of the two doors faulted — the same
+		// reason `guardCommand` takes one per service rather than sharing a single key.
+		const logged = faultLine('editor.deleteZone.faulted');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('the index is gone');
 		// Still there: nothing was dispatched.
 		expect(expectOk(await r.zonesRepo.getById('zone-a' as never))).not.toBeNull();
 		r.harness.unmount();
@@ -135,6 +167,9 @@ describe('a failure at an Inspector control', () => {
 
 		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
 		expect(Notice.shown.at(-1)).not.toContain('the index is a string fault');
+		// A non-Error cause reaches the log VERBATIM, unlike the notice: the log line is
+		// where the raw thing belongs, whatever shape it turned out to be.
+		expect(faultLine('editor.deleteZone.faulted')?.context?.['cause']).toBe(notAnError);
 		r.harness.unmount();
 	});
 

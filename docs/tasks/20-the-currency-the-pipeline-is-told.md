@@ -81,8 +81,10 @@ currency: EUR
 ```
 
 `Project.currency` as a required field with a default, ISO-4217-shaped (`/^[A-Z]{3}$/`, the
-pattern `assetFrontmatter` already uses for `currency`). `LATEST_VERSIONS.project` goes to 2 with
-a real migration step, and **this one is a real migration rather than a redefinition**, because
+pattern `assetFrontmatter` already uses for `currency`). The project schema goes to 2 through a
+real v1→v2 step registered in `PROJECT_MIGRATIONS` — the version is derived from the steps
+(`MigrationRunner.latestVersions`), so the step IS the bump — and **this one is a real migration
+rather than a redefinition**, because
 unlike slice 19's Asset schema the Project schema's shape is load-bearing for existing developer
 vaults and the migration runner has never executed a non-empty chain in production. Its v1→v2
 step supplies the plugin's default currency.
@@ -287,9 +289,11 @@ interface CalculatedFrom { zoneArea; unitCost; assetUnit; projectCurrency: Curre
 
 ## Persistence Impact
 
-- `Project` gains `currency:`, `LATEST_VERSIONS.project` → 2, with a real v1→v2 step.
+- `Project` gains `currency:`, and a real v1→v2 step in `PROJECT_MIGRATIONS` takes the project
+  schema to 2.
 - `Requirement` gains `project-currency` inside its persisted `calculated-from`,
-  `LATEST_VERSIONS.requirement` → 2. Its v1→v2 step **cannot** invent the value — the project's
+  and a v1→v2 step in `REQUIREMENT_MIGRATIONS` takes that schema to 2. Its step **cannot**
+  invent the value — the project's
   currency at the time of the original calculation is not recoverable — so it writes the project's
   *current* currency, which makes every migrated Requirement read `"current"` rather than
   `"stale"`. **That is a deliberate under-report and it is named here**: the alternative is

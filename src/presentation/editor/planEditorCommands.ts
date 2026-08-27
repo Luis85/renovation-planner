@@ -115,13 +115,29 @@ export interface PlanEditorCommandServices {
 		readonly requirements: RequirementRepository;
 		readonly assets: AssetRepository;
 		readonly locks: ReferenceLocks;
-		/**
-		 * Where a compensation that ALSO failed goes. The undo halves return their original
-		 * failure to the caller, so a second fault has nowhere else to be recorded — and
-		 * presentation has no logger of its own, by design.
-		 */
-		readonly logger: Logger;
 	};
+	/**
+	 * The composition root's logger, reaching the leaf.
+	 *
+	 * Presentation has no logger of ITS own and this changes nothing about that: what
+	 * crosses is the same `Logger` port the application layer takes, composed at the root
+	 * like every other member here. Two things need it, and both are the developer half of
+	 * an error the user is already being shown:
+	 *
+	 * - a compensation that ALSO failed inside a reversible adapter's undo. The undo halves
+	 *   return their ORIGINAL failure to the caller, so a second fault has nowhere else to
+	 *   be recorded.
+	 * - `notifyFault`, at the two doors in `runtime.ts` that catch a throw from one of the
+	 *   RAW repository ports above. Those ports are outside the Error Boundary by design,
+	 *   so no guard logged the cause on its way here — and SDD §66's two representations
+	 *   are only produced together if this door produces both, which is why `notifyFault`
+	 *   takes this and maps once for both halves.
+	 *
+	 * It sits at the top level rather than inside `requirementEdits` because it is now the
+	 * LEAF's logger rather than that bundle's: two unrelated callers reaching into a
+	 * sibling's bundle for it was the shape that made the second one easy to forget.
+	 */
+	readonly logger: Logger;
 }
 
 type CreateZoneResult = Awaited<ReturnType<PlanEditorCommandServices['createZone']['execute']>>;
@@ -206,10 +222,10 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 			requirements: refusingPort(),
 			assets: refusingPort(),
 			locks,
-			// Nothing can reach a compensation in a session with no repositories, so the
-			// sink is the honest shape: a console writer here would be a log line about a
-			// fault that cannot occur.
-			logger: { debug: noop, info: noop, warn: noop, error: noop },
 		},
+		// Nothing can reach a compensation or a raw-port fault in a session with no
+		// repositories — every port here REFUSES rather than throwing — so the sink is the
+		// honest shape: a console writer would be a log line about a fault that cannot occur.
+		logger: { debug: noop, info: noop, warn: noop, error: noop },
 	};
 }

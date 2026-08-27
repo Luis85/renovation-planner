@@ -43,7 +43,9 @@ document a Plan's background IS.
 **Design slice 11 has landed: no COMMAND or QUERY leaving the composition root can throw
 past the Application layer — two carve-outs excepted, both named below — and that is checked
 as a CATEGORY.** `guardCommand`/`guardQuery`
-wrap each of them (`src/plugin/guardedServices.ts`, beside the root rather than inside it),
+wrap each of them — most in `src/plugin/guardedServices.ts`, which is where the seam moved to
+keep the root under its line budget, and five still applied inside `composition-root.ts`
+itself (four `guardCommand` calls, plus `guardCalibratePlan` per call on the factory) —
 so a fault below that seam is caught, mapped by the vault's `ExceptionMapper` to a coded
 `PersistenceError`, logged with its original cause at that one step, and returned as a
 resolved failed `Result` — and a RESOLVED failed `Result` is logged there too, so a refusal
@@ -71,8 +73,11 @@ own first draft included:
   declares about itself. Mutating only the ROUTING left it green, which is the defect above,
   uncaught, one round later. `tests/plugin/guardCategory.test.ts` is
   behavioural now: compose a real root, DETONATE seven named collaborators beneath it (the
-  five repositories, the geometry port and the file probe — a hand-written list, and the one
-  list left in the file), walk everything the root and the editor bundle hand out, drive a
+  five repositories, the geometry port and the file probe — a hand-written list, and the only
+  one in that file that nothing PINS: the two carve-out tables and the skipped-owners list are
+  each asserted by exact key set, so a drift in one of those three is named at the
+  assertion, while a drift in this one is caught only indirectly, by the fail-closed
+  property in the next bullet), walk everything the root and the editor bundle hand out, drive a
   hostile input through every door it FINDS, and require the mapped `vault.unexpected-failure`
   back. A raw command REJECTS, and no amount of declaring makes it resolve a refusal. What
   the walk does not find is written down in the file's own header — a service hiding inside a
@@ -95,7 +100,16 @@ own first draft included:
   different mechanism (every method, not one `execute`). So `notifyFault` in
   `presentation/notices/notify.ts` stays — it maps a thrown cause into the same coded
   refusal a guarded service would have produced. `docs/tasks/11`'s Definition of Done item 1
-  WITHDREW its wider first clause rather than being ticked over that hole.
+  WITHDREW its wider first clause rather than being ticked over that hole. **A door outside
+  the boundary still owes BOTH representations**, which is the last thing the branch's
+  whole-tree pass found: `notifyFault` printed a mapped sentence and called no logger at
+  all, so a fault from a raw port reached the user as a sentence and a developer as silence
+  — and there, uniquely, the unmapped cause is the only detail that exists, because no guard
+  ran below to have recorded it. It takes the leaf's `Logger` and an event
+  name now and maps ONCE for both halves, which is what SDD §66's "must not drift into
+  being produced from two independent code paths" actually asks for. When those ports are
+  guarded, `notifyFault` and both `runtime.ts` doors are what should DISAPPEAR rather than
+  sit beside a boundary that covers them.
 - **"Contains no project content" is a claim about a SHAPE, so no fixture can demonstrate
   it** — a content-free ledger asserted to produce a content-free snapshot proves only that
   the query adds nothing. The check moved to the end that can hold it:
@@ -119,11 +133,14 @@ own first draft included:
   locales now, bound to their raise sites by a table in `toUserMessage.test.ts` that is
   copied from the RAISE SITES rather than from `en.ts`, because a table derived from the
   locale file would agree with a typo. `NOTICE_TEXT_BAN` puts the rule at the two notice
-  doors themselves. Neither reaches the second locale's VOCABULARY: the German copy called
+  doors as this repository SPELLS them — a bare `notify(...)` or `new Notice(...)`, matched
+  on `callee.name`, so the same two functions reached through an object (`o.notify(...)`)
+  are invisible to it; the long-form paragraph further down carries the rest of that list.
+  Neither reaches the second locale's VOCABULARY: the German copy called
   an Asset "Material" where the German UI says "Objekt", found by reading, and nothing
   renders `de.ts` in any gate.
 - **A docblock naming "the one list this derives from" is worth checking against the second
-  one.** `migrationSet()` claimed to be the single source of `schemaVersions` while
+  one.** `MIGRATION_SET` claimed to be the single source of `schemaVersions` while
   `MigrationRunner` spread a module-level `LATEST_VERSIONS` constant beside it, so a seventh
   entity registered in the table alone would have appeared nowhere in diagnostics with every
   test still green. `latestVersions` derives from the registered steps now, and
@@ -476,8 +493,10 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   file path; produced by `t()` rather than by a literal or by `AppError.message`") put at
   the forbidden call, because that door was the one user-facing surface no gate could see.
   It cannot see a value one hop away (`const text = e.message; notify(text)`), a template
-  literal carrying raw English with no member access in it, or a notice raised under a third
-  name; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
+  literal carrying raw English with no member access in it, a notice raised under a third
+  name, or either door reached through a MEMBER EXPRESSION (`o.notify(e.message)`,
+  `new n.Notice(e.message)`) — both selectors key on `callee.name`, which a member-expression
+  callee has none of; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
   paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
   repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
   measured.
@@ -918,6 +937,21 @@ that was fixing the previous instance.
 - **Measure a set with an instrument that can see all of it, and test the instrument
   first.** A grep for `foo(` misses `foo<T>(`. Both happened there, and both times the wrong
   count was already being used as the evidence for a decision.
+- **A docblock that says "the only place X" gets a `grep` in the SAME edit**, and the
+  sentence is then written from what the grep printed. Slice 11's review rounds counted
+  eleven sentences promising a category where the code held a list — three of them
+  introduced by the very changes fixing the earlier ones — and the two that cost BEHAVIOUR
+  rather than only accuracy were both "only"
+  claims. `guardCommand` wrapped `execute` and the docblock called that the boundary, while
+  the Inspector dispatches an override through `executeWithVersion`: wrapper present, test
+  green, door open. And `notifyError`'s header called itself "the only [door] an `AppError`
+  may take" while two call sites in `src/plugin/` hand-spelled
+  `notify(toUserMessage(getLanguage(), …))` — a spelling the notice-door lint rule's own
+  docblock named as CORRECT, so one slice declared the same shape forbidden in one file and
+  blessed in another, with neither aware of the other. Counting is necessary and not
+  sufficient: the sentence has to be checked against the measurement as carefully as the
+  measurement was checked against the code, because slice 11 twice wrote a false sentence
+  FROM a correct count.
 - **Address code by name, not by position.** Selectors, symbols and paths survive an edit;
   line numbers are correct until the next insertion above them.
 - **A table that enumerates code goes stale; a table that states a rule does not.** Name a

@@ -286,6 +286,18 @@ describe('a flattened button and its focus ring', () => {
 			'a less specific important base shadow',
 			'.rp-dialog-button { box-shadow: 0 0 0 1px red !important; }',
 		],
+		// A SUBJECT THAT IS NOTHING BUT FOCUS matches every focused element, so this reset takes the
+		// ring away from every button — and reached neither predicate, because stripping the focus
+		// pseudos leaves no class and no type behind. Equal specificity to the ring, so source order
+		// decides and the later one wins.
+		[
+			'a classless focus reset that ties the ring',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } :focus:focus { outline: none; }',
+		],
+		[
+			'a universal focus reset',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } *:focus-visible:focus-visible { outline: none; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',

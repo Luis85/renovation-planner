@@ -112,7 +112,22 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	const onSubject = buttonClassesOn(branch, classes);
 
 	if (onSubject.length > 0) return onSubject.map((key) => ({ key, conditions }));
-	if (!targetsAButton(branch, classes)) return [];
+
+	// A SUBJECT THAT IS NOTHING BUT FOCUS matches every focused element, buttons included, so
+	// `:focus:focus { outline: none }` and `*:focus-visible { … }` reach these cascades as surely as
+	// a bare `button` does — and reached NEITHER, because after the focus pseudos are stripped there
+	// is no class and no type left for the two predicates to see. It is filed by SHAPE like any other
+	// classless subject, and `cascadeKeys` widens it across every class because `buttonClassesOn` is
+	// empty, which is the same route a type-targeted rule takes.
+	//
+	// Provably universal is what makes this sound where the attribute widening was not: `*:focus`
+	// matches EVERY button, so widening it states a fact, while `[type='button'][data-rp-action]`
+	// matches an unknown subset and widening it invented a key nothing could answer.
+	const focusOnly =
+		subjectOf(branch).some((component) => isFocusPseudo(component)) &&
+		subject.every((component) => component.type === 'universal');
+
+	if (!focusOnly && !targetsAButton(branch, classes)) return [];
 
 	return [{ key: show(subject), conditions }];
 };

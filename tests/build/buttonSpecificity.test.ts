@@ -513,9 +513,22 @@ const losingButtonRules = (scanned: readonly (readonly [string, string])[], clas
 			// background-color: blue` keeps the colour and loses the background, so the site is real.
 			// `rule.important` is keyed by property, which also settles a property declared both ways in
 			// one block — the important declaration is the one that stands.
+			// A SHORTHAND CARRIES ITS IMPORTANCE TO EVERY LONGHAND IT SETS, and `rule.important` is keyed
+			// by the property as WRITTEN. So `all: unset !important; color: red` lists only `all`, and
+			// reading `color` as independently normal reported a rule the important `all` wins outright
+			// — the false positive the importance fix itself introduced, one shorthand out.
+			//
+			// The same two shorthands `CONTESTED` already names: `all` covers every property there is,
+			// and `background` covers `background-color`. Listed rather than derived, because a
+			// shorthand's longhands are not something a parsed declaration announces.
+			const importantly = (property: string): boolean =>
+				rule.important.has(property) ||
+				rule.important.has('all') ||
+				(property === 'background-color' && rule.important.has('background'));
+
 			const contested = rule.declarations
 				.map((declaration) => propertyOf(declaration))
-				.filter((property) => CONTESTED.has(property) && !rule.important.has(property));
+				.filter((property) => CONTESTED.has(property) && !importantly(property));
 
 			if (contested.length === 0) continue;
 
@@ -565,7 +578,15 @@ describe('every button rule against Obsidian\'s own', () => {
 	 * The MIXED case is what keeps that from becoming "any `!important` exempts the rule": the normal
 	 * half still loses, so the rule is still an offender.
 	 */
-	it.each(['color: red !important', 'background: transparent !important', 'all: unset !important'])(
+	it.each([
+		'color: red !important',
+		'background: transparent !important',
+		'all: unset !important',
+		// The important SHORTHAND carries to the longhand beside it: the `all` wins `color` too, so
+		// there is no normal contested declaration left to lose.
+		'all: unset !important; color: red',
+		'background: transparent !important; background-color: blue',
+	])(
 		'says nothing about a bare button class that wins %s',
 		(declaration) => {
 			expect(

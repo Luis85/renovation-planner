@@ -67,6 +67,10 @@ describe('what a declaration block draws', () => {
 		'color: inherit; outline: 2px solid currentColor',
 		'color: unset; box-shadow: 0 0 0 3px currentColor',
 		'color: currentColor; outline: 2px solid currentColor',
+		// `color` IS ONE OF THE PROPERTIES `all` IS. Its arm reset the outline and the shadow and left
+		// the text colour alone, so the ring drawn AFTER the reset resolved against a colour the reset
+		// had already taken away.
+		'all: unset; outline: 2px solid currentColor',
 		// `all` is both properties at once, and its grammar admits only CSS-wide keywords — none of
 		// which this gate can prove an indicator from. It arrives as its own parsed property rather
 		// than as an unparsed keyword, so the `RESETS` path never saw it.
@@ -109,6 +113,9 @@ describe('what a declaration block draws', () => {
 		// the literal shape of the report that prompted the keyword arm — would have filed all 36
 		// `color: var(…)` declarations this project writes as blank and reported rings that are on screen.
 		['color: var(--text-normal); outline: 2px solid currentColor', true],
+		// The same keyword split reaches `all`, or the arm above has become "any `all` blanks the ring
+		// drawn after it": `all: initial` sets `color` to a value that PAINTS.
+		['all: initial; outline: 2px solid currentColor', true],
 		// An inherited colour blanks only what DEPENDS on it. A ring that names its own colour is
 		// untouched, or "unknowable colour" has become "unknowable ring".
 		['color: inherit; outline: 2px solid red', true],

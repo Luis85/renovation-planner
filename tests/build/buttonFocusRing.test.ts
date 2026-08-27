@@ -360,6 +360,12 @@ describe('a flattened button and its focus ring', () => {
 			'an outline in currentcolor under an inherited colour that outranks a painting one',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { color: red; } .rp-dialog-button.rp-dialog-button:focus-visible { color: inherit; outline: 2px solid currentColor; }',
 		],
+		// `all: unset` reaches the text-colour channel too, so a ring drawn by a LATER, more specific
+		// rule resolves against the colour the reset took away.
+		[
+			'an outline in currentcolor over an all-reset colour',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { all: unset; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: 2px solid currentColor; }',
+		],
 		// And the cascade half of the initial: no `currentcolor` anywhere in the CSS, and the outline
 		// still takes the text colour.
 		[

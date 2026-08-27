@@ -320,6 +320,19 @@ export const indicatorOf = (
 			color = 'blank';
 			shadowPaints = false;
 			shadowFromCurrentColor = false;
+			// AND `color` IS ONE OF THE PROPERTIES `all` IS, which is the third time this reader has had
+			// to learn that: `CONTESTED` heard `all` first, `indicatorOf`'s outline and shadow second,
+			// and the text-colour channel had the identical blind spot the moment it existed. The same
+			// keyword split the unparsed arm makes — `unset`/`inherit` leave a colour no stylesheet
+			// holds, `initial` and `revert` name real ones.
+			//
+			// It also settles `deferred.color` without a line of its own, which is why there is none: a
+			// defined `blockColor` makes the deferral test false, so `all` files an outline colour as the
+			// BLANK it is rather than as a deferral to be resolved elsewhere. Left undefined, an
+			// `all: unset` reset filed `'deferred'` for a part it had just reset outright — masked today
+			// by `outline-style` going blank in the same arm, which is exactly how this kind of thing
+			// survives to matter later.
+			blockColor = !UNKNOWABLE_COLOR.has(declaration.value);
 			continue;
 		}
 		if (declaration.property !== 'unparsed') continue;

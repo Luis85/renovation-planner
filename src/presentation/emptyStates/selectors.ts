@@ -24,8 +24,15 @@ export type PlanEditorEmptyStateKey = 'noBackground' | 'noZones';
  * a plan," which may be false. Slice 17 owns what renders there.
  *
  * The precedence is a short-circuit over PRD §93's onboarding order (Import First Plan ->
- * Calibrate -> …), not a re-derivation of which lack is worse: a plan with no background
- * necessarily has no zones either, and the user is asked to do the FIRST missing step.
+ * Calibrate -> …), not a re-derivation of which lack is worse: the user is asked to do the
+ * FIRST missing step of that sequence.
+ *
+ * It is NOT because a background-less plan has no zones — it very often does.
+ * `create-sample-project` seeds five zones on a plan with no background, and the browser
+ * harness refuses a background outright on SDD §55 grounds, so the two scenes this project
+ * ships are both exactly that case. An earlier version of this paragraph asserted the
+ * opposite and read as correct for a whole slice, because the ORDER it justifies is right
+ * either way. The order is load-bearing; the premise was decoration, and wrong.
  */
 export function selectPlanEditorEmptyState(
 	plan: PlanDto | null,

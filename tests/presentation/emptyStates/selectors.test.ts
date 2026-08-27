@@ -45,8 +45,11 @@ describe('selectPlanEditorEmptyState', () => {
 
 	/**
 	 * The precedence is a FIXED order over PRD §93's onboarding sequence, not a re-derived
-	 * "which is more missing". A plan with no background and zones on it is exactly what the
-	 * sample project produces, so this arm is the one a user meets first.
+	 * "which is more missing" — and this case is the one that proves the order does not rest
+	 * on the premise two comments used to state, that a background-less plan has no zones.
+	 * It does have zones here, and it does in `create-sample-project` and in the browser
+	 * harness, which are the two scenes this project ships. This is the arm a user meets
+	 * first, and the arm a "simplification" of the selector would break.
 	 */
 	it('still asks for a background when the plan already has zones', () => {
 		expect(selectPlanEditorEmptyState(PLAN, [ZONE])).toBe('noBackground');

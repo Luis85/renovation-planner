@@ -55,9 +55,11 @@ setting and rewrites what resolves a path.
 
 ### In scope
 
-- **ADR-012**, deciding whether a project's folder is a stored field or is derived from where
-  its `Project.md` note sits. Written before the code, because the two answers produce
-  different schemas and the ADR is the artefact that survives the choice.
+- **ADR-0013** (corrected from "ADR-012" throughout this document — 0012 was already taken by
+  slice 9's [`0012-price-component-placement-in-the-cost-pipeline.md`](../adrs/0012-price-component-placement-in-the-cost-pipeline.md)
+  by the time this slice was written), deciding whether a project's folder is a stored field or
+  is derived from where its `Project.md` note sits. Written before the code, because the two
+  answers produce different schemas and the ADR is the artefact that survives the choice.
 - `RenovationPlannerSettings.projectFolder` becomes the **default location for a new project**,
   and is renamed to say so. It stops being the answer to "where is this entity."
 - A per-project folder, reaching every path `paths.ts` derives: `Plans/`, `Zones/`,
@@ -89,7 +91,7 @@ else. It is deliberately ahead of slice 19 and blocks it.
 
 ## Design
 
-### The decision ADR-012 owes
+### The decision ADR-0013 owes
 
 Two shapes, and the ADR picks one rather than this document doing it quietly:
 
@@ -132,12 +134,27 @@ the cost is worth naming rather than discovering: the scan already walks that li
 is a second walk of the same array, not a second read of every file. `frontmatterOf` is what
 costs, and it is called on the same set either way.
 
+**Corrected.** That last sentence is false and cited §102 for a claim §102 does not support:
+`collectNotes` filters by path prefix *before* calling `frontmatterOf`, so the call count is not
+unchanged — a 10,000-note vault with twenty notes under `Renovation/` costs twenty calls today
+and ten thousand after. The call is a `MetadataCache` map lookup plus an `EchoWindow` digest
+check rather than a file read, which is why the added cost is likely acceptable, but "the same
+set either way" was never true. See *The cost, named* in
+[`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md).
+
 **A note of ours under no root is skipped with a diagnostic**, the same shape `note-excluded`
 already has. That is a behaviour change worth stating. Today a note outside `projectFolder` is
 skipped *silently*, correctly, because everything outside the one folder is somebody else's
 note. With a root list, a note carrying our `type` and a valid `id` and sitting under no root is
 a different thing — an orphan — and saying nothing about it is how a project the index cannot
 see looks identical to a project that does not exist.
+
+**Withdrawn.** This diagnostic is not built. It depends on the root-list shape this document
+proposed, which the design document replaced with a declared bound: every note this plugin owns
+already carries `type` and `id`, so under the shape actually built there are no orphans — a note
+of ours anywhere in the vault is found and indexed, and there is nothing to report. See *The
+orphan diagnostic goes away, and this is the honest sentence* in
+[`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md).
 
 `VaultChangeAdapter` takes the same list and the same predicate. **One function answers "which
 root is this path under", and both callers use it.** The full scan and the incremental run
@@ -185,6 +202,15 @@ things a user did.
 
 ### The migration
 
+**Withdrawn, not built — this whole section describes work that does not happen.** Under the
+derived shape ADR-0013 chose, an existing vault's `Renovation/Project.md` with
+`Renovation/Plans/…` beside it already *is* a valid project folder — "the folder its `Project.md`
+sits in" answers `Renovation/` without moving anything — so there is nothing to move and no
+migration step is registered. See *No migration* in
+[`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md),
+the later measurement. The section below is left as written, as the record of what was proposed
+and why it turned out not to be owed.
+
 A vault holding the single-folder layout has `Renovation/Project.md`, `Renovation/Plans/…`,
 `Renovation/Zones/…` — every project sharing one folder. After this slice, each project needs
 its own.
@@ -215,6 +241,14 @@ exist.
 **A single-project vault — which is every vault this plugin has ever produced — moves in one
 folder rename.** So the failure window above is the multi-project case, and there are none yet.
 
+**Corrected.** That claim is not true: `create-sample-project` run twice seeds two projects into
+the same folder, because `freshNotePath` dedupes the second `Project.md` with an id suffix, so
+the second write succeeds rather than colliding. The multi-project case this paragraph called
+untested and not-yet-reachable is reachable today by running one command twice. The claim was
+load-bearing for the decision above not to design the partial-move failure window carefully, and
+it was wrong — see the design document's *The three corrections*
+(`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`).
+
 ## Interfaces & Contracts
 
 ```ts
@@ -240,7 +274,7 @@ converted in the same commit because `vue-tsc` runs first in `npm run build`.
 
 ## Persistence Impact
 
-No new note kind and no frontmatter change **if ADR-012 chooses the derived shape**. If it
+No new note kind and no frontmatter change **if ADR-0013 chooses the derived shape**. If it
 chooses the stored field, `Project` gains `folder:` and the project schema goes to 2 — which means
 registering a real v1→v2 step in `PROJECT_MIGRATIONS`. There is no version CONSTANT to edit:
 `MigrationRunner.latestVersions` derives each kind's version from the steps registered for it, so
@@ -284,16 +318,25 @@ because one uncovered branch fails the gate. That is arithmetic here, not a styl
 
 Three commits, and the ordering is what keeps `npm run check` passing at each:
 
-1. **`foldersOverlap` and the root-list types, with nobody calling them.** Pure additions, fully
-   tested, no behaviour change.
+1. ~~`foldersOverlap` and the root-list types, with nobody calling them. Pure additions, fully
+   tested, no behaviour change.~~ **Corrected — this commit would fail the gate it was written
+   to keep green.** `foldersOverlap` has no caller in this slice: under the derived shape,
+   "changing a project's folder" is a user dragging a folder in Obsidian's file explorer, with
+   no command and therefore no refusal point, and §83's overlap rule is library-versus-project,
+   which does not exist until slice 19. A pure export with no caller in `src/` fails
+   `npm run analyze`. `foldersOverlap` and `IndexRoots` move to slice 19, with their caller — see
+   the design document's *The three corrections*
+   (`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`).
 2. **The conversion.** `NoteVaultDeps.projectFolder` deleted, five repositories and both pipeline
    modules converted, index tests extended. Atomic by necessity — the deletion is what fails the
    build, and a half-converted tree does not compile.
-3. **The migration and the settings rename.**
+3. ~~The migration and the settings rename.~~ **Corrected — the migration half is withdrawn,
+   not built.** See the withdrawal note under *The migration* below. Only the settings rename
+   remains owed by this commit.
 
 ## Definition of Done
 
-- [ ] **ADR-012 exists and is Accepted**, stating whether a project's folder is stored or
+- [ ] **ADR-0013 exists and is Accepted**, stating whether a project's folder is stored or
       derived, naming ADR-011's precedent, and saying explicitly why
       [[Identity is the id, never the filename, title or path]] does not forbid the derived
       shape — the rule reads as though it settles this and it does not.
@@ -309,9 +352,11 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
       that function having exactly two callers. The defect being guarded is the full scan and
       the incremental run disagreeing about a note — what `stringField` already exists to
       prevent one level down.
-- [ ] A note of this plugin's under no root is skipped **with a diagnostic**, asserted on the
+- [ ] ~~A note of this plugin's under no root is skipped **with a diagnostic**, asserted on the
       logger call. Today it is skipped silently and correctly; with a root list, silence hides
-      an orphaned project.
+      an orphaned project.~~ **Withdrawn, not ticked:** under the declared bound actually built,
+      there are no orphans — a note of ours anywhere in the vault is found and indexed — so there
+      is nothing to report. See the design document.
 - [ ] Every entity's note lands in ITS OWN project's folder, asserted on the resulting path for
       two projects at once. `NoteVaultDeps.projectFolder` no longer exists, checked by the type.
 - [ ] A save whose project folder cannot be resolved returns a `PersistenceError` and writes
@@ -319,13 +364,17 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
       the read and the save.
 - [ ] Geometry sidecars still resolve as ADR-011 specifies, now inside the per-project folder,
       asserted through `PlanGeometryStore` against two projects.
-- [ ] The one-time migration moves a single-folder vault to per-project folders using
+- [ ] ~~The one-time migration moves a single-folder vault to per-project folders using
       `fileManager.renameFile` (so vault links survive), rebuilds the index, and persists the
       setting **only after** the move succeeded — asserted by failing the move partway and
-      checking that `data.json` still holds the old value.
-- [ ] A partial move reports a diagnostic naming every note it moved, and attempts no reverse
+      checking that `data.json` still holds the old value.~~
+- [ ] ~~A partial move reports a diagnostic naming every note it moved, and attempts no reverse
       move. Asserted because this is the documented cost rather than a bug: the test pins the
-      behaviour, it does not argue it is desirable.
+      behaviour, it does not argue it is desirable.~~ **Both withdrawn, not ticked:** the
+      one-time folder migration and its partial-move diagnostic. The derived shape makes the
+      existing single-folder layout a valid project folder already, so nothing has to move. See
+      *No migration* in
+      [`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md).
 - [ ] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — floors rise
       only if a finished increment measures above them.
 
@@ -337,7 +386,11 @@ scan cost named above.
 
 **ADRs**: [ADR-011](../adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md) —
 its rejected alternative is this slice's argument in miniature, and its "a project moves as one
-folder" consequence is what the derived shape preserves. **ADR-012 is owed by this slice.**
+folder" consequence is what the derived shape preserves. **ADR-0013 is owed by this slice** and
+now exists: [ADR-0013](../adrs/0013-a-project-folder-is-derived-from-its-note.md). Every "ADR-012"
+above is corrected to "ADR-0013" — 0012 names
+[ADR-0012](../adrs/0012-price-component-placement-in-the-cost-pipeline.md), slice 9's
+price-component-placement ADR, which this slice never owed and did not write.
 
 **Slices**: [04](04-persistence-and-repository-layer.md) — owns the index, and records the
 multi-root prerequisite this slice closes; [19](19-the-asset-catalogue-leaves-the-project.md) —

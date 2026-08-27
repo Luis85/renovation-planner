@@ -478,6 +478,20 @@ const partDraws = (
  * which is a comparison this file's model does not make anywhere — so a border channel would credit
  * every bordered button as ringed, a false negative far wider than the false positive it fixes.
  *
+ * THREE MORE PROPERTIES HAVE THE IDENTICAL SHAPE and are deliberately NOT abstained on, which is the
+ * more interesting half of this decision. `background-color`, `text-decoration` and a
+ * `filter: drop-shadow(…)` revealed on focus are all real indicators WCAG accepts, all reported by
+ * this scan today, and all unjudgeable here for the same reason the border is — the indicator is a
+ * state CHANGE. Probed unprompted; no focus rule in this project touches any of them, so the false
+ * positive is latent exactly as the border's was.
+ *
+ * What separates them is what abstention COSTS going forward, not what it costs today. A focus rule
+ * touching a border is rare; one tweaking a background is ordinary, so abstaining there would stop
+ * this scan checking a large share of the buttons anyone writes next — it would quietly become a
+ * gate that passes whatever it cannot read. The border is where the line sits because that trade
+ * comes out the other way, and moving it is a decision for whoever hits the false positive, with
+ * this measurement in hand rather than re-derived.
+ *
  * So the honest answer is that this gate cannot judge it, and the site is dropped rather than
  * reported. The cost is stated rather than hidden: `.button:focus-visible { border-color: transparent }`
  * now silences a site it should report. That is the trade — a narrow silence against failing correct

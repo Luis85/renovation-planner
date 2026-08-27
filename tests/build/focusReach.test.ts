@@ -174,6 +174,18 @@ describe('which elements a focus rule reaches', () => {
 		['the same written against :focus', '.rp-dialog-button:not(:focus) { box-shadow: none; }'],
 		['a negation mixing focus with a class', '.rp-dialog-button:not(:focus-visible, .other) { box-shadow: none; }'],
 		['a reset that applies only while disabled', '.rp-dialog-button:disabled { box-shadow: none; }'],
+		// THROUGH TWO NEGATIONS IT IS STILL POSITIVELY DISABLED, which is why the walk carries a parity
+		// rather than testing for the spelling. And the second is the negation's own rule applied to this
+		// arm: `:not(A, B)` is `NOT (A OR B)`, so an A that no focused element can fail makes the whole
+		// negation impossible for one, whatever B says.
+		[
+			'a positive disabled condition through two negations',
+			'.rp-dialog-button:not(:not(:disabled)) { box-shadow: none; }',
+		],
+		[
+			'a nested disabled condition beside another argument',
+			'.rp-dialog-button:not(:not(:disabled), .other) { box-shadow: none; }',
+		],
 		// AND IT MUST BE ABSENT, not merely barred from recording a site. Filed as an ordinary at-rest
 		// rule it still RANKS, and each of these outranks the ring it must not touch: neither selector
 		// matches a focused button, so the red outline is on screen and there is nothing to report.
@@ -192,16 +204,17 @@ describe('which elements a focus rule reaches', () => {
 	});
 
 	/**
-	 * The exclusion is narrow in four directions, and each is a case. A DOUBLE negative is positive
+	 * The exclusion is narrow in seven directions, and each is a case. A DOUBLE negative is positive
 	 * focus, so it flattens like any focus rule. A `:not()` naming something other than focus excludes
 	 * nothing about focus. A `:not()` whose argument is a COMPOUND excludes nothing either —
 	 * `:not(:focus-visible.other)` still matches a focused button that is not an `.other` one, which is
 	 * why the shape test asks for a lone pseudo rather than for a focus pseudo somewhere inside. And
 	 * `:enabled` is NOT the mirror of `:disabled`: a focused form control satisfies it, so it excludes
 	 * nothing about focus either — the elements it is false for are the ones that are not form
-	 * controls at all.
+	 * controls at all. Three more come from the disabled parity, and the comment beside them says what
+	 * each holds.
 	 *
-	 * The fifth is the other direction of the same rule: an excluded rule cannot ANSWER a site either.
+	 * The last is the other direction of the same rule: an excluded rule cannot ANSWER a site either.
 	 * A ring that shows only while UNFOCUSED is no focus indicator, so the site it cannot flatten is
 	 * also a site it cannot clear. That one passes whether the rule is skipped outright or merely
 	 * barred from recording a site — an excluded rule is filed `atRest`, and an at-rest rule already
@@ -215,6 +228,21 @@ describe('which elements a focus rule reaches', () => {
 			'.rp-dialog-button:not(:focus-visible.other) { box-shadow: none; }',
 		],
 		['a reset that applies only while enabled', '.rp-dialog-button:enabled { box-shadow: none; }'],
+		// THE PARITY RUNS BOTH WAYS, and these are the shapes that must survive it. `:not(:disabled)` is
+		// VACUOUS on a focused element rather than impossible — every focusable control satisfies it — and
+		// a third negation puts the selector back there. Reached UNDER a negation the shape is
+		// `(A OR B …)`, which implies nothing unless there is exactly one alternative:
+		// `:not(:not(:disabled, .other))` is `:disabled OR .other`, and a focused `.other` button matches
+		// it. Written with the positive side's `some` on both sides, that last one is silently excluded.
+		['a vacuous not-disabled condition', '.rp-dialog-button:not(:disabled) { box-shadow: none; }'],
+		[
+			'a disabled condition through three negations',
+			'.rp-dialog-button:not(:not(:not(:disabled))) { box-shadow: none; }',
+		],
+		[
+			'a disjunction one focusable arm satisfies',
+			'.rp-dialog-button:not(:not(:disabled, .other)) { box-shadow: none; }',
+		],
 		[
 			'a ring that shows only while unfocused',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:focus-visible) { outline: 2px solid red; }',

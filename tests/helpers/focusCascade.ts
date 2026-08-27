@@ -164,34 +164,53 @@ const impliedByFocus = (component: SelectorComponent): boolean => {
 };
 
 /**
- * Can an element matching this component NEVER be focused, so the rule is not in the focused
- * cascade at all?
+ * Can a KEYBOARD-FOCUSED element match this component, or is the rule absent from that cascade
+ * entirely? `negated` asks the same question of the component's NEGATION.
  *
  * A DIFFERENT QUESTION FROM `isFocusPseudo`, and conflating them shipped a wrong test. That walk
  * answers "does this IMPOSE focus", and it is bounded to one argument of one component because its
  * caller STRIPS what it answers true for — dropping `:not(:focus-visible, .danger)` would drop the
- * danger exclusion with it. This one only asks whether a focused element can match at all, and for
- * that the purity bound is not merely unnecessary but WRONG: `:not(A, B)` is `NOT (A OR B)`, so if
- * A matches every focused element the whole negation fails for one, whatever B says.
+ * danger exclusion with it. Round 42 reused it here and shipped a case asserting that
+ * `:not(:focus-visible, .other)` still flattens. It does not, and the case was inverted.
  *
- * Round 42 reused the parity walk here and shipped a case asserting that
- * `:not(:focus-visible, .other)` still flattens. It does not — that rule stops matching the moment
- * the button is focused — and the case has been inverted.
+ * THE BOUND IS PER PARITY, which is the whole lesson of that mistake written as code. Reaching a
+ * `:not()` POSITIVELY, the shape is `NOT (A OR B …)`, so ONE argument that every focused element
+ * matches fails the whole negation for one — `some`, and no purity bound at all. Reaching it under
+ * a negation, the shape is `(A OR B …)`, which implies nothing unless there is exactly one
+ * alternative — the purity bound, and for the same reason the stripping caller needs one.
  *
- * `:disabled` is the other half, and the mirror of a rule already in this file: `:not(:disabled)` is
- * VACUOUS on a focused element because a disabled control is not in the tab order, and by the same
- * fact `:disabled` is IMPOSSIBLE on one. `:enabled` is neither, and stays out — it is satisfiable by
- * a focused form control, and false only for elements that are not form controls at all.
+ * `:disabled` is the second fact, and the mirror of `impliedByFocus` above: a disabled control is
+ * out of the tab order, so `:not(:disabled)` is VACUOUS on a focused element and `:disabled` is
+ * IMPOSSIBLE on one. Written as a parity walk rather than a lone `kind === 'disabled'` test because
+ * `:not(:not(:disabled))` matches only disabled buttons through two negations, and answering it by
+ * spelling is the exact class of hole every reader in this file has had.
  *
- * An argument that is a COMPOUND rather than a lone pseudo does not qualify:
- * `:not(:focus-visible.danger)` still matches a focused button that is not a danger button.
+ * `:enabled` is neither and stays out: a focused form control satisfies it, and the elements it is
+ * false for are the ones that are not form controls at all.
+ *
+ * NOT MERGED with `isFocusPseudo` and `impliedByFocus`, whose union at their one shared call site is
+ * this walk's odd-parity answer. Spelling that site `!excludesFocus(component, true)` was built and
+ * run: it flips NO case in the suite. That is not evidence the two agree — it is evidence the suite
+ * cannot tell them apart, which is the worse reason to merge, so they stay separate. Their caller
+ * STRIPS what they answer true for and this one EXCLUDES, and a single signature would put both
+ * callers' bounds in one place, which is the mistake of round 42 pointing the other way.
  */
-const cannotBeFocused = (component: SelectorComponent): boolean => {
+const excludesFocus = (component: SelectorComponent, negated = false): boolean => {
 	if (component.type !== 'pseudo-class') return false;
-	if (component.kind === 'disabled') return true;
+	// A focused element matches the focus pseudos and no disabled one, so each excludes focus under
+	// exactly one parity, and they are opposites.
+	if (FOCUS_PSEUDOS.has(component.kind)) return negated;
+	if (component.kind === 'disabled') return !negated;
 	if (component.kind !== 'not') return false;
 
-	return argumentsOf(component).some((argument) => argument.length === 1 && isFocusPseudo(argument[0]));
+	const args = argumentsOf(component);
+
+	if (negated) return args.length === 1 && args[0].length === 1 && excludesFocus(args[0][0], false);
+
+	// A COMPOUND argument is not one every focused element matches — `:not(:focus-visible.danger)`
+	// still matches a focused button that is not a danger button — so the lone-component test stays
+	// on this side too. It is the argument that must be lone here, never the argument LIST.
+	return args.some((argument) => argument.length === 1 && excludesFocus(argument[0], true));
 };
 
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
@@ -491,17 +510,23 @@ const partDraws = (
 	// RESOLVED HERE rather than in a helper the two callers share, because a helper that calls back
 	// into this function and is called from it is mutual recursion, which `no-use-before-define`
 	// refuses whichever way round the two are written. The recursion is one level deep and provably
-	// so: a `text-color` rule's `draws` is a boolean, never `'deferred'`, so the arm below cannot be
-	// taken twice.
-	const settled = winner === undefined ? INITIAL[part] : winner.draws;
-	const winnerDraws = settled === 'deferred' ? partDraws(rules, site, 'text-color').draws : settled;
+	// so: a `text-color` rule's `draws` is a boolean, never `'deferred'`, so no rule reached below
+	// can take this arm again.
+	//
+	// EVERY RULE THIS FUNCTION JUDGES GOES THROUGH IT, not the winner alone. The disqualifier below
+	// tested `draws === false`, which a deferred rule is not whatever its colour resolves to — so
+	// `.button-danger:focus-visible { outline-color: currentColor }` beside `color: transparent`
+	// beat the winning ring with an invisible one and disqualified nothing.
+	// TAKES THE VALUE, not the rule, because the INITIAL is one of the values that defers: a longhand
+	// nobody sets lands on `currentcolor`, which is the whole cascade half of this channel. Written to
+	// take a rule, `winner === undefined` skipped the resolution and an unset `outline-color` over a
+	// transparent text colour drew a ring nobody can see. Caught by the case that pins exactly that.
+	const resolve = (draws: FocusRule['draws']): boolean =>
+		draws === 'deferred' ? partDraws(rules, site, 'text-color').draws : draws;
+	const winnerDraws = resolve(winner === undefined ? INITIAL[part] : winner.draws);
 
 	if (!winnerDraws) return { draws: false, changesOnFocus: false };
 
-	// `=== false` rather than `!draws`, and it is a CLARITY change with no behaviour in it: `'deferred'`
-	// is a truthy string, so `!draws` already answers false for one. Spelled out because the next value
-	// added to this union may not be, and a falsy one would silently make every deferred rule a
-	// disqualifier. Probed rather than assumed — the two spellings flip no case here.
 	// BLANK **OR** AT REST, which is the same pair the shadow arm below tests and for the same reason.
 	// A blank rule that beats the winner leaves those elements with nothing; an AT-REST rule that beats
 	// it leaves them looking identical focused and unfocused, which is equally no indicator however
@@ -510,13 +535,26 @@ const partDraws = (
 	// winner — it can only disqualify, and dropping the at-rest half here silently un-reported it.
 	if (
 		forPart.some(
-			(other) => (other.draws === false || other.atRest) && (winner === undefined || beats(other, winner)),
+			(other) => (!resolve(other.draws) || other.atRest) && (winner === undefined || beats(other, winner)),
 		)
 	)
 		return { draws: false, changesOnFocus: false };
 
 	// A longhand nobody sets lands on its INITIAL, which is the resting value too — so an unwritten
 	// part is never the thing that changes on focus.
+	//
+	// PROVENANCE, NOT VALUE, and the limitation is stated here rather than left to read as a
+	// comparison. This answers "a focus rule won this longhand", not "the focused value differs from
+	// the resting one" — so `.button.button { outline: 2px solid red }` with
+	// `.button.button:focus-visible { outline-color: red }` is credited a ring while the button looks
+	// identical either way. Measured on that fixture, not reasoned about.
+	//
+	// It is the SAME comparison `touchesABorder` declines to build, for the same reason: a `FocusRule`
+	// carries a `draws` boolean per longhand and no value, so making it would mean `indicatorOf`
+	// returning a value per part and a normalisation deciding that `red`, `#f00` and `rgb(255 0 0)`
+	// are one colour. Not built here because the CSS it catches is a focus rule restating what already
+	// won at rest, which nothing in this project writes — latent exactly as the border's was, and
+	// left with the measurement in hand rather than re-derived.
 	return { draws: true, changesOnFocus: winner !== undefined && !winner.atRest };
 };
 
@@ -607,15 +645,22 @@ const answers = (rules: readonly FocusRule[], site: { readonly conditions: Condi
 
 	if (parts.every((part) => part.draws) && parts.some((part) => part.changesOnFocus)) return true;
 
+	// RESOLVED ON BOTH SIDES of the shadow arm, candidate and disqualifier alike. The two are the same
+	// question — does this shadow put anything on screen — and only the candidate was asking it: a
+	// deferred `box-shadow: 0 0 0 3px currentColor` that BEATS an earlier red one is neither `false`
+	// nor at rest, so with `color: transparent` winning elsewhere the browser's winning shadow was
+	// invisible while the losing red one still answered the site.
+	const shadowDraws = (draws: FocusRule['draws']): boolean =>
+		draws === 'deferred' ? partDraws(rules, site, 'text-color').draws : draws;
+
 	return rules.some(
 		(drawing) =>
 			drawing.property === 'shadow' &&
 			!drawing.atRest &&
-			(drawing.draws === 'deferred' ? partDraws(rules, site, 'text-color').draws : drawing.draws) &&
+			shadowDraws(drawing.draws) &&
 			covers(drawing.conditions, site.conditions) &&
 			!rules.some(
-				(other) =>
-					other.property === 'shadow' && beats(other, drawing) && (other.draws === false || other.atRest),
+				(other) => other.property === 'shadow' && beats(other, drawing) && (!shadowDraws(other.draws) || other.atRest),
 			),
 	);
 };
@@ -723,7 +768,7 @@ export const flattenedWithoutRing = (
 				// absent from the focused element's cascade rather than present and losing. That is not
 				// the same as suppressing the site — filed at rest it would still RANK, and a more
 				// specific one outranks the ring it must not touch.
-				if (subjectOf(branch).some((component) => cannotBeFocused(component))) continue;
+				if (subjectOf(branch).some((component) => excludesFocus(component))) continue;
 
 				const ringsFocus = subjectOf(branch).some((component) => isFocusPseudo(component));
 				// FLATTENING IS REPLACING, not only suppressing, and it is decided per BRANCH because the

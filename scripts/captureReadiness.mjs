@@ -72,7 +72,7 @@ export async function describeFailure(page, entry, fallback) {
  * place either says so.
  *
  * A no-op for a fixed shot (no `entry`): `waitForSelector`'s contract is presence, not "and
- * stays clean", and none of today's five fixed surfaces ever clears itself the way an
+ * stays clean", and none of today's ten fixed surfaces ever clears itself the way an
  * entry's Suspense boundary can.
  *
  * `hasDrawn` is the caller's readiness predicate (`entryHasDrawn` in `harness-shot.mjs`),

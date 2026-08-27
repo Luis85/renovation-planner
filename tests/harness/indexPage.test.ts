@@ -314,14 +314,15 @@ describe('the harness index, with nothing to open', () => {
 		const wrapper = await openIndex('index');
 
 		expect(wrapper.text()).toContain('No prototypes yet');
-		// One space, from the template rather than from the stylesheet: the row's TEXT is what a
-		// copy and a screen reader get, and a margin contributes nothing to it. Three would mean
-		// the separator had gone back to being a node BETWEEN the two elements — see the
-		// template's own comment for why that spelling produces three.
-		expect(wrapper.findAll('nav li').map((li) => li.text())).toEqual([
-			'StatusBar component',
-			'ViewRoot component',
-		]);
+		// The NAME alone. The kind used to be appended to every row and is a section heading now,
+		// so a row's text is the one thing the row is about — which is also what a copy and a
+		// screen reader get from it.
+		expect(wrapper.findAll('nav li').map((li) => li.text())).toEqual(['StatusBar', 'ViewRoot']);
+		// The kind, said once per group instead of once per row, with the group's size in the
+		// heading's own accessible name. The empty group still draws its heading: a section that
+		// vanished when its tree was empty would make "no prototypes" and "no prototypes SECTION"
+		// the same picture.
+		expect(wrapper.findAll('nav h2').map((heading) => heading.text())).toEqual(['Prototypes 0', 'Components 2']);
 
 		wrapper.unmount();
 	});

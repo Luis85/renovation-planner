@@ -39,11 +39,22 @@ const entry = (id: string, kind: HarnessEntry['kind']): HarnessEntry => ({
 });
 
 /**
+ * Which GROUP a row is in, read the way a reader gets it: the heading of the section the row
+ * sits under. The kind used to be a span in the row itself and is a section heading now, so
+ * this is the same fact asked of the markup that actually carries it.
+ *
+ * `firstChild` and not `textContent`: the heading also holds `.rp-harness-count`, and joining
+ * the two would make every one of these assertions depend on how many entries the case happens
+ * to declare — a detail none of them is about.
+ */
+const groupOf = (row: Element): string => row.closest('section')?.querySelector('h2')?.firstChild?.textContent?.trim() ?? '';
+
+/**
  * The list as three separate readings rather than one `li.text()` per row. `text()` concatenates
- * a row's children with nothing between them — `ZonePanelprototype` — because the DOM genuinely
- * has no separator there and the spacing is a stylesheet's job (`theme.css`). Asserting on that
- * joined string would make these cases depend on a rendering detail they are not about, and
- * would go red the day a separator is added to the markup.
+ * a row's children with nothing between them, because the DOM genuinely has no separator there
+ * and the spacing is a stylesheet's job (`theme.css`). Asserting on that joined string would make
+ * these cases depend on a rendering detail they are not about, and would go red the day a
+ * separator is added to the markup.
  */
 const rows = () => {
 	const wrapper = mount(IndexPage, { global: indexAppConfig() });
@@ -51,7 +62,7 @@ const rows = () => {
 	return {
 		wrapper,
 		labels: wrapper.findAll('nav li a').map((link) => link.text()),
-		kinds: wrapper.findAll('nav li > span:first-of-type').map((span) => span.text()),
+		kinds: wrapper.findAll('nav li').map((row) => groupOf(row.element)),
 		markers: wrapper.findAll('nav li .rp-harness-ambiguous').map((span) => span.text()),
 	};
 };
@@ -86,7 +97,7 @@ describe('the index list, on a label that resolves to nothing', () => {
 		const { wrapper, labels, kinds, markers } = rows();
 
 		expect(labels).toEqual(['StatusBar', 'StatusBar']);
-		expect(kinds).toEqual(['prototype', 'component']);
+		expect(kinds).toEqual(['Prototypes', 'Components']);
 		expect(markers).toEqual([]);
 
 		wrapper.unmount();
@@ -106,7 +117,7 @@ describe('the index list, on a label that resolves to nothing', () => {
 		const { wrapper, labels, kinds, markers } = rows();
 
 		expect(labels).toEqual(['ZoneList', 'ZoneList', 'ZoneList']);
-		expect(kinds).toEqual(['prototype', 'component', 'component']);
+		expect(kinds).toEqual(['Prototypes', 'Components', 'Components']);
 		expect(markers).toEqual([
 			'shares this name and kind with another entry',
 			'shares this name and kind with another entry',

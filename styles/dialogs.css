@@ -67,18 +67,38 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.rp-dialog-candidate {
+/*
+ * Qualified with `.rp-dialog`, exactly as `.rp-dialog-button-danger` below is and for the same
+ * reason its comment gives. Unlike `.rp-dialog-button` — which asks for `--interactive-normal`,
+ * the very value Obsidian's rule would apply anyway, and so is harmless left bare — a candidate
+ * row asks for `--background-secondary`, a DIFFERENT value, and lost it: measured at
+ * `rgb(51,51,51)` where the sheet asks for `rgb(40,40,40)`. The rows of an entity picker are
+ * meant to read as a list inset into the dialog, not as a stack of standalone buttons.
+ */
+.rp-dialog .rp-dialog-candidate {
 	width: 100%;
 	padding: var(--size-4-2);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
 	background-color: var(--background-secondary);
+	box-shadow: none;
 	color: var(--text-normal);
 	text-align: left;
 	cursor: pointer;
 }
 
-.rp-dialog-candidate:hover {
+/*
+ * The ring. `styles/editor.css`'s toolbar `:focus-visible` block carries the measurement and the
+ * reason this is the accent rather than Obsidian's own ring token; the short version is that the
+ * host's ring measures under 3:1 in both schemes, and a candidate list is navigated by keyboard
+ * more than by mouse.
+ */
+.rp-dialog .rp-dialog-candidate:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-dialog .rp-dialog-candidate:hover {
 	background-color: var(--background-modifier-hover);
 }
 

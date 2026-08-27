@@ -45,6 +45,46 @@ const components = componentEntries();
 const all = computed<HarnessEntry[]>(() => [...prototypes, ...components]);
 
 /**
+ * The list as the two GROUPS a reader navigates by, rather than as one flat list carrying the
+ * kind on every row.
+ *
+ * The kind was a word appended to all twenty-one rows, which is a grouping printed once per
+ * member. It cost three things at once: twenty-one repetitions of two words, a sidebar whose
+ * width was set by the longest `label + kind` pair rather than by the longest NAME, and a
+ * heading structure a screen reader could not use to skip past the mocks to the components.
+ * A heading per kind says it once and gives the nav real structure.
+ *
+ * The kind is still on every row for the reader who needs it — as the section the row is in —
+ * which is what keeps `rowNotes` legible: "shares this name and kind with another entry" now
+ * marks two rows that are visibly adjacent under one heading, instead of two identical rows
+ * somewhere in a flat list of twenty-one.
+ *
+ * A plain array and not a `computed`: `prototypeEntries()` and `componentEntries()` are read
+ * once at setup from a build-time glob, so there is nothing here for reactivity to track.
+ * `all` stays a `computed` because `rowNotes` and `unusableLabels` derive from it and are
+ * read from the template.
+ */
+const groups = [
+	{
+		kind: 'prototype' as const,
+		heading: 'Prototypes',
+		entries: prototypes,
+		// Names the tree AND the extension, because the empty state is the one screen where the
+		// reader has nothing to copy the convention from.
+		empty: 'No prototypes yet — add a .vue file under src/prototypes/.',
+	},
+	{
+		kind: 'component' as const,
+		heading: 'Components',
+		entries: components,
+		// Unreachable while `src/presentation/` holds a single `.vue` file, and written anyway:
+		// the alternative is a section heading with nothing under it and no word about why,
+		// which reads as a broken glob rather than as an empty tree.
+		empty: 'No components found under src/presentation/.',
+	},
+];
+
+/**
  * The labels `registrableComponents` refuses to register, surfaced in the list.
  *
  * Two entries of the same KIND sharing a basename — two mocks, or two components in different
@@ -839,45 +879,71 @@ if (initial) void open(initial);
 			aria-label="Harness entries"
 		>
 			<h1>Harness</h1>
-			<p v-if="prototypes.length === 0">
-				No prototypes yet — add a .vue file under src/prototypes/.
-			</p>
-			<ul>
-				<li
-					v-for="entry in all"
-					:key="entry.id"
-				>
-					<a
-						:href="hrefFor(entry)"
-						@click.exact.prevent="open(entry)"
-					>{{ entry.label }}</a>
-					<!--
-						A REAL space, INSIDE the span. Vue's `whitespace: 'condense'` removes the
-						newline between two elements, so the row's text linearises as
-						`ZonePanelprototype` wherever the visual gap is not what is being read — a
-						copy, or assistive technology reading the row rather than the link.
-						`theme.css`'s margin answers the pixels and cannot answer that.
+			<section
+				v-for="group in groups"
+				:key="group.kind"
+				class="rp-harness-group"
+			>
+				<!--
+					The count is inside the heading rather than beside it, so it joins the
+					heading's accessible name: a screen reader lands on "Prototypes 4" and knows
+					how far the section runs without walking it. It is the only number this page
+					has, and it is the one a reader wants before choosing.
+				-->
+				<h2>
+					{{ group.heading }}
+					<span class="rp-harness-count">{{ group.entries.length }}</span>
+				</h2>
+				<p v-if="group.entries.length === 0">
+					{{ group.empty }}
+				</p>
+				<ul v-else>
+					<li
+						v-for="entry in group.entries"
+						:key="entry.id"
+					>
+						<!--
+							`aria-current` and not a class alone: which entry is on the stage is
+							state, and a class is only ever styling. `pendingId` rather than
+							`renderedId` is deliberate — it names what the reader ASKED for, so a
+							row that failed to render still marks itself as the one being looked
+							at, which is exactly when a reader needs the list to say so.
+						-->
+						<a
+							:href="hrefFor(entry)"
+							:aria-current="entry.id === pendingId ? 'page' : undefined"
+							@click.exact.prevent="open(entry)"
+						>{{ entry.label }}</a>
+						<!--
+							Words, not a colour or an icon: SDD §85 refuses colour as the only
+							channel, and this row has to say WHY the name cannot be written into a
+							prototype, not merely that something is off about it. The entry is still
+							a link — it opens perfectly well on its own; it is the TAG that resolves
+							to nothing.
 
-						Inside rather than between: a bare `{{ ' ' }}` node between the two elements
-						produced THREE spaces, because condense only deletes a whitespace-only node
-						between two ELEMENTS and condenses it to one space next to a text node — so
-						the separator, plus the two collapsed neighbours, all survived. Measured,
-						not reasoned about.
-					-->
-					<span>{{ ' ' + entry.kind }}</span>
-					<!--
-						Words, not a colour or an icon: SDD §85 refuses colour as the only
-						channel, and this row has to say WHY the name cannot be written into a
-						prototype, not merely that something is off about it. The entry is still
-						a link — it opens perfectly well on its own; it is the TAG that resolves
-						to nothing.
-					-->
-					<span
-						v-if="rowNotes.get(entry.id)"
-						class="rp-harness-ambiguous"
-					>{{ ' ' + rowNotes.get(entry.id) }}</span>
-				</li>
-			</ul>
+							A REAL space, INSIDE the span. Vue's `whitespace: 'condense'` removes
+							the newline between two elements, so a row's text linearises with
+							nothing between them wherever the visual gap is not what is being read
+							— a copy, or assistive technology reading the row rather than the link.
+							A stylesheet answers the pixels and cannot answer that. (Every row used
+							to carry a second span for the kind, which is where this was found: the
+							list read `ZonePanelprototype`, after forty-four review rounds over this
+							template. The kind is a heading now; the idiom stays here, on the one
+							span still following a link.)
+
+							Inside rather than between: a bare `{{ ' ' }}` node between the two
+							elements produced THREE spaces, because condense only deletes a
+							whitespace-only node between two ELEMENTS and condenses it to one space
+							next to a text node — so the separator, plus the two collapsed
+							neighbours, all survived. Measured, not reasoned about.
+						-->
+						<span
+							v-if="rowNotes.get(entry.id)"
+							class="rp-harness-ambiguous"
+						>{{ ' ' + rowNotes.get(entry.id) }}</span>
+					</li>
+				</ul>
+			</section>
 		</nav>
 		<main
 			class="rp-harness-stage"
@@ -935,8 +1001,23 @@ if (initial) void open(initial);
 					<component :is="openComponent" />
 				</EntryBoundary>
 			</Suspense>
-			<p v-else>
+			<!--
+				The sentence is unchanged on purpose: four comments across this tree and
+				`scripts/captureReadiness.mjs` name "Pick an entry." as the thing an eyeless
+				capture must never photograph as a success, and a reworded empty state would
+				make every one of them describe a screen that no longer exists.
+
+				The count beneath it is the orientation the sentence never gave — an eight
+				hundred pixel pane holding one four-word instruction says nothing about whether
+				the glob found anything, and a glob that found NOTHING draws the identical
+				screen. `all.length` is the one number that separates them.
+			-->
+			<p
+				v-else
+				class="rp-harness-empty"
+			>
 				Pick an entry.
+				<span>{{ all.length }} to choose from.</span>
 			</p>
 		</main>
 	</div>

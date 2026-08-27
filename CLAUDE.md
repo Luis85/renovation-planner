@@ -620,10 +620,12 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   **`?index`** draws an index of every prototype and every real component, discovered from the
   tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
   directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
-  and the bare root still draws the project view: the three fixed captures address that surface
-  with no `view` parameter at all — two of the three carry a query string (`?theme=light`,
-  `?phone`), just never a `view` one — so making a bare root mean "index" would break them
-  while the test asserting they exist kept passing. Mocks live in `src/prototypes/` as
+  and the bare root still draws the project view: the three project-view captures address that
+  surface with no `view` parameter at all — two of the three carry a query string
+  (`?theme=light`, `?phone`), just never a `view` one — so making a bare root mean "index" would
+  break them while the test asserting they exist kept passing. The index has two fixed captures
+  of its OWN (`?index` in both schemes), which is a different thing from the bare root meaning
+  index and is what lets this tool photograph its own chrome. Mocks live in `src/prototypes/` as
   SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style scoped>` — written to the
   same Vue lint rules as the rest of `src/` so that promotion is moving the file rather than
   redrawing the markup. A template-only mock composes real components and sibling mocks through
@@ -643,11 +645,12 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   list, is outside what `chunk.modules` can see, and not cheaply checkable.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
-  scheme plus `?phone` and both Plan Editor schemes to a gitignored `harness-shots/`
+  scheme plus `?phone`, both Plan Editor schemes and both harness-index schemes to a gitignored
+  `harness-shots/`
   folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
   (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
   basename the index displays) it captures that one prototype or component from the index
-  instead of the five fixed shots, in both colour schemes, with the index's own sidebar
+  instead of the ten fixed shots, in both colour schemes, with the index's own sidebar
   dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
   well, which is the width an Obsidian sidebar leaf actually has and the one that has already
   hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
@@ -656,7 +659,7 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
-  **It has now caught five defects the whole of `npm run check` could not**, which is the
+  **It has now caught ten defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
   pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
   clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
@@ -678,6 +681,33 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   symptom is a measurement no layout engine performs — spacing, wrapping, overflow, contrast, hit
   size — is outside every gate this repository has, and a capture read by eye is the only
   instrument here that reaches it.
+
+  **Six to ten came from the first design review of the harness index itself**, and they are the
+  paragraph above proved rather than restated — every one is a measurement no layout engine in
+  this repository performs, and `npm run check` was green on all five at once. The entry links
+  had NO visible focus indicator: the vendored app.css carries `:focus { outline: none }` and
+  `a { outline: none }`, and its reduction kept no `a:focus-visible` to put one back, so the
+  page's only navigation was invisible to a keyboard — WCAG 2.2 2.4.7 at AA, which `PRODUCT.md`
+  binds by name. The rows were 19.5px tall against 2.5.8's 24px minimum. The kind label was
+  dimmed with `opacity: 0.6`, which composites to **4.29:1** on the light scheme's background
+  and passes in dark — a contrast value no source file contains, which is the general lesson
+  about dimming text with opacity. `.rp-harness-failure` — the tree's one live region — was
+  applied in the template and declared in NO stylesheet, so a failed entry and an unpicked one
+  drew the same picture. And the fix for the first four introduced the fifth: `.rp-harness-index
+  h2` is a descendant selector, the stage lives inside that element, and the picker's uppercase
+  type was drawn over every entry's own headings until a capture showed `WorkPackages.vue`'s
+  title reading "WORK PACKAGES". `tests/harness/indexChrome.test.ts` refuses a selector that
+  reaches the mounted entry now, from any of the three roots that lead there — the picker, the
+  stage and the leaf — rather than only the one that shipped.
+
+  **Which capture watches which of the other four**, because the resting pair cannot watch all
+  of them and saying it could is how a state stops being looked at: `index-dark`/`index-light`
+  hold the row height and the kind label's contrast, both of which are on screen at rest.
+  A focus ring is not — nothing is focused in a headless page until something presses Tab — so
+  that one is `index-focus`, which is why that shot takes a `focus` selector and why
+  `focusForShot` presses Tab rather than calling `page.focus()`, which does not satisfy
+  `:focus-visible`. The failure card is not on screen either, since no entry has failed: it is
+  `index-failure`, which asks for an entry id that does not exist.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.

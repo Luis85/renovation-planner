@@ -194,7 +194,7 @@ export function parseSelector(selector: string): Selector {
 const MATCHES_THE_SUBJECT = new Set(['is', 'where', 'any']);
 
 /** A pseudo-class node's argument list, or `[]` when it has none. */
-const argumentsOf = (component: SelectorComponent): SelectorList =>
+export const argumentsOf = (component: SelectorComponent): SelectorList =>
 	component.type === 'pseudo-class' && 'selectors' in component && Array.isArray(component.selectors)
 		? component.selectors
 		: [];

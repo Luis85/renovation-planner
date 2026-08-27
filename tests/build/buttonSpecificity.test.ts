@@ -58,7 +58,11 @@ const OBSIDIAN_BUTTON = [0, 1, 1] as const;
  * `background\s*:` does not match `background-color:` — the hyphen sits between the word and the
  * colon — so listing both matches each once rather than double-counting.
  */
-const CONTESTED = new Set(['background-color', 'background', 'color', 'box-shadow', 'all']);
+const CONTESTED: ReadonlyMap<string, readonly string[]> = new Map([
+	['background-color', ['background-color', 'background', 'all']],
+	['color', ['color', 'all']],
+	['box-shadow', ['box-shadow', 'all']],
+]);
 
 /**
  * Rules deliberately left to lose, by name and with the reason — the shape `.oxlintrc.json` uses
@@ -513,22 +517,27 @@ const losingButtonRules = (scanned: readonly (readonly [string, string])[], clas
 			// background-color: blue` keeps the colour and loses the background, so the site is real.
 			// `rule.important` is keyed by property, which also settles a property declared both ways in
 			// one block — the important declaration is the one that stands.
-			// A SHORTHAND CARRIES ITS IMPORTANCE TO EVERY LONGHAND IT SETS, and `rule.important` is keyed
-			// by the property as WRITTEN. So `all: unset !important; color: red` lists only `all`, and
-			// reading `color` as independently normal reported a rule the important `all` wins outright
-			// — the false positive the importance fix itself introduced, one shorthand out.
+			// ASKED OF THE LONGHAND, never of the property as written, because the two disagree in both
+			// directions and each direction produced a false positive on valid CSS.
 			//
-			// The same two shorthands `CONTESTED` already names: `all` covers every property there is,
-			// and `background` covers `background-color`. Listed rather than derived, because a
-			// shorthand's longhands are not something a parsed declaration announces.
-			const importantly = (property: string): boolean =>
-				rule.important.has(property) ||
-				rule.important.has('all') ||
-				(property === 'background-color' && rule.important.has('background'));
-
-			const contested = rule.declarations
-				.map((declaration) => propertyOf(declaration))
-				.filter((property) => CONTESTED.has(property) && !importantly(property));
+			// Downward: `all: unset !important; color: red` lists only `all` in `rule.important`, so
+			// reading `color` as independently normal reported a rule the important `all` wins outright.
+			// Upward: `background: transparent; background-color: red !important` leaves the only
+			// host-contested longhand important, so the rule wins — while the normal `background`
+			// shorthand beside it still read as an offender.
+			//
+			// So a longhand is contested here when SOME property that sets it is declared and NONE that
+			// sets it is important. That settles the order question too: whichever of a shorthand and
+			// its longhand comes second, an important declaration touching the longhand is the one that
+			// stands, because `stylesheetRules` hands back normal declarations before important ones.
+			//
+			// The setter lists are written out because a shorthand's longhands are not something a
+			// parsed declaration announces. A third shorthand costs one more entry, and the map is
+			// keyed by the three longhands Obsidian's rule actually sets rather than by every spelling.
+			const declared = new Set(rule.declarations.map((declaration) => propertyOf(declaration)));
+			const contested = [...CONTESTED.values()].filter(
+				(setters) => setters.some((property) => declared.has(property)) && !setters.some((property) => rule.important.has(property)),
+			);
 
 			if (contested.length === 0) continue;
 
@@ -586,6 +595,12 @@ describe('every button rule against Obsidian\'s own', () => {
 		// there is no normal contested declaration left to lose.
 		'all: unset !important; color: red',
 		'background: transparent !important; background-color: blue',
+		// And the REVERSE cascade: a normal shorthand whose only host-contested longhand is separately
+		// important. `background-color` is the one property Obsidian's rule contests here, and it is
+		// the important one, so the rule wins — while the normal `background` beside it read as an
+		// offender for as long as this was asked of the property as written.
+		'background: transparent; background-color: red !important',
+		'color: blue; color: red !important',
 	])(
 		'says nothing about a bare button class that wins %s',
 		(declaration) => {

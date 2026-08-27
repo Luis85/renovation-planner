@@ -298,6 +298,21 @@ describe('a flattened button and its focus ring', () => {
 			'a universal focus reset',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } *:focus-visible:focus-visible { outline: none; }',
 		],
+		// And ODD depth stays a CONDITION rather than becoming focus: `:not(:focus-visible)` draws its
+		// outline while the button is UNFOCUSED, so it is no indicator at all and this site is still an
+		// offender. Without the parity the recursion would read it as a focus rule, credit it as a
+		// ring, and clear a button that has none — the widening being strictly worse than the miss.
+		[
+			'an outline drawn only while unfocused',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:focus-visible) { outline: 2px solid red; }',
+		],
+		// A DOUBLE NEGATIVE IS POSITIVE. `:not(:not(:focus-visible))` is logically `:focus-visible`, and
+		// read as a plain `:not` the rule was classified as a non-focus one that never entered the
+		// cascade at all — so the ring stood while the browser takes it away.
+		[
+			'a doubly negated focus reset',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:not(:not(:focus-visible)) { outline: none; }',
+		],
 		[
 			'a where-wrapped ring the later reset ties and beats',
 			'.rp-dialog-button { box-shadow: none; } :where(#scope).rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: none; }',

@@ -1,5 +1,5 @@
 import type { Selector, SelectorComponent } from 'lightningcss';
-import { alternativesOf, moreSpecific, show, specificityOf, stylesheetRules } from './selectors';
+import { alternativesOf, argumentsOf, moreSpecific, show, specificityOf, stylesheetRules } from './selectors';
 import { indicatorOf, type OutlinePart } from './indicators';
 import { buttonClassesOn, subjectOf, targetsAButton } from './buttonRules';
 
@@ -80,8 +80,31 @@ interface FocusSite {
  */
 const FOCUS_PSEUDOS = new Set(['focus', 'focus-visible', 'focus-within']);
 
-const isFocusPseudo = (component: SelectorComponent): boolean =>
-	component.type === 'pseudo-class' && FOCUS_PSEUDOS.has(component.kind);
+/**
+ * Does this component impose focus POSITIVELY — at any nesting depth, through an even number of
+ * negations?
+ *
+ * `:is()` and `:where()` are handled by `alternativesOf` before a branch ever reaches here, so the
+ * one shape left is a double negative: `:not(:not(:focus-visible))` is logically `:focus-visible`,
+ * and read as a plain `:not` it classified the rule as a non-focus one that never entered the
+ * cascade at all. Pathological CSS, and that is exactly the class of spelling every hole in these
+ * readers has been.
+ *
+ * The parity is what makes it right rather than just wider. `:not(:focus-visible)` styles an
+ * UNFOCUSED button and must stay a condition rather than become a focus rule, so an odd depth
+ * answers false — and the same recursion delivers that without a second rule for it.
+ */
+const isFocusPseudo = (component: SelectorComponent, negated = false): boolean => {
+	if (component.type !== 'pseudo-class') return false;
+	if (FOCUS_PSEUDOS.has(component.kind)) return !negated;
+	// `:not()` ALONE, because `alternativesOf` has already expanded `:is()`, `:where()` and `:any()`
+	// into separate branches before one reaches here — a branch carries no union left to look inside.
+	// `:has()` is not recursed either, and must not be: it describes what hangs BELOW the element,
+	// so `:has(:focus-visible)` is an ancestor of something focused rather than the focused thing.
+	if (component.kind !== 'not') return false;
+
+	return argumentsOf(component).some((argument) => argument.some((part) => isFocusPseudo(part, !negated)));
+};
 
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what

@@ -9,6 +9,17 @@ import type { EchoWindow } from '../../persistence/index/EchoWindow';
  * The vault collaborators every note-backed repository takes — constructed once at the
  * composition root and shared between them. The repositories never reach `app`
  * themselves.
+ *
+ * A project's folder is deliberately NOT among them. It used to be (`projectFolder`, the
+ * plugin setting, normalized once in each repository's constructor), and that was a lost
+ * update waiting to happen: five repositories cached the SAME string, so a project's note
+ * moving to a different folder — a rename, a manual reorganisation in the vault — left
+ * every one of them writing new notes into a folder no project's note actually sat in
+ * anymore. Under ADR-0013 a project's folder is DERIVED, the folder its own note sits in
+ * (`projectFolderOf`, resolved through the index), and a derived value cannot be a
+ * constructor field — it has to be read fresh at the point each save needs it, which is
+ * what made a per-project field a build failure rather than a convention the moment this
+ * one was deleted.
  */
 export interface NoteVaultDeps {
 	readonly vault: Vault;
@@ -21,8 +32,6 @@ export interface NoteVaultDeps {
 	readonly logger: Logger;
 	/** Read refusals land here (opaque id + error code only), for SDD §68's snapshot. */
 	readonly ledger: DiagnosticsLedger;
-	/** The one location setting (ADR-011); the user's raw string, normalized on use. */
-	readonly projectFolder: string;
 }
 
 /**

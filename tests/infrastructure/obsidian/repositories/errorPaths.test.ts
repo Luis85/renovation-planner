@@ -35,6 +35,19 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 }
 
 /**
+ * Folder resolution goes through the index now (ADR-0013), so an Asset or a Requirement
+ * needs a REAL, registered project underneath it — a bare `createProjectId()` used to be
+ * enough because both repositories read the shared setting out of `NoteVaultDeps` instead.
+ * Left unregistered, a save against it refuses with `*.project-folder-unresolved` before
+ * reaching the behaviour each case below actually names.
+ */
+async function seedProject(stack: RepositoryStack): Promise<ProjectId> {
+	const projectId = createProjectId();
+	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+	return projectId;
+}
+
+/**
  * A note from a build this one predates, planted in a vault that otherwise loads: the
  * exact input SDD §92 item 13's word "unsupported" names. Rewriting the field on disk
  * rather than through a repository is the point — no writer in this plugin can produce
@@ -143,15 +156,18 @@ const NOTE_BACKED_CASES: ReadonlyArray<{
 	},
 	{
 		kind: 'asset',
-		seed: async (stack) =>
-			expectOk(await stack.assets.save(makeAssetEntity({ projectId: createProjectId() }), 'absent')).entity.id,
+		seed: async (stack) => {
+			const projectId = await seedProject(stack);
+			return expectOk(await stack.assets.save(makeAssetEntity({ projectId }), 'absent')).entity.id;
+		},
 		read: (stack, id) => stack.assets.getById(id as never),
 	},
 	{
 		kind: 'requirement',
 		seed: async (stack) => {
+			const projectId = await seedProject(stack);
 			const requirement = makeRequirementEntity({
-				projectId: createProjectId(),
+				projectId,
 				assetId: createAssetId(),
 				origin: { kind: 'zone', zoneId: createZoneId() },
 			});
@@ -307,7 +323,8 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	 */
 	it('is a READ gate: a save holding a current expectation overwrites a future-version note', async () => {
 		const stack = createRepositoryStack();
-		const asset = makeAssetEntity({ projectId: createProjectId() });
+		const projectId = await seedProject(stack);
+		const asset = makeAssetEntity({ projectId });
 		expectOk(await stack.assets.save(asset, 'absent'));
 		plantFutureSchemaVersion(stack, asset.id);
 		expect(expectErr(await stack.assets.getById(asset.id)).code).toBe('asset.schema-version-unsupported');
@@ -332,7 +349,8 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	 */
 	it('refuses to DELETE a future-version note, not only to load one', async () => {
 		const stack = createRepositoryStack();
-		const asset = makeAssetEntity({ projectId: createProjectId() });
+		const projectId = await seedProject(stack);
+		const asset = makeAssetEntity({ projectId });
 		const written = expectOk(await stack.assets.save(asset, 'absent'));
 		plantFutureSchemaVersion(stack, asset.id);
 

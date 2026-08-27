@@ -7,10 +7,19 @@ import {
 	projectFolderOf,
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { createRepositoryStack } from '../../../helpers/vault';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
+import {
+	makeAsset as makeAssetEntity,
+	makePlan as makePlanEntity,
+	makeProject as makeProjectEntity,
+	makeRequirement as makeRequirementEntity,
+	makeZone as makeZoneEntity,
+} from '../../../helpers/entities';
 import type { ProjectId } from '../../../../src/domain/project/ProjectId';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
+import type { AssetId } from '../../../../src/domain/asset/AssetId';
+import type { RequirementId } from '../../../../src/domain/requirement/RequirementId';
+import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
 
 describe('joinFolder', () => {
 	it('joins a folder and a child with one separator', () => {
@@ -153,6 +162,117 @@ describe('plans and zones land in their own project folder', () => {
 		expect(result.ok === false && result.error.category).toBe('Persistence');
 		expect(result.ok === false && result.error.code).toBe('zone.project-folder-unresolved');
 		expect([...stack.vault.entries.keys()]).toEqual(before);
+	});
+});
+
+describe('assets and requirements land in their own project folder', () => {
+	it('writes two projects\' assets and requirements into two different folders', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		const bathroom = makeProjectEntity({ id: 'p2' as ProjectId, name: 'Bathroom' });
+		await stack.projects.save(kitchen, 'absent');
+		await stack.projects.save(bathroom, 'absent');
+
+		const tiles = makeAssetEntity({ id: 'a1' as AssetId, projectId: 'p1' as ProjectId, name: 'Tiles' });
+		const grout = makeAssetEntity({ id: 'a2' as AssetId, projectId: 'p2' as ProjectId, name: 'Grout' });
+		await stack.assets.save(tiles, 'absent');
+		await stack.assets.save(grout, 'absent');
+
+		expect(stack.index.getPath('a1' as never)).toBe('Renovation/Kitchen Refit/Assets/Tiles.md');
+		expect(stack.index.getPath('a2' as never)).toBe('Renovation/Bathroom/Assets/Grout.md');
+
+		const requirement = makeRequirementEntity({
+			id: 'r1' as RequirementId,
+			projectId: 'p2' as ProjectId,
+			assetId: grout.id,
+			origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
+		});
+		await stack.requirements.save(requirement, 'absent');
+
+		expect(stack.index.getPath('r1' as never)).toBe('Renovation/Bathroom/Requirements/r1.md');
+	});
+
+	it('refuses an asset save whose project folder cannot be resolved, and writes nothing', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		await stack.projects.save(kitchen, 'absent');
+		const tiles = makeAssetEntity({ projectId: 'p1' as ProjectId, name: 'Tiles' });
+		const before = [...stack.vault.entries.keys()];
+
+		// Same route as the plan and zone cases: the index entry disappears between the read
+		// and the save, which is the only way to reach the arm — and it must never fall back
+		// to the configured root.
+		stack.index.remove('p1' as never);
+		const result = await stack.assets.save(tiles, 'absent');
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.category).toBe('Persistence');
+		expect(result.ok === false && result.error.code).toBe('asset.project-folder-unresolved');
+		expect([...stack.vault.entries.keys()]).toEqual(before);
+	});
+
+	it('refuses a requirement save whose project folder cannot be resolved, and writes nothing', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		await stack.projects.save(kitchen, 'absent');
+		const requirement = makeRequirementEntity({
+			projectId: 'p1' as ProjectId,
+			assetId: 'a1' as AssetId,
+			origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
+		});
+		const before = [...stack.vault.entries.keys()];
+
+		stack.index.remove('p1' as never);
+		const result = await stack.requirements.save(requirement, 'absent');
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.category).toBe('Persistence');
+		expect(result.ok === false && result.error.code).toBe('requirement.project-folder-unresolved');
+		expect([...stack.vault.entries.keys()]).toEqual(before);
+	});
+
+	it('refuses to mark a requirement stale whose project folder cannot be resolved, and writes nothing', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		await stack.projects.save(kitchen, 'absent');
+		const requirement = makeRequirementEntity({
+			id: 'r1' as RequirementId,
+			projectId: 'p1' as ProjectId,
+			assetId: 'a1' as AssetId,
+			origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
+		});
+		await stack.requirements.save(requirement, 'absent');
+		const before = [...stack.vault.entries.keys()];
+
+		// `markStale` resolves the folder for itself (it scans the folder rather than
+		// reading the note it just found through the index) — a second site the index
+		// entry disappearing between the read and the write reaches, same as save.
+		stack.index.remove('p1' as never);
+		const result = await stack.requirements.markStale('r1' as RequirementId);
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.category).toBe('Persistence');
+		expect(result.ok === false && result.error.code).toBe('requirement.project-folder-unresolved');
+		expect([...stack.vault.entries.keys()]).toEqual(before);
+	});
+
+	it('reads and writes a project in the old single-folder layout unchanged', async () => {
+		// Every vault this plugin has produced looks like this: the project note and the
+		// per-kind folders directly under the configured root. Under ADR-0013 that IS a
+		// valid project — its folder is `Renovation` — so nothing has to move, and this is
+		// the test under that claim rather than a paragraph asserting it.
+		const stack = createRepositoryStack('Renovation');
+		stack.vault.entries.set(
+			'Renovation/Project.md',
+			serializeFrontmatter({ type: 'renovation-project', id: 'p-old', 'schema-version': 1, name: 'Old Layout' }),
+		);
+		stack.metadataCache.catchUp();
+		stack.rebuildIndex();
+
+		const plan = makePlanEntity({ id: 'pl-old' as PlanId, projectId: 'p-old' as ProjectId, name: 'Ground floor' });
+		await stack.plans.save(plan, 'absent');
+
+		expect(stack.index.getPath('pl-old' as never)).toBe('Renovation/Plans/Ground floor.md');
 	});
 });
 

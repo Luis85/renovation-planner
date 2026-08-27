@@ -1,11 +1,12 @@
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import { isErr, ok, type Result } from '../../../core/result/Result';
+import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetRepository } from '../../../application/ports/AssetRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
-import { assetsFolderFor, normalizeFolder } from '../repositories/paths';
+import { assetsFolderFor, projectFolderOf } from '../repositories/paths';
+import { persistenceError } from '../repositories/noteIo';
 import { KeyedQueues } from '../repositories/KeyedQueues';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import { assetFromPersistence, assetToPersistence } from '../../persistence/mappers/assetMapper';
@@ -30,15 +31,15 @@ const SPEC: NoteWriteSpec<Asset> = {
 /**
  * The Zone repository's six-step save contract, without the geometry sidecar — an asset
  * note owns no second file. The write SEQUENCE lives once in `noteEntityWrite`; this
- * class keeps the per-kind facts: its folder, its mapper and its error codes.
+ * class keeps the per-kind facts: its mapper and its error codes. Its folder is resolved
+ * per save, from the owning project's own note (ADR-0013, `projectFolderOf`) — never a
+ * constructor field, since a project's folder can move (a rename, a manual reorganisation)
+ * between one save and the next.
  */
 export class ObsidianAssetRepository implements AssetRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
-	constructor(private readonly deps: NoteVaultDeps) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	constructor(private readonly deps: NoteVaultDeps) {}
 
 	getById(id: AssetId): Promise<Result<Loaded<Asset> | null, RepositoryError>> {
 		return readNoteBackedEntity(this.deps, 'asset', id, assetFromPersistence, 'asset.entity-invalid');
@@ -55,7 +56,13 @@ export class ObsidianAssetRepository implements AssetRepository {
 		asset: Asset,
 		expected: Expected,
 	): Promise<Result<Loaded<Asset>, RepositoryError>> {
-		const spec: NoteWriteSpec<Asset> = { ...SPEC, notesFolder: assetsFolderFor(this.folder) };
+		const folder = projectFolderOf(this.deps.index, asset.projectId);
+		if (folder === undefined) {
+			return Promise.resolve(
+				err(persistenceError('asset.project-folder-unresolved', `Could not resolve the folder of project ${asset.projectId} for asset ${asset.id}.`)),
+			);
+		}
+		const spec: NoteWriteSpec<Asset> = { ...SPEC, notesFolder: assetsFolderFor(folder) };
 		return saveNoteBackedEntity(this.deps, spec, asset, expected);
 	}
 

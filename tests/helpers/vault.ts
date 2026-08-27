@@ -320,6 +320,14 @@ export interface RepositoryStack {
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
+	/**
+	 * The default root the stack was constructed with — `createRepositoryStack`'s own
+	 * argument, echoed back for a caller that needs it. Under ADR-0013 this is no longer a
+	 * per-project field any of the five note-backed repositories read: `ObsidianProjectRepository`
+	 * is the only one that still takes it directly (Task 5's `newProjectRoot`), because it is
+	 * the one repository that ever writes a note whose folder does not already exist to be
+	 * derived from. Every other project's folder is `projectFolderOf`'s to answer.
+	 */
 	projectFolder: string;
 	/** Rebuilds the index from the vault contents — the scan the plugin runs at load. */
 	rebuildIndex(): void;
@@ -361,7 +369,6 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		migrations,
 		logger,
 		ledger,
-		projectFolder,
 	};
 	const store = new PlanGeometryStore(vault as never, fileManager as never, index, migrations, echo);
 
@@ -379,8 +386,8 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		projects: new ObsidianProjectRepository(deps, projectFolder),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
-	assets: new ObsidianAssetRepository(deps),
-	requirements: new ObsidianRequirementRepository(deps),
+		assets: new ObsidianAssetRepository(deps),
+		requirements: new ObsidianRequirementRepository(deps),
 		projectFolder,
 		rebuildIndex() {
 			index.rebuild(

@@ -424,7 +424,6 @@ export function createCompositionRoot(
 		migrations,
 		logger,
 		ledger,
-		projectFolder: settings.projectFolder,
 	};
 	const repositories = composeRepositories(deps, vault, settings.projectFolder);
 	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;

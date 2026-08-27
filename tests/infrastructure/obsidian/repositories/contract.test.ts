@@ -257,7 +257,11 @@ describe('writing into a folder nothing has created yet', () => {
 		// returned ok", which is what a fake with no folders would have allowed. Under its
 		// project's OWN folder (ADR-0013), not the bare configured root.
 		const sidecarPath = stack.index.getGeometrySidecarPath(plan.id);
-		const projectFolder = projectFolderOf(stack.index, project.id) ?? normalizeFolder(stack.projectFolder);
+		// No `?? normalizeFolder(stack.projectFolder)` fallback: the project was just saved
+		// above, so `projectFolderOf` always resolves — a fallback that never fires is dead
+		// tolerance that would silently reconstruct the old flat path the day it stopped.
+		const projectFolder = projectFolderOf(stack.index, project.id);
+		if (projectFolder === undefined) throw new Error(`no folder indexed for project ${project.id}`);
 		expect(sidecarPath).toBe(sidecarPathFor(projectFolder, plan.id));
 		expect(stack.vault.entries.has(sidecarPath as string)).toBe(true);
 	});
@@ -315,7 +319,7 @@ assetRepositoryContract(() => {
 	return {
 		repository: stack.assets,
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 	};
 });
 
@@ -324,7 +328,7 @@ requirementRepositoryContract(() => {
 	return {
 		repository: stack.requirements,
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 		newZone: () => createZoneId(),
 		newAsset: () => createAssetId(),
 	};

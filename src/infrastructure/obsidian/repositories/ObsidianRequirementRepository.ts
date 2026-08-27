@@ -11,7 +11,7 @@ import {
 	persistenceError,
 	writeOwnedFrontmatter,
 } from '../repositories/noteIo';
-import { normalizeFolder, requirementsFolderFor } from '../repositories/paths';
+import { projectFolderOf, requirementsFolderFor } from '../repositories/paths';
 import { KeyedQueues } from '../repositories/KeyedQueues';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import {
@@ -36,15 +36,15 @@ function requirementFileName(requirement: Requirement): string {
  * one method no other repository has: it sets ONE field in ONE direction, inside the same
  * per-entity queue section as every other write, so its read-modify-write cannot
  * interleave with a concurrent override or recalculation. The shared save/delete
- * SEQUENCE lives once in `noteEntityWrite`.
+ * SEQUENCE lives once in `noteEntityWrite`. Both `saveQueued` and `markStale` resolve the
+ * owning project's folder for themselves, once per method (ADR-0013,
+ * `projectFolderOf`) — never a constructor field, and never shared between the two, since
+ * each is its own call path.
  */
 export class ObsidianRequirementRepository implements RequirementRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
-	constructor(private readonly deps: NoteVaultDeps) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	constructor(private readonly deps: NoteVaultDeps) {}
 
 	getById(id: RequirementId): Promise<Result<Loaded<Requirement> | null, RepositoryError>> {
 		return readNoteBackedEntity(
@@ -69,10 +69,16 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 		requirement: Requirement,
 		expected: Expected,
 	): Promise<Result<Loaded<Requirement>, RepositoryError>> {
+		const folder = projectFolderOf(this.deps.index, requirement.projectId);
+		if (folder === undefined) {
+			return Promise.resolve(
+				err(persistenceError('requirement.project-folder-unresolved', `Could not resolve the folder of project ${requirement.projectId} for requirement ${requirement.id}.`)),
+			);
+		}
 		const spec: NoteWriteSpec<Requirement> = {
 			kind: 'requirement',
 			indexType: 'renovation-requirement',
-			notesFolder: requirementsFolderFor(this.folder),
+			notesFolder: requirementsFolderFor(folder),
 			entryName: requirementFileName,
 			toPersistence: requirementToPersistence,
 			preWriteValid: (dto) => requirementFromPersistence({ ...dto }).ok,
@@ -115,11 +121,17 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 			if (!marked.ok) {
 				return err(persistenceError('requirement.mark-stale-invalid', marked.error.message));
 			}
+			const folder = projectFolderOf(this.deps.index, entity.projectId);
+			if (folder === undefined) {
+				return err(
+					persistenceError('requirement.project-folder-unresolved', `Could not resolve the folder of project ${entity.projectId} for requirement ${id}.`),
+				);
+			}
 			const dto = requirementToPersistence(marked.value, loaded.value.version.revision);
 			const file = findNoteIdInFolder(
 				this.deps,
 				this.deps.vault,
-				requirementsFolderFor(this.folder),
+				requirementsFolderFor(folder),
 				id,
 			);
 			if (!file) {

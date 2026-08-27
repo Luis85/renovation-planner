@@ -419,6 +419,20 @@ describe('a flattened button and its focus ring', () => {
 			'a winning base shadow that leaves the focused button unchanged',
 			'.rp-dialog-button { box-shadow: 0 0 0 1px red !important; } .rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px blue; }',
 		],
+		// A BUTTON WEARING TWO SCANNED CLASSES IS ONE ELEMENT, so a reset written against the narrower
+		// class bares the very buttons the broader site stands for. Filed under its own key alone, the
+		// reset and the site never met. `buttonClassGroups` knows the pair co-occur because it scanned
+		// the markup, so widening states a fact rather than a guess.
+		[
+			'a co-occurring base outline reset that outranks the ring',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button-danger { outline: none !important; }',
+		],
+		// It holds when the co-occurring rule DRAWS, too — round 37's roles apply to a widened rule the
+		// same way: it outranks the ring without ever answering for it.
+		[
+			'a co-occurring base outline that wins and draws',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button-danger { outline: 2px solid blue !important; }',
+		],
 		// The outline channel had the identical hole and was not named in the report.
 		[
 			'a winning base outline that leaves the focused button unchanged',
@@ -511,6 +525,17 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'a losing base outline under a more specific focus outline',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: 2px solid blue; }',
+		],
+		// The widening is by co-occurrence, not by "every class". A reset on a class NO button wears
+		// alongside this one reaches none of these elements and must stay out — which is what keeps
+		// this from becoming round 23's over-correction in its class-versus-class form.
+		[
+			'an important reset on a class from an unrelated group',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-editor-tool-button { outline: none !important; }',
+		],
+		[
+			'a co-occurring base reset the focus ring outranks',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button-danger { outline: none; }',
 		],
 		// The fourth channel must not become "a currentcolor ring never counts". Three shapes hold that
 		// line, and each fails against a different over-correction: a colour that PAINTS wins the

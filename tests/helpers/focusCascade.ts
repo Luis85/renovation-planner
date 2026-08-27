@@ -654,9 +654,18 @@ export const flattenedWithoutRing = (
 					// A focus rule is heard in every cascade it can REACH, not only the one it is filed
 					// under. `cascadeKeys` says which, and why the two overlaps differ — and why a rule
 					// that DRAWS gets only the type one.
-					const reaches = ringsFocus
-						? cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0)
-						: [key];
+					// EVERY RULE IS HEARD IN EVERY CASCADE IT REACHES, focus or not, and the `ringsFocus`
+					// ternary that used to sit here kept a base rule under its own key alone. A button
+					// wearing two scanned classes is one element, so
+					// `.rp-dialog-button-danger { outline: none !important }` bares the very buttons a
+					// `.rp-dialog-button` site stands for — and filed apart, the reset and the site never
+					// met. Widening states a fact about the markup rather than a guess: `buttonClassGroups`
+					// knows the pair co-occur because it scanned the tags.
+					//
+					// SITES are still never widened — `flattened` is keyed by `key`, not by this — and
+					// `covers` still decides what a widened rule may ANSWER, so a danger reset disqualifies
+					// a ring at the plain site without ever answering for it.
+					const reaches = cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0);
 
 					// `color` IS NOT A FOCUS DECLARATION and is filed outside the `ringsFocus` guard for
 					// that reason: a button's text colour while focused is whatever wins at rest unless a
@@ -674,7 +683,7 @@ export const flattenedWithoutRing = (
 					// type-targeted ring, and `covers` keeps the class-group half honest exactly as it does
 					// there.
 					if (textColor !== undefined)
-						for (const reached of cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0))
+						for (const reached of reaches)
 							ringed.set(reached, [
 								...(ringed.get(reached) ?? []),
 								{

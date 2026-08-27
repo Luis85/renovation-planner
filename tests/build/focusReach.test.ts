@@ -1,0 +1,143 @@
+import { describe, expect, it } from 'vitest';
+import { flattenedWithoutRing } from '../helpers/focusCascade';
+
+/**
+ * WHICH ELEMENTS A RULE REACHES, asked of the focus scan and of nothing else.
+ *
+ * Split from `buttonFocusRing.test.ts` at its line budget — the fourth cut of this seam, and like
+ * the other three it separates two questions rather than two halves of one. What stays there is
+ * about the CASCADE: many rules over one element, and which wins. These are about REACH: whether a
+ * rule applies to the button at all — an ancestor's focus state is not the button's, a type-targeted
+ * subject wears no class of ours, a border-based indicator is one this scan cannot judge.
+ *
+ * The fixture set is duplicated rather than shared, deliberately: a helper exporting `BUTTONS` and
+ * `GROUPS` would make one file's edit silently change the other's answers, and both files assert
+ * against exact offender lists.
+ */
+const BUTTONS = new Set(['.rp-dialog-button', '.rp-dialog-button-danger', '.rp-editor-tool-button']);
+const GROUPS: ReadonlySet<string>[] = [
+	new Set(['.rp-dialog-button', '.rp-dialog-button-danger']),
+	new Set(['.rp-editor-tool-button']),
+];
+
+describe('which elements a focus rule reaches', () => {
+	/**
+	 * A RING BELONGS TO THE ELEMENT THAT IS FOCUSED. Focusing a button does not make its ancestor
+	 * match `:focus-visible`, so a rule keyed on the ancestor draws nothing when the button is
+	 * tabbed to — and a search over the whole branch credited the button a ring for it.
+	 */
+	it.each([
+		[
+			'an ancestor carrying the focus pseudo',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog:focus-visible .rp-dialog-button { outline: 2px solid red; }',
+		],
+		[
+			'a focused ancestor of a type-targeted button',
+			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar:focus-visible button { outline: 2px solid red; }',
+		],
+	])('reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toHaveLength(1);
+	});
+
+
+	// The ring rule reduces to the same shape as the rule that flattened, which is what makes the
+	// two answer each other. `:hover` above deliberately does not.
+	it.each([
+		[
+			'a ring on the same shape',
+			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar button:focus-visible { outline: 2px solid red; }',
+		],
+		['a bare button ringed', 'button { box-shadow: none; } button:focus-visible { outline: 2px solid red; }'],
+		// THE RING AND THE FLATTENING RULE NEED NOT NAME THE BUTTON THE SAME WAY. A bare `button`
+		// subject matches every button, so this ring reaches the flattened class as surely as a
+		// type-targeted RESET reaches it — which the case below this block already covered. Only the
+		// revoking direction was widened, so the drawing rule stayed filed under `button`, could not
+		// answer a site filed under `.rp-dialog-button`, and the gate rejected CSS that rings.
+		[
+			'a class flattened and a type-targeted ring',
+			'.rp-dialog-button { box-shadow: none; } button:focus-visible { outline: 2px solid red; }',
+		],
+		// And the other way down that cascade, or "the reset wins" has replaced "the set wins". At
+		// EQUAL scope only — the more-specific version of this puts the ring back inside `.rp-dialog`
+		// and nowhere else, which is a reporting case below rather than a silent one.
+		// And the twin of the reporting case above, which is what keeps the per-longhand cascade from
+		// becoming "two rules setting different longhands never draw": these two combine into a solid
+		// red outline of the initial medium width, and that is a ring.
+		[
+			'an outline assembled from two rules',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline-color: red; } .rp-dialog-button:focus-visible { outline-style: solid; }',
+		],
+		// AN IMPORTANT SHORTHAND BESIDE A REDUNDANT NORMAL LONGHAND. The important `outline` wins every
+		// component in the browser, so this ring stands and the later normal reset cannot touch it.
+		// Under the whole-outline importance this file used to resolve, the normal `outline-color`
+		// made `every(...)` false, the block read as wholly normal, and the reset beat it — the gate
+		// rejecting CSS that rings. Per-longhand importance has no such arm: `outline` being important
+		// makes every part important, whatever else the block also sets.
+		[
+			'an important outline shorthand beside a normal longhand',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red !important; outline-color: red; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: none; }',
+		],
+		// And the other direction: a `:focus` RING draws when the button is tabbed to, so it answers a
+		// flattening site as surely as a `:focus-visible` one. Without this the widening above would
+		// be half-applied — hearing every reset while crediting no ring, which reports valid CSS.
+		[
+			'a ring drawn on plain :focus',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus { outline: 2px solid red; }',
+		],
+		[
+			'a reset a later rule of equal specificity puts back',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; }',
+		],
+	])('says nothing about a type-targeted rule with %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
+	});
+
+	/**
+	 * A RESERVED TRANSPARENT BORDER REVEALED ON FOCUS IS A REAL INDICATOR, and a common one: it draws
+	 * a ring and shifts no layout. Reported as unringed, the gate FAILED THE BUILD on valid CSS.
+	 *
+	 * This scan ABSTAINS rather than crediting properly, and the reason is that modelling a border as
+	 * an indicator channel would be worse than the bug. The outline and shadow model asks "does the
+	 * focused state paint something"; for a border that is the wrong question, because a button with a
+	 * permanent visible border and no focus treatment at all answers YES. The indicator is the CHANGE
+	 * between resting and focused, a comparison this file makes nowhere.
+	 *
+	 * The cost is a narrow silence — `:focus-visible { border-color: transparent }` no longer reports —
+	 * and it is the cheaper side of the trade against failing correct CSS.
+	 */
+	it.each([
+		[
+			'a transparent border coloured on focus',
+			'.rp-dialog-button { box-shadow: none; border: 2px solid transparent; } .rp-dialog-button:focus-visible { border-color: red; }',
+		],
+		[
+			'a logical border set on focus',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { border-inline: 2px solid red; }',
+		],
+	])('says nothing about %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
+	});
+
+	/**
+	 * ABSTAINING IS A SILENCE, so it is scoped as tightly as the rest. Four `border-` families paint no
+	 * edge — a rounded corner, a replaced decoration, and two table-layout properties — and a focus
+	 * rule that only rounds a corner must not buy silence for a button with no ring. Nor may a border
+	 * set on HOVER, which is not a focus state, or one scoped somewhere the site is not.
+	 */
+	it.each([
+		['border-radius alone', '.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { border-radius: 4px; }'],
+		[
+			'border-image alone',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { border-image: url(a.png) 30; }',
+		],
+		['a border set on hover', '.rp-dialog-button { box-shadow: none; } .rp-dialog-button:hover { border: 2px solid red; }'],
+		[
+			'a border focus rule scoped where the site is not',
+			'.rp-dialog-button { box-shadow: none; } .dialog .rp-dialog-button:focus-visible { border: 2px solid red; }',
+		],
+	])('still reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([
+			'.rp-dialog-button',
+		]);
+	});
+});

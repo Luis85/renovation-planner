@@ -1,5 +1,13 @@
 import type { Selector, SelectorComponent } from 'lightningcss';
-import { alternativesOf, argumentsOf, moreSpecific, show, specificityOf, stylesheetRules } from './selectors';
+import {
+	alternativesOf,
+	argumentsOf,
+	moreSpecific,
+	propertyOf,
+	show,
+	specificityOf,
+	stylesheetRules,
+} from './selectors';
 import { indicatorOf, type OutlinePart } from './indicators';
 import { buttonClassesOn, subjectOf, targetsAButton } from './buttonRules';
 
@@ -235,7 +243,7 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
  * nobody sets are THE SAME VALUE — the second is the first spelled by omission — so a boundary
  * between them was never a boundary between two risks. It was one value read two ways.
  */
-type Channel = OutlinePart | 'shadow' | 'text-color';
+type Channel = OutlinePart | 'shadow' | 'text-color' | 'border';
 
 /** One `:focus-visible` declaration, as the per-site cascade needs it. */
 interface FocusRule {
@@ -433,7 +441,45 @@ const partDraws = (
 	return !forPart.some((blank) => blank.draws === false && (winner === undefined || beats(blank, winner)));
 };
 
+/**
+ * Does a focus rule touch a BORDER at this site — in which case this scan ABSTAINS?
+ *
+ * A reserved transparent border revealed on focus is a legitimate and common indicator:
+ * `.button { border: 2px solid transparent }` with `.button:focus-visible { border-color: red }`
+ * draws a real ring and shifts no layout. Reported as unringed, it FAILED THE BUILD on valid CSS.
+ *
+ * MODELLING IT AS A CHANNEL WOULD BE WORSE THAN THE BUG, which is why this abstains rather than
+ * credits properly. The outline and shadow model asks "does the focused state paint something", and
+ * for a border that question is the wrong one: a button with a permanent visible border and no focus
+ * treatment at all answers YES. The indicator is the CHANGE between the resting and focused states,
+ * which is a comparison this file's model does not make anywhere — so a border channel would credit
+ * every bordered button as ringed, a false negative far wider than the false positive it fixes.
+ *
+ * So the honest answer is that this gate cannot judge it, and the site is dropped rather than
+ * reported. The cost is stated rather than hidden: `.button:focus-visible { border-color: transparent }`
+ * now silences a site it should report. That is the trade — a narrow silence against failing correct
+ * CSS — and it is scoped by `covers` like everything else, so only a border rule that actually
+ * reaches the site abstains for it.
+ */
+/**
+ * Could this property put a visible edge on the border box?
+ *
+ * NARROWED because abstaining is a SILENCE, so over-matching here hides real defects rather than
+ * merely reporting extra ones — the opposite of the direction the rest of this file errs in. Four
+ * `border-` families paint no edge at all: `border-radius` rounds one, `border-image` replaces the
+ * decoration of a border that must already exist, and `border-collapse`/`border-spacing` are table
+ * layout. A `:focus-visible` rule that only rounds a corner is not an indicator and must not buy
+ * silence for a button with no ring.
+ */
+const paintsABorder = (property: string): boolean =>
+	property.startsWith('border') &&
+	!['border-radius', 'border-image', 'border-collapse', 'border-spacing'].some((one) => property.startsWith(one));
+
+const abstains = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
+	rules.some((one) => one.property === 'border' && covers(one.conditions, site.conditions));
+
 const answers = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
+	abstains(rules, site) ||
 	(['width', 'style', 'color'] as const).every((part) => partDraws(rules, site, part)) ||
 	rules.some(
 		(drawing) =>
@@ -621,6 +667,9 @@ export const flattenedWithoutRing = (
 								return [part, draws, importantPart(part)] as const;
 							}),
 							['shadow', deferred.shadow ? ('deferred' as const) : shadow, importantShadow] as const,
+							// `true` or `undefined`, never `false`: this is an ABSTENTION rather than an
+							// indicator, so it only ever answers a site and never disqualifies one.
+							['border', rule.declarations.some((one) => paintsABorder(propertyOf(one))) || undefined, false] as const,
 						];
 
 						for (const reached of reaches) {

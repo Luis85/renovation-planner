@@ -421,7 +421,11 @@ describe('plan repository failure branches', () => {
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		const planId = createPlanId();
 		const plan = makePlanEntity({ id: planId, projectId, name: 'Blocked' });
-		const folder = projectFolderOf(stack.index, projectId) ?? stack.projectFolder;
+		// No `?? stack.projectFolder` fallback: the project was just saved above, so
+		// `projectFolderOf` always resolves here — a fallback that never fires is dead
+		// tolerance, the same shape `sidecarPathOf` above refuses.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
 		const notePath = `${folder}/Plans/${plan.name}.md`;
 		// The note create fails, and the sidecar rollback that should follow fails too.
 		stack.vault.failures.add(`create:${notePath}`);

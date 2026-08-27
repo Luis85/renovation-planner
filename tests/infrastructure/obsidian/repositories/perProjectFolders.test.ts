@@ -8,6 +8,7 @@ import {
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
+import { expectOk } from '../../../helpers/domain';
 import {
 	makeAsset as makeAssetEntity,
 	makePlan as makePlanEntity,
@@ -264,10 +265,15 @@ describe('assets and requirements land in their own project folder', () => {
 		const stack = createRepositoryStack('Renovation');
 		stack.vault.entries.set(
 			'Renovation/Project.md',
-			serializeFrontmatter({ type: 'renovation-project', id: 'p-old', 'schema-version': 1, name: 'Old Layout' }),
+			serializeFrontmatter({ type: 'renovation-project', id: 'p-old', 'schema-version': 1, name: 'Old Layout', status: 'idea' }),
 		);
 		stack.metadataCache.catchUp();
 		stack.rebuildIndex();
+
+		// The READ half: the old note itself still loads through the real repository, not
+		// merely through the index rebuild that feeds the write half below.
+		const read = expectOk(await stack.projects.getById('p-old' as ProjectId));
+		expect(read?.entity.name).toBe('Old Layout');
 
 		const plan = makePlanEntity({ id: 'pl-old' as PlanId, projectId: 'p-old' as ProjectId, name: 'Ground floor' });
 		await stack.plans.save(plan, 'absent');

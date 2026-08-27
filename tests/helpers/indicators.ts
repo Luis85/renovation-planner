@@ -55,7 +55,25 @@ import type { Declaration } from 'lightningcss';
  */
 const NOT_KNOWN_TO_PAINT = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer', 'inherit']);
 
-/** Is this a length the parser resolved to exactly zero? */
+/**
+ * Is this a length the parser resolved to exactly zero?
+ *
+ * THE NUMBER ONLY, NEVER THE UNIT, and that is a ceiling worth naming beside the `currentcolor` one
+ * above rather than left to be rediscovered. A font-relative length REFERS to another property the
+ * same way the keyword does: `outline: 2em solid red` under a `font-size: 0` computes to a
+ * zero-width outline, and this reads `2` and answers "draws". Percentages, `vw` and `rem` are worse
+ * still — they resolve against the parent, the viewport and the root, none of which a stylesheet
+ * holds at all.
+ *
+ * NOT built as a fifth cascade channel, and the measurement is of the risk rather than beside it:
+ * the exposure needs a font-relative indicator length AND a computed-zero font size, and this
+ * project has NEITHER — no `em`/`ex`/`ch`/`rem` in any `outline` or `box-shadow`, no `font-size: 0`,
+ * and all 25 `font-size` declarations are `var(…)`, which is unparsed and so unknowable anyway.
+ * The deciding difference from `currentcolor` is not the count though: `color` resolves on the
+ * element ITSELF, which the cascade models, while `font-size` is inherited, so a channel reading
+ * only same-element declarations would catch the rare half and miss the ordinary one — a mechanism
+ * that reads as more complete than it is. Stated, not half-built.
+ */
 const isZero = (length: { type: string; value?: unknown }): boolean =>
 	length.type === 'value' && (length.value as { value: number }).value === 0;
 

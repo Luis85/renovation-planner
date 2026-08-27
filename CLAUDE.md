@@ -8,8 +8,10 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane offers the one setting there is; and the persistence layer of design slice 4
-is in place — Obsidian repositories, the geometry sidecar store, the project index and its
+settings pane offers the three settings there are (units, project folder, and slice 11's
+verbose logging — counted in `getSettingDefinitions`, and this sentence said "the one
+setting there is" for several slices after it stopped being one); and the persistence layer
+of design slice 4 is in place — Obsidian repositories, the geometry sidecar store, the project index and its
 vault-change pipeline, and the migration runner.
 
 **Every entity and mechanism the MVP architecture needs now exists**, which is what slice
@@ -39,7 +41,8 @@ true, contradicting the sentence immediately below it. The one thing slice 5 wri
 document a Plan's background IS.
 
 **Design slice 11 has landed: no COMMAND or QUERY leaving the composition root can throw
-past the Application layer, and that is checked as a CATEGORY.** `guardCommand`/`guardQuery`
+past the Application layer — two carve-outs excepted, both named below — and that is checked
+as a CATEGORY.** `guardCommand`/`guardQuery`
 wrap each of them (`src/plugin/guardedServices.ts`, beside the root rather than inside it),
 so a fault below that seam is caught, mapped by the vault's `ExceptionMapper` to a coded
 `PersistenceError`, logged with its original cause at that one step, and returned as a
@@ -53,8 +56,9 @@ schema-version gate refuses a note from a build this one predates rather than pa
 That diagnostics stay on the device is a LINT RULE over `infrastructure/logging/` and
 `application/queries/` now — the node network modules, `obsidian`'s `request`/`requestUrl`
 and the network globals — rather than a fact about today's imports.
-The rules that came out of it, and out of five review rounds that each found the same class
-of defect — a sentence promising more than its check delivers:
+The rules that came out of it, and out of the review rounds on that branch — every one of
+which found at least one sentence promising more than its check delivers, this paragraph's
+own first draft included:
 
 - **A guard on the door nobody dispatches through is a guard nobody has.** `guardCommand`
   wraps `execute`; the Inspector's reversible adapters dispatch an override through
@@ -66,10 +70,15 @@ of defect — a sentence promising more than its check delivers:
   the doors a service exposes match the ones it says it guarded — two things the same object
   declares about itself. Mutating only the ROUTING left it green, which is the defect above,
   uncaught, one round later. `tests/plugin/guardCategory.test.ts` is
-  behavioural now: compose a real root, DETONATE every collaborator beneath it, walk
-  everything the root and the editor bundle hand out, drive a hostile input through every
-  door, and require the mapped `vault.unexpected-failure` back. A raw command rejects, and
-  no amount of declaring makes it resolve a refusal. Two carve-outs, by name, with reasons,
+  behavioural now: compose a real root, DETONATE seven named collaborators beneath it (the
+  five repositories, the geometry port and the file probe — a hand-written list, and the one
+  list left in the file), walk everything the root and the editor bundle hand out, drive a
+  hostile input through every door it FINDS, and require the mapped `vault.unexpected-failure`
+  back. A raw command REJECTS, and no amount of declaring makes it resolve a refusal. What
+  the walk does not find is written down in the file's own header — a service hiding inside a
+  class instance, an object whose only door is called something other than `execute…`, and
+  the ports — and the detonation list being seven names rather than a rule costs nothing only
+  because the instrument fails closed (next bullet). Two carve-outs, by name, with reasons,
   asserted by exact key set AND proven to name paths the walk really finds — a carve-out for
   a path that no longer exists is a comment that goes on reading as a live exception.
 - **An instrument that reaches nothing looks exactly like a clean tree**, so the walk is
@@ -92,7 +101,11 @@ of defect — a sentence promising more than its check delivers:
   the query adds nothing. The check moved to the end that can hold it:
   `DiagnosticsLedger.record` takes a closed kind union, a branded `EntityId` and the whole
   `AppError`, off which it reads `error.code` alone. There is no free-text parameter left to
-  spell a zone name into. What a type still cannot stop is written down beside it: a code
+  spell a zone name into, and the proof is a COMPILE-TIME one
+  (`tests/application/ports/diagnostics.test-d.ts`, in `tsconfig.json`'s `include` for that
+  reason): five `@ts-expect-error` directives — a name, a path, a free-text third argument, a
+  kind outside the union, and the old three-string call shape — where an unsatisfied
+  directive is itself a build error. What a type still cannot stop is written down beside it: a code
   that IS content, and a branded id that was never VALIDATED — `buildProjectIndexEntries`
   asserts a note's raw frontmatter `id` into `EntityId` after checking only that it is
   non-empty.
@@ -778,8 +791,9 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except two entries in
-`tsconfig.json`'s `include`**, each there for its own reason.
+nothing type-checks `tests/**` (vitest transpiles without checking) **except three entries in
+`tsconfig.json`'s `include`**, each there for its own reason. Three, counted in the file
+rather than remembered: slice 11 added the third and this sentence said "two" for a slice.
 
 `tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
 `IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
@@ -798,6 +812,16 @@ hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` i
 what must NOT compile (the two brand mixes) and what must (the live Pinia store still
 satisfying that four-member contract). Outside that one file, an `implements` still binds
 the editor, not the gate.
+
+`tests/application/ports/diagnostics.test-d.ts` is the third, and it is the other proof only
+a compiler can carry: slice 11's "diagnostics contain no project content" is a claim about
+`DiagnosticsLedger.record`'s PARAMETERS, so it has no runtime form at all. Five
+`@ts-expect-error` directives — a zone's NAME, a note PATH, a free-text third argument, a
+kind outside the union, and the old three-string call shape — plus one line asserting what
+must still compile, which is an `AppError` whose `message` and `cause` DO hold content and
+are dropped by the ledger rather than refused at the door. An unsatisfied directive is itself
+an error, so widening `record` back to strings fails the build at the directive that no
+longer has anything to suppress.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

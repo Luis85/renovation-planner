@@ -494,7 +494,7 @@ clause and item 6's "demonstrably" — and both narrowings are written into the 
 rather than left for a reader to infer, because a claim this architecture cannot reach is
 the same defect as an unchecked comment.
 
-Seven things are true of the code and are NOT protected by a check. Each is here rather
+Eight things are true of the code and are NOT protected by a check. Each is here rather
 than hidden behind a tick:
 
 - **The repository PORTS handed to presentation are outside the Error Boundary.**
@@ -521,9 +521,27 @@ than hidden behind a tick:
   "Verweis"/"umhaengen" where the delete dialog says "Referenz"/"neu zuweisen"). A glossary
   comment in `de.ts` names the three terms and the keys that own them; a comment is not a
   mechanism.
-- **Nothing keeps a log level's caller alive.** All four levels have real production callers
-  today (item 4), but `consoleLogger.test.ts` drives the adapter directly, so deleting
-  `warn`'s last call site would pass all four gates.
+- **Nothing checks that a level is used for its CATEGORY, and only two of `warn`'s seven
+  call sites are asserted at all.** Measured rather than argued, by converting every
+  `logger.warn` in `src/` to `logger.error` and running the gates: `npm run build` and
+  `npm run lint` pass, `npm run analyze` passes and reports nothing whatever about a
+  `Logger.warn` no production code calls (dead exports 0.0%, and only the 13 pre-existing
+  private-type leaks), and the suite reds exactly two of 2055 tests — the reassignment
+  recalculation in `deleteResolutionEngine.test.ts` and the excluded note in
+  `pipeline.test.ts`. So the level cannot reach zero callers silently, because those two
+  stand in the way; but the other five sites can change level with every gate green, and
+  §67's "which events take which level" is checked by nobody. An earlier version of this
+  bullet claimed the last call site could go with all four gates green — that was the audit's
+  own unmeasured hypothesis, repeated here as fact, and the measurement above is what
+  replaced it.
+- **The boundary check's detonation list is HAND-WRITTEN.** `guardCategory.test.ts` blows up
+  seven collaborators by name — the five repositories, the geometry port and the file probe —
+  while `index`, `vaultDeps`, `migrations`, `geometryStore`, `locks`, `markers` and
+  `changeAdapter` are left intact, and `DeleteZoneCommand` is composed WITH `markers`. The
+  walk, the doors and the carve-outs are all category-shaped; this one list is not. It costs
+  nothing today because the instrument fails closed — an undetonated service answers a
+  success and a success is a finding — but it is the "list the places" shape this slice spent
+  five review rounds removing, and it is disclosed here rather than left to be discovered.
 - **An `EntityId` is branded, not validated.** `buildProjectIndexEntries` asserts a note's
   raw frontmatter `id` into `EntityId<string>` after checking only that it is a non-empty
   string, so a hand-edited `id:` reaches the ledger verbatim. The brand stops a call site
@@ -544,10 +562,13 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     specific slice-2 `AppError` variant and logged with its original cause at that one step,
     and the public contract resolves a failed `Result` instead of rejecting.
     Checked at the forbidden thing rather than by listing the places:
-    `tests/plugin/guardCategory.test.ts` composes a real root, detonates every collaborator
-    beneath it, walks everything the root and the editor bundle hand out, drives a hostile
-    input through EVERY door it finds, and requires the mapped `vault.unexpected-failure`
-    back. Behavioural rather than structural on purpose — an "is this a wrapper?" check
+    `tests/plugin/guardCategory.test.ts` composes a real root, detonates seven named
+    collaborators beneath it (the five repositories, the geometry port and the file probe),
+    walks everything the root and the editor bundle hand out, drives a hostile input through
+    EVERY door it finds, and requires the mapped `vault.unexpected-failure` back. Seven is a
+    hand-written list and the last one in that file; it does not weaken the check, because a
+    service whose collaborators were not detonated answers a SUCCESS and a success is
+    reported as a finding — the instrument fails CLOSED. See the open section above. Behavioural rather than structural on purpose — an "is this a wrapper?" check
     cannot see a facade pairing a guarded `execute` with a raw `executeWithVersion`, which is
     the door the Inspector dispatches through and the defect this slice shipped once. Two
     carve-outs, each by name, with its reason, and both asserted so the keys cannot quietly
@@ -600,6 +621,15 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     because `DiagnosticsLedger.record` has nowhere to put any**: a closed
     `DiagnosticEntityKind` union, a branded `EntityId`, and the whole `AppError` — off which
     the ledger reads `error.code` and drops the rest. There is no free-text parameter at all.
+    The check is a COMPILE-TIME one and it is what makes this a gate rather than a reading:
+    `tests/application/ports/diagnostics.test-d.ts` (named in `tsconfig.json`'s `include`,
+    which is the whole mechanism) refuses a zone's NAME, a note PATH, a free-text third
+    argument, a kind outside the union and the old three-string call shape, each under its
+    own `@ts-expect-error` — and an unsatisfied directive is itself a build error, so a
+    `record` widened back to strings fails `npm run build` at the directive that no longer
+    has anything to suppress. One line beside them asserts what must still COMPILE: an
+    `AppError` whose `message` and `cause` do hold content, offered deliberately, because the
+    ledger is the one module allowed to decide what diagnostics keep.
     `schemaVersions` derives from `MIGRATION_SET` through `MigrationRunner.latestVersions`,
     so a kind reaches diagnostics because it was registered rather than because a second
     table was remembered.

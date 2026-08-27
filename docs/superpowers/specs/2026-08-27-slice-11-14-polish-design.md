@@ -290,3 +290,44 @@ across the entire pass, at 0.046pp each. Item 1 alone adds three or four arms.
 - Running the schema gate on the save side (four call sites) — `noteIo.ts` already scopes this
   as a narrowing rather than a live defect; Item 3 does not close it.
 - Any harness URL knob for the new project-view states.
+
+## Amendments made during execution
+
+Recorded here rather than by rewriting the sections above, so the design and what the
+measurement did to it stay separately readable.
+
+1. **The selector's widening moved from Item 1's task to Item 2's.** `RenovationProjectStore`
+   calls `selectRenovationProjectEmptyState(projects, unreadable)`, so leaving the second
+   parameter to the view task would have committed a `TS2554`. Item 2's own Shape list already
+   placed the selector change with the carry-through, so this follows the spec rather than
+   departing from it.
+
+2. **"`tests/harness/accessibility.test.ts` grades the project surface" was FALSE of the new
+   regions when written, and is now half true.** That case pins its scanned DOM to the
+   `ready`/no-projects path (it asserts `.rp-empty-state` is present), so neither
+   `.rp-view-message` nor `.rp-view-notice` was in any scanned subtree — a green true of a
+   subtree that does not contain the markup, which is the same shape slice 14 recorded. A case
+   scanning the FAILED state was added, with a presence assertion on `.rp-view-message` and
+   watched failing. **`.rp-view-notice` is still graded by nothing**: it lives inside
+   `<template v-if="status === 'ready'">` while the message is its `v-else` sibling, so one
+   mount cannot render both and covering it needs a second fixture. Not added.
+
+3. **Item 3's docblock repair exposed one more false claim, one file away.** The new
+   `strings.ts` docblock said `currentLanguage()` is the one resolution point and "no call
+   site re-decides it", while `notifyError` in `presentation/notices/notify.ts` called
+   `getLanguage()` itself — `trError`'s body, inlined. Closed by making the sentence true
+   (`notifyError` dispatches through `trError`) rather than by narrowing it; `strings.ts` now
+   holds the only live `getLanguage()` call in `src/`.
+
+4. **Item 4's deliberate-red step named the wrong case, and the plan's prediction was wrong
+   for a reason worth keeping.** Reordering the two `if`s in `selectPlanEditorEmptyState`
+   changes the outcome only when BOTH conditions hold — the `zones: []` input — so
+   `it('still asks for a background when the plan already has zones')` cannot redden under a
+   reorder. The mutation that matches the claim is DROPPING the background arm, which is the
+   simplification the false premise actually licenses. Both facts are now written into the
+   test comments, from the measurement rather than from the prediction.
+
+5. **Item 6's `trError` test shadowed a helper and failed the lint gate.** The spec's own
+   verbatim test code declared `const error` beside the file's existing `error()` factory;
+   `oxlint --deny-warnings` fires `no-shadow` on it at the repository root, which the
+   per-file edit-loop invocation does not reach. Renamed to `refusal`.

@@ -130,8 +130,10 @@ describe("design slice 10's coded refusals", () => {
  */
 describe('trError', () => {
 	it('maps an error in the app language', () => {
-		const error = { category: 'Persistence', code: 'settings.unrecovered', message: 'dev' } as const;
+		// `refusal`, not `error`: this file's own `error()` factory is in scope, and shadowing it
+		// fails `no-shadow` under `oxlint --deny-warnings`. The name matches the sibling case above.
+		const refusal = { category: 'Persistence', code: 'settings.unrecovered', message: 'dev' } as const;
 
-		expect(trError(error)).toBe(toUserMessage('en', error));
+		expect(trError(refusal)).toBe(toUserMessage('en', refusal));
 	});
 });

@@ -115,7 +115,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	// zu Slice 11/14 prüft `tests/presentation/i18n/strings.test.ts` beide Begriffe, weil
 	// eine Regel, die nur als Kommentar existiert, genau so lange hält, wie sie jemand
 	// liest. `Vault` steht dort ebenfalls: es ist Obsidians eigener Name und wird nicht
-	// übersetzt — fünf Schlüssel sagten vorher `Tresor`, einer davon `Das Tresor`.
+	// übersetzt — fünf Schlüssel übersetzten ihn vorher, VIER davon als `Tresor` (einer
+	// als `Das Tresor`, einer als `Der Tresor` — zwei Zeilen auseinander), der fünfte als
+	// das verstümmelte `Tresnornder`. Genau diese Vier-gegen-Fünf ist der Grund für die
+	// zweite Prüfung: eine verbotene Schreibweise fängt nur das falsche Wort, an das
+	// jemand gedacht hat, und `Tresnornder` enthält `Tresor` nicht.
 	'reference.referents-exist': 'Andere Einträge referenzieren dies noch. Entfernen Sie die Referenzen oder weisen Sie sie zuerst neu zu.',
 	'reference.set-changed': 'Die Referenzen hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
 	'reference.resolution-required': 'Dies wird noch referenziert. Entscheiden Sie vor dem Löschen, was mit diesen Referenzen geschehen soll.',

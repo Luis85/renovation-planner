@@ -138,8 +138,10 @@ own first draft included:
   on `callee.name`, so the same two functions reached through an object (`o.notify(...)`)
   are invisible to it; the long-form paragraph further down carries the rest of that list.
   Neither reaches the second locale's VOCABULARY: the German copy called
-  an Asset "Material" where the German UI says "Objekt", found by reading, and nothing
-  renders `de.ts` in any gate.
+  an Asset "Material" where the German UI says "Objekt", found by reading, because nothing
+  rendered `de.ts` in any gate. **Slice 14 then reintroduced the exact word, forty lines
+  below the German comment recording the correction**, which is what finally bought that
+  file a check — see the slice 14 section below for what the check does and does not reach.
 - **A docblock naming "the one list this derives from" is worth checking against the second
   one.** `MIGRATION_SET` claimed to be the single source of `schemaVersions` while
   `MigrationRunner` spread a module-level `LATEST_VERSIONS` constant beside it, so a seventh
@@ -212,6 +214,22 @@ already hydrates. Rules that came out of it:
   document attributed a German worked example to it; the copy is ours to write, and `de.ts`
   translates it like every other key. A citation nobody checks is the same defect as an
   unchecked comment.
+- **This slice's German body called an Asset "Materialien", forty lines below the German
+  comment recording that slice 11 had replaced that very word with "Objekt".** Nothing
+  rendered `de.ts` in any gate, so its only reader was a human who happened to look — and
+  the first one who did found two more defects beside it: a garbled `Tresnornder` for
+  `Tresorordner`, and `Das Tresor` at one key against `Der Tresor` two keys away, a gender
+  disagreement about the same noun. The polishing pass over slices 11 and 14 fixed all
+  three and gave the file its first check. **Read what that check reaches before trusting
+  the word "checked" any wider**: `tests/presentation/i18n/strings.test.ts` pins TWO terms
+  and nothing else — it refuses the value `Material` (the German UI says `Objekt`), and it
+  requires `Vault` wherever `en.ts` says "vault", *Vault* being Obsidian's own name for the
+  thing and therefore not translated at all. Spelling, grammar and every other term remain
+  unread by any gate. The two rows are also not the same instrument, which is the part
+  worth remembering: a forbidden-SYNONYM row can only refuse a wrong word somebody thought
+  of, and it sails straight past `Tresnornder`, since that string does not contain
+  `Tresor` — measured, not assumed. The row that closes the class asks from the ENGLISH
+  side instead, and it is what reports all five sites.
 - **The accessibility case for the project surface was an adoption placeholder until this
   slice, and closing that gap took more than adding markup.** It scanned an empty pane
   since slice 1; it grades a real headline and body now — but `mountHarness` is
@@ -366,7 +384,9 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   What IS checked is that `de.ts` translates every key `en.ts` declares
   (`tests/presentation/i18n/strings.test.ts`) — the type permits the gap on purpose, so an
   incomplete locale is safe, and the fallback then hides a forgotten key from everyone but
-  the user reading it.
+  the user reading it. That same file now also pins two German TERMS, which is a different
+  mechanism from completeness and covers two words rather than the language; the slice 14
+  section above says exactly what it reaches.
 - **A new dialog kind is FIVE edits, four of them build failures — measured, not asserted.**
   Adding one and reading `vue-tsc` reports twice at `DialogResultByKind` and once at
   `DialogHost`'s last branch, with `cancelResultFor`'s `TS2366` appearing as soon as the

@@ -71,7 +71,7 @@ they disagree, and that the observed symptom is what that window would produce.
 windows:
 
 ```js
-const isPlantedProbe = (name: string): boolean => name.startsWith('lint-edited-probe-');
+const PLANTED_PROBE = /^tests\/harness\/lint-edited-probe-\d+\.vue$/;
 ```
 
 **In the walk rather than at a call site**, and that placement is the fix's whole content. The
@@ -80,10 +80,18 @@ oxlint gate's — one filter where the file expresses the same distinction twice
 already names that shape: a distinction between kinds of thing is repeated everywhere it is
 expressed, or it is repeated nowhere reliably.
 
+**The WHOLE PATH, not the basename**, and that is the second thing a review had to correct. `walk`
+is also called for `src/` and `scripts/`, so a basename test would drop any real file named
+`lint-edited-probe-*.ts` anywhere in the repository out of the oxlint comparison — silently, and
+out of the very case whose promise is that no source file falls out of scope. An exclusion inside
+a coverage check has to be exactly as wide as the thing it excludes, and `plantSfc` reserves one
+name in one directory with one extension.
+
 **What was demonstrated, and what was not.** The predicate was measured with a probe planted and
 without, at both scopes it has to reach: `tests/harness` goes from three `.vue` files to two, and
 `tests` from 223 linted files to 222, the excluded entry being the probe in each case; with no
-probe present neither set moves.
+probe present neither set moves. A `tests/helpers/lint-edited-probe-99.ts` planted beside it stays
+counted, which is what separates the path-exact predicate from the basename one.
 
 The race itself was not reproduced and could not be — it needs the file present at collection
 time and gone at parse time, which is a window between two workers rather than a state a test

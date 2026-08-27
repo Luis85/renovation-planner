@@ -329,10 +329,14 @@ vocabulary**, so it is left as one edit somebody makes on purpose instead of a g
 
 An earlier version of this section said empty "means nobody has set one, which is where every
 note here starts", which blessed the default and made all five named values optional. It is
-struck, because 125 of 142 notes carrying no status is not a convention being followed — it is a
-convention nobody has applied yet, and describing it as correct is what kept it that way.
+struck, because 116 of the 183 notes carrying a `status:` key have it empty, and that is not a
+convention being followed — it is a convention nobody has applied yet, and describing it as
+correct is what kept it that way. (Twelve of the 183 are ADRs, whose own vocabulary the table
+above excludes by name.) The figure was 125 of 142 when this was written: the count has fallen
+while the population grew, so the migration below is happening, slowly, by the one mechanism it
+names.
 
-**The 125 are debt, and this sentence is the whole of what has been done about them.** They are
+**The 116 are debt, and this sentence is the whole of what has been done about them.** They are
 not migrated, there is no gate that would notice (`npm run check` reads nothing here), and
 migrating them is a pass somebody has to schedule rather than a side effect of the next edit. A
 note being edited for another reason is the cheapest moment to set its status, and that is the

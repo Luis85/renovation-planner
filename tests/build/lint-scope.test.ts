@@ -50,17 +50,21 @@ const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs|vue)$/;
  * repository's recurring shape, a distinction repeated everywhere it is expressed or repeated
  * nowhere reliably.
  *
- * The prefix is reserved by construction: `plantSfc` owns it, and no harness SFC anybody wrote is
- * named that way.
+ * THE WHOLE PATH, not the basename, and the difference matters because `walk` is also called for
+ * `src/` and `scripts/`. `plantSfc` reserves this name in ONE directory with ONE extension; a
+ * basename test would let any real file called `lint-edited-probe-*.ts` anywhere in the repository
+ * fall out of the oxlint comparison — silently, and out of the very case whose promise is that no
+ * source file falls out of scope. An exclusion inside a coverage check has to be exactly as wide as
+ * the thing it excludes.
  */
-const isPlantedProbe = (name: string): boolean => name.startsWith('lint-edited-probe-');
+const PLANTED_PROBE = /^tests\/harness\/lint-edited-probe-\d+\.vue$/;
 
 const walk = (dir: string): string[] =>
 	readdirSync(path.join(REPO, dir), { withFileTypes: true }).flatMap((entry) => {
 		const child = `${dir}/${entry.name}`;
 
 		if (entry.isDirectory()) return walk(child);
-		return LINTED.test(entry.name) && !isPlantedProbe(entry.name) ? [child] : [];
+		return LINTED.test(entry.name) && !PLANTED_PROBE.test(child) ? [child] : [];
 	});
 
 const linted = new Set(lintedFiles());

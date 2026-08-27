@@ -299,12 +299,12 @@ row above is not enough on its own:
 
 | Value | Means | On | Count today |
 | --- | --- | --- | --- |
-| `New` | Just added. Written, not yet triaged | anything | 7 |
-| `Ready` | Triaged. Somebody has judged it and it is ready to pick up. Also what an **open iteration** carries (`iterationOpenStates`) | anything | 1 |
-| `Active` | In flight. The base's `startedStates`, so it is the value that expects a `started` date | anything | 3 |
+| `New` | Just added. Written, not yet triaged | anything | 12 |
+| `Ready` | Triaged. Somebody has judged it and it is ready to pick up. Also what an **open iteration** carries (`iterationOpenStates`) | anything | 4 |
+| `Active` | In flight. The base's `startedStates`, so it is the value that expects a `started` date | anything | 12 |
 | `Resolved` | Settled without being produced — answered, superseded, no longer needed. What a **closed iteration** carries (`iterationResolvedStates`) | anything | 0 |
-| `Done` | Finished. The three `Issue` notes recording decisions taken | anything | 3 |
-| *(empty)* | **Legacy.** Written before the vocabulary was used, and to be migrated | — | 125 |
+| `Done` | Finished | anything | 21 |
+| *(empty)* | **Legacy.** Written before the vocabulary was used, and to be migrated | — | 116 |
 
 **Two types run narrower ladders, and the base names both.** A `Deliverable` takes
 `New`, `Active`, `Done` only (`deliverableStateValues`) — an artifact is drafted, worked or
@@ -329,10 +329,21 @@ vocabulary**, so it is left as one edit somebody makes on purpose instead of a g
 
 An earlier version of this section said empty "means nobody has set one, which is where every
 note here starts", which blessed the default and made all five named values optional. It is
-struck, because 125 of 142 notes carrying no status is not a convention being followed — it is a
-convention nobody has applied yet, and describing it as correct is what kept it that way.
+struck, because 116 of the 182 notes whose FRONTMATTER carries a `status:` key have it empty, and
+that is not a convention being followed — it is a convention nobody has applied yet, and
+describing it as correct is what kept it that way. (Twelve of the 182 are ADRs, whose own
+vocabulary the table above excludes by name.) The figure was 125 of 142 when this was written:
+the count has fallen while the population grew, so the migration below is happening, slowly, by
+the one mechanism it names.
 
-**The 125 are debt, and this sentence is the whole of what has been done about them.** They are
+**Read "frontmatter" as the instrument rather than as a flourish.** `docs/` has no gate — `npm run
+docs` does not exist here, and `CLAUDE.md` lists it among the deliberately absent — so every
+figure in this section is hand-measured and only as good as what measured it. A `grep` for a line
+beginning `status:` counts the fenced Zone example inside the SDD, which is how the denominator
+was briefly 183; the counts above read the initial `---` block and nothing else. Re-derive them
+that way or they will disagree with each other again, which they have.
+
+**The 116 are debt, and this sentence is the whole of what has been done about them.** They are
 not migrated, there is no gate that would notice (`npm run check` reads nothing here), and
 migrating them is a pass somebody has to schedule rather than a side effect of the next edit. A
 note being edited for another reason is the cheapest moment to set its status, and that is the

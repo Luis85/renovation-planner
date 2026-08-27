@@ -372,7 +372,7 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
 
 ## Definition of Done
 
-- [ ] **ADR-0013 exists and is Accepted**, stating whether a project's folder is stored or
+- [x] **ADR-0013 exists and is Accepted**, stating whether a project's folder is stored or
       derived, naming ADR-011's precedent, and saying explicitly why
       [[Identity is the id, never the filename, title or path]] does not forbid the derived
       shape — the rule reads as though it settles this and it does not.
@@ -381,26 +381,40 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
       `Renovation Library`). The third case is watched failing against a plain `startsWith`.~~
       **Deferred to slice 19, not ticked:** `foldersOverlap` has no caller in this slice, and a
       dead export fails `npm run analyze`. See the correction under *`foldersOverlap`* above.
-- [ ] The Project Index scans a LIST of roots, covered by a fixture with **two** projects in
+- [x] ~~The Project Index scans a LIST of roots~~, covered by a fixture with **two** projects in
       **different** folders, both fully resolvable. A single-project fixture passes against the
-      single-prefix scan this replaces, so the two-project fixture is the check.
-- [ ] `VaultChangeAdapter` watches the same list, asserted by modifying a note in the second
+      single-prefix scan this replaces, so the two-project fixture is the check. **Corrected:**
+      there is no root list. The design document replaced it with a declared bound —
+      `entityRefOf` reads `type`/`id` off a note's own frontmatter, so a project anywhere in the
+      vault is found without a list of where to look — and the two-project fixture still proves
+      the same thing a root list would have: `perProjectFolders.test.ts`'s "writes two projects'
+      plans into two different folders" and `index.test.ts`'s "indexes a note of ours that sits
+      outside the configured folder" between them exercise two projects in two different
+      folders, both resolvable.
+- [x] ~~`VaultChangeAdapter` watches the same list~~, asserted by modifying a note in the second
       project and observing the index update. Same reasoning: one project proves nothing here.
-- [ ] Both halves answer "which root is this path under" through **one** function, checked by
+      **Corrected the same way**: no list, same declared bound — `pipeline.test.ts`'s "indexes a
+      note of ours created outside the configured folder" drives a note in a second, unlisted
+      folder through the incremental path and observes the index update.
+- [x] ~~Both halves answer "which root is this path under"~~ through **one** function, checked by
       that function having exactly two callers. The defect being guarded is the full scan and
       the incremental run disagreeing about a note — what `stringField` already exists to
-      prevent one level down.
+      prevent one level down. **Corrected:** there is no "which root" question left to answer —
+      `entityRefOf` answers "is this note ours" (a declared `type` plus a non-empty `id`), not
+      which of several roots a path falls under. `entityRef.test.ts`'s "is named by exactly two
+      modules in `src/`, and they are the scan and the pipeline" is the check the item actually
+      asks for, unchanged: one function, exactly two callers, pinned rather than assumed.
 - [ ] ~~A note of this plugin's under no root is skipped **with a diagnostic**, asserted on the
       logger call. Today it is skipped silently and correctly; with a root list, silence hides
       an orphaned project.~~ **Withdrawn, not ticked:** under the declared bound actually built,
       there are no orphans — a note of ours anywhere in the vault is found and indexed — so there
       is nothing to report. See the design document.
-- [ ] Every entity's note lands in ITS OWN project's folder, asserted on the resulting path for
+- [x] Every entity's note lands in ITS OWN project's folder, asserted on the resulting path for
       two projects at once. `NoteVaultDeps.projectFolder` no longer exists, checked by the type.
-- [ ] A save whose project folder cannot be resolved returns a `PersistenceError` and writes
+- [x] A save whose project folder cannot be resolved returns a `PersistenceError` and writes
       nothing — never a write to the defaulted path. Driven by removing the index entry between
       the read and the save.
-- [ ] Geometry sidecars still resolve as ADR-011 specifies, now inside the per-project folder,
+- [x] Geometry sidecars still resolve as ADR-011 specifies, now inside the per-project folder,
       asserted through `PlanGeometryStore` against two projects.
 - [ ] ~~The one-time migration moves a single-folder vault to per-project folders using
       `fileManager.renameFile` (so vault links survive), rebuilds the index, and persists the
@@ -413,7 +427,7 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
       existing single-folder layout a valid project folder already, so nothing has to move. See
       *No migration* in
       [`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md).
-- [ ] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — floors rise
+- [x] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — floors rise
       only if a finished increment measures above them.
 
 ## References

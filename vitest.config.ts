@@ -518,6 +518,44 @@ export default defineConfig({
 			// merge reported "exit 0" because they were piped (`npm run check 2>&1 | tail`), and a
 			// pipeline's status is the LAST stage's — `tail` always succeeds. Capture the gate as
 			// `npm run check > log 2>&1; echo $?` and read the code, or the gate is decoration.
+			//
+			// Measured 2026-08-28 at the end of design slice 18 — a project's folder is derived
+			// from its `Project.md` rather than shared with every project (ADR-0013):
+			// `entityRefOf` extracted as the one answer to "is this note ours", the Project
+			// Index and `VaultChangeAdapter` bounded by declaration rather than by a path
+			// prefix, `NoteVaultDeps.projectFolder` deleted with five repositories resolving
+			// their folder per write through `projectFolderOf`, project existence moved onto
+			// the index, and `freshProjectFolder` giving each newly-created project its own
+			// folder under the configurable default root: 4345/4373 statements, 2135/2173
+			// branches, 1107/1114 functions, 3900/3916 lines — 99.35 / 98.25 / 99.37 / 99.59.
+			// NOTHING RATCHETS: rounded down these are 99 / 98 / 99 / 99, the floors already in
+			// force.
+			//
+			// Branches gained headroom — 98.14 on the previous merged tree to 98.25 here, about
+			// 5.4 branches at 0.046pp each, the most room this metric has had since slice 11's
+			// guard-more-not-less finding. Every new export this slice added measures 100% of
+			// all four metrics: `entityRefOf` (`buildProjectIndexEntries.ts`) and
+			// `freshProjectFolder`/`projectFolderOf` (`paths.ts`), plus the five repositories'
+			// new `folder === undefined` refusal arms and `ObsidianProjectRepository`'s
+			// existence-through-the-index rewrite — none of them appears in the uncovered set
+			// below.
+			//
+			// THE UNCOVERED SET IS UNCHANGED from the tree this slice branched from. Verified by
+			// reading `coverage/lcov.info` rather than assumed: every file this slice edited
+			// (`NoteVaultDeps.ts`, `paths.ts`, `buildProjectIndexEntries.ts`,
+			// `VaultChangeAdapter.ts`, `ObsidianProjectRepository.ts`, `ObsidianPlanRepository.ts`,
+			// `ObsidianZoneRepository.ts`, `ObsidianRequirementRepository.ts`,
+			// `ObsidianAssetRepository.ts`, `composition-root.ts`, `RenovationPlannerPlugin.ts`,
+			// `settings/settings.ts`) carries no new uncovered branch, line or function. The three
+			// uncovered arms still present in files this slice touched predate it and are
+			// untouched by it: `ObsidianZoneRepository`'s two `deleteCreatedNote` arms (the
+			// non-`TFile` guard and the `trashFile` catch, both compensation-path double-fault
+			// shapes already named above) and its update/insert compensation-logging arm; and
+			// `ObsidianRequirementRepository.markStale`'s `!marked.ok` branch, which guards
+			// `Requirement.markedStale()` refusing a transition no caller here can produce — none
+			// of the three is the new `folder === undefined` refusal this slice added beside each
+			// one, which IS driven (the unresolvable-project-folder test removes the index entry
+			// between the read and the save).
 			thresholds: {
 				statements: 99,
 				functions: 99,

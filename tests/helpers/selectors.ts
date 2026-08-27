@@ -63,6 +63,33 @@ export interface StyleRule {
 	readonly important: ReadonlySet<string>;
 }
 
+/** A pseudo-class node's argument list, or `[]` when it has none. */
+export const argumentsOf = (component: SelectorComponent): SelectorList =>
+	component.type === 'pseudo-class' && 'selectors' in component && Array.isArray(component.selectors)
+		? component.selectors
+		: [];
+
+/**
+ * Does any part of this selector refer to a parent rule — the `&` of CSS nesting?
+ *
+ * EVERY nested rule carries one, which is what makes this an exact test rather than a search for a
+ * character. lightningcss normalises the implicit form: `.button { :focus-visible { … } }` arrives
+ * as `& :focus-visible`, with a `nesting` component and a descendant combinator, so a check for
+ * `&` alone does not miss the spelling that omits it. Measured off the parser, not assumed.
+ *
+ * Recursive through pseudo-class arguments, because `:is(&)` is the same reference one level down —
+ * and that one is NOT normalised: `:is(&) .b` arrives with no nesting component at the top level at
+ * all, so a check reading only the top components lets it through looking ordinary. Measured too,
+ * against the assumption that a parser normalising one form normalises them all.
+ */
+function usesNesting(selector: Selector): boolean {
+	const nests = (component: SelectorComponent): boolean =>
+		component.type === 'nesting' ||
+		argumentsOf(component).some((argument) => argument.some((one) => nests(one)));
+
+	return selector.some((component) => nests(component));
+}
+
 /**
  * Every style rule in a stylesheet.
  *
@@ -145,6 +172,22 @@ export function stylesheetRules(css: string): StyleRule[] {
 
 				if (rule.type !== 'style') return undefined;
 
+				// CSS NESTING IS REFUSED for the reason `@layer` and `@scope` are, and it arrives the same
+				// way: lightningcss visits a nested rule as an ordinary style rule, so `&:focus-visible`
+				// reaches every caller here as a selector whose subject is a reference nothing resolves.
+				// It is not merely unreadable — it is readable WRONGLY. `focusSites` matched it to neither
+				// the parent's class nor a button type, so a nested ring answered nothing and the scan
+				// reported a button the browser visibly rings.
+				//
+				// Modelling it is parent RESOLUTION, not substitution: `&` carries the specificity of the
+				// most specific selector in the parent's list, exactly as `:is()` does, so a textual splice
+				// would rank a `.a, #b` parent as a class. That is the instrument this refusal asks for,
+				// and nothing in `styles/` writes a nested rule today — measured, zero `&` — which is what
+				// makes refusing it cheaper than modelling it wrongly.
+				if (rule.value.selectors.some((selector) => usesNesting(selector))) {
+					throw new Error('stylesheetRules(): CSS nesting resolves "&" against a parent rule, which nothing reading this models');
+				}
+
 				rules.push({
 					selectors: rule.value.selectors,
 					declarations: [...rule.value.declarations.declarations, ...rule.value.declarations.importantDeclarations],
@@ -192,12 +235,6 @@ export function parseSelector(selector: string): Selector {
  * its carve-out, and thereby exempted every OTHER button in the project.
  */
 const MATCHES_THE_SUBJECT = new Set(['is', 'where', 'any']);
-
-/** A pseudo-class node's argument list, or `[]` when it has none. */
-export const argumentsOf = (component: SelectorComponent): SelectorList =>
-	component.type === 'pseudo-class' && 'selectors' in component && Array.isArray(component.selectors)
-		? component.selectors
-		: [];
 
 /**
  * The selector list of an `An+B of S` pseudo-class — `:nth-child`/`:nth-last-child` — or `[]`.

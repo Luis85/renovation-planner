@@ -263,6 +263,41 @@ describe('the instrument', () => {
 		expect(() => stylesheetRules(css)).toThrow(/changes how the cascade ranks/u);
 	});
 
+	/**
+	 * CSS NESTING IS REFUSED FOR THE SAME REASON AND ARRIVES THE SAME WAY: lightningcss visits a
+	 * nested rule as an ordinary style rule, so `&:focus-visible` reaches every caller as a selector
+	 * whose subject is a reference nothing resolves. It was not merely unreadable but readable
+	 * WRONGLY — `focusSites` matched it to neither the parent's class nor a button type, so a nested
+	 * ring answered nothing and the focus scan reported a button the browser visibly rings.
+	 *
+	 * The second case is why this asks the TREE rather than searching for a character: the implicit
+	 * form omits `&` in the source and the parser puts one back, as `& :focus-visible`.
+	 *
+	 * The third is why it recurses, and it was MEASURED rather than reasoned about — the assumption
+	 * that a parser which normalises one form normalises them all is exactly wrong here. `:is(&) .b`
+	 * arrives with NO nesting component at the top level, so a check that reads only the top
+	 * components lets it through looking ordinary.
+	 *
+	 * The fourth is why every component is asked and not only the first: `.other & { … }` puts the
+	 * parent reference last, and a check reading the head of the selector passed all three cases
+	 * above before this one was written.
+	 *
+	 * The fifth is the other side: a nesting-free `:is()` is not a nested rule, or the refusal has
+	 * become one on functional pseudo-classes.
+	 */
+	it.each([
+		['a nested rule naming its parent', '.rp-dialog-button { box-shadow: none; &:focus-visible { outline: 2px solid red } }'],
+		['the implicit form, which the parser spells with &', '.rp-dialog-button { box-shadow: none; :focus-visible { outline: 2px solid red } }'],
+		['a parent reference only inside :is()', '.rp-dialog-button { box-shadow: none; :is(&) .other { outline: 2px solid red } }'],
+		['a parent reference that is not the first component', '.rp-dialog-button { box-shadow: none; .other & { outline: 2px solid red } }'],
+	])('refuses %s', (_case, css) => {
+		expect(() => stylesheetRules(css)).toThrow(/CSS nesting/u);
+	});
+
+	it('reads a nesting-free :is() as the ordinary selector it is', () => {
+		expect(() => stylesheetRules('.rp-dialog-button:is(.a, .b) { outline: 2px solid red }')).not.toThrow();
+	});
+
 	// And the refusal must not be reaching the sheets that exist — a gate that refuses everything
 	// guards nothing. The sweep below is what proves that positively, over real content.
 	it('renders every selector in every sheet it guards', () => {

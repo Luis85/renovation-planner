@@ -73,21 +73,49 @@ describe('plan repository: calibration sync and listing', () => {
 
 
 describe('project and zone listings', () => {
-	it('listAll propagates read failures', async () => {
+	/**
+	 * INVERTED in the slice 11/14 polishing pass, and the inversion is the point of the case.
+	 * It used to assert that one poisoned note failed the whole listing — so a single stale
+	 * note cost the user every project in the vault, with hand-editing YAML as the only
+	 * recovery. It is skipped and COUNTED now.
+	 *
+	 * The refusal is not lost by being skipped: `getById` records every one into the
+	 * diagnostics ledger on the way past, which is why only the count travels outward.
+	 */
+	it('listAll skips an unreadable note and counts it, instead of failing the whole listing', async () => {
 		const stack = createRepositoryStack();
-		const projectId = createProjectId();
-		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
-		const path = notePathOf(stack, projectId);
-		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: "junk"'));
-		expect((await stack.projects.listAll()).ok).toBe(false);
+		const readable = createProjectId();
+		const poisoned = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: readable }), 'absent'));
+		expectOk(await stack.projects.save(makeProjectEntity({ id: poisoned }), 'absent'));
+		const path = notePathOf(stack, poisoned);
+		stack.vault.entries.set(
+			path,
+			(stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: "junk"'),
+		);
+
+		const listing = expectOk(await stack.projects.listAll());
+
+		expect(listing.loaded.map((one) => one.entity.id)).toEqual([readable]);
+		expect(listing.refused).toBe(1);
 	});
 
-	it('listAll skips a vanished note instead of failing the whole listing', async () => {
+	/**
+	 * A vanished note is NOT a refusal and must not be counted as one: `getById` answers
+	 * `ok(null)` for it (§36, "not found is not an error"), nothing was refused, and telling
+	 * the user "some projects could not be read" about a note that simply is not there would
+	 * be a warning with no referent.
+	 */
+	it('listAll skips a vanished note without counting it as a refusal', async () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		stack.vault.entries.delete(notePathOf(stack, projectId));
-		expect(expectOk(await stack.projects.listAll())).toEqual([]);
+
+		const listing = expectOk(await stack.projects.listAll());
+
+		expect(listing.loaded).toEqual([]);
+		expect(listing.refused).toBe(0);
 	});
 
 	it('listByProject skips a vanished note', async () => {

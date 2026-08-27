@@ -24,6 +24,6 @@ export class ListProjects {
 	async execute(): Promise<Result<Project[], RepositoryError>> {
 		const listed = await this.projects.listAll();
 		if (isErr(listed)) return listed;
-		return ok(listed.value.map((loaded) => loaded.entity));
+		return ok(listed.value.loaded.map((loaded) => loaded.entity));
 	}
 }

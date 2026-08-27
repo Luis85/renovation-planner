@@ -55,11 +55,19 @@ function backgroundCandidates(app: App): TFile[] {
  * from the first import either way.
  */
 async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TFile): Promise<void> {
-	// ANNOTATED, not inferred: fallow resolves a class's members through an explicit type
-	// annotation, and without one it reports `execute`/`undo` as dead members of a class
-	// this file is the only production caller of. The annotation is the STRUCTURAL command
-	// shape, not the concrete adapter class: what leaves the composition root is guarded
-	// (SDD §66), a wrapper with the same `execute`.
+	// ANNOTATED, not inferred, and the annotation is the STRUCTURAL command shape rather
+	// than the concrete adapter class: what leaves the composition root is guarded (SDD
+	// §66), a wrapper with the same `execute`, which a parameter typed as the class would
+	// refuse.
+	//
+	// What this annotation does NOT do — and an earlier version of this comment claimed it
+	// did — is keep `undo` alive for fallow. `Command` declares `execute` and nothing else,
+	// and `guardCommand` hands back only `{ execute }`, so `undo` is invisible from here.
+	// Both members are kept by the `fallow-ignore-next-line unused-class-member` marks
+	// inside `ReversibleSetPlanBackground.ts`, where the reason is written down. `undo` has
+	// no production caller at all: it is driven by tests, and it exists because
+	// `CommandHistory` is what will hold this adapter once a background import becomes
+	// undoable.
 	const command: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>> | undefined =
 		host.root.persistence?.reversibleSetPlanBackground;
 	const kind = backgroundKindFor(file.path);

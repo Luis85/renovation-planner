@@ -103,7 +103,20 @@ const isFocusPseudo = (component: SelectorComponent, negated = false): boolean =
 	// so `:has(:focus-visible)` is an ancestor of something focused rather than the focused thing.
 	if (component.kind !== 'not') return false;
 
-	return argumentsOf(component).some((argument) => argument.some((part) => isFocusPseudo(part, !negated)));
+	// PURELY a focus condition — one argument, one component — because the caller STRIPS whatever
+	// this answers true for, and stripping is only sound when nothing else is inside.
+	// `:not(:not(:focus-visible), .rp-dialog-button-danger)` is `focus-visible AND NOT danger`, and
+	// answering true for it dropped the danger exclusion with the focus one: the ring then read as
+	// covering every `.rp-dialog-button`, danger buttons included, which it does not.
+	//
+	// Refusing the mixed shape means it is not a focus rule at all, so nothing is credited and the
+	// site is reported — over-reporting, the safe side, and the same conservative answer this
+	// predicate gave before the parity arm existed.
+	const args = argumentsOf(component);
+
+	if (args.length !== 1 || args[0].length !== 1) return false;
+
+	return isFocusPseudo(args[0][0], !negated);
 };
 
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {

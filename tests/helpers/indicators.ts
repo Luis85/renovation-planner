@@ -81,6 +81,9 @@ const spills = (shadow: {
  */
 const paints = (color: { alpha?: number }): boolean => color.alpha !== 0;
 
+/** Is this the `currentcolor` keyword, whose value is whatever `color` finally resolves to? */
+const isCurrentColor = (color: { type?: string }): boolean => color.type === 'currentcolor';
+
 /**
  * What one component of an indicator is known to be. `unknown` is a `var()` — this gate cannot see
  * what a variable holds, so it counts as drawing, which is the same ceiling the specificity check
@@ -160,6 +163,17 @@ export const indicatorOf = (
 	let width: Known = 'draws';
 	let style: Known = 'blank';
 	let color: Known = 'draws';
+	// `currentcolor` carries NO numeric alpha, so `paints` assumed it painted — and
+	// `color: transparent; outline: 2px solid currentColor` draws an outline nobody can see. These two
+	// track it: whether the outline's colour came from the keyword, and what this block's own `color`
+	// resolves to. Order between them does not matter and must not: `color` is a different property,
+	// so the block's final one is what `currentcolor` takes, wherever the outline was written.
+	//
+	// THE CEILING, and it is a real one: only THIS block's `color` is seen. A `color: transparent`
+	// winning from another rule leaves the outline credited, because resolving that needs `color` as
+	// a fourth channel in the cross-rule cascade and it is not one.
+	let fromCurrentColor = false;
+	let blockColor: boolean | undefined;
 	const touched = new Set<OutlinePart>();
 	let shadow: boolean | undefined;
 
@@ -171,6 +185,7 @@ export const indicatorOf = (
 			// A keyword width (`medium`, `thin`, `thick`) is not a length and is never zero.
 			width = shorthandWidth.type === 'length' && isZero(shorthandWidth.value) ? 'blank' : 'draws';
 			style = declaration.value.style.value === 'none' ? 'blank' : 'draws';
+			fromCurrentColor = isCurrentColor(declaration.value.color);
 			color = paints(declaration.value.color) ? 'draws' : 'blank';
 			continue;
 		}
@@ -186,7 +201,12 @@ export const indicatorOf = (
 		}
 		if (declaration.property === 'outline-color') {
 			touched.add('color');
+			fromCurrentColor = isCurrentColor(declaration.value);
 			color = paints(declaration.value) ? 'draws' : 'blank';
+			continue;
+		}
+		if (declaration.property === 'color') {
+			blockColor = paints(declaration.value);
 			continue;
 		}
 		if (declaration.property === 'box-shadow') {
@@ -249,9 +269,15 @@ export const indicatorOf = (
 		}
 	}
 
-	const resolved: Record<OutlinePart, Known> = { width, style, color };
+	// Resolved at the END, because `color` and the outline are different properties and either may be
+	// written first — the block's final `color` is what the keyword takes.
+	const resolved: Record<OutlinePart, Known> = {
+		width,
+		style,
+		color: fromCurrentColor && blockColor === false ? 'blank' : color,
+	};
 	const parts: OutlineParts = Object.fromEntries([...touched].map((part) => [part, resolved[part]]));
-	const outline = touched.size > 0 ? ![width, style, color].some((part) => part === 'blank') : undefined;
+	const outline = touched.size > 0 ? !Object.values(resolved).some((part) => part === 'blank') : undefined;
 
 	return { outline, shadow, parts };
 };

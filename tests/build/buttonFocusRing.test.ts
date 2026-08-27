@@ -306,6 +306,15 @@ describe('a flattened button and its focus ring', () => {
 			'an outline drawn only while unfocused',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:focus-visible) { outline: 2px solid red; }',
 		],
+		// A NEGATION CARRYING MORE THAN THE FOCUS CONDITION is not stripped, because stripping is what
+		// answering true for it causes. `:not(:not(:focus-visible), .rp-dialog-button-danger)` means
+		// `focus-visible AND NOT danger`, and dropping the whole component dropped the danger exclusion
+		// with the focus one — the ring then read as covering every `.rp-dialog-button`, danger buttons
+		// included, which it does not. Refused, so nothing is credited and the site is reported.
+		[
+			'a focus ring that excludes one class through the same negation',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:not(:focus-visible), .rp-dialog-button-danger) { outline: 2px solid red; }',
+		],
 		// A DOUBLE NEGATIVE IS POSITIVE. `:not(:not(:focus-visible))` is logically `:focus-visible`, and
 		// read as a plain `:not` the rule was classified as a non-focus one that never entered the
 		// cascade at all — so the ring stood while the browser takes it away.
@@ -389,6 +398,11 @@ describe('a flattened button and its focus ring', () => {
 		// a flattened button with an indicator that is not there.
 		'outline: inherit',
 		'box-shadow: inherit',
+		// `currentcolor` carries no numeric alpha, so it was assumed to paint — and this outline takes
+		// its colour from a `color` that paints nothing. Solid, two pixels wide, and invisible.
+		'color: transparent; outline: 2px solid currentColor',
+		'outline: 2px solid currentColor; color: transparent',
+		'color: transparent; outline-style: solid; outline-color: currentColor',
 		// `all` is both properties at once, and its grammar admits only CSS-wide keywords — none of
 		// which this gate can prove an indicator from. It arrives as its own parsed property rather
 		// than as an unparsed keyword, so the `RESETS` path never saw it.
@@ -415,6 +429,10 @@ describe('a flattened button and its focus ring', () => {
 		// style on its own really does draw. Without these the initial-value fix could have been
 		// "treat every absent component as blank", which refuses a legitimate ring.
 		['outline-style: solid', true],
+		// And a `currentcolor` outline over a colour that DOES paint is a ring, which is what keeps the
+		// fix from becoming "never credit currentcolor".
+		['color: red; outline: 2px solid currentColor', true],
+		['outline: 2px solid currentColor', true],
 		['outline-style: solid; outline-color: red', true],
 		['outline: 2px solid red; outline-style: none; outline-style: solid', true],
 		['all: unset; outline: 2px solid red', true],

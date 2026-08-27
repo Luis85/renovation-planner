@@ -109,6 +109,13 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 			.filter((component) => !(component.type === 'type' && component.name === 'button'))
 			.map((component) => show([component])),
 	};
+	// A PSEUDO-ELEMENT IS A DIFFERENT BOX, and the class path below would otherwise file it under the
+	// button's own key: `.rp-dialog-button::after { box-shadow: none }` suppresses the shadow of the
+	// generated content, not of the button, and no `::after` is ever focused. Checked HERE and not
+	// only in `targetsAButton`, because a class-bearing subject never reaches that predicate — which
+	// is the neighbour-shaped miss this file has already had three times.
+	if (subjectOf(branch).some((component) => component.type === 'pseudo-element')) return [];
+
 	const onSubject = buttonClassesOn(branch, classes);
 
 	if (onSubject.length > 0) return onSubject.map((key) => ({ key, conditions }));

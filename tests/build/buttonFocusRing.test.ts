@@ -585,6 +585,10 @@ describe('a flattened button and its focus ring', () => {
 		// `none` here is overridden on the next line, so nothing is flattened and there is nothing
 		// to demand a ring for.
 		['a suppression its own block overrides', '.rp-dialog-button { box-shadow: none; box-shadow: 0 0 0 3px red; }'],
+		// A pseudo-element is a DIFFERENT BOX: this suppresses the generated content's shadow, not the
+		// button's, and no `::after` is ever focused. Filed under the button's own key it demanded a
+		// ring for a box that has none to lose.
+		['a shadow suppressed on generated content', '.rp-dialog-button::after { box-shadow: none; }'],
 		// The same visible base shadow, ANSWERED. The widening above must not become "any button with
 		// a shadow is an offender": a focus ring covering the site is the whole remedy.
 		[

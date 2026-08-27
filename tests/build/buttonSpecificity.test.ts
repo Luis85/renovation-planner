@@ -595,6 +595,21 @@ describe('every button rule against Obsidian\'s own', () => {
 		},
 	);
 
+	/**
+	 * A PSEUDO-ELEMENT IS A DIFFERENT BOX. `::after` styles generated content, not the button, so it
+	 * competes with nothing Obsidian's rule declares — and counted as the button it scores (0,1,1),
+	 * the class plus the pseudo-element, which TIES the host rule and was reported as losing a
+	 * cascade it is not in.
+	 */
+	it.each(['.rp-editor-tool-button::after', '.rp-editor-tool-button::before', 'button::after'])(
+		'says nothing about %s, which styles generated content',
+		(selector) => {
+			expect(losingButtonRules([['fixture', `${selector} { color: red; }`]], new Set(['.rp-editor-tool-button']))).toEqual(
+				[],
+			);
+		},
+	);
+
 	it('still reports a rule whose OTHER contested property is normal', () => {
 		expect(
 			losingButtonRules(

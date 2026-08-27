@@ -203,10 +203,21 @@ export const buttonClassesOn = (selector: Selector, classes: Set<string>): strin
  * matcher is a far larger instrument than this file; the two spellings this predicate does know are
  * decidable from the selector alone, and that is the line.
  */
-export const targetsAButton = (selector: Selector, classes: Set<string>): boolean =>
-	buttonClassesOn(selector, classes).length > 0 ||
-	compoundsOf(selector).at(-1)?.components.some((component) => component.type === 'type' && component.name === 'button') ===
-		true;
+export const targetsAButton = (selector: Selector, classes: Set<string>): boolean => {
+	const subject = compoundsOf(selector).at(-1)?.components ?? [];
+
+	// A PSEUDO-ELEMENT IS A DIFFERENT BOX. `.rp-editor-tool-button::after` styles generated content,
+	// not the button, so it competes with nothing Obsidian's `button:not(.clickable-icon)` declares
+	// and cannot take the button's own shadow away either. Counted as the button it scores (0,1,1) —
+	// the class plus the pseudo-element — which TIES the host rule and so was reported as losing a
+	// cascade it is not in.
+	if (subject.some((component) => component.type === 'pseudo-element')) return false;
+
+	return (
+		buttonClassesOn(selector, classes).length > 0 ||
+		subject.some((component) => component.type === 'type' && component.name === 'button')
+	);
+};
 
 /** A branch's subject — the components after its last combinator, the element the rule styles. */
 export const subjectOf = (branch: Selector): SelectorComponent[] =>

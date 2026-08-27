@@ -11,7 +11,7 @@ import type { PlanId } from '../../../domain/plan/PlanId';
  * the moment the mapping can first exist) and nothing else. Reads never import it.
  */
 
-export const GEOMETRY_FOLDER = 'Geometry';
+const GEOMETRY_FOLDER = 'Geometry';
 
 const PLANS_FOLDER = 'Plans';
 const ZONES_FOLDER = 'Zones';

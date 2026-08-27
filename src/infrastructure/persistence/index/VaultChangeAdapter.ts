@@ -5,7 +5,6 @@ import { entityRefOf, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
-import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
 
 /**
  * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
@@ -30,7 +29,6 @@ export class VaultChangeAdapter {
 			index: ProjectIndex;
 			echo: EchoWindow;
 			logger: Logger;
-			projectFolder: string;
 			/** Tests flush synchronously by passing 0. */
 			debounceMs?: number;
 		},
@@ -100,9 +98,6 @@ export class VaultChangeAdapter {
 			this.processSidecar(path);
 			return;
 		}
-		const folder = normalizeFolder(this.deps.projectFolder);
-		if (!path.startsWith(`${folder}/`)) return;
-
 		const abstractFile = this.deps.vault.getAbstractFileByPath(path);
 		const existing = this.findByPath(path);
 
@@ -164,10 +159,11 @@ export class VaultChangeAdapter {
 	}
 
 	private processSidecar(path: string): void {
-		const geometryPrefix = `${normalizeFolder(this.deps.projectFolder)}/${GEOMETRY_FOLDER}/`;
-		if (!path.startsWith(geometryPrefix)) return;
-
-		const planId = path.slice(geometryPrefix.length).replace(/\.rpgeo$/, '');
+		// The plan id is the sidecar's basename (ADR-011), which is what `joinSidecars`
+		// reads too. It used to be recovered by slicing a configured prefix off the front,
+		// and that is the same bound the scan just lost: a sidecar under a second root
+		// answered no plan at all.
+		const planId = path.slice(path.lastIndexOf('/') + 1).replace(/\.rpgeo$/, '');
 		const planEntry = this.findByPath(this.deps.index.getPath(planId as never) ?? '');
 
 		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead

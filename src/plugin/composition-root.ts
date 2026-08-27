@@ -473,7 +473,6 @@ export function createCompositionRoot(
 				index,
 				echo,
 				logger,
-				projectFolder: settings.projectFolder,
 			}),
 		},
 	};

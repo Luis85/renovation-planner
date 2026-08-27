@@ -29,7 +29,6 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>): VaultChange
 		index: stack.index,
 		echo: stack.echo,
 		logger: stack.logger,
-		projectFolder: stack.projectFolder,
 		debounceMs: 0,
 	});
 }
@@ -66,7 +65,10 @@ describe('pipeline negatives', () => {
 		expect(stack.index.entries().find((entry) => entry.path === 'Renovation/Zones/Fresh.md')).toBeUndefined();
 	});
 
-	it('an rpgeo outside the Geometry folder is silently ignored; an orphan inside is diagnosed', async () => {
+	it('an rpgeo whose basename names no plan is diagnosed, wherever it sits', async () => {
+		// The pipeline's bound is no longer a folder prefix — a sidecar's plan id is its
+		// basename (ADR-011), so a stray file gets the same diagnostic whether it sits
+		// beside the configured Geometry folder or somewhere else entirely.
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
 		const adapter = adapterOf(stack);
@@ -75,10 +77,13 @@ describe('pipeline negatives', () => {
 		const warnsBefore = stack.logged.length;
 		adapter.onModify(stack.vault.getAbstractFileByPath('Renovation/Stray.rpgeo') as never);
 		adapter.flush();
-		expect(stack.logged.slice(warnsBefore)).toHaveLength(0);
+		expect(
+			stack.logged.slice(warnsBefore).some((line) => line.event === 'persistence.pipeline.sidecar-skipped'),
+		).toBe(true);
 
-		// An orphan INSIDE Geometry gets a diagnostic instead of a guessed mapping.
-		const orphanPath = `Renovation/Geometry/${createPlanId()}.rpgeo`;
+		// An orphan under a second root gets the identical diagnostic instead of a guessed
+		// mapping.
+		const orphanPath = `Elsewhere/Geometry/${createPlanId()}.rpgeo`;
 		stack.vault.entries.set(orphanPath, '{}');
 		adapter.onModify(stack.vault.getAbstractFileByPath(orphanPath) as never);
 		adapter.flush();

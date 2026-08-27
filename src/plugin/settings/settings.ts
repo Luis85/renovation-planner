@@ -20,16 +20,21 @@
 export const UNITS = ['metric', 'imperial'] as const;
 export type Units = (typeof UNITS)[number];
 
-/** Where entity notes live; `Geometry/` is derived inside it, never configured (ADR-011). */
+/**
+ * The root a NEW project's folder is created under, not the folder every entity lives in
+ * (ADR-0013: a project's own folder is now derived from where its note sits).
+ */
 const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
 export interface RenovationPlannerSettings {
 	/** Measurement system for quantities and dimensions (SDD A§15: default units). */
 	units: Units;
 	/**
-	 * The folder every Project/Plan/Zone note lives under — THE one location field
-	 * (ADR-011). A path is not a preference: with settings unrecovered there is no
-	 * correct default, which is why nothing composes against one.
+	 * The root a new project's folder is created under (ADR-0013). It is not "where every
+	 * entity lives" any more: a project's own folder is derived from where its note sits,
+	 * so this field has exactly one job left, and an existing project's folder does not
+	 * move when this setting changes. A path is not a preference: with settings unrecovered
+	 * there is no correct default, which is why nothing composes against one.
 	 */
 	projectFolder: string;
 	/**

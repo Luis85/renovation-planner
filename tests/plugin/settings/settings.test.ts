@@ -83,4 +83,12 @@ describe('resolving settings from stored data', () => {
 
 		expect(DEFAULT_SETTINGS.units).toBe('metric');
 	});
+
+	it('round-trips a configured projects folder under the key it has always used', () => {
+		// The key is NOT renamed. `settingsFrom` drops keys this version does not declare,
+		// on the way in and on the way out, so renaming it would silently reset every
+		// existing user's configured folder to the default — and writing to a defaulted
+		// path is the exact failure this slice refuses everywhere else.
+		expect(settingsFrom({ projectFolder: 'Somewhere Else' }).projectFolder).toBe('Somewhere Else');
+	});
 });

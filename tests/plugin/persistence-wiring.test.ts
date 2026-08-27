@@ -165,8 +165,7 @@ describe('persistence composition', () => {
 	/**
 	 * `saveSettings` REPLACES the composition root — its fields are readonly, so that is the
 	 * only way state changes there. Two things have to survive the swap, and neither did:
-	 * the new root's index starts EMPTY (and `projectFolder` is itself a setting, so the
-	 * tree worth scanning may have moved), and the vault listeners registered at
+	 * the new root's index starts EMPTY, and the vault listeners registered at
 	 * layout-ready must end up maintaining the root the save installed rather than the one
 	 * they were registered beside.
 	 */

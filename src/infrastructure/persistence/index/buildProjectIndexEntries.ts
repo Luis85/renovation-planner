@@ -133,10 +133,12 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
  * **What that costs, stated rather than discovered:** `frontmatterOf` is called for every
  * markdown file in the vault, not for the handful under one folder. It is a
  * `MetadataCache` map lookup plus an `EchoWindow` digest check — not a file read and not a
- * parse — which is why the cost is acceptable at §102's budgets. It is NOT, as slice 18's
- * document first claimed, "the same set either way": the prefix used to be tested before
- * this call, and a 10,000-note vault with twenty notes under `Renovation/` cost twenty
- * calls and now costs ten thousand lookups.
+ * parse. PRD §102 names "project indexing time" as a category needing a budget and sets no
+ * figure for it, so this is a description of the cost rather than a claim that it clears
+ * one — there is nothing written down yet to clear. It is NOT, as slice 18's document first
+ * claimed, "the same set either way": the prefix used to be tested before this call, and a
+ * 10,000-note vault with twenty notes under `Renovation/` cost twenty calls and now costs
+ * ten thousand lookups.
  *
  * Notes are read through `MetadataCache`, never by parsing files; sidecars are joined to
  * their Plan entries by FILENAME — the fast path — because reading and schema-parsing

@@ -22,6 +22,13 @@ type RenovationProjectStoreStatus = 'idle' | 'loading' | 'ready' | 'failed';
  */
 export const useRenovationProjectStore = defineStore('renovation-project', () => {
 	const projects = ref<readonly ProjectSummaryDto[]>([]);
+	/**
+	 * How many project notes refused to load on the last successful read. Zero on a failure
+	 * as well as on a clean read: a wholesale failure has no per-note count behind it, and a
+	 * stale one outliving the read it described would be presented as a fact by whatever
+	 * renders it next.
+	 */
+	const unreadable = ref(0);
 	const status = ref<RenovationProjectStoreStatus>('idle');
 	const error = ref<RepositoryError | null>(null);
 
@@ -47,6 +54,7 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 	 */
 	function fail(cause: RepositoryError): void {
 		projects.value = [];
+		unreadable.value = 0;
 		error.value = cause;
 		status.value = 'failed';
 	}
@@ -80,7 +88,8 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 			return;
 		}
 
-		projects.value = found.value;
+		projects.value = found.value.projects;
+		unreadable.value = found.value.unreadable;
 		status.value = 'ready';
 	}
 
@@ -94,7 +103,9 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 	 * from those branches.
 	 */
 	const emptyStateKey = computed(() =>
-		status.value === 'ready' ? selectRenovationProjectEmptyState(projects.value) : null,
+		status.value === 'ready'
+			? selectRenovationProjectEmptyState(projects.value, unreadable.value)
+			: null,
 	);
 
 	/**
@@ -110,9 +121,10 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 		// Invalidates any hydration still in flight, exactly as `ProjectStore.reset` does.
 		latestHydration += 1;
 		projects.value = [];
+		unreadable.value = 0;
 		error.value = null;
 		status.value = 'idle';
 	}
 
-	return { projects, status, error, emptyStateKey, hydrate, reset };
+	return { projects, unreadable, status, error, emptyStateKey, hydrate, reset };
 });

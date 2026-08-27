@@ -1,8 +1,18 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
-import type { Project } from '../../domain/project/Project';
+import type { ProjectListResult } from '../../application/queries/ListProjects';
 import { toProjectSummaryDto, type ProjectSummaryDto } from './PlanDto';
+
+/**
+ * The view's own shape of a project listing: summaries it can render, and how many projects
+ * it cannot show. `unreadable > 0` is what suppresses the empty state — see
+ * `selectRenovationProjectEmptyState`.
+ */
+export interface ProjectListView {
+	readonly projects: readonly ProjectSummaryDto[];
+	readonly unreadable: number;
+}
 
 /**
  * The ONLY application-layer surface the Renovation Project view depends on. A sibling of
@@ -12,7 +22,7 @@ import { toProjectSummaryDto, type ProjectSummaryDto } from './PlanDto';
  * named for one of them.
  */
 export interface RenovationProjectQueryServices {
-	listProjects(): Promise<Result<readonly ProjectSummaryDto[], RepositoryError>>;
+	listProjects(): Promise<Result<ProjectListView, RepositoryError>>;
 }
 
 /**
@@ -61,13 +71,16 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  * `createPlanEditorQueries` draws for `getPlan` and `findZonesByPlan`.
  */
 export function createRenovationProjectQueries(
-	listProjects: Query<void, Result<Project[], RepositoryError>>,
+	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
 ): RenovationProjectQueryServices {
 	return {
 		async listProjects() {
 			const found = await listProjects.execute();
 			if (isErr(found)) return found;
-			return ok(found.value.map(toProjectSummaryDto));
+			return ok({
+				projects: found.value.projects.map(toProjectSummaryDto),
+				unreadable: found.value.unreadable,
+			});
 		},
 	};
 }

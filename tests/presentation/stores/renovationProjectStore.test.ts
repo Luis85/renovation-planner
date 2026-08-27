@@ -19,7 +19,7 @@ const READ_FAILED = { category: 'Persistence', code: 'settings.unrecovered', mes
 
 function queries(overrides: Partial<RenovationProjectQueryServices> = {}): RenovationProjectQueryServices {
 	return {
-		listProjects: () => Promise.resolve(ok([PROJECT])),
+		listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 0 })),
 		...overrides,
 	};
 }
@@ -81,7 +81,7 @@ describe('RenovationProjectStore hydration', () => {
 	it('resolves the empty-state key once ready with no projects', async () => {
 		const store = useRenovationProjectStore();
 
-		await store.hydrate(queries({ listProjects: () => Promise.resolve(ok([])) }));
+		await store.hydrate(queries({ listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) }));
 
 		expect(store.status).toBe('ready');
 		expect(store.emptyStateKey).toBe('noProjects');
@@ -103,11 +103,13 @@ describe('RenovationProjectStore hydration', () => {
 			releaseSlow = resolve;
 		});
 		const stale: ProjectSummaryDto = { id: 'stale', name: 'the stale answer', status: 'Planning' };
-		const slow = store.hydrate(queries({ listProjects: () => slowGate.then(() => ok([stale])) }));
+		const slow = store.hydrate(
+			queries({ listProjects: () => slowGate.then(() => ok({ projects: [stale], unreadable: 0 })) }),
+		);
 
 		// A second hydration starts and finishes entirely inside the first one's await.
 		const fresh: ProjectSummaryDto = { id: 'fresh', name: 'the fresh answer', status: 'Planning' };
-		await store.hydrate(queries({ listProjects: () => Promise.resolve(ok([fresh])) }));
+		await store.hydrate(queries({ listProjects: () => Promise.resolve(ok({ projects: [fresh], unreadable: 0 })) }));
 		expect(store.projects).toEqual([fresh]);
 
 		releaseSlow();
@@ -122,7 +124,9 @@ describe('RenovationProjectStore hydration', () => {
 		const gate = new Promise<void>((resolve) => {
 			release = resolve;
 		});
-		const pending = store.hydrate(queries({ listProjects: () => gate.then(() => ok([PROJECT])) }));
+		const pending = store.hydrate(
+			queries({ listProjects: () => gate.then(() => ok({ projects: [PROJECT], unreadable: 0 })) }),
+		);
 
 		store.reset();
 		release();
@@ -141,5 +145,36 @@ describe('RenovationProjectStore hydration', () => {
 		expect(store.status).toBe('idle');
 		expect(store.projects).toEqual([]);
 		expect(store.error).toBeNull();
+	});
+
+	/**
+	 * The count is the store's, not the view's, because `emptyStateKey` is computed from it:
+	 * a vault of unreadable notes must not resolve to `noProjects`. Asserted on the store so
+	 * the rule holds without a DOM.
+	 */
+	it('holds the refusal count and answers no empty state for a vault of unreadable notes', async () => {
+		const store = useRenovationProjectStore();
+
+		await store.hydrate(
+			queries({ listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 3 })) }),
+		);
+
+		expect(store.status).toBe('ready');
+		expect(store.unreadable).toBe(3);
+		expect(store.emptyStateKey).toBeNull();
+	});
+
+	it('forgets a refusal count on the next clean read', async () => {
+		const store = useRenovationProjectStore();
+		await store.hydrate(
+			queries({ listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 2 })) }),
+		);
+
+		await store.hydrate(
+			queries({ listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 0 })) }),
+		);
+
+		expect(store.unreadable).toBe(0);
+		expect(store.emptyStateKey).toBeNull();
 	});
 });

@@ -12,6 +12,7 @@ import { guardCommand, guardQuery } from '../application/errors/guardAgainstThro
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
 import { ListProjects } from '../application/queries/ListProjects';
+import type { ProjectListResult } from '../application/queries/ListProjects';
 import { GetPlan, type GetPlanInput } from '../application/queries/GetPlan';
 import { GetZone, type GetZoneInput } from '../application/queries/GetZone';
 import { FindZonesByPlan, type FindZonesByPlanInput } from '../application/queries/FindZonesByPlan';
@@ -137,7 +138,7 @@ export interface GuardedEditorServices {
 	 * gets mapped into `ProjectSummaryDto` — that mapping happens one level down from the
 	 * root, unlike `planEditorQueries`'s, and guarding it here does not change where.
 	 */
-	readonly listProjects: Query<void, Result<Project[], RepositoryError>>;
+	readonly listProjects: Query<void, Result<ProjectListResult, RepositoryError>>;
 }
 
 /** Design slice 10's write and read side, guarded — the same seam, one slice later. */

@@ -37,8 +37,22 @@ export function selectPlanEditorEmptyState(
 	return null;
 }
 
+/**
+ * `unreadable` is why this takes a second argument rather than reading a length.
+ *
+ * Zero projects with a refusal behind them is not an empty state: the vault may hold several
+ * this build cannot parse, and the onboarding copy would tell the user to create their first
+ * project while their existing ones sit unparseable on disk — wrong, and unactionable. The
+ * view renders the refusal notice instead, and `EMPTY_STATE_CONTENT` gains nothing.
+ *
+ * This stays a function of QUERY RESULTS, so slice 14's rule holds: `unreadable` is part of
+ * what `listProjects` answered, unlike the `activeToolId` that rule refused — which was
+ * live editor state and would have made this question unanswerable without a `ToolManager`.
+ */
 export function selectRenovationProjectEmptyState(
 	projects: readonly ProjectSummaryDto[],
+	unreadable: number,
 ): 'noProjects' | null {
+	if (unreadable > 0) return null;
 	return projects.length === 0 ? 'noProjects' : null;
 }

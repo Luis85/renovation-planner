@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
-import { err, isErr, isOk } from '../../../src/core/result/Result';
+import { err, isErr, isOk, ok } from '../../../src/core/result/Result';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import type { ProjectRepository } from '../../../src/application/ports/ProjectRepository';
 import { expectOk } from '../../helpers/domain';
@@ -25,7 +25,7 @@ describe('ListProjects', () => {
 	it('answers an empty list for a vault with no projects', async () => {
 		const result = await new ListProjects(new InMemoryProjectRepository()).execute();
 
-		expect(isOk(result) && result.value).toEqual([]);
+		expect(isOk(result) && result.value).toEqual({ projects: [], unreadable: 0 });
 	});
 
 	/**
@@ -68,8 +68,38 @@ describe('ListProjects', () => {
 
 		const result = await new ListProjects(repository).execute();
 
-		const projects = expectOk(result);
-		expect(projects.map((p) => p.id)).toEqual(expect.arrayContaining([first.id, second.id]));
-		expect(projects).toHaveLength(2);
+		const listed = expectOk(result);
+		expect(listed.projects.map((p) => p.id)).toEqual(
+			expect.arrayContaining([first.id, second.id]),
+		);
+		expect(listed.projects).toHaveLength(2);
+		expect(listed.unreadable).toBe(0);
+	});
+
+	/**
+	 * The third fact this query has to keep apart from the other two. `ok` with an empty list
+	 * and `unreadable: 0` is "nothing here yet" and earns onboarding copy; `isErr` is a
+	 * wholesale failure; an empty list with `unreadable: 3` is neither — the vault holds
+	 * projects the user cannot see, and the view must say so rather than invite them to
+	 * create their first one.
+	 */
+	it('reports how many notes refused, without failing the read', async () => {
+		const refusing: ProjectRepository = {
+			getById: () => {
+				throw new Error('not used by this test');
+			},
+			save: () => {
+				throw new Error('not used by this test');
+			},
+			delete: () => {
+				throw new Error('not used by this test');
+			},
+			listAll: () => Promise.resolve(ok({ loaded: [], refused: 3 })),
+		};
+
+		const listed = expectOk(await new ListProjects(refusing).execute());
+
+		expect(listed.projects).toEqual([]);
+		expect(listed.unreadable).toBe(3);
 	});
 });

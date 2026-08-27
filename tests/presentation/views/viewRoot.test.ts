@@ -28,7 +28,9 @@ import type { RenovationProjectDeps } from '../../../src/presentation/views/Reno
  * `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING the view can
  * hydrate against without throwing.
  */
-const deps: RenovationProjectDeps = { queries: { listProjects: () => Promise.resolve(ok([])) } };
+const deps: RenovationProjectDeps = {
+	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
+};
 
 describe('the view root', () => {
 	/**

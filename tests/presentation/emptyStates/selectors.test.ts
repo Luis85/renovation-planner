@@ -73,12 +73,33 @@ describe('selectPlanEditorEmptyState', () => {
 
 describe('selectRenovationProjectEmptyState', () => {
 	it('asks for a project when the vault has none', () => {
-		expect(selectRenovationProjectEmptyState([])).toBe('noProjects');
+		expect(selectRenovationProjectEmptyState([], 0)).toBe('noProjects');
 	});
 
 	it('asks for nothing once there is one', () => {
 		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
 
-		expect(selectRenovationProjectEmptyState([project])).toBeNull();
+		expect(selectRenovationProjectEmptyState([project], 0)).toBeNull();
+	});
+
+	/**
+	 * The arm that makes this a two-argument function. An empty list with a refusal behind it
+	 * is NOT "no projects yet": the vault may hold five this build cannot parse, and
+	 * onboarding copy inviting the user to create their first one would be wrong AND
+	 * unactionable. The view renders the refusal notice for this case.
+	 */
+	it('asks for nothing when the list is empty only because notes refused', () => {
+		expect(selectRenovationProjectEmptyState([], 3)).toBeNull();
+	});
+
+	/**
+	 * A partial read still shows what loaded. The notice is additive, not a replacement —
+	 * suppressing the whole surface because one note refused would hide four readable
+	 * projects to report the fifth.
+	 */
+	it('asks for nothing when some projects loaded and others refused', () => {
+		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
+
+		expect(selectRenovationProjectEmptyState([project], 1)).toBeNull();
 	});
 });

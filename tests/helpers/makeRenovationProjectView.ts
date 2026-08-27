@@ -41,5 +41,5 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
 export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	new RenovationProjectView(
 		new FakeLeaf() as never,
-		deps ?? { queries: { listProjects: () => Promise.resolve(ok([])) } },
+		deps ?? { queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) } },
 	);

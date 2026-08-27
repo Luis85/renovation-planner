@@ -19,8 +19,11 @@ import type { RenovationProjectQueryServices } from '../../../src/presentation/r
 
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
 
-const answering = (projects: readonly ProjectSummaryDto[]): RenovationProjectQueryServices => ({
-	listProjects: () => Promise.resolve(ok(projects)),
+const answering = (
+	projects: readonly ProjectSummaryDto[],
+	unreadable = 0,
+): RenovationProjectQueryServices => ({
+	listProjects: () => Promise.resolve(ok({ projects, unreadable })),
 });
 
 const refusing = (): RenovationProjectQueryServices => ({

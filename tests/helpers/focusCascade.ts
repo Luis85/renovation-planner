@@ -163,6 +163,37 @@ const impliedByFocus = (component: SelectorComponent): boolean => {
 	return only.type === 'pseudo-class' && only.kind === 'disabled';
 };
 
+/**
+ * Can an element matching this component NEVER be focused, so the rule is not in the focused
+ * cascade at all?
+ *
+ * A DIFFERENT QUESTION FROM `isFocusPseudo`, and conflating them shipped a wrong test. That walk
+ * answers "does this IMPOSE focus", and it is bounded to one argument of one component because its
+ * caller STRIPS what it answers true for — dropping `:not(:focus-visible, .danger)` would drop the
+ * danger exclusion with it. This one only asks whether a focused element can match at all, and for
+ * that the purity bound is not merely unnecessary but WRONG: `:not(A, B)` is `NOT (A OR B)`, so if
+ * A matches every focused element the whole negation fails for one, whatever B says.
+ *
+ * Round 42 reused the parity walk here and shipped a case asserting that
+ * `:not(:focus-visible, .other)` still flattens. It does not — that rule stops matching the moment
+ * the button is focused — and the case has been inverted.
+ *
+ * `:disabled` is the other half, and the mirror of a rule already in this file: `:not(:disabled)` is
+ * VACUOUS on a focused element because a disabled control is not in the tab order, and by the same
+ * fact `:disabled` is IMPOSSIBLE on one. `:enabled` is neither, and stays out — it is satisfiable by
+ * a focused form control, and false only for elements that are not form controls at all.
+ *
+ * An argument that is a COMPOUND rather than a lone pseudo does not qualify:
+ * `:not(:focus-visible.danger)` still matches a focused button that is not a danger button.
+ */
+const cannotBeFocused = (component: SelectorComponent): boolean => {
+	if (component.type !== 'pseudo-class') return false;
+	if (component.kind === 'disabled') return true;
+	if (component.kind !== 'not') return false;
+
+	return argumentsOf(component).some((argument) => argument.length === 1 && isFocusPseudo(argument[0]));
+};
+
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
@@ -681,19 +712,18 @@ export const flattenedWithoutRing = (
 				// its ancestor match `:focus-visible`, so
 				// `.rp-editor-toolbar:focus-visible .rp-editor-tool-button` says nothing about the button's
 				// own focus state — and a branch-wide search credited it a ring for one.
-				// A RULE THAT EXCLUDES FOCUS IS NOT IN THE FOCUSED CASCADE AT ALL — a third state, and this
-				// file had only two. `.button:not(:focus-visible) { box-shadow: none }` takes the resting
-				// shadow away and STOPS MATCHING the moment the button is keyboard-focused, so the host's
-				// ring appears and there is nothing to report. Read as an ordinary at-rest rule it recorded
-				// a flattening site and failed the build on CSS that rings correctly.
-				//
-				// `isFocusPseudo` already decides this: it tracks NEGATION PARITY, so asking it at odd
-				// depth answers "does this impose NOT-focus". A second predicate would have been a second
-				// derivation of the same parity, and the first one has already been wrong twice about it.
+				// A RULE A FOCUSED ELEMENT CANNOT MATCH IS NOT IN THE FOCUSED CASCADE AT ALL — a third
+				// state, and this file had only two. `.button:not(:focus-visible) { box-shadow: none }`
+				// takes the resting shadow away and STOPS MATCHING the moment the button is
+				// keyboard-focused, so the host's ring appears and there is nothing to report; a
+				// `:disabled` rule is never focused in the first place. Read as ordinary at-rest rules
+				// both recorded a flattening site and failed the build on CSS that rings correctly.
 				//
 				// Skipped BEFORE `focusSites`, so such a branch files no rule and records no site: it is
-				// absent from the focused element's cascade rather than present and losing.
-				if (subjectOf(branch).some((component) => isFocusPseudo(component, true))) continue;
+				// absent from the focused element's cascade rather than present and losing. That is not
+				// the same as suppressing the site — filed at rest it would still RANK, and a more
+				// specific one outranks the ring it must not touch.
+				if (subjectOf(branch).some((component) => cannotBeFocused(component))) continue;
 
 				const ringsFocus = subjectOf(branch).some((component) => isFocusPseudo(component));
 				// FLATTENING IS REPLACING, not only suppressing, and it is decided per BRANCH because the

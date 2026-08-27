@@ -69,10 +69,18 @@ setting and rewrites what resolves a path.
   constructor field, so folder resolution moves to the write, per entity.
 - **The Project Index and the vault-change pipeline take a LIST of roots**, closing slice 4's
   recorded prerequisite. One root today, several the moment slice 19 lands.
-- A one-time migration for vaults holding the single-folder layout.
-- `foldersOverlap`, the pure predicate §83's rule needs, and its refusal at the two sites that
+- ~~A one-time migration for vaults holding the single-folder layout.~~ **Withdrawn.** The
+  derived shape makes the existing single-folder layout a valid project folder already, so
+  nothing has to move. See *The migration* below and the design document's *No migration*.
+- ~~`foldersOverlap`, the pure predicate §83's rule needs, and its refusal at the two sites that
   exist in this slice (creating a project, changing a project's folder). The third site — moving
-  the library — is slice 19's, and calls the same function.
+  the library — is slice 19's, and calls the same function.~~ **Corrected.** `foldersOverlap` has
+  no caller in this slice: under the derived shape, changing a project's folder is a user
+  dragging a folder in Obsidian's file explorer, with no command and no refusal point, and §83's
+  overlap rule is library-versus-project, which does not exist until slice 19. A pure export with
+  no caller in `src/` fails `npm run analyze`. `foldersOverlap` and `IndexRoots` move to slice 19,
+  with their caller. See the design document's *The three corrections*
+  (`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`).
 
 ### Out of scope (covered by other slices)
 
@@ -186,6 +194,16 @@ reasoning ("a setting that names a path is not a preference") applies here uncha
 
 ### `foldersOverlap`
 
+**Withdrawn from this slice — not built here.** This whole subsection describes a predicate this
+slice does not ship. `foldersOverlap` has no caller in this slice: under the derived shape there
+is no command that changes a project's folder (a user drags a folder in Obsidian's file
+explorer instead), and §83's overlap rule is library-versus-project, which slice 19 introduces.
+A pure export with no caller in `src/` fails `npm run analyze`, so building it here would fail
+the gate it exists to keep green. `foldersOverlap` and `IndexRoots` move to slice 19, with their
+caller. See the design document's *The three corrections*
+(`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`). The subsection below
+is left as written, as the record of what was proposed.
+
 ```ts
 /** §83: two configured paths may be neither equal nor contain one another. */
 export function foldersOverlap(a: string, b: string): boolean
@@ -251,6 +269,13 @@ it was wrong — see the design document's *The three corrections*
 
 ## Interfaces & Contracts
 
+**Corrected — this block is an undated sketch, not what ships.** The design document is
+explicit: "`IndexRoots` is not declared. `foldersOverlap` is not declared. Both belong to
+slice 19, which has callers for them." Neither symbol below is declared by this slice; both
+are left in the block as the record of what was proposed before the design document settled
+the two open decisions. See
+[`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md).
+
 ```ts
 // paths.ts — new, pure
 export function foldersOverlap(a: string, b: string): boolean;
@@ -294,25 +319,36 @@ Renovation/                     ← the plugin setting: where a NEW project star
 
 ## Testing Strategy
 
-- `foldersOverlap` — node, three arms plus the segment case, written before the predicate.
+- ~~`foldersOverlap` — node, three arms plus the segment case, written before the predicate.~~
+  **Withdrawn — not this slice's test to write.** `foldersOverlap` moves to slice 19, with its
+  caller; see the correction under *`foldersOverlap`* above.
 - The root-list scan — the existing index tests, extended to two projects. **The two-project
   fixture is the point**: every index test today has one project, and a one-project fixture
   passes against a scan that still uses a single prefix.
-- The orphan diagnostic — a note of ours under no root, asserted on the `warn` call. A category
-  invariant checked at the logger rather than by enumerating placements.
+- ~~The orphan diagnostic — a note of ours under no root, asserted on the `warn` call. A category
+  invariant checked at the logger rather than by enumerating placements.~~ **Withdrawn.** Under
+  the declared bound actually built there are no orphans; see the withdrawal note under *Roots,
+  and why the index takes a list* above.
 - Folder resolution — driven through the repositories, asserting the PATH a note landed at, for
   two projects whose folders differ. Asserting only that the write succeeded would pass against
   a repository that wrote both into one folder.
 - The unresolvable-project refusal — a `PersistenceError`, driven by removing the project's index
   entry between a caller's read and its save.
-- The migration — the fake vault, one project and then three, plus the partial-failure case
-  asserting that the setting was NOT persisted and that the diagnostic names what moved.
+- ~~The migration — the fake vault, one project and then three, plus the partial-failure case
+  asserting that the setting was NOT persisted and that the diagnostic names what moved.~~
+  **Withdrawn.** No migration is built; see the withdrawal note under *The migration* above.
 
 **Coverage.** Branches sit at 98.02 against a floor of 98 — about 0.4 of a branch of headroom
-(`vitest.config.ts` carries the measurement, taken on the merged tree 2026-08-26). This slice's
-new arms are `foldersOverlap`'s three, the root-resolution miss, the orphan skip, and the
-migration's detect and partial arms. **Every one gets its test in the commit that adds it**,
-because one uncovered branch fails the gate. That is arithmetic here, not a style preference.
+(`vitest.config.ts` carries the measurement, taken on the merged tree 2026-08-26). ~~This
+slice's new arms are `foldersOverlap`'s three, the root-resolution miss, the orphan skip, and
+the migration's detect and partial arms.~~ **Corrected.** Three of those four sources are
+withdrawn or deferred: `foldersOverlap`'s arms move to slice 19, and the orphan skip and the
+migration's arms are not built at all. What this slice's new arms actually are is the design
+document's own accounting — `entityRefOf`'s misses, `freshProjectFolder`'s collision fork, and
+the folder-resolution miss — see
+[`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`](../superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md#testing-strategy).
+**Every one gets its test in the commit that adds it**, because one uncovered branch fails the
+gate. That is arithmetic here, not a style preference.
 
 ## Staying green
 
@@ -340,9 +376,11 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
       derived, naming ADR-011's precedent, and saying explicitly why
       [[Identity is the id, never the filename, title or path]] does not forbid the derived
       shape — the rule reads as though it settles this and it does not.
-- [ ] `foldersOverlap` refuses equal paths and containment **in both directions**, and accepts
+- [ ] ~~`foldersOverlap` refuses equal paths and containment **in both directions**, and accepts
       two paths sharing a name prefix without a segment boundary (`Renovation` and
-      `Renovation Library`). The third case is watched failing against a plain `startsWith`.
+      `Renovation Library`). The third case is watched failing against a plain `startsWith`.~~
+      **Deferred to slice 19, not ticked:** `foldersOverlap` has no caller in this slice, and a
+      dead export fails `npm run analyze`. See the correction under *`foldersOverlap`* above.
 - [ ] The Project Index scans a LIST of roots, covered by a fixture with **two** projects in
       **different** folders, both fully resolvable. A single-project fixture passes against the
       single-prefix scan this replaces, so the two-project fixture is the check.

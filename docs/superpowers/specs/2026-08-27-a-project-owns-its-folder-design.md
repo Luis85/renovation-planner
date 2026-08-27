@@ -310,6 +310,9 @@ nothing here.
   wrong.
 - **The setting's key** — `settingsFrom` still round-trips a user's configured `projectFolder`.
   Cheap, and it is the check under the paragraph above.
+- **The setting still decides where a new project goes** — set it to a second root, create a
+  project, assert the resulting folder is under that root and not under the default. Asserting
+  only that the key survives would pass against a build that reads it and ignores it.
 
 **Coverage.** Branches are the metric to watch: 98.14 against a floor of 98 at the last
 recorded measurement, roughly three branches of headroom at 0.046pp each. This slice's new arms
@@ -355,6 +358,10 @@ Four commits, ordered so `npm run check` passes at each:
       that no migration is owed.
 - [ ] `CreateProjectCommand` and `create-sample-project` create a project in its own folder
       under the default root, deduped on collision.
+- [ ] **The default projects folder is still configurable and still governs where a new project
+      goes**, asserted end to end: change the setting, create a project, and its folder is under
+      the NEW root. The setting keeps a job in this slice — it is the home new projects live
+      under — and losing that quietly is the failure this item exists to catch.
 - [ ] The stored settings key is unchanged, asserted through `settingsFrom`.
 - [ ] **Withdrawn, not ticked:** the orphan diagnostic. Under a declared bound there are no
       orphans, so there is nothing to report.

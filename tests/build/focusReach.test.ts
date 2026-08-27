@@ -27,6 +27,10 @@ describe('which elements a focus rule reaches', () => {
 	 * A RING BELONGS TO THE ELEMENT THAT IS FOCUSED. Focusing a button does not make its ancestor
 	 * match `:focus-visible`, so a rule keyed on the ancestor draws nothing when the button is
 	 * tabbed to — and a search over the whole branch credited the button a ring for it.
+	 *
+	 * `:focus-within` IS THE EXCEPTION and has its own group below. Stating the rule for the whole
+	 * category is what buried it: that pseudo matches an ancestor PRECISELY BECAUSE a descendant is
+	 * focused, so the two spellings mean opposite things in the same position.
 	 */
 	it.each([
 		[
@@ -37,8 +41,76 @@ describe('which elements a focus rule reaches', () => {
 			'a focused ancestor of a type-targeted button',
 			'.rp-editor-toolbar button { box-shadow: none; } .rp-editor-toolbar:focus-visible button { outline: 2px solid red; }',
 		],
+		// ANCESTRY IS THE COMBINATOR THAT FOLLOWS THE COMPOUND, not its position in the list. A
+		// `:focus-within` on a SIBLING says the sibling contains the focus, which focusing this button
+		// does not do; `.other:focus-within + .rp-dialog > .rp-dialog-button` puts it beside the parent
+		// rather than above it, which is the same fact one hop further out.
+		// EACH IS WRITTEN AGAINST A FLATTENING RULE OF THE SAME SHAPE, so the two ancestor strings differ
+		// in nothing but the pseudo. Written against a differently scoped one they report either way —
+		// `covers` refuses them for the scope rather than for the combinator — and the mutation that
+		// treats every combinator as ancestry passed all fifty cases before they were sharpened.
+		[
+			'a sibling that must contain the focus itself',
+			'.rp-dialog .other + .rp-dialog-button { box-shadow: none; } .rp-dialog .other:focus-within + .rp-dialog-button { outline: 2px solid red; }',
+		],
+		[
+			'a focus-within on the parent’s sibling',
+			'.other + .rp-dialog > .rp-dialog-button { box-shadow: none; } .other:focus-within + .rp-dialog > .rp-dialog-button { outline: 2px solid red; }',
+		],
+		// The NEGATION is the opposite condition, and the bare pseudo names an ancestor by nothing else
+		// — there is no universal component to put in its place, so that compound is left as written and
+		// the rule reports rather than answering. Over-reporting, which is the safe side here.
+		[
+			'an ancestor that must not contain the focus',
+			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog:not(:focus-within) .rp-dialog-button { outline: 2px solid red; }',
+		],
+		[
+			'an ancestor named by nothing but the pseudo',
+			'.rp-dialog-button { box-shadow: none; } :focus-within .rp-dialog-button { outline: 2px solid red; }',
+		],
+		// AND THE STRIP DOES NOT WIDEN WHAT A RULE COVERS. Taking `:focus-within` off the ancestor
+		// leaves `.rp-dialog`, which is still a scope the unscoped flattening rule is not in.
+		[
+			'a ring scoped to an ancestor the flattening rule is not',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog:focus-within .rp-dialog-button { outline: 2px solid red; }',
+		],
+		// The other direction: a rule written that way is focus-driven, so it is not filed at rest —
+		// but it still takes the ring away, and an important one takes it away from a rule it loses to.
+		[
+			'an important reset on an ancestor that focusing the button satisfies',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog:focus-within .rp-dialog-button { outline: none !important; }',
+		],
 	])('reports %s', (_case, css) => {
 		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toHaveLength(1);
+	});
+
+	/**
+	 * `:focus-within` ON AN ANCESTOR IS SATISFIED BY FOCUSING THE SUBJECT — that is what the pseudo
+	 * means — so a ring written `.toolbar:focus-within .button` is on screen for every button the
+	 * sibling rule flattens. Read as an ordinary resting scope it was BOTH an at-rest rule and one
+	 * whose ancestor string no site could match, so the gate FAILED THE BUILD on CSS that visibly
+	 * rings. Two halves, and each is its own mutation: the branch must stop being filed at rest, and
+	 * the pseudo must come off the ancestor string the site is compared against.
+	 *
+	 * The third case is the ancestry rule from the other side: a sibling combinator further down the
+	 * chain does not stop an earlier compound being an ancestor, because `.dialog > .other + .button`
+	 * leaves `.dialog` the parent of both.
+	 */
+	it.each([
+		[
+			'a ring on an ancestor that focusing the button satisfies',
+			'.rp-dialog .rp-dialog-button { box-shadow: none; } .rp-dialog:focus-within .rp-dialog-button { outline: 2px solid red; }',
+		],
+		[
+			'the same through a child combinator',
+			'.rp-dialog > .rp-dialog-button { box-shadow: none; } .rp-dialog:focus-within > .rp-dialog-button { outline: 2px solid red; }',
+		],
+		[
+			'a ring on a grandparent reached past a sibling',
+			'.rp-dialog .other + .rp-dialog-button { box-shadow: none; } .rp-dialog:focus-within .other + .rp-dialog-button { outline: 2px solid red; }',
+		],
+	])('says nothing about %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
 	});
 
 

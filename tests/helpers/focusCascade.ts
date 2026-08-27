@@ -213,6 +213,68 @@ const excludesFocus = (component: SelectorComponent, negated = false): boolean =
 	return args.some((argument) => argument.length === 1 && excludesFocus(argument[0], true));
 };
 
+/**
+ * The ancestor chain of this branch, with every `:focus-within` that focusing the SUBJECT
+ * necessarily satisfies taken out — and whether any was.
+ *
+ * FOCUSING A BUTTON DOES NOT MAKE ITS ANCESTOR MATCH `:focus-visible`, which this file already
+ * states and tests. `:focus-within` IS THE ONE THAT INVERTS THAT, and stating the rule for the
+ * whole category buried the exception: `.toolbar:focus-within .button` matches precisely because a
+ * descendant is focused, so a ring written that way is on screen for every button the sibling rule
+ * flattens. Read as an ordinary scope it was an at-rest rule whose ancestor string no site could
+ * match, and the gate FAILED THE BUILD on CSS that visibly rings.
+ *
+ * ANCESTRY IS DECIDED BY THE COMBINATOR THAT FOLLOWS THE COMPOUND, never by position in the list.
+ * `.a + .b > .c` puts `.a` beside the parent rather than above it, so its `:focus-within` says
+ * nothing about `.c` — while `.a > .b + .c` leaves `.a` the parent of both, so it does. One hop is
+ * enough to decide it, which is why this asks each compound about its own combinator rather than
+ * scanning the chain.
+ *
+ * THE BARE POSITIVE SPELLING ONLY. `:not(:focus-within)` is the opposite condition; `:is()` is a
+ * union this walk would have to prove every branch of; and `:has(:focus-visible)` means the same
+ * thing but lives behind the `:has()` refusal one function up. Each of those keeps the ancestor
+ * string as written, so the rule reports rather than answering — over-reporting, the safe side.
+ *
+ * A COMPOUND THAT WOULD EMPTY IS LEFT ALONE: `:focus-within .button` names an ancestor by nothing
+ * but the pseudo, and there is no universal component here to put in its place. NO CASE SEPARATES
+ * that guard from its absence, and the comment says so rather than implying one — an emptied
+ * compound leaves a chain of bare combinators, which renders as a string no site's ancestors ever
+ * equal either way, so the rule reports whichever spelling is taken. It is here to keep a malformed
+ * chain out of `show`, not to change an answer. The branch still counts as focus-driven, so it is
+ * not filed at rest.
+ */
+const satisfiedByFocus = (component: SelectorComponent): boolean =>
+	component.type === 'pseudo-class' && component.kind === 'focus-within';
+
+const ancestorsWhenFocused = (chain: Selector): { readonly chain: Selector; readonly satisfied: boolean } => {
+	const out: SelectorComponent[] = [];
+	let current: SelectorComponent[] = [];
+	let satisfied = false;
+
+	for (const component of chain) {
+		if (component.type !== 'combinator') {
+			current.push(component);
+			continue;
+		}
+
+		const above = component.value === 'descendant' || component.value === 'child';
+		const kept = above ? current.filter((one) => !satisfiedByFocus(one)) : current;
+
+		if (kept.length < current.length) satisfied = true;
+
+		out.push(...(kept.length === 0 ? current : kept), component);
+		current = [];
+	}
+
+	out.push(...current);
+
+	return { chain: out, satisfied };
+};
+
+/** Does focusing the subject satisfy a `:focus-within` written on one of its ancestors? */
+const ancestorRingsFocus = (branch: Selector): boolean =>
+	ancestorsWhenFocused(branch.slice(0, branch.length - subjectOf(branch).length)).satisfied;
+
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
@@ -229,7 +291,7 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	// the first and unreachable by the second — and a list of compounds is identical for both.
 	const conditions: Conditions = {
 		condition,
-		ancestors: show(branch.slice(0, branch.length - subjectOf(branch).length)),
+		ancestors: show(ancestorsWhenFocused(branch.slice(0, branch.length - subjectOf(branch).length)).chain),
 		// A `button` TYPE is dropped, and it is the ONE type that may be: every site this scan keeps
 		// stands for a button already — a subject reaches `focusSites` by wearing a known button class
 		// or by naming that exact type — so `button` narrows nothing a site does not already impose.
@@ -770,7 +832,8 @@ export const flattenedWithoutRing = (
 				// specific one outranks the ring it must not touch.
 				if (subjectOf(branch).some((component) => excludesFocus(component))) continue;
 
-				const ringsFocus = subjectOf(branch).some((component) => isFocusPseudo(component));
+				const ringsFocus =
+					subjectOf(branch).some((component) => isFocusPseudo(component)) || ancestorRingsFocus(branch);
 				// FLATTENING IS REPLACING, not only suppressing, and it is decided per BRANCH because the
 				// second half of it turns on specificity. Obsidian's ring for a button is a `box-shadow`,
 				// so a base rule setting a VISIBLE shadow that outranks `button:focus-visible` takes the

@@ -22,10 +22,21 @@ export function t(language: string, key: StringKey): string {
 
 /**
  * The app's language, resolved per call from Obsidian's own setting. THE one resolution
- * point: `tr` and `trError` both come through here, so no call site re-decides it and none
- * can drift to a cached value or to a plugin-local language setting (a recurring review
- * rejection). Resolved per call rather than once: cheap, and what keeps a
- * rendered-per-open surface correct after the app language changes.
+ * point, and that is a LINT RULE rather than a sentence: `LANGUAGE_RESOLUTION_BAN` in
+ * `eslint.config.mjs` refuses a named `getLanguage` import from `obsidian`, and any
+ * `.getLanguage` member access, everywhere in `src/` except this one file — so a second call
+ * site fails `npm run lint` instead of resting on somebody having counted. `tr` and
+ * `trError` coming through here is what makes the rule affordable, not what makes the claim
+ * true; the earlier version of this paragraph offered the first as the reason for the
+ * second, which it never entailed.
+ *
+ * **Narrower than "the language is decided once"**: the rule sees the two doors
+ * `getLanguage` comes through, not a language decided some other way — a hard-coded `'de'`,
+ * or the plugin-local language setting that is a recurring review rejection. Those stay a
+ * review catch. `tests/build/language-resolution-boundary.test.ts` pins both halves.
+ *
+ * Resolved per call rather than once: cheap, and what keeps a rendered-per-open surface
+ * correct after the app language changes.
  */
 export function currentLanguage(): string {
 	return getLanguage();

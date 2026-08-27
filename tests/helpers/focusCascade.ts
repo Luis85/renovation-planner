@@ -276,6 +276,16 @@ interface FocusRule {
 	 * the `text-color` channel does at the same site, which only `partDraws` can say.
 	 */
 	readonly draws: boolean | 'deferred';
+	/**
+	 * Written WITHOUT a focus pseudo, so it applies at rest and while focused alike.
+	 *
+	 * Such a rule competes for every longhand exactly as a focus rule does — that is what makes
+	 * `.button { outline: 2px solid transparent }` with `.button:focus-visible { outline-color: red }`
+	 * a real ring, composed from base geometry and a focused colour. What it cannot do is be the
+	 * CHANGE: if every longhand's winner is at rest, the focused button looks like the resting one
+	 * and there is no indicator, however much it paints.
+	 */
+	readonly atRest: boolean;
 	readonly important: boolean;
 	readonly specificity: readonly [number, number, number];
 	readonly conditions: Conditions;
@@ -441,7 +451,7 @@ const partDraws = (
 	rules: readonly FocusRule[],
 	site: { readonly conditions: Conditions },
 	part: OutlinePart | 'text-color',
-): boolean => {
+): { readonly draws: boolean; readonly changesOnFocus: boolean } => {
 	const forPart = rules.filter((one) => one.property === part);
 	const winner = forPart
 		.filter((one) => covers(one.conditions, site.conditions))
@@ -453,15 +463,30 @@ const partDraws = (
 	// so: a `text-color` rule's `draws` is a boolean, never `'deferred'`, so the arm below cannot be
 	// taken twice.
 	const settled = winner === undefined ? INITIAL[part] : winner.draws;
-	const winnerDraws = settled === 'deferred' ? partDraws(rules, site, 'text-color') : settled;
+	const winnerDraws = settled === 'deferred' ? partDraws(rules, site, 'text-color').draws : settled;
 
-	if (!winnerDraws) return false;
+	if (!winnerDraws) return { draws: false, changesOnFocus: false };
 
 	// `=== false` rather than `!draws`, and it is a CLARITY change with no behaviour in it: `'deferred'`
 	// is a truthy string, so `!draws` already answers false for one. Spelled out because the next value
 	// added to this union may not be, and a falsy one would silently make every deferred rule a
 	// disqualifier. Probed rather than assumed — the two spellings flip no case here.
-	return !forPart.some((blank) => blank.draws === false && (winner === undefined || beats(blank, winner)));
+	// BLANK **OR** AT REST, which is the same pair the shadow arm below tests and for the same reason.
+	// A blank rule that beats the winner leaves those elements with nothing; an AT-REST rule that beats
+	// it leaves them looking identical focused and unfocused, which is equally no indicator however
+	// much it paints. `.rp-dialog-button-danger { outline: 2px solid blue !important }` reaches the
+	// buttons a `.rp-dialog-button` site stands for without covering it, so it never becomes the
+	// winner — it can only disqualify, and dropping the at-rest half here silently un-reported it.
+	if (
+		forPart.some(
+			(other) => (other.draws === false || other.atRest) && (winner === undefined || beats(other, winner)),
+		)
+	)
+		return { draws: false, changesOnFocus: false };
+
+	// A longhand nobody sets lands on its INITIAL, which is the resting value too — so an unwritten
+	// part is never the thing that changes on focus.
+	return { draws: true, changesOnFocus: winner !== undefined && !winner.atRest };
 };
 
 /**
@@ -515,16 +540,44 @@ const paintsABorder = (property: string): boolean =>
 const abstains = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
 	rules.some((one) => one.property === 'border' && covers(one.conditions, site.conditions));
 
-const answers = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean =>
-	abstains(rules, site) ||
-	(['width', 'style', 'color'] as const).every((part) => partDraws(rules, site, part)) ||
-	rules.some(
+/**
+ * IT MUST DRAW, AND IT MUST BE THE CHANGE — two conditions, and four rounds of review found this
+ * file holding one of them at a time.
+ *
+ * The outline resolves PER LONGHAND across every rule that reaches the element, base and focus
+ * alike: `.button { outline: 2px solid transparent }` with
+ * `.button:focus-visible { outline-color: red }` is a real ring, whose width and style come from the
+ * resting rule and whose colour comes from the focused one. Refusing base geometry made that common
+ * pattern a build failure.
+ *
+ * But drawing is not enough. If every longhand's winner is a rule that applies AT REST, the focused
+ * button is identical to the resting one and there is no indicator at all, however much paint is on
+ * screen — which is what `.button { outline: 2px solid red !important }` does to a focus outline
+ * under it. So at least one part must be won by a focus rule.
+ *
+ * The shadow arm says the same thing in one line rather than three, because a shadow is one
+ * property: the rule that answers must itself be a focus rule, and nothing may beat it that is
+ * either blank or at rest.
+ */
+const answers = (rules: readonly FocusRule[], site: { readonly conditions: Conditions }): boolean => {
+	if (abstains(rules, site)) return true;
+
+	const parts = (['width', 'style', 'color'] as const).map((part) => partDraws(rules, site, part));
+
+	if (parts.every((part) => part.draws) && parts.some((part) => part.changesOnFocus)) return true;
+
+	return rules.some(
 		(drawing) =>
 			drawing.property === 'shadow' &&
-			(drawing.draws === 'deferred' ? partDraws(rules, site, 'text-color') : drawing.draws) &&
+			!drawing.atRest &&
+			(drawing.draws === 'deferred' ? partDraws(rules, site, 'text-color').draws : drawing.draws) &&
 			covers(drawing.conditions, site.conditions) &&
-			!rules.some((reset) => reset.draws === false && reset.property === 'shadow' && beats(reset, drawing)),
+			!rules.some(
+				(other) =>
+					other.property === 'shadow' && beats(other, drawing) && (other.draws === false || other.atRest),
+			),
 	);
+};
 
 /**
  * The button classes a stylesheet FLATTENS without giving back a ring, each mapped to where.
@@ -689,6 +742,7 @@ export const flattenedWithoutRing = (
 								{
 									property: 'text-color',
 									draws: textColor,
+									atRest: !ringsFocus,
 									important: importantTextColor,
 									specificity: specificityOf(selector),
 									conditions,
@@ -756,7 +810,7 @@ export const flattenedWithoutRing = (
 								// and this key stands for many — so it is asked per flattening site, by `answers`.
 								ringed.set(reached, [
 									...(ringed.get(reached) ?? []),
-									{ property, draws: ringsFocus ? declared : false, important, specificity, conditions, order: order++ },
+									{ property, draws: declared, atRest: !ringsFocus, important, specificity, conditions, order: order++ },
 								]);
 							}
 						}

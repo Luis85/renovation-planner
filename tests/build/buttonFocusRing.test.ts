@@ -433,6 +433,20 @@ describe('a flattened button and its focus ring', () => {
 			'a co-occurring base outline that wins and draws',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button-danger { outline: 2px solid blue !important; }',
 		],
+		// DRAWING IS NOT ENOUGH — it must also be the CHANGE. Base geometry that no focus rule touches
+		// leaves the focused button identical to the resting one, so there is no indicator however much
+		// paint is on screen. This is the pair to the two silent cases above: same base outline, and the
+		// only difference is whether a focus rule wins a longhand.
+		[
+			'base outline geometry no focus rule touches',
+			'.rp-dialog-button { box-shadow: none; outline: 2px solid red; } .rp-dialog-button:focus-visible { color: blue; }',
+		],
+		// And composition does not rescue a part that is blank: the base sets no style, so the outline
+		// stays `none` however red the focused colour is.
+		[
+			'a focused colour over a base that reserves no geometry',
+			'.rp-dialog-button { box-shadow: none; outline-color: transparent; } .rp-dialog-button:focus-visible { outline-color: red; }',
+		],
 		// The outline channel had the identical hole and was not named in the report.
 		[
 			'a winning base outline that leaves the focused button unchanged',
@@ -497,6 +511,18 @@ describe('a flattened button and its focus ring', () => {
 			'.rp-dialog-button { box-shadow: none; } :is(.rp-dialog-button, .other):focus-visible { outline: 2px solid red; }',
 		],
 		['no flattening at all', '.rp-dialog-button { color: red; }'],
+		// THE OUTLINE RESOLVES PER LONGHAND ACROSS BASE AND FOCUS ALIKE. A reserved transparent outline
+		// revealed on focus is a real ring whose width and style come from the RESTING rule and whose
+		// colour comes from the focused one — a common, layout-stable treatment. Refusing base geometry
+		// made it a build failure.
+		[
+			'a reserved transparent outline coloured on focus',
+			'.rp-dialog-button { box-shadow: none; outline: 2px solid transparent; } .rp-dialog-button:focus-visible { outline-color: red; }',
+		],
+		[
+			'base outline geometry whose width the focus rule changes',
+			'.rp-dialog-button { box-shadow: none; outline: 2px solid red; } .rp-dialog-button:focus-visible { outline-width: 4px; }',
+		],
 		// `:not(:disabled)` IS NO CONDITION ON A FOCUSED ELEMENT — a disabled form control is not in the
 		// tab order and nothing else matches `:disabled` — so a ring written this careful way covers an
 		// unconditional site. Kept, it made the gate FAIL valid CSS whose ring is on screen, which is

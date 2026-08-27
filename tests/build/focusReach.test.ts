@@ -24,6 +24,81 @@ const GROUPS: ReadonlySet<string>[] = [
 
 describe('which elements a focus rule reaches', () => {
 	/**
+	 * A RULE THAT MATCHES EVERY FOCUSED ELEMENT IS HEARD IN EVERY CASCADE, and a classless site is
+	 * one of them. `cascadeKeys` widens such a rule across the scanned CLASSES, which is every key it
+	 * can name while the sheets are still being read — but a classless site is keyed by its SHAPE
+	 * (`button`, `button:hover`, …), an open family nothing can enumerate in advance. So a universal
+	 * ring reached the class cascades and no type-keyed one, and `button { box-shadow: none }` beside
+	 * `:focus-visible { outline: 2px solid red }` — a ring the browser puts on every focused button —
+	 * was reported as unringed. The widening happens at ANSWER time now, where every site key exists.
+	 *
+	 * The question is asked of the BRANCH, never of the key: `*:focus-visible` renders as `*` and
+	 * `:focus-visible` as the empty shape, and both are universal, so a key is the wrong thing to
+	 * test.
+	 */
+	it.each([
+		[
+			'a bare focus ring over a type-targeted reset',
+			'button { box-shadow: none; } :focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'the same written with the universal selector',
+			'button { box-shadow: none; } *:focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'a bare focus ring over a scoped type-targeted reset',
+			'.rp-editor-toolbar button { box-shadow: none; } :focus-visible { outline: 2px solid red; }',
+		],
+		// AND THE ANSWER PASS WALKS THE SITES, not the ringed keys. Both rules here are universal, so
+		// neither is filed under a key at all and that map has no entry for this site — walking it
+		// skipped the site entirely and reported a button the ring beside it covers. Every other case
+		// in this group passes either way, because a type-targeted flattening rule files its own
+		// declarations under its own key and puts the entry there.
+		[
+			'a universal ring over a universal reset',
+			':focus-visible { box-shadow: none; } :focus-visible { outline: 2px solid red; }',
+		],
+	])('says nothing about %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
+	});
+
+	/**
+	 * UNIVERSAL IS THE SUBJECT, NOT THE RULE, and every other part of the scope still applies. A
+	 * condition on the subject, an at-rule around it and a resting draw each stop such a rule
+	 * answering, exactly as they do for a rule named after a class.
+	 *
+	 * The last two are the narrowness of the predicate itself: a class or an attribute on the subject
+	 * identifies a subset this scan cannot enumerate, so widening one would invent an answer for
+	 * buttons it may not match at all. That is the round-14 line, and it is why the attribute
+	 * widening was reverted rather than kept.
+	 */
+	it.each([
+		[
+			'a universal ring that also demands hover',
+			'button { box-shadow: none; } :focus-visible:hover { outline: 2px solid red; }',
+		],
+		[
+			'a universal ring inside an at-rule',
+			'button { box-shadow: none; } @media (min-width: 1px) { :focus-visible { outline: 2px solid red; } }',
+		],
+		[
+			'a universal reset that beats a type-targeted ring',
+			'button { box-shadow: none; } button:focus-visible { outline: 2px solid red; } :focus-visible:focus-visible { outline: none; }',
+		],
+		['a universal outline drawn at rest', 'button { box-shadow: none; } * { outline: 2px solid red; }'],
+		[
+			'a ring on a class of its own',
+			'button { box-shadow: none; } .other:focus-visible { outline: 2px solid red; }',
+		],
+		[
+			'a ring on an attribute subject',
+			'button { box-shadow: none; } [data-x]:focus-visible { outline: 2px solid red; }',
+		],
+	])('reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual(['button']);
+	});
+
+	/**
 	 * A RING BELONGS TO THE ELEMENT THAT IS FOCUSED. Focusing a button does not make its ancestor
 	 * match `:focus-visible`, so a rule keyed on the ancestor draws nothing when the button is
 	 * tabbed to — and a search over the whole branch credited the button a ring for it.

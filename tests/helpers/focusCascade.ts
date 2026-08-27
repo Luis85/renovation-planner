@@ -282,6 +282,42 @@ const ancestorsWhenFocused = (chain: Selector): { readonly chain: Selector; read
 const ancestorRingsFocus = (branch: Selector): boolean =>
 	ancestorsWhenFocused(branch.slice(0, branch.length - subjectOf(branch).length)).satisfied;
 
+/**
+ * Does this branch's SUBJECT match every focused element there is — every button included?
+ *
+ * The one shape that qualifies is a subject which, once its focus pseudo-classes and the conditions
+ * vacuous on a focused element are stripped, is nothing but `*` and further pseudo-CLASSES. A
+ * pseudo-class beside the focus one is a STATE the element is in, not a kind of element it is, so
+ * the subject still reaches every button and what it narrows travels with the rule as a condition.
+ * A class, a type, an id or an attribute is refused: those identify a subset this scan cannot
+ * enumerate, and widening one invents a key nothing can answer — the round-14 line, and the reason
+ * the attribute widening was reverted.
+ *
+ * TWO CALLERS, ONE DERIVATION. `focusSites` asks it to decide whether such a rule may be FILED at
+ * all, and the filing loop asks it to decide how widely the rule is HEARD. Written out twice, the
+ * second answer drifted from the first: a universal ring reached every scanned CLASS and no
+ * type-keyed site, so `button { box-shadow: none } :focus-visible { outline: 2px solid red }` — a
+ * ring the browser puts on every focused button — was reported as unringed.
+ *
+ * STATED LIMITATION, and it is the reason a mutation deleting the focus requirement above flips no
+ * case. A universal subject with NO focus pseudo is out of this scan ENTIRELY, not merely narrowly
+ * keyed: `focusSites` files a classless subject only when it is focus-universal or
+ * `targetsAButton`, and `*` is neither. So `* { outline: none !important }` really does bare every
+ * focused button in the browser and is invisible here — a false negative, pre-existing, and wider
+ * than this widening. Closing it means deciding what a `*` rule with no focus state is a site FOR,
+ * which is a question about the model rather than about this predicate.
+ */
+const matchesEveryFocusedElement = (branch: Selector): boolean => {
+	const components = subjectOf(branch);
+
+	return (
+		components.some((component) => isFocusPseudo(component)) &&
+		components
+			.filter((component) => !isFocusPseudo(component) && !impliedByFocus(component))
+			.every((component) => component.type === 'universal' || component.type === 'pseudo-class')
+	);
+};
+
 const focusSites = (branch: Selector, classes: Set<string>, condition: string): FocusSite[] => {
 	// Only the SUBJECT's `:focus-visible` is stripped from the shape. An ancestor's is part of what
 	// the rule is scoped to.
@@ -354,11 +390,7 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	// The two directions come out right for free, which is why this is safe rather than merely wider:
 	// as a RESET the rule disqualifies whatever it reaches, which over-reports on the safe side; as a
 	// RING it must COVER the site, and `covers` asks the site to impose `:not(.keep-ring)` too.
-	const focusOnly =
-		subjectOf(branch).some((component) => isFocusPseudo(component)) &&
-		subject.every((component) => component.type === 'universal' || component.type === 'pseudo-class');
-
-	if (!focusOnly && !targetsAButton(branch, classes)) return [];
+	if (!matchesEveryFocusedElement(branch) && !targetsAButton(branch, classes)) return [];
 
 	return [{ key: show(subject), conditions }];
 };
@@ -756,6 +788,14 @@ export const flattenedWithoutRing = (
 	// site under it is covered.
 	const flattened = new Map<string, { readonly where: string; readonly conditions: Conditions }[]>();
 
+	// A PROVABLY UNIVERSAL RULE IS HEARD IN EVERY CASCADE, and it cannot be filed by key to get there.
+	// `cascadeKeys` widens such a rule across the scanned CLASSES, which is every key it can name at
+	// filing time — but a classless site is keyed by its SHAPE (`button`, `button:hover`, …), an open
+	// family nothing can enumerate before the sheets have been read. So the widening happens at
+	// ANSWER time instead, where every site key is known, and these are kept out of `ringed` rather
+	// than filed in both places: one rule heard twice would rank against itself.
+	const universal: FocusRule[] = [];
+
 	// NOT a set of "has been ringed once". A `:focus-visible` rule can also take a ring AWAY, and
 	// a later or more specific one wins: `.rp-dialog-button:focus-visible { outline: 2px solid red }`
 	// followed by `.rp-dialog .rp-dialog-button:focus-visible { outline: none }` leaves nothing on
@@ -888,6 +928,11 @@ export const flattenedWithoutRing = (
 					// `covers` still decides what a widened rule may ANSWER, so a danger reset disqualifies
 					// a ring at the plain site without ever answering for it.
 					const reaches = cascadeKeys(key, classes, groups, buttonClassesOn(branch, classes).length === 0);
+					// Asked of the BRANCH rather than of the key, because the key is a rendered shape and the
+					// question is about what the selector matches. `''` is not that question: `*:focus-visible`
+					// renders as `*` and `:focus-visible:not(.keep-ring)` as `:not(.keep-ring)`, and all three
+					// are universal.
+					const everywhere = matchesEveryFocusedElement(branch);
 
 					// `color` IS NOT A FOCUS DECLARATION and is filed outside the `ringsFocus` guard for
 					// that reason: a button's text colour while focused is whatever wins at rest unless a
@@ -941,7 +986,7 @@ export const flattenedWithoutRing = (
 							['border', rule.declarations.some((one) => paintsABorder(propertyOf(one))) || undefined, false] as const,
 						];
 
-						for (const reached of reaches) {
+						for (const reached of everywhere ? [''] : reaches) {
 							for (const [property, declared, important] of declarations) {
 								if (declared === undefined) continue;
 
@@ -977,10 +1022,18 @@ export const flattenedWithoutRing = (
 
 								// APPENDED, never compared here. Which rule wins is a question about one element,
 								// and this key stands for many — so it is asked per flattening site, by `answers`.
-								ringed.set(reached, [
-									...(ringed.get(reached) ?? []),
-									{ property, draws: declared, atRest: !ringsFocus, important, specificity, conditions, order: order++ },
-								]);
+								const filed: FocusRule = {
+									property,
+									draws: declared,
+									atRest: !ringsFocus,
+									important,
+									specificity,
+									conditions,
+									order: order++,
+								};
+
+								if (everywhere) universal.push(filed);
+								else ringed.set(reached, [...(ringed.get(reached) ?? []), filed]);
 							}
 						}
 					}
@@ -1007,11 +1060,15 @@ export const flattenedWithoutRing = (
 
 	const seen = flattened.size;
 
-	for (const [key, rules] of ringed) {
+	// EVERY SITE, not every ringed key: a site whose only answer is a universal rule has no entry in
+	// `ringed` at all, and iterating that map skipped it. Deleting the CURRENT key while walking a
+	// `Map` is well defined — the entry is simply not revisited — so this needs no snapshot.
+	for (const key of flattened.keys()) {
 		const sites = flattened.get(key);
 
 		if (sites === undefined) continue;
 
+		const rules = [...(ringed.get(key) ?? []), ...universal];
 		const uncovered = sites.filter((site) => !answers(rules, site));
 
 		if (uncovered.length === 0) flattened.delete(key);

@@ -236,6 +236,10 @@ export function parseSelector(selector: string): Selector {
  */
 const MATCHES_THE_SUBJECT = new Set(['is', 'where', 'any']);
 
+/** Is this component one of those pseudo-classes — `:is()`, `:where()`, `:any()`? */
+export const matchesTheSubject = (component: SelectorComponent): boolean =>
+	component.type === 'pseudo-class' && MATCHES_THE_SUBJECT.has(component.kind);
+
 /**
  * The selector list of an `An+B of S` pseudo-class — `:nth-child`/`:nth-last-child` — or `[]`.
  *

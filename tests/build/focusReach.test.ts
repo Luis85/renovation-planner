@@ -258,6 +258,22 @@ describe('which elements a focus rule reaches', () => {
 			'a nested disabled condition beside another argument',
 			'.rp-dialog-button:not(:not(:disabled), .other) { box-shadow: none; }',
 		],
+		// A SUBJECT ALTERNATIVE INSIDE A NEGATION IS NOT EXPANDED BEFORE THIS WALK. `alternativesOf`
+		// splits `:is()` at the TOP of a branch and never inside `:not()`, so these arrived whole and
+		// fell off the end of a walk that knew only `:not()` — filed at rest, flattening, reported.
+		// `:where()` differs from `:is()` in specificity alone, which is nothing to this question.
+		[
+			'a negation wrapping a focus alternative',
+			'.rp-dialog-button:not(:is(:focus-visible, .other)) { box-shadow: none; }',
+		],
+		[
+			'the same written with :where()',
+			'.rp-dialog-button:not(:where(:focus-visible, .other)) { box-shadow: none; }',
+		],
+		[
+			'a negation wrapping an alternative that is vacuous when focused',
+			'.rp-dialog-button:not(:is(:not(:disabled), .other)) { box-shadow: none; }',
+		],
 		// AND IT MUST BE ABSENT, not merely barred from recording a site. Filed as an ordinary at-rest
 		// rule it still RANKS, and each of these outranks the ring it must not touch: neither selector
 		// matches a focused button, so the red outline is on screen and there is nothing to report.
@@ -314,6 +330,23 @@ describe('which elements a focus rule reaches', () => {
 		[
 			'a disjunction one focusable arm satisfies',
 			'.rp-dialog-button:not(:not(:disabled, .other)) { box-shadow: none; }',
+		],
+		// AND THE QUANTIFIERS ARE THE NARROWNESS OF THE ALTERNATIVE ARM. A negation is impossible for a
+		// focused element when SOME alternative necessarily holds, and an alternative holds only when
+		// EVERY component of it does — a compound is a conjunction. So a negation over things that
+		// merely CAN be true excludes nothing, and one whose alternative pairs focus with a class
+		// excludes nothing either: `:focus-visible.danger` is not true of every focused button.
+		[
+			'a negation wrapping alternatives that name no focus state',
+			'.rp-dialog-button:not(:is(.a, .other)) { box-shadow: none; }',
+		],
+		[
+			'a negation wrapping a disabled alternative',
+			'.rp-dialog-button:not(:is(:disabled, .other)) { box-shadow: none; }',
+		],
+		[
+			'a negation wrapping a compound alternative',
+			'.rp-dialog-button:not(:is(:focus-visible.danger)) { box-shadow: none; }',
 		],
 		[
 			'a ring that shows only while unfocused',

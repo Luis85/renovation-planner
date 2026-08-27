@@ -2,6 +2,7 @@ import type { Selector, SelectorComponent } from 'lightningcss';
 import {
 	alternativesOf,
 	argumentsOf,
+	matchesTheSubject,
 	moreSpecific,
 	propertyOf,
 	show,
@@ -173,20 +174,25 @@ const impliedByFocus = (component: SelectorComponent): boolean => {
  * danger exclusion with it. Round 42 reused it here and shipped a case asserting that
  * `:not(:focus-visible, .other)` still flattens. It does not, and the case was inverted.
  *
- * THE BOUND IS PER PARITY, which is the whole lesson of that mistake written as code. Reaching a
- * `:not()` POSITIVELY, the shape is `NOT (A OR B …)`, so ONE argument that every focused element
- * matches fails the whole negation for one — `some`, and no purity bound at all. Reaching it under
- * a negation, the shape is `(A OR B …)`, which implies nothing unless there is exactly one
- * alternative — the purity bound, and for the same reason the stripping caller needs one.
+ * TWO FACTS AND THEN NOTHING BUT BOOLEAN ALGEBRA. A focused element matches the focus pseudos and
+ * no disabled one, so each excludes focus under exactly one parity and they are opposites.
+ * Everything else is `:not()` and `:is()`/`:where()`/`:any()` combining them, and the four cases
+ * collapse to two by De Morgan: `:not()` FLIPS the parity, a subject alternative keeps it, and the
+ * pair sharing a parity share an answer. Written as separate arms it was three arms and a hole —
+ * `alternativesOf` expands a subject alternative at the TOP of a branch, never inside a `:not()`,
+ * so `:not(:is(:focus-visible, .other))` reached this walk whole and fell off the end.
  *
- * `:disabled` is the second fact, and the mirror of `impliedByFocus` above: a disabled control is
- * out of the tab order, so `:not(:disabled)` is VACUOUS on a focused element and `:disabled` is
- * IMPOSSIBLE on one. Written as a parity walk rather than a lone `kind === 'disabled'` test because
- * `:not(:not(:disabled))` matches only disabled buttons through two negations, and answering it by
- * spelling is the exact class of hole every reader in this file has had.
+ * A COMPOUND IS A CONJUNCTION, which is why the quantifiers nest the way they do. Asking whether
+ * matching it is IMPOSSIBLE, one impossible component is enough; asking whether it NECESSARILY
+ * HOLDS of a focused element, every component must. That replaces the lone-component bound the
+ * `:not()` arm carried, and answers identically wherever the bound applied:
+ * `:not(:focus-visible.danger)` still matches a focused button that is not a danger button, now
+ * because `.danger` is not necessarily true rather than because the argument was refused for its
+ * length.
  *
- * `:enabled` is neither and stays out: a focused form control satisfies it, and the elements it is
- * false for are the ones that are not form controls at all.
+ * `:enabled` is neither fact and stays out: a focused form control satisfies it, and the elements
+ * it is false for are the ones that are not form controls at all. `:has()` is not recursed either,
+ * for the reason `isFocusPseudo` gives — it describes what hangs BELOW the element, not the element.
  *
  * NOT MERGED with `isFocusPseudo` and `impliedByFocus`, whose union at their one shared call site is
  * this walk's odd-parity answer. Spelling that site `!excludesFocus(component, true)` was built and
@@ -197,20 +203,21 @@ const impliedByFocus = (component: SelectorComponent): boolean => {
  */
 const excludesFocus = (component: SelectorComponent, negated = false): boolean => {
 	if (component.type !== 'pseudo-class') return false;
-	// A focused element matches the focus pseudos and no disabled one, so each excludes focus under
-	// exactly one parity, and they are opposites.
 	if (FOCUS_PSEUDOS.has(component.kind)) return negated;
 	if (component.kind === 'disabled') return !negated;
-	if (component.kind !== 'not') return false;
 
-	const args = argumentsOf(component);
+	const flips = component.kind === 'not';
 
-	if (negated) return args.length === 1 && args[0].length === 1 && excludesFocus(args[0][0], false);
+	if (!flips && !matchesTheSubject(component)) return false;
 
-	// A COMPOUND argument is not one every focused element matches — `:not(:focus-visible.danger)`
-	// still matches a focused button that is not a danger button — so the lone-component test stays
-	// on this side too. It is the argument that must be lone here, never the argument LIST.
-	return args.some((argument) => argument.length === 1 && excludesFocus(argument[0], true));
+	const alternatives = argumentsOf(component);
+
+	// The parity the alternatives are read under is `negated` XOR the flip, and the quantifier over
+	// them follows from it: under the ODD reading one alternative that necessarily holds is enough,
+	// under the EVEN one every alternative must be impossible.
+	return negated !== flips
+		? alternatives.some((one) => one.every((part) => excludesFocus(part, true)))
+		: alternatives.every((one) => one.some((part) => excludesFocus(part, false)));
 };
 
 /**

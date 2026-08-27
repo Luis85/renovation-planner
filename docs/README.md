@@ -329,12 +329,19 @@ vocabulary**, so it is left as one edit somebody makes on purpose instead of a g
 
 An earlier version of this section said empty "means nobody has set one, which is where every
 note here starts", which blessed the default and made all five named values optional. It is
-struck, because 116 of the 183 notes carrying a `status:` key have it empty, and that is not a
-convention being followed — it is a convention nobody has applied yet, and describing it as
-correct is what kept it that way. (Twelve of the 183 are ADRs, whose own vocabulary the table
-above excludes by name.) The figure was 125 of 142 when this was written: the count has fallen
-while the population grew, so the migration below is happening, slowly, by the one mechanism it
-names.
+struck, because 116 of the 182 notes whose FRONTMATTER carries a `status:` key have it empty, and
+that is not a convention being followed — it is a convention nobody has applied yet, and
+describing it as correct is what kept it that way. (Twelve of the 182 are ADRs, whose own
+vocabulary the table above excludes by name.) The figure was 125 of 142 when this was written:
+the count has fallen while the population grew, so the migration below is happening, slowly, by
+the one mechanism it names.
+
+**Read "frontmatter" as the instrument rather than as a flourish.** `docs/` has no gate — `npm run
+docs` does not exist here, and `CLAUDE.md` lists it among the deliberately absent — so every
+figure in this section is hand-measured and only as good as what measured it. A `grep` for a line
+beginning `status:` counts the fenced Zone example inside the SDD, which is how the denominator
+was briefly 183; the counts above read the initial `---` block and nothing else. Re-derive them
+that way or they will disagree with each other again, which they have.
 
 **The 116 are debt, and this sentence is the whole of what has been done about them.** They are
 not migrated, there is no gate that would notice (`npm run check` reads nothing here), and

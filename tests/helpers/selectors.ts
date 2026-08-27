@@ -473,6 +473,26 @@ const RENDERED_KEYS: ReadonlySet<string> = new Set([
 	'value',
 ]);
 
+/**
+ * An identifier rendered so that no two distinct ones collide.
+ *
+ * The parser hands back the UNESCAPED name, so `.scope\\.a` — one class called `scope.a` — and
+ * `.scope.a` — two classes — arrive as different trees and used to render the same string. `covers`
+ * compares those strings, so a ring scoped to one could clear a flattening site under the other and
+ * the gate would pass with no indicator on screen. The same shape as the payload collisions above,
+ * one level down: at the CHARACTER rather than at the node.
+ *
+ * A single pass escaping everything outside the safe set, which makes it a bijection — `\\` is itself
+ * outside the set and so escapes to `\\\\`, and a two-pass version would have re-escaped what the
+ * first pass inserted. This is CSS identifier escaping in the cases that matter and is not claimed
+ * to be more: a leading digit is left alone, because it changes no IDENTITY and this string is
+ * compared, never parsed back.
+ */
+const identifier = (name: string): string => name.replace(/[^A-Za-z0-9_-]/gu, (character) => `\\${character}`);
+
+/** An attribute VALUE rendered inside its quotes, with the quote and the escape itself escaped. */
+const quoted = (value: string): string => value.replace(/["\\]/gu, (character) => `\\${character}`);
+
 /** The vendor prefix a node carries, rendered, or `''` when it is unprefixed. */
 const prefixOf = (component: SelectorComponent): string =>
 	'vendorPrefix' in component && Array.isArray(component.vendorPrefix) && component.vendorPrefix.length > 0
@@ -501,13 +521,13 @@ export function show(selector: Selector): string {
 					return '&';
 				}
 				case 'type': {
-					return component.name;
+					return identifier(component.name);
 				}
 				case 'id': {
-					return `#${component.name}`;
+					return `#${identifier(component.name)}`;
 				}
 				case 'class': {
-					return `.${component.name}`;
+					return `.${identifier(component.name)}`;
 				}
 				case 'combinator': {
 					return component.value === 'descendant' ? ' ' : ` ${component.value} `;
@@ -527,7 +547,7 @@ export function show(selector: Selector): string {
 				case 'attribute': {
 					const { name, operation } = component;
 
-					if (operation === null || operation === undefined) return `[${name}]`;
+					if (operation === null || operation === undefined) return `[${identifier(name)}]`;
 
 					const operator = ATTRIBUTE_OPERATORS[operation.operator];
 
@@ -535,7 +555,7 @@ export function show(selector: Selector): string {
 						throw new Error(`show(): no rendering for the "${operation.operator}" attribute operator`);
 					}
 
-					return `[${name}${operator}"${operation.value}"${operation.caseSensitivity === 'case-sensitive' ? '' : ' i'}]`;
+					return `[${identifier(name)}${operator}"${quoted(operation.value)}"${operation.caseSensitivity === 'case-sensitive' ? '' : ' i'}]`;
 				}
 				case 'pseudo-class': {
 					refuseUnrenderedPayload(component);

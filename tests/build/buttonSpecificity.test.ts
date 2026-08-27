@@ -192,6 +192,13 @@ describe('the instrument', () => {
 	 */
 	it.each([
 		[':nth-child(2 of .scope-a)', ':nth-child(2 of .scope-b)'],
+		// AN ESCAPED IDENTIFIER is the same collision one level down — at the character rather than at
+		// the node. The parser hands back the UNESCAPED name, so a single class called `scope.a` and
+		// two classes `scope` and `a` arrived as different trees rendering one string, and `covers`
+		// compares those strings: a ring scoped to one could clear a flattening site under the other.
+		['.scope\\.a .rp-dialog-button', '.scope.a .rp-dialog-button'],
+		['#id\\#x', '#id#x'],
+		['.a\\ b', '.a b'],
 		['.is-collapsed:dir(ltr)', '.is-collapsed:dir(rtl)'],
 		['::-webkit-scrollbar', '::-webkit-scrollbar-thumb'],
 	])('tells %s from %s', (one, other) => {

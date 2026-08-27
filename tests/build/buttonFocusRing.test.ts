@@ -403,6 +403,10 @@ describe('a flattened button and its focus ring', () => {
 		'color: transparent; outline: 2px solid currentColor',
 		'outline: 2px solid currentColor; color: transparent',
 		'color: transparent; outline-style: solid; outline-color: currentColor',
+		// And the SHADOW takes its colour from the same place. The outline learned this a commit
+		// before the shadow did, in this same reader, and the shadow was not swept for it then.
+		'color: transparent; box-shadow: 0 0 0 3px currentColor',
+		'box-shadow: 0 0 0 3px currentColor; color: transparent',
 		// `all` is both properties at once, and its grammar admits only CSS-wide keywords — none of
 		// which this gate can prove an indicator from. It arrives as its own parsed property rather
 		// than as an unparsed keyword, so the `RESETS` path never saw it.
@@ -433,6 +437,17 @@ describe('a flattened button and its focus ring', () => {
 		// fix from becoming "never credit currentcolor".
 		['color: red; outline: 2px solid currentColor', true],
 		['outline: 2px solid currentColor', true],
+		['color: red; box-shadow: 0 0 0 3px currentColor', true],
+		// A block that never sets `color` INHERITS one no stylesheet holds, so the keyword is credited —
+		// the same direction a `var()` takes. THREE readings of the keyword pass the two cases above and
+		// this is the one that separates them: "credit unless proven transparent" from "credit only a
+		// colour that paints". Its sibling separates the third, "credit only an UNSEEN colour". Both
+		// were watched failing against exactly those.
+		['box-shadow: 0 0 0 3px currentColor', true],
+		// A shadow LIST decides PER ITEM. One flag for the whole declaration has to choose which item
+		// it describes, and either choice is wrong for the other: this one is invisible in its first
+		// shadow and three solid red pixels in its second.
+		['color: transparent; box-shadow: 0 0 0 3px currentColor, 0 0 0 3px red', true],
 		['outline-style: solid; outline-color: red', true],
 		['outline: 2px solid red; outline-style: none; outline-style: solid', true],
 		['all: unset; outline: 2px solid red', true],

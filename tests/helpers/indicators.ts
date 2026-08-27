@@ -5,8 +5,8 @@ import type { Declaration } from 'lightningcss';
  * What a declaration block DRAWS, read through the parser rather than through a value vocabulary.
  *
  * A sibling to `selectors.ts` and the same argument: a CSS value is a grammar. This one answers
- * one question — does this block leave a visible focus indicator — and it has been wrong four
- * times, each time because it was written as a list of spellings that mean "nothing":
+ * one question — does this block leave a visible focus indicator — and it has been wrong six
+ * times. The first four were one mistake, written as a list of spellings that mean "nothing":
  *
  * - it refused the literal `none` and accepted `outline: 0`, `initial`, `unset`, `revert`
  * - it accepted `outline: 0 solid red`, whose width is zero and whose other components read as
@@ -20,6 +20,18 @@ import type { Declaration } from 'lightningcss';
  * transparent colour folds to one node, and `outline: none` and `outline: 0` both resolve their
  * style to `none`. The fourth is not a parsing question at all — it is an ORDER — and it is why
  * this module resolves a block rather than filtering it.
+ *
+ * The last two are a DIFFERENT mistake and are the more interesting pair, because the second was
+ * this file's own answer to the first, applied to one of the two properties that needed it:
+ *
+ * - it credited `color: transparent; outline: 2px solid currentColor`, whose colour is a reference
+ *   to another property rather than a value at all
+ * - it went on crediting `color: transparent; box-shadow: 0 0 0 3px currentColor`, because the fix
+ *   was made where the report pointed and the neighbouring property was never swept for it
+ *
+ * That second one is this reader's THIRD neighbour-shaped miss — `all`, then the outline's initial
+ * values, now `currentcolor` — so the rule it teaches is worth stating where the code is: a fix to
+ * one value reader is not applied until every reader of that value has been looked at.
  */
 
 /**
@@ -164,18 +176,28 @@ export const indicatorOf = (
 	let style: Known = 'blank';
 	let color: Known = 'draws';
 	// `currentcolor` carries NO numeric alpha, so `paints` assumed it painted — and
-	// `color: transparent; outline: 2px solid currentColor` draws an outline nobody can see. These two
-	// track it: whether the outline's colour came from the keyword, and what this block's own `color`
+	// `color: transparent; outline: 2px solid currentColor` draws an outline nobody can see. These
+	// track it: whether a component's colour came from the keyword, and what this block's own `color`
 	// resolves to. Order between them does not matter and must not: `color` is a different property,
-	// so the block's final one is what `currentcolor` takes, wherever the outline was written.
+	// so the block's final one is what `currentcolor` takes, wherever the indicator was written.
+	//
+	// BOTH PROPERTIES TAKE IT, which is why the shadow is two flags rather than one boolean. The
+	// outline learned this a commit before the shadow did, and the shadow was not swept for it then —
+	// the same neighbour-shaped miss `all` made in this very reader. A shadow LIST decides per item,
+	// so `0 0 0 3px currentColor, 0 0 0 3px red` still draws over a transparent `color`: one item
+	// depends on the keyword and the other does not, and collapsing them into a single flag would
+	// have to choose which one lies.
 	//
 	// THE CEILING, and it is a real one: only THIS block's `color` is seen. A `color: transparent`
-	// winning from another rule leaves the outline credited, because resolving that needs `color` as
+	// winning from another rule leaves the indicator credited, because resolving that needs `color` as
 	// a fourth channel in the cross-rule cascade and it is not one.
 	let fromCurrentColor = false;
 	let blockColor: boolean | undefined;
 	const touched = new Set<OutlinePart>();
-	let shadow: boolean | undefined;
+	// `undefined` is "no `box-shadow` in this block at all", which is what lets a caller tell a
+	// flattened button from one this block never mentions.
+	let shadowPaints: boolean | undefined;
+	let shadowFromCurrentColor = false;
 
 	for (const declaration of declarations) {
 		if (declaration.property === 'outline') {
@@ -210,7 +232,10 @@ export const indicatorOf = (
 			continue;
 		}
 		if (declaration.property === 'box-shadow') {
-			shadow = declaration.value.some((one) => paints(one.color) && spills(one));
+			const spilling = declaration.value.filter((one) => spills(one));
+
+			shadowPaints = spilling.some((one) => !isCurrentColor(one.color) && paints(one.color));
+			shadowFromCurrentColor = spilling.some((one) => isCurrentColor(one.color));
 			continue;
 		}
 		// `all` IS BOTH PROPERTIES AT ONCE. Its grammar admits only a CSS-wide keyword, and this gate
@@ -228,7 +253,8 @@ export const indicatorOf = (
 			width = 'blank';
 			style = 'blank';
 			color = 'blank';
-			shadow = false;
+			shadowPaints = false;
+			shadowFromCurrentColor = false;
 			continue;
 		}
 		if (declaration.property !== 'unparsed') continue;
@@ -260,7 +286,8 @@ export const indicatorOf = (
 				break;
 			}
 			case 'box-shadow': {
-				shadow = !blank;
+				shadowPaints = !blank;
+				shadowFromCurrentColor = false;
 				break;
 			}
 			default: {
@@ -269,13 +296,18 @@ export const indicatorOf = (
 		}
 	}
 
-	// Resolved at the END, because `color` and the outline are different properties and either may be
-	// written first — the block's final `color` is what the keyword takes.
+	// Resolved at the END, because `color` is a different property from either indicator and may be
+	// written first or last — the block's final `color` is what the keyword takes. `blockColor === false`
+	// rather than `!blockColor` on purpose: a block that never sets `color` inherits one this gate
+	// cannot see, and an unseen colour is credited, exactly as a `var()` is.
+	const currentColorPaints = blockColor !== false;
 	const resolved: Record<OutlinePart, Known> = {
 		width,
 		style,
-		color: fromCurrentColor && blockColor === false ? 'blank' : color,
+		color: fromCurrentColor && !currentColorPaints ? 'blank' : color,
 	};
+	const shadow =
+		shadowPaints === undefined ? undefined : shadowPaints || (shadowFromCurrentColor && currentColorPaints);
 	const parts: OutlineParts = Object.fromEntries([...touched].map((part) => [part, resolved[part]]));
 	const outline = touched.size > 0 ? !Object.values(resolved).some((part) => part === 'blank') : undefined;
 

@@ -243,6 +243,40 @@ describe('duplicate frontmatter ids', () => {
 	});
 });
 
+/**
+ * Two `.rpgeo` files can share a basename the same way two notes can share an id: a user
+ * copying a whole project folder as a backup — the "moves, backs up and deletes as one
+ * unit" property ADR-0013 celebrates — produces a second sidecar naming the same plan id.
+ * `joinSidecars` no longer has a folder prefix to keep the two apart, so last-writer-wins
+ * is now reachable from an ordinary backup rather than only from a deliberately crafted
+ * vault, and the note-side diagnostic (`warnOnDuplicate`, above) has no sidecar-side twin
+ * without this test.
+ */
+describe('duplicate sidecar basenames', () => {
+	it('the scan keeps the last sidecar scanned and warns about the other', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
+		const backupPath = original.replace('Renovation/', 'Renovation Backup/');
+		stack.vault.entries.set(backupPath, stack.vault.entries.get(original) ?? '');
+
+		const entries = buildProjectIndexEntries({
+			vault: stack.vault as never,
+			metadataCache: stack.metadataCache as never,
+			echo: stack.echo,
+			logger: stack.logger,
+		});
+
+		// Last-writer-wins stays: which one wins is scan order, arbitrary either way. What
+		// changes is that it is no longer SILENT.
+		const planEntry = entries.find((entry) => entry.id === planId);
+		expect(planEntry?.geometrySidecarPath).toBe(backupPath);
+		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+		expect(warning?.context?.['path']).toBe(backupPath);
+		expect(warning?.context?.['otherPath']).toBe(original);
+	});
+});
+
 describe('mapper parse failures return before construction', () => {
 	it('project mapper refuses schema-invalid raw frontmatter', () => {
 		expect(projectFromPersistence({ type: 'renovation-project' }).ok).toBe(false);

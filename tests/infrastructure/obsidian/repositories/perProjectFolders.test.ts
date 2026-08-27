@@ -124,6 +124,70 @@ describe('plans and zones land in their own project folder', () => {
 		);
 	});
 
+	it('writes two projects\' zones into two different folders', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		const bathroom = makeProjectEntity({ id: 'p2' as ProjectId, name: 'Bathroom' });
+		await stack.projects.save(kitchen, 'absent');
+		await stack.projects.save(bathroom, 'absent');
+
+		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
+		const upstairs = makePlanEntity({ id: 'pl2' as PlanId, projectId: 'p2' as ProjectId, name: 'Upstairs' });
+		await stack.plans.save(groundFloor, 'absent');
+		await stack.plans.save(upstairs, 'absent');
+
+		const livingRoom = makeZoneEntity({
+			id: 'z1' as ZoneId,
+			projectId: 'p1' as ProjectId,
+			planId: 'pl1' as PlanId,
+			name: 'Living room',
+		});
+		const bedroom = makeZoneEntity({
+			id: 'z2' as ZoneId,
+			projectId: 'p2' as ProjectId,
+			planId: 'pl2' as PlanId,
+			name: 'Bedroom',
+		});
+		await stack.zones.save(livingRoom, 'absent');
+		await stack.zones.save(bedroom, 'absent');
+
+		expect(stack.index.getPath('z1' as never)).toBe('Renovation/Kitchen Refit/Zones/Living room.md');
+		expect(stack.index.getPath('z2' as never)).toBe('Renovation/Bathroom/Zones/Bedroom.md');
+	});
+
+	it('reads and mutates a sidecar through PlanGeometryStore, isolated per project', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
+		const bathroom = makeProjectEntity({ id: 'p2' as ProjectId, name: 'Bathroom' });
+		await stack.projects.save(kitchen, 'absent');
+		await stack.projects.save(bathroom, 'absent');
+
+		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
+		const upstairs = makePlanEntity({ id: 'pl2' as PlanId, projectId: 'p2' as ProjectId, name: 'Upstairs' });
+		await stack.plans.save(groundFloor, 'absent');
+		await stack.plans.save(upstairs, 'absent');
+
+		const groundRead = expectOk(await stack.store.read('pl1' as PlanId));
+		const upstairsRead = expectOk(await stack.store.read('pl2' as PlanId));
+		expect(groundRead.path).toBe('Renovation/Kitchen Refit/Geometry/pl1.rpgeo');
+		expect(upstairsRead.path).toBe('Renovation/Bathroom/Geometry/pl2.rpgeo');
+
+		// A write through the store to one project's sidecar must not reach the other's —
+		// the join is by basename across the whole vault now, so this is what proves two
+		// projects' sidecars stay distinct rather than merely differently NAMED.
+		expectOk(
+			await stack.store.mutate('pl1' as PlanId, (dto) => ({
+				...dto,
+				objects: [{ id: 'z1', type: 'polygon', points: [[0, 0], [1000, 0], [1000, 1000], [0, 1000]] }],
+			})),
+		);
+
+		const groundAfter = expectOk(await stack.store.read('pl1' as PlanId));
+		const upstairsAfter = expectOk(await stack.store.read('pl2' as PlanId));
+		expect(groundAfter.dto.objects).toHaveLength(1);
+		expect(upstairsAfter.dto.objects).toHaveLength(0);
+	});
+
 	it('refuses a save whose project folder cannot be resolved, and writes nothing', async () => {
 		const stack = createRepositoryStack('Renovation');
 		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });

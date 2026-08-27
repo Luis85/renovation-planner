@@ -101,6 +101,24 @@ function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 	}
 }
 
+/**
+ * Two `.rpgeo` files CAN name one plan id — a user copying a whole project folder as a
+ * backup produces exactly that, and the sidecar join has no folder prefix left to keep the
+ * two apart. Last-writer-wins is kept deliberately, for the same reason `warnOnDuplicate`
+ * above keeps it for notes: changing it would make which sidecar wins depend on scan
+ * order — arbitrary AND invisible instead of merely arbitrary. What was missing is the
+ * diagnostic: without it, geometry writes for the losing plan silently land in the backup.
+ */
+function warnOnDuplicateSidecar(logger: Logger, previous: string | undefined, planId: string, path: string): void {
+	if (previous === undefined) return;
+	logger.warn('persistence.index.sidecar-duplicate', {
+		planId,
+		path,
+		otherPath: previous,
+		reason: 'two sidecars declare this plan id; only the last one scanned is reachable',
+	});
+}
+
 /** Pass two: join each sidecar to its Plan entry by filename (see the header on why). */
 function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>): void {
 	for (const file of listSidecars(input.vault)) {
@@ -113,6 +131,7 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 			});
 			continue;
 		}
+		warnOnDuplicateSidecar(input.logger, planEntry.geometrySidecarPath, planId, file.path);
 		entries.set(planId, { ...planEntry, geometrySidecarPath: file.path });
 	}
 }
@@ -149,7 +168,10 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
  *
  * A hand-written note carrying one of our types anywhere in the vault is therefore
  * indexed. That is the intended behaviour of a declared bound; a template note carrying a
- * literal id becomes a duplicate-id finding, which `warnOnDuplicate` already reports.
+ * literal id becomes a duplicate-id finding, which `warnOnDuplicate` already reports. A
+ * third consequence follows the same shape one level down: a `.rpgeo` file has no folder
+ * prefix left to bound it either, so a project folder copied wholesale as a backup carries
+ * a second sidecar naming the same plan id, which `warnOnDuplicateSidecar` reports.
  *
  * Two named passes rather than one body: the sidecar join can only run once every note
  * entry exists, so the ORDER here is the contract, and it is worth being able to read.

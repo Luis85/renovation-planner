@@ -364,17 +364,20 @@ gate. That is arithmetic here, not a style preference.
 Three commits, and the ordering is what keeps `npm run check` passing at each:
 
 1. ~~`foldersOverlap` and the root-list types, with nobody calling them. Pure additions, fully
-   tested, no behaviour change.~~ **Corrected — this commit would fail the gate it was written
-   to keep green.** `foldersOverlap` has no caller in this slice: under the derived shape,
-   "changing a project's folder" is a user dragging a folder in Obsidian's file explorer, with
-   no command and therefore no refusal point, and §83's overlap rule is library-versus-project,
-   which does not exist until slice 19. ~~A pure export with no caller in `src/` fails
-   `npm run analyze`.~~ **Corrected again — Task 9 measured this false too.** fallow treats a
+   tested, no behaviour change.~~ ~~**Corrected — this commit would fail the gate it was written
+   to keep green.**~~ **Corrected again — Task 9 measured this false too, and the falsehood
+   reaches this outer conclusion, not only the premise it was drawn from.** `foldersOverlap` has
+   no caller in this slice: under the derived shape, "changing a project's folder" is a user
+   dragging a folder in Obsidian's file explorer, with no command and therefore no refusal
+   point, and §83's overlap rule is library-versus-project, which does not exist until
+   slice 19. ~~A pure export with no caller in `src/` fails `npm run analyze`.~~ fallow treats a
    test file as an entry point, so an export with only a TEST caller stays live; what actually
-   fails the gate is a new FILE nothing imports at all, reported as unused. `foldersOverlap` and
-   `IndexRoots` still move to slice 19, with their caller — because they have no work to do in
-   this slice, not because a gate would refuse them for lacking one — see `CLAUDE.md`'s slice 18
-   record and the design document's *The three corrections*
+   fails the gate is a new FILE nothing imports at all, reported as unused — so this commit
+   would NOT have failed `npm run check`, and the struck bold clause above claiming otherwise is
+   wrong for the same reason. `foldersOverlap` and `IndexRoots` still move to slice 19, with
+   their caller — because they have no work to do in this slice, not because a gate would
+   refuse them for lacking one — see `CLAUDE.md`'s slice 18 record and the design document's
+   *The three corrections*
    (`docs/superpowers/specs/2026-08-27-a-project-owns-its-folder-design.md`).
 2. **The conversion.** `NoteVaultDeps.projectFolder` deleted, five repositories and both pipeline
    modules converted, index tests extended. Atomic by necessity — the deletion is what fails the

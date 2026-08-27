@@ -135,7 +135,11 @@ describe('zone repository: remaining refusals', () => {
 		const zone = makeZoneEntity({ id: zoneId, projectId, planId });
 
 		// Derive the fresh note path the way the repository will, then fail BOTH writes.
-		const folder = projectFolderOf(stack.index, projectId) ?? stack.projectFolder;
+		// `seed()` above always registers the project first, so this always resolves — a
+		// `?? stack.projectFolder` fallback here would be the dead tolerance this file's own
+		// header refuses.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
 		const plain = `${zonesFolderFor(folder)}/${zone.name}.md`;
 		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		stack.vault.failures.add(`delete:${plain}`);

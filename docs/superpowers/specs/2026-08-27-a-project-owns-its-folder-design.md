@@ -66,8 +66,13 @@ two disagree **this document is the later measurement**.
   sourced from fallow's vitest plugin, which seeds this repository's 198 `*.test.ts` files plus
   `vitest.config.ts` and the aliased `obsidian` mock module as always-used. What `npm run analyze`
   actually refuses is a new FILE nothing imports at all, reported as an unused file — a different
-  rule from a dead export with a caller nobody wanted counted. **This does not reopen the
-  deferral**, which is the reason slice 19 needs to inherit correctly: `foldersOverlap` still
+  rule from a dead export with a caller nobody wanted counted. **The conclusion drawn from the
+  false premise, a paragraph up, is also false and is corrected here rather than left standing
+  beside its corrected premise:** "the slice document's 'Staying green' commit 1 … would fail
+  the gate it was written to keep green" does not hold under the corrected rule — a
+  `foldersOverlap` shipped with only a test caller would have stayed invisible to
+  `npm run analyze` the whole time, the same way `projectFolderOf` did. **This does not reopen
+  the deferral**, which is the reason slice 19 needs to inherit correctly: `foldersOverlap` still
   ships there because it has no WORK to do in this slice — no command changes a project's folder
   under the derived shape, and no library exists yet to overlap with — not because a gate would
   have refused it for lacking a caller. See `CLAUDE.md`'s slice 18 record for the same
@@ -171,7 +176,7 @@ the handful under one prefix. It is a `MetadataCache` map lookup plus an `EchoWi
 check — not a file read, not a parse. The docblock on `buildProjectIndexEntries` says exactly
 that, and does not repeat the slice document's claim that the call count is unchanged.
 
-Two consequences worth stating rather than discovering:
+Three consequences worth stating rather than discovering:
 
 - A hand-written note carrying `type: renovation-zone` anywhere in the vault is now indexed.
   That is the intended behaviour of a declared bound, and it is how vault-wide Obsidian plugins
@@ -179,6 +184,13 @@ Two consequences worth stating rather than discovering:
 - A template note carrying a literal `id` becomes a duplicate-id finding. It already is one
   today whenever the template sits under the project folder; the population of such notes grows,
   and `warnOnDuplicate` already reports it.
+- **`joinSidecars` lost its folder prefix too, and that one has a data-loss path.** A user
+  copying a whole project folder as a backup — the "moves, backs up and deletes as one unit"
+  property ADR-0013 celebrates — produces a second `.rpgeo` naming the same plan id, and
+  `PlanGeometryStore.read`'s own-`planId` verification passes for either copy. Last-writer-wins
+  is kept, for the same reason `warnOnDuplicate` keeps it for notes, but it is no longer silent:
+  `warnOnDuplicateSidecar` reports it (`persistence.index.sidecar-duplicate`), found in the
+  final whole-branch review rather than at the time this section was first written.
 
 ## Write-time folder resolution
 
@@ -276,7 +288,22 @@ export function entityRefOf(frontmatter: Record<string, unknown>):
 // paths.ts — new, pure
 export function freshProjectFolder(vault: Vault, root: string, name: string, id: string): string;
 export function projectFolderOf(index: ProjectIndex, projectId: ProjectId): string | undefined;
+```
 
+**Corrected — this is the sketch, not what shipped.** `entityRefOf`'s callers need a third
+answer, not two: `not-ours` (silent, correct) and `no-id` (one of ours, undiagnosable) are told
+apart by each caller re-spelling the whole test if `entityRefOf` only ever returns `undefined`
+for both. What shipped is the three-arm union documented at the function itself:
+
+```ts
+export type EntityRef =
+	| { kind: 'ours'; type: EntityType; id: string }
+	| { kind: 'no-id' }
+	| { kind: 'not-ours' };
+export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef;
+```
+
+```ts
 // NoteVaultDeps — removed
 readonly projectFolder: string;   // ← deleted; five repositories stop compiling
 
@@ -300,6 +327,14 @@ Renovation/                     ← the plugin setting: where a NEW project is c
 └── Bathroom/
     └── …
 ```
+
+**Corrected — the note's filename is not `Project.md`.** This sketch draws `Project.md` for
+every project; what ships is `freshNotePath`'s existing, unchanged rule — `<fileNameFor(name)>.md`
+— so "Kitchen Refit" writes `Kitchen Refit/Kitchen Refit.md`, not `Kitchen Refit/Project.md`.
+The filename was never identity (§83) and this slice does not touch it; only the FOLDER a
+project's note sits in is new. The code is not changed to match this diagram — renaming the
+note would move every existing project's note, which is the migration this slice explicitly
+refuses to build (*No migration*, above).
 
 An existing vault whose project folder *is* `Renovation/` stays exactly as it is and stays
 correct.
@@ -376,10 +411,18 @@ Four commits, ordered so `npm run check` passes at each:
       that no migration is owed.
 - [ ] `CreateProjectCommand` and `create-sample-project` create a project in its own folder
       under the default root, deduped on collision.
-- [ ] **The default projects folder is still configurable and still governs where a new project
+- [x] **The default projects folder is still configurable and still governs where a new project
       goes**, asserted end to end: change the setting, create a project, and its folder is under
       the NEW root. The setting keeps a job in this slice — it is the home new projects live
       under — and losing that quietly is the failure this item exists to catch.
+      **Corrected by the final review.** "End to end" had one witness short: `perProjectFolders.test.ts`'s
+      "takes the configured root" drives `createRepositoryStack` directly, which builds an
+      `ObsidianProjectRepository` by hand and never passes through `composition-root.ts`'s
+      `composeRepositories(deps, vault, settings.projectFolder)` — the actual seam that reads
+      the setting. `tests/plugin/persistence-wiring.test.ts`'s "creates a project under the
+      configured root through the real composition seam" now drives it through the real
+      plugin, so a future edit that stopped threading the setting through the composition root
+      would fail there instead of passing on a repository-level test that cannot see it.
 - [ ] The stored settings key is unchanged, asserted through `settingsFrom`.
 - [ ] **Withdrawn, not ticked:** the orphan diagnostic. Under a declared bound there are no
       orphans, so there is nothing to report.

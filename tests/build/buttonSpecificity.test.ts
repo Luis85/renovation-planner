@@ -543,7 +543,19 @@ const losingButtonRules = (scanned: readonly (readonly [string, string])[], clas
 
 			for (const selector of rule.selectors) {
 				if (!isGoverned(selector, classes)) continue;
-				if (!moreSpecific(specificityOf(selector), OBSIDIAN_BUTTON)) losing.push(`${where}: ${show(selector)}`);
+				// A TIE GOES TO US, and asking for STRICTLY more specific said the opposite. Obsidian's
+				// `button:not(.clickable-icon)` lives in `app.css`, which the harness loads before
+				// `theme.css` and the assembled plugin sheet — checked in `tests/harness/index.html`, not
+				// assumed — and Obsidian injects a plugin's styles after its own in a vault. So an equal
+				// specificity is broken by SOURCE ORDER in our favour, and `button.rp-editor-tool-button`
+				// at (0,1,1) wins in the browser while this check called it losing: a false positive on
+				// valid CSS, which is the one direction a build gate may not err in.
+				//
+				// `focusCascade.ts` had already reasoned this out for the host's focus ring and spelled it
+				// `!moreSpecific(HOST, ours)`; this file — the sibling asking the very same question about
+				// rank — still asked for a strict win. The newer file was right and the older one was not
+				// swept against it.
+				if (moreSpecific(OBSIDIAN_BUTTON, specificityOf(selector))) losing.push(`${where}: ${show(selector)}`);
 			}
 		}
 
@@ -616,6 +628,30 @@ describe('every button rule against Obsidian\'s own', () => {
 	 * the class plus the pseudo-element, which TIES the host rule and was reported as losing a
 	 * cascade it is not in.
 	 */
+	/**
+	 * A TIE GOES TO US, because Obsidian's `app.css` is loaded before the plugin's own sheet — in a
+	 * vault and in `tests/harness/index.html` alike — so source order breaks an equal specificity in
+	 * our favour. Asked for a STRICT win, this check failed the build on `button.rp-editor-tool-button`,
+	 * a rule the browser applies.
+	 *
+	 * The two lines below are the pair that pins it: one ties at (0,1,1) and must be silent, the other
+	 * is genuinely lower at (0,1,0) and must still report, or "a tie wins" has become "everything wins".
+	 */
+	it.each(['button.rp-editor-tool-button', '.rp-editor-tool-button:hover', 'button.rp-editor-tool-button:is(.a, .b)'])(
+		'says nothing about %s, which ties or beats the host rule',
+		(selector) => {
+			expect(losingButtonRules([['fixture', `${selector} { color: red; }`]], new Set(['.rp-editor-tool-button']))).toEqual(
+				[],
+			);
+		},
+	);
+
+	it('still reports a rule the host outranks outright', () => {
+		expect(
+			losingButtonRules([['fixture', '.rp-editor-tool-button { color: red; }']], new Set(['.rp-editor-tool-button'])),
+		).toEqual(['fixture: .rp-editor-tool-button']);
+	});
+
 	it.each(['.rp-editor-tool-button::after', '.rp-editor-tool-button::before', 'button::after'])(
 		'says nothing about %s, which styles generated content',
 		(selector) => {

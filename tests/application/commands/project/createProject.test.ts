@@ -30,7 +30,7 @@ describe('CreateProjectCommand', () => {
 
 		expect(error.code).toBe('project.empty-name');
 		expect(events.published).toHaveLength(0);
-		expect(expectOk(await projects.listAll())).toHaveLength(0);
+		expect(expectOk(await projects.listAll()).loaded).toHaveLength(0);
 	});
 
 	it('refuses a status outside the vocabulary', async () => {

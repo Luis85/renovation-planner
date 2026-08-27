@@ -22,13 +22,15 @@ import { ok } from '../../../src/core/result/Result';
 import type { RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
 
 /**
- * A context this file's cases can mount against, answering `ok([])`: neither case here is
- * about the project list or its empty state (that is
- * `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job) — it is about
- * `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING the view can
- * hydrate against without throwing.
+ * A context this file's cases can mount against, answering an empty list with nothing refused
+ * (`ok({ projects: [], unreadable: 0 })`): neither case here is about the project list or its
+ * empty state (that is `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job)
+ * — it is about `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING
+ * the view can hydrate against without throwing.
  */
-const deps: RenovationProjectDeps = { queries: { listProjects: () => Promise.resolve(ok([])) } };
+const deps: RenovationProjectDeps = {
+	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
+};
 
 describe('the view root', () => {
 	/**

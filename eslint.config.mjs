@@ -538,6 +538,71 @@ const NOTICE_TEXT_BAN = [
 	},
 ];
 
+/**
+ * `src/presentation/i18n/strings.ts` is THE one place the app language is resolved, as a
+ * rule rather than as a sentence in that file's docblock.
+ *
+ * The sentence came first and did not entail its own claim: it said `tr` and `trError` both
+ * come through `currentLanguage()`, "so no call site re-decides it" — which says nothing at
+ * all about a THIRD call site, and nothing stopped one appearing. It was true only because
+ * somebody had counted, on a branch whose entire subject was claims wider than their checks.
+ *
+ * Two selectors, and both are IMPORT-or-ACCESS shapes rather than a call:
+ *
+ * - the named import (`import { getLanguage } from 'obsidian'`), which is the spelling every
+ *   file here uses, and
+ * - any `.getLanguage` member access, which is the namespace spelling
+ *   (`import * as obsidian`; `obsidian.getLanguage()`). No object in this repository has a
+ *   `getLanguage` member of its own, so the wider selector costs nothing today — and if one
+ *   ever does, this is where the exception gets argued rather than a hole nobody notices.
+ *
+ * A dynamic `import('obsidian')` is NOT a hole, which is worth stating because the first
+ * draft of this paragraph listed it as one: the specifier is invisible to the first selector,
+ * but `(await import('obsidian')).getLanguage()` still has to reach the function through a
+ * member access, and the second selector is about `.getLanguage` rather than about `obsidian`.
+ * Measured rather than reasoned — the case is in the test file, as a REACH.
+ *
+ * **What it cannot see**: a destructured dynamic import (`const { getLanguage } = await
+ * import('obsidian')`), which leaves neither an `ImportSpecifier` nor a member access; a
+ * computed member access (`obsidian['getLanguage']`); and the language re-decided from
+ * something OTHER than `getLanguage` — a hard-coded `'de'`, a plugin-local setting. The last
+ * of those is the defect the docblock actually fears, and no selector reaches it; the two
+ * above are the doors it would come through.
+ *
+ * `no-restricted-syntax` rather than `no-restricted-imports`, which is where the wrong
+ * choice would have been expensive. `no-restricted-imports` already carries the LAYER BANS,
+ * and two flat-config blocks matching one file override a rule rather than merging it — so
+ * reaching every subtree of `src/` through that key means editing six blocks, each of which
+ * silently deletes a layer ban if it forgets to restate one. This key is already the one the
+ * repository's other policy bans live on, and the two blocks below cover ALL of `src/`
+ * between them, so the category costs two spreads and one carve-out. ESLint-only either way:
+ * oxlint has no `no-restricted-syntax`, so the edit-loop hook cannot see this rule.
+ *
+ * `tests/build/language-resolution-boundary.test.ts` drives both selectors, the carve-out and
+ * the blind spots through real fixture paths.
+ */
+const LANGUAGE_RESOLUTION_BAN = [
+	{
+		selector: "ImportDeclaration[source.value='obsidian'] > ImportSpecifier[imported.name='getLanguage']",
+		message:
+			"The app language is resolved in exactly one place: currentLanguage() in src/presentation/i18n/strings.ts. Call tr/trError, or t(language, key) with the language you were handed, rather than resolving it a second time here.",
+	},
+	{
+		selector: "MemberExpression[property.name='getLanguage']",
+		message:
+			"The app language is resolved in exactly one place: currentLanguage() in src/presentation/i18n/strings.ts. Call tr/trError, or t(language, key) with the language you were handed, rather than resolving it a second time here.",
+	},
+];
+
+/**
+ * The `no-restricted-syntax` selectors EVERY file in `src/` carries, hoisted because three
+ * blocks below now spread them and a hand-restated third copy is how the write boundary's
+ * own extension list went stale once already. The two that are NOT here differ per block on
+ * purpose: `WRITE_BOUNDARY` is off inside `infrastructure/obsidian/` (the sanctioned writer),
+ * and `LANGUAGE_RESOLUTION_BAN` is off inside `strings.ts` (the sanctioned resolver).
+ */
+const SHARED_SRC_SYNTAX_BANS = [...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN];
+
 export default defineConfig([
 	{
 		// Everything that is not this plugin's source. The build scripts are Node, not
@@ -765,7 +830,7 @@ export default defineConfig([
 		// restating the list at all.
 		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		ignores: ['**/src/infrastructure/obsidian/**'],
-		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN] },
+		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SHARED_SRC_SYNTAX_BANS, ...LANGUAGE_RESOLUTION_BAN] },
 	},
 	{
 		// The sanctioned writer. Vault writes are this directory's job; every OTHER
@@ -775,7 +840,20 @@ export default defineConfig([
 		// NOTICE_TEXT_BAN for the same reason, since the layer holding the raw exception is
 		// the likeliest place for one to be printed.
 		files: srcFiles('infrastructure/obsidian'),
-		rules: { 'no-restricted-syntax': ['error', ...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN] },
+		rules: { 'no-restricted-syntax': ['error', ...SHARED_SRC_SYNTAX_BANS, ...LANGUAGE_RESOLUTION_BAN] },
+	},
+	{
+		// The sanctioned RESOLVER, and the mirror image of the block above it: everything the
+		// two blocks before this one carry, minus `LANGUAGE_RESOLUTION_BAN`, because this is
+		// the one file allowed to import `getLanguage` at all. `WRITE_BOUNDARY` is spread back
+		// in for the same reason that block restates the shared list — two blocks matching one
+		// file OVERRIDE this rule rather than merging it, so a carve-out naming only its
+		// subtraction would take every other selector off this file too.
+		//
+		// A path rather than a subtree: the carve-out is for ONE module, and a directory-shaped
+		// glob would quietly extend it to the next file added beside it.
+		files: ['**/src/presentation/i18n/strings.ts'],
+		rules: { 'no-restricted-syntax': ['error', ...WRITE_BOUNDARY, ...SHARED_SRC_SYNTAX_BANS] },
 	},
 	{
 		// SDD §3.4 prohibits DOM APIs in domain/ and core/, not only the framework

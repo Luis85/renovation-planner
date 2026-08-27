@@ -4,6 +4,7 @@ import type { RepositoryError } from '../../../application/ports/repositoryError
 import type { Project } from '../../../domain/project/Project';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
+import type { ProjectListing } from '../../../application/ports/ProjectRepository';
 import { revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
@@ -124,14 +125,36 @@ export class ObsidianProjectRepository {
 		});
 	}
 
-	async listAll(): Promise<Result<Loaded<Project>[], RepositoryError>> {
+	/**
+	 * A per-note refusal is SKIPPED and counted, never returned. One project note this build
+	 * cannot parse must not cost the user every other project in the vault — and skipping it
+	 * is what makes `migrateNote`'s own claim true here, that a refusal is "scoped to THIS
+	 * note ... and the rest of the project loads on" (SDD §92 item 13). This method
+	 * contradicted that claim by returning the first failure it met.
+	 *
+	 * Nothing is lost by skipping, up to a bound worth naming: `getById` records every refusal
+	 * into the diagnostics ledger before returning it, so the per-entity detail reaches the
+	 * snapshot and only the count travels to the view. The ledger holds `MAX_ISSUES = 200`
+	 * and evicts OLDEST FIRST (`infrastructure/logging/diagnosticsLedger.ts`), so past 200
+	 * DISTINCT `(kind, id, code)` triples the earliest refusals do fall off the snapshot while
+	 * still being counted here. Deduplication on that triple is what keeps the bound out of
+	 * reach in practice — one broken note re-read on every hydrate records once — but "nothing
+	 * is lost" is a category word and this is where it stops being one.
+	 * A VANISHED note is a third case, neither loaded nor counted:
+	 * `getById` answers `ok(null)` for it, and it was already skipped here.
+	 */
+	async listAll(): Promise<Result<ProjectListing, RepositoryError>> {
 		const loaded: Loaded<Project>[] = [];
+		let refused = 0;
 		for (const id of this.deps.index.getIdsByType('renovation-project')) {
 			const one = await this.getById(id as ProjectId);
-			if (!one.ok) return one;
+			if (!one.ok) {
+				refused += 1;
+				continue;
+			}
 			if (one.value) loaded.push(one.value);
 		}
-		return Promise.resolve(ok(loaded));
+		return ok({ loaded, refused });
 	}
 
 	private locate(id: ProjectId): TFile | null {

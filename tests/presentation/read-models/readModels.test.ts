@@ -232,15 +232,15 @@ describe('the renovation project query boundary', () => {
 
 		const found = expectOk(await queries.listProjects());
 
-		expect(found).toEqual([toProjectSummaryDto(project)]);
+		expect(found.projects).toEqual([toProjectSummaryDto(project)]);
 		// Flat and serializable all the way down — no domain method survived the boundary.
 		expect(JSON.parse(JSON.stringify(found))).toEqual(found);
 	});
 
-	it('answers an empty vault with ok([]), not an error', async () => {
+	it('answers an empty vault with an empty list and no refusals, not an error', async () => {
 		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository()));
 
-		expect(expectOk(await queries.listProjects())).toEqual([]);
+		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
 	});
 
 	/**

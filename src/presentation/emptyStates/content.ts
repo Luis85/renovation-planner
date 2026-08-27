@@ -38,10 +38,14 @@ export const EMPTY_STATE_CONTENT = {
 	},
 	planEditor: {
 		/**
-		 * Checked BEFORE `noZones` even though a background-less plan necessarily has no
-		 * zones either: PRD §93's onboarding order is Create Project -> Choose Folder ->
-		 * Import First Plan -> Calibrate, so the user is asked to do the first missing step
-		 * rather than told about the second.
+		 * Checked BEFORE `noZones`, and the reason is PRD §93's onboarding order alone
+		 * (Create Project -> Choose Folder -> Import First Plan -> Calibrate): the user is
+		 * asked to do the first missing step rather than told about the second.
+		 *
+		 * Not because such a plan has no zones — it usually does here, since
+		 * `create-sample-project` seeds five on a background-less plan. `selectors.ts`
+		 * carries the full account; this comment used to repeat the same false premise, so
+		 * fixing one site and not the other would have left it standing.
 		 */
 		noBackground: {
 			headline: 'empty.plan.no-background.headline',

@@ -100,6 +100,9 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { installObsidianDom } from '../helpers/dom';
+import { makeView } from '../helpers/makeRenovationProjectView';
+import { err } from '../../src/core/result/Result';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 
 /**
@@ -196,6 +199,48 @@ describe('axe against the mounted view', () => {
 		// gap above fails HERE rather than passing vacuously again.
 		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
 		expect(results.violations).toEqual([]);
+	});
+
+	/**
+	 * The same surface in its FAILED state, which the case above cannot reach: it mounts
+	 * through `mountHarness`, whose `makeView()` default answers an empty, clean project list,
+	 * so it grades the empty state and only the empty state. Until this case existed,
+	 * `.rp-view-message` — the region `ViewRoot` draws for a refused read and for a load in
+	 * flight — was in no scanned DOM anywhere in this repository, and the file's green said
+	 * nothing whatever about it.
+	 *
+	 * Built through `makeView` directly rather than through `mountHarness`, because that mount
+	 * takes no `deps`: giving it one would change what the browser harness page draws, and the
+	 * empty state is what that page exists to show. `makeView` is still the ONE construction
+	 * site both the suite and the harness go through, so this case grades the real view.
+	 *
+	 * The presence assertion is the load-bearing half, for slice 14's own reason:
+	 * `results.violations` is `[]` on a scan of a subtree that contains nothing at all, exactly
+	 * as it is on a scan of a real, compliant region — a pass that is true of an empty subtree
+	 * is indistinguishable from a pass on compliant markup. Asserting the region is present in
+	 * the DOM this scan actually ran against is what makes a green here mean something.
+	 */
+	it('reports no semantic violations on the failure message the view draws for a refused read', async () => {
+		installObsidianDom();
+		const view = makeView({
+			queries: {
+				listProjects: () =>
+					Promise.resolve(
+						err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' }),
+					),
+			},
+		});
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		// Same reason as the case above: `hydrate` settles a tick after the synchronous mount, so
+		// without this the scan runs against Vue's `<!--v-if-->` placeholders and grades nothing.
+		await flushPromises();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(view.contentEl.querySelector('.rp-view-message')).not.toBeNull();
+		expect(results.violations).toEqual([]);
+		await view.onClose();
 	});
 
 	/**

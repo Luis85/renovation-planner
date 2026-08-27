@@ -24,8 +24,15 @@ export type PlanEditorEmptyStateKey = 'noBackground' | 'noZones';
  * a plan," which may be false. Slice 17 owns what renders there.
  *
  * The precedence is a short-circuit over PRD §93's onboarding order (Import First Plan ->
- * Calibrate -> …), not a re-derivation of which lack is worse: a plan with no background
- * necessarily has no zones either, and the user is asked to do the FIRST missing step.
+ * Calibrate -> …), not a re-derivation of which lack is worse: the user is asked to do the
+ * FIRST missing step of that sequence.
+ *
+ * It is NOT because a background-less plan has no zones — it very often does.
+ * `create-sample-project` seeds five zones on a plan with no background, and the browser
+ * harness refuses a background outright on SDD §55 grounds, so the two scenes this project
+ * ships are both exactly that case. An earlier version of this paragraph asserted the
+ * opposite and read as correct for a whole slice, because the ORDER it justifies is right
+ * either way. The order is load-bearing; the premise was decoration, and wrong.
  */
 export function selectPlanEditorEmptyState(
 	plan: PlanDto | null,
@@ -37,8 +44,22 @@ export function selectPlanEditorEmptyState(
 	return null;
 }
 
+/**
+ * `unreadable` is why this takes a second argument rather than reading a length.
+ *
+ * Zero projects with a refusal behind them is not an empty state: the vault may hold several
+ * this build cannot parse, and the onboarding copy would tell the user to create their first
+ * project while their existing ones sit unparseable on disk — wrong, and unactionable. The
+ * view renders the refusal notice instead, and `EMPTY_STATE_CONTENT` gains nothing.
+ *
+ * This stays a function of QUERY RESULTS, so slice 14's rule holds: `unreadable` is part of
+ * what `listProjects` answered, unlike the `activeToolId` that rule refused — which was
+ * live editor state and would have made this question unanswerable without a `ToolManager`.
+ */
 export function selectRenovationProjectEmptyState(
 	projects: readonly ProjectSummaryDto[],
+	unreadable: number,
 ): 'noProjects' | null {
+	if (unreadable > 0) return null;
 	return projects.length === 0 ? 'noProjects' : null;
 }

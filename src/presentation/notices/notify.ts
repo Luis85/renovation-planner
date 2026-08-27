@@ -1,8 +1,8 @@
-import { Notice, getLanguage } from 'obsidian';
+import { Notice } from 'obsidian';
 import type { AppError } from '../../core/errors/AppError';
 import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
 import type { Logger } from '../../application/ports/Logger';
-import { toUserMessage } from '../i18n/toUserMessage';
+import { trError } from '../i18n/toUserMessage';
 
 /**
  * Show a transient message in Obsidian's own notice area.
@@ -27,14 +27,17 @@ export function notify(message: string): Notice {
  * The OTHER way this plugin raises a notice, and the only one an `AppError` may take.
  * An error's own `message` is developer text (SDD §65): English, untranslated, and
  * written for a log line — so a raw one in a Notice is the defect design slice 11 exists
- * to remove. `toUserMessage` resolves the locale table's copy from the error's `code`,
- * its suffix, or its category, in that order.
+ * to remove. `trError` resolves the locale table's copy from the error's `code`, its
+ * suffix, or its category, in that order, in the app's own language — reached through
+ * `currentLanguage()` like every other translated string rather than by calling
+ * `getLanguage()` here, which is what keeps `strings.ts`'s claim to be the ONE language
+ * resolution point true of this door as well.
  *
  * Beside `notify` rather than in a module of its own because the two are one decision:
  * which of them a call site reaches for is entirely "do I hold text, or an error?".
  */
 export function notifyError(error: AppError): Notice {
-	return notify(toUserMessage(getLanguage(), error));
+	return notify(trError(error));
 }
 
 /**

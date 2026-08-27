@@ -112,14 +112,18 @@ export function projectRepositoryContract(make: () => ProjectFixture): void {
 			expect(error.code).toBe('project.revision-conflict');
 		});
 
-		it('listAll returns every stored project', async () => {
+		it('listAll returns every stored project and refuses none', async () => {
 			const { repository, makeProject } = make();
 			const a = makeProject('A');
 			const b = makeProject('B');
 			expectOk(await repository.save(a, 'absent'));
 			expectOk(await repository.save(b, 'absent'));
 			const all = expectOk(await repository.listAll());
-			expect(all.map((p) => p.entity.id).toSorted()).toEqual([a.id, b.id].toSorted());
+			expect(all.loaded.map((p) => p.entity.id).toSorted()).toEqual([a.id, b.id].toSorted());
+			// Both implementations must agree that a fully readable vault refuses nothing. A
+			// non-zero count is only reachable where a note is text, so it is asserted on the
+			// Obsidian implementation alone rather than here.
+			expect(all.refused).toBe(0);
 		});
 	});
 }

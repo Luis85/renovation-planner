@@ -32,8 +32,8 @@ describe('the renovation project dependencies', () => {
 		const deps = renovationProjectDeps(root);
 		const result = await deps.queries.listProjects();
 
-		// A fresh vault legitimately has none yet — `ok([])`, not a refusal.
-		expect(result).toEqual({ ok: true, value: [] });
+		// A fresh vault legitimately has none yet — `ok`, not a refusal, and nothing refused.
+		expect(result).toEqual({ ok: true, value: { projects: [], unreadable: 0 } });
 	});
 
 	/**

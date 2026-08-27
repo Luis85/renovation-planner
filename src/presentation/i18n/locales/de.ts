@@ -16,7 +16,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.unrecovered':
 		'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
 	'settings.project-folder.name': 'Projektordner',
-	'settings.project-folder.desc': 'Tresnornder, in dem Projekt-, Grundriss- und Zonennotizen liegen. Geometrie-Seitendateien liegen in einem Geometry-Ordner darin.',
+	'settings.project-folder.desc': 'Vault-Ordner, in dem Projekt-, Grundriss- und Zonennotizen liegen. Geometrie-Seitendateien liegen in einem Geometry-Ordner darin.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',
@@ -24,7 +24,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'command.open-plan-editor': 'Grundriss-Editor öffnen',
 	'command.set-plan-background': 'Grundriss-Hintergrund festlegen',
 	'command.create-sample-project': 'Beispielprojekt anlegen',
-	'plan.none': 'In diesem Tresor gibt es noch keine Grundrisse.',
+	'plan.none': 'In diesem Vault gibt es noch keine Grundrisse.',
 	'sample.project.name': 'Beispiel-Renovierung',
 	'sample.plan.name': 'Erdgeschoss',
 	'sample.zone.kitchen': 'Küche',
@@ -72,7 +72,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.zoom': 'Zoom',
 	'editor.loading': 'Grundriss wird geladen …',
 	'editor.plan-missing': 'Diesen Grundriss gibt es nicht mehr.',
-	'editor.plan-failed': 'Dieser Grundriss konnte nicht aus dem Tresor gelesen werden.',
+	'editor.plan-failed': 'Dieser Grundriss konnte nicht aus dem Vault gelesen werden.',
 	'editor.background-missing': 'Die Hintergrunddatei dieses Grundrisses fehlt.',
 	'editor.background-failed': 'Der Hintergrund dieses Grundrisses konnte nicht gezeichnet werden.',
 	'editor.layer.background': 'Hintergrund',
@@ -96,7 +96,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Fehlermeldungen (Slice 11). Geschlüsselt über `AppError.code`, über eine geschlossene
 	// Menge dynamischer Code-Suffixe und über die Kategorie — nie über die `message` des
 	// Fehlers selbst, die Logtext ist.
-	'vault.unexpected-failure': 'Das Tresor konnte unerwartet nicht gelesen oder geschrieben werden. Bitte erneut versuchen.',
+	'vault.unexpected-failure': 'Der Vault konnte unerwartet nicht gelesen oder geschrieben werden. Bitte erneut versuchen.',
 	'migration.chain-gap': 'Diese Notiz verwendet ein Format, das dieses Plugin nicht lesen kann.',
 	// Slice 10: Referenzintegrität und Anforderungen. Feste Sätze, keine Interpolation.
 	//
@@ -109,6 +109,18 @@ export const de: Partial<Record<StringKey, string>> = {
 	// wurde mit einem Satz über ein `Material` bzw. einen `Verweis` abgewiesen — zwei
 	// Namen für eine Sache, in einem Ablauf. Genau das soll eine übersetzte Absage
 	// verhindern.
+	//
+	// Diese Regel wurde in Slice 14 erneut gebrochen: `empty.project.no-projects.body`
+	// schrieb `Materialien`, vierzig Zeilen unter diesem Absatz. Seit dem Politur-Durchgang
+	// zu Slice 11/14 prüft `tests/presentation/i18n/strings.test.ts` beide Begriffe, weil
+	// eine Regel, die nur als Kommentar existiert, genau so lange hält, wie sie jemand
+	// liest. `Vault` steht dort ebenfalls: es ist Obsidians eigener Name und wird nicht
+	// übersetzt — fünf Schlüssel übersetzten ihn vorher, VIER davon als `Tresor` (einer
+	// als `Das Tresor`, einer als `Der Tresor` — zwei Schlüssel, ein Substantiv, zwei
+	// Genera), der fünfte als
+	// das verstümmelte `Tresnornder`. Genau diese Vier-gegen-Fünf ist der Grund für die
+	// zweite Prüfung: eine verbotene Schreibweise fängt nur das falsche Wort, an das
+	// jemand gedacht hat, und `Tresnornder` enthält `Tresor` nicht.
 	'reference.referents-exist': 'Andere Einträge referenzieren dies noch. Entfernen Sie die Referenzen oder weisen Sie sie zuerst neu zu.',
 	'reference.set-changed': 'Die Referenzen hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
 	'reference.resolution-required': 'Dies wird noch referenziert. Entscheiden Sie vor dem Löschen, was mit diesen Referenzen geschehen soll.',
@@ -127,7 +139,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'error.suffix.migration-failed': 'Diese Notiz konnte nicht in das aktuelle Format umgewandelt werden.',
 	'error.category.domain': 'Die Projektdaten sind ungültig.',
 	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
-	'error.category.persistence': 'Der Tresor konnte nicht gelesen oder geschrieben werden.',
+	'error.category.persistence': 'Der Vault konnte nicht gelesen oder geschrieben werden.',
 	'error.category.geometry': 'Ein Geometriewert ist ungültig.',
 	'error.category.import': 'Der Import ist fehlgeschlagen.',
 	'error.category.migration': 'Diese Notiz kann mit dieser Version des Plugins nicht gelesen werden.',
@@ -142,10 +154,14 @@ export const de: Partial<Record<StringKey, string>> = {
 	'dialog.entity-picker.empty': 'Nichts zur Auswahl.',
 	'dialog.form.submit': 'Speichern',
 	'empty.project.no-projects.headline': 'Noch keine Renovierungsprojekte',
-	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Materialien und Kosten. Erstellen Sie eines, um zu beginnen.',
+	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Objekte und Kosten. Erstellen Sie eines, um zu beginnen.',
 	'empty.plan.no-background.headline': 'Noch kein Plandokument',
 	'empty.plan.no-background.body': 'Legen Sie einen Grundriss, Lageplan, eine Skizze oder einen Gartenplan als Hintergrund dieses Plans fest und kalibrieren Sie ihn, damit Flächen in echten Einheiten herauskommen.',
 	'empty.plan.no-zones.headline': 'Noch keine Zonen',
 	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
 	'empty.plan.no-zones.action': 'Zone zeichnen',
+	'view.project.loading': 'Projekte werden geladen …',
+	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
+	// den Kommentar am gleichen Schlüssel in `en.ts`.
+	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
 };

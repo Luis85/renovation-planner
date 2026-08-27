@@ -2,7 +2,7 @@ import { ok, type Result } from '../../../core/result/Result';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import type { Project } from '../../../domain/project/Project';
 import type { ProjectId } from '../../../domain/project/ProjectId';
-import type { ProjectRepository } from '../../../application/ports/ProjectRepository';
+import type { ProjectListing, ProjectRepository } from '../../../application/ports/ProjectRepository';
 import type {
 	EntityVersion,
 	Expected,
@@ -42,7 +42,16 @@ export class InMemoryProjectRepository implements ProjectRepository {
 		return Promise.resolve(this.store.remove(id, expected, 'project'));
 	}
 
-	listAll(): Promise<Result<Loaded<Project>[], PersistenceError>> {
-		return Promise.resolve(ok(this.store.values()));
+	/**
+	 * `refused` is structurally 0 here, and that is not a stub standing in for real
+	 * behaviour: this store holds already-valid entities in a Map, so there is no text to
+	 * parse and nothing that can refuse. The non-zero arm belongs to the Obsidian
+	 * implementation, where a note IS text, and is driven in
+	 * `tests/infrastructure/obsidian/repositories/completion.test.ts`. The shared contract
+	 * can only assert what both implementations are able to produce, which is why the
+	 * refusal count is checked as zero there and as one only on the Obsidian side.
+	 */
+	listAll(): Promise<Result<ProjectListing, PersistenceError>> {
+		return Promise.resolve(ok({ loaded: this.store.values(), refused: 0 }));
 	}
 }

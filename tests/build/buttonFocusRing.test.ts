@@ -403,12 +403,26 @@ describe('a flattened button and its focus ring', () => {
 			'an important base shadow reset written after an equally specific important ring',
 			'.rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px red !important; } .rp-dialog-button.rp-dialog-button { box-shadow: none !important; }',
 		],
-		// A base rule files its RESETS and not its RINGS: an outline on screen before the button is
-		// tabbed to cannot be what tells a keyboard user where focus went, so it must not answer the
-		// site. This is the half of the guard the fix could most easily have got wrong in passing.
+		// A base rule files everything AS A NON-INDICATOR, which is two roles kept apart: it may never
+		// ANSWER a site, and it must still OUTRANK a focus rule that would. The first half is this
+		// case — an outline on screen before the button is tabbed to cannot be what tells a keyboard
+		// user where focus went.
 		[
 			'a base outline drawn at rest, which is not a focus indicator',
 			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { outline: 2px solid red; }',
+		],
+		// And the second half, which "files its resets and not its rings" dropped on the floor: a
+		// VISIBLE base shadow that WINS leaves the button identical at rest and focused, so there is no
+		// indicator at all — and dropping it for drawing left the losing blue shadow unopposed and
+		// cleared the very site the red one had created.
+		[
+			'a winning base shadow that leaves the focused button unchanged',
+			'.rp-dialog-button { box-shadow: 0 0 0 1px red !important; } .rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px blue; }',
+		],
+		// The outline channel had the identical hole and was not named in the report.
+		[
+			'a winning base outline that leaves the focused button unchanged',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { outline: 2px solid red !important; } .rp-dialog-button:focus-visible { outline: 2px solid blue; }',
 		],
 		// `all: unset` reaches the text-colour channel too, so a ring drawn by a LATER, more specific
 		// rule resolves against the colour the reset took away.
@@ -487,6 +501,16 @@ describe('a flattened button and its focus ring', () => {
 		[
 			'an important base shadow reset an equally important later ring beats',
 			'.rp-dialog-button.rp-dialog-button { box-shadow: none !important; } .rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px red !important; }',
+		],
+		// A base rule that LOSES changes nothing about focus, whether it resets or draws — or "a base
+		// rule ranks" has become "a base rule wins".
+		[
+			'a losing base shadow under a more specific focus shadow',
+			'.rp-dialog-button { box-shadow: 0 0 0 1px red; } .rp-dialog-button:focus-visible { box-shadow: 0 0 0 3px blue; }',
+		],
+		[
+			'a losing base outline under a more specific focus outline',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button { outline: 2px solid red; } .rp-dialog-button:focus-visible { outline: 2px solid blue; }',
 		],
 		// The fourth channel must not become "a currentcolor ring never counts". Three shapes hold that
 		// line, and each fails against a different over-correction: a colour that PAINTS wins the

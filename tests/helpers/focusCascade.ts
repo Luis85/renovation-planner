@@ -713,8 +713,22 @@ export const flattenedWithoutRing = (
 							for (const [property, declared, important] of declarations) {
 								if (declared === undefined) continue;
 
-								// A BASE RULE FILES ITS RESETS AND NOT ITS RINGS, which is the whole of what this
-								// guard says and both halves are load-bearing.
+								// A BASE RULE FILES EVERYTHING, AS A NON-INDICATOR, which is two roles kept apart:
+								// it may never ANSWER a site, and it must still OUTRANK a focus rule that would.
+								//
+								// This started as "files its resets and not its rings", which got the first role
+								// right and dropped the second on the floor. A VISIBLE base shadow that wins the
+								// cascade — `.button { box-shadow: 0 0 0 1px red !important }` over a normal
+								// `.button:focus-visible { box-shadow: 0 0 0 3px blue }` — leaves the button
+								// identical at rest and focused, so there is no indicator at all; dropped for
+								// drawing, it left the losing blue shadow unopposed and cleared the very site it
+								// had created. The outline channel had the same hole, and was not reported.
+								//
+								// `draws: false` is exact rather than a trick, because in THIS structure `draws`
+								// means "contributes a focus indicator", not "paints something". A rule that paints
+								// at rest contributes none — an outline on screen before the button is tabbed to
+								// cannot be what tells a keyboard user where focus went — while still ranking
+								// against anything that does, which is what `beats` then decides.
 								//
 								// Its resets belong in the cascade because a `box-shadow` set at rest is still set
 								// while focused: `.button { box-shadow: none !important }` beats a normal
@@ -728,13 +742,12 @@ export const flattenedWithoutRing = (
 								// outline on screen before the button is tabbed to cannot be what tells a keyboard
 								// user where focus went, so crediting it would answer the question with the thing
 								// whose absence the question is about.
-								if (!ringsFocus && declared !== false) continue;
 
 								// APPENDED, never compared here. Which rule wins is a question about one element,
 								// and this key stands for many — so it is asked per flattening site, by `answers`.
 								ringed.set(reached, [
 									...(ringed.get(reached) ?? []),
-									{ property, draws: declared, important, specificity, conditions, order: order++ },
+									{ property, draws: ringsFocus ? declared : false, important, specificity, conditions, order: order++ },
 								]);
 							}
 						}

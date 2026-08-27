@@ -178,12 +178,12 @@ export interface PersistenceServices {
 	 * Obsidian. Composed here for the same reason every other service is: the write side a
 	 * command or a view consumes is an interface handed to it, never a repository it built.
 	 *
-	 * `create-sample-project` is their only caller today (`sampleProject.ts`). Slice 14's
-	 * empty-state actions and slice 16's creation FORMS are what give them product-real ones;
-	 * neither needs a second wiring point, only a second call. (This used to name "slice 15's
-	 * creation dialogs" — slice 15 shipped the dialog framework those forms will be mounted
-	 * in, and no form of its own beyond the calibration prompt, so the promise outlived the
-	 * slice that was supposed to keep it.)
+	 * `create-sample-project` is their only caller today (`sampleProject.ts`). This sentence
+	 * has already named the wrong next caller twice: "slice 15's creation dialogs" (slice 15
+	 * shipped only the dialog framework those forms mount in, no caller of its own), then
+	 * "slice 14's empty-state actions" (slice 14 shipped no create action — two empty states
+	 * render no button, the third activates a tool instead of dispatching a command). Slice
+	 * 16's creation forms are the only wiring left to name; read that as a name, not a caller.
 	 */
 	readonly createProject: CreateProjectCommand;
 	readonly createPlan: CreatePlanCommand;

@@ -44,6 +44,32 @@ const DIRECTIVES = ['eslint', 'oxlint'].map((tool) => `${tool}-disable`);
 
 const carries = (text: string) => DIRECTIVES.some((directive) => text.includes(directive));
 
+/**
+ * A linted file's contents, tolerating the ONE way a listed file can be gone by the time it is
+ * read: it never existed for long.
+ *
+ * `lintedFiles()` enumerates the tree and this case reads each entry afterwards, and the two
+ * steps are not atomic. `tests/build/lint-edited.test.ts` plants a real
+ * `tests/harness/lint-edited-probe-N.vue` and removes it in `afterEach` — inside the repository
+ * rather than a temp directory, deliberately and for a reason its own comment gives (ESLint's
+ * `VUE_FILES` glob has to match it) — and vitest runs the two files in separate workers. So the
+ * probe can be in the listing and gone from disk, and this case failed with an ENOENT naming a
+ * file that has nothing to do with what it checks. Observed once in a full run, and not
+ * reproducible by running either file alone, which is the shape of every ordering race.
+ *
+ * ENOENT ONLY, and re-thrown otherwise. A file that is not there carries no suppression, so
+ * skipping it weakens nothing; swallowing every read error would hide a permission problem or
+ * an unreadable file as a silent pass, which is the gate turning itself off.
+ */
+const contentsOf = (file: string): string => {
+	try {
+		return readFileSync(file, 'utf8');
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
+		throw error;
+	}
+};
+
 describe('inline lint suppressions', () => {
 	const files = lintedFiles();
 
@@ -73,7 +99,7 @@ describe('inline lint suppressions', () => {
 	});
 
 	it('are absent from every file oxlint lints', () => {
-		const suppressing = files.filter((file) => carries(readFileSync(path.join(REPO, file), 'utf8')));
+		const suppressing = files.filter((file) => carries(contentsOf(path.join(REPO, file))));
 
 		expect(suppressing).toEqual([]);
 	});

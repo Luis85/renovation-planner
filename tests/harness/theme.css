@@ -16,6 +16,22 @@
  * a `.rp-harness-*` class or the missing-icon attribute, which no Obsidian selector can be
  * spelled as. `body` below is the single exception, and it is held to `height`.
  *
+ * **A SECOND rule, which the first one does not imply and cannot catch: no selector here may
+ * reach a DESCENDANT of the stage.** `<main class="rp-harness-stage">` is where a component under
+ * test is mounted, so `.rp-harness-index h2 { text-transform: uppercase }` restyles every `h2` in
+ * every entry the index opens. Stated about the stage rather than about the picker, because the
+ * picker is one of three roots that lead there and the other two name it nowhere:
+ * `.rp-harness-stage h2` and `.rp-harness-leaf h2` do the identical damage. Writing the rule
+ * about the route the defect happened to take is what left those two unwatched. That is the harness silently editing the
+ * thing it exists to show, which is the worst defect this file can hold and the one no test
+ * here can see: jsdom resolves no cascade, and the suite asserts on markup rather than on
+ * appearance. It shipped for exactly one capture — `WorkPackages.vue`'s own "Work packages"
+ * title rendered as "WORK PACKAGES" in the picker's type — and was found by looking at the PNG.
+ *
+ * The picker's own selectors are therefore rooted at `.rp-harness-index > nav`, a direct child
+ * that no mounted entry can be. A rule meant for the stage's own furniture names its class
+ * (`.rp-harness-empty`, `.rp-harness-failure`) and reaches nothing else.
+ *
  * What the page shows is Obsidian's DEFAULT appearance, not a guess at one — and not a
  * USER's: a community theme replaces exactly these values and the accent is picked in
  * settings. This replaces no live-vault check.
@@ -105,19 +121,15 @@ body {
  * sidebar at its content width and the stage gets the pane's full height: 843x800, with the
  * canvas at 459x743. All three figures are from the same 1280x800 browser pane.
  *
- * The sidebar's WIDTH is left as it falls (437px today, driven by the longest line in the list).
- * That is appearance, not sizing, and NOBODY HAS DECIDED IT — deliberately, and it is not
- * waiting on a numbered task. (An earlier version said "it is Task 5's to decide"; Task 5 was the
- * stylesheet check and the one-sheet claim, and it decided nothing about how this list looks.)
+ * The sidebar's WIDTH is now DECIDED and fixed, and the decision is the block below this one.
+ * It used to be left as it fell — content-driven, measured at 310px on a 1280 pane and at 310px
+ * again on a 700 one, which is 44% of a narrow pane spent on the picker. Two comments in
+ * `IndexPage.vue` and `indexChrome.test.ts` already described the picker as "a fixed-width
+ * sidebar" while nothing in this file gave it a width; they are true now.
  *
  * The list scrolls on its own for the same reason: `.rp-harness-leaf` is `overflow: hidden`, so
  * a list longer than the pane would be clipped with no way to reach the entries past the fold —
  * an index nobody can navigate, arriving silently the day the prototypes tree grows.
- *
- * This is a LAYOUT decision and not only a sizing fix, so it is said plainly: nothing here
- * styles the index beyond giving an entry the pane it is being looked at in. Type, spacing and
- * the look of the list are UNDECIDED, and this rule is not a claim on them — the first person to
- * judge the index as a designed surface gets to make those calls.
  */
 .rp-harness-index {
 	flex: 1;
@@ -126,53 +138,336 @@ body {
 	flex-direction: row;
 }
 
+/*
+ * THE PICKER, as a designed surface. What follows is one decision and everything that serves it:
+ *
+ *   **The harness's own furniture is dashed and sits on the secondary background; the plugin's
+ *   is solid and sits on the primary one.**
+ *
+ * That convention is not invented here — `.rp-harness-scheme` at the bottom of this file already
+ * draws the one control the harness owns with a dashed border, under a comment saying a control
+ * nobody can find in the plugin is worse than no control at all. This extends the same sentence
+ * to the picker, which is the other thing on this page that is the tool rather than the subject.
+ *
+ * Why it matters more here than it sounds: the subject of this page is a screenshot of a plugin
+ * panel, and the picker sits directly beside it. Before this, both drew in the same accent — the
+ * list used `--link-color`, which IS `--text-accent`, the same purple `WorkPackages.vue` gives
+ * its primary filter chip — so a capture of the index showed the tool and the thing being judged
+ * in one colour, and a designer calibrating on that picture was calibrating on both at once. The
+ * rest state is `--nav-item-color` (muted) now, and the accent is spent on exactly one row: the
+ * one that is open.
+ *
+ * Every value is Obsidian's own, per this file's header — the `--nav-item-*` family in
+ * particular, which is what the file explorer is drawn from, so the picker is themed by a
+ * community theme the same way the rest of the app is rather than holding a palette of its own.
+ *
+ * The width is fixed rather than content-driven so that the STAGE does not change size when a
+ * prototype with a long name is added — the pane an entry is measured in has to be a property of
+ * the window, never of the longest label in the list.
+ */
 .rp-harness-index > nav {
+	flex: 0 0 15rem;
+	box-sizing: border-box;
 	min-height: 0;
 	overflow-y: auto;
+	padding: var(--size-4-3);
+	background-color: var(--background-secondary);
+	border-inline-end: 1px dashed var(--background-modifier-border);
 }
 
 /*
- * The kind label needs separating from the entry name, and CSS is where that belongs rather
- * than a `&nbsp;` or a `{{ ' ' }}` in the template.
+ * The page's `h1`, at the size a tool's own name deserves rather than at the browser's 2em.
  *
- * Vue's default `whitespace: 'condense'` REMOVES whitespace between two elements when it
- * contains a newline, so `<a>…</a>` and `<span>…</span>` on adjacent lines render with nothing
- * between them: every row read `ZonePanelprototype`. Found by capturing a PNG and looking at it,
- * after forty-four review rounds over that template.
- *
- * The template now carries a real space inside each following span as well, and the two are not
- * redundant: that space is what the row's TEXT has — for a copy, or for assistive technology
- * reading the row rather than the link — and this rule is what the row LOOKS like. An earlier
- * version of this comment said CSS was where the separation belonged "rather than a `&nbsp;` or
- * a `{{ ' ' }}`", which was right about the pixels and wrong about everything a stylesheet
- * cannot reach.
- *
- * **Be exact about what the suite could and could not have caught, because the obvious reading is
- * wrong.** jsdom is NOT blind to the missing separator — `textContent` reads `ZonePanelprototype`
- * perfectly well, and a test could have asserted it. What no gate here can see is SPACING, which
- * is what makes the defect invisible once the remedy is CSS: there is no layout engine in the
- * suite to measure a margin. So the blindness is a property of this REMEDY, not of the defect.
- *
- * That has one consequence worth knowing rather than discovering: a CSS gap is not a text
- * separator, so copied text and a screen reader still run the two words together. Fixing that
- * would mean a real separator in the markup, which is a different decision about what the row IS
- * — and nobody has made it. Said here rather than left for the next reader to notice.
+ * It is the label on the instrument, not a headline: the subject of this page is whatever is on
+ * the stage, and a 32px bold word in the corner competes with it in every screenshot. Uppercase
+ * and tracked so it still reads as a title at this size, and `--text-muted` rather than
+ * `--text-faint` because it is real text and has to clear 4.5:1 in both schemes.
  */
-.rp-harness-index nav li span {
-	margin-inline-start: var(--size-4-2);
-	opacity: 0.6;
+.rp-harness-index > nav h1 {
+	margin: 0 0 var(--size-4-4);
+	/*
+	 * The dashed rule is the third and last use of this file's one identity — the picker's edge,
+	 * the scheme toggle, and here. It is doing structural work rather than decoration: the title
+	 * and the group headings are both small, bold, uppercase and `--text-muted`, so without a
+	 * separator they read as two headings of equal rank and the reader has to work out that one
+	 * of them is the instrument's name. Measured before it: 30px between "HARNESS" and
+	 * "PROTOTYPES", with no other difference between them.
+	 *
+	 * Space alone was the alternative and is worse here: the sidebar scrolls, and a gap large
+	 * enough to carry the distinction costs a row of the list on every short pane.
+	 */
+	padding-block-end: var(--size-4-3);
+	border-block-end: 1px dashed var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--bold-weight);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-muted);
 }
 
 /*
- * The one row note that is not an aside: a label two entries of the same kind claim, which
- * `registrableComponents` registers for nobody. Full opacity and the warning colour, because
- * the rule above dims every other `span` in the row to 0.6 and this one is the reason a
- * designer's `<ThatName />` will resolve to nothing. Colour is the SECOND channel here, never
- * the only one — the span says why in words (SDD §85).
+ * More space ABOVE a heading than below it — the group it opens belongs to it, and the group
+ * before it does not. `:first-of-type` takes the leading margin off the first section, whose
+ * separation from the title is the title's own bottom margin.
  */
-.rp-harness-index nav li span.rp-harness-ambiguous {
-	opacity: 1;
+.rp-harness-group + .rp-harness-group {
+	margin-block-start: var(--size-4-4);
+}
+
+.rp-harness-index > nav h2 {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-2-2);
+	padding-inline: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--bold-weight);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+/*
+ * The count is quieter than the word it follows WITHOUT being quieter in colour, which is the
+ * distinction this rule got wrong first: it read `--text-faint`, on the reasoning that a number
+ * the heading already implies is supplementary. Measured, that is #ababab on #f6f6f6 — **2.13:1**,
+ * against a 4.5:1 floor — and WCAG has no "supplementary text" exemption to spend it on. The
+ * count is the only number on this surface and a reader who cannot read it has lost the whole of
+ * what it says.
+ *
+ * So the separation is WEIGHT and CASE instead, both of which cost no contrast: the heading is
+ * bold and uppercase, the count is neither, and they share `--text-muted`.
+ */
+.rp-harness-count {
+	font-weight: normal;
+	letter-spacing: normal;
+	text-transform: none;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Rows, not bullets. The list arrived as browser-default `<ul>` furniture — discs, underlines
+ * and `--link-color` — on the one page in this repository whose entire premise is fidelity to
+ * how Obsidian looks.
+ */
+.rp-harness-index > nav ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/*
+ * ONE row, and the numbers in it are the accessibility fix rather than taste.
+ *
+ * The rows were 19.5px tall with an 18px link inside them, against WCAG 2.2's 24x24 minimum for
+ * a target (2.5.8, AA — which `PRODUCT.md` binds). The inline-link exception does not apply:
+ * these are navigation, not links inside a sentence. `min-height` states the floor directly so
+ * that a change to the font or the padding cannot quietly go back under it, and the suite cannot
+ * see any of it — `tests/harness/accessibility.test.ts` records that `target-size` reports a
+ * false PASS under jsdom, because every `getBoundingClientRect` there answers zero.
+ */
+.rp-harness-index > nav li a {
+	display: block;
+	box-sizing: border-box;
+	min-height: 24px;
+	padding: var(--size-2-3) var(--size-4-2);
+	border-radius: var(--nav-item-radius);
+	color: var(--nav-item-color);
+	font-size: var(--nav-item-size);
+	line-height: 1.4;
+	text-decoration: none;
+	/*
+	 * A long label wraps rather than ellipsing. In a fixed 15rem sidebar an ellipsis would hide
+	 * exactly the end of the name that distinguishes `DeleteReferenceDialog` from
+	 * `DeleteReferenceDialogHost`, and this list has no tooltip to recover it from.
+	 */
+	overflow-wrap: anywhere;
+}
+
+.rp-harness-index > nav li a:hover {
+	color: var(--nav-item-color-hover);
+	background-color: var(--nav-item-background-hover);
+}
+
+/*
+ * THE FOCUS RING, and this is the defect that most justified the pass.
+ *
+ * `tests/harness/obsidian.css` carries Obsidian's own `:focus { outline: none }` AND
+ * `a { outline: none }`, and the reduction kept no `a:focus-visible` to put one back — app.css
+ * restores a ring per component (`button`, `.clickable-icon`, `.setting-item`, the inputs) and
+ * this page's only navigation is none of them. Measured in a real browser before this rule:
+ * the focused entry link reported `outline-style: none`, `box-shadow: none` and a transparent
+ * background, in both schemes. A keyboard user could not see where they were, on a list of
+ * twenty-one links that is the whole of the page's navigation.
+ *
+ * WCAG 2.2 2.4.7 at AA, which `PRODUCT.md` binds and names specifically ("a visible focus
+ * indicator at every stop"). Invisible to every gate here: `accessibility.test.ts` states in its
+ * own header that axe has no rule for a visible focus indicator at all, and jsdom has no cascade
+ * to resolve `:focus-visible` against even if it had. A capture read by eye is what found it,
+ * which is the instrument `CLAUDE.md` says is the only one that reaches this class of defect.
+ *
+ * `outline-offset` is negative so the ring is drawn INSIDE the row: the sidebar scrolls, and a
+ * ring outside the box is clipped by `overflow-y: auto` on the first and last rows.
+ *
+ * `--text-normal` AND NOT THE ACCENT, which is the second time this file has had to make that
+ * swap and for the same reason as the first. Because the offset is negative, the ring's neighbour
+ * is whatever the ROW is painted in — and on the current row that is
+ * `--nav-item-background-active`, not the sidebar. Sampled from a real capture, the accent ring
+ * measured **2.72:1 in light and 2.84:1 in dark** against it, both under the 3:1 floor of WCAG 1.4.11
+ * that `PRODUCT.md` binds. Against the sidebar it measured 3.17 and 3.46 — a bare pass, and the
+ * figure this rule was originally written to.
+ *
+ * So one colour rather than a rule per row: `--text-normal` measures 12.63/14.72 in light and
+ * 8.64/10.55 in dark against the two backgrounds, so every row clears the floor and a future change
+ * to either background cannot quietly drop one below it. It is also the NATIVE answer — the current
+ * row's own text already had to abandon the accent for `--nav-item-color-active`, which resolves to
+ * this same value, so the two now agree rather than having pulled apart a fourth time.
+ */
+.rp-harness-index > nav li a:focus-visible {
+	outline: 2px solid var(--text-normal);
+	outline-offset: -2px;
+}
+
+/*
+ * The entry currently on the stage. THREE channels, because SDD §85 refuses colour as the only
+ * one and because a screenshot in one scheme is the artifact people share: the accent colour,
+ * the raised background, and the weight. `aria-current="page"` in the template is the fourth,
+ * for a reader who sees none of them.
+ *
+ * Selected by the ATTRIBUTE and not by a class, so the thing that styles the row and the thing
+ * that announces it cannot drift apart — there is one statement of "this row is current" and
+ * both the cascade and the accessibility tree read it.
+ */
+.rp-harness-index > nav li a[aria-current='page'] {
+	/*
+	 * `--nav-item-color-active` and not `--text-accent`. The accent measured **3.38:1 in light**
+	 * and 4.39:1 in dark on this background — the ONE row the reader is actually looking at was
+	 * the one row under the floor, after a pass whose whole subject was the rest state's
+	 * contrast.
+	 *
+	 * The host's own file explorer answers this exact question, and its answer is
+	 * `--nav-item-color-active` (which resolves to `--text-normal`) on
+	 * `--nav-item-background-active` — so the compliant value here is also the NATIVE one, which
+	 * is the happy case and worth noting because the two have pulled apart three times in this
+	 * pull request.
+	 *
+	 * Still three channels without the accent: the raised background, the weight, and the colour
+	 * step up from `--nav-item-color`. `aria-current` in the template is the fourth.
+	 */
+	color: var(--nav-item-color-active);
+	background-color: var(--nav-item-background-active);
+	font-weight: var(--bold-weight);
+}
+
+/*
+ * THE ROW NOTE, and the two things it replaced.
+ *
+ * There used to be a bare `.rp-harness-index nav li span` rule here, dimming every span in a row
+ * with `opacity: 0.6`. It is gone for two independent reasons and both are worth keeping:
+ *
+ * The first is CONTRAST. `opacity` composites, so what the rule actually produced was
+ * `--text-normal` mixed with whatever it sat on — measured at #7a7a7a on white in the light
+ * scheme, which is **4.29:1** against a 4.5:1 floor for text this size. It passed in dark (~5.2:1)
+ * and failed in light, from one declaration, and no checker could report it: a contrast tool
+ * reads the DECLARED colour, which was `--text-normal` and perfectly fine. A real token states
+ * the colour it means and is themed with the rest of the app; an opacity states a colour nobody
+ * wrote down. That generalises past this rule — dimming text with `opacity` is how a surface
+ * ends up with a contrast value no source file contains.
+ *
+ * The second is that its subject no longer exists: the kind is a section heading now, so the
+ * only span still following a link is this one, and a rule matching "every span" would be a rule
+ * matching exactly one thing while claiming to match a category.
+ *
+ * What the note IS: a label two entries of the same kind both claim, which `registrableComponents`
+ * registers for nobody. A block rather than an inline aside, because it is a sentence about the
+ * row above it rather than a suffix to the name — and because at 15rem an inline one wrapped
+ * under the link anyway, in the position a block puts it deliberately. Colour is the SECOND
+ * channel and never the only one: the span says why in words (SDD §85).
+ */
+.rp-harness-ambiguous {
+	display: block;
+	padding: var(--size-2-1) var(--size-4-2) 0;
 	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+/*
+ * THE EMPTY STAGE. Centred rather than parked in the top-left corner, because it is the state of
+ * the whole pane and not a line of copy that happens to be first.
+ *
+ * `place-content: center` and not padding on `.rp-harness-stage` itself: the stage is the box an
+ * entry is MEASURED in, and this file's own growth-chain comment above exists because that
+ * measurement was once wrong by 500px. Padding it would shrink every component by a fixed amount
+ * in every capture, silently, which is the same defect wearing better clothes. So the empty state
+ * centres itself inside a stage that keeps its full size.
+ */
+.rp-harness-empty {
+	margin: auto;
+	padding: var(--size-4-4);
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * `--text-muted` and not `--text-faint`, for the reason `.rp-harness-count` gives at length:
+ * `--text-faint` measures 2.13:1 on the light scheme's background. The count is separated from
+ * the sentence above it by size and position, which cost nothing.
+ */
+.rp-harness-empty span {
+	display: block;
+	margin-block-start: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/*
+ * THE FAILURE CARD — the one live region in this tree (`role="alert"`), and until this rule it
+ * carried a class NO STYLESHEET DECLARED.
+ *
+ * So it rendered as plain body text at the top-left of the stage: an entry that failed to render
+ * and an entry nobody had picked yet drew the same picture, in the same colour, in the same
+ * place. Confirmed by capture — `?entry=component:editor/layers/EmptyLayer` and `?index` differ
+ * only in the words. That is precisely what `tests/build/prototype-styles.test.ts` refuses for
+ * `src/prototypes/` ("a class a mock names that the assembled sheet leaves undeclared", the
+ * defect that once rendered `Kitchen12.60 m²` through forty-four review rounds); the harness
+ * index is outside that check's scope and had the same defect.
+ *
+ * **The message is `--text-normal`, and the red is spent entirely on the border.** That is not
+ * restraint, it is the only spelling that passes: `--text-error` was measured against both
+ * backgrounds in both schemes and clears 4.5:1 in NONE of the four — 4.94 on dark's primary,
+ * 4.27 on dark's secondary, 4.20 on light's primary, 3.89 on light's secondary. Obsidian's own
+ * error colour cannot carry body text at AA at any size this card would use, so a background
+ * swap fixes nothing and the choice is between a readable message and a red one.
+ *
+ * Nothing is lost by picking readable. A border needs 3:1 rather than 4.5:1 (WCAG 1.4.11, a
+ * non-text boundary) and the red clears that in both schemes, so the card still reads as a
+ * failure at a glance — and it never depended on colour alone anyway: `role="alert"`, the
+ * bordered box and the message's own words are three channels before the red is counted, which
+ * is what SDD §85 asks for.
+ *
+ * It stays at the top of the stage rather than centring like the empty state: it is a report
+ * about something that was on its way there, and the reader's next action is the list.
+ */
+.rp-harness-failure {
+	margin: var(--size-4-3);
+	/*
+	 * A measure rather than the pane's full width. These messages carry a Vue warning verbatim
+	 * and run long — the three-missing-prop case is 130 characters — and set across 1000px they
+	 * were one unreadable line to scan back along. This is the one piece of running prose on the
+	 * surface, so it gets the one thing running prose needs.
+	 */
+	max-width: 70ch;
+	padding: var(--size-4-2) var(--size-4-3);
+	border: 1px solid var(--background-modifier-error);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
 }
 
 .rp-harness-stage {
@@ -205,7 +500,26 @@ body {
  * parked out of the way: a control in a screenshot that nobody can find in the plugin is
  * worse than no control at all, so it says whose it is.
  */
-.rp-harness-scheme {
+/*
+ * THE CLASS IS DOUBLED, and that is deliberate rather than a typo.
+ *
+ * Obsidian's `button:not(.clickable-icon)` sets `background-color`, `color` and `box-shadow` at
+ * (0,1,1) — `:not()` contributes its argument's specificity — so a bare `.rp-harness-scheme` at
+ * (0,1,0) lost all three: measured at `rgb(51,51,51)`/`rgb(218,218,218)` where this rule asks
+ * for `--background-secondary` and `--text-faint`. The dashed border survived only because
+ * Obsidian's rule sets no border, which is why the control still looked deliberate while being
+ * louder and heavier than it asks to be.
+ *
+ * Every other instance of this in the repository is fixed by qualifying with the container the
+ * button sits in (`.rp-dialog`, `.rp-editor-toolbar`, `.rp-editor-inspector`). This one has no
+ * container: `theme.ts` appends it straight to `<body>`. The alternatives were each worse —
+ * `body .rp-harness-scheme` and `button.rp-harness-scheme` both land on (0,1,1), a TIE that
+ * resolves by source order and would silently flip if a sheet were ever linked after this one;
+ * and naming `body` would break this file's own header rule, which holds that exception to
+ * `height` alone. Repeating the class is the one spelling that beats (0,1,1) outright while
+ * naming nothing but a harness class.
+ */
+.rp-harness-scheme.rp-harness-scheme {
 	position: fixed;
 	right: var(--size-4-3);
 	bottom: var(--size-4-3);
@@ -214,13 +528,28 @@ body {
 	border: 1px dashed var(--background-modifier-border-hover);
 	border-radius: var(--radius-s);
 	background-color: var(--background-secondary);
-	color: var(--text-faint);
+	box-shadow: none;
+	/*
+	 * `--text-muted` and NOT `--text-faint`, which this rule asked for until the doubled selector
+	 * made it win. That is the whole irony of the fix: while it lost the cascade the toggle drew
+	 * in Obsidian's `--text-color` and was readable by accident, and winning gave it the colour
+	 * it had always asked for — 2.12:1 in light and 2.57:1 in dark, measured, against a 4.5:1
+	 * floor. `--text-muted` is 6.19:1 and 7.03:1 on this background. It is the same call
+	 * `.rp-harness-count` above records, and this rule had it wrong for the same reason: an
+	 * 11px label reads as decoration until somebody has to read it.
+	 */
+	color: var(--text-muted);
 	font-family: ui-monospace, monospace;
 	font-size: 11px;
 	cursor: var(--cursor, pointer);
 }
 
-.rp-harness-scheme:hover {
-	color: var(--text-muted);
+.rp-harness-scheme.rp-harness-scheme:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-harness-scheme.rp-harness-scheme:hover {
+	color: var(--text-normal);
 	background-color: var(--background-modifier-hover);
 }

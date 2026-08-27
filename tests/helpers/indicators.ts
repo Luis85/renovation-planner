@@ -56,6 +56,24 @@ import type { Declaration } from 'lightningcss';
 const NOT_KNOWN_TO_PAINT = new Set(['none', 'initial', 'unset', 'revert', 'revert-layer', 'inherit']);
 
 /**
+ * Is this line style one an OUTLINE may take at all?
+ *
+ * `hidden` is a `border-style` value and CSS UI explicitly excludes it from `<outline-line-style>`,
+ * so `outline-style: hidden` and `outline: 2px hidden red` are INVALID declarations. lightningcss
+ * parses both — it resolves `hidden` to an ordinary `line-style` — which is a tolerance of the
+ * parser rather than a fact about CSS, and the reader took it at its word: every style but `none`
+ * counted as drawing, so a focus rule that paints nothing satisfied the gate.
+ *
+ * DROPPED, NOT READ AS `none`, and the difference is a case rather than pedantry. A browser
+ * discards an invalid declaration whole, so `outline: 2px hidden red` sets no width and no colour
+ * either — and, crucially, changes nothing about a rule it outranks. Read as `none` it would file a
+ * BLANK style that wins the longhand, so a more specific `outline: 2px hidden blue` would disqualify
+ * a perfectly visible `outline: 2px solid red` beneath it and the gate would fail correct CSS.
+ * Dropping leaves the earlier ring winning, which is what the browser draws.
+ */
+const paintableOutlineStyle = (style: { readonly value?: unknown }): boolean => style.value !== 'hidden';
+
+/**
  * Is this a length the parser resolved to exactly zero?
  *
  * THE NUMBER ONLY, NEVER THE UNIT, and that is a ceiling worth naming beside the `currentcolor` one
@@ -269,6 +287,9 @@ export const indicatorOf = (
 
 	for (const declaration of declarations) {
 		if (declaration.property === 'outline') {
+			// Before `touched`, so an invalid shorthand contributes nothing at all rather than a blank.
+			if (!paintableOutlineStyle(declaration.value.style)) continue;
+
 			for (const part of ['width', 'style', 'color'] as const) touched.add(part);
 			const shorthandWidth = declaration.value.width;
 
@@ -285,6 +306,8 @@ export const indicatorOf = (
 			continue;
 		}
 		if (declaration.property === 'outline-style') {
+			if (!paintableOutlineStyle(declaration.value)) continue;
+
 			touched.add('style');
 			style = declaration.value.value === 'none' ? 'blank' : 'draws';
 			continue;

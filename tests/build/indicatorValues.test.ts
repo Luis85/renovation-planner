@@ -76,6 +76,17 @@ describe('what a declaration block draws', () => {
 		// than as an unparsed keyword, so the `RESETS` path never saw it.
 		'outline: 2px solid red; all: unset',
 		'box-shadow: 0 0 0 3px red; all: revert',
+		// `hidden` IS NOT AN OUTLINE STYLE. It belongs to `border-style`, and CSS UI excludes it from
+		// `<outline-line-style>`, so a browser discards both of these declarations and paints nothing.
+		// lightningcss resolves it to an ordinary `line-style` — a tolerance of the parser rather than
+		// a fact about CSS — and every style but `none` counted as drawing.
+		'outline: 2px hidden red',
+		'outline-width: 2px; outline-style: hidden; outline-color: red',
+		// AND IT IS DROPPED RATHER THAN READ AS `none`, which this pair is what pins at the block level:
+		// a discarded shorthand sets no colour either, so the ring written after it takes the INITIAL
+		// `currentcolor` and not the red. Read as `none` the first would leave a red colour behind and
+		// both would draw.
+		'outline: 2px hidden red; outline-style: solid; color: transparent',
 	])('does not count %s as a ring', (declarations) => {
 		expect(drawsAnIndicator(declarationsOf(declarations))).toBe(false);
 	});

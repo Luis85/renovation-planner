@@ -462,6 +462,19 @@ describe('a flattened button and its focus ring', () => {
 			'a reserved transparent outline coloured on focus',
 			'.rp-dialog-button { box-shadow: none; outline: 2px solid transparent; } .rp-dialog-button:focus-visible { outline-color: red; }',
 		],
+		// AN INVALID DECLARATION IS DISCARDED, NOT READ AS A RESET, and the cascade is where the two
+		// come apart. `hidden` is no outline style, so a browser drops these declarations whole and the
+		// solid red ring beneath them stays on screen. Read as `none` each would file a BLANK style
+		// that outranks the ring and disqualifies it, and the gate would fail correct CSS — the
+		// build-failing direction, from a fix aimed at a false negative.
+		[
+			'a more specific outline shorthand with a style CSS does not allow',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:focus-visible { outline: 2px hidden blue; }',
+		],
+		[
+			'the same written as the longhand alone',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:focus-visible { outline-style: hidden; }',
+		],
 		[
 			'base outline geometry whose width the focus rule changes',
 			'.rp-dialog-button { box-shadow: none; outline: 2px solid red; } .rp-dialog-button:focus-visible { outline-width: 4px; }',

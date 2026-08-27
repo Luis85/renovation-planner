@@ -32,12 +32,39 @@ import { ESLINT_BOOT_MS, resolveConfig, severityOf, warmUpEslint } from '../help
 // `vue` out here would have made this test assert about a tree with the SFCs cut out of it.
 const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs|vue)$/;
 
+/**
+ * A file `lint-edited.test.ts` plants and removes, which is on disk for part of a run and in no
+ * snapshot taken outside that window.
+ *
+ * `plantSfc` writes `tests/harness/lint-edited-probe-<n>.vue` and an `afterEach` removes it. It
+ * cannot use a temp directory — the path has to match ESLint's `VUE_FILES` glob or the hook it
+ * drives is linting nothing — so the file is genuinely in the tree this file walks, and vitest
+ * runs the two in parallel workers.
+ *
+ * EXCLUDED IN `walk` RATHER THAN AT A CALL SITE, because both comparisons here race it and they
+ * race it in OPPOSITE directions. The oxlint gate snapshots `lintedFiles()` at module load and
+ * walks inside the case, so a probe planted between the two is on disk and absent from the
+ * snapshot. The type gate walks at collection time and parses the tsconfig inside the case, so a
+ * probe planted before the walk and gone by the parse is in the list and absent from the include
+ * set. One filter at one call site closed the second window and left the first — which is this
+ * repository's recurring shape, a distinction repeated everywhere it is expressed or repeated
+ * nowhere reliably.
+ *
+ * THE WHOLE PATH, not the basename, and the difference matters because `walk` is also called for
+ * `src/` and `scripts/`. `plantSfc` reserves this name in ONE directory with ONE extension; a
+ * basename test would let any real file called `lint-edited-probe-*.ts` anywhere in the repository
+ * fall out of the oxlint comparison — silently, and out of the very case whose promise is that no
+ * source file falls out of scope. An exclusion inside a coverage check has to be exactly as wide as
+ * the thing it excludes.
+ */
+const PLANTED_PROBE = /^tests\/harness\/lint-edited-probe-\d+\.vue$/;
+
 const walk = (dir: string): string[] =>
 	readdirSync(path.join(REPO, dir), { withFileTypes: true }).flatMap((entry) => {
 		const child = `${dir}/${entry.name}`;
 
 		if (entry.isDirectory()) return walk(child);
-		return LINTED.test(entry.name) ? [child] : [];
+		return LINTED.test(entry.name) && !PLANTED_PROBE.test(child) ? [child] : [];
 	});
 
 const linted = new Set(lintedFiles());
@@ -133,6 +160,8 @@ describe('the ESLint test-file size budget', () => {
 describe("the harness's own SFCs", () => {
 	beforeAll(warmUpEslint, ESLINT_BOOT_MS);
 
+	// `walk` has already dropped the planted probes — see `isPlantedProbe`, which states why that
+	// exclusion belongs to the walk and not to either caller.
 	const harnessSfcs = walk('tests/harness').filter((file) => file.endsWith('.vue'));
 
 	// The instrument before the measurement: a walk that found nothing would make every case

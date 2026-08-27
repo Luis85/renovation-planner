@@ -93,6 +93,66 @@ describe('which elements a focus rule reaches', () => {
 	});
 
 	/**
+	 * A CONDITION IS NOT AN IDENTITY, and a subject that is focus PLUS a condition still reaches every
+	 * button. `:focus-visible:not(.keep-ring) { outline: none }` bares every focused element that has
+	 * not opted out — dialog buttons included — and was in no cascade at all, because the surviving
+	 * `:not()` made the subject non-universal and there was no class or `button` type left for either
+	 * predicate to see.
+	 *
+	 * A ring at (0,2,0) with a MORE specific reset below it, so each case turns on whether the reset
+	 * is filed at all. The four refusals are the round-14 line: a class, a type, an id or an attribute
+	 * identifies a subset this scan cannot enumerate, and filing one would invent a key nothing can
+	 * answer. A pseudo-class is a state, not a kind.
+	 */
+	it.each([
+		[
+			'a classless focus reset carrying its own conditions',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } :focus-visible:not(.keep-ring):not(.x) { outline: none; }',
+		],
+	])('reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([
+			'.rp-dialog-button',
+		]);
+	});
+
+	it.each([
+		['a class', '.other.other.other:focus-visible'],
+		['an attribute', '[data-x][data-y][data-z]:focus-visible'],
+		['a type', 'span.a.b.c:focus-visible'],
+		['an id', '#x:focus-visible'],
+	])('says nothing about a more specific reset whose subject names %s', (_case, selector) => {
+		expect([
+			...flattenedWithoutRing(
+				[
+					[
+						'fixture',
+						`.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } ${selector} { outline: none; }`,
+					],
+				],
+				BUTTONS,
+				GROUPS,
+			).offenders.keys(),
+		]).toEqual([]);
+	});
+
+	/**
+	 * AND `*` IS DROPPED FROM THE CONDITIONS, for exactly the reason the `button` type is: it narrows
+	 * nothing. Kept, it rendered as a token no site's subject list ever contains, so a universal ring
+	 * was filed into every class cascade by `cascadeKeys` and then refused by `covers` in all of
+	 * them — reaching the cascade only to be thrown out of it, which is the failure the `button` type
+	 * comment already warned about one line above. Found by probing this fix rather than reported.
+	 */
+	it('says nothing about a universal focus ring over a flattened button', () => {
+		expect([
+			...flattenedWithoutRing(
+				[['fixture', '.rp-dialog-button { box-shadow: none; } *:focus-visible { outline: 2px solid red; }']],
+				BUTTONS,
+				GROUPS,
+			).offenders.keys(),
+		]).toEqual([]);
+	});
+
+	/**
 	 * A RESERVED TRANSPARENT BORDER REVEALED ON FOCUS IS A REAL INDICATOR, and a common one: it draws
 	 * a ring and shifts no layout. Reported as unringed, the gate FAILED THE BUILD on valid CSS.
 	 *

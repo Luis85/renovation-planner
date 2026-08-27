@@ -187,8 +187,17 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 		// could not answer a `.rp-dialog-button` flattened elsewhere. Any OTHER type is a real
 		// narrowing — `a.rp-dialog-button` is the anchors wearing that class and not the buttons — so
 		// this names the one it drops rather than dropping the category.
+		// THE UNIVERSAL SELECTOR NARROWS NOTHING, so it is dropped for exactly the reason the `button`
+		// type is. Kept, it renders as `*` — a token no site's subject list ever contains — so
+		// `*:focus-visible { outline: 2px solid red }` was filed into every class cascade by
+		// `cascadeKeys` and then refused by `covers` in all of them, reaching the cascade only to be
+		// thrown out of it. That is the precise failure this comment already warned about for the
+		// `button` type, in a sibling line, against a component nobody had asked the same question of.
 		subject: subject
-			.filter((component) => !(component.type === 'type' && component.name === 'button'))
+			.filter(
+				(component) =>
+					component.type !== 'universal' && !(component.type === 'type' && component.name === 'button'),
+			)
 			.map((component) => show([component])),
 	};
 	// A PSEUDO-ELEMENT IS A DIFFERENT BOX, and the class path below would otherwise file it under the
@@ -212,9 +221,23 @@ const focusSites = (branch: Selector, classes: Set<string>, condition: string): 
 	// Provably universal is what makes this sound where the attribute widening was not: `*:focus`
 	// matches EVERY button, so widening it states a fact, while `[type='button'][data-rp-action]`
 	// matches an unknown subset and widening it invented a key nothing could answer.
+	// A CONDITION IS NOT AN IDENTITY. This used to demand that nothing but `*` survive the strip, so
+	// `:focus-visible:not(.keep-ring) { outline: none }` — which matches every focused element that is
+	// not opted out, buttons included — was in NO cascade at all, and a reset that bares every dialog
+	// button in the browser was invisible here.
+	//
+	// A pseudo-class beside the focus one is a STATE the element is in, not a kind of element it is,
+	// so the subject still reaches every button; what the pseudo-class narrows travels with the rule
+	// as a condition and `covers` decides what it may answer. A class, a type, an id or an attribute
+	// is refused, and that is the round-14 line: those identify a subset this scan cannot enumerate,
+	// and filing one would invent a key nothing can answer.
+	//
+	// The two directions come out right for free, which is why this is safe rather than merely wider:
+	// as a RESET the rule disqualifies whatever it reaches, which over-reports on the safe side; as a
+	// RING it must COVER the site, and `covers` asks the site to impose `:not(.keep-ring)` too.
 	const focusOnly =
 		subjectOf(branch).some((component) => isFocusPseudo(component)) &&
-		subject.every((component) => component.type === 'universal');
+		subject.every((component) => component.type === 'universal' || component.type === 'pseudo-class');
 
 	if (!focusOnly && !targetsAButton(branch, classes)) return [];
 

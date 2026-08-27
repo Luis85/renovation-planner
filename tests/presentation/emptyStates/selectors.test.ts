@@ -39,6 +39,12 @@ const withBackground = (): PlanDto => ({
 });
 
 describe('selectPlanEditorEmptyState', () => {
+	/**
+	 * Both conditions hold for this input (`background: null` and `zones: []`), which is what
+	 * makes it the one a plain reorder of the two `if`s reddens: swapping which check runs
+	 * first decides the answer only when both would otherwise fire, and this is the only case
+	 * in the describe block where that is true. Measured, not assumed.
+	 */
 	it('asks for a background first, even though such a plan also has no zones', () => {
 		expect(selectPlanEditorEmptyState(PLAN, [])).toBe('noBackground');
 	});
@@ -49,7 +55,13 @@ describe('selectPlanEditorEmptyState', () => {
 	 * on the premise two comments used to state, that a background-less plan has no zones.
 	 * It does have zones here, and it does in `create-sample-project` and in the browser
 	 * harness, which are the two scenes this project ships. This is the arm a user meets
-	 * first, and the arm a "simplification" of the selector would break.
+	 * first, and it reddens under the mutation that false premise actually licenses: drop the
+	 * `noBackground` arm on the reasoning "such a plan has no zones anyway, so `noZones`
+	 * covers it" — measured, watched red, `zones` here being non-empty means nothing is left
+	 * to catch it. A plain reorder of the two `if`s does NOT redden this case; reordering only
+	 * changes the outcome for an input where both conditions hold at once, and this one's
+	 * `zones` array is non-empty on purpose. The reorder instead reddens its sibling above,
+	 * where `zones` is `[]`.
 	 */
 	it('still asks for a background when the plan already has zones', () => {
 		expect(selectPlanEditorEmptyState(PLAN, [ZONE])).toBe('noBackground');

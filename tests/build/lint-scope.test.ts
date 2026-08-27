@@ -133,7 +133,23 @@ describe('the ESLint test-file size budget', () => {
 describe("the harness's own SFCs", () => {
 	beforeAll(warmUpEslint, ESLINT_BOOT_MS);
 
-	const harnessSfcs = walk('tests/harness').filter((file) => file.endsWith('.vue'));
+	// THE PROBE SFCs ARE NOT HARNESS SFCs, and excluding them by name closes a race rather than
+	// hiding a file. `lint-edited.test.ts` plants `tests/harness/lint-edited-probe-<n>.vue` and
+	// removes it in an `afterEach` — it cannot use a temp directory, because the path has to match
+	// ESLint's `VUE_FILES` glob or the hook it drives is linting nothing. This walk runs at
+	// COLLECTION time and the tsconfig is parsed later inside the case, so with vitest running the
+	// two files in parallel workers there is a window where a planted probe is in this list and
+	// gone from the include set — and the case fails naming a file that no longer exists.
+	//
+	// Only that direction races: an extra entry in `included` fails nothing, since the assertion
+	// filters this list against that set and not the reverse.
+	//
+	// `docs/bugs/A planted probe SFC races the harness file walk.md` carries the alternatives and
+	// the honest limit — the race was observed twice and never reproduced, so this is reasoned from
+	// the two files rather than demonstrated by a red run.
+	const harnessSfcs = walk('tests/harness').filter(
+		(file) => file.endsWith('.vue') && !path.basename(file).startsWith('lint-edited-probe-'),
+	);
 
 	// The instrument before the measurement: a walk that found nothing would make every case
 	// below vacuous and green.

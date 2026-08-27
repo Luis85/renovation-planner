@@ -61,13 +61,24 @@ they disagree, and that the observed symptom is what that window would produce.
 
 ## Fix
 
-Not yet applied. The proposal is one line, in `lint-scope.test.ts`, excluding the transient name
-from the walk:
+`lint-scope.test.ts` excludes the transient name from the walk:
 
 ```js
-const harnessSfcs = walk('tests/harness')
-    .filter((file) => file.endsWith('.vue') && !path.basename(file).startsWith('lint-edited-probe-'));
+const harnessSfcs = walk('tests/harness').filter(
+    (file) => file.endsWith('.vue') && !path.basename(file).startsWith('lint-edited-probe-'),
+);
 ```
+
+**What was demonstrated, and what was not.** The predicate was measured against the directory
+with a probe planted and without: three `.vue` files become two, the excluded one is
+`lint-edited-probe-99.vue`, and with no probe present the set is unchanged. So the filter takes
+the transient file and nothing else.
+
+The race itself was not reproduced and could not be — it needs the file present at collection
+time and gone at parse time, which is a window between two workers rather than a state a test
+can set up. **So the fix is reasoned from the two files, not demonstrated by a red run**, and
+this note says that rather than letting a passing suite read as proof. What a green suite
+establishes here is only that the exclusion broke nothing.
 
 The alternatives, and why this one:
 
@@ -81,7 +92,10 @@ The alternatives, and why this one:
   `lint-edited-probe-*.vue` is transient by construction and is never a harness SFC anyone wrote.
 
 This was not pushed with PR #17 because neither file is in that diff, and widening a review
-already 49 rounds deep for an unrelated pre-existing race was the wrong trade.
+already 49 rounds deep for an unrelated pre-existing race was the wrong trade. It lands with
+this note instead, which is what the type asks for: `docs/README.md` says a `Bug` records what
+fixed the defect, and one whose fix is still a proposal is an Issue wearing the wrong shape. A
+review of the first draft made that argument and it was right.
 
 ## Lesson
 

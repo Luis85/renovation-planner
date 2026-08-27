@@ -31,11 +31,12 @@ isolated run.
 So the budget is stated in the one unit that does not describe what is being waited for. The
 work is a decode measured in milliseconds; the bound is a count of event-loop turns.
 
-The consequence is not that the number is too small. It is that **a failure cannot distinguish
-"the code under test is wrong" from "this machine was busy"** — the message reads
-`Timed out after 50 settle rounds waiting for: …` either way, which is exactly the shape the
-header calls "the signature of a fixed-tick wait rather than of a defect in the code under
-test".
+The consequence is not that the number is too small. It is that **the failure reports a unit
+nobody can act on**: `Timed out after 50 settle rounds waiting for: …` says how many times it
+asked and nothing about how long that took, so the same message covers a run that gave up in
+milliseconds and one that spent seconds. Neither the message nor the budget can say whether the
+machine was busy or the code is wrong — and no arrangement of the two budgets can, which the
+alternatives below are explicit about.
 
 ## What is true today
 
@@ -56,11 +57,20 @@ test".
   the next slower machine moves it again.
 - **Make the loop unbounded.** Refused in the helper's own header, correctly — "an unbounded loop
   turns a real regression into a hung suite".
-- **A wall-clock deadline beside the round budget**, whichever comes first, with the failure text
-  naming which one expired. This is the proposal, and its virtue is diagnostic rather than
-  numeric: a run that exhausts 50 rounds in 4ms was starved of turns, and one that exhausts 2
-  seconds was waiting on something that never happened. Those are different defects and the
-  message would say which.
+- **Report the elapsed time in the failure text**, and optionally bound it with a wall-clock
+  deadline beside the round budget, whichever comes first, naming which one expired.
+
+  **A first draft of this note claimed more than that and was wrong.** It said the pair would
+  separate a starved loop from a defect — "50 rounds in 4ms was starved of turns, 2 seconds was
+  waiting on something that never happened". Both halves invert: 50 `setTimeout(0)` rounds
+  completing in 4ms means the loop supplied turns *quickly*, and a two-second deadline is exactly
+  what a busy machine produces. A review caught it. The pair bounds runtime and says which limit
+  fired; it does not diagnose the cause, and the note may not promise that it does.
+
+  What survives is smaller and still worth having. `Timed out after 50 settle rounds` reports a
+  number with no relation to the thing being waited for, so a person reading a CI log cannot tell
+  a 4ms failure from a 4-second one. Elapsed time is one line and makes the next failure
+  legible **to a human**, which is a different claim from making it self-diagnosing.
 - **Do nothing.** Defensible while it is one failure in months. Recorded here so the second one
   is read as a pattern rather than re-diagnosed from scratch.
 

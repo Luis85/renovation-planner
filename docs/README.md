@@ -299,7 +299,7 @@ row above is not enough on its own:
 
 | Value | Means | On | Count today |
 | --- | --- | --- | --- |
-| `New` | Just added. Written, not yet triaged | anything | 11 |
+| `New` | Just added. Written, not yet triaged | anything | 12 |
 | `Ready` | Triaged. Somebody has judged it and it is ready to pick up. Also what an **open iteration** carries (`iterationOpenStates`) | anything | 4 |
 | `Active` | In flight. The base's `startedStates`, so it is the value that expects a `started` date | anything | 12 |
 | `Resolved` | Settled without being produced — answered, superseded, no longer needed. What a **closed iteration** carries (`iterationResolvedStates`) | anything | 0 |

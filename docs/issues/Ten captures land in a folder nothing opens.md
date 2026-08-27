@@ -39,9 +39,18 @@ is no baseline to diff against". Nothing here asks for that to change.
 
 - Ten fixed shots, measured off `scripts/harness-shot.mjs`. Every one has to be opened
   individually to be judged.
-- The filenames already carry what a sheet would need to lay them out: the surface, the scheme,
-  and for an entry a readable name, a digest and the width — `entryShots.mjs` puts the width in
-  the name deliberately, "two captures of one entry at two widths are two different pictures".
+- **An entry capture's filename carries what a sheet needs; a fixed shot's does not.**
+  `entryShots.mjs` names each entry capture with a readable name, a digest, the scheme and — when
+  one is given — the width, deliberately: "two captures of one entry at two widths are two
+  different pictures". The ten fixed shots are named by hand and four of them carry no scheme
+  token at all. Measured against `SHOTS`: `index-focus`, `index-focus-current` and
+  `index-failure` all request `theme=light` and none says so, `phone` is the default scheme and
+  says only `phone`, and `dark` names a scheme the query leaves implicit (`query: ''`).
+
+  So a generator that groups by filename would mis-sort four of ten. It has to read the `SHOTS`
+  metadata, where the query is, or those names have to gain the token — and that choice belongs
+  to whoever builds it rather than being assumed away here. A first draft of this note claimed
+  the filenames were sufficient; a review measured them and they are not.
 - The tool is honest about being outside every gate, and correctly so. It exits non-zero on a
   page error or an unknown entry id — verified: `npm run harness-shot -- prototype:NoSuchThing`
   exits 1 naming the missing entry — but that is a claim about the page not falling over, never
@@ -58,7 +67,8 @@ is no baseline to diff against". Nothing here asks for that to change.
 - **Write a contact sheet into the folder** — one generated `index.html` listing every PNG the
   run produced, schemes paired, entry captures grouped. It ships nothing, it asserts nothing, it
   is gitignored with the images, and it makes the pairing the tool is *for* the default view.
-  The filenames already carry the grouping keys.
+  It is a **producer-side** generator for that reason: `harness-shot.mjs` holds `SHOTS` and knows
+  each capture's query, so it can group correctly where a folder scan cannot.
 - **Stop gitignoring the folder.** Rejected here rather than left implicit: committed PNGs are a
   baseline by accident, and a baseline nothing diffs is worse than none — it reads as agreed.
   It would also put binary churn into every design round.

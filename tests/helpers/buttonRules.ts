@@ -142,6 +142,27 @@ if (imported.length !== onDisk.length || onDisk.some((file) => !imported.include
 	throw new Error(`styles/index.css imports ${imported.join(', ')}; the directory holds ${onDisk.join(', ')}`);
 }
 
+/**
+ * STATED LIMITATION: a prototype's `<style scoped>` block is NOT scanned, and there is an
+ * asymmetry in that which is worth naming rather than leaving to be discovered.
+ *
+ * `buttonClassGroups` deliberately reads `src/prototypes` as well as `src/presentation`, because
+ * the harness is where a mock is looked at — so `.rp-wp-filter` IS a button class here. The CSS that
+ * styles it is not: it lives in `WorkPackageFilters.vue`'s own scoped block, and `sheets` holds the
+ * harness theme plus the partials `styles/index.css` imports. A scoped rule could therefore flatten
+ * a prototype button and go unreported.
+ *
+ * Adding those blocks NAIVELY is worse, and this was measured rather than reasoned: every selector
+ * in that block scores (0,1,0) as written, so `.rp-wp-filter`, `.rp-wp-filter--on` and two siblings
+ * would all be reported as losing to Obsidian's (0,1,1) — while in a browser Vue appends its
+ * `[data-v-…]` scope attribute and each of them is (0,2,0) and wins. That is a false positive on CSS
+ * that renders correctly, which is the same trade the attribute widening in `targetsAButton` made
+ * and had to be reverted for.
+ *
+ * Closing it properly means extracting the scoped blocks AND modelling the scope attribute's
+ * contribution to specificity, so a rule is ranked as it renders rather than as it is written. That
+ * is the real fix; it is not one line, and it must land with the modelling or not at all.
+ */
 export const sheets = ['tests/harness/theme.css', ...imported];
 
 /** The button classes a selector's subject wears, as exact names with the leading dot. */

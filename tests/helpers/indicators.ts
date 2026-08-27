@@ -91,6 +91,13 @@ const isZero = (length: { type: string; value?: unknown }): boolean =>
  * blurred is credited whatever its spread, so `1px 0 0 -5px red` — contracted further than it is
  * offset, and equally invisible — still counts. Deciding that needs the element's rendered size,
  * which no stylesheet holds and no gate here can reach.
+ *
+ * `outline-offset` IS THE SAME CEILING WEARING THE OUTLINE'S CLOTHES, and it is named here rather
+ * than left to be rediscovered beside a property this function never reads: a negative offset larger
+ * than half the element collapses the ring to nothing, and a large positive one draws it far from the
+ * button it belongs to. Both are decided by the rendered size, so both are outside this file for the
+ * reason above rather than for a new one. Probed unprompted; the three `outline-offset` declarations
+ * this project ships are all `1px`.
  */
 const spills = (shadow: {
 	xOffset: { type: string; value?: unknown };

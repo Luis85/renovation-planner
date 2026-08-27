@@ -21,12 +21,19 @@ a loaded machine — which is where the one CI failure this helper has produced 
 
 ## The question
 
-`tests/helpers/editor.ts` gives `settleUntil` a budget of `SETTLE_ROUNDS = 50`. One round is
-four microtasks and one `setTimeout(resolve, 0)`. What that buys in wall-clock is unbounded and
-machine-dependent, and the helper's own header says so: it exists because a background image
-decode is "real work whose duration depends on the machine", after a case failed once in a full
-suite run "while a PDF test was rasterizing two million pixels beside it" and passed on every
-isolated run.
+`tests/helpers/editor.ts` gives `settleUntil` a budget of `SETTLE_ROUNDS = 50`. A round is one
+evaluation of the predicate, then four microtasks and one `setTimeout(resolve, 0)`. What that
+buys in wall-clock is unbounded and machine-dependent, and the helper's own header says so: it
+exists because a background image decode is "real work whose duration depends on the machine",
+after a case failed once in a full suite run "while a PDF test was rasterizing two million pixels
+beside it" and passed on every isolated run.
+
+**The predicate is the unbounded part, and it is awaited INSIDE the loop.** `if (await
+condition())` runs before `settle()`, and the signature permits `Promise<boolean>` deliberately —
+the header says the slice-8 rig waits on vault reads. Two callers really do:
+`canvasPointerRouting.test.ts` and `editorFaults.test.ts` both pass an `async` predicate that
+awaits `zonesRepo.listByPlan`. So a round is not a fixed quantity of anything: a slow read makes
+it long, and a read that never settles stops the counter advancing at all.
 
 So the budget is stated in the one unit that does not describe what is being waited for. The
 work is a decode measured in milliseconds; the bound is a count of event-loop turns.
@@ -58,7 +65,14 @@ alternatives below are explicit about.
 - **Make the loop unbounded.** Refused in the helper's own header, correctly — "an unbounded loop
   turns a real regression into a hung suite".
 - **Report the elapsed time in the failure text**, and optionally bound it with a wall-clock
-  deadline beside the round budget, whichever comes first, naming which one expired.
+  deadline, naming which limit expired.
+
+  **A deadline checked BETWEEN rounds is not a bound**, which a review established after the first
+  draft proposed one. The loop awaits the predicate before it does anything else, so a predicate
+  that hangs — an awaited repository read that never settles — never returns control for a
+  between-rounds check to run in. To bound the wall-clock the deadline has to race the predicate
+  itself (`Promise.race` against a timer), and anything less should be described as bounding the
+  *settling*, not the call.
 
   **A first draft of this note claimed more than that and was wrong.** It said the pair would
   separate a starved loop from a defect — "50 rounds in 4ms was starved of turns, 2 seconds was

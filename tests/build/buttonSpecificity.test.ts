@@ -36,7 +36,24 @@ import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, targetsAButt
  * the rest of the way once, by hand).
  */
 
-/** What Obsidian's `button:not(.clickable-icon)` scores, and therefore what a rule must beat. */
+/**
+ * What Obsidian's `button:not(.clickable-icon)` scores, and therefore what a rule must beat.
+ *
+ * ONE HOST RULE, and the scope is measured rather than assumed. Asking the parser rather than a
+ * regex — a count of classes scores `:not(.clickable-icon)` as two and gets (0,2,1), which is how a
+ * first pass at this measurement went wrong — the vendored sheet holds **15** rules that outrank
+ * (0,1,1) while touching a contested property. Every one of them targets a component of Obsidian's
+ * own: `.mod-cta`, `.canvas-card-menu`, `.combobox-button`, `.modal-close-button` and the like. This
+ * rule is the only one that reaches EVERY button, which is why it is the only one compared against,
+ * and no element this plugin renders wears any of those classes — the two `mod-cta` mentions in
+ * `styles/` are both prose, in comments explaining why this project refuses that pairing on contrast
+ * grounds.
+ *
+ * So the narrow scope is latent by construction rather than by luck. It would stop being so the day
+ * a plugin element adopts a host component class, and the ceiling above it is the vendored sheet
+ * itself: it is a REDUCTION of `app.css`, so a more specific rule may exist that this measurement
+ * cannot see.
+ */
 const OBSIDIAN_BUTTON = [0, 1, 1] as const;
 
 /**

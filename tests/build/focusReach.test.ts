@@ -155,6 +155,59 @@ describe('which elements a focus rule reaches', () => {
 	});
 
 	/**
+	 * A RULE THAT EXCLUDES FOCUS IS NOT IN THE FOCUSED CASCADE AT ALL — a third state beside "focus
+	 * rule" and "at rest", and this file had only the two.
+	 * `.button:not(:focus-visible) { box-shadow: none }` takes the resting shadow away and STOPS
+	 * MATCHING the moment the button is keyboard-focused, so the host's ring appears and there is
+	 * nothing to report. Read as an ordinary at-rest rule it recorded a flattening site and failed the
+	 * build on CSS that rings correctly.
+	 *
+	 * Decided by asking `isFocusPseudo` at ODD negation parity rather than by a second predicate — the
+	 * parity is one idea and it has already been got wrong twice when written out twice.
+	 */
+	it.each([
+		['a reset that applies only while unfocused', '.rp-dialog-button:not(:focus-visible) { box-shadow: none; }'],
+		['the same written against :focus', '.rp-dialog-button:not(:focus) { box-shadow: none; }'],
+		// AND IT MUST BE ABSENT, not merely barred from recording a site. Filed as an ordinary at-rest
+		// rule it still RANKS, and this one outranks the ring it must not touch: `:not(:focus-visible)`
+		// does not match a focused button, so the red outline is on screen and there is nothing to
+		// report. Suppressing only the site leaves this case red while every other one passes.
+		[
+			'a more specific reset that applies only while unfocused',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:focus-visible { outline: 2px solid red; } .rp-dialog-button.rp-dialog-button:not(:focus-visible) { outline: none; }',
+		],
+	])('says nothing about %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([]);
+	});
+
+	/**
+	 * The exclusion is narrow in three directions, and each is a case. A DOUBLE negative is positive
+	 * focus, so it flattens like any focus rule. A `:not()` naming something other than focus excludes
+	 * nothing about focus. A `:not()` mixing focus with anything else is refused outright, by the same
+	 * one-argument-one-component bound the parity walk takes everywhere — dropping it would drop the
+	 * other exclusion with it.
+	 *
+	 * The fourth is the other direction of the same rule: an excluded rule cannot ANSWER a site either.
+	 * A ring that shows only while UNFOCUSED is no focus indicator, so the site it cannot flatten is
+	 * also a site it cannot clear. That one passes whether the rule is skipped outright or merely
+	 * barred from recording a site — an excluded rule is filed `atRest`, and an at-rest rule already
+	 * cannot answer — which is why the SILENT group below carries the case that separates them.
+	 */
+	it.each([
+		['a doubly negated focus reset', '.rp-dialog-button:not(:not(:focus-visible)) { box-shadow: none; }'],
+		['a negation that names no focus state', '.rp-dialog-button:not(.other) { box-shadow: none; }'],
+		['a negation mixing focus with a class', '.rp-dialog-button:not(:focus-visible, .other) { box-shadow: none; }'],
+		[
+			'a ring that shows only while unfocused',
+			'.rp-dialog-button { box-shadow: none; } .rp-dialog-button:not(:focus-visible) { outline: 2px solid red; }',
+		],
+	])('still reports %s', (_case, css) => {
+		expect([...flattenedWithoutRing([['fixture', css]], BUTTONS, GROUPS).offenders.keys()]).toEqual([
+			'.rp-dialog-button',
+		]);
+	});
+
+	/**
 	 * A RESERVED TRANSPARENT BORDER REVEALED ON FOCUS IS A REAL INDICATOR, and a common one: it draws
 	 * a ring and shifts no layout. Reported as unringed, the gate FAILED THE BUILD on valid CSS.
 	 *

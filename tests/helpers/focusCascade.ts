@@ -681,6 +681,20 @@ export const flattenedWithoutRing = (
 				// its ancestor match `:focus-visible`, so
 				// `.rp-editor-toolbar:focus-visible .rp-editor-tool-button` says nothing about the button's
 				// own focus state — and a branch-wide search credited it a ring for one.
+				// A RULE THAT EXCLUDES FOCUS IS NOT IN THE FOCUSED CASCADE AT ALL — a third state, and this
+				// file had only two. `.button:not(:focus-visible) { box-shadow: none }` takes the resting
+				// shadow away and STOPS MATCHING the moment the button is keyboard-focused, so the host's
+				// ring appears and there is nothing to report. Read as an ordinary at-rest rule it recorded
+				// a flattening site and failed the build on CSS that rings correctly.
+				//
+				// `isFocusPseudo` already decides this: it tracks NEGATION PARITY, so asking it at odd
+				// depth answers "does this impose NOT-focus". A second predicate would have been a second
+				// derivation of the same parity, and the first one has already been wrong twice about it.
+				//
+				// Skipped BEFORE `focusSites`, so such a branch files no rule and records no site: it is
+				// absent from the focused element's cascade rather than present and losing.
+				if (subjectOf(branch).some((component) => isFocusPseudo(component, true))) continue;
+
 				const ringsFocus = subjectOf(branch).some((component) => isFocusPseudo(component));
 				// FLATTENING IS REPLACING, not only suppressing, and it is decided per BRANCH because the
 				// second half of it turns on specificity. Obsidian's ring for a button is a `box-shadow`,

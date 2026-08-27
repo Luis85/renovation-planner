@@ -406,7 +406,29 @@ export const indicatorOf = (
 	return { outline, shadow, parts, textColor: blockColor, deferred };
 };
 
-/** Does this block leave a visible focus indicator — an outline or a shadow — behind it? */
+/**
+ * Does this block leave a visible focus indicator — an outline or a shadow — behind it?
+ *
+ * "VISIBLE" MEANS THE INDICATOR'S OWN PAINT, never the element's. `opacity: 0`,
+ * `visibility: hidden` and `display: none` each hide a ring as completely as a transparent colour
+ * does, and this reader looks at none of them. Probed rather than assumed, and deliberately not
+ * built, for a reason that is about the QUESTION rather than about the count:
+ *
+ * - `visibility: hidden` and `display: none` take the element out of the tab order, so it is never
+ *   focused and its focus ring is moot. Modelling them would report buttons that cannot be reached.
+ * - `opacity: 0` DOES leave a focusable button with no visible ring — a real defect, and a different
+ *   one. Such a button has no visible anything, so the failure is an invisible interactive element
+ *   rather than a missing focus indicator, and a gate that reported it here would be answering a
+ *   question it was not asked with a mechanism nobody would look for it in.
+ *
+ * Measured either way, so the next reader need not: no `opacity` and no `visibility` declaration
+ * appears in any stylesheet this project ships.
+ *
+ * A NEARBY ONE with no principled fix, stated so it is not mistaken for an oversight: `paints` asks
+ * `alpha !== 0`, so `rgba(255, 0, 0, 0.004)` counts as a ring. It is invisible in practice and CSS
+ * defines no threshold at which it stops being a colour, so any cutoff here would be this file's
+ * invention rather than the language's.
+ */
 export const drawsAnIndicator = (declarations: readonly Declaration[]): boolean => {
 	const { outline, shadow } = indicatorOf(declarations);
 

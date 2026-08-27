@@ -1,0 +1,95 @@
+---
+type: Bug
+parent: "[[Prototype a screen in the harness before it is built]]"
+order: 100
+status: New
+started: ""
+finished: ""
+horizon: "MVP"
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
+---
+
+# A planted probe SFC races the harness file walk
+
+Two build tests disagree about what is in `tests/harness/` because one of them puts a file
+there and takes it away again, and vitest runs them in parallel.
+
+The first note in `docs/bugs/`. The folder is named in `docs/README.md` and had no notes; this
+is a defect rather than an open question, and writing it as an Issue would have filed a thing
+that misbehaves as a thing somebody wondered about.
+
+## What happened
+
+`tests/build/lint-scope.test.ts` › *are all in the type gate* failed twice on 27 August 2026
+during full-suite runs, and passed on an immediate re-run both times. It asserts that every
+`.vue` file under `tests/harness/` is inside `tsconfig.json`'s parsed include set — the check
+that keeps `IndexPage.vue`, the largest Vue file in the repository, from falling out of
+`vue-tsc`'s reach.
+
+The two halves that meet:
+
+- **`tests/build/lint-edited.test.ts` plants a real SFC in that directory.** `plantSfc` writes
+  `tests/harness/lint-edited-probe-<n>.vue` and an `afterEach` removes it. Its own comment says
+  why a temp directory is not used: the file has to sit at a path ESLint's `VUE_FILES` glob
+  actually matches, or the hook being tested is linting nothing.
+- **`tests/build/lint-scope.test.ts` walks that directory at collection time.**
+  `const harnessSfcs = walk('tests/harness').filter((file) => file.endsWith('.vue'))` runs while
+  the describe block is being built; TypeScript's config is parsed later, inside the `it`.
+
+Vitest runs test files in parallel workers. If the walk catches a planted probe that is deleted
+before the parse, the file is in `harnessSfcs` and absent from `included`, and the assertion
+fails naming a file that no longer exists.
+
+**Only one direction races.** An extra entry in `included` fails nothing — the assertion filters
+the walk against the include set, not the reverse — which is why this is rare rather than
+constant.
+
+## What is not established
+
+The mechanism above is read off the code, not demonstrated. **It did not reproduce**: zero
+failures in six paired runs of the two files and zero in six full `tests/build/` runs. Both
+observed failures came in a run started immediately after a source file was written, which is
+consistent with different worker scheduling and is not evidence of it.
+
+So the honest statement is that two files have a shared mutable directory and a window in which
+they disagree, and that the observed symptom is what that window would produce.
+
+## Fix
+
+Not yet applied. The proposal is one line, in `lint-scope.test.ts`, excluding the transient name
+from the walk:
+
+```js
+const harnessSfcs = walk('tests/harness')
+    .filter((file) => file.endsWith('.vue') && !path.basename(file).startsWith('lint-edited-probe-'));
+```
+
+The alternatives, and why this one:
+
+- **Plant in a temp directory.** Refused by `lint-edited.test.ts`'s own comment — the path must
+  match `VUE_FILES` or the test stops testing the hook.
+- **Serialise the two files** (`fileParallelism: false`, or a shared sequential group). Closes it
+  completely and costs every other build test its parallelism, to fix a race between two of them.
+- **Walk at assertion time instead of collection time.** Does not close it: the window moves, it
+  does not shut.
+- **Filter the prefix.** Narrow, and honest about what it hides — a file named
+  `lint-edited-probe-*.vue` is transient by construction and is never a harness SFC anyone wrote.
+
+This was not pushed with PR #17 because neither file is in that diff, and widening a review
+already 49 rounds deep for an unrelated pre-existing race was the wrong trade.
+
+## Lesson
+
+**A test that writes into a directory another test reads is sharing state through the
+filesystem, and `afterEach` does not make that safe under parallelism.** The cleanup is correct
+and still leaves a window, because the other reader is not waiting for it.
+
+The second half is about instruments rather than tests: `lint-scope.test.ts` exists to prove the
+type gate's *scope*, and a scope check whose subject is a directory anybody may write to is
+measuring a moving set. Both halves would be invisible to a reviewer reading either file alone —
+which is what makes it worth a note rather than a commit message.

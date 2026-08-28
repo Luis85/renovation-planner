@@ -122,6 +122,11 @@ function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
  * and adjudicating a duplicate is repair, never a read). An arriving path that is not the
  * derived one does not displace a mapping that already exists; it warns and is dropped.
  *
+ * **Reporting is not conditional on the outcome.** Every pair of distinct files naming one
+ * plan id produces a line, in either order, and the winner is chosen after — the two are
+ * separate steps in the body below because collapsing them silences the copy in exactly one
+ * of the two orders, which is the same class of hole the diagnostic was added to close.
+ *
  * **This replaces the scan's own warn-only rule, deliberately, rather than the pipeline
  * copying it.** That rule kept last-writer-wins on the argument that refusing would make the
  * winner depend on scan order — true of a coin toss between two files, and not true here: the
@@ -163,19 +168,33 @@ export function sidecarMappingFor(input: {
 	projectPathOf: (projectId: ProjectId) => string | undefined;
 }): string {
 	const current = input.planEntry.geometrySidecarPath;
+	// Nothing to report and nothing to adjudicate: the first sidecar this plan has been
+	// offered, or the one it already holds arriving again (an out-of-band edit of a file we
+	// mapped). The second half is not a nicety — without it, one `.rpgeo` re-affirming its
+	// own mapping was reported as a duplicate naming that one file as BOTH paths.
+	if (current === undefined || current === input.incoming) return input.incoming;
+
+	// Past here there ARE two files, so there is a diagnostic to emit no matter which of them
+	// wins. Reporting and adjudication are separate steps for exactly that reason: folding
+	// them into one condition (`return incoming` when it is the derived one) made the copy
+	// silent whenever the scan happened to reach it FIRST — a coin toss, since
+	// `vault.getFiles()` promises no order, and it re-opened the hole the diagnostic exists
+	// to close. `kept` is in the context because "which one won" is then a fact a reader
+	// needs and cannot infer from the two paths alone.
 	const projectPath =
 		input.planEntry.projectId === undefined ? undefined : input.projectPathOf(input.planEntry.projectId);
 	const derived = projectPath === undefined ? undefined : sidecarPathFor(parentOf(projectPath), input.planEntry.id);
-	if (current === undefined || input.incoming === derived) return input.incoming;
+	const kept = input.incoming === derived ? input.incoming : current;
 
 	input.logger.warn(input.event, {
 		planId: input.planEntry.id,
 		path: input.incoming,
 		otherPath: current,
 		derivedPath: derived,
-		reason: 'another sidecar already maps this plan id; the mapping is unchanged',
+		kept,
+		reason: 'two sidecars name this plan id; the mapping keeps the derived one, or the one it held when nothing derives',
 	});
-	return current;
+	return kept;
 }
 
 /** Pass two: join each sidecar to its Plan entry by filename (see the header on why). */

@@ -272,20 +272,85 @@ describe('duplicate sidecar basenames', () => {
 				logger: stack.logger,
 			});
 
+		// The diagnostic is asked for AFTER each scan against a cleared recorder, because a
+		// shared one answers the second question with the first scan's line — which is how
+		// this case once asserted "either way" while reading one order twice.
+		const reportOf = (): Record<string, unknown> => {
+			stack.logged.length = 0;
+			const entries = scan();
+			expect(entries.find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
+			const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+			expect(warning).toBeDefined();
+			return warning?.context ?? {};
+		};
+
 		// `getFiles()` answers in insertion order, so this pair of scans is the pair of scan
-		// orders: the copy reached last, then the copy reached first.
+		// orders: the copy reached last, then the copy reached first. Obsidian promises no
+		// order at all, which is why both have to report.
 		stack.vault.entries.set(backupPath, text);
-		expect(scan().find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
+		const copyLast = reportOf();
 
 		stack.vault.entries.delete(original);
 		stack.vault.entries.set(original, text);
-		expect(scan().find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
+		const copyFirst = reportOf();
 
-		// The diagnostic survives the change of winner — it is what tells a user which two
-		// files collided, and it names both either way.
+		// Which of the two is `path` and which is `otherPath` follows the order — `path` is
+		// always the one that arrived. What must not follow the order is WHICH FILES are named,
+		// which sidecar is kept, or whether a line is emitted at all.
+		for (const report of [copyLast, copyFirst]) {
+			expect([report['path'], report['otherPath']].toSorted()).toEqual([backupPath, original].toSorted());
+			expect(report['derivedPath']).toBe(original);
+			expect(report['kept']).toBe(original);
+		}
+		expect(copyLast['path']).toBe(backupPath);
+		expect(copyFirst['path']).toBe(original);
+	});
+
+	it('a sidecar re-affirming the path already mapped is not a duplicate', () => {
+		// One `.rpgeo` in the vault, edited out of band. The mapping it re-affirms is its own,
+		// so there is nothing to adjudicate and nothing to report — a line naming one file as
+		// both `path` and `otherPath` is a duplicate that does not exist, and a user acts on it.
+		const stack = createRepositoryStack();
+		const sidecar = 'Loose/Geometry/pl-solo.rpgeo';
+		stack.vault.entries.set(
+			'Loose/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-solo', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set(sidecar, '{}');
+		stack.rebuildIndex();
+		stack.logged.length = 0;
+
+		adapterOf(stack).onModify(stack.vault.getAbstractFileByPath(sidecar) as never);
+
+		expect(stack.logged.filter((line) => line.event === 'persistence.pipeline.sidecar-duplicate')).toEqual([]);
+		expect(stack.index.getGeometrySidecarPath('pl-solo' as never)).toBe(sidecar);
+	});
+
+	it('a plan declaring no project keeps the sidecar it holds, and the line says so', () => {
+		// Nothing to derive from at all (no `project:` in the frontmatter), as distinct from the
+		// case below, where a project IS declared and simply is not indexed. Both keep what is
+		// held; both still report; `derivedPath` is what tells a reader which situation this is.
+		const stack = createRepositoryStack();
+		stack.vault.entries.set(
+			'Loose/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-rootless', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set('Loose/Geometry/pl-rootless.rpgeo', '{}');
+		stack.vault.entries.set('Loose Backup/Geometry/pl-rootless.rpgeo', '{}');
+
+		const entries = buildProjectIndexEntries({
+			vault: stack.vault as never,
+			metadataCache: stack.metadataCache as never,
+			echo: stack.echo,
+			logger: stack.logger,
+		});
+
+		expect(entries.find((entry) => entry.id === 'pl-rootless')?.geometrySidecarPath).toBe(
+			'Loose/Geometry/pl-rootless.rpgeo',
+		);
 		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
-		expect(warning?.context?.['path']).toBe(backupPath);
-		expect(warning?.context?.['otherPath']).toBe(original);
+		expect(warning?.context?.['kept']).toBe('Loose/Geometry/pl-rootless.rpgeo');
+		expect(warning?.context?.['derivedPath']).toBeUndefined();
 	});
 
 	it('the scan keeps the first sidecar when no project folder can derive one', () => {
@@ -310,7 +375,9 @@ describe('duplicate sidecar basenames', () => {
 		expect(entries.find((entry) => entry.id === 'pl-loose')?.geometrySidecarPath).toBe(
 			'Loose/Geometry/pl-loose.rpgeo',
 		);
-		expect(stack.logged.some((line) => line.event === 'persistence.index.sidecar-duplicate')).toBe(true);
+		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+		expect(warning?.context?.['kept']).toBe('Loose/Geometry/pl-loose.rpgeo');
+		expect(warning?.context?.['derivedPath']).toBeUndefined();
 	});
 
 	it('the pipeline keeps the live mapping when a copied sidecar arrives beside it', async () => {
@@ -328,6 +395,8 @@ describe('duplicate sidecar basenames', () => {
 		const warning = stack.logged.find((line) => line.event === 'persistence.pipeline.sidecar-duplicate');
 		expect(warning?.context?.['path']).toBe(backupPath);
 		expect(warning?.context?.['otherPath']).toBe(original);
+		expect(warning?.context?.['derivedPath']).toBe(original);
+		expect(warning?.context?.['kept']).toBe(original);
 
 		// And deleting the copy again takes nothing with it. The delete arm's path-equality
 		// guard was always right; what made it clear the mapping was the repoint above it.

@@ -198,7 +198,11 @@ Three consequences worth stating rather than discovering:
   the data loss rather than a report of one. Both doors now keep the sidecar the project folder
   DERIVES (`sidecarMappingFor`, one function shared by the scan and the pipeline). The
   scan-order argument that kept last-writer-wins is exactly what deriving dissolves: the derived
-  path is the same answer in either order.
+  path is the same answer in either order. The "no longer silent" half of this bullet survives
+  intact and had to be defended a second time: the first draft of that fix returned early when
+  the arriving file WAS the derived one, which silenced the copy whenever the scan reached it
+  first — reporting and adjudication are separate steps now, so a genuine pair is reported in
+  both orders and only the winner depends on derivation.
 
 ## Write-time folder resolution
 

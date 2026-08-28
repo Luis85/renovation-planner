@@ -1,6 +1,7 @@
 import { computed, readonly, ref, toValue, type DeepReadonly, type MaybeRefOrGetter, type Ref } from 'vue';
 import { isErr, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
+import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
 import { routeError, type FieldErrorMap } from '../errors/route-error';
 
 /** What `CommandHistory.run` takes: anything with the two halves of a reversible write. */
@@ -10,20 +11,15 @@ interface RunnableCommand {
 }
 
 /**
- * Discards a rejection nobody is left holding.
- *
- * A coalesced round of `commitOnce` fires its own continuation rather than being awaited by
- * anyone (see that function's docblock), so a THROW from it would otherwise become an
- * unhandled rejection: nothing anywhere holds that specific promise to catch it. The
- * continuation's own `finally` has already reset `inFlight`/`pending` by the time this runs
- * — the state repair is the only half of "handling" this composable can still perform for an
- * unexpected technical fault at this layer, and that half is already done before this ever
- * runs. Module-scoped rather than declared per call: it captures nothing, so a copy minted
- * inside `useFieldCommit` on every call would be pure churn.
+ * The mapper for a fault that reaches this composable's own last door — a coalesced round's
+ * own continuation, rejecting with nobody left to catch it (see `commitOnce`'s docblock).
+ * Built once, module-scoped, the same way `presentation/notices/notify.ts`'s `notifyFault`
+ * builds its own `mapUnexpected`: this is the identical shape of problem one layer down —
+ * something THROWN that no guard turned into a `Result`, reaching a door outside the
+ * composition root's boundary. `presentation/composables/` may import `application/`; the
+ * layer ban that stops there applies to `presentation/dialogs/` only.
  */
-function swallowContinuationFault(): void {
-	// Intentionally empty: see the docblock above.
-}
+const mapUnexpectedFault = createVaultExceptionMapper('vault');
 
 /**
  * One Inspector field's draft, error and pending state.
@@ -172,6 +168,28 @@ export function useFieldCommit<T, TInput>(options: {
 	}
 
 	/**
+	 * What a coalesced round's OWN rejection reaches, since nobody is left holding that
+	 * promise to catch it themselves (see `commitOnce`'s docblock below). Maps the cause to
+	 * the same coded `PersistenceError` a guarded service would have produced and hands it to
+	 * `options.notify` — the ONE door this composable already requires for exactly this class
+	 * of failure, per that option's own docblock above.
+	 *
+	 * NOT a no-op. A first version discarded the cause entirely once `inFlight`/`pending` were
+	 * repaired, which fixed the wedge and the unhandled rejection but traded them for a WORSE
+	 * failure mode than the raw unhandled rejection it replaced: `pending` false, `error` null,
+	 * `drafted` still holding the user's text, nothing logged, nothing notified — the field
+	 * looked settled and idle while the edit was never persisted, and the one signal that the
+	 * write had failed was the thing that version removed. SDD §66 asks that the user-facing
+	 * and developer-facing halves of one failure "must not drift into being produced from two
+	 * independent code paths" — the same requirement `notifyFault` in
+	 * `presentation/notices/notify.ts` exists to satisfy for the identical shape of problem,
+	 * one door over: something thrown that no guard turned into a `Result`.
+	 */
+	function reportContinuationFault(cause: unknown): void {
+		options.notify(mapUnexpectedFault(cause));
+	}
+
+	/**
 	 * One coalescing round: validate, dispatch, then either stop (clearing `inFlight`) or
 	 * hand off to another round of itself.
 	 *
@@ -231,11 +249,11 @@ export function useFieldCommit<T, TInput>(options: {
 			// nothing to re-send.
 			if (recommit && drafted.value !== null && drafted.value !== lastCommitted) {
 				continuing = true;
-				// Not `void`: an unhandled rejection reaching nobody is exactly the failure
-				// `reportFault` exists to prevent elsewhere in this codebase, and a bare
-				// `void` gives a throw here no handler at all — no caller holds this
-				// specific promise to catch it themselves.
-				commitOnce().catch(swallowContinuationFault);
+				// Not `void`: no caller holds this specific promise, so a bare `void` gives a
+				// throw here no handler at all. `reportContinuationFault` is that handler — it
+				// notifies the SAME mapped fault a guarded service would have produced, rather
+				// than merely observing the rejection and discarding it.
+				commitOnce().catch(reportContinuationFault);
 				return;
 			}
 		} finally {

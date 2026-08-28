@@ -474,8 +474,9 @@ describe('useFieldCommit', () => {
 		expect(run).toHaveBeenCalledTimes(2);
 	});
 
-	it('resets pending after a thrown fault on a coalesced round, without an unhandled rejection', async () => {
+	it('notifies the mapped fault from a coalesced round rejection, without an unhandled rejection', async () => {
 		const fault = new Error('vault fault in continuation');
+		const notify = vi.fn<Notify>();
 		let settleFirst: (result: Result<void, AppError>) => void = noop;
 		let calls = 0;
 		const run = vi.fn<Run>(() => {
@@ -497,7 +498,7 @@ describe('useFieldCommit', () => {
 			errorMap: MAP,
 			field: 'quantity',
 			toUserMessage: say,
-			notify: vi.fn<Notify>(),
+			notify,
 		});
 
 		// A bare `void commitOnce()` on the continuation path gives a throw here no handler at
@@ -527,6 +528,17 @@ describe('useFieldCommit', () => {
 
 		expect(unhandled).toEqual([]);
 		expect(run).toHaveBeenCalledTimes(2);
+		// The signal that the write failed: mapped to the SAME coded refusal a guarded service
+		// would have produced, since `notify` is the only door this field has for a failure it
+		// cannot attach anywhere else. A version that only repaired `inFlight`/`pending` and
+		// discarded the cause would leave this uncalled while the field looked perfectly settled.
+		expect(notify).toHaveBeenCalledTimes(1);
+		expect(notify).toHaveBeenCalledWith({
+			category: 'Persistence',
+			code: 'vault.unexpected-failure',
+			message: fault.message,
+			cause: fault,
+		});
 		// The continuation's own fault must not wedge the field either.
 		expect(field.pending.value).toBe(false);
 		field.onInput(-9);

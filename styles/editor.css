@@ -373,3 +373,17 @@
 	min-width: var(--size-4-8);
 	text-align: right;
 }
+
+/*
+ * The class names are what `rp-save-state-${state}` GENERATES, so the error state is
+ * `save-error` and its selector is `rp-save-state-save-error` — not `-error`. A selector one
+ * word short of what the template emits simply never matches, and nothing here could catch
+ * it: jsdom resolves no CSS, and the harness draws a state nobody is looking at.
+ */
+.rp-save-state-save-error {
+	color: var(--text-error);
+}
+
+.rp-save-state-saving {
+	color: var(--text-muted);
+}

@@ -445,14 +445,20 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
-	// A pointer whose press was swallowed owes its release swallowed too, whether or not the
-	// pan that swallowed it is still running — see `swallowedPointers`.
-	if (swallowedPointers.delete(event.pointerId)) return;
+	// The OWNER's release is tested first, and that ordering is the whole guard against the one
+	// device where an id is not enough: a mouse shares one `pointerId` across every button, so
+	// a primary press swallowed during a middle-button pan records the pan owner's own id.
+	// Consulting the set first consumed the owner's release and left the canvas panning with
+	// nothing held.
 	if (panOverride.pointerUp(panButtonOf(event), event.pointerId)) {
 		editor.endPan(event.pointerId);
 		syncPanPhase();
 		return;
 	}
+	// A pointer whose press was swallowed owes its release swallowed too, whether or not the
+	// pan that swallowed it is still running — see `swallowedPointers`. Below the owner's own
+	// release, never above it.
+	if (swallowedPointers.delete(event.pointerId)) return;
 	// The other end of the press swallowed in `onPointerDown`. Letting this through would hand
 	// the active tool a release with no matching press — an event stream no device produces,
 	// and the exact grammar defect `canvasPointerRouting.test.ts` already exists for.
@@ -486,12 +492,17 @@ function onPointerUp(event: PointerEvent): void {
  * prevent. The last of the five pointer doors to take the ownership rule.
  */
 function onPointerCancel(event: PointerEvent): void {
-	// The destructive half: `cancelGesture()` empties a tool's buffer outright, so a swallowed
-	// pointer's cancellation reaching it costs the user a half-drawn polygon.
-	if (swallowedPointers.delete(event.pointerId)) return;
+	// The OWNER first here too, for the same reason as `onPointerUp`: on a mouse the swallowed
+	// press carries the pan owner's own id, so consulting the set first would abandon nothing
+	// and leave the canvas panning.
 	if (panOverride.phase === 'panning') {
-		// A foreign pointer's cancellation says nothing about the running pan.
-		if (!panOverride.owns(event.pointerId)) return;
+		// A foreign pointer's cancellation says nothing about the running pan — but if this
+		// canvas swallowed that pointer's press, its cancellation is spent here rather than
+		// reaching the tool.
+		if (!panOverride.owns(event.pointerId)) {
+			swallowedPointers.delete(event.pointerId);
+			return;
+		}
 		// The PAN was cancelled, so only the pan is abandoned. `abandonGesture` rather than
 		// `cancel`: the space bar has not been released, and a real release — or `onBlur`, if
 		// the OS took the window along with the pointer — is what ends the armed state.
@@ -499,8 +510,14 @@ function onPointerCancel(event: PointerEvent): void {
 		syncPanPhase();
 		editor.abandonPan();
 		editor.setPointer(null);
+		// On a mouse the swallowed press shares this id, so the entry it left behind goes with
+		// the gesture it belonged to rather than outliving it.
+		swallowedPointers.delete(event.pointerId);
 		return;
 	}
+	// The destructive half: `cancelGesture()` empties a tool's buffer outright, so a swallowed
+	// pointer's cancellation reaching it costs the user a half-drawn polygon.
+	if (swallowedPointers.delete(event.pointerId)) return;
 	// No pan was running, so this cancellation belongs to whatever the tool was doing.
 	// `ToolManager` tracks no pointer identity of its own, so a tool gesture is cancelled on
 	// any cancellation reaching here — widening that is its contract to change, not this

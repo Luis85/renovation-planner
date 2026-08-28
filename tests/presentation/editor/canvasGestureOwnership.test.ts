@@ -607,3 +607,55 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
 		harness.unmount();
 	});
 });
+
+describe('a swallowed press sharing the pan owner’s pointer id', () => {
+	/**
+	 * The cost of keying `swallowedPointers` by pointer alone, on the one device where that is
+	 * not enough: **a mouse shares one `pointerId` across every button.** So a primary press
+	 * swallowed during a middle-button pan records the PAN OWNER's own id, and the owner's
+	 * release is then consumed as if it were the swallowed one — leaving the canvas panning
+	 * with nothing held.
+	 *
+	 * This file has leaned on "one mouse, one pointerId, two buttons" six times, and the fix
+	 * one commit earlier still keyed state on the pointer alone.
+	 */
+	it('still lets the owner’s release end the pan', async () => {
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 300, 300, 1); // middle claims the pan
+		pointer(canvas, 'pointermove', 340, 300, 1);
+		pointer(canvas, 'pointerdown', 340, 300, 0); // primary swallowed — same pointerId
+		pointer(canvas, 'pointerup', 340, 300, 1); // the OWNER releases first
+		pointer(canvas, 'pointerup', 340, 300, 0);
+		await settle();
+		const settled = camera.viewport.pan.x;
+
+		// The pan is over, so a bare move must not drive the camera any further.
+		pointer(canvas, 'pointermove', 700, 300);
+		await settle();
+
+		expect(camera.viewport.pan.x).toBe(settled);
+		harness.unmount();
+	});
+
+	it('still abandons the pan when the owner’s pointer is cancelled', async () => {
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 300, 300, 1);
+		pointer(canvas, 'pointermove', 340, 300, 1);
+		pointer(canvas, 'pointerdown', 340, 300, 0);
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
+		await settle();
+		const settled = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 700, 300);
+		await settle();
+
+		expect(camera.viewport.pan.x).toBe(settled);
+		harness.unmount();
+	});
+});

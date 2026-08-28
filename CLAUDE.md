@@ -439,6 +439,17 @@ check. Rules that came out of it:
   this way, and disarming on keyup strands the user's pointer mid-pan. Two independent fields
   (`spaceHeld`, `panningWith`) rather than one phase enum, because that overlap is exactly
   what a single enum would have to encode as a transition.
+- **State keyed on a pointer is not keyed on a gesture, and a mouse is where that bites.**
+  `swallowedPointers` was keyed by id alone — so a primary press swallowed during a
+  middle-button pan recorded the PAN OWNER's own id, one mouse sharing one `pointerId` across
+  every button, and the owner's release was then consumed as if it were the swallowed one.
+  The canvas stayed panning with nothing held. The fix is an ORDERING rather than a richer key:
+  the owner's release and the owner's cancellation are tested first, and the swallowed set only
+  after — which needs no pointer/button pair and cannot drift out of step with `PanOverride`'s
+  own record. **Worth remembering as the sharpest instance of this file's own recurring
+  lesson**: "one mouse, one `pointerId`, two buttons" had already been the load-bearing fact in
+  five separate findings, and the fix written one commit earlier still keyed its new state on
+  the pointer alone. Knowing a fact is not the same as reaching for it.
 - **A gesture's ownership has to outlive the gesture, because the POINTER does.** While a pan
   runs the canvas swallows every other pointer's press — but that decision was re-derived from
   the live phase at each later event, and the phase is gone by the time a swallowed pointer

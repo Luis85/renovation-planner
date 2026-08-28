@@ -245,6 +245,16 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
  * 10,000-note vault with twenty notes under `Renovation/` cost twenty calls and now costs
  * ten thousand lookups.
  *
+ * **And what the PIPELINE costs, because this paragraph quantified only the scan and the
+ * incremental door lost the same prefix.** `VaultChangeAdapter` resolves every vault event
+ * it is handed rather than the ones under one folder, and its `findByPath` walks the index
+ * entries linearly per event. That walk is bounded by this plugin's ENTITIES and never by
+ * vault size — the index holds no foreign note — and this branch's review measured it at
+ * about 1.7 microseconds at 300 entries and 5.8 at 1,000, behind the adapter's own 500 ms
+ * debounce. Recorded as a cost rather than acted on: a path-keyed map would be a second
+ * structure to keep consistent with the id-keyed one, for a figure five orders of magnitude
+ * under the debounce it sits behind.
+ *
  * Notes are read through `MetadataCache`, never by parsing files; sidecars are joined to
  * their Plan entries by FILENAME — the fast path — because reading and schema-parsing
  * every `.rpgeo` would be hundreds of whole-file reads at the one moment startup is

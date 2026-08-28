@@ -233,20 +233,33 @@ export function freshProjectFolder(vault: Vault, root: string, name: string, id:
 
 ### Project existence moves onto the index
 
-`ObsidianProjectRepository.saveQueued` establishes existence with
+`ObsidianProjectRepository.saveQueued` established existence with
 `findNoteIdInFolder(deps, vault, this.folder, project.id)` — a scan of the project folder. Under
 the derived shape that is circular: the project's folder is where its note is, so searching it
 for the note presumes the answer.
 
 Existence therefore resolves through the index: `fileAt(vault, index.getPath(project.id))`. This
 is **forced by the decision, not an opportunistic widening**, and it is also the more reliable
-answer for the case `findNoteIdInFolder`'s own comment worries about — a note created moments
+answer for the case `findNoteIdInFolder`'s own comment worried about — a note created moments
 ago. `save` upserts the index synchronously before returning, so the index knows before any
 `MetadataCache` does.
 
-Plan, Zone, Requirement and Asset keep `findNoteIdInFolder` — Requirement and Asset reach it
-through `noteEntityWrite`'s `spec.notesFolder` rather than directly — now bounded by their own
-project's folder rather than the shared root, which is strictly narrower than today.
+Plan, Zone, Requirement and Asset kept `findNoteIdInFolder` in the slice as shipped —
+Requirement and Asset reaching it through `noteEntityWrite`'s `spec.notesFolder` rather than
+directly — bounded by their own project's folder rather than the shared root, which was strictly
+narrower than before.
+
+**Superseded on this branch, and by this section's own argument.** Keeping the scan for the other
+four was wrong for exactly the reason given above for the Project: the slice bounded DISCOVERY by
+what a note declares, and those four save paths went on establishing existence by scanning
+`<projectFolder>/<Kind>/`. A note the user had filed anywhere else was read, indexed and
+deletable and could never be saved again — the scan missed it, `currentVersion` came back
+`undefined`, and `checkExpectedVersion` answered a permanent `<kind>.revision-conflict`, plus a
+`requirement.mark-stale-failed` from `markStale` on a note it had just read successfully. Every
+save resolves existence through the index now, so `findNoteIdInFolder` had no callers left and is
+deleted. The derived folder survives only where a write has to CHOOSE a location, which is why
+the `*.project-folder-unresolved` refusals guard INSERTS alone: an update writes where the note
+already sits.
 
 ### A folder that cannot be resolved is a refusal
 
@@ -255,6 +268,12 @@ Never a fallback to the default root. Writing to a defaulted path when the real 
 is how a note lands in a parallel tree beside the user's work — the failure slice 1 refused
 defaults for, and its reasoning ("a setting that names a path is not a preference") applies
 here unchanged.
+
+**Narrowed on this branch to the writes that CHOOSE a location.** Once existence resolves through
+the index, an update writes where the note already sits and needs no folder at all, so resolving
+one there could only refuse a save that had nothing to decide — which is what `markStale` did, on
+notes it had just read successfully. The refusal guards INSERTS, and `markStale` resolves no
+folder.
 
 ### The `data.json` key does not change
 

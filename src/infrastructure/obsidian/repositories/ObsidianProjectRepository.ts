@@ -24,9 +24,26 @@ import { fileAt } from './NoteVaultDeps';
 
 /**
  * The Obsidian-backed ProjectRepository (SDD §36–38): one Markdown note per Project
- * inside the project folder; frontmatter is the whole persisted state. The simplest of
- * the three repositories — ONE file per entity — which is why its failure story needs
- * nothing beyond "the write failed, nothing was written".
+ * inside the project folder; frontmatter is the whole persisted state. The simplest of the
+ * note-backed repositories — ONE file per entity, and no sidecar.
+ *
+ * **Its failure story is nevertheless not "the write failed, nothing was written", and this
+ * header said it was.** The insert path calls `ensureFolder` before `vault.create`, and the
+ * `catch` around the pair compensates nothing, so a create that fails after the folder was
+ * made leaves an EMPTY FOLDER behind. No note is written, reads resolve by id, and a folder
+ * name reaches no UI (filename is never identity, §83) — but the orphan is COUPLED to the
+ * next attempt: `freshProjectFolder` collides on any abstract file at the base path, folders
+ * included, so a retry lands at `<name> <id>` rather than `<name>`, with a DIFFERENT suffix
+ * each time because `CreateProjectCommand` mints a new id per call. Two failed attempts
+ * leave two orphan folders and put the project in a third.
+ *
+ * Recorded rather than compensated, deliberately, and for the reason `sampleProject.ts`
+ * already gives for the partial notes a failed seed leaves behind: today the insert arm's
+ * only production caller is `seedSampleProject`, and a naive rollback is worse than the
+ * orphan — `ensureFolder` also creates the CONFIGURED ROOT, which may be a folder the user
+ * owns and has filled. Slice 16's project-creation form is the trigger to revisit it: that
+ * is the first time a user reaches this path by typing a name, and the first time retrying
+ * after a failed create is an ordinary thing to do.
  *
  * Raw frontmatter never leaves this class: reads migrate, schema-parse and map before
  * returning; writes lower the entity through the mapper and merge through

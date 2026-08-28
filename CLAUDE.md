@@ -511,12 +511,15 @@ drags the folder in Obsidian's file explorer has moved the project, which is ADR
 sidecar-folder argument turned to a second use. `entityRefOf` is now the one answer to "is this
 note ours" (`type` plus a non-empty `id`), with exactly two callers — the Project Index's full
 scan and `VaultChangeAdapter`'s incremental one — so the two cannot disagree about a note the
-way two hand-spelled copies of the same test could. `NoteVaultDeps.projectFolder` is gone; the
-five repositories that cached it in a constructor now resolve each write's folder from the
+way two hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller
+list by reading `src/` rather than asserting it. `NoteVaultDeps.projectFolder` is gone; the
+five repositories that cached it in a constructor now resolve each INSERT's folder from the
 entity being saved, through `projectFolderOf(index, projectId)`, and refuse with a
-`PersistenceError` rather than default when that resolves to nothing. `freshProjectFolder` gives
+`PersistenceError` rather than default when that resolves to nothing — an UPDATE writes where
+the note already sits and resolves no folder at all, which is why the refusal guards inserts
+alone and why `markStale` resolves nothing. `freshProjectFolder` gives
 a newly-created project its own folder under the plugin's configurable default root, deduped by
-id on a name collision. Two rules came out of it:
+id on a name collision. Four rules came out of it, the last two from the review that followed:
 
 - **A prefix bound cannot see a second root, and a bound that reads the note can.** The index
   used to filter by path before ever looking at a note's frontmatter; the frontmatter was
@@ -542,6 +545,26 @@ id on a name collision. Two rules came out of it:
   job in this slice — there is no command that changes a project's folder under the derived
   shape, and no library to overlap with until slice 19 exists — but the reason is that it has
   nothing to do, not that a gate would have refused it for having no caller.
+- **Widening DISCOVERY and leaving EXISTENCE alone is half a slice.** A note is found by what
+  it declares now, but every save still established existence by scanning
+  `<projectFolder>/<Kind>/` — so a note the user had filed anywhere else was read, indexed and
+  deletable and could never be saved again: the scan missed it, `currentVersion` came back
+  `undefined`, and `checkExpectedVersion` answered a permanent `<kind>.revision-conflict`, with
+  `markStale` answering `requirement.mark-stale-failed` on a note it had just read successfully.
+  Every save resolves through the index now — the same lookup `getById` and `delete` already
+  took — and `findNoteIdInFolder` is deleted for want of callers. The general shape: when a
+  slice changes how a thing is FOUND, every question of the form "does this already exist" is
+  the same change, and the compile errors do not point at the ones that were already using a
+  different mechanism.
+- **One rule with two doors is two rules unless one function holds it.** The sidecar join lost
+  its folder prefix at BOTH ends, and only the full scan got a diagnostic; the incremental door
+  went on repointing a plan's mapping onto any arriving `.rpgeo` with a matching basename, which
+  is where a copied project folder sent the live plan's geometry writes. `sidecarMappingFor` is
+  the one answer both take now — the DERIVED path wins, a genuine pair is reported in either
+  order under a per-door event name, and a sidecar re-affirming its own mapping is not reported
+  at all. Reporting and adjudication are separate steps in it for a reason worth keeping: the
+  first draft returned early when the arriving file was the derived one, which silenced the copy
+  in exactly one of the two scan orders.
 
 Three more things this slice measured rather than assumed, because each is this repository's
 own recurring shape:
@@ -563,7 +586,13 @@ own recurring shape:
   said "reads and writes"; its body asserted only the write half. Adding the read assertion it
   had always claimed to make immediately caught a fixture whose frontmatter was missing the
   schema-required `status` field — a test that had been passing on a project the schema would
-  have refused to load.
+  have refused to load. The review that followed found four more cases whose names outran their
+  assertions or named a rule they no longer tripped, and one of them was measured rather than
+  argued:
+  a pipeline case named for the folder bound this slice DELETED compared an empty index against
+  an empty index, and stayed GREEN — measured, by wiring the regression and running it — under a
+  `processPath` that wiped every entry the index held. A no-op assertion and a correct one look
+  identical until something is broken underneath them.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

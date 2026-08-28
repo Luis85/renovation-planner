@@ -42,12 +42,30 @@ async function seed(stack: ReturnType<typeof createRepositoryStack>) {
 }
 
 describe('pipeline negatives', () => {
-	it('ignores markdown files outside the project folder entirely', () => {
+	/**
+	 * What `processPath`'s "not a note" arm actually models, now that slice 18 has deleted
+	 * the folder bound this case used to be named for: a path with NO FILE behind it that the
+	 * index does not hold either — a delete Obsidian raised for a file this plugin never
+	 * indexed, or a debounced event whose file was gone by the time the queue drained.
+	 * Nothing resolves, there is no entry to remove, and the index must be left alone.
+	 *
+	 * The previous name, 'ignores markdown files outside the project folder entirely', stated
+	 * precisely the bound slice 18 removed, and the case was green only because its fixture
+	 * was never written into the vault at all — so it took this arm rather than the location
+	 * rule it claimed. A note of ours in `Elsewhere/` IS indexed now, which
+	 * `pipeline.test.ts`'s 'indexes a note of ours created outside the configured folder'
+	 * asserts head-on; nothing is re-asserted here.
+	 */
+	it('an event for a path with no file behind it leaves the index untouched', async () => {
 		const stack = createRepositoryStack();
+		await seed(stack);
 		const adapter = adapterOf(stack);
+		// Against a POPULATED index, so "untouched" is a claim with something to lose: the
+		// empty index the old case compared could not tell a no-op from a wipe.
+		expect(stack.index.entries().length).toBeGreaterThan(0);
 		const before = JSON.stringify(stack.index.entries());
 
-		adapter.onModify({ path: 'Elsewhere/notes.md', stat: {} } as never);
+		adapter.onModify({ path: 'Renovation/Plans/Vanished.md', stat: {} } as never);
 		adapter.flush();
 		expect(JSON.stringify(stack.index.entries())).toBe(before);
 	});
@@ -150,19 +168,39 @@ describe('pipeline negatives', () => {
 		adapter.flush();
 
 		expect(stack.index.getPath(planId)).toBeUndefined();
+		// The name says "with a diagnostic" and nothing used to assert one — the same
+		// name-outruns-its-assertions defect this round is closing in the scan case below.
+		expect(
+			stack.logged.some(
+				(line) => line.event === 'persistence.pipeline.note-excluded' && line.context?.['path'] === path,
+			),
+		).toBe(true);
 		void projectId;
 	});
 });
 
 describe('index builder negatives', () => {
-	it('skips non-notes, foreign notes, and orphan sidecars during the scan', async () => {
+	/**
+	 * The idless fixture used to sit at `Elsewhere/x.md` and the case was named for the
+	 * LOCATION, which slice 18 stopped being a bound: give that note an id and it is indexed
+	 * where it sits, so the case passed on the missing-`id` rule while claiming to prove a
+	 * folder one. It sits under `Renovation/` now, which says plainly that the id is the whole
+	 * reason it is skipped.
+	 *
+	 * The two SCAN-side diagnostics are ASSERTED here rather than merely produced — this is
+	 * the only case in the suite that reaches either. `entityRef.test.ts` unit-tests
+	 * `entityRefOf`'s no-id verdict, not `collectNotes`'s warn arm, and the orphan-sidecar
+	 * warning `branches.test.ts` drives is the PIPELINE door's, under its own event name.
+	 */
+	it('skips a plain note and a foreign one, and diagnoses an idless note and an orphan sidecar', async () => {
 		const stack = createRepositoryStack();
 		await seed(stack);
 
-		stack.vault.entries.set('Elsewhere/x.md', '---\ntype: renovation-project\n---\n');
+		stack.vault.entries.set('Renovation/idless.md', '---\ntype: renovation-project\n---\n');
 		stack.vault.entries.set('Renovation/plain.md', 'no frontmatter here');
 		stack.vault.entries.set('Renovation/foreign.md', '---\ntype: something-else\nid: "x"\n---\n');
-		stack.vault.entries.set(`Renovation/Geometry/${createPlanId()}.rpgeo`, '{}');
+		const orphanSidecar = `Renovation/Geometry/${createPlanId()}.rpgeo`;
+		stack.vault.entries.set(orphanSidecar, '{}');
 
 		const entries = buildProjectIndexEntries({
 			vault: stack.vault as never,
@@ -171,9 +209,22 @@ describe('index builder negatives', () => {
 			logger: stack.logger,
 		});
 
-		expect(entries.some((entry) => entry.path === 'Elsewhere/x.md')).toBe(false);
+		expect(entries.some((entry) => entry.path === 'Renovation/idless.md')).toBe(false);
 		expect(entries.some((entry) => entry.path === 'Renovation/plain.md')).toBe(false);
 		expect(entries.some((entry) => entry.path === 'Renovation/foreign.md')).toBe(false);
+
+		// A note of OURS that cannot be indexed is a diagnostic; a foreign note is silent and
+		// correct, which is the distinction `EntityRef`'s third case exists for.
+		const excluded = stack.logged.find((line) => line.event === 'persistence.index.note-excluded');
+		expect(excluded?.context?.['path']).toBe('Renovation/idless.md');
+		expect(
+			stack.logged.some(
+				(line) => line.event === 'persistence.index.note-excluded' && line.context?.['path'] === 'Renovation/foreign.md',
+			),
+		).toBe(false);
+
+		const skipped = stack.logged.find((line) => line.event === 'persistence.index.sidecar-skipped');
+		expect(skipped?.context?.['path']).toBe(orphanSidecar);
 	});
 });
 

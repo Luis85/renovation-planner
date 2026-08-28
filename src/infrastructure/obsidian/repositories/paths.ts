@@ -113,6 +113,15 @@ export function fileNameFor(name: string): string {
  * The id suffix is not a uniqueness LOOP — one collision check, then a name carrying an id
  * that is unique by construction. Filename is never identity (§83), so this only has to
  * produce a free path, not a predictable one.
+ *
+ * **What that means for a save reaching here on a STALE index, said once for all five insert
+ * paths, because the docblock that used to say it went with `findNoteIdInFolder`:** this
+ * dedupes on PATH, not on id, so an insert for an entity whose note the index has forgotten
+ * writes a SECOND note carrying the same `id` beside the first, rather than colliding with
+ * it. Unreachable today — an insert requires `expected === 'absent'`, and every repository
+ * `upsert`s synchronously before returning, so a note written moments ago is known before
+ * any `MetadataCache` has parsed it — and it is the same reliance on the index that
+ * `getById` and `delete` already accept.
  */
 export function freshNotePath(vault: Vault, folder: string, name: string, id: string): string {
 	const base = joinFolder(folder, fileNameFor(name));

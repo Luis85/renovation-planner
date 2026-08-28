@@ -7,7 +7,7 @@ import {
 	projectFolderOf,
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { createRepositoryStack, serializeFrontmatter, type RepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, parseFrontmatter, serializeFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectOk } from '../../../helpers/domain';
 import {
 	makeAsset as makeAssetEntity,
@@ -357,6 +357,20 @@ function relocate(stack: RepositoryStack, from: string, to: string): void {
 	stack.rebuildIndex();
 }
 
+/**
+ * The note as it actually SITS ON DISK, not as the repository reported it. The four save
+ * cases below asserted an in-memory `revision === 2` and an index path they had just
+ * upserted, and a `writeOwnedFrontmatter` that silently did nothing would have kept all
+ * four green — the `revision` in the returned `Loaded` is computed before the write, and
+ * the index entry is written by the repository either way. Reading the vault's own bytes
+ * back is what makes the write the thing under test.
+ */
+function expectWrittenRevision(stack: RepositoryStack, path: string, id: string): void {
+	const written = parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter;
+	expect(written['id']).toBe(id);
+	expect(written['revision']).toBe(2);
+}
+
 async function seedKitchenProject(stack: RepositoryStack): Promise<void> {
 	await stack.projects.save(
 		makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' }),
@@ -401,6 +415,7 @@ describe('a note filed outside its kind folder still saves', () => {
 		expect(saved.version.revision).toBe(2);
 		expect(stack.index.getPath('pl1' as never)).toBe('Inbox/Ground floor.md');
 		expect(stack.vault.entries.has(derived)).toBe(false);
+		expectWrittenRevision(stack, 'Inbox/Ground floor.md', 'pl1');
 	});
 
 	it('saves a zone note the user moved out of the Zones folder', async () => {
@@ -427,6 +442,7 @@ describe('a note filed outside its kind folder still saves', () => {
 		expect(saved.version.revision).toBe(2);
 		expect(stack.index.getPath('z1' as never)).toBe('Inbox/Living room.md');
 		expect(stack.vault.entries.has(derived)).toBe(false);
+		expectWrittenRevision(stack, 'Inbox/Living room.md', 'z1');
 	});
 
 	it('saves an asset note the user moved out of the Assets folder', async () => {
@@ -447,6 +463,7 @@ describe('a note filed outside its kind folder still saves', () => {
 		expect(saved.version.revision).toBe(2);
 		expect(stack.index.getPath('a1' as never)).toBe('Inbox/Tiles.md');
 		expect(stack.vault.entries.has(derived)).toBe(false);
+		expectWrittenRevision(stack, 'Inbox/Tiles.md', 'a1');
 	});
 
 	it('saves a requirement note the user moved out of the Requirements folder', async () => {
@@ -472,6 +489,7 @@ describe('a note filed outside its kind folder still saves', () => {
 		expect(saved.version.revision).toBe(2);
 		expect(stack.index.getPath('r1' as never)).toBe('Inbox/r1.md');
 		expect(stack.vault.entries.has(derived)).toBe(false);
+		expectWrittenRevision(stack, 'Inbox/r1.md', 'r1');
 	});
 
 	it('marks a requirement note stale where it actually sits', async () => {

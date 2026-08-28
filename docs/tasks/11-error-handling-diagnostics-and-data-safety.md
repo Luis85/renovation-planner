@@ -721,9 +721,14 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     never reads `schema-version` at all, so a poisoned note is indexed like any other.
 
     **The gate is READ-side only, and "refuses to load" is the whole of the guarantee.**
-    Every save path resolves its note through `findNoteIdInFolder` + `versionOfFrontmatter`
-    and never calls `migrateNote`, so nothing in a write stops a build that predates a note
-    from overwriting its owned keys. Two things protect such a note today and NEITHER is this
+    Every save path resolves its note through the index (`fileAt` +
+    `versionOfFrontmatter`) and never calls `migrateNote`, so nothing in a write stops a
+    build that predates a note from overwriting its owned keys. That sentence named
+    `findNoteIdInFolder` until design slice 18 replaced the folder scan with the index
+    lookup and deleted the function; it is corrected rather than left standing as a period
+    record, because it is phrased as a live guarantee about a gate readers rely on, and the
+    mechanism it describes — the save side never running the version chain — is unchanged
+    either way. Two things protect such a note today and NEITHER is this
     gate: every command loads before it saves and the load refuses, which is a property of
     the callers; and `schema-version` is an owned key, so an expectation minted before the
     note changed refuses as an external modification. A writer holding a CURRENT expectation

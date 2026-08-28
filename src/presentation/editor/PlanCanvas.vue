@@ -43,6 +43,14 @@ const { layerVisibility } = storeToRefs(workspace);
 
 const container = ref<HTMLElement | null>(null);
 const size = ref({ width: 0, height: 0 });
+/**
+ * Where the pointer physically is, in stage pixels — `null` once it leaves the pane.
+ *
+ * `EditorStore` keeps the WORLD point for the status bar's readout, which is a different
+ * fact and cannot stand in for this one: the world point under a stationary pointer changes
+ * whenever the camera does, and this is the half that does not. See `reissuePointerMove`.
+ */
+const lastStagePoint = ref<ScreenPoint | null>(null);
 
 const transform = computed(() => viewportTransform(viewport.value));
 const stageConfig = computed(() => ({ width: size.value.width, height: size.value.height }));
@@ -51,6 +59,65 @@ const stageConfig = computed(() => ({ width: size.value.width, height: size.valu
 const WHEEL_SENSITIVITY = 0.002;
 /** One `+`/`-` press. A ratio rather than an increment, for the same reason. */
 const KEY_ZOOM_STEP = 1.2;
+
+/**
+ * The modifier keys, as every DOM event that carries them spells them — a `PointerEvent`, a
+ * `WheelEvent` and a `KeyboardEvent` alike, which is what lets a camera change re-issue a
+ * pointer move with the modifier state that was actually held at the time.
+ */
+interface ModifierSource {
+	readonly shiftKey: boolean;
+	readonly ctrlKey: boolean;
+	readonly metaKey: boolean;
+	readonly altKey: boolean;
+}
+
+function pointerEventAt(
+	source: ModifierSource,
+	at: ScreenPoint,
+	button: EditorPointerEvent['button'],
+): EditorPointerEvent {
+	return {
+		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
+		screenPoint: at,
+		button,
+		modifiers: { shift: source.shiftKey, ctrl: source.ctrlKey || source.metaKey, alt: source.altKey },
+		targetId: null,
+	};
+}
+
+function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
+	// `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed
+	// state" — so it is NOT a reading of what is currently held down. Only 1 and 2 are
+	// mapped away from `primary`, which keeps a move during a primary drag reading as
+	// the primary gesture it is; `buttons` is the bitmask a tool would need for the
+	// held-down question, and nothing asks it yet.
+	const button = event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
+	return pointerEventAt(event, at, button);
+}
+
+/**
+ * Tells the active tool where the pointer is now, after the CAMERA has moved under it.
+ *
+ * A tool's preview is a function of the last pointer event it saw, and it keeps that event's
+ * WORLD point — so a camera change silently invalidates it: the pointer has not moved, but
+ * the world position it is over has. The keyboard's `+`/`-` are the clearest case, anchoring
+ * at the stage centre, and there the drifted point is not marginal: measured, a close target
+ * five pixels from the pointer went on promising a close with the vertex forty-three pixels
+ * away. A wheel zoom anchors at the pointer, so the world point under it is invariant and
+ * this call is a no-op there — issued anyway, because "any camera change re-issues the move"
+ * is a rule that holds for camera paths not yet written, while "the ones that need it" is a
+ * list that goes stale.
+ *
+ * A synthetic event, but not a fictional one: every field is a true statement about where the
+ * pointer is and what it is over, which is exactly what the next real `pointermove` would
+ * say. Reported by a review bot on the pull request that drew the close target.
+ */
+function reissuePointerMove(source: ModifierSource): void {
+	const at = lastStagePoint.value;
+	if (at === null || runtime.activeToolId.value === null) return;
+	runtime.toolManager.pointerMove(pointerEventAt(source, at, 'primary'));
+}
 
 /**
  * A pointer position as a `ScreenPoint` in the STAGE's own coordinate space.
@@ -78,6 +145,7 @@ function onWheel(event: WheelEvent): void {
 	// listener being non-passive at all.
 	event.preventDefault();
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
+	reissuePointerMove(event);
 }
 
 /**
@@ -87,20 +155,6 @@ function onWheel(event: WheelEvent): void {
  * `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
  * pixel math (ADR-009).
  */
-function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
-	return {
-		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
-		screenPoint: at,
-		// `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed
-		// state" — so it is NOT a reading of what is currently held down. Only 1 and 2 are
-		// mapped away from `primary`, which keeps a move during a primary drag reading as
-		// the primary gesture it is; `buttons` is the bitmask a tool would need for the
-		// held-down question, and nothing asks it yet.
-		button: event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary',
-		modifiers: { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey },
-		targetId: null,
-	};
-}
 
 // Primary button only, in BOTH directions and in both modes: the middle button is
 // paste-on-Linux and the right one is the context menu, and claiming either would take a
@@ -137,6 +191,7 @@ function onPointerDown(event: PointerEvent): void {
 
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
+	lastStagePoint.value = at;
 	editor.setPointer(at);
 	if (runtime.activeToolId.value !== null) {
 		runtime.toolManager.pointerMove(editorPointerEvent(event, at));
@@ -165,11 +220,16 @@ function onPointerUp(event: PointerEvent): void {
 function onPointerCancel(): void {
 	runtime.toolManager.cancelGesture();
 	editor.endPan();
+	lastStagePoint.value = null;
 	editor.setPointer(null);
 }
 
 function onPointerLeave(): void {
 	editor.endPan();
+	// Both halves go together: a camera change with the pointer outside the pane has no
+	// pointer to re-issue a move for, and a remembered position would be a claim about where
+	// a pointer that is somewhere else entirely is.
+	lastStagePoint.value = null;
 	editor.setPointer(null);
 }
 
@@ -189,6 +249,7 @@ function onKeyDown(event: KeyboardEvent): void {
 	if (factor === null) return;
 	event.preventDefault();
 	editor.zoomByFactor(screenPoint(size.value.width / 2, size.value.height / 2), factor);
+	reissuePointerMove(event);
 }
 
 /**

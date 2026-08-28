@@ -112,6 +112,36 @@ describe('the interaction layer while a zone is being drawn', () => {
 		expect(first.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
 	});
 
+	/**
+	 * The keyboard's own zoom, which is the case the wheel one above does NOT cover: `+`/`-`
+	 * anchor at the stage CENTRE rather than at the pointer, so the world point the pointer
+	 * hovers genuinely changes. A cursor remembered in WORLD units then describes a place the
+	 * pointer is no longer over, and reprojecting it follows the scene instead of the hand.
+	 */
+	it('stops promising a close when a KEYBOARD zoom moves the world under a still pointer', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		click(canvas, 600, 200);
+		pointer(canvas, 'pointermove', 505, 100);
+		await settle();
+		expect((interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle).radius())
+			.toBe(POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX);
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }));
+		await settle();
+
+		// The pointer never moved, so it is still over screen (505, 100) — and the first
+		// vertex is no longer there.
+		const first = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		expect(first.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
+	});
+
 	it('does not promise a close before there are enough vertices for one', async () => {
 		const { harness } = await rig();
 		toolbarButton(harness, 'Draw zone').click();
@@ -145,6 +175,34 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		// nothing about which direction was about to be measured.
 		expect(interactionLayer(harness.stage).find('Line')).toHaveLength(3);
 		expect(interactionLayer(harness.stage).find('Circle')).toHaveLength(0);
+	});
+
+	/**
+	 * The same staleness class as the close target's, and the reason the fix belongs to the
+	 * CANVAS rather than to either tool: the measured segment's loose end is a world point
+	 * too, so a centre-anchored zoom would leave it describing somewhere the pointer is not.
+	 * One re-issued move keeps both tools honest.
+	 */
+	it('keeps the loose end under the pointer when the camera zooms beneath it', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Calibrate').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 300, 300);
+		pointer(canvas, 'pointermove', 500, 300);
+		await settle();
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }));
+		await settle();
+
+		// The spine is drawn in stage pixels, so its far end is directly comparable with the
+		// pointer that has not moved.
+		const spine = interactionLayer(harness.stage).find('Line').at(0) as Konva.Line;
+		const points = spine.points();
+		expect(points.at(-2)).toBeCloseTo(500);
+		expect(points.at(-1)).toBeCloseTo(300);
 	});
 
 	it('rules the segment with ticks as it is dragged out', async () => {

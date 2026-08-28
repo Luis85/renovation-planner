@@ -454,6 +454,22 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   them. Caught by a review bot on the pull request, not by any gate here — and the fix is
   that the stale state became UNREPRESENTABLE rather than merely refreshed on one more event.
 
+  **That fix was half of one, and the same bot said so on the next round.** Deriving the mark
+  from the current camera is right, but the CURSOR it derives from is a world point captured
+  at the last `pointermove` — and a camera change moves which world point the pointer is over.
+  A wheel zoom anchors at the pointer, so that point is invariant and the derivation held; the
+  keyboard's `+`/`-` anchor at the stage CENTRE, and there it drifts. Measured, not argued: a
+  target five pixels from the pointer went on promising a close with the vertex forty-three
+  pixels away. So `PlanCanvas.reissuePointerMove` tells the active tool where the pointer is
+  after ANY camera change — a synthetic event whose every field is a true statement, and the
+  one the next real move would carry anyway. It is issued on the wheel path too, where it is a
+  no-op, because "any camera change re-issues the move" holds for camera paths not yet
+  written while "the ones that need it" is a list that goes stale. It fixes the calibration
+  rubber band's identical drift in the same stroke, which is what makes the canvas the right
+  home for it rather than either tool. **The general shape, and this repository has now paid
+  for it twice in one change: a value derived from two inputs goes stale when EITHER moves,
+  and fixing the input you were thinking about leaves a defect that looks fixed.**
+
 **Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
 Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the
 Inspector grew a Requirements panel (`RequirementRow.vue` per row) whose assign control and

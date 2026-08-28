@@ -10,6 +10,19 @@
 
 **Spec:** [`docs/superpowers/specs/2026-08-28-slice-13-notifications-and-save-state-design.md`](../specs/2026-08-28-slice-13-notifications-and-save-state-design.md)
 
+> **STOP — read these two before Task 1, and read the spec's "Unresolved" section with them.**
+> `docs/components/Save-state indicator.md` and `docs/components/Toast.md` are component
+> contracts naming this slice in their own frontmatter, and the design was written without
+> opening either. Three conflicts are **open**, not fixed: no retry emit on Save Error, no
+> mark beside the word on either surface, and no moving indicator for Saving. They change
+> markup, stylesheet and accessibility assertions across Tasks 2, 6, 8 and 13. **Do not
+> execute those tasks as written until the repository owner has settled them.** The rest of
+> the plan is unaffected.
+>
+> There is a whole `docs/components/` directory of these. Check it for any component a task
+> touches before writing the task's code — that directory was missed entirely when this plan
+> was written, which is the reason for this banner.
+
 **Slice document:** [`docs/tasks/13-notifications-and-save-state-surfaces.md`](../../tasks/13-notifications-and-save-state-surfaces.md)
 
 ## Global Constraints
@@ -2929,5 +2942,20 @@ the disposer in the list rather than counting the list. The save-state wiring ca
 about what `wrapDispatcher` received — both of the two mistakes its own docblock claimed to
 prevent. It asserts the ARGUMENT BINDINGS now, with a revert step per mistake, and states the
 limit it still has: a source-shape check holds bindings, not runtime values.
+
+**An eleventh pass found the source material this plan never read.** `docs/components/` holds
+a contract per component and TWO of them name this slice — `Save-state indicator.md` and
+`Toast.md`. Both require *a mark* beside the word, which is precisely the thing this plan
+argued its way out of twice on `setIcon` grounds; the save-state contract also requires a
+retry EMIT in the Save Error case, which neither the component nor the store can supply as
+designed. Recorded in the spec's "Unresolved" section and banner-flagged above rather than
+patched, because two of the three change what the components are. It also found
+`set-plan-background` writing to the open plan outside the tracked dispatcher — real, and it
+crosses this slice's boundary the same way `affectsSaveState` does.
+
+**This corrects something stated three times in this review**: that the document had exhausted
+what review could find and only execution remained. That was true of the defect classes being
+found at the time and false in general — there was unread source material that changes the
+design, and no amount of running the tests would have surfaced it.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

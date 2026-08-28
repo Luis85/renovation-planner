@@ -359,7 +359,58 @@ The slice document's twelve items, with four amended by this design:
 Item 12 is unchanged and is the gate: `npm run check` passes with this slice's code
 included.
 
+## Unresolved: two component contracts this design did not read
+
+**`docs/components/` holds a contract per component, two of them naming this slice in their
+own frontmatter, and this design was written without opening either.** That is a research
+failure, not a disagreement — found by review on 2026-08-28, after the design and plan were
+written and eleven rounds in. The conflicts are recorded here rather than silently patched,
+because two of the three change what the components ARE.
+
+**[[Save-state indicator]]** (`slice: [[13-notifications-and-save-state-surfaces]]`):
+
+1. *"**Emits**, in the Save Error case only, a retry request."* — the component here has no
+   props and no emits, and `SaveStateStore` retains no operation to retry. Supplying one is
+   real design: the tracker sees a dispatch outcome, not a re-runnable command.
+2. *"A mark and a word. Both, always, never one."* — this design renders **text only**, on the
+   reasoning that a word satisfies SDD §85's "status not colour-only". The contract asks for
+   more than that rule does, and its Anatomy section is explicit that both channels are owed.
+3. *Saving* owes "Design System's *Loading*: a moving indicator **and** text"; *Save Error*
+   owes "an icon **and** a message". Neither is present.
+
+**[[Toast]]** (same slice):
+
+4. *"each variant owes a mark as well as a colour"* — this design carries a translated severity
+   LABEL, and the sibling contract above distinguishes a mark from a word explicitly, so a
+   label does not discharge it.
+5. *"Optionally one action — undo, retry, reveal"* — no action slot exists here. Optional, so
+   not a conflict, but the vocabulary is this slice's to define and a later slice adding one
+   would be widening a shipped contract.
+6. *"It has **no focus state** and takes no focus."* — the dismiss control added for SDD §85
+   keyboard operability now carries a `:focus-visible` ring. The contract's own reasoning is
+   about not STEALING focus, which this design does not do, so the two may be reconcilable —
+   but the sentence says "no focus state", and that is a question for whoever owns the
+   Design System rather than one to settle in a plan.
+
+**The mark question (2, 3 and 4) is one decision, not three.** This design refused an icon
+because the plugin has never called `setIcon` and the harness has no icon renderer — reasoning
+that stands on its own and is still wrong against these contracts, which ask for a mark
+regardless of how it is drawn. A CSS-drawn glyph would satisfy them without introducing
+`setIcon`, and is the likely answer; it is not recorded as decided because it changes the
+markup, the stylesheet and the accessibility assertions in three tasks.
+
+**Also unresolved, and the same shape as `affectsSaveState`:** `set-plan-background` writes to
+the open plan through `planEditorCommands.ts`, calling `command.execute()` directly rather than
+through the editor's dispatcher — so the indicator reads `Saved` throughout that write and
+after a failed one. It is a plugin command with no access to a per-leaf Pinia store, which
+CLAUDE.md records as deliberate, so routing it through the tracked dispatcher crosses this
+slice's boundary.
+
 ## References
+
+- `docs/components/Save-state indicator.md` — the component contract for the save-state half,
+  and the source of the three conflicts above.
+- `docs/components/Toast.md` — the component contract for the notice half.
 
 - PRD §67 Autosave — the four state labels, and the two triggers that reduce to one.
 - SDD §60 UI Layout — the status bar row this slice fills the third region of.

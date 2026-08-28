@@ -1000,6 +1000,18 @@ export function useFieldCommit<T, TInput>(options: {
 	readonly errorMap: FieldErrorMap<TInput>;
 	readonly field: keyof TInput;
 	readonly toUserMessage: (error: AppError) => string;
+	/**
+	 * A draft this field cannot even turn into a command — text where a number belongs, a
+	 * malformed monetary literal. Returns a resolved message, or `null` when the draft is
+	 * convertible.
+	 *
+	 * It lives HERE rather than at each call site on purpose. A guard at a call site is a
+	 * second copy of a rule, and two copies disagree: with the check outside, every caller
+	 * has to remember it, a caller that forgets dispatches an unconvertible draft, and
+	 * nothing anywhere errors. Inside, every caller calls `onCommit` unconditionally and
+	 * cannot get it wrong.
+	 */
+	readonly validate?: (draft: T) => string | null;
 }): UseFieldCommit<T> {
 	/**
 	 * `null` means "clean": the field shows the canonical value and holds no draft of its
@@ -1024,6 +1036,13 @@ export function useFieldCommit<T, TInput>(options: {
 	}
 
 	async function onCommit(): Promise<void> {
+		// Before anything is dispatched: an unconvertible draft is this field's own refusal,
+		// with no command to produce it and no `AppError` for `routeError` to place.
+		const invalid = options.validate?.(draft.value) ?? null;
+		if (invalid !== null) {
+			error.value = invalid;
+			return;
+		}
 		pending.value = true;
 		try {
 			const result = await options.history.run(options.buildCommand(draft.value));
@@ -2151,6 +2170,24 @@ describe('RequirementRow', () => {
 		expect(wrapper.get('.rp-field-error__message').text()).not.toBe('');
 	});
 
+	it('runs the unconvertible-draft guard inside onCommit, not at the call site', async () => {
+		// The rule lives in `useFieldCommit.validate`. If it moved back out to each control,
+		// this passes only for whichever control the author remembered — which is how three
+		// findings of one shape arrived on the sibling slice.
+		const commit = vi.fn(async () => ok(undefined));
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+
+		for (const field of ['quantity', 'cost']) {
+			const input = wrapper.get(`input[data-field="${field}"]`);
+			await input.setValue('abc');
+			await input.trigger('blur');
+		}
+		await flushPromises();
+
+		expect(commit).not.toHaveBeenCalled();
+		expect(wrapper.findAll('.rp-field-error__message')).toHaveLength(2);
+	});
+
 	it('still offers an explicit reset to calculated', async () => {
 		// `Escape` inside the editor is spoken for by tool-gesture cancellation, so the way
 		// back to "calculated" stays a visible control rather than a key.
@@ -2194,11 +2231,11 @@ const props = defineProps<{
 
 /**
  * The parse failure is the ROW's, not the command's: `Number('abc')` never reaches a
- * dispatch, so there is no `AppError` for `routeError` to place. It is held beside the
- * composable's own error and cleared by the same keystroke, so the user cannot tell the two
- * apart — which is correct, since to them both are "this field is wrong".
+ * dispatch, so there is no `AppError` for `routeError` to place. It is handed to the
+ * composable as `validate` rather than guarded here, so it clears on the same keystroke as a
+ * refusal does and the user cannot tell the two apart — which is right, since to them both
+ * are "this field is wrong".
  */
-const parseError = ref<string | null>(null);
 
 const quantity = useFieldCommit<number | null, { quantity: number | null }>({
 	canonicalValue: () => props.row.quantity.override,
@@ -2214,29 +2251,21 @@ const quantity = useFieldCommit<number | null, { quantity: number | null }>({
 	errorMap: QUANTITY_ERRORS,
 	field: 'quantity',
 	toUserMessage: trError,
+	validate: (value) =>
+		value === null || Number.isFinite(value) ? null : tr('error.requirement.quantity.unparseable'),
 });
 
-const quantityMessage = computed(() => parseError.value ?? quantity.error.value);
-
 function onQuantityInput(raw: string): void {
-	parseError.value = null;
-	// A keystroke never dispatches (slice 6). `onInput` also clears the composable's error,
-	// for the same reason `setField` does: a message about a value the user has since
-	// corrected is telling them something untrue.
+	// A keystroke never dispatches (slice 6). `onInput` clears the error too, for the same
+	// reason `setField` does: a message about a value the user has since corrected is telling
+	// them something untrue.
 	quantity.onInput(raw.trim() === '' ? null : Number(raw));
 }
-
-async function commitQuantity(): Promise<void> {
-	const value = quantity.draft.value;
-	if (value !== null && !Number.isFinite(value)) {
-		// Previously this emitted `null`, which IS "reset to calculated" — a silent discard
-		// of the user's override, with nothing said.
-		parseError.value = tr('error.requirement.quantity.unparseable');
-		return;
-	}
-	await quantity.onCommit();
-}
 ```
+
+There is no `commitQuantity` and no local parse state: blur calls `quantity.onCommit()`
+directly, and the guard runs inside it. The old shape emitted `null` for an unparseable
+draft, which IS "reset to calculated" — a silent discard of the user's override.
 
 `history: { run: (command) => command.execute() }` is deliberate and needs its own comment in the code: the reversible wrapping and the history entry are `commitEdit`'s job, one seam up — this row supplies the shape `useFieldCommit` takes without adding a second history. Write that down, because a reader meeting a `run` that only calls `execute` will otherwise read it as a stub.
 
@@ -2253,14 +2282,14 @@ async function resetQuantity(): Promise<void> {
 }
 ```
 
-**The cost field's draft is a raw STRING, and this is not symmetry with quantity — it is the opposite of it.** `Number('abc')` yields `NaN`, a value to inspect; `moneyOf('abc', …)` **throws** (`Money.ts`: a non-matching literal is refused at the door). So repeating the quantity shape would throw out of the input handler before `parseError` could ever be set, taking the click handler's promise with it. Keep the text as the draft and construct only after the guard has passed:
+**The cost field's draft is a raw STRING, and this is not symmetry with quantity — it is the opposite of it.** `Number('abc')` yields `NaN`, a value to inspect; `moneyOf('abc', …)` **throws** (`Money.ts`: a non-matching literal is refused at the door). So repeating the quantity shape would throw out of the input handler before any error could be set, taking the click handler's promise with it. Keep the text as the draft and construct only inside `buildCommand`, which `onCommit` reaches only once `validate` has passed:
 
 ```typescript
 const cost = useFieldCommit<string, { cost: Money | null }>({
 	// The canonical value RENDERED, not parsed: a draft is text until it is committed.
 	canonicalValue: () => props.row.cost.override?.amount ?? '',
 	buildCommand: (raw) => ({
-		// Reached only past the guard in commitCost, so `moneyOf` cannot throw here.
+		// Reached only once `validate` below has passed, so `moneyOf` cannot throw here.
 		execute: () => props.commit({
 			kind: 'cost-override',
 			requirementId: props.row.requirementId,
@@ -2274,15 +2303,13 @@ const cost = useFieldCommit<string, { cost: Money | null }>({
 	toUserMessage: trError,
 });
 
-async function commitCost(): Promise<void> {
-	const raw = cost.draft.value.trim();
-	if (raw !== '' && !canBeMoney(raw)) {
-		parseCostError.value = tr('error.requirement.cost.unparseable');
-		return;
-	}
-	await cost.onCommit();
-}
+	validate: (raw) =>
+		raw.trim() === '' || canBeMoney(raw.trim()) ? null : tr('error.requirement.cost.unparseable'),
+});
 ```
+
+Blur calls `cost.onCommit()` directly, exactly as quantity does — one rule, inside the
+composable, and neither caller can forget it.
 
 `canBeMoney` is a total predicate — a `try`/`catch` around `moneyOf`, or `Money`'s own literal pattern if it exports one. **Check which exists before writing it**; do not add a second, hand-written regex for what a monetary literal is, because that is a rule with two definitions the moment `Money` changes.
 

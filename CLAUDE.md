@@ -417,6 +417,18 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+- **A camera that moves mid-drag corrupts what the drag commits, and every camera door had to
+  take the same rule.** `SelectTool` records where a drag started in WORLD coordinates and
+  computes the commit from the release's world coordinate, both through the camera as it
+  stands at that moment — so a zoom or pan in between silently adds its own delta to the
+  geometry, and the zone lands somewhere the user never dragged it with no error anywhere. The
+  wheel ZOOM has been able to do this since slice 5, and the middle-button path already
+  refused to start a pan in that state, so the file was applying half of a rule it had already
+  discovered. `cameraIsLocked()` is that rule at every door — wheel, keyboard zoom, both fit
+  shortcuts — with Escape deliberately above it, since abandoning a gesture is exactly what a
+  user wants while one is running. The capability given up is "zoom while dragging", which
+  does not work today in any sense worth keeping; making a live drag COMPENSATE for a camera
+  change belongs to the tool framework and is the follow-up.
 - **"Is another gesture running" is a question about EVERY gesture, and camera mode is not a
   tool.** The override's refusal asked only `toolManager.gestureInFlight`, so a middle press
   during a bare left-drag pan claimed the camera — and its release then ended a drag the

@@ -154,6 +154,32 @@ function wheelPixels(amount: number, deltaMode: number): number {
 	return amount;
 }
 
+/**
+ * Whether the camera must hold still, because something is mid-gesture that moving it would
+ * corrupt.
+ *
+ * `SelectTool` records where a drag STARTED in world coordinates and computes what to commit
+ * from the release's world coordinate — both converted through the camera as it stands at
+ * that moment. So a camera that moves between the two silently adds its own delta to the
+ * geometry being committed: the zone lands somewhere the user never dragged it, with no error
+ * anywhere. A running pan is locked for the plainer reason that the camera is already its.
+ *
+ * **One rule for every camera door, including the ones this change did not add.** The wheel
+ * ZOOM has been able to do this since slice 5, and the middle-button path already refused to
+ * start a pan in this state — so the file was applying half of a rule it had already
+ * discovered, which is the same shape as `isPrimary` being stated for three handlers and
+ * missing from the fourth. Fixing only the doors a review happens to name is how a defect
+ * class comes back wearing a different hat.
+ *
+ * The capability given up is "zoom while dragging", which a CAD editor might reasonably want.
+ * It does not work today in any sense worth keeping, and making a live drag COMPENSATE for a
+ * camera change is a change to the tool framework rather than to this file — that is the
+ * follow-up, and refusing the move is the honest interim.
+ */
+function cameraIsLocked(): boolean {
+	return runtime.toolManager.gestureInFlight || panOverride.phase === 'panning';
+}
+
 function onWheel(event: WheelEvent): void {
 	// The pane scrolls otherwise, and a plan editor that scrolls its own leaf away on the
 	// first zoom is the defect this one line prevents.
@@ -166,6 +192,8 @@ function onWheel(event: WheelEvent): void {
 	// `{ passive: false }` explicitly does not silence it either; Chrome reports the
 	// listener being non-passive at all.
 	event.preventDefault();
+	// A camera that moves mid-drag corrupts what the drag commits — see `cameraIsLocked`.
+	if (cameraIsLocked()) return;
 	// A HORIZONTAL wheel gesture pans, and there are two of them. Shift+wheel is the one
 	// Obsidian's own Canvas documents, and on Windows and Linux Chrome performs the swap
 	// itself so it arrives as `deltaX`. A trackpad's two-finger sideways swipe is the other,
@@ -180,8 +208,8 @@ function onWheel(event: WheelEvent): void {
 	// hand tremor into a mode switch.
 	if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
 		// The sign is inverted because a scroll "right" moves the VIEW right, which is the
-		// content moving left. `deltaX` first, falling back to `deltaY` for the shift case
-		// where the browser did not do the swap for us.
+		// content moving left.
+		//
 		// The DOMINANT axis, not merely a nonzero horizontal one. Shift held over a mostly
 		// vertical trackpad swipe carries a tiny incidental `deltaX`, and preferring it panned
 		// one pixel for a gesture made at full travel — which reads as the shortcut being
@@ -473,6 +501,9 @@ function onKeyDown(event: KeyboardEvent): void {
 		runtime.toolManager.cancelGesture();
 		return;
 	}
+	// Escape stays ABOVE this: abandoning a gesture is exactly what a user wants to be able to
+	// do while one is running, and it moves no camera.
+	if (cameraIsLocked()) return;
 	if (event.key === ' ') {
 		// `repeat` is filtered because a held key autorepeats at the OS rate and every one of
 		// those is a keydown. `PanOverride.armSpace` is idempotent, so that filter is belt and

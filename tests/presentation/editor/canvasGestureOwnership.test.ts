@@ -363,3 +363,79 @@ describe('the middle button pressed during a camera-mode drag', () => {
 		harness.unmount();
 	});
 });
+
+describe('the camera during a tool drag', () => {
+	/**
+	 * `SelectTool` records where a drag STARTED in world coordinates and computes the commit
+	 * from the release's world coordinate — both converted through the camera as it stands at
+	 * that moment. So a camera that moves mid-drag silently adds its own delta to the geometry
+	 * the user is committing, and nothing anywhere reports it.
+	 *
+	 * The middle-button path already refuses to pan in this state. These cases extend that
+	 * same refusal to every other camera door, which is the rule the file was already half
+	 * applying.
+	 */
+	async function draggingZone() {
+		const built = await editor();
+		toolbarButton(built.harness, 'Select').click();
+		await settle();
+		const before = expectOk(await built.zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		pointer(built.canvas, 'pointerdown', 300, 300);
+		pointer(built.canvas, 'pointermove', 350, 300);
+		return { ...built, before };
+	}
+
+	it('does not let shift+wheel move it', async () => {
+		const { harness, canvas, camera } = await draggingZone();
+		const pan = camera.viewport.pan;
+
+		canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, shiftKey: true, bubbles: true, cancelable: true }));
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(pan);
+		harness.unmount();
+	});
+
+	it('does not let the wheel zoom it either', async () => {
+		// Not named by the finding, and older than this change: slice 5's wheel zoom has always
+		// been able to do this. Half-fixing a class is how the same defect comes back wearing a
+		// different hat, which this review has already demonstrated twice.
+		const { harness, canvas, camera } = await draggingZone();
+		const zoom = camera.viewport.zoom;
+
+		canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true }));
+		await settle();
+
+		expect(camera.viewport.zoom).toBe(zoom);
+		harness.unmount();
+	});
+
+	it('does not let a fit shortcut jump it', async () => {
+		const { harness, canvas, camera } = await draggingZone();
+		const viewport = camera.viewport;
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', {
+			key: '!', code: 'Digit1', shiftKey: true, bubbles: true, cancelable: true,
+		}));
+		await settle();
+
+		expect(camera.viewport).toEqual(viewport);
+		harness.unmount();
+	});
+
+	it('commits the pointer’s own delta, not the pointer’s plus the camera’s', async () => {
+		// The consequence, asserted on the persisted geometry rather than on the camera: at the
+		// default zoom of 0.1 a 100px drag is 1000 world millimetres, and a camera that moved
+		// under it would commit some other number entirely.
+		const { harness, canvas, zonesRepo, before } = await draggingZone();
+
+		canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, shiftKey: true, bubbles: true, cancelable: true }));
+		pointer(canvas, 'pointermove', 400, 300);
+		pointer(canvas, 'pointerup', 400, 300);
+		await settle();
+
+		const after = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		expect(after).toBeCloseTo(before + 1000, 6);
+		harness.unmount();
+	});
+});

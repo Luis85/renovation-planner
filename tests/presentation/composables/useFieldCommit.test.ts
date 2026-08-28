@@ -275,4 +275,42 @@ describe('useFieldCommit', () => {
 		expect(run).not.toHaveBeenCalled();
 		expect(field.pending.value).toBe(false);
 	});
+
+	it('retires a queued recommit on cancel, so a settling write cannot resurrect it', async () => {
+		// A blur queues a second commit while the first is still in flight, then the user
+		// presses Escape before it settles. `recommit` is a request about a VALUE the user has
+		// since abandoned, not a standing intent — so cancelling it must stop the settling
+		// write's chain from dispatching a draft the user explicitly threw away.
+		let settle: (result: Result<void, AppError>) => void = noop;
+		const run = vi.fn<Run>(
+			() => new Promise<Result<void, AppError>>((resolve) => { settle = resolve; }),
+		);
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: (value) => ({
+				execute: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok(undefined)),
+				value,
+			}),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn<Notify>(),
+		});
+
+		field.onInput(-5);
+		const inFlight = field.onCommit();
+		field.onInput(-7);
+		void field.onCommit();
+		field.onCancel();
+		settle(ok(undefined));
+		await inFlight;
+
+		// Only the original dispatch ever happened: the queued recommit for -7 must not fire
+		// once cancel has retired it.
+		expect(run).toHaveBeenCalledTimes(1);
+		expect(field.draft.value).toBe(10);
+		expect(field.pending.value).toBe(false);
+	});
 });

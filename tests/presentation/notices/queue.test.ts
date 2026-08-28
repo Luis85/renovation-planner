@@ -121,4 +121,112 @@ describe('the notice queue', () => {
 		queue.dispose();
 		expect(live()).toHaveLength(0);
 	});
+
+	it('dismisses a success at its own deadline and not before', () => {
+		const { host, live } = recordingHost();
+		createNoticeQueue(host).push('success', 'saved');
+		vi.advanceTimersByTime(3999);
+		expect(live()).toHaveLength(1);
+		vi.advanceTimersByTime(1);
+		expect(live()).toHaveLength(0);
+	});
+
+	it('gives an info longer than a success, since informational text runs longer', () => {
+		const { host, live } = recordingHost();
+		createNoticeQueue(host).push('info', 'indexing');
+		vi.advanceTimersByTime(4000);
+		expect(live()).toHaveLength(1);
+		vi.advanceTimersByTime(2000);
+		expect(live()).toHaveLength(0);
+	});
+
+	it('never times a warning or an error out', () => {
+		const { host, live } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.push('warning', 'check this');
+		queue.push('error', 'failed');
+		vi.advanceTimersByTime(60_000);
+		expect(live()).toHaveLength(2);
+	});
+
+	it('holds a notice open while it is hovered or its dismiss control is focused', () => {
+		const { host, opened, live } = recordingHost();
+		createNoticeQueue(host).push('success', 'saved');
+		vi.advanceTimersByTime(3000);
+		opened[0]?.callbacks.pause();
+		vi.advanceTimersByTime(60_000);
+		expect(live()).toHaveLength(1);
+	});
+
+	it('restarts a full duration on leaving, not the remainder', () => {
+		const { host, opened, live } = recordingHost();
+		createNoticeQueue(host).push('success', 'saved');
+		vi.advanceTimersByTime(3000);
+		opened[0]?.callbacks.pause();
+		opened[0]?.callbacks.resume();
+		vi.advanceTimersByTime(3999);
+		expect(live()).toHaveLength(1);
+		vi.advanceTimersByTime(1);
+		expect(live()).toHaveLength(0);
+	});
+
+	it('restarts the timer on a repeat, so a recurring message does not expire mid-burst', () => {
+		const { host, live } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.push('success', 'saved');
+		vi.advanceTimersByTime(3000);
+		queue.push('success', 'saved');
+		vi.advanceTimersByTime(3000);
+		expect(live()).toHaveLength(1);
+		vi.advanceTimersByTime(1000);
+		expect(live()).toHaveLength(0);
+	});
+
+	it('does not restart the clock on a duplicate arriving while the user is interacting', () => {
+		const { host, opened, live } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.push('success', 'saved');
+
+		opened[0]?.callbacks.pause();
+		queue.push('success', 'saved');
+
+		// The repeat must not have armed a new timer under a hovering user.
+		vi.advanceTimersByTime(60_000);
+		expect(live()).toHaveLength(1);
+		expect(opened[0]?.view.count).toBe(2);
+
+		opened[0]?.callbacks.resume();
+		vi.advanceTimersByTime(4000);
+		expect(live()).toHaveLength(0);
+	});
+
+	it('does not time out a held duplicate that has never been shown', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		// Three persistent notices fill every slot, so the success below is held, not shown.
+		for (const message of ['a', 'b', 'c']) queue.push('error', message);
+		queue.push('success', 'held');
+		queue.push('success', 'held');
+		expect(opened).toHaveLength(3);
+
+		// Well past the success deadline: a held entry has no timer, so it is still queued.
+		vi.advanceTimersByTime(60_000);
+		// Both halves again — the element goes, THEN the hint arrives. A hint alone leaves
+		// `handle.live` true, so `sweep` frees nothing. (The sibling case above had this right
+		// and this one did not, which is what a fix applied to one instance of a pattern looks
+		// like.)
+		opened[0]?.handle.hide();
+		opened[0]?.callbacks.dismissed();
+		expect(opened.at(-1)?.view.message).toBe('held');
+		expect(opened.at(-1)?.view.count).toBe(2);
+	});
+
+	it('promotes a held notice when a visible one times out', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c', 'd']) queue.push('success', message);
+		expect(opened).toHaveLength(3);
+		vi.advanceTimersByTime(4000);
+		expect(opened[3]?.view.message).toBe('d');
+	});
 });

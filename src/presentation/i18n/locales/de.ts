@@ -170,4 +170,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
 	// den Kommentar am gleichen Schlüssel in `en.ts`.
 	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
+	'save-state.saved': 'Gespeichert',
+	'save-state.saving': 'Wird gespeichert',
+	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',
+	'save-state.save-error': 'Fehler beim Speichern',
 };

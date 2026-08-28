@@ -160,6 +160,10 @@ export const en = {
 	// diagnostics report" was an instruction the user cannot follow. Slice 14's Amendment 1
 	// refuses a button that does nothing; a sentence that does nothing is the same defect.
 	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
+	'save-state.saved': 'Saved',
+	'save-state.saving': 'Saving',
+	'save-state.unsaved-changes': 'Unsaved changes',
+	'save-state.save-error': 'Save error',
 } as const;
 
 export type StringKey = keyof typeof en;

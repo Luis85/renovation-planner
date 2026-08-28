@@ -9,6 +9,11 @@
  * active tool, and that a tool interrupted by one keeps everything it was holding. The
  * machine can be correct in isolation and the canvas can still hand the same press to both.
  *
+ * **Which gestures exist**, is the scope here. WHOSE a running gesture is — one owner, one at
+ * a time, and every other input refused while it runs — is `canvasGestureOwnership.test.ts`,
+ * split out when this file crossed the suite's 450-line cap. Its header carries the three
+ * shapes that concern keeps taking.
+ *
  * What jsdom cannot see here, and what therefore has a manual case instead
  * (`docs/tests/cases/Canvas Navigation.md`): the cursor actually changing, since jsdom
  * resolves no styles; and Obsidian's own keymap getting the space bar or `Shift+1` before
@@ -396,86 +401,6 @@ describe('keys the canvas deliberately does not act on', () => {
 	});
 });
 
-describe('a pan the pointer walks out of', () => {
-	it('hands the active tool its input back, instead of swallowing every later release', async () => {
-		// `pointerleave` ended the camera's own drag and left the override still believing it
-		// owned the gesture — two values modelling one thing, disagreeing. The camera itself
-		// then looked fine, because `continuePan` no-ops without a drag state; what broke was
-		// the ROUTING. Every later `pointerup` was consumed as the end of that phantom pan, so
-		// `SelectTool` got presses it never got releases for and no drag ever committed again.
-		//
-		// Pointer capture means a real browser should not deliver this mid-drag at all. That
-		// is a reason for the two to agree anyway, not a reason to leave the gap.
-		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
-
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300);
-		canvas.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
-		key(canvas, 'keyup', { key: ' ' });
-		await settle();
-
-		// An ordinary select-and-drag, as the very NEXT interaction. It has to be the next one:
-		// the phantom pan swallows exactly one release and is cleared by doing so, so any
-		// click in between absorbs the damage and this case would pass against the defect.
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 400, 300);
-		pointer(canvas, 'pointerup', 400, 300);
-		await settle();
-
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x).not.toBe(before);
-		harness.unmount();
-	});
-
-	it('goes back to ARMED, so the held space bar is not thrown away with it', async () => {
-		// `pointerUp` rather than `cancel`: the user never released the key, and disarming
-		// would make them press it again for a gesture they are still in the middle of asking
-		// for.
-		const { harness, canvas } = await editor();
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300);
-		canvas.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
-		await settle();
-
-		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-armed']);
-		harness.unmount();
-	});
-});
-
-describe('a second mouse button pressed during a pan', () => {
-	it('does not end the pan when it is the one released first', async () => {
-		// A mouse shares one `pointerId` across its buttons, so this is an ordinary input: the
-		// user is space-dragging and reflexively clicks the middle button. An unconditional
-		// release would stop the camera while the primary button is still down — the view
-		// freezes under a hand that is still moving.
-		//
-		// The frozen camera is the whole of the observable damage, MEASURED rather than
-		// assumed: the second-order consequence — the eventual primary release reaching
-		// `SelectTool` as a release with no matching press — is absorbed by that tool's own
-		// no-gesture guard, so a case asserting the zone did not move passes with the defect
-		// present and was dropped rather than kept. That guard is where the invariant belongs
-		// (it holds for tools not yet written); this case is what holds the routing.
-		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 340, 300);
-		pointer(canvas, 'pointerdown', 340, 300, 1);
-		pointer(canvas, 'pointerup', 340, 300, 1);
-		await settle();
-		const interrupted = camera.viewport.pan.x;
-
-		pointer(canvas, 'pointermove', 420, 300);
-		await settle();
-
-		expect(camera.viewport.pan.x).not.toBe(interrupted);
-		harness.unmount();
-	});
-});
 describe('the fit shortcuts on a non-US keyboard', () => {
 	/**
 	 * `event.key` is what the layout PRODUCES; `event.code` is which physical key was struck.
@@ -623,50 +548,6 @@ describe('a trackpad’s own horizontal swipe', () => {
 
 		expect(camera.viewport.zoom).toBe(before.zoom);
 		expect(camera.viewport.pan.x).not.toBe(before.pan.x);
-		harness.unmount();
-	});
-});
-
-describe('a second finger on a touch device', () => {
-	/**
-	 * On a mouse this can never happen — one `pointerId` is shared across every button — so
-	 * these two are about touch and pen. The manifest promises mobile
-	 * (`isDesktopOnly: false`), and a tablet with a hardware keyboard can hold space and then
-	 * put a second finger down.
-	 */
-	const FIRST = 11;
-	const SECOND = 12;
-
-	it('does not drive a pan it did not start', async () => {
-		// Without an owner, the second finger's move was read as a continuation of the first
-		// one's drag — so the camera jumped by the distance between two fingers rather than
-		// by how far either had travelled.
-		const { harness, canvas, camera } = await editor();
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300, 0, FIRST);
-		pointer(canvas, 'pointermove', 320, 300, 0, FIRST);
-		await settle();
-		const afterFirst = camera.viewport.pan.x;
-
-		pointer(canvas, 'pointermove', 700, 300, 0, SECOND);
-		await settle();
-
-		expect(camera.viewport.pan.x).toBe(afterFirst);
-		harness.unmount();
-	});
-
-	it('does not end a pan its own finger is still holding', async () => {
-		const { harness, canvas, camera } = await editor();
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300, 0, FIRST);
-		pointer(canvas, 'pointerup', 300, 300, 0, SECOND);
-		await settle();
-		const interrupted = camera.viewport.pan.x;
-
-		pointer(canvas, 'pointermove', 400, 300, 0, FIRST);
-		await settle();
-
-		expect(camera.viewport.pan.x).not.toBe(interrupted);
 		harness.unmount();
 	});
 });

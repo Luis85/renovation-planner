@@ -107,7 +107,14 @@ export const useEditorStore = defineStore('editor', () => {
 		viewport.value = zoomAbout(viewport.value, anchor, viewport.value.zoom * factor);
 	}
 
+	/**
+	 * A drag already running is KEPT, not replaced. A second pointer pressing in camera mode
+	 * would otherwise hand the gesture to the newcomer — the first finger's moves then ignored
+	 * as a foreign pointer's, so the pan dies under the hand still making it. One gesture at a
+	 * time, decided here rather than at each call site.
+	 */
 	function beginPan(at: ScreenPoint, pointerId: number): void {
+		if (dragState.value !== null) return;
 		dragState.value = { kind: 'pan', originScreen: at, originViewport: viewport.value, pointerId };
 	}
 

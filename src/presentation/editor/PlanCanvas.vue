@@ -252,6 +252,18 @@ function onPointerDown(event: PointerEvent): void {
 		syncPanPhase();
 		return;
 	}
+	// A press arriving while a pan is ALREADY running belongs to nobody. The override declined
+	// it — one gesture at a time — and forwarding it would let a tool start a gesture on a
+	// world that is moving under the user: `DrawPolygonTool` places a vertex, `SelectTool`
+	// begins a drag.
+	//
+	// Not a touch-only concern, which is the part worth stating: a mouse shares ONE
+	// `pointerId` across all its buttons, so a plain left click during a middle-button pan
+	// takes this same path. That is an everyday desktop input, not an exotic one.
+	if (panOverride.phase === 'panning') {
+		event.preventDefault();
+		return;
+	}
 	if (!isPrimary(event)) return;
 	// Capture, so a drag that leaves the pane still ends when the button does — without it
 	// the camera keeps panning after the pointer comes back, which reads as the view being
@@ -267,12 +279,12 @@ function onPointerDown(event: PointerEvent): void {
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
 	editor.setPointer(at);
-	// The override outranks the active tool: a tool interrupted by a pan hears nothing at
-	// all, which is what leaves its half-drawn polygon intact. Asked of the OWNING pointer,
-	// so a second finger on a touch device does not drive a pan it did not start — `owns` is
-	// false whenever nothing is panning, so it carries the phase test too.
-	if (panOverride.owns(event.pointerId)) {
-		editor.continuePan(at, event.pointerId);
+	// While a pan is running the canvas belongs to the CAMERA, and that is one rule rather
+	// than two: the owning pointer drives it, and every other pointer is swallowed rather
+	// than handed to the active tool. A tool interrupted by a pan hears nothing at all, which
+	// is what leaves its half-drawn polygon intact.
+	if (panOverride.phase === 'panning') {
+		if (panOverride.owns(event.pointerId)) editor.continuePan(at, event.pointerId);
 		return;
 	}
 	if (runtime.activeToolId.value !== null) {
@@ -291,6 +303,10 @@ function onPointerUp(event: PointerEvent): void {
 		syncPanPhase();
 		return;
 	}
+	// The other end of the press swallowed in `onPointerDown`. Letting this through would hand
+	// the active tool a release with no matching press — an event stream no device produces,
+	// and the exact grammar defect `canvasPointerRouting.test.ts` already exists for.
+	if (panOverride.phase === 'panning') return;
 	if (runtime.activeToolId.value !== null) {
 		if (isPrimary(event)) runtime.toolManager.pointerUp(editorPointerEvent(event, stagePoint(event)));
 		return;
@@ -328,7 +344,12 @@ function onBlur(): void {
 	editor.abandonPan();
 }
 
-function onPointerLeave(): void {
+function onPointerLeave(event: PointerEvent): void {
+	// A pan is owned by ONE pointer, and `pointerleave` carries an identity this handler used
+	// to discard — so a second touch or pen crossing the pane edge stopped a drag the owner's
+	// finger was still making. A leave from anything but the owner says nothing about the
+	// gesture, so it does nothing at all.
+	if (panOverride.phase === 'panning' && !panOverride.owns(event.pointerId)) return;
 	// The override is released too, not merely the store's drag. Ending one and not the other
 	// leaves two values modelling one gesture and disagreeing about it.
 	//
@@ -347,7 +368,9 @@ function onPointerLeave(): void {
 	// two to be consistent anyway rather than a reason to leave the gap.
 	panOverride.abandonGesture();
 	syncPanPhase();
-	editor.abandonPan();
+	// `endPan` and not `abandonPan`: in camera mode the store owns the drag, and it refuses a
+	// release from a pointer that did not begin it — the same rule, one layer down.
+	editor.endPan(event.pointerId);
 	editor.setPointer(null);
 }
 

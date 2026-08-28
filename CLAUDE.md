@@ -417,6 +417,15 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+- **While a pan runs, the canvas belongs to the CAMERA — every input, not just the moves.**
+  Three handlers, one rule, and it took three tries to get all of them: a press the override
+  declined fell through to the active tool (`DrawPolygonTool` placing a vertex on a world that
+  was moving under the user), that press's RELEASE then fell through too — a release with no
+  matching press, the grammar defect this repository keeps re-finding — and a `pointerleave`
+  from any pointer at all abandoned the owner's gesture. **Not a touch-only concern, which is
+  the part a first reading gets wrong:** a mouse shares ONE `pointerId` across every button, so
+  a plain left click during a middle-drag pan takes exactly that path. `EditorStore.beginPan`
+  keeps an existing drag rather than replacing it, for the same reason one layer down.
 - **A modifier is the wrong test for a gesture the hardware performs itself.** Shift+wheel was
   gated on `shiftKey`, so a trackpad's two-finger sideways swipe — nonzero `deltaX`, no
   modifier — fell through to the zoom branch, which reads only `deltaY`, and with `deltaY: 0`

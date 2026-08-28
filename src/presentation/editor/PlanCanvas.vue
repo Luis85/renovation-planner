@@ -747,6 +747,23 @@ function onKeyUp(event: KeyboardEvent): void {
 let observer: ResizeObserver | null = null;
 
 onMounted(() => {
+	// The same cleanup at the WINDOW, because `@blur` on the container covers focus moving
+	// within the document and is not guaranteed to cover the APPLICATION losing focus:
+	// Chromium can deactivate a window while leaving the focused element focused, and Obsidian
+	// is Electron. The space keyup then happens in whatever the user alt-tabbed to, so this
+	// canvas never hears it and stays armed forever — the exact defect `onBlur` exists to
+	// prevent, reached by the exact gesture its own comment names.
+	//
+	// Registering both rather than choosing: they are cheap, `onBlur` is idempotent, and no
+	// gate here can settle which one Electron delivers — jsdom models no window activation and
+	// a headless browser has no OS window to deactivate. `docs/tests/cases/Canvas Navigation.md`
+	// step 11 is where that is actually looked at, and it passes either way now.
+	//
+	// A window listener is safe where a window KEY listener would not be: this one reacts to
+	// the application losing focus rather than competing for a keystroke, so two Plan Editor
+	// leaves both cleaning up is correct — neither has a held space bar once the window is
+	// deactivated.
+	window.addEventListener('blur', onBlur);
 	const element = container.value;
 	if (element === null) return;
 	const measure = (): void => {
@@ -758,6 +775,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	// A window listener outlives its element unless something removes it, and a closed leaf
+	// still reacting to every window blur would reach into a disposed Pinia store.
+	window.removeEventListener('blur', onBlur);
 	observer?.disconnect();
 	observer = null;
 });

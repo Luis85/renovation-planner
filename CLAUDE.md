@@ -439,6 +439,19 @@ check. Rules that came out of it:
   this way, and disarming on keyup strands the user's pointer mid-pan. Two independent fields
   (`spaceHeld`, `panningWith`) rather than one phase enum, because that overlap is exactly
   what a single enum would have to encode as a transition.
+- **An element's `blur` and the WINDOW's are not the same event, and only one of them is
+  guaranteed for an Alt+Tab.** Chromium can deactivate a window while leaving the focused
+  element focused, and Obsidian is Electron — so the container's own `@blur` may never fire
+  for exactly the gesture it was added to handle, leaving a held space bar recorded forever.
+  The cleanup is registered at both, and removed from the window on unmount, because a
+  window listener outlives its element and a closed leaf reaching into a disposed Pinia store
+  is a leak with behaviour attached. **Which one Electron delivers is not measurable here** —
+  jsdom models no window activation and a headless browser has no OS window to deactivate —
+  so registering both is what makes `docs/tests/cases/Canvas Navigation.md` step 11 pass
+  either way, and the suite can only check that the window listener exists and is removed. A
+  window listener is safe where a window KEY listener would not be: it reacts to the
+  application losing focus rather than competing for a keystroke, so two leaves both cleaning
+  up is correct.
 - **A canvas that hears keys only while focused has no keyup after an Alt+Tab.** The listener
   is on the element rather than on `document` — so a plan editor in one split leaf cannot
   swallow the space bar of a note being edited in another — which means focus leaving IS the

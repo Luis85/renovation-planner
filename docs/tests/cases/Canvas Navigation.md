@@ -81,6 +81,13 @@ and they are the reason this file exists:
 11. **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is
     NOT stuck in pan mode — the next click selects normally. Focus leaving is the only notice
     the canvas gets that the key was released.
+    **This step is the ONLY instrument for a claim no gate can settle.** The cleanup is
+    registered twice — on the container's own `blur` and on the `window`'s — because Chromium
+    can deactivate a window while leaving the focused element focused, and nothing here can
+    determine which of the two Electron actually delivers: jsdom models no window activation,
+    and a headless browser has no OS window to deactivate. Registering both is what makes this
+    step pass whichever way the host behaves; if it still fails, neither fired and that is a
+    real finding.
 11a. **On a plan with a background and NO zones**, the canvas shows an empty state with a
     "Draw a zone" button. **Tab to that button and press Space.** Expected: the button
     activates and the Draw zone tool becomes active — the canvas must NOT arm the camera or

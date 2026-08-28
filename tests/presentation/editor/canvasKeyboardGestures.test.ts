@@ -278,3 +278,52 @@ describe('space pressed while another gesture is already running', () => {
 	});
 });
 
+
+describe('the window losing focus, not just the element', () => {
+	/**
+	 * `@blur` on the container covers focus moving WITHIN the document — a click on the
+	 * toolbar, a Tab to the next control. It is not guaranteed to cover the application
+	 * losing focus: Chromium can deactivate a window while leaving the focused DOM element
+	 * focused, and Obsidian is Electron. The space keyup then happens in whatever the user
+	 * alt-tabbed to, so this canvas never hears it and stays armed forever — which is the
+	 * exact defect `onBlur` exists to prevent, reached by the exact gesture it names.
+	 *
+	 * **Not measurable here, and this says so rather than implying otherwise.** jsdom models
+	 * no window activation, and a headless browser has no OS window to deactivate — so the
+	 * suite can only check that a `window` blur is LISTENED for and does the cleanup. Whether
+	 * Electron delivers the element blur too is what step 11 of
+	 * `docs/tests/cases/Canvas Navigation.md` is for; registering both makes that step pass
+	 * whichever way the host behaves.
+	 */
+	it('disarms a held space bar when the WINDOW blurs', async () => {
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+
+		window.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+		const before = camera.viewport.pan;
+
+		// Armed, the next primary drag would pan. Disarmed, it belongs to the tool.
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 400, 300);
+		pointer(canvas, 'pointerup', 400, 300);
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(before);
+		harness.unmount();
+	});
+
+	it('stops listening once the leaf is gone', async () => {
+		// A window-level listener outlives its element unless something removes it, and a
+		// closed Plan Editor leaf that still reacts to every window blur is a leak with
+		// behaviour attached — it would reach into a disposed Pinia store.
+		const { harness } = await editor();
+
+		harness.unmount();
+
+		expect(() => window.dispatchEvent(new FocusEvent('blur'))).not.toThrow();
+	});
+});

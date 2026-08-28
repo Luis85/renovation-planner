@@ -41,7 +41,6 @@ Every task's requirements implicitly include all of these. Values are copied ver
 | `src/presentation/views/renovationProjectCommands.ts` | **Create.** `RenovationProjectCommandServices` + `unavailableRenovationProjectCommands()`. |
 | `src/presentation/views/NewProjectForm.vue` | **Create.** The five-field form mounted in slice 15's `FormDialog`. |
 | `src/presentation/views/ProjectList.vue` | **Create.** One row per `ProjectSummaryDto`. |
-| `src/presentation/appIdPrefix.ts` | **Create.** The module-level counter giving each Vue app its own `useId` namespace. |
 | `src/presentation/views/app-id-prefix.ts` | **Create.** `nextAppIdPrefix()` — a distinct `useId` namespace per mounted Vue app. |
 | `src/infrastructure/persistence/dto/projectFrontmatter.ts` | **Modify.** Three nullable keys, so the form's fields survive a reload. No version bump. |
 | `src/infrastructure/persistence/mappers/projectMapper.ts` | **Modify.** Carry them both directions; date-only, UTC. |
@@ -516,7 +515,7 @@ Run: `npm run check`
 
 ```bash
 git add src/presentation/components/FieldError.vue src/presentation/components/FormBanner.vue \
-        src/presentation/appIdPrefix.ts \
+        src/presentation/views/app-id-prefix.ts \
         src/presentation/views/PlanEditorView.ts src/presentation/views/RenovationProjectView.ts \
         styles/forms.css styles/index.css tests/presentation/components/fieldError.test.ts
 git commit -m "feat: FieldError and FormBanner, the two rendering surfaces"
@@ -1968,7 +1967,11 @@ export interface FormDescriptor {
 }
 ```
 
-In `DialogHost.vue`'s `onKeydown`, return early on `Escape` while the current descriptor is a form whose `busy` is true, and pass the same flag to `FormDialog` so its Cancel button is `:disabled`. **Still call `preventDefault()`** — the key is handled here whether or not it acts, and letting it fall through to Obsidian's own keymap mid-write is a second surprise.
+In `DialogHost.vue`'s `onKeydown`, return early on `Escape` while the current descriptor is a form whose `busy` is true. **Still call `preventDefault()`** — the key is handled here whether or not it acts, and letting it fall through to Obsidian's own keymap mid-write is a second surprise.
+
+**Cancel goes `aria-disabled`, NOT `:disabled`, and this is an invariant of the framework rather than a preference.** `DialogHost` states it in its own comment: *"every one of the four kind components renders at least one focusable control (a Cancel/Close button, unconditionally; `dialogKinds.test.ts` proves that per kind)"*, and `focusableWithin()` is what the Tab trap walks. A `:disabled` button matches no focusable selector — so with Task 6 also disabling every form control, a busy dialog would contain **zero** focusable elements: Tab would walk straight out of it, and the `Escape` listener bound to `.rp-dialog` would then stop receiving keys altogether, defeating the very handler this step adds. `dialogKinds.test.ts` would not have caught it, because it does not drive the busy state.
+
+So: `:aria-disabled="busy"` plus an early return in the click handler, which keeps the button focusable and announced while refusing the action. Add a case asserting `focusableWithin()` is non-empty while busy — the invariant, tested where this slice could break it.
 
 Write the test first, in `tests/presentation/dialogs/`:
 
@@ -1985,7 +1988,11 @@ Write the test first, in `tests/presentation/dialogs/`:
 
 		// The write is still running: the dialog may not resolve out from under it.
 		expect(settled).not.toHaveBeenCalled();
-		expect(wrapper.get('.rp-dialog-cancel').attributes('disabled')).toBeDefined();
+		// aria-disabled, never disabled: a `:disabled` Cancel leaves the trap with nothing
+		// to hold, Tab walks out of the dialog, and the Escape handler above stops being
+		// reachable at all.
+		expect(wrapper.get('.rp-dialog-cancel').attributes('aria-disabled')).toBe('true');
+		expect(wrapper.get('.rp-dialog-cancel').attributes('disabled')).toBeUndefined();
 	});
 
 	it('accepts Escape again once the write has settled', async () => {
@@ -2213,10 +2220,16 @@ async function onCreateProject(): Promise<void> {
 		kind: 'form',
 		title: tr('form.new-project.title'),
 		component: NewProjectForm,
-		props: { dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input) },
-		// So Cancel and Escape cannot resolve this dialog out from under a write that is
-		// already in flight — the form owns its dispatch, so the container has no other way
-		// to know. The form wires this to its own `useFormCommit().submitting`.
+		// `busy` appears TWICE on purpose, and both are load-bearing: in `props` so the form
+		// receives the ref and can write its `submitting` into it, and on the descriptor so
+		// the host can read it. Passing it only to the descriptor — which two revisions of
+		// this plan did — leaves the form without the prop, its `watchEffect` never runs, the
+		// ref stays false forever, and Cancel and Escape stay live for the whole write while
+		// every line of the mechanism looks present.
+		props: {
+			dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input),
+			busy: newProjectBusy,
+		},
 		busy: newProjectBusy,
 	});
 	if (result === 'cancel') return;
@@ -2981,6 +2994,12 @@ Two contradictions fell out of reading those regions and are fixed in the same p
 **The sixth review's six findings**, all verified against the plan's own text and all real. Three are one new CLASS, which is why a global constraint carries the rule rather than three task edits: a `git add` that omits a file its own task creates. `npm run check` cannot see it — the gate reads the WORKING TREE, which has the file — so the check passes, the commit is short, and for a path no later task stages (`openNote.ts`) the file is never committed at all. Task 2 omitted the id-prefix helper and both view files, Task 5 `openNote.ts` and the plugin's factory call, Task 6 both dialog components.
 
 The other three: the coalescing loop treated a CLEARED draft as a changed one (`dispatchOnce` nulls `drafted` on success, and `null !== lastCommitted` is true), so two blurs with no edit between them re-dispatched the canonical value and bought an undo entry — `!== null` is half the moved-test, not a defensive extra. The single top-of-function `validate` left `recommit` set when it refused, so a valid commit followed by malformed text and a blur dispatched the malformed draft the instant the first write settled, into the very `moneyOf` throw the seam exists to prevent — it validates once per loop iteration now, one rule in one place. And `Escape` on an Inspector field was promised by the spec and bound by nothing: the only tool-cancel handler is on the sibling `PlanCanvas` and never sees a keydown starting in an input, so the spec claimed behaviour no code produced.
+
+**The seventh review's three findings**, all real, and all three defects in the sixth round's own repairs — the pattern now holds for five consecutive rounds.
+
+1. **`busy` reached the descriptor and not the form** (P1). The third incomplete wiring of one fix: round two declared no ref, round six declared it and passed it only to `openDialog`'s descriptor, so `NewProjectForm` never received the prop, its `watchEffect` never ran, and the flag stayed false for the whole write while every line of the mechanism was present and read as correct. It is in `props` AND on the descriptor now, with a comment saying why both.
+2. **The staging fix named a path the task does not create** (P2). Round six added `src/presentation/appIdPrefix.ts` to the `git add` and a second file-table row for it, while the task creates `src/presentation/views/app-id-prefix.ts` — so the repair for an unstaged file introduced a `git add` that fails outright. Self-inflicted, in the commit that fixed the staging class.
+3. **A busy dialog would have contained NO focusable element** (P2). Task 6 disables every form control and round six's instruction disabled Cancel too — and `:disabled` matches no focusable selector, so `focusableWithin()` returns empty, Tab walks out of the dialog, and the `Escape` listener bound to `.rp-dialog` stops receiving keys, defeating the handler the same step adds. `DialogHost` states the invariant in its own comment and `dialogKinds.test.ts` proves it per kind — but not in the busy state, which is why nothing would have caught it. Cancel is `aria-disabled` now, focusable and announced while refusing, with a case asserting the trap is non-empty while busy.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 

@@ -1776,7 +1776,7 @@ git commit -m "feat: a project note keeps its description and its two dates"
 - Test: `tests/presentation/views/newProjectForm.test.ts`, `tests/presentation/dialogs/formBusy.test.ts`
 
 **Interfaces:**
-- Consumes: `useFormCommit` (Task 3), `FieldError` / `FormBanner` (Task 2), `RenovationProjectCommandServices` (Task 5), `FormDescriptor` from `src/presentation/dialogs/dialog-store.ts`.
+- Consumes: `useFormCommit` (Task 3), `FieldError` / `FormBanner` (Task 2), `RenovationProjectCommandServices` (Task 5), `FormDescriptor` from `src/presentation/dialogs/dialog-store.ts`. **And Task 5a, which is not an import but is load-bearing:** without it `description`, `start` and `targetCompletion` are dropped at the vault boundary, so three of this form's five controls collect values that read back `null`. Do not build this task before 5a has landed.
 - Produces: a component taking props `{ dispatch: (input: CreateProjectInput) => Promise<Result<{ project: Loaded<Project> }, RepositoryError>> }` and emitting `submit: [values: CreateProjectInput]`. Task 7 opens it.
 
 **Every control is disabled while `submitting` is true, and the asymmetry with Task 9 is deliberate.** `submit` reads `values.value` once at dispatch; `setField` replaces the ref with a new object — so an edit landing during a slow write is not in the dispatched input, and the success closes the dialog as if it were. The user's newer text leaves with the dialog and there is no surface left to show it on.
@@ -2259,7 +2259,7 @@ git commit -m "feat: the no-projects empty state opens the New Project form"
 - Test: `tests/presentation/views/projectList.test.ts`
 
 **Interfaces:**
-- Consumes: `ProjectSummaryDto` (`{ id: string; name: string; status: string }`) from `src/presentation/read-models/PlanDto.ts`; `RenovationProjectDeps.openProject` (Task 5).
+- Consumes: `ProjectSummaryDto` (`{ id: string; name: string; status: string }`) from `src/presentation/read-models/PlanDto.ts`; `RenovationProjectDeps.openProject` (Task 5); and **`onCreateProject`, declared in `ViewRoot.vue` by Task 7** — this task binds `@create` to that existing handler and must not declare a second one, since the empty state's button and the list header's are one action with one owner.
 - Produces: `ProjectList` taking `{ projects: readonly ProjectSummaryDto[] }` and emitting `open: [projectId: string]`.
 
 - [ ] **Step 1: Write the failing test**

@@ -40,6 +40,7 @@ Every task's requirements implicitly include all of these. Values are copied ver
 | `src/presentation/views/renovationProjectCommands.ts` | **Create.** `RenovationProjectCommandServices` + `unavailableRenovationProjectCommands()`. |
 | `src/presentation/views/NewProjectForm.vue` | **Create.** The five-field form mounted in slice 15's `FormDialog`. |
 | `src/presentation/views/ProjectList.vue` | **Create.** One row per `ProjectSummaryDto`. |
+| `src/presentation/views/app-id-prefix.ts` | **Create.** `nextAppIdPrefix()` — a distinct `useId` namespace per mounted Vue app. |
 | `styles/forms.css` | **Create.** Field error, banner, form layout, project list. Obsidian variables only. |
 | `src/presentation/views/RenovationProjectContext.ts` | **Modify.** `RenovationProjectDeps` gains `commands` and `openProject`. |
 | `src/plugin/guardedServices.ts` | **Modify.** Guard `CreateProjectCommand`. |
@@ -48,6 +49,8 @@ Every task's requirements implicitly include all of these. Values are copied ver
 | `src/presentation/emptyStates/content.ts` | **Modify.** `renovationProject.noProjects` gains `actionLabel`. |
 | `src/presentation/dialogs/dialog-store.ts` | **Modify.** Correct `FormDialogResult`'s docblock. |
 | `src/presentation/editor/shell/RequirementRow.vue` | **Modify.** Both override fields adopt `useFieldCommit`. |
+| `src/presentation/views/PlanEditorView.ts`, `RenovationProjectView.ts` | **Modify.** Set `app.config.idPrefix` at BOTH `createApp` sites. Both surfaces render `FieldError`. |
+| `src/presentation/editor/runtime.ts` | **Modify.** `commitEdit` narrows to the failures no field can show. |
 | `src/presentation/i18n/locales/en.ts`, `de.ts` | **Modify.** New keys. |
 | `src/plugin/sampleProject.ts`, `CLAUDE.md` | **Modify.** Correct the three false claims. |
 
@@ -234,8 +237,10 @@ git commit -m "feat: routeError, one AppError to one field or to the banner"
 
 **Files:**
 - Create: `src/presentation/components/FieldError.vue`, `src/presentation/components/FormBanner.vue`
+- Create: `src/presentation/views/app-id-prefix.ts`
 - Create: `styles/forms.css`
 - Modify: `styles/index.css` (import the partial)
+- Modify: `src/presentation/views/PlanEditorView.ts`, `src/presentation/views/RenovationProjectView.ts` (one line each — see below; BOTH, or the creation form is the one left colliding)
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
 - Test: `tests/presentation/components/fieldError.test.ts`
 
@@ -380,7 +385,42 @@ const messageId = useId();
 
 Callers bind both: `<FieldError :message="..." v-slot="{ inputId, aria }"><input :id="inputId" v-bind="aria"></FieldError>`. Drop the `inputId` PROP — it no longer exists, and every call site in Tasks 6 and 9 uses the slot instead.
 
-**One residual, and it needs a line in `PlanEditorView`:** `useId` is unique per Vue APP, and this plugin mounts one app per leaf, so two Plan Editor leaves could still mint the same id. Set `app.config.idPrefix` to the leaf's own key where each app is created — one line, in the same edit, or this fix is only two thirds of one.
+**One residual, and it needs a line at BOTH `createApp` sites, not one.** `useId` is unique per Vue APP and restarts at `v-0` in each, and this plugin mounts one app per leaf — so two apps in one document mint the same ids and the second control's `aria-describedby` resolves to the first form's message, silently, with no error anywhere and both forms looking correct.
+
+Two sites, because both surfaces render these controls: `PlanEditorView.ts` (Task 9's rows) and `RenovationProjectView.ts` (`ViewRoot` opens `NewProjectForm`, Tasks 6 and 7). Fixing only the Plan Editor was this plan's first draft and would have left the creation form — the surface this slice exists for — exposed. `RenovationProjectView` being a singleton is not a defence: `revealView` reuses the one leaf it finds, but a user can split a pane, and Obsidian restores whatever layout was saved. `getLeavesOfType` returning a LIST is that possibility in the type.
+
+**Not "the leaf's own key" — `WorkspaceLeaf` has no public id.** An earlier draft said to use one; the pinned `obsidian@1.13.0` typings expose `parent`, `view` and `hoverPopover` and nothing identifying, so that line would have meant reaching for an undocumented field, which is a marketplace rejection and a rename away from breaking. Use a module-level counter instead — it needs no API at all, and uniqueness within the process is exactly the guarantee required:
+
+```typescript
+// src/presentation/views/app-id-prefix.ts
+/**
+ * A distinct `useId` namespace per mounted Vue app.
+ *
+ * `useId` restarts at `v-0` in every app, so two leaves in one document collide — and the
+ * failure is silent: `aria-describedby` resolves to whichever element carries the id first,
+ * so a screen reader reads the wrong form's error and both panes look right.
+ *
+ * A counter rather than the leaf's identity because `WorkspaceLeaf` exposes none publicly,
+ * and because "unique" is the whole requirement — nothing reads the prefix back or matches
+ * it to a leaf. Monotonic across unmount/remount on purpose: reusing a retired prefix while
+ * the old app's DOM is still detaching is the collision again, narrower.
+ */
+let mounted = 0;
+
+export function nextAppIdPrefix(): string {
+	mounted += 1;
+	return `rp-${String(mounted)}`;
+}
+```
+
+Called at each site immediately after `createApp`, BEFORE `mount` — `useId` reads `app.config.idPrefix` when a component sets up, so setting it after mounting changes nothing already rendered:
+
+```typescript
+const app = createApp(ViewRoot);
+app.config.idPrefix = nextAppIdPrefix();
+```
+
+Assert it in Task 2's tests: mount two apps, and require the ids they mint to differ. Two apps is the whole defect, so a case that mounts one proves nothing about it.
 
 - [ ] **Step 4: Write `FormBanner.vue`**
 
@@ -858,7 +898,7 @@ interface QuantityInput {
 	readonly quantity: number;
 }
 
-const MAP: FieldErrorMap<QuantityInput> = { 'requirement.quantity.negative': 'quantity' };
+const MAP: FieldErrorMap<QuantityInput> = { 'requirement.negative-quantity': 'quantity' };
 const say = (error: AppError): string => `copy for ${error.code}`;
 
 function validation(code: string): AppError {
@@ -867,6 +907,7 @@ function validation(code: string): AppError {
 
 function harness(result: Result<void, AppError>, canonical = ref(10)) {
 	const run = vi.fn(async () => result);
+	const notify = vi.fn();
 	const field = useFieldCommit<number, QuantityInput>({
 		canonicalValue: () => canonical.value,
 		buildCommand: (value) => ({
@@ -878,8 +919,9 @@ function harness(result: Result<void, AppError>, canonical = ref(10)) {
 		errorMap: MAP,
 		field: 'quantity',
 		toUserMessage: say,
+		notify,
 	});
-	return { field, run, canonical };
+	return { field, run, canonical, notify };
 }
 
 describe('useFieldCommit', () => {
@@ -891,18 +933,53 @@ describe('useFieldCommit', () => {
 	});
 
 	it('keeps the rejected value and shows its error, dispatching exactly once', async () => {
-		const { field, run } = harness(err(validation('requirement.quantity.negative')));
+		const { field, run } = harness(err(validation('requirement.negative-quantity')));
 
 		field.onInput(-5);
 		await field.onCommit();
 
 		expect(field.draft.value).toBe(-5);
-		expect(field.error.value).toBe('copy for requirement.quantity.negative');
+		expect(field.error.value).toBe('copy for requirement.negative-quantity');
 		expect(run).toHaveBeenCalledTimes(1);
 	});
 
+	it('reports a failure it cannot attach to this field instead of swallowing it', async () => {
+		// The Inspector has no banner region, so a refusal with no field to sit under has
+		// exactly one door left. A first draft cleared the error and called nothing, which
+		// made a resolved vault failure invisible on BOTH surfaces — worse than the
+		// `notifyError` in `commitEdit` that this slice narrows.
+		const fault: AppError = {
+			category: 'Persistence',
+			code: 'vault.unexpected-failure',
+			message: 'developer english',
+		};
+		const { field, notify } = harness(err(fault));
+
+		field.onInput(-5);
+		await field.onCommit();
+
+		expect(notify).toHaveBeenCalledWith(fault);
+		// The ORIGINAL error, not a resolved string: the caller's door owns the copy.
+		expect(field.error.value).toBeNull();
+		// Still kept, for the same reason a refused draft is: the user's typing is not the
+		// vault's fault and retyping it is not a fix.
+		expect(field.draft.value).toBe(-5);
+	});
+
+	it('does not reach the notice door for a refusal this field CAN show', async () => {
+		const { field, notify } = harness(err(validation('requirement.negative-quantity')));
+
+		field.onInput(-5);
+		await field.onCommit();
+
+		// Both doors for one failure is the double-report `commitEdit`'s narrowing exists to
+		// prevent: a message under the input AND a notice about the same press.
+		expect(notify).not.toHaveBeenCalled();
+		expect(field.error.value).toBe('copy for requirement.negative-quantity');
+	});
+
 	it('retires the message when the user corrects the value, dispatching nothing', async () => {
-		const { field, run } = harness(err(validation('requirement.quantity.negative')));
+		const { field, run } = harness(err(validation('requirement.negative-quantity')));
 		field.onInput(-5);
 		await field.onCommit();
 
@@ -915,7 +992,7 @@ describe('useFieldCommit', () => {
 	});
 
 	it('discards the draft and clears the error on cancel, dispatching nothing', async () => {
-		const { field, run } = harness(err(validation('requirement.quantity.negative')));
+		const { field, run } = harness(err(validation('requirement.negative-quantity')));
 		field.onInput(-5);
 		await field.onCommit();
 
@@ -924,6 +1001,37 @@ describe('useFieldCommit', () => {
 		expect(field.draft.value).toBe(10);
 		expect(field.error.value).toBeNull();
 		expect(run).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not discard a keystroke that landed while the write was in flight', async () => {
+		// A slow vault write with the user still typing. The success belongs to the OLD draft;
+		// clearing unconditionally replaced the newer text with the canonical value mid-word,
+		// with nothing erroring and no way for the user to tell it had happened.
+		let settle = (): void => {};
+		const run = vi.fn(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				settle = () => { resolve(ok(undefined)); };
+			}),
+		);
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: () => ({ execute: async () => ok(undefined), undo: async () => ok(undefined) }),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn(),
+		});
+
+		field.onInput(-5);
+		const inFlight = field.onCommit();
+		expect(field.pending.value).toBe(true);
+		field.onInput(-7);
+		settle();
+		await inFlight;
+
+		expect(field.draft.value).toBe(-7);
+		expect(field.pending.value).toBe(false);
 	});
 
 	it('tracks a new canonical value after an accepted commit', async () => {
@@ -1001,6 +1109,20 @@ export function useFieldCommit<T, TInput>(options: {
 	readonly field: keyof TInput;
 	readonly toUserMessage: (error: AppError) => string;
 	/**
+	 * Where a refusal this field cannot show goes instead — the ORIGINAL `AppError`, not a
+	 * resolved string, so the caller's own door decides the copy.
+	 *
+	 * **Required, and it is the one option that must not be optional.** This composable
+	 * converts every banner-routed failure to `error = null`, because the Inspector has no
+	 * banner region to put one in. Without a second door that is not "show it elsewhere", it
+	 * is "show it nowhere": a resolved vault failure during an override would produce no
+	 * inline error AND no notice, which is strictly worse than the `notifyError` call in
+	 * `commitEdit` that this slice narrows. Optional with a `?? noop` default, the forgetting
+	 * call site is silent and nothing anywhere errors — the exact shape this repository keeps
+	 * paying for. So it is required and every caller states its door.
+	 */
+	readonly notify: (error: AppError) => void;
+	/**
 	 * A draft this field cannot even turn into a command — text where a number belongs, a
 	 * malformed monetary literal. Returns a resolved message, or `null` when the draft is
 	 * convertible.
@@ -1044,20 +1166,38 @@ export function useFieldCommit<T, TInput>(options: {
 			return;
 		}
 		pending.value = true;
+		// The exact draft this dispatch is about. `onInput` mints a FRESH wrapper object per
+		// keystroke, so reference identity answers "is the field still showing what I sent"
+		// with no value comparison and no equality rule per `T` — which is the second reason
+		// the clean sentinel is a wrapper rather than a bare value.
+		const submitted = drafted.value;
 		try {
 			const result = await options.history.run(options.buildCommand(draft.value));
 			if (!isErr(result)) {
-				// Accepted: drop the draft so the field tracks the refreshed canonical value.
-				drafted.value = null;
-				error.value = null;
+				// Accepted: drop the draft so the field tracks the refreshed canonical value —
+				// but ONLY the draft that was actually submitted. A slow vault write with the
+				// user still typing would otherwise clear a NEWER draft and silently replace
+				// their text with the canonical value, mid-word, with nothing erroring.
+				if (drafted.value === submitted) {
+					drafted.value = null;
+					error.value = null;
+				}
 				return;
 			}
 			const routed = routeError(result.error, options.errorMap, options.toUserMessage);
-			// A banner-routed error is not this field's to display: the Inspector has no
-			// banner region, and `commitEdit` notifies it. Inventing a field error for one
-			// would attach a message to an input the failure is not about.
-			error.value =
-				routed.kind === 'field' && routed.fields.includes(options.field) ? routed.message : null;
+			// A banner-routed error is not this field's to DISPLAY — the Inspector has no
+			// banner region, and inventing a field error for one would attach a message to an
+			// input the failure is not about. It is still this field's to REPORT, which is the
+			// half a first draft dropped: it cleared the error and called nothing, so a
+			// resolved vault failure reached the user through neither door.
+			const mine = routed.kind === 'field' && routed.fields.includes(options.field);
+			// Same staleness rule on the failure arm, for the mirror reason: a message about a
+			// value the user has already replaced is telling them their current text is wrong
+			// when it has never been dispatched. The NOTICE still fires either way — the write
+			// really did fail, and that is true of the vault regardless of what the input now
+			// holds.
+			if (drafted.value === submitted) error.value = mine ? routed.message : null;
+			if (!mine) options.notify(result.error);
 		} finally {
 			pending.value = false;
 		}
@@ -1077,7 +1217,7 @@ export function useFieldCommit<T, TInput>(options: {
 - [ ] **Step 4: Run the test and watch it pass**
 
 Run: `npx vitest run tests/presentation/composables/useFieldCommit.test.ts`
-Expected: PASS, 6 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Run the gate**
 
@@ -2023,12 +2163,16 @@ async function commitField(edit: InspectorEdit): Promise<Result<void, AppError>>
 
 Assert it: a `commit` that REJECTS leaves the field showing an error and does not clear the draft. A test that only drives refusals would never notice the guard was missing.
 
+**`reportFault` is the THROWN half only, and the resolved half is a second door this seam does not carry.** `commitEdit` does two things with a failure — `reportFault` for a fault, `notifyError` for a resolved failed `Result` — and `commitField` above performs only the first. The second belongs to the composable's required `notify` (Task 4), which each row passes `notifyError`, so a banner-routed refusal is announced from the one place that knows the routing decision. Naming this explicitly because a first draft of this task dropped it: with `useFieldCommit` converting every unmapped failure to `error = null` and `commitField` notifying nothing, a resolved vault failure during an override reached the user through neither door — the guard read as complete because the FAULT half was visibly handled, and the resolved half is the one that actually happens.
+
+**Do not solve it by notifying inside `commitField`.** That door does not know whether the row is about to show the same error under the input, so every field-attributable refusal would be reported twice — a message under the input and a notice about the same press. The routing decision has exactly one owner and `notify` is downstream of it.
+
 **Two live defects this closes**, both named in the spec:
 
 1. A rejected commit becomes an Obsidian notice — `commitEdit`'s `notifyError` call in `runtime.ts` — anchored to nothing.
 2. An **unparseable** draft silently resets to "calculated": `applyQuantity` turns a non-finite parse into `null`, which IS the reset value, and tells the user nothing at all.
 
-**The row still DISPATCHES nothing.** It emits; the panel commits through `runtime.commitEdit`, the Inspector's one commit path (SDD §59). A row that dispatched directly would be a second seam with its own refresh and undo/redo behaviour, and nothing would error anywhere.
+**The row dispatches only through the function the panel HANDED it**, which is still `commitEdit`'s underlying `inspector.commit` behind `commitField`'s fault guard — the Inspector's one commit path (SDD §59). An earlier draft of this paragraph said the row "DISPATCHES nothing", which contradicted the Interfaces block eleven lines above it: after this task it does dispatch, through an injected prop rather than a dispatcher of its own. The invariant that matters survives the rewording and is the reason for the prop: there is still exactly ONE commit seam, and a row reaching for its own would silently break the post-command refresh and the reactive undo/redo flags with nothing erroring anywhere.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2114,7 +2258,7 @@ describe('RequirementRow', () => {
 	it('keeps a refused value in the field with its message under it', async () => {
 		const refusal: AppError = {
 			category: 'Validation',
-			code: 'requirement.quantity.negative',
+			code: 'requirement.negative-quantity',
 			message: 'developer english',
 		};
 		const { wrapper, commit } = mountRow(err(refusal));
@@ -2136,7 +2280,7 @@ describe('RequirementRow', () => {
 		// on a row that had just been reset.
 		const refusal: AppError = {
 			category: 'Validation',
-			code: 'requirement.quantity.negative',
+			code: 'requirement.negative-quantity',
 			message: 'developer english',
 		};
 		let result: Result<void, AppError> = err(refusal);
@@ -2237,6 +2381,30 @@ const props = defineProps<{
  * are "this field is wrong".
  */
 
+/**
+ * **Every code here is copied from the RAISE SITE, never guessed from the field's name.**
+ * The first draft of this plan mapped `requirement.quantity.negative`, which exists nowhere
+ * in `src/`: the command raises `requirement.negative-quantity`
+ * (`SetRequirementQuantityOverride.ts`). A map keyed on a code nothing raises is invisible to
+ * every gate — `FieldErrorMap` takes any string, `routeError` finds no entry and answers
+ * `banner`, and the field route this slice exists to build is simply never taken. So grep the
+ * command for its `code:` literal and paste what it prints.
+ *
+ * `requirement.not-found` and every persistence code are deliberately ABSENT: they are not
+ * about the value in this input, so they take the notice door below.
+ */
+const QUANTITY_ERRORS: FieldErrorMap<{ quantity: number | null }> = {
+	'requirement.negative-quantity': 'quantity',
+};
+
+/**
+ * Empty TODAY, and that is a finding rather than an omission: `SetRequirementCostOverride`
+ * raises no field-attributable refusal at all, so every cost failure is banner-routed and
+ * reaches the user through `notify` below. Declared anyway, so the seam exists and the next
+ * cost refusal is one entry rather than a new mechanism.
+ */
+const COST_ERRORS: FieldErrorMap<{ cost: Money | null }> = {};
+
 const quantity = useFieldCommit<number | null, { quantity: number | null }>({
 	canonicalValue: () => props.row.quantity.override,
 	buildCommand: (value) => ({
@@ -2251,6 +2419,8 @@ const quantity = useFieldCommit<number | null, { quantity: number | null }>({
 	errorMap: QUANTITY_ERRORS,
 	field: 'quantity',
 	toUserMessage: trError,
+	// The half `commitEdit` keeps: a refusal with no field to sit under is still announced.
+	notify: notifyError,
 	validate: (value) =>
 		value === null || Number.isFinite(value) ? null : tr('error.requirement.quantity.unparseable'),
 });
@@ -2266,6 +2436,15 @@ function onQuantityInput(raw: string): void {
 There is no `commitQuantity` and no local parse state: blur calls `quantity.onCommit()`
 directly, and the guard runs inside it. The old shape emitted `null` for an unparseable
 draft, which IS "reset to calculated" — a silent discard of the user's override.
+
+**`pending` drives a visual, and deliberately does NOT disable the input.** Disabling was the
+other way to close the in-flight clobber (Task 4) and it is refused: an input that goes
+read-only for the length of a vault write takes keystrokes away from a user mid-word, and a
+blur commit fires exactly when their attention has already moved on — so the disable would land
+after they had started typing somewhere else and the recovery is worse than the defect. The
+staleness guard inside `onCommit` closes the same hole without touching the control, so
+`pending` is free to be what it should be: an unobtrusive busy affordance, and nothing that
+takes input away. Bind it to an attribute, never to `disabled`.
 
 `history: { run: (command) => command.execute() }` is deliberate and needs its own comment in the code: the reversible wrapping and the history entry are `commitEdit`'s job, one seam up — this row supplies the shape `useFieldCommit` takes without adding a second history. Write that down, because a reader meeting a `run` that only calls `execute` will otherwise read it as a stub.
 
@@ -2301,8 +2480,7 @@ const cost = useFieldCommit<string, { cost: Money | null }>({
 	errorMap: COST_ERRORS,
 	field: 'cost',
 	toUserMessage: trError,
-});
-
+	notify: notifyError,
 	validate: (raw) =>
 		raw.trim() === '' || canBeMoney(raw.trim()) ? null : tr('error.requirement.cost.unparseable'),
 });
@@ -2386,8 +2564,17 @@ git commit -m "docs: the manual case for creating a project, and three claims th
 
 **The five review findings.** 1 (cancel during an in-flight write) → Task 6, Step 5, adding `FormDescriptor.busy`. 2 (no path on the DTO) → already Task 5's `openProject`. 3 (no way to create a second project) → Task 8, the list header's button, sharing Task 7's one handler. 4 (half a cross-field error surviving) → Task 3, `routedGroup` and its own case. 5 (the Inspector seam) → already Task 9's `commit` prop over `inspector.commit`. Verifying 5 turned up a sixth in the plan's own fix — the prop drops `commitEdit`'s `reportFault` — recorded and closed in Task 9's Interfaces block.
 
-**The second review's six findings**, all verified against the code and all real; four were defects in the first review's own fixes. `FieldError` minted no ids and searched the whole document → it mints both ids and hands them down a scoped slot, with `app.config.idPrefix` per leaf (Task 2). `submitting` was set and never checked, so two Enter presses made two projects → `submit` returns early while one is in flight (Task 3). `openProjectNote` did not exist and `renovationProjectDeps` had no `Workspace` → Task 5 builds it, threading both. `newProjectBusy` was never declared, so the cancel-during-write fix was connected to nothing → `ViewRoot` owns the ref and passes it in (Tasks 6, 7). Reset bypassed the composable, leaving a rejected draft and stale error → it routes through it (Task 9). And `moneyOf` THROWS where `Number` yields `NaN`, so the cost field's draft is a raw string guarded before construction (Task 9).
+**The second review's six findings**, all verified against the code and all real; four were defects in the first review's own fixes. `FieldError` minted no ids and searched the whole document → it mints both ids and hands them down a scoped slot, with `app.config.idPrefix` per app (Task 2 — at BOTH `createApp` sites, which the third review had to widen). `submitting` was set and never checked, so two Enter presses made two projects → `submit` returns early while one is in flight (Task 3). `openProjectNote` did not exist and `renovationProjectDeps` had no `Workspace` → Task 5 builds it, threading both. `newProjectBusy` was never declared, so the cancel-during-write fix was connected to nothing → `ViewRoot` owns the ref and passes it in (Tasks 6, 7). Reset bypassed the composable, leaving a rejected draft and stale error → it routes through it (Task 9). And `moneyOf` THROWS where `Number` yields `NaN`, so the cost field's draft is a raw string guarded before construction (Task 9).
+
+**The third review's four findings**, all verified against `src/` before touching a line, all real, and three of them defects in the second review's own fixes — the same ratio that round had, which is the argument for reading a fix as new code rather than as a closed item.
+
+1. **The mapped code did not exist** (P1). The map and its three test cases keyed `requirement.quantity.negative`; `SetRequirementQuantityOverride.ts` raises `requirement.negative-quantity`. Nothing catches this: `FieldErrorMap` takes any string, so a code nothing raises type-checks, `routeError` simply finds no entry, and the field route this whole slice exists to build is never taken — the tests stay green because they drive the same wrong code the map holds. Fixed at all seven sites, and the two maps Task 9 referenced but never declared are now written out with a docblock saying to paste the `code:` literal from the raise site. Verified the OTHER map while there: `project.empty-name` and `project.target-before-start` are real, built by `projectError()`'s template rather than spelled literally, which is why a plain grep for them prints nothing — a near-miss worth recording, since "grep found nothing" nearly became a second false correction.
+2. **The banner half reached nobody** (P1). `commitField` calls `inspector.commit` through `reportFault` and never performs `commitEdit`'s `notifyError`, while `useFieldCommit` converts every banner-routed failure to `error = null` — so a resolved vault failure during an override produced no inline error AND no notice. `useFieldCommit` takes a REQUIRED `notify` now, called with the original `AppError` whenever the routed message is not this field's; both Task 9 call sites pass `notifyError`. Required rather than optional-with-a-default because the forgetting call site is exactly the failure. Notifying inside `commitField` was the other option and is refused in Task 9's text: that door cannot see the routing decision, so every field-attributable refusal would be reported twice.
+3. **A pending write discarded the keystrokes that landed under it** (P2). `onCommit` cleared `drafted` unconditionally on success, so a slow vault write with the user still typing replaced their newer text with the canonical value mid-word. It snapshots the submitted wrapper and clears only if the field still holds it — reference identity, which works because `onInput` mints a fresh object per keystroke, and which is now the second reason the clean sentinel is a wrapper rather than a bare value. Disabling the control for the pending interval was the alternative and is refused with its reason written down: a blur commit fires exactly when the user's attention has moved on, so the disable lands after they have started typing elsewhere.
+4. **`idPrefix` was set in one app of two** (P2). `NewProjectForm` renders these same `useId` controls inside `RenovationProjectView`'s separate app, where `useId` restarts at `v-0` — so the surface this slice exists for was the one left colliding. Both `createApp` sites set it now. Two things the finding did not name and the fix needed anyway: `RenovationProjectView` being a singleton is not a defence, since a user can split a pane and Obsidian restores saved layouts; and **"the leaf's own key" is not a thing** — `WorkspaceLeaf` in the pinned `obsidian@1.13.0` typings exposes `parent`, `view` and `hoverPopover` and nothing identifying, so the prescribed mechanism was unbuildable without an undocumented field. A module-level counter replaces it.
+
+Two contradictions fell out of reading those regions and are fixed in the same pass: Task 9 still carried a paragraph reading "**The row still DISPATCHES nothing**" eleven lines under an Interfaces block giving it a `commit` prop, and the cost field's snippet closed its object literal with a stray `});` before `validate:`, so the code as written would not have parsed.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 
-**Type consistency.** `routeError(error, map, toUserMessage)` has the same three parameters at every call site (Tasks 3, 4). `FieldErrorMap<TInput>` and `RoutedError<TInput>` are spelled identically in Tasks 1, 3, 4 and 6. `UseFormCommit` exposes `values` / `fieldErrors` / `banner` / `submitting` / `setField` / `submit` in Tasks 3 and 6; `UseFieldCommit` exposes `draft` / `error` / `pending` / `onInput` / `onCommit` / `onCancel` in Tasks 4 and 9, and Task 9 instantiates it ONCE PER ROW with `history.run` delegating to `execute` — the reversible wrapping stays `commitEdit`'s, one seam up. `FieldError` takes `{ message }` and hands `{ inputId, aria }` down a scoped slot in Tasks 2, 6 and 9 — no call site spells an id. `RenovationProjectCommandServices.createProject` is `Command<CreateProjectInput, Result<{ project: Loaded<Project> }, RepositoryError>>` in Tasks 5 and 6.
+**Type consistency.** `routeError(error, map, toUserMessage)` has the same three parameters at every call site (Tasks 3, 4). `FieldErrorMap<TInput>` and `RoutedError<TInput>` are spelled identically in Tasks 1, 3, 4 and 6. `UseFormCommit` exposes `values` / `fieldErrors` / `banner` / `submitting` / `setField` / `submit` in Tasks 3 and 6; `UseFieldCommit` exposes `draft` / `error` / `pending` / `onInput` / `onCommit` / `onCancel` in Tasks 4 and 9, and its options take a REQUIRED `notify: (error: AppError) => void` in both, and Task 9 instantiates it ONCE PER ROW with `history.run` delegating to `execute` — the reversible wrapping stays `commitEdit`'s, one seam up. `FieldError` takes `{ message }` and hands `{ inputId, aria }` down a scoped slot in Tasks 2, 6 and 9 — no call site spells an id. `RenovationProjectCommandServices.createProject` is `Command<CreateProjectInput, Result<{ project: Loaded<Project> }, RepositoryError>>` in Tasks 5 and 6.

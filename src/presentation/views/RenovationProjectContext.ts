@@ -1,5 +1,6 @@
 import { inject, type InjectionKey } from 'vue';
 import type { RenovationProjectQueryServices } from '../read-models/renovationProjectQueries';
+import type { RenovationProjectCommandServices } from './renovationProjectCommands';
 
 /**
  * Everything the Renovation Project view's Vue tree needs from outside itself, provided
@@ -16,6 +17,15 @@ import type { RenovationProjectQueryServices } from '../read-models/renovationPr
  */
 export interface RenovationProjectDeps {
 	readonly queries: RenovationProjectQueryServices;
+	/** Design slice 16's write side — guarded at the root, refusing when settings are unrecovered. */
+	readonly commands: RenovationProjectCommandServices;
+	/**
+	 * Opens a project's own note. It lives here rather than being derived in the view because
+	 * `presentation/` may not reach Obsidian's vault and a `ProjectSummaryDto` carries no
+	 * path — only `id`, `name` and `status`. The composition root knows both the workspace and
+	 * the index, which is the same reason `revealView` takes a view type as a string.
+	 */
+	readonly openProject: (projectId: string) => Promise<void>;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

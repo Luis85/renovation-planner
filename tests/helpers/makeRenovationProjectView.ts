@@ -25,6 +25,7 @@
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { ok } from '../../src/core/result/Result';
+import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { FakeLeaf } from './workspace';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
@@ -38,9 +39,17 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * unchanged: the harness page therefore shows the empty state now, which is the new thing
  * worth looking at — the populated surface has nothing to draw until a later slice builds
  * an actual project list (this slice explicitly does not).
+ *
+ * `commands` and `openProject` default to slice 16's refusal bundle and a no-op
+ * respectively — the same shape `renovationProjectDeps` hands a view when settings are
+ * unrecovered — since no case built through this factory dispatches a write.
  */
 export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	new RenovationProjectView(
 		new FakeLeaf() as never,
-		deps ?? { queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) } },
+		deps ?? {
+			queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
+			commands: unavailableRenovationProjectCommands(),
+			openProject: () => Promise.resolve(),
+		},
 	);

@@ -102,6 +102,7 @@ import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { installObsidianDom } from '../helpers/dom';
 import { makeView } from '../helpers/makeRenovationProjectView';
+import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err } from '../../src/core/result/Result';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 
@@ -229,6 +230,8 @@ describe('axe against the mounted view', () => {
 						err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' }),
 					),
 			},
+			commands: unavailableRenovationProjectCommands(),
+			openProject: () => Promise.resolve(),
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();

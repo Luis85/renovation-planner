@@ -18,7 +18,7 @@
  * invariant for the next helper someone adds here.
  */
 
-import type { WorkspaceLeaf } from './obsidian-mock';
+import type { TFile, WorkspaceLeaf } from './obsidian-mock';
 
 // `implements` ties this fake to the mock's contract where the EDITOR can see it — no
 // gate type-checks tests/** yet (vitest transpiles without checking, tsconfig includes
@@ -39,6 +39,14 @@ export class FakeLeaf implements WorkspaceLeaf {
 	 */
 	getViewState(): { type?: string; state?: Record<string, unknown> } {
 		return this.state ?? {};
+	}
+
+	/** Every file `openProjectNote` (or anything else) opened on this leaf, in order. */
+	readonly opened: TFile[] = [];
+
+	openFile(file: TFile): Promise<void> {
+		this.opened.push(file);
+		return Promise.resolve();
 	}
 }
 

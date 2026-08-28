@@ -151,7 +151,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// Per CALL, not captured — the same reason the Plan Editor's factory resolves per
 			// call: `saveSettings` replaces `this.root`, and a view built against the old one
 			// would read through query services pointed at the previous project folder.
-			(leaf) => new RenovationProjectView(leaf, renovationProjectDeps(this.root)),
+			(leaf) => new RenovationProjectView(leaf, renovationProjectDeps(this.root, this.app.workspace, this.app.vault)),
 		);
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times — the dependencies are resolved PER CALL from the current root, not

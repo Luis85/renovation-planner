@@ -115,6 +115,8 @@ export class TFolder {
 export interface WorkspaceLeaf {
 	setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void>;
 	getViewState(): { type?: string; state?: Record<string, unknown> };
+	/** `openProjectNote`'s door: opens a note the caller already resolved to a `TFile`. */
+	openFile(file: TFile): Promise<void>;
 }
 
 /**

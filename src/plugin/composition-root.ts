@@ -50,7 +50,9 @@ import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
+import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
+import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
 import { notify } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
@@ -555,21 +557,36 @@ export function planEditorDeps(
 }
 
 /**
- * The Renovation Project view's own dependency bundle (design slice 14) — the seam slice 1
- * reserved in writing, extended by a field rather than relocated.
+ * The Renovation Project view's own dependency bundle (design slice 14, widened by slice 16's
+ * write side) — the seam slice 1 reserved in writing, extended by a field rather than
+ * relocated.
  *
- * Needs no `Workspace` and no `Vault`, unlike `planEditorDeps`: this view's only dependency
- * today is a read side. `unavailableRenovationProjectQueries()` when `root.persistence` is
- * `null` is the same total-rather-than-nullable shape as `planEditorDeps`, for the same
- * stated reason — a nullable dependency would make every caller branch on it, and refusing
- * to register the view at all would leave a restored leaf pointing at a view type Obsidian
- * does not know.
+ * Takes a `Workspace` and a `Vault` now, like `planEditorDeps`: slice 16 gave this view its
+ * first write (`commands.createProject`) and its first way to open a note (`openProject`),
+ * and the latter needs both to resolve a project's id to a file and reveal it.
+ * `unavailableRenovationProjectQueries()`/`unavailableRenovationProjectCommands()` when
+ * `root.persistence` is `null` are the same total-rather-than-nullable shape `planEditorDeps`
+ * uses for the identical situation — a nullable dependency would make every caller branch on
+ * it, and refusing to register the view at all would leave a restored leaf pointing at a view
+ * type Obsidian does not know. `openProject` answers a no-op rather than a refusal in that
+ * state: there is no index to resolve a path through, and nothing to tell the user that the
+ * list — empty for the same reason — has not already told them.
  */
-export function renovationProjectDeps(root: CompositionRoot): RenovationProjectDeps {
+export function renovationProjectDeps(
+	root: CompositionRoot,
+	workspace: Workspace,
+	vault: Vault,
+): RenovationProjectDeps {
 	const persistence = root.persistence;
 	return {
 		queries: persistence
 			? createRenovationProjectQueries(persistence.listProjects)
 			: unavailableRenovationProjectQueries(),
+		commands: persistence
+			? { createProject: persistence.createProject }
+			: unavailableRenovationProjectCommands(),
+		openProject: persistence
+			? (projectId) => openProjectNote({ workspace, vault, index: persistence.index }, projectId)
+			: () => Promise.resolve(),
 	};
 }

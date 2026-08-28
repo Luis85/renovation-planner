@@ -14,7 +14,8 @@ import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';
 import { recorder } from '../helpers/logger';
-import { FakeLeaf } from '../helpers/workspace';
+import { createRepositoryStack } from '../helpers/vault';
+import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 
 installObsidianDom();
 
@@ -29,7 +30,7 @@ describe('the renovation project dependencies', () => {
 	it('hands over a query service that answers the real project list when persistence is composed', async () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 
-		const deps = renovationProjectDeps(root);
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault);
 		const result = await deps.queries.listProjects();
 
 		// A fresh vault legitimately has none yet — `ok`, not a refusal, and nothing refused.
@@ -45,11 +46,69 @@ describe('the renovation project dependencies', () => {
 	it('hands over refusing query services when settings were never recovered', async () => {
 		const root = createCompositionRoot(null, recorder, vaultStack());
 
-		const deps = renovationProjectDeps(root);
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault);
 		const result = await deps.queries.listProjects();
 
 		expect(result.ok).toBe(false);
 		expect(!result.ok && result.error.code).toBe('settings.unrecovered');
+	});
+
+	/**
+	 * Slice 16's write side: the SAME guarded `createProject` `persistence` already composed
+	 * and exposes, not a second guard around it — reused by identity so a hostile input
+	 * driven through either seam is driven through the one guard that exists.
+	 */
+	it('hands over the guarded createProject command when persistence is composed', () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+
+		expect(deps.commands.createProject).toBe(root.persistence?.createProject);
+	});
+
+	it('hands over a refusing createProject command when settings were never recovered', async () => {
+		const root = createCompositionRoot(null, recorder, vaultStack());
+
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const result = await deps.commands.createProject.execute({ name: 'Kitchen' });
+
+		expect(result.ok).toBe(false);
+		expect(!result.ok && result.error.code).toBe('settings.unrecovered');
+	});
+
+	/**
+	 * `openProject` reaches the workspace AND the vault it was constructed with, over the
+	 * root's own index: this asserts the SEAM wires all three through, not `openProjectNote`'s
+	 * own mechanism, which `openNote.test.ts` already covers directly — so a real note and a
+	 * real (albeit fake) vault stand in for the roundabout of dispatching a create first.
+	 */
+	it('opens the note a project id resolves to when persistence is composed', async () => {
+		const stack = createRepositoryStack();
+		await stack.vault.create('Project.md', '---\nid: project-1\n---\n');
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		root.persistence?.index.upsert({ id: 'project-1' as never, type: 'renovation-project', path: 'Project.md' });
+		const workspace = new FakeWorkspace();
+
+		const deps = renovationProjectDeps(root, workspace as never, stack.vault as never);
+		await deps.openProject('project-1');
+
+		expect(workspace.leaves).toHaveLength(1);
+		expect(workspace.leaves[0].opened[0]?.path).toBe('Project.md');
+	});
+
+	/**
+	 * TOTAL rather than nullable, same as `queries` and `commands` above: with no index to
+	 * resolve a path through, opening anything would be a guess, so this answers a no-op
+	 * rather than reaching for a workspace that has nothing to open.
+	 */
+	it('opens nothing when settings were never recovered', async () => {
+		const root = createCompositionRoot(null, recorder, vaultStack());
+		const workspace = new FakeWorkspace();
+
+		const deps = renovationProjectDeps(root, workspace as never, vaultStack().vault);
+		await expect(deps.openProject('project-1')).resolves.toBeUndefined();
+
+		expect(workspace.leaves).toHaveLength(0);
 	});
 });
 

@@ -19,6 +19,7 @@ import {
 	useRenovationProjectContext,
 } from '../../../src/presentation/views/RenovationProjectContext';
 import { ok } from '../../../src/core/result/Result';
+import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
 
 /**
@@ -26,10 +27,13 @@ import type { RenovationProjectDeps } from '../../../src/presentation/views/Reno
  * (`ok({ projects: [], unreadable: 0 })`): neither case here is about the project list or its
  * empty state (that is `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job)
  * — it is about `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING
- * the view can hydrate against without throwing.
+ * the view can hydrate against without throwing. `commands` and `openProject` are the same
+ * refusal bundle and no-op neither case here dispatches through.
  */
 const deps: RenovationProjectDeps = {
 	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
+	commands: unavailableRenovationProjectCommands(),
+	openProject: () => Promise.resolve(),
 };
 
 describe('the view root', () => {

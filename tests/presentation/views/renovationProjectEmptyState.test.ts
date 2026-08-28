@@ -14,8 +14,18 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { installObsidianDom } from '../../helpers/dom';
 import { makeView } from '../../helpers/makeRenovationProjectView';
 import { useRenovationProjectStore } from '../../../src/presentation/stores/RenovationProjectStore';
+import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
+
+/**
+ * Every case here is about the read side's empty/loading/failed states, never about the
+ * write side — so `commands` and `openProject` are the same refusal bundle and no-op
+ * `makeView`'s own default uses, spelled out here because `queries` is the one field each
+ * case actually varies.
+ */
+const commands = unavailableRenovationProjectCommands();
+const openProject = () => Promise.resolve();
 
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
 
@@ -41,7 +51,7 @@ async function settle(): Promise<void> {
 
 async function open(queries: RenovationProjectQueryServices) {
 	installObsidianDom();
-	const view = makeView({ queries });
+	const view = makeView({ queries, commands, openProject });
 	await view.onOpen();
 	await settle();
 	return view;
@@ -167,6 +177,8 @@ describe('the renovation project view', () => {
 		installObsidianDom();
 		const view = makeView({
 			queries: { listProjects: () => new Promise(() => {}) },
+			commands,
+			openProject,
 		});
 		await view.onOpen();
 		await Promise.resolve();

@@ -10,6 +10,22 @@ interface RunnableCommand {
 }
 
 /**
+ * Discards a rejection nobody is left holding.
+ *
+ * A coalesced round of `commitOnce` fires its own continuation rather than being awaited by
+ * anyone (see that function's docblock), so a THROW from it would otherwise become an
+ * unhandled rejection: nothing anywhere holds that specific promise to catch it. The
+ * continuation's own `finally` has already reset `inFlight`/`pending` by the time this runs
+ * — the state repair is the only half of "handling" this composable can still perform for an
+ * unexpected technical fault at this layer, and that half is already done before this ever
+ * runs. Module-scoped rather than declared per call: it captures nothing, so a copy minted
+ * inside `useFieldCommit` on every call would be pure churn.
+ */
+function swallowContinuationFault(): void {
+	// Intentionally empty: see the docblock above.
+}
+
+/**
  * One Inspector field's draft, error and pending state.
  *
  * The commit boundary is blur/enter rather than a form submit — the ONLY thing that differs
@@ -85,7 +101,19 @@ export function useFieldCommit<T, TInput>(options: {
 	let recommit = false;
 	let lastCommitted: { readonly value: T } | null = null;
 
-	const draft = computed(() => drafted.value?.value ?? toValue(options.canonicalValue));
+	// NOT `drafted.value?.value ?? toValue(...)`: optional chaining plus nullish coalescing
+	// collapses a draft that IS `null`/`undefined` into the canonical value, indistinguishable
+	// from no draft at all. `T` is nullable by construction for this composable's real
+	// consumers — `GetRequirementsForZone`'s override fields are `Decimal | null` /
+	// `Money | null`, and `SetRequirementCostOverride` treats `input.cost ?? null` as "clear
+	// the override" — so `onInput(null)` is a real user gesture ("clear this field") that the
+	// `?.`/`??` spelling would silently defeat: it reads back as canonical, and `dispatchOnce`
+	// would build a command from the canonical value instead of the clear the user asked for.
+	// `drafted.value === null` is the ONLY question that means "clean"; the wrapper exists
+	// precisely so that question is distinguishable from "the draft's own value is nullish".
+	const draft = computed(() =>
+		drafted.value === null ? toValue(options.canonicalValue) : drafted.value.value,
+	);
 
 	function onInput(value: T): void {
 		drafted.value = { value };
@@ -151,42 +179,71 @@ export function useFieldCommit<T, TInput>(options: {
 	 * SAME call.** A version that kept looping inside one `await`-chain made the ORIGINAL
 	 * gesture's returned promise wait for every coalesced follow-up to finish too — so a
 	 * caller that awaited its own `onCommit()` blocked on write cycles it never asked for
-	 * and had no way to observe as separate. Firing the continuation with `void` lets the
-	 * gesture that triggered it resolve as soon as ITS dispatch is decided, while
-	 * `inFlight`/`pending` keep describing the field until the LAST round in the chain
-	 * actually terminates — which is also why only the terminating branches reset them.
+	 * and had no way to observe as separate. Firing the continuation lets the gesture that
+	 * triggered it resolve as soon as ITS dispatch is decided, while `inFlight`/`pending`
+	 * keep describing the field until the LAST round in the chain actually terminates.
+	 *
+	 * **Every exit resets `inFlight`/`pending` — EXCEPT the one that hands off to another
+	 * round, which deliberately leaves them for that round to clear.** A first version reset
+	 * them only on the two branches that end the chain in place (an invalid draft, and "no
+	 * more rounds queued"), which left a THROW from `validate`, `buildCommand`,
+	 * `history.run` or `notify` taking neither branch: `inFlight` stayed `true` forever, so
+	 * `onCommit` swallowed every later gesture through its `if (inFlight)` early return and
+	 * the field silently stopped writing — permanently, and on the continuation path with
+	 * nobody even able to observe the rejection. `continuing` is the flag that tells the
+	 * `finally` below which of those two shapes just happened: SET only immediately before
+	 * firing the next round, so a throw anywhere above that point still finds it `false` and
+	 * still gets the reset.
 	 */
 	async function commitOnce(): Promise<void> {
-		recommit = false;
-		// Validated INSIDE this round, not once at the top of `onCommit`, because a queued
-		// gesture carries a draft nobody has checked. A version of this validated once at
-		// the top and returned early on an invalid draft WITHOUT clearing `recommit` — so a
-		// valid commit, then malformed text, then a blur, left the flag set and the next
-		// round dispatched the malformed draft the moment the first write settled, straight
-		// into the throwing `moneyOf` this seam exists to keep it away from. One rule, one
-		// place, every round.
-		const invalid = options.validate?.(draft.value) ?? null;
-		if (invalid !== null) {
-			// This field's own refusal: no command to produce it, and no `AppError` for
-			// `routeError` to place.
-			error.value = invalid;
-			inFlight = false;
-			pending.value = false;
-			return;
+		let continuing = false;
+		try {
+			recommit = false;
+			// A gesture with nothing to commit: the field is already clean and showing
+			// canonical. Without this, a commit gesture that fires unconditionally on every
+			// blur (Task 9 binds `@blur="onCommit"`, not "only when dirty") dispatched the
+			// CANONICAL value back at itself on every blur of an untouched field — one undo
+			// entry per tab-through, undoing nothing visible each time. Same argument as
+			// `validate` below: the guard lives HERE, inside the one round every caller
+			// funnels through, rather than at each call site where a caller could forget it.
+			if (drafted.value === null) return;
+			// Validated INSIDE this round, not once at the top of `onCommit`, because a
+			// queued gesture carries a draft nobody has checked. A version of this validated
+			// once at the top and returned early on an invalid draft WITHOUT clearing
+			// `recommit` — so a valid commit, then malformed text, then a blur, left the flag
+			// set and the next round dispatched the malformed draft the moment the first
+			// write settled, straight into the throwing `moneyOf` this seam exists to keep it
+			// away from. One rule, one place, every round.
+			const invalid = options.validate?.(draft.value) ?? null;
+			if (invalid !== null) {
+				// This field's own refusal: no command to produce it, and no `AppError` for
+				// `routeError` to place.
+				error.value = invalid;
+				return;
+			}
+			await dispatchOnce();
+			// Only if the draft actually MOVED, and `!== null` is half of that test rather
+			// than a defensive extra: a SUCCESSFUL dispatch clears `drafted` to null, and
+			// `null !== lastCommitted` is true — so without it, two blurs with no edit
+			// between them re-dispatched the canonical value, bought a second undo entry,
+			// and could overwrite the edit just accepted if the refresh had not landed. Null
+			// here means the field is clean and showing canonical, which is precisely
+			// nothing to re-send.
+			if (recommit && drafted.value !== null && drafted.value !== lastCommitted) {
+				continuing = true;
+				// Not `void`: an unhandled rejection reaching nobody is exactly the failure
+				// `reportFault` exists to prevent elsewhere in this codebase, and a bare
+				// `void` gives a throw here no handler at all — no caller holds this
+				// specific promise to catch it themselves.
+				commitOnce().catch(swallowContinuationFault);
+				return;
+			}
+		} finally {
+			if (!continuing) {
+				inFlight = false;
+				pending.value = false;
+			}
 		}
-		await dispatchOnce();
-		// Only if the draft actually MOVED, and `!== null` is half of that test rather than
-		// a defensive extra: a SUCCESSFUL dispatch clears `drafted` to null, and
-		// `null !== lastCommitted` is true — so without it, two blurs with no edit between
-		// them re-dispatched the canonical value, bought a second undo entry, and could
-		// overwrite the edit just accepted if the refresh had not landed. Null here means
-		// the field is clean and showing canonical, which is precisely nothing to re-send.
-		if (recommit && drafted.value !== null && drafted.value !== lastCommitted) {
-			void commitOnce();
-			return;
-		}
-		inFlight = false;
-		pending.value = false;
 	}
 
 	async function onCommit(): Promise<void> {

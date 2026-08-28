@@ -6,6 +6,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { flushPromises } from '@vue/test-utils';
 import { useFieldCommit } from '../../../src/presentation/composables/use-field-commit';
 import type { FieldErrorMap } from '../../../src/presentation/errors/route-error';
 import { err, ok, type Result } from '../../../src/core/result/Result';
@@ -276,11 +277,19 @@ describe('useFieldCommit', () => {
 		expect(field.pending.value).toBe(false);
 	});
 
-	it('retires a queued recommit on cancel, so a settling write cannot resurrect it', async () => {
+	it('retires a queued recommit on cancel, so a settling write cannot resurrect it even under fresh typing', async () => {
 		// A blur queues a second commit while the first is still in flight, then the user
-		// presses Escape before it settles. `recommit` is a request about a VALUE the user has
-		// since abandoned, not a standing intent — so cancelling it must stop the settling
-		// write's chain from dispatching a draft the user explicitly threw away.
+		// presses Escape before it settles, THEN types again. `recommit` is a request about a
+		// VALUE the user has since abandoned, not a standing intent — so cancelling it must
+		// stop the settling write's chain from dispatching a draft the user explicitly threw
+		// away, and must stay retired even once fresh typing makes the draft non-null again.
+		//
+		// The fresh typing after cancel is load-bearing for what this test can SEE: `onCancel`
+		// also nulls `drafted`, and the coalescing guard's `drafted.value !== null` conjunct
+		// alone would block a re-dispatch for THAT reason — discriminating nothing about
+		// whether `recommit` itself was retired. Only typing again, so `drafted.value` is
+		// non-null while `recommit` is the one thing left standing between "nothing queued"
+		// and "the abandoned request fires after all", makes the two implementations disagree.
 		let settle: (result: Result<void, AppError>) => void = noop;
 		const run = vi.fn<Run>(
 			() => new Promise<Result<void, AppError>>((resolve) => { settle = resolve; }),
@@ -304,13 +313,224 @@ describe('useFieldCommit', () => {
 		field.onInput(-7);
 		void field.onCommit();
 		field.onCancel();
+		field.onInput(-9);
 		settle(ok(undefined));
 		await inFlight;
 
 		// Only the original dispatch ever happened: the queued recommit for -7 must not fire
-		// once cancel has retired it.
+		// once cancel has retired it, and the fresh -9 must not be swept up into it either.
 		expect(run).toHaveBeenCalledTimes(1);
-		expect(field.draft.value).toBe(10);
+		expect(field.draft.value).toBe(-9);
 		expect(field.pending.value).toBe(false);
+	});
+
+	it('dispatches nothing when a commit gesture lands with no draft to commit', async () => {
+		// Task 9 binds `@blur="onCommit"` unconditionally — every blur, not just a dirty one.
+		// Tabbing through an untouched Inspector field must not write the canonical value back
+		// to itself on every pass.
+		const run = vi.fn<Run>(() => Promise.resolve(ok(undefined)));
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: (value) => ({
+				execute: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok(undefined)),
+				value,
+			}),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn<Notify>(),
+		});
+
+		field.onInput(20);
+		await field.onCommit();
+		// Two further blurs with no edit between them and this one.
+		await field.onCommit();
+		await field.onCommit();
+
+		expect(run).toHaveBeenCalledTimes(1);
+	});
+
+	it('treats a null draft as a real value to commit, not as "nothing typed"', async () => {
+		// Task 9's real consumers are nullable by construction (`GetRequirementsForZone`'s
+		// override fields are `Decimal | null` / `Money | null`), so `onInput(null)` is a real
+		// gesture — "clear this override" — that a `?.`/`??`-shaped `draft` would silently
+		// collapse back to the canonical value instead of dispatching the clear.
+		interface OverrideInput {
+			readonly cost: number | null;
+		}
+		type BuildOverrideCommand = (value: number | null) => {
+			execute: () => Promise<Result<void, AppError>>;
+			undo: () => Promise<Result<void, AppError>>;
+			value: number | null;
+		};
+		const buildCommand = vi.fn<BuildOverrideCommand>((value) => ({
+			execute: () => Promise.resolve(ok(undefined)),
+			undo: () => Promise.resolve(ok(undefined)),
+			value,
+		}));
+		const run = vi.fn<Run>(() => Promise.resolve(ok(undefined)));
+		const field = useFieldCommit<number | null, OverrideInput>({
+			canonicalValue: () => 5,
+			buildCommand,
+			history: { run },
+			errorMap: {},
+			field: 'cost',
+			toUserMessage: say,
+			notify: vi.fn<Notify>(),
+		});
+
+		field.onInput(null);
+
+		// Shows the clear, not the canonical value it would collapse into under `?.`/`??`.
+		expect(field.draft.value).toBeNull();
+
+		await field.onCommit();
+
+		expect(run).toHaveBeenCalledTimes(1);
+		// Dispatched the CLEAR, not the canonical value it would fall back to under `?.`/`??`.
+		expect(buildCommand).toHaveBeenCalledWith(null);
+	});
+
+	it('re-validates the LATEST draft on a coalesced round rather than trusting a check made earlier', async () => {
+		// A version that validated once at the top of the chain and returned early on an
+		// invalid draft WITHOUT clearing `recommit` would validate the draft in scope at that
+		// moment — but the round that actually fires later carries a DIFFERENT, newer draft.
+		// Commit a VALID value (starts a write, still in flight), then type something
+		// `validate` refuses, then blur again: when the first write settles, the coalesced
+		// round must re-validate and refuse the malformed draft rather than ever dispatching
+		// it.
+		let settle: () => void = noop;
+		const run = vi.fn<Run>(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				settle = () => { resolve(ok(undefined)); };
+			}),
+		);
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: (value) => ({
+				execute: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok(undefined)),
+				value,
+			}),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn<Notify>(),
+			validate: (value) => (value < 0 ? 'must be zero or more' : null),
+		});
+
+		field.onInput(5);
+		const first = field.onCommit();
+		field.onInput(-3);
+		void field.onCommit();
+
+		settle();
+		await first;
+
+		// The coalesced round validated -3 and refused it — `history.run` was never called a
+		// second time, and the malformed draft never reached `buildCommand`/`history.run`.
+		expect(run).toHaveBeenCalledTimes(1);
+		expect(field.error.value).toBe('must be zero or more');
+		expect(field.draft.value).toBe(-3);
+		expect(field.pending.value).toBe(false);
+	});
+
+	it('resets pending after a thrown fault on the directly-awaited round, and the field stays usable', async () => {
+		// `history.run`/`buildCommand` are only EXPECTED to resolve a Result (SDD §65) — a
+		// throw is an unexpected technical fault, and this composable must not wedge on one.
+		const fault = new Error('vault fault');
+		let calls = 0;
+		const run = vi.fn<Run>(() => {
+			calls += 1;
+			return calls === 1 ? Promise.reject(fault) : Promise.resolve(ok(undefined));
+		});
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: (value) => ({
+				execute: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok(undefined)),
+				value,
+			}),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn<Notify>(),
+		});
+
+		field.onInput(-5);
+		await expect(field.onCommit()).rejects.toBe(fault);
+
+		// The throw must not wedge the field: `pending` clears, and a LATER gesture can still
+		// dispatch — a regression that drops the `finally` leaves `pending` stuck `true`
+		// forever, with every later `onCommit()` swallowed silently by the `if (inFlight)`
+		// guard.
+		expect(field.pending.value).toBe(false);
+		field.onInput(-6);
+		await field.onCommit();
+		expect(run).toHaveBeenCalledTimes(2);
+	});
+
+	it('resets pending after a thrown fault on a coalesced round, without an unhandled rejection', async () => {
+		const fault = new Error('vault fault in continuation');
+		let settleFirst: (result: Result<void, AppError>) => void = noop;
+		let calls = 0;
+		const run = vi.fn<Run>(() => {
+			calls += 1;
+			if (calls === 1) {
+				return new Promise<Result<void, AppError>>((resolve) => { settleFirst = resolve; });
+			}
+			if (calls === 2) return Promise.reject(fault);
+			return Promise.resolve(ok(undefined));
+		});
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: (value) => ({
+				execute: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok(undefined)),
+				value,
+			}),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn<Notify>(),
+		});
+
+		// A bare `void commitOnce()` on the continuation path gives a throw here no handler at
+		// all — nobody holds that specific promise to catch it themselves — so this listener
+		// is the deterministic instrument for "did anything become an unhandled rejection",
+		// rather than trusting a reporter's incidental formatting.
+		const unhandled: unknown[] = [];
+		const onUnhandledRejection = (reason: unknown): void => {
+			unhandled.push(reason);
+		};
+		process.on('unhandledRejection', onUnhandledRejection);
+		try {
+			field.onInput(-5);
+			const first = field.onCommit();
+			field.onInput(-7);
+			void field.onCommit();
+
+			settleFirst(ok(undefined));
+			await first;
+			// Flush past the continuation's own throw-and-catch, which runs on a later
+			// microtask than `first`'s own resolution.
+			await flushPromises();
+			await flushPromises();
+		} finally {
+			process.off('unhandledRejection', onUnhandledRejection);
+		}
+
+		expect(unhandled).toEqual([]);
+		expect(run).toHaveBeenCalledTimes(2);
+		// The continuation's own fault must not wedge the field either.
+		expect(field.pending.value).toBe(false);
+		field.onInput(-9);
+		await field.onCommit();
+		expect(run).toHaveBeenCalledTimes(3);
 	});
 });

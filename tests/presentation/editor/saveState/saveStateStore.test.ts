@@ -94,34 +94,87 @@ describe('the save-state store', () => {
 		expect(store.state).toBe('saved');
 	});
 
-	it('never reaches unsaved-changes through any sequence of its own actions', () => {
+	it('does not let an overlapping batch of refusals clear a real save error', () => {
 		const store = useSaveStateStore();
-		const actions = [
-			() => store.beginSaving(),
-			() => store.resolveOk(),
-			() => store.resolveErr(),
-			() => store.resolveNeutral(),
-		];
-
-		// Every sequence of up to four actions. Exhaustive over the store's whole surface,
-		// which is what backs the unreachability claim rather than asserting it in prose.
-		const walk = (depth: number): void => {
-			if (depth === 0) return;
-			for (const act of actions) {
-				act();
-				expect(store.state).not.toBe('unsaved-changes');
-				walk(depth - 1);
-			}
-		};
-		walk(4);
+		store.beginSaving();
+		store.beginSaving();
+		store.resolveNeutral();
+		store.resolveNeutral();
+		expect(store.state).toBe('saved');
 	});
 
-	it('exposes no action that could produce unsaved-changes', () => {
+	it('preserves a save error across an overlapping batch that writes nothing', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveErr();
+		expect(store.state).toBe('save-error');
+
+		store.beginSaving();
+		store.beginSaving();
+		store.resolveNeutral();
+		store.resolveNeutral();
+		expect(store.state).toBe('save-error');
+	});
+
+	it('never reaches unsaved-changes through any sequence of its own actions', () => {
+		type Store = ReturnType<typeof useSaveStateStore>;
+		const actions: ((store: Store) => void)[] = [
+			(store) => store.beginSaving(),
+			(store) => store.resolveOk(),
+			(store) => store.resolveErr(),
+			(store) => store.resolveNeutral(),
+		];
+
+		/**
+		 * Every sequence of up to four actions, each replayed from a FRESH store — a genuine
+		 * proof over every sequence from the initial state, rather than one continuous stream
+		 * that only ever visits whatever state the previous sequence happened to leave behind.
+		 * A store that assigns `'unsaved-changes'` only when an action sees the store at rest
+		 * (e.g. `resolveOk` doing so exactly when `state === 'saved'`) is caught at depth 1,
+		 * because every sequence here genuinely starts from `'saved'`.
+		 */
+		const walk = (prefix: readonly ((store: Store) => void)[], depth: number): void => {
+			setActivePinia(createPinia());
+			const store = useSaveStateStore();
+			for (const act of prefix) {
+				act(store);
+				expect(store.state).not.toBe('unsaved-changes');
+			}
+			if (depth === 0) return;
+			for (const act of actions) {
+				walk([...prefix, act], depth - 1);
+			}
+		};
+		walk([], 4);
+	});
+
+	it('exposes exactly its own action surface, so a future action cannot slide in unnoticed', () => {
 		const store = useSaveStateStore();
 		expect(Object.keys(store)).toEqual(
 			expect.arrayContaining(['state', 'beginSaving', 'resolveOk', 'resolveErr', 'resolveNeutral']),
 		);
-		expect(Object.keys(store)).not.toContain('markUnsaved');
+		// The exact key set Pinia hands back for this store today — its own five members plus
+		// the setup-store machinery ($dispose, $patch, …) Pinia attaches to every store. An
+		// exact match, not a negative check for a name (like the never-existed `markUnsaved`)
+		// that no implementation would plausibly add: a genuinely new action changes this set
+		// and must be added here deliberately rather than passing unnoticed.
+		expect(Object.keys(store).toSorted()).toEqual([
+			'$dispose',
+			'$id',
+			'$onAction',
+			'$patch',
+			'$reset',
+			'$subscribe',
+			'_customProperties',
+			'_hmrPayload',
+			'_hotUpdate',
+			'_p',
+			'beginSaving',
+			'resolveErr',
+			'resolveNeutral',
+			'resolveOk',
+			'state',
+		]);
 	});
 
 	it('gives each Plan Editor its own state, since two can save independently', () => {

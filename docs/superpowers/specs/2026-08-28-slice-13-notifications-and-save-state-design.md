@@ -399,6 +399,24 @@ regardless of how it is drawn. A CSS-drawn glyph would satisfy them without intr
 `setIcon`, and is the likely answer; it is not recorded as decided because it changes the
 markup, the stylesheet and the accessibility assertions in three tasks.
 
+**A THIRD contract names this slice — `docs/components/Status bar.md` — and it assigns one
+decision that is NOT open, so it is settled here rather than raised.** It says: *"The parts
+that change meaningfully get the live region; the parts that change continuously do not. Which
+is which is a decision slice 13 has to make and this note cannot make for it — but 'the whole
+bar is live' is refused here rather than discovered later."*
+
+Slice 5's `StatusBar.vue` already made it, correctly, and its own comment gives the reasoning:
+the status and measurement regions carry `role="group"` because measurements update on every
+pointer move and "a screen reader reciting coordinates continuously is worse than silence",
+while the save-state region carries `role="status"` because announcing a change is its whole
+job. So the bar is not one live region; exactly one third of it is.
+
+This slice's obligation is therefore to **keep** that split and to record it as slice 13's
+decision rather than slice 5's accident: `SaveStateIndicator` mounts INSIDE the existing
+`role="status"` region and declares no role of its own — a nested live region would announce
+twice — and no task widens `aria-live` to the bar. Nothing in the plan changes; what was
+missing was the statement that this was decided.
+
 **Also unresolved, and the same shape as `affectsSaveState`:** `set-plan-background` writes to
 the open plan through `planEditorCommands.ts`, calling `command.execute()` directly rather than
 through the editor's dispatcher — so the indicator reads `Saved` throughout that write and
@@ -411,6 +429,8 @@ slice's boundary.
 - `docs/components/Save-state indicator.md` — the component contract for the save-state half,
   and the source of the three conflicts above.
 - `docs/components/Toast.md` — the component contract for the notice half.
+- `docs/components/Status bar.md` — the third contract naming this slice, whose live-region
+  decision is settled above rather than left open.
 
 - PRD §67 Autosave — the four state labels, and the two triggers that reduce to one.
 - SDD §60 UI Layout — the status bar row this slice fills the third region of.

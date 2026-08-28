@@ -122,8 +122,28 @@ notifyFault(cause, logger, event)   → error     existing, unchanged
 ```
 
 `notifyError` is not renamed and does not gain a string overload: it is the `AppError` door
-and its whole contract is that the caller holds an error rather than text. `notify` becomes
-`info` rather than gaining a fourth sibling, so no existing call site changes.
+and its whole contract is that the caller holds an error rather than text.
+
+**`notify` becomes `info`, and that is a DEFAULT rather than a verdict on the call sites it
+already has.** The design review caught this: the plugin has exactly four bare `notify(...)`
+calls, and leaving all four at `info` would auto-dismiss two of them after six seconds
+despite their copy being precisely the kind of fact the warning tier exists for. Each is
+classified deliberately, in the same edit that gives `notify` a severity:
+
+| Call site | Copy | Severity |
+|---|---|---|
+| `composition-root.ts:291` `cascade.aborted` | "Their figures may be out of date." | **warning** |
+| `composition-root.ts:294` `cascade.stale-marker-failed` | "Its figures may be wrong until it is recalculated." | **warning** |
+| `planEditorCommands.ts:140` `background.unsupported` | "Only PNG, JPEG and PDF files can be a plan background." | **warning** |
+| `planEditorCommands.ts:111` `plan.none` | "This vault has no renovation plans yet." | info |
+
+The two cascade notices are the clearest case in the plugin: they run in the BACKGROUND,
+nothing the user clicked is waiting on them, and the thing that failed is the durable marker
+that would have let a later reader see a wrong figure as wrong. A notice that vanishes while
+the user is looking elsewhere is the same silence that port exists to break.
+`background.unsupported` reports that something the user explicitly asked for did not happen,
+with a remedy outside the plugin. `plan.none` stays `info`: a statement of fact about an
+empty vault, with no failed action behind it.
 
 **`NOTICE_DOOR`'s pattern gains the two new names in the same edit as the functions**, and
 `tests/build/notice-text-boundary.test.ts` gains a case per name driven through a real
@@ -200,6 +220,17 @@ adopted as written:
   against one category rather than a list of the ones that count, so a category added by a
   later slice defaults to *affecting* the indicator. `AppError.category` is verified to
   exist (`src/core/errors/AppError.ts:24`).
+- **A REJECTION settles the batch too, and this is the one correction the design review
+  added.** The first draft of `track` awaited the operation and decremented only on
+  resolution — but SDD §65 reserves throws for technical faults and the dispatcher
+  propagates them: `withEditorStateRefresh` re-throws unchanged and `runtime.ts`'s
+  `reportFault` is what catches them. So a thrown fault would have left `pendingCount`
+  permanently above zero, sticking the indicator on `saving` forever and making every later
+  batch unsettleable — a dead indicator rather than a wrong one. `track` decrements in a
+  `catch` and re-throws the cause unchanged, and it settles to `save-error` rather than
+  `saved` for the same reason `affectsSaveState` defaults that way: a fault says nothing
+  about whether the write landed, and "we might not have written your data" is the safe
+  answer while nobody knows.
 - `'unsaved-changes'` stays in the type and is unreachable through the store's own action
   surface, proven by an exhaustive-transition test rather than asserted in prose.
 - `SAVE_STATE_KEYS` maps each state to a `StringKey`; the copy lives in `en.ts` and `de.ts`
@@ -250,7 +281,10 @@ alone.
 **Save-state** — the slice document's list is adopted whole, including the two cases that
 exist to catch a decorator that looks finished: the table driven over all three of `run`,
 `undo` and `redo`, and the overlapping-dispatch case where one of two concurrent dispatches
-fails.
+fails. Plus the case the design review added: a REJECTING operation settles the batch,
+re-throws its cause unchanged, and leaves a following dispatch able to settle — driven over
+all three operations, because a decorator that handles a rejecting `run` and not a rejecting
+`undo` passes a `run`-only test.
 
 **The gate over the gate** — `tests/build/notice-text-boundary.test.ts` gains a case per new
 door name. A door added without one would be a notice surface no lint rule can see.

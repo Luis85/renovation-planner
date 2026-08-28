@@ -1022,15 +1022,57 @@ export function notifyFault(cause: unknown, logger: Logger, event: string): void
 Run: `npx vue-tsc --noEmit -p tsconfig.json`
 Expected: errors wherever a caller used a returned `Notice`. Drop the use; none of them needs it.
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 5: Classify the four call sites `notify` already has**
 
-Run: `npx vitest run tests/presentation/notices/ tests/presentation/editor/`
-Expected: PASS
+`notify` now means `info`, and that is a DEFAULT rather than a verdict. Leaving all four
+existing calls at `info` would auto-dismiss two of them after six seconds despite their copy
+being exactly what the warning tier exists for. Migrate three, leave one:
 
-- [ ] **Step 6: Commit**
+In `src/plugin/composition-root.ts`, import `notifyWarning` beside `notify` and change both
+cascade notices:
+
+```ts
+	const cascadeNotices = {
+		cascadeAborted: () => {
+			notifyWarning(tr('cascade.aborted'));
+		},
+		staleMarkerFailed: () => {
+			notifyWarning(tr('cascade.stale-marker-failed'));
+		},
+	};
+```
+
+These two are the clearest case in the plugin. They run in the BACKGROUND — nothing the user
+clicked is waiting on them — and the thing that failed is the durable marker that would have
+let a later reader see a wrong figure as wrong. A notice that vanishes while the user is
+looking elsewhere is the same silence that port exists to break. Extend that block's existing
+docblock to say so, since it currently explains why the port is announced at all and not why
+the announcement persists.
+
+In `src/plugin/planEditorCommands.ts:140`:
+
+```ts
+				notifyWarning(tr('background.unsupported'));
+```
+
+It reports that something the user explicitly asked for did not happen, and the remedy is
+outside the plugin — add a supported file to the vault — so a message gone in six seconds may
+be gone before they have understood what to do.
+
+**Leave `planEditorCommands.ts:111` (`plan.none`) at `notify`.** "This vault has no
+renovation plans yet" is a statement of fact about an empty vault with no failed action
+behind it, which is what the `info` tier is for.
+
+- [ ] **Step 6: Run the tests**
+
+Run: `npx vitest run tests/presentation/notices/ tests/presentation/editor/ tests/plugin/`
+Expected: PASS. If a test asserted on `Notice.shown` for one of the migrated sites it still
+passes — the fake records every message regardless of severity.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/presentation/notices/notify.ts tests/presentation/notices/notify.test.ts
+git add src/presentation/notices/notify.ts src/plugin/composition-root.ts src/plugin/planEditorCommands.ts tests/presentation/notices/notify.test.ts
 git commit -m "feat: notices carry a severity, a live region and a dismiss control"
 ```
 
@@ -1627,8 +1669,10 @@ git commit -m "feat: the save-state store, and the batch that cannot settle earl
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError } from '../../../../src/core/errors/AppError';
+import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { affectsSaveState } from '../../../../src/presentation/editor/save-state/affects-save-state';
 import { withSaveStateTracking } from '../../../../src/presentation/editor/save-state/with-save-state-tracking';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
@@ -1707,6 +1751,53 @@ describe('withSaveStateTracking', () => {
 
 		const returned = await (operation === 'run' ? wrapped.run(command) : wrapped[operation]());
 		expect(returned).toBe(result);
+	});
+
+	it.each(OPERATIONS)('settles the batch when %s REJECTS rather than resolving', async (operation) => {
+		const boom = new Error('the vault went away mid-write');
+		const history = {
+			run: vi.fn(async () => {
+				throw boom;
+			}),
+			undo: vi.fn(async () => {
+				throw boom;
+			}),
+			redo: vi.fn(async () => {
+				throw boom;
+			}),
+		};
+		const save = tracker();
+		const wrapped = withSaveStateTracking(history, save);
+
+		await expect(
+			operation === 'run' ? wrapped.run(command) : wrapped[operation](),
+		).rejects.toBe(boom);
+
+		expect(save.beginSaving).toHaveBeenCalledTimes(1);
+		expect(save.resolveErr).toHaveBeenCalledTimes(1);
+		expect(save.resolveOk).not.toHaveBeenCalled();
+	});
+
+	it('leaves a later dispatch able to settle after a rejection, rather than wedging', async () => {
+		// The real cost of a missed decrement: not a wrong reading, but an indicator that can
+		// never settle again. Driven through the REAL store rather than a spy, because a spy
+		// cannot show a counter that never returns to zero.
+		setActivePinia(createPinia());
+		const store = useSaveStateStore();
+
+		const throwing = {
+			run: vi.fn(async () => {
+				throw new Error('boom');
+			}),
+			undo: vi.fn(async () => ok(undefined)),
+			redo: vi.fn(async () => ok(undefined)),
+		};
+		await expect(withSaveStateTracking(throwing, store).run(command)).rejects.toThrow('boom');
+		expect(store.state).toBe('save-error');
+
+		const healthy = historyResolving(ok(undefined));
+		await withSaveStateTracking(healthy, store).run(command);
+		expect(store.state).toBe('saved');
 	});
 
 	it('begins before the operation resolves, not after', async () => {
@@ -1806,10 +1897,28 @@ export function withSaveStateTracking(
 ): RefreshedHistory {
 	const track = async (operation: () => Promise<VoidResult>): Promise<VoidResult> => {
 		saveState.beginSaving();
-		const result = await operation();
-		if (isErr(result) && affectsSaveState(result.error)) saveState.resolveErr();
-		else saveState.resolveOk();
-		return result;
+		try {
+			const result = await operation();
+			if (isErr(result) && affectsSaveState(result.error)) saveState.resolveErr();
+			else saveState.resolveOk();
+			return result;
+		} catch (cause) {
+			// **A THROWN fault settles the batch too, and forgetting this is worse than
+			// misreporting.** SDD §65 reserves throws for technical faults and the dispatcher
+			// propagates them — `withEditorStateRefresh` re-throws unchanged and `runtime.ts`'s
+			// `reportFault` is what catches them. Decrementing only on resolution would leave
+			// `pendingCount` permanently above zero: the indicator stuck on `saving` forever and
+			// every later batch unsettleable, which is a DEAD indicator rather than a wrong one.
+			//
+			// `resolveErr` rather than `resolveOk` for the reason `affectsSaveState` defaults the
+			// way it does: a fault says nothing about whether the write landed, and "we might not
+			// have written your data" is the safe answer while nobody knows.
+			//
+			// Re-thrown UNCHANGED, because mapping and reporting it belongs to `reportFault`, and
+			// a decorator that swallowed it would turn a fault into silence.
+			saveState.resolveErr();
+			throw cause;
+		}
 	};
 
 	return {
@@ -1825,14 +1934,21 @@ export function withSaveStateTracking(
 Run: `npx vitest run tests/presentation/editor/saveState/withSaveStateTracking.test.ts`
 Expected: PASS — all sixteen table rows.
 
-- [ ] **Step 6: Prove the three-operation table earns its place**
+- [ ] **Step 6: Prove the rejection arm earns its place**
+
+Temporarily remove the `try`/`catch` from `track`, leaving the three awaited lines bare.
+Re-run. Expected: the three rejection rows and the wedging case go red. **Restore the
+`try`/`catch`** and re-run to green. This is the arm a design review caught and no earlier
+draft had — it is worth watching fail once.
+
+- [ ] **Step 7: Prove the three-operation table earns its place**
 
 Temporarily change the returned object so `undo` and `redo` pass straight through
 (`undo: () => history.undo(), redo: () => history.redo(),`). Re-run. Expected: the `undo` and
 `redo` rows go red while every `run` row stays green — which is the defect the table exists
 to catch. **Restore the wrapping** and re-run to green.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/presentation/editor/save-state/ tests/presentation/editor/saveState/withSaveStateTracking.test.ts
@@ -2148,5 +2264,14 @@ The branch already has PR #21 open for the design document. Push onto it rather 
 **Spec coverage.** Every section of the spec maps to a task: §1 what-we-own → Tasks 6 and 8; §2 the API and the lint reason → Tasks 6 and 7; §3 files and policy values → Tasks 2–6; §4 the slot leak → Tasks 3 and 5; §5 save-state → Tasks 10–14; §6 German copy → Tasks 2 and 10; persistence impact → no task needed, the layer lint already enforces it and Task 15 runs it; testing strategy → distributed across every task; the "does not verify" section → Tasks 8 and 15; the four amended DoD items → Task 15.
 
 **Two things this plan resolves that the spec left open.** The spec said severity is carried by "icon, translated label, colour"; the icon is dropped in Task 2, because this plugin has never called `setIcon`, the harness has no icon renderer pending the first call, and a text label satisfies §85 alone. And `withSaveStateTracking` reuses the existing `RefreshedHistory` alias rather than declaring the spec's `TrackedHistory` — they are the same `Pick`, and two names for one type in sibling directories is the defect slice 8 recorded under "There is ONE `EditorContext`".
+
+**Two findings from the design review on PR #21, both verified against the tree before being
+accepted.** A rejecting dispatcher would have left `pendingCount` permanently above zero —
+the indicator stuck on `saving` and every later batch unsettleable — because `track`
+decremented only on resolution while `withEditorStateRefresh` re-throws technical faults by
+design. Task 12 now settles in a `catch` and re-throws unchanged, with a revert step over
+that arm. And `notify` meaning `info` would have auto-dismissed two background cascade
+warnings whose copy reads "figures may be wrong"; Task 6 classifies all four existing call
+sites rather than preserving them unchanged.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

@@ -78,7 +78,7 @@ const pointerText = computed(() => {
 			role="group"
 			:aria-label="tr('editor.status')"
 		>
-			<span>{{ plan?.name ?? '' }}</span>
+			<span class="rp-editor-plan-name">{{ plan?.name ?? '' }}</span>
 			<span
 				v-if="showsConstraintHint"
 				class="rp-editor-hint"

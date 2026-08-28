@@ -8,14 +8,15 @@
  * decided by which came last. State here which positions are load-bearing and why, as
  * soon as one is.
  *
- * ONE position is load-bearing and here it is: `editor-requirements.css` must follow
- * `editor.css` immediately, because its rules were split OUT of that file — they sat at its
- * end, and moving them earlier or later in this list changes which of an equal-specificity
- * pair wins. The split was forced by the assembler's 400-line cap, which `editor.css` crossed
- * when this branch and `main` both grew it; that partial's own header carries the account.
+ * TWO positions are load-bearing, and both are the same fact: `editor-status.css` and
+ * `editor-requirements.css` were split OUT of `editor.css` in that order, from the end of it,
+ * as the 400-line cap forced each in turn. They must be imported in that order and directly
+ * after it, because that is the sequence their rules already had — moving either changes
+ * which of an equal-specificity pair wins. Each partial's own header carries its account.
  */
 @import "./view.css";
 @import "./editor.css";
+@import "./editor-status.css";
 @import "./editor-requirements.css";
 @import "./dialogs.css";
 @import "./chrome.css";

@@ -550,6 +550,24 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   for it twice in one change: a value derived from two inputs goes stale when EITHER moves,
   and fixing the input you were thinking about leaves a defect that looks fixed.**
 
+  **A third instance was still standing in the same file when the review pass came back, and it
+  is the one that says why "re-issue on every camera change" is the weaker half of the remedy.**
+  `EditorStore.pointerWorld` was the status bar's coordinate readout, ASSIGNED in `setPointer`
+  from the viewport of the moment — the identical two-input value, one file away, and
+  `reissuePointerMove` could not have saved it either way: that function returns early when no
+  tool is active, which is camera mode, where the keyboard zoom is still live. Both camera paths
+  were wrong and the worse one was not the zoom. A pan is DEFINED by holding one world point
+  under the cursor, and `onPointerMove` calls `setPointer` BEFORE `continuePan`, so the readout
+  was recomputed from the pre-pan camera on every move: measured, the one number that should not
+  have moved at all drifted from -80 to 920 over a single drag. `pointerWorld` is a `computed`
+  over the stored SCREEN point now — the half a camera change leaves alone — so no camera path,
+  written or unwritten, has to remember to refresh it. **Prefer making the staleness
+  unrepresentable to refreshing it on one more event; a re-issue is a list of the paths somebody
+  thought of, and this file has now been wrong about that list three times.** No gate here can
+  see any of it, which is why `docs/tests/cases/Editor Walkthrough.md` step 6a exists: jsdom is
+  perfectly capable of holding the arithmetic, and it was two node tests that finally caught it —
+  the point is that nobody had written them, because the value LOOKED derived.
+
 **Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
 Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the
 Inspector grew a Requirements panel (`RequirementRow.vue` per row) whose assign control and

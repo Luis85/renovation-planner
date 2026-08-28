@@ -550,6 +550,25 @@ describe('DrawPolygonTool: Shift constrains the next vertex', () => {
 		]);
 	});
 
+	/**
+	 * The same retrace along a DIAGONAL, which is where the first fix for this did not reach:
+	 * `exactOnAxis` restores the axis directions, and at 45 degrees there is no exact value to
+	 * restore — `Math.cos` and `Math.sin` of a quarter-pi differ in their last bit, so the
+	 * round trip lands at `(0, -1.42e-14)` rather than the origin. The guard is geometric now
+	 * rather than bitwise, which is what covers every step direction instead of four of them.
+	 */
+	it('refuses a constrained retrace along a DIAGONAL, where no exact value exists', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(shiftAt(100, 100));
+		tool.pointerDown(shiftAt(0, 0));
+
+		expect(h.context.renderState.polygonSketch?.vertices).toHaveLength(2);
+	});
+
 	it('does not let the constraint decide whether the polygon CLOSES', async () => {
 		const h = harness();
 		const tool = build(h);

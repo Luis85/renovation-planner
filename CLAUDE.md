@@ -371,21 +371,34 @@ which is why `snapDirection` projects rather than rotating. Four rules came out 
   `obsidianmd/ui/sentence-case-locale-module` fails the build on a capitalised `Shift`
   mid-sentence — measured — and lowercasing the name of a key is worse copy than leading with
   it.
-- **`Math.sin(Math.PI)` is 1.22e-16, and that dust reached the geometry.** A constrained
-  westward click answered `(0, 1.2e-14)` where `(0, 0)` was exact, which walked straight
-  through `DrawPolygonTool`'s exact-equality duplicate guard — so retracing onto an existing
-  vertex with Shift held appended a twin, and `createPolygon` accepts the resulting sliver
-  because it validates the COUNT and the FINITENESS of the coordinates and a zero-length edge
-  satisfies both. `exactOnAxis` restores the value the arithmetic was always trying to
-  produce, which is correcting a representation error rather than fudging one: a snapped angle
-  is an exact multiple of the step, so on an axis the direction IS exactly `(±1, 0)`, and
-  every non-axis angle is irrational in both components and passes through untouched. The
-  general shape: **a value that is "obviously" exact stops being exact the moment it goes
-  through trigonometry, and every equality test downstream is what finds out.** Caught by a
-  review bot; the related hole it did NOT name is still open and is written down rather than
-  quietly fixed — three COLLINEAR vertices are a zero-area polygon that nothing refuses, which
-  Shift makes considerably easier to draw, and closing that is a change to `createPolygon`
-  (SDD §26 files degeneracy under "Future") rather than to a tool.
+- **A coordinate that has been through trigonometry is never bitwise what it should be, and
+  it took TWO rounds to fix because the first one only covered the case being looked at.**
+  `Math.sin(Math.PI)` is 1.22e-16, so a constrained westward click answered `(0, 1.2e-14)`
+  where `(0, 0)` was exact — through `DrawPolygonTool`'s exact-equality duplicate guard, so
+  retracing onto a vertex with Shift held appended a twin, and `createPolygon` accepts the
+  resulting sliver because it validates the COUNT and the FINITENESS of the coordinates and a
+  zero-length edge satisfies both. Two separate repairs, and the distinction is the lesson:
+  - `exactOnAxis` restores the value the arithmetic was trying to produce, which is correcting
+    a representation error rather than fudging one — a snapped angle is an exact multiple of
+    the step, so ON AN AXIS the direction IS exactly `(±1, 0)`. It buys exact straightness for
+    constrained horizontals and verticals, and it fixes the duplicate case for four directions
+    out of twenty-four.
+  - It could never have fixed the rest, and the review bot's next round said so with a
+    diagonal: at 45 degrees `Math.cos` and `Math.sin` differ in their last bit and there is no
+    exact value to restore, so a retrace lands at `(0, -1.42e-14)`. The guard had to stop being
+    bitwise. `coincident` in `core/geometry/operations.ts` is the general answer — a nanometre
+    of tolerance, eight orders of magnitude above the dust and five below anything a pointer
+    can express at this editor's tightest zoom.
+
+  **The meta-lesson is the one this file already carried, applied to its author:** a partial
+  fix reads exactly like a complete one, and "I fixed the case in the report" is not the same
+  as "I fixed the class". The first repair was the narrower of the two the bot offered, chosen
+  deliberately, and it was the wrong choice for the general case.
+
+  The related hole neither round named is still open and is written down rather than quietly
+  fixed: three COLLINEAR vertices are a zero-area polygon that nothing refuses, which Shift
+  makes considerably easier to draw, and closing that is a change to `createPolygon` (SDD §26
+  files degeneracy under "Future") rather than to a tool.
 - **Two harness fakes were thinner than the service they stood for, and the second would have
   thrown.** `tool-context.ts` had a hand-written `{ snapPoint }` behind an `as never`, and
   `calibrateHarness.ts` had `{} as never`. Both subclass the REAL `SnapService` now, composed

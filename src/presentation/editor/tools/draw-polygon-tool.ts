@@ -1,3 +1,4 @@
+import { coincident } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
@@ -120,7 +121,13 @@ export class DrawPolygonTool implements EditorTool {
 		// reachable precisely because the close test above measures the RAW click while the
 		// buffer takes the SNAPPED one: a snap that pulls a near-miss exactly onto an
 		// existing vertex fails the close test and would otherwise be pushed as a twin.
-		if (this.buffer.some((point) => point.x === landing.x && point.y === landing.y)) return;
+		//
+		// `coincident`, not `===`: the landing point has been through trigonometry whenever
+		// Shift is held, and retracing along a 45 degree ray answers `(0, -1.42e-14)` for a
+		// point that is exactly the origin. An exact-equality guard waves that through, and
+		// `createPolygon` accepts the sliver it makes — it validates the count and the
+		// finiteness of the coordinates, both of which a zero-length edge satisfies.
+		if (this.buffer.some((point) => coincident(point, landing))) return;
 		this.buffer.push(landing);
 		// The pointer is recorded (it is genuinely there, and a third vertex placed within reach
 		// of the first should light the close target up at once rather than waiting for a

@@ -11,7 +11,13 @@
 	gap: var(--size-2-1);
 }
 
-.rp-field-error__control [aria-invalid='true'] {
+/*
+ * `.rp-field-error` is the wrapper `FieldError.vue` renders; the slotted control (the
+ * caller's `<input>`, bound to the `aria` object the component's scoped slot hands down)
+ * is its descendant. No caller ever applies an `__control` class — reaching the control
+ * through the wrapper is what lets Tasks 6 and 9 get this rule for free.
+ */
+.rp-field-error [aria-invalid='true'] {
 	border-color: var(--text-error);
 }
 

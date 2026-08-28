@@ -53,15 +53,28 @@ const viewOf = (entry: Entry): NoticeView => ({
 	count: entry.count,
 });
 
-// Aliased rather than called bare: this module is Obsidian-free by design and runs under
-// vitest's `node` environment, where `window` — the marketplace ruleset's own required
-// spelling for popout-window compatibility — does not exist at all. `globalThis` fails for
-// the same reason `window` would pass: it is banned outright (`obsidianmd/no-global-this`).
-// A local binding is the escape the rule's own author built in — its check walks scope for a
-// LOCAL variable named `setTimeout`/`clearTimeout` and stands down the moment it finds one —
-// so this is the sanctioned shape for a host-agnostic timer, not a workaround.
-const scheduleTimeout = setTimeout;
-const cancelTimeout = clearTimeout;
+// NOT an eager `const scheduleTimeout = setTimeout;` alias — that captures whatever
+// `setTimeout` is bound to at MODULE-EVALUATION time, which in a suite is the real timer:
+// `vi.useFakeTimers()` replaces `globalThis.setTimeout` in a `beforeEach` that runs AFTER
+// this module has already imported and captured it, so an eager alias holds the real timer
+// forever and every fake-timer assertion in this suite (and in Tasks 4 and 5, which drive
+// auto-dismiss, hover-pause and the disconnect sweep through `vi.advanceTimersByTime`)
+// would either hang on real time or silently pass for the wrong reason. A default parameter
+// is evaluated at CALL time, so `schedule`/`cancel` re-read the current global on every
+// invocation and see whichever timer — real or faked — is installed at that moment.
+//
+// This is also why `window.setTimeout`/`clearTimeout` isn't the answer here even though the
+// marketplace ruleset (`obsidianmd/prefer-window-timers`) asks for it: `window` does not
+// exist in this module's `node` test environment at all. The rule's own scope walk
+// (`node_modules/eslint-plugin-obsidianmd/dist/lib/rules/preferWindowTimers.js`) stands down
+// the moment it finds a LOCAL variable named `setTimeout`/`clearTimeout` — that branch exists
+// to avoid flagging an unrelated user-defined function that happens to share the name, not as
+// a sanctioned host-agnostic idiom, and reading it as the latter is what let the eager-alias
+// defect above look settled.
+const scheduleTimeout = (run: () => void, after: number, schedule: typeof setTimeout = setTimeout) =>
+	schedule(run, after);
+const cancelTimeout = (id: ReturnType<typeof setTimeout>, cancel: typeof clearTimeout = clearTimeout) =>
+	cancel(id);
 
 /**
  * Dedup, a three-slot visible cap, promotion, and every timer.

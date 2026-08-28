@@ -54,6 +54,25 @@ describe('the notice queue', () => {
 		expect(opened[0]?.view).toMatchObject({ severity: 'error', message: 'boom', count: 1 });
 	});
 
+	// Every other case in this file pushes `error` or `warning`, both `null` in
+	// `AUTO_DISMISS_MS` — so none of them ever arms a timer, and `beforeEach`'s
+	// `vi.useFakeTimers()` controls nothing in them. This is the one case that actually
+	// arms one, and it exists to prove the timer the queue schedules is the FAKE one vitest
+	// installed rather than a real timer captured before the fake was ever in place — the
+	// queue resolves `setTimeout` at call time for exactly this reason.
+	it('arms an auto-dismiss timer that vitest\'s fake clock actually controls', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.push('success', 'saved');
+
+		expect(vi.getTimerCount()).toBe(1);
+		expect(opened[0]?.handle.live).toBe(true);
+
+		vi.advanceTimersByTime(4000);
+
+		expect(opened[0]?.handle.live).toBe(false);
+	});
+
 	it('folds an identical repeat into a count rather than a second notice', () => {
 		const { host, opened } = recordingHost();
 		const queue = createNoticeQueue(host);

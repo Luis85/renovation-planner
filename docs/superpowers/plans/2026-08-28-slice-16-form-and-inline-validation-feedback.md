@@ -1036,6 +1036,77 @@ describe('useFieldCommit', () => {
 		expect(field.pending.value).toBe(false);
 	});
 
+	it('coalesces repeated commit gestures into one follow-up dispatch', async () => {
+		// The control stays enabled (Task 9), so three blurs during one slow write are
+		// ordinary. `CommandHistory` serializes them but still executes and RECORDS each, so
+		// without coalescing one edit leaves three undo entries.
+		const settles: (() => void)[] = [];
+		const run = vi.fn(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				settles.push(() => { resolve(ok(undefined)); });
+			}),
+		);
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: (value) => ({
+				execute: async () => ok(undefined),
+				undo: async () => ok(undefined),
+				value,
+			}),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn(),
+		});
+
+		field.onInput(-5);
+		const first = field.onCommit();
+		field.onInput(-6);
+		void field.onCommit();
+		field.onInput(-7);
+		void field.onCommit();
+		expect(run).toHaveBeenCalledTimes(1);
+
+		settles[0]();
+		await first;
+
+		// Two dispatches for three gestures: the original, then ONE carrying the latest draft.
+		expect(run).toHaveBeenCalledTimes(2);
+		expect(field.pending.value).toBe(true);
+	});
+
+	it('does not re-dispatch when the draft never moved', async () => {
+		// Two blurs with no edit between them are one edit. A second identical dispatch would
+		// buy an undo entry that undoes nothing visible.
+		let settle = (): void => {};
+		const run = vi.fn(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				settle = () => { resolve(ok(undefined)); };
+			}),
+		);
+		const field = useFieldCommit<number, QuantityInput>({
+			canonicalValue: () => 10,
+			buildCommand: () => ({ execute: async () => ok(undefined), undo: async () => ok(undefined) }),
+			history: { run },
+			errorMap: MAP,
+			field: 'quantity',
+			toUserMessage: say,
+			notify: vi.fn(),
+		});
+
+		field.onInput(-5);
+		const inFlight = field.onCommit();
+		void field.onCommit();
+		settle();
+		await inFlight;
+
+		expect(run).toHaveBeenCalledTimes(1);
+		// And the flag is honest once nothing is outstanding — the defect was the FIRST
+		// call's finally clearing it while a later one was still queued.
+		expect(field.pending.value).toBe(false);
+	});
+
 	it('tracks a new canonical value after an accepted commit', async () => {
 		const { field, canonical } = harness(ok(undefined));
 		field.onInput(20);
@@ -1147,6 +1218,12 @@ export function useFieldCommit<T, TInput>(options: {
 	const error = ref<string | null>(null);
 	const pending = ref(false);
 
+	// The coalescing state. Deliberately plain `let`s and not refs: nothing renders them,
+	// and `pending` is the one piece of this a template may read.
+	let inFlight = false;
+	let recommit = false;
+	let lastCommitted: { readonly value: T } | null = null;
+
 	const draft = computed(() => drafted.value?.value ?? toValue(options.canonicalValue));
 
 	function onInput(value: T): void {
@@ -1167,42 +1244,78 @@ export function useFieldCommit<T, TInput>(options: {
 			error.value = invalid;
 			return;
 		}
+		// A second commit gesture while the first is still in flight is COALESCED, not
+		// dropped and not dispatched beside it. Task 9 leaves the control enabled on
+		// purpose, so a user can blur, click back in, retype and blur again before a slow
+		// vault write settles — and every one of those calls would otherwise start its own
+		// `history.run`. `CommandHistory` serializes them, so they cannot interleave, but it
+		// still EXECUTES and RECORDS each: N blurs become N undo entries for one edit, and
+		// the first call's `finally` clears `pending` while a later one is still queued, so
+		// the flag stops describing the field.
+		//
+		// Dropping the extra call instead — what `useFormCommit.submit` correctly does — is
+		// wrong HERE, and the asymmetry is the same one as the disable question: a repeated
+		// SUBMIT is one intent pressed twice, so the second is redundant, while a repeated
+		// FIELD commit carries a value the user has since changed, so dropping it discards
+		// the edit. Remember that it was asked for, and honour it once the write settles.
+		if (inFlight) {
+			recommit = true;
+			return;
+		}
+		inFlight = true;
 		pending.value = true;
+		try {
+			do {
+				recommit = false;
+				await dispatchOnce();
+				// Only if the draft actually MOVED. Two blurs with no edit between them are
+				// one edit, and re-dispatching an identical value would buy a second undo
+				// entry that undoes nothing visible.
+			} while (recommit && drafted.value !== lastCommitted);
+		} finally {
+			inFlight = false;
+			pending.value = false;
+		}
+	}
+
+	/**
+	 * One dispatch and its outcome. Split out of `onCommit` so the coalescing loop above
+	 * reads as the one thing it is; every rule below is unchanged from the single-dispatch
+	 * version.
+	 */
+	async function dispatchOnce(): Promise<void> {
 		// The exact draft this dispatch is about. `onInput` mints a FRESH wrapper object per
 		// keystroke, so reference identity answers "is the field still showing what I sent"
 		// with no value comparison and no equality rule per `T` — which is the second reason
 		// the clean sentinel is a wrapper rather than a bare value.
 		const submitted = drafted.value;
-		try {
-			const result = await options.history.run(options.buildCommand(draft.value));
-			if (!isErr(result)) {
-				// Accepted: drop the draft so the field tracks the refreshed canonical value —
-				// but ONLY the draft that was actually submitted. A slow vault write with the
-				// user still typing would otherwise clear a NEWER draft and silently replace
-				// their text with the canonical value, mid-word, with nothing erroring.
-				if (drafted.value === submitted) {
-					drafted.value = null;
-					error.value = null;
-				}
-				return;
+		lastCommitted = submitted;
+		const result = await options.history.run(options.buildCommand(draft.value));
+		if (!isErr(result)) {
+			// Accepted: drop the draft so the field tracks the refreshed canonical value —
+			// but ONLY the draft that was actually submitted. A slow vault write with the
+			// user still typing would otherwise clear a NEWER draft and silently replace
+			// their text with the canonical value, mid-word, with nothing erroring.
+			if (drafted.value === submitted) {
+				drafted.value = null;
+				error.value = null;
 			}
-			const routed = routeError(result.error, options.errorMap, options.toUserMessage);
-			// A banner-routed error is not this field's to DISPLAY — the Inspector has no
-			// banner region, and inventing a field error for one would attach a message to an
-			// input the failure is not about. It is still this field's to REPORT, which is the
-			// half a first draft dropped: it cleared the error and called nothing, so a
-			// resolved vault failure reached the user through neither door.
-			const mine = routed.kind === 'field' && routed.fields.includes(options.field);
-			// Same staleness rule on the failure arm, for the mirror reason: a message about a
-			// value the user has already replaced is telling them their current text is wrong
-			// when it has never been dispatched. The NOTICE still fires either way — the write
-			// really did fail, and that is true of the vault regardless of what the input now
-			// holds.
-			if (drafted.value === submitted) error.value = mine ? routed.message : null;
-			if (!mine) options.notify(result.error);
-		} finally {
-			pending.value = false;
+			return;
 		}
+		const routed = routeError(result.error, options.errorMap, options.toUserMessage);
+		// A banner-routed error is not this field's to DISPLAY — the Inspector has no
+		// banner region, and inventing a field error for one would attach a message to an
+		// input the failure is not about. It is still this field's to REPORT, which is the
+		// half a first draft dropped: it cleared the error and called nothing, so a
+		// resolved vault failure reached the user through neither door.
+		const mine = routed.kind === 'field' && routed.fields.includes(options.field);
+		// Same staleness rule on the failure arm, for the mirror reason: a message about a
+		// value the user has already replaced is telling them their current text is wrong
+		// when it has never been dispatched. The NOTICE still fires either way — the write
+		// really did fail, and that is true of the vault regardless of what the input now
+		// holds.
+		if (drafted.value === submitted) error.value = mine ? routed.message : null;
+		if (!mine) options.notify(result.error);
 	}
 
 	return {
@@ -1219,7 +1332,7 @@ export function useFieldCommit<T, TInput>(options: {
 - [ ] **Step 4: Run the test and watch it pass**
 
 Run: `npx vitest run tests/presentation/composables/useFieldCommit.test.ts`
-Expected: PASS, 9 tests.
+Expected: PASS, 11 tests.
 
 - [ ] **Step 5: Run the gate**
 
@@ -1464,7 +1577,38 @@ The spec REFUSED `Money` on exactly this ground — "a form that collected a cur
 
 - **Store date-only (`YYYY-MM-DD`), not a full ISO timestamp.** The form's controls are `<input type="date">`, which has no time to give; a stored `T00:00:00.000Z` would be invented precision, and it is what a user hand-editing frontmatter has to read.
 - **Serialize and parse in UTC, consistently, or the day shifts.** `new Date('2026-08-28')` is UTC midnight; `new Date('2026-08-28T00:00:00')` is LOCAL midnight, and `.toISOString().slice(0, 10)` on the latter yields `2026-08-27` anywhere west of Greenwich. Read with ``new Date(`${value}T00:00:00Z`)`` and write with `.toISOString().slice(0, 10)`, and Task 6's form builds its `Date` the same way. A test that runs only in UTC cannot see this: pin `TZ` or construct the Date explicitly rather than trusting the runner's zone.
-- **A malformed stored date must fail the schema, not become `Invalid Date`.** Guard the key with `.regex(/^\d{4}-\d{2}-\d{2}$/)` before `.nullable().catch(null)`, so a hand-edited `start: yesterday` reads as absent rather than constructing a `Date` whose `getTime()` is `NaN` — which would then flow into `Project.create`'s `targetCompletion < start` comparison and answer `false` to every question asked of it.
+- **A malformed stored date must fail the schema, and a SHAPE check is not that.** The obvious guard is `.regex(/^\d{4}-\d{2}-\d{2}$/)`, and it is the instrument this repository warns about: it sees the shape and answers as if it had seen the validity. Measured with node rather than reasoned about, because the two failure modes do not behave alike:
+
+  | Stored value | Passes the regex | `new Date(v + 'T00:00:00Z')` |
+  |---|---|---|
+  | `2026-08-28` | yes | valid, round-trips |
+  | `yesterday` | **no** | never reached |
+  | `2026-99-99` | **yes** | `Invalid Date` |
+  | `2026-13-01`, `2026-00-10` | **yes** | `Invalid Date` |
+  | `2026-02-30` | **yes** | **silently becomes `2026-03-02`** |
+  | `2026-04-31` | **yes** | **silently becomes `2026-05-01`** |
+
+  Two distinct defects behind one regex. An `Invalid Date` has a `NaN` timestamp, and every comparison against `NaN` is false — so it flows into `Project.create`'s `targetCompletion < start` check and answers "fine" to any pair, and a later `.toISOString()` on it throws a `RangeError` rather than returning anything. A NORMALIZED date is worse for being quiet: nothing fails anywhere and the user's February 30th is stored, read and displayed as March 2nd.
+
+  One predicate closes both, and it is the round trip rather than a longer regex — a regex that knew about leap years would be a second, hand-written definition of the calendar:
+
+```typescript
+/**
+ * A real calendar date, not merely a date-SHAPED string.
+ *
+ * The finite check runs first and is load-bearing: `toISOString()` on an `Invalid Date`
+ * throws a `RangeError`, so a predicate that round-tripped first would fault on exactly the
+ * input it exists to reject. The round trip then catches the quiet half — `2026-02-30`
+ * parses happily and comes back as `2026-03-02`, so a value that fails to equal itself is
+ * one the calendar renamed.
+ */
+function isRealCalendarDate(value: string): boolean {
+	const parsed = new Date(`${value}T00:00:00Z`);
+	return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+```
+
+  Declared ONCE and used for both keys — two copies of a calendar rule is how one key later accepts what the other refuses.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1507,15 +1651,37 @@ it('writes a date-only string rather than a timestamp', () => {
 	expect(projectToPersistence(created.value, 1)['start']).toBe('2026-03-01');
 });
 
-it('reads a malformed date as absent instead of building an Invalid Date', () => {
-	// `new Date('yesterday').getTime()` is NaN, and every comparison against NaN is false —
-	// so an unguarded parse makes `targetCompletion < start` answer "fine" for any pair.
-	const raw = { ...VALID_PROJECT_FRONTMATTER, start: 'yesterday' };
+it.each([
+	// Wrong shape — the only one a regex alone would have caught.
+	'yesterday',
+	// Shape-valid, unparseable: `getTime()` is NaN, every comparison against NaN is false,
+	// so `targetCompletion < start` answers "fine" for any pair — and `.toISOString()` on it
+	// throws a RangeError rather than returning a string.
+	'2026-99-99',
+	'2026-13-01',
+	'2026-00-10',
+	// Shape-valid and QUIETLY WRONG, which is the worse half: these parse, nothing fails
+	// anywhere, and the user's February 30th is stored and displayed as March 2nd.
+	'2026-02-30',
+	'2026-04-31',
+])('reads %s as absent rather than as a date', (stored) => {
+	const raw = { ...VALID_PROJECT_FRONTMATTER, start: stored };
 
 	const back = projectFromPersistence(raw);
 
 	assert(back.ok);
 	expect(back.value.start).toBeNull();
+});
+
+it('keeps a real calendar date, including a leap day', () => {
+	// The guard must not be so eager it refuses valid dates: 2028 is a leap year, and a
+	// hand-written regex clever enough to reject 2026-02-30 usually rejects this too.
+	const raw = { ...VALID_PROJECT_FRONTMATTER, start: '2028-02-29' };
+
+	const back = projectFromPersistence(raw);
+
+	assert(back.ok);
+	expect(back.value.start?.toISOString()).toBe('2028-02-29T00:00:00.000Z');
 });
 
 it('reads a note written before these keys existed', () => {
@@ -1532,7 +1698,7 @@ it('reads a note written before these keys existed', () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run tests/infrastructure/persistence/mappers/projectMapper.test.ts`
-Expected: FAIL — the first three cases. The fourth passes already and is a REGRESSION guard, not a new requirement: it is what fails if someone later drops `.catch(null)`.
+Expected: FAIL — the first two cases, plus every row of the malformed-date table except `yesterday` (a regex-only guard already refuses that one, which is exactly why `yesterday` alone was too weak a test to write). The leap-day case and the written-before-these-keys case both pass already and are REGRESSION guards rather than new requirements: the first fails if someone replaces the round trip with a cleverer regex, the second if someone drops `.catch(null)`.
 
 - [ ] **Step 3: Add the three keys to the schema**
 
@@ -1540,13 +1706,24 @@ Expected: FAIL — the first three cases. The fourth passes already and is a REG
 	name: z.string(),
 	status: kebabEnum(PROJECT_STATUSES),
 	description: z.string().nullable().catch(null),
-	/**
-	 * Date-only, UTC. The regex runs BEFORE `.catch(null)`, so a hand-edited non-date reads
-	 * as absent rather than reaching `new Date` and producing an `Invalid Date` whose every
-	 * comparison answers false — including `Project.create`'s target-before-start check.
-	 */
-	start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
-	'target-completion': z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
+	start: DATE_ONLY,
+	'target-completion': DATE_ONLY,
+```
+
+with `DATE_ONLY` declared once above them:
+
+```typescript
+/**
+ * A stored date-only value, or absent. `.catch(null)` runs LAST and catches the refinement
+ * as well as the regex, so every rejected spelling — wrong shape, impossible date, renamed
+ * date — reads as absent rather than as a parse failure that would refuse the whole note.
+ */
+const DATE_ONLY = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/)
+	.refine(isRealCalendarDate)
+	.nullable()
+	.catch(null);
 ```
 
 Kebab-case for the two-word key, as `background-page`, `unit-cost` and `required-date` already are; `description` and `start` are single words and stay as they are.
@@ -2581,6 +2758,14 @@ staleness guard inside `onCommit` closes the same hole without touching the cont
 `pending` is free to be what it should be: an unobtrusive busy affordance, and nothing that
 takes input away. Bind it to an attribute, never to `disabled`.
 
+**That choice is what makes Task 4's coalescing load-bearing rather than defensive**, and the
+two decisions have to be read together: leaving the control live means a user really can blur,
+click back in, retype and blur again inside one slow write. `CommandHistory` serializes those
+dispatches, so they cannot interleave — but it executes and RECORDS every one, so uncoalesced
+they leave an undo entry per blur for a single edit. The composable answers each extra gesture
+by remembering it and honouring it once, with the latest draft, which is why nothing here needs
+a `disabled` binding to stay correct.
+
 `history: { run: (command) => command.execute() }` is deliberate and needs its own comment in the code: the reversible wrapping and the history entry are `commitEdit`'s job, one seam up — this row supplies the shape `useFieldCommit` takes without adding a second history. Write that down, because a reader meeting a `run` that only calls `execute` will otherwise read it as a stub.
 
 Ids come from each `<FieldError>`'s scoped slot (Task 2), never from a hand-spelled string: two leaves showing the same requirement would otherwise mint the same id twice.
@@ -2714,6 +2899,11 @@ Two contradictions fell out of reading those regions and are fixed in the same p
 
 1. **The form collected three fields the vault drops** (P1). `projectToPersistence` writes `name` and `status` and nothing else; `fromDto` reconstructs the same two. So `description`, `start` and `targetCompletion` would have appeared to save and been `null` on the next read. What makes this worth more than its fix: **the spec refused `Money` on precisely this ground and then admitted three fields with the same defect one layer down** — it checked the domain, found `Project` holds them, and stopped, where the question runs to the bytes. New Task 5a persists all three, following `AssetFrontmatterSchemaV1`'s existing `z.string().nullable().catch(null)` pattern, so no version bump and no migration are needed — `.catch(null)` is what lets a note written before these keys existed parse unchanged. Dates are the part that is not a copy: `Project.start` is a real `Date` where `Requirement.requiredDate` is already a string, so the mapper converts, date-only and in UTC, with the local-midnight day-shift and the `Invalid Date` comparison hole both named in the task and both given a case.
 2. **The form stayed editable during its own submit** (P2). `submit` reads `values.value` once; `setField` replaces the ref; the success then closes the dialog without the newer text, which leaves with it. Task 6 disables every control while `submitting`. This is the mirror of the third review's Task 4 finding with the OPPOSITE remedy, and the asymmetry is the interesting part: a submit is an explicit press on a form under the user's eye, so a visibly busy form is expected; a blur commit fires when their attention has already moved on, so freezing that control would take keystrokes away somewhere else. Same race, different gesture, different answer.
+
+**The fifth review's two findings**, both P2, both verified, and both defects in the FOURTH round's own fixes — which is now four rounds running where the majority of findings were introduced by the previous round's repairs. That ratio is the durable lesson of this document: a fix is new code and gets read as new code.
+
+1. **A shape check written as if it were a validity check.** Task 5a guarded the stored dates with `.regex(/^\d{4}-\d{2}-\d{2}$/)` and a test using `yesterday` — the one malformed spelling a regex alone already refuses, so the test agreed with the guard about the only case both could see. Measured with node rather than argued: `2026-99-99`, `2026-13-01` and `2026-00-10` pass the regex and parse to `Invalid Date`, whose `NaN` timestamp makes every comparison false and whose `.toISOString()` throws; and `2026-02-30` and `2026-04-31` pass the regex, parse happily, and come back as **March 2** and **May 1** — no error anywhere, just a different day than the user wrote. One round-trip predicate (`isRealCalendarDate`) closes both classes, declared once for both keys, with the finite check ordered first because `toISOString()` on an `Invalid Date` throws on exactly the input the predicate exists to reject. The tests are a table of six now, plus a leap day to prove the guard is not so eager it refuses `2028-02-29` — which is what a hand-written regex clever enough to catch February 30th usually does. **This is this repository's own rule about instruments, turned on the fix that quoted it.**
+2. **Overlapping commits from the control round four chose to leave enabled.** `onCommit` had no in-flight guard, so a second blur during a slow write started a second `history.run`. `CommandHistory` serializes them, so nothing interleaves — but it executes and records each, so N blurs on one edit leave N undo entries, and the first call's `finally` cleared `pending` while a later dispatch was still queued. The composable coalesces now: an extra gesture sets a flag, and the loop honours it exactly once with the latest draft, skipping the re-dispatch when the draft never moved. **Dropping the extra call instead — which is what `useFormCommit.submit` correctly does — would be wrong here**, and it is the same asymmetry as the disable question one finding earlier: a repeated submit is one intent pressed twice, while a repeated field commit carries a value the user has since changed.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 

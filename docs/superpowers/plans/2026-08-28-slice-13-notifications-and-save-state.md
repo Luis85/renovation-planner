@@ -957,7 +957,9 @@ git commit -m "test: a notice dismissed by anything frees its slot"
   - `function notifyWarning(message: string): void`
   - `function notifyError(error: AppError): void` — signature unchanged, severity `error`
   - `function notifyFault(cause: unknown, logger: Logger, event: string): void` — unchanged, severity `error`
-  - `function disposeNotices(): void`
+  - `function activateNotices(): void` and `function disposeNotices(): void` — activation is
+    NOT the inverse of disposal by accident: disposal is terminal, and only `onload` brings the
+    queue back.
 
 **Note on return types:** the four doors returned `Notice` before this task and now return `void`. A caller that could hold a `Notice` could dismiss someone else's; nothing in the tree uses the return value. Fix any call site the compiler flags.
 
@@ -970,7 +972,7 @@ git commit -m "test: a notice dismissed by anything frees its slot"
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
 import {
-	disposeNotices,
+	activateNotices,
 	notify,
 	notifyError,
 	notifySuccess,
@@ -983,10 +985,13 @@ const noticeEls = () => [...document.querySelectorAll<HTMLElement>('.notice')];
 describe('the notice door', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
-		disposeNotices();
 		document.body.innerHTML = '';
 		Notice.shown.length = 0;
 		Notice.constructed.length = 0;
+		// The queue is inert until something activates it, exactly as in production. A suite
+		// that relied on it being live by default would be testing a module the plugin never
+		// uses in that state.
+		activateNotices();
 	});
 
 	it('renders a translated severity label beside the message, never colour alone', () => {
@@ -1253,15 +1258,35 @@ const obsidianHost: NoticeHost = {
 	},
 };
 
-let queue = createNoticeQueue(obsidianHost);
+/**
+ * `null` until the plugin activates it, and `null` again once it unloads. **Disposal has to be
+ * TERMINAL, which an earlier draft got wrong by recreating the queue inside `disposeNotices`.**
+ * The cascade and the recovery pass both run fire-and-forget, so a promise can resolve after
+ * `onunload` and call `notifyError`; against a recreated queue that attaches a live notice to a
+ * vault with no plugin loaded and nothing left to remove it. Dropping the push is the right
+ * answer rather than a lesser one: a toast reports something that already happened, and there
+ * is no surface left to report it to.
+ */
+let queue: NoticeQueue | null = null;
 
 /**
- * Hide everything still on screen and start clean. Registered as one disposer on the
- * plugin's existing `disposers` list, and used by tests between cases.
+ * Called once from `onload`, before anything can notify. Starting inert rather than active is
+ * deliberate: a notice raised before the plugin is loaded would be a sequencing bug, and a
+ * module that quietly worked anyway would hide it.
+ */
+export function activateNotices(): void {
+	queue?.dispose();
+	queue = createNoticeQueue(obsidianHost);
+}
+
+/**
+ * Hide everything on screen and stay off. Registered as one disposer on the plugin's existing
+ * `disposers` list. A later `activateNotices()` is what brings it back — this function does
+ * not, and that asymmetry is the whole point.
  */
 export function disposeNotices(): void {
-	queue.dispose();
-	queue = createNoticeQueue(obsidianHost);
+	queue?.dispose();
+	queue = null;
 }
 
 /**
@@ -1279,7 +1304,7 @@ export function disposeNotices(): void {
  * test green, and the second door raw.
  */
 export function notify(message: string): void {
-	queue.push('info', message);
+	queue?.push('info', message);
 }
 
 /**
@@ -1299,11 +1324,11 @@ export function notify(message: string): void {
  * hover-pause steps there are driven through the reachable INFO notice instead.
  */
 export function notifySuccess(message: string): void {
-	queue.push('success', message);
+	queue?.push('success', message);
 }
 
 export function notifyWarning(message: string): void {
-	queue.push('warning', message);
+	queue?.push('warning', message);
 }
 
 /**
@@ -1314,7 +1339,7 @@ export function notifyWarning(message: string): void {
  * category, in that order, in the app's own language.
  */
 export function notifyError(error: AppError): void {
-	queue.push('error', trError(error));
+	queue?.push('error', trError(error));
 }
 
 /**
@@ -1642,7 +1667,7 @@ git commit -m "feat: the notice severity stylesheet"
 - Test: `tests/plugin/noticeDisposal.test.ts`
 
 **Interfaces:**
-- Consumes: `disposeNotices` from `src/presentation/notices/notify`.
+- Consumes: `activateNotices` and `disposeNotices` from `src/presentation/notices/notify`.
 - Produces: nothing.
 
 - [ ] **Step 1: Write the failing test**
@@ -1673,6 +1698,7 @@ describe('notice disposal', () => {
 		document.body.innerHTML = '';
 		Notice.shown.length = 0;
 		Notice.constructed.length = 0;
+		// Terminal, and left that way: each case activates through a real `loadedPlugin()`.
 		disposeNotices();
 	});
 
@@ -1697,12 +1723,26 @@ describe('notice disposal', () => {
 		expect(disposers).toContain(disposeNotices);
 	});
 
-	it('starts clean afterwards rather than staying disposed', async () => {
+	it('stays off after unload, so a late promise cannot strand a notice', async () => {
 		const { plugin } = await loadedPlugin();
 		notifyWarning('before');
 		plugin.onunload();
 
+		// The cascade and the recovery pass run fire-and-forget, so this is a real path: a
+		// promise resolving after unload and reporting its failure. There is no plugin left to
+		// clean up what it would attach, so the push is dropped.
 		notifyWarning('after');
+		expect(document.querySelectorAll('.notice')).toHaveLength(0);
+	});
+
+	it('comes back on the next load, not on the next push', async () => {
+		const { plugin } = await loadedPlugin();
+		plugin.onunload();
+		notifyWarning('while unloaded');
+		expect(document.querySelectorAll('.notice')).toHaveLength(0);
+
+		await loadedPlugin();
+		notifyWarning('after reload');
 		expect(document.querySelectorAll('.notice')).toHaveLength(1);
 	});
 });
@@ -1727,13 +1767,18 @@ In `RenovationPlannerPlugin.onload()`, alongside the existing `this.disposers.pu
 		// Design slice 13's notices outlive any view — they report things that have nothing to
 		// do with an open leaf — so the queue is plugin-scoped and its teardown belongs on the
 		// list `onunload` drains. Not the first entry on it: Konva's global got there first.
+		//
+		// BOTH halves, and in this order. The queue is inert until activated, so without the
+		// first line nothing ever shows a notice; without the second, a promise resolving after
+		// unload attaches one to a vault with no plugin left to remove it.
+		activateNotices();
 		this.disposers.push(disposeNotices);
 ```
 
 Add the import at the top of the file:
 
 ```ts
-import { disposeNotices } from '../presentation/notices/notify';
+import { activateNotices, disposeNotices } from '../presentation/notices/notify';
 ```
 
 - [ ] **Step 4: Run the plugin suite**
@@ -2975,6 +3020,17 @@ the disposer in the list rather than counting the list. The save-state wiring ca
 about what `wrapDispatcher` received — both of the two mistakes its own docblock claimed to
 prevent. It asserts the ARGUMENT BINDINGS now, with a revert step per mistake, and states the
 limit it still has: a source-shape check holds bindings, not runtime values.
+
+**A thirteenth pass found a test pinning a defect as a requirement.** `disposeNotices` recreated
+the queue, so a promise resolving after `onunload` — the cascade and the recovery pass both run
+fire-and-forget — attached a live notice to a vault with no plugin left to remove it, and the
+case named "starts clean afterwards" asserted that notice SHOULD appear. Disposal is terminal
+now and `activateNotices()` is what brings the queue back, called once from `onload`; a push
+while inert is dropped, because a toast reports something that already happened and there is no
+surface left to report it to. The irony is worth recording: this design removed the slice
+document's `initNotifications` step on the grounds that there was no store to bind, and the
+lifecycle step comes back for an entirely different reason — disposal that is not terminal is
+not disposal.
 
 **An eleventh pass found the source material this plan never read.** `docs/components/` holds
 a contract per component and TWO of them name this slice — `Save-state indicator.md` and

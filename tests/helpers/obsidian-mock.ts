@@ -118,15 +118,62 @@ export interface WorkspaceLeaf {
 }
 
 /**
- * Obsidian's transient message. It RECORDS rather than draws, like everything else here —
- * `notify()` is the only thing in `src/` that constructs one, and what a test wants to
- * know is that a failure reached the user, not what the toast looked like.
+ * Obsidian's transient message. THIN is the failure mode this fake exists to avoid: the
+ * previous version recorded a string and drew nothing, so no test could assert the roles,
+ * the dismiss control or the markup that design slice 13 puts inside `messageEl`.
+ *
+ * What is modelled: the `.notice-container > .notice` nesting Obsidian builds, the two
+ * element handles it exposes, the duration it was constructed with, in-place replacement,
+ * and a `hide()` that DISCONNECTS — the queue reads `isConnected` to decide whether a
+ * visible slot is free, so a `hide()` that left the element attached would make that
+ * mechanism untestable.
+ *
+ * What is NOT modelled, stated so nothing trusts this wider than it is: Obsidian's own
+ * auto-dismiss timer (this plugin always passes `duration: 0` and owns the timer), its
+ * click-to-dismiss gesture, and every visual rule — `tests/harness/obsidian.css` carries no
+ * `.notice` rules at all, so appearance is verified in a real vault and nowhere else.
  */
 export class Notice {
 	static readonly shown: string[] = [];
+	/**
+	 * The instances themselves, so a test can assert the ARGUMENTS a caller passed rather than
+	 * only the outcome. `duration` is the one that matters: this plugin owns every notice's
+	 * timer and passes `0` for it, and nothing but this array can check that the `0` is really
+	 * being passed — the fake implements no timer, so a wrong duration is invisible in
+	 * behaviour here and visible only in a real vault.
+	 */
+	static readonly constructed: Notice[] = [];
 
-	constructor(readonly message: string) {
+	readonly containerEl: HTMLElement;
+	readonly messageEl: HTMLElement;
+
+	constructor(
+		readonly message: string,
+		readonly duration?: number,
+	) {
 		Notice.shown.push(message);
+		Notice.constructed.push(this);
+
+		const container =
+			document.body.querySelector<HTMLElement>('.notice-container') ??
+			document.body.appendChild(
+				Object.assign(document.createElement('div'), { className: 'notice-container' }),
+			);
+
+		this.containerEl = container.appendChild(
+			Object.assign(document.createElement('div'), { className: 'notice' }),
+		);
+		this.messageEl = this.containerEl.appendChild(document.createElement('div'));
+		this.messageEl.textContent = message;
+	}
+
+	setMessage(message: string): this {
+		this.messageEl.textContent = message;
+		return this;
+	}
+
+	hide(): void {
+		this.containerEl.remove();
 	}
 }
 

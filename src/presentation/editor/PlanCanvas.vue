@@ -322,12 +322,33 @@ function onPointerUp(event: PointerEvent): void {
  * held, and the user's NEXT click anywhere committed a move by the delta between the
  * abandoned start and that unrelated click. The camera already had its equivalent in
  * `onPointerLeave`; the tool path had none.
+ *
+ * **Which gesture was cancelled decides what is abandoned, and getting that wrong broke this
+ * whole design's central claim.** Cancelling the ACTIVE TOOL unconditionally meant a user
+ * mid-polygon who held space to pan and then alt-tabbed lost their vertices — the tool never
+ * received the pan's press, so its buffer has nothing to do with the gesture the OS just took
+ * away, and destroying it is exactly what routing the pan around `ToolManager` exists to
+ * prevent. The last of the five pointer doors to take the ownership rule.
  */
-function onPointerCancel(): void {
+function onPointerCancel(event: PointerEvent): void {
+	if (panOverride.phase === 'panning') {
+		// A foreign pointer's cancellation says nothing about the running pan.
+		if (!panOverride.owns(event.pointerId)) return;
+		// The PAN was cancelled, so only the pan is abandoned. `abandonGesture` rather than
+		// `cancel`: the space bar has not been released, and a real release — or `onBlur`, if
+		// the OS took the window along with the pointer — is what ends the armed state.
+		panOverride.abandonGesture();
+		syncPanPhase();
+		editor.abandonPan();
+		editor.setPointer(null);
+		return;
+	}
+	// No pan was running, so this cancellation belongs to whatever the tool was doing.
+	// `ToolManager` tracks no pointer identity of its own, so a tool gesture is cancelled on
+	// any cancellation reaching here — widening that is its contract to change, not this
+	// file's.
 	runtime.toolManager.cancelGesture();
-	panOverride.cancel();
-	syncPanPhase();
-	editor.abandonPan();
+	editor.endPan(event.pointerId);
 	editor.setPointer(null);
 }
 

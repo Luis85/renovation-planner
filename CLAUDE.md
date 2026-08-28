@@ -417,6 +417,14 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+- **`pointercancel` was the one door that broke this design's own central claim.** It
+  cancelled the ACTIVE TOOL unconditionally — so a user mid-polygon who held space to pan and
+  then alt-tabbed lost their vertices, which is precisely what routing the pan around
+  `ToolManager` exists to prevent. The tool never received the pan's press, so its buffer has
+  nothing to do with the gesture the OS took away. Which gesture was cancelled now decides
+  what is abandoned. Worth remembering as a shape: the headline argument for a design is
+  exactly the claim its rarest code path is most likely to falsify, because that path is the
+  one nobody re-reads the argument against.
 - **While a pan runs, the canvas belongs to the CAMERA — every input, not just the moves.**
   Three handlers, one rule, and it took three tries to get all of them: a press the override
   declined fell through to the active tool (`DrawPolygonTool` placing a vertex on a world that

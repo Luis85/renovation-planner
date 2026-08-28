@@ -268,3 +268,72 @@ describe('a pointer leaving the pane while another one pans', () => {
 		harness.unmount();
 	});
 });
+
+describe('a pointer taken away mid-pan', () => {
+	it('does not destroy the half-drawn polygon the override exists to protect', async () => {
+		// This PR's central claim, and `pointercancel` was the one door that broke it. The
+		// handler cancelled the ACTIVE TOOL unconditionally — but the tool never received the
+		// pan's press, so its buffer has nothing to do with the gesture the OS just took away.
+		// A user mid-polygon who holds space to pan and then alt-tabs lost their vertices.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 400, 400);
+		pointer(canvas, 'pointermove', 420, 420);
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
+		key(canvas, 'keyup', { key: ' ' });
+		await settle();
+
+		// The buffer survived: a third vertex and a close land on the original two, at the
+		// screen positions the pan moved them to.
+		click(canvas, 620, 220);
+		click(canvas, 520, 120);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
+	it('still abandons the pan itself', async () => {
+		// The half that must keep working: no `pointerup` will ever arrive for a cancelled
+		// pointer, so a pan left running would follow the bare cursor forever.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
+		await settle();
+		const afterCancel = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 600, 300);
+		await settle();
+
+		expect(camera.viewport.pan.x).toBe(afterCancel);
+		harness.unmount();
+	});
+
+	it('ignores a cancellation from a pointer that owns nothing', async () => {
+		const { harness, canvas, camera } = await editor();
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointermove', 320, 300, 0, 11);
+		await settle();
+		const afterFirst = camera.viewport.pan.x;
+
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 12, bubbles: true }));
+		pointer(canvas, 'pointermove', 400, 300, 0, 11);
+		await settle();
+
+		expect(camera.viewport.pan.x).not.toBe(afterFirst);
+		harness.unmount();
+	});
+});

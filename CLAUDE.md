@@ -417,6 +417,16 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+- **A key handler on a container swallows the keys of everything focusable inside it.** The
+  Plan Editor's empty states are OVERLAYS inside `.rp-plan-canvas`, and `planEditor.noZones`
+  carries an action button — so its `keydown` bubbled to the canvas, whose `preventDefault()`
+  (there to stop the pane paging down under a space-held pan) suppressed the button's native
+  Space activation. The canvas's only keyboard-reachable control stopped working under the
+  standard gesture for pressing it, while the camera armed behind it. `event.target ===
+  container` is the whole fix, tested against the container rather than by sniffing for
+  interactive tag names, so the rule stays true for whatever that slot holds next. Worth
+  pairing with the accessibility note in the slice 14 section: no empty state carrying a
+  button is graded by any axe scan, so nothing else here was watching this control.
 - **`pointercancel` was the one door that broke this design's own central claim.** It
   cancelled the ACTIVE TOOL unconditionally — so a user mid-polygon who held space to pan and
   then alt-tabbed lost their vertices, which is precisely what routing the pan around

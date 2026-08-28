@@ -436,7 +436,26 @@ function fitShortcut(event: KeyboardEvent): boolean {
 	return true;
 }
 
+/**
+ * Whether a key event is the CANVAS's own, rather than one bubbling up from something
+ * focusable inside it.
+ *
+ * The empty states are overlays INSIDE this element (`<slot />` below), and
+ * `planEditor.noZones` carries an action button — so its `keydown` reaches this handler by
+ * bubbling. Every shortcut here calls `preventDefault()`, and on a `<button>` that suppresses
+ * the native Space activation: the canvas's only keyboard-reachable control stopped working
+ * under the standard gesture for pressing it, while the camera armed behind it.
+ *
+ * Tested against the container rather than by sniffing for interactive tag names: the rule is
+ * "these shortcuts belong to the canvas when the canvas is what has focus", which stays true
+ * for whatever the overlay slot holds next.
+ */
+function isCanvasKey(event: KeyboardEvent): boolean {
+	return event.target === container.value;
+}
+
 function onKeyDown(event: KeyboardEvent): void {
+	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
 		runtime.toolManager.cancelGesture();
 		return;
@@ -460,7 +479,7 @@ function onKeyDown(event: KeyboardEvent): void {
 }
 
 function onKeyUp(event: KeyboardEvent): void {
-	if (event.key !== ' ') return;
+	if (!isCanvasKey(event) || event.key !== ' ') return;
 	// A pan already RUNNING is deliberately not ended here — see `PanOverride.disarmSpace`.
 	panOverride.disarmSpace();
 	syncPanPhase();

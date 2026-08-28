@@ -81,6 +81,11 @@ and they are the reason this file exists:
 11. **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is
     NOT stuck in pan mode — the next click selects normally. Focus leaving is the only notice
     the canvas gets that the key was released.
+11a. **On a plan with a background and NO zones**, the canvas shows an empty state with a
+    "Draw a zone" button. **Tab to that button and press Space.** Expected: the button
+    activates and the Draw zone tool becomes active — the canvas must NOT arm the camera or
+    swallow the key. The one keyboard-reachable control inside the canvas, and the canvas's
+    own shortcuts must not take precedence over it.
 12. **Right-click the canvas.** Expected: whatever Obsidian normally does. The right button is
     deliberately not claimed by the camera — see below.
     *Record what appeared.*

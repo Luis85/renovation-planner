@@ -90,6 +90,25 @@ describe('the plan editor empty states', () => {
 		expect(useEditorStore(harness.pinia).activeToolId).toBe('draw-polygon');
 	});
 
+	it('leaves the Space key to the noZones action button, rather than arming the camera', async () => {
+		// The canvas listens for keys on itself, and the empty state is an OVERLAY INSIDE it —
+		// so a `keydown` from the focused button bubbles straight to that handler. It called
+		// `preventDefault()` to stop the pane paging down under a space-held pan, which also
+		// suppresses a button's own native Space activation: the canvas's only keyboard-
+		// reachable control stopped working under the standard gesture for pressing it.
+		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
+		const button = overlay(harness).find('button.rp-empty-state__action').element as HTMLButtonElement;
+		button.focus();
+
+		const pressed = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+		button.dispatchEvent(pressed);
+		await settle();
+
+		expect(pressed.defaultPrevented).toBe(false);
+		// And the camera did not arm behind it, which is the other half of the same mistake.
+		expect(harness.wrapper.find('.rp-plan-canvas').classes()).not.toContain('rp-plan-canvas-armed');
+	});
+
 	/**
 	 * A failed read is NOT an empty state (DoD 6). `mountPlanEditor` with a plan of `null`
 	 * drives `status === 'missing'`, which mounts no canvas, so it can carry no overlay.

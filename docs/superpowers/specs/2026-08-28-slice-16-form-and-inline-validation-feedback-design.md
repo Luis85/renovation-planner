@@ -428,9 +428,32 @@ else entirely.
 
 ## Persistence impact
 
-None. No new repository, sidecar field, schema version or migration. `CreateProjectCommand`,
-its repository and `freshProjectFolder` all exist and are unchanged; this slice gives them a
-caller that is not scaffolding.
+**Three additive v1 frontmatter keys, and nothing else.** This section said "None" until the
+fourth review round, and that was true when it was written and false the moment the plan
+gained Task 5a — recorded here rather than left for an implementer to reconcile by dropping
+the data-loss fix, which is the way a reader resolves a design and a plan that disagree.
+
+`projectToPersistence` writes `name` and `status`; `fromDto` reconstructs the same two. So a
+form collecting `description`, `start` and `targetCompletion` would appear to save and read
+back `null` — **the exact defect this slice refused `Money` to avoid, one layer further
+down**: the spec checked the domain, found `Project` holds them, and stopped, where the
+question runs to the bytes.
+
+All three become `z.string().nullable().catch(null)` keys on the existing v1 schema, the
+pattern `AssetFrontmatterSchemaV1` already uses for `supplier`, `sku` and `notes`.
+**No version bump and no migration**, and that is a measurement rather than a preference:
+`.catch(null)` is what lets a project note written before these keys existed parse unchanged,
+so nothing on disk needs rewriting.
+
+The dates are the one part that is not a copy of that pattern — `Project.start` is a real
+`Date` where `Requirement.requiredDate` is already a string — so the mapper converts in both
+directions, date-only and in UTC, guarded by a round-trip predicate rather than a shape
+regex. `docs/superpowers/plans/…` Task 5a carries the measured table of what a regex alone
+lets through (`2026-02-30` passes and silently becomes March 2).
+
+Unchanged: no new repository, no sidecar field, no schema VERSION, no migration.
+`CreateProjectCommand`, its repository and `freshProjectFolder` all exist and are untouched;
+this slice gives them a caller that is not scaffolding.
 
 ## What this slice does NOT do
 

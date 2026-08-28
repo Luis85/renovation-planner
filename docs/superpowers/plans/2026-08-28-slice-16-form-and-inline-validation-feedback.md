@@ -1238,6 +1238,12 @@ export function useFieldCommit<T, TInput>(options: {
 	function onCancel(): void {
 		drafted.value = null;
 		error.value = null;
+		// The queued gesture goes with the draft that asked for it. Without this, a blur
+		// during a pending write, then Escape, then fresh typing, left `recommit` set with a
+		// NEWER draft under it — so the settling write's loop dispatched keystrokes the user
+		// had never committed and had, moments earlier, explicitly abandoned. `recommit` is a
+		// request about a value, not a standing intent.
+		recommit = false;
 	}
 
 	async function onCommit(): Promise<void> {
@@ -2679,6 +2685,30 @@ describe('RequirementRow', () => {
 		expect(wrapper.findAll('.rp-field-error__message')).toHaveLength(2);
 	});
 
+	it('does not dispatch keystrokes typed after an Escape that cancelled a queued commit', async () => {
+		// blur (write starts) -> blur again (queues a recommit) -> Escape -> type more.
+		// The settling write must not carry the new text: the user never committed it, and
+		// cancelled the gesture that would have.
+		let release = (): void => undefined;
+		const commit = vi.fn(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				release = () => resolve(ok(undefined));
+			}),
+		);
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const input = wrapper.get('input[data-field="quantity"]');
+		await input.setValue('12');
+		await input.trigger('blur');
+		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Escape' });
+		await input.setValue('99');
+
+		release();
+		await flushPromises();
+
+		expect(commit).toHaveBeenCalledTimes(1);
+	});
+
 	it('discards a rejected draft on Escape without dispatching', async () => {
 		// The spec keeps Escape-to-revert real in the Inspector, which is not inside a dialog.
 		// The canvas's tool-cancel handler is a SIBLING and never sees a keydown that starts in
@@ -3000,6 +3030,11 @@ The other three: the coalescing loop treated a CLEARED draft as a changed one (`
 1. **`busy` reached the descriptor and not the form** (P1). The third incomplete wiring of one fix: round two declared no ref, round six declared it and passed it only to `openDialog`'s descriptor, so `NewProjectForm` never received the prop, its `watchEffect` never ran, and the flag stayed false for the whole write while every line of the mechanism was present and read as correct. It is in `props` AND on the descriptor now, with a comment saying why both.
 2. **The staging fix named a path the task does not create** (P2). Round six added `src/presentation/appIdPrefix.ts` to the `git add` and a second file-table row for it, while the task creates `src/presentation/views/app-id-prefix.ts` — so the repair for an unstaged file introduced a `git add` that fails outright. Self-inflicted, in the commit that fixed the staging class.
 3. **A busy dialog would have contained NO focusable element** (P2). Task 6 disables every form control and round six's instruction disabled Cancel too — and `:disabled` matches no focusable selector, so `focusableWithin()` returns empty, Tab walks out of the dialog, and the `Escape` listener bound to `.rp-dialog` stops receiving keys, defeating the handler the same step adds. `DialogHost` states the invariant in its own comment and `dialogKinds.test.ts` proves it per kind — but not in the busy state, which is why nothing would have caught it. Cancel is `aria-disabled` now, focusable and announced while refusing, with a case asserting the trap is non-empty while busy.
+
+**The eighth review's two findings**, both real, both P2.
+
+1. **A cancelled gesture left its queued commit standing.** `recommit` is set when a blur lands during a pending write; `onCancel` cleared the draft and the error and not the flag — so blur, blur, Escape, then fresh typing left the settling write's loop dispatching keystrokes the user had never committed and had explicitly abandoned a moment earlier. `recommit` is a request about a VALUE, not a standing intent, so it retires with the draft that asked for it. This is the coalescing loop's fourth defect across three rounds, which is the argument for its regression cases being sequences rather than single gestures.
+2. **The spec's "Persistence impact: None" went false when Task 5a arrived** (round four) and was never revisited — plan and design disagreeing, in the direction where a reader reconciles them by dropping the data-loss fix. The spec now records the three additive v1 keys, keeps the no-bump/no-migration claims with `.catch(null)` as the reason, and names the date conversion. **A section that was true when written is not a section that stays true**; the same review that adds a task has to re-read the design's claims about what the slice touches.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 

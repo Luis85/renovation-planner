@@ -241,7 +241,7 @@ git commit -m "feat: routeError, one AppError to one field or to the banner"
 
 **Interfaces:**
 - Consumes: nothing from Task 1 — these components never learn `AppError` exists.
-- Produces: `FieldError` with props `{ message: string | null; inputId: string }` and a default slot; `FormBanner` with props `{ message: string | null }`. Tasks 6 and 9 render both.
+- Produces: `FieldError` with prop `{ message: string | null }` and a SCOPED slot handing down `{ inputId, aria }`; `FormBanner` with props `{ message: string | null }`. Tasks 6 and 9 render both and bind both slot values.
 
 Both take an ALREADY-RESOLVED string, the same division `EmptyState.vue` and slice 15's dialogs make: a user-facing string is resolved by the caller. That is what keeps them reusable by a settings-pane field whose copy comes from somewhere else.
 
@@ -266,8 +266,10 @@ import FormBanner from '../../../src/presentation/components/FormBanner.vue';
 
 function mountField(message: string | null) {
 	return mount(FieldError, {
-		props: { message, inputId: 'rp-test-input' },
-		slots: { default: '<input id="rp-test-input">' },
+		props: { message },
+		// The caller binds what the slot hands down — which is the whole point: there is no
+		// lookup to get wrong and no id for a second leaf to collide with.
+		slots: { default: '<template #default="{ inputId, aria }"><input :id="inputId" v-bind="aria"></template>' },
 	});
 }
 
@@ -328,41 +330,39 @@ Expected: FAIL — cannot resolve `FieldError.vue`.
 
 - [ ] **Step 3: Write `FieldError.vue`**
 
+**It MINTS both ids and hands them down a scoped slot — it looks nothing up.** A first draft
+resolvedresolved the slotted control with `ownerDocument.getElementById(inputId)`, which is
+document-GLOBAL: two Plan Editor leaves showing the same requirement both render
+`rp-requirement-{id}-quantity`, so one leaf's `FieldError` would set ARIA on the other leaf's
+input and leave its own untouched. A scoped `querySelector` fixes the crossing but not the
+duplicate ids themselves.
+
+So `FieldError` MINTS the id and hands it down through a scoped slot. Nothing looks anything
+up, nothing can collide, and the caller cannot forget the wiring because it has to bind what
+it is given:
+
 ```vue
 <script setup lang="ts">
-/**
- * One bound input and its inline, persistent error.
- *
- * It does NOT own the input's value: the composables hold the draft, and this takes only a
- * resolved `message` plus the input's `id`. That is what keeps it usable by any bound
- * control — including a settings-pane field that has no command-commit machinery behind it
- * at all.
- *
- * It knows nothing of `AppError`, `routeError` or any command. Everything error-shaped is
- * resolved before it gets here, the same division `EmptyState.vue` makes with i18n.
- *
- * **The ARIA wiring is applied to the SLOTTED input, not to a wrapper.** `aria-invalid` and
- * `aria-describedby` mean nothing on a div: a screen reader reads them off the control it is
- * describing. Vue's `useId` supplies the message's id so two fields on one form cannot
- * collide, which a hand-written constant would allow.
- */
 import { computed, useId } from 'vue';
 
-const props = defineProps<{ message: string | null; inputId: string }>();
+defineProps<{ message: string | null }>();
 
+const inputId = useId();
 const messageId = useId();
-const invalid = computed(() => props.message !== null);
 </script>
 
 <template>
 	<div class="rp-field-error">
-		<!-- The slotted control, with the ARIA pair applied to it rather than to this div. -->
-		<div
-			class="rp-field-error__control"
-			:data-invalid="invalid ? 'true' : undefined"
-		>
-			<slot />
-		</div>
+		<!--
+			The ARIA pair goes on the CONTROL, never on this wrapper: a screen reader reads
+			`aria-invalid` and `aria-describedby` off the control they describe, and they mean
+			nothing on a div. Handed down rather than applied by lookup, so there is no id to
+			collide and no document to search.
+		-->
+		<slot
+			:input-id="inputId"
+			:aria="message === null ? {} : { 'aria-invalid': 'true', 'aria-describedby': messageId }"
+		/>
 		<p
 			v-if="message !== null"
 			:id="messageId"
@@ -378,35 +378,9 @@ const invalid = computed(() => props.message !== null);
 </template>
 ```
 
-**Note for the implementer:** the template above renders the message but does not yet put `aria-invalid` / `aria-describedby` onto the slotted `<input>`, so Step 2's second test still fails. A slot's content is not addressable from the parent's template. Add a `<script setup>` block that reaches the control after mount:
+Callers bind both: `<FieldError :message="..." v-slot="{ inputId, aria }"><input :id="inputId" v-bind="aria"></FieldError>`. Drop the `inputId` PROP — it no longer exists, and every call site in Tasks 6 and 9 uses the slot instead.
 
-```typescript
-import { computed, onMounted, ref, useId, watchEffect } from 'vue';
-
-const props = defineProps<{ message: string | null; inputId: string }>();
-
-const messageId = useId();
-const control = ref<HTMLElement | null>(null);
-
-/**
- * The slotted control is found by the `inputId` the caller already had to give it — rather
- * than by `querySelector('input')`, which would miss a `<select>`, a `<textarea>` and a
- * custom control, and would silently pick the wrong one if a caller ever slotted two.
- */
-watchEffect(() => {
-	const el = control.value?.ownerDocument.getElementById(props.inputId) ?? null;
-	if (el === null) return;
-	if (props.message === null) {
-		el.removeAttribute('aria-invalid');
-		el.removeAttribute('aria-describedby');
-		return;
-	}
-	el.setAttribute('aria-invalid', 'true');
-	el.setAttribute('aria-describedby', messageId);
-});
-```
-
-Bind `ref="control"` on the wrapping div, and keep `onMounted` out of it — `watchEffect` runs after mount and re-runs when `message` changes, which is both cases in one.
+**One residual, and it needs a line in `PlanEditorView`:** `useId` is unique per Vue APP, and this plugin mounts one app per leaf, so two Plan Editor leaves could still mint the same id. Set `app.config.idPrefix` to the leaf's own key where each app is created — one line, in the same edit, or this fix is only two thirds of one.
 
 - [ ] **Step 4: Write `FormBanner.vue`**
 
@@ -649,6 +623,26 @@ describe('useFormCommit', () => {
 		expect(form.fieldErrors.value.size).toBe(0);
 	});
 
+	it('refuses a second submit while the first is still in flight', async () => {
+		// One form, one project. Without the guard, two Enter presses mint two ids and create
+		// two projects, and the user sees one dialog.
+		let release = (): void => undefined;
+		const dispatch = vi.fn(
+			async () => new Promise<Result<{ id: string }, AppError>>((resolve) => {
+				release = () => resolve(ok({ id: 'p1' }));
+			}),
+		);
+		const form = harness(dispatch);
+
+		const first = form.submit();
+		const second = await form.submit();
+
+		expect(second).toBe(false);
+		expect(dispatch).toHaveBeenCalledTimes(1);
+		release();
+		await expect(first).resolves.toBe(true);
+	});
+
 	it('marks submitting for the duration of the dispatch', async () => {
 		let release = (): void => undefined;
 		const form = harness(
@@ -748,6 +742,11 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 	}
 
 	async function submit(): Promise<boolean> {
+		// Two quick Enter presses produce two submit events. `CreateProjectCommand` mints a
+		// fresh id per call, so without this guard one form creates two projects — and
+		// `submitting` existed as an observation flag that nothing consulted, which is a flag
+		// that describes the defect rather than preventing it.
+		if (submitting.value) return false;
 		// Cleared BEFORE the dispatch, so a stale message from the previous submit cannot
 		// outlive the submit that fixed it.
 		fieldErrors.value = new Map();
@@ -1078,6 +1077,7 @@ git commit -m "feat: useFieldCommit, the Inspector's blur boundary keeps a rejec
 
 **Files:**
 - Create: `src/presentation/views/renovationProjectCommands.ts`
+- Create: `src/infrastructure/obsidian/workspace/openNote.ts`
 - Modify: `src/presentation/views/RenovationProjectContext.ts`
 - Modify: `src/plugin/guardedServices.ts`
 - Modify: `src/plugin/composition-root.ts` (`renovationProjectDeps`)
@@ -1092,6 +1092,37 @@ Mirror `src/presentation/editor/planEditorCommands.ts` exactly — including its
 **The refusal bundle is the honest stand-in here**, and that is worth checking rather than assuming: slice 18's Testing section records the opposite case, where a refusal bundle handed to the browser harness refused a READ the fixture could answer and two shell regions silently contradicted each other. Every member of this bundle is a write, and a session with unrecovered settings genuinely cannot create a project's folder — the composition root's own comment names that exact door.
 
 `openProject` lives in the deps rather than being derived in the view because `presentation/` may not reach Obsidian's vault, and a `ProjectSummaryDto` carries `id`, `name` and `status` — no path. The composition root knows both Obsidian and the index, which is the same reason `revealView` takes a view type as a string.
+
+**It does not exist yet and this task BUILDS it.** A repository-wide search finds no `openProjectNote`, and nothing anywhere opens a note by path — `infrastructure/obsidian/workspace/reveal.ts` opens a VIEW, which is a different thing — while `renovationProjectDeps(root)` receives no `Workspace` at all. An earlier draft of this task called a service it had invented, which would have failed to compile at the first task that used it. Create it beside `reveal.ts`, where the workspace already lives:
+
+```typescript
+// src/infrastructure/obsidian/workspace/openNote.ts
+/**
+ * Opens the note a project's id resolves to.
+ *
+ * The path comes from the Project Index — the same lookup `getById` and `delete` take — and
+ * never from a convention: since ADR-0013 a project's folder is wherever its note currently
+ * sits, and the file is not reliably named `Project.md`.
+ *
+ * Silent when the id resolves to nothing. That is not a swallowed error: the only way to hold
+ * a stale id here is a note deleted since the list was read, and the list is re-read on the
+ * next hydrate anyway. A notice would describe a race the user cannot act on.
+ */
+export async function openProjectNote(
+	deps: { readonly workspace: Workspace; readonly vault: Vault; readonly index: ProjectIndex },
+	projectId: string,
+): Promise<void> {
+	const path = deps.index.pathOf(projectId);
+	if (path === null) return;
+	const file = deps.vault.getAbstractFileByPath(normalizePath(path));
+	if (!(file instanceof TFile)) return;
+	await deps.workspace.getLeaf('tab').openFile(file);
+}
+```
+
+**Read `ProjectIndex` for its real "path of this entity" member before writing `pathOf`** — use what the port already exposes rather than widening it for this. Then thread `workspace`, `vault` and the index into `renovationProjectDeps`, which takes only `root` today: give it the shape `planEditorDeps` already has, since that one receives both.
+
+Test all three arms in `tests/infrastructure/obsidian/workspace/`: a resolved id opens the file, an unresolvable id opens nothing, and a path resolving to a folder rather than a file opens nothing. `FakeVault.getAbstractFileByPath` answers a `TFolder` for a folder since slice 18, so the third arm is drivable.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1226,13 +1257,13 @@ export function renovationProjectDeps(root: CompositionRoot): RenovationProjectD
 			? { createProject: persistence.createProject }
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
-			? (projectId) => persistence.openProjectNote(projectId)
+			? (projectId) => openProjectNote({ workspace, vault, index: persistence.index }, projectId)
 			: () => Promise.resolve(),
 	};
 }
 ```
 
-`openProjectNote` resolves the note's path from the Project Index (the same lookup `getById` and `delete` take) and opens it through the workspace. When settings are unrecovered there is no index, so the no-op is correct rather than lazy: there is no note to open and nothing to tell the user that the list itself has not already told them.
+When settings are unrecovered there is no index, so the no-op is correct rather than lazy: there is no note to open, and nothing to tell the user that the list — empty for the same reason — has not already told them.
 
 - [ ] **Step 6: Run the tests and the gate**
 
@@ -1334,7 +1365,7 @@ describe('NewProjectForm', () => {
 		const dispatch = vi.fn(async () => ok({ project: { entity: { id: 'p1' } } }));
 		const wrapper = mount(NewProjectForm, { props: { dispatch } });
 
-		await wrapper.get('#rp-new-project-name').setValue('Kitchen');
+		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
@@ -1347,7 +1378,7 @@ describe('NewProjectForm', () => {
 			props: { dispatch: async () => ok({ project: { entity: { id: 'p1' } } }) },
 		});
 
-		await wrapper.get('#rp-new-project-name').setValue('Kitchen');
+		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
@@ -1359,15 +1390,15 @@ describe('NewProjectForm', () => {
 			props: { dispatch: async () => err(projectError('project.empty-name')) },
 		});
 
-		await wrapper.get('#rp-new-project-name').setValue('   ');
+		await wrapper.get('input[data-field="name"]').setValue('   ');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
 		// The dialog stays open: nothing emitted for the host to close on.
 		expect(wrapper.emitted('submit')).toBeUndefined();
 		// The rejected value survives — this is the point of the case.
-		expect((wrapper.get('#rp-new-project-name').element as HTMLInputElement).value).toBe('   ');
-		const invalid = wrapper.get('#rp-new-project-name');
+		expect((wrapper.get('input[data-field="name"]').element as HTMLInputElement).value).toBe('   ');
+		const invalid = wrapper.get('input[data-field="name"]');
 		expect(invalid.attributes('aria-invalid')).toBe('true');
 	});
 
@@ -1376,12 +1407,12 @@ describe('NewProjectForm', () => {
 			props: { dispatch: async () => err(projectError('project.target-before-start')) },
 		});
 
-		await wrapper.get('#rp-new-project-name').setValue('Kitchen');
+		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
-		expect(wrapper.get('#rp-new-project-start').attributes('aria-invalid')).toBe('true');
-		expect(wrapper.get('#rp-new-project-target-completion').attributes('aria-invalid')).toBe('true');
+		expect(wrapper.get('input[data-field="start"]').attributes('aria-invalid')).toBe('true');
+		expect(wrapper.get('input[data-field="targetCompletion"]').attributes('aria-invalid')).toBe('true');
 	});
 
 	it('puts a vault failure in the banner and under no field', async () => {
@@ -1392,12 +1423,12 @@ describe('NewProjectForm', () => {
 			},
 		});
 
-		await wrapper.get('#rp-new-project-name').setValue('Kitchen');
+		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
 		expect(wrapper.find('.rp-form-banner').exists()).toBe(true);
-		expect(wrapper.get('#rp-new-project-name').attributes('aria-invalid')).toBeUndefined();
+		expect(wrapper.get('input[data-field="name"]').attributes('aria-invalid')).toBeUndefined();
 	});
 });
 ```
@@ -1412,9 +1443,11 @@ Expected: FAIL — cannot resolve `NewProjectForm.vue`.
 Build it from `useFormCommit` plus `<FieldError>` and `<FormBanner>`. The binding is
 `:value` + `@input`, calling `setField` — **never `v-model`**, which assigns straight past
 `setField` and would make the sole-write-path rule unenforceable. Each control carries a
-stable `id` (`rp-new-project-name` and so on) matching the `inputId` its `<FieldError>` is
-given, and a `<label for>` pointing at it. Resolve every label through `tr(...)`, never a
-literal.
+id and ARIA pair from its own `<FieldError>`'s scoped slot — `v-slot="{ inputId, aria }"`,
+then `<input :id="inputId" v-bind="aria" data-field="name">` with a `<label :for="inputId">`
+beside it. Nothing hand-spells an id, so two views rendering this form cannot collide; the
+`data-field` attribute is what tests address, since a minted id is not predictable. Resolve every label
+through `tr(...)`, never a literal.
 
 Emit `submit` only when `await form.submit()` resolves `true`. Do not close, reset, or clear
 anything on `false`.
@@ -1481,7 +1514,31 @@ Write the test first, in `tests/presentation/dialogs/`:
 	});
 ```
 
-`NewProjectForm` then passes `busy: form.submitting` in the descriptor `ViewRoot` opens (Task 7, Step 5).
+**The descriptor is built BEFORE the form exists, so the form cannot hand its flag back.** A first draft wrote `busy: newProjectBusy` in `ViewRoot` and declared it nowhere, while the only real flag was created privately inside `NewProjectForm` after `openDialog` had already been called — the fix read as wired and was connected to nothing, leaving Cancel and Escape live throughout the write.
+
+**`ViewRoot` owns the ref and passes it INTO the form**, so one ref is observed at both ends:
+
+```typescript
+// ViewRoot.vue, beside onCreateProject.
+const newProjectBusy = ref(false);
+```
+
+```typescript
+// NewProjectForm.vue
+const props = defineProps<{
+	dispatch: (input: CreateProjectInput) => Promise<Result<{ project: Loaded<Project> }, RepositoryError>>;
+	busy?: Ref<boolean>;
+}>();
+
+const form = useFormCommit<CreateProjectInput, { project: Loaded<Project> }>({ /* … */ });
+
+// Written FROM the composable's own state, so there is no second flag to keep in step.
+watchEffect(() => {
+	if (props.busy) props.busy.value = form.submitting.value;
+});
+```
+
+Assert the connection, not the intent: open the dialog, start a submit against a dispatch that never settles, fire `Escape`, and expect the dialog NOT to resolve. A test that merely checked `busy` was passed would have passed on the broken draft.
 
 - [ ] **Step 6: Correct the dialog docblock**
 
@@ -1995,7 +2052,7 @@ describe('RequirementRow', () => {
 	it('reports an unparseable quantity instead of silently resetting to calculated', async () => {
 		const { wrapper, commit } = mountRow();
 
-		const input = wrapper.get('#rp-requirement-r1-quantity');
+		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('abc');
 		await input.trigger('blur');
 
@@ -2009,7 +2066,7 @@ describe('RequirementRow', () => {
 	it('commits the parsed figure exactly once for a value it can read', async () => {
 		const { wrapper, commit } = mountRow();
 
-		const input = wrapper.get('#rp-requirement-r1-quantity');
+		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('14.5');
 		await input.trigger('blur');
 		await flushPromises();
@@ -2024,7 +2081,7 @@ describe('RequirementRow', () => {
 
 	it('retires the parse message as soon as the user corrects the value, committing nothing', async () => {
 		const { wrapper, commit } = mountRow();
-		const input = wrapper.get('#rp-requirement-r1-quantity');
+		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('abc');
 		await input.trigger('blur');
 
@@ -2043,7 +2100,7 @@ describe('RequirementRow', () => {
 		};
 		const { wrapper, commit } = mountRow(err(refusal));
 
-		const input = wrapper.get('#rp-requirement-r1-quantity');
+		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('-5');
 		await input.trigger('blur');
 		await flushPromises();
@@ -2052,6 +2109,46 @@ describe('RequirementRow', () => {
 		// Kept, not reverted: the fix is one keystroke away from what is already on screen.
 		expect((input.element as HTMLInputElement).value).toBe('-5');
 		expect(input.attributes('aria-invalid')).toBe('true');
+	});
+
+	it('clears a refused draft and its message when reset succeeds', async () => {
+		// Reset used to bypass the composable, which holds the rejected draft and the error —
+		// so the old value went on winning the computed draft with its stale message under it,
+		// on a row that had just been reset.
+		const refusal: AppError = {
+			category: 'Validation',
+			code: 'requirement.quantity.negative',
+			message: 'developer english',
+		};
+		let result: Result<void, AppError> = err(refusal);
+		const commit = vi.fn(async () => result);
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const input = wrapper.get('input[data-field="quantity"]');
+		await input.setValue('-5');
+		await input.trigger('blur');
+		await flushPromises();
+		result = ok(undefined);
+
+		await wrapper.get('.rp-requirement-reset-quantity').trigger('click');
+		await flushPromises();
+
+		expect(wrapper.find('.rp-field-error__message').exists()).toBe(false);
+		expect((input.element as HTMLInputElement).value).not.toBe('-5');
+	});
+
+	it('reports an unparseable COST instead of throwing out of the handler', async () => {
+		// `moneyOf` throws on a malformed literal, unlike `Number`, which yields NaN. Typing
+		// text into the cost field must not take the click handler's promise down with it.
+		const commit = vi.fn(async () => ok(undefined));
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+
+		const input = wrapper.get('input[data-field="cost"]');
+		await input.setValue('abc');
+		await expect(input.trigger('blur')).resolves.not.toThrow();
+		await flushPromises();
+
+		expect(commit).not.toHaveBeenCalled();
+		expect(wrapper.get('.rp-field-error__message').text()).not.toBe('');
 	});
 
 	it('still offers an explicit reset to calculated', async () => {
@@ -2143,9 +2240,51 @@ async function commitQuantity(): Promise<void> {
 
 `history: { run: (command) => command.execute() }` is deliberate and needs its own comment in the code: the reversible wrapping and the history entry are `commitEdit`'s job, one seam up — this row supplies the shape `useFieldCommit` takes without adding a second history. Write that down, because a reader meeting a `run` that only calls `execute` will otherwise read it as a stub.
 
-Give each control a stable id (`rp-requirement-{id}-quantity`) matching its `<FieldError>`'s `inputId`, and keep the explicit reset control, which calls `props.commit` with `quantity: null` directly — a reset is not a draft edit and has nothing to parse.
+Ids come from each `<FieldError>`'s scoped slot (Task 2), never from a hand-spelled string: two leaves showing the same requirement would otherwise mint the same id twice.
 
-Repeat the whole shape for cost, with `moneyOf(raw, props.row.cost.effective.currency)` in place of `Number` and `error.requirement.cost.unparseable` as its parse message.
+**Reset goes THROUGH the composable, not around it.** A first draft had the reset button call `props.commit({ quantity: null })` directly. After a refused override the composable still holds a non-null `drafted` and its error, and neither is its own to clear — so a successful reset would leave the old rejected value still winning the computed draft, with its stale message underneath, on a row that had just been reset. Route it:
+
+```typescript
+async function resetQuantity(): Promise<void> {
+	// `null` is a VALUE in this seam — "reset to calculated" — so it commits like any other,
+	// which is also what clears the draft and the error on success.
+	quantity.onInput(null);
+	await quantity.onCommit();
+}
+```
+
+**The cost field's draft is a raw STRING, and this is not symmetry with quantity — it is the opposite of it.** `Number('abc')` yields `NaN`, a value to inspect; `moneyOf('abc', …)` **throws** (`Money.ts`: a non-matching literal is refused at the door). So repeating the quantity shape would throw out of the input handler before `parseError` could ever be set, taking the click handler's promise with it. Keep the text as the draft and construct only after the guard has passed:
+
+```typescript
+const cost = useFieldCommit<string, { cost: Money | null }>({
+	// The canonical value RENDERED, not parsed: a draft is text until it is committed.
+	canonicalValue: () => props.row.cost.override?.amount ?? '',
+	buildCommand: (raw) => ({
+		// Reached only past the guard in commitCost, so `moneyOf` cannot throw here.
+		execute: () => props.commit({
+			kind: 'cost-override',
+			requirementId: props.row.requirementId,
+			cost: raw.trim() === '' ? null : moneyOf(raw.trim(), props.row.cost.effective.currency),
+		}),
+		undo: () => Promise.resolve(ok(undefined)),
+	}),
+	history: { run: (command) => command.execute() },
+	errorMap: COST_ERRORS,
+	field: 'cost',
+	toUserMessage: trError,
+});
+
+async function commitCost(): Promise<void> {
+	const raw = cost.draft.value.trim();
+	if (raw !== '' && !canBeMoney(raw)) {
+		parseCostError.value = tr('error.requirement.cost.unparseable');
+		return;
+	}
+	await cost.onCommit();
+}
+```
+
+`canBeMoney` is a total predicate — a `try`/`catch` around `moneyOf`, or `Money`'s own literal pattern if it exports one. **Check which exists before writing it**; do not add a second, hand-written regex for what a monetary literal is, because that is a rule with two definitions the moment `Money` changes.
 
 - [ ] **Step 5: Narrow `commitEdit`**
 
@@ -2220,6 +2359,8 @@ git commit -m "docs: the manual case for creating a project, and three claims th
 
 **The five review findings.** 1 (cancel during an in-flight write) → Task 6, Step 5, adding `FormDescriptor.busy`. 2 (no path on the DTO) → already Task 5's `openProject`. 3 (no way to create a second project) → Task 8, the list header's button, sharing Task 7's one handler. 4 (half a cross-field error surviving) → Task 3, `routedGroup` and its own case. 5 (the Inspector seam) → already Task 9's `commit` prop over `inspector.commit`. Verifying 5 turned up a sixth in the plan's own fix — the prop drops `commitEdit`'s `reportFault` — recorded and closed in Task 9's Interfaces block.
 
+**The second review's six findings**, all verified against the code and all real; four were defects in the first review's own fixes. `FieldError` minted no ids and searched the whole document → it mints both ids and hands them down a scoped slot, with `app.config.idPrefix` per leaf (Task 2). `submitting` was set and never checked, so two Enter presses made two projects → `submit` returns early while one is in flight (Task 3). `openProjectNote` did not exist and `renovationProjectDeps` had no `Workspace` → Task 5 builds it, threading both. `newProjectBusy` was never declared, so the cancel-during-write fix was connected to nothing → `ViewRoot` owns the ref and passes it in (Tasks 6, 7). Reset bypassed the composable, leaving a rejected draft and stale error → it routes through it (Task 9). And `moneyOf` THROWS where `Number` yields `NaN`, so the cost field's draft is a raw string guarded before construction (Task 9).
+
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 
-**Type consistency.** `routeError(error, map, toUserMessage)` has the same three parameters at every call site (Tasks 3, 4). `FieldErrorMap<TInput>` and `RoutedError<TInput>` are spelled identically in Tasks 1, 3, 4 and 6. `UseFormCommit` exposes `values` / `fieldErrors` / `banner` / `submitting` / `setField` / `submit` in Tasks 3 and 6; `UseFieldCommit` exposes `draft` / `error` / `pending` / `onInput` / `onCommit` / `onCancel` in Tasks 4 and 9, and Task 9 instantiates it ONCE PER ROW with `history.run` delegating to `execute` — the reversible wrapping stays `commitEdit`'s, one seam up. `FieldError` takes `{ message, inputId }` in Tasks 2, 6 and 9. `RenovationProjectCommandServices.createProject` is `Command<CreateProjectInput, Result<{ project: Loaded<Project> }, RepositoryError>>` in Tasks 5 and 6.
+**Type consistency.** `routeError(error, map, toUserMessage)` has the same three parameters at every call site (Tasks 3, 4). `FieldErrorMap<TInput>` and `RoutedError<TInput>` are spelled identically in Tasks 1, 3, 4 and 6. `UseFormCommit` exposes `values` / `fieldErrors` / `banner` / `submitting` / `setField` / `submit` in Tasks 3 and 6; `UseFieldCommit` exposes `draft` / `error` / `pending` / `onInput` / `onCommit` / `onCancel` in Tasks 4 and 9, and Task 9 instantiates it ONCE PER ROW with `history.run` delegating to `execute` — the reversible wrapping stays `commitEdit`'s, one seam up. `FieldError` takes `{ message }` and hands `{ inputId, aria }` down a scoped slot in Tasks 2, 6 and 9 — no call site spells an id. `RenovationProjectCommandServices.createProject` is `Command<CreateProjectInput, Result<{ project: Loaded<Project> }, RepositoryError>>` in Tasks 5 and 6.

@@ -603,10 +603,15 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 				// Unconditional on purpose: `arm` is the one place that decides whether a held or
 				// paused entry gets a countdown. See its header.
 				arm(existing);
-				return;
+			} else {
+				entries.push({ severity, message, count: 1, handle: null, timer: null, paused: false });
 			}
 
-			entries.push({ severity, message, count: 1, handle: null, timer: null, paused: false });
+			// **After BOTH paths, not just the new-entry one.** The design's guarantee is that an
+			// unobserved dismissal degrades to "the slot frees on the next push" — and a push is a
+			// push whether or not it happened to duplicate something. Returning early from the
+			// dedup branch left `sweep` freeing a slot that nothing then filled, so a held notice
+			// could stay invisible indefinitely behind a repeating message.
 			promote();
 		},
 
@@ -812,6 +817,20 @@ Append inside the same `describe`:
 		opened[0]?.callbacks.dismissed();
 
 		expect(opened.map((o) => o.view.message)).toEqual(['a', 'b', 'c', 'd', 'e']);
+	});
+
+	it('promotes on a DUPLICATE push too, not only on a new one', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c']) queue.push('error', message);
+		queue.push('warning', 'held');
+		expect(opened).toHaveLength(3);
+
+		// Dismissed with no hint delivered, then the next push happens to be a repeat.
+		opened[0]?.handle.hide();
+		queue.push('error', 'b');
+
+		expect(opened.at(-1)?.view.message).toBe('held');
 	});
 
 	it('does not wedge permanently when no dismissal hint ever arrives', () => {
@@ -1652,7 +1671,7 @@ git commit -m "feat: the save-state vocabulary and its copy"
 
 **Interfaces:**
 - Consumes: `SaveState` from `./save-state`.
-- Produces: `useSaveStateStore` — a Pinia setup store exposing `state: SaveState`, `beginSaving(): void`, `resolveOk(): void`, `resolveErr(): void`.
+- Produces: `useSaveStateStore` — a Pinia setup store exposing `state: SaveState`, `beginSaving(): void`, `resolveOk(): void`, `resolveErr(): void`, `resolveNeutral(): void`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1715,12 +1734,51 @@ describe('the save-state store', () => {
 		expect(store.state).toBe('save-error');
 	});
 
+	it('does not let a validation refusal clear a real save error', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveErr();
+		expect(store.state).toBe('save-error');
+
+		// A field edit refused for validation: nothing reached the repository, so the earlier
+		// failed write is exactly as unsaved as it was.
+		store.beginSaving();
+		store.resolveNeutral();
+		expect(store.state).toBe('save-error');
+	});
+
+	it('lets a write that actually succeeded clear a save error', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveErr();
+		store.beginSaving();
+		store.resolveOk();
+		expect(store.state).toBe('saved');
+	});
+
+	it('leaves a resting saved state alone after a refusal that wrote nothing', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveNeutral();
+		expect(store.state).toBe('saved');
+	});
+
+	it('reports a batch that mixed a real write with a refusal as saved', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.beginSaving();
+		store.resolveNeutral();
+		store.resolveOk();
+		expect(store.state).toBe('saved');
+	});
+
 	it('never reaches unsaved-changes through any sequence of its own actions', () => {
 		const store = useSaveStateStore();
 		const actions = [
 			() => store.beginSaving(),
 			() => store.resolveOk(),
 			() => store.resolveErr(),
+			() => store.resolveNeutral(),
 		];
 
 		// Every sequence of up to four actions. Exhaustive over the store's whole surface,
@@ -1739,7 +1797,7 @@ describe('the save-state store', () => {
 	it('exposes no action that could produce unsaved-changes', () => {
 		const store = useSaveStateStore();
 		expect(Object.keys(store)).toEqual(
-			expect.arrayContaining(['state', 'beginSaving', 'resolveOk', 'resolveErr']),
+			expect.arrayContaining(['state', 'beginSaving', 'resolveOk', 'resolveErr', 'resolveNeutral']),
 		);
 		expect(Object.keys(store)).not.toContain('markUnsaved');
 	});
@@ -1801,34 +1859,60 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	const state = ref<SaveState>('saved');
 	const pendingCount = ref(0);
 	const hasErrorInBatch = ref(false);
+	const hasWriteInBatch = ref(false);
+	/** What the indicator read before this batch opened, for a batch that writes nothing. */
+	const beforeBatch = ref<SaveState>('saved');
 
-	/** Settle the batch once its last dispatch has resolved, and reset for the next one. */
+	/**
+	 * Settle the batch once its last dispatch has resolved, and reset for the next one.
+	 *
+	 * **Three outcomes, not two, and the third is the one that is easy to miss.** A batch that
+	 * FAILED reports `save-error`; a batch that WROTE something reports `saved`; a batch in
+	 * which nothing was written at all reverts to whatever the indicator said before it opened.
+	 * Collapsing that third case into `saved` is a lie with a real victim: after a persistence
+	 * failure has settled the store to `save-error`, a later field edit refused for validation
+	 * writes nothing — and reporting `saved` for it tells the user the earlier failed write is
+	 * now safe. Only a write that actually succeeded may clear a save error.
+	 */
 	const settle = (): void => {
 		if (pendingCount.value > 0) return;
-		state.value = hasErrorInBatch.value ? 'save-error' : 'saved';
+		if (hasErrorInBatch.value) state.value = 'save-error';
+		else if (hasWriteInBatch.value) state.value = 'saved';
+		else state.value = beforeBatch.value;
 		hasErrorInBatch.value = false;
+		hasWriteInBatch.value = false;
 	};
 
 	return {
 		state: computed(() => state.value),
 
 		/**
-		 * A new dispatch always shows `saving`, which is deliberately how a stale `save-error`
-		 * from an already-drained batch is superseded.
+		 * A new dispatch always shows `saving`. The state it replaces is remembered when the
+		 * batch OPENS, so a batch that turns out to have written nothing can put it back.
 		 */
 		beginSaving(): void {
+			if (pendingCount.value === 0) beforeBatch.value = state.value;
 			pendingCount.value += 1;
 			state.value = 'saving';
 		},
 
+		/** A write landed. */
 		resolveOk(): void {
 			pendingCount.value -= 1;
+			hasWriteInBatch.value = true;
 			settle();
 		},
 
+		/** A write may not have landed. */
 		resolveErr(): void {
 			pendingCount.value -= 1;
 			hasErrorInBatch.value = true;
+			settle();
+		},
+
+		/** Nothing was written — a refusal that never reached the repository. */
+		resolveNeutral(): void {
+			pendingCount.value -= 1;
 			settle();
 		},
 	};
@@ -1840,9 +1924,13 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 Run: `npx vitest run tests/presentation/editor/saveState/saveStateStore.test.ts`
 Expected: PASS — all nine.
 
-- [ ] **Step 5: Prove the batching test can fail**
+- [ ] **Step 5: Prove the batching and neutral-settlement tests can fail**
 
-Temporarily change `settle` to ignore `pendingCount` (`state.value = hasErrorInBatch.value ? 'save-error' : 'saved';` as its whole body). Re-run. Expected: the two overlapping-dispatch cases go red. **Restore `settle`** and re-run to green.
+Temporarily collapse `settle`'s three outcomes into two — `state.value = hasErrorInBatch.value
+? 'save-error' : 'saved'` — and re-run. Expected: the two refusal cases go red, because a
+validation refusal now clears a real save error. **Restore the three-way `settle`.**
+
+Then temporarily change `settle` to ignore `pendingCount` (`state.value = hasErrorInBatch.value ? 'save-error' : 'saved';` as its whole body). Re-run. Expected: the two overlapping-dispatch cases go red. **Restore `settle`** and re-run to green.
 
 - [ ] **Step 6: Commit**
 
@@ -1864,7 +1952,7 @@ git commit -m "feat: the save-state store, and the batch that cannot settle earl
 - Consumes: `RefreshedHistory` from `../tools/with-editor-state-refresh` (already `Pick<CommandHistory, 'run' | 'undo' | 'redo'>` — reuse it rather than declaring a second alias); `AppError`; `useSaveStateStore`.
 - Produces:
   - `function affectsSaveState(error: AppError): boolean`
-  - `type SaveStateTracker = Pick<ReturnType<typeof useSaveStateStore>, 'beginSaving' | 'resolveOk' | 'resolveErr'>`
+  - `type SaveStateTracker = Pick<ReturnType<typeof useSaveStateStore>, 'beginSaving' | 'resolveOk' | 'resolveErr' | 'resolveNeutral'>`
   - `function withSaveStateTracking(history: RefreshedHistory, saveState: SaveStateTracker): RefreshedHistory`
 
 - [ ] **Step 1: Write the failing test**
@@ -1886,6 +1974,7 @@ const tracker = () => ({
 	beginSaving: vi.fn(),
 	resolveOk: vi.fn(),
 	resolveErr: vi.fn(),
+	resolveNeutral: vi.fn(),
 });
 
 const command = {} as UndoableCommand;
@@ -1935,14 +2024,17 @@ describe('withSaveStateTracking', () => {
 		expect(save.resolveOk).not.toHaveBeenCalled();
 	});
 
-	it.each(OPERATIONS)('does not blame %s for a validation refusal that wrote nothing', async (operation) => {
+	it.each(OPERATIONS)('settles %s NEUTRALLY for a validation refusal that wrote nothing', async (operation) => {
 		const history = historyResolving(err(errorOf('validation')));
 		const save = tracker();
 		const wrapped = withSaveStateTracking(history, save);
 
 		await (operation === 'run' ? wrapped.run(command) : wrapped[operation]());
 
-		expect(save.resolveOk).toHaveBeenCalledTimes(1);
+		// Neither a failure to report nor evidence of a save. `resolveOk` here would let a
+		// refusal that never touched the repository clear a real save error.
+		expect(save.resolveNeutral).toHaveBeenCalledTimes(1);
+		expect(save.resolveOk).not.toHaveBeenCalled();
 		expect(save.resolveErr).not.toHaveBeenCalled();
 	});
 
@@ -2008,6 +2100,7 @@ describe('withSaveStateTracking', () => {
 			beginSaving: vi.fn(() => order.push('begin')),
 			resolveOk: vi.fn(() => order.push('ok')),
 			resolveErr: vi.fn(),
+			resolveNeutral: vi.fn(),
 		};
 		const history = {
 			run: vi.fn(async () => {
@@ -2070,7 +2163,7 @@ type VoidResult = Result<void, AppError>;
 
 export type SaveStateTracker = Pick<
 	ReturnType<typeof useSaveStateStore>,
-	'beginSaving' | 'resolveOk' | 'resolveErr'
+	'beginSaving' | 'resolveOk' | 'resolveErr' | 'resolveNeutral'
 >;
 
 /**
@@ -2101,8 +2194,12 @@ export function withSaveStateTracking(
 		saveState.beginSaving();
 		try {
 			const result = await operation();
-			if (isErr(result) && affectsSaveState(result.error)) saveState.resolveErr();
-			else saveState.resolveOk();
+			if (!isErr(result)) saveState.resolveOk();
+			else if (affectsSaveState(result.error)) saveState.resolveErr();
+			// A refusal that never reached the repository wrote NOTHING, so it is neither a
+			// failure to report nor evidence that anything was saved. Resolving it as `ok` would
+			// let a validation refusal clear a `save-error` left by a real persistence failure.
+			else saveState.resolveNeutral();
 			return result;
 		} catch (cause) {
 			// **A THROWN fault settles the batch too, and forgetting this is worse than
@@ -2280,7 +2377,13 @@ Update that file's docblock: the region is no longer deliberately empty, and the
 Append to `styles/editor.css` — **check its line count first** (`wc -l styles/editor.css`); the assembler caps a partial at 400 lines, and this file has already been split once for crossing it. If appending would cross the cap, put these rules in a new `styles/editor-save-state.css` imported immediately after `editor-requirements.css`, and record in `styles/index.css` that its position is not load-bearing.
 
 ```css
-.rp-save-state-error {
+/*
+ * The class names are what `rp-save-state-${state}` GENERATES, so the error state is
+ * `save-error` and its selector is `rp-save-state-save-error` — not `-error`. A selector one
+ * word short of what the template emits simply never matches, and nothing here could catch
+ * it: jsdom resolves no CSS, and the harness draws a state nobody is looking at.
+ */
+.rp-save-state-save-error {
 	color: var(--text-error);
 }
 
@@ -2288,6 +2391,12 @@ Append to `styles/editor.css` — **check its line count first** (`wc -l styles/
 	color: var(--text-muted);
 }
 ```
+
+Confirm rather than trust the paragraph above: the template binds
+``:class="`rp-save-state-${state}`"`` and `SaveState` is
+`'saved' | 'saving' | 'unsaved-changes' | 'save-error'`, so the four classes it can emit are
+`rp-save-state-saved`, `-saving`, `-unsaved-changes` and `-save-error`. Only two are styled;
+the resting and unreachable states inherit the status bar's own colour deliberately.
 
 - [ ] **Step 6: Run the tests and build**
 
@@ -2503,5 +2612,16 @@ across two review rounds were all "this call site should not have armed a timer"
 paused, persistent. They are now one rule inside `arm`, and every caller calls it
 unconditionally, because a guard at a call site is a second copy of a rule and two copies
 disagree. That is how the first two arrived.
+
+**A fourth review pass found three more, in three areas none of the earlier rounds had
+touched.** The dedup path returned before `promote()`, so a slot freed by an unobserved
+dismissal stayed empty whenever the next push happened to be a repeat — breaking the design's
+own "degrades to the next push" guarantee. `SaveStateStore` had two settlement outcomes where
+it needs three: a validation refusal writes nothing, so resolving it as `ok` let it clear a
+`save-error` left by a real persistence failure and tell the user unsaved data was safe;
+`resolveNeutral` reverts to whatever the indicator read before the batch opened, and only a
+write that actually succeeded may clear an error. And the save-error stylesheet selector was
+`rp-save-state-error` where the template emits `rp-save-state-save-error`, so the colour never
+applied — invisible to every gate here, since jsdom resolves no CSS.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

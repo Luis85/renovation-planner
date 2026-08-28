@@ -219,6 +219,12 @@ adopted as written:
 - `pendingCount` + `hasErrorInBatch`, so two overlapping dispatches never settle to
   `'saved'` while either is unresolved, and a batch with one failure settles to
   `'save-error'` even where a sibling succeeded.
+- **Three settlement outcomes, not two.** A batch that failed reports `save-error`; a batch
+  that WROTE something reports `saved`; a batch in which nothing was written reverts to
+  whatever the indicator read before it opened. The third exists because a validation refusal
+  reaches no repository: settling it as `saved` would let a refused field edit clear a
+  `save-error` left by a real persistence failure and tell the user unsaved data is now safe.
+  **Only a write that actually succeeded may clear a save error.**
 - `affectsSaveState(error) = error.category !== 'validation'`, stated as an inequality
   against one category rather than a list of the ones that count, so a category added by a
   later slice defaults to *affecting* the indicator. `AppError.category` is verified to

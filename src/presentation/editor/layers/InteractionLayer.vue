@@ -73,13 +73,19 @@ const sketchVertices = computed(() => {
 	return sketch === null ? null : sketch.vertices.map((point) => toScreen(point));
 });
 
-/** The dashed outline: the placed vertices plus the loose end, when there is one. */
+/**
+ * The dashed outline: the placed vertices plus the loose end, when there is one.
+ *
+ * The loose end is `nextVertex` — where a click would LAND — not the raw pointer. With Shift
+ * held those differ, and showing the hand rather than the result would make the constraint
+ * invisible at exactly the moment it is doing something.
+ */
 const sketchOutlineFlat = computed(() => {
 	const sketch = runtime.renderState.polygonSketch;
 	const vertices = sketchVertices.value;
 	if (sketch === null || vertices === null) return null;
-	const cursor = sketch.cursor === null ? [] : [toScreen(sketch.cursor)];
-	const points = [...vertices, ...cursor];
+	const loose = sketch.nextVertex === null ? [] : [toScreen(sketch.nextVertex)];
+	const points = [...vertices, ...loose];
 	if (points.length < 2) return null;
 	return points.flatMap((at) => [at.x, at.y]);
 });
@@ -97,10 +103,13 @@ const sketchOutlineFlat = computed(() => {
 const closeArmed = computed(() => {
 	const sketch = runtime.renderState.polygonSketch;
 	const vertices = sketchVertices.value;
-	if (sketch === null || sketch.cursor === null || vertices === null) return false;
+	if (sketch === null || sketch.pointer === null || vertices === null) return false;
 	const first = vertices.at(0);
 	if (first === undefined) return false;
-	return closesPolygon(vertices.length, toScreen(sketch.cursor), first);
+	// The RAW pointer, matching what the close click is judged by: with Shift held the point a
+	// click would place can be pulled well away from the first vertex while the pointer is
+	// squarely on it, and the mark has to follow the click rather than the constraint.
+	return closesPolygon(vertices.length, toScreen(sketch.pointer), first);
 });
 
 /**

@@ -6,7 +6,12 @@ import type { EditorContext } from '../../../../src/presentation/editor/tools/ed
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { err, ok } from '../../../../src/core/result/Result';
 import type { CreateZoneInput } from '../../../../src/application/commands/zone/CreateZone';
-import { flushGesture as flush, pointerAt as at, toolContext } from '../../../helpers/tool-context';
+import {
+	flushGesture as flush,
+	pointerAt as at,
+	shiftPointerAt as shiftAt,
+	toolContext,
+} from '../../../helpers/tool-context';
 
 /**
  * Design slice 8 — `DrawPolygonTool` driven by simulated pointer sequences
@@ -112,7 +117,8 @@ describe('DrawPolygonTool', () => {
 		// placed ones are drawn as circles. See `PolygonSketch`.
 		expect(h.context.renderState.polygonSketch).toEqual({
 			vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }],
-			cursor: { x: 120, y: 90 },
+			pointer: { x: 120, y: 90 },
+			nextVertex: { x: 120, y: 90 },
 		});
 		tool.pointerDown(at(0, 100));
 		tool.pointerDown(at(0, 0)); // closes
@@ -362,18 +368,21 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 
 		tool.pointerDown(at(0, 0));
 
-		// No cursor yet: the rubber band would be a zero-length edge from the vertex to
-		// itself, which draws a stub of a line out of a click that has just landed.
+		// No loose end yet: the rubber band would be a zero-length edge from the vertex to
+		// itself, which draws a stub of a line out of a click that has just landed. The POINTER
+		// is recorded, because it really is there — and a third vertex placed within reach of
+		// the first should light the close target up at once rather than after a twitch.
 		expect(h.context.renderState.polygonSketch).toEqual({
 			vertices: [{ x: 0, y: 0 }],
-			cursor: null,
+			pointer: { x: 0, y: 0 },
+			nextVertex: null,
 		});
 
 		tool.pointerMove(at(60, 10));
-		expect(h.context.renderState.polygonSketch?.cursor).toEqual({ x: 60, y: 10 });
+		expect(h.context.renderState.polygonSketch?.nextVertex).toEqual({ x: 60, y: 10 });
 
 		tool.pointerDown(at(100, 0));
-		expect(h.context.renderState.polygonSketch?.cursor).toBeNull();
+		expect(h.context.renderState.polygonSketch?.nextVertex).toBeNull();
 	});
 
 	/**
@@ -418,11 +427,12 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 		// be describing a gesture that is over.
 		expect(h.context.renderState.polygonSketch).toEqual({
 			vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }],
-			cursor: null,
+			pointer: null,
+			nextVertex: null,
 		});
 		// And a pointer that keeps moving during that window does not put it back.
 		tool.pointerMove(at(40, 40));
-		expect(h.context.renderState.polygonSketch?.cursor).toBeNull();
+		expect(h.context.renderState.polygonSketch?.nextVertex).toBeNull();
 
 		release();
 		await flush();
@@ -449,5 +459,91 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 			{ x: 100, y: 0 },
 			{ x: 0, y: 100 },
 		]);
+	});
+});
+
+/**
+ * Holding Shift draws a straight edge: the next vertex is pulled onto the nearest whole
+ * angle from the LAST placed one. The step is `SnapService`'s own (15 degrees as the editor
+ * composes it), so this suite asserts the constraint rather than the arithmetic —
+ * `snapService.test.ts` owns that.
+ *
+ * The harness camera is one world millimetre per screen pixel, so world distances here read
+ * directly as the pixels the close tolerance is stated in.
+ */
+describe('DrawPolygonTool: Shift constrains the next vertex', () => {
+	it('pulls a nearly-horizontal vertex onto the horizontal', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		// 500 across, 40 down — about 4.6 degrees, well inside the 15 degree step's basin.
+		tool.pointerDown(shiftAt(500, 40));
+
+		expect(h.context.renderState.polygonSketch?.vertices.at(1)).toEqual({ x: 500, y: 0 });
+	});
+
+	it('leaves the FIRST vertex alone, which has nothing to be straight relative to', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(shiftAt(37, 91));
+
+		// Constraining this against some invented origin would move a point the user placed
+		// deliberately — there is no previous vertex, so there is no line to straighten.
+		expect(h.context.renderState.polygonSketch?.vertices).toEqual([{ x: 37, y: 91 }]);
+	});
+
+	it('previews exactly the point the next click places', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerMove(shiftAt(500, 40));
+		const previewed = h.context.renderState.polygonSketch?.nextVertex;
+
+		tool.pointerDown(shiftAt(500, 40));
+
+		// One function answers both, which is the property `SnapService`'s own header claims
+		// for snapping generally: the preview can never drift from what gets committed.
+		expect(h.context.renderState.polygonSketch?.vertices.at(1)).toEqual(previewed);
+	});
+
+	it('keeps the pointer and the landing point as separate facts while constraining', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerMove(shiftAt(500, 40));
+
+		// The hand is at 40 below the axis; the vertex would land on it. The close target is
+		// judged from the first of those and the rubber band drawn to the second, which is
+		// why one field could not carry both.
+		expect(h.context.renderState.polygonSketch?.pointer).toEqual({ x: 500, y: 40 });
+		expect(h.context.renderState.polygonSketch?.nextVertex).toEqual({ x: 500, y: 0 });
+	});
+
+	it('does not let the constraint decide whether the polygon CLOSES', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(200, 0));
+		tool.pointerDown(at(0, 200));
+		// From the last vertex (0, 200) this bearing rounds to straight up, so the CONSTRAINED
+		// point lands at (0, 4) — four units from the first vertex, well inside the twelve a
+		// close takes. The pointer itself is twenty away, so a close would be a lie about
+		// where the user is pointing.
+		tool.pointerDown(shiftAt(20, 4));
+		await flush();
+
+		expect(h.dispatched).toHaveLength(0);
+		expect(h.context.renderState.polygonSketch?.vertices).toHaveLength(4);
+		expect(h.context.renderState.polygonSketch?.vertices.at(3)?.x).toBeCloseTo(0, 6);
 	});
 });

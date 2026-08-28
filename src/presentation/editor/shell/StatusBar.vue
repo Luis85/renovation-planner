@@ -16,11 +16,39 @@
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
+import type { ToolId } from '../tools/editor-tool';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useProjectStore } from '../../stores/ProjectStore';
 
+/**
+ * The active tool, from the PARENT rather than from `useEditorRuntime()`.
+ *
+ * A prop because this component is mounted STANDALONE by the harness index, which draws every
+ * real component against the shared fixture with no per-entry setup — injecting the runtime
+ * made it throw there, and a shell region that can only be looked at inside the whole editor
+ * is one nobody looks at. Optional for the same reason: the index passes nothing.
+ */
+const props = defineProps<{ activeToolId?: ToolId | null }>();
+
 const { plan } = storeToRefs(useProjectStore());
 const { viewport, pointerWorld } = storeToRefs(useEditorStore());
+
+/**
+ * The tools that take the Shift angle constraint, and therefore the ones whose hint is worth
+ * showing. A list rather than "any tool": Select constrains nothing, and camera mode has no
+ * tool at all, so announcing it there would be advertising a key that does nothing.
+ *
+ * It is the one place the constraint is mentioned to the user at all. A modifier is invisible
+ * — no control shows it, no menu lists it — which is the standing cost of the convention every
+ * drawing tool in the field uses, and this is the cheapest honest mitigation: present while
+ * the gesture it applies to is available, gone the moment it is not.
+ */
+const CONSTRAINING_TOOLS: readonly ToolId[] = ['draw-polygon', 'calibrate'];
+
+const showsConstraintHint = computed(() => {
+	const active = props.activeToolId ?? null;
+	return active !== null && CONSTRAINING_TOOLS.includes(active);
+});
 
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`);
 
@@ -50,7 +78,11 @@ const pointerText = computed(() => {
 			role="group"
 			:aria-label="tr('editor.status')"
 		>
-			{{ plan?.name ?? '' }}
+			<span>{{ plan?.name ?? '' }}</span>
+			<span
+				v-if="showsConstraintHint"
+				class="rp-editor-hint"
+			>{{ tr('editor.hint.constrain-angle') }}</span>
 		</div>
 		<div
 			class="rp-editor-measurements"

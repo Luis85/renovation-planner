@@ -223,3 +223,81 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		expect(interactionLayer(harness.stage).find('Line')).toHaveLength(3 + ticks);
 	});
 });
+
+/**
+ * The Shift angle constraint, end to end through the mounted editor: the canvas routing, the
+ * tool's use of `SnapService.snapDirection`, and what the rubber band actually draws.
+ *
+ * Geometry: world = 10 x screen - 480 at the default camera, so a pointer 200 screen pixels
+ * right of the anchor and 5 below it is about 1.4 degrees off the horizontal — inside the 15
+ * degree step's basin, and far enough along that the flattening is unmistakable in pixels.
+ */
+describe('the angle constraint while drawing', () => {
+	/** The in-progress polygon's outline: the only line the layer draws mid-sketch. */
+	function looseEnd(stage: Konva.Stage | null): { x: number; y: number } {
+		const outline = interactionLayer(stage).find('Line').at(0) as Konva.Line;
+		const points = outline.points();
+		return { x: points.at(-2) ?? Number.NaN, y: points.at(-1) ?? Number.NaN };
+	}
+
+	it('flattens the rubber band the moment Shift goes down, with the pointer still', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 700, 105);
+		await settle();
+		expect(looseEnd(harness.stage).y).toBeCloseTo(105);
+
+		// No pointer movement at all — the key alone. A preview that waited for the next
+		// mouse move would read as a dead key, which is what every drawing tool in the field
+		// avoids by acting on the press.
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, bubbles: true }));
+		await settle();
+
+		const constrained = looseEnd(harness.stage);
+		expect(constrained.y).toBeCloseTo(100);
+		expect(constrained.x).toBeCloseTo(700);
+	});
+
+	it('lets go again on release, just as promptly', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 700, 105);
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, bubbles: true }));
+		await settle();
+		expect(looseEnd(harness.stage).y).toBeCloseTo(100);
+
+		// `shiftKey` is false on the release: the tool reads the STATE, not the transition,
+		// which is also what makes this work under Sticky Keys.
+		canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', shiftKey: false, bubbles: true }));
+		await settle();
+
+		expect(looseEnd(harness.stage).y).toBeCloseTo(105);
+	});
+
+	it('ignores a key that is not the modifier, rather than re-issuing on every keystroke', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 700, 105);
+		await settle();
+
+		canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }));
+		await settle();
+
+		expect(looseEnd(harness.stage).y).toBeCloseTo(105);
+	});
+});

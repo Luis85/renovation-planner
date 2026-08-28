@@ -217,6 +217,15 @@ function onPointerUp(event: PointerEvent): void {
  * abandoned start and that unrelated click. The camera already had its equivalent in
  * `onPointerLeave`; the tool path had none.
  */
+/**
+ * Shift released. Only the modifier: every other key either does its work on the press
+ * (Escape, the zoom pair) or means nothing here, and a handler that re-issued a move for all
+ * of them would send one per keystroke of whatever the user typed with the canvas focused.
+ */
+function onKeyUp(event: KeyboardEvent): void {
+	if (event.key === 'Shift') reissuePointerMove(event);
+}
+
 function onPointerCancel(): void {
 	runtime.toolManager.cancelGesture();
 	editor.endPan();
@@ -243,6 +252,17 @@ function onPointerLeave(): void {
 function onKeyDown(event: KeyboardEvent): void {
 	if (event.key === 'Escape') {
 		runtime.toolManager.cancelGesture();
+		return;
+	}
+	// Shift is the angle constraint, and it has to bite the moment it goes down rather than
+	// on the next pointer move: a user holds it to make the line they are ALREADY drawing
+	// straight, and a preview that only answers once the hand twitches reads as a dead key.
+	// The same re-issue serves its release, where the constraint has to let go just as
+	// promptly. `event.shiftKey` is true on the press and false on the release, so the tool
+	// reads the state rather than the transition — which is also what makes this work under
+	// Sticky Keys, where the modifier latches and no key is physically held at all.
+	if (event.key === 'Shift') {
+		reissuePointerMove(event);
 		return;
 	}
 	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
@@ -290,6 +310,7 @@ onBeforeUnmount(() => {
 		@pointercancel="onPointerCancel"
 		@pointerleave="onPointerLeave"
 		@keydown="onKeyDown"
+		@keyup="onKeyUp"
 	>
 		<VStage :config="stageConfig">
 			<BackgroundLayer

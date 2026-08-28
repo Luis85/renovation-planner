@@ -337,6 +337,49 @@ review pass that followed:
   Vue injection context is `PlanEditorContext` now (`PLAN_EDITOR_CONTEXT`,
   `usePlanEditorContext`); the tool facade keeps the bare name, which is the SDD's.
 
+**Holding Shift constrains both drawing tools to a whole angle** — 15 degrees, through
+`SnapService.snapDirection`, which is the first caller `angleStepRadians` has ever had (the
+service was composed with that step from slice 6 and nothing above `snapRotation` read it).
+The polygon tool constrains the next vertex against the LAST placed one and never the first,
+which has nothing to be straight relative to; the calibration tool constrains its second
+point against its first, where it matters most — a calibration taken a degree off is a scale
+error every area on the plan inherits. Researched rather than invented: Figma and Illustrator
+constrain to 45 degrees with Shift, CAD polar tracking to a configurable step with 15 among
+its presets, and the picked point lands ON the alignment path at the projected distance,
+which is why `snapDirection` projects rather than rotating. Four rules came out of it:
+
+- **The pointer and the point a click would PLACE became two fields the moment Shift could
+  separate them.** `PolygonSketch` had one `cursor`; the rubber band must draw to where the
+  vertex lands, and the close target must be judged on where the hand actually is — closing
+  is about pointing AT the first vertex, whatever the constraint is doing to the point it
+  would otherwise place. One value cannot be both, and the case that proves it is asserted on
+  the COMMAND path: a constrained point landing four units from the first vertex while the
+  pointer is twenty away must not close.
+- **A modifier has to bite on the KEY, not on the next pointer move**, which is what every
+  tool in the field does and what makes the difference between a live constraint and a dead
+  key. It costs nothing here because the camera fix above already built the hook: Shift's
+  press and release re-issue the same synthetic pointer move. It reads `event.shiftKey` — the
+  STATE — rather than the transition, which is also what makes it work under Sticky Keys,
+  where the modifier latches and no key is physically held.
+- **A modifier is invisible, and the status bar is where this one is admitted to.** No control
+  shows it and no menu lists it — the standing cost of the convention — so `editor.hint.
+  constrain-angle` sits in the Status region while a constraining tool is active, and only
+  those two: advertising the key under Select would be advertising a key that does nothing.
+  What is NOT built is CAD's numeric angle-and-distance readout beside the line, because
+  `t()` takes no parameters and that would make it the plugin's first interpolated string.
+  The copy leads with the key name (`Shift constrains the angle`) because
+  `obsidianmd/ui/sentence-case-locale-module` fails the build on a capitalised `Shift`
+  mid-sentence — measured — and lowercasing the name of a key is worse copy than leading with
+  it.
+- **Two harness fakes were thinner than the service they stood for, and the second would have
+  thrown.** `tool-context.ts` had a hand-written `{ snapPoint }` behind an `as never`, and
+  `calibrateHarness.ts` had `{} as never`. Both subclass the REAL `SnapService` now, composed
+  with the editor's own 15 degree step, so the next method added to it is present in both the
+  day it is written. A `StatusBar` that injected `useEditorRuntime()` was the same shape from
+  the other end and the harness caught it: the index mounts every real component STANDALONE
+  against the shared fixture, so a shell region that can only exist inside the whole editor is
+  one nobody looks at. It takes `activeToolId` as a prop.
+
 **Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
 descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the
 descriptor's own `kind` through `DialogResultByKind`, and THROWS if a dialog is already open

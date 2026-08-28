@@ -28,8 +28,25 @@ import type { Point } from '../../../core/geometry/Point';
 export interface PolygonSketch {
 	/** Placed by a click; every one of them is drawn. */
 	readonly vertices: readonly Point[];
-	/** The rubber band's loose end, `null` before the pointer has moved at all. */
-	readonly cursor: Point | null;
+	/**
+	 * Where the pointer physically is, `null` before it has moved at all. This is what the
+	 * close target is judged against, because closing is about pointing AT the first vertex —
+	 * a click there closes whatever the angle constraint is doing to the point it would
+	 * otherwise place.
+	 */
+	readonly pointer: Point | null;
+	/**
+	 * Where a click would actually put the next vertex: the pointer, or — with Shift held —
+	 * its projection onto the nearest whole angle from the last placed vertex. The rubber
+	 * band's loose end, so the user sees where the vertex lands rather than where their hand
+	 * is, and the two differ exactly when the constraint is doing something.
+	 *
+	 * Separate from `pointer` because they answer different questions, which is this field's
+	 * whole history: it started as one `cursor`, and one value cannot be both the place a
+	 * vertex will land and the place the close is judged from once Shift can move the first
+	 * away from the second.
+	 */
+	readonly nextVertex: Point | null;
 }
 
 /**

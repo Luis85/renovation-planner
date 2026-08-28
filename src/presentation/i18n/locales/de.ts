@@ -71,6 +71,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.measurements': 'Messwerte',
 	'editor.save-state': 'Speicherstatus',
 	'editor.zoom': 'Zoom',
+	// `Umschalttaste` is the German name of the key itself, which is what a hint about holding
+	// it has to say — `Shift` is the legend printed on many keyboards but not the word.
+	'editor.hint.constrain-angle': 'Umschalttaste beschränkt den Winkel',
 	'editor.loading': 'Grundriss wird geladen …',
 	'editor.plan-missing': 'Diesen Grundriss gibt es nicht mehr.',
 	'editor.plan-failed': 'Dieser Grundriss konnte nicht aus dem Vault gelesen werden.',

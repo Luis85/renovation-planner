@@ -38,6 +38,12 @@ export interface DrawPolygonToolDeps {
  * `closePolygon()` is the only place the tool talks to the domain — through
  * `context.commandDispatcher` alone (SDD §58).
  *
+ * **Shift constrains the next vertex to a whole angle** from the last placed one, through
+ * `SnapService.snapDirection` — the service that already owns the angle step. The first
+ * vertex is never constrained: there is no previous point to be straight relative to. The
+ * constraint moves where a vertex LANDS and deliberately not what CLOSES the shape, which is
+ * still judged on the raw pointer; see `canClose`.
+ *
  * **The close target's mark and the close CLICK ask the same question.** `InteractionLayer`
  * draws the first vertex differently while a click would close the shape; both it and
  * `canClose()` below call `closesPolygon` (`../closeTarget.ts`), so neither can answer
@@ -97,14 +103,14 @@ export class DrawPolygonTool implements EditorTool {
 	pointerDown(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || event.button !== 'primary' || this.closing) return;
-		const snapped = context.snapService.snapPoint(event.worldPoint, {});
+		const landing = this.landingPoint(context, event);
 		if (this.canClose(context, event.worldPoint)) {
 			this.closing = true;
 			// The shape is settled and on its way to being written: a rubber band still tracking
 			// the pointer describes a gesture that is over, so it comes down here rather than
 			// surviving the dispatch — and a REFUSED close then leaves a clean picture of the
 			// buffer it kept.
-			this.publishSketch(context, null);
+			this.publishSketch(context, null, null);
 			void this.closePolygon(context);
 			return;
 		}
@@ -114,21 +120,23 @@ export class DrawPolygonTool implements EditorTool {
 		// reachable precisely because the close test above measures the RAW click while the
 		// buffer takes the SNAPPED one: a snap that pulls a near-miss exactly onto an
 		// existing vertex fails the close test and would otherwise be pushed as a twin.
-		if (this.buffer.some((point) => point.x === snapped.x && point.y === snapped.y)) return;
-		this.buffer.push(snapped);
-		// No cursor: the pointer is on the vertex that was just placed, and a rubber band from
-		// a vertex to itself is a stub of a line drawn out of a click that has landed.
-		this.publishSketch(context, null);
+		if (this.buffer.some((point) => point.x === landing.x && point.y === landing.y)) return;
+		this.buffer.push(landing);
+		// The pointer is recorded (it is genuinely there, and a third vertex placed within reach
+		// of the first should light the close target up at once rather than waiting for a
+		// twitch), but there is no loose end yet: a rubber band from the new vertex to itself is
+		// a stub of a line drawn out of a click that has just landed.
+		this.publishSketch(context, event.worldPoint, null);
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || this.buffer.length === 0 || this.closing) return;
-		// Rubber-band edge from the last vertex to the pointer — InteractionLayer only, no
-		// domain state touched. Whether a click here would CLOSE the shape is not recorded:
-		// the layer asks `closesPolygon` per render, so a zoom under a still pointer cannot
-		// leave a stale promise on screen.
-		this.publishSketch(context, event.worldPoint);
+		// Rubber-band edge from the last vertex to where a click would land — InteractionLayer
+		// only, no domain state touched. Whether a click here would CLOSE the shape is not
+		// recorded: the layer asks `closesPolygon` per render, so a zoom under a still pointer
+		// cannot leave a stale promise on screen.
+		this.publishSketch(context, event.worldPoint, this.landingPoint(context, event));
 	}
 
 	pointerUp(): void {}
@@ -163,6 +171,32 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	/**
+	 * Where a click right now would put a vertex: the pointer, pulled onto a whole angle from
+	 * the LAST placed vertex while Shift is held, then through the ordinary snap.
+	 *
+	 * One function for the preview and for the placement, which is the contract `SnapService`
+	 * states about itself — the previewed point can never drift from the committed one,
+	 * because they are the same call.
+	 *
+	 * An empty buffer has no anchor and is returned unconstrained: the first click of a
+	 * polygon has nothing to be straight relative to, and constraining it against some
+	 * invented origin would move a point the user placed deliberately.
+	 *
+	 * Order: constrain, THEN snap. Unobservable today — both tools hand `snapPoint` an empty
+	 * candidate set, so it is the identity — and written this way round deliberately, because
+	 * a vertex or edge within tolerance is a real feature of the drawing while a constrained
+	 * ray is a straight-edge the user is holding against it. That is the precedence CAD gives
+	 * object snap over polar tracking.
+	 */
+	private landingPoint(context: EditorContext, event: EditorPointerEvent): Point {
+		const anchor = this.buffer.at(-1);
+		const constrained = event.modifiers.shift && anchor !== undefined
+			? context.snapService.snapDirection(anchor, event.worldPoint)
+			: event.worldPoint;
+		return context.snapService.snapPoint(constrained, {});
+	}
+
+	/**
 	 * The one write of the in-progress picture. A whole new object each time rather than a
 	 * mutation: the field is read through a `reactive()` proxy, and one assignment is one
 	 * re-render of the layer.
@@ -171,8 +205,8 @@ export class DrawPolygonTool implements EditorTool {
 	 * can move without the pointer moving, so an answer stored at `pointermove` time is one
 	 * the next zoom makes false while nothing re-runs this.
 	 */
-	private publishSketch(context: EditorContext, cursor: Point | null): void {
-		context.renderState.polygonSketch = { vertices: [...this.buffer], cursor };
+	private publishSketch(context: EditorContext, pointer: Point | null, nextVertex: Point | null): void {
+		context.renderState.polygonSketch = { vertices: [...this.buffer], pointer, nextVertex };
 	}
 
 	private clearSketch(context: EditorContext): void {

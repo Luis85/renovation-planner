@@ -181,6 +181,39 @@ export class SnapService {
 	}
 
 	/**
+	 * `point` pulled onto the nearest ray of `angleStepRadians` leaving `anchor` — the Shift
+	 * constraint both drawing tools offer, so a wall can be drawn straight without the user
+	 * hitting the exact pixel.
+	 *
+	 * **Projected onto the ray, not rotated onto it.** The result is the pointer's distance
+	 * ALONG the constrained direction, which is the convention CAD polar tracking established:
+	 * the picked point lands on the alignment path at the distance indicated. At the editor's
+	 * 15 degree step the two differ by at most `1 - cos(7.5°)`, under 1%, so this choice is
+	 * about being right rather than about being visible.
+	 *
+	 * Two properties the arithmetic does not give for free, both pinned by tests:
+	 *
+	 * - A pointer ON the anchor answers the anchor. It has no bearing, and `atan2(0, 0)` is
+	 *   `0` rather than `NaN`, so the natural reading would be "due east" — a direction the
+	 *   user never indicated, drawn out of a click that has not moved.
+	 * - The point is never placed BEHIND the anchor. With any step up to a half turn the
+	 *   nearest direction is within half a step of the true bearing, so the projection is
+	 *   forward on its own; a coarser step is what breaks that, and a mirrored point would be
+	 *   a straight line drawn in the direction the user is not pointing.
+	 */
+	snapDirection(anchor: Point, point: Point): Point {
+		const dx = point.x - anchor.x;
+		const dy = point.y - anchor.y;
+		if (dx === 0 && dy === 0) {
+			return anchor;
+		}
+		const angle = this.snapRotation(Math.atan2(dy, dx));
+		const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+		const along = Math.max(0, dx * direction.x + dy * direction.y);
+		return { x: anchor.x + direction.x * along, y: anchor.y + direction.y * along };
+	}
+
+	/**
 	 * Snaps only the handle-moved edges of `box` to the grid — a corner handle moves two
 	 * edges, an edge handle moves one — via `HANDLE_EDGES`. Every other edge is copied
 	 * through unchanged.

@@ -353,9 +353,26 @@
  * readout changed width, which it does on every pointer move.
  */
 .rp-editor-status {
+	display: flex;
 	flex: 0 1 auto;
+	gap: var(--size-4-2);
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * The Shift hint, which shares the Status region with the plan's name rather than taking a
+ * fourth region of its own: §60 names three, and slice 13's save-state indicator is mounted
+ * into the third BY NAME.
+ *
+ * Fainter than the name beside it, and that is the whole styling: it is a standing note about
+ * a key, not a message about the document, so it must not compete with the one thing this
+ * region exists to say. It disappears with the tool, so nothing here has to reserve space for
+ * it — the region is `flex: 0 1 auto` and simply narrows.
+ */
+.rp-editor-hint {
+	color: var(--text-faint);
 	white-space: nowrap;
 }
 

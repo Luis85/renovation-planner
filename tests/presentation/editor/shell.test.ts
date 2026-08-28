@@ -72,6 +72,38 @@ describe('the five regions', () => {
 		expect(harness.wrapper.find('.rp-editor-status').text()).toBe(FIXTURE_PLAN.name);
 	});
 
+	/**
+	 * The angle constraint is a modifier, and a modifier is invisible: no control shows it and
+	 * no menu lists it. This hint is the only place the plugin mentions it, so which tools it
+	 * appears under is the whole of its correctness — present while the gesture it applies to
+	 * is available, absent when pressing the key would do nothing.
+	 */
+	it('announces the angle constraint under the tools that take it, and no others', async () => {
+		harness = await mountPlanEditor();
+		const hint = () => harness.wrapper.find('.rp-editor-hint');
+		const press = (label: string) => {
+			const button = harness.wrapper.findAll('button').find((candidate) => candidate.text() === label);
+			if (button === undefined) throw new Error(`no toolbar button labelled ${label}`);
+			button.element.click();
+		};
+
+		// Camera mode: no tool, so no constraint to announce.
+		expect(hint().exists()).toBe(false);
+
+		press(t('en', 'editor.toolbar.draw-zone'));
+		await settle();
+		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
+
+		press(t('en', 'editor.toolbar.calibrate'));
+		await settle();
+		expect(hint().exists()).toBe(true);
+
+		// Select moves and picks; it constrains nothing, so the key would be a dead letter.
+		press(t('en', 'editor.toolbar.select'));
+		await settle();
+		expect(hint().exists()).toBe(false);
+	});
+
 	it('labels the toolbar and the inspector, empty though they are', async () => {
 		harness = await mountPlanEditor();
 		const { wrapper } = harness;

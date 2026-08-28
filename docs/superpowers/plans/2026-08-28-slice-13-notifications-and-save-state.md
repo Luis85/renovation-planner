@@ -31,10 +31,15 @@
   notify door's, the disposal one, and the indicator's — and the pure ones (severity, queue,
   save-state store, the tracking decorator) deliberately do not.
 - **`ErrorCategory` is TITLE case**: `'Domain' | 'Validation' | 'Persistence' | 'Geometry' |
-  'Import' | 'Migration' | 'Reference' | 'Calculation'` (`src/core/errors/AppError.ts:10`). A
-  lowercase literal does not merely fail to match, it fails to compile — and a test that
-  builds an error object and casts it through `unknown` will hide that. Build test errors with
-  the real union type and no `unknown` cast.
+  'Import' | 'Migration' | 'Reference' | 'Calculation'` (`src/core/errors/AppError.ts:10`).
+  **Never build a test error with an `unknown` cast.** Annotate it `const e: AppError = {…}`
+  so the compiler checks it. A lowercase literal behind a cast does not merely fail to match:
+  `toUserMessage` falls back to `CATEGORY_KEYS[error.category]`, which is keyed by the real
+  union, so the lookup yields `undefined` and the resolved message is EMPTY — and a test
+  asserting `not.toContain(developerText)` then passes against nothing. Two separate fixtures
+  in this plan had that shape and both looked green. If you add another, grep for
+  `as unknown as AppError` across every test file this plan touches, not just the one you are
+  editing.
 - **Commit after every task.** Conventional-commit prefixes as used in this repo (`feat:`, `fix:`, `test:`, `docs:`).
 
 ---
@@ -1027,14 +1032,25 @@ describe('the notice door', () => {
 	});
 
 	it('resolves an AppError through the locale table rather than printing its message', () => {
-		const error = {
-			category: 'validation',
+		// TITLE case and no `unknown` cast. An earlier draft used `'validation'` cast through
+		// `unknown`, and the test passed while proving nothing: `toUserMessage` falls back to
+		// `CATEGORY_KEYS[error.category]`, that record is keyed by the real union, so a
+		// lowercase category resolved to `undefined` and the notice body was EMPTY. Then
+		// `toContain('Error')` passed off the severity label rather than the message, and
+		// `not.toContain('developer English')` passed against nothing at all.
+		const error: AppError = {
+			category: 'Validation',
 			code: 'zone.name-required',
 			message: 'developer English that must not reach a user',
-		} as unknown as AppError;
+		};
 		notifyError(error);
-		expect(noticeEls()[0]?.textContent).not.toContain('developer English');
-		expect(noticeEls()[0]?.textContent).toContain('Error');
+
+		const text = noticeEls()[0]?.textContent ?? '';
+		expect(text).not.toContain('developer English');
+		// The real fallback: no exact key and no suffix match for this code, so the CATEGORY
+		// sentence is what the user gets. Asserted verbatim, because that string is the whole
+		// thing this case exists to prove reached the notice.
+		expect(text).toContain('This data is not in the expected form.');
 	});
 });
 ```
@@ -2776,5 +2792,15 @@ control had no `:focus-visible` rule under a reset that removes both of Obsidian
 channels — a defect this repository has already shipped once, on the harness index, found by
 reading a PNG. And the held-duplicate test called a dismissal hint without hiding its handle
 — the same defect round three fixed one instance of, in a test round three itself added.
+
+**A seventh pass found the round-five defect in a second file.** Task 6's notice fixture built
+an `AppError` with a lowercase `'validation'` cast through `unknown`, exactly like the
+tracking helper fixed two rounds earlier — and it was worse than inert: `CATEGORY_KEYS` is
+keyed by the real union, so the lookup returned `undefined`, the notice body was empty, and
+BOTH assertions passed for the wrong reason (`toContain('Error')` off the severity label,
+`not.toContain(developerText)` off an empty string). It now asserts the category sentence
+verbatim. **This is the second time in this plan that a fix was applied to an instance rather
+than to a pattern** — the other was `handle.hide()` before a dismissal hint — so the global
+constraint above now says to grep across files rather than fix the one that was flagged.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

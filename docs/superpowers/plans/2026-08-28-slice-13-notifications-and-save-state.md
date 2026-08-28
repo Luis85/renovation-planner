@@ -24,6 +24,11 @@
 - **Coverage floors: 99 / 99 / 99 / 98** (statements / functions / lines / branches). Branches has roughly two branches of headroom — plan a test with every new arm, do not add one and hope.
 - **Definition of done is `npm run check`** (build + lint + coverage-thresholded tests + fallow). All four.
 - **No `setIcon`.** Severity is carried by a translated text label plus colour. This plugin has never called `setIcon` and the harness has no icon renderer; a text label already satisfies "status not colour-only".
+- **Follow the idiom of the file you are extending, and read it first.** Every helper in
+  `tests/helpers/` has a shape the surrounding cases already demonstrate — `lintText` resolves
+  `Promise<string[]>` of rule ids, not ESLint message objects, and the existing cases assert
+  `expect(await lintText(code, path)).toContain(RULE)`. A test written from memory beside four
+  correct examples is how this plan acquired a case that could not pass.
 - **A test touching the DOM needs `@vitest-environment jsdom`.** `vitest.config.ts:19` sets
   `environment: 'node'` for everything; 52 existing suites opt in with that directive as the
   first line of a docblock. Without it a DOM suite fails with `document is not defined`
@@ -1373,16 +1378,21 @@ Add to `tests/build/notice-text-boundary.test.ts`, inside the existing `describe
 		['a message through the success door', 'export const s = (notifySuccess: any, e: any) => notifySuccess(e.message);\n'],
 		['a stack through the warning door', 'export const w = (notifyWarning: any, e: any) => notifyWarning(e.stack);\n'],
 	])('refuses %s', async (_name, source) => {
-		const messages = await lintText(source, PRESENTATION);
-		expect(messages.map((m) => m.ruleId)).toContain(RULE);
+		// `lintText` already resolves to RULE IDS — `Promise<string[]>`, with `PARSE_ERROR` and
+		// `NOT_LINTED` sentinels for the two ways a fixture can go wrong. Mapping `.ruleId` over
+		// it yields an array of `undefined`, which makes every refusal case fail against a
+		// correctly widened selector and every negative case pass vacuously. Assert the array
+		// directly, exactly as the four cases above this one do.
+		expect(await lintText(source, PRESENTATION)).toContain(RULE);
 	});
 
 	it('still passes a translated call through the new doors', async () => {
-		const messages = await lintText(
-			'export const s = (notifySuccess: any, tr: any) => notifySuccess(tr("a.key"));\n',
-			PRESENTATION,
-		);
-		expect(messages.map((m) => m.ruleId)).not.toContain(RULE);
+		expect(
+			await lintText(
+				'export const s = (notifySuccess: any, tr: any) => notifySuccess(tr("a.key"));\n',
+				PRESENTATION,
+			),
+		).not.toContain(RULE);
 	});
 ```
 
@@ -2802,5 +2812,11 @@ BOTH assertions passed for the wrong reason (`toContain('Error')` off the severi
 verbatim. **This is the second time in this plan that a fix was applied to an instance rather
 than to a pattern** — the other was `handle.hide()` before a dismissal hint — so the global
 constraint above now says to grep across files rather than fix the one that was flagged.
+
+**An eighth pass found a Task 7 test that could not have passed.** It mapped `.ruleId` over
+`lintText`'s result, which already resolves to an array of rule-id STRINGS — so the four
+refusal cases would have failed against a correctly widened `NOTICE_DOOR` and the negative
+case would have passed against an array of `undefined`. Written from memory beside four
+correct examples in the same file, which is now a global constraint of its own.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

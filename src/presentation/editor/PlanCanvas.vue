@@ -182,7 +182,12 @@ function onWheel(event: WheelEvent): void {
 		// The sign is inverted because a scroll "right" moves the VIEW right, which is the
 		// content moving left. `deltaX` first, falling back to `deltaY` for the shift case
 		// where the browser did not do the swap for us.
-		const amount = event.deltaX !== 0 ? event.deltaX : event.deltaY;
+		// The DOMINANT axis, not merely a nonzero horizontal one. Shift held over a mostly
+		// vertical trackpad swipe carries a tiny incidental `deltaX`, and preferring it panned
+		// one pixel for a gesture made at full travel — which reads as the shortcut being
+		// broken rather than as a scale being wrong. Picking the larger magnitude also covers
+		// the browsers that swap the gesture into a dominant `deltaX` themselves.
+		const amount = Math.abs(event.deltaX) >= Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
 		editor.panByScreen(-wheelPixels(amount, event.deltaMode), 0);
 		return;
 	}
@@ -243,7 +248,10 @@ function onPointerDown(event: PointerEvent): void {
 	const at = stagePoint(event);
 	// Asked BEFORE the primary filter, because the override's own button is the middle one —
 	// which `isPrimary` rejects, and correctly so for every other purpose.
-	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { toolGestureInFlight: runtime.toolManager.gestureInFlight })) {
+	// BOTH gestures, not just the tool's: camera mode is not a tool, and a middle press during
+	// a bare left-drag pan would otherwise claim a gesture whose button is still held.
+	const gestureInFlight = runtime.toolManager.gestureInFlight || editor.dragState !== null;
+	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { gestureInFlight })) {
 		// Chrome opens its autoscroll widget on a middle press otherwise, and the pane scrolls
 		// under a space-held drag.
 		event.preventDefault();
@@ -311,7 +319,12 @@ function onPointerUp(event: PointerEvent): void {
 		if (isPrimary(event)) runtime.toolManager.pointerUp(editorPointerEvent(event, stagePoint(event)));
 		return;
 	}
-	editor.endPan(event.pointerId);
+	// `isPrimary` HERE too, which is this file's own down/up symmetry rule finally applied to
+	// the camera-mode branch. A camera drag can only have begun on a primary press — the
+	// filter above `beginPan` guarantees it — so a middle release reaching this line ends a
+	// gesture it never started, and the left button is still holding it. Pointer identity
+	// could not catch that: one mouse, one `pointerId`, two buttons.
+	if (isPrimary(event)) editor.endPan(event.pointerId);
 }
 
 /**

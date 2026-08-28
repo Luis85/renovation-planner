@@ -15,8 +15,8 @@
 import { describe, expect, it } from 'vitest';
 import { PanOverride } from '../../../src/presentation/editor/viewport/pan-override';
 
-/** A tool gesture is NOT in flight — the ordinary case, spelled once so the cases read. */
-const IDLE_TOOL = { toolGestureInFlight: false };
+/** No other gesture is running — the ordinary case, spelled once so the cases read. */
+const IDLE_TOOL = { gestureInFlight: false };
 
 describe('the pan override', () => {
 	it('starts idle, so routing is untouched until something asks for it', () => {
@@ -128,7 +128,7 @@ describe('the pan override', () => {
 			// eventual primary release would commit at a position the user never chose.
 			const override = new PanOverride();
 
-			expect(override.pointerDown('auxiliary', 1, { toolGestureInFlight: true })).toBe(false);
+			expect(override.pointerDown('auxiliary', 1, { gestureInFlight: true })).toBe(false);
 			expect(override.phase).toBe('idle');
 		});
 

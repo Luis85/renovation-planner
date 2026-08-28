@@ -417,6 +417,15 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+- **"Is another gesture running" is a question about EVERY gesture, and camera mode is not a
+  tool.** The override's refusal asked only `toolManager.gestureInFlight`, so a middle press
+  during a bare left-drag pan claimed the camera — and its release then ended a drag the
+  primary button was still holding. One mouse, one `pointerId`, two buttons: nothing about
+  pointer identity could catch it, because the question was simply too narrow. The parameter
+  is `gestureInFlight` now and takes both. The same round found the camera-mode branch of
+  `onPointerUp` missing this file's OWN down/up symmetry rule — a camera drag can only begin
+  on a primary press, so an unfiltered release let the middle button end one it never started.
+  A rule stated in a comment three handlers above is not a rule the fourth handler follows.
 - **A key handler on a container swallows the keys of everything focusable inside it.** The
   Plan Editor's empty states are OVERLAYS inside `.rp-plan-canvas`, and `planEditor.noZones`
   carries an action button — so its `keydown` bubbled to the canvas, whose `preventDefault()`

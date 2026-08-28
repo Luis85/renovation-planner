@@ -551,3 +551,31 @@ describe('a trackpad’s own horizontal swipe', () => {
 		harness.unmount();
 	});
 });
+
+describe('which axis a horizontal wheel gesture reads', () => {
+	it('takes the DOMINANT delta, not merely a nonzero horizontal one', async () => {
+		// Shift held over a mostly-vertical trackpad swipe: `deltaX: 1, deltaY: 100`. Picking
+		// any nonzero `deltaX` in preference to `deltaY` panned one pixel for a gesture the
+		// user made at full travel, which reads as the shortcut being broken rather than as a
+		// scale being wrong.
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport.pan.x;
+
+		wheel(canvas, { deltaX: 1, deltaY: 100, shiftKey: true });
+		await settle();
+
+		expect(Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom).toBeCloseTo(100, 6);
+		harness.unmount();
+	});
+
+	it('still takes a dominant horizontal delta the browser produced itself', async () => {
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport.pan.x;
+
+		wheel(canvas, { deltaX: 80, deltaY: 2, shiftKey: true });
+		await settle();
+
+		expect(Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom).toBeCloseTo(80, 6);
+		harness.unmount();
+	});
+});

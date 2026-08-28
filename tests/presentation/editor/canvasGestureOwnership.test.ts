@@ -337,3 +337,29 @@ describe('a pointer taken away mid-pan', () => {
 		harness.unmount();
 	});
 });
+
+describe('the middle button pressed during a camera-mode drag', () => {
+	it('does not kill a primary drag whose button is still held', async () => {
+		// Camera mode is the DEFAULT — no tool — so this is a bare left-drag pan with a middle
+		// click on top of it. The override's refusal only asked whether a TOOL was mid-gesture,
+		// and camera mode is not a tool: so the middle press claimed the gesture, `beginPan`
+		// kept the existing drag (one at a time), and the middle RELEASE then ended a drag the
+		// primary button was still holding. Same mouse, same `pointerId`, so nothing about
+		// pointer identity could catch it.
+		const { harness, canvas, camera } = await editor();
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		await settle();
+
+		pointer(canvas, 'pointerdown', 340, 300, 1);
+		pointer(canvas, 'pointerup', 340, 300, 1);
+		await settle();
+		const afterMiddle = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 500, 300);
+		await settle();
+
+		expect(camera.viewport.pan.x).not.toBe(afterMiddle);
+		harness.unmount();
+	});
+});

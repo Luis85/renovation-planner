@@ -37,8 +37,16 @@ export type PanPhase = 'idle' | 'armed' | 'panning';
 
 /** What the machine needs to know about the rest of the editor, asked at the one call that needs it. */
 export interface PanOverrideContext {
-	/** Whether the active tool is mid-gesture — see `pointerDown`. */
-	readonly toolGestureInFlight: boolean;
+	/**
+	 * Whether ANY other gesture is already running that this press must not claim over — a
+	 * tool mid-drag, or the camera's own drag in camera mode.
+	 *
+	 * It asked only about the TOOL for a while, and camera mode is not a tool: so a middle
+	 * press during a bare left-drag pan claimed the gesture, and its release then ended a drag
+	 * the primary button was still holding. Same mouse, same `pointerId`, so nothing about
+	 * pointer identity could have caught it — the question was simply too narrow.
+	 */
+	readonly gestureInFlight: boolean;
 }
 
 export class PanOverride {
@@ -94,14 +102,14 @@ export class PanOverride {
 	 * Answers whether this press begins a pan — `true` meaning the canvas routes it to the
 	 * camera and the active tool hears nothing about it.
 	 *
-	 * The `toolGestureInFlight` guard covers the middle button only in practice: the primary
-	 * button cannot be pressed while a tool is already dragging with it. Starting a pan under
-	 * a live tool gesture would move the world beneath a drag the tool still believes in, and
-	 * the eventual release would commit at a position the user never chose.
+	 * The `gestureInFlight` guard covers the middle button only in practice: the primary
+	 * button cannot be pressed while something is already dragging with it. Starting a pan
+	 * under a live gesture would move the world beneath a drag its owner still believes in,
+	 * and the eventual release would end or commit something the user never chose.
 	 */
 	pointerDown(button: PanButton, pointerId: number, context: PanOverrideContext): boolean {
 		if (this.panningWith !== null) return false;
-		if (context.toolGestureInFlight) return false;
+		if (context.gestureInFlight) return false;
 		const claims = button === 'auxiliary' || (button === 'primary' && this.spaceHeld);
 		if (!claims) return false;
 		this.panningWith = button;

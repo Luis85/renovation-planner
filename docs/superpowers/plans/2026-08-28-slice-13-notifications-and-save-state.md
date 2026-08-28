@@ -29,11 +29,28 @@
 >   are correct as far as they go and gain one element later. Building them now is an
 >   increment, not rework — but whoever builds them should know a mark is still owed.
 >
-> **Task 14** wires the tracker and is executable, with one thing recorded rather than fixed:
-> `set-plan-background` writes to the open plan outside that dispatcher, so the indicator will
-> read `Saved` through a background write. See the spec's "Unresolved" section.
+> - **BLOCKED BY DEPENDENCY:** **Task 14** imports `withSaveStateTracking` from the file
+>   **Task 12** creates, so it cannot build while 12 is blocked. **Task 15**'s manual cases
+>   exercise the indicator **Task 13** builds. Neither is independently executable, and an
+>   earlier draft of this banner said Task 14 was — which would have produced a
+>   missing-module build failure on the first run.
 >
-> Every other task is unaffected.
+> **So the executable set is Tasks 1–11**, and it is coherent on its own: the `Notice` fake,
+> the severity vocabulary, the queue, the notice door, its lint gate, its stylesheet, the
+> plugin disposer, and the save-state vocabulary and store. Everything from Task 12 onward
+> waits on the open questions.
+>
+> **A fourth conflict, found after the other three and in a file that had already been read:**
+> `docs/components/Toast.md`'s Accessibility section requires `role="status"`/`role="alert"`
+> on a region **already in the DOM** — *"neither on a container that appears. A live region
+> that is already in the DOM and gains a child announces reliably; one that is inserted along
+> with its content often does not."* Task 6's host does the forbidden thing: `new
+> Notice(textOf(view), 0)` inserts a populated element and the attributes are added after.
+> The likely fix is to construct, clear `messageEl`, set the attributes on it while empty, and
+> populate on a microtask — but that changes the timing several tests depend on, so it is
+> recorded rather than written. **Task 6 is therefore extendable-with-a-known-defect rather
+> than correct**, and the defect is the one the contract says "decides whether this component
+> works at all for the users it exists for".
 >
 > There is a whole `docs/components/` directory of these. Check it for any component a task
 > touches before writing the task's code — that directory was missed entirely when this plan

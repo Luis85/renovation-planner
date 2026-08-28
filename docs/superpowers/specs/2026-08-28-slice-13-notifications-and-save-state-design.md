@@ -392,6 +392,21 @@ because two of the three change what the components ARE.
    but the sentence says "no focus state", and that is a question for whoever owns the
    Design System rather than one to settle in a plan.
 
+7. *"`role="status"` for the benign, `role="alert"` for the failing, and **neither on a
+   container that appears**. A live region that is already in the DOM and gains a child
+   announces reliably; one that is inserted along with its content often does not."* — this
+   design constructs `new Notice(textOf(view), 0)`, which inserts a populated element, and
+   adds the attributes afterwards. It does exactly what the contract forbids, and the contract
+   calls this "the one that decides whether this component works at all for the users it
+   exists for". **Found on a second reading of a file already read once**, which is worth
+   recording as its own lesson: opening the document is not reading it, and the section that
+   mattered most here was the one below the parts quoted first.
+
+   The likely fix is bounded — construct, clear `messageEl`, set the attributes on it while
+   empty, populate on a microtask — but it changes timing that several of Task 6's tests
+   assert synchronously, and a jsdom test cannot observe whether an announcement occurred
+   either way. So it is recorded rather than written.
+
 **The mark question (2, 3 and 4) is one decision, not three.** This design refused an icon
 because the plugin has never called `setIcon` and the harness has no icon renderer — reasoning
 that stands on its own and is still wrong against these contracts, which ask for a mark

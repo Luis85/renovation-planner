@@ -68,6 +68,20 @@ export const en = {
 	'editor.measurements': 'Measurements',
 	'editor.save-state': 'Save state',
 	'editor.zoom': 'Zoom',
+	/**
+	 * The angle constraint, announced because a modifier nothing mentions is a feature only
+	 * its author knows about — the one real cost of the modifier-driven convention every
+	 * drawing tool uses, and the reason the status bar carries this while a drawing tool is
+	 * active. Deliberately not a numeric angle readout, which is what CAD shows beside its
+	 * tracking line: `t()` takes no parameters, so the first interpolated string in this
+	 * plugin is a piece of work of its own.
+	 *
+	 * Phrased with the key first because the marketplace's sentence-case rule
+	 * (`obsidianmd/ui/sentence-case-locale-module`) refuses a capitalised `Shift` mid-sentence
+	 * — measured, it fails the build — and lowercasing the name of a key is worse copy than
+	 * leading with it.
+	 */
+	'editor.hint.constrain-angle': 'Shift constrains the angle',
 	'editor.loading': 'Loading plan…',
 	'editor.plan-missing': 'This plan no longer exists.',
 	'editor.plan-failed': 'This plan could not be read from the vault.',

@@ -1,7 +1,12 @@
 /**
- * The screen-pixel sizes of the editor's vertex handles — the ONE place the drawn dot and
- * the region that grabs it are stated, because they are two numbers that must stay in a
- * known relationship and were declared independently before this module existed.
+ * The screen-pixel sizes of the editor's vertex marks — the ONE place a drawn dot and the
+ * region that acts on it are stated, because they are numbers that must stay in a known
+ * relationship and were declared independently before this module existed.
+ *
+ * Two families live here now: the selected zone's draggable handles, and the polygon-drawing
+ * tool's placed vertices with the close target among them. They are kept apart because they
+ * mean different things — one is a handle that moves geometry, the other a record of a click
+ * — and a size chosen for one must not silently move the other.
  *
  * They were both called `HANDLE_RADIUS_PX`, in `select-tool.ts` (8) and in
  * `InteractionLayer.vue` (4), and the comment on the 8 claimed the handle was "eight
@@ -30,3 +35,36 @@ export const VERTEX_HANDLE_RADIUS_PX = 4;
  * radius by design; see the module comment.
  */
 export const VERTEX_GRAB_RADIUS_PX = 8;
+
+/**
+ * The radius of the circle drawn for a vertex the user has PLACED while drawing a polygon,
+ * but not yet closed. Its own constant rather than a reuse of the selected-zone handle
+ * above: the two are the same size today and say different things — one is a handle that can
+ * be dragged, this one is a record of a click that has happened — so a future change to
+ * either must not silently move the other.
+ */
+export const POLYGON_VERTEX_RADIUS_PX = 4;
+
+/**
+ * The first vertex of an in-progress polygon, drawn larger than the rest because it is the
+ * only one a click means something special on: clicking it CLOSES the shape. Before this
+ * existed the tool drew no vertex at all — a dashed outline and nothing to aim at — and the
+ * only way to learn the gesture was to be told it.
+ */
+export const POLYGON_CLOSE_TARGET_RADIUS_PX = 6;
+
+/** The same target while the pointer is within closing distance of it; see the pair's test. */
+export const POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX = 9;
+
+/**
+ * How close, in screen pixels, a click must land to the first vertex for it to CLOSE the
+ * polygon rather than place another one — converted through the current camera on every
+ * click by `DrawPolygonTool`, which is where it used to be declared as `CLOSE_TOLERANCE_PX`
+ * with nothing drawn for it to relate to.
+ *
+ * A world-fixed tolerance was that constant's own first defect: 25 mm is a 2.5 px target at
+ * the default zoom and goes sub-pixel when zoomed out. Twelve pixels: a deliberate click
+ * lands, a vertex-placement click does not stumble into it — and it is the number the hover
+ * reaction is armed by, so what the user sees change is exactly the region that will act.
+ */
+export const POLYGON_CLOSE_GRAB_RADIUS_PX = 12;

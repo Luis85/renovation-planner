@@ -3,6 +3,7 @@ import type { AppError } from '../../src/core/errors/AppError';
 import type { EntityId } from '../../src/core/identity/EntityId';
 import type { Point } from '../../src/core/geometry/Point';
 import { RenderState } from '../../src/presentation/editor/tools/render-state';
+import { SnapService, type SnapCandidates } from '../../src/presentation/editor/snapping/snap-service';
 import type { EditorContext } from '../../src/presentation/editor/tools/editor-context';
 import type { EditorPointerEvent } from '../../src/presentation/editor/tools/editor-tool';
 import { screenPoint } from '../../src/presentation/editor/viewport/Viewport';
@@ -59,6 +60,34 @@ function selectionDouble(): EditorContext['selection'] {
 	};
 }
 
+/**
+ * The REAL `SnapService`, composed with the editor's own configuration, with `snapPoint`
+ * optionally replaced for the suites that assert snapping.
+ *
+ * A hand-written literal stood here — `{ snapPoint: … }` behind an `as never` — and it was a
+ * fake thinner than the thing it stood for: the moment `snapDirection` existed, every tool
+ * test drove a service that answered `undefined` for it, and the cast is what let that
+ * compile. Subclassing keeps every method the real one has, so the next addition to
+ * `SnapService` is present here the day it is written rather than the day someone notices.
+ *
+ * The angle step is the editor's, 15 degrees (`runtime.ts`'s `SNAP_SERVICE`), because a
+ * constraint test that passed under a quarter-turn step and failed in the app would be worse
+ * than no test.
+ */
+class HarnessSnapService extends SnapService {
+	constructor(private readonly overridePoint?: (point: Point) => Point) {
+		super({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: Math.PI / 12 });
+	}
+
+	override snapPoint(point: Point, candidates: SnapCandidates): Point {
+		return this.overridePoint === undefined ? super.snapPoint(point, candidates) : this.overridePoint(point);
+	}
+}
+
+export function harnessSnapService(overridePoint?: (point: Point) => Point): SnapService {
+	return new HarnessSnapService(overridePoint);
+}
+
 export function toolContext(options: ToolContextOptions = {}): ToolContextHarness {
 	const dispatched: ToolContextHarness['dispatched'] = [];
 	const rejections: string[] = [];
@@ -73,7 +102,7 @@ export function toolContext(options: ToolContextOptions = {}): ToolContextHarnes
 			setZoom: () => undefined,
 		},
 		selection: selectionDouble(),
-		snapService: { snapPoint: options.snapPoint ?? ((point: Point) => point) } as never,
+		snapService: harnessSnapService(options.snapPoint),
 		commandDispatcher: options.commandDispatcher ?? {
 			run: (command) => {
 				dispatched.push(command);
@@ -107,6 +136,16 @@ export function pointerAt(
 		modifiers: { shift: false, ctrl: false, alt: false },
 		targetId: null,
 	};
+}
+
+/** The same event with Shift held — the angle constraint both drawing tools offer. */
+export function shiftPointerAt(
+	worldX: number,
+	worldY: number,
+	button: EditorPointerEvent['button'] = 'primary',
+): EditorPointerEvent {
+	const event = pointerAt(worldX, worldY, button);
+	return { ...event, modifiers: { ...event.modifiers, shift: true } };
 }
 
 /** Drains a gesture's microtask chain before its dispatch result is asserted. */

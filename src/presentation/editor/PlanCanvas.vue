@@ -58,6 +58,14 @@ const { layerVisibility } = storeToRefs(workspace);
 
 const container = ref<HTMLElement | null>(null);
 const size = ref({ width: 0, height: 0 });
+/**
+ * Where the pointer physically is, in stage pixels — `null` once it leaves the pane.
+ *
+ * `EditorStore` keeps the WORLD point for the status bar's readout, which is a different
+ * fact and cannot stand in for this one: the world point under a stationary pointer changes
+ * whenever the camera does, and this is the half that does not. See `reissuePointerMove`.
+ */
+const lastStagePoint = ref<ScreenPoint | null>(null);
 
 /**
  * The camera override (`viewport/pan-override.ts`): space held or the middle button, either
@@ -112,6 +120,74 @@ const stageConfig = computed(() => ({ width: size.value.width, height: size.valu
 const WHEEL_SENSITIVITY = 0.002;
 /** One `+`/`-` press. A ratio rather than an increment, for the same reason. */
 const KEY_ZOOM_STEP = 1.2;
+
+/**
+ * The modifier keys, as every DOM event that carries them spells them — a `PointerEvent`, a
+ * `WheelEvent` and a `KeyboardEvent` alike, which is what lets a camera change re-issue a
+ * pointer move with the modifier state that was actually held at the time.
+ */
+interface ModifierSource {
+	readonly shiftKey: boolean;
+	readonly ctrlKey: boolean;
+	readonly metaKey: boolean;
+	readonly altKey: boolean;
+}
+
+function pointerEventAt(
+	source: ModifierSource,
+	at: ScreenPoint,
+	button: EditorPointerEvent['button'],
+): EditorPointerEvent {
+	return {
+		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
+		screenPoint: at,
+		button,
+		modifiers: { shift: source.shiftKey, ctrl: source.ctrlKey || source.metaKey, alt: source.altKey },
+		targetId: null,
+	};
+}
+
+/**
+ * Which button an event carries, as the ONE mapping both consumers read — `editorPointerEvent`
+ * below and the pan override's own claim. It was spelled twice for a while, which is two
+ * chances for `auxiliary` to mean different buttons in the two halves of one press.
+ */
+function panButtonOf(event: PointerEvent): PanButton {
+	return event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
+}
+
+function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
+	// `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed
+	// state" — so it is NOT a reading of what is currently held down. Only 1 and 2 are
+	// mapped away from `primary`, which keeps a move during a primary drag reading as
+	// the primary gesture it is; `buttons` is the bitmask a tool would need for the
+	// held-down question, and nothing asks it yet. `panButtonOf` is that mapping, shared
+	// with the pan override so the two halves of one press cannot disagree about a button.
+	return pointerEventAt(event, at, panButtonOf(event));
+}
+
+/**
+ * Tells the active tool where the pointer is now, after the CAMERA has moved under it.
+ *
+ * A tool's preview is a function of the last pointer event it saw, and it keeps that event's
+ * WORLD point — so a camera change silently invalidates it: the pointer has not moved, but
+ * the world position it is over has. The keyboard's `+`/`-` are the clearest case, anchoring
+ * at the stage centre, and there the drifted point is not marginal: measured, a close target
+ * five pixels from the pointer went on promising a close with the vertex forty-three pixels
+ * away. A wheel zoom anchors at the pointer, so the world point under it is invariant and
+ * this call is a no-op there — issued anyway, because "any camera change re-issues the move"
+ * is a rule that holds for camera paths not yet written, while "the ones that need it" is a
+ * list that goes stale.
+ *
+ * A synthetic event, but not a fictional one: every field is a true statement about where the
+ * pointer is and what it is over, which is exactly what the next real `pointermove` would
+ * say. Reported by a review bot on the pull request that drew the close target.
+ */
+function reissuePointerMove(source: ModifierSource): void {
+	const at = lastStagePoint.value;
+	if (at === null || runtime.activeToolId.value === null) return;
+	runtime.toolManager.pointerMove(pointerEventAt(source, at, 'primary'));
+}
 
 /**
  * A pointer position as a `ScreenPoint` in the STAGE's own coordinate space.
@@ -227,9 +303,14 @@ function onWheel(event: WheelEvent): void {
 		// the browsers that swap the gesture into a dominant `deltaX` themselves.
 		const amount = Math.abs(event.deltaX) >= Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
 		editor.panByScreen(-wheelPixels(amount, event.deltaMode), 0);
+		// The world moved under a stationary pointer, so the active tool's preview is stale —
+		// design slice 13's rule, which its own docblock said "holds for camera paths not yet
+		// written". This is one of those paths.
+		reissuePointerMove(event);
 		return;
 	}
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
+	reissuePointerMove(event);
 }
 
 /**
@@ -239,29 +320,6 @@ function onWheel(event: WheelEvent): void {
  * `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
  * pixel math (ADR-009).
  */
-/**
- * Which button an event carries, as the ONE mapping both consumers read — the tool event
- * below and the pan override's own claim. It was spelled twice for a while, which is two
- * chances for `auxiliary` to mean different buttons in the two halves of one press.
- *
- * `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed state" —
- * so this is NOT a reading of what is currently held down. Only 1 and 2 are mapped away from
- * `primary`, which keeps a move during a primary drag reading as the primary gesture it is;
- * `buttons` is the bitmask the held-down question would need, and nothing asks it yet.
- */
-function panButtonOf(event: PointerEvent): PanButton {
-	return event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
-}
-
-function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
-	return {
-		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
-		screenPoint: at,
-		button: panButtonOf(event),
-		modifiers: { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey },
-		targetId: null,
-	};
-}
 
 // Primary button only, in BOTH directions and in both modes — the filter for the TOOL and
 // CAMERA-MODE paths, which is all it has ever been asked at.
@@ -344,6 +402,7 @@ function onPointerDown(event: PointerEvent): void {
 
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
+	lastStagePoint.value = at;
 	editor.setPointer(at);
 	// While a pan is running the canvas belongs to the CAMERA, and that is one rule rather
 	// than two: the owning pointer drives it, and every other pointer is swallowed rather
@@ -420,27 +479,49 @@ function onPointerCancel(event: PointerEvent): void {
 	// file's.
 	runtime.toolManager.cancelGesture();
 	editor.endPan(event.pointerId);
+	lastStagePoint.value = null;
 	editor.setPointer(null);
 }
 
 /**
- * Focus left the canvas, and that is the ONLY notice a held space bar has ended: keys are
- * listened for on this element rather than on `document`, so that a plan editor in one split
- * leaf cannot swallow the space bar of a note being edited in another. A user who alt-tabs
- * mid-hold therefore releases the key somewhere this component will never hear, and without
- * this the canvas comes back armed forever — every later click panning instead of selecting.
+ * Nothing is held any more — the state to assume when the modifier keys can no longer be
+ * observed. See `onBlur`.
+ */
+const NO_MODIFIERS: ModifierSource = {
+	shiftKey: false,
+	ctrlKey: false,
+	metaKey: false,
+	altKey: false,
+};
+
+/**
+ * Focus left the canvas, and TWO independent things follow from it — both kept, because they
+ * answer different questions about a keyboard this element can no longer hear.
+ *
+ * The held SPACE BAR is dropped: keys are listened for on this element rather than on
+ * `document`, so that a plan editor in one split leaf cannot swallow the space bar of a note
+ * being edited in another. A user who alt-tabs mid-hold releases the key somewhere this
+ * component will never hear, and without this the canvas comes back armed forever — every
+ * later click panning instead of selecting.
+ *
+ * And the tool is told nothing is held (`reissuePointerMove(NO_MODIFIERS)`), which is design
+ * slice 13's own reason, unchanged: a Shift released in another application would otherwise
+ * leave the preview constrained for ever, while the next click carries the real
+ * `shiftKey: false` and places the vertex somewhere the rubber band was not.
  */
 function onBlur(): void {
 	panOverride.cancel();
 	syncPanPhase();
 	editor.abandonPan();
+	reissuePointerMove(NO_MODIFIERS);
 }
 
 function onPointerLeave(event: PointerEvent): void {
 	// A pan is owned by ONE pointer, and `pointerleave` carries an identity this handler used
 	// to discard — so a second touch or pen crossing the pane edge stopped a drag the owner's
 	// finger was still making. A leave from anything but the owner says nothing about the
-	// gesture, so it does nothing at all.
+	// gesture, so it does nothing at all — `lastStagePoint` included, since the owner's
+	// pointer is still in the pane and its remembered position is still true.
 	if (panOverride.phase === 'panning' && !panOverride.owns(event.pointerId)) return;
 	// The override is released too, not merely the store's drag. Ending one and not the other
 	// leaves two values modelling one gesture and disagreeing about it.
@@ -453,9 +534,6 @@ function onPointerLeave(event: PointerEvent): void {
 	// is swallowed — clearing it is what repairs the state — which is why the regression case
 	// has to make that drag the very NEXT interaction or it passes against the defect.
 	//
-	// `pointerUp` rather than `cancel`: a held space bar has not been released, so this returns
-	// to `armed` and the user's next press still pans.
-	//
 	// Pointer capture means this should not fire mid-drag at all; that is a reason for the
 	// two to be consistent anyway rather than a reason to leave the gap.
 	panOverride.abandonGesture();
@@ -463,6 +541,10 @@ function onPointerLeave(event: PointerEvent): void {
 	// `endPan` and not `abandonPan`: in camera mode the store owns the drag, and it refuses a
 	// release from a pointer that did not begin it — the same rule, one layer down.
 	editor.endPan(event.pointerId);
+	// Both halves go together: a camera change with the pointer outside the pane has no
+	// pointer to re-issue a move for, and a remembered position would be a claim about where
+	// a pointer that is somewhere else entirely is.
+	lastStagePoint.value = null;
 	editor.setPointer(null);
 }
 
@@ -503,7 +585,11 @@ function fitShortcut(event: KeyboardEvent): boolean {
 		? zones
 		: zones.filter((zone) => selection.selectedIds.some((id) => String(id) === zone.id));
 	const bounds = boundsOfZones(framed);
-	if (bounds !== null) editor.fitTo(bounds, size.value);
+	if (bounds === null) return true;
+	editor.fitTo(bounds, size.value);
+	// A fit moves the camera further than any other door here — the pointer can end up over a
+	// completely different part of the plan — so the re-issue matters most at exactly this one.
+	reissuePointerMove(event);
 	return true;
 }
 
@@ -523,6 +609,22 @@ function fitShortcut(event: KeyboardEvent): boolean {
  */
 function isCanvasKey(event: KeyboardEvent): boolean {
 	return event.target === container.value;
+}
+
+/**
+ * `+`/`-`, anchored at the middle of the stage since a keypress involves no pointer (§85 asks
+ * for the one interaction slice 5 added to be reachable by key).
+ *
+ * Split out of `onKeyDown` alongside `fitShortcut` when merging design slice 13's Shift
+ * branch into this branch's own took that handler past the complexity budget. The two
+ * shortcuts now read the same way, which is the better shape regardless of what forced it.
+ */
+function zoomShortcut(event: KeyboardEvent): void {
+	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
+	if (factor === null) return;
+	event.preventDefault();
+	editor.zoomByFactor(screenPoint(size.value.width / 2, size.value.height / 2), factor);
+	reissuePointerMove(event);
 }
 
 function onKeyDown(event: KeyboardEvent): void {
@@ -591,19 +693,49 @@ function onKeyDown(event: KeyboardEvent): void {
 		syncPanPhase();
 		return;
 	}
+	// Shift is the angle constraint, and it has to bite the moment it goes down rather than
+	// on the next pointer move: a user holds it to make the line they are ALREADY drawing
+	// straight, and a preview that only answers once the hand twitches reads as a dead key.
+	// The same re-issue serves its release, where the constraint has to let go just as
+	// promptly. `event.shiftKey` is true on the press and false on the release, so the tool
+	// reads the state rather than the transition — which is also what makes this work under
+	// Sticky Keys, where the modifier latches and no key is physically held at all.
+	//
+	// ABOVE the camera lock, and deliberately, for the same reason Escape is: it moves no
+	// camera, and a user holds Shift precisely while a gesture is in flight — gating it there
+	// would make the constraint dead exactly when it is wanted.
+	if (event.key === 'Shift') {
+		reissuePointerMove(event);
+		return;
+	}
 	// Escape is handled ABOVE this, and deliberately: abandoning a gesture is exactly what a
 	// user wants to be able to do while one is running, and it moves no camera.
 	if (gestureInFlight()) return;
 	if (fitShortcut(event)) return;
-	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
-	if (factor === null) return;
-	event.preventDefault();
-	editor.zoomByFactor(screenPoint(size.value.width / 2, size.value.height / 2), factor);
+	zoomShortcut(event);
 }
 
+
+/**
+ * The two keys whose RELEASE means something here, and nothing else: a handler that acted on
+ * every keyup would fire once per keystroke of whatever the user typed with the canvas
+ * focused. Every other key either does its work on the press (Escape, the zoom pair) or means
+ * nothing to this element at all.
+ *
+ * Shift is the angle constraint letting go, and it re-issues the move so the preview
+ * unconstrains as promptly as it constrained. Space is the pan disarming — and a pan already
+ * RUNNING is deliberately not ended by it, for the reason `PanOverride.disarmSpace` gives.
+ *
+ * `isCanvasKey` guards the space branch alone. Shift is a MODIFIER: it reaches this element
+ * while the empty state's action button has focus too, and the tool's preview should still
+ * unconstrain — where a space release there belongs to the button, not to the camera.
+ */
 function onKeyUp(event: KeyboardEvent): void {
+	if (event.key === 'Shift') {
+		reissuePointerMove(event);
+		return;
+	}
 	if (!isCanvasKey(event) || event.key !== ' ') return;
-	// A pan already RUNNING is deliberately not ended here — see `PanOverride.disarmSpace`.
 	panOverride.disarmSpace();
 	syncPanPhase();
 }

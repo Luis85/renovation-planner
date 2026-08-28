@@ -12,6 +12,8 @@ import {
 	area,
 	boundingBoxOf,
 	centroid,
+	coincident,
+	COINCIDENT_TOLERANCE_MM,
 	contains,
 	distance,
 	intersect,
@@ -334,5 +336,36 @@ describe('transforms', () => {
 			scale: 3,
 		});
 		expect(original).toEqual(frozen);
+	});
+});
+
+/**
+ * `coincident` — "the same point" as a geometric question rather than a bitwise one.
+ *
+ * It exists because a coordinate that has been through trigonometry is never bitwise what it
+ * should be: constraining a click back onto an existing vertex along a 45 degree ray answers
+ * `(0, -1.42e-14)` for the origin, and an `===` guard lets that into a polygon as a
+ * zero-length edge.
+ */
+describe('coincident', () => {
+	it('holds for a point and itself', () => {
+		expect(coincident({ x: 1234.5, y: -67.25 }, { x: 1234.5, y: -67.25 })).toBe(true);
+	});
+
+	it('absorbs the floating-point residue a rotation leaves behind', () => {
+		expect(coincident({ x: 0, y: 0 }, { x: 0, y: -1.4210854715202004e-14 })).toBe(true);
+	});
+
+	it('keeps two points a user could actually distinguish apart', () => {
+		// A hundredth of a millimetre: ten thousand times the tolerance, and still far finer
+		// than a renovation is ever measured — so if this merged, real vertices would.
+		expect(coincident({ x: 0, y: 0 }, { x: 0.01, y: 0 })).toBe(false);
+	});
+
+	it('measures distance, not each axis on its own', () => {
+		// Both components inside the tolerance but the DISTANCE outside it, which a
+		// component-wise test would wrongly call the same point.
+		const offset = COINCIDENT_TOLERANCE_MM * 0.8;
+		expect(coincident({ x: 0, y: 0 }, { x: offset, y: offset })).toBe(false);
 	});
 });

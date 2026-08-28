@@ -28,6 +28,7 @@ import { expectErr, expectOk, injectedPersistenceError, RecordingEventBus } from
 import { createRepositoryStack, type RepositoryStack } from '../helpers/vault';
 import { FakeWorkspace } from '../helpers/workspace';
 import { t } from '../../src/presentation/i18n/strings';
+import { activateNotices } from '../../src/presentation/notices/notify';
 
 installObsidianDom();
 
@@ -101,6 +102,11 @@ function drain(): Promise<void> {
 
 beforeEach(() => {
 	Notice.shown.length = 0;
+	// A notice is INERT until something activates the queue — `onload` is what does that
+	// in production, so a suite asserting on `Notice.shown` has to stand where the plugin
+	// stands. Per TEST, and for a second reason: the queue DEDUPS, so two cases raising the
+	// identical sentence would fold into one `(×2)` and construct no second `Notice`.
+	activateNotices();
 });
 
 describe('seeding the sample project', () => {

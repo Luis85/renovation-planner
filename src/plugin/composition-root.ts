@@ -51,7 +51,7 @@ import {
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { notify } from '../presentation/notices/notify';
+import { notifyWarning } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
@@ -285,13 +285,20 @@ function composeSlice10(
 	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
 	 * suite's benefit; production always passes it, and this is the caller that makes the
 	 * whole port more than a tested no-op.
+	 *
+	 * **WARNING rather than the `info` default, and for the same reason the port exists.**
+	 * Slice 13 gives `warning` no auto-dismiss: it stays until the user dismisses it, while
+	 * `info` goes after six seconds. These two run with nothing the user clicked waiting on
+	 * them, so a six-second notice about figures that may be wrong is one the user is most
+	 * likely to be looking elsewhere for — the same silence this port was added to break,
+	 * only slower.
 	 */
 	const cascadeNotices = {
 		cascadeAborted: () => {
-			notify(tr('cascade.aborted'));
+			notifyWarning(tr('cascade.aborted'));
 		},
 		staleMarkerFailed: () => {
-			notify(tr('cascade.stale-marker-failed'));
+			notifyWarning(tr('cascade.stale-marker-failed'));
 		},
 	};
 

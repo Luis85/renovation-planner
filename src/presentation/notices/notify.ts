@@ -3,24 +3,235 @@ import type { AppError } from '../../core/errors/AppError';
 import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
 import type { Logger } from '../../application/ports/Logger';
 import { trError } from '../i18n/toUserMessage';
+import { tr } from '../i18n/strings';
+import { createNoticeQueue, type NoticeHost, type NoticeQueue, type NoticeView } from './queue';
+import { SEVERITY_LABEL_KEYS, type NoticeSeverity } from './severity';
 
 /**
- * Show a transient message in Obsidian's own notice area.
- *
- * A one-line wrapper, for two reasons that are both about the call SITE rather than about
- * the notice. It is the one place `Notice` is constructed, so slice 13's save-state
- * surfaces and slice 17's error routing have somewhere to change behaviour once, instead
- * of a `new Notice` per call site. And `new Notice(…)` as a bare statement is a
- * construction for its side effect, which `no-new` refuses in both linters with no inline
- * suppression available here (`noInlineConfig`) — returning the instance is what makes the
- * idiom expressible rather than worked around.
- *
- * The message is TEXT and therefore already translated by the time it arrives: this
- * function does not reach for `t`/`tr` itself, because its callers include error paths
- * whose text comes from an `AppError` rather than from the string table.
+ * Which severities interrupt a screen reader and which wait to be read. A warning and an
+ * error are announced promptly; a routine confirmation is not worth demanding attention for.
  */
-export function notify(message: string): Notice {
-	return new Notice(message);
+const LIVE_REGION: Readonly<Record<NoticeSeverity, { role: string; live: string }>> = {
+	success: { role: 'status', live: 'polite' },
+	info: { role: 'status', live: 'polite' },
+	warning: { role: 'alert', live: 'assertive' },
+	error: { role: 'alert', live: 'assertive' },
+};
+
+/** `message (×3)` once a message has repeated. */
+const textOf = (view: NoticeView): string =>
+	view.count > 1 ? `${view.message} (×${String(view.count)})` : view.message;
+
+/**
+ * The one place `Notice` is constructed.
+ *
+ * **`duration: 0` on every notice is load-bearing rather than incidental.** Obsidian's own
+ * timer is internal and cannot be paused, so letting it time the notice would make the
+ * accessibility rule below unimplementable: a timed message must not vanish while somebody
+ * is reading it or tabbing to its dismiss control. Owning the timer is what buys hover-pause
+ * and the promotion of a held notice into a freed slot.
+ *
+ * **A known, accepted defect, recorded rather than carried silently.**
+ * `docs/components/Toast.md` asks for `role`/`aria-live` on a live region ALREADY in the
+ * document — explicitly not "on a container that appears" — because a live region inserted
+ * together with its content often does not announce. `new Notice(textOf(view), 0)` inserts a
+ * populated element and the attributes go on afterwards, which is exactly the shape the
+ * contract refuses. The remedy (construct, empty `messageEl`, set the attributes, populate on
+ * a microtask) changes timing that this module's tests assert synchronously, and no jsdom test
+ * can observe whether an announcement happened either way — so the defect is carried for this
+ * slice and written into the slice document rather than fixed blind.
+ */
+const obsidianHost: NoticeHost = {
+	open(view, callbacks) {
+		/**
+		 * **The message goes through the CONSTRUCTOR, not only into the DOM.** Obsidian's
+		 * `Notice` records nothing, but this repository's fake pushes its constructor argument
+		 * onto `Notice.shown`, and existing suites make CONTENT assertions against that array
+		 * (`inspectorFaults`, `planEditorCommands`, `sampleProject`, `slice10CascadeWiring`).
+		 * Constructing with `''` and then writing `messageEl` would fill it with empty strings
+		 * and break every one of them. The structured markup below replaces `messageEl`'s
+		 * content afterwards; the recorded text stays the user's sentence.
+		 */
+		const notice = new Notice(textOf(view), 0);
+		const { role, live } = LIVE_REGION[view.severity];
+		notice.containerEl.setAttribute('role', role);
+		notice.containerEl.setAttribute('aria-live', live);
+		notice.containerEl.classList.add('rp-notice', `rp-notice-${view.severity}`);
+
+		/**
+		 * **Hover and focus are two conditions, not one flag.** Passing `pause`/`resume`
+		 * straight to the four listeners lets `pointerleave` resume a timer while the dismiss
+		 * button still holds focus, and `blur` resume one while the pointer is still over the
+		 * notice — so an auto-dismissing notice vanishes mid-interaction, which is precisely
+		 * what the accessibility timing rule exists to prevent. `held` is the OR of both, and
+		 * only a transition is reported: `resume` restarts a full duration, so calling it on
+		 * an already-running timer would silently extend it.
+		 */
+		let hovered = false;
+		let focused = false;
+		let held = false;
+		const sync = (): void => {
+			const next = hovered || focused;
+			if (next === held) return;
+			held = next;
+			if (held) callbacks.pause();
+			else callbacks.resume();
+		};
+
+		notice.containerEl.addEventListener('pointerenter', () => {
+			hovered = true;
+			sync();
+		});
+		notice.containerEl.addEventListener('pointerleave', () => {
+			hovered = false;
+			sync();
+		});
+
+		/**
+		 * **Obsidian dismisses a notice when the user clicks it, and does not tell us.** This
+		 * listener is the PROMPT to sweep that the design calls for — `handle.live` remains the
+		 * authority — and without it a natively-dismissed notice would hold its slot until some
+		 * later push happened to sweep. Our own dismiss button calls `dismissed` directly as
+		 * well; sweeping twice is idempotent, and relying on the button's click bubbling to
+		 * here would depend on propagation surviving the element's removal mid-dispatch, which
+		 * is not worth resting on.
+		 */
+		// Wrapped rather than passed as `callbacks.dismissed` directly: `NoticeCallbacks`
+		// declares it as a METHOD, so handing the reference to a listener is
+		// `@typescript-eslint/unbound-method` — an error here, not a warning. The arrow keeps
+		// the receiver, which is what the rule is protecting.
+		notice.containerEl.addEventListener('click', () => {
+			callbacks.dismissed();
+		});
+
+		// Obsidian's own GLOBAL helpers rather than `document.createElement`, which the
+		// marketplace ruleset refuses (`obsidianmd/prefer-create-el`) — the same call
+		// `pdfRaster.ts` makes, and detached, since these three are appended below in one go.
+		// `createSpan` over `createEl('span', …)` because that ruleset refuses the second
+		// spelling too; both are measured rather than chosen, from what `npx eslint` reported.
+		const label = createSpan({ cls: 'rp-notice-severity' });
+		const body = createSpan({ cls: 'rp-notice-message' });
+
+		const dismiss = createEl('button', { cls: 'rp-notice-dismiss' });
+		dismiss.type = 'button';
+		// The glyph is punctuation rather than copy, and it is not the accessible name: the
+		// `aria-label` below is, and it comes from the string table like every other word here.
+		dismiss.textContent = '×';
+		dismiss.setAttribute('aria-label', tr('notice.dismiss'));
+		dismiss.addEventListener('focus', () => {
+			focused = true;
+			sync();
+		});
+		dismiss.addEventListener('blur', () => {
+			focused = false;
+			sync();
+		});
+		dismiss.addEventListener('click', () => {
+			notice.hide();
+			callbacks.dismissed();
+		});
+
+		const render = (next: NoticeView): void => {
+			label.textContent = tr(SEVERITY_LABEL_KEYS[next.severity]);
+			body.textContent = textOf(next);
+		};
+		render(view);
+
+		notice.messageEl.textContent = '';
+		// The flex container is THIS element, not `containerEl` — the three children below are
+		// its children, and flex only reaches direct ones. The stylesheet that lays them out is
+		// owed by this slice and does not exist yet, so these five classes name nothing a
+		// browser draws today; the markup is correct and unstyled rather than correct and
+		// finished.
+		notice.messageEl.classList.add('rp-notice-body');
+		notice.messageEl.append(label, body, dismiss);
+
+		return {
+			update: render,
+			hide: () => {
+				notice.hide();
+			},
+			get live() {
+				return notice.containerEl.isConnected;
+			},
+		};
+	},
+};
+
+/**
+ * `null` until the plugin activates it, and `null` again once it unloads. **Disposal has to be
+ * TERMINAL, which an earlier draft got wrong by recreating the queue inside `disposeNotices`.**
+ * The cascade and the recovery pass both run fire-and-forget, so a promise can resolve after
+ * `onunload` and call `notifyError`; against a recreated queue that attaches a live notice to a
+ * vault with no plugin loaded and nothing left to remove it. Dropping the push is the right
+ * answer rather than a lesser one: a toast reports something that already happened, and there
+ * is no surface left to report it to.
+ */
+let queue: NoticeQueue | null = null;
+
+/**
+ * To be called once from `onload`, before anything can notify — that wiring is a later task in
+ * this slice and no caller exists yet. Starting inert rather than active is deliberate: a notice raised before the plugin is loaded would be a sequencing bug, and a
+ * module that quietly worked anyway would hide it.
+ */
+export function activateNotices(): void {
+	queue?.dispose();
+	queue = createNoticeQueue(obsidianHost);
+}
+
+/**
+ * Hide everything on screen and stay off. To be registered as one disposer on the plugin's
+ * existing `disposers` list, by the same later task that calls `activateNotices` from
+ * `onload`. A later `activateNotices()` is what brings it back — this function does
+ * not, and that asymmetry is the whole point.
+ */
+export function disposeNotices(): void {
+	queue?.dispose();
+	queue = null;
+}
+
+/**
+ * Show a transient message in Obsidian's own notice area, at `info`.
+ *
+ * The message is TEXT and therefore already translated by the time it arrives: this function
+ * does not reach for `t`/`tr` itself, because its callers include error paths whose text
+ * comes from an `AppError` rather than from the string table.
+ *
+ * **Four bare function names rather than `notify.success(...)`, and the reason is a gate
+ * rather than a taste.** `NOTICE_DOOR` in `eslint.config.mjs` — the one rule keeping raw
+ * `Error.message` and bare literals out of a notice — matches on `callee.name`, which a
+ * member expression does not have. Every `notify.success('…')` call site would have been
+ * invisible to it, which is this repository's own recurring defect: the wrapper present, the
+ * test green, and the second door raw.
+ */
+export function notify(message: string): void {
+	queue?.push('info', message);
+}
+
+/**
+ * **No production caller yet, and that is deliberate rather than an oversight.** The four
+ * severities are this slice's vocabulary; the routing that decides which operations announce
+ * a success is slice 17's, and inventing a call site here would mean inventing a user-facing
+ * string for an operation nobody asked to have announced.
+ *
+ * Precedented: slice 15 shipped `DeleteReferenceDialog` and `EntityPickerDialog` with no
+ * caller for two slices for the same reason — the queries feeding them belonged to a later
+ * slice, and declaring them early would have been a second derivation of contracts that slice
+ * owned. `npm run analyze` does not catch an export with only test callers, so this comment
+ * is the record rather than the gate.
+ *
+ * The consequence for manual testing is OWED rather than already written: no case under
+ * `docs/tests/cases/` mentions a notice yet (checked, not assumed), and this slice's manual
+ * case is the last task's. A tester in a vault cannot raise a success notice, so the
+ * auto-dismiss and hover-pause steps there have to be driven through the reachable INFO
+ * notice instead — which is the thing that case must say.
+ */
+export function notifySuccess(message: string): void {
+	queue?.push('success', message);
+}
+
+export function notifyWarning(message: string): void {
+	queue?.push('warning', message);
 }
 
 /**
@@ -36,8 +247,8 @@ export function notify(message: string): Notice {
  * Beside `notify` rather than in a module of its own because the two are one decision:
  * which of them a call site reaches for is entirely "do I hold text, or an error?".
  */
-export function notifyError(error: AppError): Notice {
-	return notify(trError(error));
+export function notifyError(error: AppError): void {
+	queue?.push('error', trError(error));
 }
 
 /**
@@ -71,8 +282,8 @@ const mapUnexpected = createVaultExceptionMapper('vault');
  * out of it. The event name is the caller's, for the same reason `guardCommand` takes one:
  * it says which door faulted.
  */
-export function notifyFault(cause: unknown, logger: Logger, event: string): Notice {
+export function notifyFault(cause: unknown, logger: Logger, event: string): void {
 	const mapped = mapUnexpected(cause);
 	logger.error(event, { cause, code: mapped.code });
-	return notifyError(mapped);
+	notifyError(mapped);
 }

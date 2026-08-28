@@ -1,6 +1,6 @@
 /**
  * Installs the Obsidian DOM prototype extensions the code here actually calls —
- * `createEl`, `createDiv`, `empty`, `setText`, `addClass` — before constructing any
+ * `createEl`, `createSpan`, `createDiv`, `empty`, `setText`, `addClass` — before constructing any
  * view. Call once per jsdom test file.
  *
  * Nothing more is installed on purpose: a fake nobody exercises cannot be caught
@@ -39,6 +39,17 @@ export function installObsidianDom(): void {
 	// src/ calls it and the suite has to supply it — `pdfRaster.ts` is the first caller.
 	(globalThis as unknown as Record<string, unknown>).createEl = (tag: string, options?: CreateOptions | string): HTMLElement => {
 		const el = document.createElement(tag);
+		applyOptions(el, options);
+		return el;
+	};
+
+	// Obsidian's global `createSpan`, which the marketplace ruleset requires over both
+	// `document.createElement('span')` and `createEl('span', …)` — measured from what
+	// `npx eslint` reports rather than read off the docs. `notify.ts`'s severity label and
+	// message body are the first callers, so it arrives here with them, per this file's
+	// own policy.
+	(globalThis as unknown as Record<string, unknown>).createSpan = (options?: CreateOptions | string): HTMLElement => {
+		const el = document.createElement('span');
 		applyOptions(el, options);
 		return el;
 	};

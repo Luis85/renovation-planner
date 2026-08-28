@@ -515,7 +515,27 @@ function isCanvasKey(event: KeyboardEvent): boolean {
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
-		runtime.toolManager.cancelGesture();
+		// **The fourth door to take the rule the three pointer handlers already carry**: while
+		// a pan is RUNNING the canvas belongs to the camera, and every other input is swallowed
+		// rather than handed to the active tool. Escape was the one input still routed straight
+		// past it, and it was the destructive one — `cancelGesture()` empties
+		// `DrawPolygonTool`'s vertex buffer, so a user mid-polygon who held space to pan and hit
+		// Escape lost the whole polygon while the pan carried on underneath. Measured: no zone
+		// could be closed afterwards at all. Exactly the defect `pointercancel` was corrected
+		// for, in the one door nobody re-read the argument against.
+		//
+		// SWALLOWED rather than routed to the pan, which is what the finding suggested. Ending
+		// the pan here would leave the user's button still down with the override no longer
+		// owning it, so the eventual release would reach the active tool as a release with no
+		// matching press — the event-grammar defect this file has already recorded three times.
+		// And it would buy nothing: a pan has no uncommitted state for Escape to undo, since
+		// the camera does not rewind. The user releases the button and presses Escape, which is
+		// the gesture they would make anyway.
+		//
+		// `panning`, never `armed`: space merely HELD is not a gesture, so Escape still reaches
+		// the tool then — which is the case the camera lock deliberately carved this branch out
+		// for and must keep working.
+		if (panOverride.phase !== 'panning') runtime.toolManager.cancelGesture();
 		return;
 	}
 	if (event.key === ' ') {

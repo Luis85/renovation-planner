@@ -512,6 +512,28 @@ check. Rules that came out of it:
   one: a swallowed press owes a swallowed release. The `.stop` fires at the BUBBLE phase, so
   the overlay's own controls have already had the event and only the canvas behind them is
   kept out of it.
+- **"Every input" meant every POINTER input, and the one keyboard input it left out was the
+  destructive one.** Three handlers check `phase === 'panning'` and swallow; `Escape` was
+  routed straight past to `cancelGesture()`, which EMPTIES `DrawPolygonTool`'s buffer — so a
+  user mid-polygon who held space to pan and pressed Escape lost the whole polygon while the
+  pan carried on underneath (measured: no zone closeable at all afterwards). The same defect
+  as `pointercancel`'s, in the next door along. Escape differs in being DELIBERATE, which is
+  the honest argument for letting it through, and it loses to the fact that a pan has no
+  uncommitted state for Escape to undo — the camera does not rewind — so the tool's buffer
+  was the only thing it could destroy. **Swallowed rather than routed to the pan**, which is
+  what the finding proposed: ending the pan there leaves the user's button down with the
+  override no longer owning it, so the release reaches the tool with no matching press. The
+  gate is `panning` and never `armed`, because space merely held is not a gesture and the
+  camera lock carved this branch out precisely so Escape keeps working during a tool drag.
+- **A test asserting an ABSENCE passes in both worlds when neither world can produce the
+  thing.** The carve-out case above first ended on `expect(drawn).toBeUndefined()` after two
+  clicks — and two vertices cannot close a polygon whether the buffer was cleared or not, so
+  it read the same `undefined` either way and pinned nothing. Caught by running it against
+  the inverted gate rather than by reading it. It closes a fresh triangle and counts three
+  points now: had the earlier vertices survived, the close click would be nowhere near the
+  buffer's first point and would add a sixth vertex instead. **Watching a test fail proves
+  it can fail; watching it fail against the OPPOSITE mistake is what proves it discriminates**
+  — this one was watched red both ways.
 - **A record of what the HARDWARE is doing may not be gated on a policy about what the
   software will allow.** `spaceHeld` is "the key is physically down"; the camera lock was
   allowed to skip writing it, so a space pressed DURING a tool drag or a middle-button pan

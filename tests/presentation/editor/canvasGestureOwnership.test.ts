@@ -300,6 +300,77 @@ describe('a pointer taken away mid-pan', () => {
 		harness.unmount();
 	});
 
+	it('does not destroy it when ESCAPE arrives mid-pan either', async () => {
+		// The same door one input over, and the destructive one: `cancelGesture()` empties the
+		// vertex buffer outright. A user mid-polygon who holds space to pan and presses Escape
+		// lost the whole polygon while the pan carried on underneath — measured against the
+		// previous commit as no zone being closeable at all afterwards, not merely a short one.
+		//
+		// Escape differs from `pointercancel` in being DELIBERATE, which is the argument for
+		// letting it through; it loses to the fact that a pan has nothing for Escape to undo,
+		// so the tool's buffer was the only thing it could destroy.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 400, 400);
+		pointer(canvas, 'pointermove', 420, 420);
+		key(canvas, 'keydown', { key: 'Escape' });
+		pointer(canvas, 'pointerup', 420, 420);
+		key(canvas, 'keyup', { key: ' ' });
+		await settle();
+
+		click(canvas, 620, 220);
+		click(canvas, 520, 120);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
+	it('still lets Escape reach the tool when space is merely HELD', async () => {
+		// The carve-out that must survive the fix: `armed` is not a gesture. Swallowing Escape
+		// whenever space was down would break the camera lock's own deliberate exception — a
+		// user must be able to abandon a drawing while holding the key that offers the camera.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		// Armed, never panning: no button ever goes down.
+		key(canvas, 'keydown', { key: ' ' });
+		key(canvas, 'keydown', { key: 'Escape' });
+		key(canvas, 'keyup', { key: ' ' });
+		await settle();
+
+		// A FRESH triangle, closed on its own first vertex. Three points prove the buffer was
+		// cleared: had the two earlier vertices survived, the close click would be nowhere near
+		// the buffer's first point (500, 100) and would add a sixth vertex instead of closing,
+		// leaving no zone at all.
+		//
+		// Asserting the count rather than absence is the whole point of this spelling. The
+		// first draft ended on `expect(drawn).toBeUndefined()` after two clicks, and it passed
+		// against a build that swallowed Escape while armed too — measured, not assumed. Two
+		// vertices cannot close either way, so it was reading the same `undefined` in both
+		// worlds and pinning nothing.
+		click(canvas, 200, 200);
+		click(canvas, 300, 200);
+		click(canvas, 250, 300);
+		click(canvas, 202, 202);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
 	it('still abandons the pan itself', async () => {
 		// The half that must keep working: no `pointerup` will ever arrive for a cancelled
 		// pointer, so a pan left running would follow the bare cursor forever.

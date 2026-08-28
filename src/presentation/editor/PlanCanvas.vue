@@ -293,6 +293,12 @@ function onKeyDown(event: KeyboardEvent): void {
 		reissuePointerMove(event);
 		return;
 	}
+	// This element really does receive that press: clicking anywhere on the stage focuses
+	// `.rp-plan-canvas`, because Chromium's mousedown default action focuses the nearest
+	// focusable ANCESTOR of the target and the Konva `<canvas>` under the pointer is not
+	// itself focusable. Measured in a real browser rather than reasoned about — jsdom
+	// implements no focus-on-mousedown at all, so the suite dispatches key events at this
+	// element directly and cannot answer the question either way.
 	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
 	if (factor === null) return;
 	event.preventDefault();

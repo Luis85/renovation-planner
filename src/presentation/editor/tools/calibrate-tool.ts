@@ -202,12 +202,15 @@ export class CalibrateTool implements EditorTool {
 	 * `complete()` starts HERE, not in `pointerDown` where the second point is placed.
 	 * `complete()` may open a dialog (slice 15's recalibration confirmation), synchronously
 	 * on this same call stack the first time it awaits nothing yet — and a `pointerdown`'s
-	 * own default action runs AFTER this handler returns: Chromium moves focus to `<body>`
-	 * on a mousedown whose target is not focusable, which the canvas is not. A dialog
-	 * opened from inside `pointerdown` gets focus stolen out from under it by that default
-	 * action; opening from `pointerup` instead means the browser's own focus-to-`<body>`
-	 * move already happened by the time anything here runs, so the dialog's own focus
-	 * lands last and stays.
+	 * own default action runs AFTER this handler returns: Chromium moves focus on a
+	 * mousedown, to the nearest FOCUSABLE ANCESTOR of the target — measured in a real browser
+	 * as `.rp-plan-canvas`, the `tabindex="0"` wrapper, since the Konva `<canvas>` under the
+	 * pointer is not itself focusable. (This paragraph said `<body>` until that measurement
+	 * was taken; the mechanism and the fix are unchanged, but the destination was wrong.) A
+	 * dialog opened from inside `pointerdown` gets focus stolen out from under it by that
+	 * default action; opening from `pointerup` instead means the browser's own focus move
+	 * already happened by the time anything here runs, so the dialog's own focus lands last
+	 * and stays.
 	 *
 	 * `pendingCompletion` is what makes this correct rather than merely deferred: it is set
 	 * only by the SAME gesture's completing `pointerDown` and cleared by `cancel()`, so a

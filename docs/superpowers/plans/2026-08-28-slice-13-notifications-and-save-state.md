@@ -1236,6 +1236,22 @@ export function notify(message: string): void {
 	queue.push('info', message);
 }
 
+/**
+ * **No production caller yet, and that is deliberate rather than an oversight.** The four
+ * severities are this slice's vocabulary; the routing that decides which operations announce
+ * a success is slice 17's, and inventing a call site here would mean inventing a user-facing
+ * string for an operation nobody asked to have announced.
+ *
+ * Precedented: slice 15 shipped `DeleteReferenceDialog` and `EntityPickerDialog` with no
+ * caller for two slices for the same reason — the queries feeding them belonged to a later
+ * slice, and declaring them early would have been a second derivation of contracts that slice
+ * owned. `npm run analyze` does not catch an export with only test callers, so this comment
+ * is the record rather than the gate.
+ *
+ * The consequence for manual testing is written into `docs/tests/cases/` rather than left to
+ * be discovered: a tester in a vault cannot raise a success notice, so the auto-dismiss and
+ * hover-pause steps there are driven through the reachable INFO notice instead.
+ */
 export function notifySuccess(message: string): void {
 	queue.push('success', message);
 }
@@ -1646,10 +1662,16 @@ describe('notice disposal', () => {
 });
 ```
 
-- [ ] **Step 2: Run it**
+- [ ] **Step 2: Run it and watch it FAIL**
 
 Run: `npx vitest run tests/plugin/noticeDisposal.test.ts`
-Expected: PASS if Task 6 is correct — this test pins `disposeNotices`'s contract before the plugin depends on it.
+Expected: **FAIL** on the first two cases — Step 3 has not registered the disposer yet, so
+`onunload` leaves the notices on screen and the list does not contain `disposeNotices`.
+
+Do **not** go looking for a bug in Task 6 when this goes red: red here is the task's own
+premise. An earlier draft of this step said "Expected: PASS if Task 6 is correct", which was
+true of a version of the test that called `disposeNotices()` directly — and a test that is
+green before the task is written is not a test of the task.
 
 - [ ] **Step 3: Register the disposer**
 
@@ -2733,9 +2755,14 @@ git commit -m "feat: every dispatch in a leaf reports its save state"
 
 Follow the shape of a sibling under `docs/tests/cases/` (read `Calibrate a Plan.md` first — match its heading structure and numbered-step style rather than inventing one). Cover what no automated gate here can:
 
-1. A `success` notice appears and disappears on its own after about four seconds.
-2. A `warning` notice stays until dismissed.
-3. Hovering a `success` notice holds it open; moving away starts its four seconds again.
+1. An `info` notice appears and disappears on its own after about six seconds. **Raise it
+   with the plan picker in a vault that has no plan notes** — `plan.none` is the one
+   auto-dismissing notice a user can actually trigger. `notifySuccess` has no production
+   caller in this slice (see its header for why), so a four-second success cannot be raised
+   in a vault and is covered by the queue's node tests alone.
+2. A `warning` notice stays until dismissed. Raise it by opening the background picker in a
+   vault with no PNG, JPEG or PDF (`background.unsupported`).
+3. Hovering that `info` notice holds it open; moving away starts its six seconds again.
 4. The dismiss control is reachable by `Tab` and shows a visible focus ring — in a light
    theme, a dark theme and one third-party theme, since the ring is drawn from
    `var(--text-accent)` and a theme may set it to something with no contrast against the
@@ -2879,6 +2906,19 @@ constraint above now says to grep across files rather than fix the one that was 
 refusal cases would have failed against a correctly widened `NOTICE_DOOR` and the negative
 case would have passed against an array of `undefined`. Written from memory beside four
 correct examples in the same file, which is now a global constraint of its own.
+
+**A tenth pass caught a fix that never landed.** Round nine rewrote the disposal test to
+drive a real `plugin.onunload()` and reported that its "Expected" had been flipped from PASS
+to FAIL. The edit that rewrote the test asserted its target; the edit that rewrote the step
+did not, silently matched nothing, and left the old "Expected: PASS" standing under the new
+test — so the plan claimed a green run for a case that now deterministically fails before
+Step 3, and the reply on the pull request stating otherwise was wrong. The step is corrected,
+and it now tells the implementer not to go hunting in Task 6 when red appears.
+
+The same pass found `notifySuccess` has no production caller, so the manual case's
+four-second and hover checks could not be performed in a vault at all. The door stays —
+callerless on the slice-15 precedent, and the header says so — and the manual steps are
+rewritten around `plan.none`, the one auto-dismissing notice a user can actually raise.
 
 **A ninth pass found two tests that could not fail.** The disposal case called
 `disposeNotices()` directly, so it was green whether or not the plugin ever registered the

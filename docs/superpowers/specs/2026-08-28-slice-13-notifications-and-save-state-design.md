@@ -225,10 +225,15 @@ adopted as written:
   reaches no repository: settling it as `saved` would let a refused field edit clear a
   `save-error` left by a real persistence failure and tell the user unsaved data is now safe.
   **Only a write that actually succeeded may clear a save error.**
-- `affectsSaveState(error) = error.category !== 'validation'`, stated as an inequality
-  against one category rather than a list of the ones that count, so a category added by a
-  later slice defaults to *affecting* the indicator. `AppError.category` is verified to
-  exist (`src/core/errors/AppError.ts:24`).
+- `affectsSaveState` is the category inequality **plus a carve-out**, and both halves were
+  measured: `ErrorCategory` is TITLE case (`'Validation'`, not `'validation'` — a lowercase
+  literal does not compile), and `Validation` is not a synonym for "wrote nothing".
+  `versioning.ts` raises `revisionConflict` and `externalModification` as `ValidationError`s,
+  and both mean the command REACHED the repository and the user's edit was refused. So the
+  category is the first cut, the two write-boundary codes are carved back out of it, and the
+  suffixes come from a table `versioning.ts` exports rather than a second copy. Stated as an
+  inequality so a category added by a later slice defaults to *affecting* the indicator: "we
+  might not have written your data" is the safe answer while nobody has thought about it.
 - **A REJECTION settles the batch too, and this is the one correction the design review
   added.** The first draft of `track` awaited the operation and decremented only on
   resolution — but SDD §65 reserves throws for technical faults and the dispatcher

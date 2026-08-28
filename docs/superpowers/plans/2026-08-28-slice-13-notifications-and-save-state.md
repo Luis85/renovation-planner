@@ -30,6 +30,11 @@
   before its first assertion. Four suites in this plan need it — the `Notice` fake's, the
   notify door's, the disposal one, and the indicator's — and the pure ones (severity, queue,
   save-state store, the tracking decorator) deliberately do not.
+- **`ErrorCategory` is TITLE case**: `'Domain' | 'Validation' | 'Persistence' | 'Geometry' |
+  'Import' | 'Migration' | 'Reference' | 'Calculation'` (`src/core/errors/AppError.ts:10`). A
+  lowercase literal does not merely fail to match, it fails to compile — and a test that
+  builds an error object and casts it through `unknown` will hide that. Build test errors with
+  the real union type and no `unknown` cast.
 - **Commit after every task.** Conventional-commit prefixes as used in this repo (`feat:`, `fix:`, `test:`, `docs:`).
 
 ---
@@ -744,6 +749,11 @@ Append inside the existing `describe`, reusing `recordingHost` from Task 3:
 
 		// Well past the success deadline: a held entry has no timer, so it is still queued.
 		vi.advanceTimersByTime(60_000);
+		// Both halves again — the element goes, THEN the hint arrives. A hint alone leaves
+		// `handle.live` true, so `sweep` frees nothing. (The sibling case above had this right
+		// and this one did not, which is what a fix applied to one instance of a pattern looks
+		// like.)
+		opened[0]?.handle.hide();
 		opened[0]?.callbacks.dismissed();
 		expect(opened.at(-1)?.view.message).toBe('held');
 		expect(opened.at(-1)?.view.count).toBe(2);
@@ -1449,6 +1459,24 @@ git commit -m "fix: the notice text ban names every door this plugin has"
 .rp-notice .rp-notice-dismiss:hover {
 	color: var(--text-normal);
 }
+
+/*
+ * **The reset above removes both focus channels, so this rule is not optional.** Obsidian's
+ * own sheet carries `:focus { outline: none }`, and `box-shadow: none` at this selector's
+ * specificity outranks its button focus rule — so without this, a keyboard user tabbing to a
+ * dismiss control gets no indication of which notice they are about to dismiss. WCAG 2.2
+ * 2.4.7 at AA, which `PRODUCT.md` binds by name.
+ *
+ * This repository has already shipped this exact defect once: the harness index's entry links
+ * had no visible focus indicator for the same reason, and it took a PNG read by eye to find
+ * — jsdom paints nothing, so no test here can see it either. `:focus-visible` rather than
+ * `:focus`, so a pointer dismissal does not draw a ring nobody asked for.
+ */
+.rp-notice .rp-notice-dismiss:focus-visible {
+	outline: 2px solid var(--text-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
+}
 ```
 
 - [ ] **Step 2: Import it**
@@ -1944,6 +1972,10 @@ git commit -m "feat: the save-state store, and the batch that cannot settle earl
 ### Task 12: `withSaveStateTracking`, and the failures that are not save failures
 
 **Files:**
+- Modify: `src/application/ports/versioning.ts` — export the two write-boundary code
+  suffixes and build the existing factories' codes from them. A deliberate small change
+  outside `presentation/`: the alternative is a hand-copied list of those strings in the
+  predicate below, and two copies of one table is the drift this repository refuses.
 - Create: `src/presentation/editor/save-state/affects-save-state.ts`
 - Create: `src/presentation/editor/save-state/with-save-state-tracking.ts`
 - Test: `tests/presentation/editor/saveState/withSaveStateTracking.test.ts`
@@ -1961,14 +1993,25 @@ git commit -m "feat: the save-state store, and the batch that cannot settle earl
 import { describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
-import type { AppError } from '../../../../src/core/errors/AppError';
+import type { AppError, ErrorCategory } from '../../../../src/core/errors/AppError';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { affectsSaveState } from '../../../../src/presentation/editor/save-state/affects-save-state';
 import { withSaveStateTracking } from '../../../../src/presentation/editor/save-state/with-save-state-tracking';
+import {
+	externalModification,
+	revisionConflict,
+	WRITE_BOUNDARY_CODES,
+} from '../../../../src/application/ports/versioning';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 
-const errorOf = (category: string): AppError =>
-	({ category, code: `${category}.x`, message: 'developer text' }) as unknown as AppError;
+/**
+ * Real-shaped, and NOT cast through `unknown`. An earlier draft built these with lowercase
+ * categories and a cast, which compiled fine and concealed that `affectsSaveState` was
+ * comparing against a literal outside `ErrorCategory` — a fake kinder than the real type,
+ * hiding a source file that would not have built.
+ */
+const errorOf = (category: ErrorCategory, code = 'x'): AppError =>
+	({ category, code: `zone.${code}`, message: 'developer text' }) as AppError;
 
 const tracker = () => ({
 	beginSaving: vi.fn(),
@@ -1988,16 +2031,28 @@ const historyResolving = (result: Result<void, AppError>) => ({
 const OPERATIONS = ['run', 'undo', 'redo'] as const;
 
 describe('affectsSaveState', () => {
-	it('ignores a validation failure, which never reached a write', () => {
-		expect(affectsSaveState(errorOf('validation'))).toBe(false);
+	it('ignores a pre-write validation refusal, which never reached the repository', () => {
+		expect(affectsSaveState(errorOf('Validation', 'name-required'))).toBe(false);
 	});
 
-	it.each(['persistence', 'domain', 'geometry', 'migration', 'reference', 'calculation', 'import'])(
+	it.each(['Persistence', 'Domain', 'Geometry', 'Migration', 'Reference', 'Calculation', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',
 		(category) => {
 			expect(affectsSaveState(errorOf(category))).toBe(true);
 		},
 	);
+
+	// The two `ValidationError`s that mean the OPPOSITE of "wrote nothing": the command
+	// reached the repository, the version had moved, and the user's edit was refused.
+	it.each(WRITE_BOUNDARY_CODES)('counts a %s, despite its Validation category', (suffix) => {
+		expect(affectsSaveState(errorOf('Validation', suffix))).toBe(true);
+	});
+
+	it('reads the codes from versioning.ts rather than a copy', () => {
+		expect([...WRITE_BOUNDARY_CODES]).toEqual(['revision-conflict', 'external-modification']);
+		expect(revisionConflict('zone', 'z1').code).toBe('zone.revision-conflict');
+		expect(externalModification('zone', 'z1').code).toBe('zone.external-modification');
+	});
 });
 
 describe('withSaveStateTracking', () => {
@@ -2014,7 +2069,7 @@ describe('withSaveStateTracking', () => {
 	});
 
 	it.each(OPERATIONS)('reports %s failing on a persistence error', async (operation) => {
-		const history = historyResolving(err(errorOf('persistence')));
+		const history = historyResolving(err(errorOf('Persistence')));
 		const save = tracker();
 		const wrapped = withSaveStateTracking(history, save);
 
@@ -2025,7 +2080,7 @@ describe('withSaveStateTracking', () => {
 	});
 
 	it.each(OPERATIONS)('settles %s NEUTRALLY for a validation refusal that wrote nothing', async (operation) => {
-		const history = historyResolving(err(errorOf('validation')));
+		const history = historyResolving(err(errorOf('Validation', 'name-required')));
 		const save = tracker();
 		const wrapped = withSaveStateTracking(history, save);
 
@@ -2039,7 +2094,7 @@ describe('withSaveStateTracking', () => {
 	});
 
 	it.each(OPERATIONS)('returns %s\'s own Result unchanged', async (operation) => {
-		const result = err(errorOf('persistence'));
+		const result = err(errorOf('Persistence'));
 		const history = historyResolving(result);
 		const wrapped = withSaveStateTracking(history, tracker());
 
@@ -2124,8 +2179,29 @@ Expected: FAIL — neither module resolves.
 
 - [ ] **Step 3: Write `affects-save-state.ts`**
 
+First, add the shared table to `src/application/ports/versioning.ts`, beside the two
+factories that already spell those suffixes — one table with two importers cannot drift, and
+two hand-spelled copies had nothing to notice them drifting:
+
+```ts
+/**
+ * The two refusals the version check itself produces. They are `Validation` by CATEGORY and
+ * WRITE-BOUNDARY by meaning: the command reached the repository, the version had moved, and
+ * the user's edit was not saved. Exported because the save-state indicator has to tell them
+ * apart from a pre-write field refusal, and a second hand-spelled copy of these strings is
+ * exactly the drift this repository refuses.
+ */
+export const REVISION_CONFLICT = 'revision-conflict';
+export const EXTERNAL_MODIFICATION = 'external-modification';
+export const WRITE_BOUNDARY_CODES = [REVISION_CONFLICT, EXTERNAL_MODIFICATION] as const;
+```
+
+and change the two factories to build their codes from them
+(`code: \`${entity}.${REVISION_CONFLICT}\``, and the same for the other). Then:
+
 ```ts
 import type { AppError } from '../../../core/errors/AppError';
+import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 
 /**
  * Is this failure one the save indicator should report?
@@ -2135,6 +2211,20 @@ import type { AppError } from '../../../core/errors/AppError';
  * Flipping the indicator for it would be wrong twice: it reports a persistence failure that
  * did not happen, and the user would get the inline field message they need plus a "save
  * error" badge about data exactly as safe as it was before they typed.
+ *
+ * **`Validation` is not a synonym for "wrote nothing", and an earlier draft of this function
+ * assumed it was.** `versioning.ts` raises `revisionConflict` and `externalModification` as
+ * `ValidationError`s, and both mean the OPPOSITE: the command reached the repository, the
+ * version had moved, and the user's edit was refused and is gone. Reporting `saved` for one
+ * of those is the false assurance this whole predicate exists to prevent. So the category is
+ * the first cut and the write-boundary codes are carved back out of it, from the table
+ * `versioning.ts` exports rather than from a copy.
+ *
+ * **The category comparison is TITLE case**, because `ErrorCategory` is
+ * `'Domain' | 'Validation' | 'Persistence' | 'Geometry' | 'Import' | 'Migration' |
+ * 'Reference' | 'Calculation'`. A lowercase literal here does not merely fail to match — it
+ * fails to compile, and the earlier draft's tests hid that by casting hand-built objects
+ * through `unknown`.
  *
  * **Stated as an inequality against one category rather than a list of the ones that count,
  * deliberately.** A new `AppError` category added by a later slice should default to
@@ -2146,7 +2236,8 @@ import type { AppError } from '../../../core/errors/AppError';
  * and slice 17's no-double-reporting test is what keeps the two in agreement.
  */
 export function affectsSaveState(error: AppError): boolean {
-	return error.category !== 'validation';
+	if (error.category !== 'Validation') return true;
+	return WRITE_BOUNDARY_CODES.some((suffix) => error.code.endsWith(`.${suffix}`));
 }
 ```
 
@@ -2250,7 +2341,7 @@ to catch. **Restore the wrapping** and re-run to green.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/presentation/editor/save-state/ tests/presentation/editor/saveState/withSaveStateTracking.test.ts
+git add src/application/ports/versioning.ts src/presentation/editor/save-state/ tests/presentation/editor/saveState/withSaveStateTracking.test.ts
 git commit -m "feat: save-state tracking over run, undo and redo alike"
 ```
 
@@ -2514,7 +2605,11 @@ Follow the shape of a sibling under `docs/tests/cases/` (read `Calibrate a Plan.
 1. A `success` notice appears and disappears on its own after about four seconds.
 2. A `warning` notice stays until dismissed.
 3. Hovering a `success` notice holds it open; moving away starts its four seconds again.
-4. The dismiss control is reachable by `Tab` and shows a visible focus ring.
+4. The dismiss control is reachable by `Tab` and shows a visible focus ring — in a light
+   theme, a dark theme and one third-party theme, since the ring is drawn from
+   `var(--text-accent)` and a theme may set it to something with no contrast against the
+   notice's own background. **No automated gate here can see this**: jsdom paints nothing and
+   the harness cannot draw a `Notice` at all.
 5. Four notices at once: three show, the fourth appears when one is dismissed.
 6. The same message twice becomes one notice reading `(×2)`.
 7. Severity colours are legible in a light theme, a dark theme, and one third-party theme.
@@ -2623,5 +2718,19 @@ it needs three: a validation refusal writes nothing, so resolving it as `ok` let
 write that actually succeeded may clear an error. And the save-error stylesheet selector was
 `rp-save-state-error` where the template emits `rp-save-state-save-error`, so the colour never
 applied — invisible to every gate here, since jsdom resolves no CSS.
+
+**A fifth review pass found three more, and one of them says something about the other
+nineteen.** `affectsSaveState` compared against `'validation'` where `ErrorCategory` is
+`'Validation'` — it would not have compiled, and the plan's own test helper concealed that by
+casting hand-built lowercase objects through `unknown`: a fake kinder than the real type, in
+a plan whose first task is about fakes kinder than the real thing. Worse, correcting the case
+alone would still have been wrong: `versioning.ts` raises `revisionConflict` and
+`externalModification` as `ValidationError`s, and both mean the command reached the repository
+and the user's edit was refused — the opposite of "wrote nothing". The predicate carves those
+back out, from a table `versioning.ts` now exports rather than from a copy. The dismiss
+control had no `:focus-visible` rule under a reset that removes both of Obsidian's focus
+channels — a defect this repository has already shipped once, on the harness index, found by
+reading a PNG. And the held-duplicate test called a dismissal hint without hiding its handle
+— the same defect round three fixed one instance of, in a test round three itself added.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

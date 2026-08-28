@@ -592,11 +592,11 @@ own recurring shape:
   said "reads and writes"; its body asserted only the write half. Adding the read assertion it
   had always claimed to make immediately caught a fixture whose frontmatter was missing the
   schema-required `status` field — a test that had been passing on a project the schema would
-  have refused to load. The review that followed found three more of the same shape — six `it`
-  blocks, because one of the three is a group of four — and they are NAMED here rather than
-  counted, since a bare number over a set that groups two ways is the defect this file exists
-  to refuse. TWO of the three were measured rather than argued, by wiring the regression and
-  running it:
+  have refused to load. The review that followed found four more of the same shape — seven
+  `it` blocks, because one of the four is a group of four — and they are NAMED here rather
+  than counted, since a bare number over a set that groups two ways is the defect this file
+  exists to refuse. TWO of the four were measured rather than argued, by wiring the regression
+  and running it:
 
   - a pipeline case named for the folder bound this slice DELETED compared an empty index
     against an empty index, and stayed GREEN under a `processPath` that wiped every entry the
@@ -606,8 +606,10 @@ own recurring shape:
     against a `writeOwnedFrontmatter` made a silent no-op: the revision is computed before the
     write and the repository upserts either way, so nothing in them read the vault's bytes
     back. The stronger of the two measurements, four green tests over a write that did nothing;
-  - and a scan case whose name claimed a location bound while its green came from the
-    missing-`id` rule, its `.rpgeo` fixture asserted by nothing at all.
+  - a scan case whose name claimed a location bound while its green came from the missing-`id`
+    rule, its `.rpgeo` fixture asserted by nothing at all;
+  - and a case whose name promised a diagnostic — 'a note of ours without a readable id is
+    excluded with a diagnostic' — and asserted none.
 
   A no-op assertion and a correct one look identical until something is broken underneath them.
 

@@ -19,6 +19,20 @@ import { parsePersisted } from './parse';
  * while what a READ produces has passed the schema and carries the domain's own union
  * types. One type for both would lie to one of them.
  */
+
+/**
+ * `Project.start`/`targetCompletion` on the wire: date-only, UTC, always — never a
+ * timestamp, never local time. Declared once so both keys and both directions share one
+ * rule rather than drifting a day apart from each other.
+ */
+function toDateOnly(date: Date | null): string | null {
+	return date === null ? null : date.toISOString().slice(0, 10);
+}
+
+function fromDateOnly(value: string | null): Date | null {
+	return value === null ? null : new Date(`${value}T00:00:00Z`);
+}
+
 export function projectToPersistence(project: Project, revision: number): Record<string, unknown> {
 	return {
 		type: PROJECT_TYPE,
@@ -27,6 +41,9 @@ export function projectToPersistence(project: Project, revision: number): Record
 		revision,
 		name: project.name,
 		status: toKebab(project.status),
+		description: project.description,
+		start: toDateOnly(project.start),
+		'target-completion': toDateOnly(project.targetCompletion),
 	};
 }
 
@@ -35,6 +52,9 @@ function fromDto(dto: ProjectFrontmatterDTO): Result<Project, ValidationError> {
 		id: dto.id as Project['id'],
 		name: dto.name,
 		status: dto.status,
+		description: dto.description,
+		start: fromDateOnly(dto.start),
+		targetCompletion: fromDateOnly(dto['target-completion']),
 	});
 }
 

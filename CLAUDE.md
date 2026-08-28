@@ -404,6 +404,28 @@ check. Rules that came out of it:
   guard, so a test asserting the zone did not move passes with the defect present and was
   dropped rather than kept. Which is the invariant-at-the-forbidden-thing rule paying out:
   the guard belongs to the tool, and the routing needs its own case.
+- **A gesture belongs to a POINTER, not just to a button — and camera mode had the same hole
+  the override did.** On a mouse this is invisible: one `pointerId` is shared across every
+  button. On touch it is not, and the manifest promises mobile — so a second finger's moves
+  read as continuations of the first one's drag (the camera jumping by the distance BETWEEN
+  two fingers) and its release ended a pan whose own finger was still down. Both halves, and
+  both places: `PanOverride` gained `owns(pointerId)` and a pointer test on `pointerUp`, and
+  `DragState` gained a `pointerId` that `continuePan` and `endPan` both check. **Fixing only
+  the override would have been half a fix, and the canvas-level case is what proved it** —
+  with no tool active the move falls through to camera mode, which is the DEFAULT state and
+  therefore exactly where a second finger on a tablet lands. Each object splits the pair the
+  same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
+  `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
+  an optional parameter would have re-opened the hole under a different spelling.
+- **A modifier is the wrong test for a gesture the hardware performs itself.** Shift+wheel was
+  gated on `shiftKey`, so a trackpad's two-finger sideways swipe — nonzero `deltaX`, no
+  modifier — fell through to the zoom branch, which reads only `deltaY`, and with `deltaY: 0`
+  did nothing at all. Two things had already promised otherwise, which is what makes it worse
+  than a gap: the comment inside that branch described trackpad swipes "on every platform"
+  from a branch that could not see them, and `docs/tests/cases/Canvas Navigation.md` step 8
+  told a tester to expect it. The LARGER axis decides now, not the presence of any horizontal
+  delta at all — a trackpad emits a little `deltaX` during a mostly-vertical swipe, and
+  routing on its mere presence would turn hand tremor into a mode switch.
 - **A keyboard shortcut matched on `event.key` is matched on the LAYOUT.** `Shift+2` produces
   `@` on a US keyboard and `"` on the German and UK ones, so both fit shortcuts were silently
   dead for exactly the users this plugin ships a `de.ts` for — the worst failure a shortcut

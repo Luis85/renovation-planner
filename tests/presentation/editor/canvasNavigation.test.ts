@@ -573,3 +573,100 @@ describe('wheel deltas that are not pixels', () => {
 		harness.unmount();
 	});
 });
+
+describe('a trackpad’s own horizontal swipe', () => {
+	/**
+	 * A two-finger sideways swipe arrives as a nonzero `deltaX` with NO modifier. Gated on
+	 * `shiftKey`, that fell through to the zoom branch, which reads only `deltaY` — so with
+	 * `deltaY: 0` the gesture did nothing whatsoever.
+	 *
+	 * Two things had already promised otherwise, which is what makes this worse than a gap:
+	 * the comment inside the shift branch described trackpad swipes arriving "on every
+	 * platform" from a branch that could not see them, and step 8 of
+	 * `docs/tests/cases/Canvas Navigation.md` tells a tester to expect it to work.
+	 */
+	it('pans with no modifier held', async () => {
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport.pan.x;
+
+		wheel(canvas, { deltaX: 60, deltaY: 0 });
+		await settle();
+
+		expect(Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom).toBeCloseTo(60, 6);
+		harness.unmount();
+	});
+
+	it('does not steal a vertical swipe that drifts sideways', async () => {
+		// Trackpads emit a little `deltaX` during a mostly-vertical swipe. Routing on "any
+		// horizontal delta at all" would turn hand tremor into a mode switch, so the larger
+		// axis wins — which for this event is the vertical one, and vertical is zoom.
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport;
+
+		wheel(canvas, { deltaX: 3, deltaY: -90 });
+		await settle();
+
+		expect(camera.viewport.zoom).toBeGreaterThan(before.zoom);
+		// And it did not ALSO pan: jsdom reports a zero-sized rect, so the zoom anchors at the
+		// stage origin and leaves `pan` exactly where it was — which makes an untouched `pan`
+		// the sharpest available evidence that the horizontal branch was not taken.
+		expect(camera.viewport.pan).toEqual(before.pan);
+		harness.unmount();
+	});
+
+	it('still lets shift+wheel pan when the browser reports no horizontal delta at all', async () => {
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport;
+
+		wheel(canvas, { deltaX: 0, deltaY: 60, shiftKey: true });
+		await settle();
+
+		expect(camera.viewport.zoom).toBe(before.zoom);
+		expect(camera.viewport.pan.x).not.toBe(before.pan.x);
+		harness.unmount();
+	});
+});
+
+describe('a second finger on a touch device', () => {
+	/**
+	 * On a mouse this can never happen — one `pointerId` is shared across every button — so
+	 * these two are about touch and pen. The manifest promises mobile
+	 * (`isDesktopOnly: false`), and a tablet with a hardware keyboard can hold space and then
+	 * put a second finger down.
+	 */
+	const FIRST = 11;
+	const SECOND = 12;
+
+	it('does not drive a pan it did not start', async () => {
+		// Without an owner, the second finger's move was read as a continuation of the first
+		// one's drag — so the camera jumped by the distance between two fingers rather than
+		// by how far either had travelled.
+		const { harness, canvas, camera } = await editor();
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300, 0, FIRST);
+		pointer(canvas, 'pointermove', 320, 300, 0, FIRST);
+		await settle();
+		const afterFirst = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 700, 300, 0, SECOND);
+		await settle();
+
+		expect(camera.viewport.pan.x).toBe(afterFirst);
+		harness.unmount();
+	});
+
+	it('does not end a pan its own finger is still holding', async () => {
+		const { harness, canvas, camera } = await editor();
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300, 0, FIRST);
+		pointer(canvas, 'pointerup', 300, 300, 0, SECOND);
+		await settle();
+		const interrupted = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 400, 300, 0, FIRST);
+		await settle();
+
+		expect(camera.viewport.pan.x).not.toBe(interrupted);
+		harness.unmount();
+	});
+});

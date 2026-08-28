@@ -398,3 +398,64 @@ describe('EditorStore camera actions added for canvas navigation', () => {
 		expect(store.viewport).toEqual(DEFAULT_VIEWPORT);
 	});
 });
+
+describe('EditorStore pan ownership', () => {
+	/**
+	 * A drag belongs to the pointer that began it. On a mouse this is invisible — one
+	 * `pointerId` is shared across every button — but the manifest promises mobile
+	 * (`isDesktopOnly: false`) and camera mode is the DEFAULT state, so a second finger on a
+	 * tablet lands here rather than in the pan override.
+	 */
+	it('ignores a move from a pointer that did not begin the drag', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+		store.continuePan(screenPoint(140, 100), 11);
+		const afterOwner = store.viewport.pan.x;
+
+		expect(store.continuePan(screenPoint(600, 100), 12)).toBe(false);
+		expect(store.viewport.pan.x).toBe(afterOwner);
+	});
+
+	it('still follows the pointer that did', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(true);
+		expect(store.viewport.pan.x).toBeCloseTo(DEFAULT_VIEWPORT.pan.x - 40 / DEFAULT_VIEWPORT.zoom, 6);
+	});
+
+	it('consumes nothing when no drag is running', () => {
+		expect(useEditorStore().continuePan(screenPoint(1, 1), 11)).toBe(false);
+	});
+
+	it('ignores a RELEASE from a pointer that did not begin the drag', () => {
+		// The other half, and the one a first pass misses: a second finger lifting ended the
+		// first finger's drag, so the pan stopped dead while the hand making it was still
+		// moving. Found by a canvas-level case rather than by reasoning about this store.
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		expect(store.endPan(12)).toBe(false);
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(true);
+	});
+
+	it('ends on the release from the pointer that did', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		expect(store.endPan(11)).toBe(true);
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(false);
+	});
+
+	it('abandons a drag whatever pointer owns it', () => {
+		// `pointercancel`, `pointerleave` and focus loss name no owner — the gesture is simply
+		// over. Separate from `endPan` rather than reached by omitting its argument, so that
+		// no caller gets "end whatever is running" by accident.
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		store.abandonPan();
+
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(false);
+	});
+});

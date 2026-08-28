@@ -26,7 +26,7 @@ describe('the pan override', () => {
 	it('a primary press with nothing armed is not a pan — the active tool still gets it', () => {
 		const override = new PanOverride();
 
-		expect(override.pointerDown('primary', IDLE_TOOL)).toBe(false);
+		expect(override.pointerDown('primary', 1, IDLE_TOOL)).toBe(false);
 		expect(override.phase).toBe('idle');
 	});
 
@@ -43,16 +43,16 @@ describe('the pan override', () => {
 			const override = new PanOverride();
 			override.armSpace();
 
-			expect(override.pointerDown('primary', IDLE_TOOL)).toBe(true);
+			expect(override.pointerDown('primary', 1, IDLE_TOOL)).toBe(true);
 			expect(override.phase).toBe('panning');
 		});
 
 		it('returns to armed on release, so a second drag needs no second keypress', () => {
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 
-			expect(override.pointerUp('primary')).toBe(true);
+			expect(override.pointerUp('primary', 1)).toBe(true);
 			expect(override.phase).toBe('armed');
 		});
 
@@ -72,7 +72,7 @@ describe('the pan override', () => {
 			// user and a broken gesture.
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 
 			override.armSpace();
 
@@ -86,7 +86,7 @@ describe('the pan override', () => {
 			// gesture belongs to the drag, and the modifier only started it.
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 
 			override.disarmSpace();
 
@@ -96,10 +96,10 @@ describe('the pan override', () => {
 		it('lands idle rather than armed when that drag finally ends', () => {
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 			override.disarmSpace();
 
-			override.pointerUp('primary');
+			override.pointerUp('primary', 1);
 
 			expect(override.phase).toBe('idle');
 		});
@@ -109,15 +109,15 @@ describe('the pan override', () => {
 		it('pans with no modifier at all — Obsidian Canvas’s own documented gesture', () => {
 			const override = new PanOverride();
 
-			expect(override.pointerDown('auxiliary', IDLE_TOOL)).toBe(true);
+			expect(override.pointerDown('auxiliary', 1, IDLE_TOOL)).toBe(true);
 			expect(override.phase).toBe('panning');
 		});
 
 		it('ends idle on release, having armed nothing', () => {
 			const override = new PanOverride();
-			override.pointerDown('auxiliary', IDLE_TOOL);
+			override.pointerDown('auxiliary', 1, IDLE_TOOL);
 
-			override.pointerUp('auxiliary');
+			override.pointerUp('auxiliary', 1);
 
 			expect(override.phase).toBe('idle');
 		});
@@ -128,7 +128,7 @@ describe('the pan override', () => {
 			// eventual primary release would commit at a position the user never chose.
 			const override = new PanOverride();
 
-			expect(override.pointerDown('auxiliary', { toolGestureInFlight: true })).toBe(false);
+			expect(override.pointerDown('auxiliary', 1, { toolGestureInFlight: true })).toBe(false);
 			expect(override.phase).toBe('idle');
 		});
 
@@ -136,8 +136,8 @@ describe('the pan override', () => {
 			const override = new PanOverride();
 			override.armSpace();
 
-			override.pointerDown('auxiliary', IDLE_TOOL);
-			override.pointerUp('auxiliary');
+			override.pointerDown('auxiliary', 1, IDLE_TOOL);
+			override.pointerUp('auxiliary', 1);
 
 			expect(override.phase).toBe('armed');
 		});
@@ -147,7 +147,7 @@ describe('the pan override', () => {
 		it('abandons a running pan', () => {
 			// `pointercancel`: the OS took the pointer and no `pointerup` will ever arrive.
 			const override = new PanOverride();
-			override.pointerDown('auxiliary', IDLE_TOOL);
+			override.pointerDown('auxiliary', 1, IDLE_TOOL);
 
 			override.cancel();
 
@@ -173,9 +173,9 @@ describe('the pan override', () => {
 		// the still-held second button ought to be continuing.
 		const override = new PanOverride();
 		override.armSpace();
-		override.pointerDown('primary', IDLE_TOOL);
+		override.pointerDown('primary', 1, IDLE_TOOL);
 
-		expect(override.pointerDown('auxiliary', IDLE_TOOL)).toBe(false);
+		expect(override.pointerDown('auxiliary', 1, IDLE_TOOL)).toBe(false);
 		expect(override.phase).toBe('panning');
 	});
 
@@ -188,23 +188,72 @@ describe('the pan override', () => {
 			// `canvasPointerRouting.test.ts` already exists for.
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 
-			expect(override.pointerUp('auxiliary')).toBe(false);
+			expect(override.pointerUp('auxiliary', 1)).toBe(false);
 			expect(override.phase).toBe('panning');
 		});
 
 		it('ends on the release from the button that started it', () => {
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 
-			expect(override.pointerUp('primary')).toBe(true);
+			expect(override.pointerUp('primary', 1)).toBe(true);
 			expect(override.phase).toBe('armed');
 		});
 
 		it('reports a release it did not consume, so the active tool still gets it', () => {
-			expect(new PanOverride().pointerUp('primary')).toBe(false);
+			expect(new PanOverride().pointerUp('primary', 1)).toBe(false);
+		});
+	});
+
+	describe('which POINTER owns the gesture', () => {
+		/**
+		 * A mouse shares one `pointerId` across its buttons, so on a mouse this can never
+		 * differ and the whole question is invisible. Touch and pen are where it matters: the
+		 * manifest promises mobile (`isDesktopOnly: false`), and a tablet with a hardware
+		 * keyboard can hold space and then put a second finger down. Without an owner, that
+		 * second finger's moves are read as continuations of the first one's drag and the
+		 * camera jumps to a point the user never dragged from.
+		 */
+		const FIRST = 11;
+		const SECOND = 12;
+
+		it('ignores a move from a pointer that did not start the pan', () => {
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', FIRST, IDLE_TOOL);
+
+			expect(override.owns(SECOND)).toBe(false);
+			expect(override.owns(FIRST)).toBe(true);
+		});
+
+		it('ignores a release from a pointer that did not start the pan', () => {
+			// Same button, different finger. Matching on the button alone let the second one
+			// end the first one's pan.
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', FIRST, IDLE_TOOL);
+
+			expect(override.pointerUp('primary', SECOND)).toBe(false);
+			expect(override.phase).toBe('panning');
+		});
+
+		it('ends on the release from the pointer that started it', () => {
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', FIRST, IDLE_TOOL);
+
+			expect(override.pointerUp('primary', FIRST)).toBe(true);
+			expect(override.phase).toBe('armed');
+		});
+
+		it('owns nothing when no pan is running', () => {
+			const override = new PanOverride();
+			override.armSpace();
+
+			expect(override.owns(FIRST)).toBe(false);
 		});
 	});
 
@@ -214,7 +263,7 @@ describe('the pan override', () => {
 			// that ends a gesture without matching its owner, and it is separate from
 			// `pointerUp` so that no caller can accidentally get that behaviour by omission.
 			const override = new PanOverride();
-			override.pointerDown('auxiliary', IDLE_TOOL);
+			override.pointerDown('auxiliary', 1, IDLE_TOOL);
 
 			expect(override.abandonGesture()).toBe(true);
 			expect(override.phase).toBe('idle');
@@ -223,7 +272,7 @@ describe('the pan override', () => {
 		it('keeps a held space bar, unlike cancel', () => {
 			const override = new PanOverride();
 			override.armSpace();
-			override.pointerDown('primary', IDLE_TOOL);
+			override.pointerDown('primary', 1, IDLE_TOOL);
 
 			override.abandonGesture();
 

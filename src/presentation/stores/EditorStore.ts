@@ -47,6 +47,19 @@ type DragState = {
 	readonly kind: 'pan';
 	readonly originScreen: ScreenPoint;
 	readonly originViewport: Viewport;
+	/**
+	 * WHICH pointer is doing the dragging.
+	 *
+	 * Invisible on a mouse — one `pointerId` is shared across every button — and load-bearing
+	 * on touch, where the manifest promises support (`isDesktopOnly: false`) and camera mode
+	 * is the DEFAULT state. A second finger's moves were read as continuations of the first
+	 * one's drag, so the camera jumped by the distance BETWEEN two fingers rather than by how
+	 * far either had travelled.
+	 *
+	 * It lives on the drag rather than beside it because it is a fact ABOUT this gesture, and
+	 * a second field elsewhere would be a second thing to forget to clear.
+	 */
+	readonly pointerId: number;
 };
 
 /**
@@ -94,23 +107,45 @@ export const useEditorStore = defineStore('editor', () => {
 		viewport.value = zoomAbout(viewport.value, anchor, viewport.value.zoom * factor);
 	}
 
-	function beginPan(at: ScreenPoint): void {
-		dragState.value = { kind: 'pan', originScreen: at, originViewport: viewport.value };
+	function beginPan(at: ScreenPoint, pointerId: number): void {
+		dragState.value = { kind: 'pan', originScreen: at, originViewport: viewport.value, pointerId };
 	}
 
 	/**
 	 * Answers whether the move was consumed, so the caller does not have to re-inspect
 	 * `dragState` to find out — the store is the one place that knows whether a gesture is
-	 * running.
+	 * running, and now also which pointer is running it.
+	 *
+	 * A move from any OTHER pointer is refused rather than applied: see `DragState.pointerId`.
 	 */
-	function continuePan(at: ScreenPoint): boolean {
+	function continuePan(at: ScreenPoint, pointerId: number): boolean {
 		const drag = dragState.value;
-		if (drag === null) return false;
+		if (drag === null || drag.pointerId !== pointerId) return false;
 		viewport.value = panBy(drag.originViewport, at.x - drag.originScreen.x, at.y - drag.originScreen.y);
 		return true;
 	}
 
-	function endPan(): void {
+	/**
+	 * The drag's own pointer letting go. Answers whether it consumed the release, and refuses
+	 * one from any other pointer — the second half of `DragState.pointerId`'s rule, and the
+	 * half a first pass misses: a second finger LIFTING ended the first finger's drag, so the
+	 * pan stopped dead while the hand making it was still moving.
+	 */
+	function endPan(pointerId: number): boolean {
+		if (dragState.value?.pointerId !== pointerId) return false;
+		dragState.value = null;
+		return true;
+	}
+
+	/**
+	 * The drag is over whoever owned it — `pointercancel`, `pointerleave` and focus loss, none
+	 * of which name a pointer.
+	 *
+	 * Separate from `endPan` rather than reached by omitting its argument, so that no caller
+	 * can get "end whatever is running" by ACCIDENT, which is precisely what `endPan` was just
+	 * narrowed to refuse. `PanOverride` splits the same pair for the same reason.
+	 */
+	function abandonPan(): void {
 		dragState.value = null;
 	}
 
@@ -200,6 +235,7 @@ export const useEditorStore = defineStore('editor', () => {
 		beginPan,
 		continuePan,
 		endPan,
+		abandonPan,
 		panByScreen,
 		fitTo,
 		setPointer,

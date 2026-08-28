@@ -163,9 +163,16 @@ export async function rig(seed?: (repos: {
 	return { harness, zonesRepo, assetsRepo, requirementsRepo };
 }
 
-export function pointer(element: HTMLElement, type: string, x: number, y: number, button = 0): void {
+export function pointer(
+	element: HTMLElement,
+	type: string,
+	x: number,
+	y: number,
+	button = 0,
+	pointerId = 1,
+): void {
 	element.dispatchEvent(
-		new PointerEvent(type, { button, clientX: x, clientY: y, bubbles: true }),
+		new PointerEvent(type, { button, pointerId, clientX: x, clientY: y, bubbles: true }),
 	);
 }
 

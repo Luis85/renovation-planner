@@ -51,6 +51,18 @@ export class PanOverride {
 	 */
 	private spaceHeld = false;
 	private panningWith: PanButton | null = null;
+	/**
+	 * WHICH pointer owns the running gesture, beside which button did.
+	 *
+	 * On a mouse this can never differ — one `pointerId` is shared across every button — so
+	 * the whole question is invisible on the desktop path. Touch and pen are where it bites:
+	 * the manifest promises mobile (`isDesktopOnly: false`), and a tablet with a hardware
+	 * keyboard can hold space and then put a second finger down. Matching on the button alone,
+	 * that second finger's moves read as continuations of the first one's drag — the camera
+	 * jumps to an origin the user never dragged from — and its release ends a pan whose own
+	 * finger is still down.
+	 */
+	private panningPointer: number | null = null;
 
 	/** `panning` outranks `armed`: what the pointer is doing beats what the keyboard offers. */
 	get phase(): PanPhase {
@@ -87,13 +99,23 @@ export class PanOverride {
 	 * a live tool gesture would move the world beneath a drag the tool still believes in, and
 	 * the eventual release would commit at a position the user never chose.
 	 */
-	pointerDown(button: PanButton, context: PanOverrideContext): boolean {
+	pointerDown(button: PanButton, pointerId: number, context: PanOverrideContext): boolean {
 		if (this.panningWith !== null) return false;
 		if (context.toolGestureInFlight) return false;
 		const claims = button === 'auxiliary' || (button === 'primary' && this.spaceHeld);
 		if (!claims) return false;
 		this.panningWith = button;
+		this.panningPointer = pointerId;
 		return true;
+	}
+
+	/**
+	 * Whether a running pan belongs to this pointer — what the canvas asks before routing a
+	 * MOVE to the camera. False whenever nothing is panning, so the caller needs no second
+	 * phase test beside it.
+	 */
+	owns(pointerId: number): boolean {
+		return this.panningPointer === pointerId;
 	}
 
 	/**
@@ -109,13 +131,18 @@ export class PanOverride {
 	 * defect this project has already recorded twice, once as a test-rig fake and once in the
 	 * canvas's own filters.
 	 *
+	 * The POINTER has to match too, for the reason `panningPointer` gives: on touch, the same
+	 * button arrives from every finger, so the button test alone let a second finger end the
+	 * first one's pan.
+	 *
 	 * Where a matching release lands is whatever the keyboard still says: back to `armed`
 	 * while space is held — so a second drag needs no second keypress — and to `idle`
 	 * otherwise.
 	 */
-	pointerUp(button: PanButton): boolean {
-		if (this.panningWith !== button) return false;
+	pointerUp(button: PanButton, pointerId: number): boolean {
+		if (this.panningWith !== button || this.panningPointer !== pointerId) return false;
 		this.panningWith = null;
+		this.panningPointer = null;
 		return true;
 	}
 
@@ -131,6 +158,7 @@ export class PanOverride {
 	abandonGesture(): boolean {
 		if (this.panningWith === null) return false;
 		this.panningWith = null;
+		this.panningPointer = null;
 		return true;
 	}
 
@@ -148,5 +176,6 @@ export class PanOverride {
 	cancel(): void {
 		this.spaceHeld = false;
 		this.panningWith = null;
+		this.panningPointer = null;
 	}
 }

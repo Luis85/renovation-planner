@@ -63,7 +63,12 @@ and they are the reason this file exists:
    nothing pans. The zone drag finishes normally on the left release.
 8. **Shift+wheel.** Expected: the plan moves **sideways** and the zoom does not change. Then
    wheel **without** shift: it zooms, as before. Try it on a **trackpad** too — a two-finger
-   sideways swipe should pan the same way.
+   sideways swipe should pan **with no modifier held**, and a mostly-vertical swipe should
+   still zoom rather than drifting sideways as your fingers wobble.
+8a. **On a touch device, if you have one:** with the plan panning under one finger, put a
+   second finger down and move it, then lift it. Expected: neither disturbs the first
+   finger's pan. Try it in camera mode (no tool selected), which is where a second finger
+   most plausibly lands.
 9. **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
    with a margin. Then zoom in hard on one corner and press it again.
    *Record whether Obsidian's own keymap took `Shift+1` first.*

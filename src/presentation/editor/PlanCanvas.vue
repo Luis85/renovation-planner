@@ -166,16 +166,22 @@ function onWheel(event: WheelEvent): void {
 	// `{ passive: false }` explicitly does not silence it either; Chrome reports the
 	// listener being non-passive at all.
 	event.preventDefault();
-	if (event.shiftKey) {
-		// Shift+wheel pans horizontally — Obsidian's own Canvas does it, and this is a plan
-		// wider than its pane far more often than it is taller.
-		//
-		// `deltaX` FIRST, because the browser may already have done the conversion: Chrome on
-		// Windows and Linux turns a shift+wheel into a horizontal delta itself, and a
-		// trackpad's own sideways swipe arrives that way on every platform. Reading `deltaY`
-		// alone would make this gesture a silent no-op exactly where the platform was trying
-		// to help. The sign is inverted because a scroll "right" moves the VIEW right, which
-		// is the content moving left.
+	// A HORIZONTAL wheel gesture pans, and there are two of them. Shift+wheel is the one
+	// Obsidian's own Canvas documents, and on Windows and Linux Chrome performs the swap
+	// itself so it arrives as `deltaX`. A trackpad's two-finger sideways swipe is the other,
+	// and it arrives as `deltaX` with NO modifier at all — which is why the modifier cannot be
+	// the whole test. Gated on `shiftKey` alone, that swipe fell through to the zoom branch,
+	// which reads only `deltaY`; with `deltaY: 0` it did nothing whatsoever, while the comment
+	// here claimed to handle it and `docs/tests/cases/Canvas Navigation.md` step 8 told a
+	// tester to expect it.
+	//
+	// The LARGER axis decides, not "any horizontal delta at all": a trackpad emits a little
+	// `deltaX` during a mostly-vertical swipe, and routing on its mere presence would turn
+	// hand tremor into a mode switch.
+	if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+		// The sign is inverted because a scroll "right" moves the VIEW right, which is the
+		// content moving left. `deltaX` first, falling back to `deltaY` for the shift case
+		// where the browser did not do the swap for us.
 		const amount = event.deltaX !== 0 ? event.deltaX : event.deltaY;
 		editor.panByScreen(-wheelPixels(amount, event.deltaMode), 0);
 		return;
@@ -237,12 +243,12 @@ function onPointerDown(event: PointerEvent): void {
 	const at = stagePoint(event);
 	// Asked BEFORE the primary filter, because the override's own button is the middle one —
 	// which `isPrimary` rejects, and correctly so for every other purpose.
-	if (panOverride.pointerDown(panButtonOf(event), { toolGestureInFlight: runtime.toolManager.gestureInFlight })) {
+	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { toolGestureInFlight: runtime.toolManager.gestureInFlight })) {
 		// Chrome opens its autoscroll widget on a middle press otherwise, and the pane scrolls
 		// under a space-held drag.
 		event.preventDefault();
 		(event.target as Element).setPointerCapture?.(event.pointerId);
-		editor.beginPan(at);
+		editor.beginPan(at, event.pointerId);
 		syncPanPhase();
 		return;
 	}
@@ -255,28 +261,33 @@ function onPointerDown(event: PointerEvent): void {
 		runtime.toolManager.pointerDown(editorPointerEvent(event, at));
 		return;
 	}
-	editor.beginPan(at);
+	editor.beginPan(at, event.pointerId);
 }
 
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
 	editor.setPointer(at);
 	// The override outranks the active tool: a tool interrupted by a pan hears nothing at
-	// all, which is what leaves its half-drawn polygon intact.
-	if (panOverride.phase === 'panning') {
-		editor.continuePan(at);
+	// all, which is what leaves its half-drawn polygon intact. Asked of the OWNING pointer,
+	// so a second finger on a touch device does not drive a pan it did not start — `owns` is
+	// false whenever nothing is panning, so it carries the phase test too.
+	if (panOverride.owns(event.pointerId)) {
+		editor.continuePan(at, event.pointerId);
 		return;
 	}
 	if (runtime.activeToolId.value !== null) {
 		runtime.toolManager.pointerMove(editorPointerEvent(event, at));
 		return;
 	}
-	editor.continuePan(at);
+	// Camera mode's own drag — the DEFAULT state, and therefore where a second finger on a
+	// tablet actually lands. The store refuses a move from a pointer that did not begin the
+	// drag; this call site does not have to ask.
+	editor.continuePan(at, event.pointerId);
 }
 
 function onPointerUp(event: PointerEvent): void {
-	if (panOverride.pointerUp(panButtonOf(event))) {
-		editor.endPan();
+	if (panOverride.pointerUp(panButtonOf(event), event.pointerId)) {
+		editor.endPan(event.pointerId);
 		syncPanPhase();
 		return;
 	}
@@ -284,7 +295,7 @@ function onPointerUp(event: PointerEvent): void {
 		if (isPrimary(event)) runtime.toolManager.pointerUp(editorPointerEvent(event, stagePoint(event)));
 		return;
 	}
-	editor.endPan();
+	editor.endPan(event.pointerId);
 }
 
 /**
@@ -300,7 +311,7 @@ function onPointerCancel(): void {
 	runtime.toolManager.cancelGesture();
 	panOverride.cancel();
 	syncPanPhase();
-	editor.endPan();
+	editor.abandonPan();
 	editor.setPointer(null);
 }
 
@@ -314,7 +325,7 @@ function onPointerCancel(): void {
 function onBlur(): void {
 	panOverride.cancel();
 	syncPanPhase();
-	editor.endPan();
+	editor.abandonPan();
 }
 
 function onPointerLeave(): void {
@@ -336,7 +347,7 @@ function onPointerLeave(): void {
 	// two to be consistent anyway rather than a reason to leave the gap.
 	panOverride.abandonGesture();
 	syncPanPhase();
-	editor.endPan();
+	editor.abandonPan();
 	editor.setPointer(null);
 }
 

@@ -162,7 +162,17 @@ function wheelPixels(amount: number, deltaMode: number): number {
  * from the release's world coordinate — both converted through the camera as it stands at
  * that moment. So a camera that moves between the two silently adds its own delta to the
  * geometry being committed: the zone lands somewhere the user never dragged it, with no error
- * anywhere. A running pan is locked for the plainer reason that the camera is already its.
+ * anywhere. A running PAN is locked for a plainer reason and a different symptom: the camera
+ * is already that gesture's, and `continuePan` recomputes absolutely from the viewport the
+ * drag captured at its start — so a wheel that moved it is thrown away by the very next mouse
+ * move, and the user sees a jump.
+ *
+ * **`editor.dragState` is in here because camera mode is the DEFAULT state**, and its drag is
+ * represented by nothing else: no tool flag, and the override never claimed it. This predicate
+ * and the override-start guard were briefly two expressions of one question sitting three
+ * lines apart, and they drifted immediately — the third time in this file's review history
+ * that a rule stated in one place was not followed by the next. They are one function now, so
+ * there is nothing left to drift.
  *
  * **One rule for every camera door, including the ones this change did not add.** The wheel
  * ZOOM has been able to do this since slice 5, and the middle-button path already refused to
@@ -176,8 +186,8 @@ function wheelPixels(amount: number, deltaMode: number): number {
  * camera change is a change to the tool framework rather than to this file — that is the
  * follow-up, and refusing the move is the honest interim.
  */
-function cameraIsLocked(): boolean {
-	return runtime.toolManager.gestureInFlight || panOverride.phase === 'panning';
+function gestureInFlight(): boolean {
+	return runtime.toolManager.gestureInFlight || editor.dragState !== null;
 }
 
 function onWheel(event: WheelEvent): void {
@@ -192,8 +202,8 @@ function onWheel(event: WheelEvent): void {
 	// `{ passive: false }` explicitly does not silence it either; Chrome reports the
 	// listener being non-passive at all.
 	event.preventDefault();
-	// A camera that moves mid-drag corrupts what the drag commits — see `cameraIsLocked`.
-	if (cameraIsLocked()) return;
+	// A camera that moves mid-gesture corrupts what the gesture commits — see `gestureInFlight`.
+	if (gestureInFlight()) return;
 	// A HORIZONTAL wheel gesture pans, and there are two of them. Shift+wheel is the one
 	// Obsidian's own Canvas documents, and on Windows and Linux Chrome performs the swap
 	// itself so it arrives as `deltaX`. A trackpad's two-finger sideways swipe is the other,
@@ -276,10 +286,9 @@ function onPointerDown(event: PointerEvent): void {
 	const at = stagePoint(event);
 	// Asked BEFORE the primary filter, because the override's own button is the middle one —
 	// which `isPrimary` rejects, and correctly so for every other purpose.
-	// BOTH gestures, not just the tool's: camera mode is not a tool, and a middle press during
-	// a bare left-drag pan would otherwise claim a gesture whose button is still held.
-	const gestureInFlight = runtime.toolManager.gestureInFlight || editor.dragState !== null;
-	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { gestureInFlight })) {
+	// The SAME predicate the camera lock reads: camera mode is not a tool, and a middle press
+	// during a bare left-drag pan would otherwise claim a gesture whose button is still held.
+	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { gestureInFlight: gestureInFlight() })) {
 		// Chrome opens its autoscroll widget on a middle press otherwise, and the pane scrolls
 		// under a space-held drag.
 		event.preventDefault();
@@ -501,20 +510,23 @@ function onKeyDown(event: KeyboardEvent): void {
 		runtime.toolManager.cancelGesture();
 		return;
 	}
-	// Escape stays ABOVE this: abandoning a gesture is exactly what a user wants to be able to
-	// do while one is running, and it moves no camera.
-	if (cameraIsLocked()) return;
 	if (event.key === ' ') {
-		// `repeat` is filtered because a held key autorepeats at the OS rate and every one of
-		// those is a keydown. `PanOverride.armSpace` is idempotent, so that filter is belt and
-		// braces — the `preventDefault` is not: space is page-down in a scrollable leaf, and
-		// without it the first pan scrolls the editor out of its own view.
+		// `preventDefault` comes FIRST, above the gesture lock, and that ordering is the whole
+		// point: space is page-down in a scrollable leaf, a held key autorepeats at the OS rate,
+		// and the gesture is DEFINED by holding it. Suppressing only the first keydown let every
+		// repeat through for the length of the pan, scrolling the editor leaf out from under the
+		// plan — which is what putting the lock above this branch quietly did.
 		event.preventDefault();
-		if (event.repeat) return;
+		// Arming is what the lock refuses: `armSpace` is idempotent, so the repeat filter is
+		// belt and braces beside it.
+		if (event.repeat || gestureInFlight()) return;
 		panOverride.armSpace();
 		syncPanPhase();
 		return;
 	}
+	// Escape is handled ABOVE this, and deliberately: abandoning a gesture is exactly what a
+	// user wants to be able to do while one is running, and it moves no camera.
+	if (gestureInFlight()) return;
 	if (fitShortcut(event)) return;
 	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
 	if (factor === null) return;

@@ -417,6 +417,23 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+- **Two expressions of one question, three lines apart, drift immediately.** The camera lock
+  and the override-start guard both asked "is a gesture already running", and the lock was
+  written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is
+  represented by nothing else, did not lock the camera at all. Its symptom differs from the
+  tool-drag one and is worth knowing: `continuePan` recomputes absolutely from the viewport
+  captured at the drag's start, so a wheel that moved the camera is thrown away by the very
+  next mouse move and the user sees a JUMP rather than silent corruption. They are one
+  `gestureInFlight()` now. This is the THIRD instance in one review of a rule stated in one
+  place and not followed by the next (`isPrimary` across four handlers, `gestureInFlight`
+  across the tool and the camera, this) — at which point the answer stops being "state it
+  again more carefully" and becomes "make it one function nothing can restate".
+- **A `preventDefault` for a HELD key has to run before any early return that outranks it.**
+  Placing the camera lock above the space branch meant every autorepeat during a pan returned
+  before reaching `preventDefault()` — and space is page-down, so the editor leaf scrolled out
+  from under the plan for the length of the gesture. Suppressing the first keydown is not
+  enough when the gesture is DEFINED by holding the key. The suppression is unconditional now
+  and only the ARMING is what the lock refuses.
 - **A camera that moves mid-drag corrupts what the drag commits, and every camera door had to
   take the same rule.** `SelectTool` records where a drag started in WORLD coordinates and
   computes the commit from the release's world coordinate, both through the camera as it

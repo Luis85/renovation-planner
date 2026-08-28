@@ -439,3 +439,69 @@ describe('the camera during a tool drag', () => {
 		harness.unmount();
 	});
 });
+
+describe('the camera during a CAMERA-MODE drag', () => {
+	/**
+	 * Camera mode — no tool — is the default state, and its drag lives only in
+	 * `editor.dragState`: no tool flag, and the override never claimed it. So the lock added
+	 * for tool drags did not see it, even though the override-start guard three lines away
+	 * already asked exactly this question. The third instance in this review of a rule stated
+	 * in one place and not followed by the next.
+	 *
+	 * The symptom is a JUMP rather than a silent corruption: `continuePan` recomputes
+	 * absolutely from the viewport the drag captured at its start, so a wheel that moved the
+	 * camera mid-drag is thrown away by the very next mouse move.
+	 */
+	async function panningTheCamera() {
+		const built = await editor();
+		pointer(built.canvas, 'pointerdown', 300, 300);
+		pointer(built.canvas, 'pointermove', 350, 300);
+		await settle();
+		return built;
+	}
+
+	it('does not let shift+wheel move it', async () => {
+		const { harness, canvas, camera } = await panningTheCamera();
+		const pan = camera.viewport.pan;
+
+		canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, shiftKey: true, bubbles: true, cancelable: true }));
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(pan);
+		harness.unmount();
+	});
+
+	it('does not let a fit shortcut jump it', async () => {
+		const { harness, canvas, camera } = await panningTheCamera();
+		const viewport = camera.viewport;
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', {
+			key: '!', code: 'Digit1', shiftKey: true, bubbles: true, cancelable: true,
+		}));
+		await settle();
+
+		expect(camera.viewport).toEqual(viewport);
+		harness.unmount();
+	});
+});
+
+describe('the space bar autorepeating through a long pan', () => {
+	it('keeps suppressing the page scroll on every repeat, not just the first', async () => {
+		// A held key repeats at the OS rate for as long as the pan lasts. The camera lock was
+		// placed ABOVE the Space branch, so every repeat returned before reaching
+		// `preventDefault()` — and Space's default is page-down, which scrolls the editor leaf
+		// out from under the plan. Suppressing the first keydown is not enough when the gesture
+		// is defined by holding the key.
+		const { harness, canvas } = await editor();
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		await settle();
+
+		const repeated = key(canvas, 'keydown', { key: ' ', repeat: true });
+		await settle();
+
+		expect(repeated.defaultPrevented).toBe(true);
+		harness.unmount();
+	});
+});

@@ -24,6 +24,12 @@
 - **Coverage floors: 99 / 99 / 99 / 98** (statements / functions / lines / branches). Branches has roughly two branches of headroom — plan a test with every new arm, do not add one and hope.
 - **Definition of done is `npm run check`** (build + lint + coverage-thresholded tests + fallow). All four.
 - **No `setIcon`.** Severity is carried by a translated text label plus colour. This plugin has never called `setIcon` and the harness has no icon renderer; a text label already satisfies "status not colour-only".
+- **A test touching the DOM needs `@vitest-environment jsdom`.** `vitest.config.ts:19` sets
+  `environment: 'node'` for everything; 52 existing suites opt in with that directive as the
+  first line of a docblock. Without it a DOM suite fails with `document is not defined`
+  before its first assertion. Four suites in this plan need it — the `Notice` fake's, the
+  notify door's, the disposal one, and the indicator's — and the pure ones (severity, queue,
+  save-state store, the tracking decorator) deliberately do not.
 - **Commit after every task.** Conventional-commit prefixes as used in this repo (`feat:`, `fix:`, `test:`, `docs:`).
 
 ---
@@ -43,6 +49,9 @@ The mock is a six-line recorder that draws nothing. Every later task's jsdom ass
 - [ ] **Step 1: Write the failing test**
 
 ```ts
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, expect, it } from 'vitest';
 import { Notice } from './obsidian-mock';
 
@@ -556,8 +565,15 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 			const existing = entries.find((entry) => sameNotice(entry, severity, message));
 			if (existing !== undefined) {
 				existing.count += 1;
-				existing.handle?.update(viewOf(existing));
-				arm(existing);
+				// **Only a VISIBLE entry gets its timer restarted.** Arming a held one starts a
+				// countdown on something nobody can see, and `arm`'s callback calls `release`,
+				// which drops it from the queue — so a success repeated while three warnings hold
+				// every slot would be silently deleted instead of promoted. A held entry has no
+				// timer at all until `show` arms one.
+				if (existing.handle !== null) {
+					existing.handle.update(viewOf(existing));
+					arm(existing);
+				}
 				return;
 			}
 
@@ -665,6 +681,22 @@ Append inside the existing `describe`, reusing `recordingHost` from Task 3:
 		expect(live()).toHaveLength(0);
 	});
 
+	it('does not time out a held duplicate that has never been shown', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		// Three persistent notices fill every slot, so the success below is held, not shown.
+		for (const message of ['a', 'b', 'c']) queue.push('error', message);
+		queue.push('success', 'held');
+		queue.push('success', 'held');
+		expect(opened).toHaveLength(3);
+
+		// Well past the success deadline: a held entry has no timer, so it is still queued.
+		vi.advanceTimersByTime(60_000);
+		opened[0]?.callbacks.dismissed();
+		expect(opened.at(-1)?.view.message).toBe('held');
+		expect(opened.at(-1)?.view.count).toBe(2);
+	});
+
 	it('promotes a held notice when a visible one times out', () => {
 		const { host, opened } = recordingHost();
 		const queue = createNoticeQueue(host);
@@ -770,6 +802,9 @@ git commit -m "test: a notice dismissed by anything frees its slot"
 - [ ] **Step 1: Write the failing test**
 
 ```ts
+/**
+ * @vitest-environment jsdom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
 import {
@@ -821,6 +856,39 @@ describe('the notice door', () => {
 		notifyWarning('careful');
 		noticeEls()[0]?.querySelector('button')?.click();
 		expect(noticeEls()).toHaveLength(0);
+	});
+
+	it('keeps the timer paused while the dismiss button holds focus after the pointer leaves', () => {
+		notifySuccess('saved');
+		const el = noticeEls()[0];
+		const button = el?.querySelector('button');
+
+		el?.dispatchEvent(new Event('pointerenter'));
+		button?.dispatchEvent(new FocusEvent('focus'));
+		el?.dispatchEvent(new Event('pointerleave'));
+
+		// Hover is gone but focus is not: the notice must still be here.
+		vi.advanceTimersByTime(60_000);
+		expect(noticeEls()).toHaveLength(1);
+
+		button?.dispatchEvent(new FocusEvent('blur'));
+		vi.advanceTimersByTime(4000);
+		expect(noticeEls()).toHaveLength(0);
+	});
+
+	it('frees a slot when the notice is dismissed by Obsidian rather than by our button', () => {
+		notifyWarning('a');
+		notifyWarning('b');
+		notifyWarning('c');
+		notifyWarning('d');
+		expect(noticeEls()).toHaveLength(3);
+
+		// Obsidian's own click-to-dismiss: the element goes, and the click is our only prompt.
+		const first = noticeEls()[0];
+		first?.remove();
+		first?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		expect(noticeEls().some((el) => el.textContent?.includes('d'))).toBe(true);
 	});
 
 	it('shows a repeat count rather than a second notice', () => {
@@ -906,8 +974,45 @@ const obsidianHost: NoticeHost = {
 		notice.containerEl.setAttribute('aria-live', live);
 		notice.containerEl.classList.add('rp-notice', `rp-notice-${view.severity}`);
 
-		notice.containerEl.addEventListener('pointerenter', callbacks.pause);
-		notice.containerEl.addEventListener('pointerleave', callbacks.resume);
+		/**
+		 * **Hover and focus are two conditions, not one flag.** Passing `pause`/`resume`
+		 * straight to the four listeners lets `pointerleave` resume a timer while the dismiss
+		 * button still holds focus, and `blur` resume one while the pointer is still over the
+		 * notice — so an auto-dismissing notice vanishes mid-interaction, which is precisely
+		 * what the accessibility timing rule exists to prevent. `held` is the OR of both, and
+		 * only a transition is reported: `resume` restarts a full duration, so calling it on
+		 * an already-running timer would silently extend it.
+		 */
+		let hovered = false;
+		let focused = false;
+		let held = false;
+		const sync = (): void => {
+			const next = hovered || focused;
+			if (next === held) return;
+			held = next;
+			if (held) callbacks.pause();
+			else callbacks.resume();
+		};
+
+		notice.containerEl.addEventListener('pointerenter', () => {
+			hovered = true;
+			sync();
+		});
+		notice.containerEl.addEventListener('pointerleave', () => {
+			hovered = false;
+			sync();
+		});
+
+		/**
+		 * **Obsidian dismisses a notice when the user clicks it, and does not tell us.** This
+		 * listener is the PROMPT to sweep that the design calls for — `handle.live` remains the
+		 * authority — and without it a natively-dismissed notice would hold its slot until some
+		 * later push happened to sweep. Our own dismiss button calls `dismissed` directly as
+		 * well; sweeping twice is idempotent, and relying on the button's click bubbling to
+		 * here would depend on propagation surviving the element's removal mid-dispatch, which
+		 * is not worth resting on.
+		 */
+		notice.containerEl.addEventListener('click', callbacks.dismissed);
 
 		const label = document.createElement('span');
 		label.className = 'rp-notice-severity';
@@ -920,8 +1025,14 @@ const obsidianHost: NoticeHost = {
 		dismiss.className = 'rp-notice-dismiss';
 		dismiss.textContent = '×';
 		dismiss.setAttribute('aria-label', tr('notice.dismiss'));
-		dismiss.addEventListener('focus', callbacks.pause);
-		dismiss.addEventListener('blur', callbacks.resume);
+		dismiss.addEventListener('focus', () => {
+			focused = true;
+			sync();
+		});
+		dismiss.addEventListener('blur', () => {
+			focused = false;
+			sync();
+		});
 		dismiss.addEventListener('click', () => {
 			notice.hide();
 			callbacks.dismissed();
@@ -1270,6 +1381,9 @@ git commit -m "feat: the notice severity stylesheet"
 - [ ] **Step 1: Write the failing test**
 
 ```ts
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { Notice } from '../helpers/obsidian-mock';
 import { disposeNotices, notifyWarning } from '../../src/presentation/notices/notify';
@@ -1972,6 +2086,9 @@ git commit -m "feat: save-state tracking over run, undo and redo alike"
 - [ ] **Step 1: Write the failing test**
 
 ```ts
+/**
+ * @vitest-environment jsdom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -2273,5 +2390,15 @@ design. Task 12 now settles in a `catch` and re-throws unchanged, with a revert 
 that arm. And `notify` meaning `info` would have auto-dismissed two background cascade
 warnings whose copy reads "figures may be wrong"; Task 6 classifies all four existing call
 sites rather than preserving them unchanged.
+
+**Four further findings from the second design-review pass, all verified and fixed.** The DOM
+suites had no `@vitest-environment jsdom` directive and would have failed with `document is
+not defined` before their first assertion — now a global constraint, since four suites need
+it and four deliberately do not. The dedup path armed a timer on a HELD entry, whose callback
+calls `release` — so a success repeated while three warnings held every slot would have been
+silently deleted rather than promoted. The host wired no `click` listener on `containerEl`,
+so Obsidian's own dismissal held its slot until some later push swept it — the spec described
+that prompt and the code did not have it. And hover and focus were collapsed into one flag,
+so leaving the notice resumed the timer while its dismiss button still held focus.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

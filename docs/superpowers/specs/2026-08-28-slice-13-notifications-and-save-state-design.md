@@ -184,7 +184,10 @@ MAX_VISIBLE_NOTICES = 3
 ```
 
 An auto-dismiss timer pauses while the pointer is over the entry or its dismiss control has
-focus, and resumes for a full fresh duration on leave or blur.
+focus, and resumes for a full fresh duration **only once neither holds**. Two conditions,
+not one flag: collapsing them lets a pointer-leave resume the timer while the dismiss button
+still has focus, so the notice vanishes under a user who is tabbing to dismiss it — which is
+the exact failure the rule exists to prevent.
 
 ### 4. The slot leak, which is the one real risk in this design
 

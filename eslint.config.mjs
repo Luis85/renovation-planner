@@ -474,11 +474,11 @@ const I18N_LITERAL_BAN = [
  * rule at the call, by the same argument that put `WRITE_BOUNDARY` and
  * `I18N_LITERAL_BAN` there.
  *
- * The two doors it watches are `notify(...)` (the one wrapper in
- * `src/presentation/notices/notify.ts`) and `new Notice(...)` (Obsidian's own
- * constructor, so bypassing the wrapper is not an escape). `notifyError` and `notifyFault`
- * need no selector: they take an `AppError` and an unknown cause, not a string, and
- * resolve the user's sentence themselves.
+ * The doors it watches are `notify(...)`, `notifySuccess(...)` and `notifyWarning(...)` —
+ * the three string-taking wrappers in `src/presentation/notices/notify.ts` — and
+ * `new Notice(...)` (Obsidian's own constructor, so bypassing the wrappers is not an
+ * escape). `notifyError` and `notifyFault` need no selector: they take an `AppError` and an
+ * unknown cause, not a string, and resolve the user's sentence themselves.
  *
  * The spellings these SEE, honestly:
  *
@@ -507,15 +507,17 @@ const I18N_LITERAL_BAN = [
  *   - a TEMPLATE literal carrying raw English with no member access in it, which is a
  *     TemplateLiteral node and not a Literal — again exactly where `I18N_LITERAL_BAN`
  *     stops.
- *   - a differently-named local alias of `notify`, and a notice raised through a
- *     re-exported wrapper under another name. `notify` and `Notice` are the two names this
- *     repository uses; a third would need adding here.
- *   - either door reached through a MEMBER EXPRESSION: `o.notify(e.message)` and
- *     `new n.Notice(e.message)`. This is the CALL FORM rather than a third name — both
- *     selectors key on `callee.name`, and a MemberExpression callee has none, so the same
- *     two functions escape whenever they are reached through an object. Both are called
- *     bare everywhere here; closing it would mean a second pair of selectors on
- *     `callee.property.name`, which would then also refuse every unrelated `x.notify(…)`.
+ *   - a differently-named local alias of `notify`/`notifySuccess`/`notifyWarning`, and a
+ *     notice raised through a re-exported wrapper under another name. `notify`,
+ *     `notifySuccess`, `notifyWarning` and `Notice` are the four names this repository
+ *     uses; a fifth would need adding here.
+ *   - any of the four doors reached through a MEMBER EXPRESSION: `o.notify(e.message)`,
+ *     `o.notifySuccess(e.message)` and `new n.Notice(e.message)` alike. This is the CALL
+ *     FORM rather than a name gap — all four selectors key on `callee.name`, and a
+ *     MemberExpression callee has none, so the same functions escape whenever they are
+ *     reached through an object. All four are called bare everywhere here; closing it
+ *     would mean a second set of selectors on `callee.property.name`, which would then
+ *     also refuse every unrelated `x.notify(…)`.
  *
  * Narrowing `notify`'s PARAMETER TYPE to a branded "came from the locale tables" string
  * was the other candidate and is refused for now: `t`, `tr` and `toUserMessage` all return
@@ -524,7 +526,8 @@ const I18N_LITERAL_BAN = [
  * Worth revisiting when a second string-producing seam appears — it would close the
  * one-hop hole a selector structurally cannot.
  */
-const NOTICE_DOOR = ":matches(CallExpression[callee.name='notify'], NewExpression[callee.name='Notice'])";
+const NOTICE_DOOR =
+	":matches(CallExpression[callee.name=/^(notify|notifySuccess|notifyWarning)$/], NewExpression[callee.name='Notice'])";
 const NOTICE_TEXT_BAN = [
 	{
 		selector: NOTICE_DOOR + " MemberExpression[property.name=/^(message|stack)$/]",

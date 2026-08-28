@@ -128,4 +128,27 @@ describe('the notice text boundary', () => {
 	])('cannot see %s, which the config says in prose and this pins', async (_what, code) => {
 		expect(await lintText(code, PRESENTATION)).not.toContain(RULE);
 	});
+
+	it.each([
+		['a literal through the success door', 'export const s = (notifySuccess: any) => notifySuccess("saved");\n'],
+		['a literal through the warning door', 'export const w = (notifyWarning: any) => notifyWarning("careful");\n'],
+		['a message through the success door', 'export const s = (notifySuccess: any, e: any) => notifySuccess(e.message);\n'],
+		['a stack through the warning door', 'export const w = (notifyWarning: any, e: any) => notifyWarning(e.stack);\n'],
+	])('refuses %s', async (_name, source) => {
+		// `lintText` already resolves to RULE IDS — `Promise<string[]>`, with `PARSE_ERROR` and
+		// `NOT_LINTED` sentinels for the two ways a fixture can go wrong. Mapping `.ruleId` over
+		// it yields an array of `undefined`, which makes every refusal case fail against a
+		// correctly widened selector and every negative case pass vacuously. Assert the array
+		// directly, exactly as the four cases above this one do.
+		expect(await lintText(source, PRESENTATION)).toContain(RULE);
+	});
+
+	it('still passes a translated call through the new doors', async () => {
+		expect(
+			await lintText(
+				'export const s = (notifySuccess: any, tr: any) => notifySuccess(tr("a.key"));\n',
+				PRESENTATION,
+			),
+		).not.toContain(RULE);
+	});
 });

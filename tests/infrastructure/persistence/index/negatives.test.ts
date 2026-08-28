@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
@@ -247,18 +247,58 @@ describe('duplicate frontmatter ids', () => {
  * Two `.rpgeo` files can share a basename the same way two notes can share an id: a user
  * copying a whole project folder as a backup — the "moves, backs up and deletes as one
  * unit" property ADR-0013 celebrates — produces a second sidecar naming the same plan id.
- * `joinSidecars` no longer has a folder prefix to keep the two apart, so last-writer-wins
- * is now reachable from an ordinary backup rather than only from a deliberately crafted
- * vault, and the note-side diagnostic (`warnOnDuplicate`, above) has no sidecar-side twin
- * without this test.
+ * Neither the scan nor the pipeline has a folder prefix left to keep the two apart, so the
+ * copy is reachable from an ordinary backup rather than only from a deliberately crafted
+ * vault.
+ *
+ * A warning alone is not enough on either side: the mapping is what every geometry WRITE
+ * resolves through, so a repointed mapping sends the live plan's zones into the backup and
+ * leaves the file the user is looking at frozen. Both doors keep the sidecar the project
+ * folder DERIVES (ADR-0011: derivability is the repair path for a damaged index), which is
+ * the same answer whichever order the two files are reached in.
  */
 describe('duplicate sidecar basenames', () => {
-	it('the scan keeps the last sidecar scanned and warns about the other', async () => {
+	it('the scan keeps the derived sidecar, in either order, and warns about the other', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
 		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
 		const backupPath = original.replace('Renovation/', 'Renovation Backup/');
-		stack.vault.entries.set(backupPath, stack.vault.entries.get(original) ?? '');
+		const text = stack.vault.entries.get(original) ?? '';
+		const scan = (): ReturnType<typeof buildProjectIndexEntries> =>
+			buildProjectIndexEntries({
+				vault: stack.vault as never,
+				metadataCache: stack.metadataCache as never,
+				echo: stack.echo,
+				logger: stack.logger,
+			});
+
+		// `getFiles()` answers in insertion order, so this pair of scans is the pair of scan
+		// orders: the copy reached last, then the copy reached first.
+		stack.vault.entries.set(backupPath, text);
+		expect(scan().find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
+
+		stack.vault.entries.delete(original);
+		stack.vault.entries.set(original, text);
+		expect(scan().find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
+
+		// The diagnostic survives the change of winner — it is what tells a user which two
+		// files collided, and it names both either way.
+		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+		expect(warning?.context?.['path']).toBe(backupPath);
+		expect(warning?.context?.['otherPath']).toBe(original);
+	});
+
+	it('the scan keeps the first sidecar when no project folder can derive one', () => {
+		// A plan whose project note is not in the vault: nothing can say which of the two
+		// files is canonical, so the arriving duplicate does not displace the mapping that
+		// is already held — first scanned wins, warned, rather than a silent repoint.
+		const stack = createRepositoryStack();
+		stack.vault.entries.set(
+			'Loose/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-loose', project: 'project-gone', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set('Loose/Geometry/pl-loose.rpgeo', '{}');
+		stack.vault.entries.set('Loose Backup/Geometry/pl-loose.rpgeo', '{}');
 
 		const entries = buildProjectIndexEntries({
 			vault: stack.vault as never,
@@ -267,13 +307,65 @@ describe('duplicate sidecar basenames', () => {
 			logger: stack.logger,
 		});
 
-		// Last-writer-wins stays: which one wins is scan order, arbitrary either way. What
-		// changes is that it is no longer SILENT.
-		const planEntry = entries.find((entry) => entry.id === planId);
-		expect(planEntry?.geometrySidecarPath).toBe(backupPath);
-		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+		expect(entries.find((entry) => entry.id === 'pl-loose')?.geometrySidecarPath).toBe(
+			'Loose/Geometry/pl-loose.rpgeo',
+		);
+		expect(stack.logged.some((line) => line.event === 'persistence.index.sidecar-duplicate')).toBe(true);
+	});
+
+	it('the pipeline keeps the live mapping when a copied sidecar arrives beside it', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
+		const backupPath = original.replace('Renovation/', 'Renovation Backup/');
+		stack.vault.entries.set(backupPath, stack.vault.entries.get(original) ?? '');
+
+		adapter.onCreate(stack.vault.getAbstractFileByPath(backupPath) as never);
+		adapter.flush();
+
+		expect(stack.index.getGeometrySidecarPath(planId)).toBe(original);
+		const warning = stack.logged.find((line) => line.event === 'persistence.pipeline.sidecar-duplicate');
 		expect(warning?.context?.['path']).toBe(backupPath);
 		expect(warning?.context?.['otherPath']).toBe(original);
+
+		// And deleting the copy again takes nothing with it. The delete arm's path-equality
+		// guard was always right; what made it clear the mapping was the repoint above it.
+		stack.vault.entries.delete(backupPath);
+		adapter.onDelete({ path: backupPath } as never);
+		expect(stack.index.getGeometrySidecarPath(planId)).toBe(original);
+	});
+
+	it('a project folder copied wholesale leaves the original geometry mapping alone', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
+		const folder = original.slice(0, original.indexOf('/Geometry/'));
+
+		// Every file of the project, copied, and delivered in the order a directory walk
+		// produces: `Geometry/` sorts ahead of the note that would repoint the plan entry,
+		// so the sidecar arrives while the index still points at the live project.
+		const copies = [...stack.vault.entries]
+			.filter(([path]) => path.startsWith(`${folder}/`))
+			.map(([path, text]): [string, string] => [path.replace(folder, `${folder} backup`), text])
+			.toSorted(([left], [right]) => left.localeCompare(right));
+		for (const [path, text] of copies) stack.vault.entries.set(path, text);
+		stack.metadataCache.catchUp();
+		for (const [path] of copies) adapter.onCreate({ path } as never);
+		adapter.flush();
+
+		expect(copies.map(([path]) => path)).toContain(original.replace(folder, `${folder} backup`));
+		expect(stack.index.getGeometrySidecarPath(planId)).toBe(original);
+		// The copied NOTES are a duplicate-id finding and still take the index over — that
+		// is slice 18's warned, deliberate last-writer-wins, and this fix does not touch it.
+		// What it stops is the geometry mapping following them silently. Measured rather
+		// than assumed, and it is why `sidecarMappingFor` promises agreement of the two
+		// halves for the SCAN and not for a live copy: mid-copy the note entry has moved to
+		// the backup while the mapping has not, and the next full scan is what reconciles
+		// them (it resolves every note before it joins a single sidecar).
+		expect(stack.logged.some((line) => line.event === 'persistence.pipeline.duplicate-id')).toBe(true);
+		expect(stack.index.getPath(planId)?.startsWith(`${folder} backup/`)).toBe(true);
 	});
 });
 

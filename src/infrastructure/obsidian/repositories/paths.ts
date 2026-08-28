@@ -11,9 +11,16 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
  * existing project's own note already answers (`projectFolderOf`).
  *
  * Deriving a SIDECAR path at read time is forbidden (ADR-011): reads resolve through the
- * Project Index. This module's sidecar function has exactly two callers, both legitimate:
- * the Plan insert path (which creates the file and is therefore the only code alive at
- * the moment the mapping can first exist) and nothing else. Reads never import it.
+ * Project Index. `sidecarPathFor` has exactly two callers in `src/` — counted with a grep
+ * over this name, not remembered — and neither of them is a read:
+ *
+ * - `ObsidianPlanRepository`'s insert path, which creates the file and is therefore the
+ *   only code alive at the moment the mapping can first exist; and
+ * - `sidecarMappingFor`, which adjudicates two `.rpgeo` files naming one plan id by
+ *   preferring the derived path. ADR-0011 allows exactly that — "derivability is a repair
+ *   path for a damaged index, not a second lookup mechanism for normal reads" — and a
+ *   duplicate is repair: the answer it produces is which path the INDEX should hold, never
+ *   a path handed to a reader in place of the index's own.
  */
 
 const GEOMETRY_FOLDER = 'Geometry';

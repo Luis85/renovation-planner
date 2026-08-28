@@ -5,6 +5,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import { ENTITY_TYPES, type EntityType, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { Logger } from '../../../application/ports/Logger';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
+import { parentOf, sidecarPathFor } from '../../obsidian/repositories/paths';
 import type { EchoWindow } from './EchoWindow';
 
 function listSidecars(vault: Vault): TFile[] {
@@ -102,21 +103,79 @@ function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 }
 
 /**
- * Two `.rpgeo` files CAN name one plan id — a user copying a whole project folder as a
- * backup produces exactly that, and the sidecar join has no folder prefix left to keep the
- * two apart. Last-writer-wins is kept deliberately, for the same reason `warnOnDuplicate`
- * above keeps it for notes: changing it would make which sidecar wins depend on scan
- * order — arbitrary AND invisible instead of merely arbitrary. What was missing is the
- * diagnostic: without it, geometry writes for the losing plan silently land in the backup.
+ * Which sidecar path a Plan's mapping keeps when a second `.rpgeo` names the same plan id.
+ * The one answer BOTH doors take — this scan and `VaultChangeAdapter`'s incremental pass —
+ * for the reason `entityRefOf` above is shared: two hand-spelled copies of one rule are two
+ * rules, and the pair already disagreed once. That is this function's whole existence.
+ *
+ * Two `.rpgeo` files CAN name one plan id: a user copying a whole project folder as an
+ * in-vault backup — the "moves, backs up and deletes as one unit" property ADR-0013
+ * celebrates — produces exactly that, and neither door has a folder prefix left to keep the
+ * two apart. A warning alone does not cover it. The mapping is what every geometry WRITE
+ * resolves through (`ProjectIndex.getGeometrySidecarPath`), so repointing it at the copy
+ * sends the live plan's zones into the backup and freezes the file the user is editing,
+ * with the note entry still pointing at the live project — an index that disagrees with
+ * itself, and the deletion of the backup then clears the mapping outright.
+ *
+ * So the DERIVED path wins: project folder + `Geometry/` + plan id (ADR-0011 — "derivability
+ * is a repair path for a damaged index, not a second lookup mechanism for normal reads",
+ * and adjudicating a duplicate is repair, never a read). An arriving path that is not the
+ * derived one does not displace a mapping that already exists; it warns and is dropped.
+ *
+ * **This replaces the scan's own warn-only rule, deliberately, rather than the pipeline
+ * copying it.** That rule kept last-writer-wins on the argument that refusing would make the
+ * winner depend on scan order — true of a coin toss between two files, and not true here: the
+ * derived path is the same answer whichever order the two are reached in, so the objection
+ * the old rule rested on is what deriving dissolves. Leaving the scan warn-only would also
+ * have defeated the pipeline's guard on the next restart, which is the practical half: a
+ * backup made with Obsidian open is guarded by the pipeline and then re-adjudicated by the
+ * full scan at the following `onLayoutReady`.
+ *
+ * When nothing can derive a path — a plan declaring no project, or one whose project note is
+ * not indexed — an existing mapping still stands and the duplicate is still reported. Which
+ * of the two won is then arbitrary, exactly as it was before; what is no longer available is
+ * a silent repoint of a mapping this index already holds.
+ *
+ * **What this does NOT reach, said plainly, because it was measured rather than assumed.**
+ * Copying a project folder duplicates the NOTES too, and which project note the index holds
+ * is still note-level last-writer-wins (`warnOnDuplicate`) — a rule slice 18 kept
+ * deliberately and this does not touch. In the SCAN the two halves therefore still agree:
+ * every note is resolved before a single sidecar is joined, so the mapping follows whichever
+ * project note won. In the live PIPELINE they can part company for a while, and which way
+ * round depends on an event order nothing promises: with `Geometry/` sorting ahead of the
+ * note beside it — what the test drives, and what a directory walk produces — the copy's
+ * sidecar is refused here and the copy's note then takes the entry over, carrying the
+ * original mapping with it (`processNote` preserves a mapping a note edit cannot have
+ * moved). That is a stale index
+ * until the next `onLayoutReady` rescan reconciles it. What it is not is the failure this
+ * replaced: the mapping still names the sidecar this plan's geometry has been living in, and
+ * deleting the copy leaves it untouched — where an unconditional repoint aimed the live plan
+ * at the copy, froze the file the user was editing, and then unresolved the plan's geometry
+ * altogether the moment the backup was deleted.
  */
-function warnOnDuplicateSidecar(logger: Logger, previous: string | undefined, planId: string, path: string): void {
-	if (previous === undefined) return;
-	logger.warn('persistence.index.sidecar-duplicate', {
-		planId,
-		path,
-		otherPath: previous,
-		reason: 'two sidecars declare this plan id; only the last one scanned is reachable',
+export function sidecarMappingFor(input: {
+	logger: Logger;
+	/** One event per door, so a log line says which pass adjudicated (slice 11's rule). */
+	event: 'persistence.index.sidecar-duplicate' | 'persistence.pipeline.sidecar-duplicate';
+	planEntry: ProjectIndexEntry;
+	incoming: string;
+	/** Where the owning project's note sits: the index for the pipeline, the in-flight map for the scan. */
+	projectPathOf: (projectId: ProjectId) => string | undefined;
+}): string {
+	const current = input.planEntry.geometrySidecarPath;
+	const projectPath =
+		input.planEntry.projectId === undefined ? undefined : input.projectPathOf(input.planEntry.projectId);
+	const derived = projectPath === undefined ? undefined : sidecarPathFor(parentOf(projectPath), input.planEntry.id);
+	if (current === undefined || input.incoming === derived) return input.incoming;
+
+	input.logger.warn(input.event, {
+		planId: input.planEntry.id,
+		path: input.incoming,
+		otherPath: current,
+		derivedPath: derived,
+		reason: 'another sidecar already maps this plan id; the mapping is unchanged',
 	});
+	return current;
 }
 
 /** Pass two: join each sidecar to its Plan entry by filename (see the header on why). */
@@ -131,8 +190,16 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 			});
 			continue;
 		}
-		warnOnDuplicateSidecar(input.logger, planEntry.geometrySidecarPath, planId, file.path);
-		entries.set(planId, { ...planEntry, geometrySidecarPath: file.path });
+		entries.set(planId, {
+			...planEntry,
+			geometrySidecarPath: sidecarMappingFor({
+				logger: input.logger,
+				event: 'persistence.index.sidecar-duplicate',
+				planEntry,
+				incoming: file.path,
+				projectPathOf: (projectId) => entries.get(projectId)?.path,
+			}),
+		});
 	}
 }
 
@@ -171,7 +238,9 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
  * literal id becomes a duplicate-id finding, which `warnOnDuplicate` already reports. A
  * third consequence follows the same shape one level down: a `.rpgeo` file has no folder
  * prefix left to bound it either, so a project folder copied wholesale as a backup carries
- * a second sidecar naming the same plan id, which `warnOnDuplicateSidecar` reports.
+ * a second sidecar naming the same plan id. That one is NOT merely reported —
+ * `sidecarMappingFor` keeps the derived path and drops the copy, because a repointed
+ * mapping is where the live plan's geometry writes go.
  *
  * Two named passes rather than one body: the sidecar join can only run once every note
  * entry exists, so the ORDER here is the contract, and it is worth being able to read.

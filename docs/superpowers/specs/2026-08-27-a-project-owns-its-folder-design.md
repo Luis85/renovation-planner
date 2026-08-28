@@ -191,6 +191,14 @@ Three consequences worth stating rather than discovering:
   is kept, for the same reason `warnOnDuplicate` keeps it for notes, but it is no longer silent:
   `warnOnDuplicateSidecar` reports it (`persistence.index.sidecar-duplicate`), found in the
   final whole-branch review rather than at the time this section was first written.
+  **Superseded on this branch, and the reason is worth carrying forward.** A post-merge review
+  found the incremental door — `VaultChangeAdapter.processSidecar` — had lost the same prefix
+  and got no diagnostic at all, and that a warning would not have been enough for either door:
+  the mapping is what every geometry WRITE resolves through, so repointing it at the copy is
+  the data loss rather than a report of one. Both doors now keep the sidecar the project folder
+  DERIVES (`sidecarMappingFor`, one function shared by the scan and the pipeline). The
+  scan-order argument that kept last-writer-wins is exactly what deriving dissolves: the derived
+  path is the same answer in either order.
 
 ## Write-time folder resolution
 

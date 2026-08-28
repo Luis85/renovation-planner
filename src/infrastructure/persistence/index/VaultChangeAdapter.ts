@@ -1,7 +1,7 @@
 import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
-import { entityRefOf, stringField } from './buildProjectIndexEntries';
+import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
@@ -205,8 +205,21 @@ export class VaultChangeAdapter {
 		}
 
 		// A sidecar appearing or changing never moves the note entry itself — only the
-		// mapping this index exists to hold.
-		this.deps.index.upsert({ ...planEntry, geometrySidecarPath: path });
+		// mapping this index exists to hold, and it only moves that when the arriving file
+		// is the one the project folder DERIVES. This used to be an unconditional repoint,
+		// which is how an in-vault backup of a project folder silently sent the live plan's
+		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
+		// carries it for the full scan too, so the two doors cannot answer differently.
+		this.deps.index.upsert({
+			...planEntry,
+			geometrySidecarPath: sidecarMappingFor({
+				logger: this.deps.logger,
+				event: 'persistence.pipeline.sidecar-duplicate',
+				planEntry,
+				incoming: path,
+				projectPathOf: (projectId) => this.deps.index.getPath(projectId),
+			}),
+		});
 	}
 
 	/**

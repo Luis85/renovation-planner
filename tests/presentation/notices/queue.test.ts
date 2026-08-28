@@ -229,4 +229,56 @@ describe('the notice queue', () => {
 		vi.advanceTimersByTime(4000);
 		expect(opened[3]?.view.message).toBe('d');
 	});
+
+	it('frees a slot when a notice was dismissed by something other than this queue', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c', 'd']) queue.push('error', message);
+		expect(opened).toHaveLength(3);
+
+		// Obsidian's own click-to-dismiss: the element goes and nothing tells us.
+		opened[0]?.handle.hide();
+
+		queue.push('error', 'e');
+		expect(opened.map((o) => o.view.message)).toContain('d');
+	});
+
+	it('frees every externally dismissed slot at once, not merely the first', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c', 'd', 'e']) queue.push('error', message);
+		expect(opened).toHaveLength(3);
+
+		// Two dismissed externally. A sweep that splices the array it is iterating skips the
+		// second, leaving it tracked as visible and promoting only one of the two held.
+		opened[0]?.handle.hide();
+		opened[1]?.handle.hide();
+		opened[0]?.callbacks.dismissed();
+
+		expect(opened.map((o) => o.view.message)).toEqual(['a', 'b', 'c', 'd', 'e']);
+	});
+
+	it('promotes on a DUPLICATE push too, not only on a new one', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c']) queue.push('error', message);
+		queue.push('warning', 'held');
+		expect(opened).toHaveLength(3);
+
+		// Dismissed with no hint delivered, then the next push happens to be a repeat.
+		opened[0]?.handle.hide();
+		queue.push('error', 'b');
+
+		expect(opened.at(-1)?.view.message).toBe('held');
+	});
+
+	it('does not wedge permanently when no dismissal hint ever arrives', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c']) queue.push('error', message);
+		for (const entry of opened) entry.handle.hide();
+
+		queue.push('error', 'after');
+		expect(opened.at(-1)?.view.message).toBe('after');
+	});
 });

@@ -35,18 +35,23 @@ gate's reach:
   the folder is read from the note's current path rather than cached. The fake vault has no
   file explorer and nothing in the suite ever moves a file out from under the plugin.
   Step 7 is the one place that property is actually looked at.
-- **`FakeVault` has already been too kind about exactly this surface twice, and this slice
-  adds a third — the fourth instance overall of the wider "a fake must not be kinder than
-  the real thing" rule this repository already tracks.** The first walkthrough of slice 5
-  found a `create` that accepted a path whose parent folder did not exist, where Obsidian
-  refuses one; slice 4's own history found a `MetadataCache` parsed synchronously where
-  Obsidian's is asynchronous. This slice's own instance: `FakeVault.getAbstractFileByPath`
+- **This slice's own `FakeVault` finding is the SIXTH recorded instance of "a fake must not
+  be kinder than the real thing, not thinner than it, and not harsher than it"** — CLAUDE.md
+  numbers five earlier ones in its Testing section (ending at "Fifth instance, and the THIRD
+  face of the rule") and records this slice's as the sixth, explicitly, at its own line 549.
+  It is on the THIN face specifically, not the same face as the two persistence-vault
+  examples the suite already carries — slice 5's `create` that accepted a path whose parent
+  folder did not exist, and slice 4's `MetadataCache` parsed synchronously where Obsidian's
+  is asynchronous, both of which are the fake being too KIND (accepting what Obsidian
+  refuses). This slice's instance is the opposite shape: `FakeVault.getAbstractFileByPath`
   answered `null` for every folder, so `freshProjectFolder`'s collision check — "does a
-  folder of this name already exist?" — could never be driven green in the suite and would
-  have done nothing in a real vault. It was found and fixed during this slice's own review
-  (commit `76cd45f`), before any human had opened Obsidian, which is the good outcome; it is
-  named here because the pattern is what to stay suspicious of, not because it is still
-  live.
+  folder of this name already exist?" — could never be driven green in the suite at all,
+  and would have done nothing in a real vault; a fake too THIN to demonstrate the behaviour,
+  not one that wrongly accepted it. It was found and fixed during this slice's own review
+  (commit `76cd45f`), before any human had opened Obsidian, which is the good outcome — its
+  blast radius was 0 tests, because nothing had shipped yet to be wrong. It is named here
+  because the pattern is what to stay suspicious of on this exact surface, not because it is
+  still live.
 - **The whole-vault scan is a real-vault measurement, and PRD §102 sets no figure to check
   it against.** `frontmatterOf` now runs for every markdown file at `onLayoutReady`, not for
   the handful that used to sit under one prefix — a `MetadataCache` map lookup plus an
@@ -71,7 +76,7 @@ gate's reach:
 | 11 | Open a large vault (hundreds to thousands of markdown notes) with the plugin installed, and note whether startup feels slower than before this slice | Record the observation — do **not** write a pass/fail threshold | `frontmatterOf` is now called for every markdown file rather than the handful under one prefix. PRD §102 names indexing time as a budget category and sets no figure, so there is nothing yet to clear — only something to watch |
 | 12 | Open Settings → Renovation Planner | The setting reads "Default projects folder", its description explains it is where a **new** project's folder is created and that an existing project keeps the folder it is already in, and the label is sentence case | `settings.project-folder.name`/`.desc` in `src/presentation/i18n/locales/en.ts` — read directly, not paraphrased |
 | 13 | Set the projects folder to a custom value, then disable and re-enable the plugin (or reload Obsidian) | The custom value is still there | `settingsFrom` still reads/writes the stored key `projectFolder` — renamed only in copy, not in `data.json` — so an old value is never silently reset to the default |
-| 14 | Point the plugin at a vault (or a folder within one) whose layout is the OLD shared shape — one `Renovation/` holding `Project.md` with `Plans/`/`Zones/` directly beside it, nothing per-project | It opens, reads and saves exactly as any other project does | The "no migration owed" claim: under the derived rule, `Renovation/` already **is** that project's folder, so the existing single-folder layout was always valid and nothing needs to move |
+| 14 | Reproduce the real pre-slice-18 layout without hand-typing any frontmatter: take one of the two projects from step 2, and in Obsidian's file explorer move its `Plans/`, `Zones/` and `Geometry/` folders **up one level**, out of the per-project subfolder and directly beside the project note — so, e.g., `Renovation/Sample renovation.md` sits next to `Renovation/Plans/`, `Renovation/Zones/`, `Renovation/Geometry/` — then delete the now-empty per-project subfolder. Reload the plugin, open that project's plan, and draw one more zone in it | The project, its plan and its pre-existing zones all still open and read correctly; the **new** zone's note lands in the flattened `Zones/` folder | The "no migration owed" claim, made concrete rather than hand-built from a guessed frontmatter shape: the actual pre-slice-18 layout was never `Renovation/Project.md` — the project note's filename is name-derived (step 3) — it was `Renovation/<Project name>.md` with `Plans/`/`Zones/`/`Geometry/` directly beside it. Reusing an already-written, schema-valid project (rather than hand-typing one) is deliberate: a hand-built `renovation-project` note needs `type: renovation-project`, `schema-version: 1` (an absent `schema-version` reads as version 0, and there is no migration step from 0 — the note would refuse to load), a non-empty `id`, a `name`, and a `status` that is one of the ten Renovation Lifecycle values (e.g. `status: idea`) — a hand-built fixture missing exactly `status` is what a prior review round on this slice actually found (see this case's report). Flattening a real note sidesteps that whole class of false refusal while still proving the folder shape, for both a READ and a fresh WRITE |
 | 15 | Switch Obsidian's language to German (Settings → General → Language) and reopen the settings pane | The projects-folder setting's name and description are in German | `settings.project-folder.name`/`.desc` are both answered in `de.ts` |
 
 ## Deliberately NOT checked

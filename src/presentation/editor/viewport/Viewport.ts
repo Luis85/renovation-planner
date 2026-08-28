@@ -214,7 +214,12 @@ export interface StageSize {
  * answer a negative zoom. The caller keeps the camera it has, which is the honest outcome
  * of "there is nowhere to put this".
  */
-export function fitViewport(bounds: BoundingBox, stage: StageSize, paddingPx: number): Viewport | null {
+export function fitViewport(
+	bounds: BoundingBox,
+	stage: StageSize,
+	paddingPx: number,
+	currentZoom: number,
+): Viewport | null {
 	const available = { width: stage.width - paddingPx * 2, height: stage.height - paddingPx * 2 };
 	if (available.width <= 0 || available.height <= 0) return null;
 
@@ -224,12 +229,18 @@ export function fitViewport(bounds: BoundingBox, stage: StageSize, paddingPx: nu
 	// MAX_ZOOM and puts the user at a millimetre-fills-the-pane camera they did not ask for.
 	// An axis with no size constrains nothing, so it is dropped from the ratio rather than
 	// divided by; with BOTH axes degenerate there is nothing to fit at all and the camera
-	// keeps its current zoom, merely centring on the point.
+	// keeps its CURRENT zoom, merely centring on the point.
+	//
+	// That last clause is why `currentZoom` is a parameter. It read `DEFAULT_ZOOM` for a
+	// while under this same sentence, and `DEFAULT_ZOOM` is `0.1` — the camera a freshly
+	// opened editor starts at, which has nothing to do with a fit. So framing a single
+	// point-sized zone at 5x threw the user's zoom away and dropped them to a tenth, which
+	// is not "there is nothing to fit" but a jump they never asked for.
 	const ratios = [
 		extent.width > 0 ? available.width / extent.width : null,
 		extent.height > 0 ? available.height / extent.height : null,
 	].filter((ratio): ratio is number => ratio !== null);
-	const zoom = clampZoom(ratios.length === 0 ? DEFAULT_ZOOM : Math.min(...ratios));
+	const zoom = clampZoom(ratios.length === 0 ? currentZoom : Math.min(...ratios));
 
 	const centre = { x: (bounds.min.x + bounds.max.x) / 2, y: (bounds.min.y + bounds.max.y) / 2 };
 	return {

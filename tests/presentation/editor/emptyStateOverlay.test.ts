@@ -30,6 +30,13 @@ const WITH_BACKGROUND = {
 
 const overlay = (mounted: EditorHarness) => mounted.wrapper.find('.rp-empty-state');
 
+/** One pointer event, spelled out so a press and its release are visibly the same gesture. */
+function press(element: HTMLElement, type: string, x: number, y: number): void {
+	element.dispatchEvent(
+		new PointerEvent(type, { button: 0, pointerId: 1, clientX: x, clientY: y, bubbles: true }),
+	);
+}
+
 describe('the plan editor empty states', () => {
 	it('keeps the canvas mounted while an empty state is showing', async () => {
 		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: [] });
@@ -107,6 +114,45 @@ describe('the plan editor empty states', () => {
 		expect(pressed.defaultPrevented).toBe(false);
 		// And the camera did not arm behind it, which is the other half of the same mistake.
 		expect(harness.wrapper.find('.rp-plan-canvas').classes()).not.toContain('rp-plan-canvas-armed');
+	});
+
+	it('leaves a PRESS on the noZones action to the button, rather than panning the camera', async () => {
+		// The pointer twin of the case above, and it outlived it by a round: the keyboard half
+		// was fixed with `isCanvasKey` while presses went on bubbling. `.rp-empty-state__action`
+		// re-enables `pointer-events` against the overlay's own `none`, so it is a real pointer
+		// target sitting over the stage — a press on it reached the canvas and began a camera
+		// pan under a user who was only clicking the button. Measured before the fix: the drag
+		// below moved `pan` from -480 to -1280.
+		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
+		const camera = useEditorStore(harness.pinia);
+		const button = overlay(harness).find('button.rp-empty-state__action').element as HTMLButtonElement;
+		const before = { ...camera.viewport.pan };
+
+		press(button, 'pointerdown', 100, 100);
+		press(button, 'pointermove', 180, 180);
+		press(button, 'pointerup', 180, 180);
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(before);
+	});
+
+	it('still ends a gesture the STAGE started, so swallowing the press costs no release', async () => {
+		// The other half of "a swallowed press owes a swallowed release", from the opposite
+		// direction: the overlay must not swallow the end of a gesture it never began. A real
+		// browser retargets a captured pointer to the stage, so this cannot arise there — which
+		// is a reason for the routing to be right anyway, not a reason to leave it untested.
+		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
+		const camera = useEditorStore(harness.pinia);
+		const canvas = harness.wrapper.find('.rp-plan-canvas').element as HTMLElement;
+
+		press(canvas, 'pointerdown', 100, 100);
+		press(canvas, 'pointermove', 140, 140);
+		press(canvas, 'pointerup', 140, 140);
+		await settle();
+
+		// The drag committed and nothing is still holding the camera.
+		expect(camera.dragState).toBeNull();
+		expect(camera.viewport.pan).not.toEqual({ x: -480, y: -480 });
 	});
 
 	/**

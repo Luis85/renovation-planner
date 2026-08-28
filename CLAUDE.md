@@ -498,6 +498,45 @@ check. Rules that came out of it:
   the physical key; the `shiftKey` test stays BESIDE it, because `code` alone would fire on a
   bare `1`. The two original cases had passed while the shortcut was dead, because they sent
   only `key` and no browser does — a fake thinner than the real thing, again.
+- **A guard put at the keyboard door is owed at the pointer door, and the second one cannot
+  be written the same way.** `isCanvasKey` (`event.target === container`) fixed the empty
+  state's action button being unable to take a Space press — and left the PRESS bubbling for
+  another round, so clicking that button began a camera pan under the user (measured: `pan`
+  from -480 to -1280). The same test could not be reused: a key goes to whatever has focus,
+  while a press targets the Konva canvas the stage draws into and never the container, so
+  `event.target === container` is false for every real gesture. The rule is STRUCTURAL
+  instead — the overlay slot is wrapped in a `div` carrying `@pointerdown.stop`,
+  `@pointerup.stop` and `@pointercancel.stop` (`display: contents`, so it generates no box
+  and the overlay lays out exactly as before) — which holds for whatever the slot holds next
+  and cannot be forgotten at a sixth pointer door the way a predicate can. Both ends, never
+  one: a swallowed press owes a swallowed release. The `.stop` fires at the BUBBLE phase, so
+  the overlay's own controls have already had the event and only the canvas behind them is
+  kept out of it.
+- **A record of what the HARDWARE is doing may not be gated on a policy about what the
+  software will allow.** `spaceHeld` is "the key is physically down"; the camera lock was
+  allowed to skip writing it, so a space pressed DURING a tool drag or a middle-button pan
+  was dropped — and no second non-repeat keydown is ever coming for a key already held. The
+  user released the other gesture still holding space over a machine that thought it was up,
+  and their next primary drag went to the tool instead of the camera. The refusal belongs at
+  `PanOverride.pointerDown`, the one place a gesture is actually CLAIMED, where it already
+  was. Same lesson as `gestureInFlight` one round earlier, reached from the opposite side:
+  not "state the rule again at this door" but "notice this door was never the rule's place".
+- **A docblock naming its own callers is a fact about the ROUTING, and routing is what a
+  review round changes.** Three went stale in one commit's wake and none of them failed
+  anything: `abandonGesture` said `pointerleave` was "the caller" after `pointercancel`
+  became a second one, `cancel` still claimed `pointercancel` after that call moved away
+  from it, and `EditorStore.abandonPan` listed `pointerleave` while `onPointerLeave`
+  deliberately calls `endPan` and says so three lines from it — two comments contradicting
+  each other about one path. The "only place X" rule in the Claims section is the same
+  instrument; a caller LIST needs the same grep, in the edit that moves a call.
+- **A comment promising behaviour the signature cannot deliver.** `fitViewport`'s said a
+  doubly-degenerate extent "keeps its current zoom"; it answered `DEFAULT_ZOOM` — `0.1`, the
+  camera a freshly opened editor starts at — and the function never received the current
+  viewport at all, so it could not have done otherwise. `Shift+2` on a point-sized selection
+  at 5x therefore dropped the user to a tenth. Fixed by making the code true rather than the
+  sentence narrower, since the promised behaviour was the right one and the store already
+  held the number: the caller passes `currentZoom`, and it takes the same `clampZoom`
+  everything else there does rather than being trusted.
 - **A private TypeScript field is not private at runtime, so a test can pass against nothing.**
   The first five `ToolManager.gestureInFlight` cases went green immediately — `tests/` is transpiled
   without type checking, so they were reading the private field directly and could not tell a

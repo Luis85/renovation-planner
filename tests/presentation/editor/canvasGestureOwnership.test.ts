@@ -505,3 +505,69 @@ describe('the space bar autorepeating through a long pan', () => {
 		harness.unmount();
 	});
 });
+
+/**
+ * `spaceHeld` is a record of the PHYSICAL key, and the camera lock had been allowed to skip
+ * writing it. Both cases below are the same defect from the two gestures that can be running
+ * when the key goes down, and both end the other gesture to show the damage outliving it: no
+ * second non-repeat keydown is ever coming for a key already held, so the machine believed
+ * the key was up for as long as the user kept holding it.
+ */
+describe('space pressed while another gesture is already running', () => {
+	it('still arms the camera once a TOOL drag ends', async () => {
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 50, 50);
+		pointer(canvas, 'pointermove', 60, 60);
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+		pointer(canvas, 'pointerup', 60, 60);
+		await settle();
+
+		expect(cursorClasses(canvas)).toContain('rp-plan-canvas-armed');
+		harness.unmount();
+	});
+
+	it('still arms the camera once a MIDDLE-BUTTON pan ends', async () => {
+		// Codex's own framing of the finding, kept as its own case because the two gestures
+		// reach the lock by different routes — a tool's in-flight flag, and the store's drag.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 50, 50, 1);
+		pointer(canvas, 'pointermove', 60, 60, 1);
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+		pointer(canvas, 'pointerup', 60, 60, 1);
+		await settle();
+
+		// Armed, not idle: the next primary drag pans instead of reaching the active tool.
+		expect(cursorClasses(canvas)).toContain('rp-plan-canvas-armed');
+		harness.unmount();
+	});
+
+	it('does not let that arming MOVE the camera while the other gesture still runs', async () => {
+		// The reason the lock was put at the keydown in the first place, kept as a case so the
+		// fix cannot be read as having dropped the protection. It moved to the one place a
+		// gesture is actually claimed — `PanOverride.pointerDown` — which is where it belongs.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 50, 50);
+		pointer(canvas, 'pointermove', 60, 60);
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+		const held = { ...camera.viewport.pan };
+		// A second pointer pressing while the tool drag runs must claim nothing.
+		pointer(canvas, 'pointerdown', 200, 200, 0, 2);
+		pointer(canvas, 'pointermove', 400, 400, 0, 2);
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(held);
+		harness.unmount();
+	});
+});

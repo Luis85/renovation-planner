@@ -145,8 +145,14 @@ export const useEditorStore = defineStore('editor', () => {
 	}
 
 	/**
-	 * The drag is over whoever owned it — `pointercancel`, `pointerleave` and focus loss, none
-	 * of which name a pointer.
+	 * The drag is over whoever owned it — `pointercancel` and focus loss, neither of which
+	 * names a pointer worth trusting.
+	 *
+	 * **`pointerleave` is deliberately NOT a caller**, and this used to list it. That handler
+	 * calls `endPan(event.pointerId)` instead: a leave DOES carry an identity, so it can
+	 * refuse one from a pointer that owns nothing rather than abandoning a drag the owner's
+	 * finger is still making. The comment there says so, and the two contradicted each other
+	 * about the same path until this one was corrected.
 	 *
 	 * Separate from `endPan` rather than reached by omitting its argument, so that no caller
 	 * can get "end whatever is running" by ACCIDENT, which is precisely what `endPan` was just
@@ -180,7 +186,10 @@ export const useEditorStore = defineStore('editor', () => {
 	 * already has is the honest outcome, where writing `null` through would blank the view.
 	 */
 	function fitTo(bounds: BoundingBox, stage: StageSize, paddingPx = FIT_PADDING_PX): void {
-		const fitted = fitViewport(bounds, stage, paddingPx);
+		// The current zoom goes IN because a doubly-degenerate extent — a zone reduced to a
+		// point — has nothing to fit and keeps the camera the user has, centring on it. The
+		// store is what knows that zoom; a fit computed without it can only invent one.
+		const fitted = fitViewport(bounds, stage, paddingPx, viewport.value.zoom);
 		if (fitted !== null) viewport.value = fitted;
 	}
 

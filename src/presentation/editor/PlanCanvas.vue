@@ -263,9 +263,17 @@ function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointer
 	};
 }
 
-// Primary button only, in BOTH directions and in both modes: the middle button is
-// paste-on-Linux and the right one is the context menu, and claiming either would take a
-// gesture the host owns.
+// Primary button only, in BOTH directions and in both modes — the filter for the TOOL and
+// CAMERA-MODE paths, which is all it has ever been asked at.
+//
+// It used to justify itself by saying the middle button is paste-on-Linux and the right one
+// the context menu, "and claiming either would take a gesture the host owns". Half of that
+// is now false in this very file: the pan override CLAIMS the middle button, and
+// `onPointerDown` asks it before reaching this filter for exactly that reason. X11's
+// primary-selection paste is a TEXT INPUT gesture and a canvas is not one; Obsidian's own
+// Canvas documents middle-drag as its pan. The right button stays unclaimed, and that half
+// of the reason survives: it pans in Obsidian Canvas on Windows and not on macOS, because
+// macOS fires `contextmenu` on mousedown where Windows fires it on mouseup.
 //
 // Down and up take the SAME test on purpose. A mouse shares one `pointerId` across its
 // buttons, so filtering `pointerdown` while forwarding every `pointerup` handed tools a
@@ -517,9 +525,21 @@ function onKeyDown(event: KeyboardEvent): void {
 		// repeat through for the length of the pan, scrolling the editor leaf out from under the
 		// plan — which is what putting the lock above this branch quietly did.
 		event.preventDefault();
-		// Arming is what the lock refuses: `armSpace` is idempotent, so the repeat filter is
-		// belt and braces beside it.
-		if (event.repeat || gestureInFlight()) return;
+		// **`spaceHeld` is a record of the PHYSICAL key, so nothing conditional may skip it.**
+		// The camera lock used to sit here too, and that made the record disagree with the
+		// hand: a space pressed DURING a tool drag or a middle-button pan was dropped, and no
+		// second non-repeat keydown is ever coming for a key that is already down — so the user
+		// released the other gesture still holding space over a machine that thought it was up,
+		// and their next primary drag went to the tool instead of the camera.
+		//
+		// The refusal belongs at `PanOverride.pointerDown`, which is the one place a gesture is
+		// actually CLAIMED, and it already refuses there — the same "one function nothing can
+		// restate" this file reached for `gestureInFlight` itself. Arming moves no camera; it
+		// only says what the keyboard is doing.
+		//
+		// `armSpace` is idempotent, so the repeat filter is belt and braces — it is here to
+		// spare `syncPanPhase` an OS-rate call, not to hold the state together.
+		if (event.repeat) return;
 		panOverride.armSpace();
 		syncPanPhase();
 		return;
@@ -625,7 +645,39 @@ onBeforeUnmount(() => {
 			is already `position: relative` (`styles/editor.css`), so an absolutely positioned
 			overlay resolves against the canvas region and not against the shell — which is
 			what keeps it off the layers panel and the inspector.
+
+			**The `.stop` modifiers are the pointer half of `isCanvasKey`**, and they are
+			expressed HERE rather than as a predicate at each handler on purpose. `keydown`
+			could ask `event.target === container` because a key goes to whatever has focus;
+			a press cannot, because its target is the Konva canvas the stage draws into and
+			never this div. So the rule is structural instead: the overlay region is simply
+			not part of the canvas's gesture surface, which stays true for whatever the slot
+			holds next and cannot be forgotten at a sixth pointer door the way a predicate
+			can.
+
+			`planEditor.noZones` carries an action button, and `.rp-empty-state__action`
+			re-enables `pointer-events` against the overlay's own `none` — so it is a real
+			pointer target sitting over the stage, and its press bubbled here and started a
+			camera pan under the user while they were merely clicking the button. The same
+			class as the `keydown` defect one round earlier, left unfixed for pointers.
+
+			Both ends, never one: a swallowed press owes a swallowed release, or the active
+			tool gets a release with no matching press — the grammar defect this file has
+			already recorded three times. A gesture that STARTED on the stage is unaffected,
+			because `onPointerDown` captures the pointer, and a captured event retargets to
+			the stage however far the drag wanders over this region.
+
+			The modifiers stop propagation at the BUBBLE phase, so the overlay's own controls
+			have already had the event: their handlers run untouched and only the canvas
+			behind them is kept out of it.
 		-->
-		<slot />
+		<div
+			class="rp-plan-overlay"
+			@pointerdown.stop
+			@pointerup.stop
+			@pointercancel.stop
+		>
+			<slot />
+		</div>
 	</div>
 </template>

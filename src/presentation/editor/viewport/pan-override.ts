@@ -156,7 +156,12 @@ export class PanOverride {
 
 	/**
 	 * End a running pan that no release will ever arrive for, keeping a held space bar.
-	 * `pointerleave` is the caller: the pointer is simply gone and names no button.
+	 *
+	 * TWO callers, both in `PlanCanvas.vue`: `pointerleave` (the pointer walked out of the
+	 * pane) and `pointercancel` (the OS took it away). Neither names a button, and both leave
+	 * the keyboard alone — a space bar still physically held is still held, so the canvas
+	 * returns to `armed` and the user's next press pans without a second keypress. `cancel`
+	 * is the one that also drops the key, and focus loss is its only caller.
 	 *
 	 * Separate from `pointerUp` rather than reached by omitting its argument, so that no
 	 * caller can get "end whatever is running" by ACCIDENT — which is precisely the behaviour
@@ -171,10 +176,12 @@ export class PanOverride {
 	}
 
 	/**
-	 * Everything abandoned: `pointercancel` (the OS took the pointer, and no `pointerup` will
-	 * ever arrive) and the canvas losing focus.
+	 * Everything abandoned, including the held space bar — which is why `onBlur` is its ONE
+	 * caller. `pointercancel` used to be the other, and is not: a cancellation names a
+	 * pointer, so it abandons that pointer's pan through `abandonGesture` and leaves a key
+	 * the user is still holding alone.
 	 *
-	 * Focus loss has to drop the HELD SPACE too, and that is the whole reason this clears
+	 * Focus loss has to drop the HELD SPACE, and that is the whole reason this clears
 	 * both fields rather than only the drag. The canvas listens for keys on itself rather
 	 * than on `document` — so that a plan editor in one split leaf cannot swallow the space
 	 * bar of a note being edited in another — which means a user who alt-tabs away mid-hold

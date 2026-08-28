@@ -196,9 +196,11 @@ describe('fitViewport', () => {
 	/** A pane, and a 4000 x 2000 mm plan sitting away from the world origin. */
 	const STAGE = { width: 800, height: 600 };
 	const BOUNDS = { min: { x: 1000, y: 500 }, max: { x: 5000, y: 2500 } };
+	/** Whatever camera the user is already at — only a doubly-degenerate extent reads it. */
+	const CURRENT_ZOOM = 5;
 
 	it('puts the whole extent inside the pane', () => {
-		const fitted = fitViewport(BOUNDS, STAGE, 0);
+		const fitted = fitViewport(BOUNDS, STAGE, 0, CURRENT_ZOOM);
 
 		const topLeft = onScreen(fitted, BOUNDS.min);
 		const bottomRight = onScreen(fitted, BOUNDS.max);
@@ -209,7 +211,7 @@ describe('fitViewport', () => {
 	});
 
 	it('centres it, rather than parking it in a corner', () => {
-		const fitted = fitViewport(BOUNDS, STAGE, 0);
+		const fitted = fitViewport(BOUNDS, STAGE, 0, CURRENT_ZOOM);
 
 		const centre = onScreen(fitted, { x: 3000, y: 1500 });
 		expect(centre.x).toBeCloseTo(STAGE.width / 2, 9);
@@ -219,12 +221,12 @@ describe('fitViewport', () => {
 	it('fits the TIGHTER axis, so the other one gains slack rather than overflowing', () => {
 		// 4000 x 2000 mm into 800 x 600 px: 0.2 across, 0.3 down. Taking the larger would put
 		// 4000 mm into 800 px at 0.3 and hang a third of the plan off both sides.
-		expect(fitViewport(BOUNDS, STAGE, 0).zoom).toBeCloseTo(0.2, 9);
+		expect(fitViewport(BOUNDS, STAGE, 0, CURRENT_ZOOM).zoom).toBeCloseTo(0.2, 9);
 	});
 
 	it('reserves the padding on every side', () => {
 		// 40 px of padding leaves 720 x 520 for the plan: 0.18 across, 0.26 down.
-		const fitted = fitViewport(BOUNDS, STAGE, 40);
+		const fitted = fitViewport(BOUNDS, STAGE, 40, CURRENT_ZOOM);
 
 		expect(fitted.zoom).toBeCloseTo(0.18, 9);
 		expect(onScreen(fitted, BOUNDS.min).x).toBeCloseTo(40, 9);
@@ -235,7 +237,7 @@ describe('fitViewport', () => {
 		// The naive form answers `Infinity`, and a camera at `Infinity` renders nothing at all.
 		const point = { min: { x: 250, y: 250 }, max: { x: 250, y: 250 } };
 
-		const fitted = fitViewport(point, STAGE, 0);
+		const fitted = fitViewport(point, STAGE, 0, CURRENT_ZOOM);
 
 		expect(Number.isFinite(fitted.zoom)).toBe(true);
 		expect(fitted.zoom).toBeLessThanOrEqual(MAX_ZOOM);
@@ -243,22 +245,42 @@ describe('fitViewport', () => {
 		expect(onScreen(fitted, point.min).y).toBeCloseTo(STAGE.height / 2, 9);
 	});
 
+	it('keeps the CURRENT zoom for that extent, rather than snapping to the opening camera', () => {
+		// With both axes degenerate there is no ratio to take, and the fallback used to be
+		// `DEFAULT_ZOOM` — `0.1`, the camera a freshly opened editor starts at. So framing a
+		// point-sized selection at 5x dropped the user to a tenth: not "nothing to fit" but a
+		// jump they never asked for, under a comment that had promised the opposite all along.
+		const point = { min: { x: 250, y: 250 }, max: { x: 250, y: 250 } };
+
+		expect(fitViewport(point, STAGE, 0, CURRENT_ZOOM).zoom).toBe(CURRENT_ZOOM);
+		expect(fitViewport(point, STAGE, 0, 2).zoom).toBe(2);
+	});
+
+	it('still clamps that zoom, so an out-of-range camera cannot be carried through', () => {
+		// The fallback is the caller's number rather than a constant now, so it takes the same
+		// clamp everything else here does instead of trusting what it was handed.
+		const point = { min: { x: 250, y: 250 }, max: { x: 250, y: 250 } };
+
+		expect(fitViewport(point, STAGE, 0, 1e9).zoom).toBe(MAX_ZOOM);
+		expect(fitViewport(point, STAGE, 0, 0).zoom).toBe(MIN_ZOOM);
+	});
+
 	it('clamps to the camera bounds, so a vast plan cannot fit past the floor', () => {
 		const vast = { min: { x: 0, y: 0 }, max: { x: 1e9, y: 1e9 } };
 
-		expect(fitViewport(vast, STAGE, 0).zoom).toBe(MIN_ZOOM);
+		expect(fitViewport(vast, STAGE, 0, CURRENT_ZOOM).zoom).toBe(MIN_ZOOM);
 	});
 
 	it('refuses a pane with no area rather than answering a camera nothing can draw', () => {
 		// The stage is measured from a container that is 0 x 0 until layout runs, so this is
 		// an ordinary early call and not a programming error — `null` lets the caller keep
 		// the camera it has.
-		expect(fitViewport(BOUNDS, { width: 0, height: 600 }, 0)).toBeNull();
+		expect(fitViewport(BOUNDS, { width: 0, height: 600 }, 0, CURRENT_ZOOM)).toBeNull();
 	});
 
 	it('refuses padding that leaves no room, rather than inverting the fit', () => {
 		// 300 px of padding on a 600 px-tall pane leaves nothing. A signed width would fold
 		// the camera inside out and answer a negative zoom.
-		expect(fitViewport(BOUNDS, STAGE, 300)).toBeNull();
+		expect(fitViewport(BOUNDS, STAGE, 300, CURRENT_ZOOM)).toBeNull();
 	});
 });

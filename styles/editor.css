@@ -315,6 +315,23 @@
 	   pointer has other causes — but a gesture that is never stolen is the better fix. */
 	touch-action: none;
 }
+
+/*
+ * The wrapper `PlanCanvas.vue` puts around its overlay slot, whose whole job is in the
+ * TEMPLATE — the `.stop` pointer modifiers that keep a press on an overlay control from
+ * bubbling into the canvas and starting a camera pan under the user.
+ *
+ * `display: contents` because it must earn its keep in the DOM tree and nowhere else: it
+ * generates no box, so the overlay it wraps still resolves its `position: absolute` against
+ * `.rp-plan-canvas` above and lays out exactly as it did before the wrapper existed. A
+ * static `div` would also have collapsed to zero height here, but only by accident of its
+ * children being absolutely positioned — this says the intent instead, and keeps saying it
+ * if the slot is ever given something in normal flow.
+ */
+.rp-plan-overlay {
+	display: contents;
+}
+
 .rp-editor-canvas-message {
 	display: flex;
 	flex: 1;

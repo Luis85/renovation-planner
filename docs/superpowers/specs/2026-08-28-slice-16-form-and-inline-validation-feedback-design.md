@@ -92,7 +92,11 @@ The clause is narrowed to that context rather than deleted.
 Without it the slice creates something the user cannot see: `emptyStateKey` goes null the
 moment a project exists, and `ViewRoot` renders nothing. One `ProjectList.vue`, a row per
 `ProjectSummaryDto` from the `listProjects` query that already returns them, each row opening
-that project's `Project.md`. It sits **beside** the `.rp-view-notice` for unreadable projects,
+its project through `RenovationProjectDeps.openProject`, which resolves the note's path
+through the Project Index — the DTO carries `id`, `name` and `status` and no path, and a
+project note is neither reliably named `Project.md` nor reliably where it was created. The
+list header carries a New project button, because the empty state's one unmounts the moment a
+project exists (finding 3). It sits **beside** the `.rp-view-notice` for unreadable projects,
 never instead of it — slice 14's rule that an empty list with `unreadable > 0` is a vault with
 projects this build could not read.
 
@@ -155,6 +159,93 @@ was doing something the plugin genuinely could not do itself.
 
 **One measurement outlives the refusal:** the bundle baseline is **657.09 kB**, not the
 "about 60 KB to 488 KB" `CLAUDE.md` records. That figure is stale and is corrected.
+
+## Findings from the first review, and what changed
+
+An automated review of the first draft raised five findings. Each was verified against the
+code rather than accepted; three were real and changed the design, and two were accurate
+about this document while already being resolved in the implementation plan. Verifying the
+fifth turned up a sixth, in the plan's own fix for it.
+
+### 1. A cancel during an in-flight write lies to the user (real; changes the design)
+
+Decision 3 gives `Escape` to the dialog and the form owns its dispatch (Architecture,
+consumer B). Those two together leave a hole neither has alone: while `CreateProjectCommand`
+is awaiting its repository write, `FormDialog`'s Cancel button and `DialogHost`'s `Escape`
+both resolve the dialog and unmount the form — and **neither cancels the command**. The write
+lands afterwards. The user is told the project was abandoned and gets one anyway.
+
+Measured: there is no `busy`, `pending` or `submitting` concept anywhere in
+`presentation/dialogs/`. The host cannot know, because nothing tells it.
+
+**The framework gains one optional field.** `FormDescriptor` takes `busy?: Readonly<Ref<boolean>>`;
+`DialogHost` ignores `Escape` and `FormDialog` disables Cancel while it is `true`. The form
+passes `useFormCommit`'s own `submitting`, so the two cannot drift — there is no second flag
+to keep in step. This widens slice 16 into slice 15's framework, which is a real cost and is
+the smaller one: the alternative is a dialog kind that owns a dispatch the container is not
+allowed to know is running.
+
+It stays `Escape`-cancellable at every other moment, so decision 3 is narrowed rather than
+reversed: `Escape` cancels the dialog, EXCEPT while a write it started is still in flight.
+
+### 2. A row cannot open a note from a `ProjectSummaryDto` (accurate here; already in the plan)
+
+The DTO carries `id`, `name` and `status` — no path — and a project note is neither reliably
+named `Project.md` nor reliably where it was created, since ADR-0013 derives a project's
+folder from wherever its note currently sits. This document said "each row opening that
+project's `Project.md`" and named no mechanism.
+
+The plan already resolves it: `RenovationProjectDeps` gains
+`openProject: (projectId: string) => Promise<void>`, composed at the root, which resolves the
+path through the Project Index — the same lookup `getById` and `delete` take. The sentence in
+"The four decisions" is corrected to say so rather than implying the DTO carries a path.
+
+### 3. There is no way to create a SECOND project (real; changes the design)
+
+`emptyStateKey` goes `null` once a project exists, so the empty state and its button unmount,
+and `ProjectList` holds only rows. A repository-wide search finds no other entry point:
+`create-sample-project` is scaffolding that seeds a whole demo, not a creation affordance.
+A user could create one project and never another without first deleting it.
+
+**The populated view keeps a New project affordance** — a button in the list's own header,
+opening the same dialog through the same handler. One action, every input: the empty state's
+button and this one call ONE function, never two that each decide for themselves.
+
+### 4. Half a cross-field error survives its own correction (real; changes the design)
+
+`project.target-before-start` is stored under both `start` and `targetCompletion`. `setField`
+clears only the key it wrote, so correcting the pair by editing `start` leaves the identical
+message under `targetCompletion`, describing a pair that may now be valid — the exact untruth
+`setField`'s error-clearing exists to prevent, reintroduced by the array form this slice added
+to prove.
+
+**A routed error is cleared as a UNIT.** `useFormCommit` remembers which fields shared one
+routed error and clears all of them when any one changes. A per-key `Map` cannot express that,
+which is why this is a shape change and not a line.
+
+### 5. `useFieldCommit` and the Inspector's one seam (accurate here; already in the plan)
+
+`runtime.commitEdit` returns `boolean` and consumes the `AppError` on the way past, so a
+composable given `commitEdit` could never route an error inline — and one that built its own
+command would be a second construction path around `InspectorStore.commit`/`toCommand`.
+
+The plan already resolves it and this document should have: the row takes a `commit` prop
+bound to `inspector.commit`, which returns `Promise<Result<void, AppError>>`, and
+`useFieldCommit`'s `buildCommand` produces an `execute` that calls it. `toCommand` still
+builds every command; `history.run` delegates to `execute` because the reversible wrapping and
+the history entry belong to the seam above. No second dispatch path exists.
+
+### 6. That fix drops the fault guard (found while verifying 5; changes the plan)
+
+`commitEdit` wraps its dispatch in `reportFault`, and binding the row straight to
+`inspector.commit` loses it. Every dispatch here is bound to a click handler that discards its
+promise, so a THROWN fault — SDD §65 reserves throws for technical faults, and the editor's
+dispatcher re-throws them — would become an unhandled rejection reaching nobody, with the
+control silently dead afterwards. That is the precise defect `reportFault` exists to prevent.
+
+The `commit` prop the panel supplies is fault-guarded, mapping a thrown cause to the same
+coded refusal the guarded services produce, so the row sees a failed `Result` either way and
+the composable's error path is the only path.
 
 ## Architecture
 

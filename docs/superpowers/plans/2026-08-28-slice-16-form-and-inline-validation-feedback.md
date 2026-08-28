@@ -585,7 +585,26 @@ describe('useFormCommit', () => {
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
 
-	it('leaves another field’s error untouched when one field is edited', async () => {
+	it('retires a CROSS-FIELD error from both of its fields when either one is edited', async () => {
+		// `project.target-before-start` is about the PAIR. Clearing only the edited half would
+		// leave a message describing a pair that may now be valid — the untruth setField's
+		// clearing exists to prevent, reintroduced by the array form this slice added to prove.
+		const map: FieldErrorMap<NewProject> = { 'project.target-before-start': ['name', 'status'] };
+		const form = useFormCommit<NewProject, { id: string }>({
+			initial: { name: '', status: 'IDEA' },
+			dispatch: async () => err(validation('project.target-before-start')),
+			errorMap: map,
+			toUserMessage: say,
+		});
+		await form.submit();
+		expect(form.fieldErrors.value.size).toBe(2);
+
+		form.setField('name', 'Kitchen');
+
+		expect(form.fieldErrors.value.size).toBe(0);
+	});
+
+	it('leaves an unrelated field’s error untouched when one field is edited', async () => {
 		const dispatch = vi.fn(async () => err(validation('project.empty-name')));
 		const form = harness(dispatch);
 		await form.submit();
@@ -687,8 +706,13 @@ export interface UseFormCommit<TInput> {
 	readonly fieldErrors: Readonly<Ref<ReadonlyMap<keyof TInput, string>>>;
 	readonly banner: Readonly<Ref<string | null>>;
 	readonly submitting: Readonly<Ref<boolean>>;
-	/** Writes the field AND clears its error: a message about a value the user has since
-	 *  corrected is telling them something untrue. */
+	/**
+	 * Writes the field AND clears the routed error it belongs to — every field of it, not
+	 * just this key. A cross-field error (`project.target-before-start` sits under `start`
+	 * AND `targetCompletion`) describes a PAIR, so correcting either one retires the whole
+	 * claim: leaving the twin behind would display a stale message about a pair that may now
+	 * be valid, which is the exact untruth this clearing exists to prevent.
+	 */
 	setField<K extends keyof TInput>(key: K, value: TInput[K]): void;
 	/** `true` only on an ok `Result` — the caller closes the dialog on that and nothing else. */
 	submit(): Promise<boolean>;
@@ -705,11 +729,21 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 	const banner = ref<string | null>(null);
 	const submitting = ref(false);
 
+	/**
+	 * Which fields shared one routed error, so a cross-field message can be retired as the
+	 * unit it is. A per-key Map cannot express "these two are one claim" — it only knows that
+	 * two keys happen to hold equal strings, which is not the same thing and would collapse
+	 * two genuinely separate errors that read alike.
+	 */
+	let routedGroup: readonly (keyof TInput)[] = [];
+
 	function setField<K extends keyof TInput>(key: K, value: TInput[K]): void {
 		values.value = { ...values.value, [key]: value };
 		if (!fieldErrors.value.has(key)) return;
 		const next = new Map(fieldErrors.value);
-		next.delete(key);
+		// The whole group, not just this key: correcting either half of a pair retires the
+		// claim about the pair.
+		for (const field of routedGroup.includes(key) ? routedGroup : [key]) next.delete(field);
 		fieldErrors.value = next;
 	}
 
@@ -717,6 +751,7 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 		// Cleared BEFORE the dispatch, so a stale message from the previous submit cannot
 		// outlive the submit that fixed it.
 		fieldErrors.value = new Map();
+		routedGroup = [];
 		banner.value = null;
 		submitting.value = true;
 		try {
@@ -730,6 +765,7 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 			}
 			const next = new Map<keyof TInput, string>();
 			for (const field of routed.fields) next.set(field, routed.message);
+			routedGroup = routed.fields;
 			fieldErrors.value = next;
 			return false;
 		} finally {
@@ -1220,8 +1256,9 @@ git commit -m "feat: the project view gets a guarded write side and a way to ope
 **Files:**
 - Create: `src/presentation/views/NewProjectForm.vue`
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
-- Modify: `src/presentation/dialogs/dialog-store.ts` (correct `FormDialogResult`'s docblock)
-- Test: `tests/presentation/views/newProjectForm.test.ts`
+- Modify: `src/presentation/dialogs/dialog-store.ts` (`FormDescriptor.busy`, and `FormDialogResult`'s docblock)
+- Modify: `src/presentation/dialogs/DialogHost.vue`, `src/presentation/dialogs/FormDialog.vue` (honour `busy`)
+- Test: `tests/presentation/views/newProjectForm.test.ts`, `tests/presentation/dialogs/formBusy.test.ts`
 
 **Interfaces:**
 - Consumes: `useFormCommit` (Task 3), `FieldError` / `FormBanner` (Task 2), `RenovationProjectCommandServices` (Task 5), `FormDescriptor` from `src/presentation/dialogs/dialog-store.ts`.
@@ -1259,6 +1296,8 @@ To `src/presentation/i18n/locales/en.ts`, before the closing `} as const;`:
 'form.new-project.start': 'Start',
 'form.new-project.target-completion': 'Target completion',
 'empty.project.no-projects.action': 'Create a project',
+'view.project.list-title': 'Renovation projects',
+'view.project.create': 'New project',
 'error.project.empty-name': 'A project needs a name.',
 'error.project.unknown-status': 'Choose a status from the list.',
 'error.project.target-before-start': 'Target completion must be on or after the start date.',
@@ -1380,7 +1419,71 @@ literal.
 Emit `submit` only when `await form.submit()` resolves `true`. Do not close, reset, or clear
 anything on `false`.
 
-- [ ] **Step 5: Correct the dialog docblock**
+- [ ] **Step 5: Close the cancel-during-write hole (`busy`)**
+
+**The finding, verified:** while `CreateProjectCommand` awaits its write, `FormDialog`'s Cancel and `DialogHost`'s `Escape` both resolve the dialog and unmount the form, and **neither cancels the command**. The write lands afterwards: the user is told the project was abandoned and gets one anyway. Measured — there is no `busy`, `pending` or `submitting` concept anywhere in `presentation/dialogs/`, so the host cannot know, because nothing tells it.
+
+This widens slice 16 into slice 15's framework by exactly one optional field. That is a real cost and the smaller one: the alternative is a dialog kind owning a dispatch the container is forbidden to know is running.
+
+In `dialog-store.ts`:
+
+```typescript
+export interface FormDescriptor {
+	readonly kind: 'form';
+	readonly title: string;
+	readonly component: Component;
+	readonly props?: Readonly<Record<string, unknown>>;
+	/**
+	 * True while the form has a write in flight. The framework does not START one — a form
+	 * kind may own its dispatch (see `FormDialogResult`) — so this is the only way the
+	 * container can learn that cancelling now would abandon a write it cannot stop.
+	 *
+	 * The form passes its own `useFormCommit().submitting` straight through, so there is no
+	 * second flag to keep in step and the two cannot drift.
+	 */
+	readonly busy?: Readonly<Ref<boolean>>;
+}
+```
+
+In `DialogHost.vue`'s `onKeydown`, return early on `Escape` while the current descriptor is a form whose `busy` is true, and pass the same flag to `FormDialog` so its Cancel button is `:disabled`. **Still call `preventDefault()`** — the key is handled here whether or not it acts, and letting it fall through to Obsidian's own keymap mid-write is a second surprise.
+
+Write the test first, in `tests/presentation/dialogs/`:
+
+```typescript
+	it('refuses Escape and disables Cancel while the form has a write in flight', async () => {
+		const busy = ref(true);
+		const store = useDialogStore();
+		const settled = vi.fn();
+		void store.openDialog({ kind: 'form', title: 'New project', component: NewProjectForm, busy }).then(settled);
+		await flushPromises();
+
+		await wrapper.get('.rp-dialog').trigger('keydown', { key: 'Escape' });
+		await flushPromises();
+
+		// The write is still running: the dialog may not resolve out from under it.
+		expect(settled).not.toHaveBeenCalled();
+		expect(wrapper.get('.rp-dialog-cancel').attributes('disabled')).toBeDefined();
+	});
+
+	it('accepts Escape again once the write has settled', async () => {
+		const busy = ref(true);
+		const store = useDialogStore();
+		const settled = vi.fn();
+		void store.openDialog({ kind: 'form', title: 'New project', component: NewProjectForm, busy }).then(settled);
+		await flushPromises();
+		busy.value = false;
+
+		await wrapper.get('.rp-dialog').trigger('keydown', { key: 'Escape' });
+		await flushPromises();
+
+		// Decision 3 is NARROWED, not reversed: Escape still cancels at every other moment.
+		expect(settled).toHaveBeenCalledWith('cancel');
+	});
+```
+
+`NewProjectForm` then passes `busy: form.submitting` in the descriptor `ViewRoot` opens (Task 7, Step 5).
+
+- [ ] **Step 6: Correct the dialog docblock**
 
 In `src/presentation/dialogs/dialog-store.ts`, `FormDialogResult`'s comment says dispatching
 is "still the caller's job". That is no longer true for every form, and the correction states
@@ -1399,14 +1502,14 @@ why rather than deleting the sentence:
  */
 ```
 
-- [ ] **Step 6: Run the test and the gate**
+- [ ] **Step 7: Run the tests and the gate**
 
-Run: `npx vitest run tests/presentation/views/newProjectForm.test.ts`
-Expected: PASS, 5 tests.
+Run: `npx vitest run tests/presentation/views/newProjectForm.test.ts tests/presentation/dialogs/`
+Expected: PASS.
 
 Run: `npm run check`
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/presentation/views/NewProjectForm.vue src/presentation/i18n/locales/ src/presentation/dialogs/dialog-store.ts tests/
@@ -1561,6 +1664,10 @@ async function onCreateProject(): Promise<void> {
 		title: tr('form.new-project.title'),
 		component: NewProjectForm,
 		props: { dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input) },
+		// So Cancel and Escape cannot resolve this dialog out from under a write that is
+		// already in flight — the form owns its dispatch, so the container has no other way
+		// to know. The form wires this to its own `useFormCommit().submitting`.
+		busy: newProjectBusy,
 	});
 	if (result === 'cancel') return;
 	await store.hydrate(context.queries);
@@ -1641,6 +1748,17 @@ describe('ProjectList', () => {
 		expect(wrapper.emitted('open')).toEqual([['p2']]);
 	});
 
+	it('offers a create affordance even when the list is populated', async () => {
+		// Finding 3: the empty state's button unmounts the moment a project exists, and there
+		// is no other entry point — so without this a user creates one project and never a
+		// second. It emits rather than opening anything: `ViewRoot` owns the one handler.
+		const wrapper = mount(ProjectList, { props: { projects: PROJECTS } });
+
+		await wrapper.get('.rp-project-list__create').trigger('click');
+
+		expect(wrapper.emitted('create')).toHaveLength(1);
+	});
+
 	it('gives every row a real button, not a clickable div', () => {
 		// A div with a click handler is neither focusable nor announced. There is no href
 		// here, so a link would be the wrong element in the other direction.
@@ -1663,10 +1781,14 @@ Expected: FAIL — cannot resolve `ProjectList.vue`.
 
 - [ ] **Step 3: Write the component**
 
+The header's button is finding 3 from the first review, and it is not decoration: `emptyStateKey` goes `null` the moment a project exists, so the empty state and its button unmount, and a repository-wide search finds no other creation entry point (`create-sample-project` seeds a whole demo and is scaffolding). Without this, a user could create ONE project and never a second without deleting it first.
+
+**One action, every input.** This button and the empty state's call the SAME `onCreateProject` — never two handlers that each decide for themselves how to open a form. A second entry point with its own activation looks correct alone and diverges the first time either changes.
+
 ```vue
 <script setup lang="ts">
 /**
- * Every project in the vault, one row each (design slice 16).
+ * Every project in the vault, one row each, and the way to add another (design slice 16).
  *
  * `ViewRoot` drew four things and no list for three slices, under a comment blaming slice 17
  * — whose document is the error-surfacing decision table and never mentions one. The list was
@@ -1678,11 +1800,23 @@ Expected: FAIL — cannot resolve `ProjectList.vue`.
  */
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
 
+import { tr } from '../i18n/strings';
+
 defineProps<{ projects: readonly ProjectSummaryDto[] }>();
-defineEmits<{ open: [projectId: string] }>();
+defineEmits<{ open: [projectId: string]; create: [] }>();
 </script>
 
 <template>
+	<div class="rp-project-list__header">
+		<h2 class="rp-project-list__title">{{ tr('view.project.list-title') }}</h2>
+		<button
+			type="button"
+			class="rp-project-list__create"
+			@click="$emit('create')"
+		>
+			{{ tr('view.project.create') }}
+		</button>
+	</div>
 	<ul class="rp-project-list">
 		<li
 			v-for="project in projects"
@@ -1710,6 +1844,7 @@ defineEmits<{ open: [projectId: string] }>();
 				v-else
 				:projects="projects"
 				@open="(id) => void context.openProject(id)"
+				@create="onCreateProject"
 			/>
 ```
 
@@ -1798,6 +1933,19 @@ git commit -m "feat: the project list, and the two comments that blamed slice 17
 **Where `useFieldCommit` lives, and why the row's own docblock changes.** The composable owns a draft, an error and a dispatch, so it must be instantiated once per bound input — and there is one pair of inputs PER ROW, so the instances live in the row. `RequirementRow`'s docblock currently reads "It DISPATCHES nothing … the panel commits it through `runtime.commitEdit`". After this task it dispatches through a function the panel HANDED it, which is still that one commit path, so **rewrite the docblock to say that** rather than leaving a sentence that is no longer true. The invariant that matters is unchanged and worth restating in the new wording: there is still exactly ONE commit seam, and a row reaching for a dispatcher of its own would silently break the post-command refresh and the reactive undo/redo flags with nothing erroring anywhere.
 
 A per-row `Map` in the panel is the alternative and is refused for the reason the row was extracted in the first place: a component instance per row already IS that keying, and a Map outlives the row it describes.
+
+**The `commit` prop must be FAULT-GUARDED, and this is the one thing easy to lose here.** `commitEdit` wraps its dispatch in `reportFault`; binding the row straight to `inspector.commit` drops that. Every dispatch here ends at a click handler that discards its promise, and SDD §65 reserves throws for technical faults which the editor's dispatcher re-throws — so a fault would become an unhandled rejection reaching nobody, leaving the control silently dead. That is precisely what `reportFault` exists to prevent. The panel therefore supplies:
+
+```typescript
+async function commitField(edit: InspectorEdit): Promise<Result<void, AppError>> {
+	const result = await reportFault(context.commands.logger, inspector.commit(edit));
+	// `reportFault` answers null for a fault it has already logged. The row must still see a
+	// failed Result, or a fault would read to the composable as an accepted commit.
+	return result ?? err(vaultUnexpectedFailure());
+}
+```
+
+Assert it: a `commit` that REJECTS leaves the field showing an error and does not clear the draft. A test that only drives refusals would never notice the guard was missing.
 
 **Two live defects this closes**, both named in the spec:
 
@@ -2069,6 +2217,8 @@ git commit -m "docs: the manual case for creating a project, and three claims th
 ## Self-review
 
 **Spec coverage.** Every section of the spec maps to a task: the mechanism → 1–4; consumer A (Inspector) → 9; consumer B (New Project) → 6; the seam → 5; the project list → 8; the empty state's button → 7; the three corrections → 8 (comments) and 10 (docs); the Vueform refusal → Global Constraints ("No new dependency"); accessibility → 2 (component-level) and 10 (scan-level); testing strategy → distributed across every task's own steps.
+
+**The five review findings.** 1 (cancel during an in-flight write) → Task 6, Step 5, adding `FormDescriptor.busy`. 2 (no path on the DTO) → already Task 5's `openProject`. 3 (no way to create a second project) → Task 8, the list header's button, sharing Task 7's one handler. 4 (half a cross-field error surviving) → Task 3, `routedGroup` and its own case. 5 (the Inspector seam) → already Task 9's `commit` prop over `inspector.commit`. Verifying 5 turned up a sixth in the plan's own fix — the prop drops `commitEdit`'s `reportFault` — recorded and closed in Task 9's Interfaces block.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 

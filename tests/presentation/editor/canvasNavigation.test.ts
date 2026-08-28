@@ -256,7 +256,10 @@ describe('zoom to fit', () => {
 	it('Shift+1 frames the plan’s zones', async () => {
 		const { harness, canvas, camera } = await editor();
 
-		key(canvas, 'keydown', { key: '!', shiftKey: true });
+		// A real event carries BOTH; these two cases used to send only `key`, which no browser
+		// does — a fake thinner than the real thing, and it is why they went on passing while
+		// the shortcut was dead for every non-US layout.
+		key(canvas, 'keydown', { key: '!', code: 'Digit1', shiftKey: true });
 		await settle();
 
 		// The fixture zone spans (198,198)-(488,388) on screen at the default camera, so a
@@ -273,7 +276,7 @@ describe('zoom to fit', () => {
 		await settle();
 		const before = camera.viewport;
 
-		key(canvas, 'keydown', { key: '@', shiftKey: true });
+		key(canvas, 'keydown', { key: '@', code: 'Digit2', shiftKey: true });
 		await settle();
 
 		expect(camera.viewport).not.toEqual(before);
@@ -286,7 +289,7 @@ describe('zoom to fit', () => {
 		const { harness, canvas, camera } = await editor();
 		const before = camera.viewport;
 
-		key(canvas, 'keydown', { key: '@', shiftKey: true });
+		key(canvas, 'keydown', { key: '@', code: 'Digit2', shiftKey: true });
 		await settle();
 
 		expect(camera.viewport).toEqual(before);
@@ -437,6 +440,136 @@ describe('a pan the pointer walks out of', () => {
 		await settle();
 
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-armed']);
+		harness.unmount();
+	});
+});
+
+describe('a second mouse button pressed during a pan', () => {
+	it('does not end the pan when it is the one released first', async () => {
+		// A mouse shares one `pointerId` across its buttons, so this is an ordinary input: the
+		// user is space-dragging and reflexively clicks the middle button. An unconditional
+		// release would stop the camera while the primary button is still down — the view
+		// freezes under a hand that is still moving.
+		//
+		// The frozen camera is the whole of the observable damage, MEASURED rather than
+		// assumed: the second-order consequence — the eventual primary release reaching
+		// `SelectTool` as a release with no matching press — is absorbed by that tool's own
+		// no-gesture guard, so a case asserting the zone did not move passes with the defect
+		// present and was dropped rather than kept. That guard is where the invariant belongs
+		// (it holds for tools not yet written); this case is what holds the routing.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		pointer(canvas, 'pointerdown', 340, 300, 1);
+		pointer(canvas, 'pointerup', 340, 300, 1);
+		await settle();
+		const interrupted = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 420, 300);
+		await settle();
+
+		expect(camera.viewport.pan.x).not.toBe(interrupted);
+		harness.unmount();
+	});
+});
+describe('the fit shortcuts on a non-US keyboard', () => {
+	/**
+	 * `event.key` is what the layout PRODUCES; `event.code` is which physical key was struck.
+	 * Shift+2 gives `@` on a US layout and `"` on the German and UK ones — and this plugin
+	 * ships a German locale, so a German keyboard is not an edge case here. Matching on `key`
+	 * made both advertised shortcuts silently dead for those users, which is the worst
+	 * failure a shortcut has: nothing happens and nothing says why.
+	 */
+	it('frames the plan on the physical 1 key, whatever character the layout gives it', async () => {
+		const { harness, canvas, camera } = await editor();
+
+		key(canvas, 'keydown', { key: '!', code: 'Digit1', shiftKey: true });
+		await settle();
+
+		expect(camera.viewport.zoom).toBeGreaterThan(0.1);
+		harness.unmount();
+	});
+
+	it('frames the selection on the physical 2 key, on a German layout', async () => {
+		// Shift+2 on a German keyboard reports `key: '"'` — neither `'@'` nor `'2'`.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 300, 300);
+		await settle();
+		const before = camera.viewport;
+
+		key(canvas, 'keydown', { key: '"', code: 'Digit2', shiftKey: true });
+		await settle();
+
+		expect(camera.viewport).not.toEqual(before);
+		harness.unmount();
+	});
+
+	it('still needs the shift, so an unshifted digit does not jump the camera', async () => {
+		// `code` alone would fire on a bare `1`, which is a key a user presses for all sorts of
+		// reasons — and one a future tool hotkey would plausibly want.
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport;
+
+		key(canvas, 'keydown', { key: '1', code: 'Digit1' });
+		await settle();
+
+		expect(camera.viewport).toEqual(before);
+		harness.unmount();
+	});
+});
+
+describe('wheel deltas that are not pixels', () => {
+	/**
+	 * `WheelEvent.deltaMode` says what the numbers MEAN: pixels (0), lines (1) or pages (2).
+	 * A line-mode notch reports `deltaY: 3`, so reading it as pixels pans three of them — a
+	 * gesture that looks broken rather than absent.
+	 *
+	 * Where this actually bites is worth being exact about, because Obsidian is Electron and
+	 * Chromium reports pixel mode: it is `npm run harness`, which a designer may open in
+	 * Firefox, where line mode is the historical default. The plugin itself is unlikely to
+	 * see it — which is a reason to keep the conversion cheap and tested, not a reason to
+	 * assume a host will never change its mind.
+	 */
+	it('converts a line-mode notch instead of panning three pixels', async () => {
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport.pan.x;
+
+		wheel(canvas, { deltaY: 3, deltaMode: 1, shiftKey: true });
+		await settle();
+
+		// Three LINES, not three pixels: far more than a pixel-mode 3 would have moved.
+		const moved = Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom;
+		expect(moved).toBeGreaterThan(20);
+		harness.unmount();
+	});
+
+	it('converts a page-mode notch too, rather than falling through as pixels', async () => {
+		// The third `deltaMode`. Rare, but the arm exists either way, and an untested one is
+		// how a fall-through reads as deliberate.
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport.pan.x;
+
+		wheel(canvas, { deltaY: 1, deltaMode: 2, shiftKey: true });
+		await settle();
+
+		expect(Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom).toBeGreaterThan(100);
+		harness.unmount();
+	});
+
+	it('leaves a pixel-mode notch exactly as it arrived', async () => {
+		const { harness, canvas, camera } = await editor();
+		const before = camera.viewport.pan.x;
+
+		wheel(canvas, { deltaY: 48, deltaMode: 0, shiftKey: true });
+		await settle();
+
+		expect(Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom).toBeCloseTo(48, 6);
 		harness.unmount();
 	});
 });

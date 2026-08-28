@@ -67,6 +67,10 @@ and they are the reason this file exists:
 9. **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
    with a margin. Then zoom in hard on one corner and press it again.
    *Record whether Obsidian's own keymap took `Shift+1` first.*
+   **On a non-US keyboard, this is the step to watch.** Both shortcuts match the PHYSICAL
+   digit key (`event.code`), not the character the layout produces — `Shift+2` is `@` on a
+   US layout and `"` on the German and UK ones. If either does nothing on your keyboard,
+   that is a real defect and not a local quirk.
 10. **Select one zone, then `Shift+2`.** Expected: the camera frames that zone. With
     **nothing** selected, `Shift+2` must do **nothing at all** — the view you had is kept.
 11. **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is

@@ -393,8 +393,26 @@ check. Rules that came out of it:
   drag the very next interaction, and the first draft of it passed against the defect because
   a `click()` in between absorbed the damage. A self-healing defect needs a test that reaches
   it before it heals.
+- **A release has to match the button that started the gesture.** A mouse shares one
+  `pointerId` across its buttons, so pressing and releasing the middle button during a
+  space+primary pan is an ordinary input — and an unconditional `pointerUp()` ended the pan
+  while its own button was still down, freezing the view under a hand still moving.
+  `pointerUp(button)` is narrowed to the owner now, with `abandonGesture()` as the separate
+  door for `pointerleave`, which names no button: an OPTIONAL parameter would have re-opened
+  the same hole under a different spelling. The second-order damage — that release reaching
+  `SelectTool` with no matching press — turns out to be absorbed by the tool's own no-gesture
+  guard, so a test asserting the zone did not move passes with the defect present and was
+  dropped rather than kept. Which is the invariant-at-the-forbidden-thing rule paying out:
+  the guard belongs to the tool, and the routing needs its own case.
+- **A keyboard shortcut matched on `event.key` is matched on the LAYOUT.** `Shift+2` produces
+  `@` on a US keyboard and `"` on the German and UK ones, so both fit shortcuts were silently
+  dead for exactly the users this plugin ships a `de.ts` for — the worst failure a shortcut
+  can have, since nothing happens and nothing says why. `event.code` (`Digit1`/`Digit2`) is
+  the physical key; the `shiftKey` test stays BESIDE it, because `code` alone would fire on a
+  bare `1`. The two original cases had passed while the shortcut was dead, because they sent
+  only `key` and no browser does — a fake thinner than the real thing, again.
 - **A private TypeScript field is not private at runtime, so a test can pass against nothing.**
-  The first `ToolManager.gestureInFlight` cases went green immediately — `tests/` is transpiled
+  The first five `ToolManager.gestureInFlight` cases went green immediately — `tests/` is transpiled
   without type checking, so they were reading the private field directly and could not tell a
   getter from its absence. The field is `#private` now, which turned all five red as they
   should have been. Anywhere a test asserts that something is REACHABLE, `private` is not the

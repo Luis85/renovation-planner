@@ -52,7 +52,7 @@ describe('the pan override', () => {
 			override.armSpace();
 			override.pointerDown('primary', IDLE_TOOL);
 
-			expect(override.pointerUp()).toBe(true);
+			expect(override.pointerUp('primary')).toBe(true);
 			expect(override.phase).toBe('armed');
 		});
 
@@ -99,7 +99,7 @@ describe('the pan override', () => {
 			override.pointerDown('primary', IDLE_TOOL);
 			override.disarmSpace();
 
-			override.pointerUp();
+			override.pointerUp('primary');
 
 			expect(override.phase).toBe('idle');
 		});
@@ -117,7 +117,7 @@ describe('the pan override', () => {
 			const override = new PanOverride();
 			override.pointerDown('auxiliary', IDLE_TOOL);
 
-			override.pointerUp();
+			override.pointerUp('auxiliary');
 
 			expect(override.phase).toBe('idle');
 		});
@@ -137,7 +137,7 @@ describe('the pan override', () => {
 			override.armSpace();
 
 			override.pointerDown('auxiliary', IDLE_TOOL);
-			override.pointerUp();
+			override.pointerUp('auxiliary');
 
 			expect(override.phase).toBe('armed');
 		});
@@ -179,7 +179,59 @@ describe('the pan override', () => {
 		expect(override.phase).toBe('panning');
 	});
 
-	it('reports a pointerup it did not consume, so the active tool still gets its release', () => {
-		expect(new PanOverride().pointerUp()).toBe(false);
+	describe('which release ends the pan', () => {
+		it('ignores a release from a button that does not own the gesture', () => {
+			// Space+primary is panning and the user presses and releases the middle button on
+			// top of it. An unconditional release would end the pan while its own button is
+			// still down — and the eventual primary release would then reach the active tool
+			// as a release with no matching press, which is the exact event-grammar defect
+			// `canvasPointerRouting.test.ts` already exists for.
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', IDLE_TOOL);
+
+			expect(override.pointerUp('auxiliary')).toBe(false);
+			expect(override.phase).toBe('panning');
+		});
+
+		it('ends on the release from the button that started it', () => {
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', IDLE_TOOL);
+
+			expect(override.pointerUp('primary')).toBe(true);
+			expect(override.phase).toBe('armed');
+		});
+
+		it('reports a release it did not consume, so the active tool still gets it', () => {
+			expect(new PanOverride().pointerUp('primary')).toBe(false);
+		});
+	});
+
+	describe('abandoning without a release', () => {
+		it('ends a running pan whatever button owns it', () => {
+			// `pointerleave` names no button — the pointer is simply gone. This is the one door
+			// that ends a gesture without matching its owner, and it is separate from
+			// `pointerUp` so that no caller can accidentally get that behaviour by omission.
+			const override = new PanOverride();
+			override.pointerDown('auxiliary', IDLE_TOOL);
+
+			expect(override.abandonGesture()).toBe(true);
+			expect(override.phase).toBe('idle');
+		});
+
+		it('keeps a held space bar, unlike cancel', () => {
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', IDLE_TOOL);
+
+			override.abandonGesture();
+
+			expect(override.phase).toBe('armed');
+		});
+
+		it('answers false when there was no pan to abandon', () => {
+			expect(new PanOverride().abandonGesture()).toBe(false);
+		});
 	});
 });

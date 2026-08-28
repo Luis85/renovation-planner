@@ -100,10 +100,35 @@ export class PanOverride {
 	 * Answers whether the release ended a pan, so a release the camera did not consume still
 	 * reaches the active tool.
 	 *
-	 * Where it lands is whatever the keyboard still says: back to `armed` while space is
-	 * held — so a second drag needs no second keypress — and to `idle` otherwise.
+	 * **The button has to MATCH the one that started the gesture**, and that is the whole
+	 * reason this takes a parameter. A mouse shares one `pointerId` across its buttons, so a
+	 * second button pressed and released during a pan is an ordinary input — and an
+	 * unconditional release would end the pan while its OWN button is still held, leaving the
+	 * user dragging a camera that stopped moving. Worse, the eventual real release would then
+	 * reach the active tool as a release with no matching press: the exact event-grammar
+	 * defect this project has already recorded twice, once as a test-rig fake and once in the
+	 * canvas's own filters.
+	 *
+	 * Where a matching release lands is whatever the keyboard still says: back to `armed`
+	 * while space is held — so a second drag needs no second keypress — and to `idle`
+	 * otherwise.
 	 */
-	pointerUp(): boolean {
+	pointerUp(button: PanButton): boolean {
+		if (this.panningWith !== button) return false;
+		this.panningWith = null;
+		return true;
+	}
+
+	/**
+	 * End a running pan that no release will ever arrive for, keeping a held space bar.
+	 * `pointerleave` is the caller: the pointer is simply gone and names no button.
+	 *
+	 * Separate from `pointerUp` rather than reached by omitting its argument, so that no
+	 * caller can get "end whatever is running" by ACCIDENT — which is precisely the behaviour
+	 * `pointerUp` was just narrowed to refuse. An optional parameter would have re-opened the
+	 * same hole under a different spelling.
+	 */
+	abandonGesture(): boolean {
 		if (this.panningWith === null) return false;
 		this.panningWith = null;
 		return true;

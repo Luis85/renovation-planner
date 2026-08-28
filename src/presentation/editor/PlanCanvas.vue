@@ -126,6 +126,34 @@ function stagePoint(event: { clientX: number; clientY: number }) {
 	return screenPoint(event.clientX - (rect?.left ?? 0), event.clientY - (rect?.top ?? 0));
 }
 
+/**
+ * One wheel notch as SCREEN PIXELS, whatever unit the browser chose to report it in.
+ *
+ * `WheelEvent.deltaMode` says what the numbers mean — pixels (0), lines (1) or pages (2) —
+ * and a line-mode notch reports `3`. Read as pixels that pans three of them, which looks
+ * like a broken gesture rather than an absent one.
+ *
+ * **Where this actually bites, stated narrowly because the general claim would be wider than
+ * the truth:** Obsidian is Electron and Chromium reports pixel mode, so the plugin is
+ * unlikely ever to see anything else. `npm run harness` is the surface that can — it runs in
+ * whatever browser a designer opens, and line mode is Firefox's historical default. Cheap
+ * and tested beats resting the gesture on a host not changing its mind.
+ *
+ * The two constants are the conventional approximations rather than measurements: there is
+ * no API for a line's height, and the browsers that report line mode use a comparable
+ * figure. The ZOOM path deliberately does NOT go through here — its exponential sensitivity
+ * was tuned against raw `deltaY` and shipped that way, and re-scaling it would change how
+ * zoom feels for a case Obsidian does not produce.
+ */
+const WHEEL_LINE_PX = 16;
+const WHEEL_PAGE_PX = 800;
+
+function wheelPixels(amount: number, deltaMode: number): number {
+	if (deltaMode === 1) return amount * WHEEL_LINE_PX;
+	if (deltaMode === 2) return amount * WHEEL_PAGE_PX;
+	return amount;
+}
+
 function onWheel(event: WheelEvent): void {
 	// The pane scrolls otherwise, and a plan editor that scrolls its own leaf away on the
 	// first zoom is the defect this one line prevents.
@@ -149,7 +177,7 @@ function onWheel(event: WheelEvent): void {
 		// to help. The sign is inverted because a scroll "right" moves the VIEW right, which
 		// is the content moving left.
 		const amount = event.deltaX !== 0 ? event.deltaX : event.deltaY;
-		editor.panByScreen(-amount, 0);
+		editor.panByScreen(-wheelPixels(amount, event.deltaMode), 0);
 		return;
 	}
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
@@ -247,7 +275,7 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
-	if (panOverride.pointerUp()) {
+	if (panOverride.pointerUp(panButtonOf(event))) {
 		editor.endPan();
 		syncPanPhase();
 		return;
@@ -306,7 +334,7 @@ function onPointerLeave(): void {
 	//
 	// Pointer capture means this should not fire mid-drag at all; that is a reason for the
 	// two to be consistent anyway rather than a reason to leave the gap.
-	panOverride.pointerUp();
+	panOverride.abandonGesture();
 	syncPanPhase();
 	editor.endPan();
 	editor.setPointer(null);
@@ -324,10 +352,15 @@ function onPointerLeave(): void {
  * shortcuts, so a user who knows one already knows the other. Answers whether the key was
  * one of them, so the zoom-step branch is not also consulted for it.
  *
- * Both spellings of each key are matched: a US layout reports `'!'` for shift+1, and a
- * layout where the digit is unshifted reports `'1'`. The `shiftKey` test stays beside them
- * rather than instead of them, so a layout producing `!` WITHOUT shift does not fire a
- * shortcut the user never reached for.
+ * Matched on `event.code` — the PHYSICAL key — rather than on `event.key`, which is the
+ * character the layout produces. Shift+2 gives `@` on a US keyboard, `"` on the German and
+ * UK ones; a `key`-based match made this shortcut silently dead for those users, and this
+ * plugin ships a German locale, so that is not an edge case here. It is also the worst
+ * failure a shortcut can have — nothing happens and nothing says why.
+ *
+ * The `shiftKey` test stays BESIDE the code test rather than instead of it: `code` alone
+ * would fire on a bare `1`, which a user presses for all sorts of reasons and which a future
+ * tool hotkey would plausibly want.
  *
  * A fit with nothing to frame does NOTHING, which is why `boundsOfZones` and `fitTo` each
  * answer that way rather than defaulting: a jump to nowhere costs the user the view they
@@ -335,8 +368,8 @@ function onPointerLeave(): void {
  */
 function fitShortcut(event: KeyboardEvent): boolean {
 	if (!event.shiftKey) return false;
-	const all = event.key === '!' || event.key === '1';
-	const selected = event.key === '@' || event.key === '2';
+	const all = event.code === 'Digit1';
+	const selected = event.code === 'Digit2';
 	if (!all && !selected) return false;
 	event.preventDefault();
 	const zones = [...project.zones.values()];

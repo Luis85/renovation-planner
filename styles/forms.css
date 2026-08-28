@@ -1,0 +1,34 @@
+/*
+ * Field errors, the form banner, and the project list.
+ *
+ * Every colour is an Obsidian variable so a themed vault stays themed (SDD §84). The
+ * assembler parses this with lightningcss and refuses a literal colour at any nesting
+ * depth, including a bare word like `red`.
+ */
+.rp-field-error {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+.rp-field-error__control [aria-invalid='true'] {
+	border-color: var(--text-error);
+}
+
+.rp-field-error__message,
+.rp-form-banner {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+	margin: 0;
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-form-banner {
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-error);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-error-hover);
+	font-size: var(--font-ui-small);
+}

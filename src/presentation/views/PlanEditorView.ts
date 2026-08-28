@@ -10,6 +10,7 @@ import type {
 import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
+import { nextAppIdPrefix } from './app-id-prefix';
 
 /**
  * The Plan Editor (SDD §11's second surface).
@@ -157,6 +158,7 @@ export class PlanEditorView extends ItemView {
 		};
 
 		const app = createApp(PlanEditorRoot);
+		app.config.idPrefix = nextAppIdPrefix();
 		app.use(createPinia());
 		// On the APP instance and not globally: each ItemView's Vue app is isolated
 		// (ADR-004), and a global `app.use` at plugin scope would leak vue-konva's component

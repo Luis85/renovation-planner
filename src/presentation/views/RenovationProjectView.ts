@@ -4,6 +4,7 @@ import { createPinia } from 'pinia';
 import ViewRoot from './ViewRoot.vue';
 import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps } from './RenovationProjectContext';
 import { tr } from '../i18n/strings';
+import { nextAppIdPrefix } from './app-id-prefix';
 
 /**
  * The workspace view the SDD names first (§11): the project surface.
@@ -80,6 +81,7 @@ export class RenovationProjectView extends ItemView {
 		// `.renovation-planner-view` the stylesheet keys off, with no wrapper in the height
 		// chain.
 		const app = createApp(ViewRoot);
+		app.config.idPrefix = nextAppIdPrefix();
 		app.use(createPinia());
 		// Provided BEFORE mount, the same order `PlanEditorView` uses: a component's setup
 		// runs during `mount`, and `useRenovationProjectContext` throws if it runs before the

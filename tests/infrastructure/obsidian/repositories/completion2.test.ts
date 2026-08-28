@@ -5,7 +5,7 @@ import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone 
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
-import { frontmatterOf, findNoteIdInFolder } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
+import { frontmatterOf } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import { MigrationRunner } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
@@ -173,14 +173,6 @@ describe('small unit edges', () => {
 		// fake answers a cache object with no `frontmatter` for this, exactly as Obsidian does.
 		stack.vault.entries.set('ghost.md', 'plain text, no frontmatter');
 		expect(frontmatterOf(stack, ghost)).toEqual({});
-	});
-
-	it('findNoteIdInFolder skips files without cached frontmatter', async () => {
-		const stack = createRepositoryStack();
-		const { projectId } = await seed(stack);
-		stack.vault.entries.set(`${stack.projectFolder}/plain.md`, 'plain text');
-		expect(findNoteIdInFolder(stack, stack.vault as never, stack.projectFolder, String(projectId))).not.toBeNull();
-		expect(findNoteIdInFolder(stack, stack.vault as never, stack.projectFolder, 'unknown-id')).toBeNull();
 	});
 
 	it('registerAll chains every step of one kind', () => {

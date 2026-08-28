@@ -7,12 +7,12 @@ import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../../application/ports/RequirementRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import {
-	findNoteIdInFolder,
 	persistenceError,
 	writeOwnedFrontmatter,
 } from '../repositories/noteIo';
 import { projectFolderOf, requirementsFolderFor } from '../repositories/paths';
 import { KeyedQueues } from '../repositories/KeyedQueues';
+import { fileAt } from '../repositories/NoteVaultDeps';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import {
 	requirementFromPersistence,
@@ -36,10 +36,12 @@ function requirementFileName(requirement: Requirement): string {
  * one method no other repository has: it sets ONE field in ONE direction, inside the same
  * per-entity queue section as every other write, so its read-modify-write cannot
  * interleave with a concurrent override or recalculation. The shared save/delete
- * SEQUENCE lives once in `noteEntityWrite`. Both `saveQueued` and `markStale` resolve the
- * owning project's folder for themselves, once per method (ADR-0013,
- * `projectFolderOf`) — never a constructor field, and never shared between the two, since
- * each is its own call path.
+ * SEQUENCE lives once in `noteEntityWrite`. `saveQueued` resolves the owning project's
+ * folder for itself, per save (ADR-0013, `projectFolderOf`) — never a constructor field,
+ * since a project's folder can move between one save and the next — and hands it to the
+ * spec, where only the INSERT path reads it. `markStale` resolves no folder at all: it
+ * never inserts, so it has no location to choose, and it writes to the note the index
+ * already resolved for its own read.
  */
 export class ObsidianRequirementRepository implements RequirementRepository {
 	private readonly queues = new KeyedQueues();
@@ -69,16 +71,14 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 		requirement: Requirement,
 		expected: Expected,
 	): Promise<Result<Loaded<Requirement>, RepositoryError>> {
+		// Resolved here and consumed only on the INSERT path — `undefined` travels into the
+		// spec rather than refusing outright, because an UPDATE writes where the note
+		// already is and needs no folder at all (see `NoteWriteSpec.notesFolder`).
 		const folder = projectFolderOf(this.deps.index, requirement.projectId);
-		if (folder === undefined) {
-			return Promise.resolve(
-				err(persistenceError('requirement.project-folder-unresolved', `Could not resolve the folder of project ${requirement.projectId} for requirement ${requirement.id}.`)),
-			);
-		}
 		const spec: NoteWriteSpec<Requirement> = {
 			kind: 'requirement',
 			indexType: 'renovation-requirement',
-			notesFolder: requirementsFolderFor(folder),
+			notesFolder: folder === undefined ? undefined : requirementsFolderFor(folder),
 			entryName: requirementFileName,
 			toPersistence: requirementToPersistence,
 			preWriteValid: (dto) => requirementFromPersistence({ ...dto }).ok,
@@ -121,19 +121,12 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 			if (!marked.ok) {
 				return err(persistenceError('requirement.mark-stale-invalid', marked.error.message));
 			}
-			const folder = projectFolderOf(this.deps.index, entity.projectId);
-			if (folder === undefined) {
-				return err(
-					persistenceError('requirement.project-folder-unresolved', `Could not resolve the folder of project ${entity.projectId} for requirement ${id}.`),
-				);
-			}
 			const dto = requirementToPersistence(marked.value, loaded.value.version.revision);
-			const file = findNoteIdInFolder(
-				this.deps,
-				this.deps.vault,
-				requirementsFolderFor(folder),
-				id,
-			);
+			// The same lookup the read above went through, and no folder at all: `markStale`
+			// never inserts, so it never chooses a location. It used to resolve the project's
+			// folder and scan it — which refused for a note the user had filed anywhere else,
+			// on a note this method had just read successfully through the index.
+			const file = fileAt(this.deps.vault, this.deps.index.getPath(id));
 			if (!file) {
 				return err(
 					persistenceError(

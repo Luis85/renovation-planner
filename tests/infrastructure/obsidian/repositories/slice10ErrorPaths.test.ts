@@ -139,9 +139,15 @@ describe('ObsidianRequirementRepository failure branches', () => {
 	it('markStale refuses when the note vanishes between the read and the marker write', async () => {
 		const stack = createRepositoryStack();
 		const { requirementId } = await seedRequirement(stack);
-		// The read resolves through the index; the marker write scans the folder. With
-		// nothing to scan, the note this repository just READ cannot be written.
-		stack.vault.getMarkdownFiles = () => [];
+		// Both halves resolve through the index now, so the arm is reachable only by the
+		// race it is named for: the entry is there for the read and gone by the write. The
+		// first lookup answers, every later one does not — which is that race exactly, and
+		// it is the only shape that still separates the two.
+		const resolve = stack.index.getPath.bind(stack.index);
+		let lookups = 0;
+		stack.index.getPath = ((id: Parameters<typeof resolve>[0]) =>
+			lookups++ === 0 ? resolve(id) : undefined) as typeof resolve;
+
 		const error = expectErr(await stack.requirements.markStale(requirementId));
 		expect(error.code).toBe('requirement.mark-stale-failed');
 		expect(error.message).toContain('disappeared');

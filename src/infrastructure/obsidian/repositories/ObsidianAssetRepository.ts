@@ -1,12 +1,11 @@
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetRepository } from '../../../application/ports/AssetRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import { assetsFolderFor, projectFolderOf } from '../repositories/paths';
-import { persistenceError } from '../repositories/noteIo';
 import { KeyedQueues } from '../repositories/KeyedQueues';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import { assetFromPersistence, assetToPersistence } from '../../persistence/mappers/assetMapper';
@@ -17,10 +16,10 @@ import {
 	type NoteWriteSpec,
 } from './noteEntityWrite';
 
-const SPEC: NoteWriteSpec<Asset> = {
+/** Everything about an asset write that does not change between saves — the folder does. */
+const SPEC: Omit<NoteWriteSpec<Asset>, 'notesFolder'> = {
 	kind: 'asset',
 	indexType: 'renovation-asset',
-	notesFolder: '',
 	entryName: (asset) => asset.name,
 	toPersistence: assetToPersistence,
 	preWriteValid: (dto) => assetFromPersistence({ ...dto }).ok,
@@ -56,13 +55,14 @@ export class ObsidianAssetRepository implements AssetRepository {
 		asset: Asset,
 		expected: Expected,
 	): Promise<Result<Loaded<Asset>, RepositoryError>> {
+		// Resolved here and consumed only on the INSERT path — `undefined` travels into the
+		// spec rather than refusing outright, because an UPDATE writes where the note
+		// already is and needs no folder at all (see `NoteWriteSpec.notesFolder`).
 		const folder = projectFolderOf(this.deps.index, asset.projectId);
-		if (folder === undefined) {
-			return Promise.resolve(
-				err(persistenceError('asset.project-folder-unresolved', `Could not resolve the folder of project ${asset.projectId} for asset ${asset.id}.`)),
-			);
-		}
-		const spec: NoteWriteSpec<Asset> = { ...SPEC, notesFolder: assetsFolderFor(folder) };
+		const spec: NoteWriteSpec<Asset> = {
+			...SPEC,
+			notesFolder: folder === undefined ? undefined : assetsFolderFor(folder),
+		};
 		return saveNoteBackedEntity(this.deps, spec, asset, expected);
 	}
 

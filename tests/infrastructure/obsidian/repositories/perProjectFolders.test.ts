@@ -7,7 +7,7 @@ import {
 	projectFolderOf,
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
+import { createRepositoryStack, serializeFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectOk } from '../../../helpers/domain';
 import {
 	makeAsset as makeAssetEntity,
@@ -188,17 +188,17 @@ describe('plans and zones land in their own project folder', () => {
 		expect(upstairsAfter.dto.objects).toHaveLength(0);
 	});
 
-	it('refuses a save whose project folder cannot be resolved, and writes nothing', async () => {
+	it('refuses an insert whose project folder cannot be resolved, and writes nothing', async () => {
 		const stack = createRepositoryStack('Renovation');
 		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
 		await stack.projects.save(kitchen, 'absent');
 		const groundFloor = makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' });
-		await stack.plans.save(groundFloor, 'absent');
 		const before = [...stack.vault.entries.keys()];
 
-		// The read happened; the index entry disappears between it and the save. This is
-		// the only way to reach the arm, and it is the arm that must never fall back to the
-		// configured root.
+		// An INSERT is the only path that has to choose a location, so it is the only one
+		// this arm guards: an update writes where the note already is. The project's index
+		// entry disappears between reading it and creating the plan, and the write must
+		// refuse rather than fall back to the configured root.
 		stack.index.remove('p1' as never);
 		const result = await stack.plans.save(groundFloor, 'absent');
 
@@ -217,9 +217,9 @@ describe('plans and zones land in their own project folder', () => {
 		const livingRoom = makeZoneEntity({ projectId: 'p1' as ProjectId, planId: 'pl1' as PlanId });
 		const before = [...stack.vault.entries.keys()];
 
-		// Same route as the plan case: the index entry disappears between the read and the
-		// save, which is the only way to reach the arm — and it must never fall back to the
-		// configured root.
+		// Same route as the plan case, and an INSERT for the same reason: this zone has
+		// never been saved, so the write has to choose a location and the unresolvable
+		// folder is what stops it. It must never fall back to the configured root.
 		stack.index.remove('p1' as never);
 		const result = await stack.zones.save(livingRoom, 'absent');
 
@@ -264,9 +264,10 @@ describe('assets and requirements land in their own project folder', () => {
 		const tiles = makeAssetEntity({ projectId: 'p1' as ProjectId, name: 'Tiles' });
 		const before = [...stack.vault.entries.keys()];
 
-		// Same route as the plan and zone cases: the index entry disappears between the read
-		// and the save, which is the only way to reach the arm — and it must never fall back
-		// to the configured root.
+		// Same route as the plan and zone cases, and an INSERT for the same reason — this
+		// asset has never been saved, so the write has to choose a location. `saveQueued`
+		// hands the unresolved folder to the spec as `undefined`; `saveNoteBackedEntity`
+		// refuses on the insert path, before `ensureFolder`, which is why nothing is written.
 		stack.index.remove('p1' as never);
 		const result = await stack.assets.save(tiles, 'absent');
 
@@ -296,7 +297,7 @@ describe('assets and requirements land in their own project folder', () => {
 		expect([...stack.vault.entries.keys()]).toEqual(before);
 	});
 
-	it('refuses to mark a requirement stale whose project folder cannot be resolved, and writes nothing', async () => {
+	it('marks a requirement stale without resolving its project folder at all', async () => {
 		const stack = createRepositoryStack('Renovation');
 		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
 		await stack.projects.save(kitchen, 'absent');
@@ -307,18 +308,18 @@ describe('assets and requirements land in their own project folder', () => {
 			origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
 		});
 		await stack.requirements.save(requirement, 'absent');
-		const before = [...stack.vault.entries.keys()];
 
-		// `markStale` resolves the folder for itself (it scans the folder rather than
-		// reading the note it just found through the index) — a second site the index
-		// entry disappearing between the read and the write reaches, same as save.
+		// This case used to assert a `requirement.project-folder-unresolved` refusal here.
+		// That arm is gone: `markStale` never inserts, so it never chooses a location, and
+		// resolving a folder it had no use for is what made it refuse on notes it had just
+		// read successfully. The project's index entry disappearing must therefore cost the
+		// stale marker nothing.
 		stack.index.remove('p1' as never);
-		const result = await stack.requirements.markStale('r1' as RequirementId);
 
-		expect(result.ok).toBe(false);
-		expect(result.ok === false && result.error.category).toBe('Persistence');
-		expect(result.ok === false && result.error.code).toBe('requirement.project-folder-unresolved');
-		expect([...stack.vault.entries.keys()]).toEqual(before);
+		expectOk(await stack.requirements.markStale('r1' as RequirementId));
+
+		const marked = expectOk(await stack.requirements.getById('r1' as RequirementId));
+		expect(marked?.entity.recalculationStatus).toBe('stale');
 	});
 
 	it('reads and writes a project in the old single-folder layout unchanged', async () => {
@@ -343,6 +344,154 @@ describe('assets and requirements land in their own project folder', () => {
 		await stack.plans.save(plan, 'absent');
 
 		expect(stack.index.getPath('pl-old' as never)).toBe('Renovation/Plans/Ground floor.md');
+	});
+});
+
+/** What the user did in Obsidian's file explorer, plus the rescan that follows it. */
+function relocate(stack: RepositoryStack, from: string, to: string): void {
+	const text = stack.vault.entries.get(from);
+	if (text === undefined) throw new Error(`nothing to relocate at ${from}`);
+	stack.vault.entries.delete(from);
+	stack.vault.entries.set(to, text);
+	stack.metadataCache.catchUp();
+	stack.rebuildIndex();
+}
+
+async function seedKitchenProject(stack: RepositoryStack): Promise<void> {
+	await stack.projects.save(
+		makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' }),
+		'absent',
+	);
+}
+
+async function seedGroundFloorPlan(stack: RepositoryStack): Promise<void> {
+	await stack.plans.save(
+		makePlanEntity({ id: 'pl1' as PlanId, projectId: 'p1' as ProjectId, name: 'Ground floor' }),
+		'absent',
+	);
+}
+
+/**
+ * Slice 18 widened discovery to the whole vault: a note of ours is found by what it
+ * DECLARES, not by where it sits. The save paths did not follow — they established
+ * existence by scanning the derived `<projectFolder>/<Kind>/`, so a note the user had
+ * filed anywhere else was read, indexed and deletable but could never be saved again: the
+ * scan missed it, `currentVersion` came back `undefined`, and `checkExpectedVersion`
+ * answered a permanent `*-revision-conflict`.
+ *
+ * The in-contract trigger is the slice's own widening, not "drag Project.md out": the note
+ * moved here is a CHILD note, its project's folder still resolves, and the read half keeps
+ * working throughout — which is what makes the refusal a defect rather than a boundary.
+ * Each case asserts the note was written where it actually SITS, and that no duplicate
+ * appeared at the derived path.
+ */
+describe('a note filed outside its kind folder still saves', () => {
+	it('saves a plan note the user moved out of the Plans folder', async () => {
+		const stack = createRepositoryStack('Renovation');
+		await seedKitchenProject(stack);
+		await seedGroundFloorPlan(stack);
+		const derived = 'Renovation/Kitchen Refit/Plans/Ground floor.md';
+		relocate(stack, derived, 'Inbox/Ground floor.md');
+
+		const read = expectOk(await stack.plans.getById('pl1' as PlanId));
+		if (read === null) throw new Error('the moved plan note should still read');
+
+		const saved = expectOk(await stack.plans.save(read.entity, read.version));
+
+		expect(saved.version.revision).toBe(2);
+		expect(stack.index.getPath('pl1' as never)).toBe('Inbox/Ground floor.md');
+		expect(stack.vault.entries.has(derived)).toBe(false);
+	});
+
+	it('saves a zone note the user moved out of the Zones folder', async () => {
+		const stack = createRepositoryStack('Renovation');
+		await seedKitchenProject(stack);
+		await seedGroundFloorPlan(stack);
+		await stack.zones.save(
+			makeZoneEntity({
+				id: 'z1' as ZoneId,
+				projectId: 'p1' as ProjectId,
+				planId: 'pl1' as PlanId,
+				name: 'Living room',
+			}),
+			'absent',
+		);
+		const derived = 'Renovation/Kitchen Refit/Zones/Living room.md';
+		relocate(stack, derived, 'Inbox/Living room.md');
+
+		const read = expectOk(await stack.zones.getById('z1' as ZoneId));
+		if (read === null) throw new Error('the moved zone note should still read');
+
+		const saved = expectOk(await stack.zones.save(read.entity, read.version));
+
+		expect(saved.version.revision).toBe(2);
+		expect(stack.index.getPath('z1' as never)).toBe('Inbox/Living room.md');
+		expect(stack.vault.entries.has(derived)).toBe(false);
+	});
+
+	it('saves an asset note the user moved out of the Assets folder', async () => {
+		const stack = createRepositoryStack('Renovation');
+		await seedKitchenProject(stack);
+		await stack.assets.save(
+			makeAssetEntity({ id: 'a1' as AssetId, projectId: 'p1' as ProjectId, name: 'Tiles' }),
+			'absent',
+		);
+		const derived = 'Renovation/Kitchen Refit/Assets/Tiles.md';
+		relocate(stack, derived, 'Inbox/Tiles.md');
+
+		const read = expectOk(await stack.assets.getById('a1' as AssetId));
+		if (read === null) throw new Error('the moved asset note should still read');
+
+		const saved = expectOk(await stack.assets.save(read.entity, read.version));
+
+		expect(saved.version.revision).toBe(2);
+		expect(stack.index.getPath('a1' as never)).toBe('Inbox/Tiles.md');
+		expect(stack.vault.entries.has(derived)).toBe(false);
+	});
+
+	it('saves a requirement note the user moved out of the Requirements folder', async () => {
+		const stack = createRepositoryStack('Renovation');
+		await seedKitchenProject(stack);
+		await stack.requirements.save(
+			makeRequirementEntity({
+				id: 'r1' as RequirementId,
+				projectId: 'p1' as ProjectId,
+				assetId: 'a1' as AssetId,
+				origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
+			}),
+			'absent',
+		);
+		const derived = 'Renovation/Kitchen Refit/Requirements/r1.md';
+		relocate(stack, derived, 'Inbox/r1.md');
+
+		const read = expectOk(await stack.requirements.getById('r1' as RequirementId));
+		if (read === null) throw new Error('the moved requirement note should still read');
+
+		const saved = expectOk(await stack.requirements.save(read.entity, read.version));
+
+		expect(saved.version.revision).toBe(2);
+		expect(stack.index.getPath('r1' as never)).toBe('Inbox/r1.md');
+		expect(stack.vault.entries.has(derived)).toBe(false);
+	});
+
+	it('marks a requirement note stale where it actually sits', async () => {
+		const stack = createRepositoryStack('Renovation');
+		await seedKitchenProject(stack);
+		await stack.requirements.save(
+			makeRequirementEntity({
+				id: 'r1' as RequirementId,
+				projectId: 'p1' as ProjectId,
+				assetId: 'a1' as AssetId,
+				origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
+			}),
+			'absent',
+		);
+		relocate(stack, 'Renovation/Kitchen Refit/Requirements/r1.md', 'Inbox/r1.md');
+
+		expectOk(await stack.requirements.markStale('r1' as RequirementId));
+
+		const marked = expectOk(await stack.requirements.getById('r1' as RequirementId));
+		expect(marked?.entity.recalculationStatus).toBe('stale');
 	});
 });
 

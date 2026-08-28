@@ -309,8 +309,8 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	/**
 	 * The OTHER edge of the same gate, pinned as what is true today rather than left as a
 	 * claim in a comment — the same shape as the `plan-geometry` case above. `migrateNote`
-	 * is on the READ path only: every save resolves its note through `findNoteIdInFolder` +
-	 * `versionOfFrontmatter` and never runs the runner, so "refuses to load" is checked and
+	 * is on the READ path only: every save resolves its note through the index (`fileAt` +
+	 * `versionOfFrontmatter`) and never runs the runner, so "refuses to load" is checked and
 	 * "refuses to write over" is not.
 	 *
 	 * What stands between a future-version note and this build's shape is therefore only

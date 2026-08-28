@@ -76,8 +76,8 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * so a note this refuses is indexed like any other and costs nobody their session.
  *
  * **The guarantee is "refuses to LOAD", never "refuses to write over" — and one WRITE
- * reaches it anyway.** Every SAVE path resolves its existing note through
- * `findNoteIdInFolder` + `versionOfFrontmatter` and never comes through here, so nothing in
+ * reaches it anyway.** Every SAVE path resolves its existing note through the index
+ * (`fileAt` + `versionOfFrontmatter`) and never comes through here, so nothing in
  * a save stops a build that predates a note from overwriting its owned keys with a shape it
  * understands. A DELETE is the exception, and this docblock denied it for a whole slice:
  * `trashNoteBackedEntity` calls `openNoteById` before `checkExpectedVersion`, so an Asset or
@@ -307,24 +307,3 @@ export async function writeOwnedFrontmatter(
 	});
 }
 
-/**
- * The note whose frontmatter declares `id` inside `folder` — the INSERT-time collision
- * check. Filename is not identity, so "does an entity with this ID exist" can only be
- * answered by looking at frontmatter; the scan is over files the project folder actually
- * holds.
- */
-export function findNoteIdInFolder(
-	source: FrontmatterSource,
-	vault: Vault,
-	folder: string,
-	id: string,
-): TFile | null {
-	for (const file of vault.getMarkdownFiles()) {
-		if (!file.path.startsWith(`${folder}/`)) continue;
-		// Through `frontmatterOf` rather than the cache directly, so a note this plugin
-		// created moments ago is found here too. Without it a second save of the same
-		// entity takes the INSERT path and creates a duplicate note beside the first.
-		if (frontmatterOf(source, file)['id'] === id) return file;
-	}
-	return null;
-}

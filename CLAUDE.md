@@ -525,6 +525,16 @@ check. Rules that came out of it:
   override no longer owning it, so the release reaches the tool with no matching press. The
   gate is `panning` and never `armed`, because space merely held is not a gesture and the
   camera lock carved this branch out precisely so Escape keeps working during a tool drag.
+- **A gesture the canvas CLAIMS owes its browser default suppressed on every press of it,
+  including the ones it refuses.** `event.preventDefault()` for the middle button sat inside
+  the branch where the override took the press, so a middle press refused because another
+  gesture was in flight fell through the primary filter and reached Chrome, which opened its
+  autoscroll widget over the drag still running. The file already knew the rule — the comment
+  saying so was three lines above, inside the branch that applied it — and applied it at one
+  door out of three. Hoisted to the top of `onPointerDown`, where no later branch has to
+  remember it. **Suppressing a default is not claiming a gesture**, and the two must not be
+  hoisted together: a build that lifted the CLAIM instead passes the autoscroll cases and
+  turns the camera-lock cases red, which is how that mistake is caught.
 - **A phase test decides afresh on every event; a held key is ONE press.** Swallowing Escape
   while `phase === 'panning'` fixed the case above and left the next one open: a user holding
   Escape as the pan ended had the keydown swallowed, and the OS's next repeat of that same

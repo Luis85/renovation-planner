@@ -292,13 +292,26 @@ function isPrimary(event: PointerEvent): boolean {
 
 function onPointerDown(event: PointerEvent): void {
 	const at = stagePoint(event);
+	// **The canvas claims the middle button, so it owes its native default suppression on
+	// EVERY middle press — claimed, refused, or ignored.** Chrome opens its autoscroll widget
+	// otherwise, which then scrolls the pane under whatever gesture is running.
+	//
+	// It used to be suppressed only where the override CLAIMED the press, so a middle press
+	// refused because another gesture was already in flight — a tool drag, or camera mode's own
+	// drag — fell through the primary filter below and reached the browser. An everyday desktop
+	// input, since one mouse shares a `pointerId` across its buttons and nothing stops a user
+	// pressing the middle button mid-drag. Hoisted here, stated once, so no later branch has to
+	// remember it: the file already knew this rule and applied it at one door out of three.
+	if (panButtonOf(event) === 'auxiliary') event.preventDefault();
 	// Asked BEFORE the primary filter, because the override's own button is the middle one —
 	// which `isPrimary` rejects, and correctly so for every other purpose.
 	// The SAME predicate the camera lock reads: camera mode is not a tool, and a middle press
 	// during a bare left-drag pan would otherwise claim a gesture whose button is still held.
 	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { gestureInFlight: gestureInFlight() })) {
-		// Chrome opens its autoscroll widget on a middle press otherwise, and the pane scrolls
-		// under a space-held drag.
+		// Still needed for the PRIMARY half of the claim — a space-held left press, which the
+		// hoisted auxiliary suppression above does not cover — so the browser starts no text
+		// selection or native drag under a pan. The middle button reaches here already
+		// suppressed, and this is harmlessly idempotent for it.
 		event.preventDefault();
 		(event.target as Element).setPointerCapture?.(event.pointerId);
 		editor.beginPan(at, event.pointerId);

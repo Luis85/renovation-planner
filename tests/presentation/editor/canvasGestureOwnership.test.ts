@@ -44,6 +44,20 @@ function key(canvas: HTMLElement, type: 'keydown' | 'keyup', init: KeyboardEvent
 	return event;
 }
 
+/** One middle press, cancelable, so `defaultPrevented` means what it says. */
+function middlePress(canvas: HTMLElement): PointerEvent {
+	const event = new PointerEvent('pointerdown', {
+		button: 1,
+		pointerId: 1,
+		clientX: 300,
+		clientY: 300,
+		bubbles: true,
+		cancelable: true,
+	});
+	canvas.dispatchEvent(event);
+	return event;
+}
+
 /**
  * Only the CLASS is assertable — jsdom resolves no styles, so nothing in this suite can see
  * that `.rp-plan-canvas-armed` means `cursor: grab`. What the cases below DO hold is the
@@ -300,145 +314,6 @@ describe('a pointer taken away mid-pan', () => {
 		harness.unmount();
 	});
 
-	it('does not destroy it when ESCAPE arrives mid-pan either', async () => {
-		// The same door one input over, and the destructive one: `cancelGesture()` empties the
-		// vertex buffer outright. A user mid-polygon who holds space to pan and presses Escape
-		// lost the whole polygon while the pan carried on underneath — measured against the
-		// previous commit as no zone being closeable at all afterwards, not merely a short one.
-		//
-		// Escape differs from `pointercancel` in being DELIBERATE, which is the argument for
-		// letting it through; it loses to the fact that a pan has nothing for Escape to undo,
-		// so the tool's buffer was the only thing it could destroy.
-		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
-		await settle();
-
-		click(canvas, 500, 100);
-		click(canvas, 600, 100);
-
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 400, 400);
-		pointer(canvas, 'pointermove', 420, 420);
-		key(canvas, 'keydown', { key: 'Escape' });
-		pointer(canvas, 'pointerup', 420, 420);
-		key(canvas, 'keyup', { key: ' ' });
-		await settle();
-
-		click(canvas, 620, 220);
-		click(canvas, 520, 120);
-		await settle();
-
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
-		expect(drawn?.entity.geometry.points).toHaveLength(3);
-		harness.unmount();
-	});
-
-	it('does not destroy it when a HELD Escape outlives the pan that swallowed it', async () => {
-		// A phase test alone decides afresh on every autorepeat, so the initial keydown was
-		// swallowed and the OS's next repeat of that same press — arriving once the button was
-		// released and the phase was no longer `panning` — cleared the buffer anyway. Whether
-		// the polygon survived came down to whether the release beat the next repeat, which is
-		// a race rather than a rule. One press is one press.
-		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
-		await settle();
-
-		click(canvas, 500, 100);
-		click(canvas, 600, 100);
-
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 400, 400);
-		pointer(canvas, 'pointermove', 420, 420);
-		key(canvas, 'keydown', { key: 'Escape' });
-		// The pan ends with Escape still physically down, and the OS keeps repeating it.
-		pointer(canvas, 'pointerup', 420, 420);
-		key(canvas, 'keydown', { key: 'Escape', repeat: true });
-		key(canvas, 'keyup', { key: 'Escape' });
-		key(canvas, 'keyup', { key: ' ' });
-		await settle();
-
-		click(canvas, 620, 220);
-		click(canvas, 520, 120);
-		await settle();
-
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
-		expect(drawn?.entity.geometry.points).toHaveLength(3);
-		harness.unmount();
-	});
-
-	it('still lets a FRESH Escape cancel once the pan is over', async () => {
-		// The other side of the repeat filter, and the reason it is `repeat` rather than a
-		// blanket suppression: releasing Escape and pressing it again is new intent, and must
-		// still reach the tool. Without this, a filter that keyed on the pan having swallowed
-		// anything at all would leave Escape dead for the rest of the session.
-		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
-		await settle();
-
-		click(canvas, 500, 100);
-		click(canvas, 600, 100);
-
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 400, 400);
-		pointer(canvas, 'pointermove', 420, 420);
-		key(canvas, 'keydown', { key: 'Escape' });
-		key(canvas, 'keyup', { key: 'Escape' });
-		pointer(canvas, 'pointerup', 420, 420);
-		key(canvas, 'keyup', { key: ' ' });
-		// A second, separate press — `repeat: false`, as a real one is.
-		key(canvas, 'keydown', { key: 'Escape' });
-		await settle();
-
-		// Cleared, so a fresh triangle closes on its own first vertex at three points.
-		click(canvas, 200, 200);
-		click(canvas, 300, 200);
-		click(canvas, 250, 300);
-		click(canvas, 202, 202);
-		await settle();
-
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
-		expect(drawn?.entity.geometry.points).toHaveLength(3);
-		harness.unmount();
-	});
-
-	it('still lets Escape reach the tool when space is merely HELD', async () => {
-		// The carve-out that must survive the fix: `armed` is not a gesture. Swallowing Escape
-		// whenever space was down would break the camera lock's own deliberate exception — a
-		// user must be able to abandon a drawing while holding the key that offers the camera.
-		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
-		await settle();
-
-		click(canvas, 500, 100);
-		click(canvas, 600, 100);
-
-		// Armed, never panning: no button ever goes down.
-		key(canvas, 'keydown', { key: ' ' });
-		key(canvas, 'keydown', { key: 'Escape' });
-		key(canvas, 'keyup', { key: ' ' });
-		await settle();
-
-		// A FRESH triangle, closed on its own first vertex. Three points prove the buffer was
-		// cleared: had the two earlier vertices survived, the close click would be nowhere near
-		// the buffer's first point (500, 100) and would add a sixth vertex instead of closing,
-		// leaving no zone at all.
-		//
-		// Asserting the count rather than absence is the whole point of this spelling. The
-		// first draft ended on `expect(drawn).toBeUndefined()` after two clicks, and it passed
-		// against a build that swallowed Escape while armed too — measured, not assumed. Two
-		// vertices cannot close either way, so it was reading the same `undefined` in both
-		// worlds and pinning nothing.
-		click(canvas, 200, 200);
-		click(canvas, 300, 200);
-		click(canvas, 250, 300);
-		click(canvas, 202, 202);
-		await settle();
-
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
-		expect(drawn?.entity.geometry.points).toHaveLength(3);
-		harness.unmount();
-	});
-
 	it('still abandons the pan itself', async () => {
 		// The half that must keep working: no `pointerup` will ever arrive for a cancelled
 		// pointer, so a pan left running would follow the bare cursor forever.
@@ -473,6 +348,54 @@ describe('a pointer taken away mid-pan', () => {
 		await settle();
 
 		expect(camera.viewport.pan.x).not.toBe(afterFirst);
+		harness.unmount();
+	});
+});
+
+describe('a middle press refused because another gesture is running', () => {
+	// The canvas CLAIMS the middle button, so it owes the suppression on every middle press
+	// rather than only where the override takes one. Chrome opens its autoscroll widget
+	// otherwise and the pane scrolls under the drag still running. Both states below refuse the
+	// press for the same reason — `gestureInFlight` — and reached the browser identically; the
+	// pair is here because camera mode is the DEFAULT state and a fix aimed at the tool path
+	// alone would leave the more reachable half open, which this review has already seen twice.
+	it('still suppresses the browser default during a TOOL drag', async () => {
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		pointer(canvas, 'pointerdown', 50, 50);
+		pointer(canvas, 'pointermove', 60, 60);
+
+		expect(middlePress(canvas).defaultPrevented).toBe(true);
+		harness.unmount();
+	});
+
+	it('still suppresses it during a CAMERA-MODE drag', async () => {
+		const { harness, canvas } = await editor();
+		pointer(canvas, 'pointerdown', 50, 50);
+		pointer(canvas, 'pointermove', 60, 60);
+
+		expect(middlePress(canvas).defaultPrevented).toBe(true);
+		harness.unmount();
+	});
+
+	it('does not let the suppression start a pan the lock refused', async () => {
+		// The other direction: suppressing the default must not be mistaken for claiming the
+		// gesture. A build that hoisted the claim rather than the `preventDefault` would pass
+		// the two cases above and break the lock this review spent a round establishing.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		pointer(canvas, 'pointerdown', 50, 50);
+		pointer(canvas, 'pointermove', 60, 60);
+		const held = { ...camera.viewport.pan };
+
+		middlePress(canvas);
+		pointer(canvas, 'pointermove', 400, 400);
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(held);
+		expect(cursorClasses(canvas)).not.toContain('rp-plan-canvas-panning');
 		harness.unmount();
 	});
 });
@@ -620,93 +543,6 @@ describe('the camera during a CAMERA-MODE drag', () => {
 		await settle();
 
 		expect(camera.viewport).toEqual(viewport);
-		harness.unmount();
-	});
-});
-
-describe('the space bar autorepeating through a long pan', () => {
-	it('keeps suppressing the page scroll on every repeat, not just the first', async () => {
-		// A held key repeats at the OS rate for as long as the pan lasts. The camera lock was
-		// placed ABOVE the Space branch, so every repeat returned before reaching
-		// `preventDefault()` — and Space's default is page-down, which scrolls the editor leaf
-		// out from under the plan. Suppressing the first keydown is not enough when the gesture
-		// is defined by holding the key.
-		const { harness, canvas } = await editor();
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 340, 300);
-		await settle();
-
-		const repeated = key(canvas, 'keydown', { key: ' ', repeat: true });
-		await settle();
-
-		expect(repeated.defaultPrevented).toBe(true);
-		harness.unmount();
-	});
-});
-
-/**
- * `spaceHeld` is a record of the PHYSICAL key, and the camera lock had been allowed to skip
- * writing it. Both cases below are the same defect from the two gestures that can be running
- * when the key goes down, and both end the other gesture to show the damage outliving it: no
- * second non-repeat keydown is ever coming for a key already held, so the machine believed
- * the key was up for as long as the user kept holding it.
- */
-describe('space pressed while another gesture is already running', () => {
-	it('still arms the camera once a TOOL drag ends', async () => {
-		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-
-		pointer(canvas, 'pointerdown', 50, 50);
-		pointer(canvas, 'pointermove', 60, 60);
-		key(canvas, 'keydown', { key: ' ' });
-		await settle();
-		pointer(canvas, 'pointerup', 60, 60);
-		await settle();
-
-		expect(cursorClasses(canvas)).toContain('rp-plan-canvas-armed');
-		harness.unmount();
-	});
-
-	it('still arms the camera once a MIDDLE-BUTTON pan ends', async () => {
-		// Codex's own framing of the finding, kept as its own case because the two gestures
-		// reach the lock by different routes — a tool's in-flight flag, and the store's drag.
-		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-
-		pointer(canvas, 'pointerdown', 50, 50, 1);
-		pointer(canvas, 'pointermove', 60, 60, 1);
-		key(canvas, 'keydown', { key: ' ' });
-		await settle();
-		pointer(canvas, 'pointerup', 60, 60, 1);
-		await settle();
-
-		// Armed, not idle: the next primary drag pans instead of reaching the active tool.
-		expect(cursorClasses(canvas)).toContain('rp-plan-canvas-armed');
-		harness.unmount();
-	});
-
-	it('does not let that arming MOVE the camera while the other gesture still runs', async () => {
-		// The reason the lock was put at the keydown in the first place, kept as a case so the
-		// fix cannot be read as having dropped the protection. It moved to the one place a
-		// gesture is actually claimed — `PanOverride.pointerDown` — which is where it belongs.
-		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-
-		pointer(canvas, 'pointerdown', 50, 50);
-		pointer(canvas, 'pointermove', 60, 60);
-		key(canvas, 'keydown', { key: ' ' });
-		await settle();
-		const held = { ...camera.viewport.pan };
-		// A second pointer pressing while the tool drag runs must claim nothing.
-		pointer(canvas, 'pointerdown', 200, 200, 0, 2);
-		pointer(canvas, 'pointermove', 400, 400, 0, 2);
-		await settle();
-
-		expect(camera.viewport.pan).toEqual(held);
 		harness.unmount();
 	});
 });

@@ -17,6 +17,7 @@ import {
 	screenPoint,
 	screenToWorld,
 	STAGE_PIXELS,
+	worldToScreen,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
@@ -355,5 +356,45 @@ describe('WorkspaceStore, the editor chrome', () => {
 		store.toggleInspectorPanel();
 
 		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, false]);
+	});
+});
+
+describe('EditorStore camera actions added for canvas navigation', () => {
+	it('nudges the camera by a screen delta, for the wheel gestures that are not a zoom', () => {
+		// Shift+wheel is a horizontal PAN in Obsidian's own Canvas, and a wheel notch is a
+		// screen-pixel quantity like a drag is. Converting it here rather than at the call
+		// site keeps the camera's arithmetic in the one place that owns it.
+		const store = useEditorStore();
+		const before = store.viewport;
+
+		store.panByScreen(60, 0);
+
+		expect(store.viewport.zoom).toBe(before.zoom);
+		expect(store.viewport.pan.x).toBeCloseTo(before.pan.x - 60 / before.zoom, 9);
+		expect(store.viewport.pan.y).toBe(before.pan.y);
+	});
+
+	it('fits an extent into the pane', () => {
+		const store = useEditorStore();
+
+		store.fitTo({ min: { x: 0, y: 0 }, max: { x: 4000, y: 2000 } }, { width: 800, height: 600 });
+
+		// The whole extent lands on screen, centred — the property `fitViewport` is tested for
+		// directly; what this asserts is that the STORE actually adopted its answer.
+		const centre = worldToScreen({ x: 2000, y: 1000 }, store.viewport, STAGE_PIXELS);
+		expect(centre.x).toBeCloseTo(400, 6);
+		expect(centre.y).toBeCloseTo(300, 6);
+		expect(store.viewport).not.toEqual(DEFAULT_VIEWPORT);
+	});
+
+	it('keeps the camera it has when the pane has no area yet', () => {
+		// The stage measures 0 x 0 until layout runs, so a fit asked in that window has
+		// nowhere to put the plan. Leaving the camera alone is the honest outcome; adopting
+		// `fitViewport`'s `null` would blank the view on an ordinary early call.
+		const store = useEditorStore();
+
+		store.fitTo({ min: { x: 0, y: 0 }, max: { x: 4000, y: 2000 } }, { width: 0, height: 0 });
+
+		expect(store.viewport).toEqual(DEFAULT_VIEWPORT);
 	});
 });

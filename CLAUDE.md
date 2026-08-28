@@ -287,7 +287,9 @@ review pass that followed:
   refresh and the reactive undo/redo flags; nothing errors anywhere.
 - **Camera mode is "no active tool"**, exactly what slice 5 shipped (`ToolManager` grew
   `clearActiveTool()` for it). A gesture abandoned with Escape clears through
-  `cancelGesture()`; a rejected close keeps the vertex buffer.
+  `cancelGesture()`; a rejected close keeps the vertex buffer. **It is no longer the only way
+  to reach the camera** — see the navigation section below, which is the same sentence about
+  where panning lives, arrived at from the opposite direction.
 - **A simulated pointer stream has to obey the real device's grammar, and so does the
   ROUTING.** A click is down+up on the SAME button; a drag is down/move…/up; a pointer can
   also be taken away with no up at all (`pointercancel`, which the browser fires when it
@@ -336,6 +338,67 @@ review pass that followed:
   shared consumer; `npm run analyze` reported the pair as a duplicate export, correctly. The
   Vue injection context is `PlanEditorContext` now (`PLAN_EDITOR_CONTEXT`,
   `usePlanEditorContext`); the tool facade keeps the bare name, which is the SDD's.
+
+**Canvas navigation is an OVERRIDE above the tool framework, not a mode inside it.** Space
+held or the middle button pans while any tool is active; shift+wheel pans horizontally (bare
+wheel still zooms, which is the CAD convention and what slice 5 shipped); `Shift+1` frames the
+plan and `Shift+2` the selection, both of them Obsidian Canvas's own bindings. The gestures
+were chosen by reading what other canvases actually do rather than by taste, and
+`docs/tests/cases/Canvas Navigation.md` records both the survey and what no gate here can
+check. Rules that came out of it:
+
+- **A pan built as a tool would destroy the thing the user is panning to see.** Reaching it
+  through `ToolManager.setActiveTool` runs the outgoing tool's `deactivate()`, so holding
+  space halfway through a polygon discards the vertices already placed — and the user reaches
+  for the pan precisely BECAUSE the shape runs off the pane. `viewport/pan-override.ts`
+  therefore sits ABOVE the manager and tells it nothing, which is why the interrupted tool has
+  nothing to lose. That is the one case in `canvasNavigation.test.ts` that would fail against
+  any design that routed this through the framework.
+- **The gesture outlives the modifier.** Releasing space with the button still down leaves the
+  pan running until the pointer is released — Photoshop, Figma and Obsidian Canvas all behave
+  this way, and disarming on keyup strands the user's pointer mid-pan. Two independent fields
+  (`spaceHeld`, `panningWith`) rather than one phase enum, because that overlap is exactly
+  what a single enum would have to encode as a transition.
+- **A canvas that hears keys only while focused has no keyup after an Alt+Tab.** The listener
+  is on the element rather than on `document` — so a plan editor in one split leaf cannot
+  swallow the space bar of a note being edited in another — which means focus leaving IS the
+  only notice a held key has ended. Without `onBlur`, the canvas comes back armed forever and
+  every later click pans instead of selecting.
+- **The middle button is not "paste-on-Linux", and a test had pinned that reading for three
+  slices.** X11's primary-selection paste is a TEXT INPUT gesture and a canvas is not one;
+  Obsidian's own Canvas documents middle-drag as its pan. `shell.test.ts`'s case is narrowed
+  to the SECONDARY button now, which is the one the claim was ever true of. The right button
+  stays unclaimed on purpose: it pans in Obsidian Canvas on Windows and not on macOS, because
+  macOS fires `contextmenu` on mousedown where Windows fires it on mouseup.
+- **Precedence between the camera and the active tool is decided in TypeScript, not in the
+  cascade.** The first draft expressed it as source order in `styles/editor.css` under a
+  comment claiming the pan rules won — they did not: the tool selector it was competing with
+  carried an attribute and outranked them, so the comment was false in both of its claims. One
+  computed class (`cursorClass`) makes the precedence an ordinary assertion instead, and
+  nothing in any gate reads CSS ordering.
+- **A dead branch that reads as belt and braces.** `boundsOfZones` validated each zone through
+  `createPolygon` before asking Core for its bounding box — but `validatePolygonPoints` refuses
+  exactly the empty and non-finite cases `boundingBoxOf` refuses, and refuses them first, so
+  the box's own failure arm was unreachable and no test could ever have covered it. Framing is
+  also the weaker question: a stored zone that no longer closes still has coordinates, and a
+  user asking to frame the plan wants to SEE it. One gate, both arms reachable.
+- **Ending one half of a gesture and not the other cost a ROUTING defect, not the camera
+  defect it looks like.** `pointerleave` cleared the store's drag and left the override still
+  believing it owned the pointer. The obvious prediction — the view runs away with the bare
+  cursor — is wrong and was measured wrong: `continuePan` no-ops without a drag state, so the
+  camera stays put and looks fine. What actually broke is that the next `pointerup` was
+  consumed as the end of a pan no longer happening, so the active tool got a press with no
+  release and the drag the user had just made did not commit. **Exactly one** release is
+  swallowed, and swallowing it repairs the state — so the regression case has to make that
+  drag the very next interaction, and the first draft of it passed against the defect because
+  a `click()` in between absorbed the damage. A self-healing defect needs a test that reaches
+  it before it heals.
+- **A private TypeScript field is not private at runtime, so a test can pass against nothing.**
+  The first `ToolManager.gestureInFlight` cases went green immediately — `tests/` is transpiled
+  without type checking, so they were reading the private field directly and could not tell a
+  getter from its absence. The field is `#private` now, which turned all five red as they
+  should have been. Anywhere a test asserts that something is REACHABLE, `private` is not the
+  mechanism that makes the test mean anything.
 
 **Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
 descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the

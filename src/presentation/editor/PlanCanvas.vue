@@ -10,6 +10,15 @@
  * is built as a selectable mode at all, shares this same `Viewport` and these same
  * functions; it does not change how panning works.
  *
+ * **That claim is now load-bearing rather than merely tidy**, which is what the pan OVERRIDE
+ * added: space held or the middle button pans while ANY tool is active, and it does so
+ * without going through `ToolManager` at all. Built as a tool it would have had to be
+ * switched TO, and the switch lifecycle runs the outgoing tool's `deactivate()` — so holding
+ * space halfway through a polygon would discard the vertices already placed, which is the
+ * exact opposite of what the gesture is for. `viewport/pan-override.ts` holds the state
+ * machine; the routing rules are `onPointerDown`/`onPointerMove`/`onPointerUp` below, and
+ * `tests/presentation/editor/canvasNavigation.test.ts` is what would notice them merging.
+ *
  * Every layer sets `listening: false`. There is no interactive tool yet to receive pointer
  * events, and per §62 an inert hit graph on layers nothing interacts with is pure cost —
  * Konva would maintain a second, hidden canvas per layer for nothing. Slice 6 turns
@@ -24,7 +33,11 @@ import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import type { ThemeTokens } from './theme/themeTokens';
 import { screenPoint, screenToWorld, viewportTransform, STAGE_PIXELS, type ScreenPoint } from './viewport/Viewport';
-import type { EditorPointerEvent } from './tools/editor-tool';
+import { PanOverride, type PanButton } from './viewport/pan-override';
+import { useProjectStore } from '../stores/ProjectStore';
+import { useSelectionStore } from './selection/selection-store';
+import { boundsOfZones } from './viewport/zoneExtent';
+import type { EditorPointerEvent, ToolId } from './tools/editor-tool';
 import { useEditorRuntime } from './runtime';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import BackgroundLayer from './layers/background/BackgroundLayer.vue';
@@ -37,12 +50,60 @@ const emit = defineEmits<{ backgroundStatus: [status: BackgroundStatus] }>();
 
 const editor = useEditorStore();
 const workspace = useWorkspaceStore();
+const project = useProjectStore();
+const selection = useSelectionStore();
 const runtime = useEditorRuntime();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
 
 const container = ref<HTMLElement | null>(null);
 const size = ref({ width: 0, height: 0 });
+
+/**
+ * The camera override (`viewport/pan-override.ts`): space held or the middle button, either
+ * of which outranks the active tool WITHOUT going through `ToolManager` — so a tool
+ * interrupted by a pan is never told anything happened and has nothing to lose. Per canvas,
+ * because two split leaves each have their own camera and their own held keys.
+ *
+ * A plain object rather than a `ref`: the machine is not itself rendered, and what the
+ * template needs from it is the cursor below, recomputed from the same events that drive it.
+ */
+const panOverride = new PanOverride();
+/** The override's phase, mirrored reactively — the only thing the template reads off it. */
+const panPhase = ref(panOverride.phase);
+
+function syncPanPhase(): void {
+	panPhase.value = panOverride.phase;
+}
+
+/**
+ * Tools whose click places a point at an exact spot, and which therefore want a crosshair
+ * rather than an arrow. A LIST rather than a `tool.cursor` member on `EditorTool`, because
+ * the alternative widens the tool interface every implementation must satisfy for the sake
+ * of a presentational detail two of them care about — and `ToolManager`'s own contract is
+ * that the framework knows no tool by name, which this file is not part of.
+ */
+const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'calibrate'];
+
+/**
+ * The ONE cursor class on the canvas, and the place the precedence between the camera and
+ * the active tool is decided.
+ *
+ * Decided here rather than left to the cascade in `styles/editor.css` on purpose: as source
+ * order it would be a correct rule that no gate reads, and a paste in the wrong place would
+ * silently invert it. As a computed it is an ordinary assertion in the suite.
+ *
+ * The camera outranks the tool because the ROUTING does — space held during a draw pans,
+ * so a crosshair there would be the only thing telling the user otherwise. `idle` maps to
+ * no class at all rather than to an `-idle` one: the resting state is what the base rule
+ * already describes, and a class that styles nothing is a selector waiting to be given a
+ * meaning it was never designed for.
+ */
+const cursorClass = computed(() => {
+	if (panPhase.value !== 'idle') return `rp-plan-canvas-${panPhase.value}`;
+	const tool = runtime.activeToolId.value;
+	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;
+});
 
 const transform = computed(() => viewportTransform(viewport.value));
 const stageConfig = computed(() => ({ width: size.value.width, height: size.value.height }));
@@ -77,6 +138,20 @@ function onWheel(event: WheelEvent): void {
 	// `{ passive: false }` explicitly does not silence it either; Chrome reports the
 	// listener being non-passive at all.
 	event.preventDefault();
+	if (event.shiftKey) {
+		// Shift+wheel pans horizontally — Obsidian's own Canvas does it, and this is a plan
+		// wider than its pane far more often than it is taller.
+		//
+		// `deltaX` FIRST, because the browser may already have done the conversion: Chrome on
+		// Windows and Linux turns a shift+wheel into a horizontal delta itself, and a
+		// trackpad's own sideways swipe arrives that way on every platform. Reading `deltaY`
+		// alone would make this gesture a silent no-op exactly where the platform was trying
+		// to help. The sign is inverted because a scroll "right" moves the VIEW right, which
+		// is the content moving left.
+		const amount = event.deltaX !== 0 ? event.deltaX : event.deltaY;
+		editor.panByScreen(-amount, 0);
+		return;
+	}
 	editor.zoomAt(stagePoint(event), viewport.value.zoom * Math.exp(-event.deltaY * WHEEL_SENSITIVITY));
 }
 
@@ -87,16 +162,25 @@ function onWheel(event: WheelEvent): void {
  * `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
  * pixel math (ADR-009).
  */
+/**
+ * Which button an event carries, as the ONE mapping both consumers read — the tool event
+ * below and the pan override's own claim. It was spelled twice for a while, which is two
+ * chances for `auxiliary` to mean different buttons in the two halves of one press.
+ *
+ * `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed state" —
+ * so this is NOT a reading of what is currently held down. Only 1 and 2 are mapped away from
+ * `primary`, which keeps a move during a primary drag reading as the primary gesture it is;
+ * `buttons` is the bitmask the held-down question would need, and nothing asks it yet.
+ */
+function panButtonOf(event: PointerEvent): PanButton {
+	return event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
+}
+
 function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
 	return {
 		worldPoint: screenToWorld(at, viewport.value, STAGE_PIXELS),
 		screenPoint: at,
-		// `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed
-		// state" — so it is NOT a reading of what is currently held down. Only 1 and 2 are
-		// mapped away from `primary`, which keeps a move during a primary drag reading as
-		// the primary gesture it is; `buttons` is the bitmask a tool would need for the
-		// held-down question, and nothing asks it yet.
-		button: event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary',
+		button: panButtonOf(event),
 		modifiers: { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey },
 		targetId: null,
 	};
@@ -122,8 +206,19 @@ function isPrimary(event: PointerEvent): boolean {
 }
 
 function onPointerDown(event: PointerEvent): void {
-	if (!isPrimary(event)) return;
 	const at = stagePoint(event);
+	// Asked BEFORE the primary filter, because the override's own button is the middle one —
+	// which `isPrimary` rejects, and correctly so for every other purpose.
+	if (panOverride.pointerDown(panButtonOf(event), { toolGestureInFlight: runtime.toolManager.gestureInFlight })) {
+		// Chrome opens its autoscroll widget on a middle press otherwise, and the pane scrolls
+		// under a space-held drag.
+		event.preventDefault();
+		(event.target as Element).setPointerCapture?.(event.pointerId);
+		editor.beginPan(at);
+		syncPanPhase();
+		return;
+	}
+	if (!isPrimary(event)) return;
 	// Capture, so a drag that leaves the pane still ends when the button does — without it
 	// the camera keeps panning after the pointer comes back, which reads as the view being
 	// stuck to the cursor.
@@ -138,6 +233,12 @@ function onPointerDown(event: PointerEvent): void {
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
 	editor.setPointer(at);
+	// The override outranks the active tool: a tool interrupted by a pan hears nothing at
+	// all, which is what leaves its half-drawn polygon intact.
+	if (panOverride.phase === 'panning') {
+		editor.continuePan(at);
+		return;
+	}
 	if (runtime.activeToolId.value !== null) {
 		runtime.toolManager.pointerMove(editorPointerEvent(event, at));
 		return;
@@ -146,6 +247,11 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
+	if (panOverride.pointerUp()) {
+		editor.endPan();
+		syncPanPhase();
+		return;
+	}
 	if (runtime.activeToolId.value !== null) {
 		if (isPrimary(event)) runtime.toolManager.pointerUp(editorPointerEvent(event, stagePoint(event)));
 		return;
@@ -164,11 +270,44 @@ function onPointerUp(event: PointerEvent): void {
  */
 function onPointerCancel(): void {
 	runtime.toolManager.cancelGesture();
+	panOverride.cancel();
+	syncPanPhase();
 	editor.endPan();
 	editor.setPointer(null);
 }
 
+/**
+ * Focus left the canvas, and that is the ONLY notice a held space bar has ended: keys are
+ * listened for on this element rather than on `document`, so that a plan editor in one split
+ * leaf cannot swallow the space bar of a note being edited in another. A user who alt-tabs
+ * mid-hold therefore releases the key somewhere this component will never hear, and without
+ * this the canvas comes back armed forever — every later click panning instead of selecting.
+ */
+function onBlur(): void {
+	panOverride.cancel();
+	syncPanPhase();
+	editor.endPan();
+}
+
 function onPointerLeave(): void {
+	// The override is released too, not merely the store's drag. Ending one and not the other
+	// leaves two values modelling one gesture and disagreeing about it.
+	//
+	// What that costs, MEASURED rather than reasoned, because the obvious answer is wrong: the
+	// camera does not run away — `continuePan` no-ops without a drag state, so the view stays
+	// put and looks fine. The damage is to the ROUTING. The next `pointerup` is consumed as
+	// the end of a pan that is no longer happening, so the active tool gets a press it never
+	// gets a release for, and the drag the user just made does not commit. Exactly one release
+	// is swallowed — clearing it is what repairs the state — which is why the regression case
+	// has to make that drag the very NEXT interaction or it passes against the defect.
+	//
+	// `pointerUp` rather than `cancel`: a held space bar has not been released, so this returns
+	// to `armed` and the user's next press still pans.
+	//
+	// Pointer capture means this should not fire mid-drag at all; that is a reason for the
+	// two to be consistent anyway rather than a reason to leave the gap.
+	panOverride.pointerUp();
+	syncPanPhase();
 	editor.endPan();
 	editor.setPointer(null);
 }
@@ -180,17 +319,64 @@ function onPointerLeave(): void {
  * tool's in-flight gesture (`ToolManager.cancelGesture` is a safe no-op when there is
  * none).
  */
+/**
+ * `Shift+1` frames the whole plan and `Shift+2` frames the selection — Obsidian's own Canvas
+ * shortcuts, so a user who knows one already knows the other. Answers whether the key was
+ * one of them, so the zoom-step branch is not also consulted for it.
+ *
+ * Both spellings of each key are matched: a US layout reports `'!'` for shift+1, and a
+ * layout where the digit is unshifted reports `'1'`. The `shiftKey` test stays beside them
+ * rather than instead of them, so a layout producing `!` WITHOUT shift does not fire a
+ * shortcut the user never reached for.
+ *
+ * A fit with nothing to frame does NOTHING, which is why `boundsOfZones` and `fitTo` each
+ * answer that way rather than defaulting: a jump to nowhere costs the user the view they
+ * had and tells them nothing about why.
+ */
+function fitShortcut(event: KeyboardEvent): boolean {
+	if (!event.shiftKey) return false;
+	const all = event.key === '!' || event.key === '1';
+	const selected = event.key === '@' || event.key === '2';
+	if (!all && !selected) return false;
+	event.preventDefault();
+	const zones = [...project.zones.values()];
+	const framed = all
+		? zones
+		: zones.filter((zone) => selection.selectedIds.some((id) => String(id) === zone.id));
+	const bounds = boundsOfZones(framed);
+	if (bounds !== null) editor.fitTo(bounds, size.value);
+	return true;
+}
+
 function onKeyDown(event: KeyboardEvent): void {
 	if (event.key === 'Escape') {
 		runtime.toolManager.cancelGesture();
 		return;
 	}
+	if (event.key === ' ') {
+		// `repeat` is filtered because a held key autorepeats at the OS rate and every one of
+		// those is a keydown. `PanOverride.armSpace` is idempotent, so that filter is belt and
+		// braces — the `preventDefault` is not: space is page-down in a scrollable leaf, and
+		// without it the first pan scrolls the editor out of its own view.
+		event.preventDefault();
+		if (event.repeat) return;
+		panOverride.armSpace();
+		syncPanPhase();
+		return;
+	}
+	if (fitShortcut(event)) return;
 	const factor = event.key === '+' || event.key === '=' ? KEY_ZOOM_STEP : event.key === '-' ? 1 / KEY_ZOOM_STEP : null;
 	if (factor === null) return;
 	event.preventDefault();
 	editor.zoomByFactor(screenPoint(size.value.width / 2, size.value.height / 2), factor);
 }
 
+function onKeyUp(event: KeyboardEvent): void {
+	if (event.key !== ' ') return;
+	// A pan already RUNNING is deliberately not ended here — see `PanOverride.disarmSpace`.
+	panOverride.disarmSpace();
+	syncPanPhase();
+}
 /**
  * The stage is sized from its container, never fixed: the Plan Editor fills its leaf, and
  * a leaf is resized by dragging a split, collapsing a sidebar or resizing the window —
@@ -219,6 +405,7 @@ onBeforeUnmount(() => {
 	<div
 		ref="container"
 		class="rp-plan-canvas"
+		:class="cursorClass"
 		role="application"
 		tabindex="0"
 		:aria-label="tr('editor.canvas')"
@@ -229,6 +416,8 @@ onBeforeUnmount(() => {
 		@pointercancel="onPointerCancel"
 		@pointerleave="onPointerLeave"
 		@keydown="onKeyDown"
+		@keyup="onKeyUp"
+		@blur="onBlur"
 	>
 		<VStage :config="stageConfig">
 			<BackgroundLayer

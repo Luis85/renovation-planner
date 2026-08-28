@@ -3,13 +3,16 @@ import { ref } from 'vue';
 import type { Point } from '../../core/geometry/Point';
 import {
 	DEFAULT_VIEWPORT,
+	fitViewport,
 	panBy,
 	screenToWorld,
 	STAGE_PIXELS,
 	zoomAbout,
 	type ScreenPoint,
+	type StageSize,
 	type Viewport,
 } from '../editor/viewport/Viewport';
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
 /**
  * The vocabulary for `activeToolId` below — the typed SLOT for whichever `EditorTool` is
  * active, so that adding tools does not change this store's shape. Always `null` today:
@@ -56,6 +59,13 @@ type DragState = {
  * (`EditorTool`, `ToolManager`, `CommandHistory`, `EditorContext`) and no tool, and wired
  * none of it into the composition root, so nothing here gained a writer.
  */
+/**
+ * Clear space left around a fitted extent, in stage pixels, so a zone's caption and its
+ * selection handles are not flush against the pane edge — the same reason
+ * `DEFAULT_VIEWPORT` carries a margin rather than starting at the world origin.
+ */
+const FIT_PADDING_PX = 48;
+
 export const useEditorStore = defineStore('editor', () => {
 	const viewport = ref<Viewport>(DEFAULT_VIEWPORT);
 	const activeToolId = ref<ToolId | null>(null);
@@ -102,6 +112,34 @@ export const useEditorStore = defineStore('editor', () => {
 
 	function endPan(): void {
 		dragState.value = null;
+	}
+
+	/**
+	 * A one-shot camera nudge in SCREEN pixels, with no gesture behind it — what a wheel
+	 * notch is. Shift+wheel pans horizontally in Obsidian's own Canvas, and this is where
+	 * that reaches the camera.
+	 *
+	 * Distinct from `continuePan` rather than a spelling of it: that one is relative to the
+	 * viewport a gesture STARTED from, which is what keeps a long drag free of accumulated
+	 * drift. A wheel notch has no start to be relative to, so it composes on the current
+	 * camera — and its drift is bounded by the fact that each notch is a fresh, exact
+	 * quantity rather than a running total of pointer positions.
+	 */
+	function panByScreen(dx: number, dy: number): void {
+		viewport.value = panBy(viewport.value, dx, dy);
+	}
+
+	/**
+	 * Zoom-to-fit: the camera that shows all of `bounds` at once, centred.
+	 *
+	 * A pane with no area answers `null` and is IGNORED rather than adopted. The stage is
+	 * measured from a container that is `0 x 0` until layout runs, so a fit asked in that
+	 * window is an ordinary early call and not an error — keeping the camera the editor
+	 * already has is the honest outcome, where writing `null` through would blank the view.
+	 */
+	function fitTo(bounds: BoundingBox, stage: StageSize, paddingPx = FIT_PADDING_PX): void {
+		const fitted = fitViewport(bounds, stage, paddingPx);
+		if (fitted !== null) viewport.value = fitted;
 	}
 
 	/** `null` when the pointer leaves the stage, so the readout blanks rather than lying. */
@@ -162,6 +200,8 @@ export const useEditorStore = defineStore('editor', () => {
 		beginPan,
 		continuePan,
 		endPan,
+		panByScreen,
+		fitTo,
 		setPointer,
 		reset,
 	};

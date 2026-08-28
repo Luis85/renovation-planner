@@ -44,12 +44,28 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 export class ToolManager {
 	private readonly tools = new Map<ToolId, EditorTool>();
 	private activeTool: EditorTool | null = null;
-	private gestureInFlight = false;
+	#gestureInFlight = false;
 
 	constructor(private readonly contextFactory: () => EditorContext) {}
 
 	get activeToolId(): ToolId | null {
 		return this.activeTool?.id ?? null;
+	}
+
+	/**
+	 * Whether a tool is between a press and its release — read by the pan override, which
+	 * refuses to claim the middle button while one is running (a camera moving beneath a live
+	 * drag would commit that drag at a position the user never chose).
+	 *
+	 * A GETTER over the flag this class already keeps, rather than a second boolean tracked
+	 * by the canvas: two values modelling one gesture is the drift `activeToolId` itself had
+	 * to be collapsed out of, and the copy would be the one that goes stale. The field behind
+	 * it is `#private` rather than `private` so that this getter is genuinely the only way in
+	 * — TypeScript's `private` is erased at runtime, and `tests/` is transpiled without type
+	 * checking, so a test reaching for the field directly would pass while proving nothing.
+	 */
+	get gestureInFlight(): boolean {
+		return this.#gestureInFlight;
 	}
 
 	/** Throws if `tool.id` is already registered (see decision 3 above). */
@@ -77,9 +93,9 @@ export class ToolManager {
 		}
 		const outgoing = this.activeTool;
 		if (outgoing) {
-			if (this.gestureInFlight) {
+			if (this.#gestureInFlight) {
 				outgoing.cancel();
-				this.gestureInFlight = false;
+				this.#gestureInFlight = false;
 			}
 			outgoing.deactivate();
 		}
@@ -96,9 +112,9 @@ export class ToolManager {
 	clearActiveTool(): void {
 		const outgoing = this.activeTool;
 		if (!outgoing) return;
-		if (this.gestureInFlight) {
+		if (this.#gestureInFlight) {
 			outgoing.cancel();
-			this.gestureInFlight = false;
+			this.#gestureInFlight = false;
 		}
 		outgoing.deactivate();
 		this.activeTool = null;
@@ -109,7 +125,7 @@ export class ToolManager {
 		if (!this.activeTool) {
 			return;
 		}
-		this.gestureInFlight = true;
+		this.#gestureInFlight = true;
 		this.activeTool.pointerDown(event);
 	}
 
@@ -127,7 +143,7 @@ export class ToolManager {
 			return;
 		}
 		this.activeTool.pointerUp(event);
-		this.gestureInFlight = false;
+		this.#gestureInFlight = false;
 	}
 
 	/**
@@ -152,6 +168,6 @@ export class ToolManager {
 			return;
 		}
 		this.activeTool.cancel();
-		this.gestureInFlight = false;
+		this.#gestureInFlight = false;
 	}
 }

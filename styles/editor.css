@@ -315,7 +315,6 @@
 	   pointer has other causes — but a gesture that is never stolen is the better fix. */
 	touch-action: none;
 }
-
 .rp-editor-canvas-message {
 	display: flex;
 	flex: 1;

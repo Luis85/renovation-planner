@@ -408,3 +408,55 @@ describe('DoD 12: the framework knows no tool by name', () => {
 		expect(toolIdLiterals(readSource(module), toolIds())).toEqual([]);
 	});
 });
+
+describe('gestureInFlight', () => {
+	/**
+	 * The pan override asks this before claiming the middle button, so that a pan cannot
+	 * start under a tool that is already dragging. It is a GETTER over the flag the manager
+	 * already keeps rather than a second copy in the canvas: two booleans modelling one
+	 * gesture is exactly the drift `activeToolId` already had to be collapsed out of.
+	 */
+	function armed(): { manager: ToolManager; calls: string[] } {
+		const calls: string[] = [];
+		const manager = new ToolManager(fakeContext);
+		manager.register(fakeTool('select', calls));
+		manager.setActiveTool('select');
+		return { manager, calls };
+	}
+
+	it('is false with no tool active at all', () => {
+		expect(new ToolManager(fakeContext).gestureInFlight).toBe(false);
+	});
+
+	it('is false before the first press', () => {
+		expect(armed().manager.gestureInFlight).toBe(false);
+	});
+
+	it('is true between a press and its release', () => {
+		const { manager } = armed();
+
+		manager.pointerDown(pointerEvent());
+
+		expect(manager.gestureInFlight).toBe(true);
+	});
+
+	it('is false again once the release arrives', () => {
+		const { manager } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.pointerUp(pointerEvent());
+
+		expect(manager.gestureInFlight).toBe(false);
+	});
+
+	it('is false after a cancelled gesture, not merely after a released one', () => {
+		// Escape and `pointercancel` both land here. A flag that only cleared on `pointerUp`
+		// would leave the override refusing the middle button for the rest of the session.
+		const { manager } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.cancelGesture();
+
+		expect(manager.gestureInFlight).toBe(false);
+	});
+});

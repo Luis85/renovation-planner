@@ -126,7 +126,7 @@ const PRESERVATION_CASES: ReadonlyArray<{
 		kind: 'asset',
 		reads: 'Renamed asset',
 		drive: async (stack) => {
-			const projectId = createProjectId();
+			const projectId = await seedProject(stack);
 			const id = createAssetId();
 			const written = expectOk(await stack.assets.save(makeAsset({ id, projectId }), 'absent'));
 			await expectTargetedUpdatePreservesUserContent({
@@ -143,7 +143,7 @@ const PRESERVATION_CASES: ReadonlyArray<{
 		kind: 'requirement',
 		reads: '0.25',
 		drive: async (stack) => {
-			const projectId = createProjectId();
+			const projectId = await seedProject(stack);
 			const origin = { kind: 'zone', zoneId: createZoneId() } as const;
 			const assetId = createAssetId();
 			const requirement = makeRequirement({ projectId, assetId, origin });
@@ -208,8 +208,9 @@ describe('a targeted property update preserves the user’s own note content', (
 	 */
 	it('requirement.markStale — a second writeOwnedFrontmatter call, and not an upsert', async () => {
 		const stack = createRepositoryStack();
+		const projectId = await seedProject(stack);
 		const requirement = makeRequirement({
-			projectId: createProjectId(),
+			projectId,
 			assetId: createAssetId(),
 			origin: { kind: 'zone', zoneId: createZoneId() },
 		});

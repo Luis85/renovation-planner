@@ -9,7 +9,6 @@ import { revisionConflict } from '../../../application/ports/versioning';
 import { calibrationFromPersistence, planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
 	ensureFolder,
-	findNoteIdInFolder,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -21,8 +20,8 @@ import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import {
 	freshNotePath,
-	normalizeFolder,
 	plansFolderFor,
+	projectFolderOf,
 	sidecarPathFor,
 } from './paths';
 import { KeyedQueues } from './KeyedQueues';
@@ -61,14 +60,11 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  */
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
 	constructor(
 		private readonly deps: NoteVaultDeps,
 		private readonly geometry: PlanGeometryStore,
-	) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	) {}
 
 	async getById(id: PlanId): Promise<Result<Loaded<Plan> | null, RepositoryError>> {
 		const opened = openNoteById(this.deps, 'plan', id);
@@ -116,9 +112,12 @@ export class ObsidianPlanRepository {
 		plan: Plan,
 		expected: Expected,
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
-		// Existence before writes — the fork the conditional-write comparison needs.
-		const notesFolder = plansFolderFor(this.folder);
-		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, plan.id);
+		// Existence before writes — the fork the conditional-write comparison needs, through
+		// the INDEX rather than a scan of the derived folder. Slice 18 bounded discovery by
+		// what a note DECLARES rather than by where it sits, so a plan note filed elsewhere
+		// in the vault reads and deletes fine; a folder scan could not see it, and the save
+		// answered a permanent `plan.revision-conflict` instead of updating it in place.
+		const existing = this.locate(plan.id);
 		const currentVersion =
 			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
@@ -128,7 +127,19 @@ export class ObsidianPlanRepository {
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...planToPersistence(plan, nextRevision) };
 
-		return existing ? this.updateExisting(plan, existing, dto, nextRevision) : this.insertNew(plan, dto, notesFolder);
+		if (existing) return this.updateExisting(plan, existing, dto, nextRevision);
+
+		// The derived folder, for the INSERT alone — where the note and its sidecar are
+		// created. `undefined` is a refusal rather than a fallback: writing to a defaulted
+		// path when the real one is unknown is how a note lands in a parallel tree beside
+		// the user's work. An UPDATE never reaches here; it writes where the note already is.
+		const folder = projectFolderOf(this.deps.index, plan.projectId);
+		if (folder === undefined) {
+			return Promise.resolve(
+				err(persistenceError('plan.project-folder-unresolved', `Could not resolve the folder of project ${plan.projectId} for plan ${plan.id}.`)),
+			);
+		}
+		return this.insertNew(plan, dto, plansFolderFor(folder), folder);
 	}
 
 	/** Sidecar first, note second, delete-the-sidecar compensation on a failed note write. */
@@ -136,8 +147,9 @@ export class ObsidianPlanRepository {
 		plan: Plan,
 		dto: Record<string, unknown>,
 		notesFolder: string,
+		projectFolder: string,
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
-		const sidecarPath = sidecarPathFor(this.folder, plan.id);
+		const sidecarPath = sidecarPathFor(projectFolder, plan.id);
 		const created = await this.geometry.create(plan.id, sidecarPath);
 		if (!created.ok) {
 			return err(persistenceError('plan.sidecar-create-failed', `Could not create the geometry sidecar for plan ${plan.id}.`, created.error));

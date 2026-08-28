@@ -5,7 +5,7 @@ import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetRepository } from '../../../application/ports/AssetRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
-import { assetsFolderFor, normalizeFolder } from '../repositories/paths';
+import { assetsFolderFor, projectFolderOf } from '../repositories/paths';
 import { KeyedQueues } from '../repositories/KeyedQueues';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import { assetFromPersistence, assetToPersistence } from '../../persistence/mappers/assetMapper';
@@ -16,10 +16,10 @@ import {
 	type NoteWriteSpec,
 } from './noteEntityWrite';
 
-const SPEC: NoteWriteSpec<Asset> = {
+/** Everything about an asset write that does not change between saves — the folder does. */
+const SPEC: Omit<NoteWriteSpec<Asset>, 'notesFolder'> = {
 	kind: 'asset',
 	indexType: 'renovation-asset',
-	notesFolder: '',
 	entryName: (asset) => asset.name,
 	toPersistence: assetToPersistence,
 	preWriteValid: (dto) => assetFromPersistence({ ...dto }).ok,
@@ -30,15 +30,15 @@ const SPEC: NoteWriteSpec<Asset> = {
 /**
  * The Zone repository's six-step save contract, without the geometry sidecar — an asset
  * note owns no second file. The write SEQUENCE lives once in `noteEntityWrite`; this
- * class keeps the per-kind facts: its folder, its mapper and its error codes.
+ * class keeps the per-kind facts: its mapper and its error codes. Its folder is resolved
+ * per save, from the owning project's own note (ADR-0013, `projectFolderOf`) — never a
+ * constructor field, since a project's folder can move (a rename, a manual reorganisation)
+ * between one save and the next.
  */
 export class ObsidianAssetRepository implements AssetRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
-	constructor(private readonly deps: NoteVaultDeps) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	constructor(private readonly deps: NoteVaultDeps) {}
 
 	getById(id: AssetId): Promise<Result<Loaded<Asset> | null, RepositoryError>> {
 		return readNoteBackedEntity(this.deps, 'asset', id, assetFromPersistence, 'asset.entity-invalid');
@@ -55,7 +55,14 @@ export class ObsidianAssetRepository implements AssetRepository {
 		asset: Asset,
 		expected: Expected,
 	): Promise<Result<Loaded<Asset>, RepositoryError>> {
-		const spec: NoteWriteSpec<Asset> = { ...SPEC, notesFolder: assetsFolderFor(this.folder) };
+		// Resolved here and consumed only on the INSERT path — `undefined` travels into the
+		// spec rather than refusing outright, because an UPDATE writes where the note
+		// already is and needs no folder at all (see `NoteWriteSpec.notesFolder`).
+		const folder = projectFolderOf(this.deps.index, asset.projectId);
+		const spec: NoteWriteSpec<Asset> = {
+			...SPEC,
+			notesFolder: folder === undefined ? undefined : assetsFolderFor(folder),
+		};
 		return saveNoteBackedEntity(this.deps, spec, asset, expected);
 	}
 

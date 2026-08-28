@@ -22,7 +22,6 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>, debounceMs?:
 		index: stack.index,
 		echo: stack.echo,
 		logger: stack.logger,
-		projectFolder: stack.projectFolder,
 		debounceMs,
 	});
 }

@@ -21,7 +21,6 @@ import { SpatialObjectGeometrySchemaV1 } from '../../persistence/dto/planGeometr
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
-	findNoteIdInFolder,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -32,7 +31,7 @@ import {
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import { revisionConflict } from '../../../application/ports/versioning';
-import { freshNotePath, normalizeFolder, zonesFolderFor } from './paths';
+import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
@@ -74,14 +73,11 @@ function validationFailure(message: string): ValidationError {
 
 export class ObsidianZoneRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
 	constructor(
 		private readonly deps: NoteVaultDeps,
 		private readonly geometry: PlanGeometryStore,
-	) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	) {}
 
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		return this.loadOne(id, (planId) => this.geometry.read(planId));
@@ -144,8 +140,15 @@ export class ObsidianZoneRepository {
 		expected: Expected,
 	): Promise<Result<Loaded<Zone>, RepositoryError>> {
 		// Step 2: existence and snapshots BEFORE any write.
-		const notesFolder = zonesFolderFor(this.folder);
-		const existing = findNoteIdInFolder(this.deps, this.deps.vault, notesFolder, zone.id);
+		//
+		// Through the INDEX, not a scan of the derived folder — the same lookup `getById`
+		// and `delete` use. Slice 18 bounded discovery by what a note DECLARES rather than
+		// by where it sits, so a zone note the user filed anywhere else is read, indexed and
+		// deletable; a folder scan could not see it, `currentVersion` came back undefined,
+		// and the save answered a permanent `zone.revision-conflict`. The project's folder
+		// is resolved further down, on the INSERT path alone, because that is the only path
+		// that has to choose where a note goes.
+		const existing = this.locate(zone.id);
 		const currentVersion =
 			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
@@ -181,6 +184,15 @@ export class ObsidianZoneRepository {
 				notePath = existing.path;
 				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto);
 			} else {
+				// The derived folder, for the INSERT alone. `undefined` is a refusal rather
+				// than a fallback: writing to a defaulted path when the real one is unknown
+				// is how a note lands in a parallel tree beside the user's work. An UPDATE
+				// never reaches here — it writes where the note already is.
+				const folder = projectFolderOf(this.deps.index, zone.projectId);
+				if (folder === undefined) {
+					return err(persistenceError('zone.project-folder-unresolved', `Could not resolve the folder of project ${zone.projectId} for zone ${zone.id}.`));
+				}
+				const notesFolder = zonesFolderFor(folder);
 				notePath = freshNotePath(this.deps.vault, notesFolder, zone.name, zone.id);
 				await ensureFolder(this.deps.vault, notesFolder);
 				await this.deps.vault.create(notePath, serializeFrontmatter(dto));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk, RecordingEventBus } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import type { Zone } from '../../../../src/domain/zone/Zone';
 import { ObsidianPlanGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
@@ -12,6 +12,7 @@ import type { PlanGeometryDocument } from '../../../../src/application/ports/Pla
 const seeded = async () => {
 	const stack = createRepositoryStack();
 	const projectId = createProjectId();
+	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 	const plan = makePlanEntity({ projectId });
 	expectOk(await stack.plans.save(plan, 'absent'));
 	const zones: Zone[] = [

@@ -13,7 +13,7 @@ import { createProjectId, type ProjectId } from '../../../../src/domain/project/
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createZoneId, type ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { Asset } from '../../../../src/domain/asset/Asset';
-import { fileNameFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { assetsFolderFor, fileNameFor, projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
 /**
  * The slice-10 repositories' failure branches — the diagnostics a broken or
@@ -26,8 +26,21 @@ function requirementFor(projectId: ProjectId, zoneId: ZoneId, assetId: AssetId) 
 	return makeRequirement({ projectId, assetId, origin: { kind: 'zone', zoneId } });
 }
 
-async function seedRequirement(stack: RepositoryStack) {
+/**
+ * Folder resolution goes through the index now (ADR-0013), so any project an Asset or a
+ * Requirement is saved against has to be a REAL, registered project — a bare
+ * `createProjectId()` used to be enough because both repositories read the shared setting
+ * out of `NoteVaultDeps` instead. Left unregistered, every save below would refuse with
+ * `*.project-folder-unresolved` before touching the behaviour each test actually names.
+ */
+async function seedProject(stack: RepositoryStack): Promise<ProjectId> {
 	const projectId = createProjectId();
+	expectOk(await stack.projects.save(makeProject({ id: projectId }), 'absent'));
+	return projectId;
+}
+
+async function seedRequirement(stack: RepositoryStack) {
+	const projectId = await seedProject(stack);
 	const zoneId = createZoneId();
 	const assetId = createAssetId();
 	const written = expectOk(
@@ -42,7 +55,7 @@ function rewriteNote(stack: RepositoryStack, path: string, from: string, to: str
 }
 
 async function seedAsset(stack: RepositoryStack, overrides?: Parameters<typeof makeAsset>[0]) {
-	const projectId = overrides?.projectId ?? createProjectId();
+	const projectId = overrides?.projectId ?? (await seedProject(stack));
 	const asset = makeAsset({ projectId, ...overrides });
 	const written = expectOk(await stack.assets.save(asset, 'absent'));
 	const path = stack.index.getPath(written.entity.id) ?? '';
@@ -126,9 +139,15 @@ describe('ObsidianRequirementRepository failure branches', () => {
 	it('markStale refuses when the note vanishes between the read and the marker write', async () => {
 		const stack = createRepositoryStack();
 		const { requirementId } = await seedRequirement(stack);
-		// The read resolves through the index; the marker write scans the folder. With
-		// nothing to scan, the note this repository just READ cannot be written.
-		stack.vault.getMarkdownFiles = () => [];
+		// Both halves resolve through the index now, so the arm is reachable only by the
+		// race it is named for: the entry is there for the read and gone by the write. The
+		// first lookup answers, every later one does not — which is that race exactly, and
+		// it is the only shape that still separates the two.
+		const resolve = stack.index.getPath.bind(stack.index);
+		let lookups = 0;
+		stack.index.getPath = ((id: Parameters<typeof resolve>[0]) =>
+			lookups++ === 0 ? resolve(id) : undefined) as typeof resolve;
+
 		const error = expectErr(await stack.requirements.markStale(requirementId));
 		expect(error.code).toBe('requirement.mark-stale-failed');
 		expect(error.message).toContain('disappeared');
@@ -214,8 +233,11 @@ describe('ObsidianAssetRepository failure branches', () => {
 
 	it('an insert whose note create fails reports asset.write-failed', async () => {
 		const stack = createRepositoryStack();
-		const asset = makeAsset({ projectId: createProjectId(), name: 'Collision' });
-		stack.vault.failures.add(`create:${stack.projectFolder}/Assets/Collision.md`);
+		const projectId = await seedProject(stack);
+		const asset = makeAsset({ projectId, name: 'Collision' });
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		stack.vault.failures.add(`create:${assetsFolderFor(folder)}/Collision.md`);
 		const error = expectErr(await stack.assets.save(asset, 'absent'));
 		expect(error.code).toBe('asset.write-failed');
 	});
@@ -302,20 +324,30 @@ describe('ObsidianZoneRepository compensation arms', () => {
 		expectOk(await stack.plans.save(makePlan({ id: planId, projectId }), 'absent'));
 
 		const zone = makeZone({ projectId, planId });
-		const sidecarPath = `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+		// No `?? stack.projectFolder` fallback: the project was just seeded above, so
+		// `projectFolderOf` always resolves here — a fallback that never fires is dead
+		// tolerance that would silently reconstruct the old flat path the day a caller
+		// stops seeding one.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const sidecarPath = sidecarPathFor(folder, planId);
 		stack.vault.failures.add(`modify:${sidecarPath}`);
 
 		const error = expectErr(await stack.zones.save(zone, 'absent'));
 		expect(error.code).toBe('zone.sidecar-insert-failed');
 		// Compensated: the half-written insert left NOTHING behind.
-		const notePath = `${stack.projectFolder}/Zones/${fileNameFor(zone.name)}.md`;
+		const notePath = `${zonesFolderFor(folder)}/${fileNameFor(zone.name)}.md`;
 		expect(stack.vault.entries.has(notePath)).toBe(false);
 	});
 
 	it('an update whose sidecar write fails restores the note bytes it replaced', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId, zone } = await seedPlanWithZone(stack);
-		const sidecarPath = `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+		// Same as above: `seedPlanWithZone` always registers the project first, so the
+		// fallback would never fire.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const sidecarPath = sidecarPathFor(folder, planId);
 
 		stack.vault.failures.add(`modify:${sidecarPath}`);
 		const renamed = makeZone({ id: zone.entity.id, projectId, planId, name: 'Renamed room' });
@@ -323,7 +355,7 @@ describe('ObsidianZoneRepository compensation arms', () => {
 		expect(error.code).toBe('zone.sidecar-update-failed');
 
 		// The note text was byte-restored: the OLD name is back, nothing half-updated.
-		const noteText = [...stack.vault.entries.entries()].find(([path]) => path.startsWith(`${stack.projectFolder}/Zones/`))?.[1] ?? '';
+		const noteText = [...stack.vault.entries.entries()].find(([path]) => path.startsWith(`${zonesFolderFor(folder)}/`))?.[1] ?? '';
 		expect(noteText).toContain('Living room');
 	});
 });

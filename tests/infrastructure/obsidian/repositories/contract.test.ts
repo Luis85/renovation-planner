@@ -22,7 +22,7 @@ import type { Project } from '../../../../src/domain/project/Project';
 import { projectRepositoryContract } from '../../../contracts/project-repository.contract';
 import { planRepositoryContract } from '../../../contracts/plan-repository.contract';
 import { zoneRepositoryContract } from '../../../contracts/zone-repository.contract';
-import { normalizeFolder, plansFolderFor, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { normalizeFolder, plansFolderFor, projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { projectToPersistence } from '../../../../src/infrastructure/persistence/mappers/projectMapper';
 import { planToPersistence } from '../../../../src/infrastructure/persistence/mappers/planMapper';
 
@@ -65,6 +65,25 @@ function plantNote(
 	});
 }
 
+/**
+ * A project the caller never intends to touch through `ObsidianProjectRepository` — the
+ * shared contract's `otherProject()` mints a project and expects a Plan or Zone built
+ * against it to save normally. Folder resolution now goes through the index (ADR-0013),
+ * so that project needs a real note, planted in exactly the layout and byte shape the
+ * repository itself produces — `plantNote` plus the real `projectToPersistence` mapper,
+ * the same pair `provision()` below already uses for a Plan's owning project, rather than
+ * a bare index entry pointing at a filename no repository would ever write. Nothing reads
+ * this note today, but a fixture note that could not survive being read is the thin-fake
+ * shape this repository keeps finding.
+ */
+function registerOtherProject(stack: RepositoryStack): ProjectId {
+	const folder = normalizeFolder(stack.projectFolder);
+	const project = makeProjectEntity();
+	const path = `${folder}/${project.name} ${project.id}.md`;
+	plantNote(stack, path, 'renovation-project', projectToPersistence(project, 1));
+	return project.id;
+}
+
 function fixEntry(
 	stack: RepositoryStack,
 	id: EntityId<string>,
@@ -96,7 +115,7 @@ planRepositoryContract(() => {
 		repository: stack.plans,
 		makePlan: (projectId: ProjectId, name?: string) => makePlanEntity({ projectId, ...(name ? { name } : {}) }),
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 	};
 });
 
@@ -141,7 +160,7 @@ zoneRepositoryContract(() => {
 		makeZone: (projectId, planId, name?) => makeZoneEntity({ projectId, planId, ...(name ? { name } : {}) }),
 		touch: (id) => handEdit(stack, id),
 		otherParents: () => provision(),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 	};
 });
 
@@ -235,9 +254,15 @@ describe('writing into a folder nothing has created yet', () => {
 		expectOk(await stack.plans.save(plan, 'absent'));
 
 		// The sidecar exists, at the path the index maps the plan to — not merely "the save
-		// returned ok", which is what a fake with no folders would have allowed.
+		// returned ok", which is what a fake with no folders would have allowed. Under its
+		// project's OWN folder (ADR-0013), not the bare configured root.
 		const sidecarPath = stack.index.getGeometrySidecarPath(plan.id);
-		expect(sidecarPath).toBe(sidecarPathFor(normalizeFolder(stack.projectFolder), plan.id));
+		// No `?? normalizeFolder(stack.projectFolder)` fallback: the project was just saved
+		// above, so `projectFolderOf` always resolves — a fallback that never fires is dead
+		// tolerance that would silently reconstruct the old flat path the day it stopped.
+		const projectFolder = projectFolderOf(stack.index, project.id);
+		if (projectFolder === undefined) throw new Error(`no folder indexed for project ${project.id}`);
+		expect(sidecarPath).toBe(sidecarPathFor(projectFolder, plan.id));
 		expect(stack.vault.entries.has(sidecarPath as string)).toBe(true);
 	});
 
@@ -294,7 +319,7 @@ assetRepositoryContract(() => {
 	return {
 		repository: stack.assets,
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 	};
 });
 
@@ -303,7 +328,7 @@ requirementRepositoryContract(() => {
 	return {
 		repository: stack.requirements,
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => createProjectId(),
+		otherProject: () => registerOtherProject(stack),
 		newZone: () => createZoneId(),
 		newAsset: () => createAssetId(),
 	};

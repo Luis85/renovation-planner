@@ -6,6 +6,7 @@ import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
 import { versionOfFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
+import { projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
 /**
  * The error paths of the storage layer: every diagnostic the repositories and the
@@ -21,8 +22,15 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	return { projectId, planId };
 }
 
-function sidecarPathOf(stack: RepositoryStack, planId: PlanId): string {
-	return `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+// The one LIVE use of the `?? stack.projectFolder` fallback among this task's
+// `sidecarPathOf` helpers: 'delete honours the path hint when the index mapping does
+// not exist yet' deliberately passes an unregistered project (it exercises
+// `PlanGeometryStore.delete`'s explicit-path-hint branch, not folder derivation), so
+// `projectFolderOf` genuinely returns `undefined` there and this is what keeps that
+// call constructing the same path `PlanGeometryStore.delete` is handed. Every other
+// caller in this file seeds a real project first, so the fallback never fires for them.
+function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
+	return sidecarPathFor(projectFolderOf(stack.index, projectId) ?? stack.projectFolder, planId);
 }
 
 describe('plan geometry store diagnostics', () => {
@@ -34,8 +42,8 @@ describe('plan geometry store diagnostics', () => {
 
 	it('read of a missing or corrupt sidecar refuses distinctly', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		const path = sidecarPathOf(stack, planId);
+		const { projectId, planId } = await seed(stack);
+		const path = sidecarPathOf(stack, projectId, planId);
 
 		stack.vault.entries.delete(path);
 		expect(expectErr(await stack.store.read(planId)).code).toBe('plan-geometry.missing');
@@ -46,9 +54,9 @@ describe('plan geometry store diagnostics', () => {
 
 	it('a migration gap on old data surfaces as a Migration refusal with the runner\'s own code', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		stack.vault.entries.set(
-			sidecarPathOf(stack, planId),
+			sidecarPathOf(stack, projectId, planId),
 			JSON.stringify({ schemaVersion: 0, planId, revision: 0, unit: 'mm', calibration: null, objects: [] }),
 		);
 		const result = await stack.store.read(planId);
@@ -58,9 +66,9 @@ describe('plan geometry store diagnostics', () => {
 
 	it('a hand-renamed or hand-edited planId refuses at read time (the filename join verified)', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		stack.vault.entries.set(
-			sidecarPathOf(stack, planId),
+			sidecarPathOf(stack, projectId, planId),
 			JSON.stringify({ schemaVersion: 1, planId: `${planId}-imposter`, revision: 1, unit: 'mm', calibration: null, objects: [] }),
 		);
 		expect(expectErr(await stack.store.read(planId)).code).toBe('plan-geometry.plan-id-mismatch');
@@ -68,8 +76,8 @@ describe('plan geometry store diagnostics', () => {
 
 	it('mutate write failures surface as write-failed and leave the queue usable', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		const { projectId, planId } = await seed(stack);
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		const failed = await stack.store.mutate(planId, (dto) => ({ ...dto }));
 		expect(expectErr(failed).code).toBe('plan-geometry.write-failed');
 
@@ -80,7 +88,10 @@ describe('plan geometry store diagnostics', () => {
 	it('delete honours the path hint when the index mapping does not exist yet', async () => {
 		const stack = createRepositoryStack();
 		const planId = createPlanId();
-		const path = sidecarPathOf(stack, planId);
+		// No real project registered here — `PlanGeometryStore.delete` takes the path as an
+		// explicit hint and never resolves one through the index, so the unresolvable id
+		// falls back to the configured root exactly like the old flat layout did.
+		const path = sidecarPathOf(stack, createProjectId(), planId);
 		stack.vault.entries.set(path, '{}');
 
 		await stack.store.delete(planId, path);
@@ -94,8 +105,8 @@ describe('plan geometry store diagnostics', () => {
 describe('repository diagnostics', () => {
 	it('plan getById reports an unreadable sidecar instead of a bare note', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		stack.vault.entries.delete(sidecarPathOf(stack, planId));
+		const { projectId, planId } = await seed(stack);
+		stack.vault.entries.delete(sidecarPathOf(stack, projectId, planId));
 
 		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.sidecar-unreadable');
 	});
@@ -118,16 +129,16 @@ describe('repository diagnostics', () => {
 		expectOk(await stack.zones.save(zone, 'absent'));
 
 		// A live note whose plan's sidecar became unreadable.
-		stack.vault.entries.set(sidecarPathOf(stack, planId), '{ not json');
+		stack.vault.entries.set(sidecarPathOf(stack, projectId, planId), '{ not json');
 		expect(expectErr(await stack.zones.getById(zoneId)).code).toBe('zone.sidecar-unreadable');
 
 		// Sidecar fine again, but this zone's entry gone.
-		stack.vault.entries.set(sidecarPathOf(stack, planId), JSON.stringify({ schemaVersion: 1, planId, revision: 2, unit: 'mm', calibration: null, objects: [] }));
+		stack.vault.entries.set(sidecarPathOf(stack, projectId, planId), JSON.stringify({ schemaVersion: 1, planId, revision: 2, unit: 'mm', calibration: null, objects: [] }));
 		expect(expectErr(await stack.zones.getById(zoneId)).code).toBe('zone.geometry-entry-missing');
 
 		// Entry back, but the note's name was wiped to whitespace by hand.
 		stack.vault.entries.set(
-			sidecarPathOf(stack, planId),
+			sidecarPathOf(stack, projectId, planId),
 			JSON.stringify({
 				schemaVersion: 1,
 				planId,
@@ -153,7 +164,7 @@ describe('repository diagnostics', () => {
 
 		const result = await stack.zones.save(bogus, 'absent');
 		expect(expectErr(result).code).toBe('zone.pre-write-invalid');
-		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))?.includes(String(zoneId))).toBe(false);
+		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))?.includes(String(zoneId))).toBe(false);
 	});
 
 	/**

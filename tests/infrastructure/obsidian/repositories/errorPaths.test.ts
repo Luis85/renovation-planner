@@ -18,6 +18,7 @@ import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
 /**
  * The failure branches of every repository method — each one a diagnostic a user's
@@ -34,6 +35,19 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 }
 
 /**
+ * Folder resolution goes through the index now (ADR-0013), so an Asset or a Requirement
+ * needs a REAL, registered project underneath it — a bare `createProjectId()` used to be
+ * enough because both repositories read the shared setting out of `NoteVaultDeps` instead.
+ * Left unregistered, a save against it refuses with `*.project-folder-unresolved` before
+ * reaching the behaviour each case below actually names.
+ */
+async function seedProject(stack: RepositoryStack): Promise<ProjectId> {
+	const projectId = createProjectId();
+	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+	return projectId;
+}
+
+/**
  * A note from a build this one predates, planted in a vault that otherwise loads: the
  * exact input SDD §92 item 13's word "unsupported" names. Rewriting the field on disk
  * rather than through a repository is the point — no writer in this plugin can produce
@@ -45,8 +59,14 @@ function plantFutureSchemaVersion(stack: RepositoryStack, id: EntityId<string>):
 	stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace('schema-version: 1', 'schema-version: 99'));
 }
 
-function sidecarPathOf(stack: RepositoryStack, planId: PlanId): string {
-	return `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+// No `?? stack.projectFolder` fallback: every caller in this file seeds a real project
+// first (via `seed()` or its own `stack.projects.save`), so `projectFolderOf` always
+// resolves — a fallback that never fires is dead tolerance that would silently
+// reconstruct the old flat path the day a caller stops seeding one.
+function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
+	const folder = projectFolderOf(stack.index, projectId);
+	if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+	return sidecarPathFor(folder, planId);
 }
 
 describe('project repository failure branches', () => {
@@ -68,7 +88,9 @@ describe('project repository failure branches', () => {
 	it('an insert whose note create fails reports write-failed', async () => {
 		const stack = createRepositoryStack();
 		const project = makeProjectEntity({ name: 'Collision' });
-		stack.vault.failures.add(`create:${stack.projectFolder}/${project.name}.md`);
+		// Under ADR-0013 a new project's note is created inside ITS OWN folder — derived from
+		// the same name — rather than directly under the shared root.
+		stack.vault.failures.add(`create:${stack.projectFolder}/${project.name}/${project.name}.md`);
 		expect(expectErr(await stack.projects.save(project, 'absent')).code).toBe('project.write-failed');
 	});
 
@@ -134,15 +156,18 @@ const NOTE_BACKED_CASES: ReadonlyArray<{
 	},
 	{
 		kind: 'asset',
-		seed: async (stack) =>
-			expectOk(await stack.assets.save(makeAssetEntity({ projectId: createProjectId() }), 'absent')).entity.id,
+		seed: async (stack) => {
+			const projectId = await seedProject(stack);
+			return expectOk(await stack.assets.save(makeAssetEntity({ projectId }), 'absent')).entity.id;
+		},
 		read: (stack, id) => stack.assets.getById(id as never),
 	},
 	{
 		kind: 'requirement',
 		seed: async (stack) => {
+			const projectId = await seedProject(stack);
 			const requirement = makeRequirementEntity({
-				projectId: createProjectId(),
+				projectId,
 				assetId: createAssetId(),
 				origin: { kind: 'zone', zoneId: createZoneId() },
 			});
@@ -226,8 +251,8 @@ describe('read refusals reaching the diagnostics ledger', () => {
 	 */
 	it('has a plan-geometry refusal that reaches the user and never reaches the ledger', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		const path = sidecarPathOf(stack, planId);
+		const { projectId, planId } = await seed(stack);
+		const path = sidecarPathOf(stack, projectId, planId);
 		stack.vault.entries.set(
 			path,
 			JSON.stringify({ planId, revision: 1, unit: 'mm', calibration: null, objects: [], schemaVersion: 99 }),
@@ -284,8 +309,8 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	/**
 	 * The OTHER edge of the same gate, pinned as what is true today rather than left as a
 	 * claim in a comment — the same shape as the `plan-geometry` case above. `migrateNote`
-	 * is on the READ path only: every save resolves its note through `findNoteIdInFolder` +
-	 * `versionOfFrontmatter` and never runs the runner, so "refuses to load" is checked and
+	 * is on the READ path only: every save resolves its note through the index (`fileAt` +
+	 * `versionOfFrontmatter`) and never runs the runner, so "refuses to load" is checked and
 	 * "refuses to write over" is not.
 	 *
 	 * What stands between a future-version note and this build's shape is therefore only
@@ -298,7 +323,8 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	 */
 	it('is a READ gate: a save holding a current expectation overwrites a future-version note', async () => {
 		const stack = createRepositoryStack();
-		const asset = makeAssetEntity({ projectId: createProjectId() });
+		const projectId = await seedProject(stack);
+		const asset = makeAssetEntity({ projectId });
 		expectOk(await stack.assets.save(asset, 'absent'));
 		plantFutureSchemaVersion(stack, asset.id);
 		expect(expectErr(await stack.assets.getById(asset.id)).code).toBe('asset.schema-version-unsupported');
@@ -323,7 +349,8 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	 */
 	it('refuses to DELETE a future-version note, not only to load one', async () => {
 		const stack = createRepositoryStack();
-		const asset = makeAssetEntity({ projectId: createProjectId() });
+		const projectId = await seedProject(stack);
+		const asset = makeAssetEntity({ projectId });
 		const written = expectOk(await stack.assets.save(asset, 'absent'));
 		plantFutureSchemaVersion(stack, asset.id);
 
@@ -348,7 +375,7 @@ describe('plan repository failure branches', () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		const read = expectOk(await stack.plans.getById(planId));
-		stack.vault.entries.delete(sidecarPathOf(stack, planId));
+		stack.vault.entries.delete(sidecarPathOf(stack, projectId, planId));
 
 		// This used to refuse: the save read the sidecar to sync the calibration field.
 		// Since the sidecar owns that field outright (slice 7's review pass), a note update
@@ -363,10 +390,10 @@ describe('plan repository failure branches', () => {
 
 	it('a delete whose compensation also fails still reports the original failure and logs it', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		const read = expectOk(await stack.plans.getById(planId));
 		const notePath = stack.index.getPath(planId) ?? '';
-		const sidecarPath = sidecarPathOf(stack, planId);
+		const sidecarPath = sidecarPathOf(stack, projectId, planId);
 
 		// The sidecar removal fails; the note restore then fails too.
 		stack.vault.failures.add(`delete:${sidecarPath}`);
@@ -391,12 +418,18 @@ describe('plan repository failure branches', () => {
 	it('a failed insert logs when even the sidecar rollback refuses', async () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		const planId = createPlanId();
 		const plan = makePlanEntity({ id: planId, projectId, name: 'Blocked' });
-		const notePath = `${stack.projectFolder}/Plans/${plan.name}.md`;
+		// No `?? stack.projectFolder` fallback: the project was just saved above, so
+		// `projectFolderOf` always resolves here — a fallback that never fires is dead
+		// tolerance, the same shape `sidecarPathOf` above refuses.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const notePath = `${folder}/Plans/${plan.name}.md`;
 		// The note create fails, and the sidecar rollback that should follow fails too.
 		stack.vault.failures.add(`create:${notePath}`);
-		stack.vault.failures.add(`delete:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`delete:${sidecarPathOf(stack, projectId, planId)}`);
 
 		expect((await stack.plans.save(plan, 'absent')).ok).toBe(false);
 		expect(stack.logged.some((line) => line.event === 'plan.insert-compensation-failed')).toBe(true);
@@ -426,7 +459,7 @@ describe('zone repository failure branches', () => {
 
 		// The sidecar mutation fails, so the trashed note must come back; `restoreNote`
 		// finds nothing at the path and takes its CREATE branch, which fails too.
-		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		stack.vault.failures.add(`create:${notePath}`);
 		const result = await stack.zones.delete(zoneId, read?.version);
 
@@ -438,15 +471,15 @@ describe('zone repository failure branches', () => {
 describe('geometry store failure branches', () => {
 	it('create over an existing file refuses with create-failed', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		const result = await stack.store.create(createPlanId(), sidecarPathOf(stack, planId));
+		const { projectId, planId } = await seed(stack);
+		const result = await stack.store.create(createPlanId(), sidecarPathOf(stack, projectId, planId));
 		expect(expectErr(result).code).toBe('plan-geometry.create-failed');
 	});
 
 	it('mutate on a plan whose sidecar file vanished refuses instead of recreating blindly', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		stack.vault.entries.delete(sidecarPathOf(stack, planId));
+		const { projectId, planId } = await seed(stack);
+		stack.vault.entries.delete(sidecarPathOf(stack, projectId, planId));
 		expect(expectErr(await stack.store.mutate(planId, (dto) => ({ ...dto }))).code).toBe('plan-geometry.missing');
 	});
 });

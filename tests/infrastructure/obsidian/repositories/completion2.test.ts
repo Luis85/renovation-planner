@@ -5,8 +5,9 @@ import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone 
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
-import { frontmatterOf, findNoteIdInFolder } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
+import { frontmatterOf } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import { MigrationRunner } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
+import { projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
 /**
  * Slice 4's refusal paths that are DRIVEN THROUGH A REPOSITORY against a behaving fake
@@ -28,8 +29,14 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	return { projectId, planId };
 }
 
-function sidecarPathOf(stack: RepositoryStack, planId: PlanId): string {
-	return `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+// No `?? stack.projectFolder` fallback: every caller in this file seeds a real project
+// first (via `seed()` or its own `stack.projects.save`), so `projectFolderOf` always
+// resolves — a fallback that never fires is dead tolerance that would silently
+// reconstruct the old flat path the day a caller stops seeding one.
+function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
+	const folder = projectFolderOf(stack.index, projectId);
+	if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+	return sidecarPathFor(folder, planId);
 }
 
 function notePathOf(stack: RepositoryStack, id: string): string {
@@ -39,7 +46,7 @@ function notePathOf(stack: RepositoryStack, id: string): string {
 describe('plan repository: update failures and listing', () => {
 	it('delete refuses when snapshots cannot be taken or the trash fails', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		const read = expectOk(await stack.plans.getById(planId));
 		const notePath = notePathOf(stack, planId);
 
@@ -47,7 +54,7 @@ describe('plan repository: update failures and listing', () => {
 		expect(expectErr(await stack.plans.delete(planId, read.version)).code).toBe('plan.delete-failed');
 		stack.vault.failures.clear();
 
-		stack.vault.failures.add(`read:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`read:${sidecarPathOf(stack, projectId, planId)}`);
 		expect(expectErr(await stack.plans.delete(planId, read.version)).code).toBe('plan.delete-failed');
 		stack.vault.failures.clear();
 
@@ -58,9 +65,9 @@ describe('plan repository: update failures and listing', () => {
 
 	it('delete tolerates a vanished sidecar and skips its echo bookkeeping', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		const read = expectOk(await stack.plans.getById(planId));
-		stack.vault.entries.delete(sidecarPathOf(stack, planId));
+		stack.vault.entries.delete(sidecarPathOf(stack, projectId, planId));
 
 		expectOk(await stack.plans.delete(planId, read.version));
 		expect(stack.index.getPath(planId)).toBeUndefined();
@@ -128,8 +135,13 @@ describe('zone repository: remaining refusals', () => {
 		const zone = makeZoneEntity({ id: zoneId, projectId, planId });
 
 		// Derive the fresh note path the way the repository will, then fail BOTH writes.
-		const plain = `${stack.projectFolder}/Zones/${zone.name}.md`;
-		stack.vault.failures.add(`modify:${sidecarPathOf(stack, planId)}`);
+		// `seed()` above always registers the project first, so this always resolves — a
+		// `?? stack.projectFolder` fallback here would be the dead tolerance this file's own
+		// header refuses.
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const plain = `${zonesFolderFor(folder)}/${zone.name}.md`;
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		stack.vault.failures.add(`delete:${plain}`);
 
 		expect((await stack.zones.save(zone, 'absent')).ok).toBe(false);
@@ -161,14 +173,6 @@ describe('small unit edges', () => {
 		// fake answers a cache object with no `frontmatter` for this, exactly as Obsidian does.
 		stack.vault.entries.set('ghost.md', 'plain text, no frontmatter');
 		expect(frontmatterOf(stack, ghost)).toEqual({});
-	});
-
-	it('findNoteIdInFolder skips files without cached frontmatter', async () => {
-		const stack = createRepositoryStack();
-		const { projectId } = await seed(stack);
-		stack.vault.entries.set(`${stack.projectFolder}/plain.md`, 'plain text');
-		expect(findNoteIdInFolder(stack, stack.vault as never, stack.projectFolder, String(projectId))).not.toBeNull();
-		expect(findNoteIdInFolder(stack, stack.vault as never, stack.projectFolder, 'unknown-id')).toBeNull();
 	});
 
 	it('registerAll chains every step of one kind', () => {

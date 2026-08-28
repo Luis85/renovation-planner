@@ -8,11 +8,15 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane offers the three settings there are (units, project folder, and slice 11's
-verbose logging — counted in `getSettingDefinitions`, and this sentence said "the one
-setting there is" for several slices after it stopped being one); and the persistence layer
-of design slice 4 is in place — Obsidian repositories, the geometry sidecar store, the project index and its
-vault-change pipeline, and the migration runner.
+settings pane offers the three settings there are (units, the default projects folder — where a
+NEW project's folder is created, since slice 18; an EXISTING project's folder derives from
+where its `Project.md` sits instead (ADR-0013) — and slice 11's verbose logging — counted in
+`getSettingDefinitions`, and this sentence said "the one setting there is" for several slices
+after it stopped being one); and the persistence layer of design slice 4 is in place — Obsidian
+repositories, the geometry sidecar store, the project index and its vault-change pipeline
+(bounded since slice 18 by what a note DECLARES, not by where it sits, which closes slice 4's
+own recorded multi-root prerequisite without registering a single root), and the migration
+runner.
 
 **Every entity and mechanism the MVP architecture needs now exists**, which is what slice
 10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
@@ -500,6 +504,114 @@ are load-bearing:
   plain `CalibratePlanCommand`, `Plan.calibrate` and `createCalibration` were deleted in
   the same pass: they were a second derivation answering differently, and `docs/tasks/07`
   claimed a supersession the first pass never performed.
+
+**Design slice 18 has landed: a project owns its folder.** ADR-0013 derives a project's folder
+from where its `Project.md` sits rather than storing one: nothing goes stale, and a user who
+drags the folder in Obsidian's file explorer has moved the project, which is ADR-011's
+sidecar-folder argument turned to a second use. `entityRefOf` is now the one answer to "is this
+note ours" (`type` plus a non-empty `id`), with exactly two callers — the Project Index's full
+scan and `VaultChangeAdapter`'s incremental one — so the two cannot disagree about a note the
+way two hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller
+list by reading `src/` rather than asserting it. `NoteVaultDeps.projectFolder` is gone; the
+five repositories that cached it in a constructor now resolve each INSERT's folder from the
+entity being saved, through `projectFolderOf(index, projectId)`, and refuse with a
+`PersistenceError` rather than default when that resolves to nothing — an UPDATE writes where
+the note already sits and resolves no folder at all, which is why the refusal guards inserts
+alone and why `markStale` resolves nothing. `freshProjectFolder` gives
+a newly-created project its own folder under the plugin's configurable default root, deduped by
+id on a name collision. Four rules came out of it, the last two from the review that followed:
+
+- **A prefix bound cannot see a second root, and a bound that reads the note can.** The index
+  used to filter by path before ever looking at a note's frontmatter; the frontmatter was
+  already the thing making the result correct; the prefix was only a fast path over a question
+  the next call answered properly anyway. Removing it is what closes slice 4's own recorded
+  prerequisite — a library outside the scanned folder invisible to both the scan and the
+  vault-change pipeline — and it closes it without registering anything: there is no root list,
+  because every note this plugin owns already declares enough to be found anywhere in the vault.
+  Slice 4 handed that consequence to whoever next touched the pipeline; this is that slice.
+- **`npm run analyze` catches an unimported FILE, not a dead export a test still calls.** An
+  earlier draft of this slice's own plan asserted the opposite — "a pure export with no `src/`
+  caller fails `npm run analyze`" — and a reviewer measured it false before it shipped, and then
+  measured the FIRST correction's own number false too: `npm run analyze` reports "235 entry
+  points detected (203 plugin, 14 dynamically loaded, 13 manual entry, 5 package.json)", and 235
+  is the TOTAL, not a count of test files. `fallow list --entry-points --format json` is what
+  breaks the 203 "plugin" figure open: 200 of them come from fallow's own vitest plugin, which
+  seeds this repository's 198 `*.test.ts` files plus `vitest.config.ts` and the aliased
+  `obsidian` mock module as always-used. Whichever figure is read, the mechanism is the same: an
+  export with only a test caller (`projectFolderOf`, briefly, at the end of one task) stayed
+  invisible to the gate the whole time. What actually fails is a new file nothing imports at
+  all, reported as an unused FILE — a different rule from the dead-export one. `foldersOverlap`
+  still ships in slice 19 rather than here, and that call is still right: the predicate has no
+  job in this slice — there is no command that changes a project's folder under the derived
+  shape, and no library to overlap with until slice 19 exists — but the reason is that it has
+  nothing to do, not that a gate would have refused it for having no caller.
+- **Widening DISCOVERY and leaving EXISTENCE alone is half a slice.** A note is found by what
+  it declares now, but every save still established existence by scanning
+  `<projectFolder>/<Kind>/` — so a note the user had filed anywhere else was read, indexed and
+  deletable and could never be saved again: the scan missed it, `currentVersion` came back
+  `undefined`, and `checkExpectedVersion` answered a permanent `<kind>.revision-conflict`, with
+  `markStale` answering `requirement.mark-stale-failed` on a note it had just read successfully.
+  Every save resolves through the index now — the same lookup `getById` and `delete` already
+  took — and `findNoteIdInFolder` is deleted for want of callers. The general shape: when a
+  slice changes how a thing is FOUND, every question of the form "does this already exist" is
+  the same change, and the compile errors do not point at the ones that were already using a
+  different mechanism.
+- **One rule with two doors is two rules unless one function holds it.** The sidecar join lost
+  its folder prefix at BOTH ends, and only the full scan got a diagnostic; the incremental door
+  went on repointing a plan's mapping onto any arriving `.rpgeo` with a matching basename, which
+  is where a copied project folder sent the live plan's geometry writes. `sidecarMappingFor` is
+  the one answer both take now: the DERIVED path wins — or the path the mapping already held,
+  when nothing derives one (a plan declaring no project, or one whose project note is not
+  indexed) — a genuine pair is reported in either
+  order under a per-door event name, and a sidecar re-affirming its own mapping is not reported
+  at all. "Both doors" is a category claim, so it is MEASURED rather than asserted: the second
+  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its two callers the
+  same way that file pins `entityRefOf`'s, and a `processSidecar` that goes back to
+  adjudicating for itself drops the list to one and fails there.
+  Reporting and adjudication are separate steps in it for a reason worth keeping: the
+  first draft returned early when the arriving file was the derived one, which silenced the copy
+  in exactly one of the two scan orders.
+
+Three more things this slice measured rather than assumed, because each is this repository's
+own recurring shape:
+
+- **A fake too THIN, the sixth instance of the rule** (the Testing section below numbers five
+  already, ending at "Fifth instance, and the THIRD face of the rule"). `FakeVault.getAbstractFileByPath`
+  answered `null` for every folder, where Obsidian answers a `TFolder`; `freshProjectFolder`'s
+  collision arm could not be driven at all until the fake was widened to tell the two apart.
+  Its blast radius was 0 tests — nothing had shipped yet to be wrong — which is worth recording
+  beside the 86-test and 65-test instances below (roughly 540 lines down, in that same Testing
+  section) for the same reason those two are recorded: the number is not the point, the shape
+  is.
+- **A test can pass on the wrong refusal.** Converting the repositories moved the folder check
+  ahead of other guards, and several tests named for a different path — a compensation, a
+  conflict — started passing on a folder refusal instead, green for the wrong reason. Task 6
+  found two by hand; task 7's sweep found fifty across four files, two of which no task had
+  named before it. Green is not evidence of the behaviour the test's name claims.
+- **A test name that outruns its assertions hides a real defect.** The no-migration test's name
+  said "reads and writes"; its body asserted only the write half. Adding the read assertion it
+  had always claimed to make immediately caught a fixture whose frontmatter was missing the
+  schema-required `status` field — a test that had been passing on a project the schema would
+  have refused to load. The review that followed found four more of the same shape — seven
+  `it` blocks, because one of the four is a group of four — and they are NAMED here rather
+  than counted, since a bare number over a set that groups two ways is the defect this file
+  exists to refuse. TWO of the four were measured rather than argued, by wiring the regression
+  and running it:
+
+  - a pipeline case named for the folder bound this slice DELETED compared an empty index
+    against an empty index, and stayed GREEN under a `processPath` that wiped every entry the
+    index held;
+  - the four `perProjectFolders` save cases — one per kind — asserted an in-memory
+    `revision === 2` and an index path they had just upserted, and all four stayed green
+    against a `writeOwnedFrontmatter` made a silent no-op: the revision is computed before the
+    write and the repository upserts either way, so nothing in them read the vault's bytes
+    back. The stronger of the two measurements, four green tests over a write that did nothing;
+  - a scan case whose name claimed a location bound while its green came from the missing-`id`
+    rule, its `.rpgeo` fixture asserted by nothing at all;
+  - and a case whose name promised a diagnostic — 'a note of ours without a readable id is
+    excluded with a diagnostic' — and asserted none.
+
+  A no-op assertion and a correct one look identical until something is broken underneath them.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

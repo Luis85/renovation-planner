@@ -1,4 +1,4 @@
-import { TFile as MockTFile, type TFile } from 'obsidian';
+import { TFile as MockTFile, TFolder as MockTFolder, type TFile } from 'obsidian';
 import type { LogLevel } from '../../src/application/ports/Logger';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
@@ -54,15 +54,41 @@ class FakeVault {
 	 */
 	readonly operations: string[] = [];
 
-	getAbstractFileByPath(path: string): TFile | null {
-		if (!this.entries.has(path)) return null;
-		const segments = path.split('/');
-		const file = new MockTFile();
-		file.path = path;
-		file.name = segments.at(-1) ?? '';
-		file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
-		file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
-		return file;
+	/**
+	 * A `TFile` for a path that is a note, a `TFolder` for a path Obsidian would know as a
+	 * folder — one that was `createFolder`ed, or one something already lives in
+	 * (`folderExists`) — and `null` for neither. It used to answer `null` for every folder,
+	 * which never resolves a real folder at all: `freshProjectFolder`'s collision arm asks
+	 * this exact question, and a fake that cannot answer "yes, a folder is already there"
+	 * would pass the suite while doing nothing in a real vault. Files are checked first,
+	 * because a path cannot be both — `entries` and `folders` are disjoint namespaces here
+	 * as they are in Obsidian.
+	 *
+	 * The vault ROOT (`''`) resolves to a folder too, deliberately, rather than being a
+	 * second case this method disagrees with `folderExists` about: `folderExists('')` has
+	 * always answered `true` (the root always "exists"), and a fake where one method treats
+	 * the root as a folder while its sibling treats the identical path as nothing is the
+	 * thin-fake shape this repository has been burned by more than once. Real Obsidian
+	 * resolves the root to its `TFolder` as well.
+	 */
+	getAbstractFileByPath(path: string): TFile | MockTFolder | null {
+		if (this.entries.has(path)) {
+			const segments = path.split('/');
+			const file = new MockTFile();
+			file.path = path;
+			file.name = segments.at(-1) ?? '';
+			file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
+			file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+			return file;
+		}
+		if (this.folderExists(path)) {
+			const segments = path.split('/');
+			const folder = new MockTFolder();
+			folder.path = path;
+			folder.name = segments.at(-1) ?? '';
+			return folder;
+		}
+		return null;
 	}
 
 	// The fake mirrors Obsidian's async API: failures REJECT, never throw synchronously,
@@ -294,6 +320,14 @@ export interface RepositoryStack {
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
+	/**
+	 * The default root the stack was constructed with — `createRepositoryStack`'s own
+	 * argument, echoed back for a caller that needs it. Under ADR-0013 this is no longer a
+	 * per-project field any of the five note-backed repositories read: `ObsidianProjectRepository`
+	 * is the only one that still takes it directly (Task 5's `newProjectRoot`), because it is
+	 * the one repository that ever writes a note whose folder does not already exist to be
+	 * derived from. Every other project's folder is `projectFolderOf`'s to answer.
+	 */
 	projectFolder: string;
 	/** Rebuilds the index from the vault contents — the scan the plugin runs at load. */
 	rebuildIndex(): void;
@@ -335,7 +369,6 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		migrations,
 		logger,
 		ledger,
-		projectFolder,
 	};
 	const store = new PlanGeometryStore(vault as never, fileManager as never, index, migrations, echo);
 
@@ -350,11 +383,11 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		logger,
 		ledger,
 		store,
-		projects: new ObsidianProjectRepository(deps),
+		projects: new ObsidianProjectRepository(deps, projectFolder),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
-	assets: new ObsidianAssetRepository(deps),
-	requirements: new ObsidianRequirementRepository(deps),
+		assets: new ObsidianAssetRepository(deps),
+		requirements: new ObsidianRequirementRepository(deps),
 		projectFolder,
 		rebuildIndex() {
 			index.rebuild(
@@ -363,7 +396,6 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 					metadataCache: metadataCache as never,
 					echo,
 					logger,
-					projectFolder,
 				}),
 			);
 		},

@@ -11,8 +11,9 @@ export const en = {
 	'settings.units.desc': 'Measurement system for quantities and dimensions.',
 	'settings.units.metric': 'Metric',
 	'settings.units.imperial': 'Imperial',
-	'settings.project-folder.name': 'Project folder',
-	'settings.project-folder.desc': 'Vault folder where project, plan and zone notes are stored, each with its geometry file beside it.',
+	'settings.project-folder.name': 'Default projects folder',
+	'settings.project-folder.desc':
+		'Vault folder where a new project’s folder is created. An existing project keeps the folder it is already in.',
 	'settings.verbose-logging.name': 'Verbose logging',
 	'settings.verbose-logging.desc': 'Show debug-level messages in the developer console. Everything stays on this device.',
 	'view.geometry.name': 'Geometry sidecar',

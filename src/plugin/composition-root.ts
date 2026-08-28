@@ -132,9 +132,21 @@ export interface CompositionRoot {
 	/**
 	 * Everything slice 4 persists through — repositories, the index, the geometry store,
 	 * the read-side queries, and the vault-change pipeline. `null` exactly when `settings`
-	 * is: compose no repository, no index, no query service against an unrecovered
-	 * location, because a service that reads or writes has no correct behaviour without
-	 * the configuration that names where.
+	 * is.
+	 *
+	 * **The reason is conservatism, stated as that rather than dressed as a necessity.**
+	 * It used to read "a service that reads or writes has no correct behaviour without the
+	 * configuration that names where", and ADR-0013 retired that: the index is bounded by
+	 * what a note DECLARES, and an existing project's folder comes from where its own note
+	 * sits, so reads and writes to projects that already exist need the setting for nothing.
+	 * The one door that still does is creating a NEW project's folder
+	 * (`freshProjectFolder`). Composing the stack anyway would give this session one door
+	 * with no answer and every other door working; composing none gives it one failure mode
+	 * and one code (`settings.unrecovered`) at every door instead — for a session whose
+	 * `data.json` is present and unreadable, which is also a session this plugin refuses to
+	 * write settings for at all (`saveSettings` returns early). Narrowing it to the creation
+	 * path is available and belongs with slice 16's creation form, which is the surface that
+	 * would ask.
 	 */
 	readonly persistence: PersistenceServices | null;
 }
@@ -327,17 +339,17 @@ function composeSlice10(
 	};
 }
 
-function composeRepositories(
-	deps: NoteVaultDeps,
-	vault: VaultStack,
-	index: ProjectIndex,
-	migrations: MigrationRunner,
-	echo: EchoWindow,
-) {
-	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, index, migrations, echo);
+function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string) {
+	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
 	return {
 		geometryStore,
-		projects: new ObsidianProjectRepository(deps),
+		// `newProjectRoot` is a real argument, not `deps.projectFolder` read inline — this
+		// repository is the only one that ever writes a note whose folder does not already
+		// exist to be derived from, so it takes the setting as its own constructor
+		// argument rather than through the shared `NoteVaultDeps` field. That field is what
+		// Task 7 deletes; reading it here would have left this call site needing a second
+		// edit the day it goes.
+		projects: new ObsidianProjectRepository(deps, newProjectRoot),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps),
@@ -424,9 +436,8 @@ export function createCompositionRoot(
 		migrations,
 		logger,
 		ledger,
-		projectFolder: settings.projectFolder,
 	};
-	const repositories = composeRepositories(deps, vault, index, migrations, echo);
+	const repositories = composeRepositories(deps, vault, settings.projectFolder);
 	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
 
 	// One lock set per plugin: assignment, unit changes and delete resolutions across
@@ -473,7 +484,6 @@ export function createCompositionRoot(
 				index,
 				echo,
 				logger,
-				projectFolder: settings.projectFolder,
 			}),
 		},
 	};

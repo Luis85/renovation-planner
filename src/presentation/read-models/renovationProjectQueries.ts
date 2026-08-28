@@ -28,10 +28,15 @@ export interface RenovationProjectQueryServices {
 /**
  * The read side for a session whose settings could not be recovered.
  *
- * With no `projectFolder` there is no repository, no index and no project list — the
- * composition root deliberately builds none, because a default folder is a different
- * LOCATION rather than a milder version of the user's. So the view is handed a query
- * service that refuses.
+ * With settings unrecovered there is no repository, no index and no project list, so the
+ * view is handed a query service that refuses.
+ *
+ * **That the root builds none is a conservative choice, not a necessity, and the reason
+ * lives with the choice** — `CompositionRoot.persistence`. Since ADR-0013 the index's scan
+ * is bounded by what a note DECLARES and an existing project's folder comes from where its
+ * own note sits, so a project list would in fact be readable without the setting; what the
+ * root refuses to do is compose a stack where one door (creating a new project's folder) has
+ * no answer and every other one works.
  *
  * This is the exemption `CLAUDE.md`'s fifth fake-instance lesson names, not a violation of
  * it: that lesson is about a STAND-IN refusing what production would have answered, which

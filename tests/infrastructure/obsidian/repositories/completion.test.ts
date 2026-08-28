@@ -9,7 +9,7 @@ import {
 	versionOfFrontmatter,
 	checkExpectedVersion,
 } from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
-import { fileNameFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { fileNameFor, projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { observeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/digest';import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { FindZonesByPlan } from '../../../../src/application/queries/FindZonesByPlan';
 import { ObsidianPlanGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
@@ -27,8 +27,14 @@ async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; pla
 	return { projectId, planId };
 }
 
-function sidecarPathOf(stack: RepositoryStack, planId: PlanId): string {
-	return `${stack.projectFolder}/Geometry/${planId}.rpgeo`;
+// No `?? stack.projectFolder` fallback: every caller in this file seeds a real project
+// first (via `seed()` or its own `stack.projects.save`), so `projectFolderOf` always
+// resolves — a fallback that never fires is dead tolerance that would silently
+// reconstruct the old flat path the day a caller stops seeding one.
+function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: PlanId): string {
+	const folder = projectFolderOf(stack.index, projectId);
+	if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+	return sidecarPathFor(folder, planId);
 }
 
 function notePathOf(stack: RepositoryStack, id: string): string {
@@ -48,9 +54,9 @@ describe('plan repository: calibration sync and listing', () => {
 
 	it('delete refuses when the sidecar snapshot cannot be taken', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
+		const { projectId, planId } = await seed(stack);
 		const read = expectOk(await stack.plans.getById(planId));
-		stack.vault.failures.add(`read:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`read:${sidecarPathOf(stack, projectId, planId)}`);
 		expect(expectErr(await stack.plans.delete(planId, read.version)).code).toBe('plan.delete-failed');
 	});
 
@@ -131,7 +137,7 @@ describe('project and zone listings', () => {
 		const zoneId = createZoneId();
 		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
 
-		stack.vault.entries.set(sidecarPathOf(stack, planId), '{ not json');
+		stack.vault.entries.set(sidecarPathOf(stack, projectId, planId), '{ not json');
 		expect((await stack.zones.listByPlan(planId)).ok).toBe(false);
 		expect((await stack.zones.listByProject(projectId)).ok).toBe(false);
 	});
@@ -160,8 +166,8 @@ describe('project and zone listings', () => {
 describe('geometry store diagnostics', () => {
 	it('schemaVersion handling: absent, junk, and valid versions behave distinctly', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		const path = sidecarPathOf(stack, planId);
+		const { projectId, planId } = await seed(stack);
+		const path = sidecarPathOf(stack, projectId, planId);
 		const base = { planId, revision: 1, unit: 'mm', calibration: null, objects: [] };
 
 		// Absent schemaVersion starts the chain at 0 → gap → a Migration refusal with
@@ -274,7 +280,7 @@ describe('calibration is read-only through the plan repository', () => {
 		const { planId, projectId } = await seed(stack);
 		const sidecar = new ObsidianPlanGeometrySidecar(stack.store);
 		expectOk(await sidecar.write(planId, { calibration: CALIBRATION, objects: [] }));
-		const untouched = stack.vault.entries.get(sidecarPathOf(stack, planId));
+		const untouched = stack.vault.entries.get(sidecarPathOf(stack, projectId, planId));
 
 		// The exact shape of the old lost update: an entity read BEFORE the calibration
 		// landed (here, one that never had it at all) saved afterwards. Calibration is not
@@ -287,14 +293,14 @@ describe('calibration is read-only through the plan repository', () => {
 			loaded.version,
 		));
 
-		expect(stack.vault.entries.get(sidecarPathOf(stack, planId))).toBe(untouched);
+		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toBe(untouched);
 		expect(expectOk(await stack.plans.getById(planId)).entity.calibration).toEqual(CALIBRATION);
 	});
 
 	it('refuses to load a plan whose sidecar holds a calibration the derivation could not produce', async () => {
 		const stack = createRepositoryStack();
-		const { planId } = await seed(stack);
-		const path = sidecarPathOf(stack, planId);
+		const { projectId, planId } = await seed(stack);
+		const path = sidecarPathOf(stack, projectId, planId);
 		const document = JSON.parse(stack.vault.entries.get(path) ?? '{}') as Record<string, unknown>;
 		// Hand-edited coincident points: the Zod schema checks each field's shape, so only
 		// `validateCalibration` at `withCalibration` can catch the RELATIONSHIP between them.
@@ -322,10 +328,12 @@ describe('the long tail, continued', () => {
 
 	it('an insert whose sidecar creation fails reports sidecar-create-failed', async () => {
 		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
 		const planId = createPlanId();
-		stack.vault.failures.add(`create:${sidecarPathOf(stack, planId)}`);
+		stack.vault.failures.add(`create:${sidecarPathOf(stack, projectId, planId)}`);
 		const result = await stack.plans.save(
-			makePlanEntity({ id: planId, projectId: createProjectId() }),
+			makePlanEntity({ id: planId, projectId }),
 			'absent',
 		);
 		expect(expectErr(result).code).toBe('plan.sidecar-create-failed');

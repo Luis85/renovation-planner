@@ -9,7 +9,6 @@ import { revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
 	ensureFolder,
-	findNoteIdInFolder,
 	frontmatterOf,
 	migrateNote,
 	persistenceError,
@@ -18,16 +17,33 @@ import {
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
-import { freshNotePath, normalizeFolder } from './paths';
+import { freshNotePath, freshProjectFolder } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import { fileAt } from './NoteVaultDeps';
 
 /**
  * The Obsidian-backed ProjectRepository (SDD §36–38): one Markdown note per Project
- * inside the project folder; frontmatter is the whole persisted state. The simplest of
- * the three repositories — ONE file per entity — which is why its failure story needs
- * nothing beyond "the write failed, nothing was written".
+ * inside the project folder; frontmatter is the whole persisted state. The simplest of the
+ * note-backed repositories — ONE file per entity, and no sidecar.
+ *
+ * **Its failure story is nevertheless not "the write failed, nothing was written", and this
+ * header said it was.** The insert path calls `ensureFolder` before `vault.create`, and the
+ * `catch` around the pair compensates nothing, so a create that fails after the folder was
+ * made leaves an EMPTY FOLDER behind. No note is written, reads resolve by id, and a folder
+ * name reaches no UI (filename is never identity, §83) — but the orphan is COUPLED to the
+ * next attempt: `freshProjectFolder` collides on any abstract file at the base path, folders
+ * included, so a retry lands at `<name> <id>` rather than `<name>`, with a DIFFERENT suffix
+ * each time because `CreateProjectCommand` mints a new id per call. Two failed attempts
+ * leave two orphan folders and put the project in a third.
+ *
+ * Recorded rather than compensated, deliberately, and for the reason `sampleProject.ts`
+ * already gives for the partial notes a failed seed leaves behind: today the insert arm's
+ * only production caller is `seedSampleProject`, and a naive rollback is worse than the
+ * orphan — `ensureFolder` also creates the CONFIGURED ROOT, which may be a folder the user
+ * owns and has filled. Slice 16's project-creation form is the trigger to revisit it: that
+ * is the first time a user reaches this path by typing a name, and the first time retrying
+ * after a failed create is an ordinary thing to do.
  *
  * Raw frontmatter never leaves this class: reads migrate, schema-parse and map before
  * returning; writes lower the entity through the mapper and merge through
@@ -35,11 +51,17 @@ import { fileAt } from './NoteVaultDeps';
  */
 export class ObsidianProjectRepository {
 	private readonly queues = new KeyedQueues();
-	private readonly folder: string;
 
-	constructor(private readonly deps: NoteVaultDeps) {
-		this.folder = normalizeFolder(deps.projectFolder);
-	}
+	/**
+	 * `newProjectRoot` is the plugin setting — where a NEW project's folder is created, and
+	 * nothing else. It is this repository's alone rather than a shared `NoteVaultDeps`
+	 * field, because it is the only one that ever writes a note whose folder does not
+	 * already exist to be derived from.
+	 */
+	constructor(
+		private readonly deps: NoteVaultDeps,
+		private readonly newProjectRoot: string,
+	) {}
 
 	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, RepositoryError>> {
 		const file = this.locate(id);
@@ -66,9 +88,13 @@ export class ObsidianProjectRepository {
 		project: Project,
 		expected: Expected,
 	): Promise<Result<Loaded<Project>, RepositoryError>> {
-		// Existence is established BEFORE anything is written — the insert/update fork the
-		// conditional-write comparison needs (SDD §42's rule, applied to a single file).
-		const existing = findNoteIdInFolder(this.deps, this.deps.vault, this.folder, project.id);
+		// Through the INDEX, not a folder scan — `locate`, the same lookup `getById` and
+		// `delete` use. Under ADR-0013 a project's folder is where its note sits, so
+		// scanning "the project's folder" for the project's own note presumes the answer.
+		// The index is also the more reliable half of what the folder scan's own comment
+		// worried about — `save` upserts synchronously before returning, so a note created
+		// moments ago is known here before any MetadataCache has parsed it.
+		const existing = this.locate(project.id);
 		const currentVersion = existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
 		const conflict = checkExpectedVersion('project', project.id, currentVersion, expected);
@@ -86,9 +112,10 @@ export class ObsidianProjectRepository {
 				return err(persistenceError('project.write-failed', `Could not write the note for project ${project.id}.`, cause));
 			}
 		} else {
-			path = freshNotePath(this.deps.vault, this.folder, project.name, project.id);
+			const folder = freshProjectFolder(this.deps.vault, this.newProjectRoot, project.name, project.id);
+			path = freshNotePath(this.deps.vault, folder, project.name, project.id);
 			try {
-				await ensureFolder(this.deps.vault, this.folder);
+				await ensureFolder(this.deps.vault, folder);
 				await this.deps.vault.create(path, serializeFrontmatter(dto));
 			} catch (cause) {
 				return err(persistenceError('project.write-failed', `Could not create the note for project ${project.id}.`, cause));

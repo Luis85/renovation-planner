@@ -518,6 +518,71 @@ export default defineConfig({
 			// merge reported "exit 0" because they were piped (`npm run check 2>&1 | tail`), and a
 			// pipeline's status is the LAST stage's — `tail` always succeeds. Capture the gate as
 			// `npm run check > log 2>&1; echo $?` and read the code, or the gate is decoration.
+			//
+			// Measured 2026-08-28 at the end of design slice 18 — a project's folder is derived
+			// from its `Project.md` rather than shared with every project (ADR-0013):
+			// `entityRefOf` extracted as the one answer to "is this note ours", the Project
+			// Index and `VaultChangeAdapter` bounded by declaration rather than by a path
+			// prefix, `NoteVaultDeps.projectFolder` deleted with five repositories resolving
+			// their folder per write through `projectFolderOf`, project existence moved onto
+			// the index, and `freshProjectFolder` giving each newly-created project its own
+			// folder under the configurable default root: 4346/4374 statements, 2141/2179
+			// branches, 1109/1116 functions, 3901/3917 lines — 99.35 / 98.25 / 99.37 / 99.59.
+			// NOTHING RATCHETS: rounded down these are 99 / 98 / 99 / 99, the floors already in
+			// force. **Re-measured 2026-08-28, after the four review-fix commits that followed
+			// this slice's merge** (`2e7396d`, `d51416b`, `306f3e9`, `14b52dd`): the previous
+			// figures here — 4345/4373, 2135/2173, 1107/1114, 3900/3916 — predated those commits
+			// by one increment each. The percentages did not move; only the raw counts did.
+			//
+			// Branches gained headroom — 98.14 on the previous merged tree to 98.25 here, about
+			// 5.4 branches at 0.046pp each, the most room this metric has had since slice 11's
+			// guard-more-not-less finding. Every new export this slice added measures 100% of
+			// all four metrics: `entityRefOf` (`buildProjectIndexEntries.ts`) and
+			// `freshProjectFolder`/`projectFolderOf` (`paths.ts`), plus the five repositories'
+			// new `folder === undefined` refusal arms and `ObsidianProjectRepository`'s
+			// existence-through-the-index rewrite — none of them appears in the uncovered set
+			// below.
+			//
+			// THE UNCOVERED SET IS UNCHANGED from the tree this slice branched from. Verified by
+			// reading `coverage/lcov.info` rather than assumed: every file this slice edited
+			// (`NoteVaultDeps.ts`, `paths.ts`, `buildProjectIndexEntries.ts`,
+			// `VaultChangeAdapter.ts`, `ObsidianProjectRepository.ts`, `ObsidianPlanRepository.ts`,
+			// `ObsidianZoneRepository.ts`, `ObsidianRequirementRepository.ts`,
+			// `ObsidianAssetRepository.ts`, `composition-root.ts`, `RenovationPlannerPlugin.ts`,
+			// `settings/settings.ts`) carries no new uncovered branch, line or function. FOUR of
+			// those twelve files still carry an uncovered arm, and all seven arms across them
+			// predate this slice — confirmed by diffing each one against `3384084`, not
+			// assumed from the shape alone. (This paragraph itself said "five" through the
+			// four review-fix commits above, one short of what its own four bullets below add
+			// to — caught re-measuring for this same paragraph's numbers, not by a separate
+			// pass.)
+			// - `ObsidianZoneRepository`'s two `deleteCreatedNote` arms (the non-`TFile` guard
+			//   and the `trashFile` catch, both compensation-path double-fault shapes already
+			//   named above) and its update/insert compensation-logging arm — three arms,
+			//   identical in the pre-slice file.
+			// - `ObsidianRequirementRepository.markStale`'s `!marked.ok` branch, guarding
+			//   `Requirement.markedStale()` refusing a transition no caller here can produce —
+			//   identical in the pre-slice file.
+			// - `RenovationPlannerPlugin.startPersistence`'s `if (persistence.markers)` false
+			//   arm and its rename handler's `file instanceof TFile` false arm — both on lines
+			//   this slice's diff never touches (only a docblock two paragraphs above the first,
+			//   and an object literal shedding the deleted `projectFolder` field, changed in this
+			//   file at all).
+			// - `composition-root.ts`'s `cascadeNotices.cascadeAborted` — an anonymous function
+			//   never invoked in the suite, byte-identical to the pre-slice file; this slice's
+			//   edits to the file are all inside `composeRepositories` and its two call sites,
+			//   `newProjectRoot` becoming a real argument in place of a `deps.projectFolder`
+			//   read, dozens of lines away.
+			// None of the seven is the new `folder === undefined` refusal this slice added beside
+			// each of the five repositories' save paths, which IS driven (the
+			// unresolvable-project-folder test removes the index entry between the read and the
+			// save, once per entity kind).
+			//
+			// Re-verified 2026-08-28 against `coverage/lcov.info` freshly generated at HEAD
+			// (`14b52dd`, after `findNoteIdInFolder` was deleted and the `notesFolder ===
+			// undefined` arm was added): the same four files above name the only uncovered
+			// arms, matching the four bullets below one for one, and the other eight files in
+			// the list report zero uncovered lines, functions or branches.
 			thresholds: {
 				statements: 99,
 				functions: 99,

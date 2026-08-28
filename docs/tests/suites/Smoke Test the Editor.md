@@ -95,3 +95,9 @@ into an automated check will find the same thing again next release.
   backgroundless plan with five zones, and the browser harness refuses a background outright.
   A replacement would draw an empty state where the scene belongs with every test still
   green.
+- [[A Project Owns Its Folder]] — design slice 18's ADR-0013: a project's folder is now
+  derived from where its own note sits, rather than cached from a shared plugin setting. Its
+  step 7 is the property no gate here can reach at all — dragging a project's folder
+  somewhere else in Obsidian's file explorer and watching writes follow it, which the fake
+  vault has no file explorer to demonstrate — and step 11 is a real-vault startup-cost
+  observation against a PRD budget category (§102) that names no figure to clear.

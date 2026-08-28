@@ -11,7 +11,6 @@ import type {
 import { revisionConflict } from '../../../application/ports/versioning';
 import {
 	ensureFolder,
-	findNoteIdInFolder,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -21,6 +20,7 @@ import {
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import { observeFrontmatter } from './digest';
 import { freshNotePath } from './paths';
+import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 
 /**
@@ -33,7 +33,15 @@ import type { NoteVaultDeps } from './NoteVaultDeps';
 export interface NoteWriteSpec<TEntity> {
 	readonly kind: string;
 	readonly indexType: 'renovation-asset' | 'renovation-requirement';
-	readonly notesFolder: string;
+	/**
+	 * Where an INSERT creates the note, and `undefined` when the owning project's folder
+	 * did not resolve (ADR-0013). Only the insert path reads it: an UPDATE writes where the
+	 * note already is, so a save is refused for an unresolvable folder only when it has to
+	 * choose a location. `undefined` is a refusal rather than a fallback — writing to a
+	 * defaulted path when the real one is unknown is how a note lands in a parallel tree
+	 * beside the user's work.
+	 */
+	readonly notesFolder: string | undefined;
 	/** The fresh-note file name base — an Asset's name, a Requirement's composed name. */
 	readonly entryName: (entity: TEntity) => string;
 	readonly toPersistence: (entity: TEntity, revision: number) => Record<string, unknown>;
@@ -48,7 +56,16 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 	entity: TEntity,
 	expected: Expected,
 ): Promise<Result<Loaded<TEntity>, RepositoryError>> {
-	const existing = findNoteIdInFolder(deps, deps.vault, spec.notesFolder, entity.id);
+	// Through the INDEX, not a scan of the derived folder — the same lookup `getById` and
+	// `delete` use. Slice 18 bounded discovery by what a note DECLARES rather than by where
+	// it sits, so an asset or requirement note the user filed elsewhere is read, indexed and
+	// deletable; the scan could not see it, `currentVersion` came back undefined, and the
+	// save answered a permanent `<kind>.revision-conflict`. This ONE site covers both kinds.
+	//
+	// What the reliance costs when the index is STALE — this writes owned frontmatter to
+	// whatever file now sits at that path, and an insert past a forgotten entry writes a
+	// second note carrying the same id — is written down once, at `freshNotePath`.
+	const existing = fileAt(deps.vault, deps.index.getPath(entity.id));
 	const currentVersion = existing
 		? versionOfFrontmatter(frontmatterOf(deps, existing))
 		: undefined;
@@ -68,8 +85,20 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 			notePath = existing.path;
 			await writeOwnedFrontmatter(deps.fileManager, existing, dto);
 		} else {
-			await ensureFolder(deps.vault, spec.notesFolder);
-			notePath = freshNotePath(deps.vault, spec.notesFolder, spec.entryName(entity), entity.id);
+			// The insert path is the only one that has to choose a location, so it is the
+			// only one an unresolvable project folder can refuse. Nothing has been written
+			// at this point, which is what makes the refusal safe here.
+			const notesFolder = spec.notesFolder;
+			if (notesFolder === undefined) {
+				return err(
+					persistenceError(
+						`${spec.kind}.project-folder-unresolved`,
+						`Could not resolve the folder of project ${entity.projectId} for ${spec.kind} ${entity.id}.`,
+					),
+				);
+			}
+			await ensureFolder(deps.vault, notesFolder);
+			notePath = freshNotePath(deps.vault, notesFolder, spec.entryName(entity), entity.id);
 			await deps.vault.create(notePath, serializeFrontmatter(dto));
 		}
 	} catch (cause) {

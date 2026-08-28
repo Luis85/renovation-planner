@@ -165,8 +165,7 @@ describe('persistence composition', () => {
 	/**
 	 * `saveSettings` REPLACES the composition root — its fields are readonly, so that is the
 	 * only way state changes there. Two things have to survive the swap, and neither did:
-	 * the new root's index starts EMPTY (and `projectFolder` is itself a setting, so the
-	 * tree worth scanning may have moved), and the vault listeners registered at
+	 * the new root's index starts EMPTY, and the vault listeners registered at
 	 * layout-ready must end up maintaining the root the save installed rather than the one
 	 * they were registered beside.
 	 */
@@ -246,6 +245,27 @@ describe('persistence composition', () => {
 		const services = planEditorDeps(plugin.root, workspace as never, {} as never).commands;
 
 		expect(services.calibratePlan()).not.toBe(services.calibratePlan());
+	});
+
+	/**
+	 * `composeRepositories(deps, vault, settings.projectFolder)` is the seam that actually
+	 * reads the setting (`src/plugin/composition-root.ts`); `perProjectFolders.test.ts`'s
+	 * "takes the configured root" only exercises `createRepositoryStack`, which builds a
+	 * `ObsidianProjectRepository` directly and never passes through the composition root at
+	 * all. Driven through the REAL plugin so a future composition-root edit that stopped
+	 * threading the setting through would fail here rather than only in a repository test
+	 * that cannot see the seam.
+	 */
+	it('creates a project under the configured root through the real composition seam', async () => {
+		const stack = createRepositoryStack('Somewhere Else');
+		const { plugin } = await loadedPlugin({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' }, undefined, true, stack);
+
+		const result = await plugin.root.persistence?.createProject.execute({ name: 'Kitchen Refit' });
+		if (!result) throw new Error('persistence was not composed');
+		const created = expectOk(result);
+		const path = plugin.root.persistence?.index.getPath(created.project.entity.id);
+
+		expect(path).toBe('Somewhere Else/Kitchen Refit/Kitchen Refit.md');
 	});
 
 	it('declares exactly one folder setting, and Geometry is not among them', async () => {

@@ -1,11 +1,10 @@
 import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
-import { ENTITY_TYPES, type EntityType, type ProjectIndex, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
-import { stringField } from './buildProjectIndexEntries';
+import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
-import { GEOMETRY_FOLDER, normalizeFolder } from '../../obsidian/repositories/paths';
 
 /**
  * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
@@ -30,7 +29,6 @@ export class VaultChangeAdapter {
 			index: ProjectIndex;
 			echo: EchoWindow;
 			logger: Logger;
-			projectFolder: string;
 			/** Tests flush synchronously by passing 0. */
 			debounceMs?: number;
 		},
@@ -100,9 +98,6 @@ export class VaultChangeAdapter {
 			this.processSidecar(path);
 			return;
 		}
-		const folder = normalizeFolder(this.deps.projectFolder);
-		if (!path.startsWith(`${folder}/`)) return;
-
 		const abstractFile = this.deps.vault.getAbstractFileByPath(path);
 		const existing = this.findByPath(path);
 
@@ -125,9 +120,15 @@ export class VaultChangeAdapter {
 		// so a note we had just indexed would be read as "not ours" and REMOVED from the
 		// index below, with no future event to put it back.
 		const frontmatter = frontmatterOf(this.deps, file);
-		const type: unknown = frontmatter['type'];
 
-		if (Object.keys(frontmatter).length === 0 || typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) {
+		const ref = entityRefOf(frontmatter);
+		if (ref.kind !== 'ours') {
+			if (ref.kind === 'no-id') {
+				this.deps.logger.warn('persistence.pipeline.note-excluded', {
+					path,
+					reason: 'a note of this plugin must declare a non-empty id',
+				});
+			}
 			// Not ours — but if it USED to be, it changed into something we cannot index.
 			if (existing) {
 				this.deps.index.remove(existing.id);
@@ -136,42 +137,33 @@ export class VaultChangeAdapter {
 			return;
 		}
 
-		const id: unknown = frontmatter['id'];
-		if (typeof id !== 'string' || !id) {
-			this.deps.logger.warn('persistence.pipeline.note-excluded', {
-				path,
-				reason: 'a note of this plugin must declare a non-empty id',
-			});
-			if (existing) this.deps.index.remove(existing.id);
-			return;
-		}
-
 		// Echo suppression: the digest of what sits on disk now vs. what this plugin last
 		// wrote there. Equal means our own write echoed back through Obsidian's events.
 		if (this.deps.echo.matches(path, observeFrontmatter(frontmatter))) return;
 
-		this.warnOnDuplicateId(id, path);
+		this.warnOnDuplicateId(ref.id, path);
 
 		this.deps.index.upsert({
-			id: id as ProjectIndexEntry['id'],
-			type: type as ProjectIndexEntry['type'],
+			id: ref.id as ProjectIndexEntry['id'],
+			type: ref.type,
 			path,
 			projectId: stringField(frontmatter['project']) as ProjectIndexEntry['projectId'],
 			planId: stringField(frontmatter['plan']) as ProjectIndexEntry['planId'],
 			// Preserve a sidecar mapping an out-of-band note edit cannot have moved —
 			// the sidecar path lives only here and in the Plan repository's writers.
 			geometrySidecarPath:
-				type === 'renovation-plan'
-					? (existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(id as never))
+				ref.type === 'renovation-plan'
+					? (existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(ref.id as never))
 					: undefined,
 		});
 	}
 
 	private processSidecar(path: string): void {
-		const geometryPrefix = `${normalizeFolder(this.deps.projectFolder)}/${GEOMETRY_FOLDER}/`;
-		if (!path.startsWith(geometryPrefix)) return;
-
-		const planId = path.slice(geometryPrefix.length).replace(/\.rpgeo$/, '');
+		// The plan id is the sidecar's basename (ADR-011), which is what `joinSidecars`
+		// reads too. It used to be recovered by slicing a configured prefix off the front,
+		// and that is the same bound the scan just lost: a sidecar under a second root
+		// answered no plan at all.
+		const planId = path.slice(path.lastIndexOf('/') + 1).replace(/\.rpgeo$/, '');
 		const planEntry = this.findByPath(this.deps.index.getPath(planId as never) ?? '');
 
 		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead
@@ -213,8 +205,21 @@ export class VaultChangeAdapter {
 		}
 
 		// A sidecar appearing or changing never moves the note entry itself — only the
-		// mapping this index exists to hold.
-		this.deps.index.upsert({ ...planEntry, geometrySidecarPath: path });
+		// mapping this index exists to hold, and it only moves that when the arriving file
+		// is the one the project folder DERIVES. This used to be an unconditional repoint,
+		// which is how an in-vault backup of a project folder silently sent the live plan's
+		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
+		// carries it for the full scan too, so the two doors cannot answer differently.
+		this.deps.index.upsert({
+			...planEntry,
+			geometrySidecarPath: sidecarMappingFor({
+				logger: this.deps.logger,
+				event: 'persistence.pipeline.sidecar-duplicate',
+				planEntry,
+				incoming: path,
+				projectPathOf: (projectId) => this.deps.index.getPath(projectId),
+			}),
+		});
 	}
 
 	/**

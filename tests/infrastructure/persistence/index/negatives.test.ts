@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
@@ -29,7 +29,6 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>): VaultChange
 		index: stack.index,
 		echo: stack.echo,
 		logger: stack.logger,
-		projectFolder: stack.projectFolder,
 		debounceMs: 0,
 	});
 }
@@ -43,12 +42,30 @@ async function seed(stack: ReturnType<typeof createRepositoryStack>) {
 }
 
 describe('pipeline negatives', () => {
-	it('ignores markdown files outside the project folder entirely', () => {
+	/**
+	 * What `processPath`'s "not a note" arm actually models, now that slice 18 has deleted
+	 * the folder bound this case used to be named for: a path with NO FILE behind it that the
+	 * index does not hold either — a delete Obsidian raised for a file this plugin never
+	 * indexed, or a debounced event whose file was gone by the time the queue drained.
+	 * Nothing resolves, there is no entry to remove, and the index must be left alone.
+	 *
+	 * The previous name, 'ignores markdown files outside the project folder entirely', stated
+	 * precisely the bound slice 18 removed, and the case was green only because its fixture
+	 * was never written into the vault at all — so it took this arm rather than the location
+	 * rule it claimed. A note of ours in `Elsewhere/` IS indexed now, which
+	 * `pipeline.test.ts`'s 'indexes a note of ours created outside the configured folder'
+	 * asserts head-on; nothing is re-asserted here.
+	 */
+	it('an event for a path with no file behind it leaves the index untouched', async () => {
 		const stack = createRepositoryStack();
+		await seed(stack);
 		const adapter = adapterOf(stack);
+		// Against a POPULATED index, so "untouched" is a claim with something to lose: the
+		// empty index the old case compared could not tell a no-op from a wipe.
+		expect(stack.index.entries().length).toBeGreaterThan(0);
 		const before = JSON.stringify(stack.index.entries());
 
-		adapter.onModify({ path: 'Elsewhere/notes.md', stat: {} } as never);
+		adapter.onModify({ path: 'Renovation/Plans/Vanished.md', stat: {} } as never);
 		adapter.flush();
 		expect(JSON.stringify(stack.index.entries())).toBe(before);
 	});
@@ -66,7 +83,10 @@ describe('pipeline negatives', () => {
 		expect(stack.index.entries().find((entry) => entry.path === 'Renovation/Zones/Fresh.md')).toBeUndefined();
 	});
 
-	it('an rpgeo outside the Geometry folder is silently ignored; an orphan inside is diagnosed', async () => {
+	it('an rpgeo whose basename names no plan is diagnosed, wherever it sits', async () => {
+		// The pipeline's bound is no longer a folder prefix — a sidecar's plan id is its
+		// basename (ADR-011), so a stray file gets the same diagnostic whether it sits
+		// beside the configured Geometry folder or somewhere else entirely.
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
 		const adapter = adapterOf(stack);
@@ -75,10 +95,13 @@ describe('pipeline negatives', () => {
 		const warnsBefore = stack.logged.length;
 		adapter.onModify(stack.vault.getAbstractFileByPath('Renovation/Stray.rpgeo') as never);
 		adapter.flush();
-		expect(stack.logged.slice(warnsBefore)).toHaveLength(0);
+		expect(
+			stack.logged.slice(warnsBefore).some((line) => line.event === 'persistence.pipeline.sidecar-skipped'),
+		).toBe(true);
 
-		// An orphan INSIDE Geometry gets a diagnostic instead of a guessed mapping.
-		const orphanPath = `Renovation/Geometry/${createPlanId()}.rpgeo`;
+		// An orphan under a second root gets the identical diagnostic instead of a guessed
+		// mapping.
+		const orphanPath = `Elsewhere/Geometry/${createPlanId()}.rpgeo`;
 		stack.vault.entries.set(orphanPath, '{}');
 		adapter.onModify(stack.vault.getAbstractFileByPath(orphanPath) as never);
 		adapter.flush();
@@ -145,31 +168,67 @@ describe('pipeline negatives', () => {
 		adapter.flush();
 
 		expect(stack.index.getPath(planId)).toBeUndefined();
+		// The name says "with a diagnostic" and nothing used to assert one — the same
+		// name-outruns-its-assertions defect this round is closing in the scan case below.
+		expect(
+			stack.logged.some(
+				(line) => line.event === 'persistence.pipeline.note-excluded' && line.context?.['path'] === path,
+			),
+		).toBe(true);
 		void projectId;
 	});
 });
 
 describe('index builder negatives', () => {
-	it('skips non-notes, foreign notes, and orphan sidecars during the scan', async () => {
+	/**
+	 * The idless fixture used to sit at `Elsewhere/x.md` and the case was named for the
+	 * LOCATION, which slice 18 stopped being a bound: give that note an id and it is indexed
+	 * where it sits, so the case passed on the missing-`id` rule while claiming to prove a
+	 * folder one. It sits under `Renovation/` now, which says plainly that the id is the whole
+	 * reason it is skipped.
+	 *
+	 * The two SCAN-side diagnostics are ASSERTED here rather than merely produced — this is
+	 * the only case in the suite that ASSERTS either, which is a narrower claim than
+	 * "reaches", and the difference is a real case: `pipeline.test.ts`'s "excludes a malformed
+	 * note with a diagnostic" rebuilds the index over an id-less note and therefore reaches
+	 * `persistence.index.note-excluded`, but asserts only that at least one `persistence.*`
+	 * warning was logged, never which. `entityRef.test.ts` unit-tests
+	 * `entityRefOf`'s no-id verdict, not `collectNotes`'s warn arm, and the orphan-sidecar
+	 * warning `branches.test.ts` drives is the PIPELINE door's, under its own event name.
+	 */
+	it('skips a plain note and a foreign one, and diagnoses an idless note and an orphan sidecar', async () => {
 		const stack = createRepositoryStack();
 		await seed(stack);
 
-		stack.vault.entries.set('Elsewhere/x.md', '---\ntype: renovation-project\n---\n');
+		stack.vault.entries.set('Renovation/idless.md', '---\ntype: renovation-project\n---\n');
 		stack.vault.entries.set('Renovation/plain.md', 'no frontmatter here');
 		stack.vault.entries.set('Renovation/foreign.md', '---\ntype: something-else\nid: "x"\n---\n');
-		stack.vault.entries.set(`Renovation/Geometry/${createPlanId()}.rpgeo`, '{}');
+		const orphanSidecar = `Renovation/Geometry/${createPlanId()}.rpgeo`;
+		stack.vault.entries.set(orphanSidecar, '{}');
 
 		const entries = buildProjectIndexEntries({
 			vault: stack.vault as never,
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
 			logger: stack.logger,
-			projectFolder: stack.projectFolder,
 		});
 
-		expect(entries.some((entry) => entry.path === 'Elsewhere/x.md')).toBe(false);
+		expect(entries.some((entry) => entry.path === 'Renovation/idless.md')).toBe(false);
 		expect(entries.some((entry) => entry.path === 'Renovation/plain.md')).toBe(false);
 		expect(entries.some((entry) => entry.path === 'Renovation/foreign.md')).toBe(false);
+
+		// A note of OURS that cannot be indexed is a diagnostic; a foreign note is silent and
+		// correct, which is the distinction `EntityRef`'s third case exists for.
+		const excluded = stack.logged.find((line) => line.event === 'persistence.index.note-excluded');
+		expect(excluded?.context?.['path']).toBe('Renovation/idless.md');
+		expect(
+			stack.logged.some(
+				(line) => line.event === 'persistence.index.note-excluded' && line.context?.['path'] === 'Renovation/foreign.md',
+			),
+		).toBe(false);
+
+		const skipped = stack.logged.find((line) => line.event === 'persistence.index.sidecar-skipped');
+		expect(skipped?.context?.['path']).toBe(orphanSidecar);
 	});
 });
 
@@ -192,7 +251,6 @@ describe('duplicate frontmatter ids', () => {
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
 			logger: stack.logger,
-			projectFolder: stack.projectFolder,
 		});
 
 		// One entry for the id, and a warning naming BOTH paths — a diagnostic that named
@@ -237,6 +295,201 @@ describe('duplicate frontmatter ids', () => {
 
 		expect(stack.logged.some((line) => line.event === 'persistence.pipeline.duplicate-id')).toBe(false);
 		expect(stack.index.getPath(projectId)).toBe(movedTo);
+	});
+});
+
+/**
+ * Two `.rpgeo` files can share a basename the same way two notes can share an id: a user
+ * copying a whole project folder as a backup — the "moves, backs up and deletes as one
+ * unit" property ADR-0013 celebrates — produces a second sidecar naming the same plan id.
+ * Neither the scan nor the pipeline has a folder prefix left to keep the two apart, so the
+ * copy is reachable from an ordinary backup rather than only from a deliberately crafted
+ * vault.
+ *
+ * A warning alone is not enough on either side: the mapping is what every geometry WRITE
+ * resolves through, so a repointed mapping sends the live plan's zones into the backup and
+ * leaves the file the user is looking at frozen. Both doors keep the sidecar the project
+ * folder DERIVES (ADR-0011: derivability is the repair path for a damaged index), which is
+ * the same answer whichever order the two files are reached in.
+ */
+describe('duplicate sidecar basenames', () => {
+	it('the scan keeps the derived sidecar, in either order, and warns about the other', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
+		const backupPath = original.replace('Renovation/', 'Renovation Backup/');
+		const text = stack.vault.entries.get(original) ?? '';
+		const scan = (): ReturnType<typeof buildProjectIndexEntries> =>
+			buildProjectIndexEntries({
+				vault: stack.vault as never,
+				metadataCache: stack.metadataCache as never,
+				echo: stack.echo,
+				logger: stack.logger,
+			});
+
+		// The diagnostic is asked for AFTER each scan against a cleared recorder, because a
+		// shared one answers the second question with the first scan's line — which is how
+		// this case once asserted "either way" while reading one order twice.
+		const reportOf = (): Record<string, unknown> => {
+			stack.logged.length = 0;
+			const entries = scan();
+			expect(entries.find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
+			const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+			expect(warning).toBeDefined();
+			return warning?.context ?? {};
+		};
+
+		// `getFiles()` answers in insertion order, so this pair of scans is the pair of scan
+		// orders: the copy reached last, then the copy reached first. Obsidian promises no
+		// order at all, which is why both have to report.
+		stack.vault.entries.set(backupPath, text);
+		const copyLast = reportOf();
+
+		stack.vault.entries.delete(original);
+		stack.vault.entries.set(original, text);
+		const copyFirst = reportOf();
+
+		// Which of the two is `path` and which is `otherPath` follows the order — `path` is
+		// always the one that arrived. What must not follow the order is WHICH FILES are named,
+		// which sidecar is kept, or whether a line is emitted at all.
+		for (const report of [copyLast, copyFirst]) {
+			expect([report['path'], report['otherPath']].toSorted()).toEqual([backupPath, original].toSorted());
+			expect(report['derivedPath']).toBe(original);
+			expect(report['kept']).toBe(original);
+		}
+		expect(copyLast['path']).toBe(backupPath);
+		expect(copyFirst['path']).toBe(original);
+	});
+
+	it('a sidecar re-affirming the path already mapped is not a duplicate', () => {
+		// One `.rpgeo` in the vault, edited out of band. The mapping it re-affirms is its own,
+		// so there is nothing to adjudicate and nothing to report — a line naming one file as
+		// both `path` and `otherPath` is a duplicate that does not exist, and a user acts on it.
+		const stack = createRepositoryStack();
+		const sidecar = 'Loose/Geometry/pl-solo.rpgeo';
+		stack.vault.entries.set(
+			'Loose/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-solo', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set(sidecar, '{}');
+		stack.rebuildIndex();
+		stack.logged.length = 0;
+
+		adapterOf(stack).onModify(stack.vault.getAbstractFileByPath(sidecar) as never);
+
+		expect(stack.logged.filter((line) => line.event === 'persistence.pipeline.sidecar-duplicate')).toEqual([]);
+		expect(stack.index.getGeometrySidecarPath('pl-solo' as never)).toBe(sidecar);
+	});
+
+	it('a plan declaring no project keeps the sidecar it holds, and the line says so', () => {
+		// Nothing to derive from at all (no `project:` in the frontmatter), as distinct from the
+		// case below, where a project IS declared and simply is not indexed. Both keep what is
+		// held; both still report; `derivedPath` is what tells a reader which situation this is.
+		const stack = createRepositoryStack();
+		stack.vault.entries.set(
+			'Loose/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-rootless', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set('Loose/Geometry/pl-rootless.rpgeo', '{}');
+		stack.vault.entries.set('Loose Backup/Geometry/pl-rootless.rpgeo', '{}');
+
+		const entries = buildProjectIndexEntries({
+			vault: stack.vault as never,
+			metadataCache: stack.metadataCache as never,
+			echo: stack.echo,
+			logger: stack.logger,
+		});
+
+		expect(entries.find((entry) => entry.id === 'pl-rootless')?.geometrySidecarPath).toBe(
+			'Loose/Geometry/pl-rootless.rpgeo',
+		);
+		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+		expect(warning?.context?.['kept']).toBe('Loose/Geometry/pl-rootless.rpgeo');
+		expect(warning?.context?.['derivedPath']).toBeUndefined();
+	});
+
+	it('the scan keeps the first sidecar when no project folder can derive one', () => {
+		// A plan whose project note is not in the vault: nothing can say which of the two
+		// files is canonical, so the arriving duplicate does not displace the mapping that
+		// is already held — first scanned wins, warned, rather than a silent repoint.
+		const stack = createRepositoryStack();
+		stack.vault.entries.set(
+			'Loose/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-loose', project: 'project-gone', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set('Loose/Geometry/pl-loose.rpgeo', '{}');
+		stack.vault.entries.set('Loose Backup/Geometry/pl-loose.rpgeo', '{}');
+
+		const entries = buildProjectIndexEntries({
+			vault: stack.vault as never,
+			metadataCache: stack.metadataCache as never,
+			echo: stack.echo,
+			logger: stack.logger,
+		});
+
+		expect(entries.find((entry) => entry.id === 'pl-loose')?.geometrySidecarPath).toBe(
+			'Loose/Geometry/pl-loose.rpgeo',
+		);
+		const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
+		expect(warning?.context?.['kept']).toBe('Loose/Geometry/pl-loose.rpgeo');
+		expect(warning?.context?.['derivedPath']).toBeUndefined();
+	});
+
+	it('the pipeline keeps the live mapping when a copied sidecar arrives beside it', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
+		const backupPath = original.replace('Renovation/', 'Renovation Backup/');
+		stack.vault.entries.set(backupPath, stack.vault.entries.get(original) ?? '');
+
+		adapter.onCreate(stack.vault.getAbstractFileByPath(backupPath) as never);
+		adapter.flush();
+
+		expect(stack.index.getGeometrySidecarPath(planId)).toBe(original);
+		const warning = stack.logged.find((line) => line.event === 'persistence.pipeline.sidecar-duplicate');
+		expect(warning?.context?.['path']).toBe(backupPath);
+		expect(warning?.context?.['otherPath']).toBe(original);
+		expect(warning?.context?.['derivedPath']).toBe(original);
+		expect(warning?.context?.['kept']).toBe(original);
+
+		// And deleting the copy again takes nothing with it. The delete arm's path-equality
+		// guard was always right; what made it clear the mapping was the repoint above it.
+		stack.vault.entries.delete(backupPath);
+		adapter.onDelete({ path: backupPath } as never);
+		expect(stack.index.getGeometrySidecarPath(planId)).toBe(original);
+	});
+
+	it('a project folder copied wholesale leaves the original geometry mapping alone', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const original = stack.index.getGeometrySidecarPath(planId) ?? '';
+		const folder = original.slice(0, original.indexOf('/Geometry/'));
+
+		// Every file of the project, copied, and delivered in the order a directory walk
+		// produces: `Geometry/` sorts ahead of the note that would repoint the plan entry,
+		// so the sidecar arrives while the index still points at the live project.
+		const copies = [...stack.vault.entries]
+			.filter(([path]) => path.startsWith(`${folder}/`))
+			.map(([path, text]): [string, string] => [path.replace(folder, `${folder} backup`), text])
+			.toSorted(([left], [right]) => left.localeCompare(right));
+		for (const [path, text] of copies) stack.vault.entries.set(path, text);
+		stack.metadataCache.catchUp();
+		for (const [path] of copies) adapter.onCreate({ path } as never);
+		adapter.flush();
+
+		expect(copies.map(([path]) => path)).toContain(original.replace(folder, `${folder} backup`));
+		expect(stack.index.getGeometrySidecarPath(planId)).toBe(original);
+		// The copied NOTES are a duplicate-id finding and still take the index over — that
+		// is slice 18's warned, deliberate last-writer-wins, and this fix does not touch it.
+		// What it stops is the geometry mapping following them silently. Measured rather
+		// than assumed, and it is why `sidecarMappingFor` promises agreement of the two
+		// halves for the SCAN and not for a live copy: mid-copy the note entry has moved to
+		// the backup while the mapping has not, and the next full scan is what reconciles
+		// them (it resolves every note before it joins a single sidecar).
+		expect(stack.logged.some((line) => line.event === 'persistence.pipeline.duplicate-id')).toBe(true);
+		expect(stack.index.getPath(planId)?.startsWith(`${folder} backup/`)).toBe(true);
 	});
 });
 
@@ -372,7 +625,6 @@ describe('the index scan does not run the fail-closed gate', () => {
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
 			logger: stack.logger,
-			projectFolder: stack.projectFolder,
 		});
 
 		// Every entry, not "most of them" — the poisoned note included.

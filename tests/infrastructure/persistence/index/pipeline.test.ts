@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack } from '../../../helpers/vault';
+import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../../../helpers/entities';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
@@ -20,7 +20,6 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>): VaultChange
 		index: stack.index,
 		echo: stack.echo,
 		logger: stack.logger,
-		projectFolder: stack.projectFolder,
 		debounceMs: 0,
 	});
 }
@@ -137,5 +136,37 @@ describe('vault change detection', () => {
 		adapter.onDelete(stack.vault.getAbstractFileByPath(newPath) ?? ({ path: newPath } as never));
 		adapter.flush();
 		expect(stack.index.getPath(planId)).toBeUndefined();
+	});
+
+	it('indexes a note of ours created outside the configured folder', () => {
+		const stack = createRepositoryStack();
+		const adapter = adapterOf(stack);
+		stack.vault.entries.set(
+			'Elsewhere/Bathroom/Project.md',
+			serializeFrontmatter({ type: 'renovation-project', id: 'p-out', 'schema-version': 1 }),
+		);
+		stack.metadataCache.catchUp();
+
+		adapter.onCreate({ path: 'Elsewhere/Bathroom/Project.md' } as never);
+
+		expect(stack.index.getPath('p-out' as never)).toBe('Elsewhere/Bathroom/Project.md');
+	});
+
+	it('maps a sidecar outside the configured folder onto its plan', () => {
+		const stack = createRepositoryStack();
+		const adapter = adapterOf(stack);
+		stack.vault.entries.set(
+			'Elsewhere/Plans/Ground.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-out', 'schema-version': 1 }),
+		);
+		stack.metadataCache.catchUp();
+		adapter.onCreate({ path: 'Elsewhere/Plans/Ground.md' } as never);
+
+		stack.vault.entries.set('Elsewhere/Geometry/pl-out.rpgeo', '{}');
+		adapter.onCreate({ path: 'Elsewhere/Geometry/pl-out.rpgeo' } as never);
+
+		expect(stack.index.getGeometrySidecarPath('pl-out' as never)).toBe(
+			'Elsewhere/Geometry/pl-out.rpgeo',
+		);
 	});
 });

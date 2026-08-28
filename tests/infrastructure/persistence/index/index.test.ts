@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createMigrationRunner, MigrationRunner, type Migration } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import type { ProjectIndexEntry } from '../../../../src/application/ports/ProjectIndex';
+import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 
 describe('the migration runner', () => {
 	const v0toV1: Migration = {
@@ -136,6 +137,35 @@ describe('the in-memory project index', () => {
 		expect(index.getIdsByProject('project-a' as never)).toEqual([]);
 		index.remove('zone-c' as never);
 		expect(index.entries()).toEqual([]);
+	});
+
+	it('indexes a note of ours that sits outside the configured folder', () => {
+		const stack = createRepositoryStack('Renovation');
+		stack.vault.entries.set(
+			'Somewhere Else/Kitchen/Project.md',
+			serializeFrontmatter({ type: 'renovation-project', id: 'p-outside', 'schema-version': 1 }),
+		);
+		stack.metadataCache.catchUp();
+
+		stack.rebuildIndex();
+
+		expect(stack.index.getPath('p-outside' as never)).toBe('Somewhere Else/Kitchen/Project.md');
+	});
+
+	it('joins a sidecar that sits outside the configured folder', () => {
+		const stack = createRepositoryStack('Renovation');
+		stack.vault.entries.set(
+			'Elsewhere/Plans/Ground floor.md',
+			serializeFrontmatter({ type: 'renovation-plan', id: 'pl-outside', 'schema-version': 1 }),
+		);
+		stack.vault.entries.set('Elsewhere/Geometry/pl-outside.rpgeo', '{}');
+		stack.metadataCache.catchUp();
+
+		stack.rebuildIndex();
+
+		expect(stack.index.getGeometrySidecarPath('pl-outside' as never)).toBe(
+			'Elsewhere/Geometry/pl-outside.rpgeo',
+		);
 	});
 
 	it('rebuild converges to the same state an equal sequence of upserts produces', () => {

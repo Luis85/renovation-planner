@@ -273,8 +273,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
 			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger) },
 		);
-		// The new root carries an EMPTY index — and `projectFolder` is a setting, so the
-		// tree worth scanning may have moved. Re-running the build is what makes the swap
+		// The new root carries an EMPTY index. Re-running the build is what makes the swap
 		// complete; without it the session reads an index of nothing until the next reload,
 		// and every already-registered listener maintains a root nobody consults.
 		this.startPersistence();
@@ -315,9 +314,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * repository, index or query service exists at all (`CompositionRoot.persistence`).
 	 *
 	 * Called from `onLayoutReady` and again from `saveSettings`, which is why the two halves
-	 * are guarded differently. The BUILD repeats, because a new root's index starts empty
-	 * and its folder may have changed. The REGISTRATION does not, because the handlers read
-	 * `this.root` at call time and therefore already follow the swap.
+	 * are guarded differently. The BUILD repeats, because a new root's index starts empty —
+	 * the scan itself is no longer bounded by the project folder, so a changed folder is not
+	 * why it repeats. The REGISTRATION does not, because the handlers read `this.root` at
+	 * call time and therefore already follow the swap.
 	 */
 	private startPersistence(): void {
 		const persistence = this.root.persistence;
@@ -329,7 +329,6 @@ export default class RenovationPlannerPlugin extends Plugin {
 				metadataCache: this.vaultStack.metadataCache,
 				echo: persistence.vaultDeps.echo,
 				logger: this.root.logger,
-				projectFolder: persistence.vaultDeps.projectFolder,
 			}),
 		);
 

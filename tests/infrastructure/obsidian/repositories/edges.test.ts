@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { TFolder as MockTFolder } from 'obsidian';
 import {
 	ensureFolder,
-	findNoteIdInFolder,
 	isTFolder,
 	persistenceError,
 	serializeFrontmatter,
@@ -42,13 +41,6 @@ describe('noteIo edges', () => {
 
 	it('persistenceError omits cause when there is none', () => {
 		expect(persistenceError('c', 'm')).toEqual({ category: 'Persistence', code: 'c', message: 'm' });
-	});
-
-	it('findNoteIdInFolder ignores files outside the folder', () => {
-		const vault = { getMarkdownFiles: (): { path: string }[] => [{ path: 'Elsewhere/a.md' }] };
-		const metadataCache = { getFileCache: (): { frontmatter: Record<string, unknown> } => ({ frontmatter: { id: 'z1' } }) };
-		const source = { metadataCache, echo: new EchoWindow() };
-		expect(findNoteIdInFolder(source as never, vault as never, 'Renovation/Zones', 'z1')).toBeNull();
 	});
 });
 

@@ -27,6 +27,7 @@ Every task's requirements implicitly include all of these. Values are copied ver
 - **Address code by name, not by line number**, in comments and commit messages alike.
 - **Write the guarantee to the check.** If a check cannot reach the whole claim, narrow the sentence rather than leaving the wider one standing.
 - Commit after every task. Conventional-commit subject lines (`feat:`, `fix:`, `docs:`, `test:`).
+- **Stage every file the task touched, and check the `git add` line against the task's own Files block before running it.** Three tasks here shipped a `git add` that omitted a file the task creates — `openNote.ts`, the two dialog components, the id-prefix helper and both view files. `npm run check` cannot catch it: it reads the WORKING TREE, which has the file, so the gate passes and the commit is short. The result is a commit that does not build, and for a path no later task stages, a file left uncommitted altogether. `git status --porcelain` before every commit, and stage what it shows.
 
 ## File structure
 
@@ -40,6 +41,7 @@ Every task's requirements implicitly include all of these. Values are copied ver
 | `src/presentation/views/renovationProjectCommands.ts` | **Create.** `RenovationProjectCommandServices` + `unavailableRenovationProjectCommands()`. |
 | `src/presentation/views/NewProjectForm.vue` | **Create.** The five-field form mounted in slice 15's `FormDialog`. |
 | `src/presentation/views/ProjectList.vue` | **Create.** One row per `ProjectSummaryDto`. |
+| `src/presentation/appIdPrefix.ts` | **Create.** The module-level counter giving each Vue app its own `useId` namespace. |
 | `src/presentation/views/app-id-prefix.ts` | **Create.** `nextAppIdPrefix()` — a distinct `useId` namespace per mounted Vue app. |
 | `src/infrastructure/persistence/dto/projectFrontmatter.ts` | **Modify.** Three nullable keys, so the form's fields survive a reload. No version bump. |
 | `src/infrastructure/persistence/mappers/projectMapper.ts` | **Modify.** Carry them both directions; date-only, UTC. |
@@ -513,7 +515,10 @@ Run: `npm run check`
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/presentation/components/FieldError.vue src/presentation/components/FormBanner.vue styles/forms.css styles/index.css tests/presentation/components/fieldError.test.ts
+git add src/presentation/components/FieldError.vue src/presentation/components/FormBanner.vue \
+        src/presentation/appIdPrefix.ts \
+        src/presentation/views/PlanEditorView.ts src/presentation/views/RenovationProjectView.ts \
+        styles/forms.css styles/index.css tests/presentation/components/fieldError.test.ts
 git commit -m "feat: FieldError and FormBanner, the two rendering surfaces"
 ```
 
@@ -1237,13 +1242,6 @@ export function useFieldCommit<T, TInput>(options: {
 	}
 
 	async function onCommit(): Promise<void> {
-		// Before anything is dispatched: an unconvertible draft is this field's own refusal,
-		// with no command to produce it and no `AppError` for `routeError` to place.
-		const invalid = options.validate?.(draft.value) ?? null;
-		if (invalid !== null) {
-			error.value = invalid;
-			return;
-		}
 		// A second commit gesture while the first is still in flight is COALESCED, not
 		// dropped and not dispatched beside it. Task 9 leaves the control enabled on
 		// purpose, so a user can blur, click back in, retype and blur again before a slow
@@ -1267,11 +1265,29 @@ export function useFieldCommit<T, TInput>(options: {
 		try {
 			do {
 				recommit = false;
+				// Validated INSIDE the loop, once per dispatch, because a queued gesture
+				// carries a draft nobody has checked. A version of this validated once at
+				// the top and returned early on an invalid draft WITHOUT clearing `recommit`
+				// — so a valid commit, then malformed text, then a blur, left the flag set
+				// and the loop dispatched the malformed draft the moment the first write
+				// settled, straight into the throwing `moneyOf` this seam exists to keep it
+				// away from. One rule, one place, every iteration.
+				const invalid = options.validate?.(draft.value) ?? null;
+				if (invalid !== null) {
+					// This field's own refusal: no command to produce it, and no `AppError`
+					// for `routeError` to place.
+					error.value = invalid;
+					break;
+				}
 				await dispatchOnce();
-				// Only if the draft actually MOVED. Two blurs with no edit between them are
-				// one edit, and re-dispatching an identical value would buy a second undo
-				// entry that undoes nothing visible.
-			} while (recommit && drafted.value !== lastCommitted);
+				// Only if the draft actually MOVED, and `!== null` is half of that test
+				// rather than a defensive extra: a SUCCESSFUL dispatch clears `drafted` to
+				// null, and `null !== lastCommitted` is true — so without it, two blurs with
+				// no edit between them re-dispatched the canonical value, bought a second
+				// undo entry, and could overwrite the edit just accepted if the refresh had
+				// not landed. Null here means the field is clean and showing canonical,
+				// which is precisely nothing to re-send.
+			} while (recommit && drafted.value !== null && drafted.value !== lastCommitted);
 		} finally {
 			inFlight = false;
 			pending.value = false;
@@ -1550,7 +1566,10 @@ Expected: pass. Existing tests that construct `RenovationProjectDeps` will fail 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/presentation/views/renovationProjectCommands.ts src/presentation/views/RenovationProjectContext.ts src/plugin/guardedServices.ts src/plugin/composition-root.ts tests/
+git add src/presentation/views/renovationProjectCommands.ts src/presentation/views/RenovationProjectContext.ts \
+        src/infrastructure/obsidian/workspace/openNote.ts \
+        src/plugin/guardedServices.ts src/plugin/composition-root.ts src/plugin/RenovationPlannerPlugin.ts \
+        tests/
 git commit -m "feat: the project view gets a guarded write side and a way to open a note"
 ```
 
@@ -2040,7 +2059,10 @@ Run: `npm run check`
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/presentation/views/NewProjectForm.vue src/presentation/i18n/locales/ src/presentation/dialogs/dialog-store.ts tests/
+git add src/presentation/views/NewProjectForm.vue src/presentation/i18n/locales/ \
+        src/presentation/dialogs/dialog-store.ts \
+        src/presentation/dialogs/DialogHost.vue src/presentation/dialogs/FormDialog.vue \
+        tests/
 git commit -m "feat: the New Project form, which owns its dispatch so a rejection stays open"
 ```
 
@@ -2644,6 +2666,31 @@ describe('RequirementRow', () => {
 		expect(wrapper.findAll('.rp-field-error__message')).toHaveLength(2);
 	});
 
+	it('discards a rejected draft on Escape without dispatching', async () => {
+		// The spec keeps Escape-to-revert real in the Inspector, which is not inside a dialog.
+		// The canvas's tool-cancel handler is a SIBLING and never sees a keydown that starts in
+		// this input, so nothing else can provide this.
+		const refusal: AppError = {
+			category: 'Validation',
+			code: 'requirement.negative-quantity',
+			message: 'developer english',
+		};
+		const commit = vi.fn(async () => err(refusal));
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const input = wrapper.get('input[data-field="quantity"]');
+		await input.setValue('-5');
+		await input.trigger('blur');
+		await flushPromises();
+		expect(commit).toHaveBeenCalledTimes(1);
+
+		await input.trigger('keydown', { key: 'Escape' });
+
+		expect(wrapper.find('.rp-field-error__message').exists()).toBe(false);
+		expect((input.element as HTMLInputElement).value).not.toBe('-5');
+		// Discarded, never committed — which is what separates it from Reset below.
+		expect(commit).toHaveBeenCalledTimes(1);
+	});
+
 	it('still offers an explicit reset to calculated', async () => {
 		// `Escape` inside the editor is spoken for by tool-gesture cancellation, so the way
 		// back to "calculated" stays a visible control rather than a key.
@@ -2746,7 +2793,33 @@ function onQuantityInput(raw: string): void {
 ```
 
 There is no `commitQuantity` and no local parse state: blur calls `quantity.onCommit()`
-directly, and the guard runs inside it. The old shape emitted `null` for an unparseable
+directly, and the guard runs inside it.
+
+**Bind `Escape` on both controls, and this is not an extra — it is the design's own promise.**
+The spec's decision 3 narrows `Escape` inside a DIALOG to the dialog's cancel and says in the
+same breath that "`Escape`-to-revert-one-field stays real in the **Inspector**, which is not
+inside a dialog". An earlier draft of this task bound nothing: the only tool-gesture `Escape`
+handler is on the sibling `PlanCanvas`, and an event originating in an Inspector input never
+reaches it — so the spec claimed behaviour no code produced, which is this repository's own
+"write the guarantee to the check" rule broken inside its own documents.
+
+```html
+<input
+	:id="inputId"
+	v-bind="aria"
+	data-field="quantity"
+	:value="quantity.draft.value ?? ''"
+	@input="onQuantityInput(($event.target as HTMLInputElement).value)"
+	@blur="quantity.onCommit()"
+	@keydown.esc.stop="quantity.onCancel()"
+>
+```
+
+`.stop` because the canvas's cancel is a sibling concern: a user abandoning a typed override
+has not abandoned a tool gesture they may also have running. **Reset and `Escape` are
+different actions and both are kept:** reset COMMITS `null`, the value meaning "go back to
+calculated", which is undoable; `Escape` DISCARDS the draft and dispatches nothing. One test
+each, because they are one keystroke apart and collapsing them would look correct. The old shape emitted `null` for an unparseable
 draft, which IS "reset to calculated" — a silent discard of the user's override.
 
 **`pending` drives a visual, and deliberately does NOT disable the input.** Disabling was the
@@ -2904,6 +2977,10 @@ Two contradictions fell out of reading those regions and are fixed in the same p
 
 1. **A shape check written as if it were a validity check.** Task 5a guarded the stored dates with `.regex(/^\d{4}-\d{2}-\d{2}$/)` and a test using `yesterday` — the one malformed spelling a regex alone already refuses, so the test agreed with the guard about the only case both could see. Measured with node rather than argued: `2026-99-99`, `2026-13-01` and `2026-00-10` pass the regex and parse to `Invalid Date`, whose `NaN` timestamp makes every comparison false and whose `.toISOString()` throws; and `2026-02-30` and `2026-04-31` pass the regex, parse happily, and come back as **March 2** and **May 1** — no error anywhere, just a different day than the user wrote. One round-trip predicate (`isRealCalendarDate`) closes both classes, declared once for both keys, with the finite check ordered first because `toISOString()` on an `Invalid Date` throws on exactly the input the predicate exists to reject. The tests are a table of six now, plus a leap day to prove the guard is not so eager it refuses `2028-02-29` — which is what a hand-written regex clever enough to catch February 30th usually does. **This is this repository's own rule about instruments, turned on the fix that quoted it.**
 2. **Overlapping commits from the control round four chose to leave enabled.** `onCommit` had no in-flight guard, so a second blur during a slow write started a second `history.run`. `CommandHistory` serializes them, so nothing interleaves — but it executes and records each, so N blurs on one edit leave N undo entries, and the first call's `finally` cleared `pending` while a later dispatch was still queued. The composable coalesces now: an extra gesture sets a flag, and the loop honours it exactly once with the latest draft, skipping the re-dispatch when the draft never moved. **Dropping the extra call instead — which is what `useFormCommit.submit` correctly does — would be wrong here**, and it is the same asymmetry as the disable question one finding earlier: a repeated submit is one intent pressed twice, while a repeated field commit carries a value the user has since changed.
+
+**The sixth review's six findings**, all verified against the plan's own text and all real. Three are one new CLASS, which is why a global constraint carries the rule rather than three task edits: a `git add` that omits a file its own task creates. `npm run check` cannot see it — the gate reads the WORKING TREE, which has the file — so the check passes, the commit is short, and for a path no later task stages (`openNote.ts`) the file is never committed at all. Task 2 omitted the id-prefix helper and both view files, Task 5 `openNote.ts` and the plugin's factory call, Task 6 both dialog components.
+
+The other three: the coalescing loop treated a CLEARED draft as a changed one (`dispatchOnce` nulls `drafted` on success, and `null !== lastCommitted` is true), so two blurs with no edit between them re-dispatched the canonical value and bought an undo entry — `!== null` is half the moved-test, not a defensive extra. The single top-of-function `validate` left `recommit` set when it refused, so a valid commit followed by malformed text and a blur dispatched the malformed draft the instant the first write settled, into the very `moneyOf` throw the seam exists to prevent — it validates once per loop iteration now, one rule in one place. And `Escape` on an Inspector field was promised by the spec and bound by nothing: the only tool-cancel handler is on the sibling `PlanCanvas` and never sees a keydown starting in an input, so the spec claimed behaviour no code produced.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 

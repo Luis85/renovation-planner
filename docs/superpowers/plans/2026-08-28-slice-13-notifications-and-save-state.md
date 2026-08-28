@@ -411,7 +411,13 @@ describe('the notice queue', () => {
 		const { host, opened } = recordingHost();
 		const queue = createNoticeQueue(host);
 		for (const message of ['a', 'b', 'c', 'd']) queue.push('error', message);
+
+		// Both halves, in the order the real host performs them: the element goes, THEN the
+		// hint arrives. `dismissed` only sweeps and promotes, and `sweep` reads `handle.live` —
+		// so a hint alone, with the handle still live, frees nothing and promotes nothing.
+		opened[0]?.handle.hide();
 		opened[0]?.callbacks.dismissed();
+
 		expect(opened).toHaveLength(4);
 		expect(opened[3]?.view.message).toBe('d');
 	});
@@ -477,6 +483,8 @@ interface Entry {
 	count: number;
 	handle: NoticeHandle | null;
 	timer: ReturnType<typeof setTimeout> | null;
+	/** The user is hovering this notice or focusing its dismiss control. */
+	paused: boolean;
 }
 
 const sameNotice = (entry: Entry, severity: NoticeSeverity, message: string): boolean =>
@@ -505,7 +513,10 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 	 * to a permanently wedged queue.
 	 */
 	const sweep = (): void => {
-		for (const entry of entries) {
+		// A SNAPSHOT, because `release` splices `entries`: iterating the live array shifts the
+		// next element behind the cursor, so with two notices dismissed externally the second
+		// stays tracked as visible and goes on reserving a slot no notice occupies.
+		for (const entry of [...entries]) {
 			if (entry.handle !== null && !entry.handle.live) release(entry);
 		}
 	};
@@ -524,10 +535,30 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 		count: entry.count,
 	});
 
+	/**
+	 * Start, restart or withhold this entry's auto-dismiss countdown — and decide **in one
+	 * place** whether it should have one at all. Three conditions withhold it, and each was
+	 * its own defect before they lived together here:
+	 *
+	 * - a severity that PERSISTS has no timer, which is the policy;
+	 * - a HELD entry has none, because the callback below calls `release`, which would delete
+	 *   a queued notice nobody has ever seen — a repeated success behind three warnings,
+	 *   silently dropped instead of promoted;
+	 * - a PAUSED entry has none, because the user is reading it or tabbing to its dismiss
+	 *   control, and an identical message arriving mid-interaction must not restart the clock
+	 *   underneath them.
+	 *
+	 * So every caller calls `arm` unconditionally and none of them tests a condition first. A
+	 * guard at a call site would be a second copy of this rule, and two copies of one rule
+	 * disagree — which is exactly how the first two of those three arrived.
+	 */
 	const arm = (entry: Entry): void => {
-		const after = AUTO_DISMISS_MS[entry.severity];
-		if (after === null) return;
 		if (entry.timer !== null) clearTimeout(entry.timer);
+		entry.timer = null;
+
+		const after = AUTO_DISMISS_MS[entry.severity];
+		if (after === null || entry.handle === null || entry.paused) return;
+
 		entry.timer = setTimeout(() => {
 			entry.handle?.hide();
 			release(entry);
@@ -542,10 +573,13 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 				promote();
 			},
 			pause: () => {
-				if (entry.timer !== null) clearTimeout(entry.timer);
-				entry.timer = null;
+				entry.paused = true;
+				arm(entry);
 			},
-			resume: () => arm(entry),
+			resume: () => {
+				entry.paused = false;
+				arm(entry);
+			},
 		});
 		arm(entry);
 	};
@@ -565,19 +599,14 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 			const existing = entries.find((entry) => sameNotice(entry, severity, message));
 			if (existing !== undefined) {
 				existing.count += 1;
-				// **Only a VISIBLE entry gets its timer restarted.** Arming a held one starts a
-				// countdown on something nobody can see, and `arm`'s callback calls `release`,
-				// which drops it from the queue — so a success repeated while three warnings hold
-				// every slot would be silently deleted instead of promoted. A held entry has no
-				// timer at all until `show` arms one.
-				if (existing.handle !== null) {
-					existing.handle.update(viewOf(existing));
-					arm(existing);
-				}
+				existing.handle?.update(viewOf(existing));
+				// Unconditional on purpose: `arm` is the one place that decides whether a held or
+				// paused entry gets a countdown. See its header.
+				arm(existing);
 				return;
 			}
 
-			entries.push({ severity, message, count: 1, handle: null, timer: null });
+			entries.push({ severity, message, count: 1, handle: null, timer: null, paused: false });
 			promote();
 		},
 
@@ -681,6 +710,24 @@ Append inside the existing `describe`, reusing `recordingHost` from Task 3:
 		expect(live()).toHaveLength(0);
 	});
 
+	it('does not restart the clock on a duplicate arriving while the user is interacting', () => {
+		const { host, opened, live } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.push('success', 'saved');
+
+		opened[0]?.callbacks.pause();
+		queue.push('success', 'saved');
+
+		// The repeat must not have armed a new timer under a hovering user.
+		vi.advanceTimersByTime(60_000);
+		expect(live()).toHaveLength(1);
+		expect(opened[0]?.view.count).toBe(2);
+
+		opened[0]?.callbacks.resume();
+		vi.advanceTimersByTime(4000);
+		expect(live()).toHaveLength(0);
+	});
+
 	it('does not time out a held duplicate that has never been shown', () => {
 		const { host, opened } = recordingHost();
 		const queue = createNoticeQueue(host);
@@ -750,6 +797,21 @@ Append inside the same `describe`:
 
 		queue.push('error', 'e');
 		expect(opened.map((o) => o.view.message)).toContain('d');
+	});
+
+	it('frees every externally dismissed slot at once, not merely the first', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		for (const message of ['a', 'b', 'c', 'd', 'e']) queue.push('error', message);
+		expect(opened).toHaveLength(3);
+
+		// Two dismissed externally. A sweep that splices the array it is iterating skips the
+		// second, leaving it tracked as visible and promoting only one of the two held.
+		opened[0]?.handle.hide();
+		opened[1]?.handle.hide();
+		opened[0]?.callbacks.dismissed();
+
+		expect(opened.map((o) => o.view.message)).toEqual(['a', 'b', 'c', 'd', 'e']);
 	});
 
 	it('does not wedge permanently when no dismissal hint ever arrives', () => {
@@ -968,7 +1030,17 @@ const textOf = (view: NoticeView): string =>
  */
 const obsidianHost: NoticeHost = {
 	open(view, callbacks) {
-		const notice = new Notice('', 0);
+		/**
+		 * **The message goes through the CONSTRUCTOR, not only into the DOM.** Obsidian's
+		 * `Notice` records nothing, but this repository's fake pushes its constructor argument
+		 * onto `Notice.shown`, and five existing suites make ten CONTENT assertions against
+		 * that array (`inspectorFaults`, `zoneEditing`, `planEditorCommands`, `sampleProject`,
+		 * `slice10CascadeWiring`). Constructing with `''` and then writing `messageEl` would
+		 * fill it with empty strings and break every one of them. The structured markup below
+		 * replaces `messageEl`'s content afterwards; the recorded text stays the user's
+		 * sentence.
+		 */
+		const notice = new Notice(textOf(view), 0);
 		const { role, live } = LIVE_REGION[view.severity];
 		notice.containerEl.setAttribute('role', role);
 		notice.containerEl.setAttribute('aria-live', live);
@@ -1177,8 +1249,24 @@ behind it, which is what the `info` tier is for.
 - [ ] **Step 6: Run the tests**
 
 Run: `npx vitest run tests/presentation/notices/ tests/presentation/editor/ tests/plugin/`
-Expected: PASS. If a test asserted on `Notice.shown` for one of the migrated sites it still
-passes — the fake records every message regardless of severity.
+
+**What to expect, stated precisely, because an earlier draft of this step claimed these
+suites were unaffected and that was false.** Five existing suites make ten CONTENT
+assertions against `Notice.shown`:
+
+```bash
+grep -rn "Notice.shown" tests/ | grep -v "\.length"
+```
+
+They pass because the host constructs `new Notice(textOf(view), 0)` — the recorded text is
+still the user's sentence, and severity rides in the markup rather than in that string. Run
+the grep and read the list before believing this paragraph.
+
+**The one class that may genuinely break is a COUNT, and it is dedup rather than the fake.**
+A suite asserting that two identical failures produce two entries in `Notice.shown` now sees
+one, because the second is folded into a `(×2)`. That is the designed behaviour, so fix the
+assertion — count distinct messages, or assert the count on the rendered notice — and do not
+weaken dedup to preserve it.
 
 - [ ] **Step 7: Commit**
 
@@ -2400,5 +2488,20 @@ silently deleted rather than promoted. The host wired no `click` listener on `co
 so Obsidian's own dismissal held its slot until some later push swept it — the spec described
 that prompt and the code did not have it. And hover and focus were collapsed into one flag,
 so leaving the notice resumed the timer while its dismiss button still held focus.
+
+**A third review pass found four more, all real, all fixed.** `Notice.shown` would have
+recorded empty strings, breaking ten content assertions across five existing suites — the
+host passes the real text to the constructor now, and the step that claimed those suites were
+unaffected has been replaced with a grep and an honest account of the one class that does
+change. Task 3's promotion test could not have gone green: it sent a dismissal hint without
+making the handle non-live, and `sweep` reads `handle.live`. `sweep` spliced the array it was
+iterating, so a second externally dismissed notice stayed tracked as visible. And a duplicate
+arriving while the user hovered restarted the clock underneath them.
+
+**That last one is why `arm` was restructured rather than patched.** Three separate findings
+across two review rounds were all "this call site should not have armed a timer" — held,
+paused, persistent. They are now one rule inside `arm`, and every caller calls it
+unconditionally, because a guard at a call site is a second copy of a rule and two copies
+disagree. That is how the first two arrived.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

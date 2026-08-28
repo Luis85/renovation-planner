@@ -218,6 +218,34 @@ function onPointerUp(event: PointerEvent): void {
  * `onPointerLeave`; the tool path had none.
  */
 /**
+ * Nothing is held any more — the state to assume when the modifier keys can no longer be
+ * observed. See `onBlur`.
+ */
+const NO_MODIFIERS: ModifierSource = {
+	shiftKey: false,
+	ctrlKey: false,
+	metaKey: false,
+	altKey: false,
+};
+
+/**
+ * Focus left the canvas — an Alt+Tab, a click on the toolbar — so no `keyup` can reach this
+ * element any more. A Shift released in another application would otherwise leave the
+ * preview constrained for ever, while the next click carries the REAL `shiftKey: false` and
+ * places the vertex somewhere the rubber band was not: preview and commit are the same call
+ * by design, and this was the one way they could disagree.
+ *
+ * Assuming nothing is held is the honest answer rather than a complete one. The web gives no
+ * way to READ modifier state without an event, so a user who holds Shift right across the
+ * blur and returns still holding it sees an unconstrained preview until their next real
+ * event — which is the same class of gap pointing the other way, and self-correcting on the
+ * first move or click. Reported by a review bot on the pull request.
+ */
+function onBlur(): void {
+	reissuePointerMove(NO_MODIFIERS);
+}
+
+/**
  * Shift released. Only the modifier: every other key either does its work on the press
  * (Escape, the zoom pair) or means nothing here, and a handler that re-issued a move for all
  * of them would send one per keystroke of whatever the user typed with the canvas focused.
@@ -311,6 +339,7 @@ onBeforeUnmount(() => {
 		@pointerleave="onPointerLeave"
 		@keydown="onKeyDown"
 		@keyup="onKeyUp"
+		@blur="onBlur"
 	>
 		<VStage :config="stageConfig">
 			<BackgroundLayer

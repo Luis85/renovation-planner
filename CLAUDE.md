@@ -361,6 +361,15 @@ which is why `snapDirection` projects rather than rotating. Four rules came out 
   press and release re-issue the same synthetic pointer move. It reads `event.shiftKey` — the
   STATE — rather than the transition, which is also what makes it work under Sticky Keys,
   where the modifier latches and no key is physically held.
+- **A modifier can be released where the canvas cannot hear it.** Shift held, Alt+Tab away,
+  key released in the other application, back with a click and no mouse movement in between:
+  no `keyup` ever reaches the element, so the preview stayed constrained while the click —
+  carrying the REAL `shiftKey: false` — placed the vertex somewhere the rubber band was not.
+  Preview and commit are the same call by design, and this was the one way they could
+  disagree. `onBlur` re-issues the move with NO modifiers, which is the honest answer rather
+  than a complete one: the web gives no way to READ modifier state without an event, so the
+  opposite gap (holding Shift across the blur) is still there, self-correcting on the first
+  real event. Reported by a review bot.
 - **A modifier is invisible, and the status bar is where this one is admitted to.** No control
   shows it and no menu lists it — the standing cost of the convention — so `editor.hint.
   constrain-angle` sits in the Status region while a constraining tool is active, and only

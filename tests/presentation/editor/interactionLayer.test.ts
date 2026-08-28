@@ -284,6 +284,36 @@ describe('the angle constraint while drawing', () => {
 		expect(looseEnd(harness.stage).y).toBeCloseTo(105);
 	});
 
+	/**
+	 * Shift held, focus lost (Alt+Tab), the key released in the other application, and the
+	 * user back with a click and no mouse movement in between: the `keyup` never reached this
+	 * element, so the preview would go on showing a constrained edge while the click — which
+	 * carries the REAL `shiftKey: false` — placed the vertex somewhere else. Preview and
+	 * commit are the same call by design, and this was the one way they could disagree.
+	 *
+	 * There is no way to READ the modifier state on the web without an event, so losing focus
+	 * assumes nothing is held. That is the honest answer rather than a complete one, and the
+	 * next real event corrects it in either direction.
+	 */
+	it('drops the constraint when the canvas loses focus, where no keyup can reach it', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 700, 105);
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, bubbles: true }));
+		await settle();
+		expect(looseEnd(harness.stage).y).toBeCloseTo(100);
+
+		canvas.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		expect(looseEnd(harness.stage).y).toBeCloseTo(105);
+	});
+
 	it('ignores a key that is not the modifier, rather than re-issuing on every keystroke', async () => {
 		const { harness } = await rig();
 		toolbarButton(harness, 'Draw zone').click();

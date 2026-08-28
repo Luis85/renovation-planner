@@ -4,7 +4,7 @@
 
 **Goal:** One reusable field-error vocabulary — a router, two components, two composables — consumed by the Inspector's two live override fields and by a New Project creation dialog, with a project list so the created project is visible.
 
-**Architecture:** A pure `routeError` turns one `AppError` into either a per-field message or a form-level banner, keyed on `error.code` and never on `category`. Two dumb components render an already-resolved string. Two composables own draft/error/pending state — one per-field for blur-commit (Inspector), one per-form for submit-commit (dialog) — and both keep the user's rejected value rather than reverting it. Nothing new is persisted and no Pinia store is added.
+**Architecture:** A pure `routeError` turns one `AppError` into either a per-field message or a form-level banner, keyed on `error.code` and never on `category`. Two dumb components render an already-resolved string. Two composables own draft/error/pending state — one per-field for blur-commit (Inspector), one per-form for submit-commit (dialog) — and both keep the user's rejected value rather than reverting it. No Pinia store is added. Three `Project` fields the form collects DO become newly persisted (Task 5a) — the spec's five-field form named three the mapper silently dropped, and a control that does nothing is the failure mode slice 14's Amendment 1 refuses.
 
 **Tech Stack:** TypeScript, Vue 3 (`<script setup>`), Pinia (existing stores only), Vitest (node + jsdom profiles), `@vue/test-utils`, axe-core, ESLint + oxlint, Obsidian 1.13.0 API.
 
@@ -41,6 +41,8 @@ Every task's requirements implicitly include all of these. Values are copied ver
 | `src/presentation/views/NewProjectForm.vue` | **Create.** The five-field form mounted in slice 15's `FormDialog`. |
 | `src/presentation/views/ProjectList.vue` | **Create.** One row per `ProjectSummaryDto`. |
 | `src/presentation/views/app-id-prefix.ts` | **Create.** `nextAppIdPrefix()` — a distinct `useId` namespace per mounted Vue app. |
+| `src/infrastructure/persistence/dto/projectFrontmatter.ts` | **Modify.** Three nullable keys, so the form's fields survive a reload. No version bump. |
+| `src/infrastructure/persistence/mappers/projectMapper.ts` | **Modify.** Carry them both directions; date-only, UTC. |
 | `styles/forms.css` | **Create.** Field error, banner, form layout, project list. Obsidian variables only. |
 | `src/presentation/views/RenovationProjectContext.ts` | **Modify.** `RenovationProjectDeps` gains `commands` and `openProject`. |
 | `src/plugin/guardedServices.ts` | **Modify.** Guard `CreateProjectCommand`. |
@@ -1441,6 +1443,133 @@ git commit -m "feat: the project view gets a guarded write side and a way to ope
 
 ---
 
+### Task 5a: The three form fields the vault actually keeps
+
+**Files:**
+- Modify: `src/infrastructure/persistence/dto/projectFrontmatter.ts`
+- Modify: `src/infrastructure/persistence/mappers/projectMapper.ts`
+- Test: `tests/infrastructure/persistence/mappers/projectMapper.test.ts`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks — this is persistence, below every layer this slice otherwise touches.
+- Produces: a `Project` round-trip that preserves `description`, `start` and `targetCompletion`. Task 6's form depends on it; without it three of its five controls are decoration.
+
+**Why this task exists, and why it was nearly not written.** `projectToPersistence` writes `type`, `schema-version`, `id`, `revision`, `name` and `status`; `fromDto` reconstructs `id`, `name` and `status`. Everything else a `Project` holds is dropped at the vault boundary. So a form collecting `description`, `start` and `targetCompletion` would appear to succeed, and all three would be `null` the next time the note was read.
+
+The spec REFUSED `Money` on exactly this ground — "a form that collected a currency the domain drops would be a control that does nothing, which is the failure mode slice 14's Amendment 1 exists to refuse" — and then admitted three fields the *persistence layer* drops. Same rule, one layer down, missed because the spec checked the domain and stopped there. **When asking "can this field survive", follow it to the bytes, not to the first layer that accepts it.**
+
+**No version bump and no migration**, and this is a measurement rather than a preference: `AssetFrontmatterSchemaV1` already carries `supplier`, `sku` and `notes` as `z.string().nullable().catch(null)`, and `.catch(null)` is what makes an absent key parse cleanly — so an existing v1 project note, written before these keys existed, reads back exactly as it does today. Adding a nullable key to a v1 schema is the established additive change here; bumping to v2 would demand a migration step for a set of notes that need no rewriting.
+
+**Dates are the one part that is not a copy of the Asset pattern.** `Requirement.requiredDate` is a `string` in the DOMAIN, so its mapper moves it across unchanged. `Project.start` and `Project.targetCompletion` are real `Date` objects, so this mapper converts in both directions — and that conversion has a defect class in it worth more than the code:
+
+- **Store date-only (`YYYY-MM-DD`), not a full ISO timestamp.** The form's controls are `<input type="date">`, which has no time to give; a stored `T00:00:00.000Z` would be invented precision, and it is what a user hand-editing frontmatter has to read.
+- **Serialize and parse in UTC, consistently, or the day shifts.** `new Date('2026-08-28')` is UTC midnight; `new Date('2026-08-28T00:00:00')` is LOCAL midnight, and `.toISOString().slice(0, 10)` on the latter yields `2026-08-27` anywhere west of Greenwich. Read with ``new Date(`${value}T00:00:00Z`)`` and write with `.toISOString().slice(0, 10)`, and Task 6's form builds its `Date` the same way. A test that runs only in UTC cannot see this: pin `TZ` or construct the Date explicitly rather than trusting the runner's zone.
+- **A malformed stored date must fail the schema, not become `Invalid Date`.** Guard the key with `.regex(/^\d{4}-\d{2}-\d{2}$/)` before `.nullable().catch(null)`, so a hand-edited `start: yesterday` reads as absent rather than constructing a `Date` whose `getTime()` is `NaN` — which would then flow into `Project.create`'s `targetCompletion < start` comparison and answer `false` to every question asked of it.
+
+- [ ] **Step 1: Write the failing test**
+
+The round trip is the assertion, because a one-directional test is exactly what let this ship: `projectToPersistence` was covered, `fromDto` was covered, and neither was asked whether what went in came back.
+
+```typescript
+/**
+ * What a Project note keeps. The three fields added here were droppable for five slices
+ * because no test ever wrote one and read it back — each mapper direction was asserted
+ * against a literal, so both agreed about a field neither carried.
+ */
+it('preserves description, start and targetCompletion across a round trip', () => {
+	const created = Project.create({
+		id: 'p1' as ProjectId,
+		name: 'Kitchen',
+		description: 'Full refit',
+		start: new Date('2026-03-01T00:00:00Z'),
+		targetCompletion: new Date('2026-09-30T00:00:00Z'),
+	});
+	assert(created.ok);
+
+	const raw = projectToPersistence(created.value, 1);
+	const back = projectFromPersistence(raw);
+
+	assert(back.ok);
+	expect(back.value.description).toBe('Full refit');
+	expect(back.value.start?.toISOString()).toBe('2026-03-01T00:00:00.000Z');
+	expect(back.value.targetCompletion?.toISOString()).toBe('2026-09-30T00:00:00.000Z');
+});
+
+it('writes a date-only string rather than a timestamp', () => {
+	// What a user hand-editing frontmatter reads, and what `<input type="date">` round-trips.
+	const created = Project.create({
+		id: 'p1' as ProjectId,
+		name: 'Kitchen',
+		start: new Date('2026-03-01T00:00:00Z'),
+	});
+	assert(created.ok);
+
+	expect(projectToPersistence(created.value, 1)['start']).toBe('2026-03-01');
+});
+
+it('reads a malformed date as absent instead of building an Invalid Date', () => {
+	// `new Date('yesterday').getTime()` is NaN, and every comparison against NaN is false —
+	// so an unguarded parse makes `targetCompletion < start` answer "fine" for any pair.
+	const raw = { ...VALID_PROJECT_FRONTMATTER, start: 'yesterday' };
+
+	const back = projectFromPersistence(raw);
+
+	assert(back.ok);
+	expect(back.value.start).toBeNull();
+});
+
+it('reads a note written before these keys existed', () => {
+	// `.catch(null)` is what makes this additive rather than a migration. Without it, every
+	// project note in every existing vault fails to parse.
+	const back = projectFromPersistence(VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS);
+
+	assert(back.ok);
+	expect(back.value.description).toBeNull();
+	expect(back.value.start).toBeNull();
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `npx vitest run tests/infrastructure/persistence/mappers/projectMapper.test.ts`
+Expected: FAIL — the first three cases. The fourth passes already and is a REGRESSION guard, not a new requirement: it is what fails if someone later drops `.catch(null)`.
+
+- [ ] **Step 3: Add the three keys to the schema**
+
+```typescript
+	name: z.string(),
+	status: kebabEnum(PROJECT_STATUSES),
+	description: z.string().nullable().catch(null),
+	/**
+	 * Date-only, UTC. The regex runs BEFORE `.catch(null)`, so a hand-edited non-date reads
+	 * as absent rather than reaching `new Date` and producing an `Invalid Date` whose every
+	 * comparison answers false — including `Project.create`'s target-before-start check.
+	 */
+	start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
+	'target-completion': z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
+```
+
+Kebab-case for the two-word key, as `background-page`, `unit-cost` and `required-date` already are; `description` and `start` are single words and stay as they are.
+
+- [ ] **Step 4: Carry them through both mapper directions**
+
+Write one `toDateOnly` / `fromDateOnly` pair in the mapper rather than spelling `.toISOString().slice(0, 10)` at two call sites: the UTC rule above is one rule, and two hand-written copies of it are how one direction later drifts a day from the other.
+
+- [ ] **Step 5: Run the gate**
+
+Run: `npm run check`
+
+Watch the branch floor especially: this task adds several arms (three nullable keys, two directions, the malformed-date path) and the plan's Global Constraints put branch headroom at roughly two covered branches. Every arm above has a case in Step 1 — that is why they are written together.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/infrastructure/persistence/dto/projectFrontmatter.ts src/infrastructure/persistence/mappers/projectMapper.ts tests/
+git commit -m "feat: a project note keeps its description and its two dates"
+```
+
+---
+
 ### Task 6: `NewProjectForm.vue` — the creation dialog
 
 **Files:**
@@ -1453,6 +1582,12 @@ git commit -m "feat: the project view gets a guarded write side and a way to ope
 **Interfaces:**
 - Consumes: `useFormCommit` (Task 3), `FieldError` / `FormBanner` (Task 2), `RenovationProjectCommandServices` (Task 5), `FormDescriptor` from `src/presentation/dialogs/dialog-store.ts`.
 - Produces: a component taking props `{ dispatch: (input: CreateProjectInput) => Promise<Result<{ project: Loaded<Project> }, RepositoryError>> }` and emitting `submit: [values: CreateProjectInput]`. Task 7 opens it.
+
+**Every control is disabled while `submitting` is true, and the asymmetry with Task 9 is deliberate.** `submit` reads `values.value` once at dispatch; `setField` replaces the ref with a new object — so an edit landing during a slow write is not in the dispatched input, and the success closes the dialog as if it were. The user's newer text leaves with the dialog and there is no surface left to show it on.
+
+The Task 4 field commit closes the same race by KEEPING the newer draft instead, and the two answers differ because the two gestures do: a submit is an explicit press on a form the user is looking at, so a form that visibly goes busy is what they already expect; a blur commit fires exactly when their attention has moved on, so freezing that control takes keystrokes away mid-word somewhere else. Same defect, opposite remedy, and the reason is the gesture rather than taste.
+
+Bind `:disabled="submitting"` on every input, the select, the textarea and the submit button — the same `busy` flag the descriptor already hands `DialogHost` for Cancel and Escape, so one state governs the whole dialog rather than two thirds of it. Assert it: with a dispatch left pending, the name input is disabled, and a `setField` attempted during the write does not change what `dispatch` received.
 
 **A form is a COMPONENT, not a new dialog kind.** `FormDescriptor` already carries `component` and `props`, so none of slice 15's five-edit ceremony applies. The form lives in `views/` and not in `presentation/dialogs/`, because that directory holds no field knowledge and a lint block keeps it that way — the same reason `KnownDistanceForm.vue` lives with the editor.
 
@@ -2574,6 +2709,11 @@ git commit -m "docs: the manual case for creating a project, and three claims th
 4. **`idPrefix` was set in one app of two** (P2). `NewProjectForm` renders these same `useId` controls inside `RenovationProjectView`'s separate app, where `useId` restarts at `v-0` — so the surface this slice exists for was the one left colliding. Both `createApp` sites set it now. Two things the finding did not name and the fix needed anyway: `RenovationProjectView` being a singleton is not a defence, since a user can split a pane and Obsidian restores saved layouts; and **"the leaf's own key" is not a thing** — `WorkspaceLeaf` in the pinned `obsidian@1.13.0` typings exposes `parent`, `view` and `hoverPopover` and nothing identifying, so the prescribed mechanism was unbuildable without an undocumented field. A module-level counter replaces it.
 
 Two contradictions fell out of reading those regions and are fixed in the same pass: Task 9 still carried a paragraph reading "**The row still DISPATCHES nothing**" eleven lines under an Interfaces block giving it a `commit` prop, and the cost field's snippet closed its object literal with a stray `});` before `validate:`, so the code as written would not have parsed.
+
+**The fourth review's two findings**, both verified against `src/` and both real.
+
+1. **The form collected three fields the vault drops** (P1). `projectToPersistence` writes `name` and `status` and nothing else; `fromDto` reconstructs the same two. So `description`, `start` and `targetCompletion` would have appeared to save and been `null` on the next read. What makes this worth more than its fix: **the spec refused `Money` on precisely this ground and then admitted three fields with the same defect one layer down** — it checked the domain, found `Project` holds them, and stopped, where the question runs to the bytes. New Task 5a persists all three, following `AssetFrontmatterSchemaV1`'s existing `z.string().nullable().catch(null)` pattern, so no version bump and no migration are needed — `.catch(null)` is what lets a note written before these keys existed parse unchanged. Dates are the part that is not a copy: `Project.start` is a real `Date` where `Requirement.requiredDate` is already a string, so the mapper converts, date-only and in UTC, with the local-midnight day-shift and the `Invalid Date` comparison hole both named in the task and both given a case.
+2. **The form stayed editable during its own submit** (P2). `submit` reads `values.value` once; `setField` replaces the ref; the success then closes the dialog without the newer text, which leaves with it. Task 6 disables every control while `submitting`. This is the mirror of the third review's Task 4 finding with the OPPOSITE remedy, and the asymmetry is the interesting part: a submit is an explicit press on a form under the user's eye, so a visibly busy form is expected; a blur commit fires when their attention has already moved on, so freezing that control would take keystrokes away somewhere else. Same race, different gesture, different answer.
 
 **Two spec items deliberately NOT given a task**, both because the spec names them as gaps with owners rather than as work: `project.negative-amount`'s two-fields-one-code defect (owned by the first slice to put a Money field on a form; recorded in Task 6's error-map comment), and the calibration form's `coincident-points` banner case — `KnownDistanceForm` is not converted here, since slice 7's gesture already works and converting it would widen the slice for no behaviour. `routeError`'s banner path is proven by Task 1 and by Task 6's vault-failure case instead.
 

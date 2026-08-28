@@ -535,7 +535,21 @@ function onKeyDown(event: KeyboardEvent): void {
 		// `panning`, never `armed`: space merely HELD is not a gesture, so Escape still reaches
 		// the tool then — which is the case the camera lock deliberately carved this branch out
 		// for and must keep working.
-		if (panOverride.phase !== 'panning') runtime.toolManager.cancelGesture();
+		//
+		// **`event.repeat` because ONE PRESS IS ONE PRESS.** A phase test alone reads each
+		// autorepeat as a fresh decision, so a user holding Escape as the pan ended had the
+		// keydown swallowed and then the OS's next repeat of that same press — arriving a few
+		// tens of milliseconds later, with the phase no longer `panning` — reach
+		// `cancelGesture()` and clear the polygon anyway. Whether the buffer survived came down
+		// to whether the button was released before the next repeat, which is a race and not a
+		// rule.
+		//
+		// Filtering every repeat rather than tracking THIS press through its keyup, which is
+		// the same thing with no state to keep: a repeat is never new intent, and `cancel()` is
+		// idempotent, so the two differ only for repeats of a press that already cancelled —
+		// where the second call clears an empty buffer. Escape means cancel once. The space
+		// branch above filters repeats for its own reasons and this is the same sentence.
+		if (!event.repeat && panOverride.phase !== 'panning') runtime.toolManager.cancelGesture();
 		return;
 	}
 	if (event.key === ' ') {

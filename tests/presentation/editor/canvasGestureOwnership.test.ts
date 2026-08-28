@@ -333,6 +333,74 @@ describe('a pointer taken away mid-pan', () => {
 		harness.unmount();
 	});
 
+	it('does not destroy it when a HELD Escape outlives the pan that swallowed it', async () => {
+		// A phase test alone decides afresh on every autorepeat, so the initial keydown was
+		// swallowed and the OS's next repeat of that same press — arriving once the button was
+		// released and the phase was no longer `panning` — cleared the buffer anyway. Whether
+		// the polygon survived came down to whether the release beat the next repeat, which is
+		// a race rather than a rule. One press is one press.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 400, 400);
+		pointer(canvas, 'pointermove', 420, 420);
+		key(canvas, 'keydown', { key: 'Escape' });
+		// The pan ends with Escape still physically down, and the OS keeps repeating it.
+		pointer(canvas, 'pointerup', 420, 420);
+		key(canvas, 'keydown', { key: 'Escape', repeat: true });
+		key(canvas, 'keyup', { key: 'Escape' });
+		key(canvas, 'keyup', { key: ' ' });
+		await settle();
+
+		click(canvas, 620, 220);
+		click(canvas, 520, 120);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
+	it('still lets a FRESH Escape cancel once the pan is over', async () => {
+		// The other side of the repeat filter, and the reason it is `repeat` rather than a
+		// blanket suppression: releasing Escape and pressing it again is new intent, and must
+		// still reach the tool. Without this, a filter that keyed on the pan having swallowed
+		// anything at all would leave Escape dead for the rest of the session.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 400, 400);
+		pointer(canvas, 'pointermove', 420, 420);
+		key(canvas, 'keydown', { key: 'Escape' });
+		key(canvas, 'keyup', { key: 'Escape' });
+		pointer(canvas, 'pointerup', 420, 420);
+		key(canvas, 'keyup', { key: ' ' });
+		// A second, separate press — `repeat: false`, as a real one is.
+		key(canvas, 'keydown', { key: 'Escape' });
+		await settle();
+
+		// Cleared, so a fresh triangle closes on its own first vertex at three points.
+		click(canvas, 200, 200);
+		click(canvas, 300, 200);
+		click(canvas, 250, 300);
+		click(canvas, 202, 202);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
 	it('still lets Escape reach the tool when space is merely HELD', async () => {
 		// The carve-out that must survive the fix: `armed` is not a gesture. Swallowing Escape
 		// whenever space was down would break the camera lock's own deliberate exception — a

@@ -525,6 +525,17 @@ check. Rules that came out of it:
   override no longer owning it, so the release reaches the tool with no matching press. The
   gate is `panning` and never `armed`, because space merely held is not a gesture and the
   camera lock carved this branch out precisely so Escape keeps working during a tool drag.
+- **A phase test decides afresh on every event; a held key is ONE press.** Swallowing Escape
+  while `phase === 'panning'` fixed the case above and left the next one open: a user holding
+  Escape as the pan ended had the keydown swallowed, and the OS's next repeat of that same
+  press — tens of milliseconds later, phase no longer `panning` — reached `cancelGesture()`
+  and cleared the polygon anyway. Whether the work survived came down to whether the button
+  was released before the next repeat, which is a race rather than a rule. The fix is
+  `!event.repeat`, not tracking the press through its keyup: a repeat is never new intent,
+  and `cancel()` is idempotent, so the two differ only for repeats of a press that already
+  cancelled. **The general shape, and it is the third time in this review that a guard keyed
+  on live state let a HELD key through:** a gate written against a phase answers "what is
+  true now", when the question is "what was true when this press began".
 - **A test asserting an ABSENCE passes in both worlds when neither world can produce the
   thing.** The carve-out case above first ended on `expect(drawn).toBeUndefined()` after two
   clicks — and two vertices cannot close a polygon whether the buffer was cleared or not, so

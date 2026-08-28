@@ -1588,29 +1588,58 @@ git commit -m "feat: the notice severity stylesheet"
 ```ts
 /**
  * @vitest-environment jsdom
+ *
+ * **Driven through a real `onunload`, not by calling `disposeNotices()` directly.** A test
+ * that calls the disposer itself is green whether or not the plugin ever registers it — so it
+ * would pass with `this.disposers.push(disposeNotices)` deleted, which is the entire thing
+ * this task adds. That is this repository's own recurring shape: the wiring is checked, not
+ * assumed.
+ *
+ * `loadedPlugin` is the same helper `registration.test.ts` uses for the Konva disposer, so
+ * this rides an idiom rather than inventing one.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { installObsidianDom } from '../helpers/dom';
+import { loadedPlugin } from '../helpers/plugin';
 import { Notice } from '../helpers/obsidian-mock';
 import { disposeNotices, notifyWarning } from '../../src/presentation/notices/notify';
 
 describe('notice disposal', () => {
-	it('takes every notice off the screen, so a reload does not leave one stranded', () => {
+	beforeEach(() => {
+		installObsidianDom();
 		vi.useFakeTimers();
 		document.body.innerHTML = '';
 		Notice.shown.length = 0;
+		Notice.constructed.length = 0;
+		disposeNotices();
+	});
+
+	it('takes every notice off the screen when the plugin unloads', async () => {
+		const { plugin } = await loadedPlugin();
 
 		notifyWarning('a');
 		notifyWarning('b');
 		expect(document.querySelectorAll('.notice')).toHaveLength(2);
 
-		disposeNotices();
+		plugin.onunload();
+
 		expect(document.querySelectorAll('.notice')).toHaveLength(0);
 	});
 
-	it('starts clean afterwards rather than staying disposed', () => {
-		vi.useFakeTimers();
-		document.body.innerHTML = '';
-		disposeNotices();
+	it('registers exactly one disposer for the queue, so a reload cannot strand a notice', async () => {
+		const { plugin } = await loadedPlugin();
+		const disposers = (plugin as unknown as { disposers: (() => void)[] }).disposers;
+
+		// Named rather than counted: the list also holds Konva's, and asserting a LENGTH here
+		// would break every time another slice adds an unrelated disposer.
+		expect(disposers).toContain(disposeNotices);
+	});
+
+	it('starts clean afterwards rather than staying disposed', async () => {
+		const { plugin } = await loadedPlugin();
+		notifyWarning('before');
+		plugin.onunload();
+
 		notifyWarning('after');
 		expect(document.querySelectorAll('.notice')).toHaveLength(1);
 	});
@@ -2602,20 +2631,42 @@ import { readFileSync } from 'node:fs';
  * while the canvas still shows the pre-command state. INSIDE `wrapDispatcher`, which is the
  * one object every tool, the toolbar and the Inspector dispatch through — a tracker outside
  * it would miss nothing today and miss everything the moment the wrapping changes.
+ *
+ * **The ARGUMENTS, never the textual order.** An earlier draft compared `indexOf` positions,
+ * which is the "address code by position" defect this repository writes down: it passed for
+ * `withSaveStateTracking(history, …)` written below the refresh declaration — a composition
+ * that settles the indicator before the refresh finishes — and said nothing at all about what
+ * `wrapDispatcher` receives. Both of the two mistakes its own docblock claimed to prevent
+ * could stay green.
+ *
+ * Still a source-shape check and not a behavioural one, which is a real limit: it holds the
+ * bindings, not the runtime values. What it cannot see is written down rather than implied —
+ * a renamed local that is threaded correctly fails this test, and a decorator that ignores
+ * its argument passes it.
  */
 const runtime = readFileSync('src/presentation/editor/runtime.ts', 'utf8');
 
+/** Collapse whitespace so a reformat or a line break does not decide the outcome. */
+const source = runtime.replace(/\s+/gu, ' ');
+
 describe('save-state wiring', () => {
 	it('composes the tracker in the runtime', () => {
-		expect(runtime).toContain('withSaveStateTracking');
-		expect(runtime).toContain('useSaveStateStore');
+		expect(source).toContain('withSaveStateTracking');
+		expect(source).toContain('useSaveStateStore(');
 	});
 
-	it('wraps the refresh decorator rather than the bare history', () => {
-		const tracked = runtime.indexOf('withSaveStateTracking(');
-		const refreshed = runtime.indexOf('withEditorStateRefresh(');
-		expect(refreshed).toBeGreaterThan(-1);
-		expect(tracked).toBeGreaterThan(refreshed);
+	it('hands the tracker the REFRESH decorator, not the bare history', () => {
+		expect(source).toMatch(/withSaveStateTracking\( *dispatcher *,/u);
+		expect(source).not.toMatch(/withSaveStateTracking\( *history *,/u);
+	});
+
+	it('hands wrapDispatcher the TRACKED dispatcher, not the untracked one', () => {
+		expect(source).toMatch(/wrapDispatcher\( *history *, *tracked *\)/u);
+		expect(source).not.toMatch(/wrapDispatcher\( *history *, *dispatcher *\)/u);
+	});
+
+	it('binds the tracker to a name, so the two assertions above address one value', () => {
+		expect(source).toMatch(/const tracked = withSaveStateTracking\(/u);
 	});
 });
 ```
@@ -2624,6 +2675,16 @@ describe('save-state wiring', () => {
 
 Run: `npx vitest run tests/presentation/editor/saveState/saveStateWiring.test.ts`
 Expected: FAIL — `runtime.ts` names neither symbol.
+
+- [ ] **Step 2a: Prove the nesting assertions can fail**
+
+After Step 3 has it green, temporarily rewrite the composition as
+`const tracked = withSaveStateTracking(history, useSaveStateStore());` — the plausible wrong
+version, tracking the bare history instead of the refreshed dispatcher. Re-run. Expected: the
+"hands the tracker the REFRESH decorator" case goes red. Then temporarily pass `dispatcher`
+rather than `tracked` to `wrapDispatcher` and watch the third case go red. **Restore both.**
+The earlier draft of this file compared textual positions and stayed green under both of
+those, which is why the reverts are steps rather than a suggestion.
 
 - [ ] **Step 3: Wire it**
 
@@ -2818,5 +2879,15 @@ constraint above now says to grep across files rather than fix the one that was 
 refusal cases would have failed against a correctly widened `NOTICE_DOOR` and the negative
 case would have passed against an array of `undefined`. Written from memory beside four
 correct examples in the same file, which is now a global constraint of its own.
+
+**A ninth pass found two tests that could not fail.** The disposal case called
+`disposeNotices()` directly, so it was green whether or not the plugin ever registered the
+disposer — the entire content of that task. It runs through a real `loadedPlugin()` and
+`plugin.onunload()` now, its "Expected" flipped from PASS to FAIL before Step 3, and it names
+the disposer in the list rather than counting the list. The save-state wiring case compared
+`indexOf` positions, which passed for a tracker wrapping the bare history and said nothing
+about what `wrapDispatcher` received — both of the two mistakes its own docblock claimed to
+prevent. It asserts the ARGUMENT BINDINGS now, with a revert step per mistake, and states the
+limit it still has: a source-shape check holds bindings, not runtime values.
 
 **Known risk, front-loaded on purpose.** Task 1 widens a fake that has been drawing nothing, and CLAUDE.md's ledger says the two previous widenings of this kind turned 65 and 86 tests red. Those reds are findings about tests that were passing against a fake kinder than Obsidian. Budget for Task 1 taking longer than its five steps suggest, and read every failure before changing it.

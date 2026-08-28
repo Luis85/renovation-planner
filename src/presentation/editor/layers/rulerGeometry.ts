@@ -82,11 +82,14 @@ function affordableSpacing(length: number): number {
 
 function ticksAlong(from: ScreenPoint, direction: Vector, normal: Vector, length: number): FlatSegment[] {
 	const spacing = affordableSpacing(length);
-	const intervals = Math.floor(length / spacing);
 	const ticks: FlatSegment[] = [];
-	// From 1, and stopping short of `intervals`: a tick at either end would sit under an end
-	// bar, drawing a heavier mark saying the same thing twice.
-	for (let index = 1; index < intervals; index += 1) {
+	// From 1, and up to but not including the far end: a tick AT either end would sit under an
+	// end bar, drawing a heavier mark saying the same thing twice. The bound is the strict
+	// `< length` rather than a count of whole intervals, because those differ whenever the
+	// length is not an exact multiple of the spacing — `Math.floor(35 / 8)` is 4, so a count
+	// bound dropped the tick at 32 and left an 11 px gap before the end bar, and a 15 px
+	// segment lost its only tick entirely. Reported by a review bot on the pull request.
+	for (let index = 1; index * spacing < length; index += 1) {
 		const along = index * spacing;
 		const x = from.x + direction.x * along;
 		const y = from.y + direction.y * along;

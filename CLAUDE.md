@@ -437,12 +437,22 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   mouse happened to be — and drew a circle for neither. It carries `vertices`, `cursor` and
   `closeArmed` separately now: every placed vertex is a circle, the first one is drawn larger
   because clicking it is what CLOSES the shape, and it grows again while a click there really
-  would. That last flag is the tool's to set, not the layer's to derive — `InteractionLayer`
-  is `listening: false` (SDD §62) and has no camera-converted tolerance, so `canClose()` is
-  the ONE predicate behind both the mark and the click, and `handleMetrics.ts` holds the
-  three drawn radii beside the distance that arms them. Reusing `previewPolygon` would also
-  have redrawn a THIRD tool's picture: `SelectTool` writes the same field with the translated
-  ghost of a dragged zone. Also found by a human, drawing one.
+  would. Reusing `previewPolygon` would also have redrawn a THIRD tool's picture: `SelectTool`
+  writes the same field with the translated ghost of a dragged zone. Also found by a human,
+  drawing one.
+
+  **"Is the target armed" is asked per render and never stored, and the first version got
+  that wrong.** It was a third field on the sketch, written by the tool at each
+  `pointermove` — which is one input short: the answer depends on the CAMERA too, and wheel
+  and keyboard zoom stay live while a drawing tool is active. So a zoom under a stationary
+  pointer slid the vertex out of reach while the mark went on promising a close, and the
+  click then placed a vertex. `closeTarget.ts`'s `closesPolygon` is a predicate both callers
+  ask instead — the tool for the click, the layer inside a `computed` that reads the viewport
+  — stated in SCREEN pixels, which is what lets them share one rule at all: the tool projects
+  its world click through the camera it holds, and the layer asks it of projections it has
+  already made. `handleMetrics.ts` holds the three drawn radii beside the distance that arms
+  them. Caught by a review bot on the pull request, not by any gate here — and the fix is
+  that the stale state became UNREPRESENTABLE rather than merely refreshed on one more event.
 
 **Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
 Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the

@@ -139,6 +139,30 @@ describe('rulerMarks', () => {
 		}
 	});
 
+	/**
+	 * The bound is `index * spacing < length`, not a count of whole intervals — the two differ
+	 * on every length that is not an exact multiple, and the count version dropped the last
+	 * interior tick and left a gap wider than the spacing before the end bar. Reported by a
+	 * review bot on the pull request that introduced this module.
+	 */
+	it('keeps the last interior tick when the length is not a whole number of spacings', () => {
+		const spineLength = RULER_TICK_SPACING_PX * 4 + 3; // 35 px at the default spacing
+		const marks = rulerMarks(screenPoint(0, 0), screenPoint(spineLength, 0));
+
+		expect(marks.ticks.map((tick) => tick[0])).toEqual([
+			RULER_TICK_SPACING_PX,
+			RULER_TICK_SPACING_PX * 2,
+			RULER_TICK_SPACING_PX * 3,
+			RULER_TICK_SPACING_PX * 4,
+		]);
+	});
+
+	it('gives a segment barely longer than one spacing its one tick', () => {
+		const marks = rulerMarks(screenPoint(0, 0), screenPoint(RULER_TICK_SPACING_PX * 2 - 1, 0));
+
+		expect(marks.ticks.map((tick) => tick[0])).toEqual([RULER_TICK_SPACING_PX]);
+	});
+
 	it('draws no ticks on a segment shorter than one spacing', () => {
 		const marks = rulerMarks(screenPoint(0, 0), screenPoint(RULER_TICK_SPACING_PX - 1, 0));
 

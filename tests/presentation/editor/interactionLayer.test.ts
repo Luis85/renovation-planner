@@ -78,6 +78,40 @@ describe('the interaction layer while a zone is being drawn', () => {
 		expect(atRest.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
 	});
 
+	/**
+	 * The camera moves without the pointer moving: wheel zoom is always live, whatever tool
+	 * is active (`PlanCanvas.onWheel`), and `+`/`-` do the same from the keyboard. A mark
+	 * computed once per `pointermove` and cached goes on promising a close that the click
+	 * would no longer make — the vertex has slid out from under a stationary pointer.
+	 *
+	 * Reported by a review bot against the first version of this change, which cached the
+	 * flag on `RenderState`; reproduced here before it was fixed.
+	 */
+	it('stops promising a close when a ZOOM moves the target out from under a still pointer', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		click(canvas, 600, 200);
+		pointer(canvas, 'pointermove', 505, 100);
+		await settle();
+		expect((interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle).radius())
+			.toBe(POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX);
+
+		// Zoom in hard, anchored far from the vertex, and move nothing.
+		canvas.dispatchEvent(
+			new WheelEvent('wheel', { deltaY: -600, clientX: 100, clientY: 500, bubbles: true }),
+		);
+		await settle();
+
+		const first = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		expect(first.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
+	});
+
 	it('does not promise a close before there are enough vertices for one', async () => {
 		const { harness } = await rig();
 		toolbarButton(harness, 'Draw zone').click();

@@ -113,7 +113,6 @@ describe('DrawPolygonTool', () => {
 		expect(h.context.renderState.polygonSketch).toEqual({
 			vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }],
 			cursor: { x: 120, y: 90 },
-			closeArmed: false,
 		});
 		tool.pointerDown(at(0, 100));
 		tool.pointerDown(at(0, 0)); // closes
@@ -368,7 +367,6 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 		expect(h.context.renderState.polygonSketch).toEqual({
 			vertices: [{ x: 0, y: 0 }],
 			cursor: null,
-			closeArmed: false,
 		});
 
 		tool.pointerMove(at(60, 10));
@@ -378,34 +376,13 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 		expect(h.context.renderState.polygonSketch?.cursor).toBeNull();
 	});
 
-	it('arms the close target only once a click there would really close the shape', () => {
-		const h = harness();
-		const tool = build(h);
-		tool.activate(h.context);
-
-		tool.pointerDown(at(0, 0));
-		tool.pointerDown(at(100, 0));
-
-		// Two vertices: the pointer is right on the first one and a click there still places
-		// a vertex rather than closing, so promising a close would be a lie.
-		tool.pointerMove(at(0, 0));
-		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(false);
-
-		tool.pointerDown(at(0, 100));
-		tool.pointerMove(at(2, 2));
-		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(true);
-
-		tool.pointerMove(at(60, 60));
-		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(false);
-	});
-
 	/**
-	 * The reason the tolerance moved into `handleMetrics.ts`: what lights up has to be the
-	 * region that acts. A world-fixed radius would arm at a fixed number of millimetres and
-	 * therefore at a different number of PIXELS per zoom, so the mark would grow under a
-	 * pointer that cannot close and stay dark under one that can.
+	 * Where the arming decision LIVES is the subject of `closeTarget.ts` and of the layer's
+	 * own suite; what belongs here is that the click the mark promises is judged in the same
+	 * screen pixels, through the current camera. A world-fixed tolerance would close at a
+	 * fixed number of millimetres and therefore at a different number of PIXELS per zoom.
 	 */
-	it('arms at the same camera-converted distance the close click is judged by', async () => {
+	it('judges the close click in screen pixels through the current camera', async () => {
 		// Ten world millimetres per screen pixel, so the 12 px tolerance is 120 mm out here.
 		const h = harness({ worldPerScreenPixel: 10 });
 		const tool = build(h);
@@ -415,15 +392,12 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 		tool.pointerDown(at(1000, 0));
 		tool.pointerDown(at(0, 1000));
 
-		tool.pointerMove(at(130, 0)); // 13 px away: outside
-		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(false);
+		tool.pointerDown(at(130, 0)); // 13 px from the first vertex: a fourth vertex, not a close
+		await flush();
+		expect(h.dispatched).toHaveLength(0);
+		expect(h.context.renderState.polygonSketch?.vertices).toHaveLength(4);
 
-		tool.pointerMove(at(100, 0)); // 10 px away: inside
-		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(true);
-
-		// And the same point really does close, which is the half that makes the mark honest
-		// rather than merely consistent with itself.
-		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(100, 0)); // 10 px away: inside, so this one closes
 		await flush();
 		expect(h.dispatched).toHaveLength(1);
 	});
@@ -440,12 +414,11 @@ describe('DrawPolygonTool: the sketch it broadcasts', () => {
 		tool.pointerMove(at(1, 1));
 		tool.pointerDown(at(0, 0)); // closes; the dispatch is gated open
 
-		// The shape is settled and being written: a loose end still tracking the pointer, or
-		// a target still promising a close, would both be describing a gesture that is over.
+		// The shape is settled and being written: a loose end still tracking the pointer would
+		// be describing a gesture that is over.
 		expect(h.context.renderState.polygonSketch).toEqual({
 			vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }],
 			cursor: null,
-			closeArmed: false,
 		});
 		// And a pointer that keeps moving during that window does not put it back.
 		tool.pointerMove(at(40, 40));

@@ -7,6 +7,12 @@ import type { Point } from '../../../core/geometry/Point';
  * PLACED, where the pointer is right now, and whether a click at that pointer would close
  * the shape.
  *
+ * It records only what the USER has done — clicks, and where the pointer is. Whether a click
+ * would CLOSE the shape is deliberately NOT here: that answer depends on the camera as well
+ * as on the pointer, and the camera moves without the pointer moving (wheel and keyboard zoom
+ * stay live while a tool is active), so a stored answer goes stale with nothing to re-run it.
+ * `closeTarget.ts` is asked per render instead, by the layer and by the tool alike.
+ *
  * Its own field rather than a reuse of `previewPolygon`, for the reason `measurement` is
  * one too — the fields mean different things and the layer draws them differently. Two
  * concrete reasons here, and the second is the load-bearing one:
@@ -24,14 +30,6 @@ export interface PolygonSketch {
 	readonly vertices: readonly Point[];
 	/** The rubber band's loose end, `null` before the pointer has moved at all. */
 	readonly cursor: Point | null;
-	/**
-	 * The pointer is within closing distance of the first vertex AND there are enough
-	 * vertices for a close to be legal — i.e. a click right now closes the polygon. The TOOL
-	 * decides this rather than the layer: the layer is `listening: false` by design (SDD
-	 * §62), and the tolerance is the tool's own, converted through the current camera, so
-	 * asking the layer to re-derive it would be a second answer to the same question.
-	 */
-	readonly closeArmed: boolean;
 }
 
 /**

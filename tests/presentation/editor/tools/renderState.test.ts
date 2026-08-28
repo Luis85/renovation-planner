@@ -28,7 +28,6 @@ describe('RenderState', () => {
 		state.polygonSketch = {
 			vertices: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }],
 			cursor: { x: 4, y: 4 },
-			closeArmed: true,
 		};
 
 		state.reset();

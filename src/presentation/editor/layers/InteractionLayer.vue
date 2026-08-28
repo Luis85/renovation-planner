@@ -11,10 +11,11 @@
  * happen here — `SelectTool` does its own geometry math against the same world points —
  * so an inert hit graph on this layer would be pure cost (SDD §62).
  *
- * That is also why the drawing tool's close target lights up from a FLAG rather than from a
- * Konva `mouseover`: a layer that hears no pointer events cannot have a hover state of its
- * own, so `DrawPolygonTool` decides it with the same camera-converted tolerance its close
- * click is judged by, and this layer draws what it is told.
+ * The drawing tool's close target therefore lights up from GEOMETRY rather than from a Konva
+ * `mouseover`: a layer that hears no pointer events cannot have a hover state of its own, so
+ * it asks `closesPolygon` — the same predicate the tool's close click takes — of the pointer
+ * the sketch carries. Asked here per render rather than stored by the tool, because a zoom
+ * moves the target under a pointer that has not moved.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -30,6 +31,7 @@ import {
 	POLYGON_VERTEX_RADIUS_PX,
 	VERTEX_HANDLE_RADIUS_PX,
 } from '../handleMetrics';
+import { closesPolygon } from '../closeTarget';
 import { rulerMarks } from './rulerGeometry';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
@@ -82,8 +84,24 @@ const sketchOutlineFlat = computed(() => {
 	return points.flatMap((at) => [at.x, at.y]);
 });
 
-/** True while a click would CLOSE the polygon; the first vertex says so by growing. */
-const closeArmed = computed(() => runtime.renderState.polygonSketch?.closeArmed === true);
+/**
+ * True while a click would CLOSE the polygon; the first vertex says so by growing.
+ *
+ * Asked per render rather than read off a flag the tool stored, because this depends on the
+ * CAMERA as well as on the pointer: wheel and keyboard zoom stay live while a drawing tool is
+ * active, so a stored answer goes on promising a close after a zoom has slid the vertex out
+ * from under a stationary pointer. Reading `sketchVertices` — itself a `computed` over the
+ * viewport — is what makes this re-run on a zoom with no pointer event at all. It is the same
+ * predicate the tool's own close click takes.
+ */
+const closeArmed = computed(() => {
+	const sketch = runtime.renderState.polygonSketch;
+	const vertices = sketchVertices.value;
+	if (sketch === null || sketch.cursor === null || vertices === null) return false;
+	const first = vertices.at(0);
+	if (first === undefined) return false;
+	return closesPolygon(vertices.length, toScreen(sketch.cursor), first);
+});
 
 /**
  * The calibration segment's marks: the spine, a perpendicular bar at each end and the ticks

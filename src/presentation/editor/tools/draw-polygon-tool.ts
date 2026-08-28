@@ -1,10 +1,9 @@
-import { distance } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { CreateZoneInput } from '../../../application/commands/zone/CreateZone';
 import type { ReversibleCreateZoneCommand } from '../../../application/commands/zone/reversible-create-zone-command';
-import { POLYGON_CLOSE_GRAB_RADIUS_PX } from '../handleMetrics';
+import { closesPolygon } from '../closeTarget';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 
@@ -39,12 +38,12 @@ export interface DrawPolygonToolDeps {
  * `closePolygon()` is the only place the tool talks to the domain — through
  * `context.commandDispatcher` alone (SDD §58).
  *
- * **The tool is what decides whether the close target is armed.** `InteractionLayer` draws
- * the first vertex differently while a click would close the shape, and it cannot work that
- * out for itself: the layer is `listening: false` (SDD §62) and the tolerance below is in
- * screen pixels through the current camera. So the same predicate serves both the mark and
- * the click — `canClose()` — rather than the layer re-deriving a second answer that can
- * disagree with the one that acts.
+ * **The close target's mark and the close CLICK ask the same question.** `InteractionLayer`
+ * draws the first vertex differently while a click would close the shape; both it and
+ * `canClose()` below call `closesPolygon` (`../closeTarget.ts`), so neither can answer
+ * differently from the other. The layer hears no pointer events of its own — it is
+ * `listening: false` (SDD §62) — but it does hold the camera and the projected points, which
+ * is all that predicate needs.
  *
  * **A rejected close keeps the buffer.** Whether `createPolygon` refuses (fewer than 3
  * usable points after validation, non-finite coordinate) or the dispatched command fails,
@@ -101,11 +100,11 @@ export class DrawPolygonTool implements EditorTool {
 		const snapped = context.snapService.snapPoint(event.worldPoint, {});
 		if (this.canClose(context, event.worldPoint)) {
 			this.closing = true;
-			// The shape is settled and on its way to being written: the rubber band and the
-			// armed target both describe a gesture that is over, so they come down here rather
-			// than surviving the dispatch — and a REFUSED close then leaves a clean picture of
-			// the buffer it kept.
-			this.publishSketch(context, null, false);
+			// The shape is settled and on its way to being written: a rubber band still tracking
+			// the pointer describes a gesture that is over, so it comes down here rather than
+			// surviving the dispatch — and a REFUSED close then leaves a clean picture of the
+			// buffer it kept.
+			this.publishSketch(context, null);
 			void this.closePolygon(context);
 			return;
 		}
@@ -119,15 +118,17 @@ export class DrawPolygonTool implements EditorTool {
 		this.buffer.push(snapped);
 		// No cursor: the pointer is on the vertex that was just placed, and a rubber band from
 		// a vertex to itself is a stub of a line drawn out of a click that has landed.
-		this.publishSketch(context, null, false);
+		this.publishSketch(context, null);
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || this.buffer.length === 0 || this.closing) return;
-		// Rubber-band edge from the last vertex to the pointer, plus whether a click here
-		// would close the shape — InteractionLayer only, no domain state touched.
-		this.publishSketch(context, event.worldPoint, this.canClose(context, event.worldPoint));
+		// Rubber-band edge from the last vertex to the pointer — InteractionLayer only, no
+		// domain state touched. Whether a click here would CLOSE the shape is not recorded:
+		// the layer asks `closesPolygon` per render, so a zoom under a still pointer cannot
+		// leave a stale promise on screen.
+		this.publishSketch(context, event.worldPoint);
 	}
 
 	pointerUp(): void {}
@@ -141,26 +142,37 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	/**
-	 * Whether a click at `worldPoint` closes the polygon: enough vertices for a shape, and
-	 * within the camera-converted closing distance of the first one.
+	 * Whether a click at `worldPoint` closes the polygon, asked of `closesPolygon` — the same
+	 * predicate `InteractionLayer` asks to decide whether to promise a close, so what the
+	 * user sees and what the click does cannot disagree.
 	 *
-	 * Measured against the UNSNAPPED point in both of its callers, so a snap cannot drag a
-	 * near-miss into a close — and so the mark the user sees arms on exactly what their
-	 * pointer is doing.
+	 * Both points go through the camera first, because the rule is stated in screen pixels: a
+	 * closing target is a pointing affordance, and a world-fixed one is a 2.5 px target at the
+	 * default zoom that goes sub-pixel when zoomed out.
+	 *
+	 * Measured against the UNSNAPPED point, so a snap cannot drag a near-miss into a close.
 	 */
 	private canClose(context: EditorContext, worldPoint: Point): boolean {
-		if (this.buffer.length < 3) return false;
-		const toleranceWorld = POLYGON_CLOSE_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel();
-		return distance(worldPoint, this.buffer[0]) <= toleranceWorld;
+		const first = this.buffer.at(0);
+		if (first === undefined) return false;
+		return closesPolygon(
+			this.buffer.length,
+			context.viewport.worldToScreen(worldPoint),
+			context.viewport.worldToScreen(first),
+		);
 	}
 
 	/**
 	 * The one write of the in-progress picture. A whole new object each time rather than a
 	 * mutation: the field is read through a `reactive()` proxy, and one assignment is one
 	 * re-render of the layer.
+	 *
+	 * It carries no "is the target armed" flag on purpose — see `closeTarget.ts`: the camera
+	 * can move without the pointer moving, so an answer stored at `pointermove` time is one
+	 * the next zoom makes false while nothing re-runs this.
 	 */
-	private publishSketch(context: EditorContext, cursor: Point | null, closeArmed: boolean): void {
-		context.renderState.polygonSketch = { vertices: [...this.buffer], cursor, closeArmed };
+	private publishSketch(context: EditorContext, cursor: Point | null): void {
+		context.renderState.polygonSketch = { vertices: [...this.buffer], cursor };
 	}
 
 	private clearSketch(context: EditorContext): void {

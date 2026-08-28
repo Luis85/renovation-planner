@@ -49,7 +49,7 @@ The mock is a six-line recorder that draws nothing. Every later task's jsdom ass
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `class Notice` with `containerEl: HTMLElement`, `messageEl: HTMLElement`, `setMessage(text: string): this`, `hide(): void`, `readonly duration: number | undefined`, and the existing `static readonly shown: string[]`.
+- Produces: `class Notice` with `containerEl: HTMLElement`, `messageEl: HTMLElement`, `setMessage(text: string): this`, `hide(): void`, `readonly duration: number | undefined`, the existing `static readonly shown: string[]`, and `static readonly constructed: Notice[]`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -71,6 +71,12 @@ describe('the Notice fake', () => {
 
 	it('records the duration it was constructed with', () => {
 		expect(new Notice('a', 0).duration).toBe(0);
+	});
+
+	it('keeps every instance, so a test can assert what a caller passed', () => {
+		Notice.constructed.length = 0;
+		new Notice('a', 0);
+		expect(Notice.constructed.at(-1)?.duration).toBe(0);
 	});
 
 	it('replaces the message in place', () => {
@@ -121,6 +127,14 @@ Replace `tests/helpers/obsidian-mock.ts:125-131` with:
  */
 export class Notice {
 	static readonly shown: string[] = [];
+	/**
+	 * The instances themselves, so a test can assert the ARGUMENTS a caller passed rather than
+	 * only the outcome. `duration` is the one that matters: this plugin owns every notice's
+	 * timer and passes `0` for it, and nothing but this array can check that the `0` is really
+	 * being passed — the fake implements no timer, so a wrong duration is invisible in
+	 * behaviour here and visible only in a real vault.
+	 */
+	static readonly constructed: Notice[] = [];
 
 	readonly containerEl: HTMLElement;
 	readonly messageEl: HTMLElement;
@@ -130,6 +144,7 @@ export class Notice {
 		readonly duration?: number,
 	) {
 		Notice.shown.push(message);
+		Notice.constructed.push(this);
 
 		const container =
 			document.body.querySelector<HTMLElement>('.notice-container') ??
@@ -915,6 +930,7 @@ describe('the notice door', () => {
 		disposeNotices();
 		document.body.innerHTML = '';
 		Notice.shown.length = 0;
+		Notice.constructed.length = 0;
 	});
 
 	it('renders a translated severity label beside the message, never colour alone', () => {
@@ -990,6 +1006,15 @@ describe('the notice door', () => {
 	});
 
 	it('constructs every notice with duration 0, because the timer is ours', () => {
+		notifySuccess('saved');
+		// The ARGUMENT, not the outcome. Advancing the clock and watching the element go proves
+		// only that the queue's own timer ran — the fake implements no timer of Obsidian's, so
+		// `new Notice(text)` with a default duration would leave that assertion green while real
+		// Obsidian ran a second, unpausable timer underneath the hover rule.
+		expect(Notice.constructed.at(-1)?.duration).toBe(0);
+	});
+
+	it('still lets the queue time it out, which is the other half of owning the timer', () => {
 		notifySuccess('saved');
 		expect(noticeEls()).toHaveLength(1);
 		vi.advanceTimersByTime(4000);
@@ -1146,6 +1171,9 @@ const obsidianHost: NoticeHost = {
 		render(view);
 
 		notice.messageEl.textContent = '';
+		// The flex container is THIS element, not `containerEl` — the three children below are
+		// its children, and flex only reaches direct ones. See `styles/notices.css`.
+		notice.messageEl.classList.add('rp-notice-body');
 		notice.messageEl.append(label, body, dismiss);
 
 		return {
@@ -1379,7 +1407,9 @@ git commit -m "fix: the notice text ban names every door this plugin has"
 - Modify: `styles/index.css`
 
 **Interfaces:**
-- Consumes: the class names Task 6 writes — `.rp-notice`, `.rp-notice-{severity}`, `.rp-notice-severity`, `.rp-notice-message`, `.rp-notice-dismiss`.
+- Consumes: the class names Task 6 writes — `.rp-notice` and `.rp-notice-{severity}` on
+  `containerEl`; `.rp-notice-body` on `messageEl`; `.rp-notice-severity`,
+  `.rp-notice-message` and `.rp-notice-dismiss` on its three children.
 - Produces: nothing importable.
 
 - [ ] **Step 1: Write the partial**
@@ -1401,7 +1431,21 @@ git commit -m "fix: the notice text ban names every door this plugin has"
  * `harness-shot`. Appearance is checked in a real vault, by `npm run test-build` and the
  * manual case under `docs/tests/`.
  */
-.rp-notice {
+/*
+ * **The flex box goes on `messageEl`, not on `.rp-notice`.** The severity label, the message
+ * and the dismiss button are appended to Obsidian's `messageEl`, which is a CHILD of
+ * `containerEl` — so `display: flex` on the container makes `messageEl` the only flex item
+ * and does nothing for the three elements it was written for. `gap` would apply to nothing,
+ * the message's `flex: 1` would be inert, and the two adjacent spans carry no whitespace
+ * between them, so a warning would render as `Warningcheck the calibration`.
+ *
+ * This repository has that exact rendering defect in its ledger already — the harness index's
+ * rows read `ZonePanelprototype` because Vue's whitespace handling removed the separator
+ * between two adjacent elements. It was found by capturing a PNG and looking at it. The jsdom
+ * test here asserts `toContain('Warning')` and `toContain(message)`, which passes on the
+ * concatenated string too, so nothing automated can see this.
+ */
+.rp-notice-body {
 	display: flex;
 	align-items: baseline;
 	gap: var(--size-4-2);

@@ -1006,7 +1006,11 @@ describe('the notice door', () => {
 		expect(noticeEls()[0]?.getAttribute('role')).toBe('status');
 		expect(noticeEls()[0]?.getAttribute('aria-live')).toBe('polite');
 
-		disposeNotices();
+		// `activateNotices()`, NOT `disposeNotices()`. Disposal is terminal — it leaves the
+		// module inert and the warning below would be dropped, giving `undefined` for both
+		// assertions. Activation is the reset: it disposes what is there and builds a fresh
+		// queue, which is exactly what a second half of a test needs.
+		activateNotices();
 		document.body.innerHTML = '';
 		notifyWarning('careful');
 		expect(noticeEls()[0]?.getAttribute('role')).toBe('alert');
@@ -1751,8 +1755,18 @@ describe('notice disposal', () => {
 - [ ] **Step 2: Run it and watch it FAIL**
 
 Run: `npx vitest run tests/plugin/noticeDisposal.test.ts`
-Expected: **FAIL** on the first two cases — Step 3 has not registered the disposer yet, so
-`onunload` leaves the notices on screen and the list does not contain `disposeNotices`.
+Expected: **FAIL** on the first, second and fourth cases — three of the four, and each for its
+own reason, so an implementer can tell an intended red from a real one:
+
+1. *takes every notice off the screen when the plugin unloads* — Step 3 has not registered the
+   disposer, so `onunload` leaves them up.
+2. *registers exactly one disposer for the queue* — the list does not contain `disposeNotices`.
+4. *comes back on the next load, not on the next push* — `loadedPlugin()` does not call
+   `activateNotices()` until Step 3 adds it, so the second load leaves the queue inert and the
+   final notice never appears.
+
+The third case (*stays off after unload*) passes before Step 3, because the queue is already
+inert by then for a different reason: `beforeEach` disposed it and nothing has activated it.
 
 Do **not** go looking for a bug in Task 6 when this goes red: red here is the task's own
 premise. An earlier draft of this step said "Expected: PASS if Task 6 is correct", which was
@@ -3020,6 +3034,15 @@ the disposer in the list rather than counting the list. The save-state wiring ca
 about what `wrapDispatcher` received — both of the two mistakes its own docblock claimed to
 prevent. It asserts the ARGUMENT BINDINGS now, with a revert step per mistake, and states the
 limit it still has: a source-shape check holds bindings, not runtime values.
+
+**A fourteenth pass found two consequences of the thirteenth's fix, neither of them traced when
+that fix was made.** Making disposal terminal broke a mid-test reset in Task 6 — the role case
+called `disposeNotices()` between its two halves, which now leaves the module inert so the
+second half is dropped and both assertions read `undefined` — and it changed which of Task 9's
+cases fail before Step 3, from two of four to three of four. Both are fixed; the step now names
+each intended red and its own reason. **This is the third time in this review that a fix of
+mine introduced a fresh defect**, and all three shared one cause: changing a shared primitive
+without re-reading its callers.
 
 **A thirteenth pass found a test pinning a defect as a requirement.** `disposeNotices` recreated
 the queue, so a promise resolving after `onunload` — the cascade and the recovery pass both run

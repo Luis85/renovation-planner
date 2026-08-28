@@ -452,6 +452,13 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
 - [x] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — floors rise
       only if a finished increment measures above them.
 
+## Manual verification
+
+[[A Project Owns Its Folder]] is the **canonical procedure** for this slice's walkthrough in
+a real vault, expanding implementation-plan Task 10's five sketched steps into fifteen. This
+document records what the runs found; the case file owns the steps themselves. It has not
+been run as of this writing — its own Runs table says so.
+
 ## References
 
 **PRD**: §36 Vault Data Model (as amended 2026-08-26); §59 Entity Relationship Rules; §83

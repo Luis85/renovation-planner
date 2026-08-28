@@ -324,6 +324,23 @@ describe('SnapService.snapDirection', () => {
 	});
 
 	/**
+	 * `Math.sin(Math.PI)` is `1.22e-16`, so a westward constraint used to answer
+	 * `(0, 1.22e-14)` for a point that is exactly `(0, 0)`. Exact equality is the currency
+	 * downstream — `DrawPolygonTool`'s duplicate guard compares coordinates — so dust there is
+	 * a zero-length polygon edge that `createPolygon`'s count-and-finiteness validation waves
+	 * straight through. Asserted with `toEqual`, which compares numbers exactly; a
+	 * `toBeCloseTo` here would pass against the very defect this pins.
+	 */
+	it('answers EXACT coordinates on an axis, where the trig cannot', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 12 });
+
+		expect(service.snapDirection({ x: 100, y: 0 }, { x: 0, y: 0 })).toEqual({ x: 0, y: 0 });
+		expect(service.snapDirection({ x: 0, y: 100 }, { x: 0, y: 0 })).toEqual({ x: 0, y: 0 });
+		expect(service.snapDirection({ x: 0, y: 0 }, { x: 500, y: 3 })).toEqual({ x: 500, y: 0 });
+		expect(service.snapDirection({ x: 0, y: 0 }, { x: 3, y: 500 })).toEqual({ x: 0, y: 500 });
+	});
+
+	/**
 	 * The result is on the RAY, never on its backward extension. With any sane step the
 	 * nearest direction is within half a step of the true bearing and the projection is
 	 * forward automatically; a step coarser than a half turn is what makes that arithmetic

@@ -527,6 +527,29 @@ describe('DrawPolygonTool: Shift constrains the next vertex', () => {
 		expect(h.context.renderState.polygonSketch?.nextVertex).toEqual({ x: 500, y: 0 });
 	});
 
+	/**
+	 * Retracing: two vertices down, Shift held, and a click back on the first one — a shape
+	 * the user is plainly not trying to make. The constrained point is computed along the
+	 * westward ray, which is exactly where the trig used to leave 1.2e-14 mm of dust: enough
+	 * to slip past the exact-equality duplicate guard and give the polygon a zero-length edge
+	 * that `createPolygon` then accepts, since it validates the count and the finiteness of
+	 * the coordinates and a sliver satisfies both.
+	 */
+	it('refuses a constrained click that lands back on an existing vertex', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(shiftAt(0, 0));
+
+		expect(h.context.renderState.polygonSketch?.vertices).toEqual([
+			{ x: 0, y: 0 },
+			{ x: 100, y: 0 },
+		]);
+	});
+
 	it('does not let the constraint decide whether the polygon CLOSES', async () => {
 		const h = harness();
 		const tool = build(h);

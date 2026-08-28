@@ -371,6 +371,21 @@ which is why `snapDirection` projects rather than rotating. Four rules came out 
   `obsidianmd/ui/sentence-case-locale-module` fails the build on a capitalised `Shift`
   mid-sentence — measured — and lowercasing the name of a key is worse copy than leading with
   it.
+- **`Math.sin(Math.PI)` is 1.22e-16, and that dust reached the geometry.** A constrained
+  westward click answered `(0, 1.2e-14)` where `(0, 0)` was exact, which walked straight
+  through `DrawPolygonTool`'s exact-equality duplicate guard — so retracing onto an existing
+  vertex with Shift held appended a twin, and `createPolygon` accepts the resulting sliver
+  because it validates the COUNT and the FINITENESS of the coordinates and a zero-length edge
+  satisfies both. `exactOnAxis` restores the value the arithmetic was always trying to
+  produce, which is correcting a representation error rather than fudging one: a snapped angle
+  is an exact multiple of the step, so on an axis the direction IS exactly `(±1, 0)`, and
+  every non-axis angle is irrational in both components and passes through untouched. The
+  general shape: **a value that is "obviously" exact stops being exact the moment it goes
+  through trigonometry, and every equality test downstream is what finds out.** Caught by a
+  review bot; the related hole it did NOT name is still open and is written down rather than
+  quietly fixed — three COLLINEAR vertices are a zero-area polygon that nothing refuses, which
+  Shift makes considerably easier to draw, and closing that is a change to `createPolygon`
+  (SDD §26 files degeneracy under "Future") rather than to a tool.
 - **Two harness fakes were thinner than the service they stood for, and the second would have
   thrown.** `tool-context.ts` had a hand-written `{ snapPoint }` behind an `as never`, and
   `calibrateHarness.ts` had `{} as never`. Both subclass the REAL `SnapService` now, composed

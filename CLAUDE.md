@@ -423,11 +423,26 @@ Its first real caller is the calibration gesture. Rules that came out of it:
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
   means its own thing.** The calibration segment is `measurement`, not a two-point
   `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
-  zone", while a measurement renders solid and open with a marker at each end. `pointerMove`
-  had been an empty method under a comment deferring the preview "until a rendering seam
-  exists", and that seam had existed since slice 8 — so the gesture drew nothing at all, and
-  an empty method has no behaviour for any test to disagree with. Found by a human
-  calibrating a plan.
+  zone", while a measurement renders as a tape measure — solid and open, a perpendicular bar
+  capping each end, ticks along its length (`layers/rulerGeometry.ts`, screen-spaced and
+  deliberately unlabelled, since the plan whose scale is being established has none yet).
+  `pointerMove` had been an empty method under a comment deferring the preview "until a
+  rendering seam exists", and that seam had existed since slice 8 — so the gesture drew
+  nothing at all, and an empty method has no behaviour for any test to disagree with. Found
+  by a human calibrating a plan.
+
+  **The same field rule then took a third field, `polygonSketch`, for the same reason.** The
+  drawing tool had been packing its placed vertices and its live pointer into one
+  `previewPolygon` array, so the layer could not tell a click that had LANDED from where the
+  mouse happened to be — and drew a circle for neither. It carries `vertices`, `cursor` and
+  `closeArmed` separately now: every placed vertex is a circle, the first one is drawn larger
+  because clicking it is what CLOSES the shape, and it grows again while a click there really
+  would. That last flag is the tool's to set, not the layer's to derive — `InteractionLayer`
+  is `listening: false` (SDD §62) and has no camera-converted tolerance, so `canClose()` is
+  the ONE predicate behind both the mark and the click, and `handleMetrics.ts` holds the
+  three drawn radii beside the distance that arms them. Reusing `previewPolygon` would also
+  have redrawn a THIRD tool's picture: `SelectTool` writes the same field with the translated
+  ghost of a dragged zone. Also found by a human, drawing one.
 
 **Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
 Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the

@@ -24,7 +24,7 @@ interface Harness {
 	nextZoneName: string;
 }
 
-function harness(): Harness {
+function harness(options: { worldPerScreenPixel?: number } = {}): Harness {
 	setActivePinia(createPinia());
 	const dispatched: UndoableCommand[] = [];
 	const inputs: CreateZoneInput[] = [];
@@ -33,6 +33,7 @@ function harness(): Harness {
 	let gate: (() => void) | null = null;
 
 	const { context } = toolContext({
+		worldPerScreenPixel: options.worldPerScreenPixel,
 		commandDispatcher: {
 			run: (runnable) => {
 				if (gate !== null) {
@@ -107,11 +108,13 @@ describe('DrawPolygonTool', () => {
 		tool.pointerDown(at(0, 0));
 		tool.pointerDown(at(100, 0));
 		tool.pointerMove(at(120, 90)); // rubber-band while drawing
-		expect(h.context.renderState.previewPolygon).toEqual([
-			{ x: 0, y: 0 },
-			{ x: 100, y: 0 },
-			{ x: 120, y: 90 },
-		]);
+		// The two PLACED vertices and the loose end are separate fields on purpose: only the
+		// placed ones are drawn as circles. See `PolygonSketch`.
+		expect(h.context.renderState.polygonSketch).toEqual({
+			vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+			cursor: { x: 120, y: 90 },
+			closeArmed: false,
+		});
 		tool.pointerDown(at(0, 100));
 		tool.pointerDown(at(0, 0)); // closes
 		await flush();
@@ -121,7 +124,7 @@ describe('DrawPolygonTool', () => {
 		expect(h.inputs.at(0)?.geometry.points).toHaveLength(3);
 		expect(h.inputs.at(0)?.name).toBe('Zone 1');
 		expect(h.context.selection.selectedIds).toEqual(['zone-created']);
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
 	it('clicking the first vertex with fewer than three points does NOT close or dispatch', () => {
@@ -134,7 +137,7 @@ describe('DrawPolygonTool', () => {
 		tool.cancel();
 
 		expect(h.dispatched).toHaveLength(0);
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
 	it('a FAILED dispatch reports and keeps the buffer — the user keeps their work', async () => {
@@ -153,7 +156,7 @@ describe('DrawPolygonTool', () => {
 		expect(h.context.selection.selectedIds).toEqual([]);
 		// Buffer intact: cancelling now is deliberate, not forced by the rejection.
 		tool.cancel();
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
 	it('a close click while ANOTHER close is in flight is ignored — one shape, one command', async () => {
@@ -207,7 +210,7 @@ describe('DrawPolygonTool', () => {
 		tool.cancel();
 
 		expect(h.dispatched).toHaveLength(0);
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 
 		// After cancel, a fresh draw starts from an empty buffer.
 		tool.pointerDown(at(500, 500));
@@ -224,7 +227,7 @@ describe('DrawPolygonTool', () => {
 		tool.pointerMove(at(50, 50));
 		tool.deactivate();
 
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 		// A deactivated tool ignores events until re-activated.
 		tool.pointerDown(at(10, 10));
 		expect(h.dispatched).toHaveLength(0);
@@ -232,7 +235,7 @@ describe('DrawPolygonTool', () => {
 		// A second deactivate (and a cancel after it) is safe: no editor is held any more.
 		tool.deactivate();
 		tool.cancel();
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
 	it('a pointerMove with nothing drawn leaves the preview alone', () => {
@@ -241,7 +244,7 @@ describe('DrawPolygonTool', () => {
 		tool.activate(h.context);
 
 		tool.pointerMove(at(50, 50));
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
 	it('a close attempt with a non-finite vertex is rejected BEFORE any command exists', async () => {
@@ -267,7 +270,7 @@ describe('DrawPolygonTool', () => {
 		expect(h.rejections).toHaveLength(1);
 		// Buffer intact — the user keeps their work and can cancel deliberately.
 		tool.cancel();
-		expect(h.context.renderState.previewPolygon).toBeNull();
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 	it('a snapped vertex landing on an existing one is NOT pushed as a duplicate', async () => {
 		// The close test measures the RAW click and the buffer takes the SNAPPED one, so a
@@ -303,7 +306,7 @@ describe('DrawPolygonTool', () => {
 		// all — but the snap lands it exactly on `buffer[0]`.
 		tool.pointerDown(at(3, 0));
 
-		expect(context.renderState.previewPolygon).toEqual([
+		expect(context.renderState.polygonSketch?.vertices).toEqual([
 			{ x: 0, y: 0 },
 			{ x: 100, y: 0 },
 		]);
@@ -334,10 +337,144 @@ describe('DrawPolygonTool', () => {
 
 		// The new gesture's two vertices survived, and nothing selected the zone the
 		// abandoned close created.
-		expect(h.context.renderState.previewPolygon).toEqual([
+		expect(h.context.renderState.polygonSketch?.vertices).toEqual([
 			{ x: 500, y: 500 },
 			{ x: 600, y: 500 },
 		]);
 		expect(h.context.selection.selectedIds).toEqual([]);
+	});
+});
+
+/**
+ * What the user is shown WHILE drawing, which before this existed was a dashed outline and
+ * nothing else: no mark for a click that had landed, and nothing at all to say that clicking
+ * the first vertex again is what closes the shape. The gesture could only be learned by being
+ * told it.
+ *
+ * The arming decision lives in the tool rather than in `InteractionLayer` because the layer
+ * is `listening: false` by design (SDD §62) and has no camera-converted tolerance of its own;
+ * the assertions below are therefore about `RenderState`, which is the seam between them.
+ */
+describe('DrawPolygonTool: the sketch it broadcasts', () => {
+	it('records each placed vertex and drops the loose end until the pointer moves again', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+
+		// No cursor yet: the rubber band would be a zero-length edge from the vertex to
+		// itself, which draws a stub of a line out of a click that has just landed.
+		expect(h.context.renderState.polygonSketch).toEqual({
+			vertices: [{ x: 0, y: 0 }],
+			cursor: null,
+			closeArmed: false,
+		});
+
+		tool.pointerMove(at(60, 10));
+		expect(h.context.renderState.polygonSketch?.cursor).toEqual({ x: 60, y: 10 });
+
+		tool.pointerDown(at(100, 0));
+		expect(h.context.renderState.polygonSketch?.cursor).toBeNull();
+	});
+
+	it('arms the close target only once a click there would really close the shape', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+
+		// Two vertices: the pointer is right on the first one and a click there still places
+		// a vertex rather than closing, so promising a close would be a lie.
+		tool.pointerMove(at(0, 0));
+		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(false);
+
+		tool.pointerDown(at(0, 100));
+		tool.pointerMove(at(2, 2));
+		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(true);
+
+		tool.pointerMove(at(60, 60));
+		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(false);
+	});
+
+	/**
+	 * The reason the tolerance moved into `handleMetrics.ts`: what lights up has to be the
+	 * region that acts. A world-fixed radius would arm at a fixed number of millimetres and
+	 * therefore at a different number of PIXELS per zoom, so the mark would grow under a
+	 * pointer that cannot close and stay dark under one that can.
+	 */
+	it('arms at the same camera-converted distance the close click is judged by', async () => {
+		// Ten world millimetres per screen pixel, so the 12 px tolerance is 120 mm out here.
+		const h = harness({ worldPerScreenPixel: 10 });
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(1000, 0));
+		tool.pointerDown(at(0, 1000));
+
+		tool.pointerMove(at(130, 0)); // 13 px away: outside
+		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(false);
+
+		tool.pointerMove(at(100, 0)); // 10 px away: inside
+		expect(h.context.renderState.polygonSketch?.closeArmed).toBe(true);
+
+		// And the same point really does close, which is the half that makes the mark honest
+		// rather than merely consistent with itself.
+		tool.pointerDown(at(100, 0));
+		await flush();
+		expect(h.dispatched).toHaveLength(1);
+	});
+
+	it('takes the rubber band down while a close is in flight, leaving the placed vertices', async () => {
+		const h = harness();
+		const release = h.gateNextDispatch();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(0, 100));
+		tool.pointerMove(at(1, 1));
+		tool.pointerDown(at(0, 0)); // closes; the dispatch is gated open
+
+		// The shape is settled and being written: a loose end still tracking the pointer, or
+		// a target still promising a close, would both be describing a gesture that is over.
+		expect(h.context.renderState.polygonSketch).toEqual({
+			vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }],
+			cursor: null,
+			closeArmed: false,
+		});
+		// And a pointer that keeps moving during that window does not put it back.
+		tool.pointerMove(at(40, 40));
+		expect(h.context.renderState.polygonSketch?.cursor).toBeNull();
+
+		release();
+		await flush();
+		expect(h.context.renderState.polygonSketch).toBeNull();
+	});
+
+	it('leaves the placed vertices on screen when the close is REFUSED', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(0, 100));
+		h.failNextDispatch();
+		tool.pointerDown(at(0, 0));
+		await flush();
+
+		// The rejection keeps the buffer, so it has to keep the picture of the buffer too —
+		// a user whose work survives a refusal but whose drawing vanishes has no way to know
+		// that it did.
+		expect(h.context.renderState.polygonSketch?.vertices).toEqual([
+			{ x: 0, y: 0 },
+			{ x: 100, y: 0 },
+			{ x: 0, y: 100 },
+		]);
 	});
 });

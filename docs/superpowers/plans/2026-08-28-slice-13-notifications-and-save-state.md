@@ -14,10 +14,26 @@
 > `docs/components/Save-state indicator.md` and `docs/components/Toast.md` are component
 > contracts naming this slice in their own frontmatter, and the design was written without
 > opening either. Three conflicts are **open**, not fixed: no retry emit on Save Error, no
-> mark beside the word on either surface, and no moving indicator for Saving. They change
-> markup, stylesheet and accessibility assertions across Tasks 2, 6, 8 and 13. **Do not
-> execute those tasks as written until the repository owner has settled them.** The rest of
-> the plan is unaffected.
+> mark beside the word on either surface, and no moving indicator for Saving.
+>
+> **Two tasks are genuinely blocked and three are merely extendable — the distinction matters
+> and an earlier draft of this banner blurred it.**
+>
+> - **BLOCKED, do not execute:** **Task 12** — `affectsSaveState` cannot infer write
+>   disposition from `Result.ok` and `AppError.category`, and the predicate's shape is
+>   undecided. **Task 13** — the indicator owes a retry EMIT, which changes its props and
+>   needs a retryable operation `SaveStateStore` does not hold, plus a mark and a moving
+>   indicator.
+> - **EXTENDABLE, execute as written:** **Tasks 2, 6 and 8.** A mark is *additive* to the
+>   word, not a replacement for it, so the severity keys, the host markup and the stylesheet
+>   are correct as far as they go and gain one element later. Building them now is an
+>   increment, not rework — but whoever builds them should know a mark is still owed.
+>
+> **Task 14** wires the tracker and is executable, with one thing recorded rather than fixed:
+> `set-plan-background` writes to the open plan outside that dispatcher, so the indicator will
+> read `Saved` through a background write. See the spec's "Unresolved" section.
+>
+> Every other task is unaffected.
 >
 > There is a whole `docs/components/` directory of these. Check it for any component a task
 > touches before writing the task's code — that directory was missed entirely when this plan

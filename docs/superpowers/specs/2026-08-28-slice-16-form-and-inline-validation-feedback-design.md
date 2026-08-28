@@ -7,6 +7,21 @@ Coverage floors in force: statements 99, functions 99, lines 99, branches 98
 (`vitest.config.ts`). Re-measure with `npm run test:coverage` before relying on any figure
 here; branches has roughly two covered branches of headroom.
 
+**Built in parallel with design slice 13** (notifications and save-state surfaces,
+`docs/superpowers/specs/2026-08-28-slice-13-notifications-and-save-state-design.md`, PR #21).
+The two are siblings under *Shared UI vocabulary*; the slice map states 13-16 do not depend on
+one another, and together they are the last two things standing between the tree and slice 17.
+Each names the other so a reader arriving from either side finds it.
+
+**They meet at exactly one door, and it does not move.** Slice 13's design lists
+`notifyError(error: AppError)` as existing and unchanged — it stays the `AppError` door whose
+contract is that the caller holds an error rather than text. That is what this slice's
+Inspector path relies on when a banner-routed error falls back to a notice, because the
+Inspector has no banner region. Slice 13 adds `notifySuccess` / `notifyWarning` and gives
+`notify` a severity; this slice calls none of them, and neither slice changes what the other
+depends on. Which errors reach a field versus a toast at all remains slice 17's decision, and
+both documents defer to it rather than deciding it early.
+
 ## Purpose
 
 Slice 6 fixed the Inspector's dispatch side — one field commit is one `UndoableCommand` run

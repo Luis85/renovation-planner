@@ -60,14 +60,16 @@ export interface PlanEditorQueryServices {
 /**
  * The read side for a session whose settings could not be recovered.
  *
- * With settings unrecovered there is no repository, no index and no query service — the
- * composition root builds none at all rather than falling back to a default
- * `projectFolder`, because a default folder is a different LOCATION rather than a milder
- * version of the user's. That reasoning is no longer "no folder, so no index": since
- * ADR-0013 the index's scan is bounded by what a note DECLARES, not by `projectFolder` at
- * all, so a recovered folder would not save this path either — what triggers the refusal is
- * settings recovery failing outright. So the Plan Editor is handed services that refuse, and
- * its store's `failed` status draws the same message it would for any other unreadable plan.
+ * With settings unrecovered there is no repository, no index and no query service, so the
+ * Plan Editor is handed services that refuse and its store's `failed` status draws the same
+ * message it would for any other unreadable plan.
+ *
+ * **That the root builds none is a conservative choice, not a necessity, and the reason
+ * lives with the choice** — `CompositionRoot.persistence`. Since ADR-0013 the index's scan
+ * is bounded by what a note DECLARES and an existing project's folder comes from where its
+ * own note sits, so reads here would in fact work without the setting; what the root refuses
+ * to do is compose a stack where one door (creating a new project's folder) has no answer
+ * and every other one works.
  *
  * A refusal rather than `ok(null)`: "your settings are broken" is not "this plan does not
  * exist", and the whole reason these two methods keep those apart is that something

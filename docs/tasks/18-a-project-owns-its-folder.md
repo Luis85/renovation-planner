@@ -129,6 +129,15 @@ index section is unchanged and the migration gains a step.
 
 ### Roots, and why the index takes a list
 
+**Withdrawn — the root list is not what ships, and this heading is the last place in this
+document still presenting it as though it were.** The design document replaced the list with a
+DECLARED bound: a note is ours because it carries our `type` and a non-empty `id`, so the scan
+and the pipeline are bounded by what a note says about itself and there is no root list to
+build, register or agree on. `IndexRoots` moves to slice 19 with `foldersOverlap`. Everything
+below is left as written, as the record of what was proposed — including the two corrections
+already noted inside it, which correct claims made about a shape that then did not ship. The
+Definition of Done further down records the same withdrawal against the items that named it.
+
 `buildProjectIndexEntries` becomes two ordered passes over a **root list** rather than one pass
 over a prefix:
 
@@ -433,9 +442,14 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
       is nothing to report. See the design document.
 - [x] Every entity's note lands in ITS OWN project's folder, asserted on the resulting path for
       two projects at once. `NoteVaultDeps.projectFolder` no longer exists, checked by the type.
-- [x] A save whose project folder cannot be resolved returns a `PersistenceError` and writes
-      nothing — never a write to the defaulted path. Driven by removing the index entry between
-      the read and the save.
+- [x] A save that has to CHOOSE a location — an INSERT — whose project folder cannot be
+      resolved returns a `PersistenceError` and writes nothing, never a write to the defaulted
+      path. Driven by removing the index entry between the read and the save. **Narrowed from
+      "a save" to "an insert" on this branch:** once existence resolves through the index, an
+      UPDATE writes where the note already sits and resolves no folder at all, so a refusal
+      there could only refuse a save that had nothing to decide — which is what `markStale` was
+      doing, on notes it had just read successfully. See *A folder that cannot be resolved is a
+      refusal* in the design document.
 - [x] Geometry sidecars still resolve as ADR-011 specifies, now inside the per-project folder,
       asserted through `PlanGeometryStore` against two projects.
 - [ ] ~~The one-time migration moves a single-folder vault to per-project folders using
@@ -455,7 +469,7 @@ Three commits, and the ordering is what keeps `npm run check` passing at each:
 ## Manual verification
 
 [[A Project Owns Its Folder]] is the **canonical procedure** for this slice's walkthrough in
-a real vault, expanding implementation-plan Task 10's five sketched steps into fifteen. This
+a real vault, expanding implementation-plan Task 10's five sketched steps into eighteen. This
 document records what the runs found; the case file owns the steps themselves. It has not
 been run as of this writing — its own Runs table says so.
 

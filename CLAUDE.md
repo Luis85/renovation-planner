@@ -560,9 +560,15 @@ id on a name collision. Four rules came out of it, the last two from the review 
   its folder prefix at BOTH ends, and only the full scan got a diagnostic; the incremental door
   went on repointing a plan's mapping onto any arriving `.rpgeo` with a matching basename, which
   is where a copied project folder sent the live plan's geometry writes. `sidecarMappingFor` is
-  the one answer both take now — the DERIVED path wins, a genuine pair is reported in either
+  the one answer both take now: the DERIVED path wins — or the path the mapping already held,
+  when nothing derives one (a plan declaring no project, or one whose project note is not
+  indexed) — a genuine pair is reported in either
   order under a per-door event name, and a sidecar re-affirming its own mapping is not reported
-  at all. Reporting and adjudication are separate steps in it for a reason worth keeping: the
+  at all. "Both doors" is a category claim, so it is MEASURED rather than asserted: the second
+  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its two callers the
+  same way that file pins `entityRefOf`'s, and a `processSidecar` that goes back to
+  adjudicating for itself drops the list to one and fails there.
+  Reporting and adjudication are separate steps in it for a reason worth keeping: the
   first draft returned early when the arriving file was the derived one, which silenced the copy
   in exactly one of the two scan orders.
 
@@ -586,13 +592,24 @@ own recurring shape:
   said "reads and writes"; its body asserted only the write half. Adding the read assertion it
   had always claimed to make immediately caught a fixture whose frontmatter was missing the
   schema-required `status` field — a test that had been passing on a project the schema would
-  have refused to load. The review that followed found four more cases whose names outran their
-  assertions or named a rule they no longer tripped, and one of them was measured rather than
-  argued:
-  a pipeline case named for the folder bound this slice DELETED compared an empty index against
-  an empty index, and stayed GREEN — measured, by wiring the regression and running it — under a
-  `processPath` that wiped every entry the index held. A no-op assertion and a correct one look
-  identical until something is broken underneath them.
+  have refused to load. The review that followed found three more of the same shape — six `it`
+  blocks, because one of the three is a group of four — and they are NAMED here rather than
+  counted, since a bare number over a set that groups two ways is the defect this file exists
+  to refuse. TWO of the three were measured rather than argued, by wiring the regression and
+  running it:
+
+  - a pipeline case named for the folder bound this slice DELETED compared an empty index
+    against an empty index, and stayed GREEN under a `processPath` that wiped every entry the
+    index held;
+  - the four `perProjectFolders` save cases — one per kind — asserted an in-memory
+    `revision === 2` and an index path they had just upserted, and all four stayed green
+    against a `writeOwnedFrontmatter` made a silent no-op: the revision is computed before the
+    write and the repository upserts either way, so nothing in them read the vault's bytes
+    back. The stronger of the two measurements, four green tests over a write that did nothing;
+  - and a scan case whose name claimed a location bound while its green came from the
+    missing-`id` rule, its `.rpgeo` fixture asserted by nothing at all.
+
+  A no-op assertion and a correct one look identical until something is broken underneath them.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

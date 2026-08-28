@@ -61,6 +61,10 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 	// it sits, so an asset or requirement note the user filed elsewhere is read, indexed and
 	// deletable; the scan could not see it, `currentVersion` came back undefined, and the
 	// save answered a permanent `<kind>.revision-conflict`. This ONE site covers both kinds.
+	//
+	// What the reliance costs when the index is STALE — this writes owned frontmatter to
+	// whatever file now sits at that path, and an insert past a forgotten entry writes a
+	// second note carrying the same id — is written down once, at `freshNotePath`.
 	const existing = fileAt(deps.vault, deps.index.getPath(entity.id));
 	const currentVersion = existing
 		? versionOfFrontmatter(frontmatterOf(deps, existing))

@@ -118,10 +118,18 @@ export function fileNameFor(name: string): string {
  * paths, because the docblock that used to say it went with `findNoteIdInFolder`:** this
  * dedupes on PATH, not on id, so an insert for an entity whose note the index has forgotten
  * writes a SECOND note carrying the same `id` beside the first, rather than colliding with
- * it. Unreachable today — an insert requires `expected === 'absent'`, and every repository
- * `upsert`s synchronously before returning, so a note written moments ago is known before
- * any `MetadataCache` has parsed it — and it is the same reliance on the index that
- * `getById` and `delete` already accept.
+ * it. It is the same reliance on the index that `getById` and `delete` already accept.
+ *
+ * **What protects it is one mechanism, and "unreachable" is wider than that mechanism
+ * reaches.** Within a session, an insert requires `expected === 'absent'` and every
+ * repository `upsert`s synchronously before returning, so a note this plugin wrote moments
+ * ago is known to the index before any `MetadataCache` has parsed it: write-then-write-again
+ * cannot reach the arm. What that does not cover is a note the index NEVER held — the full
+ * scan reads through `frontmatterOf`, whose echo is empty at `onLayoutReady`, so a note
+ * Obsidian has no cache entry for yet answers `{}` and is dropped from the index entirely —
+ * followed by a save at `'absent'` early in the same session.
+ * `recoverInterruptedSequences` is that shape: `void`ed from `startPersistence()` and
+ * restoring a deleted entity at `'absent'`.
  */
 export function freshNotePath(vault: Vault, folder: string, name: string, id: string): string {
 	const base = joinFolder(folder, fileNameFor(name));

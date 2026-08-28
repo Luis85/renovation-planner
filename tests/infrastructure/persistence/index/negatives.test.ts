@@ -188,7 +188,11 @@ describe('index builder negatives', () => {
 	 * reason it is skipped.
 	 *
 	 * The two SCAN-side diagnostics are ASSERTED here rather than merely produced — this is
-	 * the only case in the suite that reaches either. `entityRef.test.ts` unit-tests
+	 * the only case in the suite that ASSERTS either, which is a narrower claim than
+	 * "reaches", and the difference is a real case: `pipeline.test.ts`'s "excludes a malformed
+	 * note with a diagnostic" rebuilds the index over an id-less note and therefore reaches
+	 * `persistence.index.note-excluded`, but asserts only that at least one `persistence.*`
+	 * warning was logged, never which. `entityRef.test.ts` unit-tests
 	 * `entityRefOf`'s no-id verdict, not `collectNotes`'s warn arm, and the orphan-sidecar
 	 * warning `branches.test.ts` drives is the PIPELINE door's, under its own event name.
 	 */

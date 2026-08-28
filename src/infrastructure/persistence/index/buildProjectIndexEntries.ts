@@ -73,11 +73,16 @@ function warnOnDuplicate(logger: Logger, previous: ProjectIndexEntry | undefined
 /** Pass one: every note of ours in the vault, keyed by its declared id. */
 function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>): void {
 	for (const file of input.vault.getMarkdownFiles()) {
-		// Through `frontmatterOf`, so a note whose cache entry Obsidian has not produced yet
-		// is still scanned from what this plugin last wrote there. At `onLayoutReady` the
-		// echo is empty and this is exactly the cache read it always was; it earns its keep
-		// on the RE-scan `saveSettings` triggers mid-session, where notes written moments
-		// ago would otherwise be dropped from the index they had just been added to.
+		// Through `frontmatterOf`, the one spelling every note read in this plugin takes —
+		// and in THIS caller the echo half of it answers nothing, which is worth saying
+		// because an earlier version of this comment claimed the opposite. Both invocations
+		// of the scan run against a freshly composed `EchoWindow`: `onLayoutReady` builds the
+		// first root, and the re-scan `saveSettings` triggers builds another
+		// (`createCompositionRoot` makes its own echo, and `SessionCollaborators` forwards
+		// only the ledger and the marker store), so there is nothing recorded to fall back
+		// to at either. What the scan does with the echo is WRITE it — `markFrontmatter`
+		// below records what it saw, for the pipeline to recognise as its own — and the
+		// fallback earns its keep at the per-note reads the repositories do after a write.
 		const frontmatter = frontmatterOf(input, file);
 
 		const ref = entityRefOf(frontmatter);

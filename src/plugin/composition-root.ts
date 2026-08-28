@@ -132,9 +132,21 @@ export interface CompositionRoot {
 	/**
 	 * Everything slice 4 persists through — repositories, the index, the geometry store,
 	 * the read-side queries, and the vault-change pipeline. `null` exactly when `settings`
-	 * is: compose no repository, no index, no query service against an unrecovered
-	 * location, because a service that reads or writes has no correct behaviour without
-	 * the configuration that names where.
+	 * is.
+	 *
+	 * **The reason is conservatism, stated as that rather than dressed as a necessity.**
+	 * It used to read "a service that reads or writes has no correct behaviour without the
+	 * configuration that names where", and ADR-0013 retired that: the index is bounded by
+	 * what a note DECLARES, and an existing project's folder comes from where its own note
+	 * sits, so reads and writes to projects that already exist need the setting for nothing.
+	 * The one door that still does is creating a NEW project's folder
+	 * (`freshProjectFolder`). Composing the stack anyway would give this session one door
+	 * with no answer and every other door working; composing none gives it one failure mode
+	 * and one code (`settings.unrecovered`) at every door instead — for a session whose
+	 * `data.json` is present and unreadable, which is also a session this plugin refuses to
+	 * write settings for at all (`saveSettings` returns early). Narrowing it to the creation
+	 * path is available and belongs with slice 16's creation form, which is the surface that
+	 * would ask.
 	 */
 	readonly persistence: PersistenceServices | null;
 }

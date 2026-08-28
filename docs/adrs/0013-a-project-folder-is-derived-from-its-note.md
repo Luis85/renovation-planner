@@ -84,8 +84,11 @@ it already is.
   vault's projects are found; it only changes what a project's folder is *called*, once found.
 - **The write target for a new entity note is computed, not cached.** `NoteVaultDeps.projectFolder`
   — a single shared root cached once per repository — has no derived equivalent: a per-project
-  folder is not known at construction time, so each write resolves it from the entity being
-  written, through the Project Index.
+  folder is not known at construction time, so an INSERT resolves it from the entity being
+  written, through the Project Index. An update is not this bullet's subject: once existence
+  resolves through the index, a save to an entity the index already knows writes where its
+  note already sits and resolves no folder at all — see *A folder that cannot be resolved is a
+  refusal* in the design document.
 - **The setting that remains is the default projects folder** — the root a *new* project's
   folder is created under, and nothing more. It stops being the answer to "where is this
   project" the moment the project exists, because from then on the answer is wherever the

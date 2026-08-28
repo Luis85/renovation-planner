@@ -47,12 +47,42 @@ function sourceFilesUnder(dir: string): string[] {
 	});
 }
 
+function modulesNaming(needle: string): string[] {
+	return sourceFilesUnder('src')
+		.filter((path) => readFileSync(path, 'utf8').includes(needle))
+		.map((path) => path.replaceAll('\\', '/'))
+		.toSorted();
+}
+
 describe('entityRefOf callers', () => {
 	it('is named by exactly two modules in src/, and they are the scan and the pipeline', () => {
-		const naming = sourceFilesUnder('src').filter((path) =>
-			readFileSync(path, 'utf8').includes('entityRefOf'),
-		);
-		expect(naming.map((path) => path.replaceAll('\\', '/')).toSorted()).toEqual([
+		expect(modulesNaming('entityRefOf')).toEqual([
+			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
+			'src/infrastructure/persistence/index/buildProjectIndexEntries.ts',
+		]);
+	});
+});
+
+/**
+ * The same claim one level down, and it had none of the same measurement: `CLAUDE.md`
+ * elevates "one rule with two doors is two rules unless one function holds it" to a rule,
+ * while the sidecar half of it rested on prose alone. The defect this refuses is the one
+ * slice 18's review actually found and fixed — `processSidecar` adjudicating a duplicate
+ * `.rpgeo` by a hand-spelled rule of its own, so the two doors answered differently — and
+ * that shape is invisible to every other gate, because a second adjudication is correct
+ * code that nothing imports wrongly.
+ *
+ * The needle carries the `(` and `entityRefOf`'s does not, which is a MEASURED difference
+ * rather than a stylistic one: `paths.ts`'s own header names `sidecarMappingFor` in prose,
+ * so a bare-name filter reports three modules and pins a docblock as if it were a caller.
+ * The blind spot that buys, said rather than implied: a future comment writing the name with
+ * an empty argument list would read as a call here. `sidecarPathFor`'s neighbouring "exactly
+ * two callers" claim is deliberately NOT folded in — its defining module is not one of its
+ * callers, so it would need an exclusion this instrument does not have.
+ */
+describe('sidecarMappingFor callers', () => {
+	it('is called by exactly two modules in src/, and they are the scan and the pipeline', () => {
+		expect(modulesNaming('sidecarMappingFor(')).toEqual([
 			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
 			'src/infrastructure/persistence/index/buildProjectIndexEntries.ts',
 		]);

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { Point } from '../../core/geometry/Point';
 import {
 	DEFAULT_VIEWPORT,
@@ -64,11 +64,34 @@ export const useEditorStore = defineStore('editor', () => {
 	const temporaryPolygon = ref<readonly Point[] | null>(null);
 
 	/**
+	 * The last pointer position, in the STAGE's own screen pixels. The SCREEN half is what is
+	 * stored, because it is the half a camera change leaves alone.
+	 */
+	const pointerScreen = ref<ScreenPoint | null>(null);
+
+	/**
 	 * The last pointer position, in world millimetres — what the status bar's measurements
 	 * readout shows. Read-only telemetry: it demonstrates the viewport transform working
 	 * without any editable state behind it.
+	 *
+	 * DERIVED, never stored, and that is the whole of this file's share of a lesson this
+	 * repository has now paid for three times: a value computed from two inputs goes stale
+	 * when EITHER of them moves. It was assigned in `setPointer` alone, so it answered for a
+	 * pointer that had moved and not for a camera that had — and both camera paths move it
+	 * under a stationary pointer. The keyboard's `+`/`-` anchor at the stage centre, so the
+	 * world position under the pointer genuinely changes and the readout simply lied until
+	 * the next mouse move; a pan is DEFINED by holding one world point under the cursor,
+	 * and there the stored value was recomputed from the pre-pan camera every move, so the
+	 * one number that should not have moved at all was the one that drifted furthest.
+	 *
+	 * Refreshing it at the camera call sites was the alternative and is the shape that
+	 * decays: it is a list of the paths someone thought of, and the wrong half of it is
+	 * unreachable anyway — `PlanCanvas.reissuePointerMove` returns early when no tool is
+	 * active, which is camera mode, where the keyboard zoom is still live.
 	 */
-	const pointerWorld = ref<Point | null>(null);
+	const pointerWorld = computed<Point | null>(() =>
+		pointerScreen.value === null ? null : screenToWorld(pointerScreen.value, viewport.value, STAGE_PIXELS),
+	);
 
 	/** Wheel zoom, centred on the pointer so what is under it stays under it. */
 	function zoomAt(anchor: ScreenPoint, nextZoom: number): void {
@@ -106,7 +129,7 @@ export const useEditorStore = defineStore('editor', () => {
 
 	/** `null` when the pointer leaves the stage, so the readout blanks rather than lying. */
 	function setPointer(at: ScreenPoint | null): void {
-		pointerWorld.value = at === null ? null : screenToWorld(at, viewport.value, STAGE_PIXELS);
+		pointerScreen.value = at;
 	}
 
 	/**
@@ -130,7 +153,7 @@ export const useEditorStore = defineStore('editor', () => {
 		hoveredObjectId.value = null;
 		dragState.value = null;
 		temporaryPolygon.value = null;
-		pointerWorld.value = null;
+		pointerScreen.value = null;
 	}
 
 	/**

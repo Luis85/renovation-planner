@@ -337,6 +337,86 @@ review pass that followed:
   Vue injection context is `PlanEditorContext` now (`PLAN_EDITOR_CONTEXT`,
   `usePlanEditorContext`); the tool facade keeps the bare name, which is the SDD's.
 
+**Holding Shift constrains both drawing tools to a whole angle** — 15 degrees, through
+`SnapService.snapDirection`, which is the first caller `angleStepRadians` has ever had (the
+service was composed with that step from slice 6 and nothing above `snapRotation` read it).
+The polygon tool constrains the next vertex against the LAST placed one and never the first,
+which has nothing to be straight relative to; the calibration tool constrains its second
+point against its first, where it matters most — a calibration taken a degree off is a scale
+error every area on the plan inherits. Researched rather than invented: Figma and Illustrator
+constrain to 45 degrees with Shift, CAD polar tracking to a configurable step with 15 among
+its presets, and the picked point lands ON the alignment path at the projected distance,
+which is why `snapDirection` projects rather than rotating. Four rules came out of it:
+
+- **The pointer and the point a click would PLACE became two fields the moment Shift could
+  separate them.** `PolygonSketch` had one `cursor`; the rubber band must draw to where the
+  vertex lands, and the close target must be judged on where the hand actually is — closing
+  is about pointing AT the first vertex, whatever the constraint is doing to the point it
+  would otherwise place. One value cannot be both, and the case that proves it is asserted on
+  the COMMAND path: a constrained point landing four units from the first vertex while the
+  pointer is twenty away must not close.
+- **A modifier has to bite on the KEY, not on the next pointer move**, which is what every
+  tool in the field does and what makes the difference between a live constraint and a dead
+  key. It costs nothing here because the camera fix above already built the hook: Shift's
+  press and release re-issue the same synthetic pointer move. It reads `event.shiftKey` — the
+  STATE — rather than the transition, which is also what makes it work under Sticky Keys,
+  where the modifier latches and no key is physically held.
+- **A modifier can be released where the canvas cannot hear it.** Shift held, Alt+Tab away,
+  key released in the other application, back with a click and no mouse movement in between:
+  no `keyup` ever reaches the element, so the preview stayed constrained while the click —
+  carrying the REAL `shiftKey: false` — placed the vertex somewhere the rubber band was not.
+  Preview and commit are the same call by design, and this was the one way they could
+  disagree. `onBlur` re-issues the move with NO modifiers, which is the honest answer rather
+  than a complete one: the web gives no way to READ modifier state without an event, so the
+  opposite gap (holding Shift across the blur) is still there, self-correcting on the first
+  real event. Reported by a review bot.
+- **A modifier is invisible, and the status bar is where this one is admitted to.** No control
+  shows it and no menu lists it — the standing cost of the convention — so `editor.hint.
+  constrain-angle` sits in the Status region while a constraining tool is active, and only
+  those two: advertising the key under Select would be advertising a key that does nothing.
+  What is NOT built is CAD's numeric angle-and-distance readout beside the line, because
+  `t()` takes no parameters and that would make it the plugin's first interpolated string.
+  The copy leads with the key name (`Shift constrains the angle`) because
+  `obsidianmd/ui/sentence-case-locale-module` fails the build on a capitalised `Shift`
+  mid-sentence — measured — and lowercasing the name of a key is worse copy than leading with
+  it.
+- **A coordinate that has been through trigonometry is never bitwise what it should be, and
+  it took TWO rounds to fix because the first one only covered the case being looked at.**
+  `Math.sin(Math.PI)` is 1.22e-16, so a constrained westward click answered `(0, 1.2e-14)`
+  where `(0, 0)` was exact — through `DrawPolygonTool`'s exact-equality duplicate guard, so
+  retracing onto a vertex with Shift held appended a twin, and `createPolygon` accepts the
+  resulting sliver because it validates the COUNT and the FINITENESS of the coordinates and a
+  zero-length edge satisfies both. Two separate repairs, and the distinction is the lesson:
+  - `exactOnAxis` restores the value the arithmetic was trying to produce, which is correcting
+    a representation error rather than fudging one — a snapped angle is an exact multiple of
+    the step, so ON AN AXIS the direction IS exactly `(±1, 0)`. It buys exact straightness for
+    constrained horizontals and verticals, and it fixes the duplicate case for four directions
+    out of twenty-four.
+  - It could never have fixed the rest, and the review bot's next round said so with a
+    diagonal: at 45 degrees `Math.cos` and `Math.sin` differ in their last bit and there is no
+    exact value to restore, so a retrace lands at `(0, -1.42e-14)`. The guard had to stop being
+    bitwise. `coincident` in `core/geometry/operations.ts` is the general answer — a nanometre
+    of tolerance, eight orders of magnitude above the dust and five below anything a pointer
+    can express at this editor's tightest zoom.
+
+  **The meta-lesson is the one this file already carried, applied to its author:** a partial
+  fix reads exactly like a complete one, and "I fixed the case in the report" is not the same
+  as "I fixed the class". The first repair was the narrower of the two the bot offered, chosen
+  deliberately, and it was the wrong choice for the general case.
+
+  The related hole neither round named is still open and is written down rather than quietly
+  fixed: three COLLINEAR vertices are a zero-area polygon that nothing refuses, which Shift
+  makes considerably easier to draw, and closing that is a change to `createPolygon` (SDD §26
+  files degeneracy under "Future") rather than to a tool.
+- **Two harness fakes were thinner than the service they stood for, and the second would have
+  thrown.** `tool-context.ts` had a hand-written `{ snapPoint }` behind an `as never`, and
+  `calibrateHarness.ts` had `{} as never`. Both subclass the REAL `SnapService` now, composed
+  with the editor's own 15 degree step, so the next method added to it is present in both the
+  day it is written. A `StatusBar` that injected `useEditorRuntime()` was the same shape from
+  the other end and the harness caught it: the index mounts every real component STANDALONE
+  against the shared fixture, so a shell region that can only exist inside the whole editor is
+  one nobody looks at. It takes `activeToolId` as a prop.
+
 **Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
 descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the
 descriptor's own `kind` through `DialogResultByKind`, and THROWS if a dialog is already open
@@ -423,11 +503,70 @@ Its first real caller is the calibration gesture. Rules that came out of it:
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
   means its own thing.** The calibration segment is `measurement`, not a two-point
   `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
-  zone", while a measurement renders solid and open with a marker at each end. `pointerMove`
-  had been an empty method under a comment deferring the preview "until a rendering seam
-  exists", and that seam had existed since slice 8 — so the gesture drew nothing at all, and
-  an empty method has no behaviour for any test to disagree with. Found by a human
-  calibrating a plan.
+  zone", while a measurement renders as a tape measure — solid and open, a perpendicular bar
+  capping each end, ticks along its length (`layers/rulerGeometry.ts`, screen-spaced and
+  deliberately unlabelled, since the plan whose scale is being established has none yet).
+  `pointerMove` had been an empty method under a comment deferring the preview "until a
+  rendering seam exists", and that seam had existed since slice 8 — so the gesture drew
+  nothing at all, and an empty method has no behaviour for any test to disagree with. Found
+  by a human calibrating a plan.
+
+  **The same field rule then took a third field, `polygonSketch`, for the same reason.** The
+  drawing tool had been packing its placed vertices and its live pointer into one
+  `previewPolygon` array, so the layer could not tell a click that had LANDED from where the
+  mouse happened to be — and drew a circle for neither. It carries `vertices`, `cursor` and
+  `closeArmed` separately now: every placed vertex is a circle, the first one is drawn larger
+  because clicking it is what CLOSES the shape, and it grows again while a click there really
+  would. Reusing `previewPolygon` would also have redrawn a THIRD tool's picture: `SelectTool`
+  writes the same field with the translated ghost of a dragged zone. Also found by a human,
+  drawing one.
+
+  **"Is the target armed" is asked per render and never stored, and the first version got
+  that wrong.** It was a third field on the sketch, written by the tool at each
+  `pointermove` — which is one input short: the answer depends on the CAMERA too, and wheel
+  and keyboard zoom stay live while a drawing tool is active. So a zoom under a stationary
+  pointer slid the vertex out of reach while the mark went on promising a close, and the
+  click then placed a vertex. `closeTarget.ts`'s `closesPolygon` is a predicate both callers
+  ask instead — the tool for the click, the layer inside a `computed` that reads the viewport
+  — stated in SCREEN pixels, which is what lets them share one rule at all: the tool projects
+  its world click through the camera it holds, and the layer asks it of projections it has
+  already made. `handleMetrics.ts` holds the three drawn radii beside the distance that arms
+  them. Caught by a review bot on the pull request, not by any gate here — and the fix is
+  that the stale state became UNREPRESENTABLE rather than merely refreshed on one more event.
+
+  **That fix was half of one, and the same bot said so on the next round.** Deriving the mark
+  from the current camera is right, but the CURSOR it derives from is a world point captured
+  at the last `pointermove` — and a camera change moves which world point the pointer is over.
+  A wheel zoom anchors at the pointer, so that point is invariant and the derivation held; the
+  keyboard's `+`/`-` anchor at the stage CENTRE, and there it drifts. Measured, not argued: a
+  target five pixels from the pointer went on promising a close with the vertex forty-three
+  pixels away. So `PlanCanvas.reissuePointerMove` tells the active tool where the pointer is
+  after ANY camera change — a synthetic event whose every field is a true statement, and the
+  one the next real move would carry anyway. It is issued on the wheel path too, where it is a
+  no-op, because "any camera change re-issues the move" holds for camera paths not yet
+  written while "the ones that need it" is a list that goes stale. It fixes the calibration
+  rubber band's identical drift in the same stroke, which is what makes the canvas the right
+  home for it rather than either tool. **The general shape, and this repository has now paid
+  for it twice in one change: a value derived from two inputs goes stale when EITHER moves,
+  and fixing the input you were thinking about leaves a defect that looks fixed.**
+
+  **A third instance was still standing in the same file when the review pass came back, and it
+  is the one that says why "re-issue on every camera change" is the weaker half of the remedy.**
+  `EditorStore.pointerWorld` was the status bar's coordinate readout, ASSIGNED in `setPointer`
+  from the viewport of the moment — the identical two-input value, one file away, and
+  `reissuePointerMove` could not have saved it either way: that function returns early when no
+  tool is active, which is camera mode, where the keyboard zoom is still live. Both camera paths
+  were wrong and the worse one was not the zoom. A pan is DEFINED by holding one world point
+  under the cursor, and `onPointerMove` calls `setPointer` BEFORE `continuePan`, so the readout
+  was recomputed from the pre-pan camera on every move: measured, the one number that should not
+  have moved at all drifted from -80 to 920 over a single drag. `pointerWorld` is a `computed`
+  over the stored SCREEN point now — the half a camera change leaves alone — so no camera path,
+  written or unwritten, has to remember to refresh it. **Prefer making the staleness
+  unrepresentable to refreshing it on one more event; a re-issue is a list of the paths somebody
+  thought of, and this file has now been wrong about that list three times.** No gate here can
+  see any of it, which is why `docs/tests/cases/Editor Walkthrough.md` step 6a exists: jsdom is
+  perfectly capable of holding the arithmetic, and it was two node tests that finally caught it —
+  the point is that nobody had written them, because the value LOOKED derived.
 
 **Design slice 10 has landed: the loop closes.** `Zone Geometry -> Area -> Requirement ->
 Cost` runs end to end. `Asset` and `Requirement` follow slice 3's module pattern; the

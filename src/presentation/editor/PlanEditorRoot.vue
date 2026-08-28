@@ -145,7 +145,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 		>
 			{{ tr('editor.background-failed') }}
 		</p>
-		<StatusBar />
+		<StatusBar :active-tool-id="runtime.activeToolId.value" />
 		<!--
 			Last child, and a sibling of the five regions rather than nested in one: the host
 			makes its parent's OTHER children inert while a dialog is open, so every region

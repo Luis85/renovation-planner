@@ -53,6 +53,36 @@ export function distance(a: Point, b: Point): number {
 	return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
+/**
+ * How close two world coordinates must be to be the same point. A nanometre, in the
+ * millimetres every length here is stated in (ADR-009).
+ *
+ * Chosen to sit in the gap between two scales that are twenty orders of magnitude apart, so
+ * it can only ever catch a representation error:
+ *
+ * - Above the dust. Floating-point residue out of a projection or a rotation lands around
+ *   1e-14 mm; this is eight orders of magnitude larger.
+ * - Below anything real. A pointer at this editor's tightest zoom expresses about 0.05 mm per
+ *   screen pixel, and a renovation is not measured past the millimetre, so no two points a
+ *   user MEANT to be distinct can ever land this close.
+ */
+export const COINCIDENT_TOLERANCE_MM = 1e-6;
+
+/**
+ * Whether two points are the same point — geometrically, not bitwise.
+ *
+ * Exists because exact equality is the wrong test for a coordinate that has been through
+ * arithmetic, and every "is this a repeated vertex" guard was written as `===` before this
+ * did. Trigonometry is where it bites: constraining a click back onto an existing vertex
+ * along a 45 degree ray answers `(0, -1.42e-14)` for a point that is exactly `(0, 0)`, since
+ * `Math.cos` and `Math.sin` of a quarter-pi differ in their last bit and no exact value
+ * exists to restore. A guard that misses that lets a zero-length edge into a polygon, which
+ * area, centroid and hit-testing all divide through.
+ */
+export function coincident(a: Point, b: Point): boolean {
+	return distance(a, b) <= COINCIDENT_TOLERANCE_MM;
+}
+
 function chainLength(points: readonly Point[]): number {
 	let total = 0;
 	for (let i = 1; i < points.length; i++) {

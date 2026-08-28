@@ -439,6 +439,18 @@ check. Rules that came out of it:
   this way, and disarming on keyup strands the user's pointer mid-pan. Two independent fields
   (`spaceHeld`, `panningWith`) rather than one phase enum, because that overlap is exactly
   what a single enum would have to encode as a transition.
+- **A gesture's ownership has to outlive the gesture, because the POINTER does.** While a pan
+  runs the canvas swallows every other pointer's press — but that decision was re-derived from
+  the live phase at each later event, and the phase is gone by the time a swallowed pointer
+  reports back. Finger A space-pans, finger B is swallowed, A releases and ends the pan, and
+  B's eventual `pointercancel` then found no pan running and was attributed to the active TOOL,
+  emptying a half-drawn polygon the tool never received a press for. `swallowedPointers` holds
+  those ids until each pointer ends. **The same "what is true now versus what was true when
+  this began" as the held-key races**, arrived at from the pointer side — a phase test cannot
+  answer a question about the past. Consulted at both ends per this file's own rule, though
+  only the CANCEL path is destructive: measured, a bare release is absorbed by each tool's
+  no-gesture guard, and guarding one end alone would leave the next reader to work out which
+  half was deliberate.
 - **An element's `blur` and the WINDOW's are not the same event, and only one of them is
   guaranteed for an Alt+Tab.** Chromium can deactivate a window while leaving the focused
   element focused, and Obsidian is Electron — so the container's own `@blur` may never fire

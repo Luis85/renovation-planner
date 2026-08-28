@@ -76,6 +76,27 @@ const lastStagePoint = ref<ScreenPoint | null>(null);
  * A plain object rather than a `ref`: the machine is not itself rendered, and what the
  * template needs from it is the cursor below, recomputed from the same events that drive it.
  */
+/**
+ * Pointers whose PRESS this canvas swallowed, held until that pointer ends.
+ *
+ * The swallow itself is decided by the phase — while a pan runs, the canvas belongs to the
+ * camera — but the phase is gone by the time the swallowed pointer reports back. Finger A
+ * space-pans, finger B presses and is swallowed, A releases and ends the pan, and B's
+ * eventual `pointercancel` then found no pan running and was attributed to the active TOOL,
+ * emptying a half-drawn polygon the tool never received a press for. Ownership has to outlive
+ * the pan, because the pointer does.
+ *
+ * Consulted at BOTH ends, which is this file's own repeated lesson rather than a symmetry for
+ * its own sake — a swallowed press owes a swallowed release. Measured: only the cancel path is
+ * destructive today, because `cancelGesture()` empties a buffer unconditionally while a bare
+ * release is absorbed by each tool's own no-gesture guard. Guarding one and not the other
+ * would leave the next reader to discover which half was deliberate.
+ *
+ * Bounded by the number of pointers physically down, and cleared outright on focus loss —
+ * a deactivated window owns none of them.
+ */
+const swallowedPointers = new Set<number>();
+
 const panOverride = new PanOverride();
 /** The override's phase, mirrored reactively — the only thing the template reads off it. */
 const panPhase = ref(panOverride.phase);
@@ -386,6 +407,7 @@ function onPointerDown(event: PointerEvent): void {
 	// takes this same path. That is an everyday desktop input, not an exotic one.
 	if (panOverride.phase === 'panning') {
 		event.preventDefault();
+		swallowedPointers.add(event.pointerId);
 		return;
 	}
 	if (!isPrimary(event)) return;
@@ -423,6 +445,9 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
+	// A pointer whose press was swallowed owes its release swallowed too, whether or not the
+	// pan that swallowed it is still running — see `swallowedPointers`.
+	if (swallowedPointers.delete(event.pointerId)) return;
 	if (panOverride.pointerUp(panButtonOf(event), event.pointerId)) {
 		editor.endPan(event.pointerId);
 		syncPanPhase();
@@ -461,6 +486,9 @@ function onPointerUp(event: PointerEvent): void {
  * prevent. The last of the five pointer doors to take the ownership rule.
  */
 function onPointerCancel(event: PointerEvent): void {
+	// The destructive half: `cancelGesture()` empties a tool's buffer outright, so a swallowed
+	// pointer's cancellation reaching it costs the user a half-drawn polygon.
+	if (swallowedPointers.delete(event.pointerId)) return;
 	if (panOverride.phase === 'panning') {
 		// A foreign pointer's cancellation says nothing about the running pan.
 		if (!panOverride.owns(event.pointerId)) return;
@@ -510,6 +538,7 @@ const NO_MODIFIERS: ModifierSource = {
  * `shiftKey: false` and places the vertex somewhere the rubber band was not.
  */
 function onBlur(): void {
+	swallowedPointers.clear();
 	panOverride.cancel();
 	syncPanPhase();
 	editor.abandonPan();

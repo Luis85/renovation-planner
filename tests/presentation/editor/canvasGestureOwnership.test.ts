@@ -546,3 +546,64 @@ describe('the camera during a CAMERA-MODE drag', () => {
 		harness.unmount();
 	});
 });
+
+describe('a pointer the canvas swallowed, cancelled after the pan ended', () => {
+	it('does not destroy the tool’s buffer', async () => {
+		// Finger A space-pans; finger B presses and is swallowed; A releases, ending the pan;
+		// then the OS cancels B. The cancel branch asks "is a pan running", which is now false,
+		// so it cancels the ACTIVE TOOL — for a pointer that tool never received a press from.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11); // A claims the pan
+		pointer(canvas, 'pointerdown', 300, 400, 0, 12); // B swallowed
+		pointer(canvas, 'pointerup', 300, 300, 0, 11); // A releases; the pan ends
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 12, bubbles: true }));
+		key(canvas, 'keyup', { key: ' ' });
+		await settle();
+
+		// The buffer should have survived: a third vertex and a close land on the original two.
+		click(canvas, 600, 200);
+		click(canvas, 500, 100);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
+	it('does not hand the tool a RELEASE it never got a press for', async () => {
+		// The same staleness on the other path. B's release after the pan ends falls through to
+		// the tool, which placed a vertex the user never asked for — a release with no matching
+		// press, which is the grammar defect this file exists to refuse.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointerdown', 300, 400, 0, 12);
+		pointer(canvas, 'pointerup', 300, 300, 0, 11);
+		pointer(canvas, 'pointerup', 300, 400, 0, 12);
+		key(canvas, 'keyup', { key: ' ' });
+		await settle();
+
+		// Three deliberate vertices close a triangle. A stray fourth from B's release would
+		// leave the close click nowhere near the buffer's first point.
+		click(canvas, 600, 200);
+		click(canvas, 500, 100);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+});

@@ -213,6 +213,21 @@ It is still **measured before the file is committed** rather than trusted to tha
 it does prove heavy, the fallback is unchanged — fold the cases into an existing ESLint-booting
 file rather than adding a seventh.
 
+**Batching and per-spelling mutation are in tension, and resolving it needs the helper widened.**
+`lintText` returns an array of rule IDs and nothing else, so a batched probe asserting
+`toContain('no-restricted-imports')` passes when ANY of its imports reports. A spelling that
+becomes allowed is then invisible — the other imports in the same module still produce that rule
+ID — and the narrow mutations above stay green, which is the exact vacuity this file exists to
+refuse. The design held both requirements without noticing they contradict; a review bot named
+it.
+
+So the probe asserts **one diagnostic per planted import, matched by line**, through a second
+helper export returning `(ruleId, line)` pairs. A new export rather than a change to `lintText`,
+because five existing test files consume its current shape and none of them needs the detail.
+Asserting the COUNT alone was the cheaper option and is rejected: it survives one import going
+silent while another reports twice, which is precisely the compensating-error case a count
+cannot see.
+
 **Both directions, always.** Each layer also gets an allowed-imports call asserting *no*
 finding — `domain` reaching `core`, `infrastructure` naming `obsidian`, `presentation`
 naming `vue`, `plugin` reaching everything. The negative half is what proves the rule is
@@ -509,9 +524,19 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   else", which is a claim about the whole tree that nothing in slice 12 needs and that goes stale
   every time a legitimate DOM-touching helper is added somewhere new. The rule's actual subject
   is narrower: **the inner layers' node enforcement**. So it is a DENYLIST — reject
-  `@vitest-environment jsdom` under `tests/core/`, `tests/domain/` and `tests/application/`,
-  the directories whose node execution is the mechanism §8 credits — and it says nothing about
-  anywhere else. Measured: zero files under those three use jsdom today, so it lands green.
+  `@vitest-environment jsdom` under `tests/core/`, `tests/domain/`, `tests/application/` **and
+  `tests/infrastructure/`** — and it says nothing about anywhere else. Measured: zero files under
+  those four use jsdom today, so it lands green.
+
+  The fourth directory was missing from the first denylist and a review bot caught it. The
+  repository contracts are invoked from mirrored files under
+  `tests/infrastructure/{persistence/in-memory,obsidian}/` — six call sites, measured — which the
+  parent slice requires to run in bare node, and none of which sits in the three directories the
+  denylist first named. Adding a jsdom docblock to any contract caller would have disabled the
+  indirect-DOM check with the guard still green. Same defect as the allowlist one round earlier,
+  from the other side: there the rule reached too far, here not far enough, and both came from
+  naming directories by intuition instead of by asking which files the mechanism actually
+  protects.
 
   This is the same correction as `panButtonOf`'s in CLAUDE.md, one level down: a rule with an
   implicit `else` claims everything it never thought about. It is cheap, it structurally

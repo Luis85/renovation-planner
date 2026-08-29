@@ -1,0 +1,40 @@
+cited_path	current_path	status
+docs/adrs/0001-markdown-as-canonical-metadata-storage.md	docs/development/adrs/0001-markdown-as-canonical-metadata-storage.md	moved
+docs/adrs/0002-json-sidecar-for-plan-geometry.md	docs/development/adrs/0002-json-sidecar-for-plan-geometry.md	moved
+docs/adrs/0003-konva-as-canvas-renderer.md	docs/development/adrs/0003-konva-as-canvas-renderer.md	moved
+docs/adrs/0004-vue-3-for-plugin-ui.md	docs/development/adrs/0004-vue-3-for-plugin-ui.md	moved
+docs/adrs/0005-pinia-for-presentation-state.md	docs/development/adrs/0005-pinia-for-presentation-state.md	moved
+docs/adrs/0006-plain-typescript-domain.md	docs/development/adrs/0006-plain-typescript-domain.md	moved
+docs/adrs/0007-command-based-mutations.md	docs/development/adrs/0007-command-based-mutations.md	moved
+docs/adrs/0008-event-aware-architecture.md	docs/development/adrs/0008-event-aware-architecture.md	moved
+docs/adrs/0009-world-coordinates-in-millimeters.md	docs/development/adrs/0009-world-coordinates-in-millimeters.md	moved
+docs/adrs/0010-decimal-money-arithmetic.md	docs/development/adrs/0010-decimal-money-arithmetic.md	moved
+docs/adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md	docs/development/adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md	moved
+docs/adrs/0012-price-component-placement-in-the-cost-pipeline.md	docs/development/adrs/0012-price-component-placement-in-the-cost-pipeline.md	moved
+docs/business-rules/A change is a state on an object, not a second object.md	docs/product/business-rules/A change is a state on an object, not a second object.md	moved
+docs/business-rules/A cost rollup is derived along its axis, never stored.md	docs/product/business-rules/A cost rollup is derived along its axis, never stored.md	moved
+docs/business-rules/A delete reports what references it and offers four choices.md	docs/product/business-rules/A delete reports what references it and offers four choices.md	moved
+docs/business-rules/A dependency is allowed only between five pairs of things.md	docs/product/business-rules/A dependency is allowed only between five pairs of things.md	moved
+docs/business-rules/A derived value is recomputed on read, not persisted.md	docs/product/business-rules/A derived value is recomputed on read, not persisted.md	moved
+docs/business-rules/A manual edit in the vault is never silently overwritten.md	docs/product/business-rules/A manual edit in the vault is never silently overwritten.md	moved
+docs/business-rules/A manual override is stored as an override, beside what it replaced.md	docs/product/business-rules/A manual override is stored as an override, beside what it replaced.md	moved
+docs/business-rules/A mismatched unit or currency is an error, not a coercion.md	docs/product/business-rules/A mismatched unit or currency is an error, not a coercion.md	moved
+docs/business-rules/A quantity flows through seven stages and no stage stands in for another.md	docs/product/business-rules/A quantity flows through seven stages and no stage stands in for another.md	moved
+docs/business-rules/A requirement names what it is required for.md	docs/product/business-rules/A requirement names what it is required for.md	moved
+docs/business-rules/A type this version does not know survives a round trip verbatim.md	docs/product/business-rules/A type this version does not know survives a round trip verbatim.md	moved
+docs/business-rules/An asset's unit kind must match the dimension its requirement is derived from.md	docs/product/business-rules/An asset's unit kind must match the dimension its requirement is derived from.md	moved
+docs/business-rules/An uncalibrated plan never presents a measurement as true.md	docs/product/business-rules/An uncalibrated plan never presents a measurement as true.md	moved
+docs/business-rules/Each cost type has exactly one source of record.md	docs/product/business-rules/Each cost type has exactly one source of record.md	moved
+docs/business-rules/Every entity resolves to exactly one project.md	-	unresolved
+docs/business-rules/Every persistent object carries a schema version.md	docs/product/business-rules/Every persistent object carries a schema version.md	moved
+docs/business-rules/Four kinds of reference failure are detected by name.md	docs/product/business-rules/Four kinds of reference failure are detected by name.md	moved
+docs/business-rules/Identity is the id, never the filename, title or path.md	docs/product/business-rules/Identity is the id, never the filename, title or path.md	moved
+docs/business-rules/Internal precision and display precision are separate.md	docs/product/business-rules/Internal precision and display precision are separate.md	moved
+docs/business-rules/Money is rounded once, where the pipeline finalizes it.md	docs/product/business-rules/Money is rounded once, where the pipeline finalizes it.md	moved
+docs/business-rules/Only a completed domain action persists.md	docs/product/business-rules/Only a completed domain action persists.md	moved
+docs/business-rules/Purchase quantity rounds up to whole lots, then up to the minimum order.md	docs/product/business-rules/Purchase quantity rounds up to whole lots, then up to the minimum order.md	moved
+docs/business-rules/Requirement, procurement, cost and installed quantity stay four concepts.md	docs/product/business-rules/Requirement, procurement, cost and installed quantity stay four concepts.md	moved
+docs/business-rules/The cost pipeline applies its components in one fixed order.md	docs/product/business-rules/The cost pipeline applies its components in one fixed order.md	moved
+docs/business-rules/The forecast counts a commitment only until it is invoiced.md	docs/product/business-rules/The forecast counts a commitment only until it is invoiced.md	moved
+docs/business-rules/Waste multiplies the required quantity and stays a separate factor.md	docs/product/business-rules/Waste multiplies the required quantity and stays a separate factor.md	moved
+docs/business-rules/World coordinates are millimetres, converted once at the engine boundary.md	docs/product/business-rules/World coordinates are millimetres, converted once at the engine boundary.md	moved

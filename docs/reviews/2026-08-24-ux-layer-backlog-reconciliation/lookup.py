@@ -571,7 +571,7 @@ def same_note(a, b):
 def main():
     args = [a for a in sys.argv[1:]
             if a not in ("--selftest", "--corpus-dirs", "--body-paths",
-                            "--corpus-pathspecs")]
+                            "--corpus-pathspecs", "--moves")]
 
     # THE MACHINE-READABLE DOORS EMIT LF, NEVER CRLF.
     #
@@ -585,7 +585,8 @@ def main():
     #
     # Fixed at the SOURCE rather than with a `tr -d` at each of the four call sites: a consumer
     # that forgets the strip is a consumer that silently measures nothing.
-    if any(a in sys.argv for a in ("--corpus-dirs", "--body-paths", "--corpus-pathspecs")):
+    if any(a in sys.argv for a in ("--corpus-dirs", "--body-paths", "--corpus-pathspecs",
+                                  "--moves")):
         sys.stdout.reconfigure(newline="\n")
 
     # `candidates.sh` and `verify-dod.sh` need the same answer and are shell. They ASK for it
@@ -613,6 +614,48 @@ def main():
     if "--body-paths" in sys.argv:
         for name, path, _a, _b in BODIES:
             print("%s\t%s" % (name, path.replace(os.sep, "/")))
+        sys.exit(0)
+
+    # WHERE A FROZEN CITATION'S NOTE IS NOW - derived, never hand-written.
+    #
+    # The matrix cites the corpus AS IT STOOD at `MATRIX_BASE`, and those citations are CORRECT
+    # for that tree: the pinned corpus really does hold `docs/business-rules/X.md`. Rewriting
+    # them to today's layout would make `rows.tsv` cite paths absent from its own corpus, and
+    # `same_note` would keep every check green while it happened - a change the harness cannot
+    # refuse that makes the artifact less true. So the citations stay, and this door answers the
+    # one question a reader actually has: the note is not at the path I was given, where is it?
+    #
+    # Resolved against the WORKING TREE deliberately, and against `_TOP` rather than `ROOT`:
+    # "where is this note now" has one answer, and `RP_CORPUS_ROOT` pointing at the pinned tree
+    # would make every citation resolve and the mapping come back empty - failing by finding
+    # nothing, which is the shape this harness distrusts everywhere else.
+    #
+    # It emits `unresolved` rather than omitting a note it cannot place. A note whose FILENAME
+    # changed is not a container move and `same_note` cannot follow it; dropping that row would
+    # turn the one case a reader most needs help with into a silent absence. `ambiguous` is
+    # separate from both: two notes of one kind sharing a basename is a mapping that must not
+    # be believed, and it is reported rather than resolved by picking the first.
+    if "--moves" in sys.argv:
+        live = []
+        for dirp, _dirs, files in os.walk(os.path.join(_TOP, "docs")):
+            for fn in files:
+                if fn.endswith(".md"):
+                    live.append(os.path.relpath(os.path.join(dirp, fn), _TOP)
+                                .replace(os.sep, "/"))
+        cited = set()
+        for fn, col in (("rows.tsv", 4), ("findings.tsv", 5)):
+            for r in [l.rstrip("\n").split("\t") for l in
+                      io.open(os.path.join(HERE, fn), encoding="utf-8")][1:]:
+                if len(r) > col and r[col].startswith("docs/"):
+                    cited.add(r[col].split("::", 1)[0])
+        print("cited_path\tcurrent_path\tstatus")
+        for c in sorted(cited):
+            if os.path.exists(os.path.join(_TOP, c)):
+                continue
+            m = sorted(q for q in live if same_note(c, q))
+            print("%s\t%s\t%s" % (c, m[0] if len(m) == 1 else "-",
+                                  "moved" if len(m) == 1 else
+                                  "ambiguous" if m else "unresolved"))
         sys.exit(0)
 
     if "--selftest" in sys.argv:

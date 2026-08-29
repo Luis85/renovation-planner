@@ -858,6 +858,56 @@ dispatch and its refusal.
   this is built on — the sixth instance of a fake thinner than the real thing, and the reason no
   instrument could see the duplicate tabs.
 
+### What the tenth review round found (2026-08-29)
+
+Two findings, both about a rule that was stated correctly and applied to a wider set than it
+names — the same shape as the round above it, one layer down.
+
+- **The observation token was minted over the union of five schemas.** `digest.ts` states
+  the rule as a category — a note's token covers "ONLY the frontmatter keys this plugin
+  owns" — and held a hand-written array covering every kind at once. Task 5a's `description`,
+  `start` and `target-completion` made the gap visible: they are a project note's, and a ZONE
+  note carrying a user's own `description` had it digested too, so editing that property
+  answered `zone.external-modification` on the zone's next save, for a key the Zone schema
+  does not declare and `writeOwnedFrontmatter` never writes. Measured before the fix, and
+  pre-existing for an asset's `notes` on a plan note — slice 16 only widened it into keys a
+  user is likely to already have. The set is DERIVED per `type` from the five `z.object`
+  shapes now, since a second list is how the first one drifted, and a note whose `type` is
+  none of the five falls back to the WIDE union deliberately: a token over no keys at all
+  could be overwritten by a conditional write that had checked nothing.
+
+  Two things came out of the fix rather than the report. **A green case was proving the
+  defect**: the shared repository contract's `external-modification` case hand-edits `name`,
+  which no Requirement schema declares, so the edit added an UNDECLARED key and the case
+  passed only because the union digest was reading it. Scoping turned it red, and `handEdit`
+  picks a key the note actually holds now. And **the existing derived test could not have
+  caught either half**: it built one frontmatter carrying every declared key with
+  `type: 'seed'`, which is not one of ours, so it asked the union question and answered it.
+  It is per-kind now and asks both directions.
+
+- **A project row that points at nothing returned silently, under a comment saying why that
+  was safe.** `openProjectNote` returned `void` for an unresolved id because "the list is
+  re-read on the next hydrate anyway" — and there was none: `RenovationProjectStore.hydrate`
+  has exactly two callers, `onMounted` and `onCreateProject`, and `VaultChangeAdapter` drops
+  an index entry without publishing anything. A project note deleted after the pane was
+  opened left a row that stayed drawn, did nothing when clicked, and said nothing until the
+  view was reopened. It answers `'opened' | 'missing'` now and `ViewRoot` re-reads the list
+  for `'missing'`; the row going away IS the feedback, which is what a notice would have said
+  with a dismissal on top. The composed closure adds `'failed'` for its `.catch` arm and its
+  unrecovered-settings arm — neither is a stale row, so neither buys a vault-wide read.
+
+#### Still open, found while confirming the second of those
+
+**A restored Renovation Project leaf can draw "no projects yet" over a vault full of them.**
+The index scan runs from `onLayoutReady` and Obsidian restores its leaves BEFORE layout-ready,
+so `ViewRoot`'s `onMounted` hydrate can iterate an empty index, come back `ok` with an empty
+list and nothing refused, and render `renovationProject.noProjects`. That is the exact hazard
+`projectIndex.events.ts` documents and closes for the Plan Editor with `ProjectIndexRebuilt`
+via `planChangeSource`; this view subscribes to nothing at all. The fix is a second change
+from the one above — a row's click cannot reach it — and it is the same seam that would let a
+deletion clear its row without waiting to be clicked. Written down rather than folded in.
+
+
 ## References
 
 - SDD §59 Inspector Architecture — selection → query → DTO → UI → command; this slice

@@ -544,9 +544,19 @@ check. Rules that came out of it:
   accumulation gone, while `abandonGesture()` is an INTERRUPTION and must abandon only what
   the missing release would have completed. `SelectTool`'s is its whole `cancel()`,
   `DrawPolygonTool`'s is a documented no-op, and `CalibrateTool`'s drops the buffered second
-  point while keeping the placed first one — the asymmetry there being deliberate, since a
+  point while RESTORING the placed first one — the asymmetry there being deliberate, since a
   kept buffer completed by some unrelated later click is a scale error every area on the plan
   inherits, silently.
+
+  **"Restoring" is the word that had to be measured, and the first version said "keeping" and
+  was wrong.** `CalibrateTool.pointerDown` does not leave the anchor where it found it: placing
+  the second point MOVES `pointA` into `pendingCompletion` and nulls it. So clearing the
+  pending completion alone lost BOTH points — measured, the next click placed a fresh first
+  point and no calibration was taken at all, with the abandoned segment still drawn over it —
+  under a docblock asserting the opposite, written one commit earlier. **A claim about which
+  state survives an operation is worth nothing until it is asked of the state machine that
+  actually moves that state**; this one read as obviously true and was false at the only call
+  site that matters.
 
   **And the same edit had to be UNDONE at the tool-switch paths**, which is the second half of
   the lesson. Their guard reads identically, so the first attempt routed them through the new

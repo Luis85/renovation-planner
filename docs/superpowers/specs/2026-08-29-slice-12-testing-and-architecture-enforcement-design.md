@@ -515,9 +515,23 @@ A precedent is about a mechanism, not about a category of problem.
 
 So this slice **instruments the operations the rebuild actually performs** before asserting
 anything about them: `getFiles` and `getMarkdownFiles` on the vault, and `getFileCache` on the
-metadata cache. The last is the load-bearing one — enumeration happens once per rebuild, so it
-is the PER-ENTITY lookup whose count distinguishes linear from quadratic, and a rebuild that
-re-enumerates or re-reads per entity is exactly what shows up there.
+metadata cache. The last is the load-bearing one: enumeration happens once per rebuild, so the per-entity
+metadata lookup is where a rebuild that re-enumerates or re-reads per entity shows up.
+
+**What the count proves is narrower than "linear rather than quadratic", and the wider claim
+stood for three rounds.** It proves **single enumeration and linear metadata-cache I/O** — and
+nothing about in-memory work. The counter-example is concrete: `joinSidecars` currently resolves
+each sidecar through `entries.get(planId)`, a Map lookup; replace that with a scan of all entries
+per sidecar and the rebuild becomes quadratic while `getFiles`, `getMarkdownFiles` and
+`getFileCache` retain **exactly** the planned counts. Instrumenting in-memory lookups to close
+that is out of scope — it means recording inside the code under test rather than at a seam — so
+the claim is narrowed to what the instrument can see.
+
+**This is the fourth revision of this one assertion**: a wall clock, then a count, then a count
+on the wrong object, then a shared recorder, and now a narrowed claim. Each round the instrument
+got closer and the sentence describing it stayed one step ahead of it. Which is the argument for
+question 4 being answered deliberately: an assertion that has needed four corrections before
+anything was built is not obviously worth its place this round.
 
 **The recorder belongs to BOTH adapters, and the previous draft put it on the wrong one.** This
 is the third appearance of "the instrument does not reach the subject" in this document, and the
@@ -587,8 +601,8 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   else", which is a claim about the whole tree that nothing in slice 12 needs and that goes stale
   every time a legitimate DOM-touching helper is added somewhere new. The rule's actual subject
   is narrower: **the inner layers' node enforcement**. So it is a DENYLIST — reject
-  `@vitest-environment jsdom` under `tests/core/`, `tests/domain/`, `tests/application/` **and
-  `tests/infrastructure/`** — and it says nothing about anywhere else. Measured: zero files under
+  **any `@vitest-environment` directive whose value is not `node`** under `tests/core/`,
+  `tests/domain/`, `tests/application/` **and `tests/infrastructure/`** — and it says nothing about anywhere else. Measured: zero files under
   those four use jsdom today, so it lands green.
 
   The fourth directory was missing from the first denylist and a review bot caught it. The

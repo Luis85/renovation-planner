@@ -615,6 +615,16 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   naming directories by intuition instead of by asking which files the mechanism actually
   protects.
 
+  **Four boundary errors in this one check, and the fourth nearly survived a bad measurement.**
+  The allowlist reached too far; the denylist too short; the predicate named `jsdom` rather than
+  "not node"; and it then named one directive spelling out of two. On that last one a
+  `grep -rl "jest-environment" node_modules/` came back empty and I nearly answered that the
+  finding did not reproduce — the literal substring is absent because the source reads
+  `(?:vitest|jest)-environment`, with a `)` between the two words. This repository's own rule
+  states the trap exactly: *measure a set with an instrument that can see all of it, and test the
+  instrument first — a grep for `foo(` misses `foo<T>(`*. The correct instrument was to find the
+  regex Vitest matches with and read it, which is what the check is written against now.
+
   This is the same correction as `panButtonOf`'s in CLAUDE.md, one level down: a rule with an
   implicit `else` claims everything it never thought about. It is cheap, it structurally
   guarantees what the split was wanted for, and it introduces no uncollected-file hazard. The withdrawal stands *paired with that check* — without it, the

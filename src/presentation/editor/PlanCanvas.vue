@@ -179,6 +179,9 @@ function pointerEventAt(
  */
 const PRIMARY_BUTTON_BIT = 1;
 
+/** `MouseEvent.button` for the middle button — the `button` numbering, not the `buttons` mask. */
+const MIDDLE_MOUSE_BUTTON = 1;
+
 function panButtonOf(event: PointerEvent): PanButton {
 	return event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
 }
@@ -375,29 +378,52 @@ function isPrimary(event: PointerEvent): boolean {
 	return event.button === 0;
 }
 
+/**
+ * **The one door EVERY middle press arrives at, which is why the autoscroll rule lives here
+ * and nowhere else.** Chrome opens its autoscroll widget on a middle press and the pane then
+ * scrolls under whatever gesture is running; `preventDefault()` on the mouse event is what
+ * stops it.
+ *
+ * It was at `onPointerDown` for two rounds, and that door cannot see the case that matters.
+ * Measured in a real Chromium rather than argued: with the primary button already held — a
+ * tool drag, a camera-mode drag, a pan — a middle press fires **no `pointerdown` at all**.
+ * Pointer Events reports it as a `pointermove` (`button=1`, `buttons=5`) while the
+ * compatibility `mousedown` fires exactly as it always does, so the suppression sat on a
+ * handler the press never reached and the autoscroll widget opened over the live drag.
+ * Cancelling that `pointermove` does not help either: the compatibility mapping ties mouse-event
+ * suppression to a cancelled `pointerdown`, and the `mousedown` was measured firing regardless.
+ *
+ * `mousedown`, by contrast, fires for a bare press (`buttons=4`) and a chorded one
+ * (`buttons=5`) alike — one door, no bitmask, nothing for a later branch to remember. jsdom
+ * synthesizes no compatibility events, so the suite can only drive this handler directly;
+ * `docs/tests/cases/Canvas Navigation.md` step 13 is where a real mouse looks at it.
+ *
+ * Suppressing a default is still not CLAIMING a gesture — the two must not be merged, and
+ * `canvasGestureOwnership.test.ts` holds both halves apart.
+ */
+function onMouseDown(event: MouseEvent): void {
+	if (event.button === MIDDLE_MOUSE_BUTTON) event.preventDefault();
+}
+
 function onPointerDown(event: PointerEvent): void {
 	const at = stagePoint(event);
-	// **The canvas claims the middle button, so it owes its native default suppression on
-	// EVERY middle press — claimed, refused, or ignored.** Chrome opens its autoscroll widget
-	// otherwise, which then scrolls the pane under whatever gesture is running.
+	// The middle button's browser default is suppressed at `onMouseDown` and not here — see the
+	// account there for why this door cannot hold that rule at all.
 	//
-	// It used to be suppressed only where the override CLAIMED the press, so a middle press
-	// refused because another gesture was already in flight — a tool drag, or camera mode's own
-	// drag — fell through the primary filter below and reached the browser. An everyday desktop
-	// input, since one mouse shares a `pointerId` across its buttons and nothing stops a user
-	// pressing the middle button mid-drag. Hoisted here, stated once, so no later branch has to
-	// remember it: the file already knew this rule and applied it at one door out of three.
-	if (panButtonOf(event) === 'auxiliary') event.preventDefault();
 	// Asked BEFORE the primary filter, because the override's own button is the middle one —
 	// which `isPrimary` rejects, and correctly so for every other purpose.
 	// The SAME predicate the camera lock reads: camera mode is not a tool, and a middle press
 	// during a bare left-drag pan would otherwise claim a gesture whose button is still held.
 	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { gestureInFlight: gestureInFlight() })) {
-		// Still needed for the PRIMARY half of the claim — a space-held left press, which the
-		// hoisted auxiliary suppression above does not cover — so the browser starts no text
-		// selection or native drag under a pan. The middle button reaches here already
-		// suppressed, and this is harmlessly idempotent for it.
-		event.preventDefault();
+		// The PRIMARY half of the claim — a space-held left press — so the browser starts no
+		// text selection or native drag under a pan.
+		//
+		// **Narrowed to that button on purpose.** Preventing a middle `pointerdown` suppresses
+		// its compatibility `mousedown` outright (measured: with the pointer event cancelled,
+		// no `mousedown` is dispatched at all), which would leave `onMouseDown` unreached for
+		// exactly the presses this branch claims — and "the one door every middle press
+		// arrives at" would be false for a third of them while still reading as true.
+		if (panButtonOf(event) === 'primary') event.preventDefault();
 		(event.target as Element).setPointerCapture?.(event.pointerId);
 		editor.beginPan(at, event.pointerId);
 		syncPanPhase();
@@ -886,6 +912,7 @@ onBeforeUnmount(() => {
 		tabindex="0"
 		:aria-label="tr('editor.canvas')"
 		@wheel="onWheel"
+		@mousedown="onMouseDown"
 		@pointerdown="onPointerDown"
 		@pointermove="onPointerMove"
 		@pointerup="onPointerUp"

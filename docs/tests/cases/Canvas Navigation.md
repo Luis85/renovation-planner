@@ -118,6 +118,12 @@ and they are the reason this file exists:
        LEFT button, then release the middle.** Expected: the zone stays where you dragged it.
        The defect: the move was silently lost and the zone snapped back, because the only
        release named the middle button and every tool refuses one.
+    d. **In every sequence above, watch for Chrome's autoscroll widget** — the four-way arrow
+       glyph that appears under the cursor and scrolls the pane. Expected: it never appears.
+       This is the half of step 3 that a chord reaches: a middle press with another button
+       already held fires no `pointerdown`, so the suppression lives on the compatibility
+       `mousedown` instead, and jsdom synthesizes no compatibility events at all. **Nothing
+       in `npm run check` can see whether the widget opened.**
     *This is the step the whole of `npm run check` cannot stand in for*: the suite writes its
     own chord events, so it can only prove the canvas handles the grammar it was told about.
 

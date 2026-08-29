@@ -14,13 +14,16 @@
  * all three and is not:
  *
  * 1. **A mouse shares ONE `pointerId` across every button**, so button identity and pointer
- *    identity are different questions and a press during a middle-drag pan is an everyday
- *    desktop input rather than an exotic touch one.
+ *    identity are different questions.
  * 2. **Camera mode has the same shape as the pan override** — it is the DEFAULT state, so a
  *    fix applied only to the override leaves the more reachable half broken.
  * 3. **A swallowed press owes a swallowed release.** Consuming one end and forwarding the
  *    other hands a tool a release with no matching press, which is the event-grammar defect
  *    `canvasPointerRouting.test.ts` already exists for.
+ *
+ * What a second BUTTON does while another is held is `canvasChordedButtons.test.ts`, split
+ * out when this file crossed the cap — a different device grammar, and the one this suite
+ * spent eight review rounds getting wrong.
  */
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -40,20 +43,6 @@ async function editor() {
 
 function key(canvas: HTMLElement, type: 'keydown' | 'keyup', init: KeyboardEventInit): KeyboardEvent {
 	const event = new KeyboardEvent(type, { bubbles: true, cancelable: true, ...init });
-	canvas.dispatchEvent(event);
-	return event;
-}
-
-/** One middle press, cancelable, so `defaultPrevented` means what it says. */
-function middlePress(canvas: HTMLElement): PointerEvent {
-	const event = new PointerEvent('pointerdown', {
-		button: 1,
-		pointerId: 1,
-		clientX: 300,
-		clientY: 300,
-		bubbles: true,
-		cancelable: true,
-	});
 	canvas.dispatchEvent(event);
 	return event;
 }
@@ -119,43 +108,6 @@ describe('a pan the pointer walks out of', () => {
 	});
 });
 
-describe('a second mouse button pressed during a pan', () => {
-	it('does not end the pan when it is the one released first', async () => {
-		// A mouse shares one `pointerId` across its buttons, so this is an ordinary input: the
-		// user is space-dragging and reflexively clicks the middle button. Ending the pan on
-		// that would stop the camera while the primary button is still down — the view freezes
-		// under a hand that is still moving.
-		//
-		// The frozen camera is the whole of the observable damage, MEASURED rather than
-		// assumed: the second-order consequence — the eventual primary release reaching
-		// `SelectTool` as a release with no matching press — is absorbed by that tool's own
-		// no-gesture guard, so a case asserting the zone did not move passes with the defect
-		// present and was dropped rather than kept. That guard is where the invariant belongs
-		// (it holds for tools not yet written); this case is what holds the routing.
-		//
-		// Both halves of the middle click are CHORDS, which is the only shape they can have:
-		// the primary button is already down, so neither a `pointerdown` nor a `pointerup`
-		// fires for them. This case used to synthesize both, and so drove a stream no mouse
-		// produces.
-		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-
-		key(canvas, 'keydown', { key: ' ' });
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 340, 300);
-		chord(canvas, 340, 300, 1, 5); // middle pressed, primary still held
-		chord(canvas, 340, 300, 1, 1); // middle released, primary still held
-		await settle();
-		const interrupted = camera.viewport.pan.x;
-
-		pointer(canvas, 'pointermove', 420, 300);
-		await settle();
-
-		expect(camera.viewport.pan.x).not.toBe(interrupted);
-		harness.unmount();
-	});
-});
 describe('a second finger on a touch device', () => {
 	/**
 	 * On a mouse this can never happen — one `pointerId` is shared across every button — so
@@ -364,103 +316,6 @@ describe('a pointer taken away mid-pan', () => {
 	});
 });
 
-describe('a middle press refused because another gesture is running', () => {
-	// The canvas CLAIMS the middle button, so it owes the suppression on every middle press
-	// rather than only where the override takes one. Chrome opens its autoscroll widget
-	// otherwise and the pane scrolls under the drag still running. Both states below refuse the
-	// press for the same reason — `gestureInFlight` — and reached the browser identically; the
-	// pair is here because camera mode is the DEFAULT state and a fix aimed at the tool path
-	// alone would leave the more reachable half open, which this review has already seen twice.
-	it('still suppresses the browser default during a TOOL drag', async () => {
-		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-		pointer(canvas, 'pointerdown', 50, 50);
-		pointer(canvas, 'pointermove', 60, 60);
-
-		expect(middlePress(canvas).defaultPrevented).toBe(true);
-		harness.unmount();
-	});
-
-	it('still suppresses it during a CAMERA-MODE drag', async () => {
-		const { harness, canvas } = await editor();
-		pointer(canvas, 'pointerdown', 50, 50);
-		pointer(canvas, 'pointermove', 60, 60);
-
-		expect(middlePress(canvas).defaultPrevented).toBe(true);
-		harness.unmount();
-	});
-
-	it('does not let the suppression start a pan the lock refused', async () => {
-		// The other direction: suppressing the default must not be mistaken for claiming the
-		// gesture. A build that hoisted the claim rather than the `preventDefault` would pass
-		// the two cases above and break the lock this review spent a round establishing.
-		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-		pointer(canvas, 'pointerdown', 50, 50);
-		pointer(canvas, 'pointermove', 60, 60);
-		const held = { ...camera.viewport.pan };
-
-		middlePress(canvas);
-		pointer(canvas, 'pointermove', 400, 400);
-		await settle();
-
-		expect(camera.viewport.pan).toEqual(held);
-		expect(cursorClasses(canvas)).not.toContain('rp-plan-canvas-panning');
-		harness.unmount();
-	});
-});
-
-describe('the middle button pressed during a camera-mode drag', () => {
-	/**
-	 * Camera mode is the DEFAULT — no tool — so it is the MORE reachable half of every rule
-	 * the pan override carries, and a fix applied only to the override leaves it broken. Both
-	 * directions of the chord live here for that reason.
-	 */
-	it('does not kill a primary drag whose button is still held', async () => {
-		// A bare left-drag pan with a middle click on top of it. The middle click is two
-		// chords, not a press and a release: the primary button is already down, so no
-		// `pointerdown` or `pointerup` fires for it at all.
-		const { harness, canvas, camera } = await editor();
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 340, 300);
-		await settle();
-
-		chord(canvas, 340, 300, 1, 5); // middle pressed, primary still held
-		chord(canvas, 340, 300, 1, 1); // middle released, primary still held
-		await settle();
-		const afterMiddle = camera.viewport.pan.x;
-
-		pointer(canvas, 'pointermove', 500, 300);
-		await settle();
-
-		expect(camera.viewport.pan.x).not.toBe(afterMiddle);
-		harness.unmount();
-	});
-
-	it('ends the drag when the PRIMARY button is the one released first', async () => {
-		// The mirror, and the one no `pointerup` can express: with the middle button still
-		// down, releasing the primary sends a move and the eventual release names the MIDDLE
-		// button — which `isPrimary` correctly refuses, so nothing ended the drag and the
-		// camera went on following a cursor with no button held.
-		const { harness, canvas, camera } = await editor();
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 340, 300);
-		chord(canvas, 340, 300, 1, 5); // middle pressed on top of the drag
-		chord(canvas, 340, 300, 0, 4); // PRIMARY released, middle still held
-		pointer(canvas, 'pointerup', 340, 300, 1); // the last button up
-		await settle();
-		const settled = camera.viewport.pan.x;
-
-		pointer(canvas, 'pointermove', 700, 300);
-		await settle();
-
-		expect(camera.viewport.pan.x).toBe(settled);
-		harness.unmount();
-	});
-});
-
 describe('the camera during a tool drag', () => {
 	/**
 	 * `SelectTool` records where a drag STARTED in world coordinates and computes the commit
@@ -660,67 +515,3 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
  * `onPointerCancel` is still spelled owner-first, and a reader who finds it unguarded should
  * find out here that the collision it was written for is unreachable rather than untested.
  */
-
-describe('a chorded mouse button, which is the only shape a second button can have', () => {
-	/**
-	 * **W3C Pointer Events, "chorded button interactions."** `pointerdown` fires only on the
-	 * transition from no buttons to some, and `pointerup` only when the LAST button is
-	 * released. A second button pressed or released while another is held arrives as a
-	 * `pointermove` whose `button` names what changed and whose `buttons` carries what is
-	 * still down.
-	 *
-	 * Which means a whole class of cases in this file used to drive an event stream no mouse
-	 * can produce — a synthesized second `pointerdown`, an early `pointerup` — and the routing
-	 * they certified was hardened against inputs that never occur while the real chord went
-	 * unhandled. The touch cases above are unaffected: distinct `pointerId`s genuinely do
-	 * produce their own presses and releases.
-	 */
-	it('ends the pan when the OWNING button is released first', async () => {
-		// Middle-drag pan, press primary, release middle, release primary. The only `pointerup`
-		// reports the PRIMARY button, so a machine waiting for a matching release never gets
-		// one: the canvas stayed `panning` for the rest of the session, and every later click
-		// was swallowed as a foreign press.
-		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-
-		pointer(canvas, 'pointerdown', 300, 300, 1); // middle: the pan begins
-		pointer(canvas, 'pointermove', 340, 300, 1);
-		chord(canvas, 340, 300, 0, 5); // primary pressed on top of it — middle still held
-		chord(canvas, 340, 300, 1, 1); // middle RELEASED, primary still held
-		pointer(canvas, 'pointerup', 340, 300, 0); // the last button up
-		await settle();
-		const settled = camera.viewport.pan.x;
-
-		// The pan is over, so a bare move must not drive the camera any further.
-		pointer(canvas, 'pointermove', 700, 300);
-		await settle();
-
-		expect(camera.viewport.pan.x).toBe(settled);
-		harness.unmount();
-	});
-});
-
-describe('a TOOL drag whose primary button is released inside a chord', () => {
-	it('commits, rather than outliving the hand that made it', async () => {
-		// The third path with the same shape, and the one where the damage is not a stuck
-		// camera but a lost edit. `SelectTool` refuses a release that is not primary — rightly,
-		// since a middle release must not commit a drag — and with the middle button held the
-		// only `pointerup` names the MIDDLE button. So the primary release arrives as a move,
-		// nothing ends the gesture, and the zone the user dragged snaps back with no error.
-		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
-		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
-
-		pointer(canvas, 'pointerdown', 300, 300); // on zone-a
-		pointer(canvas, 'pointermove', 420, 300);
-		chord(canvas, 420, 300, 1, 5); // middle pressed mid-drag
-		chord(canvas, 440, 300, 0, 4); // PRIMARY released, middle still held
-		pointer(canvas, 'pointerup', 440, 300, 1); // the last button up, naming the middle one
-		await settle();
-
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).not.toEqual(before);
-		harness.unmount();
-	});
-});

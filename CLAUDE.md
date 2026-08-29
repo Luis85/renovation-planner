@@ -674,15 +674,28 @@ check. Rules that came out of it:
   gate is `panning` and never `armed`, because space merely held is not a gesture and the
   camera lock carved this branch out precisely so Escape keeps working during a tool drag.
 - **A gesture the canvas CLAIMS owes its browser default suppressed on every press of it,
-  including the ones it refuses.** `event.preventDefault()` for the middle button sat inside
-  the branch where the override took the press, so a middle press refused because another
-  gesture was in flight fell through the primary filter and reached Chrome, which opened its
-  autoscroll widget over the drag still running. The file already knew the rule — the comment
-  saying so was three lines above, inside the branch that applied it — and applied it at one
-  door out of three. Hoisted to the top of `onPointerDown`, where no later branch has to
-  remember it. **Suppressing a default is not claiming a gesture**, and the two must not be
-  hoisted together: a build that lifted the CLAIM instead passes the autoscroll cases and
-  turns the camera-lock cases red, which is how that mistake is caught.
+  including the ones it refuses — and the door that hears "every press" was not a pointer
+  door at all.** `event.preventDefault()` for the middle button sat inside the branch where
+  the override took the press, so a middle press refused because another gesture was in
+  flight fell through the primary filter and reached Chrome, which opened its autoscroll
+  widget over the drag still running. The file already knew the rule — the comment saying so
+  was three lines above, inside the branch that applied it — and applied it at one door out
+  of three. Hoisting it to the top of `onPointerDown` fixed the refusal and left the case
+  that matters open for two more rounds: **with the primary button already held, a middle
+  press fires no `pointerdown` at all**, so the hoisted suppression sat on a handler the
+  press never reached. Measured in a real Chromium rather than argued — the chord arrives as
+  `pointermove` (`button=1`, `buttons=5`) while the compatibility `mousedown` fires exactly
+  as always, and cancelling that `pointermove` does not suppress it, because the
+  compatibility mapping ties mouse-event suppression to a cancelled `pointerdown`. The rule
+  lives at `onMouseDown` now, the one door a bare press (`buttons=4`) and a chorded one
+  (`buttons=5`) both arrive at, and the claim branch's own `preventDefault` is narrowed to
+  the PRIMARY button so that a claimed middle press cannot suppress the very compatibility
+  event the rule is stated on. **Suppressing a default is not claiming a gesture**, and the
+  two must not be hoisted together: a build that lifted the CLAIM instead passes the
+  autoscroll cases and turns the camera-lock cases red, which is how that mistake is caught.
+  **The shape worth keeping: "every press" is a claim about a DOOR, and three rounds of
+  moving the suppression between pointer handlers could not fix it, because no pointer
+  handler hears every press.**
 - **A phase test decides afresh on every event; a held key is ONE press.** Swallowing Escape
   while `phase === 'panning'` fixed the case above and left the next one open: a user holding
   Escape as the pan ended had the keydown swallowed, and the OS's next repeat of that same

@@ -22,6 +22,8 @@ import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { levelChanges, levels, lines, recorder, resetRecorder } from '../helpers/logger';
+import { settle } from '../helpers/async';
+
 
 // Hoisted above the imports by vitest, which is why the factory imports the helper itself
 // rather than closing over a module-scope binding that would not exist yet. Measured, not
@@ -111,23 +113,31 @@ describe('both ways in', () => {
 	 */
 	it('open the view from the ribbon', async () => {
 		plugin.ribbon[0].click();
-		await Promise.resolve();
+		await settle();
 
 		expect(workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)).toHaveLength(1);
 	});
 
 	it('open the view from the command', async () => {
 		plugin.commands[0].callback?.();
-		await Promise.resolve();
+		await settle();
 
 		expect(workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)).toHaveLength(1);
 	});
 
 	it('share one leaf between them', async () => {
+		// The gap between the two gestures is REAL, and it has to be: a ribbon click and a
+		// command invocation are two things a human does one after the other, seconds apart,
+		// and a single microtask between them is an input no user can produce. That mattered
+		// the moment `revealCandidate` learned to coalesce activations still in flight — with
+		// one `await Promise.resolve()` the first activation had not settled, so the second
+		// gesture was correctly treated as the same request and revealed nothing of its own.
+		// The assertion this file cares about (`leaves`) held either way; `revealed` is what
+		// said the stream was wrong. Both hold once the gestures are actually sequential.
 		plugin.ribbon[0].click();
-		await Promise.resolve();
+		await settle();
 		plugin.commands[0].callback?.();
-		await Promise.resolve();
+		await settle();
 
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.revealed).toHaveLength(2);

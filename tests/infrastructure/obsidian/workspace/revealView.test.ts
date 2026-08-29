@@ -64,4 +64,36 @@ describe('revealing a view', () => {
 		expect(fake.leaves).toHaveLength(2);
 		expect(fake.getLeavesOfType(TYPE)).toHaveLength(1);
 	});
+
+	it('coalesces a double click on the ribbon into one leaf', async () => {
+		// The singleton's whole premise, against the gesture that breaks it. The candidate
+		// lookup is `getLeavesOfType`, and a leaf this call creates does not answer that lookup
+		// until `setViewState` resolves — which on a real leaf runs the registered factory and
+		// the view's `onOpen`. So two activations in one tick both find nothing and both create.
+		// Measured before the fix: two leaves. Reported by the polish pass that followed the
+		// same defect at the other leaf-creating door.
+		const fake = new FakeWorkspace();
+
+		await Promise.all([revealView(workspaceFor(fake), TYPE), revealView(workspaceFor(fake), TYPE)]);
+
+		expect(fake.leaves).toHaveLength(1);
+		expect(fake.getLeavesOfType(TYPE)).toHaveLength(1);
+	});
+
+	it('goes back to the candidate lookup once an activation has settled', async () => {
+		// The other half of the coalescing rule: the entry is released when the activation
+		// settles, so a later click reveals the leaf that exists rather than being answered
+		// from a promise the map held on to. `setViewState` is what says which happened — it is
+		// set only on a leaf the call CREATED, so an unchanged state is the reveal path.
+		const fake = new FakeWorkspace();
+
+		await Promise.all([revealView(workspaceFor(fake), TYPE), revealView(workspaceFor(fake), TYPE)]);
+		const created = fake.leaves[0];
+		const stateAfterCreate = created.state;
+		await revealView(workspaceFor(fake), TYPE);
+
+		expect(fake.leaves).toHaveLength(1);
+		expect(created.state).toBe(stateAfterCreate);
+		expect(fake.revealed).toEqual([created, created]);
+	});
 });

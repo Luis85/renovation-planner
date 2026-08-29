@@ -40,9 +40,9 @@ export class FakeLeaf implements WorkspaceLeaf {
 	 */
 	view: unknown;
 
-	setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
+	async setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
+		await Promise.resolve();
 		this.state = state;
-		return Promise.resolve();
 	}
 
 	/**

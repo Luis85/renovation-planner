@@ -82,6 +82,42 @@ describe('revealing a plan editor', () => {
 	});
 });
 
+describe('two activations racing', () => {
+	it('coalesces two opens of the SAME plan into one leaf', async () => {
+		// The multiplicity premise is per PLAN, not per call: a plan already open must not get a
+		// second editor. The candidate lookup cannot see a leaf being built, so two opens in one
+		// tick both found nothing and both created — measured, two leaves for one plan, each
+		// with its own undo history and camera.
+		const workspace = new FakeWorkspace();
+
+		await Promise.all([
+			revealPlanEditor(workspace as never, TYPE, 'plan-1'),
+			revealPlanEditor(workspace as never, TYPE, 'plan-1'),
+		]);
+
+		expect(workspace.leaves).toHaveLength(1);
+	});
+
+	it('still gives two DIFFERENT plans their own leaves when they race', async () => {
+		// The over-correction the case above would hide, and the reason the key carries the
+		// state rather than the type alone: coalescing on the view type would collapse the very
+		// multiplicity this function exists to permit.
+		const workspace = new FakeWorkspace();
+
+		await Promise.all([
+			revealPlanEditor(workspace as never, TYPE, 'plan-1'),
+			revealPlanEditor(workspace as never, TYPE, 'plan-2'),
+		]);
+
+		expect(workspace.leaves).toHaveLength(2);
+		expect(workspace.leaves.map((leaf) => leaf.state?.state?.['planId'])
+			.toSorted()).toEqual([
+			'plan-1',
+			'plan-2',
+		]);
+	});
+});
+
 /**
  * The two activations share their mechanism through one internal helper, so the singleton
  * guarantee has to still hold after the refactor that introduced it. This is the case

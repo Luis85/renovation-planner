@@ -36,16 +36,27 @@ The `prototypes` group is deliberately **excluded** from that count: measured, n
 `tests/build/prototypes-one-way-door.test.ts` already drives it across all six layers with
 `it.each(LAYERS)`.
 
-**Exactly one of the 35 is driven today**: `vue-rules.test.ts`'s "refuses a component
-importing infrastructure directly", and only for a `.vue` path. `network-boundary.test.ts`
-touches `core`/`domain` once, but through `no-restricted-globals` (a `fetch` global), which
-is a different rule from the one this matrix is about.
+**Six of the 35 are driven today, and the first draft of this document said one.** The
+correction came from a review bot, and it is recorded rather than quietly folded in because the
+error was the same species this design exists to fix: a count taken over the files somebody
+thought to look at. `network-boundary.test.ts`'s "the parent layer ban survived the override"
+table drives five — application→infrastructure, application→vue, application→plugin,
+infrastructure→presentation, infrastructure→konva — and `vue-rules.test.ts` drives the sixth,
+presentation→infrastructure.
 
-So CLAUDE.md's headline claim — "`eslint.config.mjs` enforces that with per-directory
-`no-restricted-imports`, so a violation fails `npm run lint` rather than waiting for
-review" — currently rests on 34 cells that have never been fired. That is the exact shape
-this repository's own rule refuses: *a category invariant is checked at the forbidden
-thing, not by listing the places*.
+**Read those five narrowly, because their paths are not ordinary ones.** They are linted at
+`src/application/queries/GetDiagnosticsSnapshot.ts` and
+`src/infrastructure/logging/diagnosticsLedger.ts` — the two `networkFree()` subtrees, whose
+whole purpose is restating the parent layer's ban so it survives the flat-config override. They
+do cover those cells: `networkFree` composes `forbidden`'s own output from the same
+`APPLICATION_LAYER.ban` / `INFRASTRUCTURE_LAYER.ban` object, so a group dropped from the parent
+goes quiet in both. What they do not do is exercise those cells at an ordinary path in the layer.
+
+So **29 cells have never been fired**, and CLAUDE.md's headline claim — "`eslint.config.mjs`
+enforces that with per-directory `no-restricted-imports`, so a violation fails `npm run lint`
+rather than waiting for review" — rests on them. That is the exact shape this repository's own
+rule refuses: *a category invariant is checked at the forbidden thing, not by listing the
+places*. The number moved; the argument did not.
 
 ## 1. `tests/build/layer-boundaries.test.ts`
 
@@ -53,12 +64,39 @@ thing, not by listing the places*.
 `warmUpEslint` and `ESLINT_BOOT_MS` — the harness the slice document specifies, already
 built for the network and prototype rules. Nothing new is needed to drive ESLint.
 
-**Synthetic paths, never files on disk.** `lintText`'s `filePath` decides which flat-config
-blocks apply and need not exist. A fixture on disk under `src/domain/` would red the real
-`eslint .` run, and the usual escape — adding it to `ignores` — would make the meta-test
-lint a file ESLint skips and pass vacuously, which is precisely the failure the test exists
-to prevent. Nothing enters `ignores`, so `tests/build/suppressions.test.ts`'s
-no-suppressions claim stays whole.
+**Synthetic code, never a fixture file on disk.** A file under `src/domain/` violating a rule
+on purpose would red the real `eslint .` run, and the usual escape — adding it to `ignores` —
+would make the meta-test lint a file ESLint skips and pass vacuously, which is precisely the
+failure the test exists to prevent. Nothing enters `ignores`, so
+`tests/build/suppressions.test.ts`'s no-suppressions claim stays whole.
+
+**But the PATH has to be one the parser can resolve, and the first draft of this document got
+that wrong.** It specified `src/domain/__planted__.ts`, which does not exist. Measured against
+the real config after a review bot raised it, rather than reasoned about:
+
+| Fixture | Result |
+| --- | --- |
+| nonexistent `src/domain/__planted__.ts` | `PARSE_ERROR` — "was not found by the project service"; `no-restricted-imports` never runs |
+| nonexistent `src/core/__planted__.ts` | `PARSE_ERROR`, the same |
+| **real** `src/domain/zone/Zone.ts`, synthetic violating code | `no-restricted-imports` reports |
+| nonexistent `src/domain/Fixture.vue`, wrapped in an SFC | `no-restricted-imports` reports (plus `vue/multi-word-component-names`) |
+
+The ruleset is type-aware, so typescript-eslint's project service refuses a `.ts` path with no
+file behind it. Both surviving shapes have precedent here — `network-boundary.test.ts` lints
+synthetic code at the paths of two **real** files, and `prototypes-one-way-door.test.ts` wraps
+its script in `sfc()` at a nonexistent `.vue` path across all six layers.
+
+**This design takes the real-`.ts`-path shape**, one existing file per layer. A `.vue` under
+`core/` or `domain/` is a file kind those layers can never hold, so it would prove the rule
+fires for a shape that will never occur there, while a `.ts` proves it for the shape that
+actually lives there. Every layer has a real `.ts` to point at.
+
+**`PARSE_ERROR` is asserted absent, and it matters most where it looks least urgent.** On a
+positive case a parse error fails the assertion anyway, the rule id simply being absent. On a
+**negative** case — the allowed-import half, asserting `not.toContain('no-restricted-imports')`
+— a parse error makes it pass *vacuously*, which is this repository's own `ignores`-vacuity
+defect wearing a different hat. `lintText` already returns a `PARSE_ERROR` sentinel for exactly
+this, and the negative cases assert against it explicitly.
 
 **The matrix is transcribed from the SDD's layering statement, not read out of
 `eslint.config.mjs`.** Deriving the expectations from the configuration under test would be
@@ -94,10 +132,24 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   inside a node test, which asserts the import fails. This proves the node default catches
   what a per-file lint rule cannot see. It does **not** stand in for the indirect *package*
   import gap slice 1 names; that stays open and is recorded as open.
-- **A contract suite fails on a broken fake.** A repository fake whose `save()` silently
-  drops the zone's `name` is run through `zoneRepositoryContract`; the test asserts the
-  suite fails. This proves the contract suites discriminate rather than pass against any
-  object with the right method names.
+- **A contract suite fails on a broken fake** — and it has to run in a CHILD vitest process,
+  which the first draft of this document missed. A repository fake whose `save()` silently
+  drops the zone's `name` is run through `zoneRepositoryContract`, and the test asserts the
+  suite fails; that is what proves the contract suites discriminate rather than pass against
+  any object with the right method names.
+
+  The mechanism, corrected after a review bot raised it and verified by reading the contract:
+  `zoneRepositoryContract(make)` calls `describe(...)` at invocation and returns `void`. Called
+  from inside a test it registers cases in the *current* run, so a broken fake makes
+  `npm run check` fail rather than producing a failure an outer assertion can catch — the
+  meta-test would be indistinguishable from a genuine regression. So it spawns a child vitest
+  run over one fixture spec and asserts a non-zero exit.
+
+  **The cost is named, because this repository has already been bitten by it.** CLAUDE.md
+  records six ESLint-booting child processes costing 3.76s in synchronous bursts on a two-core
+  runner, and timing out a sibling file's cold Vite transform. This is **one** child, not one
+  per case, and it is budgeted explicitly — the whole point of that record is that a spawn per
+  case is what turns a green suite red on the busiest machine.
 - **`broken-references/` degrades gracefully.** Loaded through the real bootstrap path,
   asserted to leave the rest of the plugin usable. This is a real test rather than a gate
   meta-test, so it sits at `tests/plugin/` — its mirrored home — not under `tests/build/`.
@@ -113,6 +165,16 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
 `tests/vault/` with the four cases the slice document names, plus `openFixtureVault(caseName)`
 returning a disk-backed `FixtureVaultAdapter` implementing only the subset of the
 `Vault`/metadata surface the repositories actually call.
+
+**`openFixtureVault` hands back a writable CLONE, never the checked-in directory** — omitted
+from the first draft and raised by a review bot. The slice document already requires it
+("written to disposable copies"), and the failure without it is not subtle: the contract suites
+and every vault-change test call `save()` and `delete()`, so an adapter pointed at
+`tests/vault/<caseName>` would mutate the baseline in place, leave a dirty worktree after a
+serial run, and let concurrent cases observe each other's writes under vitest's default file
+parallelism. Each caller gets an isolated temporary copy, with cleanup defined; the checked-in
+tree is read-only input. That the fixture is the *only* Vault-shaped data any test touches and
+that no test *writes* to the shared copy are two separate claims, and this is the second one.
 
 **Scope decision: additive now, repoint later.** New tests point at the fixture vault. The
 existing Obsidian contract arm keeps running against `FakeVault`, and repointing it is a

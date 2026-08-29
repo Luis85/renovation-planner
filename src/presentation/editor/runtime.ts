@@ -33,6 +33,8 @@ import { CalibrateTool } from './tools/calibrate-tool';
 import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
+import { useSaveStateStore } from './save-state/save-state-store';
+import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import KnownDistanceForm from './shell/KnownDistanceForm.vue';
 import { SnapService } from './snapping/snap-service';
@@ -476,7 +478,11 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		planId: context.planId,
 	});
 
-	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, dispatcher);
+	// Outside the refresh decorator, so `saved` never appears while the canvas still shows the
+	// pre-command state; inside `wrapDispatcher`, which is the one object a leaf hands out.
+	const tracked = withSaveStateTracking(dispatcher, useSaveStateStore());
+
+	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
 	const inspector = createInspector(context, wrappedDispatcher, ledger);
 	inspectorRef.current = inspector;
@@ -517,10 +523,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * signature honestly branded. (`as never` was the previous spelling and is strictly
 	 * worse: `never` is assignable to anything, so a project id would have passed too.)
 	 */
-	const activePlan = (): EditorContext['activePlan'] => ({
-		id: context.planId as PlanId,
-		calibration: projectStore.plan?.calibration ?? null,
-	});
+	const activePlan = (): EditorContext['activePlan'] => ({ id: context.planId as PlanId, calibration: projectStore.plan?.calibration ?? null });
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a

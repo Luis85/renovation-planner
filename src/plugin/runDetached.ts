@@ -10,7 +10,8 @@ import { notifyFault } from '../presentation/notices/notify';
  * calling the missing rejection handler deliberate — "the explicit void is what says the
  * rejection is unhandled on purpose here rather than by omission". Measured against what the
  * rest of the plugin does with the same class of failure, that does not hold: the composition
- * root wraps the sibling workspace operation (`openProjectNote`) in exactly this treatment,
+ * root gives the sibling workspace operation (`openProjectNote`) exactly this treatment
+ * through the fault door it hands it,
  * and slice 11's whole argument is that a failure owes a terse user sentence AND a log line
  * carrying the cause. A `void`ed rejection owes neither, so a ribbon click that faulted opened
  * nothing, said nothing and recorded nothing — the failure mode CLAUDE.md already records

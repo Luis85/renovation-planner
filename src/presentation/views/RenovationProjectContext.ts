@@ -20,14 +20,15 @@ import type { RenovationProjectCommandServices } from './renovationProjectComman
  *
  * `'missing'` is the only member the view branches on: the row points at a project the vault
  * no longer holds, so the list it was drawn from is stale and gets re-read. `'failed'` covers
- * both arms that did not open a note for some other reason — an I/O fault, which the
- * composition root has already mapped into a notice, and a session with unrecovered settings,
- * where there is no index to resolve through and no list to refresh. Neither is a stale row,
- * so neither buys a vault-wide re-read.
+ * both arms that did not open a note for some other reason — an I/O fault, which the fault
+ * door the composition root hands `openProjectNote` has already mapped into a notice, and a
+ * session with unrecovered settings, where there is no index to resolve through and no list to
+ * refresh. Neither is a stale row, so neither buys a vault-wide re-read.
  *
- * Declared here rather than imported from `openProjectNote`'s own union, which is where the
- * first two members come from: `presentation/` may not import `infrastructure/`, and the
- * composition root is the layer that may see both.
+ * Declared here rather than imported from `openProjectNote`'s own union, which is where all
+ * three members come from — the third since the round that moved fault reporting inside the
+ * coalescing: `presentation/` may not import `infrastructure/`, and the composition root is
+ * the layer that may see both.
  */
 export type ProjectOpenOutcome = 'opened' | 'missing' | 'failed';
 

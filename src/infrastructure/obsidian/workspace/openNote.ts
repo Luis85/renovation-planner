@@ -23,6 +23,13 @@ const MARKDOWN_VIEW = 'markdown';
  * repository has paid for repeatedly. It is bounded by its own `finally`: an entry lives
  * exactly as long as the open it describes, so nothing accumulates and a later click takes
  * the ordinary lookup path rather than a stale promise.
+ *
+ * **What it holds is the HANDLED promise, and that is what makes one failure one report.**
+ * The first version stored the raw open, so both clicks were handed the same REJECTION and
+ * each caller's own `.catch` reported it — two notices and two identical log lines for one
+ * operation. Reported in review, one round after the coalescing itself landed. Sharing an
+ * operation means sharing everything about it, its failure included; a promise a joiner can
+ * reject on is an operation only half shared.
  */
 const openingByPath = new Map<string, Promise<ProjectNoteOpenOutcome>>();
 
@@ -47,8 +54,13 @@ function filePathOf(leaf: WorkspaceLeaf): string | undefined {
  * a file — because they are the same fact to the caller, and the caller is the only layer
  * that can act on it: `infrastructure/` may not reach the store holding the list, nor
  * `presentation/notices/`.
+ *
+ * `'failed'` is the third and it means something narrower than "did not open": the attempt
+ * FAULTED and `deps.reportFault` has already been called for it, exactly once. A caller must
+ * not answer it with a vault-wide re-read the way it answers `'missing'` — the id resolved,
+ * so the list behind the row is not stale.
  */
-export type ProjectNoteOpenOutcome = 'opened' | 'missing';
+export type ProjectNoteOpenOutcome = 'opened' | 'missing' | 'failed';
 
 /**
  * Opens the note a project's id resolves to, REUSING the tab it is already open in.
@@ -98,8 +110,44 @@ export type ProjectNoteOpenOutcome = 'opened' | 'missing';
  * going away IS the answer to "why did nothing open", and it is the same answer a notice would
  * have given with an extra dismissal on top.
  */
+/**
+ * The half of the work that touches Obsidian, split out so the WHOLE of it — and therefore
+ * the whole of what a joined click waits on — sits under one fault handler rather than two.
+ *
+ * What is left above it in `openProjectNote` is `ProjectIndex.getPath`, `normalizePath` and
+ * `Vault.getAbstractFileByPath`: three synchronous in-memory lookups, none of which reaches
+ * I/O. That is the honest bound on what the handler covers, stated rather than implied.
+ */
+async function revealOrOpen(
+	deps: { readonly workspace: Workspace },
+	file: TFile,
+): Promise<ProjectNoteOpenOutcome> {
+	const existing = deps.workspace
+		.getLeavesOfType(MARKDOWN_VIEW)
+		.find((leaf) => filePathOf(leaf) === file.path);
+	if (existing !== undefined) {
+		await deps.workspace.revealLeaf(existing);
+		return 'opened';
+	}
+	await deps.workspace.getLeaf('tab').openFile(file);
+	return 'opened';
+}
+
 export async function openProjectNote(
-	deps: { readonly workspace: Workspace; readonly vault: Vault; readonly index: ProjectIndex },
+	deps: {
+		readonly workspace: Workspace;
+		readonly vault: Vault;
+		readonly index: ProjectIndex;
+		/**
+		 * What this module does with a fault instead of announcing one itself. Injected rather
+		 * than imported for the reason the layer ban states: `infrastructure/` may not reach
+		 * `presentation/notices/notify`, and the composition root is the layer that may see
+		 * both. Injected rather than left to the CALLER because the coalescing is here — see
+		 * `openingByPath` — and a caller reporting a shared operation reports it once per
+		 * click.
+		 */
+		readonly reportFault: (cause: unknown) => void;
+	},
 	projectId: string,
 ): Promise<ProjectNoteOpenOutcome> {
 	// `ProjectIndex.getPath` takes a branded `EntityId`, not a bare string — the cast
@@ -113,24 +161,16 @@ export async function openProjectNote(
 	// lookup cannot see: its leaf exists and does not name the file yet.
 	const inFlight = openingByPath.get(file.path);
 	if (inFlight !== undefined) return inFlight;
-	const existing = deps.workspace
-		.getLeavesOfType(MARKDOWN_VIEW)
-		.find((leaf) => filePathOf(leaf) === file.path);
-	if (existing !== undefined) {
-		await deps.workspace.revealLeaf(existing);
-		return 'opened';
-	}
-	// Recorded before the first `await` of the open, so a click landing in the same tick as
-	// this one finds it. A rejection is shared rather than swallowed: both clicks asked for
-	// the same open and the same open failed, which the composed closure turns into one
-	// notice.
-	const opening = deps.workspace
-		.getLeaf('tab')
-		.openFile(file)
-		.then((): ProjectNoteOpenOutcome => 'opened');
-	openingByPath.set(file.path, opening);
+	// Recorded before the first `await`, so a click landing in the same tick as this one
+	// finds it — and recorded ALREADY HANDLED, so what that click joins is the outcome and
+	// not the rejection. One failed open, one `reportFault`, whatever the click count.
+	const attempt = revealOrOpen(deps, file).catch((cause: unknown): ProjectNoteOpenOutcome => {
+		deps.reportFault(cause);
+		return 'failed';
+	});
+	openingByPath.set(file.path, attempt);
 	try {
-		return await opening;
+		return await attempt;
 	} finally {
 		openingByPath.delete(file.path);
 	}

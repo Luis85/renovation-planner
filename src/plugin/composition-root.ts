@@ -52,10 +52,7 @@ import {
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
-import type {
-	ProjectOpenOutcome,
-	RenovationProjectDeps,
-} from '../presentation/views/RenovationProjectContext';
+import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
 import { notifyWarning, notifyFault } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
@@ -603,15 +600,18 @@ export function planEditorDeps(
  * list — empty for the same reason — has not already told them. It is `'failed'` and not
  * `'missing'` because `'missing'` asks the view to re-read a list that has nothing to re-read.
  *
- * **The composed closure also owes the deferred half of Task 5's own review**: `openProjectNote`
- * has no `try`/`catch` of its own, and `ProjectList`'s row click discards the promise this
- * returns (`@open="(id) => void context.openProject(id)"`) — so a rejecting `openFile` (a real
- * I/O fault, never the "id resolves to nothing" case `openProjectNote` already handles by
- * design) would otherwise be an unhandled rejection reaching nobody. The `.catch` below maps
- * it through `notifyFault`, the same way a guarded command's fault would have been mapped, and
- * resolves rather than re-throwing: it lives HERE rather than inside `openProjectNote` because
- * that function is `infrastructure/`, which may not import `presentation/notices/notify` (the
- * layer ban runs the other way), and `plugin/` is the one layer that may reach both.
+ * **The composed closure also owes the deferred half of Task 5's own review**: `ProjectList`'s
+ * row click discards the promise this returns (`@open="(id) => void context.openProject(id)"`),
+ * so a rejecting `openFile` (a real I/O fault, never the "id resolves to nothing" case
+ * `openProjectNote` already handles by design) would otherwise be an unhandled rejection
+ * reaching nobody. What travels down is the `reportFault` door — `notifyFault`, the same
+ * mapping a guarded command's fault would have taken — rather than a `.catch` wrapped around
+ * the call. It is composed HERE because `openProjectNote` is `infrastructure/`, which may not
+ * import `presentation/notices/notify` (the layer ban runs the other way) and `plugin/` is the
+ * one layer that may reach both; it is CALLED down there because that is where the coalescing
+ * is. A `.catch` at this end reported once per CLICK, and a double click is two clicks sharing
+ * one open: two notices and two identical log lines for one operation, which is the defect a
+ * review round found in the shape this replaced.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
@@ -628,14 +628,20 @@ export function renovationProjectDeps(
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? (projectId) =>
-					openProjectNote({ workspace, vault, index: persistence.index }, projectId).catch(
-						(cause: unknown): ProjectOpenOutcome => {
-							notifyFault(cause, root.logger, 'view.project.open-failed');
-							// `'failed'`, never `'missing'`: the id DID resolve and the open faulted, so
-							// the list behind the row is not stale and a vault-wide re-read would answer
-							// a question nobody asked. The notice above is what the user acts on.
-							return 'failed';
+					openProjectNote(
+						{
+							workspace,
+							vault,
+							index: persistence.index,
+							// The fault answers `'failed'` down there and never `'missing'`: the id DID
+							// resolve and the open faulted, so the list behind the row is not stale and a
+							// vault-wide re-read would answer a question nobody asked. This notice is
+							// what the user acts on.
+							reportFault: (cause: unknown): void => {
+								notifyFault(cause, root.logger, 'view.project.open-failed');
+							},
 						},
+						projectId,
 					)
 			: () => Promise.resolve('failed'),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, and that is the honest

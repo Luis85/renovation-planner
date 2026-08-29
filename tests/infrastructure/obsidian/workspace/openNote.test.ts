@@ -5,7 +5,7 @@
  * project's folder is wherever its `Project.md` currently sits, so the only honest lookup
  * is the one the index answers.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { openProjectNote } from '../../../../src/infrastructure/obsidian/workspace/openNote';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack } from '../../../helpers/vault';
@@ -13,6 +13,34 @@ import { FakeWorkspace } from '../../../helpers/workspace';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
 
 const PROJECT_ID = 'project-1' as EntityId<string>;
+
+/**
+ * Every cause `reportFault` was handed this case, which is how "reported ONCE" is asked as a
+ * count rather than as a boolean.
+ */
+const faults: unknown[] = [];
+
+beforeEach(() => {
+	faults.length = 0;
+});
+
+/**
+ * One builder rather than eight object literals, and it exists for the fake rule rather than
+ * for brevity: `reportFault` is a REQUIRED member of what this function takes, and a case
+ * that left it out would pass happily until something faulted and then fail with
+ * `deps.reportFault is not a function` — a stand-in thinner than the real thing, which
+ * `tests/` is not type-checked to catch.
+ */
+function depsFor(workspace: unknown, vault: unknown, index: InMemoryProjectIndex) {
+	return {
+		workspace: workspace as never,
+		vault: vault as never,
+		index,
+		reportFault: (cause: unknown) => {
+			faults.push(cause);
+		},
+	};
+}
 
 describe('opening a project note', () => {
 	it('opens the file the index resolves the id to', async () => {
@@ -23,7 +51,7 @@ describe('opening a project note', () => {
 		const workspace = new FakeWorkspace();
 
 		const outcome = await openProjectNote(
-			{ workspace: workspace as never, vault: vault as never, index },
+			depsFor(workspace, vault, index),
 			PROJECT_ID,
 		);
 
@@ -43,7 +71,7 @@ describe('opening a project note', () => {
 		const index = new InMemoryProjectIndex();
 		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
 		const workspace = new FakeWorkspace();
-		const deps = { workspace: workspace as never, vault: vault as never, index };
+		const deps = depsFor(workspace, vault, index);
 
 		expect(await openProjectNote(deps, PROJECT_ID)).toBe('opened');
 		// The reveal arm answers `'opened'` too: the note IS in front of the user either way,
@@ -74,7 +102,7 @@ describe('opening a project note', () => {
 		const index = new InMemoryProjectIndex();
 		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
 		const workspace = new FakeWorkspace();
-		const deps = { workspace: workspace as never, vault: vault as never, index };
+		const deps = depsFor(workspace, vault, index);
 
 		const outcomes = await Promise.all([
 			openProjectNote(deps, PROJECT_ID),
@@ -87,6 +115,69 @@ describe('opening a project note', () => {
 		expect(workspace.leaves[0].opened).toHaveLength(1);
 	});
 
+	/**
+	 * The defect the coalescing itself created, reported one review round after it landed.
+	 *
+	 * Both clicks were handed the same promise, so when it REJECTED both callers saw the
+	 * rejection and each reported it: two notices and two identical log lines for one
+	 * operation. Sharing an operation has to mean sharing its failure too, which is why the
+	 * map holds the HANDLED promise now and the fault door lives inside this module rather
+	 * than at the caller that composes it.
+	 *
+	 * Watched failing against the previous shape: two `reportFault` calls, and the joining
+	 * click rejecting rather than answering.
+	 */
+	it('reports a coalesced failure once, and answers both clicks', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		// A workspace whose open FAULTS. `getLeavesOfType` answers none, which is the case this
+		// is about: no tab is already showing the note, so the reuse path is skipped.
+		const workspace = {
+			getLeavesOfType: () => [],
+			getLeaf: () => ({ openFile: () => Promise.reject(new Error('disk exploded')) }),
+		};
+		const deps = depsFor(workspace, vault, index);
+
+		const outcomes = await Promise.all([
+			openProjectNote(deps, PROJECT_ID),
+			openProjectNote(deps, PROJECT_ID),
+		]);
+
+		expect(outcomes).toEqual(['failed', 'failed']);
+		expect(faults).toHaveLength(1);
+		expect((faults[0] as Error).message).toBe('disk exploded');
+	});
+
+	/**
+	 * And the entry is released on the failing path too, which the `finally` is what buys: a
+	 * click after a failed open has to reach the vault again rather than being answered
+	 * `'failed'` forever from a promise the map never let go of.
+	 */
+	it('goes back to the vault after a failed open rather than answering from the map', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		let failNext = true;
+		const workspace = {
+			getLeavesOfType: () => [],
+			getLeaf: () => ({
+				openFile: () => {
+					if (!failNext) return Promise.resolve();
+					failNext = false;
+					return Promise.reject(new Error('disk exploded'));
+				},
+			}),
+		};
+		const deps = depsFor(workspace, vault, index);
+
+		expect(await openProjectNote(deps, PROJECT_ID)).toBe('failed');
+		expect(await openProjectNote(deps, PROJECT_ID)).toBe('opened');
+		expect(faults).toHaveLength(1);
+	});
+
 	it('goes back to the leaf lookup once an open has settled', async () => {
 		// The other half of the coalescing rule, and the one a map that never forgot would
 		// break: the entry is released when the open settles, so a click a minute later takes
@@ -96,7 +187,7 @@ describe('opening a project note', () => {
 		const index = new InMemoryProjectIndex();
 		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
 		const workspace = new FakeWorkspace();
-		const deps = { workspace: workspace as never, vault: vault as never, index };
+		const deps = depsFor(workspace, vault, index);
 
 		await Promise.all([openProjectNote(deps, PROJECT_ID), openProjectNote(deps, PROJECT_ID)]);
 		expect(await openProjectNote(deps, PROJECT_ID)).toBe('opened');
@@ -117,7 +208,7 @@ describe('opening a project note', () => {
 		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'One.md' });
 		index.upsert({ id: 'project-2' as EntityId<string>, type: 'renovation-project', path: 'Two.md' });
 		const workspace = new FakeWorkspace();
-		const deps = { workspace: workspace as never, vault: vault as never, index };
+		const deps = depsFor(workspace, vault, index);
 
 		await openProjectNote(deps, PROJECT_ID);
 		await openProjectNote(deps, 'project-2');
@@ -139,7 +230,7 @@ describe('opening a project note', () => {
 		const workspace = new FakeWorkspace();
 		const fileless = workspace.withOpen('markdown');
 
-		await openProjectNote({ workspace: workspace as never, vault: vault as never, index }, PROJECT_ID);
+		await openProjectNote(depsFor(workspace, vault, index), PROJECT_ID);
 
 		expect(fileless.opened).toHaveLength(0);
 		expect(workspace.revealed).toHaveLength(0);
@@ -161,7 +252,7 @@ describe('opening a project note', () => {
 		const workspace = new FakeWorkspace();
 
 		const outcome = await openProjectNote(
-			{ workspace: workspace as never, vault: vault as never, index },
+			depsFor(workspace, vault, index),
 			PROJECT_ID,
 		);
 
@@ -182,7 +273,7 @@ describe('opening a project note', () => {
 		const workspace = new FakeWorkspace();
 
 		const outcome = await openProjectNote(
-			{ workspace: workspace as never, vault: vault as never, index },
+			depsFor(workspace, vault, index),
 			PROJECT_ID,
 		);
 

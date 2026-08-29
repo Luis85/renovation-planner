@@ -175,17 +175,17 @@ describe('the renovation project dependencies', () => {
 	});
 
 	/**
-	 * Task 5's own review deferred this: `openProjectNote` has no `try`/`catch`, and
+	 * Task 5's own review deferred this: nothing turned a faulting open into a `Result`, and
 	 * `ProjectList`'s row click discards the promise this resolves to
 	 * (`@open="(id) => void context.openProject(id)"`) — so a rejecting `openFile` (a real
 	 * Obsidian I/O fault, not the "id resolves to nothing" case `openProjectNote` already
 	 * handles by design) would otherwise be an unhandled rejection reaching nobody.
 	 *
-	 * The catch lives HERE, in the composed closure, rather than inside `openProjectNote`
-	 * itself: that function is `infrastructure/`, which may not import `notifyFault` from
-	 * `presentation/notices/notify` (the layer ban runs the other way), and `plugin/` is the
-	 * one layer that may reach both at once — the same reason `renovationProjectDeps` is
-	 * where `openProject` is composed in the first place.
+	 * The mapping is COMPOSED here and CALLED one layer down, which is the split the next case
+	 * explains: `renovationProjectDeps` is the one place that may name both `openProjectNote`
+	 * and `notifyFault` (`infrastructure/` may not import `presentation/notices/notify` — the
+	 * layer ban runs the other way), and `openProjectNote` is the one place that knows whether
+	 * two clicks are one open. This case asserts the composition; the next asserts the count.
 	 */
 	it('reports rather than rejecting when opening the note faults', async () => {
 		resetRecorder();
@@ -209,6 +209,42 @@ describe('the renovation project dependencies', () => {
 		const logged = lines.find((line) => line.event === 'view.project.open-failed');
 		expect(logged?.level).toBe('error');
 		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('disk exploded');
+	});
+
+	/**
+	 * The defect the coalescing itself created, reported one review round after it landed.
+	 *
+	 * A double click is one gesture, and `openingByPath` is what makes it one tab. Both calls
+	 * were then handed the SAME promise — so when it rejected, each invocation of this composed
+	 * closure attached its own `.catch` and reported the same failed open again: two notices,
+	 * two identical log lines, one operation.
+	 *
+	 * The LOG is what discriminates here, and the notice count cannot: slice 13's queue folds
+	 * an identical (severity, message) pair into a `(×2)` suffix on the notice already up, so
+	 * `Notice.shown` reads 1 either way. Log lines are not deduplicated.
+	 *
+	 * Watched failing against the previous shape — two lines, from the two `.catch` arms.
+	 */
+	it('reports a coalesced open failure once, not once per click', async () => {
+		resetRecorder();
+		const stack = createRepositoryStack();
+		await stack.vault.create('Project.md', '---\nid: project-1\n---\n');
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		root.persistence?.index.upsert({ id: 'project-1' as never, type: 'renovation-project', path: 'Project.md' });
+		const workspace = {
+			getLeavesOfType: () => [],
+			getLeaf: () => ({ openFile: () => Promise.reject(new Error('disk exploded')) }),
+		};
+
+		const deps = renovationProjectDeps(root, workspace as never, stack.vault as never);
+
+		// Both in the same tick, which is what a double click IS: the second call finds the
+		// first open still in flight and joins it rather than asking for a tab of its own.
+		const outcomes = await Promise.all([deps.openProject('project-1'), deps.openProject('project-1')]);
+
+		// Both clicks are told the truth — the note did not open — and neither is told twice.
+		expect(outcomes).toEqual(['failed', 'failed']);
+		expect(lines.filter((line) => line.event === 'view.project.open-failed')).toHaveLength(1);
 	});
 });
 

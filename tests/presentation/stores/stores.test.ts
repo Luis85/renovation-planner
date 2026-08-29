@@ -311,6 +311,40 @@ describe('EditorStore, the ephemeral half', () => {
 		store.setPointer(null);
 		expect(store.pointerWorld).toBeNull();
 	});
+
+	/*
+	 * The readout is a function of the pointer AND the camera, so it goes stale when EITHER
+	 * moves. These two cases are the camera half, and they are what a stored world point
+	 * cannot satisfy: the keyboard zoom anchors at the stage centre, so the world position
+	 * under a stationary pointer really does change, and a pan is defined by holding one
+	 * world point under the cursor.
+	 */
+	it('follows a camera change under a stationary pointer', () => {
+		const store = useEditorStore();
+		const at = screenPoint(40, 60);
+		store.setPointer(at);
+
+		// Anchored away from the pointer, which is what the `+`/`-` keys do — they zoom about
+		// the middle of the stage, since a keypress carries no pointer position of its own.
+		store.zoomByFactor(screenPoint(0, 0), 2);
+
+		expect(store.pointerWorld).toEqual(screenToWorld(at, store.viewport, STAGE_PIXELS));
+	});
+
+	it('holds one world point under the cursor for the whole of a pan', () => {
+		const store = useEditorStore();
+		const grab = screenPoint(40, 60);
+		store.setPointer(grab);
+		const grabbed = store.pointerWorld;
+		store.beginPan(grab);
+
+		const to = screenPoint(140, 10);
+		store.setPointer(to);
+		store.continuePan(to);
+
+		// Panning MEANS the world sticks to the cursor, so the readout must not move at all.
+		expect(store.pointerWorld).toEqual(grabbed);
+	});
 });
 
 describe('WorkspaceStore, the editor chrome', () => {

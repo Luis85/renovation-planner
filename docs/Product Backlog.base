@@ -41,7 +41,7 @@ views:
     name: Business rules
     filters:
       and:
-        - file.inFolder("docs/business-rules")
+        - file.inFolder("docs/product/business-rules")
     groupBy:
       property: area
       direction: ASC
@@ -56,7 +56,7 @@ views:
     name: ADRs
     filters:
       and:
-        - file.inFolder("docs/adrs")
+        - file.inFolder("docs/development/adrs")
     groupBy:
       property: area
       direction: ASC
@@ -73,11 +73,17 @@ views:
     filters:
       and:
         - file.inFolder("docs/actors")
+    groupBy:
+      property: kind
+      direction: ASC
     order:
-      - type
-      - kind
       - file.name
       - standing
+      - kind
+      - partOf
+    columnSize:
+      note.standing: 150
+      note.kind: 78
   - type: cards
     name: Components
     filters:

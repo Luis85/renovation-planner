@@ -21,11 +21,11 @@ takes no input, and a user cannot interact with it at all.
 
 ## Specimen
 
-![Snap guide, and the states it owes, in Obsidian's default light and dark](snap-guide.png)
+![Snap guide, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/snap-guide.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -86,4 +86,4 @@ one component in the inventory whose accessibility answer lives in a different c
 ## Sources
 
 SDD §19 · SDD §21 · SDD §85, in
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

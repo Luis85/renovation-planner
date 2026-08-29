@@ -59,5 +59,5 @@ Frontmatter on the dependent side, referencing the other by stable `id` (SDD §8
 ## Sources
 
 PRD §77 · PRD §78 · PRD §21 · PRD §19 · PRD §20, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

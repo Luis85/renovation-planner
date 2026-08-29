@@ -40,5 +40,5 @@ rounding for the only one and contradicted ADR-010's *once, at the end* — corr
 **Checked by.** Not yet. Slice 09's Definition of Done carries the worked example
 (`13.5802458 m²` → `15 m²` → `$219.8828125` → `$219.88`) and the `.005`/`.125` boundary cases.
 
-**Sources.** ADR-010 ([`docs/adrs/0010-decimal-money-arithmetic.md`](../adrs/0010-decimal-money-arithmetic.md)) ·
+**Sources.** ADR-010 ([`docs/development/adrs/0010-decimal-money-arithmetic.md`](../../development/adrs/0010-decimal-money-arithmetic.md)) ·
 SDD §49 · PRD §71.

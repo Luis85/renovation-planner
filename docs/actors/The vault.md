@@ -61,5 +61,5 @@ folder paths themselves be configurable, so even the shape of the store is their
 ## Sources
 
 PRD §3.2 · PRD §36 · PRD §37 · PRD §60 · PRD §64 · PRD §88 · SDD §37 · SDD §43 · SDD §46 · SDD §47, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -64,5 +64,5 @@ drawn on the plan becomes *the bathroom* rather than staying a shape.
 ## Sources
 
 PRD §7 · PRD §30 · PRD §34 · PRD §37 · PRD §38 · PRD §59 · SDD §22 · SDD §26 · SDD §40, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

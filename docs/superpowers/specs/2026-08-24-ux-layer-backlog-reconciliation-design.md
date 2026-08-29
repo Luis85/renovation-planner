@@ -19,7 +19,7 @@ result. Everything else is logged.**
 ## Why
 
 `main` gained a user-experience layer written after the backlog it describes: a second PRD
-(`docs/prds/renovation-project-workspace.md`, 1,451 lines) and four files under
+(`docs/product/prds/renovation-project-workspace.md`, 1,451 lines) and four files under
 `docs/user-experience/` — a prototype design specification (1,432), wireframes (1,143), a
 UX journey and interaction design document (682) and a JTBD research backlog (424) — plus
 HTML concept pages and seventeen screenshots.
@@ -120,7 +120,7 @@ work packages, scheduling, and project documentation. The purpose of this PRD is
 the user-facing product layer."* This is not an adjudication between two specifications.
 
 The **direction is settled by the register's own rules — for the PRD.** Both PRDs sit in
-`docs/prds/`, which `docs/README.md` defines as received evidence kept verbatim, "corrected
+`docs/product/prds/`, which `docs/README.md` defines as received evidence kept verbatim, "corrected
 only by receiving a new one". Where a finding sets the workspace PRD against a derived note,
 the backlog moves and the PRD does not. No question needs asking about that one, and none is.
 

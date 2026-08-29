@@ -37,4 +37,4 @@ string. See [[An asset's unit kind must match the dimension its requirement is d
 **Checked by.** Not yet. Slice 09 names currency safety and unit handling as its own test groups.
 
 **Sources.** SDD §48 · SDD §49 · PRD §70 · slice 09
-([`docs/tasks/09-quantity-and-cost-engine.md`](../tasks/09-quantity-and-cost-engine.md)).
+([`docs/tasks/09-quantity-and-cost-engine.md`](../../tasks/09-quantity-and-cost-engine.md)).

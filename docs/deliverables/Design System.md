@@ -18,7 +18,7 @@ iteration: ""
 
 The artifact, **derived**, citing its sources, expected to change as the design is refined — a
 refinement that contradicts a source names the section it refines and lands here rather than in
-`docs/prds/` or `docs/sdds/`.
+`docs/product/prds/` or `docs/development/sdds/`.
 
 It answers **what a control is made of and what its states are**. Which surface a given
 failure *gets* is [[Shared UI vocabulary]]'s — the routing rules and the five slices that build

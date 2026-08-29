@@ -33,4 +33,4 @@ in both directions.
 owns external modification handling.
 
 **Sources.** PRD §65 · PRD §1 · slice 06
-([`docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`](../tasks/06-editor-tool-framework-undo-redo-and-inspector.md)).
+([`docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`](../../tasks/06-editor-tool-framework-undo-redo-and-inspector.md)).

@@ -18,8 +18,8 @@ iteration: ""
 
 This note is the artifact, not a promise of one: it is **derived**, it cites the sections it
 was read from, and it is expected to change as the design is refined. A refinement that
-contradicts a source names the section it refines and lands here, never in `docs/prds/` or
-`docs/sdds/`.
+contradicts a source names the section it refines and lands here, never in `docs/product/prds/` or
+`docs/development/sdds/`.
 
 It answers two questions and deliberately not a third. **Where does a given fact belong,
 and what is it called?** Which surfaces exist and how someone moves between them is
@@ -29,7 +29,7 @@ and what is it called?** Which surfaces exist and how someone moves between them
 
 `docs/entities/` already holds thirty-four notes saying what each business object *is*,
 where it is persisted, what it relates to and which rules hold for it.
-`docs/business-rules/` holds twenty-seven saying what must be true of them. Neither answers
+`docs/product/business-rules/` holds twenty-seven saying what must be true of them. Neither answers
 where a fact is *seen*, and this note answers only that.
 
 The test is the one `docs/README.md` applies to a business rule: **could the entity note
@@ -164,7 +164,7 @@ Stated rather than answered, because inventing an answer is what the interview r
   integration).
 - `docs/entities/` — all thirty-four, and specifically [[Zone]], [[Space]] and
   [[Spatial object]] for the distinction this note may not restate.
-- `docs/business-rules/` — *work belongs to one project, catalogues belong to the vault*, *a derived value is
+- `docs/product/business-rules/` — *work belongs to one project, catalogues belong to the vault*, *a derived value is
   recomputed on read, not persisted*, *a cost rollup is derived along its axis, never stored*,
   *money is rounded once, where the pipeline finalizes it*, *a manual override is stored as an
   override, beside what it replaced*, *an uncalibrated plan never presents a measurement as

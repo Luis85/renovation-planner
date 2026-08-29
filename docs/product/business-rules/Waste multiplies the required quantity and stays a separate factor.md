@@ -28,4 +28,4 @@ allowance was applied twice.
 **Checked by.** Not yet. Slice 09 names the identity case (`wastePercent = 0`) as its own test.
 
 **Sources.** PRD §9 · PRD §88 · SDD §50 · slice 09
-([`docs/tasks/09-quantity-and-cost-engine.md`](../tasks/09-quantity-and-cost-engine.md)).
+([`docs/tasks/09-quantity-and-cost-engine.md`](../../tasks/09-quantity-and-cost-engine.md)).

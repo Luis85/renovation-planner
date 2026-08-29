@@ -245,6 +245,117 @@ describe('SnapService.snapRotation', () => {
 	});
 });
 
+/**
+ * The Shift constraint both drawing tools take: the pointer pulled onto the nearest ray of
+ * `angleStepRadians` from an anchor — the last placed vertex, or a calibration's first point.
+ *
+ * Here rather than in either tool because this service is already declared as the one
+ * editor-level snapping implementation (SDD §21), and it already owns the angle step, which
+ * until now had `snapRotation` as its only reader and no caller at all above it. A tool
+ * holding its own copy of "what is a whole angle" is the second answer this module exists to
+ * prevent.
+ *
+ * The step is a quarter turn in most cases below, because a right angle can be asserted with
+ * exact arithmetic; the editor composes the service with 15 degrees.
+ */
+describe('SnapService.snapDirection', () => {
+	const anchor: Point = { x: 1000, y: 1000 };
+
+	it('leaves a point already on a step direction where it is', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 2 });
+
+		const constrained = service.snapDirection(anchor, { x: 1500, y: 1000 });
+
+		expect(constrained.x).toBeCloseTo(1500, 6);
+		expect(constrained.y).toBeCloseTo(1000, 6);
+	});
+
+	it('pulls a nearly-horizontal point onto the horizontal', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 2 });
+
+		// 500 across, 40 down: about 4.6 degrees off, well inside a quarter turn's basin.
+		const constrained = service.snapDirection(anchor, { x: 1500, y: 1040 });
+
+		expect(constrained.y).toBeCloseTo(1000, 6);
+		// PROJECTED onto the ray, not rotated onto it: the length is the pointer's distance
+		// ALONG the constrained direction, which is the CAD convention — the picked point
+		// lands on the alignment path at the distance indicated. Rotating instead would keep
+		// the full 501.6 mm.
+		expect(constrained.x).toBeCloseTo(1500, 6);
+	});
+
+	it('constrains on every quadrant, not just the first', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 2 });
+
+		expect(service.snapDirection(anchor, { x: 480, y: 1030 }).y).toBeCloseTo(1000, 6);
+		expect(service.snapDirection(anchor, { x: 1030, y: 480 }).x).toBeCloseTo(1000, 6);
+		expect(service.snapDirection(anchor, { x: 970, y: 1520 }).x).toBeCloseTo(1000, 6);
+	});
+
+	it('keeps a diagonal at 45 degrees under the editor\'s own 15 degree step', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 12 });
+
+		// 400 across and 380 down is 43.5 degrees — a degree and a half off the diagonal,
+		// which the 15 degree step pulls back to exactly 45.
+		const constrained = service.snapDirection(anchor, { x: 1400, y: 1380 });
+
+		expect(constrained.x - anchor.x).toBeCloseTo(constrained.y - anchor.y, 6);
+	});
+
+	it('resolves a bearing exactly between two steps the way Math.round does — upward', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 2 });
+
+		// Exactly 45 degrees: half a step from both 0 and a quarter turn.
+		const constrained = service.snapDirection(anchor, { x: 1100, y: 1100 });
+
+		expect(constrained.x).toBeCloseTo(1000, 6);
+		expect(constrained.y).toBeCloseTo(1100, 6);
+	});
+
+	/**
+	 * The first click of a gesture puts the pointer exactly on the anchor, and a point has no
+	 * bearing from itself. `atan2(0, 0)` is 0 rather than `NaN`, so this would silently answer
+	 * "due east" — a direction nobody indicated — instead of the anchor.
+	 */
+	it('answers the anchor itself when there is no direction to take', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 12 });
+
+		expect(service.snapDirection(anchor, { ...anchor })).toEqual(anchor);
+	});
+
+	/**
+	 * `Math.sin(Math.PI)` is `1.22e-16`, so a westward constraint used to answer
+	 * `(0, 1.22e-14)` for a point that is exactly `(0, 0)`. Exact equality is the currency
+	 * downstream — `DrawPolygonTool`'s duplicate guard compares coordinates — so dust there is
+	 * a zero-length polygon edge that `createPolygon`'s count-and-finiteness validation waves
+	 * straight through. Asserted with `toEqual`, which compares numbers exactly; a
+	 * `toBeCloseTo` here would pass against the very defect this pins.
+	 */
+	it('answers EXACT coordinates on an axis, where the trig cannot', () => {
+		const service = makeService({ angleStepRadians: Math.PI / 12 });
+
+		expect(service.snapDirection({ x: 100, y: 0 }, { x: 0, y: 0 })).toEqual({ x: 0, y: 0 });
+		expect(service.snapDirection({ x: 0, y: 100 }, { x: 0, y: 0 })).toEqual({ x: 0, y: 0 });
+		expect(service.snapDirection({ x: 0, y: 0 }, { x: 500, y: 3 })).toEqual({ x: 500, y: 0 });
+		expect(service.snapDirection({ x: 0, y: 0 }, { x: 3, y: 500 })).toEqual({ x: 0, y: 500 });
+	});
+
+	/**
+	 * The result is on the RAY, never on its backward extension. With any sane step the
+	 * nearest direction is within half a step of the true bearing and the projection is
+	 * forward automatically; a step coarser than a half turn is what makes that arithmetic
+	 * fail, and a mirrored point would be a straight line drawn in the direction the user is
+	 * not pointing.
+	 */
+	it('never places the point behind the anchor, however coarse the step', () => {
+		const service = makeService({ angleStepRadians: Math.PI * 2 });
+
+		// Every bearing rounds to 0 under a full-turn step, so a leftward pointer projects
+		// backwards.
+		expect(service.snapDirection(anchor, { x: 200, y: 1000 })).toEqual(anchor);
+	});
+});
+
 describe('SnapService.snapResize', () => {
 	// Chosen so every coordinate actually moves under grid 100 — min rounds down to
 	// (0, 0), max rounds down to (200, 200) — so a test that changes the wrong edge, or

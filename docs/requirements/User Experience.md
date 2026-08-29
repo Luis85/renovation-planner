@@ -103,7 +103,7 @@ note exists as a Feature rather than as a paragraph inside its sibling.
 
 It carries the Deliverable contract: it **is** the artifact, it is derived, it cites the
 sections it was read from, and a refinement contradicting a source names the section it
-refines and lands there rather than in `docs/prds/` or `docs/sdds/`.
+refines and lands there rather than in `docs/product/prds/` or `docs/development/sdds/`.
 
 ## What holds this, and what does not
 

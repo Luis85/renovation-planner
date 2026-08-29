@@ -23,11 +23,11 @@ control normally gets for free.
 
 ## Specimen
 
-![Selection handle, and the states it owes, in Obsidian's default light and dark](selection-handle.png)
+![Selection handle, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/selection-handle.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -93,4 +93,4 @@ that reaches a canvas at all. `npm run test-build` is the only place a handle's 
 ## Sources
 
 SDD §19 · SDD §20 · SDD §21 · SDD §85, in
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -22,21 +22,35 @@ R="$(git rev-parse --show-toplevel)"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$R"
 
-UX=docs/user-experience; PR=docs/prds; PD=docs/product
+# WHERE THE CORPUS IS gets ASKED, never spelled here.
+#
+# The 2026-08-28 reorganisation moved `prds` under `docs/product/` and the research
+# synthesis under `docs/product/research/`, while `MATRIX_BASE` pins a tree that still
+# holds both at their old paths — so the answer depends on the tree being read, and a
+# third hand-written copy of the list is a third thing to forget. `lookup.py` owns it and
+# both doors below read the same answer.
+#
+# The RANGES stay here deliberately. They are what lets this run from a clean checkout
+# with no scratchpad, which is the property the header promises.
 
 # The bodies NEST — the prototype spec contains the whole wireframes file, the canvas concept
 # and the mobile PRD each contain the research synthesis verbatim — so each is read ONCE over
 # its own range and never through its container. Same ranges as the plan's `corpus.sh`.
+body() {  # $1 = body name, $2 = the "name<TAB>path" table -> that body's absolute path
+  printf '%s\n' "$2" | awk -F'\t' -v n="$1" '$1==n{print $2}'
+}
+
 materialise() {
   local d="$1"; mkdir -p "$d"
-  sed -n '1,1451p'   "$PR/renovation-project-workspace.md"                          > "$d/prd.txt"
-  sed -n '1,285p'    "$UX/renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"    > "$d/prototype.txt"
-  sed -n '1,682p'    "$UX/renovation-project-workspace-UXD.md"                      > "$d/uxd.txt"
-  sed -n '685,1143p' "$UX/renovation-project-workspace-wireframes.md"               > "$d/wireframes.txt"
-  sed -n '1,783p'    "$UX/renovation-canvas-concept-interaction-design.md"          > "$d/canvas.txt"
-  sed -n '1,1635p'   "$PD/renovation-planner-user-research-synthesis.md"            > "$d/research.txt"
-  sed -n '1,424p'    "$UX/renovation-planner-JTBD-research-backlog.md"              > "$d/jtbd.txt"
-  cat                "$UX/concepts/component-gallery.html"                          > "$d/gallery.txt"
+  local B; B="$(python3 "$HERE/lookup.py" --body-paths)"
+  sed -n '1,1451p'   "$(body prd        "$B")" > "$d/prd.txt"
+  sed -n '1,285p'    "$(body prototype  "$B")" > "$d/prototype.txt"
+  sed -n '1,682p'    "$(body uxd        "$B")" > "$d/uxd.txt"
+  sed -n '685,1143p' "$(body wireframes "$B")" > "$d/wireframes.txt"
+  sed -n '1,783p'    "$(body canvas     "$B")" > "$d/canvas.txt"
+  sed -n '1,1635p'   "$(body research   "$B")" > "$d/research.txt"
+  sed -n '1,424p'    "$(body jtbd       "$B")" > "$d/jtbd.txt"
+  cat                "$(body gallery    "$B")" > "$d/gallery.txt"
 }
 
 case "${1:-}" in
@@ -49,9 +63,23 @@ case "${1:-}" in
   # `RP_CORPUS_ROOT` lets the verifier point this at a materialised copy of the pinned state. Unset,
   # it reads the working tree, which is what a reader wants when the backlog has not moved.
   forward) R="${RP_CORPUS_ROOT:-.}"
-           corpus=("$R/docs/requirements" "$R/docs/entities" "$R/docs/business-rules"
-                   "$R/docs/components" "$R/docs/actors" "$R/docs/deliverables"
-                   "$R/docs/adrs" "$R/docs/issues") ;;
+           corpus=()
+           # A heredoc rather than a pipe, so the loop runs in THIS shell and the array it
+           # builds survives it. The empty-path guard is not defensive noise: the first
+           # version of this loop split on a literal backslash-t rather than a tab, every
+           # path came back empty, and appending "$R/" turned the search into a walk of the
+           # whole repository — which presents as a hang, not as an error.
+           while IFS=$'\t' read -r _kind _path; do
+             if [ -z "${_kind:-}" ] || [ "$_kind" = prds ]; then continue; fi
+             if [ -z "${_path:-}" ]; then
+               echo "candidates.sh: lookup.py --corpus-dirs named no path for '$_kind'" >&2
+               exit 3
+             fi
+             corpus+=("$R/$_path")
+           done <<EOF
+$(RP_CORPUS_ROOT="$R" python3 "$HERE/lookup.py" --corpus-dirs)
+EOF
+           ;;
   reverse) BODIES="$(mktemp -d)"; trap 'rm -rf "$BODIES"' EXIT
            materialise "$BODIES"; corpus=("$BODIES") ;;
   *) echo 'usage: candidates.sh {forward|reverse} "<terms>"' >&2; exit 2 ;;

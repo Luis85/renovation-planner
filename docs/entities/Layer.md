@@ -53,5 +53,5 @@ it a note would put a file in [[The vault]] that no one has a reason to open.
 ## Sources
 
 PRD §6 · PRD §8 · PRD §13 · PRD §30 · PRD §37 · SDD §17 · SDD §18, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

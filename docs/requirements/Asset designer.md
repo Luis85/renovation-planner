@@ -1,10 +1,10 @@
 ---
 type: Epic
-order: 85
+order: 155
 status: New
 started: ""
 finished: ""
-horizon: "V1"
+horizon: V1
 start: ""
 due: ""
 risk: ""
@@ -46,7 +46,7 @@ catalog — and drawing an asset's shape is in none of them. It was requested di
 than being read out of them. It also needs a workspace surface **SDD §11 does not enumerate**,
 which lists two primary views and four future ones and no designer among them; SDD §12's
 per-view Vue app generalises to a seventh without amendment, but the enumeration does not, and
-that is an architecture decision owed to `docs/adrs/` when somebody slices this work rather than
+that is an architecture decision owed to `docs/development/adrs/` when somebody slices this work rather than
 one this note may take.
 
 ## Definition of done
@@ -109,6 +109,6 @@ An item beneath this epic is done when:
   on ADR-002's per-plan-not-per-spatial-object rule, inside a *project's* `Geometry/` folder — and
   a footprint many plans across many projects reference cannot live in any one of their sidecars
   without breaking the correct-it-once guarantee this epic exists for. **What is still owed to
-  `docs/adrs/`, beside the surface decision above, is the file layout rather than the scope**: what
+  `docs/development/adrs/`, beside the surface decision above, is the file layout rather than the scope**: what
   an asset's geometry file is called, what it carries in place of a `planId`, and whether it sits
   beside its note or in a `Geometry/` folder of the library's own.

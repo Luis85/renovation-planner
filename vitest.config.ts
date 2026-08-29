@@ -648,6 +648,38 @@ export default defineConfig({
 			// `presentation/notices/`, `presentation/editor/save-state/` and
 			// `application/ports/versioning.ts`, exactly one arm is uncovered and it is the
 			// slice-13 one already enumerated above — `release`'s `if (at >= 0)` guard.
+			//
+			// Re-measured 2026-08-29 on the MERGED tree — slice 13 merged into a main carrying
+			// the slice 16 design and plan, the Shift-constrained drawing tools, and the `docs/`
+			// reorganisation: 4669/4699 statements, 2247/2290 branches, 1193/1199 functions,
+			// 4185/4200 lines — 99.36 / 98.12 / 99.49 / 99.64. NOTHING RATCHETS: rounded down
+			// these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// **Branches are the tightest they have been since slice 11: 98.12, about 2.7
+			// covered branches of headroom at 0.0437pp each — two, counted as whole branches.**
+			// Neither parent predicted it: this branch measured 98.25 alone and the figure fell
+			// on merging, exactly as slice 14's merged entry above records happening to it. The
+			// denominator grew by 58 branches while the covered count grew by 54, so the drop is
+			// main's new arms diluting a ratio, not this branch losing coverage — the unit figure
+			// is still the one to act on, and two is small enough that the next untested arm
+			// anywhere in `src/` fails the gate rather than merely narrowing it.
+			//
+			// The merged uncovered set gains exactly one file over this branch's own, and it
+			// came from main rather than from the merge: `RequirementRow.vue`'s
+			// `row.assetName ?? row.assetId` nullish arm. Verified rather than inferred — the
+			// file is byte-identical to `main` (`git diff --quiet main -- <path>`), so no
+			// resolution in this merge touched it. Across `presentation/notices/`,
+			// `presentation/editor/save-state/` and `application/ports/versioning.ts` the set is
+			// still the single slice-13 arm named above.
+			//
+			// One resolution in this merge moved CSS rather than code and is worth naming here
+			// because a stylesheet is invisible to every figure on this page: main split the §60
+			// status-bar block out of `editor.css` into `styles/editor-status.css` while this
+			// branch was extending that same block in place, which is the merge's only conflict.
+			// Slice 13's two `.rp-save-state-*` colour rules followed the block into the new
+			// partial. Nothing here can see whether they still MATCH — jsdom resolves no `var()`
+			// and the harness draws no status bar state on purpose — so that is step 13 of
+			// `docs/tests/cases/Notices and save state.md` and a vault.
 			thresholds: {
 				statements: 99,
 				functions: 99,

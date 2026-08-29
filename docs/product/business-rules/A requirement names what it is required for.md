@@ -46,5 +46,5 @@ the stranding; the reporting half belongs to
 [[Four kinds of reference failure are detected by name]].
 
 **Sources.** PRD §59 · PRD §32 · PRD §63 · slice 10
-([`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`](../tasks/10-assets-requirements-and-the-end-to-end-loop.md)) ·
-[`docs/requirements/Validation and vault health.md`](../requirements/Validation%20and%20vault%20health.md).
+([`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`](../../tasks/10-assets-requirements-and-the-end-to-end-loop.md)) ·
+[`docs/requirements/Validation and vault health.md`](../../requirements/Validation%20and%20vault%20health.md).

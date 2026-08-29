@@ -24,11 +24,11 @@ failure gets routed to when nobody decided where it belonged.
 
 ## Specimen
 
-![Toast, and the states it owes, in Obsidian's default light and dark](toast.png)
+![Toast, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/toast.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -124,5 +124,5 @@ only instrument.
 ## Sources
 
 PRD §44 · PRD §67 · SDD §30 · SDD §64 · SDD §66, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

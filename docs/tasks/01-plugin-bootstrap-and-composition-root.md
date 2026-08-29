@@ -1092,7 +1092,7 @@ Module boundaries this slice fixes for every later one:
   framework independent").
 - SDD §91 Increment 1 — Plugin Foundation — this slice's deliverables and success
   criterion, verbatim.
-- ADR-004 — Vue 3 for Plugin UI (`docs/adrs/0004-vue-3-for-plugin-ui.md`).
-- ADR-006 — Plain TypeScript Domain (`docs/adrs/0006-plain-typescript-domain.md`).
+- ADR-004 — Vue 3 for Plugin UI (`docs/development/adrs/0004-vue-3-for-plugin-ui.md`).
+- ADR-006 — Plain TypeScript Domain (`docs/development/adrs/0006-plain-typescript-domain.md`).
 - `docs/requirements/Architecture and Software Design.md` — shared conventions (repository structure, the dependency rule)
   applied here, and the slice map this document is slice 1 of.

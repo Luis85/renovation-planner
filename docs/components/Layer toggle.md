@@ -20,11 +20,11 @@ CSS and it changes nothing a CSS rule can see.
 
 ## Specimen
 
-![Layer toggle, and the states it owes, in Obsidian's default light and dark](layer-toggle.png)
+![Layer toggle, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/layer-toggle.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -78,7 +78,7 @@ apart.
 
 1. **No slice builds this.** PRD §39 names the three object conditions and none of the seventeen
    design slices claims the control. That empty `slice:` is a fact for somebody to come back and
-   change, not an omission — the same way `docs/business-rules/` names the four rules with no
+   change, not an omission — the same way `docs/product/business-rules/` names the four rules with no
    slice rather than implying all twenty-seven have one.
 2. **Is layer visibility persisted or ephemeral?** SDD §15 draws the line and does not place
    this. Ephemeral means a reopened plan shows everything; persisted means a hidden layer is a
@@ -90,5 +90,5 @@ apart.
 ## Sources
 
 PRD §39 · SDD §15 · SDD §17, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

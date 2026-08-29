@@ -80,5 +80,5 @@ the one entity whose filename is fixed while every other is derived from its nam
 ## Sources
 
 PRD §8 · PRD §12 · PRD §58 · PRD §59 · PRD §72 · PRD §83 · SDD §47, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -16,8 +16,8 @@ than left to be noticed:**
 - Both of those open with "All findings below are fixed." **Nothing below is fixed.** This work
   was scoped findings-first on purpose: the pass reads two corpora against each other and
   produces the disagreements; deciding what to do about them is separate work, separately
-  approved. **The reconciliation edited no derived note**; four were edited afterwards, under the
-  multi-project decision and only under it — the check is in the last section.
+  approved. **The reconciliation edited no derived note**; the backlog has moved since, and the
+  last section records what the gate does and does not hold about that.
 - It states its own coverage limits where a reader meets them, and its instrument's limits
   beside the numbers those limits qualify, rather than letting "reconciled" read wider than it is.
 
@@ -297,7 +297,7 @@ up rather than the least important. Counted directly against `findings.tsv`, not
 earlier version of this ledger narrated 40 of them and said nothing about the rest.
 
 Standing is stated because it decides what may change: the workspace PRD is **received**
-(`docs/prds/` is received evidence per `docs/README.md`); the other seven bodies are
+(`docs/product/prds/` is received evidence per `docs/README.md`); the other seven bodies are
 **undetermined**, because the register classifies neither `docs/user-experience/` nor
 `docs/product/` — see the Convention section. A finding whose evidence side is `undetermined`
 **proposes no edit**.
@@ -823,7 +823,7 @@ Note that `PRODUCT.md`'s own standing is unrecorded; see Convention finding v4.
 ## Convention audit
 
 **Reported apart from the matrix counts, and derived from a different corpus.** These come from
-reading the register's own documents — `docs/README.md` and `docs/templates/` — against the
+reading the register's own documents — `docs/README.md` and `docs/_templates/` — against the
 folders and note types that actually exist. `docs/README.md` is neither in-scope evidence nor one
 of the 227 notes, so **no row in either direction can produce a finding of this kind**; listing
 it beside the matrix kinds would imply a mechanism it does not have.
@@ -832,7 +832,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 | --- | --- |
 | **v1** | `docs/user-experience/` holds 30 files, including six of the eight in-scope evidence bodies, and the folder table names no such folder. |
 | **v2** | `docs/product/` holds the user research synthesis and the competitive market landscape, and the table names no such folder. It arrived during the review of the spec that inventories it. |
-| **v3** | `docs/templates/` holds `jobs-to-be-done.md`, and the table names no such folder — the register omits a folder that is itself register machinery. `docs/README.md` contains no occurrence of the word "template". |
+| **v3** | `docs/_templates/` holds `jobs-to-be-done.md`, and the table names no such folder — the register omits a folder that is itself register machinery. `docs/README.md` contains no occurrence of the word "template". |
 | **v4** | **`PRODUCT.md` is cited as settled authority by six derived notes and `docs/README.md` mentions it zero times.** |
 
 The register's claim is that its table names every folder "so the first note of that kind has
@@ -1720,7 +1720,7 @@ and states the rule the episode actually established: **pinning is not a fix for
 **A forty-fifth correction, and it is the cost of the variable that fixed the last one.**
 `lookup.py`'s docstring promises *"Run from anywhere in the repository"*, and adding
 `RP_CORPUS_ROOT` made that false: a **relative** override was resolved against the caller's
-directory, so `RP_CORPUS_ROOT=. lookup.py` run from `docs/` looked for `docs/docs/prds/…` and
+directory, so `RP_CORPUS_ROOT=. lookup.py` run from `docs/` looked for `docs/docs/product/prds/…` and
 traced back. `sections.py` had the identical code, having been given the variable in the same
 commit.
 
@@ -1999,17 +1999,49 @@ sections.py --selftest                        instrument agrees with a second
                                               implementation and three pinned counts
 derived notes edited outside the allowlist            0
   (the allowlist is the 4 notes the multi-project
-   decision authorises; the other 223 stay frozen)
+   decision authorises; BRANCH-SCOPED — see below)
+move mapping for citations the reorg moved      39 stale, 38 mapped, 1 retitled
 npm run check                                 passes all four steps
 ```
 
-**The reconciliation edited no derived note, and four have been edited since — under the
-multi-project decision and only under it.** Checked against the merge base, not the working tree,
-and as an **allowlist rather than a removal**: `entities/Project.md`,
+**The reconciliation edited no derived note.** That is the whole of what this gate holds, and
+the sentence has been narrowed to it. It is checked against the merge base rather than the working
+tree, and as an **allowlist rather than a removal**: `entities/Project.md`,
 `actors/Professional planner.md`, `requirements/Start a renovation project.md` and the decision
-record `issues/The vault holds many projects, and selecting one is not a portfolio.md` may differ;
-the other 223 may not. Deleting the gate to permit four edits would have retired this pass's
-central guarantee, and nothing would then notice the fifth.
+record `issues/The vault holds many projects, and selecting one is not a portfolio.md` may differ
+under the multi-project decision. Deleting the gate to permit four edits would have retired this
+pass's central guarantee, and nothing would then notice the fifth.
+
+**The wider claim — that the other 223 notes stay frozen — is WITHDRAWN, and it was already false
+when it was written.** It is a claim about the future of a living vault, and no branch-scoped
+check can deliver it; CLAUDE.md's rule is to write the guarantee to the check rather than ahead of
+it. Measured on 2026-08-29 against `MATRIX_BASE`: **28** of the 227 had been edited outside the
+allowlist BEFORE the 2026-08-28 reorganisation, across some twenty commits — `entities/Asset.md`,
+`deliverables/Design System.md` and `business-rules/Money is rounded once, where the pipeline
+finalizes it.md` among them — and one of them,
+`business-rules/Every entity resolves to exactly one project.md`, was not edited but RETITLED, to
+`Work belongs to one project, catalogues belong to the vault.md`. The reorganisation then moved 38
+more and edited 66, bringing the total a `MATRIX_BASE`-anchored gate would report to **113**. Such
+a gate was considered and refused: it stays red until all 113 are allowlisted, which retires the
+same guarantee by a slower route.
+
+**And the check now says when it is measuring nothing.** This gate is testable only while the
+branch is unmerged. Once the work is on `main`, `git merge-base main HEAD` IS `HEAD`, the range
+`HEAD...HEAD` is empty, and the check went on printing `0 outside the allowlist` — the same
+sentence it prints after examining a hundred notes and finding them untouched. Measured by
+perturbing `entities/Asset.md`: the uncommitted check moved to 1 and the merge-base check stayed
+at 0. It prints a NOTE naming the empty range instead. It does not fail there, because on `main`
+there is legitimately nothing to examine and a gate permanently red on the default branch is a
+gate that gets deleted.
+
+**Two notes added after the freeze are outside this gate's subject, not exceptions to it.**
+`requirements/Asset designer.md` and `requirements/Inventory Management.md` carry frontmatter
+changes made since 2026-08-24 and are deliberately NOT in the allowlist. Both are absent at
+`MATRIX_BASE` and cited by zero rows of `rows.tsv` and `findings.tsv`: they were never among the
+227, so they invalidate no row — nothing was computed against them — and allowlisting them would
+assert that they had been frozen, which is false. They surface at all only because the gate's
+pathspec names FOLDERS, and a folder holds the notes created after the freeze as well as the ones
+that were there for it.
 
 **The matrix is pinned to the corpus it compared against**, commit `2253cea`. That is not
 bookkeeping: those four edits move the candidate set of **1,205 behavioural rows**, a fifth of the
@@ -2019,15 +2051,36 @@ committed numbers as wrong. `verify-dod.sh` materialises the pinned tree and rep
 `candidates.sh` takes `RP_CORPUS_ROOT` for the same reason, and reads the working tree when it is
 unset, which is what a reader wants while the backlog has not moved.
 
+**The citations are as of 2026-08-24, and `moves.tsv` says where those notes are now.** The
+2026-08-28 reorganisation moved `business-rules/` under `docs/product/` and `adrs/` under
+`docs/development/`, so **39** of the 227 cited note paths no longer resolve — reaching 206 lines
+of `rows.tsv` across four of its columns (`source`, `matched`, `pair`, `subject`), 2 of
+`findings.tsv`, and one prose citation in `convention.tsv`, which is a third move,
+`docs/templates/` to `docs/_templates/`. They are **not rewritten**, and that is the decision
+rather than an omission: the pinned corpus really does hold `docs/business-rules/X.md`, so the
+committed citations are correct for the tree they were computed against, and rewriting them would
+make the matrix cite paths absent from its own corpus — invisibly, because `same_note` compares
+kind and filename, so every selftest would stay green while it happened. `moves.tsv` is derived by
+`lookup.py --moves` against the working tree and held byte-identical to that generator by
+`verify-dod.sh`, which also recomputes the stale count with a second instrument in awk so that an
+empty mapping cannot pass by agreeing with an empty regeneration. 38 of the 39 are container moves
+it resolves unambiguously; the 39th is the retitled note above, reported as `unresolved` rather
+than dropped, because a filename change is not something `same_note` can follow and that is the
+one row a reader most needs told.
+
 **No finding was moved by the edits.** A gap says the backlog had no note for something *when the
 comparison ran*; the backlog gaining one afterwards is that finding being resolved, and resolution
 is recorded in `remedy`. Moving the rows instead would erase the disagreement the decision was
 taken to settle.
 
 ```bash
+# On an UNMERGED branch. The pathspec is asked of lookup.py rather than spelled, because a
+# hand-written list names one layout and the corpus now has two: naming only where a folder is
+# now sees the arrivals and is blind to the departures. On `main` this range is empty and the
+# number below means nothing, which is what the gate now prints rather than reporting 0.
+D=docs/reviews/2026-08-24-ux-layer-backlog-reconciliation
 git diff --name-only "$(git merge-base origin/main HEAD)"...HEAD -- \
-  docs/requirements docs/entities docs/business-rules docs/components \
-  docs/actors docs/deliverables docs/adrs docs/issues | wc -l   # 0
+  $(python3 "$D/lookup.py" --corpus-pathspecs) | wc -l   # 0
 ```
 
 The instrument closes: **5** note types consume named-thing rows against **5** producer targets

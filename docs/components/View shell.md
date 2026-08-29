@@ -22,11 +22,11 @@ the reason nothing outside the view knows the inside is Vue.
 
 ## Specimen
 
-![View shell, and the states it owes, in Obsidian's default light and dark](view-shell.png)
+![View shell, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/view-shell.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -86,4 +86,4 @@ is a question no check here can ask.
 ## Sources
 
 SDD §12 · SDD §60 · SDD §84, in
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

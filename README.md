@@ -5,7 +5,7 @@ with budgets and a schedule.
 
 > Early scaffold. The build, the quality gates and the release pipeline are in place; the
 > capability itself is not built yet. The target architecture is
-> [`docs/sdds/obsidian-renovation-planner-SDD.md`](docs/sdds/obsidian-renovation-planner-SDD.md).
+> [`docs/development/sdds/obsidian-renovation-planner-SDD.md`](./docs/development/sdds/obsidian-renovation-planner-SDD.md).
 
 ## Installation
 

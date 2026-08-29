@@ -21,11 +21,11 @@ depend on for the channel they cannot draw.
 
 ## Specimen
 
-![Status bar, and the states it owes, in Obsidian's default light and dark](status-bar.png)
+![Status bar, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/status-bar.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -90,5 +90,5 @@ not. Which is which is a decision slice 13 has to make and this note cannot make
 ## Sources
 
 PRD §39 · PRD §67 · SDD §60, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -76,6 +76,38 @@ function roundToStep(value: number, step: number): number {
 }
 
 /**
+ * How near a direction component must be to `0` or `±1` to be treated as exactly that.
+ * Twelve orders of magnitude below a millimetre and four above the dust being cleaned, so
+ * it can only ever catch a representation error: the nearest real coordinates are the
+ * sub-nanometre ones no pointer, at any zoom this editor allows, can express.
+ */
+const AXIS_EPSILON = 1e-12;
+
+/**
+ * One component of a snapped direction, with `Math.cos`/`Math.sin`'s representation error
+ * removed.
+ *
+ * A snapped angle is by construction an exact multiple of the step, so when that multiple
+ * lands on an axis the direction IS exactly `(±1, 0)` or `(0, ±1)` — but `Math.sin(Math.PI)`
+ * is `1.22e-16`, not `0`. Left in, that dust travels: a Shift-constrained horizontal line
+ * comes out 1.2e-14 mm off horizontal, and — the way it was actually found — a constrained
+ * click back onto an existing vertex lands 1.2e-14 mm beside it, slips through
+ * `DrawPolygonTool`'s exact-equality duplicate guard, and gives the polygon the zero-length
+ * edge that guard exists to refuse. `createPolygon` would not catch it either: it validates
+ * the count and finiteness of the coordinates, both of which a sliver satisfies.
+ *
+ * Correcting a representation error rather than fudging a value: this returns the number the
+ * arithmetic was always trying to produce. Angles that are NOT axis multiples are irrational
+ * in both components and pass through untouched, because for those there is no exact value to
+ * restore. Reported by a review bot on the pull request that added the constraint.
+ */
+function exactOnAxis(value: number): number {
+	if (Math.abs(value) < AXIS_EPSILON) return 0;
+	if (Math.abs(Math.abs(value) - 1) < AXIS_EPSILON) return Math.sign(value);
+	return value;
+}
+
+/**
  * Nearest of `candidates` to `point`, within `tolerance`, else `null`. `toPoint` maps a
  * candidate to the point actually being measured against — identity for a vertex, a
  * clamped projection for an edge — and may answer `null` to exclude a candidate outright
@@ -178,6 +210,43 @@ export class SnapService {
 
 	snapRotation(angleRadians: number): number {
 		return roundToStep(angleRadians, this.config.angleStepRadians);
+	}
+
+	/**
+	 * `point` pulled onto the nearest ray of `angleStepRadians` leaving `anchor` — the Shift
+	 * constraint both drawing tools offer, so a wall can be drawn straight without the user
+	 * hitting the exact pixel.
+	 *
+	 * **Projected onto the ray, not rotated onto it.** The result is the pointer's distance
+	 * ALONG the constrained direction, which is the convention CAD polar tracking established:
+	 * the picked point lands on the alignment path at the distance indicated. At the editor's
+	 * 15 degree step the two differ by at most `1 - cos(7.5°)`, under 1%, so this choice is
+	 * about being right rather than about being visible.
+	 *
+	 * Two properties the arithmetic does not give for free, both pinned by tests:
+	 *
+	 * - A pointer ON the anchor answers the anchor. It has no bearing, and `atan2(0, 0)` is
+	 *   `0` rather than `NaN`, so the natural reading would be "due east" — a direction the
+	 *   user never indicated, drawn out of a click that has not moved.
+	 * - An axis-aligned constraint answers EXACT coordinates. See `exactOnAxis`: without it a
+	 *   constrained horizontal is 1.2e-14 mm off horizontal, and a constrained click back onto
+	 *   an existing vertex lands just beside it rather than on it — which is a zero-length
+	 *   polygon edge that every exact-equality guard downstream waves through.
+	 * - The point is never placed BEHIND the anchor. With any step up to a half turn the
+	 *   nearest direction is within half a step of the true bearing, so the projection is
+	 *   forward on its own; a coarser step is what breaks that, and a mirrored point would be
+	 *   a straight line drawn in the direction the user is not pointing.
+	 */
+	snapDirection(anchor: Point, point: Point): Point {
+		const dx = point.x - anchor.x;
+		const dy = point.y - anchor.y;
+		if (dx === 0 && dy === 0) {
+			return anchor;
+		}
+		const angle = this.snapRotation(Math.atan2(dy, dx));
+		const direction = { x: exactOnAxis(Math.cos(angle)), y: exactOnAxis(Math.sin(angle)) };
+		const along = Math.max(0, dx * direction.x + dy * direction.y);
+		return { x: anchor.x + direction.x * along, y: anchor.y + direction.y * along };
 	}
 
 	/**

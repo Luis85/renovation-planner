@@ -1449,11 +1449,21 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   failure this module exists to convert into an early one. The EXECUTABLE bit is deliberately
   not asked with it: Windows has no such bit and `accessSync(path, X_OK)` succeeds there for
   any file, so the check would hold on one CI platform and be theatre on the other.
-  `tests/build/chromium.test.ts` drives all of it, half in a CHILD PROCESS
+  `tests/build/chromium.test.ts` drives all of it, half in ONE CHILD PROCESS
   because `chromium.executablePath()` reads `PLAYWRIGHT_BROWSERS_PATH` at IMPORT and not at
   call — its own first draft set that variable in `beforeEach`, was answered from the real
   cache throughout, and planted an empty file called `chrome` in this machine's provisioned
   Playwright directory, which every later case then read as an installed pinned build.
+  **ONE child, not one per case, and that is a CI lesson rather than tidiness**: a spawn that
+  imports playwright-core costs about 650ms, and six of them cost 3.76s of a two-core runner
+  in synchronous bursts — beside test files whose waits are bounded in TICKS rather than
+  seconds. `settleUntil`'s own docblock already records a fixed-tick wait failing next to a
+  PDF rasterizing two million pixels; this file reproduced that shape, timing out
+  `accessibility.test.ts`'s cold Vite transform on one CI leg while the other three passed.
+  Nothing needed a process each: the import happens once and the FILESYSTEM and ENVIRONMENT
+  are read at CALL time, so one child walks every state and the `it`s read the results back.
+  **A test file's CPU cost is part of its correctness when anything in the suite waits in
+  ticks**, and a green local run on a four-core machine cannot see it.
 
   **It has now caught ten defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its

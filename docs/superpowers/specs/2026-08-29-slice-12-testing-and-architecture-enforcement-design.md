@@ -255,9 +255,18 @@ calls would have left most of the extension dimension untested and a deleted ent
 `SRC_EXTENSIONS` still green — the promise made one paragraph earlier, unkept by the plan
 directly below it.
 
-So one call per (layer, extension) pair, each carrying that layer's every forbidden import in
-every spelling, plus an allowed counterpart per pair. Six layers × six parseable extensions ×
-two directions is on the order of **70 calls**, not 12.
+So one call per **(block, extension)** pair — every block the discovery step finds, not the six
+layers — each carrying that block's every forbidden import in every shape, plus an allowed
+counterpart per pair. **The previous draft said "(layer, extension)" here**, two paragraphs after
+committing to a `(block × extension × import shape)` matrix, so following the executable
+instruction would have omitted root, catch-all, `presentation/dialogs` and both `networkFree`
+subtrees — and removing an extension from any of those would have left the suite green. That is
+the same self-contradiction this section already recorded once, reappearing because the matrix
+was widened above and the instruction below it was not. Raised by a review bot.
+
+Eleven blocks × six parseable extensions × two directions is on the order of **130 calls**, not
+70 and not 12 — a figure to be recomputed from the discovered set rather than trusted from this
+sentence, since the discovery step is what determines it.
 
 **That number is less alarming than it looks, and the reason is worth stating rather than
 leaving to be rediscovered.** `tests/helpers/eslint.ts` records the shape of this cost directly:
@@ -435,7 +444,22 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   The case therefore does three things, and the first is the one criterion 13 is actually about:
   bootstrap succeeds and the index is **fully built**, nothing dropped or thrown; a
   repository/query **read of the planted record** refuses with the expected code; and a healthy
-  record in the same fixture still loads. The middle step is what the earlier drafts were missing
+  record in the same fixture still loads.
+
+  **And the fixture pins the exact broken EDGE, because "an unresolved reference" is not enough.**
+  Not every dangling reference is validated on a read: `ObsidianPlanRepository.getById` never
+  resolves the owning project (`plan.project-folder-unresolved` is raised on a WRITE path), and a
+  zone's `projectId` is not resolved on load either — so a plan or zone whose `project` is missing
+  is genuinely broken and produces **no refusal at all**, leaving the step-2 assertion
+  unsatisfiable against a fixture that looks correct by description. Raised by a review bot, one
+  round after the read step was added.
+
+  The planted record is therefore **a zone whose `plan` names a plan that does not exist**:
+  `getById` calls `loadOne(id, (planId) => this.geometry.read(planId))`, which takes
+  `parsed.value.plan` and reads that plan's geometry sidecar, so the missing edge fails on a path
+  the read actually walks. The fixture description names that edge rather than "a broken
+  reference" — the class this document keeps rediscovering is an assertion whose mechanism cannot
+  emit it, and this is the fourth instance, caught one round after the third. The middle step is what the earlier drafts were missing
   — an assertion about a refusal, with nothing in the test that asks for one.
 - **CI actually invokes the checks.** A test over the workflow definition confirming
 - **CI actually invokes the checks.** A test over the workflow definition confirming

@@ -273,7 +273,17 @@ leaving to be rediscovered.** `tests/helpers/eslint.ts` records the shape of thi
 the first call in a worker is ~3s idle and was seen at 17.8s under full-suite load, while *every
 call after it is 7–30ms*. The first type-aware `.ts` path additionally builds the project-service
 program, ~1.4s locally and ~5.1s under coverage instrumentation. Both are **once**, and
-`warmUpEslint` already exists to pay them in `beforeAll`. **About 130 cached calls at the 30 ms
+`warmUpEslint` **does not pay the second of those**, which this document asserted twice before a
+review bot checked it: the helper is one line — `calculateConfigForFile('src/main.ts')` — which
+resolves configuration and never invokes the parser. `network-boundary.test.ts` follows it with
+`await lintText('export const probe = 1;\n', LOGGING)` in the same `beforeAll`, under a comment
+naming exactly this reason: *"One `beforeAll` for ESLint's boot AND for the first type-aware
+program build."* Without that second call the ~5.1 s program build under coverage lands in
+whichever test body runs first, against vitest's 5 s default — the precise failure CLAUDE.md
+records for this directory. **The warm-up therefore requires a real `.ts` `lintText` call**, not
+`warmUpEslint()` alone, and `ESLINT_BOOT_MS` covers the pair.
+
+**About 130 cached calls at the 30 ms
 upper bound is roughly 3.9 seconds**, and about 0.9 at the 7 ms lower bound — so the boot still
 dominates, but not as overwhelmingly as the earlier figure implied.
 

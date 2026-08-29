@@ -30,6 +30,14 @@ const OWNED_KEYS = [
 	'name',
 	'status',
 	'project',
+	// Project notes (design slice 16, Task 5a). Omitted when they were added, which broke
+	// BOTH halves of this file's rule at once for three keys: `writeOwnedFrontmatter`'s
+	// `Object.assign` clobbers a user's hand-edited `description` while a token that excludes
+	// it cannot refuse the save doing the clobbering. `digest.test.ts` derives this set from
+	// the five schemas now, so the next key added there fails there rather than shipping.
+	'description',
+	'start',
+	'target-completion',
 	'plan',
 	'zone-type',
 	'background-path',

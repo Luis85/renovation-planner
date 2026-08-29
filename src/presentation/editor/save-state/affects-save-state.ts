@@ -52,7 +52,10 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  *
  * - the eight "not found" refusals that OPEN a command (`loadPlan`, `loadZone`,
  *   `loadRequirement`, `CreatePlan`, `CreateZone`, `AssignAsset`, `UpdateAsset`,
- *   `SetPlanBackground`), each before that command's first write;
+ *   `SetPlanBackground`), each before that command's first write. **`loadRequirement` has a
+ *   NINTH caller that does not open anything, and the residual-exposure paragraph below is
+ *   where it is accounted for**: `requirementResolutionSteps` calls it once per referent,
+ *   inside a loop whose earlier iterations have already written;
  * - `zone.nothing-to-undo` in both reversible zone adapters and `requirement.not-found` in
  *   `ReversibleOverrideBase.execute`, all three raised with nothing recorded to write;
  * - `requirement.zone-not-found` and `requirement.asset-not-found` in
@@ -141,17 +144,42 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * answer is probably that the CATEGORY is the wrong axis and the command should report
  * whether it wrote.
  *
- * **The residual exposure this creates, stated because it is the unsafe direction.** A
- * `Domain`, `Validation`, `Reference` or `Calculation` error raised AFTER a write had already
- * landed would be under-reported: the indicator would settle `saved`, or revert to what it read
- * before the batch, over data whose write half-completed. The sweeps above found NO such site
- * today — which is "found none", not "none exists", and nothing in the suite or in either
- * linter would notice one being added. `deleteResolution.ts` is where one is likeliest to
- * appear, being the only member of the pre-write set that writes several entities in sequence;
- * today every `Reference` refusal in it is inside `prepare`, its inline recalculation LOGS a
- * `Calculation` failure rather than returning one, and every failure after that point is a
- * `RepositoryError`. The two write-boundary codes are the nearest thing to a post-write member
- * and they are carved back out above.
+ * **The residual exposure this creates, stated because it is the unsafe direction — and it is
+ * NOT hypothetical, which is what an earlier draft of this paragraph got wrong.** A `Domain`,
+ * `Validation`, `Reference` or `Calculation` error raised AFTER a write had already landed is
+ * under-reported: the indicator settles `saved`, or reverts to what it read before the batch,
+ * over data whose write half-completed. That draft said "the sweeps above found NO such site
+ * today" and named `deleteResolution.ts` as where one was "likeliest to appear" on the strength
+ * of "today every `Reference` refusal in it is inside `prepare`". **Both halves are false, and
+ * the second is false in the file the first pointed at** — the sweep looked at
+ * `deleteResolution.ts` and stopped before `requirementResolutionSteps`, which is in the same
+ * file and is the half that writes:
+ *
+ * - `markStalePersisted` calls `requirements.markStale` — a WRITE — and then re-reads through
+ *   `loadRequirement`, which raises `requirement.not-found` (`Reference`) if the note is gone
+ *   by then. Strictly post-write, in one call, with no loop needed.
+ * - `repointAndMarkStale` opens with `loadRequirement` and can refuse with the same code, or
+ *   with the entity's own `repointedTo` refusal — pre-write for ITS requirement and post-write
+ *   for every earlier iteration of `applyAll`'s loop, each of which has already saved.
+ *
+ * So a delete resolution over three referents that writes two and then refuses the third
+ * resolves a `Reference` error, and this predicate answers `false` for it. `compensate` then
+ * tries to restore the two, and a FAILING compensation is only logged (see its header) — so
+ * the worst case is a badge-free `Saved` over a vault left half-written. `reference.set-changed`
+ * and the three other `prepare` codes stay genuinely pre-write; the code that is not is
+ * `requirement.not-found`, and it is pre-write at its other raise sites, which is exactly why
+ * carving it out by CODE here would trade this false silence for a false badge.
+ *
+ * **Left standing rather than patched, deliberately, and this is the fifth measurement of a
+ * predicate that has now measured wrong four times.** The two candidate fixes both cost
+ * something this slice cannot pay: carving out `requirement.not-found` puts a sticky "Save
+ * error" on an override of a requirement somebody else deleted, which wrote nothing; and
+ * having `runDeleteResolution` re-label a post-write refusal changes the sentence
+ * `toUserMessage` resolves for it, which is slice 17's declared territory by the same argument
+ * the paragraph below makes about the override commands. What this file CAN do is stop
+ * claiming the hole is not there. Nothing in the suite or in either linter would notice a
+ * further one being added — the category axis cannot see a write, which is the conclusion the
+ * paragraph above already reaches from the other end.
  *
  * **The deeper fix is at the raise sites and is not this slice's to make.** The override
  * commands LOSE information by re-labelling the domain entity's `Validation` errors as

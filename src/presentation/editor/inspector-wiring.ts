@@ -79,10 +79,16 @@ export function createInspector(
 		// Edit → Command (SDD §59's last arrow). The delete is routed here — the Inspector's
 		// ONE dispatch path — so its refresh and history entry are the shared ones.
 		//
-		// A `switch` over `InspectorEdit`'s discriminant and no fallback: the union has one
-		// member, so the compiler already knows this is total, and the second member added
-		// to it fails to build HERE rather than throwing out of a click handler at runtime,
-		// which is what the previous shape-testing version did.
+		// A `switch` over `InspectorEdit`'s discriminant and no fallback: the compiler proves
+		// totality from the union itself, so the NEXT member added to it fails to build HERE
+		// rather than throwing out of a click handler at runtime, which is what the previous
+		// shape-testing version did.
+		//
+		// This comment read "the union has one member" until the pass that extracted this
+		// module out of `runtime.ts`. That was true when slice 6 wrote it and has been false
+		// since slice 10 gave `InspectorEdit` its fourth: a count is a fact about the union
+		// that goes stale in the file that owns the union, while "the compiler proves it" is
+		// the property this `switch` actually rests on and cannot.
 		toCommand: (edit: InspectorEdit) => {
 			switch (edit.kind) {
 				case 'delete':

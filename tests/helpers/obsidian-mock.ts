@@ -123,10 +123,17 @@ export interface WorkspaceLeaf {
  * the dismiss control or the markup that design slice 13 puts inside `messageEl`.
  *
  * What is modelled: the `.notice-container > .notice` nesting Obsidian builds, the two
- * element handles it exposes, the duration it was constructed with, in-place replacement,
- * and a `hide()` that disconnects — the queue reads `isConnected` to decide whether a
- * visible slot is free, so a `hide()` that left the element attached would make that
- * mechanism untestable.
+ * element handles it exposes, the duration it was constructed with, and a `hide()` that
+ * disconnects — the queue reads `isConnected` to decide whether a visible slot is free, so a
+ * `hide()` that left the element attached would make that mechanism untestable.
+ *
+ * `setMessage` is NOT modelled, and it was for one commit. Obsidian really has it, and this
+ * fake really implemented it, and nothing in `src/` has ever called it: `notify.ts` owns the
+ * markup inside `messageEl` — a severity label, a message span and a dismiss button — and
+ * `setMessage` replaces that element's whole content, so the repeat count is written to the
+ * message span directly. A fake method with no consumer cannot be caught drifting from the
+ * real API, which is this file's stated policy, and a test exercising one reads as coverage
+ * of a mechanism the plugin does not use.
  *
  * What is NOT modelled, stated so nothing trusts this wider than it is: Obsidian's own
  * auto-dismiss timer (this plugin always passes `duration: 0` and owns the timer), its
@@ -175,11 +182,6 @@ export class Notice {
 		);
 		this.messageEl = this.containerEl.appendChild(document.createElement('div'));
 		this.messageEl.textContent = message;
-	}
-
-	setMessage(message: string): this {
-		this.messageEl.textContent = message;
-		return this;
 	}
 
 	hide(): void {

@@ -24,12 +24,6 @@ describe('the Notice fake', () => {
 		expect(Notice.constructed.at(-1)?.duration).toBe(0);
 	});
 
-	it('replaces the message in place', () => {
-		const notice = new Notice('one');
-		notice.setMessage('two');
-		expect(notice.messageEl.textContent).toBe('two');
-	});
-
 	it('disconnects the element on hide, which is what frees a slot', () => {
 		const notice = new Notice('a', 0);
 		notice.hide();

@@ -101,6 +101,32 @@ describe('affectsSaveState', () => {
 	});
 
 	/**
+	 * **The one code in that category that is NOT uniformly pre-write, pinned as what is TRUE
+	 * rather than left as a claim in a comment.** `requirement.not-found` is pre-write at every
+	 * raise site the fourth measurement enumerated — and post-write at the ninth caller it
+	 * missed: `requirementResolutionSteps.markStalePersisted` calls `requirements.markStale`
+	 * and THEN re-reads through `loadRequirement`, and `repointAndMarkStale` can refuse for any
+	 * referent after `applyAll`'s earlier iterations have already saved. So a delete resolution
+	 * over three referents that writes two and refuses the third resolves this code, and the
+	 * indicator settles `Saved` over a half-written vault whose compensation is only logged if
+	 * it fails too.
+	 *
+	 * Asserted as `false` on purpose, which is this repository's "pins the exposure as what is
+	 * TRUE rather than leaving it as a claim in a comment" — the same shape as
+	 * `errorPaths.test.ts`'s "is a READ gate" case. Closing the hole turns this case red, which
+	 * is the point: the fix has to come with a decision about the false badge it buys on the
+	 * PRE-write raise sites of the same code, and about the docblock paragraph that currently
+	 * says so.
+	 */
+	it('does NOT count requirement.not-found, which a delete resolution can raise AFTER writing', () => {
+		expect(affectsSaveState({
+			category: 'Reference',
+			code: 'requirement.not-found',
+			message: 'Requirement r-3 not found.',
+		})).toBe(false);
+	});
+
+	/**
 	 * **The case that would fail if `Calculation` left the pre-write set.** The third draft kept
 	 * it OUT on the strength of one sentence in `calculationError`'s own docblock — "raised on
 	 * the path where the stale marker has already been persisted" — which describes the caller's

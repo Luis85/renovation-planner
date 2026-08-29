@@ -88,7 +88,11 @@ already decided.
 The argument that decided it is a division of labour rather than a preference. `Notice` already
 offers four of the six things this component owes — manual dismiss (`hide()`), persist until
 dismissed (`duration: 0`), real DOM to write severity markup and a dismiss control into
-(`messageEl` / `containerEl`), and in-place replacement for a repeat count (`setMessage`). It
+(`messageEl` / `containerEl`), and a message that can be replaced in place for a repeat count.
+The last one is `messageEl` again rather than `setMessage`: this note cited that method before
+the code existed, and the code went the other way, because the plugin's own markup — a severity
+label, a message span and a dismiss button — has to survive the update, and `setMessage`
+replaces the element's whole content. `notify.ts` writes `body.textContent` instead. It
 offers neither hover-pause of the auto-dismiss timer nor a visible-slot cap with promotion, and
 both fall out of one choice: every notice is constructed with `duration: 0` and the plugin owns
 the timer. Both handles are `@since 1.8.7` and `manifest.json` declares `minAppVersion: 1.13.0`,

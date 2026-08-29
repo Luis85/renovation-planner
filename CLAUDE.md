@@ -873,14 +873,30 @@ it:
   two calls written with the code on the following line. The pre-write set is `Validation`,
   `Domain`, `Reference` and `Calculation` now — half the vocabulary, enumerated one category
   at a time in the docblock with their raise sites, with the write-boundary carve-out applied
-  to all four. Two things stay written to the check rather than past it. The widening
-  UNDER-reports any of the four raised after a successful write, which is the unsafe
-  direction, and the sweeps found no such site — "found none", not "none exists". And the
-  deeper fix is at the raise sites, which LOSE information by re-labelling `Validation` as
+  to all four. **And then a fourth measurement, which is the one that matters, because it
+  found the exposure the previous three had each declared absent.** The widening
+  UNDER-reports any of the four raised after a successful write — the unsafe direction — and
+  three drafts running said "the sweeps found no such site", the last of them naming
+  `deleteResolution.ts` as where one was likeliest to appear and then arguing it away with
+  "today every `Reference` refusal in it is inside `prepare`". The sweep had stopped one
+  function short of `requirementResolutionSteps`, which is in that same file and is the half
+  that WRITES: `markStalePersisted` calls `requirements.markStale` and then re-reads through
+  `loadRequirement`, which raises `requirement.not-found` — a `Reference` code, strictly
+  post-write, no loop needed — and `repointAndMarkStale` can refuse for any referent after
+  `applyAll`'s earlier iterations have already saved. So a delete resolution over three
+  referents that writes two and refuses the third settles the indicator at `Saved` over a
+  half-written vault, and a FAILING compensation is only logged. It is written down in the
+  predicate's own docblock rather than patched, because both candidate fixes trade this false
+  silence for a false badge or for copy that belongs to slice 17. **The general shape, and it
+  is the fourth instance in one predicate: a sweep that stops at a FILE stops wherever the
+  reader's attention did — "every refusal in `deleteResolution.ts` is in `prepare`" was
+  measured over the function somebody was looking at, not over the file the sentence names.**
+  The deeper fix is at the raise sites, which LOSE information by re-labelling `Validation` as
   `Domain`: that is slice 17's territory, because changing a category there also changes the
   sentence `toUserMessage` resolves for it. **If a fifth is ever proposed, the honest answer
   is probably that the CATEGORY is the wrong axis** — the same conclusion the sibling bullet
-  above reaches from the other end, where the fix was to have the command report.
+  above reaches from the other end, where the fix was to have the command report, and the
+  post-write hole above is that conclusion demonstrated rather than predicted.
 - **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
   are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
   swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`

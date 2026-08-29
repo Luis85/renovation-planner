@@ -1701,6 +1701,47 @@ it:
   bought back by reformatting is a budget that has already been spent, and writing down what
   the next author must do is what makes the second author's job a decision rather than a
   discovery.
+- **A durable RECOVERY record that outlives its sequence un-writes the thing the indicator
+  just called saved, and no amount of reporting fixes that.** `runDeleteResolution` logged a
+  failed final `clearMarker` and answered `ok`, which is honest — every write it owed the
+  vault had landed — so the adapter reported `'wrote'` and the indicator settled on
+  `Saved`. The marker stayed on disk, and `recoverInterruptedSequences` at the next load
+  restored every referent from the pre-state AND restored the deleted entity: a completed
+  deletion silently reversed, hours later, with every surface having agreed it was safe.
+  Reported by a review bot, which proposed propagating the failure into the save state. That
+  remedy was declined and the reason is the more useful half: **it converts a silent reversal
+  into a badged one.** The zone still comes back, and a sticky `save-error` about a marker
+  file the user has never heard of names nothing they can act on. The harm is in the
+  recovery, so that is where it was fixed.
+- **`entityDeleted` was being read as "how far did this get", and it means "it finished".**
+  `runDeleteResolution` writes that flag only after `deleteEntity` returns ok, and
+  `deleteEntity` is the sequence's LAST mutation — everything past it is marker bookkeeping.
+  So the flag proves every write landed, and recovery's rollback was destroying correct work
+  in exactly the case it was written for. Recovery clears such a marker and reverses nothing
+  now; a marker saying `false` is the only interrupted one, and its entity is by definition
+  still present — which is why `recoverInterruptedSequences`'s OWN `restoreEntity` is DELETED
+  rather than left unreachable (`undoDeleteResolution`'s member of that name is the UNDO
+  path and is untouched: a user asking for their deletion back is not a crash), and
+  why `RecoveryDeps` lost `zones` and `assets`. **Three green tests encoded the old policy
+  and one of them asserted a log line that no longer has a producer**, which is what a
+  deliberate, tested, wrong decision looks like from the inside: the reversal was not an
+  oversight, it was the design, and the fix reads as a regression until the ordering argument
+  above is made.
+- **The residual is named rather than implied, because a bound checked against the door its
+  author was thinking about is this file's own recurring defect.** If BOTH marker writes
+  fail — the `entityDeleted: true` update and the `clear` — the survivor says `false` while
+  the entity really is gone, and recovery rolls the referents back around a deletion that
+  stands. Two failures where the reported defect took one, and no flag on the marker can see
+  it: only the vault knows, and asking costs a second read per marker on every load. Written
+  down in `recoverOne`'s docblock, not closed.
+- **A log line is not a surface, and the composition that would make it one is not checked by
+  anything the compiler runs.** `ResolutionOps.notify` mirrors `CascadeDeps.notify` exactly —
+  optional for the suite's benefit, which is precisely what makes a composition that forgets
+  it compile, pass and say nothing. `tests/plugin/sequenceNoticeWiring.test.ts` is what tells
+  the two apart, and it was watched red with `notify: sequenceNotices` deleted from the root.
+  Both of its cases assert the PAIR — the delete still answers `ok` AND the user hears about
+  it — because "a notice appeared" is equally true of a build that started failing the whole
+  deletion, and "the delete succeeded" is equally true of the build being fixed.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

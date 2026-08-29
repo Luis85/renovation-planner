@@ -57,6 +57,7 @@ interface RecordedOps extends ResolutionOps<Record<string, unknown>> {
 	repointResults: Result<EntityVersion, PersistenceError>[];
 	recalculateResults: Result<unknown, AppError>[];
 	restoreResult: Result<EntityVersion, PersistenceError> | null;
+	readonly notified: string[];
 }
 
 function makeOps(overrides?: {
@@ -67,9 +68,16 @@ function makeOps(overrides?: {
 }): RecordedOps {
 	const warnings: string[] = [];
 	const errors: string[] = [];
+	const notified: string[] = [];
 	const ops: RecordedOps = {
 		entityId: 'entity-1',
 		entityKind: 'zone',
+		notified,
+		notify: {
+			markerClearFailed(entityId) {
+				notified.push(entityId);
+			},
+		},
 		logger: {
 			debug() {},
 			info() {},
@@ -457,7 +465,7 @@ describe('marker bookkeeping on the success path', () => {
 		expect(ops.deletedAtVersions).toHaveLength(0);
 	});
 
-	it('a failed final marker CLEAR is logged and the resolution still answers', async () => {
+	it('a failed final marker CLEAR is logged, TOLD TO THE USER, and the resolution still answers', async () => {
 		const ops = makeOps();
 		const markers = new ScriptedMarkers([], [1]);
 		const result = await runDeleteResolution(
@@ -466,8 +474,30 @@ describe('marker bookkeeping on the success path', () => {
 			new ReferenceLocks(),
 			markers,
 		);
+		// The sequence really did write, so it answers `ok` and the save indicator settles
+		// on `Saved` — correctly. What is NOT correct is leaving the user with only that:
+		// the marker outlived the sequence, so the durability this dialog promised did not
+		// hold, and a log line reaches nobody. Both halves are asserted TOGETHER, because
+		// "the resolution still answers ok" is equally true of a build where the failure
+		// reaches nobody at all — which is the build this pairing exists to fail.
 		expect(result.ok).toBe(true);
 		expect(ops.errors).toContain('sequence.marker-clear.failed');
+		expect(ops.notified).toEqual(['entity-1']);
+	});
+
+	it('a marker clear that SUCCEEDS tells the user nothing', async () => {
+		const ops = makeOps();
+		const result = await runDeleteResolution(
+			ops,
+			{ resolution: 'remove-references', resolvedReferents: REQUIREMENT_IDS },
+			new ReferenceLocks(),
+			new ScriptedMarkers(),
+		);
+		// The counterpart, without which the fix above is satisfied just as well by a
+		// `notify` called unconditionally — a warning after every successful delete.
+		expect(result.ok).toBe(true);
+		expect(ops.errors).not.toContain('sequence.marker-clear.failed');
+		expect(ops.notified).toEqual([]);
 	});
 });
 

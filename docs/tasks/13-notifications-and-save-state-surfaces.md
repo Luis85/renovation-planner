@@ -1052,6 +1052,52 @@ predicted — and the note said the answer would be an extraction rather than an
 literal. `presentation/editor/inspector-wiring.ts` is that extraction, and the literal that had
 been collapsed to buy three lines is back in its natural shape.
 
+### The marker that outlived its sequence
+
+The last finding of the pull request, and the only one whose remedy landed OUTSIDE this
+slice. `runDeleteResolution` logged a failed final `clearMarker` and answered `ok` — which is
+accurate, because every write the resolution owed the vault had landed — so the reversible
+adapter reported `'wrote'` and this slice's indicator settled on `Saved`. What survived was
+the durable marker, and `recoverInterruptedSequences` at the next load restored every referent
+from the pre-state and restored the deleted entity: **a completed deletion silently reversed,
+hours later, behind an indicator that had correctly called it saved.**
+
+The report proposed propagating the failure into the save state. That was declined, and the
+reason generalises: **reporting does not fix this harm, it decorates it.** A sticky
+`save-error` leaves the zone coming back on the next load just the same, and names a marker
+file the user has never heard of. It also costs exactly what four separate measurements of
+`affectsSaveState` were spent avoiding — a permanent badge over data that is, at that moment,
+correct.
+
+The harm is in the recovery, so the fix is: **`entityDeleted` means the sequence FINISHED.**
+`runDeleteResolution` writes that flag only after `deleteEntity` returns ok, and `deleteEntity`
+is the last mutation — everything past it is marker bookkeeping. Recovery clears such a marker
+and reverses nothing. A marker saying `false` is the only genuinely interrupted one, and its
+entity is by definition still present, so `recoverInterruptedSequences`'s own `restoreEntity`
+is deleted for want of any reachable case and `RecoveryDeps` loses `zones` and `assets` with
+it. (`undoDeleteResolution`'s member of the same name is the undo path and is untouched: a
+user asking for their deletion back is not a crash.)
+
+Three recovery tests encoded the old policy, one of them asserting a
+`sequence.recovery.entity-restore-refused` line that now has no producer anywhere. That is
+worth recording as a shape rather than as churn: the reversal was **deliberate, tested and
+wrong**, so the correction reads as a regression until the ordering argument above is made.
+
+The clear failure is still reported, through this slice's OTHER surface — the one the cascade
+precedent already established. `ResolutionOps.notify` mirrors `CascadeDeps.notify` exactly,
+optional for the suite's benefit, which is what makes a composition that forgets it compile
+and pass in silence; `tests/plugin/sequenceNoticeWiring.test.ts` is the only thing that can
+tell the two apart, and it was watched red with the wiring removed. Both its cases assert the
+PAIR — the delete still answers `ok` AND the user hears about it — because either half alone
+is satisfied by a build nobody wants.
+
+**What this does NOT close, stated rather than implied.** If BOTH marker writes fail — the
+`entityDeleted: true` update and the `clear` — the survivor says `false` while the entity
+really is gone, and recovery rolls the referents back around a deletion that stands. It takes
+two failures where the reported defect took one, and no flag on the marker can see it: only
+the vault knows, and asking costs a second read per marker on every load. It is written into
+`recoverOne`'s docblock, not closed.
+
 ## References
 
 - PRD §67 Autosave — the four literal states and the two stated triggers this slice

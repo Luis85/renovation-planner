@@ -92,6 +92,23 @@ import {
 import type { RenovationPlannerSettings } from './settings/settings';
 
 /**
+ * The one notice both delete commands raise, at module scope because the two are built in
+ * different functions and a second literal is a second answer to what this failure says.
+ *
+ * **WARNING rather than the `info` default, for `cascadeNotices`' reason and one of its
+ * own.** Slice 13 gives `warning` no auto-dismiss, and this one arrives at the end of a
+ * gesture the user is watching: the delete they asked for SUCCEEDED, so the save indicator
+ * says `Saved` and every other surface agrees. This sentence is the only thing that says
+ * the vault also kept a recovery record it should not have. Six seconds is not long enough
+ * to read a caveat attached to something that otherwise looks finished.
+ */
+const sequenceNotices = {
+	markerClearFailed: () => {
+		notifyWarning(tr('sequence.marker-clear-failed'));
+	},
+};
+
+/**
  * The ONE place dependencies are composed (SDD §10). At this slice it composes two things,
  * and the commented members are not a wish list — they are the promise this seam makes:
  * every later slice adds a FIELD and a constructor parameter here, and never a second
@@ -331,6 +348,7 @@ function composeSlice10(
 			locks,
 			logger,
 			markers,
+			notify: sequenceNotices,
 		}),
 		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
@@ -388,6 +406,7 @@ function composeGuarded(
 		locks,
 		logger,
 		markers,
+		notify: sequenceNotices,
 	});
 	const editor = guardedEditorServices(
 		{ projects, plans, zones, deleteZone },

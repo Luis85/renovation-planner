@@ -92,6 +92,21 @@ export interface ResolutionOps<TEntity> {
 	readonly entityId: string;
 	readonly entityKind: 'zone' | 'asset';
 	readonly logger: Logger;
+	/**
+	 * Slice 13's toast surface, injected exactly as `CascadeDeps.notify` is and for the same
+	 * reason: this module is `application/` and may not reach `presentation/`, so the
+	 * composition root decides what a user sees.
+	 *
+	 * **One member, because one failure here is invisible in a way the others are not.** A
+	 * refusal travels back as an `AppError` and the dialog shows it; a mid-sequence fault is
+	 * compensated and reported. A failed final `clear` is the one outcome that answers `ok`
+	 * — the vault really did get every write — while leaving a durable marker that outlived
+	 * the sequence it describes. The save indicator settles on `Saved`, correctly, and
+	 * without this the whole of the user's notice is a log line they never see.
+	 */
+	readonly notify?: {
+		markerClearFailed(entityId: string): void;
+	};
 	listReferents(): Promise<Result<Loaded<Requirement>[], RepositoryError>>;
 	loadEntity(): Promise<Result<Loaded<TEntity> | null, RepositoryError>>;
 	deleteEntity(expected: EntityVersion): Promise<Result<void, RepositoryError>>;
@@ -452,6 +467,16 @@ export async function runDeleteResolution<TEntity>(
 		}
 
 		// Step 5 — success clears the marker and hands progress onward untouched.
+		//
+		// **A failure here is not fatal to the sequence and must still be SAID.** Every write
+		// this resolution owed the vault has landed, so it answers `ok` and slice 13's
+		// indicator settles on `Saved` — which is true. What is left behind is a marker that
+		// outlived its sequence: `recoverInterruptedSequences` clears it on the next load
+		// without reversing anything (it reads `entityDeleted`, which the step above set),
+		// but until that load the durable record of this plan disagrees with the plan. The
+		// user is told, because a log line is not a surface. Reported by a review bot on the
+		// slice 13 pull request, whose scenario was the harsher one this pairing removed:
+		// recovery used to ROLL the whole deletion BACK.
 		const cleared = await clearMarker(markers, ops.entityId);
 		if (isErr(cleared)) {
 			ops.logger.error('sequence.marker-clear.failed', {
@@ -459,6 +484,7 @@ export async function runDeleteResolution<TEntity>(
 				entityKind: ops.entityKind,
 				cause: cleared.error,
 			});
+			ops.notify?.markerClearFailed(ops.entityId);
 		}
 		return ok({
 			deletedId: ops.entityId,

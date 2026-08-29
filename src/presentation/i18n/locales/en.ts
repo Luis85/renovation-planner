@@ -60,6 +60,7 @@ export const en = {
 	'editor.inspector.override.apply': 'Apply',
 	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
+	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',
 	'editor.zone.default-name': 'Zone',

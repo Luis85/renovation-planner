@@ -1,9 +1,6 @@
-import { isErr, type Result } from '../../core/result/Result';
-import type { RepositoryError } from '../ports/repositoryErrors';
+import { isErr } from '../../core/result/Result';
 import type { Logger } from '../ports/Logger';
 import type { SequenceMarkerStore } from '../ports/SequenceMarkerStore';
-import type { AssetRepository } from '../ports/AssetRepository';
-import type { ZoneRepository } from '../ports/ZoneRepository';
 import type { RequirementRepository } from '../ports/RequirementRepository';
 import type { Loaded } from '../ports/versioning';
 import type { Requirement } from '../../domain/requirement/Requirement';
@@ -12,8 +9,6 @@ import type { SequenceMarker, SequenceProgress } from './deleteResolution';
 export interface RecoveryDeps {
 	readonly markers: SequenceMarkerStore;
 	readonly requirements: RequirementRepository;
-	readonly zones: ZoneRepository;
-	readonly assets: AssetRepository;
 	readonly logger: Logger;
 }
 
@@ -21,47 +16,56 @@ function findSnapshot(marker: SequenceMarker, requirementId: string): Loaded<Req
 	return marker.affectedBefore.find((r) => r.entity.id === requirementId);
 }
 
-async function restoreEntity(
-	deps: RecoveryDeps,
-	marker: SequenceMarker,
-): Promise<Result<unknown, RepositoryError>> {
-	const snapshot = marker.entitySnapshot as Loaded<{ readonly id: string }>;
-	if (marker.entityKind === 'zone') {
-		return await deps.zones.save(snapshot.entity as never, 'absent');
-	}
-	return await deps.assets.save(snapshot.entity as never, 'absent');
-}
-
 /**
  * One marker: restore every `progress` entry from the pre-state, presenting the version
- * the forward write recorded (`'absent'` for a removed referent); restore the deleted
- * entity from its full snapshot when the marker says step 3 ran. A refused restore is
+ * the forward write recorded (`'absent'` for a removed referent). A refused restore is
  * surfaced, never forced; the marker clears once every entry is restored or surfaced.
+ *
+ * **A marker saying `entityDeleted` is a COMPLETED sequence, and rolling one back destroys
+ * correct work.** `runDeleteResolution` writes that flag only after `deleteEntity` has
+ * returned ok, and `deleteEntity` is the sequence's LAST mutation — everything after it is
+ * marker bookkeeping. So the flag means every write the sequence owed the vault landed, and
+ * the only reason the marker is still here is that `clear` (or the crash) beat the
+ * bookkeeping. This function used to restore the deleted entity and rewrite every referent
+ * from the pre-state for exactly that marker, which silently REVERSED a completed deletion
+ * on the next load — a deletion slice 13's save indicator had already reported as `Saved`,
+ * because it had genuinely been written. Found by a review bot on the slice 13 pull request.
+ *
+ * Nothing restores an entity any more, and that is the shape of the corrected rule rather
+ * than an omission: an interrupted sequence is one that died with the entity still present,
+ * so there is never an entity to put back.
+ *
+ * **The residual, which this does NOT close.** If BOTH marker writes fail — the
+ * `entityDeleted: true` update and the `clear` — the surviving marker says `false` while the
+ * entity really is gone, and this rolls the referents back around a deletion that stands.
+ * It takes two failures where the reported defect took one, and no flag on the marker can
+ * see it: only the vault knows, and asking it is a second read per marker on every load.
+ * Written down rather than taken.
  */
 async function recoverOne(deps: RecoveryDeps, marker: SequenceMarker): Promise<void> {
-	for (const entry of marker.progress as readonly SequenceProgress[]) {
-		const snapshot = findSnapshot(marker, entry.id);
-		if (!snapshot) continue;
-		const expected = entry.outcome === 'written' ? entry.version : 'absent';
-		const saved = await deps.requirements.save(snapshot.entity, expected);
-		if (isErr(saved)) {
-			deps.logger.error('sequence.recovery.restore-refused', {
-				requirementId: entry.id,
-				entityId: marker.entityId,
-				cause: saved.error,
-			});
+	if (!marker.entityDeleted) {
+		for (const entry of marker.progress as readonly SequenceProgress[]) {
+			const snapshot = findSnapshot(marker, entry.id);
+			if (!snapshot) continue;
+			const expected = entry.outcome === 'written' ? entry.version : 'absent';
+			const saved = await deps.requirements.save(snapshot.entity, expected);
+			if (isErr(saved)) {
+				deps.logger.error('sequence.recovery.restore-refused', {
+					requirementId: entry.id,
+					entityId: marker.entityId,
+					cause: saved.error,
+				});
+			}
 		}
-	}
-
-	if (marker.entityDeleted) {
-		const restored = await restoreEntity(deps, marker);
-		if (isErr(restored)) {
-			deps.logger.error('sequence.recovery.entity-restore-refused', {
-				entityKind: marker.entityKind,
-				entityId: marker.entityId,
-				cause: restored.error,
-			});
-		}
+	} else {
+		// Loud rather than silent: reaching this means a marker outlived the sequence it
+		// described, which is the durability failure `sequence.marker-clear.failed` warned
+		// the user about at the time. Nothing to repair, but the pair is what a reader
+		// needs to tie the two loads together.
+		deps.logger.warn('sequence.recovery.completed-sequence', {
+			entityId: marker.entityId,
+			entityKind: marker.entityKind,
+		});
 	}
 
 	const cleared = await deps.markers.clear(marker.entityId);
@@ -73,7 +77,10 @@ async function recoverOne(deps: RecoveryDeps, marker: SequenceMarker): Promise<v
 /**
  * The idempotent, conditional recovery of an interrupted multi-entity sequence (design
  * slice 10, "Compensated multi-entity sequences" step 4's cold half). At load a marker
- * means a crash landed between the first mutation and the sequence's completion.
+ * means the sequence it describes did not get to clear it — which is a crash between the
+ * first mutation and the last one when `entityDeleted` is false, and a completed sequence
+ * whose bookkeeping failed when it is true. Only the first has anything to undo; see
+ * `recoverOne` for why conflating the two reversed real deletions.
  *
  * Restoring from the pre-state is idempotent in both directions — a requirement already at
  * its before-state writes back to the same content — so a crash between a forward write

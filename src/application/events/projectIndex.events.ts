@@ -50,6 +50,14 @@ export function projectIndexRebuilt(): ProjectIndexRebuilt {
  * Without the type, the project list would re-read every project note in the vault for every
  * synced zone note — the subscription would be correct and the surface would be unusable.
  *
+ * **A RETYPE publishes two of these, one per type, and that follows from the filter rather
+ * than contradicting it.** An index upsert is keyed on the id, so a note whose `type` is
+ * hand-edited from one of the five to another leaves one bucket as it enters the next — two
+ * facts, and each source filters on exactly one of them. Announcing only the arriving type
+ * told every source except the one that needed telling: the project list matched
+ * `renovation-project`, so a project retyped into a plan kept its row. Each event still names
+ * one entry; there are simply two changes to name. Reported in review.
+ *
  * The id is carried for the same reason every other event in this codebase carries its
  * subject, and is used by nothing today; a plan-side source that wants "this plan's entry
  * moved" is the first caller that will need it.

@@ -48,31 +48,46 @@ export function notifyError(error: AppError): Notice {
 const mapUnexpected = createVaultExceptionMapper('vault');
 
 /**
- * The last door of all: something THROWN that no guard turned into a `Result`.
+ * The mapping half of the last door of all: something THROWN that no guard turned into a
+ * `Result`. Maps the cause to the same coded `PersistenceError` a guarded service would have
+ * produced, logs it under the caller's own event name, and returns the mapped `AppError` —
+ * it does NOT notify.
  *
- * A raw `Error.message` in a Notice is forbidden outright — it is developer text, often an
- * engine's own words and sometimes a file path — so the cause is mapped to the same coded
- * `PersistenceError` a guarded service would have produced, and printed from the locale
- * table like any other refusal.
- *
- * This exists because presentation still holds things the boundary does not cover: the raw
- * `ZoneRepository`/`RequirementRepository`/`AssetRepository` ports that
- * `PlanEditorCommandServices` hands the reversible adapters. Every COMMAND and QUERY it
- * holds is guarded; the ports are not, and this is what keeps their faults presentable.
+ * Split out of `notifyFault` (design slice 16) so a caller that must not announce a fault
+ * itself — because a DOWNSTREAM owner is the one deciding whether the failure gets a field
+ * message or a banner notice — can still get the map-once, log-once guarantee without a
+ * Notice coming out of this step too. `commitField` (`presentation/editor/commitField.ts`)
+ * is that caller: two notices for one fault, byte-identical because both were minted from
+ * the same code, is exactly the defect this split exists to close.
  *
  * **The `logger` is not optional, and the reason is SDD §66 rather than convenience.** A
  * guarded service produces two representations of one failure at ONE step — a terse user
  * message and a log line carrying the original cause — and the spec's own words are that
  * they "must not drift into being produced from two independent code paths". This door
- * stands where no guard did, so a print-only version of it would be exactly that second
- * path: the user gets a sentence and a developer gets nothing — and here, uniquely, the
- * cause is an unmapped exception, so no guard below has already recorded it and this line
- * is the only place that detail survives. So the mapping happens ONCE and both halves come
- * out of it. The event name is the caller's, for the same reason `guardCommand` takes one:
- * it says which door faulted.
+ * stands where no guard did, so a version that only logged would be exactly that second
+ * path once a caller also skipped notifying: the user gets nothing at all. Every caller
+ * either uses this directly (and owns announcing the result itself) or goes through
+ * `notifyFault` below, which still notifies in the same step it maps and logs.
  */
-export function notifyFault(cause: unknown, logger: Logger, event: string): Notice {
+export function faultError(cause: unknown, logger: Logger, event: string): AppError {
 	const mapped = mapUnexpected(cause);
 	logger.error(event, { cause, code: mapped.code });
-	return notifyError(mapped);
+	return mapped;
+}
+
+/**
+ * The last door of all, in full: maps, logs and notifies in one step — `notifyError` of
+ * `faultError`'s result. This is the ONLY shape that existed before the split above; every
+ * caller that wants the fault announced HERE, and not by something downstream, keeps
+ * reaching for this one unchanged.
+ *
+ * This exists because presentation still holds things the boundary does not cover: the raw
+ * `ZoneRepository`/`RequirementRepository`/`AssetRepository` ports that
+ * `PlanEditorCommandServices` hands the reversible adapters. Every COMMAND and QUERY it
+ * holds is guarded; the ports are not, and this is what keeps their faults presentable.
+ * The event name is the caller's, for the same reason `guardCommand` takes one: it says
+ * which door faulted.
+ */
+export function notifyFault(cause: unknown, logger: Logger, event: string): Notice {
+	return notifyError(faultError(cause, logger, event));
 }

@@ -10,7 +10,7 @@ import {
 } from '../../application/commands/requirement/reversible-override-commands';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
-import { err, ok, type Result } from '../../core/result/Result';
+import { ok, type Result } from '../../core/result/Result';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -41,6 +41,7 @@ import { tr } from '../i18n/strings';
 import { notifyError, notifyFault } from '../notices/notify';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
+import { makeCommitField } from './commitField';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -103,7 +104,11 @@ export interface EditorRuntime {
 	readonly deleteZone: (zoneId: ZoneId, zoneName: string) => Promise<void>;
 	/** Any panel edit — assign, override, reset — through the ONE dispatch path. Answers whether it landed. */
 	readonly commitEdit: (edit: InspectorEdit) => Promise<boolean>;
-	/** The override fields' door into the same path (slice 16): guards only the THROWN half — a RESOLVED refusal is `useFieldCommit`'s own `notify` to route, not this function's to announce. */
+	/**
+	 * The two override fields' door into the same commit path (design slice 16): guards
+	 * only the THROWN half (`commitField.ts`'s `makeCommitField`). A RESOLVED refusal is
+	 * `useFieldCommit`'s own `notify` to route, not this function's to announce.
+	 */
 	readonly commitField: (edit: InspectorEdit) => Promise<Result<void, AppError>>;
 	/** The assign-asset picker's options for this plan's project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
@@ -571,9 +576,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.redo()));
 	}
 
-	/** `commitEdit`'s guard, factored out so the two override fields can reuse it (slice 16): the THROWN half only — a fault reads back as `null` from `reportFault` and is converted to a failed `Result` here, or it would read to `useFieldCommit` as an accepted commit. */
-	const commitField = async (edit: InspectorEdit): Promise<Result<void, AppError>> =>
-		(await reportFault(context.commands.logger, inspector.commit(edit))) ?? err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'commitField converted a fault reportFault already logged and notified.' });
+	// `commitField.ts` carries the guard's own doc; this is just the one line that binds it
+	// to this leaf's logger and its `inspector.commit`.
+	const commitField = makeCommitField(context.commands.logger, (edit) => inspector.commit(edit));
 
 	/**
 	 * The Inspector's one commit path. A refusal the panel can attach to an input is rendered

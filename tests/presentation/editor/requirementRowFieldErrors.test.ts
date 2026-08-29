@@ -176,6 +176,11 @@ describe('RequirementRow', () => {
 		await input.trigger('keydown', { key: 'Escape' });
 		await input.setValue('99');
 
+		// Non-null BEFORE calling it: an `?.` here would make a broken capture (`commit`
+		// never actually invoked, so `resolveCommit` stays `null`) a silent no-op rather
+		// than a failing assertion — the settling write would never resolve, but the case
+		// would still pass on `commit` having been called exactly once for the wrong reason.
+		expect(resolveCommit).not.toBeNull();
 		resolveCommit?.(ok(undefined));
 		await flushPromises();
 

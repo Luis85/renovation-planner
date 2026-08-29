@@ -83,6 +83,12 @@ describe('a failure at an Inspector control', () => {
 		await assign(r);
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
+		// EXACTLY one: `commitEdit` calls `commitField`, whose own guard must map and log a
+		// thrown fault WITHOUT notifying, or this path — like the row's — would announce the
+		// same fault twice. `Notice.shown.at(-1)` alone cannot see a duplicate; only a count
+		// can.
+		expect(Notice.shown.length - before).toBe(1);
+
 		// MAPPED, not printed. The exception's own message is developer text — often an
 		// engine's words, sometimes a file path — and the DoD forbids it in a user-facing
 		// message outright. `notifyFault` turns the cause into the same coded
@@ -174,11 +180,12 @@ describe('a failure at an Inspector control', () => {
 	});
 
 	/**
-	 * The fault guard `commitField` exists for (design slice 16): binding a Requirement
-	 * override's `commit` prop straight to `inspector.commit` would drop `reportFault`'s
-	 * catch, and every dispatch here is ultimately bound to a `@blur` handler whose promise
-	 * nothing awaits — so a thrown fault would become an unhandled rejection reaching
-	 * nobody, and the field would silently stop responding.
+	 * The fault guard `commitField` (`presentation/editor/commitField.ts`) exists for
+	 * (design slice 16): binding a Requirement override's `commit` prop straight to
+	 * `inspector.commit` would drop its `try`/`catch`, and every dispatch here is ultimately
+	 * bound to a `@blur` handler whose promise nothing awaits — so a thrown fault would
+	 * become an unhandled rejection reaching nobody, and the field would silently stop
+	 * responding.
 	 */
 	it('a THROWN fault during a quantity override reaches the user as a notice, and the typed value survives', async () => {
 		const r = await selectedZone();
@@ -199,12 +206,18 @@ describe('a failure at an Inspector control', () => {
 		await qtyInput.trigger('blur');
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
+		// EXACTLY one: `commitField` maps and logs the fault WITHOUT notifying, so the only
+		// announcement is `useFieldCommit`'s own `notify` routing the unmapped code to the
+		// banner. Two notices for one fault (`commitField` announcing it AND the composable
+		// announcing it again) was this task's own review-round regression.
+		expect(Notice.shown.length - before).toBe(1);
+
 		// MAPPED, not printed — the same rule the assignment case above proves.
 		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
 		expect(Notice.shown.at(-1)).not.toContain('the vault exploded');
 
-		// The guard: `commitField` converts the fault `reportFault` already caught into a
-		// failed `Result` rather than letting the promise reject, so `useFieldCommit` never
+		// The guard: `commitField` converts the fault it caught into a failed `Result`
+		// rather than letting the promise reject, so `useFieldCommit` never
 		// reads it as an accepted commit. A missing guard would either leave this an
 		// unhandled rejection (failing the test outright) or — if the composable's own
 		// success branch ran regardless — silently reset the input to blank.

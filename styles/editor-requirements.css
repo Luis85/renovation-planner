@@ -71,11 +71,32 @@
 /*
  * `width: 100%` on the labels is what puts each control on its own line inside the wrapping
  * flex row above, so a label never ends up beside the input belonging to the field after it.
+ *
+ * For the two override fields specifically, the label is no longer a direct child of this
+ * row — design slice 16 wraps each label+input pair in `FieldError.vue`'s own
+ * `.rp-field-error` (a COLUMN flex container), so `width: 100%` here now resolves against
+ * that wrapper rather than against this row directly. The rule below is what restores the
+ * row-spanning behaviour at the wrapper's own level, which is what lets this one keep
+ * meaning what its comment says for the assign picker's label, which is still a direct
+ * child.
  */
 .rp-editor-requirement-overrides label,
 .rp-editor-requirement-assign label {
 	width: 100%;
 	color: var(--text-muted);
+}
+
+/*
+ * The override fields' `.rp-field-error` wrapper (design slice 16) takes the row's full
+ * width, exactly as its label already claims inside it — the assign picker has no such
+ * wrapper, so this is scoped to the two override fields alone. Without it, the wrapper
+ * sizes to fit its own content (dominated by the label's own text), which is narrower
+ * than the row and leaves the input inside it narrower than the label sitting above it.
+ * `align-items: stretch` is `.rp-field-error`'s own default, so widening the wrapper is
+ * what widens the input to match — no rule needs to reach past the wrapper to do it.
+ */
+.rp-editor-requirement-overrides .rp-field-error {
+	width: 100%;
 }
 
 .rp-editor-requirement-overrides input,

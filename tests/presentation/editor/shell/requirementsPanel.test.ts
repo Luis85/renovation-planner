@@ -122,6 +122,38 @@ describe('the Requirements panel', () => {
 		r.harness.unmount();
 	});
 
+	/**
+	 * Closes the map-to-raise-site link end to end, through the REAL command rather than a
+	 * mock: `RequirementRow`'s `QUANTITY_ERRORS` hand-spells `requirement.negative-quantity`,
+	 * and `SetRequirementQuantityOverride.ts` mints that exact code independently — a
+	 * previous round of this slice had the map and its own unit tests agree on a code the
+	 * command never raises, and stayed green because nothing drove the real raise site. This
+	 * case fails the moment either side of that pairing drifts from the other.
+	 */
+	it('shows the negative-quantity refusal under the quantity input, from the real command', async () => {
+		const r = await rigWithAssets(['Underlay']);
+		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+
+		await selectZoneAndAssign(r, areaAsset.entity.id);
+		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
+
+		const qtyInput = r.harness.wrapper.find('input[data-field="quantity"]');
+		if (!qtyInput.exists()) throw new Error('no quantity override input');
+		await qtyInput.setValue('-5');
+		await qtyInput.trigger('blur');
+
+		await until(
+			() => r.harness.wrapper.find('.rp-field-error__message').exists(),
+			'the inline refusal message',
+		);
+		expect(r.harness.wrapper.get('.rp-field-error__message').text()).toContain('A quantity cannot be negative.');
+		expect(qtyInput.attributes('aria-invalid')).toBe('true');
+		// Never committed as an override: the command refused it, so the requirement's own
+		// figure never moved.
+		expect(r.harness.wrapper.text()).not.toContain('Overridden');
+		r.harness.unmount();
+	});
+
 	it('pressing Assign with nothing picked dispatches nothing', async () => {
 		// The picker starts on the empty value, so the first thing a user can do is press
 		// Assign without choosing — which must be inert rather than a refused command.

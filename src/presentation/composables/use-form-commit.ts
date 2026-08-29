@@ -79,6 +79,21 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 	 * unit it is. A per-key Map cannot express "these two are one claim" — it only knows that
 	 * two keys happen to hold equal strings, which is not the same thing and would collapse
 	 * two genuinely separate errors that read alike.
+	 *
+	 * **Every key `fieldErrors` holds is a member of this array**, and that one-directional
+	 * subset — not an equality, since `setField` shrinks `fieldErrors` and leaves this alone —
+	 * is what lets `setField` clear the group without first asking whether `key` belongs to it.
+	 * It holds because the three writers of `fieldErrors` each maintain it: `submit` empties
+	 * BOTH in one statement pair, `submit`'s field arm assigns this from the very
+	 * `routed.fields` it builds the new map out of, and `setField` only DELETES, which cannot
+	 * add a key the array lacks. A fourth writer that refreshes one side alone breaks it, and
+	 * the symptom is silent — the field the user has just corrected keeps its message.
+	 *
+	 * The two `retires …` cases in `useFormCommit.test.ts` are what go red when it does, and
+	 * the single-field one only since the per-key fallback below was deleted. Measured, by
+	 * dropping this assignment and running both ways: with the fallback there, that case stayed
+	 * GREEN under a broken pairing, because `[key]` cleared the very key it was asserting on.
+	 * Deleting a branch nothing could reach gave an existing test back its teeth.
 	 */
 	let routedGroup: readonly (keyof TInput)[] = [];
 
@@ -87,8 +102,9 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 		if (!fieldErrors.value.has(key)) return;
 		const next = new Map(fieldErrors.value);
 		// The whole group, not just this key: correcting either half of a pair retires the
-		// claim about the pair.
-		for (const field of routedGroup.includes(key) ? routedGroup : [key]) next.delete(field);
+		// claim about the pair. No per-key fallback beside it: the line above has just proved
+		// `key` is in `fieldErrors`, and every key of `fieldErrors` is in the group.
+		for (const field of routedGroup) next.delete(field);
 		fieldErrors.value = next;
 	}
 

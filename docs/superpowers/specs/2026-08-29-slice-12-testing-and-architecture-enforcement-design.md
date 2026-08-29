@@ -268,6 +268,16 @@ Eleven blocks × six parseable extensions × two directions is on the order of *
 70 and not 12 — a figure to be recomputed from the discovered set rather than trusted from this
 sentence, since the discovery step is what determines it.
 
+**Measured while writing the implementation plan, and it refines the block figure rather than
+contradicting it:** the config declares `no-restricted-imports` in **13** blocks, of which two
+set it to `"off"` — the shared JS/TS base configs, matching `**/*.{js,cjs,mjs,jsx}` and
+`**/*.{ts,cts,mts,tsx}`. Eleven declare an actual ban, which is where this section's figure
+comes from and it is right. Both `off` blocks are ordered BEFORE the layer blocks, so the layer
+bans win the override; an `off` block reordered after them would disable every layer ban at
+once. So the membership pin records all thirteen WITH their severity rather than only the
+eleven that ban something — a set discovered by "declares the rule" and then narrowed to
+"bans something" would have been blind to exactly that reordering.
+
 **That number is less alarming than it looks, and the reason is worth stating rather than
 leaving to be rediscovered.** `tests/helpers/eslint.ts` records the shape of this cost directly:
 the first call in a worker is ~3s idle and was seen at 17.8s under full-suite load, while *every
@@ -478,7 +488,6 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   reference" — the class this document keeps rediscovering is an assertion whose mechanism cannot
   emit it, and this is the fourth instance, caught one round after the third. The middle step is what the earlier drafts were missing
   — an assertion about a refusal, with nothing in the test that asks for one.
-- **CI actually invokes the checks.** A test over the workflow definition confirming
 - **CI actually invokes the checks.** A test over the workflow definition confirming
   `npm run check` runs on both Ubuntu and Windows, on **both** of `.github/workflows/ci.yml`'s
   triggers — `pull_request` *and* `push: branches: [main]`. An earlier draft said "on every PR",
@@ -880,6 +889,15 @@ The whole conflict surface is: `eslint.config.mjs` (driven, not modified),
 `tests/helpers/vault.ts` (**a real overlap, sequenced after PR 25**), and nothing else —
 `vitest.config.ts` and `tsconfig.json` stay untouched only while the two-project split stays
 withdrawn.
+
+**§4a's Q4 then emptied that surface, and the consequence is recorded here rather than left
+to be rediscovered.** The only thing in this slice that would edit `tests/helpers/vault.ts`
+is the shared operation recorder, and the recorder exists solely for `large-project/`'s
+assertion. Dropping that fixture drops the overlap with it: the implementation plan reads
+that helper as a model for a disk-backed sibling and modifies nothing in it. So the surface
+is `eslint.config.mjs` (driven) plus one `entry` line in `.fallowrc.json`, and the
+sequencing constraint the paragraph above imposes has nothing left to sequence. It stands as
+written for the case where Q4 is reversed.
 
 ## 7. Verification
 

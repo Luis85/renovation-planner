@@ -57,7 +57,7 @@ import type {
 	RenovationProjectDeps,
 } from '../presentation/views/RenovationProjectContext';
 import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
-import { notify, notifyFault } from '../presentation/notices/notify';
+import { notifyWarning, notifyFault } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
@@ -96,6 +96,23 @@ import {
 	type UnguardedSlice10Services,
 } from './guardedServices';
 import type { RenovationPlannerSettings } from './settings/settings';
+
+/**
+ * The one notice both delete commands raise, at module scope because the two are built in
+ * different functions and a second literal is a second answer to what this failure says.
+ *
+ * **WARNING rather than the `info` default, for `cascadeNotices`' reason and one of its
+ * own.** Slice 13 gives `warning` no auto-dismiss, and this one arrives at the end of a
+ * gesture the user is watching: the delete they asked for SUCCEEDED, so the save indicator
+ * says `Saved` and every other surface agrees. This sentence is the only thing that says
+ * the vault also kept a recovery record it should not have. Six seconds is not long enough
+ * to read a caveat attached to something that otherwise looks finished.
+ */
+const sequenceNotices = {
+	markerClearFailed: () => {
+		notifyWarning(tr('sequence.marker-clear-failed'));
+	},
+};
 
 /**
  * The ONE place dependencies are composed (SDD §10). At this slice it composes two things,
@@ -291,13 +308,20 @@ function composeSlice10(
 	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
 	 * suite's benefit; production always passes it, and this is the caller that makes the
 	 * whole port more than a tested no-op.
+	 *
+	 * **WARNING rather than the `info` default, and for the same reason the port exists.**
+	 * Slice 13 gives `warning` no auto-dismiss: it stays until the user dismisses it, while
+	 * `info` goes after six seconds. These two run with nothing the user clicked waiting on
+	 * them, so a six-second notice about figures that may be wrong is one the user is most
+	 * likely to be looking elsewhere for — the same silence this port was added to break,
+	 * only slower.
 	 */
 	const cascadeNotices = {
 		cascadeAborted: () => {
-			notify(tr('cascade.aborted'));
+			notifyWarning(tr('cascade.aborted'));
 		},
 		staleMarkerFailed: () => {
-			notify(tr('cascade.stale-marker-failed'));
+			notifyWarning(tr('cascade.stale-marker-failed'));
 		},
 	};
 
@@ -330,6 +354,7 @@ function composeSlice10(
 			locks,
 			logger,
 			markers,
+			notify: sequenceNotices,
 		}),
 		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
@@ -387,6 +412,7 @@ function composeGuarded(
 		locks,
 		logger,
 		markers,
+		notify: sequenceNotices,
 	});
 	const editor = guardedEditorServices(
 		{ projects, plans, zones, deleteZone },

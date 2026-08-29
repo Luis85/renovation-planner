@@ -24,6 +24,7 @@ import type { Money } from '../../../core/money/Money';
 import type { RequirementInspectorDTO } from '../../../application/queries/GetRequirementsForZone';
 import type { InspectorEdit } from '../inspector/inspector-store';
 import type { Logger } from '../../../application/ports/Logger';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 import { useFieldCommit, type UseFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -33,7 +34,7 @@ import FieldError from '../../components/FieldError.vue';
 
 const props = defineProps<{
 	row: RequirementInspectorDTO;
-	commit: (edit: InspectorEdit) => Promise<Result<void, AppError>>;
+	commit: (edit: InspectorEdit) => Promise<Result<DispatchOutcome, AppError>>;
 	/**
 	 * This leaf's logger (`runtime.logger`, which is `PlanEditorCommandServices.logger`),
 	 * required by `useFieldCommit` for the one failure it owns both halves of: a coalesced
@@ -95,7 +96,7 @@ const quantity = useFieldCommit<string, { quantity: number | null }>({
 			requirementId: props.row.requirementId,
 			quantity: raw.trim() === '' ? null : Number(raw.trim()),
 		}),
-		undo: () => Promise.resolve(ok(undefined)),
+		undo: () => Promise.resolve(ok('no-write')),
 	}),
 	// The reversible wrapping and the history entry are `commitEdit`'s job, one seam up —
 	// this row supplies only the shape `useFieldCommit` takes, without adding a second
@@ -196,7 +197,7 @@ const cost = useFieldCommit<string, { cost: Money | null }>({
 			requirementId: props.row.requirementId,
 			cost: raw.trim() === '' ? null : moneyOf(raw.trim(), props.row.cost.effective.currency),
 		}),
-		undo: () => Promise.resolve(ok(undefined)),
+		undo: () => Promise.resolve(ok('no-write')),
 	}),
 	history: { run: (command) => command.execute() },
 	errorMap: COST_ERRORS,

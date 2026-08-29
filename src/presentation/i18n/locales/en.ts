@@ -59,6 +59,7 @@ export const en = {
 	'editor.inspector.override.reset': 'Reset to calculated',
 	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
+	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',
 	'editor.zone.default-name': 'Zone',
@@ -160,6 +161,11 @@ export const en = {
 	'dialog.delete-reference.delete-anyway': 'Delete anyway',
 	'dialog.entity-picker.empty': 'Nothing to choose from.',
 	'dialog.form.submit': 'Save',
+	'notice.severity.success': 'Success',
+	'notice.severity.info': 'Information',
+	'notice.severity.warning': 'Warning',
+	'notice.severity.error': 'Error',
+	'notice.dismiss': 'Dismiss',
 	'empty.project.no-projects.headline': 'No renovation projects yet',
 	'empty.project.no-projects.body': 'A renovation project holds your plans, zones, assets and costs. Create one to get started.',
 	'empty.plan.no-background.headline': 'No plan document yet',
@@ -218,6 +224,10 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
+	'save-state.saved': 'Saved',
+	'save-state.saving': 'Saving',
+	'save-state.unsaved-changes': 'Unsaved changes',
+	'save-state.save-error': 'Save error',
 } as const;
 
 export type StringKey = keyof typeof en;

@@ -21,6 +21,8 @@ import { SetPlanBackgroundCommand } from '../../src/application/commands/plan/Se
 import { ReversibleSetPlanBackgroundCommand } from '../../src/application/commands/plan/ReversibleSetPlanBackground';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { t } from '../../src/presentation/i18n/strings';
+import { activateNotices } from '../../src/presentation/notices/notify';
+import { installObsidianDom } from '../helpers/dom';
 import { expectOk, RecordingEventBus } from '../helpers/domain';
 import { makePlan } from '../helpers/entities';
 import { createProjectId } from '../../src/domain/project/ProjectId';
@@ -109,9 +111,17 @@ function activePlanEditor(planId: string): unknown {
 	return { getState: () => ({ planId }) };
 }
 
+// The notice host builds its markup with Obsidian's own `createSpan`/`createEl` globals.
+installObsidianDom();
+
 beforeEach(() => {
 	Notice.shown.length = 0;
 	FuzzySuggestModal.opened.length = 0;
+	// A notice is INERT until something activates the queue — `onload` is what does that
+	// in production, so a suite asserting on `Notice.shown` has to stand where the plugin
+	// stands. Per TEST, and for a second reason: the queue DEDUPS, so two cases raising the
+	// identical sentence would fold into one `(×2)` and construct no second `Notice`.
+	activateNotices();
 });
 
 describe('open plan editor', () => {

@@ -83,7 +83,7 @@ async function wiredAfterFailedSequence() {
 }
 
 describe('recoverInterruptedSequences', () => {
-	it('rewrites each progress entry from the pre-state and restores a deleted entity', async () => {
+	it('rewrites each progress entry from the pre-state when the sequence was interrupted before the delete', async () => {
 		const w = await requirementFixture();
 		const zone = expectOk(
 			await w.zones.save(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }), 'absent'),
@@ -96,8 +96,10 @@ describe('recoverInterruptedSequences', () => {
 		});
 		const written = expectOk(await w.requirements.save(requirement, 'absent'));
 
-		// The crash scenario the marker exists for: step 3 has ALREADY deleted the zone.
-		expectOk(await w.zones.delete(zone.entity.id, zone.version));
+		// The crash scenario the marker exists for, and the ONLY one that has anything to
+		// roll back: the process died inside `applyAll`, so step 3 never ran and the zone is
+		// still there. `entityDeleted` is therefore false, which is what makes this an
+		// interrupted sequence rather than a completed one.
 
 		// Cold-start state: the stale-marker write landed and the process died right after,
 		// so the CURRENT version of the referent is exactly what `progress` recorded. One
@@ -111,7 +113,7 @@ describe('recoverInterruptedSequences', () => {
 			entityKind: 'zone',
 			entityId: String(zone.entity.id),
 			entitySnapshot: { entity: zone.entity, version: zone.version } as never,
-			entityDeleted: true,
+			entityDeleted: false,
 			affectedBefore: [{ entity: marked.entity, version: marked.version }],
 			progress: [
 				{ id: written.entity.id, outcome: 'written', version: marked.version },
@@ -123,12 +125,10 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
-			zones: w.zones,
-			assets: w.assets,
 			logger,
 		});
 
-		// Both halves are back: the referent at its pre-state figures AND the deleted zone.
+		// The referent is back at its pre-state figures and the marker is gone.
 		const stored = expectOk(await w.requirements.getById(requirement.id));
 		expect(stored?.entity.recalculationStatus).toBe('current');
 		expect(expectOk(await w.zones.getById(zone.entity.id))).not.toBeNull();
@@ -140,8 +140,6 @@ describe('recoverInterruptedSequences', () => {
 		const deps = {
 			markers: w.markers,
 			requirements: w.requirements,
-			zones: w.zones,
-			assets: w.assets,
 			logger,
 		};
 		await recoverInterruptedSequences(deps);
@@ -164,8 +162,6 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers: w.markers,
 			requirements: w.requirements,
-			zones: w.zones,
-			assets: w.assets,
 			logger,
 		});
 
@@ -177,7 +173,7 @@ describe('recoverInterruptedSequences', () => {
 		expect(expectOk(await w.markers.list())).toEqual([]);
 	});
 
-	it('restores a deleted ASSET when the marker names that kind', async () => {
+	it('leaves a completed ASSET deletion standing rather than resurrecting it', async () => {
 		const w = await requirementFixture();
 		const asset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
 		expectOk(await w.assets.delete(asset.entity.id, asset.version));
@@ -197,24 +193,34 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
-			zones: w.zones,
-			assets: w.assets,
 			logger,
 		});
 
-		expect(expectOk(await w.assets.getById(asset.entity.id))).not.toBeNull();
+		// The delete was the sequence's LAST mutation, so the marker records a job finished
+		// rather than one interrupted. The asset stays deleted and the marker goes.
+		expect(expectOk(await w.assets.getById(asset.entity.id))).toBeNull();
+		expect(expectOk(await markers.list())).toEqual([]);
 	});
 
-	it('surfaces a refused ENTITY restore instead of forcing it, and still clears', async () => {
+	it('leaves a COMPLETED sequence standing: it clears the marker and reverses nothing', async () => {
 		const w = await requirementFixture();
 		const zone = expectOk(
 			await w.zones.save(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }), 'absent'),
 		);
-		// The zone was NOT deleted; someone's edit moved it past its pre-crash revision.
-		const stored = expectOk(await w.zones.getById(zone.entity.id));
-		Object.assign(stored?.entity as object, { name: 'Renamed while dead' });
-		expectOk(await w.zones.save(stored?.entity as never, stored?.version as never));
+		const asset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const requirement = makeRequirement({
+			projectId: w.project.entity.id,
+			assetId: asset.entity.id,
+			origin: { kind: 'zone', zoneId: zone.entity.id },
+		});
+		const written = expectOk(await w.requirements.save(requirement, 'absent'));
+		const marked: Loaded<Requirement> = expectOk(await w.requirements.getById(requirement.id));
+		expectOk(await w.zones.delete(zone.entity.id, zone.version));
 
+		// `entityDeleted: true` is written only AFTER `deleteEntity` returned ok, and
+		// `deleteEntity` is the sequence's last mutation — so this marker is a completed
+		// delete whose `clear` did not land, not an interrupted one. Rolling it back would
+		// destroy correct work the save indicator has already reported as saved.
 		const markers = new InMemorySequenceMarkerStore();
 		await markers.write({
 			schemaVersion: 1,
@@ -223,22 +229,20 @@ describe('recoverInterruptedSequences', () => {
 			entityId: String(zone.entity.id),
 			entitySnapshot: { entity: zone.entity, version: zone.version } as never,
 			entityDeleted: true,
-			affectedBefore: [],
-			progress: [],
+			affectedBefore: [{ entity: marked.entity, version: marked.version }],
+			progress: [{ id: written.entity.id, outcome: 'written', version: marked.version }],
 		});
 
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
-			zones: w.zones,
-			assets: w.assets,
 			logger,
 		});
 
-		// The out-of-band rename survived, the refusal is loud, and the marker cleared.
-		const reread = expectOk(await w.zones.getById(zone.entity.id));
-		expect(reread?.entity.name).toBe('Renamed while dead');
-		expect(lines.filter((line) => line.event === 'sequence.recovery.entity-restore-refused').length).toBeGreaterThan(0);
+		// The deletion stands, the referent is NOT rewritten from the pre-state, and the
+		// marker that would have reversed both on the next load is gone.
+		expect(expectOk(await w.zones.getById(zone.entity.id))).toBeNull();
+		expect(expectOk(await w.requirements.getById(requirement.id))?.version).toBe(marked.version);
 		expect(expectOk(await markers.list())).toEqual([]);
 	});
 
@@ -264,8 +268,6 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
-			zones: w.zones,
-			assets: w.assets,
 			logger,
 		});
 
@@ -296,7 +298,7 @@ describe('recoverInterruptedSequences', () => {
 		});
 
 		await expect(
-			recoverInterruptedSequences({ markers, requirements: w.requirements, zones: w.zones, assets: w.assets, logger }),
+			recoverInterruptedSequences({ markers, requirements: w.requirements, logger }),
 		).resolves.toBeUndefined();
 
 		const failed = lines.filter((line) => line.event === 'sequence.recovery.failed');
@@ -325,7 +327,7 @@ describe('recoverInterruptedSequences', () => {
 		});
 
 		await expect(
-			recoverInterruptedSequences({ markers, requirements, zones: w.zones, assets: w.assets, logger }),
+			recoverInterruptedSequences({ markers, requirements, logger }),
 		).resolves.toBeUndefined();
 
 		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(1);

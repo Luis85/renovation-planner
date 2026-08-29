@@ -7,6 +7,7 @@ import type {
 	ReferenceError,
 } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
+import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
 import type { Query } from '../../application/queries/Query';
 import type { CalibratePlanInput } from '../../application/commands/plan/ReversibleCalibratePlan';
 import type { CreateZoneInput } from '../../application/commands/zone/CreateZone';
@@ -42,8 +43,8 @@ import type { ZoneId } from '../../domain/zone/ZoneId';
 export interface CalibratePlanTransaction {
 	execute(
 		input: CalibratePlanInput,
-	): Promise<Result<void, ReferenceError | CalculationError | RepositoryError>>;
-	undo(): Promise<Result<void, RepositoryError>>;
+	): Promise<Result<DispatchOutcome, ReferenceError | CalculationError | RepositoryError>>;
+	undo(): Promise<Result<DispatchOutcome, RepositoryError>>;
 }
 
 /**

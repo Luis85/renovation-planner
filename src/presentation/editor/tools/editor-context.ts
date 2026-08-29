@@ -8,6 +8,7 @@ import type { SelectionStore } from '../selection/selection-store';
 import type { SnapService } from '../snapping/snap-service';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { UndoableCommand } from './undoable-command';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 import type { RenderState } from './render-state';
 
 /**
@@ -49,7 +50,7 @@ export interface EditorContext {
 	};
 	readonly selection: SelectionStore;
 	readonly snapService: SnapService;
-	readonly commandDispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
+	readonly commandDispatcher: { run(command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> };
 	/**
 	 * What this editor's own history has written, per entity — see
 	 * `application/editor/WriteLedger.ts` and design slice 6's "The expectation is the

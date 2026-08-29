@@ -50,6 +50,8 @@ export interface DeleteZoneDeps {
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
 	readonly markers?: SequenceMarkerStore;
+	/** Slice 13's toast surface, handed straight to `runDeleteResolution`; see its `notify`. */
+	readonly notify?: { markerClearFailed(entityId: string): void };
 }
 
 export class DeleteZoneCommand
@@ -81,6 +83,7 @@ export class DeleteZoneCommand
 				entityId: input.zoneId,
 				entityKind: 'zone',
 				logger: this.ops.logger,
+				notify: this.ops.notify,
 				listReferents: () => this.ops.requirements.listByZone(input.zoneId),
 				loadEntity: () => this.ops.zones.getById(input.zoneId),
 				deleteEntity: (snapshotVersion) =>

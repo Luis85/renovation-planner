@@ -43,6 +43,8 @@ export interface DeleteAssetDeps {
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
 	readonly markers?: SequenceMarkerStore;
+	/** Slice 13's toast surface, handed straight to `runDeleteResolution`; see its `notify`. */
+	readonly notify?: { markerClearFailed(entityId: string): void };
 }
 
 /**
@@ -56,7 +58,7 @@ export interface DeleteAssetDeps {
 export class DeleteAssetCommand
 	implements Command<DeleteAssetInput, Result<ResolvedSequence, DeleteAssetErrors>>
 {
-	private readonly ops: Pick<DeleteAssetDeps, 'assets' | 'requirements' | 'recalculate' | 'events' | 'locks' | 'logger' | 'markers'>;
+	private readonly ops: Pick<DeleteAssetDeps, 'assets' | 'requirements' | 'recalculate' | 'events' | 'locks' | 'logger' | 'markers' | 'notify'>;
 
 	constructor(deps: DeleteAssetDeps) {
 		this.ops = deps;
@@ -73,6 +75,7 @@ export class DeleteAssetCommand
 				entityId: input.assetId,
 				entityKind: 'asset',
 				logger: this.ops.logger,
+				notify: this.ops.notify,
 				listReferents: () => this.ops.requirements.listByAsset(input.assetId),
 				loadEntity: async () => await this.ops.assets.getById(input.assetId),
 				deleteEntity: (expected) => this.ops.assets.delete(input.assetId, expected),

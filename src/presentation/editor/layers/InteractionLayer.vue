@@ -32,7 +32,7 @@ import {
 	VERTEX_HANDLE_RADIUS_PX,
 } from '../handleMetrics';
 import { closesPolygon } from '../closeTarget';
-import { rulerMarks } from './rulerGeometry';
+import { paintRulerMarks, rulerMarks } from './rulerGeometry';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -121,6 +121,23 @@ const closeArmed = computed(() => {
  * where a polygon preview is dashed and closed. Both endpoints project independently, for
  * the reason the whole layer works this way: screen space, so a zoom does not scale the
  * stroke or the marks.
+ *
+ * **The bars and every tick are ONE node, and that is a performance rule rather than a
+ * tidiness one.** They were a `v-for` of `VLine`s — up to fifty of them at the tick cap —
+ * so a Vue render and a vue-konva `setAttrs` ran per tick on EVERY pointer move, and this
+ * gesture is nothing but pointer moves. Measured through the mounted rig in
+ * `interactionLayer.test.ts`, the per-move cost tracked the NODE COUNT and nothing else:
+ * 0.18 ms with no tool, 0.76 ms on a five-node segment, 2.61 ms at the 48-tick cap, against
+ * 3.8 microseconds for `rulerMarks` itself. A user reported it as the calibration tool being
+ * unusable, and the arithmetic — the obvious suspect, and the only part of this with its own
+ * module — was 0.13% of it. Collapsing the marks onto one `Shape` took the same drag to
+ * 0.83 ms and, which matters more, made it FLAT in the segment's length.
+ *
+ * The spine stays a `VLine` of its own. It is a single node that cannot grow, and it is what
+ * `tests/helpers/planEditorRig.ts`'s `drawnLines` reads: folding it in would leave the
+ * calibration cases in `canvasGestureOwnership` and `canvasKeyboardGestures` comparing two
+ * empty arrays, which is the vacuous assertion this project keeps finding rather than a
+ * saving.
  */
 const measurementMarks = computed(() => {
 	const segment = runtime.renderState.measurement;
@@ -215,25 +232,14 @@ function vertexFill(index: number): string {
 					listening: false,
 				}"
 			/>
-			<VLine
-				v-for="(bar, index) in measurementMarks.endBars"
-				:key="`bar-${index}`"
+			<VShape
 				:config="{
-					points: bar,
+					name: 'measurement-marks',
+					marks: measurementMarks,
+					sceneFunc: paintRulerMarks,
 					stroke: props.tokens.accent,
-					strokeWidth: 2,
 					strokeScaleEnabled: false,
-					listening: false,
-				}"
-			/>
-			<VLine
-				v-for="(tick, index) in measurementMarks.ticks"
-				:key="`tick-${index}`"
-				:config="{
-					points: tick,
-					stroke: props.tokens.accent,
-					strokeWidth: 1,
-					strokeScaleEnabled: false,
+					perfectDrawEnabled: false,
 					listening: false,
 				}"
 			/>

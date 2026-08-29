@@ -51,7 +51,7 @@ describe('the five regions', () => {
 	 * §60 names three status regions and slice 13 mounts its save-state indicator into the
 	 * third BY NAME. A bar with two regions or four leaves it nowhere to go.
 	 */
-	it('keeps the status bar three named regions, save state included and empty', async () => {
+	it('keeps the status bar three named regions, save state included', async () => {
 		harness = await mountPlanEditor();
 		const { wrapper } = harness;
 
@@ -61,9 +61,9 @@ describe('the five regions', () => {
 		);
 		const saveState = wrapper.find('.rp-editor-save-state');
 		expect(saveState.attributes('aria-label')).toBe(t('en', 'editor.save-state'));
-		// Empty on purpose: there are no edits until slice 6 and no indicator until slice 13,
-		// and a region showing "saved" when nothing can be saved is a lie with a tick on it.
-		expect(saveState.text()).toBe('');
+		// Slice 13's indicator renders the resting state as the translated word — a fresh
+		// Plan Editor has nothing unsaved by construction.
+		expect(saveState.text()).toBe(t('en', 'save-state.saved'));
 	});
 
 	it('shows the plan name in the status region', async () => {

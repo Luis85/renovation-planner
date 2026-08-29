@@ -8,8 +8,9 @@
  * here and a constructor parameter, never a second wiring point somewhere else in the
  * plugin.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Notice } from 'obsidian';
+import { activateNotices } from '../../src/presentation/notices/notify';
 import { createCompositionRoot, renovationProjectDeps } from '../../src/plugin/composition-root';
 import { projectIndexRebuilt } from '../../src/application/events/projectIndex.events';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -20,6 +21,12 @@ import { createRepositoryStack } from '../helpers/vault';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 
 installObsidianDom();
+
+// A notice is INERT until something activates the queue — `onload` is what does that in
+// production, so a case asserting on `Notice.shown` has to stand where the plugin stands.
+beforeEach(() => {
+	activateNotices();
+});
 
 const vaultStack = () =>
 	({

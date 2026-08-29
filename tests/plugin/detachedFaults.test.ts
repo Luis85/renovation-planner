@@ -18,15 +18,19 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
 import { Notice } from '../helpers/obsidian-mock';
 import { runDetached } from '../../src/plugin/runDetached';
+import { activateNotices } from '../../src/presentation/notices/notify';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
 import { settle } from '../helpers/async';
 
 installObsidianDom();
 
 describe('a detached operation that faults', () => {
+	// A notice is INERT until something activates the queue — `onload` is what does that in
+	// production, so a suite asserting on `Notice.shown` has to stand where the plugin stands.
 	beforeEach(() => {
 		Notice.shown.length = 0;
 		resetRecorder();
+		activateNotices();
 	});
 
 	it('reaches the user AND the log, from one mapping', async () => {

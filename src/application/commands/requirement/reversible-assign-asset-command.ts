@@ -14,6 +14,7 @@ import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { EntityVersion } from '../../ports/versioning';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import type { Command } from '../Command';
+import type { DispatchOutcome } from '../DispatchOutcome';
 import type {
 	AssignAssetInput,
 	AssignAssetResult,
@@ -30,6 +31,15 @@ import type {
  */
 export interface ReversibleAssignResult {
 	readonly requirementId: RequirementId;
+	/**
+	 * Whether this call touched the vault. **Not derivable from `requirementId`, which is
+	 * present either way** — that is the whole reason it is here rather than inferred at the
+	 * dispatch site. An assignment of an asset already linked to the zone resolves `ok` from a
+	 * read having saved nothing, and design slice 13's save indicator read that `ok` as a
+	 * successful write and cleared a `save-error` raised by a real persistence failure.
+	 * `DispatchOutcome`'s own header carries the argument.
+	 */
+	readonly outcome: DispatchOutcome;
 }
 
 type AdapterErrors = DomainError | CalculationError | ReferenceError | RepositoryError;
@@ -79,20 +89,29 @@ export class ReversibleAssignAssetCommand {
 		this.outcome = result.value.created
 			? { kind: 'created', snapshot: result.value.requirement, version: result.value.version }
 			: { kind: 'found' };
-		return ok({ requirementId: result.value.requirement.id });
+		// `created` is the command's own answer to "did I write", decided under both endpoint
+		// locks — see its declaration on `AssignAssetResult`. Reporting it onward rather than
+		// re-deriving it is the same reason this adapter reads it for the undo half.
+		return ok({
+			requirementId: result.value.requirement.id,
+			outcome: result.value.created ? 'wrote' : 'no-write',
+		});
 	}
 
-	async undo(): Promise<Result<void, AdapterErrors>> {
+	async undo(): Promise<Result<DispatchOutcome, AdapterErrors>> {
 		const recorded = this.outcome;
 		if (!recorded) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });
 		}
-		if (recorded.kind === 'found') return ok(undefined);
+		// Undo deletes only what execute CREATED, so an execute that found an existing link has
+		// nothing to delete — a success that writes nothing, and the second of the two this
+		// class contributes to `DispatchOutcome`'s list.
+		if (recorded.kind === 'found') return ok('no-write');
 		// Conditional on the revision THIS execute() produced: an override or
 		// recalculation landed since is a conflict, not a casualty.
 		const deleted = await this.deps.requirements.delete(recorded.snapshot.id, recorded.version);
 		if (isErr(deleted)) return err(deleted.error);
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	private async redoCreate(): Promise<Result<ReversibleAssignResult, AdapterErrors>> {
@@ -103,12 +122,24 @@ export class ReversibleAssignAssetCommand {
 			// between undo and redo is ordinary editing time, and the undo itself opened
 			// it: with the requirement gone the asset is unreferenced, so a unit change
 			// the creation-time guard would have refused is now in force.
+			// **A failed READ and an absent referent are two different answers, and one branch
+			// could only give one of them.** Both checks were `isErr(x) || x.value === null`
+			// returning a `Reference` refusal reading "the zone is gone" — a fact a read that
+			// never completed has not established. The label cost two things: the user was told
+			// an entity no longer exists when what actually happened is that the vault could not
+			// be read (slice 11's own recorded defect, in a second place), and
+			// `affectsSaveState` classes `Reference` as pre-write, so a vault fault during a
+			// redo settled the save indicator back to `Saved` — `Persistence`'s safe default
+			// bypassed by a relabel rather than by anyone deciding. `AdapterErrors` already
+			// admits `RepositoryError`, so surfacing the read's own error widens nothing.
 			const zone = await this.deps.zones.getById(this.input.zoneId);
-			if (isErr(zone) || zone.value === null) {
+			if (isErr(zone)) return err(zone.error);
+			if (zone.value === null) {
 				return err({ category: 'Reference', code: 'requirement.zone-not-found', message: 'The zone is gone.' });
 			}
 			const asset = await this.deps.assets.getById(this.input.assetId);
-			if (isErr(asset) || asset.value === null) {
+			if (isErr(asset)) return err(asset.error);
+			if (asset.value === null) {
 				return err({ category: 'Reference', code: 'requirement.asset-not-found', message: 'The asset is gone.' });
 			}
 			if (zone.value.entity.projectId !== asset.value.entity.projectId) {
@@ -124,7 +155,7 @@ export class ReversibleAssignAssetCommand {
 			// Only the ID is carried over; validity was just re-established.
 			const saved = await this.deps.requirements.save(recorded.snapshot, 'absent');
 			if (isErr(saved)) return err(saved.error);
-			return ok({ requirementId: saved.value.entity.id });
+			return ok({ requirementId: saved.value.entity.id, outcome: 'wrote' });
 		} finally {
 			release();
 		}

@@ -1,6 +1,7 @@
 import { err, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
+import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
 import { faultError } from '../notices/notify';
 import type { InspectorEdit } from './inspector/inspector-store';
 
@@ -27,8 +28,8 @@ import type { InspectorEdit } from './inspector/inspector-store';
  */
 export function makeCommitField(
 	logger: Logger,
-	commit: (edit: InspectorEdit) => Promise<Result<void, AppError>>,
-): (edit: InspectorEdit) => Promise<Result<void, AppError>> {
+	commit: (edit: InspectorEdit) => Promise<Result<DispatchOutcome, AppError>>,
+): (edit: InspectorEdit) => Promise<Result<DispatchOutcome, AppError>> {
 	return async (edit) => {
 		try {
 			return await commit(edit);

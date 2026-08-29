@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError, PersistenceError } from '../../../src/core/errors/AppError';
 import {
+	requirementResolutionSteps,
 	runDeleteResolution,
 	type ResolutionOps,
 	type SequenceMarker,
@@ -17,6 +18,8 @@ import type {
 import type { Requirement } from '../../../src/domain/requirement/Requirement';
 import { makeRequirement } from '../../helpers/entities';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
+import { leftWritesBehind, markUncompensated } from '../../../src/application/commands/DispatchOutcome';
+import { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 
 /**
  * The compensated sequence's own arms, driven at the engine with hand-built `ops` — the
@@ -54,6 +57,7 @@ interface RecordedOps extends ResolutionOps<Record<string, unknown>> {
 	repointResults: Result<EntityVersion, PersistenceError>[];
 	recalculateResults: Result<unknown, AppError>[];
 	restoreResult: Result<EntityVersion, PersistenceError> | null;
+	readonly notified: string[];
 }
 
 function makeOps(overrides?: {
@@ -64,9 +68,16 @@ function makeOps(overrides?: {
 }): RecordedOps {
 	const warnings: string[] = [];
 	const errors: string[] = [];
+	const notified: string[] = [];
 	const ops: RecordedOps = {
 		entityId: 'entity-1',
 		entityKind: 'zone',
+		notified,
+		notify: {
+			markerClearFailed(entityId) {
+				notified.push(entityId);
+			},
+		},
 		logger: {
 			debug() {},
 			info() {},
@@ -305,6 +316,106 @@ describe('compensation', () => {
 		expect(ops.errors).toContain('sequence.compensation.failed');
 	});
 
+	/**
+	 * **A refusal the category axis cannot see, which is what this stamp exists for.** The
+	 * sequence marks the first Requirement stale — a WRITE — refuses on the second, and then
+	 * fails to restore the first. The vault is left holding a stale marker nothing put back.
+	 * The error the caller receives is whatever the FORWARD step refused with; here that is a
+	 * `Persistence` code, but `applyAll`'s reachable refusals include `Reference` ones
+	 * (`markStalePersisted` re-reads through `loadRequirement` AFTER its own write), and a
+	 * `Reference` error is exactly what `affectsSaveState` reads as "wrote nothing". The
+	 * stamp is what makes the answer independent of the category the refusal happened to carry.
+	 *
+	 * Asserted BESIDE the existing log expectation rather than instead of it: a log entry is
+	 * not a recovery, and it was never the user-facing half — the badge is.
+	 */
+	it('a FAILED compensation stamps the refusal as having left writes behind', async () => {
+		const ops = makeOps();
+		ops.markStaleResults = [ok({ ...V2 }), err(injectedPersistenceError())];
+		ops.restoreResult = err(injectedPersistenceError());
+
+		const result = await runDeleteResolution(
+			ops,
+			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
+			new ReferenceLocks(),
+		);
+
+		if (result.ok) throw new Error('expected the sequence to refuse');
+		expect(leftWritesBehind(result.error)).toBe(true);
+		// The stamp is ADDITIVE: nothing a message or a mapping reads has moved, which is the
+		// property that kept this out of slice 17's error-to-surface territory.
+		expect(result.error.code).toBe('test.injected-failure');
+		expect(result.error.category).toBe('Persistence');
+	});
+
+	/**
+	 * **The two stamping sites compose, and this is the only case where they disagree.** A step
+	 * can stamp its own refusal (`markStalePersisted`, whose write lands before its re-read
+	 * refuses) while compensation of the EARLIER referents then succeeds — so `compensate`
+	 * computes `uncompensated: false` and must still return the stamp it was handed rather
+	 * than the clean copy its own loop concluded. Nothing about the successful restores makes
+	 * the step's own unrecorded write go away.
+	 */
+	it('a stamp already on the cause survives a compensation that succeeds', async () => {
+		const ops = makeOps();
+		ops.markStaleResults = [
+			ok({ ...V2 }),
+			err(markUncompensated(injectedPersistenceError())),
+		];
+
+		const result = await runDeleteResolution(
+			ops,
+			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
+			new ReferenceLocks(),
+		);
+
+		if (result.ok) throw new Error('expected the sequence to refuse');
+		expect(ops.restored).toEqual([{ id: 'requirement-1', expected: { ...V2 } }]);
+		expect(leftWritesBehind(result.error)).toBe(true);
+	});
+
+	/**
+	 * The other half, and the reason this is a stamp rather than "any refusal after step 2".
+	 * A compensation that SUCCEEDS has put the vault back at its pre-state, so nothing the
+	 * refusal wrote survived and neutral is the TRUE answer. Marking it would be the false
+	 * badge the two rejected fixes were rejected for.
+	 */
+	it('a SUCCESSFUL compensation leaves the refusal unstamped', async () => {
+		const ops = makeOps();
+		ops.markStaleResults = [ok({ ...V2 }), err(injectedPersistenceError())];
+
+		const result = await runDeleteResolution(
+			ops,
+			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
+			new ReferenceLocks(),
+		);
+
+		if (result.ok) throw new Error('expected the sequence to refuse');
+		expect(ops.restored).toEqual([{ id: 'requirement-1', expected: { ...V2 } }]);
+		expect(leftWritesBehind(result.error)).toBe(false);
+	});
+
+	/**
+	 * A refusal on the FIRST requirement leaves `progress` empty, so compensation restores
+	 * nothing and there is nothing to be uncompensated — even with `restoreRequirement`
+	 * rigged to refuse. Pins that an empty loop cannot stamp.
+	 */
+	it('a refusal before the first write is unstamped even when restore would refuse', async () => {
+		const ops = makeOps();
+		ops.markStaleResults = [err(injectedPersistenceError())];
+		ops.restoreResult = err(injectedPersistenceError());
+
+		const result = await runDeleteResolution(
+			ops,
+			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
+			new ReferenceLocks(),
+		);
+
+		if (result.ok) throw new Error('expected the sequence to refuse');
+		expect(ops.restored).toEqual([]);
+		expect(leftWritesBehind(result.error)).toBe(false);
+	});
+
 	it('an inline recalculation failure does NOT fail a successful reassignment — it logs', async () => {
 		const ops = makeOps({ referents: [referent('requirement-1')] });
 		ops.recalculateResults = [
@@ -354,7 +465,7 @@ describe('marker bookkeeping on the success path', () => {
 		expect(ops.deletedAtVersions).toHaveLength(0);
 	});
 
-	it('a failed final marker CLEAR is logged and the resolution still answers', async () => {
+	it('a failed final marker CLEAR is logged, TOLD TO THE USER, and the resolution still answers', async () => {
 		const ops = makeOps();
 		const markers = new ScriptedMarkers([], [1]);
 		const result = await runDeleteResolution(
@@ -363,8 +474,100 @@ describe('marker bookkeeping on the success path', () => {
 			new ReferenceLocks(),
 			markers,
 		);
+		// The sequence really did write, so it answers `ok` and the save indicator settles
+		// on `Saved` — correctly. What is NOT correct is leaving the user with only that:
+		// the marker outlived the sequence, so the durability this dialog promised did not
+		// hold, and a log line reaches nobody. Both halves are asserted TOGETHER, because
+		// "the resolution still answers ok" is equally true of a build where the failure
+		// reaches nobody at all — which is the build this pairing exists to fail.
 		expect(result.ok).toBe(true);
 		expect(ops.errors).toContain('sequence.marker-clear.failed');
+		expect(ops.notified).toEqual(['entity-1']);
+	});
+
+	it('a marker clear that SUCCEEDS tells the user nothing', async () => {
+		const ops = makeOps();
+		const result = await runDeleteResolution(
+			ops,
+			{ resolution: 'remove-references', resolvedReferents: REQUIREMENT_IDS },
+			new ReferenceLocks(),
+			new ScriptedMarkers(),
+		);
+		// The counterpart, without which the fix above is satisfied just as well by a
+		// `notify` called unconditionally — a warning after every successful delete.
+		expect(result.ok).toBe(true);
+		expect(ops.errors).not.toContain('sequence.marker-clear.failed');
+		expect(ops.notified).toEqual([]);
 	});
 });
 
+
+/**
+ * **The post-write refusal that never reaches `compensate`'s loop, which is why closing the
+ * loop case alone would have been a partial fix wearing a complete one's clothes.**
+ * `markStalePersisted` WRITES (`requirements.markStale`) and then re-reads through
+ * `loadRequirement`. When the re-read refuses, `applyResolutionToRequirement` returns before
+ * `applyAll` can append anything to `marker.progress` — so the write that just landed is in
+ * no progress record, `compensate` iterates past it, and nothing restores it. The step is the
+ * only code that knows, so the step is what stamps.
+ *
+ * `repointAndMarkStale` deliberately has no counterpart case: its own refusals all precede
+ * its `save`, and a failed `save` wrote nothing.
+ */
+const noRecalculation = { execute: () => Promise.resolve(ok(undefined)) };
+
+/** `delete-anyway` never repoints, so this arm of the step set must not be reached. */
+function repointNowhere(): never {
+	throw new Error('not reached');
+}
+
+describe('requirementResolutionSteps', () => {
+	/** `markStale` lands; the requirement is gone by the time the step re-reads it. */
+	class VanishesAfterMarkStale extends InMemoryRequirementRepository {
+		private vanished = false;
+
+		override markStale(id: Parameters<InMemoryRequirementRepository['markStale']>[0]) {
+			const marked = super.markStale(id);
+			this.vanished = true;
+			return marked;
+		}
+
+		override getById(id: Parameters<InMemoryRequirementRepository['getById']>[0]) {
+			if (this.vanished) return Promise.resolve(ok(null));
+			return super.getById(id);
+		}
+	}
+
+	it('stamps a re-read refusal that follows its own markStale write', async () => {
+		const requirements = new VanishesAfterMarkStale();
+		const saved = await requirements.save(referent('requirement-1').entity, 'absent');
+		if (!saved.ok) throw new Error('fixture failed to save');
+
+		const steps = requirementResolutionSteps(requirements, noRecalculation, repointNowhere);
+		const result = await steps.markStalePersisted(saved.value);
+
+		if (result.ok) throw new Error('expected the re-read to refuse');
+		// The category is the one `affectsSaveState` reads as "wrote nothing" — the exact
+		// misreading the stamp exists to overrule.
+		expect(result.error.category).toBe('Reference');
+		expect(result.error.code).toBe('requirement.not-found');
+		expect(leftWritesBehind(result.error)).toBe(true);
+	});
+
+	it('does NOT stamp a markStale that refused, because that one wrote nothing', async () => {
+		class RefusesMarkStale extends InMemoryRequirementRepository {
+			override markStale() {
+				return Promise.resolve(err(injectedPersistenceError()));
+			}
+		}
+		const requirements = new RefusesMarkStale();
+		const saved = await requirements.save(referent('requirement-1').entity, 'absent');
+		if (!saved.ok) throw new Error('fixture failed to save');
+
+		const steps = requirementResolutionSteps(requirements, noRecalculation, repointNowhere);
+		const result = await steps.markStalePersisted(saved.value);
+
+		if (result.ok) throw new Error('expected markStale to refuse');
+		expect(leftWritesBehind(result.error)).toBe(false);
+	});
+});

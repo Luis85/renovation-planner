@@ -584,6 +584,123 @@ export default defineConfig({
 			// arms, matching the four bullets below one for one, and the other eight files in
 			// the list report zero uncovered lines, functions or branches.
 			//
+			// Measured 2026-08-28 at the end of design slice 13 — the notice queue (dedup, the
+			// three-slot cap, promotion, every timer and the hover/focus pause), the four
+			// severities and their copy, the `notify` doors and the `Notice`-backed host, the
+			// notice stylesheet, the plugin's activate/dispose pair, and the whole save-state
+			// half: `SaveStateStore`'s three settlement outcomes, `affectsSaveState`,
+			// `withSaveStateTracking` over `run`/`undo`/`redo`, and `SaveStateIndicator` in
+			// §60's third status-bar region: 4533/4561 statements, 2189/2228 branches,
+			// 1162/1169 functions, 4062/4078 lines — 99.38 / 98.24 / 99.40 / 99.60. NOTHING
+			// RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force, which is
+			// what slices 5, 11 and 15 also measured.
+			//
+			// Branches held rather than gained: 98.25 on the slice-18 tree, 98.24 here — a
+			// hundredth DOWN, and the count of covered branches of headroom is 5.6 at 0.0449pp
+			// each, against slice 18's 5.4 and slice 14's 1.3. Both readings are true because
+			// the denominator grew by 49; the unit figure is the one to act on. Statements have
+			// 17.6 of headroom, lines 24.8, and FUNCTIONS are the tightest at 4.7 — the same
+			// metric that has been tightest at every measurement since slice 4.
+			//
+			// Slice 13 adds exactly ONE arm to the uncovered set, and every other file it
+			// introduced measures 100% of all four (`severity.ts`, `notify.ts`,
+			// `save-state.ts`, `save-state-store.ts`, `affects-save-state.ts`,
+			// `with-save-state-tracking.ts`, `SaveStateIndicator.vue`, and `versioning.ts`'s
+			// new `WRITE_BOUNDARY_CODES`):
+			// - `createNoticeQueue`'s `release` guard, the false arm of `if (at >= 0)` before
+			//   the splice. `release` is reached from `sweep` — which iterates a SNAPSHOT, so
+			//   each entry is still present when its own turn comes — and from `arm`'s timeout,
+			//   which `release` itself cancels. The entry is in `entries` by construction at
+			//   every call; the guard is kept because `indexOf` cannot be told that.
+			// Verified against `coverage/coverage-final.json` rather than assumed — every
+			// uncovered position in the other three files this slice edited under `src/` was
+			// read out and looked at: `runtime.ts`'s `viewportAdapter.setPan`/`setZoom`, its
+			// inspector-cycle `?? Promise.resolve()`, its `registerEditorTools` rejection
+			// arrows and the two selection/asset guards; `composition-root.ts`'s
+			// `cascadeNotices.cascadeAborted` (this slice changed its BODY from `notify` to
+			// `notifyWarning` and it is still never invoked in the suite); and the plugin's
+			// `persistence.markers` and `file instanceof TFile` false arms. Every one is
+			// already enumerated by the slice-8 or slice-18 paragraphs above.
+			//
+			// Re-measured 2026-08-29, after the code review of the slice 13 branch and the five
+			// fixes it produced — `affectsSaveState` widened to `Reference` (nineteen pre-write
+			// raise sites the previous grep never looked for), `createNoticeQueue.dispose` made
+			// genuinely terminal, the notice host's per-notice concerns moved from `containerEl`
+			// to `messageEl`, the native click-to-dismiss latching `handle.live` like our own
+			// `×`, and the Toast live region moved off the notice onto two persistent regions
+			// `activateNotices` appends to `document.body`: 4556/4584 statements, 2193/2232
+			// branches, 1167/1174 functions, 4083/4099 lines — 99.38 / 98.25 / 99.40 / 99.60.
+			// NOTHING RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// Branches went 98.24 → 98.25, so headroom is 5.5 covered branches at 0.0448pp each
+			// rather than 5.6 — unchanged in any way worth acting on, and worth recording only
+			// because the first draft of the live-region fix DID cost one. `announce` read a
+			// module-level `regions` and guarded it (`regions?.[…]`, then `if (region)`), and
+			// that null arm is unreachable by construction: a host exists only while a queue
+			// does, and a queue only after the regions do. `openRegions()` returns the pair and
+			// `createObsidianHost` takes it as an argument now, so there is nothing to guard.
+			// The general shape, and this repository already has a bullet on its sibling: an
+			// unreachable guard is not free here — it costs a branch of a budget with five to
+			// spare, and it reads as a case somebody thought could happen.
+			//
+			// THE UNCOVERED SET IS UNCHANGED by all five fixes. Verified by reading
+			// `coverage/coverage-final.json` rather than assumed: across
+			// `presentation/notices/`, `presentation/editor/save-state/` and
+			// `application/ports/versioning.ts`, exactly one arm is uncovered and it is the
+			// slice-13 one already enumerated above — `release`'s `if (at >= 0)` guard.
+			//
+			// Re-measured 2026-08-29 on the MERGED tree — slice 13 merged into a main carrying
+			// the slice 16 design and plan, the Shift-constrained drawing tools, and the `docs/`
+			// reorganisation: 4669/4699 statements, 2247/2290 branches, 1193/1199 functions,
+			// 4185/4200 lines — 99.36 / 98.12 / 99.49 / 99.64. NOTHING RATCHETS: rounded down
+			// these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// **Branches are the tightest they have been since slice 11: 98.12, about 2.7
+			// covered branches of headroom at 0.0437pp each — two, counted as whole branches.**
+			// Neither parent predicted it: this branch measured 98.25 alone and the figure fell
+			// on merging, exactly as slice 14's merged entry above records happening to it. The
+			// denominator grew by 58 branches while the covered count grew by 54, so the drop is
+			// main's new arms diluting a ratio, not this branch losing coverage — the unit figure
+			// is still the one to act on, and two is small enough that the next untested arm
+			// anywhere in `src/` fails the gate rather than merely narrowing it.
+			//
+			// The merged uncovered set gains exactly one file over this branch's own, and it
+			// came from main rather than from the merge: `RequirementRow.vue`'s
+			// `row.assetName ?? row.assetId` nullish arm. Verified rather than inferred — the
+			// file is byte-identical to `main` (`git diff --quiet main -- <path>`), so no
+			// resolution in this merge touched it. Across `presentation/notices/`,
+			// `presentation/editor/save-state/` and `application/ports/versioning.ts` the set is
+			// still the single slice-13 arm named above.
+			//
+			// Re-measured 2026-08-29 after the review bot's two findings on PR #26 —
+			// `affectsSaveState` widened a third time (`Calculation`, twenty-two pre-write raise
+			// sites left out on the strength of one misleading docblock sentence), and the
+			// dispatch seam widened so a command REPORTS whether it wrote rather than having the
+			// save tracker infer it from `ok`: 4674/4704 statements, 2251/2294 branches,
+			// 1196/1202 functions, 4189/4204 lines — 99.36 / 98.12 / 99.50 / 99.64. NOTHING
+			// RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// **Every one of the four percentages is unchanged from the merged figure above**,
+			// which is the interesting part rather than an absence of news. The seam widening
+			// touched fifteen source files and seventeen `ok(...)` return sites, extracted
+			// `presentation/editor/inspector-wiring.ts` out of `runtime.ts`, and added a
+			// `DispatchOutcome` module — and it moved the branch denominator by FOUR (2290 →
+			// 2294), every one of them covered. Replacing `ok(undefined)` with `ok('wrote')` is
+			// a different value at the same statement and adds no arm at all; what the four are
+			// is the decision the tracker now makes (`result.value === 'no-write'`) and the arms
+			// around it. A change can be large in files and nearly invisible here: file count is
+			// not a proxy for anything this page measures, and neither is the seventeen-site
+			// figure the commit message quotes.
+			//
+			// One resolution in this merge moved CSS rather than code and is worth naming here
+			// because a stylesheet is invisible to every figure on this page: main split the §60
+			// status-bar block out of `editor.css` into `styles/editor-status.css` while this
+			// branch was extending that same block in place, which is the merge's only conflict.
+			// Slice 13's two `.rp-save-state-*` colour rules followed the block into the new
+			// partial. Nothing here can see whether they still MATCH — jsdom resolves no `var()`
+			// and the harness draws no status bar state on purpose — so that is step 13 of
+			// `docs/tests/cases/Notices and save state.md` and a vault.
+			//
 			// Measured 2026-08-29 at the end of design slice 16 — forms and inline validation
 			// feedback: `routeError`, `<FieldError>`/`<FormBanner>`, `useFieldCommit`/
 			// `useFormCommit`, `NewProjectForm` and `CreateProjectCommand` as the Renovation

@@ -15,6 +15,12 @@ import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
 import { DEFAULT_SETTINGS, UNITS } from '../../../src/plugin/settings/settings';
 import { t } from '../../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../../helpers/plugin';
+import { installObsidianDom } from '../../helpers/dom';
+
+// `activateNotices` — reached here through the real plugin/editor wiring — appends its
+// two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
+// installs globally and this suite installs per file.
+installObsidianDom();
 
 const withStored = async (stored: unknown) => {
 	const { plugin } = await loadedPlugin(stored);

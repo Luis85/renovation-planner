@@ -79,14 +79,50 @@ one that decides whether this component works at all for the users it exists for
 The timeout is the other half: a message that disappears before it can be read is inaccessible in
 a way no ARIA attribute fixes.
 
+## Settled
+
+**Obsidian's `Notice` is the container primitive.** Open question 1 was slice 13's to answer and
+slice 13 answered it, so it is recorded here rather than left standing as a question the code has
+already decided.
+
+The argument that decided it is a division of labour rather than a preference. `Notice` already
+offers four of the six things this component owes — manual dismiss (`hide()`), persist until
+dismissed (`duration: 0`), real DOM to write severity markup and a dismiss control into
+(`messageEl` / `containerEl`), and a message that can be replaced in place for a repeat count.
+The last one is `messageEl` again rather than `setMessage`: this note cited that method before
+the code existed, and the code went the other way, because the plugin's own markup — a severity
+label, a message span and a dismiss button — has to survive the update, and `setMessage`
+replaces the element's whole content. `notify.ts` writes `body.textContent` instead. It
+offers neither hover-pause of the auto-dismiss timer nor a visible-slot cap with promotion, and
+both fall out of one choice: every notice is constructed with `duration: 0` and the plugin owns
+the timer. Both handles are `@since 1.8.7` and `manifest.json` declares `minAppVersion: 1.13.0`,
+so neither is a bet. The alternative — a second Vue app with a plugin-global Pinia — would have
+needed an exception to SDD §12 and given the plugin two toast surfaces instead of one.
+
+**The consequence this note already predicted holds, and it is the price.** A `Notice` renders
+outside the view's DOM, so it is outside `contentEl` — and `tests/harness/accessibility.test.ts`
+scans `contentEl`. The surface carrying the most new ARIA in slice 13 is therefore the one
+surface no axe scan reaches: the two live regions the plugin appends to `document.body` at
+activation — outside a view twice over — and the dismiss control's accessible name, are
+asserted by jsdom tests one attribute at a time and graded by no accessibility instrument.
+Its markup also stays Obsidian's to change.
+
+**The Accessibility rule above is met the way it is written, and it took a review round to
+get there.** Slice 13 first put `role`/`aria-live` on the `Notice` element itself, which is
+the container that appears, refused in the sentence directly. `activateNotices()` creates two
+empty regions instead — `role="status"`/`aria-live="polite"` and
+`role="alert"`/`aria-live="assertive"` — and a notice announces by writing into the one its
+severity names, so the region is in the document long before the message is. The notice
+element carries neither attribute. The residual is that a region announces on a CHANGE, so an
+identical message at the same severity re-raised after the first was dismissed writes the same
+string and says nothing; a repeat while the first is still up differs by its `(×N)` suffix and
+does announce.
+`docs/tests/cases/Notices and save state.md` is where that gap is worked, and a vault is the
+only instrument.
+
 ## Open
 
-1. **Obsidian's `Notice`, or the plugin's own?** A `Notice` is themed for free, costs nothing to
-   build, and is what a user already recognises. It also renders **outside the view's DOM**,
-   which puts it outside `contentEl` — so `tests/harness/accessibility.test.ts` cannot see it at
-   all, and its markup is Obsidian's to change. Neither option is obviously right and the trade
-   is the same one [[Modal]] faces.
-2. **Whether a toast may carry an undo.** SDD §30's undoable editor commands make it possible; PRD §67
+1. **Whether a toast may carry an undo.** SDD §30's undoable editor commands make it possible; PRD §67
    does not ask for it, and an undo that expires with a timeout is a promise with a clock on it.
 
 ## Sources

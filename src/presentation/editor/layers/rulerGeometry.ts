@@ -1,3 +1,4 @@
+import type Konva from 'konva';
 import type { ScreenPoint } from '../viewport/Viewport';
 
 /**
@@ -99,6 +100,50 @@ function ticksAlong(from: ScreenPoint, direction: Vector, normal: Vector, length
 		ticks.push([x, y, x + normal.x * size, y + normal.y * size]);
 	}
 	return ticks;
+}
+
+/** The bars' stroke, matching the spine's; a tick is drawn finer. */
+const BAR_STROKE_PX = 2;
+const TICK_STROKE_PX = 1;
+
+function strokeAll(context: Konva.Context, segments: readonly FlatSegment[], width: number): void {
+	if (segments.length === 0) return;
+	context.setAttr('lineWidth', width);
+	context.beginPath();
+	for (const segment of segments) {
+		context.moveTo(segment[0], segment[1]);
+		context.lineTo(segment[2], segment[3]);
+	}
+	context.stroke();
+}
+
+/**
+ * Paints every end bar and every tick of ONE segment onto ONE Konva `Shape`, as two paths —
+ * one per stroke width — rather than as a node each.
+ *
+ * **A `sceneFunc` rather than a node per mark, because the marks are redrawn on every
+ * pointer move.** `InteractionLayer`'s own docblock carries the measurement; the short
+ * version is that the per-move cost tracked the node count and nothing else, and a user
+ * reported the calibration gesture as unusable because of it. The geometry this draws was
+ * never the cost — it is 3.8 microseconds a call — which is why the fix is here and not in
+ * the arithmetic above.
+ *
+ * It reads the marks off the shape's own `marks` attribute rather than closing over the
+ * layer's `computed`, so what a test reads back off that node is exactly what was painted
+ * from. A closure would leave the attribute decorative, and an assertion against a value
+ * nothing draws from is the no-op assertion this project has already been caught by.
+ *
+ * Konva calls this with the shape's context already set up (`strokeStyle` from `stroke`,
+ * the layer transform applied), so only the width — which differs between a bar and a tick —
+ * is set here. `context.setAttr` rather than a bare assignment: Konva's `Context` records
+ * state changes for its own tracing, and a direct write to the underlying 2D context is
+ * invisible to it.
+ */
+export function paintRulerMarks(context: Konva.Context, shape: Konva.Shape): void {
+	const marks = shape.getAttr('marks') as RulerMarks | null | undefined;
+	if (marks === null || marks === undefined) return;
+	strokeAll(context, marks.endBars, BAR_STROKE_PX);
+	strokeAll(context, marks.ticks, TICK_STROKE_PX);
 }
 
 export function rulerMarks(from: ScreenPoint, to: ScreenPoint): RulerMarks {

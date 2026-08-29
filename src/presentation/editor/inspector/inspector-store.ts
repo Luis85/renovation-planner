@@ -12,6 +12,7 @@ import type { ZoneInspectorFields } from '../../../application/queries/GetZoneIn
 import type { RequirementInspectorDTO } from '../../../application/queries/GetRequirementsForZone';
 import type { ReferenceResolution } from '../../../application/reference/deleteResolution';
 import type { UndoableCommand } from '../tools/undoable-command';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The Inspector's read model (SDD §59, design slice 6): "Selection → Inspector Query →
@@ -94,7 +95,7 @@ export interface InspectorDeps {
 	readonly requirementsQuery: {
 		execute(input: { zoneId: ZoneId }): Promise<Result<readonly RequirementInspectorDTO[], RepositoryError>>;
 	};
-	readonly dispatcher: { run(command: UndoableCommand): Promise<Result<void, AppError>> };
+	readonly dispatcher: { run(command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> };
 	toCommand(edit: InspectorEdit): UndoableCommand;
 }
 
@@ -217,7 +218,7 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 		 * exactly one `toCommand` call and one `dispatcher.run` call, dispatching the exact
 		 * command `toCommand` built; keystroke-coalescing on blur/enter is the future Vue
 		 * UI's job, not this store's. */
-		function commit(edit: InspectorEdit): Promise<Result<void, AppError>> {
+		function commit(edit: InspectorEdit): Promise<Result<DispatchOutcome, AppError>> {
 			return deps.dispatcher.run(deps.toCommand(edit));
 		}
 

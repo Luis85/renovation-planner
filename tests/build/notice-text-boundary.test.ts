@@ -106,6 +106,16 @@ describe('the notice text boundary', () => {
 		['an exception message', 'export const show = (notify: any, e: any) => notify(e.message);\n', INFRASTRUCTURE],
 		['a raw literal sentence', "export const show = (notify: any) => notify('Saving failed.');\n", INFRASTRUCTURE],
 		['an exception message in an SFC', sfc('const show = (notify: any, e: any) => notify(e.message);\nvoid show;'), SFC],
+		// The two doors Task 6 added, driven through this same override-repeat check: a
+		// selector widened only at the general src/ block would leave notifySuccess/
+		// notifyWarning unrefused in infrastructure/obsidian/ and in an SFC, exactly the gap
+		// this file's own comment above warns a forgotten repeat leaves invisible.
+		['a message through notifySuccess', 'export const show = (notifySuccess: any, e: any) => notifySuccess(e.message);\n', INFRASTRUCTURE],
+		[
+			'a message through notifyWarning in an SFC',
+			sfc('const show = (notifyWarning: any, e: any) => notifyWarning(e.message);\nvoid show;'),
+			SFC,
+		],
 	])('reaches %s too', async (_what, code, filePath) => {
 		expect(await lintText(code, filePath)).toContain(RULE);
 	});
@@ -120,12 +130,37 @@ describe('the notice text boundary', () => {
 	it.each([
 		['a message one hop away', 'export const show = (notify: any, e: any) => { const text = e.message; return notify(text); };\n'],
 		['a template literal with no member access', 'export const show = (notify: any) => notify(`Saving failed.`);\n'],
-		// The CALL FORM, not a third name: both selectors key on `callee.name`, which a
-		// MemberExpression callee does not have, so the same two functions reached through an
-		// object escape both. `notify` and `Notice` are only ever called bare here.
+		// The CALL FORM, not a name gap: all four selectors key on `callee.name`, which a
+		// MemberExpression callee does not have, so the same functions reached through an
+		// object escape all of them. `notify`, `notifySuccess`, `notifyWarning` and `Notice`
+		// are only ever called bare here.
 		['a notify reached through a member expression', 'export const show = (o: any, e: any) => o.notify(e.message);\n'],
+		['a notifySuccess reached through a member expression', 'export const show = (o: any, e: any) => o.notifySuccess(e.message);\n'],
 		['a Notice constructed from a member expression', 'export const show = (n: any, e: any) => new n.Notice(e.message);\n'],
 	])('cannot see %s, which the config says in prose and this pins', async (_what, code) => {
 		expect(await lintText(code, PRESENTATION)).not.toContain(RULE);
+	});
+
+	it.each([
+		['a literal through the success door', 'export const s = (notifySuccess: any) => notifySuccess("saved");\n'],
+		['a literal through the warning door', 'export const w = (notifyWarning: any) => notifyWarning("careful");\n'],
+		['a message through the success door', 'export const s = (notifySuccess: any, e: any) => notifySuccess(e.message);\n'],
+		['a stack through the warning door', 'export const w = (notifyWarning: any, e: any) => notifyWarning(e.stack);\n'],
+	])('refuses %s', async (_name, source) => {
+		// `lintText` already resolves to RULE IDS — `Promise<string[]>`, with `PARSE_ERROR` and
+		// `NOT_LINTED` sentinels for the two ways a fixture can go wrong. Mapping `.ruleId` over
+		// it yields an array of `undefined`, which makes every refusal case fail against a
+		// correctly widened selector and every negative case pass vacuously. Assert the array
+		// directly, exactly as the four cases above this one do.
+		expect(await lintText(source, PRESENTATION)).toContain(RULE);
+	});
+
+	it('still passes a translated call through the new doors', async () => {
+		expect(
+			await lintText(
+				'export const s = (notifySuccess: any, tr: any) => notifySuccess(tr("a.key"));\n',
+				PRESENTATION,
+			),
+		).not.toContain(RULE);
 	});
 });

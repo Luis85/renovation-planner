@@ -1,3 +1,4 @@
+import type Konva from 'konva';
 import { describe, expect, it } from 'vitest';
 import { screenPoint, type ScreenPoint } from '../../../src/presentation/editor/viewport/Viewport';
 import {
@@ -8,6 +9,7 @@ import {
 	RULER_MAX_TICKS,
 	RULER_MINOR_TICK_PX,
 	RULER_TICK_SPACING_PX,
+	paintRulerMarks,
 } from '../../../src/presentation/editor/layers/rulerGeometry';
 
 /**
@@ -167,5 +169,93 @@ describe('rulerMarks', () => {
 		const marks = rulerMarks(screenPoint(0, 0), screenPoint(RULER_TICK_SPACING_PX - 1, 0));
 
 		expect(marks.ticks).toEqual([]);
+	});
+});
+
+/**
+ * That every mark the geometry produces is actually PAINTED.
+ *
+ * Its own case because the layer's cannot reach it: the marks travel to Konva as one
+ * `Shape`'s `marks` attribute, and a test that reads that attribute back is reading the
+ * INPUT to the painting rather than the painting. Measured rather than assumed — a build
+ * whose `paintRulerMarks` simply skipped the ticks left every assertion in
+ * `interactionLayer.test.ts` green, node count included, which is exactly the cheap fix the
+ * node-count rule exists to refuse. So the strokes are counted here, at the one function
+ * that issues them.
+ *
+ * A recording stand-in rather than a real canvas: what is being asked is which segments were
+ * stroked and at what width, and a rasterizer answers that question only by inference from
+ * pixels.
+ */
+/** A shape whose only job is to carry the marks the painter reads back off it. */
+function shapeHolding(marks: unknown): Konva.Shape {
+	return { getAttr: () => marks } as unknown as Konva.Shape;
+}
+
+describe('painting the ruler marks', () => {
+	interface Stroked {
+		readonly width: number;
+		readonly segments: number[][];
+	}
+
+	function record(): { readonly context: Konva.Context; readonly strokes: Stroked[] } {
+		const strokes: Stroked[] = [];
+		let width = 0;
+		let current: number[][] = [];
+		let pending: number[] = [];
+		const context = {
+			setAttr(key: string, value: number) {
+				if (key === 'lineWidth') width = value;
+			},
+			beginPath() {
+				current = [];
+			},
+			moveTo(x: number, y: number) {
+				pending = [x, y];
+			},
+			lineTo(x: number, y: number) {
+				current.push([...pending, x, y]);
+			},
+			stroke() {
+				strokes.push({ width, segments: current });
+			},
+		};
+		return { context: context as unknown as Konva.Context, strokes };
+	}
+
+	it('strokes every end bar and every tick the geometry produced', () => {
+		const marks = rulerMarks(screenPoint(0, 0), screenPoint(RULER_TICK_SPACING_PX * 6, 0));
+		expect(marks.ticks.length).toBeGreaterThan(1); // or the count below proves nothing
+		const { context, strokes } = record();
+
+		paintRulerMarks(context, shapeHolding(marks));
+
+		// Two paths, not two nodes and not one: a bar and a tick differ in stroke width, and
+		// a width change cannot happen inside a single path.
+		expect(strokes).toHaveLength(2);
+		const [bars, ticks] = strokes as [Stroked, Stroked];
+		expect(bars.segments).toEqual(marks.endBars.map((bar) => [...bar]));
+		expect(ticks.segments).toEqual(marks.ticks.map((tick) => [...tick]));
+		expect(bars.width).toBeGreaterThan(ticks.width);
+	});
+
+	it('opens no path for a run of marks it has none of', () => {
+		// Shorter than one spacing: two end bars and no ticks. An empty `beginPath`/`stroke`
+		// pair would be harmless and is still worth not issuing per pointer move.
+		const marks = rulerMarks(screenPoint(0, 0), screenPoint(RULER_TICK_SPACING_PX - 1, 0));
+		const { context, strokes } = record();
+
+		paintRulerMarks(context, shapeHolding(marks));
+
+		expect(marks.ticks).toEqual([]);
+		expect(strokes).toHaveLength(1);
+	});
+
+	it('paints nothing at all when the shape carries no marks', () => {
+		const { context, strokes } = record();
+
+		paintRulerMarks(context, shapeHolding(null));
+
+		expect(strokes).toEqual([]);
 	});
 });

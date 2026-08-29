@@ -1,4 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import type { DispatchOutcome } from '../DispatchOutcome';
 import type {
 	AppError,
 	GeometryError,
@@ -71,9 +72,11 @@ function nothingToUndo(): ReferenceError {
  * adapter argues at length that a restore is not a creation. So create → undo → redo →
  * undo emits one create and two deletes. Nothing today counts them: the editor refreshes
  * off the history, not off events, and `planChangeSource` only re-reads. Slice 10's
- * recalculation and slice 13's save tracking are the first subscribers that would care,
- * and what an undo/redo pair OUGHT to announce is their decision to make, not a detail to
- * settle silently here.
+ * recalculation is the kind of subscriber that would care. **This sentence named slice 13's
+ * save tracking as a second one, and slice 13 has since landed and disproved that half**:
+ * `withSaveStateTracking` decorates the command DISPATCHER and subscribes to no event at
+ * all. What an undo/redo pair OUGHT to announce is still a real subscriber's decision to
+ * make, not a detail to settle silently here.
  */
 export class ReversibleCreateZoneCommand {
 	private snapshot: Loaded<Zone> | null = null;
@@ -86,23 +89,23 @@ export class ReversibleCreateZoneCommand {
 		private readonly input: CreateZoneInput,
 	) {}
 
-	async execute(): Promise<Result<void, AppError>> {
+	async execute(): Promise<Result<DispatchOutcome, AppError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) {
 			const result = await this.createCommand.execute(this.input);
 			if (isErr(result)) return result;
 			this.snapshot = result.value.zone;
 			this.ledger.record(result.value.zone.entity.id, result.value.zone.version);
-			return ok(undefined);
+			return ok('wrote');
 		}
 		const written = await restoreZone(this.zones, this.ledger, snapshot);
 		if (isErr(written)) return written;
 		// The next undo must delete what THIS redo wrote, not what the original create did.
 		this.snapshot = written.value;
-		return ok(undefined);
+		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<void, AppError>> {
+	async undo(): Promise<Result<DispatchOutcome, AppError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
 		const expected = this.ledger.lastWritten(snapshot.entity.id) ?? snapshot.version;
@@ -112,7 +115,7 @@ export class ReversibleCreateZoneCommand {
 		// The note is gone, so the ledger must stop answering a revision for it — see
 		// `WriteLedger`'s own account of why a delete forgets rather than records.
 		this.ledger.forget(snapshot.entity.id);
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	/** Set once `execute()` has succeeded; how the drawing tool selects what it drew. */

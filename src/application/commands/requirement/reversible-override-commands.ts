@@ -1,4 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import type { DispatchOutcome } from '../DispatchOutcome';
 import type { AppError } from '../../../core/errors/AppError';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
@@ -50,7 +51,7 @@ abstract class ReversibleOverrideBase<TInput> {
 		Result<{ requirement: Requirement; version: EntityVersion }, AppError>
 	>;
 
-	async execute(input: TInput): Promise<Result<void, AppError>> {
+	async execute(input: TInput): Promise<Result<DispatchOutcome, AppError>> {
 		if (!this.snapshot) {
 			const before = await this.requirements.getById(this.requirementIdOf(input));
 			if (isErr(before)) return err(before.error);
@@ -65,15 +66,15 @@ abstract class ReversibleOverrideBase<TInput> {
 			if (!ran.ok) return ran;
 			// Captured ONCE, after the first successful write — redo reuses it.
 			this.snapshot = { entity: before.value.entity, postVersion: ran.value.version };
-			return ok(undefined);
+			return ok('wrote');
 		}
 		const ran = await this.run(input);
 		if (!ran.ok) return ran;
 		this.snapshot = { ...this.snapshot, postVersion: ran.value.version };
-		return ok(undefined);
+		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<void, AppError>> {
+	async undo(): Promise<Result<DispatchOutcome, AppError>> {
 		const captured = this.snapshot;
 		if (!captured) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });
@@ -83,7 +84,7 @@ abstract class ReversibleOverrideBase<TInput> {
 		const saved = await this.requirements.save(captured.entity, captured.postVersion);
 		if (isErr(saved)) return err(saved.error);
 		this.snapshot = { ...captured, postVersion: saved.value.version };
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	protected abstract requirementIdOf(input: TInput): RequirementId;

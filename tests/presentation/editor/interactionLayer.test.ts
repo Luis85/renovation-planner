@@ -21,7 +21,21 @@ import {
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
 	POLYGON_VERTEX_RADIUS_PX,
 } from '../../../src/presentation/editor/handleMetrics';
-import { RULER_TICK_SPACING_PX } from '../../../src/presentation/editor/layers/rulerGeometry';
+import {
+	RULER_TICK_SPACING_PX,
+	type RulerMarks,
+} from '../../../src/presentation/editor/layers/rulerGeometry';
+
+/**
+ * The ruler's marks, read off the ONE node that draws them all. They are a custom Konva
+ * attribute rather than a node each, which is what keeps the per-move cost independent of
+ * how long the segment is — see 'draws a long segment on no more nodes than a short one'.
+ */
+function measurementMarks(stage: Konva.Stage | null): RulerMarks {
+	const shape = stage?.findOne<Konva.Shape>('.measurement-marks');
+	if (shape === undefined) throw new Error('expected the measurement marks on the stage');
+	return shape.getAttr('marks') as RulerMarks;
+}
 
 /** The layer under test; every assertion below is about what is inside it. */
 function interactionLayer(stage: Konva.Stage | null): Konva.Layer {
@@ -173,7 +187,8 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		// A zero-length segment: the spine plus the two bars, and no ticks to space along it.
 		// The bars are the whole point — before them a single click drew a dot that said
 		// nothing about which direction was about to be measured.
-		expect(interactionLayer(harness.stage).find('Line')).toHaveLength(3);
+		expect(measurementMarks(harness.stage).endBars).toHaveLength(2);
+		expect(measurementMarks(harness.stage).ticks).toHaveLength(0);
 		expect(interactionLayer(harness.stage).find('Circle')).toHaveLength(0);
 	});
 
@@ -285,7 +300,50 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		// left to the bars, plus the spine and those two bars.
 		const ticks = Math.floor(200 / RULER_TICK_SPACING_PX) - 1;
 		expect(ticks).toBeGreaterThan(0);
-		expect(interactionLayer(harness.stage).find('Line')).toHaveLength(3 + ticks);
+		expect(measurementMarks(harness.stage).ticks).toHaveLength(ticks);
+	});
+
+	/**
+	 * **The stage node count may not grow with the segment's LENGTH**, which is the whole of
+	 * design's answer to a defect a user reported as "massive performance issues": every
+	 * ruler tick used to be its own Konva node, re-rendered by Vue and re-attributed by
+	 * vue-konva on EVERY pointer move. Measured through this same mounted rig, the per-move
+	 * cost tracked the node count and nothing else — 0.18 ms with no tool, 0.76 ms on a
+	 * five-node segment, 2.61 ms once the ruler reached its 48-tick cap, against 3.8 US for
+	 * `rulerMarks` itself. The arithmetic was never the cost; the node count was.
+	 *
+	 * The tick count is asserted beside the node count so that the comparison is not vacuous:
+	 * a segment whose ruler never got busier would hold any node count constant.
+	 *
+	 * **What this case does NOT reach, measured rather than assumed:** it reads the marks off
+	 * the `marks` ATTRIBUTE, which is the input to the painting and not the painting. A build
+	 * whose `paintRulerMarks` skipped the ticks entirely left every assertion in this file
+	 * green, this one included — so the cheap fix of drawing fewer marks is refused in
+	 * `rulerGeometry.test.ts`'s 'painting the ruler marks', at the one function that issues
+	 * the strokes, and not here.
+	 */
+	it('draws a long segment on no more nodes than a short one', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Calibrate').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 60, 60);
+		pointer(canvas, 'pointermove', 80, 60);
+		await settle();
+		const shortNodes = interactionLayer(harness.stage).getChildren().length;
+		const shortTicks = measurementMarks(harness.stage).ticks.length;
+
+		// Long enough to reach the tick cap the ruler coarsens against.
+		pointer(canvas, 'pointermove', 760, 560);
+		await settle();
+		const longNodes = interactionLayer(harness.stage).getChildren().length;
+		const longTicks = measurementMarks(harness.stage).ticks.length;
+
+		// The ruler really did get busier — otherwise the count below proves nothing.
+		expect(longTicks).toBeGreaterThan(shortTicks);
+		expect(longNodes).toBe(shortNodes);
 	});
 });
 

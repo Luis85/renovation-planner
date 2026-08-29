@@ -93,6 +93,82 @@ describe('NewProjectForm', () => {
 	});
 
 	/**
+	 * WCAG AA, and the argument is `FormBanner`'s own, applied to the surface it was not
+	 * applied to. That component carries `role="alert"` because "it appears in response to the
+	 * user's own submit and is the only feedback that press produced, so it is announced rather
+	 * than merely present" — which is verbatim true of a FIELD error produced by the same
+	 * press, and `FieldError`'s `<p>` is neither a live region nor focused. A screen-reader user
+	 * pressed Save on an empty Name, the dialog did not close, and nothing was spoken:
+	 * `aria-describedby` changed on an input nobody was on.
+	 *
+	 * Moving focus rather than adding a live region, because focus is the thing that puts the
+	 * user WHERE the problem is as well as telling them about it — the input's label,
+	 * `aria-invalid` and `aria-describedby` message are all announced by the move, through
+	 * markup `FieldError` already renders. It is done HERE and not in `FieldError`, which the
+	 * Inspector shares: there the commit boundary is blur, the user's attention has already
+	 * moved on, and pulling focus back would be an interruption rather than an answer. axe
+	 * cannot see any of this, so this assertion is the only gate on it.
+	 */
+	it('moves focus to the first errored control on a rejected submit', async () => {
+		const wrapper = mount(NewProjectForm, {
+			props: { dispatch: () => Promise.resolve(err(projectError('project.empty-name'))) },
+			attachTo: document.body,
+		});
+
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(document.activeElement).toBe(wrapper.get('input[data-field="name"]').element);
+		wrapper.unmount();
+	});
+
+	/**
+	 * FIRST in DOM order, not "the one the map happens to name first" — the control is found by
+	 * querying the rendered form for `[aria-invalid='true']`, so a cross-field error routed to
+	 * a PAIR lands the user on the earlier of the two rather than on whichever the error map
+	 * lists first. `start` precedes `targetCompletion` in the template and in
+	 * `NEW_PROJECT_ERRORS`'s own array alike, so this case pins the DOM answer by asserting the
+	 * later field did NOT take focus as well.
+	 */
+	it('lands on the earlier of a cross-field pair, not the later', async () => {
+		const wrapper = mount(NewProjectForm, {
+			props: { dispatch: () => Promise.resolve(err(projectError('project.target-before-start'))) },
+			attachTo: document.body,
+		});
+
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(document.activeElement).toBe(wrapper.get('input[data-field="start"]').element);
+		wrapper.unmount();
+	});
+
+	/**
+	 * A banner-routed failure names no field, so there is nothing to move to — and `FormBanner`
+	 * announces itself. Focus must stay where the user left it rather than being thrown at the
+	 * first control of the form.
+	 */
+	it('moves focus nowhere when the failure routes to the banner', async () => {
+		const wrapper = mount(NewProjectForm, {
+			props: {
+				dispatch: () =>
+					Promise.resolve(
+						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' } as AppError),
+					),
+			},
+			attachTo: document.body,
+		});
+
+		const submitButton = wrapper.get('button[type="submit"]').element as HTMLButtonElement;
+		submitButton.focus();
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(document.activeElement).toBe(submitButton);
+		wrapper.unmount();
+	});
+
+	/**
 	 * The control-level half of the raw-enum defect: `PROJECT_STATUS_LABELS`'s own
 	 * completeness test (`projectStatusLabels.test.ts`) never renders this component, so
 	 * reverting the template's interpolation back to the raw `status` loop variable would

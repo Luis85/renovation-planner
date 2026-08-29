@@ -960,6 +960,72 @@ shapes:
   state what is true of a DELETION now, which is the fact each of them is actually about, since
   that is the property that survives the next caller being added.
 
+### What the twelfth review round found (2026-08-29)
+
+Two findings on the commit that closed the eleventh, and the pair is the same lesson twice: a
+mechanism that fixes the case in front of it, under a comment describing a wider guarantee.
+
+- **A view already on screen kept the composition root it was built against (P1).**
+  `registerView`'s factory resolves each bundle PER CALL from `this.root`, and the comment
+  beside it said that was what made a `saveSettings` swap safe. It is half of it — Obsidian
+  calls a factory when it CONSTRUCTS a view, so "per call" only ever covered views opened
+  AFTER the swap. Measured across a real `saveSettings` before anything was changed, and all
+  four halves hold: the bus is replaced, the mounted view keeps the old `commands`, the
+  rebuild never reaches it, and a freshly built view does get the new root. **The Plan Editor
+  shares it and has since slice 5**, measured the same way in the same probe, so the fix walks
+  both view types rather than the one that was reported.
+
+  The damage is worse than "stale", because the old root is not merely out of date — it is
+  frozen: `VaultChangeAdapter` resolves the root per EVENT, so the moment it is replaced the
+  previous Project Index stops being maintained at all. A pane left open across a settings
+  save read a dead index, dispatched into the previous root's commands, and would have put a
+  new project under the folder the user had just stopped using.
+
+  **A remount rather than per-call resolution of every member, and the reasoning is worth
+  keeping.** Obsidian's `rebuildView` would do this in one call and is absent from the
+  `obsidian` typings pinned to `minAppVersion` — which is exactly what that pin is for, so it
+  is not available. Delegating member by member was the alternative: `PlanEditorCommandServices`
+  alone reaches four repository ports, a lock set, a command factory and a nested bundle, so
+  that would be a second spelling of the whole surface and a standing place for it to drift.
+  `rebind` is spelled out of the lifecycle each view already owns, and both factories and both
+  rebinds now share ONE spelling of each bundle (`projectViewDeps`, `planEditorViewDeps`) so a
+  rebind cannot hand a view something a factory would not have built. It runs AFTER
+  `startPersistence`, deliberately: rebound first, every view would mount against the new
+  root's still-empty index and need the rebuild to correct itself.
+
+  The cost is stated where it lands rather than glossed: a Plan Editor remount discards the
+  undo history, the camera and the selection. That is a real loss on a rare and deliberate
+  action, against a canvas that otherwise goes on writing through a root the vault has stopped
+  agreeing with.
+
+  **`FakeLeaf` had no `view` member**, which is the sixth-and-then-some instance of the shape
+  this repository keeps paying for: Obsidian sets `leaf.view` after calling a factory, the
+  fake did not, and `rebindOpenViews` could have been written, shipped and green with nothing
+  able to observe that it reached a view at all. Four of the five new cases go red without the
+  call; the fifth guards the remount against LOSING the plan id rather than against the fix's
+  absence, so it was watched failing against a deliberately bad rebind instead.
+
+- **The inert background was a snapshot, and the round above made that reachable (P2).**
+  `DialogHost` inerted the dialog's siblings once at open time. Its own docblock had predicted
+  the consequence and named the condition — "`ViewRoot` now has one too … harmless only
+  because nothing in this slice ever opens a dialog from `ViewRoot` … A later slice that wires
+  a dialog into `ViewRoot` inherits this exactly: check whether `empty` can still be toggling
+  while that dialog is open, and if so, this snapshot is what needs to widen." Slice 16 wired
+  that dialog and the eleventh round made `empty` genuinely able to toggle mid-dialog: a
+  restored pane draws the empty state, the user opens the create form from its button, the
+  index rebuild lands, and `v-else` replaces the inerted `EmptyState` with a `ProjectList` of
+  focusable rows the snapshot had never seen — reachable and in the tab order behind the modal.
+  **Neither the wiring nor the subscription had come back to read that paragraph**, which is
+  the whole cost of a warning addressed to a future reader who has no reason to open the file.
+
+  Widened as that docblock asked rather than replaced beside it: `syncBackground` runs at open
+  AND from a `MutationObserver` on the parent's child list while the dialog stays open, with
+  `backgrounded` a `Set` so a re-sync cannot double-count. The staleness is unrepresentable
+  now instead of merely absent from the toggles somebody enumerated — the same trade
+  `PlanCanvas` made over its re-issued pointer move. One gap stated rather than glossed: an
+  observer callback is a microtask, so a newly inserted sibling is non-`inert` for the tick
+  between insertion and sync, which is shorter than any input event but is not "never".
+
 
 ## References
 

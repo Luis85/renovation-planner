@@ -27,6 +27,19 @@ import type { TFile, WorkspaceLeaf } from './obsidian-mock';
 export class FakeLeaf implements WorkspaceLeaf {
 	state: { type: string; active?: boolean; state?: Record<string, unknown> } | undefined;
 
+	/**
+	 * The view Obsidian mounted into this leaf, because Obsidian sets exactly this after
+	 * calling a registered factory — and until `saveSettings` had to find its open views to
+	 * rebind them, this fake had no such member at all. That is the recurring shape recorded
+	 * in CLAUDE.md rather than a gap peculiar to this file: a fake thinner than the real thing
+	 * leaves the mechanism pointed at it undrivable, so `rebindOpenViews` could have been
+	 * written, shipped and green with nothing able to observe that it reached a view.
+	 *
+	 * Assigned by whoever plays Obsidian's part in a test (`openViewOnLeaf`), never by the
+	 * leaf itself: the real one is set by the workspace, not by the factory.
+	 */
+	view: unknown;
+
 	setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
 		this.state = state;
 		return Promise.resolve();

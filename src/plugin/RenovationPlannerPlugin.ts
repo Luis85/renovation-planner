@@ -11,7 +11,7 @@ import { createPluginDataProbe } from '../infrastructure/obsidian/settings/plugi
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
-import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
+import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
@@ -22,6 +22,7 @@ import {
 	type CompositionRoot,
 	type VaultStack,
 } from './composition-root';
+import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
@@ -146,21 +147,20 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// nothing below this line can be configured before it exists.
 		this.addSettingTab(new SettingsTab(this));
 
-		this.registerView(
-			RENOVATION_PROJECT_VIEW,
-			// Per CALL, not captured — the same reason the Plan Editor's factory resolves per
-			// call: `saveSettings` replaces `this.root`, and a view built against the old one
-			// would read through query services pointed at the previous project folder.
-			(leaf) => new RenovationProjectView(leaf, renovationProjectDeps(this.root, this.app.workspace, this.app.vault)),
-		);
+		// Both factories resolve their dependencies PER CALL from the current root rather than
+		// capturing one, because `saveSettings` replaces `this.root` and a view built against
+		// the old one reads through an index nothing maintains any more.
+		//
+		// **That is necessary and it is not sufficient**, which is what an earlier version of
+		// this comment claimed on both counts. Obsidian calls a registered factory when it
+		// CONSTRUCTS a view, so "per call" only ever covered views opened AFTER a swap; every
+		// view already on screen kept the previous root indefinitely. `rebindOpenViews` is the
+		// other half, and the two share ONE spelling of each bundle below so a rebind can
+		// never hand a view something different from what its factory would have built.
+		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps()));
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
-		// view many times — the dependencies are resolved PER CALL from the current root, not
-		// captured, because `saveSettings` replaces that root and a view built against the old
-		// one would read through query services pointed at the previous project folder.
-		this.registerView(
-			PLAN_EDITOR_VIEW,
-			(leaf) => new PlanEditorView(leaf, planEditorDeps(this.root, this.app.workspace, this.app.vault)),
-		);
+		// view many times.
+		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
@@ -277,7 +277,58 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// complete; without it the session reads an index of nothing until the next reload,
 		// and every already-registered listener maintains a root nobody consults.
 		this.startPersistence();
+		// AFTER the rebuild, deliberately: a view rebound first would mount against the new
+		// root's still-empty index, draw its "nothing here" state, and need the rebuild event
+		// to correct itself. Rebinding second means each view mounts once, against an index
+		// that is already populated.
+		this.rebindOpenViews();
 		return this.saveData(next);
+	}
+
+	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */
+	private projectViewDeps(): RenovationProjectDeps {
+		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault);
+	}
+
+	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
+	private planEditorViewDeps(): PlanEditorDeps {
+		return planEditorDeps(this.root, this.app.workspace, this.app.vault);
+	}
+
+	/**
+	 * Points every view already on screen at the root that has just replaced the one it was
+	 * built against.
+	 *
+	 * Without this, a swap reached NEW views only. A pane left open across a settings save
+	 * went on reading through the previous root's Project Index — which `VaultChangeAdapter`
+	 * stops maintaining the moment the root is replaced, so it is not merely stale but frozen
+	 * — dispatched writes into the previous root's commands, put new projects under the
+	 * previous default folder, and held its `ProjectIndexRebuilt` subscription on a bus
+	 * nothing publishes to any more. All four measured across a real `saveSettings`; reported
+	 * in review as a P1 against the Renovation Project view, and true of the Plan Editor for
+	 * the same reason and since three slices earlier.
+	 *
+	 * It walks BOTH view types rather than the one that was reported, because "a view built
+	 * against a replaced root" is a category and the second member of it was already there.
+	 * `instanceof` rather than a view-type string comparison: `getLeavesOfType` is already
+	 * keyed by type, and what this needs to know is that the object has the method — a leaf
+	 * holding some other plugin's view under our type is not a thing to guess about.
+	 */
+	private rebindOpenViews(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)) {
+			if (!(leaf.view instanceof RenovationProjectView)) continue;
+			// ANNOTATED rather than left to the narrowing, and it is the gate that asks for it:
+			// `fallow` resolves a class member through an explicit type, never through a
+			// property access, so a `rebind` reached only via `instanceof` is reported as an
+			// unused class member. Measured — both views were, before this line existed.
+			const view: RenovationProjectView = leaf.view;
+			view.rebind(this.projectViewDeps());
+		}
+		for (const leaf of this.app.workspace.getLeavesOfType(PLAN_EDITOR_VIEW)) {
+			if (!(leaf.view instanceof PlanEditorView)) continue;
+			const view: PlanEditorView = leaf.view;
+			view.rebind(this.planEditorViewDeps());
+		}
 	}
 
 	private vaultStack: VaultStack | null = null;

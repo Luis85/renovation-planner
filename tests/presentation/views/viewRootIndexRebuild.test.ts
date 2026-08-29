@@ -127,6 +127,30 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
 	});
 
+	it('inerts the list that replaces the empty state underneath an open dialog', async () => {
+		// The interaction this subscription created, reported in review. A restored pane draws
+		// the empty state, the user opens the create dialog from its button, and the rebuild
+		// lands WHILE that dialog is open — so `v-else` swaps the inerted `EmptyState` for a
+		// `ProjectList` of focusable rows. `DialogHost` snapshotted its siblings at open time,
+		// so the replacement was reachable behind the modal: clickable, and in the tab order.
+		const { wrapper, rebuildTheIndex } = await mountBeforeTheScan();
+		await wrapper.get('.rp-empty-state button').trigger('click');
+		await flushPromises();
+		expect(wrapper.find('.rp-dialog').exists()).toBe(true);
+		expect(wrapper.get('.rp-empty-state').attributes('inert')).toBe('');
+
+		await rebuildTheIndex();
+		// A `MutationObserver` callback is a microtask, so the sync lands a tick after the
+		// insertion — awaited here for the same reason it is invisible to a user.
+		await flushPromises();
+
+		const list = wrapper.get('.rp-project-list');
+		expect(list.attributes('inert')).toBe('');
+		// The dialog itself is never inerted by its own host, which is the other half of the
+		// rule and the one a blanket sweep of the parent's children would have broken.
+		expect(wrapper.get('.rp-dialog-overlay').attributes('inert')).toBeUndefined();
+	});
+
 	it('subscribes once and releases the subscription when the pane unmounts', async () => {
 		// Obsidian REUSES a view, so a subscription outliving its Vue app would re-hydrate a
 		// store belonging to an app that is gone — and stack a second listener on every reopen.

@@ -39,9 +39,44 @@ export const RENOVATION_PROJECT_ICON = 'hammer';
 export class RenovationProjectView extends ItemView {
 	constructor(
 		leaf: WorkspaceLeaf,
-		private readonly deps: RenovationProjectDeps,
+		private deps: RenovationProjectDeps,
 	) {
 		super(leaf);
+	}
+
+	/**
+	 * Points this view at a NEW composition root, remounting so the Vue tree stops holding
+	 * the old one. Called by `saveSettings` for every open leaf of this type.
+	 *
+	 * **Why `deps` had to stop being `readonly`.** `registerView`'s factory resolves the
+	 * dependencies per CALL, and its comment said that was what made a root swap safe — but
+	 * Obsidian calls a factory when it CONSTRUCTS a view, so "per call" only ever covered
+	 * views opened AFTER the swap. An already-mounted one kept the previous root: its queries
+	 * read an index that `VaultChangeAdapter` had stopped maintaining, `createProject` wrote
+	 * under the previous default folder, and its `ProjectIndexRebuilt` subscription was on a
+	 * bus nothing published to any more. Measured across a real `saveSettings`, all four.
+	 *
+	 * A REMOUNT rather than per-call resolution of every member, and the trade is worth
+	 * stating: the bundle behind this reaches four repository ports and a lock set, so
+	 * delegating member by member would be a second spelling of the whole surface and a
+	 * standing place for it to drift. Obsidian's own `rebuildView` would do this in one call
+	 * and is absent from the `obsidian` typings this project pins to `minAppVersion`, which
+	 * is precisely what that pin is for. So the remount is spelled from the lifecycle this
+	 * class already owns, out of public API alone.
+	 *
+	 * No-op when nothing is mounted: a closed view takes the new `deps` and mounts with them
+	 * on its next `onOpen`.
+	 */
+	rebind(deps: RenovationProjectDeps): void {
+		this.deps = deps;
+		if (this.vueApp === null) return;
+		// Called in sequence rather than chained: both bodies are synchronous and the promise
+		// is Obsidian's signature rather than a statement about this class, so the pane is
+		// remounted by the time this returns and there is no window in which it sits closed.
+		// A `.then` chain here would also be a promise nobody holds — the shape this
+		// repository has already had to fix in `recoverInterruptedSequences`.
+		void this.onClose();
+		void this.onOpen();
 	}
 
 	getViewType(): string {

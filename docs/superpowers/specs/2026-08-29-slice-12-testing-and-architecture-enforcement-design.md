@@ -376,6 +376,21 @@ reach `processFrontMatter` on every write and `trashFile` on every delete (all t
 `openFixtureVault` cannot supply runnable dependencies for the `save()`/`delete()` contract cases
 §3 exists to run.
 
+**Three host surfaces are still not a repository stack, which the `FileManager` fix did not
+reach.** `NoteVaultDeps` declares **eight** members — `vault`, `fileManager`, `metadataCache`,
+`index`, `echo`, `migrations`, `logger`, `ledger` — and `ObsidianZoneRepository` takes a
+`PlanGeometryStore` as a *second constructor argument* beside them. So a function returning
+host APIs alone cannot stand up a repository however many of them it returns, and naming a third
+surface was answering "what is missing" with one more item off a list instead of reading the
+constructor.
+
+`openFixtureVault(caseName)` therefore returns a **fixture repository stack** — the disk-backed
+host surfaces *plus* the collaborators the repositories are constructed with — mirroring what
+`createRepositoryStack` already does for `FakeVault` in `tests/helpers/vault.ts`. That is also
+the honest reason the `valid-project/` repoint is deferred rather than merely awkward: it is not
+one adapter, it is a second composition root for tests, and the existing one is in the file PR 25
+is editing.
+
 **`openFixtureVault` hands back a writable CLONE, never the checked-in directory** — omitted
 from the first draft and raised by a review bot. The slice document already requires it
 ("written to disposable copies"), and the failure without it is not subtle: the contract suites
@@ -606,8 +621,16 @@ first draft of this sentence asserted the opposite from a truncated listing: PR 
 edit `vitest.config.ts` (the coverage commentary and the thresholds block) and
 `tsconfig.json` (one `include` entry). This slice touches neither — the two-project split is
 withdrawn in §5, so no vitest configuration changes, and no new file needs a `tsconfig`
-entry. The overlap is therefore zero rather than small, but it is zero for a reason that
-would stop being true the moment either of those items came back.
+entry. **That pair overlaps at zero** — and the claim is narrowed to that pair, because a
+sentence generalising it stood eighteen lines below the correction above for a whole round,
+saying the overall overlap was zero while the paragraph above named `tests/helpers/vault.ts` as
+a real one. An implementation plan reading the later sentence would have raced the exact helper
+edit the earlier one says to serialize.
+
+The whole conflict surface is: `eslint.config.mjs` (driven, not modified),
+`tests/helpers/vault.ts` (**a real overlap, sequenced after PR 25**), and nothing else —
+`vitest.config.ts` and `tsconfig.json` stay untouched only while the two-project split stays
+withdrawn.
 
 ## 7. Verification
 

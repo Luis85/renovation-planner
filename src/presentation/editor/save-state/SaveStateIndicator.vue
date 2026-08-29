@@ -2,9 +2,22 @@
 /**
  * §60's third status-bar region: "is this Plan's data safely written?".
  *
- * Text rather than an icon or a bare colour, per SDD §85 — the same "status not colour-only"
- * rule slice 5 applies to a zone's status. No props: it reads THIS Plan Editor's own store
- * from its own Pinia instance, so two open editors indicate independently.
+ * **A mark AND a word, which is what `docs/components/Save-state indicator.md` asks for and
+ * what the first version of this component did not give.** That version rendered the word
+ * alone, with a colour on two of the four states, under a docblock citing SDD §85's
+ * "status not colour-only" rule — and it satisfied that rule, since a word is not a colour.
+ * The component spec is stricter and says why: "the temptation to ship a coloured dot is
+ * strongest [here], because the dot works perfectly for the author who built it". A word
+ * alone is the same trade made in the other direction — correct, and unreadable at a glance
+ * in a status bar nobody is looking at.
+ *
+ * The mark is `aria-hidden` and carries NO text, so the word remains the whole accessible
+ * name and `wrapper.text()` still equals exactly the label. Everything it draws is CSS in
+ * `styles/editor-status.css` — no `setIcon`, which would make this the plugin's first icon
+ * call and pull in the harness icon renderer CLAUDE.md lists as deliberately absent.
+ *
+ * No props: it reads THIS Plan Editor's own store from its own Pinia instance, so two open
+ * editors indicate independently.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -21,5 +34,8 @@ const label = computed(() => tr(SAVE_STATE_KEYS[state.value]));
 	<span
 		class="rp-save-state-label"
 		:class="`rp-save-state-${state}`"
-	>{{ label }}</span>
+	><span
+		class="rp-save-state-mark"
+		aria-hidden="true"
+	/>{{ label }}</span>
 </template>

@@ -902,15 +902,34 @@ here, and in [[Notices and save state]]'s own contract-gaps section, because the
 workspace holding this reasoning is deleted when the slice closes and a gap nobody inherits
 is a gap rediscovered from scratch.
 
-1. **No mark beside the word, on either surface.** Both contracts ask for a mark AND a word
-   ("Both, always, never one"). This slice ships the translated word plus colour, which
-   satisfies SDD §85's "status not colour-only" and does not satisfy the contracts. The icon
-   was refused on `setIcon` grounds — this plugin has never called it and the harness has no
-   icon renderer — but a CSS-drawn glyph would discharge both contracts without introducing
-   `setIcon`, and is the likely answer. It changes markup, stylesheet and accessibility
-   assertions in three separate places.
-2. **No moving indicator for *Saving*.** `Save-state indicator.md` cites the Design System's
-   *Loading* row: a moving indicator **and** text.
+1. **~~No mark beside the word.~~ Closed for the save-state indicator by the review pass on
+   this branch, by exactly the fix predicted here — and still OPEN for the Toast.** Both
+   contracts ask for a mark AND a word ("Both, always, never one"). The slice shipped the
+   translated word plus colour, which satisfies SDD §85's "status not colour-only" and does
+   not satisfy the contracts; a review bot found it on the indicator. The mark is CSS in
+   `styles/editor-status.css` — a settled disc for *Saved*, a ring for *Unsaved Changes*, an
+   arc for *Saving*, crossed bars for *Save Error* — drawn in `currentColor` so each takes its
+   own state's colour rule and no colour literal appears. `setIcon` is still not called, which
+   is what the prediction above was for. The element is `aria-hidden` and carries no text, so
+   the word remains the whole accessible name and the existing exact-`.text()` assertions
+   still hold.
+
+   Two things it needed that the prediction did not name. **A specimen**, because
+   `SaveStateIndicator` reads its store and a standalone harness mount rests at `saved`, so a
+   capture of the real component shows one of the four marks: `src/prototypes/SaveStateMarks.vue`
+   draws all four, and is the only place *Unsaved Changes* is ever rendered at all. And a
+   **selector test** — `saveStateIndicator.test.ts` builds `.rp-save-state-${state}` from the
+   same expression the template interpolates and asserts the stylesheet declares it, which is
+   the one hole `editor-status.css`'s own header says nothing here can catch, and which had
+   already cost this file one defect (`-error` against a template emitting `-save-error`).
+2. **~~No moving indicator for *Saving*.~~ Closed with item 1.** `Save-state indicator.md`
+   cites the Design System's *Loading* row: a moving indicator **and** text. The arc rotates,
+   and because it is this stylesheet's first animation it is also the first thing in it that
+   owes a `prefers-reduced-motion` answer — the rotation stops and the GAP stays, since the
+   gap is what distinguishes it from the ring. The residual that leaves, read off a capture
+   rather than argued: held still, arc and ring differ by one gap at this size. It costs
+   nothing while *Unsaved Changes* is unreachable, and is written down where the CSS is for
+   the slice that makes it reachable.
 3. **No retry emit on *Save error*.** The contract says the component "Emits, in the Save
    Error case only, a retry request." **Undesigned rather than merely unbuilt**, which is the
    distinction worth keeping: `SaveStateStore` retains no re-runnable operation — the tracker

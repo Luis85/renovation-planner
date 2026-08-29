@@ -1519,6 +1519,46 @@ it:
   general fix is still the sibling bullet's, a command reporting on BOTH channels.
   `DispatchOutcome` does it for successes and this stamp for the failures that were measured;
   the rest is unbuilt and the docblock says so.
+- **The indicator's subject is the GESTURE's write, and a background cascade failing is not
+  that — now pinned rather than implicit.** Moving a zone publishes `ZoneGeometryChanged`, and
+  `MoveSpatialObjectCommand` AWAITS the publication, so slice 10's recalculation cascade runs
+  inside the dispatch the indicator is timing. A review bot read that as a hole: the stale
+  marker fails to persist, the command still succeeds, the indicator says `Saved`. The
+  behaviour is right and the remedy proposed for it was not — the zone's geometry IS in the
+  vault at a new revision, `save-error` is STICKY, and flipping it would leave a permanent
+  badge over correct data, which is the false badge four measurements of `affectsSaveState`
+  went to avoid. The cascade failure already has its own channel: `notify.staleMarkerFailed`,
+  which `composition-root.ts` binds to a `notifyWarning` that never auto-dismisses. **What was
+  genuinely missing is that NOTHING said any of this** — no test, no comment, three modules
+  each holding a third of the decision. `cascadeSaveStateBoundary.test.ts` asserts both halves
+  TOGETHER, and the pairing is the point: "the indicator stays `saved`" is equally true of a
+  build where the failure reaches nobody, which is the reading under which the bot would have
+  been right. Its own contrast case then caught the first draft of itself — a move against a
+  missing zone refuses with `zone.zone-not-found`, a `Reference` code that is genuinely
+  pre-write, so the indicator correctly stayed `saved` and the case failed. A contrast case
+  for a write has to refuse at the WRITE.
+- **A word is not a colour, and satisfying the rule that says so is not satisfying the
+  contract.** `SaveStateIndicator` shipped the translated word with a colour on two of four
+  states, under a docblock citing SDD §85's "status not colour-only" — which it met, since a
+  word is not a colour. `docs/components/Save-state indicator.md` is stricter and says why:
+  "A mark and a word. Both, always, never one", because "the temptation to ship a coloured dot
+  is strongest [here], as the dot works perfectly for the author who built it". The word alone
+  is that same trade made in the other direction. Found by a review bot against the component
+  spec, and this slice's own task document had ALREADY recorded it as a gap and predicted the
+  fix — "a CSS-drawn glyph would discharge both contracts without introducing `setIcon`" — so
+  the check that was missing was not an insight, it was anything at all that reads a component
+  contract. Two things the prediction did not name and the work needed. **A specimen**: the
+  component reads its store, so a standalone harness mount rests at `saved` and photographs
+  ONE of the four marks — `src/prototypes/SaveStateMarks.vue` exists to draw all four, and is
+  the only place `unsaved-changes` is rendered anywhere, being unreachable through the store.
+  And **a selector test**: jsdom resolves no CSS, so a state whose rule is one word off renders
+  the base mark with every test green — which already cost this file one defect
+  (`rp-save-state-error` against a template emitting `rp-save-state-save-error`) under a comment
+  saying nothing here could catch it. The test now BUILDS `.rp-save-state-${state}` from the
+  same expression the template interpolates and asserts the stylesheet declares it. The
+  distinctness of the four marks is still a claim only an eye settles, which is what the
+  capture is for — and reading it produced the residual now written beside the CSS: held still
+  under reduced motion, the saving arc and the unsaved-changes ring differ by one gap.
 - **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
   are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
   swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`

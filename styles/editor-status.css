@@ -103,3 +103,108 @@
 .rp-save-state-saving {
 	color: var(--text-muted);
 }
+
+/*
+ * The state MARK — `docs/components/Save-state indicator.md`: "A mark and a word. Both,
+ * always, never one." The word is the accessible name and the mark is what makes the state
+ * readable at a glance; the element carries `aria-hidden` and no text, so it adds a channel
+ * without adding anything a screen reader has to read twice.
+ *
+ * Drawn here rather than with `setIcon`, which would be the plugin's first icon call and
+ * would need the harness icon renderer CLAUDE.md lists as deliberately absent — and an icon
+ * font would be a second thing to theme. Every mark is a box, a border and a rotation.
+ *
+ * `currentColor` throughout, so a mark takes its state's own colour rule (above) and a state
+ * with no rule takes the status bar's inherited `--text-muted` — the same "a state added
+ * later renders as the ordinary one rather than as nothing" property those rules were
+ * written for. It also means no colour literal appears here, which SDD §84's check forbids.
+ *
+ * Sized in `em` rather than in Obsidian's step variables, because this mark has to track the
+ * status bar's `--font-ui-smaller` text it sits beside; a fixed step would drift away from
+ * the word at any other font scale.
+ */
+.rp-save-state-mark {
+	display: inline-block;
+	box-sizing: border-box;
+	width: 0.6em;
+	height: 0.6em;
+	margin-right: 0.4em;
+	vertical-align: baseline;
+	border-radius: 50%;
+	background-color: currentColor;
+}
+
+/*
+ * Unsaved changes is a RING, not the absence of the saved disc — the row the component spec
+ * calls out as the one worth defending, because an indicator that shows nothing when there
+ * is unsaved work is indistinguishable from one that has crashed. Unreachable through
+ * `SaveStateStore`'s action surface today (design slice 13, Definition of Done item 10), and
+ * given its mark anyway so that reaching it later is a store change and not a CSS one.
+ */
+.rp-save-state-unsaved-changes .rp-save-state-mark {
+	border: 0.15em solid currentColor;
+	background-color: transparent;
+}
+
+/*
+ * Saving is the Design System's *Loading*: a MOVING indicator and text. An arc rather than a
+ * pulse, so it reads as in-flight rather than as a state that merely differs.
+ */
+.rp-save-state-saving .rp-save-state-mark {
+	border: 0.15em solid currentColor;
+	border-top-color: transparent;
+	background-color: transparent;
+	animation: rp-save-state-spin 0.8s linear infinite;
+}
+
+/*
+ * Save error is the Design System's *Error*: a mark, not a differently-coloured dot. Two bars
+ * crossed — a shape that survives being the only channel a user has, which is what a
+ * red disc beside a red word is not.
+ */
+.rp-save-state-save-error .rp-save-state-mark {
+	position: relative;
+	border-radius: 0;
+	background-color: transparent;
+}
+
+.rp-save-state-save-error .rp-save-state-mark::before,
+.rp-save-state-save-error .rp-save-state-mark::after {
+	position: absolute;
+	inset: 45% 0;
+	content: '';
+	background-color: currentColor;
+}
+
+.rp-save-state-save-error .rp-save-state-mark::before {
+	transform: rotate(45deg);
+}
+
+.rp-save-state-save-error .rp-save-state-mark::after {
+	transform: rotate(-45deg);
+}
+
+@keyframes rp-save-state-spin {
+	to {
+		transform: rotate(1turn);
+	}
+}
+
+/*
+ * The one animation this stylesheet has, so it is also the first thing here that owes a
+ * reduced-motion answer. The arc STAYS an arc — the gap in the border is what distinguishes
+ * saving from the other three marks, so stopping the rotation must not restore the ring.
+ *
+ * **What that leaves, read off the capture rather than reasoned about**
+ * (`npm run harness-shot prototype:SaveStateMarks`): held still, the saving arc and the
+ * unsaved-changes ring differ by one gap at this size, which is thinner than the disc/arc and
+ * disc/cross distinctions beside them. It costs nothing TODAY because `unsaved-changes` is
+ * unreachable through the store's action surface, so the two are never on screen in the same
+ * session — and it is written down here because the slice that makes that state reachable is
+ * the one that has to widen the difference, and it will not think to look.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.rp-save-state-saving .rp-save-state-mark {
+		animation: none;
+	}
+}

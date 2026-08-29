@@ -10,7 +10,7 @@ import {
 } from '../../application/commands/requirement/reversible-override-commands';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
-import { ok, type Result } from '../../core/result/Result';
+import { err, ok, type Result } from '../../core/result/Result';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -103,6 +103,8 @@ export interface EditorRuntime {
 	readonly deleteZone: (zoneId: ZoneId, zoneName: string) => Promise<void>;
 	/** Any panel edit — assign, override, reset — through the ONE dispatch path. Answers whether it landed. */
 	readonly commitEdit: (edit: InspectorEdit) => Promise<boolean>;
+	/** The override fields' door into the same path (slice 16): guards only the THROWN half — a RESOLVED refusal is `useFieldCommit`'s own `notify` to route, not this function's to announce. */
+	readonly commitField: (edit: InspectorEdit) => Promise<Result<void, AppError>>;
 	/** The assign-asset picker's options for this plan's project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
 }
@@ -569,22 +571,23 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.redo()));
 	}
 
+	/** `commitEdit`'s guard, factored out so the two override fields can reuse it (slice 16): the THROWN half only — a fault reads back as `null` from `reportFault` and is converted to a failed `Result` here, or it would read to `useFieldCommit` as an accepted commit. */
+	const commitField = async (edit: InspectorEdit): Promise<Result<void, AppError>> =>
+		(await reportFault(context.commands.logger, inspector.commit(edit))) ?? err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'commitField converted a fault reportFault already logged and notified.' });
+
 	/**
-	 * Every panel edit — delete, assign, either override — through the Inspector's ONE
-	 * commit path (SDD §59), with the same two failure halves as the toolbar: a thrown
-	 * fault is notified, and so is a resolved refusal. Answers whether the edit landed,
-	 * because some callers clear state on success only.
+	 * The Inspector's one commit path. A refusal the panel can attach to an input is rendered
+	 * there by the row that owns it; everything else still reaches `notifyError`, because the
+	 * Inspector has no banner region. The notice door NARROWS here — it does not close.
+	 *
+	 * Which errors may reach a field at all is slice 17's decision table, not this function's —
+	 * `commitField` leaves that half to its callers, and the two override controls route it
+	 * through `useFieldCommit`'s own `notify` instead of this one.
 	 */
 	async function commitEdit(edit: InspectorEdit): Promise<boolean> {
-		const result = await reportFault(context.commands.logger, inspector.commit(edit));
-		if (result === null) return false;
-		if (!result.ok) {
-			// Same seam the tools use: a refused edit must not just do nothing — and it
-			// says so in the user's language, never in the error's own log text.
-			notifyError(result.error);
-			return false;
-		}
-		return true;
+		const result = await commitField(edit);
+		if (!result.ok) notifyError(result.error);
+		return result.ok;
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
@@ -609,6 +612,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		hydrateInspector: (ids) => inspector.hydrateFrom(ids),
 		deleteZone,
 		commitEdit,
+		commitField,
 	};
 }
 

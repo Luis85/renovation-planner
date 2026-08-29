@@ -57,7 +57,6 @@ export const en = {
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
-	'editor.inspector.override.apply': 'Apply',
 	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
@@ -121,6 +120,11 @@ export const en = {
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
 	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
+	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
+	// and a malformed money literal never reach a dispatch, so there is no raised code for
+	// `routeError` to place. Keyed by the field rather than by any code for that reason.
+	'error.requirement.quantity.unparseable': 'Enter a number, or reset to the calculated figure.',
+	'error.requirement.cost.unparseable': 'Enter an amount, or reset to the calculated figure.',
 	'error.suffix.schema-version-unsupported':
 		'This note was written by a newer version of this plugin. Update the plugin to open it.',
 	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',

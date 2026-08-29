@@ -89,15 +89,14 @@ describe('the Requirements panel', () => {
 		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
-		await until(() => r.harness.wrapper.find('input[id^="rp-qty-"]').exists(), 'the row override inputs render');
+		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
 
-		// Type an override quantity and apply it.
-		const qtyInput = r.harness.wrapper.find('input[id^="rp-qty-"]');
+		// Type an override quantity and blur to commit it (design slice 16: the field
+		// dispatches on blur rather than on a separate Apply button).
+		const qtyInput = r.harness.wrapper.find('input[data-field="quantity"]');
 		if (!qtyInput.exists()) throw new Error('no quantity override input');
 		await qtyInput.setValue('7');
-		const applyButtons = r.harness.wrapper.findAll('button')
-			.filter((b) => b.text() === 'Apply');
-		await applyButtons[0]?.trigger('click');
+		await qtyInput.trigger('blur');
 
 		await until(() => r.harness.wrapper.text().includes('Overridden'), 'overridden badge');
 		expect(r.harness.wrapper.text()).toContain('7 m2');
@@ -112,14 +111,10 @@ describe('the Requirements panel', () => {
 
 		// Re-apply, then Reset sends null: back to calculated, badge gone.
 		await qtyInput.setValue('7');
-		const applyAgain = r.harness.wrapper.findAll('button')
-			.filter((b) => b.text() === 'Apply');
-		await applyAgain[0]?.trigger('click');
+		await qtyInput.trigger('blur');
 		await until(() => r.harness.wrapper.text().includes('Overridden'), 'overridden again');
 
-		const resets = r.harness.wrapper.findAll('button')
-			.filter((b) => b.text() === 'Reset to calculated');
-		await resets[0]?.trigger('click');
+		await r.harness.wrapper.find('.rp-requirement-reset-quantity').trigger('click');
 		await until(
 			() => !r.harness.wrapper.text().includes('Overridden'),
 			'override cleared',
@@ -241,22 +236,17 @@ describe('the Requirements panel', () => {
 		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
-		await until(() => r.harness.wrapper.find('input[id^="rp-cost-"]').exists(), 'the cost override input renders');
+		await until(() => r.harness.wrapper.find('input[data-field="cost"]').exists(), 'the cost override input renders');
 
-		const costInput = r.harness.wrapper.find('input[id^="rp-cost-"]');
+		const costInput = r.harness.wrapper.find('input[data-field="cost"]');
 		if (!costInput.exists()) throw new Error('no cost override input');
 		await costInput.setValue('99.99');
-		const applyButtons = r.harness.wrapper.findAll('button')
-			.filter((b) => b.text() === 'Apply');
-		// The SECOND Apply is the cost row's (the first is the quantity's).
-		await applyButtons[1]?.trigger('click');
+		await costInput.trigger('blur');
 
 		await until(() => r.harness.wrapper.text().includes('99.99 EUR'), 'effective cost overridden');
 		expect(r.harness.wrapper.text()).toContain('Overridden');
 
-		const resets = r.harness.wrapper.findAll('button')
-			.filter((b) => b.text() === 'Reset to calculated');
-		await resets[1]?.trigger('click');
+		await r.harness.wrapper.find('.rp-requirement-reset-cost').trigger('click');
 		await until(
 			() => !r.harness.wrapper.text().includes('Overridden'),
 			'cost override cleared',

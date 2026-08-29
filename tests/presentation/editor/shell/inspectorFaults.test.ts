@@ -173,6 +173,49 @@ describe('a failure at an Inspector control', () => {
 		r.harness.unmount();
 	});
 
+	/**
+	 * The fault guard `commitField` exists for (design slice 16): binding a Requirement
+	 * override's `commit` prop straight to `inspector.commit` would drop `reportFault`'s
+	 * catch, and every dispatch here is ultimately bound to a `@blur` handler whose promise
+	 * nothing awaits — so a thrown fault would become an unhandled rejection reaching
+	 * nobody, and the field would silently stop responding.
+	 */
+	it('a THROWN fault during a quantity override reaches the user as a notice, and the typed value survives', async () => {
+		const r = await selectedZone();
+		await assign(r);
+		await until(
+			async () => expectOk(await r.requirementsRepo.listByZone('zone-a' as never)).length === 1,
+			'the requirement exists',
+		);
+		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the override input renders');
+
+		const before = Notice.shown.length;
+		r.requirementsRepo.save = () => {
+			throw new Error('the vault exploded');
+		};
+
+		const qtyInput = r.harness.wrapper.find('input[data-field="quantity"]');
+		await qtyInput.setValue('9');
+		await qtyInput.trigger('blur');
+		await until(() => Notice.shown.length > before, 'the fault notice');
+
+		// MAPPED, not printed — the same rule the assignment case above proves.
+		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
+		expect(Notice.shown.at(-1)).not.toContain('the vault exploded');
+
+		// The guard: `commitField` converts the fault `reportFault` already caught into a
+		// failed `Result` rather than letting the promise reject, so `useFieldCommit` never
+		// reads it as an accepted commit. A missing guard would either leave this an
+		// unhandled rejection (failing the test outright) or — if the composable's own
+		// success branch ran regardless — silently reset the input to blank.
+		expect((qtyInput.element as HTMLInputElement).value).toBe('9');
+
+		const logged = faultLine('editor.dispatch.faulted');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('the vault exploded');
+		r.harness.unmount();
+	});
+
 	it('a Reassign with no eligible target is reported rather than opening an empty picker', async () => {
 		const r = await selectedZone();
 		await assign(r);

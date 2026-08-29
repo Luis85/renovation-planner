@@ -60,7 +60,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
 	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
 	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
-	'editor.inspector.override.apply': 'Übernehmen',
 	'entity.requirement.plural': 'Anforderungen',
 	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
@@ -131,6 +130,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.cross-project': 'Eine Zone und ein Objekt aus verschiedenen Projekten können nicht verknüpft werden.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
+	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
+	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.suffix.schema-version-unsupported':
 		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',
 	'error.suffix.revision-conflict':

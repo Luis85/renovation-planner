@@ -2,13 +2,13 @@
 /**
  * §60's inspector region: the selection's DTO (SDD §59) with name and area for a zone, a
  * count for a multi-selection, nothing when empty — plus slice 8's delete affordance and
- * design slice 10's Requirements panel. Every edit dispatches through
- * `runtime.commitEdit`, which is the Inspector store's ONE commit path (§59): assign
- * through the reversible assignment adapter, quantity and cost overrides through theirs,
- * each with a "reset to calculated" affordance that sends `null` — a value in this seam,
- * not an absence.
+ * design slice 10's Requirements panel. Assigning an asset dispatches through
+ * `runtime.commitEdit`, the Inspector store's ONE commit path (§59); the two override
+ * controls dispatch through `runtime.commitField` instead — `commitEdit`'s fault-guarded
+ * sibling over the same `inspector.commit` (design slice 16) — because a resolved refusal
+ * there is the ROW's to show under its own input rather than this panel's to notify.
  *
- * Deleting a zone is the ONE control that does not go through `commitEdit`, and
+ * Deleting a zone is the ONE control that does not go through either, and
  * `runtime.deleteZone` says why: it dispatches through the same `inspector.commit`, but a
  * reference refusal is something the delete FLOW acts on rather than reports.
  *
@@ -17,8 +17,6 @@
  */
 import { ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import type { Money } from '../../../core/money/Money';
-import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import { tr } from '../../i18n/strings';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
@@ -47,14 +45,6 @@ const pickedAssetId = ref('');
  */
 const formatArea = (areaMm2: number): string =>
 	`${(areaMm2 / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })} m²`;
-
-function setQuantity(requirementId: RequirementId, quantity: number | null): void {
-	void runtime.commitEdit({ kind: 'quantity-override', requirementId, quantity });
-}
-
-function setCost(requirementId: RequirementId, cost: Money | null): void {
-	void runtime.commitEdit({ kind: 'cost-override', requirementId, cost });
-}
 
 function assignSelected(zoneId: string): void {
 	// The picker starts on no selection, so pressing Assign first is inert rather than a
@@ -118,8 +108,7 @@ function assignSelected(zoneId: string): void {
 						v-for="row in requirements"
 						:key="row.requirementId"
 						:row="row"
-						@set-quantity="(quantity) => setQuantity(row.requirementId, quantity)"
-						@set-cost="(cost) => setCost(row.requirementId, cost)"
+						:commit="runtime.commitField"
 					/>
 				</ul>
 

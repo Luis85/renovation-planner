@@ -154,17 +154,37 @@ the self-declared-list defect CLAUDE.md already names — "a category check that
 SELF-DECLARED list is the shape it was written to replace". The test states the SDD's rule;
 the config is the subject, not the source.
 
-**Batching, because cost is a correctness concern here.** CLAUDE.md records six
-`tests/build/` files timing out under Windows file-parallelism, each booting a type-aware
-ESLint, and states that "a test file's CPU cost is part of its correctness when anything in
-the suite waits in ticks". So the file makes **one `lintText` call per layer**, its code
-carrying every forbidden import for that layer *in every spelling* at once, asserting each is
-reported — about 12 calls however many spellings the enumeration yields. The expansion costs
-import LINES, not
-calls, which is why it does not change this shape: one synthetic module per layer simply
-carries a dozen or so import statements instead of a handful. The cost is to be **measured
-before the file is committed**; if it is still heavy, the fallback is folding the cases into an
-existing ESLint-booting file rather than adding a seventh.
+**Batching, and the unit is a (layer, extension) PAIR — not a layer.** CLAUDE.md records six
+`tests/build/` files timing out under Windows file-parallelism, each booting a type-aware ESLint,
+and states that "a test file's CPU cost is part of its correctness when anything in the suite
+waits in ticks", so the shape of this file is a correctness question rather than a tidiness one.
+
+**The previous draft contradicted itself and a review bot caught it in the round it appeared.**
+It kept "one `lintText` call per layer, ~12 calls" from before the extension dimension existed,
+while the paragraph above had just committed to probing every parseable shippable extension.
+Those cannot both hold: `lintText(code, filePath)` takes ONE path, and the extension in that path
+is what selects the applicable `files` globs, so imports combined into one synthetic module
+cannot exercise `.js`, `.jsx`, `.mjs`, `.cjs` and `.vue` at once. Implementing the stated 12
+calls would have left most of the extension dimension untested and a deleted entry in
+`SRC_EXTENSIONS` still green — the promise made one paragraph earlier, unkept by the plan
+directly below it.
+
+So one call per (layer, extension) pair, each carrying that layer's every forbidden import in
+every spelling, plus an allowed counterpart per pair. Six layers × six parseable extensions ×
+two directions is on the order of **70 calls**, not 12.
+
+**That number is less alarming than it looks, and the reason is worth stating rather than
+leaving to be rediscovered.** `tests/helpers/eslint.ts` records the shape of this cost directly:
+the first call in a worker is ~3s idle and was seen at 17.8s under full-suite load, while *every
+call after it is 7–30ms*. The first type-aware `.ts` path additionally builds the project-service
+program, ~1.4s locally and ~5.1s under coverage instrumentation. Both are **once**, and
+`warmUpEslint` already exists to pay them in `beforeAll`. Seventy cached calls at 30ms is about
+two seconds — so the dominant cost is the boot this file would pay at any call count, and going
+from 12 calls to 70 changes the total far less than the count suggests.
+
+It is still **measured before the file is committed** rather than trusted to that arithmetic; if
+it does prove heavy, the fallback is unchanged — fold the cases into an existing ESLint-booting
+file rather than adding a seventh.
 
 **Both directions, always.** Each layer also gets an allowed-imports call asserting *no*
 finding — `domain` reaching `core`, `infrastructure` naming `obsidian`, `presentation`

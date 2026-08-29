@@ -8,15 +8,68 @@ import { createNoticeQueue, type NoticeHost, type NoticeQueue, type NoticeView }
 import { SEVERITY_LABEL_KEYS, type NoticeSeverity } from './severity';
 
 /**
- * Which severities interrupt a screen reader and which wait to be read. A warning and an
- * error are announced promptly; a routine confirmation is not worth demanding attention for.
+ * Which of the two live regions a severity announces through. A warning and an error
+ * interrupt; a routine confirmation waits to be read.
  */
-const LIVE_REGION: Readonly<Record<NoticeSeverity, { role: string; live: string }>> = {
-	success: { role: 'status', live: 'polite' },
-	info: { role: 'status', live: 'polite' },
-	warning: { role: 'alert', live: 'assertive' },
-	error: { role: 'alert', live: 'assertive' },
+const ANNOUNCED_BY: Readonly<Record<NoticeSeverity, RegionRole>> = {
+	success: 'status',
+	info: 'status',
+	warning: 'alert',
+	error: 'alert',
 };
+
+type RegionRole = 'status' | 'alert';
+
+const ARIA_LIVE: Readonly<Record<RegionRole, string>> = {
+	status: 'polite',
+	alert: 'assertive',
+};
+
+/**
+ * **The live regions are the plugin's, not the notice's, and that is the whole point.**
+ * `docs/components/Toast.md` asks for `role`/`aria-live` on a region ALREADY in the document —
+ * "explicitly not on a container that appears" — because a live region inserted together with
+ * its content often does not announce, and it calls that "the one [mechanism detail] that
+ * decides whether this component works at all for the users it exists for". An earlier draft
+ * put the pair on the `Notice` element itself, which is the refused shape exactly: `new
+ * Notice(text, 0)` inserts a POPULATED element and the attributes went on afterwards.
+ *
+ * So the regions are created once by `activateNotices` and removed by `disposeNotices`; a
+ * notice announces by writing text into the one its severity names, and the `Notice` element
+ * carries no `role` and no `aria-live` at all. Two regions rather than one, because the
+ * politeness is fixed on the ELEMENT and a severity cannot change it after the fact.
+ *
+ * `null` only between a disposal and the next activation, and the HOST never reads this
+ * variable: `openRegions` hands the pair it just built straight to `createObsidianHost`, so a
+ * notice announces into a `Regions` it was constructed with rather than into one it has to
+ * check for. Deliberate, and not only for tidiness — a `regions?.[…]` inside the announcement
+ * path would carry a null arm no test could ever drive, since a host only exists while a queue
+ * does and a queue only exists after the regions do. This module has a whole bullet in
+ * `CLAUDE.md` about a guard nobody can reach; an unreachable one costs a branch of a budget
+ * with about four to spare.
+ */
+type Regions = Readonly<Record<RegionRole, HTMLElement>>;
+
+let regions: Regions | null = null;
+
+function closeRegions(): void {
+	regions?.status.remove();
+	regions?.alert.remove();
+	regions = null;
+}
+
+function openRegions(): Regions {
+	closeRegions();
+	const make = (role: RegionRole): HTMLElement =>
+		document.body.createDiv({
+			cls: 'rp-notice-live-region',
+			// `aria-atomic` so the whole region is re-read rather than only the changed node:
+			// the region holds one sentence at a time and a partial re-read of it is noise.
+			attr: { role, 'aria-live': ARIA_LIVE[role], 'aria-atomic': 'true' },
+		});
+	regions = { status: make('status'), alert: make('alert') };
+	return regions;
+}
 
 /** `message (×3)` once a message has repeated. */
 const textOf = (view: NoticeView): string =>
@@ -31,18 +84,54 @@ const textOf = (view: NoticeView): string =>
  * is reading it or tabbing to its dismiss control. Owning the timer is what buys hover-pause
  * and the promotion of a held notice into a freed slot.
  *
- * **A known, accepted defect, recorded rather than carried silently.**
- * `docs/components/Toast.md` asks for `role`/`aria-live` on a live region ALREADY in the
- * document — explicitly not "on a container that appears" — because a live region inserted
- * together with its content often does not announce. `new Notice(textOf(view), 0)` inserts a
- * populated element and the attributes go on afterwards, which is exactly the shape the
- * contract refuses. The remedy (construct, empty `messageEl`, set the attributes, populate on
- * a microtask) changes timing that this module's tests assert synchronously, and no jsdom test
- * can observe whether an announcement happened either way — so the defect is carried for this
- * slice and written into the slice document rather than fixed blind.
+ * **Every per-notice concern is keyed on `messageEl`, never on `containerEl`.** Obsidian's
+ * typings say `containerEl` is `@since 1.8.7` and nothing else; whether it is this notice's own
+ * `.notice` element or the shared `.notice-container` every notice lands in is not settleable
+ * from here, and this repository's fake necessarily encodes one reading of it. Under the
+ * unfavourable one, `isConnected` is permanently true — so no slot is ever freed and the queue
+ * wedges at three notices for the session — while the severity class accumulates on one shared
+ * element and the four hover listeners fire for whichever notice the pointer is over.
+ * `messageEl` is per-notice under BOTH readings, and this module already proves it: it clears
+ * that element and appends this notice's own children into it. So the classes, the listeners
+ * and the liveness read all go there.
+ *
+ * The cost, which is real and is why the reading still wants settling: the hover target shrinks
+ * from the notice to its message box, so a pointer resting on Obsidian's own padding does not
+ * pause the timer, and a click landing there dismisses natively without prompting a sweep —
+ * degrading to "the slot frees on the next push", which is the mechanism's own documented
+ * fallback. Step 3 of `docs/tests/cases/Notices and save state.md` is what settles which element
+ * `containerEl` IS, and the answer decides whether the padding can be won back.
+ *
+ * **`role`/`aria-live` are NOT here at all** — see `regions` above. A notice announces by
+ * writing into a live region that was already in the document before it appeared, which is what
+ * `docs/components/Toast.md` asks for and what an attribute on a container that APPEARS is not.
  */
-const obsidianHost: NoticeHost = {
+const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 	open(view, callbacks) {
+		/**
+		 * **The announcement rides `render` rather than the open, so a repeat announces too.**
+		 * The queue folds an identical message into a `(×N)` suffix and calls `update` — a
+		 * screen-reader user who has already been told "Save failed" is told "Save failed (×3)"
+		 * when it happens twice more, which is the same information the sighted user gets. The
+		 * severity word goes into the region for the same reason it is on screen: SDD §85's
+		 * status-not-colour-only rule has an audible half, and `role="alert"` carries urgency
+		 * without carrying WHICH of the two assertive severities this is.
+		 *
+		 * **What this does NOT close.** A region announces when its content CHANGES, so an
+		 * identical message at the same severity — raised again after the first was dismissed —
+		 * writes the same string and says nothing. A repeat arriving while the first notice is
+		 * still up does not have that problem: the `(×N)` suffix makes the string differ. The
+		 * usual remedy is to clear the region and write the text back in a later TASK, which
+		 * puts a timer between a notice appearing and its announcement and gives disposal one
+		 * more thing to cancel. Written down rather than taken, and no jsdom test can observe an
+		 * announcement either way — `docs/tests/cases/Notices and save state.md` is the only
+		 * instrument.
+		 */
+		const announce = (next: NoticeView): void => {
+			announceInto[ANNOUNCED_BY[next.severity]].textContent =
+				`${tr(SEVERITY_LABEL_KEYS[next.severity])} ${textOf(next)}`;
+		};
+
 		/**
 		 * **The message goes through the CONSTRUCTOR, not only into the DOM.** Obsidian's
 		 * `Notice` records nothing, but this repository's fake pushes its constructor argument
@@ -53,10 +142,10 @@ const obsidianHost: NoticeHost = {
 		 * content afterwards; the recorded text stays the user's sentence.
 		 */
 		const notice = new Notice(textOf(view), 0);
-		const { role, live } = LIVE_REGION[view.severity];
-		notice.containerEl.setAttribute('role', role);
-		notice.containerEl.setAttribute('aria-live', live);
-		notice.containerEl.classList.add('rp-notice', `rp-notice-${view.severity}`);
+		// The one element this host treats as the notice. See the header for why it is not
+		// `containerEl`, and for the hover target that costs.
+		const element = notice.messageEl;
+		element.classList.add('rp-notice', `rp-notice-${view.severity}`);
 
 		/**
 		 * **Hover and focus are two conditions, not one flag.** Passing `pause`/`resume`
@@ -71,21 +160,28 @@ const obsidianHost: NoticeHost = {
 		let focused = false;
 		let held = false;
 		/**
-		 * **Set by OUR dismiss control, and read by `live` below.** The queue frees a slot by
-		 * asking `handle.live`, which asks `containerEl.isConnected` — correct for a dismissal we
-		 * did not perform, and an assumption about Obsidian for one we did. This repository's fake
-		 * detaches synchronously inside `hide()`; Obsidian's real `Notice` is animated, and if it
-		 * fades out and detaches after a transition then `isConnected` is still `true` when the
-		 * sweep that follows our own click runs, the slot is not freed, and a held fourth notice
-		 * waits for some later push. Nothing in this repository can settle which it is — hide
-		 * timing is a vault-only measurement, recorded as such in
+		 * **Set by every dismissal this host can SEE, and read by `live` below.** The queue frees
+		 * a slot by asking `handle.live`, which falls back to `isConnected` — correct for a
+		 * dismissal nothing here observed, and an assumption about hide timing for one it did.
+		 * This repository's fake detaches synchronously inside `hide()`; Obsidian's real `Notice`
+		 * is animated, and if it fades out and detaches after a transition then `isConnected` is
+		 * still `true` when the sweep runs. Nothing in this repository can settle which it is —
+		 * hide timing is a vault-only measurement, recorded as such in
 		 * `docs/tests/cases/Notices and save state.md`.
 		 *
-		 * So the one path that KNOWS the notice is going does not infer it: the latch makes the
-		 * release deterministic and independent of hide timing, the same unconditional release the
-		 * auto-dismiss timer already performs. `isConnected` stays the authority for every
-		 * dismissal we did not perform, which is the design's whole point and is what step 11 of
-		 * the manual case exercises.
+		 * So neither path that KNOWS the notice is going infers it. Our own `×` latches, and so
+		 * does a click ANYWHERE on the notice, because Obsidian dismisses a clicked notice — the
+		 * click listener below is what this module has always asserted that on. Latching only the
+		 * `×` left the native gesture resting on hide timing, and the symptom was not the missing
+		 * slot: `push` sweeps first and then DEDUPS, so a repeat of the message the user had just
+		 * clicked away found the dying entry, bumped a count nobody would ever see and opened
+		 * nothing. The repeat was lost outright rather than deferred, which is worse than the
+		 * wedged slot the sweep was already written to survive.
+		 *
+		 * `isConnected` stays the authority for every dismissal neither listener sees — a future
+		 * Obsidian gesture, a notice cleared by the host — which is the design's whole point and
+		 * is what step 11 of the manual case exercises. That residue is still hide-timing-bound,
+		 * and degrades to "the slot frees on the next push" rather than to a wedged queue.
 		 */
 		let dismissedHere = false;
 		const sync = (): void => {
@@ -96,29 +192,31 @@ const obsidianHost: NoticeHost = {
 			else callbacks.resume();
 		};
 
-		notice.containerEl.addEventListener('pointerenter', () => {
+		element.addEventListener('pointerenter', () => {
 			hovered = true;
 			sync();
 		});
-		notice.containerEl.addEventListener('pointerleave', () => {
+		element.addEventListener('pointerleave', () => {
 			hovered = false;
 			sync();
 		});
 
 		/**
 		 * **Obsidian dismisses a notice when the user clicks it, and does not tell us.** This
-		 * listener is the PROMPT to sweep that the design calls for — `handle.live` remains the
-		 * authority — and without it a natively-dismissed notice would hold its slot until some
-		 * later push happened to sweep. Our own dismiss button calls `dismissed` directly as
-		 * well; sweeping twice is idempotent, and relying on the button's click bubbling to
-		 * here would depend on propagation surviving the element's removal mid-dispatch, which
-		 * is not worth resting on.
+		 * listener is the design's PROMPT to sweep, and — since that sentence is a fact about
+		 * the gesture and not a guess — also the latch that makes the release deterministic.
+		 * Without it a natively-dismissed notice would hold its slot until some later push
+		 * happened to sweep. Our own dismiss button latches and calls `dismissed` directly as
+		 * well; both are idempotent, and relying on the button's click bubbling to here would
+		 * depend on propagation surviving the element's removal mid-dispatch, which is not worth
+		 * resting on.
 		 */
 		// Wrapped rather than passed as `callbacks.dismissed` directly: `NoticeCallbacks`
 		// declares it as a METHOD, so handing the reference to a listener is
 		// `@typescript-eslint/unbound-method` — an error here, not a warning. The arrow keeps
 		// the receiver, which is what the rule is protecting.
-		notice.containerEl.addEventListener('click', () => {
+		element.addEventListener('click', () => {
+			dismissedHere = true;
 			callbacks.dismissed();
 		});
 
@@ -150,28 +248,37 @@ const obsidianHost: NoticeHost = {
 			callbacks.dismissed();
 		});
 
+		/**
+		 * `announce` is called from HERE rather than from `open`, so a repeat announces too: the
+		 * queue folds an identical message into a `(×N)` suffix and calls `update`, and a
+		 * screen-reader user who has already been told "Save failed" is told "Save failed (×3)"
+		 * when it happens twice more — the same information the sighted user gets.
+		 */
 		const render = (next: NoticeView): void => {
 			label.textContent = tr(SEVERITY_LABEL_KEYS[next.severity]);
 			body.textContent = textOf(next);
+			announce(next);
 		};
 		render(view);
 
-		notice.messageEl.textContent = '';
-		// The flex container is THIS element, not `containerEl` — the three children below are
-		// its children, and flex only reaches direct ones. This host applies SIX class names —
-		// `rp-notice`, `rp-notice-<severity>`, `rp-notice-body`, `rp-notice-severity`,
-		// `rp-notice-message`, `rp-notice-dismiss` — and `styles/notices.css` names all six:
-		// four of them (`-body`, `-severity`, `-message`, `-dismiss`) as the element a rule
-		// declares on, and two only as ANCESTORS — `.rp-notice`, which scopes the dismiss
-		// button past Obsidian's `button:not(.clickable-icon)`, and `.rp-notice-<severity>`,
-		// which picks the label's colour. The `display: flex` goes here rather than on
-		// `containerEl`, where it would have made `messageEl` the only flex item and left the
-		// three children below unseparated. Nothing here can show what they LOOK like: the
-		// vendored `tests/harness/obsidian.css` carries no `.notice` rule at all, so a notice
-		// drawn in the browser harness would have no position, no stacking and no chrome. The
-		// manual case under `docs/tests/cases/` is the only instrument.
-		notice.messageEl.classList.add('rp-notice-body');
-		notice.messageEl.append(label, body, dismiss);
+		element.textContent = '';
+		// The flex container is THIS element — the three children below are its children, and
+		// flex only reaches direct ones. This host applies SIX class names — `rp-notice`,
+		// `rp-notice-<severity>`, `rp-notice-body`, `rp-notice-severity`, `rp-notice-message`,
+		// `rp-notice-dismiss` — and `styles/notices.css` names all six: four of them (`-body`,
+		// `-severity`, `-message`, `-dismiss`) as the element a rule declares on, and two only
+		// as ANCESTORS — `.rp-notice`, which scopes the dismiss button past Obsidian's
+		// `button:not(.clickable-icon)`, and `.rp-notice-<severity>`, which picks the label's
+		// colour. Both ancestors are THIS element now rather than `containerEl` (see the
+		// header), which every one of those rules survives because all four descendants are
+		// appended here. The `display: flex` was always going to be here: on `containerEl` it
+		// would have made `messageEl` the only flex item and left the three children
+		// unseparated. Nothing here can show what they LOOK like: the vendored
+		// `tests/harness/obsidian.css` carries no `.notice` rule at all, so a notice drawn in
+		// the browser harness would have no position, no stacking and no chrome. The manual case
+		// under `docs/tests/cases/` is the only instrument.
+		element.classList.add('rp-notice-body');
+		element.append(label, body, dismiss);
 
 		return {
 			update: render,
@@ -179,11 +286,11 @@ const obsidianHost: NoticeHost = {
 				notice.hide();
 			},
 			get live() {
-				return !dismissedHere && notice.containerEl.isConnected;
+				return !dismissedHere && element.isConnected;
 			},
 		};
 	},
-};
+});
 
 /**
  * `null` until the plugin activates it, and `null` again once it unloads. **Disposal has to be
@@ -203,7 +310,10 @@ let queue: NoticeQueue | null = null;
  */
 export function activateNotices(): void {
 	queue?.dispose();
-	queue = createNoticeQueue(obsidianHost);
+	// The regions are BUILT here and handed to the host, so a notice announces into a pair it was
+	// constructed with rather than into one it has to look up and check for. `openRegions` closes
+	// any pair a previous activation left, so a second call replaces rather than accumulates.
+	queue = createNoticeQueue(createObsidianHost(openRegions()));
 }
 
 /**
@@ -215,6 +325,10 @@ export function activateNotices(): void {
 export function disposeNotices(): void {
 	queue?.dispose();
 	queue = null;
+	// The regions are two elements this plugin appended to `document.body`, so leaving them
+	// behind would leak markup into a vault with no plugin loaded — the same shape as the Konva
+	// global this disposer list got built for.
+	closeRegions();
 }
 
 /**

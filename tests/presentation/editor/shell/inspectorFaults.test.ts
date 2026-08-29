@@ -8,6 +8,12 @@ import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 import { lines, resetRecorder } from '../../../helpers/logger';
 import { activateNotices } from '../../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../../helpers/dom';
+
+// `activateNotices` — reached here through the real plugin/editor wiring — appends its
+// two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
+// installs globally and this suite installs per file.
+installObsidianDom();
 
 /**
  * SDD §65's two failure halves, at the Inspector's own controls: a THROWN technical fault

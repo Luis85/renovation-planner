@@ -31,6 +31,12 @@ import type { PlanId } from '../../../src/domain/plan/PlanId';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
 import { activateNotices } from '../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../helpers/dom';
+
+// `activateNotices` — reached here through the real plugin/editor wiring — appends its
+// two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
+// installs globally and this suite installs per file.
+installObsidianDom();
 
 /** Throws from the read the delete adapter takes for its undo snapshot. */
 class ThrowingRead extends InMemoryZoneRepository {

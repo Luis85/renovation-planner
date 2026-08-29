@@ -621,6 +621,33 @@ export default defineConfig({
 			// `notifyWarning` and it is still never invoked in the suite); and the plugin's
 			// `persistence.markers` and `file instanceof TFile` false arms. Every one is
 			// already enumerated by the slice-8 or slice-18 paragraphs above.
+			//
+			// Re-measured 2026-08-29, after the code review of the slice 13 branch and the five
+			// fixes it produced — `affectsSaveState` widened to `Reference` (nineteen pre-write
+			// raise sites the previous grep never looked for), `createNoticeQueue.dispose` made
+			// genuinely terminal, the notice host's per-notice concerns moved from `containerEl`
+			// to `messageEl`, the native click-to-dismiss latching `handle.live` like our own
+			// `×`, and the Toast live region moved off the notice onto two persistent regions
+			// `activateNotices` appends to `document.body`: 4556/4584 statements, 2193/2232
+			// branches, 1167/1174 functions, 4083/4099 lines — 99.38 / 98.25 / 99.40 / 99.60.
+			// NOTHING RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// Branches went 98.24 → 98.25, so headroom is 5.5 covered branches at 0.0448pp each
+			// rather than 5.6 — unchanged in any way worth acting on, and worth recording only
+			// because the first draft of the live-region fix DID cost one. `announce` read a
+			// module-level `regions` and guarded it (`regions?.[…]`, then `if (region)`), and
+			// that null arm is unreachable by construction: a host exists only while a queue
+			// does, and a queue only after the regions do. `openRegions()` returns the pair and
+			// `createObsidianHost` takes it as an argument now, so there is nothing to guard.
+			// The general shape, and this repository already has a bullet on its sibling: an
+			// unreachable guard is not free here — it costs a branch of a budget with five to
+			// spare, and it reads as a case somebody thought could happen.
+			//
+			// THE UNCOVERED SET IS UNCHANGED by all five fixes. Verified by reading
+			// `coverage/coverage-final.json` rather than assumed: across
+			// `presentation/notices/`, `presentation/editor/save-state/` and
+			// `application/ports/versioning.ts`, exactly one arm is uncovered and it is the
+			// slice-13 one already enumerated above — `release`'s `if (at >= 0)` guard.
 			thresholds: {
 				statements: 99,
 				functions: 99,

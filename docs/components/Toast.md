@@ -98,9 +98,21 @@ needed an exception to SDD §12 and given the plugin two toast surfaces instead 
 **The consequence this note already predicted holds, and it is the price.** A `Notice` renders
 outside the view's DOM, so it is outside `contentEl` — and `tests/harness/accessibility.test.ts`
 scans `contentEl`. The surface carrying the most new ARIA in slice 13 is therefore the one
-surface no axe scan reaches: the roles and `aria-live` values below, and the dismiss control's
-accessible name, are asserted by jsdom tests one attribute at a time and graded by no
-accessibility instrument. Its markup also stays Obsidian's to change.
+surface no axe scan reaches: the two live regions the plugin appends to `document.body` at
+activation — outside a view twice over — and the dismiss control's accessible name, are
+asserted by jsdom tests one attribute at a time and graded by no accessibility instrument.
+Its markup also stays Obsidian's to change.
+
+**The Accessibility rule above is met the way it is written, and it took a review round to
+get there.** Slice 13 first put `role`/`aria-live` on the `Notice` element itself, which is
+the container that appears, refused in the sentence directly. `activateNotices()` creates two
+empty regions instead — `role="status"`/`aria-live="polite"` and
+`role="alert"`/`aria-live="assertive"` — and a notice announces by writing into the one its
+severity names, so the region is in the document long before the message is. The notice
+element carries neither attribute. The residual is that a region announces on a CHANGE, so an
+identical message at the same severity re-raised after the first was dismissed writes the same
+string and says nothing; a repeat while the first is still up differs by its `(×N)` suffix and
+does announce.
 `docs/tests/cases/Notices and save state.md` is where that gap is worked, and a vault is the
 only instrument.
 

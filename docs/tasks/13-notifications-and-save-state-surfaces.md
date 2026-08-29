@@ -896,8 +896,9 @@ split slice 5 already established for that layer's own stores:
 `docs/components/Toast.md` and `docs/components/Save-state indicator.md` are component
 contracts naming this slice in their own frontmatter, and **this document was written without
 opening either** — found by review on 2026-08-28, eleven rounds in, after the design and the
-plan were both written. Four of their requirements are knowingly unmet. They are recorded
-here, and in [[Notices and save state]]'s own "Four contract gaps" section, because the
+plan were both written. Four of their requirements were knowingly unmet; item 4 has since
+been closed and the other three still are. They are recorded
+here, and in [[Notices and save state]]'s own contract-gaps section, because the
 workspace holding this reasoning is deleted when the slice closes and a gap nobody inherits
 is a gap rediscovered from scratch.
 
@@ -915,16 +916,24 @@ is a gap rediscovered from scratch.
    distinction worth keeping: `SaveStateStore` retains no re-runnable operation — the tracker
    sees a dispatch OUTCOME, not a command — and re-running a failed `undo` is not idempotent,
    so a naive retry could corrupt the history stack.
-4. **The Toast live-region insertion order.** `Toast.md` requires `role="status"` /
-   `role="alert"` on a live region **already in the DOM**, and explicitly *not* "on a
-   container that appears", because a live region inserted along with its content often does
-   not announce. `notify.ts` constructs `new Notice(text, 0)` — a populated element — and
-   sets the attributes afterwards, which is exactly the shape the contract refuses; the
-   contract calls this "the one that decides whether this component works at all for the
-   users it exists for". The likely fix (construct, clear `messageEl`, set the attributes
-   while empty, populate on a microtask) changes timing that several of this slice's tests
-   assert synchronously, and no jsdom test can observe an announcement either way, so it was
-   not changed blind.
+4. **~~The Toast live-region insertion order.~~ Closed by the review pass on this branch, and
+   not by the fix predicted here.** The prediction was to reorder when the attributes go onto
+   the notice — construct, clear `messageEl`, set them while empty, populate on a microtask —
+   and that would have bought a timing change for a shape still centred on a container that
+   appears. What shipped instead takes the region off the notice altogether:
+   `activateNotices()` appends two empty live regions to `document.body`
+   (`role="status"`/`aria-live="polite"` and `role="alert"`/`aria-live="assertive"`),
+   `disposeNotices()` removes them, and a notice announces by writing into the one its
+   severity names while carrying neither attribute itself. That is "already in the DOM"
+   literally rather than approximately, and it needs no microtask, so nothing this slice's
+   tests assert synchronously had to move.
+
+   The residual, which is narrower and is written down in `notify.ts`: a region announces on a
+   CHANGE, so an identical message at the same severity, re-raised after the first was
+   dismissed, writes the same string and says nothing. A repeat arriving while the first
+   notice is still up differs by its `(×N)` suffix and does announce. Closing that means
+   clearing the region and writing the text back in a later task — the timing this slice
+   declined once already, now for one narrow case rather than for every announcement.
 
 Two smaller divergences, recorded as questions rather than as gaps. `Toast.md` says the
 component "has **no focus state** and takes no focus"; the dismiss control SDD §85 requires
@@ -953,6 +962,22 @@ reporting `saved` for one of them is the false assurance the predicate exists to
 The forward-looking half stands: when slice 17 authors its error-to-surface table, this
 predicate is one of the things that table has to agree with, and the agreement will need a
 check. `affects-save-state.ts` says that in the future tense now.
+
+**And the pre-write SET was measured wrong twice before it settled.** The first draft counted
+every non-`Validation` failure. The second added `Domain`, on a `grep -rn "'Domain'" src/`
+that found seven pre-write raise sites and confirmed the widening it had been written to
+confirm. `Reference` was never looked at — and it is the category the delete flow and both
+reversible adapters refuse through, nineteen raise sites over fourteen codes, every one of
+them a referent lookup that came back empty. So confirming a delete dialog whose referent set
+had moved raised `reference.set-changed`, whose own developer message reads "nothing was
+written", and left a sticky "Save error" badge standing behind it. Found by review, one
+click from the Inspector's Delete button.
+
+The generalisable half is about the instrument rather than the category: a grep written to
+confirm a widening already decided on measures that widening and nothing else. The predicate's
+docblock now enumerates all three members with their raise sites, and
+`withSaveStateTracking.test.ts` pins six reachable `Reference` codes transcribed from those
+sites rather than from the predicate.
 
 ## References
 

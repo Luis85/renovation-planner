@@ -122,6 +122,42 @@ describe('the notice queue', () => {
 		expect(live()).toHaveLength(0);
 	});
 
+	/**
+	 * **Disposal is TERMINAL, and the entries stay reachable after it.** A host registers
+	 * `pause`/`resume` on DOM listeners it never removes, so a pointer leaving a fading notice
+	 * after `onunload` calls `resume` on an entry the queue has already let go. Before
+	 * `dispose` cleared `handle`, `arm` had nothing to withhold on and armed a fresh
+	 * auto-dismiss timer into a disposed plugin — the callback then calling `hide` on a notice
+	 * nothing owns any more.
+	 */
+	it('stays inert when a host callback arrives after disposal', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.push('success', 'saved');
+		queue.dispose();
+		expect(vi.getTimerCount()).toBe(0);
+
+		opened[0]?.callbacks.pause();
+		opened[0]?.callbacks.resume();
+		opened[0]?.callbacks.dismissed();
+
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	/**
+	 * The other half of terminal, and the one `notify.ts` cannot supply: it drops its reference
+	 * on `disposeNotices`, but a queue whose terminality lives in another module's variable has
+	 * none of its own — and the fire-and-forget cascade and recovery pass both resolve after
+	 * `onunload`, holding whatever reference they closed over.
+	 */
+	it('drops a push that arrives after disposal rather than opening a notice', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		queue.dispose();
+		queue.push('error', 'a fault that resolved after onunload');
+		expect(opened).toHaveLength(0);
+	});
+
 	it('dismisses a success at its own deadline and not before', () => {
 		const { host, live } = recordingHost();
 		createNoticeQueue(host).push('success', 'saved');

@@ -640,7 +640,12 @@ bypassing them is not an escape from the TEXT rule either. Four severities
 with a translated label beside the colour (`AUTO_DISMISS_MS`: 4000 for `success`, 6000 for
 `info`, `null` for `warning` and `error`, so the two that exist to be noticed cannot expire).
 `activateNotices()` runs once from `onload` and `disposeNotices` is one more entry on the
-`disposers` list Konva's global got to first. On the other half, `SaveStateStore` is one per
+`disposers` list Konva's global got to first. **`onload` therefore touches the DOM now** — it
+appends the two live regions with Obsidian's `createDiv` — which the app installs globally and
+this suite installs per jsdom file, so five existing test files that load the plugin or mount
+the real editor gained an `installObsidianDom()` call they had never needed. Worth knowing
+before the next thing `onload` reaches for: the opt-in DOM helper is a per-file decision, and a
+production module acquiring a DOM dependency at load turns that decision into a sweep. On the other half, `SaveStateStore` is one per
 Plan Editor — `CommandHistory` is per-Plan, so the save state it produces is a fact about
 that Plan — and `withSaveStateTracking` wraps `run`, `undo` and `redo` inside
 `wrapDispatcher` and outside the refresh decorator, so `Saved` never appears while the canvas
@@ -669,10 +674,10 @@ it:
   Obsidian dismisses a notice when the user clicks it and does not tell us; the typings expose
   no callback either way. A queue counting only its own dismissals leaks one slot per user
   dismissal until it can never show anything again — a failure that arrives slowly, in a real
-  vault, and in no test. Reading `containerEl.isConnected` means a dismissal by any mechanism
-  frees the slot, and a changed gesture in a future Obsidian degrades to "the slot frees on
-  the next push" rather than to a wedged queue. The `click` listener is a PROMPT to sweep, not
-  the mechanism.
+  vault, and in no test. Reading `isConnected` means a dismissal by any mechanism frees the
+  slot, and a changed gesture in a future Obsidian degrades to "the slot frees on the next
+  push" rather than to a wedged queue. That fallback is what the AUTHORITY is; the two
+  gestures this host can actually see latch instead — see the two-gestures bullet below.
 - **A module-scope timer alias escapes `vi.useFakeTimers()`.** `const scheduleTimeout =
   setTimeout` captures the function at module-evaluation time, before any `beforeEach`
   installs fakes — measured, not reasoned: `vi.getTimerCount()` answered 0 and a handle stayed
@@ -711,42 +716,73 @@ it:
   entity's own `Validation` errors as `Domain` too, all of it before `requirements.save`. The
   Inspector's override fields are `type="text"`, so `-5` was one keystroke from a persistent
   "Save error" badge about data nothing had touched — the exact failure the predicate exists to
-  prevent, shipped by the predicate. `Domain` joins `Validation` in the pre-write set, with the
-  write-boundary carve-out applied to both. Two things are written to the check rather than
-  past it. The widening UNDER-reports a `Domain` or `Validation` error raised after a
-  successful write, which is the unsafe direction, and the grep found no such site — "found
-  none", not "none exists". And the deeper fix is at the raise sites, which LOSE information by
-  re-labelling `Validation` as `Domain`: that is slice 17's territory, because changing a
-  category there also changes the sentence `toUserMessage` resolves for it.
-- **A slot released by INFERENCE is a slot released on an assumption about Obsidian.** The
-  dismiss button called `notice.hide()` and then swept, and the sweep asks
-  `containerEl.isConnected` — still true for as long as an animated `Notice` takes to detach,
-  if it detaches after its transition rather than inside `hide()`. This repository's fake
-  detaches synchronously, so no test here could ever see it; the symptom in a vault is the
-  fourth held notice not appearing when the user dismisses one with its `×`. The path that
-  KNOWS the notice is going latches `handle.live` to false instead — deterministic, and
-  independent of hide timing either way — while `isConnected` stays the authority for every
-  dismissal we did NOT perform, which is the mechanism's whole point. The fake's "what is NOT
-  modelled" list carries hide timing now, as an assumption rather than as a testability
-  requirement.
-- **Recorded and deliberately NOT taken: reading `handle.live` from `messageEl`.** `messageEl`
-  is the per-notice element under BOTH readings of Obsidian's typings, so reading liveness off
-  it makes a permanently wedged queue impossible at no cost — and moving the roles, the
-  severity class and the four hover listeners there too would make the whole host correct under
-  either reading, at the cost of shrinking the hover target from the notice to its message box.
-  It is a behaviour change to shipped code resting on an assumption about an API nothing here
-  can check, so it is written into step 3 of the manual case — the step that settles which
-  element `containerEl` IS — as the recommended remedy if that step answers unfavourably.
+  prevent, shipped by the predicate. **Then it measured wrong a SECOND time, and that
+  measurement is the more useful one:** the grep looked for `'Domain'` and found what it was
+  written to find, so `Reference` — nineteen raise sites over fourteen codes, the category the
+  delete flow and both reversible adapters refuse through, every one of them a referent lookup
+  that came back empty — was never looked at at all. Confirming a delete dialog whose referent
+  set had moved raised `reference.set-changed`, whose developer message reads "nothing was
+  written", and left the sticky badge standing behind it. **A grep written to confirm a
+  widening already decided on measures that widening and nothing else**, which is a sharper
+  version of this file's own "measure a set with an instrument that can see all of it". The
+  pre-write set is `Validation`, `Domain` and `Reference` now, all three enumerated in the
+  docblock with their raise sites, and the write-boundary carve-out applies to all three. Two
+  things stay written to the check rather than past it. The widening UNDER-reports any of the
+  three raised after a successful write, which is the unsafe direction, and the greps found no
+  such site — "found none", not "none exists". And the deeper fix is at the raise sites, which
+  LOSE information by re-labelling `Validation` as `Domain`: that is slice 17's territory,
+  because changing a category there also changes the sentence `toUserMessage` resolves for it.
+- **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
+  are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
+  swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`
+  takes to detach, if it detaches after its transition rather than inside `hide()`. This
+  repository's fake detaches synchronously, so no test here could ever see it. Slice 13 latched
+  the `×` and left Obsidian's own click-to-dismiss inferring, on the reasoning that the
+  fallback covers it. It does, for the SLOT. It does not for the DEDUP: `push` sweeps and then
+  looks for an identical entry, so a repeat of the message the user had just clicked away found
+  the dying entry, bumped a count nobody would ever see, and opened nothing — the message lost
+  outright rather than deferred, which is worse than the held slot the sweep was written to
+  survive. Both listeners latch now, on the fact this module had always asserted in prose: a
+  clicked notice is a dismissed notice. `isConnected` stays the authority for a dismissal
+  NEITHER listener sees, which is the mechanism's point and the only residue still bound to
+  hide timing. The general shape worth keeping: a fallback that covers one consequence of an
+  unobserved event is not evidence that it covers the others. The fake's "what is NOT modelled"
+  list carries hide timing, as an assumption rather than as a testability requirement.
+- **Every per-notice concern is keyed on `messageEl`, and that started life as a remedy
+  recorded and deliberately NOT taken.** Slice 13 shipped the severity class, the four hover
+  listeners and the `isConnected` read on `containerEl`, whose identity `obsidian.d.ts` states
+  neither way, with the `messageEl` move written into step 3 of the manual case as the fix if
+  that step ever answered unfavourably. A review pass took it instead, and the argument for
+  moving early is the ASYMMETRY rather than the probability: `messageEl` is per-notice under
+  BOTH readings — this module already proves it, clearing that element and appending this
+  notice's own children into it — so taking the move costs a hover target (Obsidian's own
+  padding no longer pauses the timer or prompts a sweep) while leaving it un-taken risks a
+  queue permanently wedged at three notices for the session, in a vault, on a question no gate
+  here can settle. A cheap remedy against an unsettleable question is not worth deferring to
+  the answer. Step 3 still asks it; what it decides now is whether that padding can be won
+  back, not whether the host works.
 - **The surface with the most new ARIA in this slice is the one surface no axe scan reaches.**
   `tests/harness/accessibility.test.ts` scans `contentEl`; a `Notice` renders on
-  `document.body` under `.notice-container`. So the per-severity `role`/`aria-live` pair and
-  the dismiss control's accessible name are asserted one attribute at a time by jsdom and
-  graded by no accessibility instrument at all. `docs/components/Toast.md` predicted exactly
+  `document.body` under `.notice-container`, and the two live regions this plugin appends go
+  on `document.body` directly — outside a view twice over. So the `role`/`aria-live` pair on
+  each of those regions and the dismiss control's accessible name are asserted one attribute
+  at a time by jsdom and graded by no accessibility instrument at all. `docs/components/Toast.md` predicted exactly
   this in its own Open question 1 before the decision was taken, and now records it as the
   settled price of using `Notice` — that file's Open question 1 is answered in writing there
   rather than left standing against code that had already decided it. Widening the scan is not
   the fix: whole-document scope pulls in the landmark rules that test's header records as out
   of reach.
+- **Terminality that lives in the CALLER is terminality the object does not have.**
+  `disposeNotices` drops its reference to the queue, and `createNoticeQueue`'s own `dispose`
+  spliced `entries` and hid the handles — which reads as terminal and is not, because the
+  entries stay reachable: `show` closes over its `entry` and hands `pause`/`resume` to the
+  host, and the host registers those on DOM listeners it never removes. A `resume` after
+  `onunload` — a pointer leaving a notice mid-fade — then found a non-null `handle` and `arm`
+  armed a fresh 4000 ms timer into a disposed plugin. `dispose` clears `timer` and `handle`
+  now, so `arm`'s existing withholding rule answers for the disposed case rather than needing
+  a fourth condition, and a `disposed` flag drops a later `push` at the queue rather than
+  relying on `notify.ts` having let go. Two module-level constructions of the same shape,
+  found together.
 - **Toast appearance is verifiable in a real vault and NOWHERE else.**
   `tests/harness/obsidian.css` carries no `.notice` and no `.notice-container` rule at all, so
   neither `npm run harness` nor `npm run harness-shot` can show what one looks like: a notice
@@ -763,19 +799,30 @@ it:
   precisely BECAUSE it contradicts the expectation — the rule ("a fake must not be thinner
   than the real thing") still holds and the widening was still right; the blast radius simply
   is not a function of how thin the fake was.
-- **Four contract requirements are knowingly unmet, and where they are written down matters
+- **Three contract requirements are knowingly unmet, and where they are written down matters
   more than that they exist.** `docs/components/Toast.md` and
   `docs/components/Save-state indicator.md` both name this slice in their frontmatter and
   neither was opened until review round eleven. No mark beside the word on either surface
   (both contracts say "Both, always, never one"; a word plus colour satisfies SDD §85 and not
   them, and a CSS-drawn glyph would close it without introducing `setIcon`); no moving
-  indicator for `Saving`; no retry emit on `Save error`, which is UNDESIGNED rather than
+  indicator for `Saving`; and no retry emit on `Save error`, which is UNDESIGNED rather than
   merely unbuilt, since the tracker sees a dispatch outcome and not a re-runnable command, and
-  re-running a failed `undo` is not idempotent; and the Toast live region is attributed on a
-  container that APPEARS, which is the shape `Toast.md` explicitly refuses and calls "the one
-  that decides whether this component works at all for the users it exists for". All four are
-  in the manual case and in `docs/tasks/13`, because no jsdom test can observe an announcement
-  either way and a gap nobody inherits is a gap rediscovered from scratch.
+  re-running a failed `undo` is not idempotent. All three are in the manual case and in
+  `docs/tasks/13`, because a gap nobody inherits is a gap rediscovered from scratch.
+- **There were FOUR, and the fourth closed by a route the record had not predicted.** The
+  Toast live region was attributed on a container that APPEARS — the shape `Toast.md`
+  explicitly refuses and calls "the one that decides whether this component works at all for
+  the users it exists for" — and both the slice document and the manual case predicted the fix
+  as a REORDERING: construct, clear `messageEl`, set the attributes while empty, populate on a
+  microtask. That would have bought a timing change for a shape still centred on a container
+  that appears. What the review pass took instead moves the region OFF the notice:
+  `activateNotices()` appends two empty live regions to `document.body` (`status`/`polite` and
+  `alert`/`assertive`), `disposeNotices()` removes them, and a notice announces by writing into
+  the one its severity names while carrying neither attribute itself. Literally "already in the
+  DOM" rather than approximately, and it needs no microtask, so nothing the suite asserts
+  synchronously had to move — which is what the prediction had priced the fix at. The lesson is
+  about the prediction rather than the gap: a recorded remedy is one route, and re-reading what
+  the contract actually asks for can be cheaper than the route already written down.
 - **`runtime.ts` is at EXACTLY its 400-line `max-lines` cap**, which is why one object literal
   in it is collapsed onto a single line under a comment saying so. Measured rather than
   asserted: expanding that literal back to its four natural lines makes `npx eslint` report
@@ -944,10 +991,13 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.38/99.40/99.60/98.24
-  measured at the end of slice 13. **Read branches again: 98.24 against a floor of 98, which
-  is about five and a half covered branches of headroom, one branch costing 0.045 — and
-  FUNCTIONS are tighter still, at about four and a half, one function costing 0.086.** So an
+  99/99/99/98 (statements/functions/lines/branches), against 99.38/99.40/99.60/98.25
+  measured after slice 13's code-review fixes. **Read branches again: 98.25 against a floor
+  of 98, which is about five and a half covered branches of headroom, one branch costing
+  0.045 — and FUNCTIONS are tighter still, at about four and a half, one function costing
+  0.085. That is tight enough that an UNREACHABLE guard is not free**: the first draft of
+  the live-region fix carried a `regions?.[…]` null arm no test could drive, and removing it
+  by handing the regions to the host as an argument is what put the figure back. So an
   untested new arm does not "reduce
   coverage", it fails the gate — plan the test with the code rather than after it. Do not
   read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
@@ -977,9 +1027,10 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `html-has-lang`, …) are the ones actually scope-dependent, needing whole-page context
   this file cannot give them because it scans `contentEl`, the plugin's own subtree, not
   the whole document. **That same scope is why no notice is graded here**: an Obsidian
-  `Notice` renders on `document.body` under `.notice-container`, so slice 13's per-severity
-  `role`/`aria-live` pair and its dismiss control's accessible name — the most new ARIA any
-  one slice has added — sit outside every scan this file performs. A live vault
+  `Notice` renders on `document.body` under `.notice-container` and slice 13's two live
+  regions are appended to `document.body` itself, so that pair of `role`/`aria-live` values
+  and the dismiss control's accessible name — the most new ARIA any one slice has added — sit
+  outside every scan this file performs. A live vault
   (`npm run test-build`) remains the only place appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.

@@ -18,7 +18,14 @@ import type { AppError } from '../../../src/core/errors/AppError';
 // marketplace ruleset requires over `document.createElement`. jsdom has neither.
 installObsidianDom();
 
-const noticeEls = () => [...document.querySelectorAll<HTMLElement>('.notice')];
+// `.rp-notice` rather than `.notice`: the host keys every per-notice concern on `messageEl`,
+// which is where the classes, the listeners and the liveness read all live now. Selecting the
+// outer `.notice` here would still find one element per notice in this fake and would be
+// selecting the element whose identity `notify.ts` deliberately stopped relying on.
+const noticeEls = () => [...document.querySelectorAll<HTMLElement>('.rp-notice')];
+
+const regionEl = (role: 'status' | 'alert') =>
+	document.querySelector<HTMLElement>(`.rp-notice-live-region[role="${role}"]`);
 
 describe('the notice door', () => {
 	beforeEach(() => {
@@ -39,20 +46,65 @@ describe('the notice door', () => {
 		expect(el?.textContent).toContain('check the calibration');
 	});
 
-	it('marks a success politely and an error assertively', () => {
-		notifySuccess('saved');
-		expect(noticeEls()[0]?.getAttribute('role')).toBe('status');
-		expect(noticeEls()[0]?.getAttribute('aria-live')).toBe('polite');
+	/**
+	 * **The live regions exist BEFORE any notice does, which is the whole mechanism.**
+	 * `docs/components/Toast.md` refuses `role`/`aria-live` "on a container that appears", and a
+	 * `Notice` is exactly that. So the pair is two elements `activateNotices` puts on
+	 * `document.body`, empty, and a notice announces by writing into one of them. This case is
+	 * what would fail if either went back onto the notice element: it asserts the regions are
+	 * there and EMPTY with nothing pushed.
+	 */
+	it('opens two empty live regions at activation, before anything is pushed', () => {
+		expect(regionEl('status')?.getAttribute('aria-live')).toBe('polite');
+		expect(regionEl('alert')?.getAttribute('aria-live')).toBe('assertive');
+		expect(regionEl('status')?.textContent).toBe('');
+		expect(regionEl('alert')?.textContent).toBe('');
 
-		// `activateNotices()`, NOT `disposeNotices()`. Disposal is terminal — it leaves the
-		// module inert and the warning below would be dropped, giving `undefined` for both
-		// assertions. Activation is the reset: it disposes what is there and builds a fresh
-		// queue, which is exactly what a second half of a test needs.
-		activateNotices();
-		document.body.innerHTML = '';
+		// And the notice itself carries neither, because two elements claiming to be the live
+		// region for one message is the announcement heard twice or not at all.
+		notifySuccess('saved');
+		expect(noticeEls()[0]?.getAttribute('role')).toBeNull();
+		expect(noticeEls()[0]?.getAttribute('aria-live')).toBeNull();
+	});
+
+	it('announces a success politely and a warning assertively', () => {
+		notifySuccess('saved');
+		expect(regionEl('status')?.textContent).toContain('saved');
+		expect(regionEl('alert')?.textContent).toBe('');
+
 		notifyWarning('careful');
-		expect(noticeEls()[0]?.getAttribute('role')).toBe('alert');
-		expect(noticeEls()[0]?.getAttribute('aria-live')).toBe('assertive');
+		expect(regionEl('alert')?.textContent).toContain('careful');
+		// The severity word rides along: `role="alert"` carries urgency but not WHICH of the two
+		// assertive severities this is, and SDD §85's status-not-colour-only rule has an audible
+		// half.
+		expect(regionEl('alert')?.textContent).toContain('Warning');
+	});
+
+	/**
+	 * The queue folds an identical repeat into a `(×N)` suffix and calls `update` rather than
+	 * opening a second notice — so the announcement has to ride `update` too, or a screen-reader
+	 * user is told about the first occurrence and none of the rest.
+	 */
+	it('re-announces a repeat, because the count is information the sighted user gets', () => {
+		notifyWarning('same');
+		expect(regionEl('alert')?.textContent).not.toContain('×2');
+		notifyWarning('same');
+		expect(regionEl('alert')?.textContent).toContain('×2');
+	});
+
+	it('takes its live regions away with it on disposal', () => {
+		expect(regionEl('status')).not.toBeNull();
+		disposeNotices();
+		expect(regionEl('status')).toBeNull();
+		expect(regionEl('alert')).toBeNull();
+	});
+
+	// `activateNotices()`, NOT `disposeNotices()`. Disposal is terminal — it leaves the module
+	// inert and a later push is dropped. Activation is the reset, and it must not accumulate a
+	// second pair of regions on a body it did not clear.
+	it('replaces its live regions on re-activation rather than stacking a second pair', () => {
+		activateNotices();
+		expect(document.querySelectorAll('.rp-notice-live-region')).toHaveLength(2);
 	});
 
 	it('carries a real focusable dismiss control, not a click handler on a div', () => {
@@ -108,6 +160,13 @@ describe('the notice door', () => {
 		expect(noticeEls().some((el) => el.textContent?.includes('d'))).toBe(true);
 	});
 
+	/**
+	 * **Obsidian's own click-to-dismiss, at the timing that actually costs something.** An
+	 * earlier version of this case removed the element BEFORE dispatching the click, which is
+	 * the one ordering a real animated `Notice` never gives us: the element is still attached
+	 * while it fades. Left attached, `isConnected` alone frees nothing — so the click listener
+	 * latches, exactly as our own `×` does, because a clicked notice IS a dismissed notice.
+	 */
 	it('frees a slot when the notice is dismissed by Obsidian rather than by our button', () => {
 		notifyWarning('a');
 		notifyWarning('b');
@@ -115,12 +174,27 @@ describe('the notice door', () => {
 		notifyWarning('d');
 		expect(noticeEls()).toHaveLength(3);
 
-		// Obsidian's own click-to-dismiss: the element goes, and the click is our only prompt.
-		const first = noticeEls()[0];
-		first?.remove();
-		first?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		noticeEls()[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
 		expect(noticeEls().some((el) => el.textContent?.includes('d'))).toBe(true);
+	});
+
+	/**
+	 * **The defect the latch above actually costs, and it is not the slot.** `push` sweeps and
+	 * then DEDUPS, so a repeat of a message whose notice the user has just clicked away — but
+	 * whose element is still fading — used to find the dying entry, bump a count nobody would
+	 * ever see, and open nothing. Lost outright rather than deferred, which is worse than the
+	 * held slot the sweep was already written to survive. Driven at the worst timing: `hide()`
+	 * is a no-op, so nothing detaches at all.
+	 */
+	it('opens a fresh notice for a repeat of a message the user just clicked away', () => {
+		notifyWarning('the same words twice');
+		for (const notice of Notice.constructed) notice.hide = () => undefined;
+		noticeEls()[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		const constructedBefore = Notice.constructed.length;
+		notifyWarning('the same words twice');
+		expect(Notice.constructed.length).toBe(constructedBefore + 1);
 	});
 
 	it('shows a repeat count rather than a second notice', () => {

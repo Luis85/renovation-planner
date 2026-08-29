@@ -72,7 +72,34 @@ describe('affectsSaveState', () => {
 		})).toBe(false);
 	});
 
-	it.each(['Persistence', 'Geometry', 'Migration', 'Reference', 'Calculation', 'Import'] as const)(
+	/**
+	 * **The case that would fail if `Reference` left the pre-write set**, and the reason it is
+	 * here: this predicate's second draft counted every `Reference` failure, because the grep
+	 * that justified adding `Domain` only ever looked for `'Domain'`. All nineteen `Reference`
+	 * raise sites are referent lookups that came back empty, and `reference.set-changed` is the
+	 * sharpest of them — its own developer message reads "nothing was written", and it settled a
+	 * sticky "Save error" badge anyway, one confirm click from the Inspector's Delete button.
+	 * Spelled out rather than built through `errorOf`, which prefixes `zone.`: these codes are
+	 * transcribed from `deleteResolution.ts` and `reversible-assign-asset-command.ts`. Nothing
+	 * checks that they still agree — the predicate's own header says so rather than implying a
+	 * mechanism.
+	 */
+	it.each([
+		'reference.set-changed',
+		'reference.entity-gone',
+		'reference.referents-exist',
+		'reference.reassign-target-gone',
+		'requirement.zone-not-found',
+		'requirement.asset-not-found',
+	])('ignores the pre-write Reference refusal %s', (code) => {
+		expect(affectsSaveState({
+			category: 'Reference',
+			code,
+			message: 'a referent lookup that came back empty',
+		})).toBe(false);
+	});
+
+	it.each(['Persistence', 'Geometry', 'Migration', 'Calculation', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',
 		(category) => {
 			expect(affectsSaveState(errorOf(category))).toBe(true);
@@ -86,10 +113,14 @@ describe('affectsSaveState', () => {
 	});
 
 	// The carve-out is applied to the whole pre-write set, not to `Validation` alone. Nothing
-	// raises these two codes under `Domain` today — this pins the direction a future site that
-	// did would fail in, which is toward reporting rather than away from it.
+	// raises these two codes under `Domain` or `Reference` today — this pins the direction a
+	// future site that did would fail in, which is toward reporting rather than away from it.
 	it.each(WRITE_BOUNDARY_CODES)('counts a %s under Domain too, failing toward reporting', (suffix) => {
 		expect(affectsSaveState(errorOf('Domain', suffix))).toBe(true);
+	});
+
+	it.each(WRITE_BOUNDARY_CODES)('counts a %s under Reference too, failing toward reporting', (suffix) => {
+		expect(affectsSaveState(errorOf('Reference', suffix))).toBe(true);
 	});
 
 	it('reads the codes from versioning.ts rather than a copy', () => {

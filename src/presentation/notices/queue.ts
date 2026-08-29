@@ -92,6 +92,17 @@ const cancelTimeout = (id: ReturnType<typeof setTimeout>, cancel: typeof clearTi
 export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 	const entries: Entry[] = [];
 
+	/**
+	 * **Disposal is TERMINAL, and the flag is what makes that a property of the QUEUE rather
+	 * than of its one caller.** `notify.ts` drops its reference on `disposeNotices`, so nothing
+	 * there can push again — but a queue whose terminality lives in another module's variable is
+	 * a queue with no terminality at all, and this one stays reachable after disposal through
+	 * every listener a host registered on a notice it has already hidden. Without the flag a
+	 * later `push` through any of those paths builds a fresh entry and opens a real notice into
+	 * a vault with no plugin loaded and nothing left to remove it.
+	 */
+	let disposed = false;
+
 	const visible = (): Entry[] => entries.filter((entry) => entry.handle !== null);
 
 	// `sweep`, `arm` and `promote` are mutually recursive — `arm`'s timeout calls `promote`,
@@ -188,6 +199,7 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 
 	return {
 		push(severity, message) {
+			if (disposed) return;
 			ops.sweep();
 
 			const existing = entries.find((entry) => sameNotice(entry, severity, message));
@@ -209,10 +221,24 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 			ops.promote();
 		},
 
+		/**
+		 * **Every entry is left INERT, not merely unlisted.** Splicing `entries` and hiding the
+		 * handles is not disposal, because the entries themselves stay reachable: `show` closes
+		 * over its own `entry` and hands `pause`/`resume` to the host, and a host registers those
+		 * on DOM listeners it never removes. A `resume` arriving after `onunload` — a pointer
+		 * leaving a notice mid-fade, a blur as the workspace tears down — then called `arm` on an
+		 * entry that still held a non-null `handle`, and `arm` armed: a fresh 4000 ms timer
+		 * firing into a disposed plugin, measured rather than reasoned. Clearing `timer` and
+		 * `handle` is what makes `arm`'s own withholding rule (`entry.handle === null`) answer
+		 * for the disposed case too, rather than adding a fourth condition to it.
+		 */
 		dispose() {
+			disposed = true;
 			for (const entry of entries.splice(0)) {
 				if (entry.timer !== null) cancelTimeout(entry.timer);
+				entry.timer = null;
 				entry.handle?.hide();
+				entry.handle = null;
 			}
 		},
 	};

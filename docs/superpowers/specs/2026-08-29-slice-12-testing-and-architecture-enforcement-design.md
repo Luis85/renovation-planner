@@ -122,6 +122,18 @@ file behind it. Both surviving shapes have precedent here — `network-boundary.
 synthetic code at the paths of two **real** files, and `prototypes-one-way-door.test.ts` wraps
 its script in `sfc()` at a nonexistent `.vue` path across all six layers.
 
+**Three config blocks carry bans that no layer path reaches, and the probe set covers them
+explicitly.** `PROTOTYPES_GROUP` appears not only inside each `forbidden(layer, …)` call but in
+the **root** block (matching files directly under `src/`, e.g. `src/main.ts`) and the
+**catch-all** block (matching subtrees no `forbidden()` call names) — both spelled from outside
+`forbidden()`'s machinery. A probe set built only from (layer, extension) pairs reaches neither,
+so dropping the barrel or deep prototype spelling from either block would leave both the
+existing suite and this matrix green. `prototypes-one-way-door.test.ts` drives both blocks today
+but only at the one-level spelling. So the enumeration includes a root path and an
+unnamed-subtree path for each distinct prototype import shape, beside the layer pairs. Raised by
+a review bot, and it is the same finding as the prototype-spelling one applied to the two blocks
+that finding's fix did not reach.
+
 **This design takes the real-`.ts`-path shape**, one existing file per layer. A `.vue` under
 `core/` or `domain/` is a file kind those layers can never hold, so it would prove the rule
 fires for a shape that will never occur there, while a `.ts` proves it for the shape that
@@ -356,8 +368,26 @@ bot.
 | --- | --- | --- |
 | `broken-references/` | the bootstrap-degradation test (§2), asserting an observable rejection *and* a healthy record still loading | in this slice |
 | `large-project/` | the index-rebuild operation-count assertion, via the shared recorder | in this slice |
-| `legacy-schema/` | a migration test asserting the runner is **deterministic and idempotent** — running it twice reaches the same state, and a note already at the current version is untouched. This is the slice's own Architecture Completion Criterion 9 and nothing else in the plan covers it | in this slice |
+| `legacy-schema/` | a migration test over a **test-only migration step**, scoped below — the production set has none to exercise | in this slice, narrowly |
 | `valid-project/` | the Obsidian arm of the repository contracts — which is exactly the repoint deferred below | **OPEN, not delivered** |
+
+**The `legacy-schema/` consumer needed narrowing the round after it was added, and the reason
+is worth keeping.** It was written as "a migration test asserting the runner is deterministic
+and idempotent", which cannot be implemented against this codebase: every array in
+`MIGRATION_SET` is empty, so `latest` derives to 1 for all six kinds, and `MigrationRunner`'s
+loop is `while (version < latest)`. A version-1 fixture iterates **zero times** — nothing
+migrates and nothing is proven — while a version-0 fixture finds no step from 0 and throws
+`migration.chain-gap` before either assertion runs. The scope was added in one round without
+checking the mechanism could carry it, and a review bot caught it in the next.
+
+So the test registers a **test-only migration step** in a test-local runner, with
+`legacy-schema/` carrying a note at the version below it, and **what it proves is stated
+narrowly**: that the RUNNER applies a step, reaches the same state when run twice, and leaves a
+note already at the current version untouched. It proves nothing about any production
+migration, because there are none — and that is the honest reading of Architecture Completion
+Criterion 9 ("migrations *can be introduced* without redesign"), which is a claim about the
+mechanism accepting one, not about any migration existing. Adding a real migration is not this
+slice's to do: slice 12 owns no schema.
 
 **So the four-case vault is NOT claimed as delivered.** Three cases get consumers; `valid-project/`
 ships as content whose only intended reader is the deferred contract repoint. Saying that plainly

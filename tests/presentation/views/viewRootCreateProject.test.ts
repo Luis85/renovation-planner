@@ -32,6 +32,7 @@ function deps(listProjects: () => Promise<unknown>) {
 			},
 		},
 		openProject: vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened')),
+		onProjectsChanged: () => () => undefined,
 	};
 }
 
@@ -126,6 +127,7 @@ describe('ViewRoot, creating a project', () => {
 				},
 			},
 			openProject: vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened')),
+		onProjectsChanged: () => () => undefined,
 		};
 		const wrapper = mount(ViewRoot, {
 			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },

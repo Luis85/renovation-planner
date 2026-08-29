@@ -896,7 +896,7 @@ names — the same shape as the round above it, one layer down.
   with a dismissal on top. The composed closure adds `'failed'` for its `.catch` arm and its
   unrecovered-settings arm — neither is a stale row, so neither buys a vault-wide read.
 
-#### Still open, found while confirming the second of those
+#### Reported and left open here, closed in the round below
 
 **A restored Renovation Project leaf can draw "no projects yet" over a vault full of them.**
 The index scan runs from `onLayoutReady` and Obsidian restores its leaves BEFORE layout-ready,
@@ -906,6 +906,59 @@ list and nothing refused, and render `renovationProject.noProjects`. That is the
 via `planChangeSource`; this view subscribes to nothing at all. The fix is a second change
 from the one above — a row's click cannot reach it — and it is the same seam that would let a
 deletion clear its row without waiting to be clicked. Written down rather than folded in.
+
+### What the eleventh review round found (2026-08-29)
+
+One finding, and it is the paragraph immediately above, raised as a P1 by the reviewer rather
+than left standing. **Recording a defect is not closing one**, which is the first thing worth
+keeping: the account above was accurate, complete and load-bearing, and a user restoring
+Obsidian still met an actionable empty state over a populated vault. A written-down residue
+reads as handled to everyone but the person hitting it.
+
+The closure is the seam the paragraph predicted, at the layer that already owns it:
+
+- **`createProjectListChangeSource` is a SECOND source beside `createPlanChangeSource`, not a
+  filter on it.** That function answers "tell me when THIS plan changed" and every caller of it
+  binds a plan id; this view has none — it draws the whole vault's projects and wants the
+  unfiltered category. Reusing it would have meant passing a plan id nothing uses, matched
+  against events that carry one. Its list holds `ProjectIndexRebuilt` alone, and the module
+  says why that is a statement about what the bus carries rather than a shape: a create
+  re-reads through `onCreateProject` because it has to keep the dialog open until the write
+  settles, and a DELETION publishes nothing at all — which is exactly why the round above had
+  to answer it from the row's own click. **The new subscription does not make that fix
+  redundant, and both modules now say so**: a rebuild is published by `startPersistence`, at
+  layout-ready and on a settings swap, and neither is a deletion.
+- **`RenovationProjectDeps.onProjectsChanged` returns its own disposer, and `ViewRoot`
+  registers it as an unmount hook** — `onBeforeUnmount(context.onProjectsChanged(…))`, the
+  same shape and the same reason as `PlanEditorRoot`'s `onPlanChanged`. Obsidian REUSES a
+  view, so a listener outliving its Vue app would hydrate a store nothing renders and stack
+  another on every reopen. Asserted directly rather than left to review.
+- **`hydrate` became one named function with four callers** — mount, create, a `'missing'` row,
+  and this subscription — rather than a fourth spelling of `store.hydrate(context.queries)`.
+- **Wired unconditionally in the composition root**, persistence or not, and that is the one
+  member of this bundle that is NOT swapped for a refusal when `root.persistence` is null. The
+  bus is the root's own either way, and the arm that would take a no-op is the arm where
+  `startPersistence` returns before publishing anything — so a second answer to "is this
+  session wired", decided in a different place from the other three, would buy nothing and
+  never run. Pinned by a case rather than left as an argument.
+
+Two things this round measured rather than asserted, both this repository's own recurring
+shapes:
+
+- **The store's hydration ticket stopped being a precaution and became load-bearing, and the
+  docblock claiming so has a test that fails without it.** That comment was written with one
+  caller and predicted the race in the abstract. This caller makes it concrete: a restored leaf
+  is mid-read against the EMPTY index at the moment the rebuild fires the second read, so the
+  two genuinely overlap and the mount one — issued first, against the emptier index — may
+  settle last. Watched failing with `if (superseded()) return;` removed: exactly that one case
+  of the three reddens, and the list comes back empty with no error anywhere, which is the
+  defect the rebuild exists to fix restoring itself.
+- **Three docblocks were counting `hydrate`'s callers, and every one of them was already
+  stale before this change** — `openNote.ts` said two, `RenovationProjectStore` said one, and
+  `viewRootOpenProject.test.ts`'s header said two. The round above had made all three wrong by
+  adding the third caller and correcting only the sentence it was reading at the time. They
+  state what is true of a DELETION now, which is the fact each of them is actually about, since
+  that is the property that survives the next caller being added.
 
 
 ## References

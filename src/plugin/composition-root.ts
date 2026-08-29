@@ -4,6 +4,7 @@ import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
+import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
@@ -611,5 +612,13 @@ export function renovationProjectDeps(
 						},
 					)
 			: () => Promise.resolve('failed'),
+		// Wired from the bus UNCONDITIONALLY, persistence or not, and that is the honest
+		// shape rather than a convenience: the bus is the root's own and exists either way,
+		// and a refusal bundle re-reading on a rebuild simply refuses again. Making this the
+		// one member that turns into a no-op when `persistence` is null would be a second
+		// answer to "is this session wired", decided in a different place from the other
+		// three — and the arm that would take it is the arm where no index rebuild is ever
+		// published, so it would never run.
+		onProjectsChanged: createProjectListChangeSource(root.eventBus),
 	};
 }

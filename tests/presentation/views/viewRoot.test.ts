@@ -35,6 +35,7 @@ const deps: RenovationProjectDeps = {
 	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
 	commands: unavailableRenovationProjectCommands(),
 	openProject: () => Promise.resolve('opened' as const),
+	onProjectsChanged: () => () => undefined,
 };
 
 describe('the view root', () => {

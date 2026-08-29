@@ -26,7 +26,7 @@
  * `NewProjectForm` in a `FormDialog`, which is why the host mounting here rather than only
  * beside a `PlanCanvas` stopped being a decision made ahead of its own need.
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
@@ -54,6 +54,16 @@ const { projects, emptyStateKey, status, error, unreadable } = storeToRefs(store
  * every line reads as correct and the flag never moves.
  */
 const newProjectBusy = ref(false);
+
+/**
+ * The ONE read this view has, on every occasion it runs — open, after a create, after a row
+ * turned out to point at nothing, and after the Project Index was rebuilt underneath it. A
+ * second "refresh" path would be a second answer to what this pane is showing;
+ * `PlanEditorRoot` states the identical rule about its own.
+ */
+function hydrate(): Promise<void> {
+	return store.hydrate(context.queries);
+}
 
 /**
  * The empty state's hand-off, and (since Task 8) the project list header's — ONE handler
@@ -91,7 +101,7 @@ async function onCreateProject(): Promise<void> {
 		busy: newProjectBusy,
 	});
 	if (result === 'cancel') return;
-	await store.hydrate(context.queries);
+	await hydrate();
 }
 
 /**
@@ -109,7 +119,7 @@ async function onCreateProject(): Promise<void> {
  * behind the row is not stale.
  */
 async function onOpenProject(projectId: string): Promise<void> {
-	if ((await context.openProject(projectId)) === 'missing') await store.hydrate(context.queries);
+	if ((await context.openProject(projectId)) === 'missing') await hydrate();
 }
 
 /**
@@ -136,8 +146,27 @@ const empty = computed(() => {
 const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
 
 onMounted(() => {
-	void store.hydrate(context.queries);
+	void hydrate();
 });
+
+/**
+ * The index rebuild, and why a view that already read needs telling.
+ *
+ * Obsidian restores its leaves BEFORE `onLayoutReady`, and the index scan runs FROM it (SDD
+ * §47). A pane restored with the app therefore hydrates against an empty index, is answered a
+ * legitimate empty list, and draws the actionable "no projects yet" state over a vault full
+ * of them — permanently, because until this subscription existed neither of the other two
+ * hydrations could be reached by anything a rebuild does.
+ *
+ * Registered at setup and disposed on unmount, the same shape and for the same reason as
+ * `PlanEditorRoot`'s `onPlanChanged`: Obsidian reuses a view, so a listener outliving its Vue
+ * app would re-hydrate a store nothing renders and stack another on the next open.
+ */
+onBeforeUnmount(
+	context.onProjectsChanged(() => {
+		void hydrate();
+	}),
+);
 </script>
 
 <template>

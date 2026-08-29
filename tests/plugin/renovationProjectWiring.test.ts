@@ -8,9 +8,10 @@
  * here and a constructor parameter, never a second wiring point somewhere else in the
  * plugin.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Notice } from 'obsidian';
 import { createCompositionRoot, renovationProjectDeps } from '../../src/plugin/composition-root';
+import { projectIndexRebuilt } from '../../src/application/events/projectIndex.events';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';
@@ -28,6 +29,38 @@ const vaultStack = () =>
 	}) as never;
 
 describe('the renovation project dependencies', () => {
+	it('wires the project-list subscription to the root own bus', async () => {
+		// The restored-leaf case, at the seam that composes it: this view is hydrated once at
+		// mount and Obsidian restores it BEFORE the index scan runs, so the rebuild reaching it
+		// is the only thing that turns "no projects yet" back into the vault's real list.
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const listener = vi.fn<() => void>();
+
+		const unsubscribe = deps.onProjectsChanged(listener);
+		// Awaited: the bus is promise-aware and costs one microtask hop per delivery.
+		await root.eventBus.publish(projectIndexRebuilt());
+		unsubscribe();
+		await root.eventBus.publish(projectIndexRebuilt());
+
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	it('subscribes to the same bus even with settings unrecovered, where it simply never fires', async () => {
+		// The one member that is NOT swapped for a refusal when `persistence` is null, and the
+		// reason is measurable rather than stylistic: the bus is the root's own either way, and
+		// the arm that would take a no-op is the arm where `startPersistence` returns before
+		// publishing anything at all.
+		const root = createCompositionRoot(null, recorder, vaultStack());
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const listener = vi.fn<() => void>();
+
+		deps.onProjectsChanged(listener);
+		await root.eventBus.publish(projectIndexRebuilt());
+
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
 	it('hands over a query service that answers the real project list when persistence is composed', async () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 

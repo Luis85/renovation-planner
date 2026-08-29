@@ -5,8 +5,10 @@
  * when the project it names is gone.
  *
  * A project note deleted after this pane was opened drops out of the Project Index silently —
- * `VaultChangeAdapter` publishes nothing — and `RenovationProjectStore.hydrate` has exactly
- * two callers, neither of them reachable from a deletion. So the row stayed drawn, did nothing
+ * `VaultChangeAdapter` publishes nothing — and no caller of `RenovationProjectStore.hydrate`
+ * is reachable from a deletion, the `ProjectIndexRebuilt` subscription added by the P1 round
+ * after this one included: a rebuild is published by `startPersistence` alone, at layout-ready
+ * and on a settings swap. So the row stayed drawn, did nothing
  * when clicked, and said nothing until the view was reopened. `openProjectNote` answers
  * `'missing'` for it now and this file is what holds the answer to a re-read: reported in
  * review against a comment claiming the list was "re-read on the next hydrate anyway", of
@@ -39,6 +41,8 @@ async function mountWithOneProject(outcome: ProjectOpenOutcome) {
 					queries: { listProjects },
 					commands: unavailableRenovationProjectCommands(),
 					openProject,
+					// No index rebuild is published here — this file is about the row's own click.
+					onProjectsChanged: () => () => undefined,
 				},
 			},
 		},

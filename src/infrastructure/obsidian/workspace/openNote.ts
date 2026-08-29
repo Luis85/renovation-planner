@@ -50,11 +50,17 @@ export type ProjectNoteOpenOutcome = 'opened' | 'missing';
  *
  * **It ANSWERS when the id resolves to nothing rather than returning silently**, and the
  * paragraph that used to sit here said the opposite: "the list is re-read on the next hydrate
- * anyway". There was no next hydrate. `RenovationProjectStore.hydrate` has exactly two callers
- * — the view's `onMounted` and `ViewRoot.onCreateProject` — and neither is reached by a
- * deletion: `VaultChangeAdapter` drops the index entry without publishing anything, so a
- * project note deleted after the pane was opened left a row that stayed on screen, did nothing
- * when clicked, and told the user nothing until the view was reopened. Reported in review.
+ * anyway". There was no next hydrate at all then, and there is still none a DELETION reaches:
+ * `RenovationProjectStore.hydrate`'s callers are the view's `onMounted`, `onCreateProject`,
+ * this outcome, and (since the P1 round that followed) the `ProjectIndexRebuilt` subscription
+ * — and a deletion publishes none of them. `VaultChangeAdapter` drops the index entry without
+ * publishing anything, so a project note deleted after the pane was opened left a row that
+ * stayed on screen, did nothing when clicked, and told the user nothing until the view was
+ * reopened. Reported in review.
+ *
+ * The rebuild subscription added later is NOT a substitute for this and does not make it
+ * redundant: a rebuild is republished only by `startPersistence`, which runs at layout-ready
+ * and on a settings swap. Neither is a deletion.
  *
  * So the click itself is the trigger: `'missing'` travels back to `ViewRoot`, which re-reads
  * the list, and the stale row disappears. That is the whole feedback, deliberately — the row

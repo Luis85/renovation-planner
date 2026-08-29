@@ -26,6 +26,8 @@ import type { RenovationProjectQueryServices } from '../../../src/presentation/r
  */
 const commands = unavailableRenovationProjectCommands();
 const openProject = (): Promise<'opened'> => Promise.resolve('opened');
+/** No index rebuild is published here; `viewRootIndexRebuild.test.ts` is what drives it. */
+const onProjectsChanged = (): (() => void) => () => undefined;
 
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
 
@@ -51,7 +53,7 @@ async function settle(): Promise<void> {
 
 async function open(queries: RenovationProjectQueryServices) {
 	installObsidianDom();
-	const view = makeView({ queries, commands, openProject });
+	const view = makeView({ queries, commands, openProject, onProjectsChanged });
 	await view.onOpen();
 	await settle();
 	return view;
@@ -193,6 +195,7 @@ describe('the renovation project view', () => {
 			queries: { listProjects: () => new Promise(() => {}) },
 			commands,
 			openProject,
+			onProjectsChanged,
 		});
 		await view.onOpen();
 		await Promise.resolve();

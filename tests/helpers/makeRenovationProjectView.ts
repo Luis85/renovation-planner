@@ -98,6 +98,7 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 		queries: createRenovationProjectQueries(new ListProjects(projects)),
 		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
 		openProject: () => Promise.resolve('opened'),
+		onProjectsChanged: () => () => undefined,
 	};
 	return new RenovationProjectView(new FakeLeaf() as never, defaults);
 };

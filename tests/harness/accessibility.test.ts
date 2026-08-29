@@ -242,6 +242,7 @@ describe('axe against the mounted view', () => {
 			},
 			commands: unavailableRenovationProjectCommands(),
 			openProject: () => Promise.resolve('opened' as const),
+			onProjectsChanged: () => () => undefined,
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();

@@ -45,6 +45,24 @@ export interface RenovationProjectDeps {
 	 * cleared by the click that found it stale — see `ProjectOpenOutcome`.
 	 */
 	readonly openProject: (projectId: string) => Promise<ProjectOpenOutcome>;
+	/**
+	 * "The set of projects may have changed — re-read it." Carries no payload, because the one
+	 * event behind it (`ProjectIndexRebuilt`) carries none: a rebuild says nothing about WHICH
+	 * projects moved, so the only honest response is to run the same read again.
+	 *
+	 * **This is not politeness, it is the restored-leaf case.** The index scan runs from
+	 * `onLayoutReady` and Obsidian restores its leaves BEFORE that, so a Renovation Project
+	 * pane reopened with the app hydrates against an empty index, gets a legitimate empty list
+	 * back, and draws "no projects yet" over a populated vault — with no later read to correct
+	 * it, since this view's other two hydrations are its own mount and its own create.
+	 * `projectIndex.events.ts` documents the hazard and `PlanEditorContext.onPlanChanged`
+	 * closes it for the other surface; this is the same closure for this one.
+	 *
+	 * Returns its own disposer, and the view registers that as an unmount hook: Obsidian
+	 * REUSES a view, so a subscription outliving its Vue app would hydrate a store nothing
+	 * renders and stack a second listener on every reopen.
+	 */
+	readonly onProjectsChanged: (listener: () => void) => () => void;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

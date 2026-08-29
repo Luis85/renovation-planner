@@ -1875,6 +1875,36 @@ Two rules that follow from it and are worth stating because breaking them is che
   correct alone and opens a duplicate tab the moment a user uses both. `infrastructure/`
   takes the view type as a STRING for the same reason it takes anything: it may not reach
   `presentation/`, and the composition root is what knows which view it is wiring.
+
+  **One function is not enough on its own, because a leaf takes TIME to exist.** Both
+  leaf-creating doors — there are exactly two in `src/`, counted by grepping `getLeaf(` and
+  `getLeavesOfType(` — look a leaf up and create one when the lookup finds nothing, and a
+  leaf they create does not answer that lookup until its own `await` resolves. So two
+  activations in one tick both find nothing and both create: a double click on the ribbon gave
+  two tabs of the SINGLETON view, two opens of one plan gave two Plan Editors, and a double
+  click on a project row gave two note tabs. Each door now holds a map of what is in flight,
+  asked BEFORE the lookup and released in a `finally`, keyed by what makes two calls the same
+  request — the file path at `openProjectNote`, the view type plus the state that would be set
+  at `revealCandidate`, since `setViewState({ type, active, state })` is the whole of what
+  makes the leaf. Keying on the type ALONE collapses the multiplicity `revealPlanEditor`
+  exists to permit, which is measured as a mutation rather than argued.
+
+  **Every one of those doors is also DETACHED** — Obsidian's ribbon, command and modal
+  handlers all return nothing — so a fault in one has no awaiter. Four spelled that as a bare
+  `void`, two under a comment calling the missing rejection handler deliberate; a ribbon click
+  that faulted opened nothing, said nothing and recorded nothing. `src/plugin/runDetached.ts`
+  is the one step that maps, logs and notifies (SDD §66), and it is a FUNCTION rather than a
+  habit because a fifth door would have to remember a `.catch` nothing checks.
+- **Registering with Obsidian belongs to `src/plugin/`, and that is a check rather than a
+  sentence.** `RenovationPlannerPlugin`'s header claimed to be "the ONLY place anything is
+  registered with Obsidian" and a comment fifty lines below repeated it; both were false when
+  written and stayed false for fifteen slices, since `planEditorCommands.ts` and
+  `sampleProject.ts` each register commands through the `PluginCommandHost` seam. The layer
+  bans cannot express the true claim — `obsidian` is importable in `infrastructure/` and a
+  `Plugin` travels as `host` — so `tests/build/registration-locality.test.ts` reads `src/` for
+  nine registration members and requires every hit under `src/plugin/`. It reads source TEXT,
+  so a differently-named wrapper is invisible to it, and it carries a finds-something-at-all
+  case: a typo'd member list would otherwise pass by reaching nothing.
 - **A view type and a command id are DATA, not text.** Obsidian persists the first in the
   workspace layout and binds a user's hotkey to the second, so renaming either orphans
   something a user has. The display names beside them are text.
@@ -2058,8 +2088,8 @@ finds it rather than left to be re-measured.
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
   source project, six of ten review findings were comments precisely stating the rule the
   code beside them broke. A confident paragraph is evidence of intent and of nothing else.
-- **A fake must not be kinder than the real thing, not thinner than it, and not HARSHER than
-  it.** A DOM helper
+- **A fake must not be kinder than the real thing, not thinner than it, not HARSHER than it,
+  and not FASTER than it.** A DOM helper
   that accepted what Obsidian rejects shipped a dead drag target while every test and the
   browser harness drew it happily; too kind. A fake `ItemView` that never nested a
   `.view-header` inside `.workspace-leaf-content` the way Obsidian does left
@@ -2120,6 +2150,29 @@ finds it rather than left to be re-measured.
   looking into one that shows a false picture, and it does it silently wherever the consumer has
   no shape for an error. A refusal bundle is the honest stand-in only where the real thing would
   also have nothing to give.
+
+  **The FOURTH face of the rule, and the one that hides a defect completely: FASTER than the
+  real thing.** `FakeLeaf.openFile` and `FakeLeaf.setViewState` each established their leaf's
+  view state SYNCHRONOUSLY, where Obsidian reads a file or runs a view factory and `onOpen`
+  first. That models a guarantee `Promise<void>` does not make — nothing in that signature
+  says the side effect has landed before the promise resolves — and the consequence is worse
+  than a thin fake's: the racing second call always won the lookup, so a regression case
+  written for the duplicate-tab race PASSED against the live defect. Measured both ways, in
+  both files. `FakeVault.createFolder` was the same rule's older face, kind rather than fast:
+  idempotent where Obsidian throws on an existing folder, one method away from a `create` that
+  already refused a duplicate file. **All three corrections cost 0 tests**, which is the figure
+  worth remembering beside the 86 and the 65 for the same reason those are: the blast radius
+  is not the shape. When a fake stands in for something ASYNC, ask what its signature promises
+  rather than what one implementation happens to do first — and where the fake must stay
+  fast, say so, because "faster" reads exactly like "correct" from every green test.
+
+  **And a fake's speed changes what a test's EVENT STREAM means.** `registration.test.ts` drove
+  a ribbon click and a command invocation one `await Promise.resolve()` apart — an input no
+  human can produce — which was harmless until `revealCandidate` learned to coalesce in-flight
+  activations, at which point the case was asserting on a gesture that had not happened. The
+  gap between two human gestures is a MACROTASK turn (`tests/helpers/async.ts`'s `settle()`),
+  never a counted number of microtask hops: a count is a fact about today's implementation and
+  goes stale silently, in the direction of a green test.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`

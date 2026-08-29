@@ -1076,6 +1076,99 @@ arrives by a different door — or in a different tick.
   the 86-test and 65-test instances for the same reason those are: the number is not the point,
   the shape is.
 
+### The polish pass the thirteenth round turned into (2026-08-29)
+
+The two P2s above were each an instance of a CLASS, so the pass that followed them looked for
+the rest of each class rather than stopping at the two reports. Both sweeps found something,
+and **the pass deliberately went outside slice 16's own surface** — three of the five items
+below are slice 1, 5 and 7 code. Every claim here is measured; where a claim could not be
+measured it says so.
+
+**Sweep one — "a lookup that cannot see a request still arriving".** `src/` has exactly TWO
+leaf-creating doors, counted rather than assumed (`grep` for `getLeaf(` and
+`getLeavesOfType(`): `openProjectNote`, which the round above fixed, and `revealCandidate`,
+which had the identical defect and nobody had looked.
+
+- **Two tabs of a SINGLETON view, and two Plan Editors on one plan (measured).**
+  `revealCandidate` takes a candidate list and creates a leaf when it is empty; a leaf it
+  creates does not answer `getLeavesOfType` until `setViewState` resolves. Two activations in
+  one tick therefore both find nothing and both create. The window is WIDER than the one at the
+  other door: `setViewState` on a real leaf runs the registered factory and the view's
+  `onOpen`, which for both of these views mounts a Vue app and issues a query, where `openFile`
+  only reads a note. Reachable by double-clicking the ribbon icon, and by the ribbon plus the
+  hotkey — the two entry points `revealView` exists to unify.
+- **The key is the type PLUS the state, and that is a derivation rather than a convenience.**
+  `setViewState({ type, active, state })` is the whole of what makes the leaf, so two calls
+  agreeing on both are asking for a leaf neither could tell from the other's. Keying on the
+  type alone would collapse the multiplicity `revealPlanEditor` exists to permit — measured as
+  a mutation: it turns exactly one case red, the one that races two DIFFERENT plans, and
+  nothing else.
+- **A hand-written comparator is an untestable arm, not a safeguard.** The first draft sorted
+  the state's entries with `(a < b ? -1 : a > b ? 1 : 0)`, and every caller passes a
+  single-key state, so that function is never called: branch coverage fell to 97.96% against a
+  floor of 98 and the gate refused it. `JSON.stringify`'s property-LIST replacer both filters
+  and orders, so handing it `Object.keys(state).toSorted()` buys the same order-independence
+  with no arm to cover. The gate was right and the code was wrong — the ratchet doing exactly
+  the job `vitest.config.ts` describes.
+
+**Sweep two — "a sentence nothing checks".** Every counted or "only" claim in the branch's
+source, checked by `grep`.
+
+- **"The ONLY place anything is registered with Obsidian" was false, twice, for fifteen
+  slices.** `RenovationPlannerPlugin`'s header said it and a comment fifty lines down repeated
+  it as "the `addCommand` calls still happen here". Measured: `planEditorCommands.ts` and
+  `sampleProject.ts` each call `host.addCommand` through the `PluginCommandHost` seam, three
+  calls between them. Both sentences are written from the measurement now — and the claim that
+  IS true and IS worth having is about the DIRECTORY, so it became a check rather than a better
+  sentence: `tests/build/registration-locality.test.ts` reads `src/` for nine registration
+  members and requires every hit to sit under `src/plugin/`. The layer bans cannot express this
+  — `obsidian` is importable in `infrastructure/` and a `Plugin` travels as `host` — which is
+  exactly why it was worth writing. Its own blind spot is named in its header (it reads source
+  TEXT, so a differently-named wrapper is invisible), and it carries a finds-something-at-all
+  case so that a typo'd member list cannot pass by reaching nothing.
+- **Four detached doors swallowed faults, two of them under a comment calling that
+  deliberate.** The ribbon, the `open-project` command, the plan picker's modal callback and
+  `create-sample-project` each `void`ed a promise that can reject; the comment at the first two
+  read "the explicit void is what says the rejection is unhandled on purpose here rather than
+  by omission". Measured against what the rest of the plugin does with the same class of
+  failure, that does not hold — the composition root wraps the sibling workspace operation
+  (`openProjectNote`) in `notifyFault`, and slice 11's whole argument is that a failure owes a
+  user sentence AND a log line minted at ONE step (SDD §66). A ribbon click that faulted opened
+  nothing, said nothing and recorded nothing. `src/plugin/runDetached.ts` is that one step, and
+  it lives in a function rather than at four call sites for the reason this file keeps
+  re-learning: a fifth door would have to remember a `.catch` nothing checks. Three mutations
+  pin it — a bare `void`, a log with no notice, and a re-throw inside the `catch` — and each
+  reddens exactly the case that names it.
+
+**Three fakes were corrected, and all three cost 0 tests**, which is the number worth recording
+beside the 86-test and 65-test instances for the reason those are recorded: the blast radius is
+not the point, the shape is.
+
+- `FakeLeaf.openFile` and `FakeLeaf.setViewState` both established their leaf's view state
+  SYNCHRONOUSLY, modelling a guarantee `Promise<void>` does not make. This is the fake-too-thin
+  rule's third face — **faster** than the real thing rather than thinner or kinder — and it is
+  the one that hides a concurrency defect completely, because the racing second call always
+  wins the lookup and the case reads green.
+- `FakeVault.createFolder` was idempotent where Obsidian throws on an existing folder, while
+  `FakeVault.create` one method away already refused a duplicate file — an inconsistency inside
+  one fake. Corrected for the rule rather than for a defect, and the honest bound is stated
+  rather than glossed: `ensureFolder` IS structurally racy (a lookup, an `await`, a create), and
+  no production path was demonstrated to drive it concurrently — the create commands take no
+  lock at all, which is measured, but nothing today overlaps two inserts into a missing folder.
+  The instrument now exists for the day one does; that is the whole claim.
+
+**One test was corrected rather than the code it failed against, and the reasoning is the
+point.** `registration.test.ts`'s "share one leaf between them" drove a ribbon click and a
+command invocation ONE MICROTASK apart — an input no human can produce — so once
+`revealCandidate` coalesced in-flight activations the second gesture was correctly treated as
+the same request and revealed nothing of its own. The assertion the case is named for
+(`leaves`) held either way; `revealed` is what said the event stream was wrong. Both hold once
+the gestures are actually sequential, and the corrected case was mutation-checked against the
+defect it was originally written for — ignore the candidate list and it still goes red.
+`tests/helpers/async.ts`'s `settle()` is that gap, a macrotask turn rather than a counted
+number of microtask hops, because a count is a fact about today's implementation that goes
+stale in the direction of a green test asserting on a gesture that has not happened.
+
 
 ## References
 

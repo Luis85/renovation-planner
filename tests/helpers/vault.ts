@@ -154,6 +154,7 @@ class FakeVault {
 	createFolder(path: string): Promise<void> {
 		try {
 			this.op('createFolder', path);
+			if (this.folderExists(path)) throw new Error(`Folder already exists: ${path}`);
 			this.folders.add(path);
 			return Promise.resolve();
 		} catch (cause) {

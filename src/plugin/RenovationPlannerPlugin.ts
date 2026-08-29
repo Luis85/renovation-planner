@@ -15,6 +15,7 @@ import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presen
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
+import { runDetached } from './runDetached';
 import {
 	createCompositionRoot,
 	planEditorDeps,
@@ -37,8 +38,17 @@ import { recoverInterruptedSequences } from '../application/reference/recoverInt
 const LOG_LEVEL: LogLevel = 'info';
 
 /**
- * The plugin shell: the ONLY place anything is registered with Obsidian, and the only layer
- * allowed to reach every other one — it composes them (SDD §9, §10).
+ * The plugin shell: the layer allowed to reach every other one — it composes them (SDD §9,
+ * §10) — and where registering with Obsidian belongs.
+ *
+ * That used to read "the ONLY place anything is registered with Obsidian", which was false
+ * when written and stayed false for fifteen slices: `planEditorCommands.ts` and
+ * `sampleProject.ts` each register commands through the `PluginCommandHost` seam, three
+ * calls between them. The claim that IS true is about the DIRECTORY, and it is worth having
+ * because the layer bans cannot express it — `obsidian` is importable in `infrastructure/`,
+ * and a `Plugin` is passed around as `host`, so nothing structural stops a view or a
+ * repository from registering a command. `tests/build/registration-locality.test.ts` is
+ * that claim, measured by reading `src/` rather than asserted here.
  *
  * `onload` registers and nothing more. No domain logic belongs here, and neither does
  * work: startup cost is paid by every user on every launch, and "register, do not scan" is
@@ -124,8 +134,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// registered below may read them. The merge is pure (`settingsFrom`); only the
 		// `loadData` call lives here, in the layer allowed to name it.
 		const loaded = await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id));
-		// Slice 11's verbose-logging switch: the only consumer of the adapter's `setLevel`,
-		// applied once the setting could have been read. Unreadable settings keep the
+		// Slice 11's verbose-logging switch — the only thing that consumes the adapter's
+		// `setLevel` at all, here and again in `saveSettings` when the preference changes
+		// live. Applied once the setting could have been read. Unreadable settings keep the
 		// bootstrap floor — no verbosity without a preference that asked for it.
 		if (loaded?.verboseLogging) logger.setLevel('debug');
 		this.root = createCompositionRoot(
@@ -167,24 +178,26 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.registerView(GEOMETRY_SIDECAR_VIEW, (leaf) => new GeometrySidecarView(leaf));
 
 		// Two ways in, one behaviour: both call the same function, so neither can grow its
-		// own idea of what opening the view means. `void` rather than an async handler —
-		// Obsidian ignores a returned promise, and the explicit void is what says the
-		// rejection is unhandled on purpose here rather than by omission.
+		// own idea of what opening the view means — and neither spells the detachment itself.
+		// `openProject` returns nothing and answers its own faults, because Obsidian ignores a
+		// returned promise and a `void` at each door is a rejection handler each door has to
+		// remember. See `runDetached`.
 		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => {
-			void this.openProject();
+			this.openProject();
 		});
 
 		this.addCommand({
 			id: 'open-project',
 			name: tr('command.open-project'),
 			callback: () => {
-				void this.openProject();
+				this.openProject();
 			},
 		});
 
-		// The Plan Editor's two commands. Their BEHAVIOUR lives in one module beside this
-		// one; the `addCommand` calls still happen here, so this file remains the only place
-		// anything is registered with Obsidian.
+		// The Plan Editor's two commands. Their BEHAVIOUR and their `addCommand` calls both
+		// live in one module beside this one — the sentence here used to claim the calls
+		// "still happen here", and they never did. What this file keeps is the ORDER: every
+		// registration is initiated from this one `onload`, in the sequence SDD §9 states.
 		registerPlanEditorCommands(this);
 
 		// SCAFFOLDING, and its own module says so at length: one command that seeds a
@@ -442,7 +455,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 		}
 	}
 
-	private openProject(): Promise<void> {
-		return revealView(this.app.workspace, RENOVATION_PROJECT_VIEW);
+	/**
+	 * Both ways into the project view, and the place their fault is answered.
+	 *
+	 * It returns `void` rather than the activation's promise: every caller is an Obsidian
+	 * handler that discards one, so handing it back only offers the next caller a rejection to
+	 * forget. `runDetached` maps, logs and notifies in one step.
+	 */
+	private openProject(): void {
+		runDetached(
+			revealView(this.app.workspace, RENOVATION_PROJECT_VIEW),
+			this.root.logger,
+			'view.project.reveal-failed',
+		);
 	}
 }

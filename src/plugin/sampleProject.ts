@@ -5,6 +5,7 @@ import type { PlanId } from '../domain/plan/PlanId';
 import type { ZoneStatus } from '../domain/zone/ZoneStatus';
 import type { ZoneType } from '../domain/zone/ZoneType';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
+import { runDetached } from './runDetached';
 import { notifyError } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
@@ -197,7 +198,10 @@ export function registerSampleProjectCommand(host: PluginCommandHost): void {
 		checkCallback: (checking: boolean) => {
 			const services = host.root.persistence;
 			if (services === null) return false;
-			if (!checking) void createAndOpen(host, services);
+			// Detached like every other command handler, and answered like every other one:
+			// `createAndOpen` awaits a seed AND an activation, either of which can fault, and
+			// a bare `void` sent both nowhere.
+			if (!checking) runDetached(createAndOpen(host, services), host.root.logger, 'sample-project.failed');
 			return true;
 		},
 	});

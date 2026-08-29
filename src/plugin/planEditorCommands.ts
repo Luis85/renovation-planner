@@ -10,6 +10,7 @@ import type {
 } from '../application/commands/plan/SetPlanBackground';
 import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
+import { runDetached } from './runDetached';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
 import { notify, notifyError } from '../presentation/notices/notify';
@@ -112,7 +113,14 @@ function openPlanPicker(host: PluginCommandHost): void {
 		return;
 	}
 	const picker = new PlanSuggestModal(host.app, plans, (plan) => {
-		void revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, plan.id);
+		// A modal callback returns nothing, so this activation has no awaiter — and a fault in
+		// it was reaching neither the user nor the log. `runDetached` is the one place that
+		// is answered, for all four detached doors this plugin has.
+		runDetached(
+			revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, plan.id),
+			host.root.logger,
+			'view.plan-editor.reveal-failed',
+		);
 	});
 	picker.open();
 }

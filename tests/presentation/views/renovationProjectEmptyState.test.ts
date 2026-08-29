@@ -69,14 +69,18 @@ describe('the renovation project view', () => {
 	});
 
 	/**
-	 * Amendment 1: no button, because the hand-off is slice 16's project-creation form and
-	 * slice 16 depends on slice 11. A rendered control that does nothing is worse than no
-	 * control, and this is what stops one appearing by accident.
+	 * Amendment 1 held while `noProjects` had no hand-off. Design slice 16 built one —
+	 * `ViewRoot` opens `NewProjectForm` in a `FormDialog` — so this asserts the button now
+	 * exists, updated rather than deleted per that amendment's own rule: a button appearing
+	 * is meant to be a deliberate, tested change. `tests/presentation/views/viewRootCreateProject.test.ts`
+	 * covers what the click actually does; this file's job stays the read side alone.
 	 */
-	it('renders no action button, since there is no hand-off yet', async () => {
+	it('renders an action button, now that slice 16 built its hand-off', async () => {
 		const view = await open(answering([]));
 
-		expect(view.contentEl.querySelector('.rp-empty-state button')).toBeNull();
+		const button = view.contentEl.querySelector('.rp-empty-state button');
+		expect(button).not.toBeNull();
+		expect(button?.textContent).toBe(t('en', 'empty.project.no-projects.action'));
 		await view.onClose();
 	});
 

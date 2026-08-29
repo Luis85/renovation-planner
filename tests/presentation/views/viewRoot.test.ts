@@ -56,10 +56,11 @@ describe('the view root', () => {
 	});
 
 	/**
-	 * Slice 15's host, mounted in THIS app too, not only the Plan Editor's. `noProjects`
-	 * ships with no action button (slice 14's Amendment 1), so there is no click here to
-	 * open a dialog with yet — this asserts the host is reachable at all, ahead of the later
-	 * slice whose creation form will be its first caller in this tree.
+	 * Slice 15's host, mounted in THIS app too, not only the Plan Editor's. This opens a
+	 * plain `confirm` descriptor directly through the store rather than through the empty
+	 * state's own button (`viewRootCreateProject.test.ts` covers that click, since design
+	 * slice 16 gave it a real hand-off) — this file's job is only that the host is reachable
+	 * at all, independent of any one caller.
 	 */
 	it('mounts a dialog host that the view can open a dialog through', async () => {
 		const pinia = createPinia();

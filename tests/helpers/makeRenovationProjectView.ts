@@ -24,32 +24,49 @@
  * `FakeWorkspace` cannot reopen this by accident.
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
-import { ok } from '../../src/core/result/Result';
-import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
+import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
+import { ListProjects } from '../../src/application/queries/ListProjects';
+import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
+import { createRenovationProjectQueries } from '../../src/presentation/read-models/renovationProjectQueries';
 import { FakeLeaf } from './workspace';
+import { RecordingEventBus } from './domain';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
 /**
- * The default `deps` answers an empty project list with nothing refused —
- * `ok({ projects: [], unreadable: 0 })` — rather than the refusal bundle:
- * `unavailableRenovationProjectQueries()` is what settings.unrecovered actually looks like,
- * and defaulting every caller of this factory to that would make the harness page and every
- * un-migrated test look like a broken session rather than a fresh, empty vault. Optional
- * rather than required, so `tests/harness/mount.ts` keeps compiling
- * unchanged: the harness page therefore shows the empty state now, which is the new thing
- * worth looking at — the populated surface has nothing to draw until a later slice builds
- * an actual project list (this slice explicitly does not).
+ * The default `deps` answers an empty project list with nothing refused, backed by a REAL
+ * `InMemoryProjectRepository` rather than a fixed literal — one built fresh per call, so two
+ * views built through this factory in the same test never share state.
  *
- * `commands` and `openProject` default to slice 16's refusal bundle and a no-op
- * respectively — the same shape `renovationProjectDeps` hands a view when settings are
- * unrecovered — since no case built through this factory dispatches a write.
+ * `commands.createProject` ANSWERS now too, for the same repository, rather than the
+ * refusal bundle it used to default to. Design slice 16 gave the empty state's button a real
+ * hand-off (`ViewRoot` opens `NewProjectForm` and dispatches through it), which is the exact
+ * forward risk CLAUDE.md's fifth fake-instance lesson names: a stand-in that REFUSES what
+ * production would answer turns a tool built for looking into one that shows a false
+ * picture. `tests/harness/mount.ts` calls this with no `deps` at all, so the browser harness
+ * page (`npm run harness`) is the direct beneficiary — a session there can now actually
+ * create a project and see the read model that create landed in.
+ * `tests/presentation/views/viewRootCreateProject.test.ts` covers the identical round trip
+ * against `ViewRoot` mounted directly, with its own hand-built `deps` rather than this
+ * factory's, because that file needs to observe the shared `busy` ref and a controlled,
+ * deferred dispatch — this file's job is the harness path, not that one.
+ * `RecordingEventBus` is a fine stand-in for the real bus here: nothing in this tree
+ * subscribes to `ProjectCreated`, so there is no cascade for a dispatching bus to run that a
+ * recording one would miss.
+ *
+ * `openProject` stays a no-op: opening a project's own note is an Obsidian-vault operation
+ * this harness has none of, and every caller of this factory that cares about it
+ * (`renovationProjectEmptyState.test.ts`, `accessibility.test.ts`'s failed-read case) passes
+ * its own `deps` explicitly instead of taking the default.
  */
-export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
-	new RenovationProjectView(
-		new FakeLeaf() as never,
-		deps ?? {
-			queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
-			commands: unavailableRenovationProjectCommands(),
-			openProject: () => Promise.resolve(),
-		},
-	);
+export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView => {
+	if (deps !== undefined) return new RenovationProjectView(new FakeLeaf() as never, deps);
+
+	const projects = new InMemoryProjectRepository();
+	const events = new RecordingEventBus();
+
+	return new RenovationProjectView(new FakeLeaf() as never, {
+		queries: createRenovationProjectQueries(new ListProjects(projects)),
+		commands: { createProject: new CreateProjectCommand(projects, events) },
+		openProject: () => Promise.resolve(),
+	});
+};

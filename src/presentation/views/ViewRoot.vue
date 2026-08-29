@@ -21,29 +21,74 @@
  * marketplace rejects inline styles and this plugin's CSS lives in `styles/`, assembled
  * into one sheet. The class below is that sheet's only entry point into this view.
  *
- * Slice 15's `DialogHost` mounts here too, not only in the Plan Editor. Not because of an
- * empty-state action: `renovationProject.noProjects` ships with no button at all (slice
- * 14's Amendment 1), so there is no click here yet for `DialogHost` to answer. It mounts
- * because this is one of the two ItemView-scoped Vue apps SDD §12 has the dialog
- * framework mount into (slice 15), and because a later slice's project-creation form —
- * the "Create a project" hand-off `noProjects` names but does not wire — will open from
- * this tree once it exists. A host that mounted only beside a `PlanCanvas` would leave
- * that future form with nothing to open from.
+ * Slice 15's `DialogHost` mounts here too, not only in the Plan Editor — this is one of the
+ * two ItemView-scoped Vue apps SDD §12 has the dialog framework mount into. Design slice 16
+ * gave it its first caller in this tree: `renovationProject.noProjects`'s action opens
+ * `NewProjectForm` in a `FormDialog`, which is why the host mounting here rather than only
+ * beside a `PlanCanvas` stopped being a decision made ahead of its own need.
  */
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
+import NewProjectForm from './NewProjectForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { useRenovationProjectContext } from './RenovationProjectContext';
 import { useRenovationProjectStore } from '../stores/RenovationProjectStore';
+import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
+import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
+const dialogs = useDialogStore();
 const { emptyStateKey, status, error, unreadable } = storeToRefs(store);
+
+/**
+ * `FormDescriptor.busy`'s other end. ONE ref, read and written by TWO places at once: it is
+ * handed to `NewProjectForm` as its own `busy` prop (which writes `submitting` into it) and
+ * to `openDialog`'s descriptor (which `DialogHost` reads to refuse Escape and disable
+ * Cancel). Passing it to only one of the two is this mechanism's most-repeated defect —
+ * every line reads as correct and the flag never moves.
+ */
+const newProjectBusy = ref(false);
+
+/**
+ * The empty state's hand-off, and (since Task 8) the project list header's — ONE handler
+ * for both, never two independently-decided ways to open the same form. `createProject`
+ * is passed as `NewProjectForm`'s own `dispatch`: the form owns its dispatch so a rejection
+ * renders under the field it is about and keeps the dialog OPEN, which matters because
+ * `openDialog` throws if a dialog is already open — a caller that dispatched only after
+ * this one resolved could never reopen it to show an error.
+ *
+ * `dialogs.openDialog` THROWS `DialogStackingError` while a dialog is already open, so a
+ * caller has to make it impossible to enter twice concurrently rather than trust that
+ * nobody double clicks; `EmptyState`'s button has no disabled state of its own, so the guard
+ * here is a plain `dialogs.current` check before the dialog is even opened — cheap enough
+ * that two clicks landing in the same synchronous tick still only ever reach `openDialog`
+ * once, since the first call sets `current` before its own `await` yields control back.
+ *
+ * The re-hydrate is not optional politeness: without it a created project is written and
+ * never appears, which is indistinguishable from a create that silently failed.
+ */
+async function onCreateProject(): Promise<void> {
+	if (dialogs.current !== null) return;
+
+	const result = await dialogs.openDialog({
+		kind: 'form',
+		title: tr('form.new-project.title'),
+		component: NewProjectForm,
+		props: {
+			dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input),
+			busy: newProjectBusy,
+		},
+		busy: newProjectBusy,
+	});
+	if (result === 'cancel') return;
+	await store.hydrate(context.queries);
+}
 
 /**
  * `null` for no empty state (a normal render, once slice 17's project list exists to draw),
@@ -79,6 +124,7 @@ onMounted(() => {
 			<EmptyState
 				v-if="empty !== null"
 				v-bind="empty"
+				@action="onCreateProject"
 			/>
 			<p
 				v-if="unreadable > 0"

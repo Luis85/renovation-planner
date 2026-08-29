@@ -1893,6 +1893,51 @@ of them." The rules that lasted:
   the form across the swap would preserve a form that writes through the very root `rebind`
   exists to retire — under the previous default project folder, one of the four defects that
   made `deps` non-readonly. There was nothing to preserve that still pointed anywhere valid.
+- **A defect its own header predicted, with the trigger named, and the trigger passed
+  unread.** `ObsidianProjectRepository`'s class comment described the orphan folder a failed
+  insert leaves behind for two slices and named THIS slice as when to close it — "slice 16's
+  project-creation form … the first time a user reaches this path by typing a name, and the
+  first time retrying after a failed create is an ordinary thing to do." The slice landed,
+  the form shipped, nobody re-read the header, and the review bot's finding is the code's own
+  note handed back to it. `ensureFolder` records what it created into an OUT parameter — a
+  returned list is lost on exactly the path that needs it, since the walk can throw having
+  already made some segments — and `undoEnsureFolder` removes them deepest first, each one
+  only while it is still EMPTY. The obstacle the old note gave as its reason not to
+  compensate became the BOUND rather than the excuse: `ensureFolder` walks the CONFIGURED
+  ROOT too, this repository's queue is keyed per PROJECT, and Obsidian's `trashFile` on a
+  folder takes everything inside it, so a sibling insert that filled that root is precisely
+  what the emptiness rule stands between. **A deferral written into a comment is a deferral
+  nothing schedules**: no gate can read a trigger, and the slice that trips one has no reason
+  to open the file that states it.
+- **The fake-too-thin rule again, and this time it hid a GUARD rather than a defect.**
+  `FakeVault` left `MockTFolder.children` permanently `[]`, so every folder in the suite read
+  as empty — the emptiness rule above could neither be driven nor caught being deleted. Its
+  `delete` also refused anything that was not a note, where Obsidian's `trashFile` takes any
+  `TAbstractFile`. The folder arm is modelled DESTRUCTIVELY on purpose: a fake that politely
+  refused a non-empty folder would make dropping the guard invisible, which is "not KINDER
+  than the real thing" read against a guard rather than against a crash. Blast radius: 0
+  existing tests — the second time this file records that number, and the second time the
+  number is not the point. One more dead branch came out of the same work and is recorded
+  rather than kept: the `catch` after a refused trash ended with `break`, and a folder whose
+  trash refused is still its parent's child, so the emptiness rule ends the walk on the next
+  iteration regardless. Measured by deleting the `break` and finding every case green.
+- **The unmount settles a BUSY dialog, and that is RECORDED rather than closed.** The same
+  round reported it: `onKeydown` refuses `Escape` while a write is in flight and `FormDialog`
+  disables Cancel, but `onBeforeUnmount` settles unconditionally — so a settings save landing
+  inside the window of one `vault.create` tells `ViewRoot.onCreateProject()` the dialog was
+  cancelled while its write runs on against the root `rebind` is retiring. The remedy the
+  report named — defer the rebind — needs a seam from `presentation/` back out to the
+  `ItemView` that does not exist, and buys correctness by running on the retired root for the
+  length of the write, which is the hazard `rebind` was built to close. The alternative,
+  leaving the caller suspended, is the defect the settlement was added for one round earlier.
+  So the residual is written in the three places that inherit it — the hook, `docs/tasks/16`,
+  and `formBusy.test.ts`'s last case, which pins the settlement as BEHAVIOUR so a build that
+  starts holding this door fails there rather than quietly making those paragraphs wrong.
+  What it costs was traced rather than taken from the report: the project IS created, under
+  the PREVIOUS default project folder; `ProjectCreated` reaches the retired root's bus, so the
+  rebound tree never hears it; and `VaultChangeAdapter` indexes the note while publishing
+  nothing, `projectIndexRebuilt()` having exactly one publisher that `saveSettings` runs
+  BEFORE the rebind. The rebound list is stale until the leaf is reopened.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

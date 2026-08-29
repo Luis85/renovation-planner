@@ -1169,6 +1169,80 @@ defect it was originally written for — ignore the candidate list and it still 
 number of microtask hops, because a count is a fact about today's implementation that goes
 stale in the direction of a green test asserting on a gesture that has not happened.
 
+### What the fourteenth review round found (2026-08-29)
+
+Two P2s. One was closed; the other is RECORDED, with the work that would close it, and this
+section is where the second one is inherited from.
+
+**Closed — the orphan folder a failed project insert left behind.**
+`ObsidianProjectRepository`'s class header had described this defect in full for two slices
+and named THIS slice as the trigger to revisit it: "slice 16's project-creation form … the
+first time a user reaches this path by typing a name, and the first time retrying after a
+failed create is an ordinary thing to do." The slice landed and the trigger was not taken, so
+the report is the code's own note being read back to it. `ensureFolder` before `vault.create`,
+a `catch` compensating nothing: a create that failed after the folder was made left an empty
+folder, and `freshProjectFolder` collides on any abstract file at the base path, so the retry
+landed at `<name> <id>` — a different suffix each time, because the command mints a new id per
+call. Two failures, two orphans, the project in a third folder, and a form is exactly where
+repeated failures happen.
+
+`ensureFolder` records what it created and `undoEnsureFolder` removes it. The obstacle the old
+note named — that `ensureFolder` also creates the CONFIGURED ROOT, which may be a folder the
+user owns and has filled — is what makes the rollback NARROW rather than absent: only folders
+that call created, deepest first, and only while each is still empty. The emptiness rule is
+load-bearing rather than defensive, because this repository's queue is keyed per PROJECT: a
+sibling insert that found the shared root already there and filled it is concurrent with the
+first one's failure, and Obsidian's `trashFile` on a folder takes everything inside it. Three
+things about the work are worth keeping:
+
+- **The fake was thinner than the thing it stands for, twice over.** `FakeVault` left
+  `TFolder.children` permanently `[]`, so every folder in the suite read as empty and the
+  emptiness rule could neither be driven nor removed-and-caught; and `delete` refused anything
+  that was not a note, where Obsidian's `trashFile` takes any `TAbstractFile`. The folder arm
+  is modelled DESTRUCTIVELY on purpose — a fake that politely refused a non-empty folder would
+  make dropping the guard invisible, which is the same "not kinder than the real thing" rule
+  the Testing section already carries. Blast radius: 0 existing tests.
+- **One branch in the first draft was dead and reads as belt and braces.** The `catch` after a
+  failed trash ended with `break`; a folder whose trash refused is still its parent's child, so
+  the emptiness rule ends the walk on the next iteration regardless. Measured by deleting the
+  `break` and finding all five cases green, then removed rather than left.
+- **Each case was watched failing against the mutation it exists for**, not merely written:
+  removing the compensation reddens three, dropping the emptiness rule reddens exactly the one
+  about a filled folder, and stopping `ensureFolder` from recording reddens all five.
+
+**Recorded, not closed — an unmount settles a BUSY dialog.** `DialogHost.onBeforeUnmount`
+settles with the kind's cancel result unconditionally, `descriptor.busy` included, while
+`onKeydown` refuses `Escape` and `FormDialog` disables Cancel in that same state. An unmount
+cannot refuse the way those two can: the tree is going either way, and leaving the caller
+suspended is the defect the settlement was added for one round earlier. So a `saveSettings`
+landing inside the window of a single `vault.create` tells `ViewRoot.onCreateProject()` the
+dialog was cancelled while its write runs on against the root `rebind` is retiring.
+
+What the residual costs was traced rather than taken from the report, and one clause of it is
+ours rather than the reporter's: the project IS created, under the PREVIOUS default project
+folder; `ProjectCreated` reaches the retired root's event bus, so the rebound tree's
+`onProjectsChanged` never hears it; and `VaultChangeAdapter` indexes the note into the new
+root while publishing NOTHING — `projectIndexRebuilt()` has exactly one publisher, the full
+scan, and `saveSettings` runs that BEFORE `rebindOpenViews`. The rebound list is therefore
+stale until the leaf is reopened.
+
+Reachability is one `vault.create` wide and is real rather than theoretical: `DialogHost`'s
+`onKeydown` deliberately calls `preventDefault()` without `stopPropagation()`, so Obsidian's
+own keymap stays live behind an open dialog and `Ctrl+,` reaches the settings pane.
+
+**The work that would close it**, and why it was not done here: the report's remedy is to
+defer the rebind or otherwise coordinate the active write. Deferring needs
+`RenovationProjectView` to learn that its Vue tree is mid-write — a seam from `presentation/`
+back out to the `ItemView` that does not exist today — and it buys correctness by running on
+the retired root for the length of that write, which is the hazard `rebind` was built to
+close. Three modules hold a third of the decision each, so the residual is written down in
+all three places that inherit it: `DialogHost`'s own hook, this section, and
+`tests/presentation/dialogs/formBusy.test.ts`'s last case, which pins the settlement as
+BEHAVIOUR so that a build which starts holding this door fails there rather than quietly
+making those paragraphs wrong. What no test here asserts is the stale list: that is a fact
+about three modules and about an event nobody publishes, and saying so is cheaper than a
+case that would have to compose two roots to demonstrate it.
+
 
 ## References
 

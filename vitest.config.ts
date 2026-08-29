@@ -722,6 +722,17 @@ export default defineConfig({
 			// 99 / 98 / 99 / 99 already in force, which is what slices 5, 11, 13, 15 and 18 also
 			// measured.
 			//
+			// Re-measured a third time 2026-08-29, for the FOURTEENTH review round's two
+			// findings — the orphan folder a failed project insert left behind, now
+			// compensated, and the busy-dialog unmount, recorded rather than closed:
+			// 5280/5317 statements, 2619/2668 branches, 1332/1342 functions, 4707/4729 lines —
+			// 99.30 / 98.16 / 99.25 / 99.53. NOTHING RATCHETS, again. The compensation adds 16
+			// statements, 6 branches, one function and 14 lines, and every one of them is
+			// covered — read out of `coverage/coverage-final.json` rather than assumed, where
+			// `noteIo.ts`, `ObsidianProjectRepository.ts` and `DialogHost.vue` each measure
+			// 100% of all four. So the headroom named below is unchanged in UNITS, which is the
+			// figure that matters, while branches move one hundredth: 98.15 to 98.16.
+			//
 			// **FUNCTIONS are the tightest at THREE, and branches are four.** Statements have 16
 			// of headroom and lines 25, both counted as whole covered units rather than as
 			// percentage points, because a unit is what an untested arm actually costs. Neither

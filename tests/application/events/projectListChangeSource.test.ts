@@ -10,10 +10,11 @@
 import { describe, expect, it } from 'vitest';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { createProjectListChangeSource } from '../../../src/application/events/projectListChangeSource';
-import { projectIndexRebuilt } from '../../../src/application/events/projectIndex.events';
+import { projectIndexEntryChanged, projectIndexRebuilt } from '../../../src/application/events/projectIndex.events';
 import { projectCreated } from '../../../src/domain/project/Project.events';
 import { planBackgroundChanged } from '../../../src/domain/plan/Plan.events';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
+import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 
 function wired() {
@@ -48,6 +49,58 @@ describe('the project list change source', () => {
 		await bus.publish(projectCreated({ projectId: createProjectId() }));
 
 		expect(heard).toEqual(['first', 'second']);
+	});
+
+	/**
+	 * The path the two events above cannot see: a project note added by hand, copied in, or
+	 * arriving through sync. `VaultChangeAdapter` is the SOLE index writer for everything this
+	 * plugin did not write itself, and it published nothing at all — so a mounted pane drew the
+	 * vault it had read at mount until something rebuilt the whole index, and
+	 * `projectIndexRebuilt()` has exactly one publisher (layout-ready and a settings swap).
+	 * Reported in review, one round after the `ProjectCreated` entry above closed the
+	 * command-originated half of the same staleness.
+	 */
+	it('tells every listener that a project entry changed in the vault', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(
+			projectIndexEntryChanged({ entityId: createProjectId(), entityType: 'renovation-project' }),
+		);
+
+		expect(heard).toEqual(['first', 'second']);
+	});
+
+	/**
+	 * The same event for anything else is NOT the list's business, and the filter is what keeps
+	 * this source from becoming decoration: a synced plan or a burst of zone notes would
+	 * otherwise make this view re-read every project note in the vault, per note. The adapter
+	 * announces every entry it touches — that is the category it can honestly claim — and
+	 * deciding which of them mean "the project set may have changed" is this module's job,
+	 * because this module is the one that may know both halves.
+	 */
+	it('stays out of an entry change that is not a project', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(
+			projectIndexEntryChanged({ entityId: createZoneId(), entityType: 'renovation-zone' }),
+		);
+
+		expect(heard).toEqual([]);
+	});
+
+	/**
+	 * The guard's other arm, and it is a decision rather than a defensive line: an event named
+	 * in the entry list that arrives WITHOUT the payload is never delivered, instead of
+	 * comparing `undefined` against an entity type. `planChangeSource.planIdOf` carries the same
+	 * rule for the same reason — the alternative, letting an unmatched event through, delivers
+	 * every future payload-less event to every listener by accident.
+	 */
+	it('drops an entry event that carries no payload rather than treating it as a match', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish({ type: 'ProjectIndexEntryChanged' });
+
+		expect(heard).toEqual([]);
 	});
 
 	it('stays out of the events that are about one plan', async () => {

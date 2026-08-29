@@ -513,6 +513,10 @@ export function createCompositionRoot(
 				index,
 				echo,
 				logger,
+				// REQUIRED rather than optional, and this is the wiring the requirement buys: an
+				// optional bus would let a root that forgets it compile, pass and announce nothing,
+				// which is the one failure this whole mechanism exists to prevent.
+				events: eventBus,
 			}),
 		},
 	};

@@ -733,6 +733,24 @@ export default defineConfig({
 			// 100% of all four. So the headroom named below is unchanged in UNITS, which is the
 			// figure that matters, while branches move one hundredth: 98.15 to 98.16.
 			//
+			// Re-measured a fourth time 2026-08-29, for the FIFTEENTH round's single finding — the
+			// vault-change pipeline announcing the index entries it changes, so a project note added
+			// by hand, copied in or arriving through sync reaches a mounted pane: 5292/5329
+			// statements, 2623/2672 branches, 1339/1349 functions, 4718/4740 lines —
+			// 99.30 / 98.16 / 99.25 / 99.53. NOTHING RATCHETS. Twelve statements, four branches,
+			// seven functions and eleven lines added, every one covered, and the headroom is
+			// unchanged in units at 16 / 4 / 3 / 25.
+			//
+			// The four branches are worth naming, because ONE of them was uncovered for a run and
+			// the gate did not catch it — branches read 98.12 against a floor of 98, which is three
+			// covered units, so a passing gate is not evidence that a new arm was tested. The arm
+			// was `changedEntityTypeOf`'s `null`: an entry event arriving with no payload, which is
+			// the guard's whole reason for being a guard rather than a cast. Found by reading
+			// `coverage-final.json` for the three changed files rather than by the threshold, and
+			// pinned by a case that was then watched failing against a guard rewritten to default
+			// the missing payload to a project. **Read the floor as a floor and not as a review**:
+			// at this headroom an untested arm costs 0.037pp and hides completely.
+			//
 			// **FUNCTIONS are the tightest at THREE, and branches are four.** Statements have 16
 			// of headroom and lines 25, both counted as whole covered units rather than as
 			// percentage points, because a unit is what an untested arm actually costs. Neither

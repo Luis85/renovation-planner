@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
 import { apiVersion } from '../helpers/obsidian-mock';
 import { loadedPlugin } from '../helpers/plugin';
-import { createRepositoryStack } from '../helpers/vault';
+import { createRepositoryStack, serializeFrontmatter } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
 import { expectErr, expectOk } from '../helpers/domain';
 import { createPlanId } from '../../src/domain/plan/PlanId';
@@ -231,6 +231,48 @@ describe('persistence composition', () => {
 		plugin.root.persistence?.changeAdapter.flush();
 
 		expect(plugin.root.persistence?.index.getPath(planId)).toBe(planPath);
+	});
+
+	/**
+	 * The bus the pipeline announces on is the ROOT's bus, and nothing but this can say so.
+	 * `VaultChangeAdapter.deps.events` is REQUIRED, so a root that passes none fails to
+	 * compile — but a root that passes a FRESH `createEventBus()` compiles, passes every other
+	 * test in this repository, and announces into an object no view has ever subscribed to.
+	 * That is the same shape `slice10CascadeWiring` and `sequenceNoticeWiring` exist for, with
+	 * the compiler covering only the half that is a missing argument.
+	 *
+	 * Driven end to end rather than by reading the field: a foreign project note through the
+	 * registered vault handler, and the assertion is on what a subscriber HEARS.
+	 */
+	it('announces a foreign note on the root bus every view subscribes to', async () => {
+		const stack = createRepositoryStack(DEFAULT_SETTINGS.projectFolder);
+		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+
+		const heard: string[] = [];
+		plugin.root.eventBus.subscribe('ProjectIndexEntryChanged', (event) => {
+			heard.push((event as { payload: { entityType: string } }).payload.entityType);
+		});
+
+		// Written straight into the vault, the way sync or the file explorer delivers one —
+		// never through a repository, whose own save would upsert the index and echo-suppress
+		// the event that follows it.
+		const projectId = createProjectId();
+		stack.vault.entries.set(
+			`${DEFAULT_SETTINGS.projectFolder}/Foreign/Project.md`,
+			serializeFrontmatter({ type: 'renovation-project', id: projectId, 'schema-version': 1 }),
+		);
+		stack.metadataCache.catchUp();
+
+		// The registered handler drops anything that is not a `TFile`, so this passes the vault's
+		// own abstract file rather than a `{ path }` shape — the guard is in the plugin, not in the
+		// adapter, and a bare object is silently ignored one layer above the thing under test.
+		const [onCreate] = vaultHandlers;
+		onCreate(stack.vault.getAbstractFileByPath(`${DEFAULT_SETTINGS.projectFolder}/Foreign/Project.md`) as never);
+		plugin.root.persistence?.changeAdapter.flush();
+		await Promise.resolve();
+
+		expect(heard).toEqual(['renovation-project']);
 	});
 
 	/**

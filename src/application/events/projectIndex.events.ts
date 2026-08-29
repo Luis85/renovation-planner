@@ -1,4 +1,6 @@
 import type { DomainEvent } from '../../core/events/EventBus';
+import type { EntityId } from '../../core/identity/EntityId';
+import type { EntityType } from '../ports/ProjectIndex';
 
 /**
  * The Project Index was (re)built — the one fact a view needs that no entity emits.
@@ -25,4 +27,44 @@ export type ProjectIndexRebuilt = DomainEvent<'ProjectIndexRebuilt'>;
 
 export function projectIndexRebuilt(): ProjectIndexRebuilt {
 	return { type: 'ProjectIndexRebuilt' };
+}
+
+/**
+ * ONE entry in the Project Index changed out of band — the vault-change pipeline's own
+ * announcement, and the counterpart to the rebuild above rather than a smaller version of it.
+ *
+ * It exists because `ProjectIndexRebuilt` had exactly one publisher for four slices —
+ * `RenovationPlannerPlugin.startPersistence`, at layout-ready and on a settings swap — while
+ * `VaultChangeAdapter` is the SOLE index writer for every change this plugin did not make
+ * itself: a note added by hand, copied in, or arriving through sync. That adapter held no
+ * `EventBus` at all, so every one of those changes reached the index and no view. A mounted
+ * Renovation Project pane went on drawing the vault it had read at mount, indefinitely; the
+ * module that turns this vocabulary into a subscription had recorded the DELETE half of the
+ * same gap in prose ("still publishes nothing at all") and named it unfixable "until something
+ * raises one". This is that something. Reported in review.
+ *
+ * **It carries the entity's type, and a rebuild deliberately carries nothing.** That asymmetry
+ * is the whole reason these are two events rather than one with an optional payload: a rebuild
+ * says nothing about WHICH entities changed, so every subscriber must re-read, while this one
+ * names exactly one entry and lets each source decide whether that entry is its business.
+ * Without the type, the project list would re-read every project note in the vault for every
+ * synced zone note — the subscription would be correct and the surface would be unusable.
+ *
+ * The id is carried for the same reason every other event in this codebase carries its
+ * subject, and is used by nothing today; a plan-side source that wants "this plan's entry
+ * moved" is the first caller that will need it.
+ */
+export interface ProjectIndexEntryChangedPayload {
+	readonly entityId: EntityId<string>;
+	readonly entityType: EntityType;
+}
+
+export interface ProjectIndexEntryChanged extends DomainEvent<'ProjectIndexEntryChanged'> {
+	readonly payload: ProjectIndexEntryChangedPayload;
+}
+
+export function projectIndexEntryChanged(
+	payload: ProjectIndexEntryChangedPayload,
+): ProjectIndexEntryChanged {
+	return { type: 'ProjectIndexEntryChanged', payload };
 }

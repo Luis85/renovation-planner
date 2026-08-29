@@ -5,6 +5,7 @@ import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '..
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
+import { createEventBus } from '../../../../src/core/events/EventBus';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 
 /**
@@ -20,6 +21,9 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>): VaultChange
 		index: stack.index,
 		echo: stack.echo,
 		logger: stack.logger,
+		// A real bus with no subscribers: the pipeline announces every entry it changes, and
+		// a fake that accepted no publish would be thinner than the port it stands for.
+		events: createEventBus(() => undefined),
 		debounceMs: 0,
 	});
 }

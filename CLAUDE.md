@@ -1938,6 +1938,43 @@ of them." The rules that lasted:
   rebound tree never hears it; and `VaultChangeAdapter` indexes the note while publishing
   nothing, `projectIndexRebuilt()` having exactly one publisher that `saveSettings` runs
   BEFORE the rebind. The rebound list is stale until the leaf is reopened.
+- **The half of a staleness that no COMMAND can raise, and the docblock that called it
+  unfixable was pointing at the fix.** `projectListChangeSource` gained `ProjectCreated` in
+  one round and still missed every project note added by hand, copied in, or arriving through
+  sync: `VaultChangeAdapter` is the SOLE index writer for those, and it held no `EventBus` at
+  all, while `ProjectIndexRebuilt` has exactly one publisher (layout-ready and a settings
+  swap). A mounted pane drew the vault it had read at mount, indefinitely. The module's own
+  paragraph had recorded the delete case in prose — "there is no `ProjectDeleted` to add here
+  until something raises one" — which reads as a survey of the ground and was actually a
+  description of the missing publisher one layer down. `ProjectIndexEntryChanged` is that
+  publisher, and **it carries the entity's TYPE, which is what makes the fix usable rather
+  than merely correct**: a rebuild deliberately carries nothing, because it cannot say which
+  entities changed, while this one names one entry and each source filters. Unfiltered, the
+  subscription would be correct and the surface unusable — a burst of synced zone notes would
+  re-read every project note in the vault, once per note. Two rules came with it. Every index
+  mutation goes through ONE pair of private methods rather than six remembered call sites,
+  because "the index changed under you" is a category a view trusts and a call-site list
+  cannot promise. And the ECHO check comes first: this plugin's own writes upsert the index
+  and publish their own command events, so announcing above that check would fire a second
+  refresh per save and make the index, not the domain, the thing views listen to — measured by
+  hoisting the announce above the guard and watching the case go red.
+- **A passing coverage gate is not evidence that a new arm was tested, and this file's own
+  rule needed the sharper spelling.** The paragraph above says an untested new arm "does not
+  reduce coverage, it fails the gate". That is true when the headroom is one arm and false
+  otherwise: this round left `changedEntityTypeOf`'s payload-less arm uncovered and branches
+  read 98.12 against a floor of 98 — three covered units of headroom, so the gate passed and
+  said nothing. It was found by reading `coverage-final.json` for the three CHANGED FILES,
+  which is the instrument that can see one arm, and the threshold is not. Read the floor as a
+  floor.
+- **`events` REQUIRED is half the check, and the compiler owns only that half.** A composition
+  passing no bus fails to build; one passing a FRESH `createEventBus()` compiles, passes every
+  other test here, and announces into an object nothing has subscribed to — the exact shape
+  `slice10CascadeWiring` and `sequenceNoticeWiring` were written for, with the compiler
+  covering the missing argument and nothing covering the wrong one. The wiring case drives a
+  foreign note through the REGISTERED vault handler and asserts on what a subscriber on
+  `root.eventBus` hears. Its first draft passed a `{ path }` object to that handler and the
+  plugin's own `file instanceof TFile` guard dropped it silently one layer above the thing
+  under test — a test that reached nothing, which is indistinguishable from a clean tree.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

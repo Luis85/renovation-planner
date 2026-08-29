@@ -1243,6 +1243,67 @@ making those paragraphs wrong. What no test here asserts is the stale list: that
 about three modules and about an event nobody publishes, and saying so is cheaper than a
 case that would have to compose two roots to demonstrate it.
 
+### What the fifteenth review round found (2026-08-29)
+
+One P2, closed. **The vault-change pipeline changed the index and told nobody.**
+
+`VaultChangeAdapter` is the SOLE index writer for every change this plugin did not make
+itself — a project note added by hand, copied in, or arriving through sync — and it held no
+`EventBus` at all. `ProjectIndexRebuilt` was never going to correct anyone either: it has
+exactly one publisher, `RenovationPlannerPlugin.startPersistence`, at layout-ready and on a
+settings swap. So a mounted Renovation Project pane drew the vault it had read at mount,
+indefinitely, and an externally edited project name or status stayed stale beside it.
+
+The previous round closed the command-originated half of the same staleness by putting
+`ProjectCreated` on this source. This is the half no command can raise, and the module's own
+docblock had recorded it in prose — "a project note DELETED in the vault still publishes
+nothing at all … there is no `ProjectDeleted` to add here until something raises one". The
+report pointed at the thing that should raise it. That paragraph is rewritten rather than
+left standing beside code that now contradicts it.
+
+**`ProjectIndexEntryChanged` carries the entity's TYPE, and that is what makes the fix
+usable rather than merely correct.** `ProjectIndexRebuilt` deliberately carries nothing,
+because a rebuild says nothing about which entities changed and every subscriber must
+re-read. This one names exactly one entry, and each source decides whether that entry is its
+business: `projectListChangeSource` takes it only for `renovation-project`. Without the
+filter the subscription would still be correct and the surface would be unusable — a synced
+plan or a burst of zone notes would make this view re-read every project note in the vault,
+once per note. Deciding that is this module's job, because it is the layer that may know both
+the bus and the event names.
+
+Four things about the work:
+
+- **Every index mutation goes through one pair of private methods**, `applyUpsert` and
+  `applyRemove`, and that is a CATEGORY rather than a habit. Six sites called
+  `index.upsert`/`index.remove` directly across four handlers and the sidecar path, and the
+  announcement's whole value is that a view can trust it to mean "the index changed under
+  you" — which a list of remembered call sites cannot promise. The removal reads the entry's
+  type BEFORE dropping it, which is why both take the whole entry rather than an id.
+- **The echo check comes first, and that has its own case.** This plugin's own writes upsert
+  the index synchronously and publish their own command events; Obsidian replays them back
+  through this pipeline, where the echo window drops them. An announcement made above that
+  check would fire a second refresh for every save the user makes, and would make the index —
+  rather than the domain — the thing views listen to. Measured by hoisting the announce above
+  the echo guard and watching that case go red.
+- **`events` is REQUIRED, and the wiring still needs a test.** The compiler catches a root
+  that passes no bus; it cannot catch a root that passes a FRESH `createEventBus()`, which
+  compiles, passes everything else here, and announces into an object no view has subscribed
+  to — the shape `slice10CascadeWiring` and `sequenceNoticeWiring` exist for.
+  `persistence-wiring.test.ts` drives a foreign note through the REGISTERED vault handler and
+  asserts on what a subscriber on `root.eventBus` hears; watched red against exactly that
+  mutation.
+- **A passing coverage gate is not evidence that a new arm was tested.** The first run of this
+  work left `changedEntityTypeOf`'s `null` arm — an entry event with no payload, the guard's
+  whole reason for being a guard rather than a cast — uncovered, and branches read 98.12
+  against a floor of 98. Three covered units of headroom absorbed it silently. Found by
+  reading `coverage-final.json` for the three changed files, not by the threshold.
+
+**What this does NOT close, named rather than left to be rediscovered.** The plan editor has
+the identical gap: `planChangeSource` subscribes to `ProjectIndexRebuilt` and the five plan
+and zone events, so a zone note arriving through sync updates the index and no open editor
+leaf. The event it would need now exists and carries the type it would filter on; adding it
+is a decision about the editor's refresh cost, not about this mechanism, and it belongs to
+whoever next touches that surface rather than to a slice about forms.
 
 ## References
 

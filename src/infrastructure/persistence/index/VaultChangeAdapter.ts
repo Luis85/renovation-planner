@@ -1,6 +1,8 @@
 import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import type { EventBus } from '../../../core/events/EventBus';
+import { projectIndexEntryChanged } from '../../../application/events/projectIndex.events';
 import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
@@ -28,6 +30,7 @@ export class VaultChangeAdapter {
 			metadataCache: MetadataCache;
 			index: ProjectIndex;
 			echo: EchoWindow;
+			events: EventBus;
 			logger: Logger;
 			/** Tests flush synchronously by passing 0. */
 			debounceMs?: number;
@@ -63,7 +66,7 @@ export class VaultChangeAdapter {
 			this.enqueue(file.path);
 			return;
 		}
-		this.deps.index.upsert({ ...existing, path: file.path });
+		this.applyUpsert({ ...existing, path: file.path });
 		this.deps.echo.move(oldPath, file.path);
 		this.pending.delete(oldPath);
 		this.enqueue(file.path);
@@ -104,7 +107,7 @@ export class VaultChangeAdapter {
 		if (!(abstractFile instanceof TFile)) {
 			// Deleted (or replaced by something that is not a note).
 			if (existing) {
-				this.deps.index.remove(existing.id);
+				this.applyRemove(existing);
 				this.deps.echo.forget(path);
 			}
 			return;
@@ -131,7 +134,7 @@ export class VaultChangeAdapter {
 			}
 			// Not ours — but if it USED to be, it changed into something we cannot index.
 			if (existing) {
-				this.deps.index.remove(existing.id);
+				this.applyRemove(existing);
 				this.deps.echo.forget(path);
 			}
 			return;
@@ -143,7 +146,7 @@ export class VaultChangeAdapter {
 
 		this.warnOnDuplicateId(ref.id, path);
 
-		this.deps.index.upsert({
+		this.applyUpsert({
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,
 			path,
@@ -175,7 +178,7 @@ export class VaultChangeAdapter {
 		if (!(file instanceof TFile)) {
 			this.deps.echo.forget(path);
 			if (planEntry?.geometrySidecarPath === path) {
-				this.deps.index.upsert({ ...planEntry, geometrySidecarPath: undefined });
+				this.applyUpsert({ ...planEntry, geometrySidecarPath: undefined });
 			}
 			return;
 		}
@@ -210,7 +213,7 @@ export class VaultChangeAdapter {
 		// which is how an in-vault backup of a project folder silently sent the live plan's
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
-		this.deps.index.upsert({
+		this.applyUpsert({
 			...planEntry,
 			geometrySidecarPath: sidecarMappingFor({
 				logger: this.deps.logger,
@@ -243,6 +246,39 @@ export class VaultChangeAdapter {
 			otherPath: indexed,
 			reason: 'another note already declares this id; it is no longer reachable',
 		});
+	}
+
+	/**
+	 * Every index mutation this pipeline makes goes through this pair, and that is a CATEGORY
+	 * rather than a habit: the announcement's whole value is that a view can trust it to mean
+	 * "the index changed under you", which a list of remembered call sites cannot promise. Six
+	 * sites called `index.upsert`/`index.remove` directly before these existed, across four
+	 * handlers and the sidecar path.
+	 *
+	 * The removal reads the entry's `type` BEFORE dropping it, because after `index.remove`
+	 * there is nothing left to ask — which is why both take the whole entry rather than an id.
+	 */
+	private applyUpsert(entry: ProjectIndexEntry): void {
+		this.deps.index.upsert(entry);
+		this.announce(entry.id, entry.type);
+	}
+
+	private applyRemove(entry: ProjectIndexEntry): void {
+		this.deps.index.remove(entry.id);
+		this.announce(entry.id, entry.type);
+	}
+
+	/**
+	 * Fire-and-forget, which this repository normally treats as a defect and here is safe for a
+	 * reason worth stating rather than assuming: `createEventBus.publish` NEVER rejects — a
+	 * throwing handler is isolated per subscriber and handed to the bus's own `onError`, which
+	 * the composition root binds to the logger. So there is no rejection to reach nobody. It has
+	 * to be fire-and-forget either way: every caller here is one of Obsidian's synchronous vault
+	 * callbacks, and awaiting a subscriber inside one would put a view's re-read on the vault
+	 * event loop's critical path.
+	 */
+	private announce(id: ProjectIndexEntry['id'], type: ProjectIndexEntry['type']): void {
+		void this.deps.events.publish(projectIndexEntryChanged({ entityId: id, entityType: type }));
 	}
 
 	private findByPath(path: string): ProjectIndexEntry | undefined {

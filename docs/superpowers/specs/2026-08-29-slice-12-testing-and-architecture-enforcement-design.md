@@ -632,9 +632,10 @@ the claim is narrowed to what the instrument can see.
 
 **This is the fourth revision of this one assertion**: a wall clock, then a count, then a count
 on the wrong object, then a shared recorder, and now a narrowed claim. Each round the instrument
-got closer and the sentence describing it stayed one step ahead of it. Which is the argument for
-question 4 being answered deliberately: an assertion that has needed four corrections before
-anything was built is not obviously worth its place this round.
+got closer and the sentence describing it stayed one step ahead of it. Which is why §4a drops this
+fixture from the round rather than building it: an assertion that has needed four corrections
+before anything was built is not obviously worth its place, and its design is kept so that a
+later round with a real subject picks it up rather than rediscovering it.
 
 **The recorder belongs to BOTH adapters, and the previous draft put it on the wrong one.** This
 is the third appearance of "the instrument does not reach the subject" in this document, and the
@@ -669,43 +670,63 @@ Done asks for exactly this ("no `.spec.ts` file exists anywhere under `src/`", l
 Raised by a review bot. Measuring a set and then guarding a subset of it is this document's
 recurring failure in its smallest form.
 
-## 4a. Open decisions — the four questions this document defers
+## 4a. Decisions — the four questions this document deferred
 
 Several sections above defer to "question 2" or "question 4". Those were put to the slice's owner
-in conversation and were **not written down here**, which makes this document non-self-contained
-for anyone reading the PR — raised by a review bot, and correct. They are recorded now, with the
-evidence each has accumulated. **None is answered; the design states a recommendation and the
-reasons against it, and implementation should not begin until they are settled.**
+in conversation and were **not written down here**, which made this document non-self-contained
+for anyone reading the PR — raised by a review bot, and correct. They are recorded now, each with
+the evidence it accumulated, **the decision taken, and what would reverse it**. Two were settled
+by the slice owner directly; two are taken here on the recommendation, and both are cheap to
+reverse because neither writes code that the other choice would have to delete.
 
-**Question 1 — how large is the §1 matrix?** The probe set has gained a dimension in nearly every
-review round: cells, then import shapes, then extensions, then block kinds, then the block ×
-extension cross-product. It is now on the order of 130 `lintText` calls across eleven blocks.
-*Recommendation:* keep it, with the enumeration in code. *Against:* the instrument is now
-considerably larger than the "one call per layer" first proposed, and its size was reached by
-accumulation rather than by a decision.
+**Question 1 — how large is the §1 matrix? Decided: keep it, and make its size a product of named
+dimensions rather than a list.** The probe set gained a dimension in nearly every review round:
+cells, then import shapes, then extensions, then block kinds, then the block × extension
+cross-product. It is on the order of 130 `lintText` calls across eleven blocks. *The reason
+against was never that any dimension is wrong* — each was added because a blind spot was measured
+— *but that the size was reached by accumulation rather than by a decision.* Accumulation is
+answered by construction: the cases are generated from three named arrays (block, extension,
+import shape) with the exceptions listed beside them, so the count is a consequence of the
+dimensions and a reader can see every dimension at once. A hand-written list of 130 cells would
+be the thing worth refusing. *Reversed by:* a measured boot cost that makes the file too slow to
+sit in `tests/build/` — the budget is `ESLINT_BOOT_MS`, and §7 records how to measure it.
 
-**Question 2 — withdraw the vitest two-project split, or take it?** *Recommendation as first
-made:* withdraw it, since the node default plus a guard delivers the same enforcement. *Against,
-and this has strengthened:* the replacement predicate has been corrected **six times** (allowlist
-too far, denylist too short, `jsdom` instead of "not node", one directive spelling of two, a
-directory wider than its invariant, directives instead of the effective environment). Six
-paraphrases before reaching the property is evidence the property is hard to state; the
+**Question 2 — withdraw the vitest two-project split, or take it? Decided by the slice owner:
+narrow the item, keep the docblock opt-in, withdraw the structural split.** *The reason against,
+and it strengthened through review:* the replacement predicate was corrected **six times**
+(allowlist too far, denylist too short, `jsdom` instead of "not node", one directive spelling of
+two, a directory wider than its invariant, directives instead of the effective environment). Six
+paraphrases before reaching the property is evidence the property is hard to state, and the
 Definition of Done's structural split assigns environments by construction and has nothing to
-paraphrase.
+paraphrase. What makes the narrowed item safe *despite* that record is the sixth correction
+specifically: the guard now asks Vitest for the **effective environment** of a collected file
+rather than reading directives, so it is no longer a paraphrase of the property — it is the
+property. Per this repository's own rule, the guard's instrument is driven against fixtures
+first, in both directions, before it is trusted over the tree. *Reversed by:* the guard needing a
+seventh correction. A seventh is the signal that the property really cannot be stated at this
+seam, and the structural split is then the answer.
 
-**Question 3 — is the fixture vault additive, or does the contract arm repoint now?**
-*Recommendation:* additive, deferring the repoint past PR 25. *Against:* the repoint turned out to
-be **a second composition root for tests** — `NoteVaultDeps` has eight members and
+**Question 3 — is the fixture vault additive, or does the contract arm repoint now? Decided by
+the slice owner: additive, deferring the repoint past PR 25.** *The reason against:* the repoint
+turned out to be **a second composition root for tests** — `NoteVaultDeps` has eight members and
 `ObsidianZoneRepository` takes a `PlanGeometryStore` beside them — not the one adapter this
-document first described. Choosing additive also ships `valid-project/` with no consumer, which
-§3 records as open rather than delivered.
+document first described. That is what makes additive the right call rather than merely the
+cautious one: a second composition root is a thing to design, not a thing to fit alongside a
+106-file pull request. Choosing additive also ships `valid-project/` with no consumer, which §3
+records as open rather than delivered — the honest cost, written where a reader meets the
+fixture. *Reversed by:* PR 25 merging before this slice's implementation starts, at which point
+the repoint is no longer a race and can be sequenced into the same branch.
 
-**Question 4 — does `large-project/` earn its place this round?** *Recommendation: drop it.* Its
-assertion has been revised four times (a wall clock, a count, a count on the wrong object, a
-shared recorder, a narrowed claim), it now proves only single enumeration and linear
-metadata-cache I/O, and the shared recorder it needs is blocked behind PR 25's edits to
+**Question 4 — does `large-project/` earn its place this round? Decided: dropped from this round,
+with its design kept.** Its assertion was revised four times (a wall clock, a count, a count on
+the wrong object, a shared recorder, a narrowed claim); it now proves only single enumeration and
+linear metadata-cache I/O; and the shared recorder it needs is blocked behind PR 25's edits to
 `tests/helpers/vault.ts`. It has cost more design attention than any other item here and proves
-the least.
+the least — and it is the one item in this slice that *cannot* proceed in parallel with PR 25,
+which is the whole premise of doing this slice now. The operation-count bound already designed
+for it stays in §3 so a later round picks the fixture up without rediscovering it. *Reversed by:*
+a real performance question about project enumeration — at which point the fixture has a subject,
+which today it does not.
 
 
 ## 5. What is recorded as NOT met
@@ -761,8 +782,9 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   directives instead of the effective environment. Every one narrowed a paraphrase back toward the
   property, and only this version asks the property directly. **That record is itself an argument
   for taking the Definition of Done's structural split instead** — it assigns suites to
-  environments by construction and leaves nothing to paraphrase — and it is the strongest reason
-  yet for my user to answer question 2 rather than inherit my answer to it.
+  environments by construction and leaves nothing to paraphrase. §4a records why the narrowed
+  item was taken anyway, and what would reverse it: this version stopped paraphrasing, and a
+  seventh correction is the signal that the split is the answer after all.
 
   That last clause replaces a directory-wide ban on `tests/infrastructure/`, which reached past
   its own justification: the source-level DOM ban is scoped to `core`/`domain`, `infrastructure/`
@@ -839,9 +861,9 @@ claim made early and not re-checked after four rounds of scope change is the sam
 counts this document has already had to correct three times.
 
 **So the recorder edit is sequenced rather than raced**: it lands after PR 25 merges, and until
-then `large-project/` is the one in-slice consumer blocked on it. Which is a second reason
-question 4 — whether `large-project/` earns its place this round — is worth deciding
-deliberately.
+then `large-project/` is the one in-slice consumer blocked on it. Which is the second reason §4a
+drops `large-project/` from this round: it is the one item in this slice that cannot proceed in
+parallel with PR 25, which is the entire premise of doing this slice now.
 
 Measured across all 106 of PR 25's files rather than the first page of them, because the
 first draft of this sentence asserted the opposite from a truncated listing: PR 25 **does**

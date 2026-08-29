@@ -1,7 +1,8 @@
 import { computed, readonly, ref, toValue, type DeepReadonly, type MaybeRefOrGetter, type Ref } from 'vue';
 import { isErr, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
-import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
+import type { Logger } from '../../application/ports/Logger';
+import { faultError } from '../notices/notify';
 import { routeError, type FieldErrorMap } from '../errors/route-error';
 
 /** What `CommandHistory.run` takes: anything with the two halves of a reversible write. */
@@ -11,15 +12,14 @@ interface RunnableCommand {
 }
 
 /**
- * The mapper for a fault that reaches this composable's own last door — a coalesced round's
- * own continuation, rejecting with nobody left to catch it (see `commitOnce`'s docblock).
- * Built once, module-scoped, the same way `presentation/notices/notify.ts`'s `notifyFault`
- * builds its own `mapUnexpected`: this is the identical shape of problem one layer down —
- * something THROWN that no guard turned into a `Result`, reaching a door outside the
- * composition root's boundary. `presentation/composables/` may import `application/`; the
- * layer ban that stops there applies to `presentation/dialogs/` only.
+ * The event name a continuation fault is logged under — FIXED here rather than taken as an
+ * option, unlike every other `faultError` caller.
+ *
+ * The event says which DOOR faulted, and the door is this composable's own: a coalesced
+ * round's unawaited continuation, which no caller holds and no caller can distinguish. A
+ * per-caller name would be describing the caller instead, which is not what faulted.
  */
-const mapUnexpectedFault = createVaultExceptionMapper('vault');
+const CONTINUATION_FAULT_EVENT = 'field.commit.continuation.faulted';
 
 /**
  * One Inspector field's draft, error and pending state.
@@ -68,6 +68,22 @@ export function useFieldCommit<T, TInput>(options: {
 	 * paying for. So it is required and every caller states its door.
 	 */
 	readonly notify: (error: AppError) => void;
+	/**
+	 * Where the DEVELOPER-facing half of a continuation fault goes — the original cause, at
+	 * `error`, under this module's own event name.
+	 *
+	 * **Required, and for the same reason `notify` above is.** SDD §66 asks that the two
+	 * representations of one failure come from ONE step rather than "drift into being
+	 * produced from two independent code paths"; `reportContinuationFault` below is a door no
+	 * guard stands behind, so the unmapped cause is the only detail that exists at all. A
+	 * first version of it mapped the cause with a `createVaultExceptionMapper` of its own and
+	 * notified, and logged NOTHING — the fault reached the user as a sentence and a developer
+	 * as silence, verbatim the defect `notifyFault` in `presentation/notices/notify.ts`
+	 * already had and had fixed once. Optional-with-a-default would put that back at whichever
+	 * call site forgets it, silently; required means every caller states where its faults are
+	 * recorded.
+	 */
+	readonly logger: Logger;
 	/**
 	 * A draft this field cannot even turn into a command — text where a number belongs, a
 	 * malformed monetary literal. Returns a resolved message, or `null` when the draft is
@@ -169,24 +185,26 @@ export function useFieldCommit<T, TInput>(options: {
 
 	/**
 	 * What a coalesced round's OWN rejection reaches, since nobody is left holding that
-	 * promise to catch it themselves (see `commitOnce`'s docblock below). Maps the cause to
-	 * the same coded `PersistenceError` a guarded service would have produced and hands it to
-	 * `options.notify` — the ONE door this composable already requires for exactly this class
-	 * of failure, per that option's own docblock above.
+	 * promise to catch it themselves (see `commitOnce`'s docblock below).
 	 *
-	 * NOT a no-op. A first version discarded the cause entirely once `inFlight`/`pending` were
-	 * repaired, which fixed the wedge and the unhandled rejection but traded them for a WORSE
-	 * failure mode than the raw unhandled rejection it replaced: `pending` false, `error` null,
-	 * `drafted` still holding the user's text, nothing logged, nothing notified — the field
-	 * looked settled and idle while the edit was never persisted, and the one signal that the
-	 * write had failed was the thing that version removed. SDD §66 asks that the user-facing
-	 * and developer-facing halves of one failure "must not drift into being produced from two
-	 * independent code paths" — the same requirement `notifyFault` in
-	 * `presentation/notices/notify.ts` exists to satisfy for the identical shape of problem,
-	 * one door over: something thrown that no guard turned into a `Result`.
+	 * BOTH representations, from ONE step. `faultError` — split out of `notifyFault` for
+	 * exactly this shape of caller — maps the cause to the same coded `PersistenceError` a
+	 * guarded service would have produced and logs it with the original cause; the mapped
+	 * error then goes to `options.notify`, which is the door this composable already requires
+	 * because the Inspector has no banner region of its own. `faultError` rather than
+	 * `notifyFault` because the caller owns announcing: `notify` is the caller's door, and a
+	 * Notice raised here on top of it would be one failure reported twice.
+	 *
+	 * NOT a no-op, and not half of one either. A first version discarded the cause entirely
+	 * once `inFlight`/`pending` were repaired, which fixed the wedge and the unhandled
+	 * rejection but left the field looking settled and idle while the edit was never
+	 * persisted. The version after it notified and called no logger at all — the user-facing
+	 * half alone, with the cause dropped — which is the defect `notifyFault`'s own history
+	 * records, in the one place where the unmapped cause is the ONLY detail that exists,
+	 * because no guard ran below to have recorded it.
 	 */
 	function reportContinuationFault(cause: unknown): void {
-		options.notify(mapUnexpectedFault(cause));
+		options.notify(faultError(cause, options.logger, CONTINUATION_FAULT_EVENT));
 	}
 
 	/**

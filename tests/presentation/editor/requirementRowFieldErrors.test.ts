@@ -13,8 +13,16 @@ import RequirementRow from '../../../src/presentation/editor/shell/RequirementRo
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
 import type { InspectorEdit } from '../../../src/presentation/editor/inspector/inspector-store';
+import type { Logger } from '../../../src/application/ports/Logger';
 
 type Commit = (edit: InspectorEdit) => Promise<Result<void, AppError>>;
+
+/**
+ * `useFieldCommit` requires a logger for the one failure it owns both halves of (a coalesced
+ * continuation's own rejection). No case here reaches that path, so this is a stand-in with
+ * nothing asserted on it — `useFieldCommit.test.ts` is where that door is driven.
+ */
+const logger: Logger = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
 
 const ROW = {
 	requirementId: 'r1',
@@ -33,7 +41,7 @@ const ROW = {
  */
 function mountRow(commitResult: Result<void, AppError> = ok(undefined)) {
 	const commit = vi.fn<Commit>(() => Promise.resolve(commitResult));
-	const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+	const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 	return { wrapper, commit };
 }
 
@@ -111,7 +119,7 @@ describe('RequirementRow', () => {
 		};
 		let result: Result<void, AppError> = err(refusal);
 		const commit = vi.fn<Commit>(() => Promise.resolve(result));
-		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('-5');
 		await input.trigger('blur');
@@ -129,7 +137,7 @@ describe('RequirementRow', () => {
 		// `moneyOf` throws on a malformed literal, unlike `Number`, which yields NaN. Typing
 		// text into the cost field must not take the click handler's promise down with it.
 		const commit = vi.fn<Commit>(() => Promise.resolve(ok(undefined)));
-		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 
 		const input = wrapper.get('input[data-field="cost"]');
 		await input.setValue('abc');
@@ -145,7 +153,7 @@ describe('RequirementRow', () => {
 		// this passes only for whichever control the author remembered — which is how three
 		// findings of one shape arrived on the sibling slice.
 		const commit = vi.fn<Commit>(() => Promise.resolve(ok(undefined)));
-		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 
 		for (const field of ['quantity', 'cost']) {
 			const input = wrapper.get(`input[data-field="${field}"]`);
@@ -168,7 +176,7 @@ describe('RequirementRow', () => {
 				resolveCommit = resolve;
 			}),
 		);
-		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('12');
 		await input.trigger('blur');
@@ -197,7 +205,7 @@ describe('RequirementRow', () => {
 			message: 'developer english',
 		};
 		const commit = vi.fn<Commit>(() => Promise.resolve(err(refusal)));
-		const wrapper = mount(RequirementRow, { props: { row: ROW, commit } });
+		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('-5');
 		await input.trigger('blur');

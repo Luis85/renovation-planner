@@ -23,6 +23,7 @@ import { of as moneyOf } from '../../../core/money/Money';
 import type { Money } from '../../../core/money/Money';
 import type { RequirementInspectorDTO } from '../../../application/queries/GetRequirementsForZone';
 import type { InspectorEdit } from '../inspector/inspector-store';
+import type { Logger } from '../../../application/ports/Logger';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -33,6 +34,15 @@ import FieldError from '../../components/FieldError.vue';
 const props = defineProps<{
 	row: RequirementInspectorDTO;
 	commit: (edit: InspectorEdit) => Promise<Result<void, AppError>>;
+	/**
+	 * This leaf's logger (`runtime.logger`, which is `PlanEditorCommandServices.logger`),
+	 * required by `useFieldCommit` for the one failure it owns both halves of: a coalesced
+	 * round's own continuation rejecting with nobody left to catch it. `notify` below is the
+	 * user-facing half; this is the developer-facing one, and SDD §66 asks that they come from
+	 * one step rather than two — which is why the composable takes the logger rather than
+	 * mapping the cause a second time for a Notice alone.
+	 */
+	logger: Logger;
 }>();
 
 /**
@@ -85,6 +95,7 @@ const quantity = useFieldCommit<number | null, { quantity: number | null }>({
 	toUserMessage: trError,
 	// The half `commitEdit` keeps: a refusal with no field to sit under is still announced.
 	notify: notifyError,
+	logger: props.logger,
 	validate: (value) =>
 		value === null || Number.isFinite(value) ? null : tr('error.requirement.quantity.unparseable'),
 });
@@ -148,6 +159,7 @@ const cost = useFieldCommit<string, { cost: Money | null }>({
 	field: 'cost',
 	toUserMessage: trError,
 	notify: notifyError,
+	logger: props.logger,
 	validate: (raw) =>
 		raw.trim() === '' || canBeMoney(raw.trim()) ? null : tr('error.requirement.cost.unparseable'),
 });

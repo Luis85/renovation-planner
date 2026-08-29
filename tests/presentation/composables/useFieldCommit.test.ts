@@ -11,6 +11,7 @@ import { useFieldCommit } from '../../../src/presentation/composables/use-field-
 import type { FieldErrorMap } from '../../../src/presentation/errors/route-error';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
+import type { Logger } from '../../../src/application/ports/Logger';
 
 interface QuantityInput {
 	readonly quantity: number;
@@ -18,6 +19,20 @@ interface QuantityInput {
 
 type Run = () => Promise<Result<void, AppError>>;
 type Notify = (error: AppError) => void;
+
+/**
+ * A spy for every level, so a case can assert WHICH one a fault took as well as that one
+ * was taken at all — `faultError` promises `error`, and a version that logged at `warn`
+ * would still satisfy a bare 'something was logged'.
+ */
+type LogAt = (event: string, context?: Record<string, unknown>) => void;
+
+const spyLogger = (): Logger & { error: ReturnType<typeof vi.fn<LogAt>>; warn: ReturnType<typeof vi.fn<LogAt>> } => ({
+	debug: vi.fn<LogAt>(),
+	info: vi.fn<LogAt>(),
+	warn: vi.fn<LogAt>(),
+	error: vi.fn<LogAt>(),
+});
 
 const MAP: FieldErrorMap<QuantityInput> = { 'requirement.negative-quantity': 'quantity' };
 const say = (error: AppError): string => `copy for ${error.code}`;
@@ -30,6 +45,7 @@ function validation(code: string): AppError {
 function harness(result: Result<void, AppError>, canonical = ref(10)) {
 	const run = vi.fn<Run>(() => Promise.resolve(result));
 	const notify = vi.fn<Notify>();
+	const logger = spyLogger();
 	const field = useFieldCommit<number, QuantityInput>({
 		canonicalValue: () => canonical.value,
 		buildCommand: (value) => ({
@@ -42,8 +58,9 @@ function harness(result: Result<void, AppError>, canonical = ref(10)) {
 		field: 'quantity',
 		toUserMessage: say,
 		notify,
+		logger,
 	});
-	return { field, run, canonical, notify };
+	return { field, run, canonical, notify, logger };
 }
 
 describe('useFieldCommit', () => {
@@ -143,6 +160,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(-5);
@@ -178,6 +196,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(-5);
@@ -213,6 +232,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(-5);
@@ -265,6 +285,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 			validate: (value) => (value < 0 ? 'must be zero or more' : null),
 		});
 
@@ -306,6 +327,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(-5);
@@ -341,6 +363,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(20);
@@ -379,6 +402,7 @@ describe('useFieldCommit', () => {
 			field: 'cost',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(null);
@@ -419,6 +443,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 			validate: (value) => (value < 0 ? 'must be zero or more' : null),
 		});
 
@@ -459,6 +484,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify: vi.fn<Notify>(),
+			logger: spyLogger(),
 		});
 
 		field.onInput(-5);
@@ -474,9 +500,10 @@ describe('useFieldCommit', () => {
 		expect(run).toHaveBeenCalledTimes(2);
 	});
 
-	it('notifies the mapped fault from a coalesced round rejection, without an unhandled rejection', async () => {
+	it('notifies AND logs the mapped fault from a coalesced round rejection, once each', async () => {
 		const fault = new Error('vault fault in continuation');
 		const notify = vi.fn<Notify>();
+		const logger = spyLogger();
 		let settleFirst: (result: Result<void, AppError>) => void = noop;
 		let calls = 0;
 		const run = vi.fn<Run>(() => {
@@ -499,6 +526,7 @@ describe('useFieldCommit', () => {
 			field: 'quantity',
 			toUserMessage: say,
 			notify,
+			logger,
 		});
 
 		// A bare `void commitOnce()` on the continuation path gives a throw here no handler at
@@ -539,6 +567,19 @@ describe('useFieldCommit', () => {
 			message: fault.message,
 			cause: fault,
 		});
+		// The DEVELOPER-facing half of the same failure, which this door produced for nobody
+		// until now: it mapped the cause with a `createVaultExceptionMapper` of its own and
+		// called `options.notify`, so a fault reached the user as a sentence and a developer as
+		// silence — verbatim the defect CLAUDE.md records `notifyFault` already having had
+		// fixed once. SDD §66 asks that the two halves come from ONE step, so the assertion is
+		// that `faultError` ran: one `error` line, carrying the ORIGINAL cause (the only detail
+		// that exists here, since no guard ran below to have recorded it) and the mapped code.
+		expect(logger.error).toHaveBeenCalledTimes(1);
+		expect(logger.error).toHaveBeenCalledWith('field.commit.continuation.faulted', {
+			cause: fault,
+			code: 'vault.unexpected-failure',
+		});
+		expect(logger.warn).not.toHaveBeenCalled();
 		// The continuation's own fault must not wedge the field either.
 		expect(field.pending.value).toBe(false);
 		field.onInput(-9);

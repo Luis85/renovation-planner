@@ -20,9 +20,19 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
+import { usePlanEditorContext } from '../PlanEditorContext';
 import RequirementRow from './RequirementRow.vue';
 
 const runtime = useEditorRuntime();
+/**
+ * The leaf's logger, for the ONE thing below it that owns a door no guard stands behind:
+ * `RequirementRow`'s two `useFieldCommit` fields, whose coalesced-continuation fault is
+ * mapped, logged and notified in one step. Reached from the context rather than added to
+ * `EditorRuntime` because `runtime.ts` sits exactly on its 400-line `max-lines` cap — the same
+ * budget that pushed `commitField` out into its own module — and passed down as a PROP rather
+ * than injected in the row, so the row stays mountable with a spy in a jsdom case.
+ */
+const { logger } = usePlanEditorContext().commands;
 const { selectedIds } = storeToRefs(useSelectionStore());
 
 // Selection changed → re-run the query for whatever is selected now. The same call the
@@ -109,6 +119,7 @@ function assignSelected(zoneId: string): void {
 						:key="row.requirementId"
 						:row="row"
 						:commit="runtime.commitField"
+						:logger="logger"
 					/>
 				</ul>
 

@@ -415,6 +415,32 @@ describe('a tool gesture the window took the focus away from', () => {
 		harness.unmount();
 	});
 
+	it('survives the pointercancel that FOLLOWS the blur, rather than losing the buffer to it', async () => {
+		// The two doors deliver for one interruption, and only the first of them was careful.
+		// Alt+Tab mid-press fires `blur`, which abandons the in-flight gesture without
+		// touching the vertices — and the browser may then take the pointer away as well,
+		// whose `pointercancel` reached `cancelGesture()` and emptied the buffer the blur had
+		// just been careful to keep. The narrow fix for one door, undone by the next one along.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		pointer(canvas, 'pointerdown', 600, 200); // the third vertex placed…
+		blur(canvas); // …focus lost before the button came up…
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
+		await settle();
+
+		// …and the close still lands on all three, which two vertices could never satisfy.
+		click(canvas, 500, 100);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
 	it('leaves a half-drawn polygon alone, because no gesture was interrupted', async () => {
 		// The over-correction this file exists to refuse, and the reason the cleanup is gated
 		// rather than unconditional: between two complete clicks nothing is in flight, and a

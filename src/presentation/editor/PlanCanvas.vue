@@ -609,10 +609,21 @@ function onPointerCancel(event: PointerEvent): void {
 	// pointer's cancellation reaching it costs the user a half-drawn polygon.
 	if (swallowedPointers.delete(event.pointerId)) return;
 	// No pan was running, so this cancellation belongs to whatever the tool was doing.
-	// `ToolManager` tracks no pointer identity of its own, so a tool gesture is cancelled on
+	// `ToolManager` tracks no pointer identity of its own, so a tool gesture is abandoned on
 	// any cancellation reaching here — widening that is its contract to change, not this
 	// file's.
-	runtime.toolManager.cancelGesture();
+	//
+	// `cancelInterruptedGesture` and NOT `cancelGesture`, which is the same distinction
+	// `onBlur` draws and for the same reason: a cancellation is the OS TAKING the pointer,
+	// never the user asking for their work back, so it may abandon only what the missing
+	// release would have completed. `cancel()` here emptied a drawing tool's whole buffer —
+	// so a user mid-polygon who was interrupted during a single click lost every vertex
+	// placed before it, and the two doors DOUBLED for one interruption: an Alt+Tab mid-press
+	// fires `blur`, which abandons the gesture and keeps the vertices, and the
+	// `pointercancel` that may follow then destroyed exactly what the blur had preserved.
+	// Being gated on `gestureInFlight` is what makes the pair idempotent: whichever door
+	// arrives second finds nothing in flight and does nothing.
+	runtime.toolManager.cancelInterruptedGesture();
 	editor.endPan(event.pointerId);
 	lastStagePoint.value = null;
 	editor.setPointer(null);

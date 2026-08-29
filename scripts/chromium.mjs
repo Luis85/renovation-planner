@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 /**
@@ -71,7 +71,7 @@ export function resolveChromiumExecutable() {
 		throw new Error('playwright-core could not resolve a Chromium for this platform', { cause: error });
 	}
 
-	if (existsSync(bin)) return bin;
+	if (isFile(bin)) return bin;
 
 	throw new Error(
 		`No Chromium build found for headless capture (looked for ${bin}).\n\n` +
@@ -84,14 +84,35 @@ export function resolveChromiumExecutable() {
 }
 
 /**
+ * Whether a path is a FILE that exists — the question both doors ask, asked once.
+ *
+ * `existsSync` is the wrong instrument and answered `true` for a DIRECTORY, which both doors
+ * then handed to Playwright as an executable: it accepts the path and fails at a launch
+ * several steps later, blaming the browser rather than the thing that named it. That is
+ * exactly the late, unactionable failure this module exists to convert into an early one, so
+ * an `existsSync` that lets a directory through defeats its own point.
+ *
+ * The EXECUTABLE bit is deliberately not checked with it. There is no portable question to
+ * ask: Windows has no such bit, and `fs.accessSync(path, X_OK)` succeeds there for any file
+ * that exists, so the check would hold on one of this project's two CI platforms and be
+ * theatre on the other. "It is a file" is what the refusal below claims, and the claim is
+ * written to what the check reaches.
+ */
+function isFile(bin) {
+	return statSync(bin, { throwIfNoEntry: false })?.isFile() === true;
+}
+
+/**
  * A named build, checked and announced.
  *
  * The existence check is this function's own job for the same reason it is below: Playwright
- * accepts an `executablePath` that does not exist and fails several steps later, at a launch,
- * with a message about the browser rather than about the variable that named it.
+ * accepts an `executablePath` that does not resolve to a browser and fails several steps
+ * later, at a launch, with a message about the browser rather than about the variable that
+ * named it. `isFile` and not `existsSync`, for the reason stated there — a directory is a
+ * path that exists and is not a browser.
  */
 function useOverride(bin) {
-	if (!existsSync(bin)) {
+	if (!isFile(bin)) {
 		throw new Error(`${CHROMIUM_OVERRIDE} names ${bin}, which is not a file on this machine.`);
 	}
 

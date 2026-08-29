@@ -531,7 +531,8 @@ check. Rules that came out of it:
   `gestureInFlight` and it is NOT the same as `Escape`'s: a multi-click tool sits BETWEEN
   clicks with the flag false, so an unconditional cancel here empties a polygon buffer the
   user alt-tabbed away from, which is the over-correction the third case pins.
-  `cancelInterruptedGesture` states that once, and `onBlur` is its only caller.
+  `cancelInterruptedGesture` states that once, and it has TWO callers — `onBlur` and
+  `onPointerCancel`, for the reason the `pointercancel` bullet above gives.
 
   **The first version of that fix was wrong in the narrow half, and the correction is the more
   useful lesson.** `gestureInFlight` is not a sufficient gate on its own: a multi-click tool
@@ -700,6 +701,20 @@ check. Rules that came out of it:
   what is abandoned. Worth remembering as a shape: the headline argument for a design is
   exactly the claim its rarest code path is most likely to falsify, because that path is the
   one nobody re-reads the argument against.
+
+  **Its TOOL branch then had to make the same correction `onBlur` had already made, and the
+  finding is that ONE interruption fires BOTH doors.** A cancellation is the OS taking the
+  pointer, never a user asking for their work back — so it belongs on the `abandonGesture()`
+  side of that pair, and calling `cancel()` there emptied a drawing tool's whole buffer for
+  an interruption during a single click. An Alt+Tab mid-press fires `blur`, which carefully
+  abandons the gesture and keeps the vertices, and the `pointercancel` that may follow then
+  destroyed exactly what the blur had preserved: a narrow fix for one door, undone by the
+  next one along. Being gated on `gestureInFlight` is what makes the pair idempotent —
+  whichever door arrives second finds nothing in flight and does nothing — which is why the
+  remedy is one shared door rather than a record of which pointer was already handled.
+  Reported by a review bot, and the case is watched failing BOTH ways: `cancelGesture()`
+  loses the buffer, and telling the tool nothing at all leaves `SelectTool`'s preview live
+  for the next unrelated click to commit.
 - **While a pan runs, the canvas belongs to the CAMERA — every input, not just the moves.**
   Three handlers, one rule, and it took three tries to get all of them: a press the override
   declined fell through to the active tool (`DrawPolygonTool` placing a vertex on a world that
@@ -1428,7 +1443,13 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   out, and it differs from hunting in both halves: a person names the build, and the capture
   prints that it is not the pinned one, so the caveat travels with the picture. What no gate
   can check is whether the substitute renders like the pinned build; read those captures as
-  approximate. `tests/build/chromium.test.ts` drives all of it, half in a CHILD PROCESS
+  approximate. Both doors ask `isFile` and not `existsSync`, which answers `true` for a
+  DIRECTORY — Playwright accepts one as an `executablePath` and fails at a launch several
+  steps later, blaming the browser rather than the thing that named it, which is the late
+  failure this module exists to convert into an early one. The EXECUTABLE bit is deliberately
+  not asked with it: Windows has no such bit and `accessSync(path, X_OK)` succeeds there for
+  any file, so the check would hold on one CI platform and be theatre on the other.
+  `tests/build/chromium.test.ts` drives all of it, half in a CHILD PROCESS
   because `chromium.executablePath()` reads `PLAYWRIGHT_BROWSERS_PATH` at IMPORT and not at
   call — its own first draft set that variable in `beforeEach`, was answered from the real
   cache throughout, and planted an empty file called `chrome` in this machine's provisioned

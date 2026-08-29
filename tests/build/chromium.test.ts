@@ -38,17 +38,18 @@ const MODULE = pathToFileURL(path.join(REPO, 'scripts', 'chromium.mjs')).href;
  */
 function resolveIn(
 	browsers: string,
-	{ installPinned = false, override = '' } = {},
+	{ installPinned = false, pinnedIsDirectory = false, override = '' } = {},
 ): { ok?: string; error?: string } {
 	const source = `
 		import { mkdirSync, writeFileSync } from 'node:fs';
 		import path from 'node:path';
 		import { chromium } from 'playwright-core';
 		import { resolveChromiumExecutable } from ${JSON.stringify(MODULE)};
-		if (${String(installPinned)}) {
+		if (${String(installPinned || pinnedIsDirectory)}) {
 			const bin = chromium.executablePath();
 			mkdirSync(path.dirname(bin), { recursive: true });
-			writeFileSync(bin, '');
+			if (${String(pinnedIsDirectory)}) mkdirSync(bin);
+			else writeFileSync(bin, '');
 		}
 		try {
 			process.stdout.write(JSON.stringify({ ok: resolveChromiumExecutable() }));
@@ -104,6 +105,13 @@ describe('resolving a Chromium for a headless capture', () => {
 		expect(resolveIn(browsers).error).toMatch(/No Chromium build found/);
 	});
 
+	it('takes the same file check at the PINNED path, not only at the override', () => {
+		// One question with two doors is two questions unless one function holds it. A
+		// directory where the pinned browser should be is as unlaunchable as one a person
+		// named, and `isFile` is what both ask.
+		expect(resolveIn(browsers, { pinnedIsDirectory: true }).error).toMatch(/No Chromium build found/);
+	});
+
 	it('names the override in that refusal, so the message is one a provisioned machine can act on', () => {
 		// `npx playwright install chromium` is the remedy on a developer's laptop and is
 		// exactly what a container with its browsers baked in cannot do — the environment this
@@ -144,6 +152,18 @@ describe('resolving a Chromium for a headless capture', () => {
 
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(String(warn.mock.calls[0]?.[0])).toContain(CHROMIUM_OVERRIDE);
+		});
+
+		it('is refused when it names a DIRECTORY, which is a path that exists and is not a browser', () => {
+			// `existsSync` answers true for one, so the first version accepted a directory as an
+			// executable and Playwright failed at a launch several steps later, blaming the
+			// browser rather than the variable — the late, unactionable failure this module
+			// exists to convert into an early one.
+			const directory = path.join(browsers, 'a-folder');
+			mkdirSync(directory);
+			process.env[CHROMIUM_OVERRIDE] = directory;
+
+			expect(() => resolveChromiumExecutable()).toThrow(/a-folder/);
 		});
 
 		it('is refused when it names nothing, rather than handing a bad path to Playwright', () => {

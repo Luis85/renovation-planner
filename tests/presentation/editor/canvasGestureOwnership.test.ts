@@ -515,3 +515,51 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
  * `onPointerCancel` is still spelled owner-first, and a reader who finds it unguarded should
  * find out here that the collision it was written for is unreachable rather than untested.
  */
+
+describe('a foreign pointer hovering during a tool drag', () => {
+	/**
+	 * The chorded-release fix reads `event.buttons` to notice that a drag's own button came up
+	 * inside a chord — and asked nothing about WHOSE pointer reported it. A pen hovering, or a
+	 * finger resting and lifted, sends a move with `buttons === 0` while the mouse holding the
+	 * drag is still down, so the canvas read a foreign hover as the owner's release.
+	 *
+	 * This file's shape 1, from the side the chord work reopened: **a gesture belongs to a
+	 * POINTER, not just to a button.** Invisible on a mouse, where one `pointerId` is shared
+	 * across everything; the manifest promises mobile, and a pen and a mouse coexist on a
+	 * tablet by design.
+	 */
+	it('does not commit the drag at the hovering pointer’s coordinates', async () => {
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11); // the mouse grabs zone-a
+		pointer(canvas, 'pointermove', 340, 300, 0, 11);
+		pointer(canvas, 'pointermove', 900, 500, 0, 12, 0); // a pen hovers, nothing held
+		await settle();
+
+		// The drag is still the mouse's: nothing committed at the pen's position.
+		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).toEqual(before);
+		harness.unmount();
+	});
+
+	it('still lets the OWNER’s own chorded release commit it', async () => {
+		// The other direction, so the fix cannot be "ignore every move reporting no buttons":
+		// the owning pointer saying its button is up is exactly the case the branch exists for.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointermove', 420, 300, 0, 11);
+		pointer(canvas, 'pointermove', 900, 500, 0, 12, 0); // the pen hovers past, ignored
+		chord(canvas, 420, 300, 1, 5, 11); // middle pressed on the owner
+		chord(canvas, 440, 300, 0, 4, 11); // the owner's PRIMARY released
+		await settle();
+
+		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).not.toEqual(before);
+		harness.unmount();
+	});
+});

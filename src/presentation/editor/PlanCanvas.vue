@@ -97,6 +97,17 @@ const lastStagePoint = ref<ScreenPoint | null>(null);
  */
 const swallowedPointers = new Set<number>();
 
+/**
+ * WHICH pointer the active tool's in-flight gesture belongs to — the identity `ToolManager`
+ * deliberately does not keep, held here because only this file needs it.
+ *
+ * Never cleared, and that is correct rather than an oversight: it is only ever read BESIDE
+ * `toolManager.gestureInFlight`, which is the liveness half, and both are written by the same
+ * call. A value left over from a finished gesture is unreachable, because the flag it is
+ * consulted with is false until the next press sets them together again.
+ */
+let toolGesturePointer: number | null = null;
+
 const panOverride = new PanOverride();
 /** The override's phase, mirrored reactively — the only thing the template reads off it. */
 const panPhase = ref(panOverride.phase);
@@ -450,6 +461,7 @@ function onPointerDown(event: PointerEvent): void {
 	// stuck to the cursor.
 	(event.target as Element).setPointerCapture?.(event.pointerId);
 	if (runtime.activeToolId.value !== null) {
+		toolGesturePointer = event.pointerId;
 		runtime.toolManager.pointerDown(editorPointerEvent(event, at));
 		return;
 	}
@@ -490,9 +502,20 @@ function onPointerMove(event: PointerEvent): void {
 		//
 		// The release is spelled at the point the button actually came up, which is what this
 		// move reports — a translation of the DOM event like every other one this file makes,
-		// not a synthetic gesture. `gestureInFlight` is what keeps a bare hover out of it: with
-		// no drag running there is no button to have been released.
-		if (runtime.toolManager.gestureInFlight && (event.buttons & PRIMARY_BUTTON_BIT) === 0) {
+		// not a synthetic gesture.
+		//
+		// **Both the flag AND the owner, because `buttons` describes the pointer that sent the
+		// move and nothing else.** `gestureInFlight` alone reads a FOREIGN hover as the owner's
+		// release: a pen over the canvas, or a finger resting and lifted, reports `buttons: 0`
+		// while the mouse holding the drag is still down — and `SelectTool` then committed the
+		// move at the pen's coordinates (measured: the zone landed at 7500, 3500, nowhere the
+		// user dragged it). This file's own rule, from the side the chord work reopened: a
+		// gesture belongs to a POINTER, not just to a button.
+		if (
+			runtime.toolManager.gestureInFlight
+			&& toolGesturePointer === event.pointerId
+			&& (event.buttons & PRIMARY_BUTTON_BIT) === 0
+		) {
 			runtime.toolManager.pointerUp(pointerEventAt(event, at, 'primary'));
 			return;
 		}

@@ -565,6 +565,19 @@ check. Rules that came out of it:
   immediately. **Similar guards are not automatically duplication, and consolidating two
   questions that merely look alike is how a narrow correct behaviour gets replaced by a
   uniform wrong one.**
+- **`event.buttons` describes the pointer that SENT the move, and reading it without asking
+  whose pointer that was is the button/pointer confusion in its newest disguise.** The
+  chorded-release fix asked `gestureInFlight && (buttons & 1) === 0` and nothing about
+  identity — so a pen hovering over the canvas, or a finger resting and lifted, reports
+  `buttons: 0` while the mouse holding a drag is still down, and `SelectTool` committed that
+  drag at the PEN's coordinates: measured, the zone landed at (7500, 3500), nowhere the user
+  dragged it. The canvas keeps `toolGesturePointer` beside the manager's flag now — deliberately
+  never cleared, because it is only ever read WITH `gestureInFlight` and both are written by
+  the same call, so a leftover value is unreachable rather than stale. **This is the seventh
+  finding in this handler resting on "one mouse, one `pointerId`, two buttons" and its
+  converse, and the fifth written by an author who had just recorded the rule** — knowing a
+  fact is not the same as reaching for it, and a NEW mechanism reading a pointer field is
+  exactly where the old rule has to be asked again.
 - **A chorded mouse button fires NO `pointerdown` and NO `pointerup`, and eight rounds of
   review on this handler hardened it against inputs no mouse can produce.** W3C Pointer
   Events, "chorded button interactions": `pointerdown` fires only on the transition from no

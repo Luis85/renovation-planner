@@ -163,8 +163,12 @@ export async function rig(seed?: (repos: {
 	return { harness, zonesRepo, assetsRepo, requirementsRepo };
 }
 
-/** The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table. */
-const BUTTONS_BIT: Record<number, number> = { 0: 1, 1: 4, 2: 2 };
+/**
+ * The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table —
+ * including the three beyond the familiar ones, because a mouse's Back and Forward buttons
+ * and a pen's eraser are real inputs a canvas has to decline rather than mishandle.
+ */
+const BUTTONS_BIT: Record<number, number> = { 0: 1, 1: 4, 2: 2, 3: 8, 4: 16, 5: 32 };
 
 /**
  * One pointer event, with `buttons` DERIVED rather than left at jsdom's zero.

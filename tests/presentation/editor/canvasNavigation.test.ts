@@ -47,6 +47,21 @@ function key(canvas: HTMLElement, type: 'keydown' | 'keyup', init: KeyboardEvent
  * precedence, which is decided in the component precisely so that it can be: expressed as
  * source order in a stylesheet it would be a correct rule that no gate reads.
  */
+/** One press of an arbitrary button, cancelable, so `defaultPrevented` means what it says. */
+function pressButton(canvas: HTMLElement, button: number): PointerEvent {
+	const event = new PointerEvent('pointerdown', {
+		button,
+		buttons: 1 << button,
+		pointerId: 1,
+		clientX: 300,
+		clientY: 300,
+		bubbles: true,
+		cancelable: true,
+	});
+	canvas.dispatchEvent(event);
+	return event;
+}
+
 function cursorClasses(canvas: HTMLElement): string[] {
 	return [...canvas.classList].filter((name) => name.startsWith('rp-plan-canvas-'));
 }
@@ -591,6 +606,56 @@ describe('which axis a horizontal wheel gesture reads', () => {
 		await settle();
 
 		expect(Math.abs(camera.viewport.pan.x - before) * camera.viewport.zoom).toBeCloseTo(80, 6);
+		harness.unmount();
+	});
+});
+
+describe('a button the camera does not claim', () => {
+	/**
+	 * `PointerEvent.button` runs past the three everyone remembers: **3 is a mouse's Back, 4
+	 * its Forward, and 5 a pen's ERASER** — all of them real hardware, none of them a pan.
+	 * The mapping answered `primary` for every value it did not recognise, so with space armed
+	 * each of them claimed the camera and took the pointer capture with it.
+	 *
+	 * Only 0 and 1 can ever claim: the middle button always, the primary one while space is
+	 * held. Everything else is declined at the door.
+	 */
+	/**
+	 * **Asserted on the CLAIM, not on the camera**, and the difference is measured rather than
+	 * chosen. A pan claimed by button 3 ends on its own very next move — `pointerMove` sees the
+	 * primary bit absent from `buttons` and treats it as a chorded release — so the viewport
+	 * never actually shifts and a case watching `pan` passes with the defect fully present.
+	 * What survives that self-healing is the press itself: captured, and its default
+	 * suppressed, which on a Back button is the browser's navigation.
+	 */
+	it.each([
+		['a mouse Back button', 3],
+		['a mouse Forward button', 4],
+		['a pen eraser', 5],
+	])('does not claim a space pan for %s', async (_label, button) => {
+		const { harness, canvas } = await editor();
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+
+		const event = pressButton(canvas, button);
+		await settle();
+
+		expect(event.defaultPrevented).toBe(false);
+		expect([...canvas.classList]).not.toContain('rp-plan-canvas-panning');
+		harness.unmount();
+	});
+
+	it('still claims one for the PRIMARY button, which is the button space is for', async () => {
+		// The other direction, so the guard cannot degrade into refusing everything.
+		const { harness, canvas } = await editor();
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+
+		const event = pressButton(canvas, 0);
+		await settle();
+
+		expect(event.defaultPrevented).toBe(true);
+		expect([...canvas.classList]).toContain('rp-plan-canvas-panning');
 		harness.unmount();
 	});
 });

@@ -565,6 +565,27 @@ check. Rules that came out of it:
   immediately. **Similar guards are not automatically duplication, and consolidating two
   questions that merely look alike is how a narrow correct behaviour gets replaced by a
   uniform wrong one.**
+- **A mapping with an `else` claims everything it never thought about.** `panButtonOf` read
+  `button === 1 ? auxiliary : button === 2 ? secondary : primary`, so `PointerEvent.button`'s
+  less familiar values all answered `primary`: **3 is a mouse's Back, 4 its Forward, 5 a pen's
+  ERASER.** With space armed, a Back press therefore CLAIMED the camera, took the pointer
+  capture and had its default suppressed — which on that button is the browser's own
+  navigation. It answers `null` now and the two call sites differ, which is the point: the
+  override DECLINES an unrecognised button, while `editorPointerEvent` says `?? 'primary'` at
+  its own call site, because `-1` ("no button changed state", which every plain move carries)
+  must go on reading as the primary gesture it is. **Declining is not the same as mapping to
+  something**, and an `else` cannot express the difference.
+
+  Two things about finding it are worth more than the fix. The camera symptom was
+  SELF-HEALING — a pan claimed by button 3 ends on its own very next move, because
+  `pointerMove` sees the primary bit absent from `buttons` and reads a chorded release — so
+  the first version of the regression case watched `viewport.pan`, passed, and pinned
+  nothing; it asserts `defaultPrevented` and the phase class instead. And the edit that added
+  `PRIMARY_BUTTON_BIT` had been inserted BETWEEN `panButtonOf`'s docblock and `panButtonOf`,
+  leaving a paragraph about button mapping sitting above a numeric constant and the function
+  itself undocumented. Nothing in any gate reads whether a docblock is attached to what it
+  describes. `pointerButtons.ts` now holds all three together, extracted when `PlanCanvas.vue`
+  crossed its 400-line cap.
 - **`event.buttons` describes the pointer that SENT the move, and reading it without asking
   whose pointer that was is the button/pointer confusion in its newest disguise.** The
   chorded-release fix asked `gestureInFlight && (buttons & 1) === 0` and nothing about

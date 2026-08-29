@@ -33,7 +33,8 @@ import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import type { ThemeTokens } from './theme/themeTokens';
 import { screenPoint, screenToWorld, viewportTransform, STAGE_PIXELS, type ScreenPoint } from './viewport/Viewport';
-import { PanOverride, type PanButton } from './viewport/pan-override';
+import { PanOverride } from './viewport/pan-override';
+import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, panButtonOf } from './pointerButtons';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
 import { boundsOfZones } from './viewport/zoneExtent';
@@ -179,24 +180,6 @@ function pointerEventAt(
 	};
 }
 
-/**
- * Which button an event carries, as the ONE mapping both consumers read — `editorPointerEvent`
- * below and the pan override's own claim. It was spelled twice for a while, which is two
- * chances for `auxiliary` to mean different buttons in the two halves of one press.
- */
-/**
- * The `PointerEvent.buttons` bit the primary button sets — camera mode's own drag is the one
- * gesture whose owning button is fixed, since the filter above `beginPan` admits no other.
- */
-const PRIMARY_BUTTON_BIT = 1;
-
-/** `MouseEvent.button` for the middle button — the `button` numbering, not the `buttons` mask. */
-const MIDDLE_MOUSE_BUTTON = 1;
-
-function panButtonOf(event: PointerEvent): PanButton {
-	return event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
-}
-
 function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointerEvent {
 	// `PointerEvent.button` is `-1` on a `pointermove` — the spec's "no button changed
 	// state" — so it is NOT a reading of what is currently held down. Only 1 and 2 are
@@ -204,7 +187,12 @@ function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointer
 	// the primary gesture it is; `buttons` is the bitmask a tool would need for the
 	// held-down question, and nothing asks it yet. `panButtonOf` is that mapping, shared
 	// with the pan override so the two halves of one press cannot disagree about a button.
-	return pointerEventAt(event, at, panButtonOf(event));
+	//
+	// The `?? 'primary'` is where `-1` lands, and it is spelled HERE rather than inside the
+	// mapping because only this consumer wants it: a move during a primary drag must go on
+	// reading as the primary gesture it is, while the override must DECLINE the same absence
+	// rather than claim a pan for it.
+	return pointerEventAt(event, at, panButtonOf(event) ?? 'primary');
 }
 
 /**
@@ -425,7 +413,11 @@ function onPointerDown(event: PointerEvent): void {
 	// which `isPrimary` rejects, and correctly so for every other purpose.
 	// The SAME predicate the camera lock reads: camera mode is not a tool, and a middle press
 	// during a bare left-drag pan would otherwise claim a gesture whose button is still held.
-	if (panOverride.pointerDown(panButtonOf(event), event.pointerId, { gestureInFlight: gestureInFlight() })) {
+	const claimable = panButtonOf(event);
+	if (
+		claimable !== null
+		&& panOverride.pointerDown(claimable, event.pointerId, { gestureInFlight: gestureInFlight() })
+	) {
 		// The PRIMARY half of the claim — a space-held left press — so the browser starts no
 		// text selection or native drag under a pan.
 		//
@@ -434,7 +426,7 @@ function onPointerDown(event: PointerEvent): void {
 		// no `mousedown` is dispatched at all), which would leave `onMouseDown` unreached for
 		// exactly the presses this branch claims — and "the one door every middle press
 		// arrives at" would be false for a third of them while still reading as true.
-		if (panButtonOf(event) === 'primary') event.preventDefault();
+		if (claimable === 'primary') event.preventDefault();
 		(event.target as Element).setPointerCapture?.(event.pointerId);
 		editor.beginPan(at, event.pointerId);
 		syncPanPhase();
@@ -546,7 +538,8 @@ function onPointerUp(event: PointerEvent): void {
 	// the collision it guards has no producer: a chorded press fires no `pointerdown`, so
 	// nothing reaches `swallowedPointers` under an id that already owns a pan. Kept because
 	// owner-first is the order that reads correctly, not because it is holding anything up.
-	if (panOverride.pointerUp(panButtonOf(event), event.pointerId)) {
+	const released = panButtonOf(event);
+	if (released !== null && panOverride.pointerUp(released, event.pointerId)) {
 		editor.endPan(event.pointerId);
 		syncPanPhase();
 		return;

@@ -498,6 +498,19 @@ function onPointerDown(event: PointerEvent): void {
 }
 
 function onPointerMove(event: PointerEvent): void {
+	// **A swallowed pointer is nothing to this canvas for the whole of its life, and the MOVE
+	// was the one door that did not ask.** `swallowedPointers` holds an id until that POINTER
+	// ends rather than until the gesture that swallowed it does — its own docblock says so,
+	// and describes this scene one event later: finger A space-pans, finger B is swallowed, A
+	// releases and ends the pan, and B reports back to a canvas with no pan running. That
+	// docblock calls the set "consulted at BOTH ends", meaning the release and the
+	// cancellation; the move is a third door. So B — a finger deliberately excluded from the
+	// gesture — steered the rubber band the moment A let go, and B's eventual release is
+	// swallowed, so nothing ever corrected it.
+	//
+	// Above the record as well as the routing, for the reason the record's own comment gives:
+	// a guard on the direct path says nothing about the value the direct path leaves behind.
+	if (swallowedPointers.has(event.pointerId)) return;
 	const at = stagePoint(event);
 	// **Where the pointer is, is a question about the OWNER's pointer while a gesture runs.**
 	// This recorded every pointer's position, above every ownership check below — so a pen
@@ -756,6 +769,25 @@ function onBlur(): void {
 	syncPanPhase();
 	editor.abandonPan();
 	runtime.toolManager.cancelInterruptedGesture();
+	// **And the remembered point goes, which is what makes this handler the idempotent thing
+	// `swallowedPointers`' docblock already called it.** Chromium can deactivate a window
+	// while leaving the focused element focused, so the element's `blur` and the window's are
+	// both registered and one Alt+Tab may deliver BOTH — and the second call found the
+	// override idle, because the first had just cancelled it, and replayed the pan's own
+	// pointer into a tool that was deliberately told nothing while that pan ran. Whether the
+	// tool heard anything came down to how many blur events the host chose to deliver.
+	//
+	// It is also the same sentence `onPointerLeave` and `onPointerCancel` already carry at
+	// the other two interruption doors: a position remembered from before an interruption is
+	// no longer a claim about where the user's pointer is, and this value exists only to be
+	// REPLAYED into a tool later.
+	//
+	// `editor.setPointer` is deliberately NOT cleared with it, which is where this door
+	// differs from those two. They fire because the pointer demonstrably left or was taken;
+	// focus can leave this container with the pointer still resting over the plan — a click
+	// on the Inspector does it — and blanking the status bar's coordinates then would be a
+	// visible falsehood about a pointer that has not moved.
+	lastStagePoint.value = null;
 }
 
 function onPointerLeave(event: PointerEvent): void {

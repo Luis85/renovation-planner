@@ -546,6 +546,55 @@ describe('a tool gesture the window took the focus away from', () => {
 		harness.unmount();
 	});
 
+	it('stays hands-off when BOTH blur listeners fire for one Alt+Tab', async () => {
+		// The element's `blur` and the window's are registered together on purpose — Chromium
+		// can deactivate a window while leaving the focused element focused, so neither alone
+		// is guaranteed — and `swallowedPointers`' docblock calls the cleanup idempotent.
+		// It was not. The first call skips the re-issue because a pan is running and then
+		// cancels that pan; the second call finds the override idle and replays the pan's own
+		// pointer into the tool, so whether the tool hears anything came down to how many
+		// blur events the host chose to deliver.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 600, 200, 0, 1, 0);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 900, 500, 0, 1);
+		pointer(canvas, 'pointermove', 900, 500, 0, 1); // a pan that moves the camera nowhere
+		blur(canvas);
+		window.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(drawnBefore);
+		harness.unmount();
+	});
+
+	it('keeps the coordinate readout, which focus loss says nothing about', async () => {
+		// The asymmetry in that cleanup, and it needed a case: clearing `editor.setPointer`
+		// beside the remembered point passes the whole suite otherwise. The two doors that DO
+		// clear both — `pointerleave` and `pointercancel` — fire because the pointer
+		// demonstrably left or was taken. Focus can leave this container with the pointer still
+		// resting over the plan (a click on the Inspector does it), so blanking the status
+		// bar's coordinates there is a visible falsehood about a pointer that has not moved.
+		const { harness, canvas, camera } = await editor();
+		pointer(canvas, 'pointermove', 600, 200, 0, 1, 0);
+		await settle();
+		const readout = camera.pointerWorld;
+		expect(readout).not.toBeNull();
+
+		blur(canvas);
+		await settle();
+
+		expect(camera.pointerWorld).toEqual(readout);
+		harness.unmount();
+	});
+
 	it('hands the active tool nothing when the focus is lost mid-PAN', async () => {
 		// The same replay reaching the same door from the camera's side. `reissuePointerMove`
 		// refuses to run while a pan does — `lastStagePoint` is then the PAN's own pointer, and

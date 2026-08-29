@@ -319,7 +319,7 @@ So each test names its discriminator:
 | --- | --- | --- |
 | layer-boundary probes | the path fails to parse | `PARSE_ERROR` asserted absent, and the *rule id* asserted present |
 | node environment | the fixture's import path is wrong, or its module throws for any other reason | the rejection is the expected `ReferenceError` for the planted global — not a resolution or transform error |
-| broken-fake contract | the child config's `include` is wrong, the fixture fails to import, or vitest collects nothing (all exit non-zero) | a non-zero exit **plus** a collected-test count above zero **plus** the expected contract case named in the child's output |
+| broken-fake contract | the child config's `include` is wrong, the fixture fails to import, vitest collects nothing, **or that case fails in setup, in repository construction, or on an unexpected `save()` throw** (all exit non-zero; the last three also report the right case name) | a non-zero exit **plus** a collected-test count above zero **plus** the expected case named **plus** the child's output identifying the round-trip mismatch on `name` — the ASSERTION that failed, not merely which case did |
 | `broken-references/` | the fixture has quietly become valid | an observable rejection by count and code, **plus** a healthy record in the same fixture still loading |
 
 Taken from the slice document's Testing Strategy, unchanged in intent:
@@ -366,6 +366,21 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   collected and bans `*.spec.ts`. A `.fixture.ts` is neither, so the two rules do not collide —
   and stating that here is what stops a later reader "tidying" the fixture into a `.test.ts` and
   rediscovering this by breaking the build.
+
+  **And the same choice collides with a SECOND gate, which "resolved after checking Vitest
+  collection" never looked at.** `npm run analyze` is part of `npm run check`, and fallow seeds
+  ordinary `*.test.ts` files through its vitest plugin. A `.fixture.ts` reachable only through a
+  spawned child's `include` glob is seeded by nothing and imported by nothing, so fallow reports
+  it — and the dedicated child config — as unused files, failing the very gate this slice exists
+  to satisfy. `.fallowrc.json` already carries six kinds of exactly this shape under `entry`
+  ("process entry points, not import roots": `scripts/lint-edited.mjs`, the two `*.test-d.ts`
+  files, `src/prototypes/**/*.vue`, and the rest), each declared with its reason. The fixture and
+  its config are a seventh kind, declared there the same way and for the same reason.
+
+  The general shape: checking a new file against the gate it was designed around says nothing
+  about the other three in `npm run check`. This extension choice had to satisfy vitest's
+  collection, §4's own naming rule **and** fallow's reachability — and two rounds of this design
+  weighed only the first two.
 - **`broken-references/` degrades gracefully — asserted on BOTH halves.** Loaded through the
   real bootstrap path, asserted to leave the rest of the plugin usable. This is a real test
   rather than a gate meta-test, so it sits at `tests/plugin/` — its mirrored home — not under

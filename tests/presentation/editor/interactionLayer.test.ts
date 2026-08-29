@@ -205,6 +205,71 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		expect(points.at(-1)).toBeCloseTo(300);
 	});
 
+	/**
+	 * The same rule at the camera doors THIS branch added, which is what
+	 * `reissuePointerMove`'s own docblock anticipated when it said the rule "holds for camera
+	 * paths not yet written, while 'the ones that need it' is a list that goes stale". A
+	 * shift+wheel pan moves the world under a stationary pointer exactly as the keyboard zoom
+	 * does, so it owes the same re-issue — and it did not have one until this merge put the
+	 * two changes in the same file.
+	 */
+	it('keeps the loose end under the pointer when shift+wheel pans beneath it', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Calibrate').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 300, 300);
+		pointer(canvas, 'pointermove', 500, 300);
+		await settle();
+
+		canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, shiftKey: true, bubbles: true, cancelable: true }));
+		await settle();
+
+		const spine = interactionLayer(harness.stage).find('Line').at(0) as Konva.Line;
+		const points = spine.points();
+		expect(points.at(-2)).toBeCloseTo(500);
+		expect(points.at(-1)).toBeCloseTo(300);
+	});
+
+	/**
+	 * The fit shortcut owes the same re-issue and moves the camera further than any other
+	 * door — the pointer can end up over a different part of the plan entirely.
+	 *
+	 * **Asserted as "not the stale point" rather than as an exact position, and the reason is
+	 * behaviour rather than convenience.** A fit shortcut IS `Shift+1`, so Shift is genuinely
+	 * held while it fires, and the re-issue correctly reports that — which makes the angle
+	 * constraint bite. The exact loose end is therefore the CONSTRAINED one, and asserting it
+	 * would mean re-implementing `snapDirection` in the test. The stale and re-issued points
+	 * are far apart (781 vs 317 stage pixels when this was measured), so the weaker assertion
+	 * still discriminates; it is the constraint, not the re-issue, that costs the precision.
+	 */
+	it('tells the tool where the pointer is when a fit shortcut jumps the camera', async () => {
+		const { harness } = await rig();
+		toolbarButton(harness, 'Calibrate').click();
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		click(canvas, 300, 300);
+		pointer(canvas, 'pointermove', 500, 300);
+		await settle();
+		const stale = (interactionLayer(harness.stage).find('Line').at(0) as Konva.Line).points();
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', {
+			key: '!', code: 'Digit1', shiftKey: true, bubbles: true, cancelable: true,
+		}));
+		await settle();
+
+		const moved = (interactionLayer(harness.stage).find('Line').at(0) as Konva.Line).points();
+		// Both ends moved: the anchor because the camera did, and the loose end because the
+		// tool was told. Without the re-issue the loose end keeps the world point it was last
+		// given, which the new camera renders somewhere else again.
+		expect(moved.at(-1)).not.toBeCloseTo(stale.at(-1) as number);
+		expect(moved.at(-1)).toBeCloseTo(316.993, 2);
+	});
+
 	it('rules the segment with ticks as it is dragged out', async () => {
 		const { harness } = await rig();
 		toolbarButton(harness, 'Calibrate').click();

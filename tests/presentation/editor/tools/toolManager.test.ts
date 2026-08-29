@@ -35,6 +35,9 @@ function fakeTool(id: ToolId, calls: string[]): EditorTool {
 		cancel: vi.fn<() => void>(() => {
 			calls.push(`${id}:cancel`);
 		}),
+		abandonGesture: vi.fn<() => void>(() => {
+			calls.push(`${id}:abandonGesture`);
+		}),
 	};
 }
 
@@ -406,5 +409,107 @@ describe('the tool-specific-branching instrument', () => {
 describe('DoD 12: the framework knows no tool by name', () => {
 	it.each(FRAMEWORK_MODULES)('%s names no ToolId in its code', (module) => {
 		expect(toolIdLiterals(readSource(module), toolIds())).toEqual([]);
+	});
+});
+
+describe('gestureInFlight', () => {
+	/**
+	 * The pan override asks this before claiming the middle button, so that a pan cannot
+	 * start under a tool that is already dragging. It is a GETTER over the flag the manager
+	 * already keeps rather than a second copy in the canvas: two booleans modelling one
+	 * gesture is exactly the drift `activeToolId` already had to be collapsed out of.
+	 */
+	function armed(): { manager: ToolManager; calls: string[] } {
+		const calls: string[] = [];
+		const manager = new ToolManager(fakeContext);
+		manager.register(fakeTool('select', calls));
+		manager.setActiveTool('select');
+		return { manager, calls };
+	}
+
+	it('is false with no tool active at all', () => {
+		expect(new ToolManager(fakeContext).gestureInFlight).toBe(false);
+	});
+
+	it('is false before the first press', () => {
+		expect(armed().manager.gestureInFlight).toBe(false);
+	});
+
+	it('is true between a press and its release', () => {
+		const { manager } = armed();
+
+		manager.pointerDown(pointerEvent());
+
+		expect(manager.gestureInFlight).toBe(true);
+	});
+
+	it('is false again once the release arrives', () => {
+		const { manager } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.pointerUp(pointerEvent());
+
+		expect(manager.gestureInFlight).toBe(false);
+	});
+
+	it('is false after a cancelled gesture, not merely after a released one', () => {
+		// Escape and `pointercancel` both land here. A flag that only cleared on `pointerUp`
+		// would leave the override refusing the middle button for the rest of the session.
+		const { manager } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.cancelGesture();
+
+		expect(manager.gestureInFlight).toBe(false);
+	});
+});
+
+describe('cancelInterruptedGesture', () => {
+	/**
+	 * Focus left the canvas with a button still down, so the release is never coming. The
+	 * distinction from `cancelGesture` is the whole reason this exists, and it is not a
+	 * nicety: a multi-click tool commits its work on `pointerdown`, so it is between down and
+	 * up — `gestureInFlight` TRUE — for the whole of every click, and reaching for `cancel()`
+	 * there destroys every click before the one in flight.
+	 */
+	function armed(): { manager: ToolManager; calls: string[] } {
+		const calls: string[] = [];
+		const manager = new ToolManager(fakeContext);
+		manager.register(fakeTool('select', calls));
+		manager.setActiveTool('select');
+		return { manager, calls };
+	}
+
+	it('asks the tool to ABANDON its gesture, never to cancel', () => {
+		const { manager, calls } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.cancelInterruptedGesture();
+
+		expect(calls).toContain('select:abandonGesture');
+		expect(calls).not.toContain('select:cancel');
+	});
+
+	it('clears the in-flight flag, which is what unlocks the camera again', () => {
+		const { manager } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.cancelInterruptedGesture();
+
+		expect(manager.gestureInFlight).toBe(false);
+	});
+
+	it('does nothing BETWEEN clicks, where no press is in flight to interrupt', () => {
+		// Where `cancelGesture` deliberately still reaches the tool: Escape is intentional and
+		// a buffer is exactly what the user means it to clear.
+		const { manager, calls } = armed();
+
+		manager.cancelInterruptedGesture();
+
+		expect(calls).not.toContain('select:abandonGesture');
+	});
+
+	it('is a no-op with no tool active at all', () => {
+		expect(() => new ToolManager(fakeContext).cancelInterruptedGesture()).not.toThrow();
 	});
 });

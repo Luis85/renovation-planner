@@ -17,6 +17,7 @@ import {
 	screenPoint,
 	screenToWorld,
 	STAGE_PIXELS,
+	worldToScreen,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
@@ -389,5 +390,106 @@ describe('WorkspaceStore, the editor chrome', () => {
 		store.toggleInspectorPanel();
 
 		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, false]);
+	});
+});
+
+describe('EditorStore camera actions added for canvas navigation', () => {
+	it('nudges the camera by a screen delta, for the wheel gestures that are not a zoom', () => {
+		// Shift+wheel is a horizontal PAN in Obsidian's own Canvas, and a wheel notch is a
+		// screen-pixel quantity like a drag is. Converting it here rather than at the call
+		// site keeps the camera's arithmetic in the one place that owns it.
+		const store = useEditorStore();
+		const before = store.viewport;
+
+		store.panByScreen(60, 0);
+
+		expect(store.viewport.zoom).toBe(before.zoom);
+		expect(store.viewport.pan.x).toBeCloseTo(before.pan.x - 60 / before.zoom, 9);
+		expect(store.viewport.pan.y).toBe(before.pan.y);
+	});
+
+	it('fits an extent into the pane', () => {
+		const store = useEditorStore();
+
+		store.fitTo({ min: { x: 0, y: 0 }, max: { x: 4000, y: 2000 } }, { width: 800, height: 600 });
+
+		// The whole extent lands on screen, centred — the property `fitViewport` is tested for
+		// directly; what this asserts is that the STORE actually adopted its answer.
+		const centre = worldToScreen({ x: 2000, y: 1000 }, store.viewport, STAGE_PIXELS);
+		expect(centre.x).toBeCloseTo(400, 6);
+		expect(centre.y).toBeCloseTo(300, 6);
+		expect(store.viewport).not.toEqual(DEFAULT_VIEWPORT);
+	});
+
+	it('keeps the camera it has when the pane has no area yet', () => {
+		// The stage measures 0 x 0 until layout runs, so a fit asked in that window has
+		// nowhere to put the plan. Leaving the camera alone is the honest outcome; adopting
+		// `fitViewport`'s `null` would blank the view on an ordinary early call.
+		const store = useEditorStore();
+
+		store.fitTo({ min: { x: 0, y: 0 }, max: { x: 4000, y: 2000 } }, { width: 0, height: 0 });
+
+		expect(store.viewport).toEqual(DEFAULT_VIEWPORT);
+	});
+});
+
+describe('EditorStore pan ownership', () => {
+	/**
+	 * A drag belongs to the pointer that began it. On a mouse this is invisible — one
+	 * `pointerId` is shared across every button — but the manifest promises mobile
+	 * (`isDesktopOnly: false`) and camera mode is the DEFAULT state, so a second finger on a
+	 * tablet lands here rather than in the pan override.
+	 */
+	it('ignores a move from a pointer that did not begin the drag', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+		store.continuePan(screenPoint(140, 100), 11);
+		const afterOwner = store.viewport.pan.x;
+
+		expect(store.continuePan(screenPoint(600, 100), 12)).toBe(false);
+		expect(store.viewport.pan.x).toBe(afterOwner);
+	});
+
+	it('still follows the pointer that did', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(true);
+		expect(store.viewport.pan.x).toBeCloseTo(DEFAULT_VIEWPORT.pan.x - 40 / DEFAULT_VIEWPORT.zoom, 6);
+	});
+
+	it('consumes nothing when no drag is running', () => {
+		expect(useEditorStore().continuePan(screenPoint(1, 1), 11)).toBe(false);
+	});
+
+	it('ignores a RELEASE from a pointer that did not begin the drag', () => {
+		// The other half, and the one a first pass misses: a second finger lifting ended the
+		// first finger's drag, so the pan stopped dead while the hand making it was still
+		// moving. Found by a canvas-level case rather than by reasoning about this store.
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		expect(store.endPan(12)).toBe(false);
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(true);
+	});
+
+	it('ends on the release from the pointer that did', () => {
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		expect(store.endPan(11)).toBe(true);
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(false);
+	});
+
+	it('abandons a drag whatever pointer owns it', () => {
+		// `pointercancel`, `pointerleave` and focus loss name no owner — the gesture is simply
+		// over. Separate from `endPan` rather than reached by omitting its argument, so that
+		// no caller gets "end whatever is running" by accident.
+		const store = useEditorStore();
+		store.beginPan(screenPoint(100, 100), 11);
+
+		store.abandonPan();
+
+		expect(store.continuePan(screenPoint(140, 100), 11)).toBe(false);
 	});
 });

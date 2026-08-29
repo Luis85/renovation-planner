@@ -306,7 +306,9 @@ review pass that followed:
   refresh and the reactive undo/redo flags; nothing errors anywhere.
 - **Camera mode is "no active tool"**, exactly what slice 5 shipped (`ToolManager` grew
   `clearActiveTool()` for it). A gesture abandoned with Escape clears through
-  `cancelGesture()`; a rejected close keeps the vertex buffer.
+  `cancelGesture()`; a rejected close keeps the vertex buffer. **It is no longer the only way
+  to reach the camera** — see the navigation section below, which is the same sentence about
+  where panning lives, arrived at from the opposite direction.
 - **A simulated pointer stream has to obey the real device's grammar, and so does the
   ROUTING.** A click is down+up on the SAME button; a drag is down/move…/up; a pointer can
   also be taken away with no up at all (`pointercancel`, which the browser fires when it
@@ -435,6 +437,590 @@ which is why `snapDirection` projects rather than rotating. Four rules came out 
   the other end and the harness caught it: the index mounts every real component STANDALONE
   against the shared fixture, so a shell region that can only exist inside the whole editor is
   one nobody looks at. It takes `activeToolId` as a prop.
+
+**Canvas navigation is an OVERRIDE above the tool framework, not a mode inside it.** Space
+held or the middle button pans while any tool is active; shift+wheel pans horizontally (bare
+wheel still zooms, which is the CAD convention and what slice 5 shipped); `Shift+1` frames the
+plan and `Shift+2` the selection, both of them Obsidian Canvas's own bindings. The gestures
+were chosen by reading what other canvases actually do rather than by taste, and
+`docs/tests/cases/Canvas Navigation.md` records both the survey and what no gate here can
+check. Rules that came out of it:
+
+- **A pan built as a tool would destroy the thing the user is panning to see.** Reaching it
+  through `ToolManager.setActiveTool` runs the outgoing tool's `deactivate()`, so holding
+  space halfway through a polygon discards the vertices already placed — and the user reaches
+  for the pan precisely BECAUSE the shape runs off the pane. `viewport/pan-override.ts`
+  therefore sits ABOVE the manager and tells it nothing, which is why the interrupted tool has
+  nothing to lose. That is the one case in `canvasNavigation.test.ts` that would fail against
+  any design that routed this through the framework.
+- **The gesture outlives the modifier.** Releasing space with the button still down leaves the
+  pan running until the pointer is released — Photoshop, Figma and Obsidian Canvas all behave
+  this way, and disarming on keyup strands the user's pointer mid-pan. Two independent fields
+  (`spaceHeld`, `panningWith`) rather than one phase enum, because that overlap is exactly
+  what a single enum would have to encode as a transition.
+- **State keyed on a pointer is not keyed on a gesture, and a mouse is where that bites.**
+  `swallowedPointers` was keyed by id alone — so a primary press swallowed during a
+  middle-button pan recorded the PAN OWNER's own id, one mouse sharing one `pointerId` across
+  every button, and the owner's release was then consumed as if it were the swallowed one.
+  The canvas stayed panning with nothing held. The fix is an ORDERING rather than a richer key:
+  the owner's release and the owner's cancellation are tested first, and the swallowed set only
+  after — which needs no pointer/button pair and cannot drift out of step with `PanOverride`'s
+  own record. **Worth remembering as the sharpest instance of this file's own recurring
+  lesson**: "one mouse, one `pointerId`, two buttons" had already been the load-bearing fact in
+  five separate findings, and the fix written one commit earlier still keyed its new state on
+  the pointer alone. Knowing a fact is not the same as reaching for it.
+- **A gesture's ownership has to outlive the gesture, because the POINTER does.** While a pan
+  runs the canvas swallows every other pointer's press — but that decision was re-derived from
+  the live phase at each later event, and the phase is gone by the time a swallowed pointer
+  reports back. Finger A space-pans, finger B is swallowed, A releases and ends the pan, and
+  B's eventual `pointercancel` then found no pan running and was attributed to the active TOOL,
+  emptying a half-drawn polygon the tool never received a press for. `swallowedPointers` holds
+  those ids until each pointer ends. **The same "what is true now versus what was true when
+  this began" as the held-key races**, arrived at from the pointer side — a phase test cannot
+  answer a question about the past. Consulted at both ends per this file's own rule, though
+  only the CANCEL path is destructive: measured, a bare release is absorbed by each tool's
+  no-gesture guard, and guarding one end alone would leave the next reader to work out which
+  half was deliberate.
+- **An element's `blur` and the WINDOW's are not the same event, and only one of them is
+  guaranteed for an Alt+Tab.** Chromium can deactivate a window while leaving the focused
+  element focused, and Obsidian is Electron — so the container's own `@blur` may never fire
+  for exactly the gesture it was added to handle, leaving a held space bar recorded forever.
+  The cleanup is registered at both, and removed from the window on unmount, because a
+  window listener outlives its element and a closed leaf reaching into a disposed Pinia store
+  is a leak with behaviour attached. **Which one Electron delivers is not measurable here** —
+  jsdom models no window activation and a headless browser has no OS window to deactivate —
+  so registering both is what makes `docs/tests/cases/Canvas Navigation.md` step 11 pass
+  either way, and the suite can only check that the window listener exists and is removed. A
+  window listener is safe where a window KEY listener would not be: it reacts to the
+  application losing focus rather than competing for a keystroke, so two leaves both cleaning
+  up is correct.
+- **A canvas that hears keys only while focused has no keyup after an Alt+Tab.** The listener
+  is on the element rather than on `document` — so a plan editor in one split leaf cannot
+  swallow the space bar of a note being edited in another — which means focus leaving IS the
+  only notice a held key has ended. Without `onBlur`, the canvas comes back armed forever and
+  every later click pans instead of selecting.
+- **The middle button is not "paste-on-Linux", and a test had pinned that reading for three
+  slices.** X11's primary-selection paste is a TEXT INPUT gesture and a canvas is not one;
+  Obsidian's own Canvas documents middle-drag as its pan. `shell.test.ts`'s case is narrowed
+  to the SECONDARY button now, which is the one the claim was ever true of. The right button
+  stays unclaimed on purpose: it pans in Obsidian Canvas on Windows and not on macOS, because
+  macOS fires `contextmenu` on mousedown where Windows fires it on mouseup.
+- **Precedence between the camera and the active tool is decided in TypeScript, not in the
+  cascade.** The first draft expressed it as source order in `styles/editor.css` under a
+  comment claiming the pan rules won — they did not: the tool selector it was competing with
+  carried an attribute and outranked them, so the comment was false in both of its claims. One
+  computed class (`cursorClass`) makes the precedence an ordinary assertion instead, and
+  nothing in any gate reads CSS ordering.
+- **A dead branch that reads as belt and braces.** `boundsOfZones` validated each zone through
+  `createPolygon` before asking Core for its bounding box — but `validatePolygonPoints` refuses
+  exactly the empty and non-finite cases `boundingBoxOf` refuses, and refuses them first, so
+  the box's own failure arm was unreachable and no test could ever have covered it. Framing is
+  also the weaker question: a stored zone that no longer closes still has coordinates, and a
+  user asking to frame the plan wants to SEE it. One gate, both arms reachable.
+- **Ending one half of a gesture and not the other cost a ROUTING defect, not the camera
+  defect it looks like.** `pointerleave` cleared the store's drag and left the override still
+  believing it owned the pointer. The obvious prediction — the view runs away with the bare
+  cursor — is wrong and was measured wrong: `continuePan` no-ops without a drag state, so the
+  camera stays put and looks fine. What actually broke is that the next `pointerup` was
+  consumed as the end of a pan no longer happening, so the active tool got a press with no
+  release and the drag the user had just made did not commit. **Exactly one** release is
+  swallowed, and swallowing it repairs the state — so the regression case has to make that
+  drag the very next interaction, and the first draft of it passed against the defect because
+  a `click()` in between absorbed the damage. A self-healing defect needs a test that reaches
+  it before it heals.
+- **A release has to match the button that started the gesture.** A mouse shares one
+  `pointerId` across its buttons, so pressing and releasing the middle button during a
+  space+primary pan is an ordinary input — and an unconditional `pointerUp()` ended the pan
+  while its own button was still down, freezing the view under a hand still moving.
+  `pointerUp(button)` is narrowed to the owner now, with `abandonGesture()` as the separate
+  door for `pointerleave`, which names no button: an OPTIONAL parameter would have re-opened
+  the same hole under a different spelling. The second-order damage — that release reaching
+  `SelectTool` with no matching press — turns out to be absorbed by the tool's own no-gesture
+  guard, so a test asserting the zone did not move passes with the defect present and was
+  dropped rather than kept. Which is the invariant-at-the-forbidden-thing rule paying out:
+  the guard belongs to the tool, and the routing needs its own case.
+- **A gesture interrupted by FOCUS LOSS is the same question as one interrupted by
+  `pointercancel`, asked at the door with no pointer to name — and `onBlur` answered for the
+  camera only.** An Alt+Tab mid-drag delivers no `pointerup` at all: the user releases the
+  button in another application. So `ToolManager.gestureInFlight` stayed true, and through
+  `cameraIsLocked()` that refused every wheel and both fit shortcuts **for the rest of the
+  session**, with nothing on screen to say why; `SelectTool` meanwhile kept a translated
+  preview whose delta the user's next click anywhere committed — the identical damage
+  `onPointerCancel`'s header already records, through the other door. The guard is
+  `gestureInFlight` and it is NOT the same as `Escape`'s: a multi-click tool sits BETWEEN
+  clicks with the flag false, so an unconditional cancel here empties a polygon buffer the
+  user alt-tabbed away from, which is the over-correction the third case pins.
+  `cancelInterruptedGesture` states that once, and it has TWO callers — `onBlur` and
+  `onPointerCancel`, for the reason the `pointercancel` bullet above gives.
+
+  **The first version of that fix was wrong in the narrow half, and the correction is the more
+  useful lesson.** `gestureInFlight` is not a sufficient gate on its own: a multi-click tool
+  commits its work on `pointerdown`, so it is between down and up — flag TRUE — for the whole
+  of EVERY click, and an interruption there (a long press, a notification stealing focus, an
+  Alt+Tab without letting go) called `cancel()` and destroyed every vertex placed before it.
+  So `EditorTool` gained `abandonGesture()` beside `cancel()`, REQUIRED rather than optional
+  so a tool that grows a drag has to say so, and the two are a real pair rather than a
+  synonym: `cancel()` is DELIBERATE (Escape, a tool switch) and a user pressing it wants the
+  accumulation gone, while `abandonGesture()` is an INTERRUPTION and must abandon only what
+  the missing release would have completed. `SelectTool`'s is its whole `cancel()`,
+  `DrawPolygonTool`'s is a documented no-op, and `CalibrateTool`'s drops the buffered second
+  point while RESTORING the placed first one — the asymmetry there being deliberate, since a
+  kept buffer completed by some unrelated later click is a scale error every area on the plan
+  inherits, silently.
+
+  **"Restoring" is the word that had to be measured, and the first version said "keeping" and
+  was wrong.** `CalibrateTool.pointerDown` does not leave the anchor where it found it: placing
+  the second point MOVES `pointA` into `pendingCompletion` and nulls it. So clearing the
+  pending completion alone lost BOTH points — measured, the next click placed a fresh first
+  point and no calibration was taken at all, with the abandoned segment still drawn over it —
+  under a docblock asserting the opposite, written one commit earlier. **A claim about which
+  state survives an operation is worth nothing until it is asked of the state machine that
+  actually moves that state**; this one read as obviously true and was false at the only call
+  site that matters.
+
+  **And the same edit had to be UNDONE at the tool-switch paths**, which is the second half of
+  the lesson. Their guard reads identically, so the first attempt routed them through the new
+  method as "one question written out longhand in three places" — and they are not the same
+  question: switching tools is deliberate, like Escape. Two ToolManager cases caught it
+  immediately. **Similar guards are not automatically duplication, and consolidating two
+  questions that merely look alike is how a narrow correct behaviour gets replaced by a
+  uniform wrong one.**
+- **A mapping with an `else` claims everything it never thought about.** `panButtonOf` read
+  `button === 1 ? auxiliary : button === 2 ? secondary : primary`, so `PointerEvent.button`'s
+  less familiar values all answered `primary`: **3 is a mouse's Back, 4 its Forward, 5 a pen's
+  ERASER.** With space armed, a Back press therefore CLAIMED the camera, took the pointer
+  capture and had its default suppressed — which on that button is the browser's own
+  navigation. It answers `null` now and the two call sites differ, which is the point: the
+  override DECLINES an unrecognised button, while `editorPointerEvent` says `?? 'primary'` at
+  its own call site, because `-1` ("no button changed state", which every plain move carries)
+  must go on reading as the primary gesture it is. **Declining is not the same as mapping to
+  something**, and an `else` cannot express the difference.
+
+  Two things about finding it are worth more than the fix. The camera symptom was
+  SELF-HEALING — a pan claimed by button 3 ends on its own very next move, because
+  `pointerMove` sees the primary bit absent from `buttons` and reads a chorded release — so
+  the first version of the regression case watched `viewport.pan`, passed, and pinned
+  nothing; it asserts `defaultPrevented` and the phase class instead. And the edit that added
+  `PRIMARY_BUTTON_BIT` had been inserted BETWEEN `panButtonOf`'s docblock and `panButtonOf`,
+  leaving a paragraph about button mapping sitting above a numeric constant and the function
+  itself undocumented. Nothing in any gate reads whether a docblock is attached to what it
+  describes. `pointerButtons.ts` now holds all three together, extracted when `PlanCanvas.vue`
+  crossed its 400-line cap.
+- **`event.buttons` describes the pointer that SENT the move, and reading it without asking
+  whose pointer that was is the button/pointer confusion in its newest disguise.** The
+  chorded-release fix asked `gestureInFlight && (buttons & 1) === 0` and nothing about
+  identity — so a pen hovering over the canvas, or a finger resting and lifted, reports
+  `buttons: 0` while the mouse holding a drag is still down, and `SelectTool` committed that
+  drag at the PEN's coordinates: measured, the zone landed at (7500, 3500), nowhere the user
+  dragged it. The canvas keeps `toolGesturePointer` beside the manager's flag now — deliberately
+  never cleared, because it is only ever read WITH `gestureInFlight` and both are written by
+  the same call, so a leftover value is unreachable rather than stale. **This is the seventh
+  finding in this handler resting on "one mouse, one `pointerId`, two buttons" and its
+  converse, and the fifth written by an author who had just recorded the rule** — knowing a
+  fact is not the same as reaching for it, and a NEW mechanism reading a pointer field is
+  exactly where the old rule has to be asked again.
+- **A chorded mouse button fires NO `pointerdown` and NO `pointerup`, and eight rounds of
+  review on this handler hardened it against inputs no mouse can produce.** W3C Pointer
+  Events, "chorded button interactions": `pointerdown` fires only on the transition from no
+  buttons to some, `pointerup` only when the LAST button comes up, and every button change in
+  between is a `pointermove` whose `button` names what changed and whose `buttons` carries
+  what is still held. So a pan waiting for a release that MATCHES its own button never gets
+  one when a second button outlives it — middle-drag, press primary, release middle, release
+  primary sends exactly one release and it names the primary. Measured: the canvas sat in
+  `panning` for the rest of the session, swallowing every later click. The fix is the
+  BITMASK, at every door a gesture can survive: `PanOverride.pointerMove` ends a pan whose
+  owning bit has left `event.buttons`, and camera mode and the tool path each take the same
+  test — camera mode because it is the DEFAULT and therefore the more reachable half, the
+  tool path because a tool refuses a release that is not primary and so lost the drag
+  outright rather than merely freezing (the zone snapped back with no error anywhere). Three
+  paths, one grammar; fixing only the one in the report would have been the partial fix this
+  file has already paid for twice.
+- **Seventh instance of the fake-too-thin rule, and the most expensive by REACH rather than
+  by count.** `tests/helpers/planEditorRig.ts` never set `buttons` at all, so every
+  synthesized move reported none held — and the cases that meant to describe a chord invented
+  a second `pointerdown` and an early `pointerup` instead. Every one passed, in both worlds:
+  the routing they certified could not be exercised by a real device, while the real chord
+  went unhandled underneath them. Five cases had to be rewritten to the grammar a mouse
+  actually sends, two deleted outright (they guarded a `swallowedPointers` collision that has
+  no producer — a chorded press reaches `onPointerDown` at no point, so nothing is ever
+  swallowed under an id that already owns a pan). One of the five, 'is refused while a tool
+  gesture is already running', turned out to be reaching its guard through the middle button,
+  which cannot get there: rewritten to a second FINGER, the one input that does, and mutation-checked
+  by nulling the guard and watching it go red. **The shape to remember is not the count. A
+  test that drives an impossible input is not weak evidence, it is evidence about a different
+  program**, and it stays green through every fix and every regression alike. Where a fake
+  invents the input rather than merely accepting one, ask what the SPEC says the device sends
+  before asking what the code does with it.
+- **A gesture belongs to a POINTER, not just to a button — and camera mode had the same hole
+  the override did.** On a mouse this is invisible: one `pointerId` is shared across every
+  button. On touch it is not, and the manifest promises mobile — so a second finger's moves
+  read as continuations of the first one's drag (the camera jumping by the distance BETWEEN
+  two fingers) and its release ended a pan whose own finger was still down. Both halves, and
+  both places: `PanOverride` gained `owns(pointerId)` and a pointer test on `pointerUp`, and
+  `DragState` gained a `pointerId` that `continuePan` and `endPan` both check. **Fixing only
+  the override would have been half a fix, and the canvas-level case is what proved it** —
+  with no tool active the move falls through to camera mode, which is the DEFAULT state and
+  therefore exactly where a second finger on a tablet lands. Each object splits the pair the
+  same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
+  `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
+  an optional parameter would have re-opened the hole under a different spelling.
+
+  **And the THIRD place with that hole was the one nobody looked at, because it is not the
+  camera at all.** The override refuses a press while another gesture runs and `beginPan`
+  keeps the drag it already has — but the TOOL branch of `onPointerDown` simply reassigned
+  `toolGesturePointer` and forwarded the press, so a second finger landing mid-drag handed
+  `SelectTool` a gesture at ITS coordinates and the owner stopped being the owner. Measured:
+  a zone dragged 1000 world units committed 6000. The gate is `gestureInFlight &&
+  toolGesturePointer !== event.pointerId`, and both halves are load-bearing — the identity
+  test ALONE would be wrong, since `toolGesturePointer` is deliberately never cleared, which
+  is safe only because it is read exclusively WITH that flag. Widening the flag to "a tool is
+  active" reddens ten cases, which is the over-correction measured rather than argued: a
+  multi-click tool sits between clicks with nothing in flight, and two fingers placing
+  vertices in turn is a legitimate way to draw a polygon. Reported by a review bot, four
+  rounds after the two camera halves were fixed — the same question asked at a door that was
+  never about the camera.
+
+  **And the MOVE door needed it too, which the press guard cannot reach: a hovering pen is
+  never pressed, so it is in no swallowed set — it simply arrives.** The ownership test
+  existed there already and guarded the synthetic chord-release ALONE, so the same foreign
+  event fell one line through to `pointerMove` and the ghost the user is steering by jumped to
+  wherever the pen was. The commit is computed from the release, so the geometry survives and
+  the PREVIEW is the whole of the damage — which is why its case asserts on what the
+  interaction layer DRAWS rather than on what is saved, comparing every line it holds rather
+  than picking one out by template order. Asked once at the top of the branch now, above both
+  things that branch does. **The narrowing needed its own case and would not have got one:**
+  every other case passes with the guard keyed on identity alone, and that version stops a
+  drawing tool's rubber band following any pointer but the last one to have pressed — for the
+  rest of the session, silently, because `toolGesturePointer` is never cleared. Measured by
+  writing the mutation and finding the suite green.
+- **A SYNTHETIC input is still an input, and `reissuePointerMove` was the one door that handed
+  a tool something while the camera owned the canvas.** Three pointer handlers keep the active
+  tool out of a running pan; the re-issue is built from `lastStagePoint`, which during a pan is
+  the PAN's own pointer — so Shift pressed mid-pan sent a drawing tool a hover at the panning
+  cursor and its rubber band jumped there. The guard is inside that function rather than at its
+  two Shift call sites, because it is a property of re-issuing at all and a third caller cannot
+  see a rule kept at the other two. Nothing is DEFERRED to the pan's end: a re-issue answers
+  "the camera moved under a stationary pointer", a pan moves the pointer too, and the first
+  real move after it says so truthfully — while the camera doors that do need one (`onWheel`,
+  `onKeyDown`) are refused during a pan anyway by `gestureInFlight()`, which a pan's own
+  `dragState` satisfies.
+  **Its narrowing needed a case of its own, and that is now twice in two rounds**: widen the
+  guard from "a pan is running" to `gestureInFlight()` and the whole suite still passes, while
+  the angle constraint dies at exactly the moment it is wanted — a drawing tool places its
+  vertex on `pointerdown`, so a user holding the button and moving is mid-gesture by
+  definition. The comment above that branch had asserted precisely this and nothing checked it.
+  **The pattern worth carrying: when a fix is a REFUSAL, the suite tends to cover the thing
+  refused and not the thing still allowed** — so write the widened mutation and run it, because
+  a refusal that is too broad is silent in a way a missing refusal is not.
+- **A guard cannot be walked around by a caller that reads it, only by one that DESTROYS what
+  it reads first — and `onBlur` was doing both halves of that in one function.** It re-issued
+  the move LAST, after its three cleanups, so the synthetic input was a statement about a
+  gesture that no longer existed:
+  - `cancelInterruptedGesture()` had just restored `CalibrateTool`'s first point and redrawn
+    its zero-length anchor, and the re-issue replayed the remembered position of the
+    interrupted SECOND point straight back through `pointerMove`, drawing the abandoned
+    segment over it. Not cosmetic, which is what makes it worth the bullet: that render is
+    byte-identical to the one `pointerDown` leaves for a second point really placed, so the
+    user came back to the picture meaning "measured, awaiting the distance" over a tool that
+    had thrown the measurement away, with no dialog coming.
+  - And `panOverride.cancel()` ran before it, so the `phase === 'panning'` guard the bullet
+    above put INSIDE `reissuePointerMove` — for exactly this — was already false when the
+    re-issue asked. A blur mid-pan handed a drawing tool a hover at the pan's pointer. The
+    guard was in the right place and the caller had cleared its input; the previous round's
+    own reply had cited this call site as safe BECAUSE it sat below the cancel, which is true
+    as a fact and wrong as a defence.
+
+  The re-issue goes first now, so it describes the gesture as it still was and the
+  interruption is the last word. **The method note is the ordering twin of the refusal one
+  above, and this file has now paid for both in consecutive rounds: when a fix is an
+  ORDERING, write the PARTIAL reordering and run it.** Moving the call up by three lines
+  instead of above the whole teardown passes the reported calibration case and leaves the
+  camera one live — a partial fix that reads exactly like a complete one, which is this
+  file's oldest recurring lesson arriving in its newest disguise. The opposite
+  over-correction, deleting the re-issue outright, is caught by the existing
+  constraint-drops-on-blur case in `interactionLayer.test.ts`, so both directions are held.
+- **A guard on the direct path says nothing about the VALUE that path leaves behind.** The
+  ownership guard above refuses a foreign pointer's move as a tool move — and
+  `onPointerMove` wrote `lastStagePoint` at its very top, above every check below it, so the
+  refused pen's coordinates were recorded anyway and the next Shift press rebuilt a synthetic
+  move out of exactly them. The ghost jumped to the pointer the guard had just declined.
+  `isGestureOwner(pointerId)` is the companion to `gestureInFlight()` and exists for its
+  reason: the two gestures a pointer can own record their owner in different places
+  (`toolGesturePointer` beside the manager's flag, `dragState.pointerId` in the store, which
+  the override's pan and camera mode's drag both go through), so a caller would otherwise
+  spell a two-armed question out longhand. Its "or none is running" arm is load-bearing
+  rather than a convenience — a hover with nothing in flight is how a drawing tool's rubber
+  band follows the pointer at all. `editor.setPointer` is gated with it: `pointerWorld` is
+  the status bar's readout of where the pointer is, and a readout following a hovering pen
+  away from the drag the user is making is the same claim being false in the other surface.
+
+  **The method note gained its third variant here, and the three are one rule:** when a fix
+  is a REFUSAL, write the WIDENED mutation and run it; when it is an ORDERING, write the
+  PARTIAL reordering; when it guards ONE of several gestures, DROP THE OTHER ARMS. Every one
+  of those has passed the whole suite at least once while leaving a defect live — this
+  round's was gating the tool's gesture and not the camera's, green across 46 files and 633
+  tests with the camera half still broken (a pan swallows a foreign move but still records
+  it, and a pan ends on its release with no move after it to correct the record, so the first
+  Shift press afterwards replays the hover). **A fix's own shape tells you which mutation to
+  write**, and the suite covering the reported path is not evidence about the one beside it.
+- **Two more doors that did not ask, and one of them was named in the comment that exists to
+  prevent exactly this.** `swallowedPointers` holds a pointer's id "until that pointer ends",
+  and its docblock narrates the scene — finger A space-pans, finger B is swallowed, A
+  releases and ends the pan, B reports back to a canvas with no pan running — then closes
+  with "Consulted at BOTH ends", meaning the release and the cancellation. The MOVE is a
+  third door and it asked nothing, so B steered the rubber band the moment A let go, one
+  event before the cancellation the comment describes. The move is also the door whose damage
+  LASTS: B's release is swallowed, so unlike most defects in this handler nothing self-heals
+  it. The guard is above the RECORD as well as the routing, because the routing-only form
+  passes the whole suite while leaving a Shift press able to replay B's position.
+- **`onBlur` was not idempotent, under a comment that called it idempotent** — and the
+  comment had been true until the ordering fix two commits earlier moved the re-issue above
+  the teardown. Chromium can deactivate a window while leaving the focused element focused,
+  so both blur listeners are registered and one Alt+Tab may deliver BOTH: the second call
+  found the override idle, because the first had just cancelled it, and replayed the pan's own
+  pointer into a tool that was told nothing while that pan ran. Whether the tool heard
+  anything came down to how many blur events the host chose to deliver. The remedy is not a
+  once-per-blur flag — that goes stale-true when focus leaves the container WITHIN the
+  document, where no window blur and no focus event follow, and the next real Alt+Tab would
+  then skip the space-bar cleanup. `onBlur` forgets `lastStagePoint` instead, which makes the
+  second call a no-op at the re-issue's own guard and is the sentence `onPointerLeave` and
+  `onPointerCancel` already carry: **a position remembered from before an interruption is not
+  a claim about where the user's pointer is.** `editor.setPointer` is deliberately NOT cleared
+  with it — those two doors fire because the pointer demonstrably left or was taken, while
+  focus can leave with the pointer still resting over the plan — and that asymmetry has its
+  own case, because clearing it too passes everything else.
+
+  **Both of these are the same shape as the fixes that preceded them, which is the thing to
+  carry rather than either defect: a rule this file states in a docblock is a rule some door
+  is not following, and the docblock is where to look first.** Three rounds running, the
+  comment naming the invariant was the best available description of the bug.
+- **It ended as FIVE doors asking one question, and the last two rounds are what says why that
+  had to be a function rather than a habit.** `isGestureOwner(pointerId)` — the owner of the
+  running gesture, or nobody's if none runs — is now asked at the press, the move, the
+  release, the cancellation and the leave. Each door was fixed in its own round, by its own
+  report, and each of the first four looked like the last one: the cancel door abandoned the
+  drawing pointer's gesture when a hovering pen was taken away (a 1000-unit drag committing
+  0), the release door committed `SelectTool` at a foreign pointer's coordinates while the
+  owner's finger was still down (1000 committing 6000, the press-door defect's own signature
+  through the other end), and the leave door forgot where the drawing hand was. **The lesson
+  is not "guard the doors" — it is that a question worth asking at one door is a FUNCTION, and
+  the moment it is spelled out longhand anywhere, the count of places it is missing is
+  unknowable.**
+- **A residue written down is only as honest as the bound it names, and this file asserted one
+  that was false when written.** Forgetting a swallowed pointer on leave (above) left a real
+  hole, and the commit doing it said so — "an ordinary pointer from then on, which its own
+  ownership guard bounds to a hover with no gesture running". True of the move door, which had
+  such a guard, and false of the release door, which had none; the next round's report was
+  exactly that hole. The bound was checked against the door its author had been thinking
+  about. **Writing a known limitation down is not the same as measuring it**, and a documented
+  residue reads as surveyed ground — worse than an unmentioned one, which at least reads as
+  unexplored. The note names its three doors now, so that a door which stops asking makes the
+  sentence wrong rather than quietly stale.
+- **Uniformity is a reason, and it is not the same reason as necessity — say which one you
+  have.** The release door takes `isGestureOwner` rather than a bare identity test, and the
+  first draft of its comment claimed the "or nothing is running" arm kept multi-click tools
+  working there. Measured false: the press door sets `toolGesturePointer` for every press it
+  forwards, so a releasing pointer is the owner whenever the tool ever heard its press, and
+  the two spellings are indistinguishable at that door for any stream a device can produce.
+  The arm IS load-bearing at the move door and has a case there. The predicate stayed, for the
+  bullet above; the sentence changed, because a rule kept for tidiness and a rule kept for
+  behaviour are different claims and only one of them is testable.
+- **Two expressions of one question, three lines apart, drift immediately.** The camera lock
+  and the override-start guard both asked "is a gesture already running", and the lock was
+  written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is
+  represented by nothing else, did not lock the camera at all. Its symptom differs from the
+  tool-drag one and is worth knowing: `continuePan` recomputes absolutely from the viewport
+  captured at the drag's start, so a wheel that moved the camera is thrown away by the very
+  next mouse move and the user sees a JUMP rather than silent corruption. They are one
+  `gestureInFlight()` now. This is the THIRD instance in one review of a rule stated in one
+  place and not followed by the next (`isPrimary` across four handlers, `gestureInFlight`
+  across the tool and the camera, this) — at which point the answer stops being "state it
+  again more carefully" and becomes "make it one function nothing can restate".
+- **A `preventDefault` for a HELD key has to run before any early return that outranks it.**
+  Placing the camera lock above the space branch meant every autorepeat during a pan returned
+  before reaching `preventDefault()` — and space is page-down, so the editor leaf scrolled out
+  from under the plan for the length of the gesture. Suppressing the first keydown is not
+  enough when the gesture is DEFINED by holding the key. The suppression is unconditional now
+  and only the ARMING is what the lock refuses.
+- **A camera that moves mid-drag corrupts what the drag commits, and every camera door had to
+  take the same rule.** `SelectTool` records where a drag started in WORLD coordinates and
+  computes the commit from the release's world coordinate, both through the camera as it
+  stands at that moment — so a zoom or pan in between silently adds its own delta to the
+  geometry, and the zone lands somewhere the user never dragged it with no error anywhere. The
+  wheel ZOOM has been able to do this since slice 5, and the middle-button path already
+  refused to start a pan in that state, so the file was applying half of a rule it had already
+  discovered. `cameraIsLocked()` is that rule at every door — wheel, keyboard zoom, both fit
+  shortcuts — with Escape deliberately above it, since abandoning a gesture is exactly what a
+  user wants while one is running. The capability given up is "zoom while dragging", which
+  does not work today in any sense worth keeping; making a live drag COMPENSATE for a camera
+  change belongs to the tool framework and is the follow-up.
+- **"Is another gesture running" is a question about EVERY gesture, and camera mode is not a
+  tool.** The override's refusal asked only `toolManager.gestureInFlight`, so a middle press
+  during a bare left-drag pan claimed the camera — and its release then ended a drag the
+  primary button was still holding. One mouse, one `pointerId`, two buttons: nothing about
+  pointer identity could catch it, because the question was simply too narrow. The parameter
+  is `gestureInFlight` now and takes both. The same round found the camera-mode branch of
+  `onPointerUp` missing this file's OWN down/up symmetry rule — a camera drag can only begin
+  on a primary press, so an unfiltered release let the middle button end one it never started.
+  A rule stated in a comment three handlers above is not a rule the fourth handler follows.
+- **A key handler on a container swallows the keys of everything focusable inside it.** The
+  Plan Editor's empty states are OVERLAYS inside `.rp-plan-canvas`, and `planEditor.noZones`
+  carries an action button — so its `keydown` bubbled to the canvas, whose `preventDefault()`
+  (there to stop the pane paging down under a space-held pan) suppressed the button's native
+  Space activation. The canvas's only keyboard-reachable control stopped working under the
+  standard gesture for pressing it, while the camera armed behind it. `event.target ===
+  container` is the whole fix, tested against the container rather than by sniffing for
+  interactive tag names, so the rule stays true for whatever that slot holds next. Worth
+  pairing with the accessibility note in the slice 14 section: no empty state carrying a
+  button is graded by any axe scan, so nothing else here was watching this control.
+- **`pointercancel` was the one door that broke this design's own central claim.** It
+  cancelled the ACTIVE TOOL unconditionally — so a user mid-polygon who held space to pan and
+  then alt-tabbed lost their vertices, which is precisely what routing the pan around
+  `ToolManager` exists to prevent. The tool never received the pan's press, so its buffer has
+  nothing to do with the gesture the OS took away. Which gesture was cancelled now decides
+  what is abandoned. Worth remembering as a shape: the headline argument for a design is
+  exactly the claim its rarest code path is most likely to falsify, because that path is the
+  one nobody re-reads the argument against.
+
+  **Its TOOL branch then had to make the same correction `onBlur` had already made, and the
+  finding is that ONE interruption fires BOTH doors.** A cancellation is the OS taking the
+  pointer, never a user asking for their work back — so it belongs on the `abandonGesture()`
+  side of that pair, and calling `cancel()` there emptied a drawing tool's whole buffer for
+  an interruption during a single click. An Alt+Tab mid-press fires `blur`, which carefully
+  abandons the gesture and keeps the vertices, and the `pointercancel` that may follow then
+  destroyed exactly what the blur had preserved: a narrow fix for one door, undone by the
+  next one along. Being gated on `gestureInFlight` is what makes the pair idempotent —
+  whichever door arrives second finds nothing in flight and does nothing — which is why the
+  remedy is one shared door rather than a record of which pointer was already handled.
+  Reported by a review bot, and the case is watched failing BOTH ways: `cancelGesture()`
+  loses the buffer, and telling the tool nothing at all leaves `SelectTool`'s preview live
+  for the next unrelated click to commit.
+- **While a pan runs, the canvas belongs to the CAMERA — every input, not just the moves.**
+  Three handlers, one rule, and it took three tries to get all of them: a press the override
+  declined fell through to the active tool (`DrawPolygonTool` placing a vertex on a world that
+  was moving under the user), that press's RELEASE then fell through too — a release with no
+  matching press, the grammar defect this repository keeps re-finding — and a `pointerleave`
+  from any pointer at all abandoned the owner's gesture. **Not a touch-only concern, which is
+  the part a first reading gets wrong:** a mouse shares ONE `pointerId` across every button, so
+  a plain left click during a middle-drag pan takes exactly that path. `EditorStore.beginPan`
+  keeps an existing drag rather than replacing it, for the same reason one layer down.
+- **A modifier is the wrong test for a gesture the hardware performs itself.** Shift+wheel was
+  gated on `shiftKey`, so a trackpad's two-finger sideways swipe — nonzero `deltaX`, no
+  modifier — fell through to the zoom branch, which reads only `deltaY`, and with `deltaY: 0`
+  did nothing at all. Two things had already promised otherwise, which is what makes it worse
+  than a gap: the comment inside that branch described trackpad swipes "on every platform"
+  from a branch that could not see them, and `docs/tests/cases/Canvas Navigation.md` step 8
+  told a tester to expect it. The LARGER axis decides now, not the presence of any horizontal
+  delta at all — a trackpad emits a little `deltaX` during a mostly-vertical swipe, and
+  routing on its mere presence would turn hand tremor into a mode switch.
+- **A keyboard shortcut matched on `event.key` is matched on the LAYOUT.** `Shift+2` produces
+  `@` on a US keyboard and `"` on the German and UK ones, so both fit shortcuts were silently
+  dead for exactly the users this plugin ships a `de.ts` for — the worst failure a shortcut
+  can have, since nothing happens and nothing says why. `event.code` (`Digit1`/`Digit2`) is
+  the physical key; the `shiftKey` test stays BESIDE it, because `code` alone would fire on a
+  bare `1`. The two original cases had passed while the shortcut was dead, because they sent
+  only `key` and no browser does — a fake thinner than the real thing, again.
+- **A guard put at the keyboard door is owed at the pointer door, and the second one cannot
+  be written the same way.** `isCanvasKey` (`event.target === container`) fixed the empty
+  state's action button being unable to take a Space press — and left the PRESS bubbling for
+  another round, so clicking that button began a camera pan under the user (measured: `pan`
+  from -480 to -1280). The same test could not be reused: a key goes to whatever has focus,
+  while a press targets the Konva canvas the stage draws into and never the container, so
+  `event.target === container` is false for every real gesture. The rule is STRUCTURAL
+  instead — the overlay slot is wrapped in a `div` carrying `@pointerdown.stop`,
+  `@pointerup.stop` and `@pointercancel.stop` (`display: contents`, so it generates no box
+  and the overlay lays out exactly as before) — which holds for whatever the slot holds next
+  and cannot be forgotten at a sixth pointer door the way a predicate can. Both ends, never
+  one: a swallowed press owes a swallowed release. The `.stop` fires at the BUBBLE phase, so
+  the overlay's own controls have already had the event and only the canvas behind them is
+  kept out of it.
+- **"Every input" meant every POINTER input, and the one keyboard input it left out was the
+  destructive one.** Three handlers check `phase === 'panning'` and swallow; `Escape` was
+  routed straight past to `cancelGesture()`, which EMPTIES `DrawPolygonTool`'s buffer — so a
+  user mid-polygon who held space to pan and pressed Escape lost the whole polygon while the
+  pan carried on underneath (measured: no zone closeable at all afterwards). The same defect
+  as `pointercancel`'s, in the next door along. Escape differs in being DELIBERATE, which is
+  the honest argument for letting it through, and it loses to the fact that a pan has no
+  uncommitted state for Escape to undo — the camera does not rewind — so the tool's buffer
+  was the only thing it could destroy. **Swallowed rather than routed to the pan**, which is
+  what the finding proposed: ending the pan there leaves the user's button down with the
+  override no longer owning it, so the release reaches the tool with no matching press. The
+  gate is `panning` and never `armed`, because space merely held is not a gesture and the
+  camera lock carved this branch out precisely so Escape keeps working during a tool drag.
+- **A gesture the canvas CLAIMS owes its browser default suppressed on every press of it,
+  including the ones it refuses — and the door that hears "every press" was not a pointer
+  door at all.** `event.preventDefault()` for the middle button sat inside the branch where
+  the override took the press, so a middle press refused because another gesture was in
+  flight fell through the primary filter and reached Chrome, which opened its autoscroll
+  widget over the drag still running. The file already knew the rule — the comment saying so
+  was three lines above, inside the branch that applied it — and applied it at one door out
+  of three. Hoisting it to the top of `onPointerDown` fixed the refusal and left the case
+  that matters open for two more rounds: **with the primary button already held, a middle
+  press fires no `pointerdown` at all**, so the hoisted suppression sat on a handler the
+  press never reached. Measured in a real Chromium rather than argued — the chord arrives as
+  `pointermove` (`button=1`, `buttons=5`) while the compatibility `mousedown` fires exactly
+  as always, and cancelling that `pointermove` does not suppress it, because the
+  compatibility mapping ties mouse-event suppression to a cancelled `pointerdown`. The rule
+  lives at `onMouseDown` now, the one door a bare press (`buttons=4`) and a chorded one
+  (`buttons=5`) both arrive at, and the claim branch's own `preventDefault` is narrowed to
+  the PRIMARY button so that a claimed middle press cannot suppress the very compatibility
+  event the rule is stated on. **Suppressing a default is not claiming a gesture**, and the
+  two must not be hoisted together: a build that lifted the CLAIM instead passes the
+  autoscroll cases and turns the camera-lock cases red, which is how that mistake is caught.
+  **The shape worth keeping: "every press" is a claim about a DOOR, and three rounds of
+  moving the suppression between pointer handlers could not fix it, because no pointer
+  handler hears every press.**
+- **A phase test decides afresh on every event; a held key is ONE press.** Swallowing Escape
+  while `phase === 'panning'` fixed the case above and left the next one open: a user holding
+  Escape as the pan ended had the keydown swallowed, and the OS's next repeat of that same
+  press — tens of milliseconds later, phase no longer `panning` — reached `cancelGesture()`
+  and cleared the polygon anyway. Whether the work survived came down to whether the button
+  was released before the next repeat, which is a race rather than a rule. The fix is
+  `!event.repeat`, not tracking the press through its keyup: a repeat is never new intent,
+  and `cancel()` is idempotent, so the two differ only for repeats of a press that already
+  cancelled. **The general shape, and it is the third time in this review that a guard keyed
+  on live state let a HELD key through:** a gate written against a phase answers "what is
+  true now", when the question is "what was true when this press began".
+- **A test asserting an ABSENCE passes in both worlds when neither world can produce the
+  thing.** The carve-out case above first ended on `expect(drawn).toBeUndefined()` after two
+  clicks — and two vertices cannot close a polygon whether the buffer was cleared or not, so
+  it read the same `undefined` either way and pinned nothing. Caught by running it against
+  the inverted gate rather than by reading it. It closes a fresh triangle and counts three
+  points now: had the earlier vertices survived, the close click would be nowhere near the
+  buffer's first point and would add a sixth vertex instead. **Watching a test fail proves
+  it can fail; watching it fail against the OPPOSITE mistake is what proves it discriminates**
+  — this one was watched red both ways.
+- **A record of what the HARDWARE is doing may not be gated on a policy about what the
+  software will allow.** `spaceHeld` is "the key is physically down"; the camera lock was
+  allowed to skip writing it, so a space pressed DURING a tool drag or a middle-button pan
+  was dropped — and no second non-repeat keydown is ever coming for a key already held. The
+  user released the other gesture still holding space over a machine that thought it was up,
+  and their next primary drag went to the tool instead of the camera. The refusal belongs at
+  `PanOverride.pointerDown`, the one place a gesture is actually CLAIMED, where it already
+  was. Same lesson as `gestureInFlight` one round earlier, reached from the opposite side:
+  not "state the rule again at this door" but "notice this door was never the rule's place".
+- **A docblock naming its own callers is a fact about the ROUTING, and routing is what a
+  review round changes.** Three went stale in one commit's wake and none of them failed
+  anything: `abandonGesture` said `pointerleave` was "the caller" after `pointercancel`
+  became a second one, `cancel` still claimed `pointercancel` after that call moved away
+  from it, and `EditorStore.abandonPan` listed `pointerleave` while `onPointerLeave`
+  deliberately calls `endPan` and says so three lines from it — two comments contradicting
+  each other about one path. The "only place X" rule in the Claims section is the same
+  instrument; a caller LIST needs the same grep, in the edit that moves a call.
+- **A comment promising behaviour the signature cannot deliver.** `fitViewport`'s said a
+  doubly-degenerate extent "keeps its current zoom"; it answered `DEFAULT_ZOOM` — `0.1`, the
+  camera a freshly opened editor starts at — and the function never received the current
+  viewport at all, so it could not have done otherwise. `Shift+2` on a point-sized selection
+  at 5x therefore dropped the user to a tenth. Fixed by making the code true rather than the
+  sentence narrower, since the promised behaviour was the right one and the store already
+  held the number: the caller passes `currentZoom`, and it takes the same `clampZoom`
+  everything else there does rather than being trusted.
+- **A private TypeScript field is not private at runtime, so a test can pass against nothing.**
+  The first five `ToolManager.gestureInFlight` cases went green immediately — `tests/` is transpiled
+  without type checking, so they were reading the private field directly and could not tell a
+  getter from its absence. The field is `#private` now, which turned all five red as they
+  should have been. Anywhere a test asserts that something is REACHABLE, `private` is not the
+  mechanism that makes the test mean anything.
 
 **Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
 descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the
@@ -1133,6 +1719,40 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   capturing at the wrong width and exiting 0.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
+
+  **The browser is the pinned one or one you NAME, never one found lying around.**
+  `scripts/chromium.mjs` asks `playwright-core` where the revision this repository pins
+  would be and refuses to hunt a different build on disk when it is absent — a capture taken
+  with an unannounced substitute is a picture somebody then reasons about as if it were the
+  pinned browser's, which is a quieter problem than not capturing. The remedy it names,
+  `npx playwright install chromium`, is a developer's laptop's remedy and is exactly what a
+  container with its browsers baked in cannot do — so an error naming only that remedy is
+  how a capture check goes un-run and gets disclosed as outstanding, which is what happened
+  on the canvas-navigation branch. `RP_CHROMIUM_EXECUTABLE=/path/to/chrome` is the one door
+  out, and it differs from hunting in both halves: a person names the build, and the capture
+  prints that it is not the pinned one, so the caveat travels with the picture. What no gate
+  can check is whether the substitute renders like the pinned build; read those captures as
+  approximate. Both doors ask `isFile` and not `existsSync`, which answers `true` for a
+  DIRECTORY — Playwright accepts one as an `executablePath` and fails at a launch several
+  steps later, blaming the browser rather than the thing that named it, which is the late
+  failure this module exists to convert into an early one. The EXECUTABLE bit is deliberately
+  not asked with it: Windows has no such bit and `accessSync(path, X_OK)` succeeds there for
+  any file, so the check would hold on one CI platform and be theatre on the other.
+  `tests/build/chromium.test.ts` drives all of it, half in ONE CHILD PROCESS
+  because `chromium.executablePath()` reads `PLAYWRIGHT_BROWSERS_PATH` at IMPORT and not at
+  call — its own first draft set that variable in `beforeEach`, was answered from the real
+  cache throughout, and planted an empty file called `chrome` in this machine's provisioned
+  Playwright directory, which every later case then read as an installed pinned build.
+  **ONE child, not one per case, and that is a CI lesson rather than tidiness**: a spawn that
+  imports playwright-core costs about 650ms, and six of them cost 3.76s of a two-core runner
+  in synchronous bursts — beside test files whose waits are bounded in TICKS rather than
+  seconds. `settleUntil`'s own docblock already records a fixed-tick wait failing next to a
+  PDF rasterizing two million pixels; this file reproduced that shape, timing out
+  `accessibility.test.ts`'s cold Vite transform on one CI leg while the other three passed.
+  Nothing needed a process each: the import happens once and the FILESYSTEM and ENVIRONMENT
+  are read at CALL time, so one child walks every state and the `it`s read the results back.
+  **A test file's CPU cost is part of its correctness when anything in the suite waits in
+  ticks**, and a green local run on a four-core machine cannot see it.
 
   **It has now caught ten defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its

@@ -141,7 +141,27 @@ each declare their own `files` expansion over `SRC_EXTENSIONS`, so removing `.js
 `.cjs` from one of *those* blocks changes nothing a layer-path probe can see. The existing suite
 covers only root `.ts`/`.js`, catch-all `.vue` and dialogs `.vue`. The enumeration is therefore
 over **(block × extension × import shape)**, not over layers with two dimensions bolted on —
-fixing each dimension separately is what left their product open twice. Raised by
+fixing each dimension separately is what left their product open twice.
+
+**One cell of that product cannot be filled, and it is recorded as a gap with its OWN cause.**
+The catch-all block × `.ts` has no probeable path: a nonexistent `.ts` is the `PARSE_ERROR` case
+measured above; the only real `.ts` outside the six layer subtrees is `src/main.ts`, which
+selects the **root** block rather than the catch-all; and `src/prototypes/` — the only unnamed
+subtree — holds five `.vue` files and one `.md`, measured, no `.ts` at all. Any layer or
+`presentation/dialogs` `.ts` selects a later overriding block.
+
+The three ways out are all refused for stated reasons: adding a benign real `src/` module
+contradicts this slice's own scope and would ship in the bundle; widening
+`parserOptions.projectService` is the "bigger, unrelated fix" already recorded for
+`.tsx`/`.mts`/`.cts`; and quietly dropping the cell is what the whole cross-product exists to
+prevent.
+
+**Its cause is deliberately NOT filed with the `.tsx`/`.mts`/`.cts` gap**, though the symptom is
+identical. Those three fail because no block grants them parser services; this one fails because
+no real file of that extension exists in an unnamed subtree. Round nine's lesson was that a
+limitation attributed to the wrong cause sends the next reader to do work that cannot help —
+widening parser options would fix those three and not this one, and adding a file would fix this
+one and not those three. Raised by
 a review bot, and it is the same finding as the prototype-spelling one applied to the two blocks
 that finding's fix did not reach.
 

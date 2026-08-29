@@ -165,4 +165,16 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
 	// den Kommentar am gleichen Schlüssel in `en.ts`.
 	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
+	'form.new-project.title': 'Neues Renovierungsprojekt',
+	'form.new-project.name': 'Name',
+	'form.new-project.status': 'Status',
+	'form.new-project.description': 'Beschreibung',
+	'form.new-project.start': 'Beginn',
+	'form.new-project.target-completion': 'Fertigstellungstermin',
+	'empty.project.no-projects.action': 'Projekt erstellen',
+	'view.project.list-title': 'Renovierungsprojekte',
+	'view.project.create': 'Neues Projekt',
+	'project.empty-name': 'Ein Projekt braucht einen Namen.',
+	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
+	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
 };

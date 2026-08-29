@@ -17,11 +17,27 @@
 import { tr } from '../i18n/strings';
 import type { FormDescriptor, FormDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: FormDescriptor; titleId: string }>();
+const props = defineProps<{ descriptor: FormDescriptor; titleId: string }>();
 const emit = defineEmits<{ resolve: [result: FormDialogResult] }>();
 
 function onSubmit(values: unknown): void {
 	emit('resolve', { action: 'submit', values });
+}
+
+/**
+ * `aria-disabled`, never `:disabled` — an invariant of the framework, not a preference.
+ * `DialogHost`'s own comment states that every kind renders at least one focusable control
+ * unconditionally, and `focusableWithin()` is what its Tab trap walks: a `:disabled` button
+ * matches no focusable selector, so with every form control ALSO disabled while busy
+ * (`NewProjectForm` and its siblings), the dialog would contain zero focusable elements —
+ * Tab would walk straight out of it, and the `Escape` listener bound to `.rp-dialog` would
+ * then stop receiving keys at all, defeating the very handler that refuses Escape while
+ * busy. Staying focusable and announced, with the click refused here instead, is what keeps
+ * the trap intact.
+ */
+function onCancel(): void {
+	if (props.descriptor.busy?.value === true) return;
+	emit('resolve', 'cancel');
 }
 </script>
 
@@ -42,9 +58,10 @@ function onSubmit(values: unknown): void {
 	<div class="rp-dialog-actions">
 		<button
 			type="button"
-			class="rp-dialog-button"
+			class="rp-dialog-button rp-dialog-cancel"
 			data-rp-action="cancel"
-			@click="$emit('resolve', 'cancel')"
+			:aria-disabled="descriptor.busy?.value === true"
+			@click="onCancel"
 		>
 			{{ tr('dialog.cancel') }}
 		</button>

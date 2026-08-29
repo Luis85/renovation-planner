@@ -155,6 +155,25 @@ export const en = {
 	// diagnostics report" was an instruction the user cannot follow. Slice 14's Amendment 1
 	// refuses a button that does nothing; a sentence that does nothing is the same defect.
 	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
+	'form.new-project.title': 'New renovation project',
+	'form.new-project.name': 'Name',
+	'form.new-project.status': 'Status',
+	'form.new-project.description': 'Description',
+	'form.new-project.start': 'Start',
+	'form.new-project.target-completion': 'Target completion',
+	'empty.project.no-projects.action': 'Create a project',
+	'view.project.list-title': 'Renovation projects',
+	'view.project.create': 'New project',
+	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
+	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
+	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is
+	// `error.code in en`, so a differently-spelled key would silently fall through to the
+	// Validation category sentence for all three. `project.negative-amount` has no entry: this
+	// form has no Money field, and the code is unroutable as things stand (shared by `budget`
+	// and `contingency`, with the field named only in the developer-English `message`).
+	'project.empty-name': 'A project needs a name.',
+	'project.unknown-status': 'Choose a status from the list.',
+	'project.target-before-start': 'Target completion must be on or after the start date.',
 } as const;
 
 export type StringKey = keyof typeof en;

@@ -110,6 +110,12 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['requirement.unit-not-area', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
 	['requirement.cross-project', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
 	['requirement.negative-quantity', 'Domain', 'error.category.domain', 'application/commands/requirement/SetRequirementQuantityOverride.ts'],
+	// Design slice 16's New Project form. `project.negative-amount` is deliberately absent:
+	// it is raised by the same `Project.create` and would belong here on the same grounds,
+	// but no form routes it yet (see `NEW_PROJECT_ERRORS`'s own comment in `NewProjectForm.vue`).
+	['project.empty-name', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
+	['project.unknown-status', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
+	['project.target-before-start', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 ];
 
 describe("design slice 10's coded refusals", () => {

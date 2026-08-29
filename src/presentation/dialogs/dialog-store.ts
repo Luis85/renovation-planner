@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { shallowRef, type Component } from 'vue';
+import { shallowRef, type Component, type Ref } from 'vue';
 
 /**
  * The plugin's one dialog framework (design slice 15). Everything here is DISPLAY state:
@@ -89,6 +89,15 @@ export interface FormDescriptor {
 	readonly title: string;
 	readonly component: Component;
 	readonly props?: Readonly<Record<string, unknown>>;
+	/**
+	 * True while the form has a write in flight. The framework does not START one — a form
+	 * kind may own its dispatch (see `FormDialogResult`) — so this is the only way the
+	 * container can learn that cancelling now would abandon a write it cannot stop.
+	 *
+	 * The form passes its own `useFormCommit().submitting` straight through, so there is no
+	 * second flag to keep in step and the two cannot drift.
+	 */
+	readonly busy?: Readonly<Ref<boolean>>;
 }
 
 /**
@@ -125,10 +134,14 @@ export type DeleteReferenceDialogResult =
 export type EntityPickerDialogResult = { readonly id: string } | 'cancel';
 
 /**
- * `'submit'` means the form validated and the user confirmed — NOT that anything was
- * written. Dispatching the command is still the caller's job, and `values` is typed by
- * the form's own component rather than here, for the same reason `FormDescriptor` carries
- * a component and not a field list.
+ * `'submit'` means the form is DONE — not that the framework wrote anything.
+ *
+ * A form kind may own its own dispatch, and `NewProjectForm` does: slice 16 requires the
+ * dialog to stay OPEN on a rejection, with the error rendered under the field it is about,
+ * and `openDialog` throws if a dialog is already open — so a caller that dispatched after
+ * the dialog resolved could not reopen it to show one. Such a form emits `submit` only once
+ * its write succeeded. `values` is still typed by the form's own component rather than here,
+ * for the same reason `FormDescriptor` carries a component and not a field list.
  */
 export type FormDialogResult = { readonly action: 'submit'; readonly values: unknown } | 'cancel';
 

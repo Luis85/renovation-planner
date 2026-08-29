@@ -17,7 +17,7 @@ const messageId = useId();
 		-->
 		<slot
 			:input-id="inputId"
-			:aria="message === null ? {} : { 'aria-invalid': 'true', 'aria-describedby': messageId }"
+			:aria="message === null ? {} : ({ 'aria-invalid': 'true', 'aria-describedby': messageId } as const)"
 		/>
 		<p
 			v-if="message !== null"

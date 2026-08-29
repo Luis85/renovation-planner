@@ -179,6 +179,11 @@ function onKeydown(event: KeyboardEvent): void {
 
 	if (event.key === 'Escape') {
 		event.preventDefault();
+		// Still handled here whether or not it acts: letting the key fall through to
+		// Obsidian's own keymap mid-write would be a second surprise on top of the first.
+		// A form whose write is in flight cannot be cancelled out from under it — the
+		// framework never started that write, so it has no way to stop it either.
+		if (descriptor.kind === 'form' && descriptor.busy?.value === true) return;
 		// The same meaning slice 6 gives `Escape` for an in-progress tool gesture, extended
 		// to a dialog: abandon the transient interaction, commit nothing.
 		resolve(cancelResultFor(descriptor.kind));

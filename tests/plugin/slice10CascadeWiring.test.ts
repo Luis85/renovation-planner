@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // jsdom: the plugin shell touches the DOM through the module mock, exactly as
 // tests/plugin/persistence-wiring.test.ts does.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from 'obsidian';
 import { Decimal } from 'decimal.js';
 import { loadedPlugin } from '../helpers/plugin';
@@ -17,6 +17,11 @@ import {
 	squareAt,
 } from '../helpers/entities';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
+import { activateNotices } from '../../src/presentation/notices/notify';
+import { installObsidianDom } from '../helpers/dom';
+
+// The notice host builds its markup with Obsidian's own `createSpan`/`createEl` globals.
+installObsidianDom();
 
 /**
  * The composed slice-10 cascade: the subscriptions `composeSlice10` registers at
@@ -60,6 +65,16 @@ async function seededStack() {
 	stack.metadataCache.catchUp();
 	return { stack, project, plan, zone, asset, requirement };
 }
+
+/**
+ * A notice is INERT until something activates the queue — `onload` is what does that in
+ * production, so a suite asserting on `Notice.shown` has to stand where the plugin stands.
+ * Per TEST, and for a second reason: the queue DEDUPS, so two cases raising the identical
+ * sentence would fold into one `(×2)` and construct no second `Notice` at all.
+ */
+beforeEach(() => {
+	activateNotices();
+});
 
 describe('slice-10 cascade wiring', () => {
 	it('a ZoneGeometryChanged event cascades to a recalculated requirement', async () => {

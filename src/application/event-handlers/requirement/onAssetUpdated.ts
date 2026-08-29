@@ -40,10 +40,23 @@ export function registerOnAssetUpdated(events: EventBus, deps: AssetCascadeDeps)
 		if (listed.value.length === 0) return;
 
 		const asset = await deps.assets.getById(assetId);
-		if (isErr(asset) || asset.value === null) {
-			// The asset vanished between the update and its own cascade; treat every link
-			// as changed — recalculation will refuse against the missing endpoint and
-			// leave each requirement visibly stale.
+		// **Two causes, one fallback, two log lines.** The RECOVERY is the same either way and
+		// deliberately so: treat every link as changed, because recalculation will refuse
+		// against an endpoint it cannot establish and leave each requirement visibly stale.
+		// What differs is what a developer is told. This was one branch logging
+		// `cascade-asset-gone` for both, so a vault that could not be READ was reported as an
+		// asset that had been deleted — and with no cause attached, which is the one arm in
+		// this file that had nothing to map from. Slice 11's rule is that a mapped error is
+		// logged with the original that produced it. Sibling of the same relabel in
+		// `reversible-assign-asset-command.ts`, where the collapsed branch also escaped to a
+		// caller and reached the save indicator; here it escapes to nobody, so the whole cost
+		// was the diagnosis.
+		if (isErr(asset)) {
+			deps.logger.error('requirement.cascade-asset-unreadable', { assetId, cause: asset.error });
+			await runRecalculationCascade(deps, listed.value);
+			return;
+		}
+		if (asset.value === null) {
 			deps.logger.error('requirement.cascade-asset-gone', { assetId });
 			await runRecalculationCascade(deps, listed.value);
 			return;

@@ -7,6 +7,13 @@ import { click, PROJECT_ID, rig, toolbarButton } from '../../../helpers/planEdit
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 import { lines, resetRecorder } from '../../../helpers/logger';
+import { activateNotices } from '../../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../../helpers/dom';
+
+// `activateNotices` — reached here through the real plugin/editor wiring — appends its
+// two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
+// installs globally and this suite installs per file.
+installObsidianDom();
 
 /**
  * SDD §65's two failure halves, at the Inspector's own controls: a THROWN technical fault
@@ -69,6 +76,11 @@ function faultLine(event: string) {
 describe('a failure at an Inspector control', () => {
 	beforeEach(() => {
 		resetRecorder();
+		// A notice is INERT until something activates the queue — `onload` is what does that
+		// in production. Per TEST, because the queue DEDUPS: three cases here raise the SAME
+		// mapped sentence, and against one shared queue the second and third would fold into
+		// a `(×2)` and construct no `Notice`, so every delta assertion below would fail.
+		activateNotices();
 	});
 
 	it('a THROWN fault during an assignment reaches the user as a notice', async () => {

@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError } from '../../../../src/core/errors/AppError';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
 import { CommandHistory, UNDO_DEPTH } from '../../../../src/presentation/editor/tools/command-history';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 
-type VoidResult = Result<void, AppError>;
-type ResultThunk = () => Promise<VoidResult>;
+type DispatchResult = Result<DispatchOutcome, AppError>;
+type ResultThunk = () => Promise<DispatchResult>;
 
 let seq = 0;
 
@@ -27,9 +28,9 @@ function deferred(): { cascade: Promise<void>; release: () => void } {
 /** A command that succeeds, optionally not until `cascade` resolves. */
 const okCommand = (cascade?: Promise<void>): UndoableCommand & { id: number } => {
 	const id = ++seq;
-	const succeed = async (): Promise<VoidResult> => {
+	const succeed = async (): Promise<DispatchResult> => {
 		if (cascade !== undefined) await cascade;
-		return ok(undefined);
+		return ok('wrote');
 	};
 	return {
 		id,
@@ -40,13 +41,13 @@ const okCommand = (cascade?: Promise<void>): UndoableCommand & { id: number } =>
 // Pinned to one object identity so the "returns that SAME Result" half of the
 // requirement can be asserted with `toBe`, not just `isErr(result)` — which any `err(...)`
 // would satisfy, including a handler that re-wrapped the failure into a new object.
-const executeFailure: Result<void, AppError> = err({ category: 'Validation', code: 'x.fail', message: 'fail' });
+const executeFailure: DispatchResult = err({ category: 'Validation', code: 'x.fail', message: 'fail' });
 const failExecute = (): UndoableCommand => ({
 	execute: vi.fn<ResultThunk>(() => Promise.resolve(executeFailure)),
-	undo: vi.fn<ResultThunk>(() => Promise.resolve(ok(undefined))),
+	undo: vi.fn<ResultThunk>(() => Promise.resolve(ok('wrote'))),
 });
 const failUndo = (): UndoableCommand => ({
-	execute: vi.fn<ResultThunk>(() => Promise.resolve(ok(undefined))),
+	execute: vi.fn<ResultThunk>(() => Promise.resolve(ok('wrote'))),
 	undo: vi.fn<ResultThunk>(() => Promise.resolve(err({ category: 'Persistence', code: 'y.fail', message: 'fail' }))),
 });
 
@@ -59,7 +60,7 @@ describe('CommandHistory', () => {
 		await h.undo();
 		expect(h.canRedo).toBe(true);
 		const result = await h.run(okCommand());
-		expect(result).toEqual(ok(undefined));
+		expect(result).toEqual(ok('wrote'));
 		expect(h.canRedo).toBe(false);
 	});
 	it('never pushes a command whose execute resolves a failed Result, returns that same Result, and leaves an existing redo stack intact', async () => {
@@ -174,29 +175,37 @@ describe('CommandHistory', () => {
 		await h.undo();
 		expect(h.canRedo).toBe(true);
 		const result = await h.redo();
-		expect(result).toEqual(ok(undefined));
+		expect(result).toEqual(ok('wrote'));
 		expect(h.canRedo).toBe(false);
 		expect(h.canUndo).toBe(true);
 		expect(cmd.execute).toHaveBeenCalledTimes(2); // the run, then the redo
 	});
 
-	it('undo() with nothing to undo is a no-op that resolves ok', async () => {
+	/**
+	 * **A no-op resolves `'no-write'`, not a bare success.** Before `DispatchOutcome` existed
+	 * these two arms resolved `ok(undefined)`, which slice 13's save indicator read as a
+	 * successful write — so an undo with nothing to undo cleared a `save-error` over data a
+	 * real persistence failure had left unwritten. `ok(undefined)` here would still be a
+	 * "no-op that resolves ok" by this test's own name, which is why the name is not the
+	 * assertion.
+	 */
+	it('undo() with nothing to undo resolves a no-write rather than a bare success', async () => {
 		// `undoNow`'s empty-stack guard is reachable through the public API any time a
 		// caller invokes undo() without checking canUndo first — not a defensive arm
 		// nothing can reach.
 		const h = new CommandHistory();
 		expect(h.canUndo).toBe(false);
 		const result = await h.undo();
-		expect(result).toEqual(ok(undefined));
+		expect(result).toEqual(ok('no-write'));
 		expect(h.canUndo).toBe(false);
 		expect(h.canRedo).toBe(false);
 	});
 
-	it('redo() with nothing to redo is a no-op that resolves ok', async () => {
+	it('redo() with nothing to redo resolves a no-write rather than a bare success', async () => {
 		const h = new CommandHistory();
 		expect(h.canRedo).toBe(false);
 		const result = await h.redo();
-		expect(result).toEqual(ok(undefined));
+		expect(result).toEqual(ok('no-write'));
 		expect(h.canUndo).toBe(false);
 		expect(h.canRedo).toBe(false);
 	});
@@ -210,14 +219,14 @@ describe('CommandHistory', () => {
 		const h = new CommandHistory();
 		const broken: UndoableCommand = {
 			execute: vi.fn<ResultThunk>(() => Promise.reject(new Error('unexpected fault'))),
-			undo: vi.fn<ResultThunk>(() => Promise.resolve(ok(undefined))),
+			undo: vi.fn<ResultThunk>(() => Promise.resolve(ok('wrote'))),
 		};
 		const runPromise = h.run(broken);
 		const next = okCommand();
 		const nextPromise = h.run(next);
 		await expect(runPromise).rejects.toThrow('unexpected fault');
 		const nextResult = await nextPromise;
-		expect(nextResult).toEqual(ok(undefined));
+		expect(nextResult).toEqual(ok('wrote'));
 		expect(h.canUndo).toBe(true); // only `next`; `broken` never pushed
 	});
 });

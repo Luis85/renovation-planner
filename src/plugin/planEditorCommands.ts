@@ -12,7 +12,7 @@ import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
-import { notify, notifyError } from '../presentation/notices/notify';
+import { notify, notifyError, notifyWarning } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import type { PluginCommandHost } from './commandHost';
@@ -137,7 +137,13 @@ export function registerPlanEditorCommands(host: PluginCommandHost): void {
 
 			const candidates = backgroundCandidates(host.app);
 			if (candidates.length === 0) {
-				notify(tr('background.unsupported'));
+				// WARNING, not the `info` default: this reports that something the user
+				// explicitly asked for did not happen, and the remedy is OUTSIDE the plugin —
+				// add a supported file to the vault. A notice gone in six seconds can be gone
+				// before they have worked out what to do. `plan.none` above stays at `notify`
+				// for the opposite reason: it states a fact about an empty vault with no
+				// failed action behind it, which is what the `info` tier is for.
+				notifyWarning(tr('background.unsupported'));
 				return true;
 			}
 			const picker = new PlanBackgroundSuggestModal(host.app, candidates, (file) => {

@@ -3,6 +3,7 @@ import { Decimal } from 'decimal.js';
 import { DeleteZoneCommand } from '../../../../src/application/commands/zone/DeleteZone';
 import { ReversibleDeleteZoneCommand } from '../../../../src/application/commands/zone/reversible-delete-zone-command';
 import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
+import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 import { CommandHistory } from '../../../../src/presentation/editor/tools/command-history';
 import type { Requirement } from '../../../../src/domain/requirement/Requirement';
 import type { RequirementId } from '../../../../src/domain/requirement/RequirementId';
@@ -45,6 +46,41 @@ class FailNthSave extends InMemoryRequirementRepository {
 			return Promise.resolve({ ok: false, error: injectedPersistenceError() } as const);
 		}
 		return super.save(requirement, expected);
+	}
+}
+
+/**
+ * Fails the Nth requirement DELETE and every requirement SAVE from the moment it is armed —
+ * the exact pair that leaves a delete resolution half-written: one referent removed, the next
+ * refusing, and the compensating restore of the first refusing too. Both faults are needed,
+ * which is the point of the rig: a removal failure alone compensates cleanly and the vault
+ * ends at its pre-state.
+ */
+class FailRemovalAndRestore extends FailNthSave {
+	private deletes = 0;
+	private failOnDelete = 0;
+
+	armHalfWritten(nth: number): void {
+		this.deletes = 0;
+		this.failOnDelete = nth;
+		// From here the FIRST save is the compensating restore, so failing it strands the
+		// removal that already landed.
+		this.arm(1);
+	}
+
+	/** Arms the removal failure alone, leaving compensation able to succeed. */
+	armRecoverable(nth: number): void {
+		this.deletes = 0;
+		this.failOnDelete = nth;
+		this.arm(0);
+	}
+
+	override delete(id: Parameters<InMemoryRequirementRepository['delete']>[0], expected: Parameters<InMemoryRequirementRepository['delete']>[1]) {
+		this.deletes += 1;
+		if (this.deletes === this.failOnDelete) {
+			return Promise.resolve({ ok: false, error: injectedPersistenceError() } as const);
+		}
+		return super.delete(id, expected);
 	}
 }
 
@@ -128,11 +164,11 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 		const before = await w.snapshotAll();
 		const command = w.makeCommand('remove-references');
 
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 		expect(expectOk(await w.zones.getById(w.zone.entity.id))).toBeNull();
 		expect(await w.snapshotAll()).toEqual({ [w.referents[0]]: null, [w.referents[1]]: null });
 
-		expect(expectOk(await command.undo())).toBeUndefined();
+		expect(expectOk(await command.undo())).toBe('wrote');
 
 		// The whole pre-delete state, not just the zone's own fields.
 		expect(await w.snapshotAll()).toEqual(before);
@@ -148,19 +184,63 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 		const before = await w.snapshotAll();
 		const command = w.makeCommand('delete-anyway');
 
-		expect(expectOk(await command.execute())).toBeUndefined();
-		expect(expectOk(await command.undo())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
+		expect(expectOk(await command.undo())).toBe('wrote');
 
 		expect(await w.snapshotAll()).toEqual(before);
 		expect(expectOk(await w.zones.getById(w.zone.entity.id))?.entity.geometry.points)
 			.toEqual(TEN_SQUARE_METERS);
 	});
 
+	/**
+	 * **The stamp, end to end through the real adapter — the half a predicate test cannot
+	 * prove.** `affectsSaveState` reading a stamped error is one thing; the stamp surviving
+	 * `compensate` → `DeleteZoneCommand` → `ReversibleDeleteZoneCommand.execute` is another,
+	 * and every hop between them returns the failed `Result` rather than rebuilding it. A hop
+	 * that started reconstructing the error would drop the stamp with nothing else failing —
+	 * exactly the shape of "a guard on the door nobody dispatches through".
+	 *
+	 * The vault really is left half-written here: the first requirement is deleted, the second
+	 * removal refuses, and the restore of the first refuses too. Asserted on the VAULT as well
+	 * as on the flag, so the test cannot pass on a stamp applied to a vault that is actually intact.
+	 */
+	it('a delete whose compensation fails reports its refusal as having left writes behind', async () => {
+		const requirements = new FailRemovalAndRestore();
+		const w = await wired(2, requirements);
+		requirements.armHalfWritten(2);
+
+		const refused = expectErr(await w.makeCommand('remove-references').execute());
+
+		expect(leftWritesBehind(refused)).toBe(true);
+		// The vault matches the claim: one referent gone, one still standing.
+		const after = await w.snapshotAll();
+		expect(after[w.referents[0]]).toBeNull();
+		expect(after[w.referents[1]]).not.toBeNull();
+	});
+
+	/**
+	 * The counterpart at the same level: compensation SUCCEEDS, so the vault is back at its
+	 * pre-state and the refusal is not stamped. Without this case the one above would pass just
+	 * as well against a `compensate` that stamped unconditionally, which is the false badge
+	 * this whole shape was chosen to avoid.
+	 */
+	it('a delete whose compensation succeeds reports its refusal as pre-write', async () => {
+		const requirements = new FailRemovalAndRestore();
+		const w = await wired(2, requirements);
+		const before = await w.snapshotAll();
+		requirements.armRecoverable(2);
+
+		const refused = expectErr(await w.makeCommand('remove-references').execute());
+
+		expect(leftWritesBehind(refused)).toBe(false);
+		expect(await w.snapshotAll()).toEqual(before);
+	});
+
 	it('an undo that fails part-way leaves the vault exactly as the delete left it, and stays undoable', async () => {
 		const w = await wired(2);
 		const history = new CommandHistory();
 
-		expect(expectOk(await history.run(w.makeCommand('remove-references')))).toBeUndefined();
+		expect(expectOk(await history.run(w.makeCommand('remove-references')))).toBe('wrote');
 		const afterDelete = { zone: expectOk(await w.zones.getById(w.zone.entity.id)), requirements: await w.snapshotAll() };
 		expect(afterDelete.zone).toBeNull();
 
@@ -195,7 +275,7 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 	it('a rollback whose ZONE delete also fails returns the original failure', async () => {
 		const w = await wired(2);
 		const command = w.makeCommand('remove-references');
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 
 		// The second requirement restore fails, and so does the compensating zone delete —
 		// the vault is left half-restored and the caller is told about the FIRST fault.
@@ -213,7 +293,7 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 	it('undo refuses rather than clobbers a requirement that moved underneath it', async () => {
 		const w = await wired(1);
 		const command = w.makeCommand('delete-anyway');
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 
 		// Another writer lands an edit on the stranded requirement.
 		const live = expectOk(await w.requirements.getById(w.referents[0]));

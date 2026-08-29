@@ -1,4 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import type { DispatchOutcome } from '../DispatchOutcome';
 import type {
 	CalculationError,
 	ReferenceError,
@@ -133,7 +134,7 @@ export class ReversibleCalibratePlanCommand {
 	// resolves both through the tool.
 	async execute(
 		input: CalibratePlanInput,
-	): Promise<Result<void, ReferenceError | ValidationError | CalculationError | RepositoryError>> {
+	): Promise<Result<DispatchOutcome, ReferenceError | ValidationError | CalculationError | RepositoryError>> {
 		const found = await loadPlan(this.plans, input.planId);
 		if (isErr(found)) {
 			return found;
@@ -189,10 +190,10 @@ export class ReversibleCalibratePlanCommand {
 			projectId,
 			document.objects.map((object) => object.id),
 		);
-		return ok(undefined);
+		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<void, RepositoryError>> {
+	async undo(): Promise<Result<DispatchOutcome, RepositoryError>> {
 		const inverse = this.inverse;
 		if (inverse === null || this.lastWritten === null) {
 			return err(planError('nothing-to-undo', 'This calibration has no recorded previous state.'));
@@ -208,7 +209,7 @@ export class ReversibleCalibratePlanCommand {
 		// and a duplicate event cascade for a change that did not happen.
 		this.inverse = null;
 		await this.announce(inverse.planId, inverse.projectId, inverse.objectIds);
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	/**

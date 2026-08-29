@@ -118,15 +118,74 @@ export interface WorkspaceLeaf {
 }
 
 /**
- * Obsidian's transient message. It RECORDS rather than draws, like everything else here —
- * `notify()` is the only thing in `src/` that constructs one, and what a test wants to
- * know is that a failure reached the user, not what the toast looked like.
+ * Obsidian's transient message. THIN is the failure mode this fake exists to avoid: the
+ * previous version recorded a string and drew nothing, so no test could assert the roles,
+ * the dismiss control or the markup that design slice 13 puts inside `messageEl`.
+ *
+ * What is modelled: the `.notice-container > .notice` nesting Obsidian builds, the two
+ * element handles it exposes, the duration it was constructed with, and a `hide()` that
+ * disconnects — the queue reads `isConnected` to decide whether a visible slot is free, so a
+ * `hide()` that left the element attached would make that mechanism untestable.
+ *
+ * `setMessage` is NOT modelled, and it was for one commit. Obsidian really has it, and this
+ * fake really implemented it, and nothing in `src/` has ever called it: `notify.ts` owns the
+ * markup inside `messageEl` — a severity label, a message span and a dismiss button — and
+ * `setMessage` replaces that element's whole content, so the repeat count is written to the
+ * message span directly. A fake method with no consumer cannot be caught drifting from the
+ * real API, which is this file's stated policy, and a test exercising one reads as coverage
+ * of a mechanism the plugin does not use.
+ *
+ * What is NOT modelled, stated so nothing trusts this wider than it is: Obsidian's own
+ * auto-dismiss timer (this plugin always passes `duration: 0` and owns the timer), its
+ * click-to-dismiss gesture, and every visual rule — `tests/harness/obsidian.css` carries no
+ * `.notice` rules at all, so appearance is verified in a real vault and nowhere else.
+ *
+ * **And HIDE TIMING, which is an assumption about the real thing rather than a testability
+ * requirement.** `hide()` here detaches SYNCHRONOUSLY. Obsidian's `Notice` is animated, and
+ * whether its element leaves the document inside the call or after a transition is
+ * undocumented; if it is the latter, this fake is kinder than the real thing at exactly the
+ * point the queue's slot accounting rests on. `notify.ts` no longer depends on the answer for
+ * its OWN dismiss control — that path latches `live` to false rather than asking
+ * `isConnected` — but Obsidian's own click-to-dismiss gesture still does, and no instrument
+ * here can measure it. `docs/tests/cases/Notices and save state.md` is where it gets looked
+ * at.
  */
 export class Notice {
 	static readonly shown: string[] = [];
+	/**
+	 * The instances themselves, so a test can assert the ARGUMENTS a caller passed rather than
+	 * only the outcome. `duration` is the one that matters: this plugin owns every notice's
+	 * timer and passes `0` for it, and nothing but this array can check that the `0` is really
+	 * being passed — the fake implements no timer, so a wrong duration is invisible in
+	 * behaviour here and visible only in a real vault.
+	 */
+	static readonly constructed: Notice[] = [];
 
-	constructor(readonly message: string) {
+	readonly containerEl: HTMLElement;
+	readonly messageEl: HTMLElement;
+
+	constructor(
+		readonly message: string,
+		readonly duration?: number,
+	) {
 		Notice.shown.push(message);
+		Notice.constructed.push(this);
+
+		const container =
+			document.body.querySelector<HTMLElement>('.notice-container') ??
+			document.body.appendChild(
+				Object.assign(document.createElement('div'), { className: 'notice-container' }),
+			);
+
+		this.containerEl = container.appendChild(
+			Object.assign(document.createElement('div'), { className: 'notice' }),
+		);
+		this.messageEl = this.containerEl.appendChild(document.createElement('div'));
+		this.messageEl.textContent = message;
+	}
+
+	hide(): void {
+		this.containerEl.remove();
 	}
 }
 

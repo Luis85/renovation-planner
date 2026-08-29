@@ -1,5 +1,6 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { AppError } from '../../../core/errors/AppError';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 import { createSerialQueue } from './serial-queue';
 import type { UndoableCommand } from './undoable-command';
 
@@ -13,7 +14,16 @@ import type { UndoableCommand } from './undoable-command';
  */
 export const UNDO_DEPTH = 100;
 
-type VoidResult = Result<void, AppError>;
+/**
+ * What every operation here resolves. The outcome is the COMMAND's, forwarded unchanged —
+ * this class decides stacks and never decides whether the vault was touched. Its own two
+ * empty-stack arms are the exception, and they are the only place it mints one: an undo with
+ * nothing to undo, and a redo with nothing to redo, both of which succeed without reaching a
+ * command at all. Before `DispatchOutcome` existed those two resolved a bare `ok` that the
+ * save indicator read as a write, and pressing a disabled-looking Undo cleared a `save-error`
+ * over data nobody had saved.
+ */
+type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The undo/redo stack for one open Plan (SDD §30, design slice 6). Ephemeral by design
@@ -66,15 +76,15 @@ export class CommandHistory {
 		return this.redoStack.length > 0;
 	}
 
-	run(command: UndoableCommand): Promise<VoidResult> {
+	run(command: UndoableCommand): Promise<DispatchResult> {
 		return this.enqueue(() => this.runNow(command));
 	}
 
-	undo(): Promise<VoidResult> {
+	undo(): Promise<DispatchResult> {
 		return this.enqueue(() => this.undoNow());
 	}
 
-	redo(): Promise<VoidResult> {
+	redo(): Promise<DispatchResult> {
 		return this.enqueue(() => this.redoNow());
 	}
 
@@ -84,40 +94,43 @@ export class CommandHistory {
 	 * defect the queue exists to prevent (a command could push onto a stack `clear()` had
 	 * already emptied, or vice versa, depending on which finished last).
 	 */
-	clear(): Promise<VoidResult> {
+	clear(): Promise<DispatchResult> {
 		return this.enqueue(() => {
 			this.undoStack = [];
 			this.redoStack = [];
-			return Promise.resolve(ok(undefined));
+			// Emptying two arrays is not a write.
+			return Promise.resolve(ok('no-write'));
 		});
 	}
 
-	private async runNow(command: UndoableCommand): Promise<VoidResult> {
+	private async runNow(command: UndoableCommand): Promise<DispatchResult> {
 		const result = await command.execute();
 		if (isErr(result)) return result;
 		this.undoStack.push(command);
 		if (this.undoStack.length > UNDO_DEPTH) this.undoStack.shift();
 		this.redoStack = [];
-		return ok(undefined);
+		// The COMMAND's answer, forwarded. A gesture that wrote nothing still goes on the undo
+		// stack: it happened, and asking to undo it is legal.
+		return result;
 	}
 
-	private async undoNow(): Promise<VoidResult> {
+	private async undoNow(): Promise<DispatchResult> {
 		const command = this.undoStack[this.undoStack.length - 1];
-		if (!command) return ok(undefined);
+		if (!command) return ok('no-write');
 		const result = await command.undo();
 		if (isErr(result)) return result;
 		this.undoStack.pop();
 		this.redoStack.push(command);
-		return ok(undefined);
+		return result;
 	}
 
-	private async redoNow(): Promise<VoidResult> {
+	private async redoNow(): Promise<DispatchResult> {
 		const command = this.redoStack[this.redoStack.length - 1];
-		if (!command) return ok(undefined);
+		if (!command) return ok('no-write');
 		const result = await command.execute();
 		if (isErr(result)) return result;
 		this.redoStack.pop();
 		this.undoStack.push(command);
-		return ok(undefined);
+		return result;
 	}
 }

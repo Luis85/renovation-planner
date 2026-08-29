@@ -1,0 +1,135 @@
+/*
+ * Design slice 13's notices, drawn INSIDE Obsidian's own `.notice` element — Obsidian owns
+ * the container, its position, its stacking and its animation, and these rules own only
+ * what this plugin puts inside one.
+ *
+ * Every colour is an Obsidian variable (SDD §84), so a themed vault stays themed. The
+ * severity colour is deliberately NOT the only carrier of severity: a translated word sits
+ * beside it, which is what SDD §85's "status not colour-only" asks for and what makes an
+ * icon unnecessary.
+ *
+ * NOT verifiable by the browser harness: `tests/harness/obsidian.css` carries no `.notice`
+ * rules at all — its reduction came from another plugin's driven states and that plugin
+ * never raised a notice — so nothing here is drawn by `npm run harness` or photographed by
+ * `harness-shot`. Appearance is checked in a real vault, by `npm run test-build` and the
+ * manual case under `docs/tests/`.
+ */
+/*
+ * **Every class below is on `messageEl` or inside it, and `containerEl` carries none.** The
+ * severity label, the message and the dismiss button are appended to Obsidian's `messageEl`,
+ * which is a CHILD of `containerEl` — so `display: flex` on the container would make
+ * `messageEl` the only flex item and do nothing for the three elements it was written for.
+ * `gap` would apply to nothing, the message's `flex: 1` would be inert, and the two adjacent
+ * spans carry no whitespace between them, so a warning would render as
+ * `Warningcheck the calibration`.
+ *
+ * `.rp-notice` and `.rp-notice-<severity>` appear here only as ANCESTORS, and they are that
+ * same `messageEl` — `notify.ts` moved them off `containerEl`, whose identity Obsidian's
+ * typings do not settle, and every rule below survives that because all four descendants are
+ * appended into it. See that module's header for the whole argument.
+ *
+ * This repository has that exact rendering defect in its ledger already — the harness index's
+ * rows read `ZonePanelprototype` because Vue's whitespace handling removed the separator
+ * between two adjacent elements. It was found by capturing a PNG and looking at it. The jsdom
+ * test here asserts `toContain('Warning')` and `toContain(message)`, which passes on the
+ * concatenated string too, so nothing automated can see this.
+ */
+/*
+ * The two live regions `notify.ts` appends to `document.body` at activation. They hold the
+ * announcement and are never seen: `docs/components/Toast.md` asks for a region already IN the
+ * document rather than attributes on a container that appears, and a region that has to be in
+ * the document from load has to be invisible while it is empty.
+ *
+ * `clip-path` plus a 1px box rather than `display: none` or `visibility: hidden`, both of which
+ * take the element out of the accessibility tree and would make this announce nothing at all.
+ * `white-space: nowrap` keeps a long sentence from being wrapped into the 1px width, which some
+ * screen readers read as line breaks.
+ */
+.rp-notice-live-region {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+.rp-notice-body {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+}
+
+.rp-notice-severity {
+	flex: 0 0 auto;
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	font-size: var(--font-smallest);
+	letter-spacing: 0.04em;
+}
+
+.rp-notice-message {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.rp-notice-success .rp-notice-severity {
+	color: var(--text-success);
+}
+
+.rp-notice-info .rp-notice-severity {
+	color: var(--text-muted);
+}
+
+.rp-notice-warning .rp-notice-severity {
+	color: var(--text-warning);
+}
+
+.rp-notice-error .rp-notice-severity {
+	color: var(--text-error);
+}
+
+/*
+ * `.rp-notice` prefixed rather than bare, because Obsidian's own `button:not(.clickable-icon)`
+ * sets a background at specificity (0,1,1) — `:not()` contributes its argument's — and a
+ * single class at (0,1,0) loses to it. Slice 15's danger button was rendered plain white by
+ * exactly this, and jsdom never resolves a `var()` to a colour, so a browser is the only
+ * instrument that can see it.
+ */
+.rp-notice .rp-notice-dismiss {
+	flex: 0 0 auto;
+	padding: 0 var(--size-4-1);
+	background-color: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	/* 2.5.8 asks for 24px; a notice's own control is small and this is the floor. */
+	min-width: var(--size-4-6);
+	min-height: var(--size-4-6);
+}
+
+.rp-notice .rp-notice-dismiss:hover {
+	color: var(--text-normal);
+}
+
+/*
+ * **The reset above removes both focus channels, so this rule is not optional.** Obsidian's
+ * own sheet carries `:focus { outline: none }`, and `box-shadow: none` at this selector's
+ * specificity outranks its button focus rule — so without this, a keyboard user tabbing to a
+ * dismiss control gets no indication of which notice they are about to dismiss. WCAG 2.2
+ * 2.4.7 at AA, which `PRODUCT.md` binds by name.
+ *
+ * This repository has already shipped this exact defect once: the harness index's entry links
+ * had no visible focus indicator for the same reason, and it took a PNG read by eye to find
+ * — jsdom paints nothing, so no test here can see it either. `:focus-visible` rather than
+ * `:focus`, so a pointer dismissal does not draw a ring nobody asked for.
+ */
+.rp-notice .rp-notice-dismiss:focus-visible {
+	outline: 2px solid var(--text-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
+}

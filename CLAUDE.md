@@ -24,8 +24,16 @@ cost engine behind them, the reference-integrity engine that guards deleting eit
 a link, and the recalculation cascade that keeps a figure honest when its inputs move.
 Everything past this point is feature work on a proven template. Slice 11 has since closed
 the first half of the cross-cutting pair — the Error Boundary, the logging policy,
-diagnostics and the data-safety rules. What is NOT done is slice 12 (the fixture vaults and
-the architecture-enforcement harness) and every surface slices 13–17 name.
+diagnostics and the data-safety rules. **The second half of that pair is slice 12, and slice
+12 is still not done**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
+"Slices 11 and 12: the two cross-cutting slices", so those two are the pair and nothing else
+can be a half of it. An earlier draft of this passage gave that half to slice 13 in the same
+breath as it listed slice 12 as outstanding — a sentence contradicting itself two clauses
+later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17, where 14 and 15 had already
+landed), and what it closed there is the toast and the save-state badge — the notice queue and
+the save-state indicator, the surface any view or command reports a transient message or a
+save state through. What is NOT done is slice 12 (the fixture vaults and the
+architecture-enforcement harness) and every surface slices 16 and 17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -146,10 +154,13 @@ own first draft included:
   existence was the entire reason for the refusal. Nine reachable codes have copy in both
   locales now, bound to their raise sites by a table in `toUserMessage.test.ts` that is
   copied from the RAISE SITES rather than from `en.ts`, because a table derived from the
-  locale file would agree with a typo. `NOTICE_TEXT_BAN` puts the rule at the two notice
-  doors as this repository SPELLS them — a bare `notify(...)` or `new Notice(...)`, matched
-  on `callee.name`, so the same two functions reached through an object (`o.notify(...)`)
-  are invisible to it; the long-form paragraph further down carries the rest of that list.
+  locale file would agree with a typo. `NOTICE_TEXT_BAN` puts the rule at the notice
+  doors as this repository SPELLS them — bare `notify(...)`/`notifySuccess(...)`/
+  `notifyWarning(...)` calls and `new Notice(...)`, matched on `callee.name`, so the same
+  functions reached through an object (`o.notify(...)`) are invisible to it. It was TWO doors
+  when slice 11 wrote this and is four since slice 13 added two severities — a door added
+  without widening this rule is a door no gate can see; the long-form paragraph further down
+  carries the rest of that list.
   Neither reaches the second locale's VOCABULARY: the German copy called
   an Asset "Material" where the German UI says "Objekt", found by reading, because nothing
   rendered `de.ts` in any gate. **Slice 14 then reintroduced the exact word, forty lines
@@ -1362,6 +1373,376 @@ own recurring shape:
 
   A no-op assertion and a correct one look identical until something is broken underneath them.
 
+**Design slice 13 has landed: there is ONE notice door and ONE save-state indicator.**
+`createNoticeQueue` is a plain module-level queue over an injected `NoticeHost` port — dedup
+on the `(severity, message)` pair into a `(×N)` suffix, a three-slot visible cap with
+promotion into a freed slot, per-severity auto-dismiss, and hover/focus pause — and
+`notify.ts` is the only module that binds that port to Obsidian's own `Notice`, which is what
+keeps "one notice door" a fact about the import graph rather than a sentence —
+`grep -rn "new Notice" src/` prints THREE lines: the constructor call in `notify.ts`, a
+comment in `notify.ts` quoting it, and a comment in `queue.ts` naming the binding. One
+construction site, three mentions. An earlier draft of this sentence said "two lines, both in
+`notify.ts`", which was written from memory ten commits after `queue.ts` gained its line —
+this file's own "a docblock that says 'the only place X' gets a `grep` in the SAME edit",
+broken in the file that states it. `NOTICE_TEXT_BAN` also watches the constructor and not only the wrappers, so
+bypassing them is not an escape from the TEXT rule either. Four severities
+with a translated label beside the colour (`AUTO_DISMISS_MS`: 4000 for `success`, 6000 for
+`info`, `null` for `warning` and `error`, so the two that exist to be noticed cannot expire).
+`activateNotices()` runs once from `onload` and `disposeNotices` is one more entry on the
+`disposers` list Konva's global got to first. **`onload` therefore touches the DOM now** — it
+appends the two live regions with Obsidian's `createDiv` — which the app installs globally and
+this suite installs per jsdom file, so five existing test files that load the plugin or mount
+the real editor gained an `installObsidianDom()` call they had never needed. Worth knowing
+before the next thing `onload` reaches for: the opt-in DOM helper is a per-file decision, and a
+production module acquiring a DOM dependency at load turns that decision into a sweep. On the other half, `SaveStateStore` is one per
+Plan Editor — `CommandHistory` is per-Plan, so the save state it produces is a fact about
+that Plan — and `withSaveStateTracking` wraps `run`, `undo` and `redo` inside
+`wrapDispatcher` and outside the refresh decorator, so `Saved` never appears while the canvas
+still shows the pre-command state. **The plugin-global Vue app SDD §12 would have needed an
+exception for was never built**: `Notice` is a container that hands back a `containerEl` and a
+`messageEl`, so severity, dedup and a dismiss control are markup and policy inside it, and the
+only thing it owns that this slice needed differently is the timer. The rules that came out of
+it:
+
+- **`duration: 0` is load-bearing, not incidental.** Obsidian's own timer is internal and
+  cannot be paused, so a design that let Obsidian time the notice could not implement the
+  accessibility rule that a timed message must not vanish while somebody is reading it or
+  tabbing to its dismiss control. Owning the timer is what buys hover-pause and the promotion
+  of a held notice into a freed slot. Hover and focus are two conditions and one `held` flag
+  that is their OR: passing `pause`/`resume` straight to the four listeners let `pointerleave`
+  resume a timer while the dismiss button still had focus.
+- **A severity door added without widening `NOTICE_DOOR` is a door no gate can see**, and
+  that is why the four doors are bare functions rather than `notify.success(...)`. The rule
+  matches on `callee.name`, which a member-expression callee does not have, so every call
+  site in that spelling would have been invisible to the one rule keeping a raw
+  `Error.message` and bare English literals out of a notice. `notifySuccess` and
+  `notifyWarning` are named in `NOTICE_DOOR` now, driven through real fixture paths in
+  `tests/build/notice-text-boundary.test.ts` — blind spots included, and through BOTH blocks
+  that carry the rule.
+- **`handle.live` rather than a dismissal callback is the authority on a free slot.**
+  Obsidian dismisses a notice when the user clicks it and does not tell us; the typings expose
+  no callback either way. A queue counting only its own dismissals leaks one slot per user
+  dismissal until it can never show anything again — a failure that arrives slowly, in a real
+  vault, and in no test. Reading `isConnected` means a dismissal by any mechanism frees the
+  slot, and a changed gesture in a future Obsidian degrades to "the slot frees on the next
+  push" rather than to a wedged queue. That fallback is what the AUTHORITY is; the two
+  gestures this host can actually see latch instead — see the two-gestures bullet below.
+- **A module-scope timer alias escapes `vi.useFakeTimers()`.** `const scheduleTimeout =
+  setTimeout` captures the function at module-evaluation time, before any `beforeEach`
+  installs fakes — measured, not reasoned: `vi.getTimerCount()` answered 0 and a handle stayed
+  live after 60s of advanced fake time, while a bare `setTimeout` control in the same file
+  registered and fired. A default parameter is evaluated at CALL time, which fixes it. **And
+  the six tests over that queue were green throughout**, because every push in them used a
+  severity whose `AUTO_DISMISS_MS` is `null`, so no timer was ever armed — a
+  `beforeEach(vi.useFakeTimers())` that controlled nothing and read as timer coverage.
+- **A test named "exhaustive" that constructs its subject outside the walk is a sample.** The
+  transition test hoisted `const store` above the recursion, so 340 invocations arrived as one
+  continuous stream rather than as 340 sequences from the initial state: only 10 of 12
+  (state, action) pairs were ever visited and `pendingCount` ran to -170. The proof that it
+  was a sample, rather than an argument that it might be: a store whose `resolveOk` literally
+  assigned the forbidden `'unsaved-changes'` through a public action passed all 13 of its
+  tests. Repaired, it visits 12/12 with `pendingCount` bounded -4..4.
+- **100% branch coverage and a surviving mutation in the same file.** Making `beginSaving`'s
+  batch-open guard unconditional left all 13 tests green at 100% branches and shipped a
+  permanently stuck indicator: two concurrent Inspector commits both refused for validation
+  would capture `beforeBatch = 'saving'`, and the indicator rests there until some later
+  dispatch happens to resolve it. Coverage says a line ran, never that anything would notice
+  it running differently.
+- **Only a write that actually succeeded may clear a save error**, which is why
+  `SaveStateStore` settles three ways and not two. A validation refusal reaches no repository,
+  so settling it as `saved` would let a refused field edit clear a `save-error` left by a real
+  persistence failure and tell the user unsaved data is safe. `resolveNeutral` reverts to
+  whatever the indicator read before the batch opened. And `'Validation'` is not a synonym for
+  "wrote nothing": `versioning.ts` raises `revisionConflict` and `externalModification` as
+  `ValidationError`s and both mean the command reached the repository and the edit was
+  refused, so `affectsSaveState` carves them back out from `WRITE_BOUNDARY_CODES` — the one
+  place those two codes are spelled — rather than from a second copy.
+- **"Pre-write" is a MEASUREMENT, and the first version of `affectsSaveState` measured
+  nothing.** It read `error.category !== 'Validation'` under a docblock asserting that a field
+  commit failing a domain rule resolves a `ValidationError`. `grep -rn "'Domain'" src/` prints
+  nine lines outside that file, seven of them raise sites, and every one is PRE-write:
+  `SetRequirementQuantityOverride` refuses a negative quantity as `Domain` and re-wraps the
+  entity's own `Validation` errors as `Domain` too, all of it before `requirements.save`. The
+  Inspector's override fields are `type="text"`, so `-5` was one keystroke from a persistent
+  "Save error" badge about data nothing had touched — the exact failure the predicate exists to
+  prevent, shipped by the predicate. **It then measured wrong twice more, and the pattern is
+  the useful part:** each pass grepped for the category it had already decided to add. The
+  second looked for `'Domain'`, so `Reference` — nineteen raise sites over fourteen codes, the
+  category the delete flow and both reversible adapters refuse through, every one a referent
+  lookup that came back empty — was never looked at; confirming a delete dialog whose referent
+  set had moved raised `reference.set-changed`, whose developer message reads "nothing was
+  written", and left the sticky badge behind it. The third enumerated `Reference` exhaustively
+  and left `Calculation` out on the strength of one sentence in `calculationError`'s own
+  docblock — "raised on the path where the stale marker has already been persisted" — which
+  describes its CALLER's state, not a write by the command raising it; all twenty-two of its
+  raise sites are a derivation refusing its own inputs, and calibrating with two clicks at the
+  same point left the same badge. **A grep written to confirm a widening already decided on
+  measures that widening and nothing else**, which is a sharper version of this file's own
+  "measure a set with an instrument that can see all of it" — and that rule was broken again
+  while measuring the last one, since `grep -rhoE "calculationError\(\s*'[^']*'"` misses the
+  two calls written with the code on the following line. The pre-write set is `Validation`,
+  `Domain`, `Reference` and `Calculation` now — half the vocabulary, enumerated one category
+  at a time in the docblock with their raise sites, with the write-boundary carve-out applied
+  to all four. **And then a fourth measurement, which is the one that matters, because it
+  found the exposure the previous three had each declared absent.** The widening
+  UNDER-reports any of the four raised after a successful write — the unsafe direction — and
+  three drafts running said "the sweeps found no such site", the last of them naming
+  `deleteResolution.ts` as where one was likeliest to appear and then arguing it away with
+  "today every `Reference` refusal in it is inside `prepare`". The sweep had stopped one
+  function short of `requirementResolutionSteps`, which is in that same file and is the half
+  that WRITES: `markStalePersisted` calls `requirements.markStale` and then re-reads through
+  `loadRequirement`, which raises `requirement.not-found` — a `Reference` code, strictly
+  post-write, no loop needed — and `repointAndMarkStale` can refuse for any referent after
+  `applyAll`'s earlier iterations have already saved. So a delete resolution over three
+  referents that writes two and refuses the third settled the indicator at `Saved` over a
+  half-written vault, and a FAILING compensation is only logged. **The general shape, and it
+  is the fourth instance in one predicate: a sweep that stops at a FILE stops wherever the
+  reader's attention did — "every refusal in `deleteResolution.ts` is in `prepare`" was
+  measured over the function somebody was looking at, not over the file the sentence names.**
+  It was written down rather than patched for one round, on the grounds that both candidate
+  fixes traded this false silence for a false badge or for copy belonging to slice 17 —
+  carving `requirement.not-found` out by CODE would badge an override of a Requirement
+  somebody else deleted, and re-labelling the CATEGORY moves the sentence `toUserMessage`
+  resolves. **A review bot then proposed the third fix, which is the one the docblock had
+  already predicted and never evaluated: have the code that WROTE report it.** `compensate`
+  stamps its returned refusal with `markUncompensated` when a restore refuses, and
+  `markStalePersisted` stamps its own re-read refusal — the write that no `progress` entry
+  holds, because `applyAll` appends only after the step returns, so the loop-level stamp alone
+  would have closed the multi-referent case and left the single-call one open. `leftWritesBehind`
+  is the FIRST question `affectsSaveState` asks. It costs neither rejected price: no code is
+  carved out, and `category`, `code` and `message` are untouched, so slice 17's territory is
+  untouched with them. **A compensation that SUCCEEDS is deliberately not stamped** — the vault
+  is back at its pre-state and neutral is the true answer, which is the assertion that stops
+  this from being an unconditional badge. What it does NOT do is close the class: a post-write
+  refusal in a pre-write category anywhere else is still under-reported, and neither linter nor
+  the suite can see one, because **the category axis cannot see a write** — which is why the
+  general fix is still the sibling bullet's, a command reporting on BOTH channels.
+  `DispatchOutcome` does it for successes and this stamp for the failures that were measured;
+  the rest is unbuilt and the docblock says so.
+- **`isErr(x) || x.value === null` is two answers in one branch, and the branch can only give
+  one.** `redoCreate` re-checks both endpoints before writing, and each check collapsed a
+  failed READ into the same `Reference` refusal an ABSENT referent gets — message included,
+  so a vault that could not be read told the user "the zone is gone", which is slice 11's own
+  recorded defect appearing in a second place. The save-state consequence is what a review bot
+  actually caught: `affectsSaveState` classes `Reference` as pre-write, so a vault I/O fault
+  during a redo settled the indicator back to `Saved` — **`Persistence`'s safe default bypassed
+  by a relabel rather than by anyone deciding**, which is the failure mode that predicate's own
+  docblock names when it says the deeper fix is at the raise sites. `AdapterErrors` already
+  admitted `RepositoryError`, so surfacing the read's own error widened nothing. **The report
+  named one site and a sweep for the SHAPE found three**, which is the part worth keeping: the
+  two in `redoCreate` escape to a caller, and `onAssetUpdated` holds a third that escapes to
+  nobody — its fallback is conservative and correct for both causes, so its whole cost was the
+  diagnosis, one event name asserting the asset was deleted and no cause logged for the arm
+  that had one. Split too, because "I fixed the case in the report" is not "I fixed the class",
+  and a partial fix reads exactly like a complete one. The fourth match,
+  `inspector-store.ts`'s collapse into `{ kind: 'empty' }`, is the already-recorded
+  `InspectorDto` limitation and is left alone.
+- **The indicator's subject is the GESTURE's write, and a background cascade failing is not
+  that — now pinned rather than implicit.** Moving a zone publishes `ZoneGeometryChanged`, and
+  `MoveSpatialObjectCommand` AWAITS the publication, so slice 10's recalculation cascade runs
+  inside the dispatch the indicator is timing. A review bot read that as a hole: the stale
+  marker fails to persist, the command still succeeds, the indicator says `Saved`. The
+  behaviour is right and the remedy proposed for it was not — the zone's geometry IS in the
+  vault at a new revision, `save-error` is STICKY, and flipping it would leave a permanent
+  badge over correct data, which is the false badge four measurements of `affectsSaveState`
+  went to avoid. The cascade failure already has its own channel: `notify.staleMarkerFailed`,
+  which `composition-root.ts` binds to a `notifyWarning` that never auto-dismisses. **What was
+  genuinely missing is that NOTHING said any of this** — no test, no comment, three modules
+  each holding a third of the decision. `cascadeSaveStateBoundary.test.ts` asserts both halves
+  TOGETHER, and the pairing is the point: "the indicator stays `saved`" is equally true of a
+  build where the failure reaches nobody, which is the reading under which the bot would have
+  been right. Its own contrast case then caught the first draft of itself — a move against a
+  missing zone refuses with `zone.zone-not-found`, a `Reference` code that is genuinely
+  pre-write, so the indicator correctly stayed `saved` and the case failed. A contrast case
+  for a write has to refuse at the WRITE.
+- **A word is not a colour, and satisfying the rule that says so is not satisfying the
+  contract.** `SaveStateIndicator` shipped the translated word with a colour on two of four
+  states, under a docblock citing SDD §85's "status not colour-only" — which it met, since a
+  word is not a colour. `docs/components/Save-state indicator.md` is stricter and says why:
+  "A mark and a word. Both, always, never one", because "the temptation to ship a coloured dot
+  is strongest [here], as the dot works perfectly for the author who built it". The word alone
+  is that same trade made in the other direction. Found by a review bot against the component
+  spec, and this slice's own task document had ALREADY recorded it as a gap and predicted the
+  fix — "a CSS-drawn glyph would discharge both contracts without introducing `setIcon`" — so
+  the check that was missing was not an insight, it was anything at all that reads a component
+  contract. Two things the prediction did not name and the work needed. **A specimen**: the
+  component reads its store, so a standalone harness mount rests at `saved` and photographs
+  ONE of the four marks — `src/prototypes/SaveStateMarks.vue` exists to draw all four, and is
+  the only place `unsaved-changes` is rendered anywhere, being unreachable through the store.
+  And **a selector test**: jsdom resolves no CSS, so a state whose rule is one word off renders
+  the base mark with every test green — which already cost this file one defect
+  (`rp-save-state-error` against a template emitting `rp-save-state-save-error`) under a comment
+  saying nothing here could catch it. The test now BUILDS `.rp-save-state-${state}` from the
+  same expression the template interpolates and asserts the stylesheet declares it. The
+  distinctness of the four marks is still a claim only an eye settles, which is what the
+  capture is for — and reading it produced the residual now written beside the CSS: held still
+  under reduced motion, the saving arc and the unsaved-changes ring differ by one gap.
+- **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
+  are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
+  swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`
+  takes to detach, if it detaches after its transition rather than inside `hide()`. This
+  repository's fake detaches synchronously, so no test here could ever see it. Slice 13 latched
+  the `×` and left Obsidian's own click-to-dismiss inferring, on the reasoning that the
+  fallback covers it. It does, for the SLOT. It does not for the DEDUP: `push` sweeps and then
+  looks for an identical entry, so a repeat of the message the user had just clicked away found
+  the dying entry, bumped a count nobody would ever see, and opened nothing — the message lost
+  outright rather than deferred, which is worse than the held slot the sweep was written to
+  survive. Both listeners latch now, on the fact this module had always asserted in prose: a
+  clicked notice is a dismissed notice. `isConnected` stays the authority for a dismissal
+  NEITHER listener sees, which is the mechanism's point and the only residue still bound to
+  hide timing. The general shape worth keeping: a fallback that covers one consequence of an
+  unobserved event is not evidence that it covers the others. The fake's "what is NOT modelled"
+  list carries hide timing, as an assumption rather than as a testability requirement.
+- **Every per-notice concern is keyed on `messageEl`, and that started life as a remedy
+  recorded and deliberately NOT taken.** Slice 13 shipped the severity class, the four hover
+  listeners and the `isConnected` read on `containerEl`, whose identity `obsidian.d.ts` states
+  neither way, with the `messageEl` move written into step 3 of the manual case as the fix if
+  that step ever answered unfavourably. A review pass took it instead, and the argument for
+  moving early is the ASYMMETRY rather than the probability: `messageEl` is per-notice under
+  BOTH readings — this module already proves it, clearing that element and appending this
+  notice's own children into it — so taking the move costs a hover target (Obsidian's own
+  padding no longer pauses the timer or prompts a sweep) while leaving it un-taken risks a
+  queue permanently wedged at three notices for the session, in a vault, on a question no gate
+  here can settle. A cheap remedy against an unsettleable question is not worth deferring to
+  the answer. Step 3 still asks it; what it decides now is whether that padding can be won
+  back, not whether the host works.
+- **The surface with the most new ARIA in this slice is the one surface no axe scan reaches.**
+  `tests/harness/accessibility.test.ts` scans `contentEl`; a `Notice` renders on
+  `document.body` under `.notice-container`, and the two live regions this plugin appends go
+  on `document.body` directly — outside a view twice over. So the `role`/`aria-live` pair on
+  each of those regions and the dismiss control's accessible name are asserted one attribute
+  at a time by jsdom and graded by no accessibility instrument at all. `docs/components/Toast.md` predicted exactly
+  this in its own Open question 1 before the decision was taken, and now records it as the
+  settled price of using `Notice` — that file's Open question 1 is answered in writing there
+  rather than left standing against code that had already decided it. Widening the scan is not
+  the fix: whole-document scope pulls in the landmark rules that test's header records as out
+  of reach.
+- **`ok` is not evidence that anything was WRITTEN, and the whole save indicator rested on
+  reading it that way.** `UndoableCommand` resolved `Result<void, AppError>` under a docblock
+  arguing that `CommandHistory` "only ever needs to know whether a write succeeded, not what
+  it returned" — true of the two stacks, which is all that existed when it was written, and
+  false of an indicator whose subject is whether this Plan's data is safely written.
+  `SaveStateStore` states the rule categorically ("only a write that actually succeeded may
+  clear a save error") and `withSaveStateTracking` broke it by inferring one from the other.
+  FOUR dispatch paths succeed having written nothing: `ReversibleAssignAssetCommand.execute`
+  when the asset is already linked (`AssignAssetCommand` answers `ok({ created: false })` from
+  a read), that adapter's `undo` when its outcome was `'found'`, and `CommandHistory`'s own
+  undo and redo on an empty stack. Each cleared a `save-error` raised by a real persistence
+  failure; the first is one click in the Inspector. **There is no safe default for that
+  inference in either direction** — every `ok` a write is the defect, every `ok` a no-write
+  leaves the badge stuck for the session — so the commands report it: `DispatchOutcome` is
+  `'wrote' | 'no-write'`, REQUIRED, so every `ok(...)` in every adapter was a build error
+  until somebody decided. Seventeen of them, plus a fifth erasing seam nobody had counted —
+  `runtime.ts`'s `asVoidCommand`, which reduced every success to `ok(undefined)` under the
+  same falsified sentence, and is `asDispatchCommand` taking an explicit reader now. An
+  optional `void | 'no-write'` widening would have changed two call sites and left the rest
+  compiling, which is the SELF-DECLARED shape this file already has a bullet against.
+- **Terminality that lives in the CALLER is terminality the object does not have.**
+  `disposeNotices` drops its reference to the queue, and `createNoticeQueue`'s own `dispose`
+  spliced `entries` and hid the handles — which reads as terminal and is not, because the
+  entries stay reachable: `show` closes over its `entry` and hands `pause`/`resume` to the
+  host, and the host registers those on DOM listeners it never removes. A `resume` after
+  `onunload` — a pointer leaving a notice mid-fade — then found a non-null `handle` and `arm`
+  armed a fresh 4000 ms timer into a disposed plugin. `dispose` clears `timer` and `handle`
+  now, so `arm`'s existing withholding rule answers for the disposed case rather than needing
+  a fourth condition, and a `disposed` flag drops a later `push` at the queue rather than
+  relying on `notify.ts` having let go. Two module-level constructions of the same shape,
+  found together.
+- **Toast appearance is verifiable in a real vault and NOWHERE else.**
+  `tests/harness/obsidian.css` carries no `.notice` and no `.notice-container` rule at all, so
+  neither `npm run harness` nor `npm run harness-shot` can show what one looks like: a notice
+  drawn there would have no position, no stacking and no chrome. Everything the harness has
+  already caught by eye is live here and unwatched: the severity label and the message are
+  adjacent inline elements separated only by a flex `gap` (`ZonePanelprototype` again), and
+  the dismiss control's reset removes both of Obsidian's focus channels, so its
+  `:focus-visible` ring is the harness index's own shipped defect a second time.
+  `docs/tests/cases/Notices and save state.md` is the whole instrument.
+- **The `Notice` fake widening turned ZERO existing tests red**, against a plan that predicted
+  many on the 65-test and 86-test precedents. Verified by grep rather than by the run alone:
+  no existing suite read `containerEl`, `messageEl`, `duration`, `setMessage` or `hide`. The
+  old fake concealed nothing because nothing had ever reached the surface it lacked. Recorded
+  precisely BECAUSE it contradicts the expectation — the rule ("a fake must not be thinner
+  than the real thing") still holds and the widening was still right; the blast radius simply
+  is not a function of how thin the fake was.
+- **Three contract requirements are knowingly unmet, and where they are written down matters
+  more than that they exist.** `docs/components/Toast.md` and
+  `docs/components/Save-state indicator.md` both name this slice in their frontmatter and
+  neither was opened until review round eleven. No mark beside the word on either surface
+  (both contracts say "Both, always, never one"; a word plus colour satisfies SDD §85 and not
+  them, and a CSS-drawn glyph would close it without introducing `setIcon`); no moving
+  indicator for `Saving`; and no retry emit on `Save error`, which is UNDESIGNED rather than
+  merely unbuilt, since the tracker sees a dispatch outcome and not a re-runnable command, and
+  re-running a failed `undo` is not idempotent. All three are in the manual case and in
+  `docs/tasks/13`, because a gap nobody inherits is a gap rediscovered from scratch.
+- **There were FOUR, and the fourth closed by a route the record had not predicted.** The
+  Toast live region was attributed on a container that APPEARS — the shape `Toast.md`
+  explicitly refuses and calls "the one that decides whether this component works at all for
+  the users it exists for" — and both the slice document and the manual case predicted the fix
+  as a REORDERING: construct, clear `messageEl`, set the attributes while empty, populate on a
+  microtask. That would have bought a timing change for a shape still centred on a container
+  that appears. What the review pass took instead moves the region OFF the notice:
+  `activateNotices()` appends two empty live regions to `document.body` (`status`/`polite` and
+  `alert`/`assertive`), `disposeNotices()` removes them, and a notice announces by writing into
+  the one its severity names while carrying neither attribute itself. Literally "already in the
+  DOM" rather than approximately, and it needs no microtask, so nothing the suite asserts
+  synchronously had to move — which is what the prediction had priced the fix at. The lesson is
+  about the prediction rather than the gap: a recorded remedy is one route, and re-reading what
+  the contract actually asks for can be cheaper than the route already written down.
+- **`runtime.ts` sat at EXACTLY its 400-line `max-lines` cap, and the note predicting what
+  would happen next was right.** One object literal in it was collapsed onto a single line to
+  buy three lines, under a comment saying the rule skips blanks and comments, that the next
+  change adding a line of CODE — of any size — would trip it, and that the answer would then
+  be an extraction rather than a second collapsed literal. The review pass giving every
+  dispatch a `DispatchOutcome` to report took it to 411. `presentation/editor/inspector-wiring.ts`
+  is the extraction — SDD §59's Edit-to-Command arrow plus the binder that fits a
+  per-transaction adapter to `CommandHistory`'s door, which is a coherent seam rather than a
+  convenient one — and the literal is back in its natural shape, which is the point of taking
+  the extraction rather than shaving another line. The general shape worth keeping: a budget
+  bought back by reformatting is a budget that has already been spent, and writing down what
+  the next author must do is what makes the second author's job a decision rather than a
+  discovery.
+- **A durable RECOVERY record that outlives its sequence un-writes the thing the indicator
+  just called saved, and no amount of reporting fixes that.** `runDeleteResolution` logged a
+  failed final `clearMarker` and answered `ok`, which is honest — every write it owed the
+  vault had landed — so the adapter reported `'wrote'` and the indicator settled on
+  `Saved`. The marker stayed on disk, and `recoverInterruptedSequences` at the next load
+  restored every referent from the pre-state AND restored the deleted entity: a completed
+  deletion silently reversed, hours later, with every surface having agreed it was safe.
+  Reported by a review bot, which proposed propagating the failure into the save state. That
+  remedy was declined and the reason is the more useful half: **it converts a silent reversal
+  into a badged one.** The zone still comes back, and a sticky `save-error` about a marker
+  file the user has never heard of names nothing they can act on. The harm is in the
+  recovery, so that is where it was fixed.
+- **`entityDeleted` was being read as "how far did this get", and it means "it finished".**
+  `runDeleteResolution` writes that flag only after `deleteEntity` returns ok, and
+  `deleteEntity` is the sequence's LAST mutation — everything past it is marker bookkeeping.
+  So the flag proves every write landed, and recovery's rollback was destroying correct work
+  in exactly the case it was written for. Recovery clears such a marker and reverses nothing
+  now; a marker saying `false` is the only interrupted one, and its entity is by definition
+  still present — which is why `recoverInterruptedSequences`'s OWN `restoreEntity` is DELETED
+  rather than left unreachable (`undoDeleteResolution`'s member of that name is the UNDO
+  path and is untouched: a user asking for their deletion back is not a crash), and
+  why `RecoveryDeps` lost `zones` and `assets`. **Three green tests encoded the old policy
+  and one of them asserted a log line that no longer has a producer**, which is what a
+  deliberate, tested, wrong decision looks like from the inside: the reversal was not an
+  oversight, it was the design, and the fix reads as a regression until the ordering argument
+  above is made.
+- **The residual is named rather than implied, because a bound checked against the door its
+  author was thinking about is this file's own recurring defect.** If BOTH marker writes
+  fail — the `entityDeleted: true` update and the `clear` — the survivor says `false` while
+  the entity really is gone, and recovery rolls the referents back around a deletion that
+  stands. Two failures where the reported defect took one, and no flag on the marker can see
+  it: only the vault knows, and asking costs a second read per marker on every load. Written
+  down in `recoverOne`'s docblock, not closed.
+- **A log line is not a surface, and the composition that would make it one is not checked by
+  anything the compiler runs.** `ResolutionOps.notify` mirrors `CascadeDeps.notify` exactly —
+  optional for the suite's benefit, which is precisely what makes a composition that forgets
+  it compile, pass and say nothing. `tests/plugin/sequenceNoticeWiring.test.ts` is what tells
+  the two apart, and it was watched red with `notify: sequenceNotices` deleted from the root.
+  Both of its cases assert the PAIR — the delete still answers `ok` AND the user hears about
+  it — because "a notice appeared" is equally true of a build that started failing the whole
+  deletion, and "the delete succeeded" is equally true of the build being fixed.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
@@ -1444,16 +1825,18 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
   **`NOTICE_TEXT_BAN` is the notice door, and it is a SECOND rule rather than a widening of
-  that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)` or
-  `new Notice(...)` call, and a bare string literal as a direct argument to either — slice
+  that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)`,
+  `notifySuccess(...)`, `notifyWarning(...)` or `new Notice(...)` call, and a bare string
+  literal as a direct argument to any of them — slice
   11's Definition of Done item 3 ("never a raw exception message, stack trace or internal
   file path; produced by `t()` rather than by a literal or by `AppError.message`") put at
   the forbidden call, because that door was the one user-facing surface no gate could see.
   It cannot see a value one hop away (`const text = e.message; notify(text)`), a template
   literal carrying raw English with no member access in it, a notice raised under a third
-  name, or either door reached through a MEMBER EXPRESSION (`o.notify(e.message)`,
-  `new n.Notice(e.message)`) — both selectors key on `callee.name`, which a member-expression
-  callee has none of; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
+  name, or any door reached through a MEMBER EXPRESSION (`o.notify(e.message)`,
+  `new n.Notice(e.message)`) — every selector keys on `callee.name`, which a member-expression
+  callee has none of, and that is exactly why the four doors are bare functions rather than
+  `notify.success(...)`; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
   paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
   repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
   measured.
@@ -1521,15 +1904,23 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.34/99.25/99.58/98.11 as of
-  slice 11. **Read branches again: 98.11 against a floor of 98, which is about two covered
-  branches of headroom, one branch costing 0.047.** So an untested new arm does not "reduce
+  99/99/99/98 (statements/functions/lines/branches), against 99.36/99.49/99.64/98.12
+  measured on the tree that merged slice 13 into main. **Read branches again: 98.12 against
+  a floor of 98, which is about two and a half covered branches of headroom, one branch
+  costing 0.044 — the tightest this metric has been since slice 11.** Slice 13 measured 98.25
+  alone and the figure FELL on merging, which is the second time this repository has recorded
+  that happening; `vitest.config.ts` has the arithmetic. **Two branches is tight enough that
+  an UNREACHABLE guard is not free**: the first draft of slice 13's live-region fix carried a
+  `regions?.[…]` null arm no test could drive, and removing it by handing the regions to the
+  host as an argument is what put that figure back. So an
+  untested new arm does not "reduce
   coverage", it fails the gate — plan the test with the code rather than after it. Do not
   read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
   which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slices 5, 15 and 11 did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5, 15, 11 and 13
+  did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
@@ -1550,8 +1941,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   scoping is not why it is missed today. The landmark rules (`region`, `document-title`,
   `html-has-lang`, …) are the ones actually scope-dependent, needing whole-page context
   this file cannot give them because it scans `contentEl`, the plugin's own subtree, not
-  the whole document. A live vault (`npm run test-build`) remains the only place
-  appearance is verified.
+  the whole document. **That same scope is why no notice is graded here**: an Obsidian
+  `Notice` renders on `document.body` under `.notice-container` and slice 13's two live
+  regions are appended to `document.body` itself, so that pair of `role`/`aria-live` values
+  and the dismiss control's accessible name — the most new ARIA any one slice has added — sit
+  outside every scan this file performs. A live vault
+  (`npm run test-build`) remains the only place appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 
@@ -1572,7 +1967,13 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   `tests/harness/harness.test.ts` rather than assumed. Not faithful about a themed vault's
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
-  "faithful" read wider than it is.
+  "faithful" read wider than it is. **The sharpest instance of that reduction: it declares no
+  `.notice` and no `.notice-container` rule at all** — that plugin never raised one, and all
+  that survives is a `--layer-notice` variable used on an unrelated selector, measured rather
+  than assumed. So a notice here would have no position, no stacking and no chrome: this tool
+  cannot show what one LOOKS like, which puts slice 13's whole toast surface outside it and
+  outside every gate. `docs/tests/cases/Notices and save state.md` is the only instrument
+  for it.
 
   **`?index`** draws an index of every prototype and every real component, discovered from the
   tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one

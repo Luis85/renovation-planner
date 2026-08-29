@@ -57,7 +57,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 	it('deletes through the plain command and publishes ZoneDeleted', async () => {
 		const { zones, events, zone, makeCommand } = await wired();
 
-		expect(expectOk(await makeCommand().execute())).toBeUndefined();
+		expect(expectOk(await makeCommand().execute())).toBe('wrote');
 		expect(expectOk(await zones.getById(zone.id))).toBeNull();
 		expect(events.published.map((event) => event.type)).toEqual(['ZoneDeleted']);
 	});
@@ -109,7 +109,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 		expect(expectOk(await zones.getById(zone.id))).toBeNull();
 
 		// Retrying once the fault clears is a retry, not a repair.
-		expect(expectOk(await history.undo())).toBeUndefined();
+		expect(expectOk(await history.undo())).toBe('wrote');
 		expect(expectOk(await zones.getById(zone.id))?.entity.geometry.points).toEqual(squareAt().points);
 	});
 
@@ -129,7 +129,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 		ledger.record(zone.id, loaded.version);
 		expect(ledger.lastWritten(zone.id)).not.toBeNull();
 
-		expect(expectOk(await makeCommand().execute())).toBeUndefined();
+		expect(expectOk(await makeCommand().execute())).toBe('wrote');
 
 		expect(ledger.lastWritten(zone.id)).toBeNull();
 	});

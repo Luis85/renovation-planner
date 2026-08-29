@@ -157,6 +157,67 @@ describe('the recalculation cascade', () => {
 		expect(stored?.entity.estimatedCost.calculated.amount).toBe('550.00'); // 11 × 50
 	});
 
+	/**
+	 * **The third site of the same relabel, found by sweeping for the shape rather than by
+	 * fixing the one in the report.** `redoCreate`'s two `isErr(x) || x.value === null`
+	 * branches were the ones a review bot caught, because theirs escape to a caller and reach
+	 * the save indicator. This one does not escape — the handler falls back to recalculating
+	 * every link either way, which is conservative and right for both causes — so the defect it
+	 * carries is smaller and entirely in what a developer is TOLD: one event name asserting the
+	 * asset is gone, and, for the read-fault case, no cause logged at all. Slice 11's rule is
+	 * that a mapped error is logged with the original that produced it, and this was the one
+	 * arm with nothing to map from.
+	 *
+	 * Both arms are driven, because a branch split with one arm tested is how the next sweep
+	 * finds this file again.
+	 */
+	it('logs a vanished asset and a faulted asset READ as different things', async () => {
+		const events: { name: string; payload: Record<string, unknown> }[] = [];
+		const logger = {
+			...silentLogger(),
+			error: (name: string, payload: Record<string, unknown>) => events.push({ name, payload }),
+		};
+
+		const gone = await wired();
+		registerOnAssetUpdated(gone.events, {
+			...gone.deps,
+			logger,
+			assets: { ...gone.assets, getById: () => Promise.resolve({ ok: true, value: null }) } as never,
+		});
+		await gone.assign.execute({ zoneId: gone.zone.entity.id, assetId: gone.asset.entity.id });
+		await gone.events.publish(
+			assetUpdated({ assetId: gone.asset.entity.id, projectId: gone.project.entity.id }),
+		);
+
+		const faulted = await wired();
+		registerOnAssetUpdated(faulted.events, {
+			...faulted.deps,
+			logger,
+			assets: {
+				...faulted.assets,
+				getById: () =>
+					Promise.resolve({
+						ok: false,
+						error: { category: 'Persistence', code: 'test.injected', message: 'unreadable' },
+					}),
+			} as never,
+		});
+		await faulted.assign.execute({ zoneId: faulted.zone.entity.id, assetId: faulted.asset.entity.id });
+		await faulted.events.publish(
+			assetUpdated({ assetId: faulted.asset.entity.id, projectId: faulted.project.entity.id }),
+		);
+
+		const named = events.filter((e) => e.name.startsWith('requirement.cascade-asset'));
+		expect(named.map((e) => e.name)).toEqual([
+			'requirement.cascade-asset-gone',
+			'requirement.cascade-asset-unreadable',
+		]);
+		// The absent case has no cause to carry; the faulted one does, and dropping it was the
+		// defect — a developer got one line naming the asset and never saying why.
+		expect(named[0]?.payload.cause).toBeUndefined();
+		expect(named[1]?.payload.cause).toMatchObject({ code: 'test.injected' });
+	});
+
 	it('a rename that cannot change a cost rewrites nothing', async () => {
 		const w = await wired();
 		await w.assign.execute({ zoneId: w.zone.entity.id, assetId: w.asset.entity.id });

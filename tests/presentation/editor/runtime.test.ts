@@ -15,11 +15,18 @@
  * `editorFaults.test.ts` covers the THROW half of this seam (`reportFault` catching an
  * unexpected fault); this file covers the resolved-but-failed half.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from 'obsidian';
 import { expectOk } from '../../helpers/domain';
 import { pointer, rig, toolbarButton, type Rig } from '../../helpers/planEditorRig';
 import { settle } from '../../helpers/editor';
+import { activateNotices } from '../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../helpers/dom';
+
+// `activateNotices` — reached here through the real plugin/editor wiring — appends its
+// two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
+// installs globally and this suite installs per file.
+installObsidianDom();
 
 /**
  * Rewrites zone-a with its OWN current state, through the repository directly rather than
@@ -47,6 +54,16 @@ async function moveZoneA(harness: Rig['harness']): Promise<void> {
 	pointer(canvas, 'pointerup', 260, 200);
 	await settle();
 }
+
+/**
+ * A notice is INERT until something activates the queue — `onload` is what does that in
+ * production, so a suite asserting on `Notice.shown` has to stand where the plugin stands.
+ * Per TEST, and for a second reason: the queue DEDUPS, so two cases raising the identical
+ * sentence would fold into one `(×2)` and construct no second `Notice` at all.
+ */
+beforeEach(() => {
+	activateNotices();
+});
 
 describe('a refused undo', () => {
 	it('is reported, and leaves the command on the undo stack rather than doing nothing', async () => {

@@ -11,7 +11,7 @@
  * per axis at the default camera. The fixture zone's world rect (1500..4400)² therefore
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent } from 'vue';
@@ -44,6 +44,23 @@ import { makePlan, makeZone } from '../../helpers/entities';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
+import { activateNotices } from '../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../helpers/dom';
+
+// `activateNotices` — reached here through the real plugin/editor wiring — appends its
+// two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
+// installs globally and this suite installs per file.
+installObsidianDom();
+
+/**
+ * A notice is INERT until something activates the queue — `onload` is what does that in
+ * production, so a suite asserting on `Notice.shown` has to stand where the plugin stands.
+ * Per TEST, and for a second reason: the queue DEDUPS, so two cases raising the identical
+ * sentence would fold into one `(×2)` and construct no second `Notice` at all.
+ */
+beforeEach(() => {
+	activateNotices();
+});
 
 describe('the wired Plan Editor (design slice 8)', () => {
 	it('draws a zone through the toolbar and canvas, persists it, selects it, and undo/redo keep the SAME id', async () => {

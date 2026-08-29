@@ -15,6 +15,7 @@ import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEdit
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
+import { activateNotices, disposeNotices } from '../presentation/notices/notify';
 import {
 	createCompositionRoot,
 	planEditorDeps,
@@ -104,6 +105,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
 		// moment at which that global is provably this load's own and safe to claim.
 		this.disposers.push(claimKonvaGlobal());
+
+		// Design slice 13's notices outlive any view — they report things that have nothing to
+		// do with an open leaf — so the queue is plugin-scoped and its teardown belongs on the
+		// list `onunload` drains. Not the first entry on it: Konva's global got there first.
+		//
+		// BOTH halves, and in this order. The queue is inert until activated, so without the
+		// first line nothing ever shows a notice; without the second, a promise resolving after
+		// unload attaches one to a vault with no plugin left to remove it.
+		activateNotices();
+		this.disposers.push(disposeNotices);
 
 		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
 		// it is not one of the things bootstrap sets up, it is what the setup steps report
@@ -353,8 +364,6 @@ export default class RenovationPlannerPlugin extends Plugin {
 			void recoverInterruptedSequences({
 				markers: persistence.markers,
 				requirements: persistence.requirements,
-				zones: persistence.zones,
-				assets: persistence.assets,
 				logger: this.root.logger,
 			});
 		}

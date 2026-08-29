@@ -14,6 +14,7 @@ import type { SequenceMarkerStore } from '../ports/SequenceMarkerStore';
 import type { ReferenceLocks, LockSession } from './ReferenceLocks';
 import type { RequirementRepository } from '../ports/RequirementRepository';
 import { loadRequirement } from '../commands/requirement/loadRequirement';
+import { markUncompensated } from '../commands/DispatchOutcome';
 
 /**
  * The compensated multi-entity sequence behind every non-bare delete of a referenced
@@ -91,6 +92,21 @@ export interface ResolutionOps<TEntity> {
 	readonly entityId: string;
 	readonly entityKind: 'zone' | 'asset';
 	readonly logger: Logger;
+	/**
+	 * Slice 13's toast surface, injected exactly as `CascadeDeps.notify` is and for the same
+	 * reason: this module is `application/` and may not reach `presentation/`, so the
+	 * composition root decides what a user sees.
+	 *
+	 * **One member, because one failure here is invisible in a way the others are not.** A
+	 * refusal travels back as an `AppError` and the dialog shows it; a mid-sequence fault is
+	 * compensated and reported. A failed final `clear` is the one outcome that answers `ok`
+	 * — the vault really did get every write — while leaving a durable marker that outlived
+	 * the sequence it describes. The save indicator settles on `Saved`, correctly, and
+	 * without this the whole of the user's notice is a log line they never see.
+	 */
+	readonly notify?: {
+		markerClearFailed(entityId: string): void;
+	};
 	listReferents(): Promise<Result<Loaded<Requirement>[], RepositoryError>>;
 	loadEntity(): Promise<Result<Loaded<TEntity> | null, RepositoryError>>;
 	deleteEntity(expected: EntityVersion): Promise<Result<void, RepositoryError>>;
@@ -174,9 +190,18 @@ export function requirementResolutionSteps(
 		},
 		markStalePersisted: async (snapshot) => {
 			const marked = await requirements.markStale(snapshot.entity.id);
+			// The write itself refused, so nothing landed and the refusal is pre-write.
 			if (isErr(marked)) return err(marked.error);
 			const reread = await loadRequirement(requirements, snapshot.entity.id);
-			if (isErr(reread)) return err(reread.error);
+			// **Past this line the stale marker IS in the vault, and this refusal is the one
+			// place that knows it.** `applyAll` appends to `marker.progress` only after this
+			// step RETURNS, so a refusal here leaves the completed write in no progress record
+			// at all: `compensate` iterates past it, nothing restores it, and its category
+			// (`Reference`, via `loadRequirement`'s `requirement.not-found`) is one the save
+			// indicator reads as "wrote nothing". Stamping at the loop alone would have closed
+			// the multi-referent case and left this single-call one open, which is a partial
+			// fix that reads exactly like a complete one.
+			if (isErr(reread)) return err(markUncompensated(reread.error));
 			return ok(reread.value.version);
 		},
 		removeRequirement: (snapshot) => requirements.delete(snapshot.entity.id, snapshot.version),
@@ -347,18 +372,42 @@ async function applyAll<TEntity>(
  * undo. A failing compensation is logged AND left in the durable marker (`marker.progress`
  * still holds every completed forward write) for recovery at next load — a log entry is
  * not a recovery, and the repository cannot promise multi-file atomicity.
+ *
+ * **A log entry is not the user-facing half either, which is what `markUncompensated` adds.**
+ * This function is the one place that knows the vault has been left half-written: it holds the
+ * completed forward writes and it watched the restores refuse. Everything above it sees only
+ * the FORWARD refusal, whose category is a fact about why step 2 stopped and says nothing
+ * about what step 2 had already saved — so slice 13's save indicator, reading that category,
+ * settled to `Saved` over a plan with a stale marker nothing put back. The stamp is additive
+ * (`category`, `code` and `message` are untouched, so `toUserMessage` resolves the same
+ * sentence) and is applied ONLY when a write really is left standing: a compensation that
+ * restores everything has returned the vault to its pre-state, and stamping that would be a
+ * badge over data as safe as it was before the gesture. `DispatchOutcome`'s header carries
+ * the argument for why this is a reported value rather than an inference.
+ *
+ * The two ways a write is left standing are handled as one, because they are the same fact:
+ * a restore that REFUSED, and a completed forward write compensation could find no snapshot
+ * for. The second is unreachable while `progress` is built from `affectedBefore` in this
+ * same call — it is the recovery path that reads a marker off disk, and that path has its own
+ * loop in `recoverInterruptedSequences.ts` — so it is guarded rather than proven, and it
+ * fails toward reporting.
  */
 async function compensate<TEntity>(
 	ops: ResolutionOps<TEntity>,
 	marker: SequenceMarker,
 	cause: DeleteResolutionErrors,
 ): Promise<Result<never, DeleteResolutionErrors>> {
+	let uncompensated = false;
 	for (const entry of [...marker.progress].toReversed()) {
 		const snapshot = marker.affectedBefore.find((r) => r.entity.id === entry.id);
-		if (!snapshot) continue;
+		if (!snapshot) {
+			uncompensated = true;
+			continue;
+		}
 		const expected: Expected = entry.outcome === 'written' ? entry.version : 'absent';
 		const restored = await ops.restoreRequirement(snapshot, expected);
 		if (isErr(restored)) {
+			uncompensated = true;
 			ops.logger.error('sequence.compensation.failed', {
 				entityId: ops.entityId,
 				entityKind: ops.entityKind,
@@ -367,7 +416,7 @@ async function compensate<TEntity>(
 			});
 		}
 	}
-	return err(cause);
+	return err(uncompensated ? markUncompensated(cause) : cause);
 }
 
 export async function runDeleteResolution<TEntity>(
@@ -418,6 +467,16 @@ export async function runDeleteResolution<TEntity>(
 		}
 
 		// Step 5 — success clears the marker and hands progress onward untouched.
+		//
+		// **A failure here is not fatal to the sequence and must still be SAID.** Every write
+		// this resolution owed the vault has landed, so it answers `ok` and slice 13's
+		// indicator settles on `Saved` — which is true. What is left behind is a marker that
+		// outlived its sequence: `recoverInterruptedSequences` clears it on the next load
+		// without reversing anything (it reads `entityDeleted`, which the step above set),
+		// but until that load the durable record of this plan disagrees with the plan. The
+		// user is told, because a log line is not a surface. Reported by a review bot on the
+		// slice 13 pull request, whose scenario was the harsher one this pairing removed:
+		// recovery used to ROLL the whole deletion BACK.
 		const cleared = await clearMarker(markers, ops.entityId);
 		if (isErr(cleared)) {
 			ops.logger.error('sequence.marker-clear.failed', {
@@ -425,6 +484,7 @@ export async function runDeleteResolution<TEntity>(
 				entityKind: ops.entityKind,
 				cause: cleared.error,
 			});
+			ops.notify?.markerClearFailed(ops.entityId);
 		}
 		return ok({
 			deletedId: ops.entityId,

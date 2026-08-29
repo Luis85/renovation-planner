@@ -1,4 +1,5 @@
 import type { AppError } from '../../../core/errors/AppError';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 import type { Result } from '../../../core/result/Result';
 import type { PlanEditorQueryServices } from '../../read-models/planEditorQueries';
 import type { CommandHistory } from './command-history';
@@ -45,7 +46,9 @@ export interface EditorStateRefreshDeps {
 	planId: string;
 }
 
-type VoidResult = Result<void, AppError>;
+// Forwarded UNCHANGED, like every other part of a result this decorator passes through:
+// re-reading two stores says nothing about whether the vault was touched.
+type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The decorator that puts a committed mutation on the canvas AND in the Inspector
@@ -93,10 +96,10 @@ export function withEditorStateRefresh(
 		}
 	}
 
-	function stepped(operation: () => Promise<VoidResult>): () => Promise<VoidResult> {
+	function stepped(operation: () => Promise<DispatchResult>): () => Promise<DispatchResult> {
 		return () =>
 			enqueue(async () => {
-				let result: VoidResult;
+				let result: DispatchResult;
 				try {
 					result = await operation();
 				} catch (cause) {

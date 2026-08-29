@@ -4,13 +4,12 @@
  * (ADR-004, SDD §12).
  *
  * It draws real content now: an empty state when the vault holds no projects (design slice
- * 14), the mapped failure message when the read refused, a loading line while it is in
- * flight, and a warning strip when some project notes could not be read. It still draws
- * NO list — slice 17 owns that — so the four states above are, between them, everything
- * this component renders. For every slice before slice 14 it drew nothing at all, and that
- * used to be the increment's stated success criterion rather than an omission — "an empty
- * Renovation Planner view opens reliably inside Obsidian". That claim stopped being true
- * then, so it stopped being said here.
+ * 14), the project list itself once one exists (design slice 16's `ProjectList`), the mapped
+ * failure message when the read refused, a loading line while it is in flight, and a warning
+ * strip when some project notes could not be read. For every slice before slice 14 it drew
+ * nothing at all, and that used to be the increment's stated success criterion rather than an
+ * omission — "an empty Renovation Planner view opens reliably inside Obsidian". That claim
+ * stopped being true then, so it stopped being said here.
  *
  * Failure and loading share one region and the empty state is not one of them: a failed
  * read is not "legitimately nothing yet", and `emptyStateKey` is `null` from any status but
@@ -31,6 +30,7 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ProjectList from './ProjectList.vue';
 import NewProjectForm from './NewProjectForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
@@ -44,7 +44,7 @@ import type { CreateProjectInput } from '../../application/commands/project/Crea
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
 const dialogs = useDialogStore();
-const { emptyStateKey, status, error, unreadable } = storeToRefs(store);
+const { projects, emptyStateKey, status, error, unreadable } = storeToRefs(store);
 
 /**
  * `FormDescriptor.busy`'s other end. ONE ref, read and written by TWO places at once: it is
@@ -91,7 +91,7 @@ async function onCreateProject(): Promise<void> {
 }
 
 /**
- * `null` for no empty state (a normal render, once slice 17's project list exists to draw),
+ * `null` for no empty state — a normal render, `ProjectList` drawing the vault's projects —
  * or the resolved props for the one key this slice's registry declares
  * (`renovationProject.noProjects`). `EMPTY_STATE_CONTENT.renovationProject` is keyed to
  * match `selectRenovationProjectEmptyState`'s own return type, so a widened selector fails
@@ -125,6 +125,12 @@ onMounted(() => {
 				v-if="empty !== null"
 				v-bind="empty"
 				@action="onCreateProject"
+			/>
+			<ProjectList
+				v-else
+				:projects="projects"
+				@open="(id) => void context.openProject(id)"
+				@create="onCreateProject"
 			/>
 			<p
 				v-if="unreadable > 0"

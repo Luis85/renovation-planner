@@ -53,7 +53,7 @@ import {
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
-import { notify } from '../presentation/notices/notify';
+import { notify, notifyFault } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
@@ -571,6 +571,16 @@ export function planEditorDeps(
  * type Obsidian does not know. `openProject` answers a no-op rather than a refusal in that
  * state: there is no index to resolve a path through, and nothing to tell the user that the
  * list — empty for the same reason — has not already told them.
+ *
+ * **The composed closure also owes the deferred half of Task 5's own review**: `openProjectNote`
+ * has no `try`/`catch` of its own, and `ProjectList`'s row click discards the promise this
+ * returns (`@open="(id) => void context.openProject(id)"`) — so a rejecting `openFile` (a real
+ * I/O fault, never the "id resolves to nothing" case `openProjectNote` already handles by
+ * design) would otherwise be an unhandled rejection reaching nobody. The `.catch` below maps
+ * it through `notifyFault`, the same way a guarded command's fault would have been mapped, and
+ * resolves rather than re-throwing: it lives HERE rather than inside `openProjectNote` because
+ * that function is `infrastructure/`, which may not import `presentation/notices/notify` (the
+ * layer ban runs the other way), and `plugin/` is the one layer that may reach both.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
@@ -586,7 +596,12 @@ export function renovationProjectDeps(
 			? { createProject: persistence.createProject }
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
-			? (projectId) => openProjectNote({ workspace, vault, index: persistence.index }, projectId)
+			? (projectId) =>
+					openProjectNote({ workspace, vault, index: persistence.index }, projectId).catch(
+						(cause: unknown) => {
+							notifyFault(cause, root.logger, 'view.project.open-failed');
+						},
+					)
 			: () => Promise.resolve(),
 	};
 }

@@ -5,12 +5,11 @@
  * the READ MODEL. The second half is the one that matters — a create whose result never
  * reaches the store is the exact failure a re-hydrate exists to prevent.
  *
- * The second case stops at `RenovationProjectStore.projects`, not at rendered DOM: `ViewRoot`
- * draws no project list yet, by design (`content.ts`'s own history, and Task 8's
- * `ProjectList.vue` is what will read this exact store field). Asserting on
- * `wrapper.text()` here would silently start requiring a component this task does not
- * build, and pass for the wrong reason the moment one exists — the store is the honest
- * boundary of what this task changed.
+ * The second case stops at `RenovationProjectStore.projects`, not at rendered DOM: at the time
+ * it was written `ViewRoot` drew no project list yet, and asserting on `wrapper.text()` would
+ * have silently started requiring a component that task did not build. Design slice 16's
+ * `ProjectList.vue` (Task 8) now reads that exact store field, and the last case in this file
+ * is what asserts the two are actually connected.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
@@ -184,5 +183,26 @@ describe('ViewRoot, creating a project', () => {
 		expect(context.commands.createProject.execute).not.toHaveBeenCalled();
 		// Still just the one read from mount — Cancel took the early return.
 		expect(listProjects).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * The rule design slice 14 spent a whole decision on, proved at the component this task
+	 * wires it into: a list and the unreadable notice are ADDITIVE, never either-or.
+	 * `unreadable > 0` means the vault holds projects this build could not read — it never
+	 * replaces the ones it could, so both `.rp-project-list__row` and `.rp-view-notice` must
+	 * render together.
+	 */
+	it('draws the project list and the unreadable notice together', async () => {
+		setActivePinia(createPinia());
+		const context = deps(() =>
+			Promise.resolve(ok({ projects: [{ id: 'p1', name: 'Kitchen', status: 'IDEA' }], unreadable: 2 })),
+		);
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+
+		expect(wrapper.findAll('.rp-project-list__row')).toHaveLength(1);
+		expect(wrapper.find('.rp-view-notice').exists()).toBe(true);
 	});
 });

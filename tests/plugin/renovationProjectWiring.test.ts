@@ -9,11 +9,12 @@
  * plugin.
  */
 import { describe, expect, it } from 'vitest';
+import { Notice } from 'obsidian';
 import { createCompositionRoot, renovationProjectDeps } from '../../src/plugin/composition-root';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';
-import { recorder } from '../helpers/logger';
+import { lines, recorder, resetRecorder } from '../helpers/logger';
 import { createRepositoryStack } from '../helpers/vault';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 
@@ -109,6 +110,36 @@ describe('the renovation project dependencies', () => {
 		await expect(deps.openProject('project-1')).resolves.toBeUndefined();
 
 		expect(workspace.leaves).toHaveLength(0);
+	});
+
+	/**
+	 * Task 5's own review deferred this: `openProjectNote` has no `try`/`catch`, and
+	 * `ProjectList`'s row click discards the promise this resolves to
+	 * (`@open="(id) => void context.openProject(id)"`) — so a rejecting `openFile` (a real
+	 * Obsidian I/O fault, not the "id resolves to nothing" case `openProjectNote` already
+	 * handles by design) would otherwise be an unhandled rejection reaching nobody.
+	 *
+	 * The catch lives HERE, in the composed closure, rather than inside `openProjectNote`
+	 * itself: that function is `infrastructure/`, which may not import `notifyFault` from
+	 * `presentation/notices/notify` (the layer ban runs the other way), and `plugin/` is the
+	 * one layer that may reach both at once — the same reason `renovationProjectDeps` is
+	 * where `openProject` is composed in the first place.
+	 */
+	it('reports rather than rejecting when opening the note faults', async () => {
+		resetRecorder();
+		const stack = createRepositoryStack();
+		await stack.vault.create('Project.md', '---\nid: project-1\n---\n');
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		root.persistence?.index.upsert({ id: 'project-1' as never, type: 'renovation-project', path: 'Project.md' });
+		const workspace = { getLeaf: () => ({ openFile: () => Promise.reject(new Error('disk exploded')) }) };
+
+		const deps = renovationProjectDeps(root, workspace as never, stack.vault as never);
+
+		await expect(deps.openProject('project-1')).resolves.toBeUndefined();
+		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
+		const logged = lines.find((line) => line.event === 'view.project.open-failed');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('disk exploded');
 	});
 });
 

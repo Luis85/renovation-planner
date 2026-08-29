@@ -60,7 +60,7 @@ function onCancel(): void {
 	<div class="rp-dialog-actions">
 		<button
 			type="button"
-			class="rp-dialog-button rp-dialog-cancel"
+			class="rp-dialog-button"
 			data-rp-action="cancel"
 			:aria-disabled="descriptor.busy?.value === true"
 			@click="onCancel"

@@ -135,7 +135,7 @@ describe('ViewRoot, creating a project', () => {
 		await flushPromises();
 
 		// Before the write starts: an ordinary, cancellable dialog.
-		expect(wrapper.get('.rp-dialog-cancel').attributes('aria-disabled')).toBe('false');
+		expect(wrapper.get('[data-rp-action="cancel"]').attributes('aria-disabled')).toBe('false');
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
@@ -144,7 +144,7 @@ describe('ViewRoot, creating a project', () => {
 		// The dispatch is still pending (nothing has called `settle` yet), and Cancel is
 		// disabled only if the shared ref actually carried `true` from the form out to the
 		// descriptor `FormDialog` reads.
-		expect(wrapper.get('.rp-dialog-cancel').attributes('aria-disabled')).toBe('true');
+		expect(wrapper.get('[data-rp-action="cancel"]').attributes('aria-disabled')).toBe('true');
 
 		settle?.();
 		await flushPromises();
@@ -176,7 +176,7 @@ describe('ViewRoot, creating a project', () => {
 		await flushPromises();
 		expect(wrapper.findComponent(NewProjectForm).exists()).toBe(true);
 
-		await wrapper.get('.rp-dialog-cancel').trigger('click');
+		await wrapper.get('[data-rp-action="cancel"]').trigger('click');
 		await flushPromises();
 
 		expect(wrapper.find('.rp-dialog').exists()).toBe(false);

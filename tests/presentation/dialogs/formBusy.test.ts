@@ -58,8 +58,8 @@ describe('a form dialog with a write in flight', () => {
 		// aria-disabled, never disabled: a `:disabled` Cancel leaves the trap with nothing
 		// to hold, Tab walks out of the dialog, and the Escape handler above stops being
 		// reachable at all.
-		expect(harness.wrapper.get('.rp-dialog-cancel').attributes('aria-disabled')).toBe('true');
-		expect(harness.wrapper.get('.rp-dialog-cancel').attributes('disabled')).toBeUndefined();
+		expect(harness.wrapper.get('[data-rp-action="cancel"]').attributes('aria-disabled')).toBe('true');
+		expect(harness.wrapper.get('[data-rp-action="cancel"]').attributes('disabled')).toBeUndefined();
 
 		harness.unmount();
 		harness = null;
@@ -90,7 +90,7 @@ describe('a form dialog with a write in flight', () => {
 		});
 		await nextTick();
 
-		await harness.wrapper.get('.rp-dialog-cancel').trigger('click');
+		await harness.wrapper.get('[data-rp-action="cancel"]').trigger('click');
 		// See the Escape case's comment: `settled` flips inside a plain `.then()` outside
 		// Vue's own scheduler, so a real microtask-queue drain is what this needs.
 		await flushPromises();
@@ -127,7 +127,7 @@ describe('a form dialog with a write in flight', () => {
 	 * `dialogKinds.test.ts` proves every kind renders at least one focusable control, but
 	 * never in the busy state — which is exactly where this slice could break the invariant:
 	 * every `NewProjectForm` control (including its OWN submit button) is `:disabled` while
-	 * submitting, so `.rp-dialog-cancel` staying merely `aria-disabled` is what keeps the
+	 * submitting, so the cancel button staying merely `aria-disabled` is what keeps the
 	 * trap from going empty. `focusableWithin()` itself is module-private; this drives the
 	 * same selector `DialogHost.vue` declares, over the real mounted tree.
 	 */
@@ -154,7 +154,7 @@ describe('a form dialog with a write in flight', () => {
 			),
 		];
 
-		expect(focusable).toEqual([harness.wrapper.get('.rp-dialog-cancel').element]);
+		expect(focusable).toEqual([harness.wrapper.get('[data-rp-action="cancel"]').element]);
 
 		harness.unmount();
 		harness = null;

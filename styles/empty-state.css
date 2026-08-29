@@ -66,3 +66,24 @@
 	   press is pressable while the canvas underneath keeps every other gesture. */
 	pointer-events: auto;
 }
+
+/*
+ * ITS OWN FOCUS RING, and this one is a CONTRAST finding rather than an absent-ring one.
+ *
+ * Nothing here flattens the button, so Obsidian's own `button:focus-visible` box-shadow does
+ * apply — the ring is not missing. It is unreadable: measured in a real Chromium against the
+ * vendored sheet, that shadow computes `rgb(85, 85, 85)` on `rgb(28, 28, 28)` in dark
+ * (**2.29:1**) and `rgb(189, 189, 189)` on white in light (**1.88:1**), both under WCAG
+ * 1.4.11's 3:1 floor for a non-text indicator — and a capture of the focused button was
+ * indistinguishable from the resting one. `--interactive-accent` measures **4.00:1** and
+ * **3.43:1** on the same two surfaces.
+ *
+ * Design slice 16 is what gave this entry an action to focus at all (`renovationProject
+ * .noProjects` shipped buttonless through slices 14 and 15), so the exposure arrives with that
+ * button rather than with the empty state. Written the same way `.rp-project-list__create`'s
+ * is, deliberately: two buttons on one flow with two different rings is the next finding.
+ */
+.rp-empty-state .rp-empty-state__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

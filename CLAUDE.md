@@ -693,6 +693,33 @@ check. Rules that came out of it:
   **The pattern worth carrying: when a fix is a REFUSAL, the suite tends to cover the thing
   refused and not the thing still allowed** — so write the widened mutation and run it, because
   a refusal that is too broad is silent in a way a missing refusal is not.
+- **A guard cannot be walked around by a caller that reads it, only by one that DESTROYS what
+  it reads first — and `onBlur` was doing both halves of that in one function.** It re-issued
+  the move LAST, after its three cleanups, so the synthetic input was a statement about a
+  gesture that no longer existed:
+  - `cancelInterruptedGesture()` had just restored `CalibrateTool`'s first point and redrawn
+    its zero-length anchor, and the re-issue replayed the remembered position of the
+    interrupted SECOND point straight back through `pointerMove`, drawing the abandoned
+    segment over it. Not cosmetic, which is what makes it worth the bullet: that render is
+    byte-identical to the one `pointerDown` leaves for a second point really placed, so the
+    user came back to the picture meaning "measured, awaiting the distance" over a tool that
+    had thrown the measurement away, with no dialog coming.
+  - And `panOverride.cancel()` ran before it, so the `phase === 'panning'` guard the bullet
+    above put INSIDE `reissuePointerMove` — for exactly this — was already false when the
+    re-issue asked. A blur mid-pan handed a drawing tool a hover at the pan's pointer. The
+    guard was in the right place and the caller had cleared its input; the previous round's
+    own reply had cited this call site as safe BECAUSE it sat below the cancel, which is true
+    as a fact and wrong as a defence.
+
+  The re-issue goes first now, so it describes the gesture as it still was and the
+  interruption is the last word. **The method note is the ordering twin of the refusal one
+  above, and this file has now paid for both in consecutive rounds: when a fix is an
+  ORDERING, write the PARTIAL reordering and run it.** Moving the call up by three lines
+  instead of above the whole teardown passes the reported calibration case and leaves the
+  camera one live — a partial fix that reads exactly like a complete one, which is this
+  file's oldest recurring lesson arriving in its newest disguise. The opposite
+  over-correction, deleting the re-issue outright, is caught by the existing
+  constraint-drops-on-blur case in `interactionLayer.test.ts`, so both directions are held.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

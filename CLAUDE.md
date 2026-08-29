@@ -660,6 +660,20 @@ check. Rules that came out of it:
   vertices in turn is a legitimate way to draw a polygon. Reported by a review bot, four
   rounds after the two camera halves were fixed — the same question asked at a door that was
   never about the camera.
+
+  **And the MOVE door needed it too, which the press guard cannot reach: a hovering pen is
+  never pressed, so it is in no swallowed set — it simply arrives.** The ownership test
+  existed there already and guarded the synthetic chord-release ALONE, so the same foreign
+  event fell one line through to `pointerMove` and the ghost the user is steering by jumped to
+  wherever the pen was. The commit is computed from the release, so the geometry survives and
+  the PREVIEW is the whole of the damage — which is why its case asserts on what the
+  interaction layer DRAWS rather than on what is saved, comparing every line it holds rather
+  than picking one out by template order. Asked once at the top of the branch now, above both
+  things that branch does. **The narrowing needed its own case and would not have got one:**
+  every other case passes with the guard keyed on identity alone, and that version stops a
+  drawing tool's rubber band following any pointer but the last one to have pressed — for the
+  rest of the session, silently, because `toolGesturePointer` is never cleared. Measured by
+  writing the mutation and finding the suite green.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

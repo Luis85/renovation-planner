@@ -516,18 +516,24 @@ function onPointerMove(event: PointerEvent): void {
 		// move reports — a translation of the DOM event like every other one this file makes,
 		// not a synthetic gesture.
 		//
-		// **Both the flag AND the owner, because `buttons` describes the pointer that sent the
-		// move and nothing else.** `gestureInFlight` alone reads a FOREIGN hover as the owner's
-		// release: a pen over the canvas, or a finger resting and lifted, reports `buttons: 0`
-		// while the mouse holding the drag is still down — and `SelectTool` then committed the
-		// move at the pen's coordinates (measured: the zone landed at 7500, 3500, nowhere the
-		// user dragged it). This file's own rule, from the side the chord work reopened: a
-		// gesture belongs to a POINTER, not just to a button.
-		if (
-			runtime.toolManager.gestureInFlight
-			&& toolGesturePointer === event.pointerId
-			&& (event.buttons & PRIMARY_BUTTON_BIT) === 0
-		) {
+		// **A running gesture belongs to its pointer, and EVERY other pointer is nothing to the
+		// tool** — asked once, above both of the things this branch does, rather than as a
+		// clause inside one of them.
+		//
+		// It guarded the synthetic release alone at first, and that is where the rule was
+		// discovered: `buttons` describes the pointer that SENT the move and nothing else, so a
+		// pen over the canvas, or a finger resting and lifted, reports `buttons: 0` while the
+		// mouse holding the drag is still down — and `SelectTool` committed the move at the
+		// pen's coordinates (measured: the zone landed at 7500, 3500, nowhere the user dragged
+		// it). What that fix left open is the plain move one line below: the same foreign event
+		// went on reaching `pointerMove`, so the ghost the user is STEERING BY jumped to
+		// wherever the pen was. One rule at the top of the branch closes both, and neither can
+		// be forgotten separately.
+		//
+		// Only while a gesture is in FLIGHT. A hover with nothing running is how a drawing
+		// tool's rubber band follows the pointer at all, and a second pointer is welcome to it.
+		if (runtime.toolManager.gestureInFlight && toolGesturePointer !== event.pointerId) return;
+		if (runtime.toolManager.gestureInFlight && (event.buttons & PRIMARY_BUTTON_BIT) === 0) {
 			runtime.toolManager.pointerUp(pointerEventAt(event, at, 'primary'));
 			return;
 		}

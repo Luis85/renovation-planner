@@ -25,6 +25,7 @@
  * out when this file crossed the cap — a different device grammar, and the one this suite
  * spent eight review rounds getting wrong.
  */
+import type Konva from 'konva';
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
@@ -56,6 +57,49 @@ function key(canvas: HTMLElement, type: 'keydown' | 'keyup', init: KeyboardEvent
 function cursorClasses(canvas: HTMLElement): string[] {
 	return [...canvas.classList].filter((name) => name.startsWith('rp-plan-canvas-'));
 }
+
+/**
+ * Everything the interaction layer is drawing, as one comparable snapshot.
+ *
+ * Deliberately not "find the preview line": during a body drag that layer holds the
+ * translated ghost AND the selection outline, and picking one out by template order is a
+ * dependency on the order of a `<template>` rather than on behaviour. Comparing the whole
+ * set is both simpler and a stronger claim — a foreign pointer changes NOTHING that is
+ * drawn, not merely nothing about the one node this case thought to name.
+ */
+function drawnLines(stage: Konva.Stage | null): readonly (readonly number[])[] {
+	const layer = stage?.findOne<Konva.Layer>('.interaction');
+	if (layer === undefined) throw new Error('expected an interaction layer');
+	return layer.find('Line').map((line) => (line as Konva.Line).points());
+}
+
+it('does not let a foreign pointer’s MOVE steer the owner’s preview', async () => {
+	// The move door, which the press guard above does not reach: a pen HOVERING over the
+	// canvas is never pressed, so it is in no swallowed set — it simply arrives. Its
+	// coordinates went straight into `SelectTool.pointerMove`, and the ghost the user is
+	// steering by jumped to wherever the pen was. The commit is computed from the release,
+	// so the geometry survives and the PREVIEW is the whole of the damage — which is why
+	// this asserts on what is drawn rather than on what is saved.
+	const { harness, canvas } = await editor();
+	toolbarButton(harness, 'Select').click();
+	await settle();
+
+	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+	pointer(canvas, 'pointermove', 400, 300, 0, 11);
+	await settle();
+	const drawnBefore = drawnLines(harness.stage);
+	// The control: the drag really is previewing something, so an unchanged snapshot below
+	// is a preview that held still rather than a layer that never drew.
+	expect(drawnBefore.length).toBeGreaterThan(0);
+
+	// `buttons: 0` — a hover, not a drag. The default would have spelled a held primary
+	// button, which is not what a pen crossing the canvas sends.
+	pointer(canvas, 'pointermove', 900, 500, 0, 12, 0);
+	await settle();
+
+	expect(drawnLines(harness.stage)).toEqual(drawnBefore);
+	harness.unmount();
+});
 
 describe('a pan the pointer walks out of', () => {
 	it('hands the active tool its input back, instead of swallowing every later release', async () => {
@@ -351,6 +395,30 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 		harness.unmount();
 		return after - before;
 	}
+
+	it('still follows a foreign pointer when NO gesture is in flight', async () => {
+		// The narrowing, and it needs its own case because every other one here passes without
+		// it: `toolGesturePointer` is deliberately never cleared, so a guard keyed on identity
+		// ALONE would stop a drawing tool's rubber band following any pointer but the last one
+		// to have pressed — for the rest of the session, silently. A multi-click tool sits
+		// between clicks with nothing in flight, and a hover is how its loose end moves at all.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100); // a complete click: pointer 1 owns nothing afterwards
+		pointer(canvas, 'pointermove', 600, 200, 0, 1, 0);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		// A different pointer takes over the hover — a pen picked up after a finger tap.
+		pointer(canvas, 'pointermove', 900, 500, 0, 12, 0);
+		await settle();
+
+		expect(drawnLines(harness.stage)).not.toEqual(drawnBefore);
+		harness.unmount();
+	});
 
 	it('commits the owner’s drag, not the newcomer’s coordinates', async () => {
 		// Measured against an undisturbed drag rather than a spelled-out world delta, so the

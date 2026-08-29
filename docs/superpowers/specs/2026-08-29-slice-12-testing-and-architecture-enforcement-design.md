@@ -427,10 +427,26 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   matters. Measured: **zero** inner-layer tests use jsdom today, so the hole is latent rather
   than live.
 
-  The remedy is neither the split nor the bare default: **a check rejecting `@vitest-environment
-  jsdom` outside the approved locations** (presentation, plugin, harness). It is cheap, it
-  structurally guarantees what the split was wanted for, and it introduces no
-  uncollected-file hazard. The withdrawal stands *paired with that check* — without it, the
+  The remedy is neither the split nor the bare default, but a check on the jsdom opt-in — and
+  the FIRST version of that remedy was wrong too, in a way worth keeping because it is the same
+  error one level down. It was written as an ALLOWLIST: reject `@vitest-environment jsdom`
+  outside presentation, plugin and harness. Measured, that rejects two existing legitimate
+  suites — `tests/helpers/obsidian-mock.test.ts`, which constructs and inspects DOM-backed
+  `Notice` elements, and `tests/build/entryDrawn.test.ts`, which drives a DOM readiness
+  predicate. Neither can run under the node default, so the check would have reddened
+  `npm run check` the day it landed.
+
+  The shape was wrong, not only the list. An allowlist says "jsdom is permitted here and nowhere
+  else", which is a claim about the whole tree that nothing in slice 12 needs and that goes stale
+  every time a legitimate DOM-touching helper is added somewhere new. The rule's actual subject
+  is narrower: **the inner layers' node enforcement**. So it is a DENYLIST — reject
+  `@vitest-environment jsdom` under `tests/core/`, `tests/domain/` and `tests/application/`,
+  the directories whose node execution is the mechanism §8 credits — and it says nothing about
+  anywhere else. Measured: zero files under those three use jsdom today, so it lands green.
+
+  This is the same correction as `panButtonOf`'s in CLAUDE.md, one level down: a rule with an
+  implicit `else` claims everything it never thought about. It is cheap, it structurally
+  guarantees what the split was wanted for, and it introduces no uncollected-file hazard. The withdrawal stands *paired with that check* — without it, the
   honest status of this item is "outstanding", not "withdrawn". Narrowing the item to what is
   actually checked is this repository's own rule: *write the guarantee to the check, never ahead
   of it* — a rule the first version of this very entry broke.

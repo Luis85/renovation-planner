@@ -154,6 +154,14 @@ describe('the renovation project view', () => {
 	 * A vault holding projects that cannot be read is the third state, and the one a
 	 * one-conditional view could not express at all: it is neither `ready`-with-projects nor
 	 * "nothing here yet". Onboarding copy would be wrong and unactionable here.
+	 *
+	 * The last two assertions are what this case was MISSING, and CLAUDE.md described the
+	 * surface wrongly for a review round because of it: asserting the notice and the absent
+	 * empty state says nothing about what fills the region instead, so "the list draws once
+	 * the vault holds at least one project" read as true. `ProjectList` is the `v-else` of a
+	 * selector that declines on `unreadable > 0` BEFORE it looks at the length, so THIS vault
+	 * draws the list with zero rows — which is the right picture (a header and a way to create
+	 * one, beside the warning) and not the one the sentence promised.
 	 */
 	it('warns instead of inviting when every project note refused', async () => {
 		const view = await open(answering([], 3));
@@ -161,6 +169,8 @@ describe('the renovation project view', () => {
 		const notice = view.contentEl.querySelector('.rp-view-notice');
 		expect(notice?.textContent?.trim()).toBe(t('en', 'view.project.some-unreadable'));
 		expect(view.contentEl.querySelector('.rp-empty-state')).toBeNull();
+		expect(view.contentEl.querySelector('.rp-project-list__header')).not.toBeNull();
+		expect(view.contentEl.querySelectorAll('.rp-project-list__row')).toHaveLength(0);
 		await view.onClose();
 	});
 

@@ -123,6 +123,43 @@ describe('the Requirements panel', () => {
 	});
 
 	/**
+	 * Reset on a row that holds NO override must dispatch NOTHING, and the instrument is the
+	 * REVISION rather than the rendered figure: clearing an override that was never set leaves
+	 * the screen identical either way, so every assertion about what the user sees passes on
+	 * both the defect and the fix. The vault is the only place the difference exists.
+	 *
+	 * `useFieldCommit`'s own "nothing to commit" guard cannot cover this and the case is here to
+	 * say so: it tests for a clean field, and `resetQuantity` used to mint a draft with
+	 * `onInput('')` before ever reaching it, so the guard was unreachable from this path by
+	 * construction. A vault write, a revision bump and an undo entry, for no visible change —
+	 * and a second Reset bought a second set.
+	 */
+	it('writes nothing when Reset is pressed on a field that holds no override', async () => {
+		const r = await rigWithAssets(['Screed']);
+		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+
+		await selectZoneAndAssign(r, areaAsset.entity.id);
+		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
+
+		const before = expectOk(await r.requirementsRepo.listByZone('zone-a' as never));
+		expect(before).toHaveLength(1);
+		expect(r.harness.wrapper.text()).not.toContain('Overridden');
+
+		// Both fields, and twice each: the second press is what caught the pre-existing shape
+		// where a successful reset left the row able to clear an override it no longer had.
+		for (let round = 0; round < 2; round += 1) {
+			await r.harness.wrapper.find('.rp-requirement-reset-quantity').trigger('click');
+			await r.harness.wrapper.find('.rp-requirement-reset-cost').trigger('click');
+			await settle();
+		}
+
+		const after = expectOk(await r.requirementsRepo.listByZone('zone-a' as never));
+		expect(after).toHaveLength(1);
+		expect(after[0].version.revision).toBe(before[0].version.revision);
+		r.harness.unmount();
+	});
+
+	/**
 	 * Closes the map-to-raise-site link end to end, through the REAL command rather than a
 	 * mock: `RequirementRow`'s `QUANTITY_ERRORS` hand-spells `requirement.negative-quantity`,
 	 * and `SetRequirementQuantityOverride.ts` mints that exact code independently — a

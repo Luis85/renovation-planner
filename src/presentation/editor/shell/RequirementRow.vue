@@ -24,7 +24,7 @@ import type { Money } from '../../../core/money/Money';
 import type { RequirementInspectorDTO } from '../../../application/queries/GetRequirementsForZone';
 import type { InspectorEdit } from '../inspector/inspector-store';
 import type { Logger } from '../../../application/ports/Logger';
-import { useFieldCommit } from '../../composables/use-field-commit';
+import { useFieldCommit, type UseFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyError } from '../../notices/notify';
@@ -128,10 +128,38 @@ function onQuantityInput(raw: string): void {
  * which is also what clears the draft and the error on success. Routed THROUGH the
  * composable rather than around it: after a refused override the composable still holds a
  * drafted value and its error, and neither is its own to clear.
+ *
+ * **`overridden` is the guard `commitOnce`'s own cannot be.** That guard returns early on
+ * `submitted === null`, which is "the field is clean" — and the `onInput('')` below mints a
+ * draft, so by the time a round runs, this path has by construction made the field dirty and
+ * that guard can never fire for it. Without this test, Reset on a row holding NO override
+ * dispatched a real override-clearing command: a vault write, a revision bump and an undo
+ * entry standing for a change nobody made, all to clear a figure that was already the
+ * calculated one. Pressing Reset again bought another. Measured rather than argued — the
+ * end-to-end case in `requirementsPanel.test.ts` reports revision 1 against 5 without it.
+ *
+ * **`pending` is the other half, and it is not politeness.** The row's DTO has not refreshed
+ * while a commit is in flight, so `override` still reads `null` for a write that is on its way
+ * to persisting one — type a value, tab away, click Reset before the vault answers, and
+ * testing `overridden` alone would discard the gesture and leave the override the user just
+ * cancelled. Routed through `onCommit` instead, it becomes the queued gesture the composable's
+ * coalescing already knows how to answer once that write settles.
+ *
+ * With neither, there is nothing persisted to clear and nothing in flight to cancel, so the
+ * gesture is a DRAFT DISCARD — which is `onCancel`, the same thing Escape does, and the only
+ * work a Reset with nothing to reset has ever had to do.
  */
+async function reset(field: UseFieldCommit<string>, overridden: boolean): Promise<void> {
+	if (!overridden && !field.pending.value) {
+		field.onCancel();
+		return;
+	}
+	field.onInput('');
+	await field.onCommit();
+}
+
 async function resetQuantity(): Promise<void> {
-	quantity.onInput('');
-	await quantity.onCommit();
+	await reset(quantity, props.row.quantity.override !== null);
 }
 
 /**
@@ -185,8 +213,7 @@ function onCostInput(raw: string): void {
 }
 
 async function resetCost(): Promise<void> {
-	cost.onInput('');
-	await cost.onCommit();
+	await reset(cost, props.row.cost.override !== null);
 }
 </script>
 

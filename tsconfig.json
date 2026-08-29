@@ -18,6 +18,7 @@
     "src/**/*.vue",
     "tests/application/ports/diagnostics.test-d.ts",
     "tests/presentation/editor/type-safety.test-d.ts",
-    "tests/harness/**/*.vue"
+    "tests/harness/**/*.vue",
+    "tests/helpers/makeRenovationProjectView.ts"
   ]
 }

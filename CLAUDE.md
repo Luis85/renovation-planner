@@ -33,10 +33,16 @@ a ribbon button and a command, and it now draws **a project list** — design sl
 `ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
 never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
 paragraph said "still no project list" for slices 14 and 15, which was true until slice 16
-landed. `ViewRoot.vue` renders `ProjectList` once the vault holds at least one project, or
-slice 14's `renovationProject.noProjects` empty state in its place when it holds none — the
-two never draw together, gated on the same `'ready'` status the rest of this paragraph
-describes; the mapped failure sentence for the refusing `AppError`'s own code
+landed. `ViewRoot.vue` renders `ProjectList` whenever the empty state does not apply, and slice 14's
+`renovationProject.noProjects` in its place when it does — the two never draw together, gated
+on the same `'ready'` status the rest of this paragraph describes. **"Whenever the empty state
+does not apply" is not "once the vault holds at least one project", and this sentence said the
+second for a review round:** `selectRenovationProjectEmptyState` answers `null` on
+`unreadable > 0` BEFORE it ever looks at the length, so a vault whose only projects are ones
+this build cannot read draws an empty LIST — its header, its Create button and no rows —
+beside the refusal notice, which is the right picture and not the one the sentence promised.
+The list is the `v-else`, so it is what draws in every case the selector declines, present and
+future; the mapped failure sentence for the refusing `AppError`'s own code
 (`.rp-view-message`, via `trError`, so unrecovered settings and a vault fault say different
 things); a loading line in that same region while the read is in flight; and
 `.rp-view-notice`, the one ADDITIVE one, when SOME project notes refused
@@ -686,6 +692,24 @@ of them." The rules that lasted:
   and a later one still found it re-dispatching a value the user had already abandoned with
   `Escape` moments before. Getting a rule right and getting its implementation right are not
   the same review.
+- **A guard inside a composable cannot see a caller that walks past its precondition, and a
+  ninth review round found the Reset buttons doing exactly that.** `commitOnce` returns early
+  on a CLEAN field, which is what stops a blur of an untouched input buying an undo entry per
+  tab-through; `RequirementRow`'s Reset called `onInput('')` first, so by the time a round ran
+  the field was dirty by construction and that guard could never fire for the path. Reset on a
+  row holding no override therefore dispatched a real override-clearing command — a vault
+  write, a revision bump and an undo entry standing for a change nobody made — and pressing it
+  again bought another. Measured, not argued: two presses of each of the two fields take the
+  requirement from revision 1 to 5. The row asks the question itself now, and the answer has
+  TWO halves, which is the part worth keeping: `override !== null` is not enough on its own,
+  because the DTO has not refreshed while a commit is in flight, so a value on its way to being
+  persisted still reads as no override — testing it alone would silently discard a Reset that
+  cancels a write the user has just started. `|| pending` routes that case through the
+  coalescing the composable already has. With neither, the gesture is a draft discard, which is
+  `onCancel`. **The existing unit case asserted the defect**: it mounted the row with
+  `override: null` and required a dispatch, so it certified clearing an override that was never
+  set — and the fixture it mounted had no `calculated` field at all, invisible for as long as
+  no case set an override and rendered the branch that reads one.
 - **Escape means two different things at two different scopes, and Definition of Done item
   2 originally asked for only one of them everywhere.** Inside the Inspector, `Escape`
   resyncs ONE field (`useFieldCommit.onCancel`, wired `@keydown.esc.stop`) because there is
@@ -1176,9 +1200,10 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except three entries in
-`tsconfig.json`'s `include`**, each there for its own reason. Three, counted in the file
-rather than remembered: slice 11 added the third and this sentence said "two" for a slice.
+nothing type-checks `tests/**` (vitest transpiles without checking) **except four entries in
+`tsconfig.json`'s `include`**, each there for its own reason. Four, counted in the file
+rather than remembered: slice 11 added the third and this sentence said "two" for a slice,
+and slice 16's review pass added the fourth.
 
 `tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
 `IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
@@ -1207,6 +1232,22 @@ must still compile, which is an `AppError` whose `message` and `cause` DO hold c
 are dropped by the ledger rather than refused at the door. An unsatisfied directive is itself
 an error, so widening `record` back to strings fails the build at the directive that no
 longer has anything to suppress.
+
+`tests/helpers/makeRenovationProjectView.ts` is the fourth, and it is neither scope nor a
+proof but a FAKE held to the contract it stands for. That file's own docblock promises that a
+grown constructor requirement "meets every consumer at the same time" — a compile-time claim
+with no compiler behind it, and it had already been broken: slice 16 gave
+`RenovationProjectDeps` a `commands` bundle whose `logger` is required, the factory built
+`commands` out of `createProject` alone, and `ViewRoot` then handed `logger: undefined` to
+`useFormCommit` — where a REJECTING dispatch TypeErrors inside the very catch that exists so a
+fault reaches somebody. Invisible to all four gates, and doubly so because every dispatch wired
+today is a guarded command that cannot throw. **The wider instrument was measured before the
+narrow one was chosen**: every `.ts` under `tests/helpers` in that same `include` reports 29
+errors, at least four of them this repository's own fake-too-thin shape rather than scaffolding
+noise — `calibrateHarness`'s viewport missing `worldPerScreenPixel`, `planEditorRig`'s bundle
+missing `calibratePlan`, two `PlanDto` fixtures missing `calibration`. Worth closing, and not
+inside a review pass on another slice, so the number is written down where the next reader
+finds it rather than left to be re-measured.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

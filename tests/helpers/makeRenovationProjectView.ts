@@ -8,6 +8,24 @@
  * it is the first time this promise is called in, because the view had no second
  * constructor argument until this slice gave it one.
  *
+ * **This file is in `tsconfig.json`'s `include`, and that is the fourth entry rather than a
+ * tidy-up.** The promise one paragraph up — a grown constructor requirement meeting every
+ * consumer at once — is a compile-time claim, and nothing type-checked this file, so it was a
+ * convention that had already been broken: design slice 16 gave `RenovationProjectDeps` a
+ * `commands` bundle whose `logger` is REQUIRED, and the default below built `commands` out of
+ * `createProject` alone. `ViewRoot` then handed `logger: undefined` to `useFormCommit`, where a
+ * REJECTING dispatch reaches `faultError` and TypeErrors inside the very catch that exists so a
+ * fault reaches somebody. Invisible to all four gates: vitest transpiles without checking, and
+ * every dispatch wired today is a guarded command that cannot throw — so the hole opens for
+ * whoever wires the first unguarded one, exactly as `useFormCommit`'s own docblock predicts.
+ *
+ * The wider instrument was MEASURED before this narrower one was chosen: a `tests/helpers`
+ * glob for every `.ts` under it, in that same `include`, reports 29 errors — and at least four
+ * are this repository's own recorded fake-too-thin shape rather than test-scaffolding noise: `calibrateHarness`'s viewport missing
+ * `worldPerScreenPixel`, `planEditorRig`'s bundle missing `calibratePlan`, and two `PlanDto`
+ * fixtures missing `calibration`. Worth closing; not worth closing inside a review pass on
+ * another slice, so it is written down here rather than left for the next reader to re-measure.
+ *
  * Split out of `./workspace` on purpose, and that split IS the point of this file existing
  * separately: `RenovationProjectView` mounts `ViewRoot.vue`, a real Vue SFC, and importing
  * it drags that SFC's client-mode compilation into whatever environment does the importing.
@@ -30,6 +48,7 @@ import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/
 import { createRenovationProjectQueries } from '../../src/presentation/read-models/renovationProjectQueries';
 import { FakeLeaf } from './workspace';
 import { RecordingEventBus } from './domain';
+import { recorder } from './logger';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
 /**
@@ -53,6 +72,11 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * subscribes to `ProjectCreated`, so there is no cascade for a dispatching bus to run that a
  * recording one would miss.
  *
+ * `commands.logger` is `recorder`, the same recording port `planEditorRig` hands the editor's
+ * own bundle — a real `Logger`, not a noop, so `useFormCommit`'s fault door has somewhere to
+ * write. It is the honest fake here rather than the refusal bundle's silent one for the reason
+ * one paragraph up: this default ANSWERS, so its failures are real ones worth recording.
+ *
  * `openProject` stays a no-op: opening a project's own note is an Obsidian-vault operation
  * this harness has none of, and every caller of this factory that cares about it
  * (`renovationProjectEmptyState.test.ts`, `accessibility.test.ts`'s failed-read case) passes
@@ -64,9 +88,14 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	const projects = new InMemoryProjectRepository();
 	const events = new RecordingEventBus();
 
-	return new RenovationProjectView(new FakeLeaf() as never, {
+	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
+	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:
+	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
+	// requires a `logger` beside it.
+	const defaults: RenovationProjectDeps = {
 		queries: createRenovationProjectQueries(new ListProjects(projects)),
-		commands: { createProject: new CreateProjectCommand(projects, events) },
+		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
 		openProject: () => Promise.resolve(),
-	});
+	};
+	return new RenovationProjectView(new FakeLeaf() as never, defaults);
 };

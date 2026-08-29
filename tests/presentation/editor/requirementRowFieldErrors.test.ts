@@ -31,17 +31,35 @@ const ROW = {
 	missingTarget: null,
 	unit: 'm²',
 	recalculationStatus: 'fresh',
-	quantity: { effective: 12, override: null },
-	cost: { effective: { amount: '100.00', currency: 'EUR' }, override: null },
+	// `calculated` is present on both halves because `RequirementInspectorDTO` carries it — and
+	// it was ABSENT here until a case first set an override, since the template reads it only
+	// inside the Overridden branch. A fixture thinner than the real thing, invisible for exactly
+	// as long as nothing drove the arm that needs it.
+	quantity: { effective: 12, calculated: 12, override: null },
+	cost: {
+		effective: { amount: '100.00', currency: 'EUR' },
+		calculated: { amount: '100.00', currency: 'EUR' },
+		override: null,
+	},
+} as const;
+
+/**
+ * The same row with a quantity override actually SET — needed because Reset now asks whether
+ * there is anything to clear, so `ROW` above (override `null`) is the case that must dispatch
+ * NOTHING and cannot double as the case that must dispatch a clear.
+ */
+const OVERRIDDEN_ROW = {
+	...ROW,
+	quantity: { effective: 7, calculated: 12, override: 7 },
 } as const;
 
 /**
  * Asserted on the COMMAND INPUT rather than on a rendered badge — slice 10's rule. "The
  * panel re-rendered" is equally true of a row that committed something else entirely.
  */
-function mountRow(commitResult: Result<void, AppError> = ok(undefined)) {
+function mountRow(commitResult: Result<void, AppError> = ok(undefined), row: typeof ROW = ROW) {
 	const commit = vi.fn<Commit>(() => Promise.resolve(commitResult));
-	const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
+	const wrapper = mount(RequirementRow, { props: { row, commit, logger } });
 	return { wrapper, commit };
 }
 
@@ -314,7 +332,12 @@ describe('RequirementRow', () => {
 	it('still offers an explicit reset to calculated', async () => {
 		// `Escape` inside the editor is spoken for by tool-gesture cancellation, so the way
 		// back to "calculated" stays a visible control rather than a key.
-		const { wrapper, commit } = mountRow();
+		//
+		// Mounted on the OVERRIDDEN row, and that is the correction rather than a detail: this
+		// case used to mount `ROW`, whose `quantity.override` is `null`, so what it certified
+		// was a Reset dispatching a clear against a row with nothing to clear. It passed on the
+		// defect the case below now names.
+		const { wrapper, commit } = mountRow(ok(undefined), OVERRIDDEN_ROW);
 
 		await wrapper.get('.rp-requirement-reset-quantity').trigger('click');
 		await flushPromises();
@@ -324,5 +347,35 @@ describe('RequirementRow', () => {
 			requirementId: 'r1',
 			quantity: null,
 		});
+	});
+
+	it('sends nothing when Reset is pressed on a field that holds no override', async () => {
+		// `useFieldCommit`'s "nothing to commit" guard tests for a CLEAN field, and `reset`
+		// mints a draft with `onInput('')` before any round could reach it — so that guard is
+		// unreachable from this path by construction and the row has to ask the question
+		// itself. Without it, clearing an override that was never set was a real command: a
+		// vault write, a revision bump and an undo entry for no visible change.
+		const { wrapper, commit } = mountRow();
+
+		await wrapper.get('.rp-requirement-reset-quantity').trigger('click');
+		await wrapper.get('.rp-requirement-reset-cost').trigger('click');
+		await flushPromises();
+
+		expect(commit).not.toHaveBeenCalled();
+	});
+
+	it('discards a typed draft on Reset when there is no override to clear', async () => {
+		// The other half of the same branch, and the reason it is `onCancel` rather than an
+		// early `return`: the gesture still MEANS something on a dirty field — put the input
+		// back to the calculated figure it is showing beside — it just has nothing to persist.
+		const { wrapper, commit } = mountRow();
+
+		const input = wrapper.get('input[data-field="quantity"]');
+		await input.setValue('9');
+		await wrapper.get('.rp-requirement-reset-quantity').trigger('click');
+		await flushPromises();
+
+		expect(commit).not.toHaveBeenCalled();
+		expect((input.element as HTMLInputElement).value).toBe('');
 	});
 });

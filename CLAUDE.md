@@ -645,10 +645,13 @@ Renovation Project view gained its first write: `NewProjectForm` dispatches the 
 header — the project list is THIS slice's, not slice 17's, whose document is the
 error-surfacing decision table and never once names one. `description`, `start` and
 `targetCompletion` survive the vault round trip now too (Task 5a), date-only and in UTC.
-Eight review rounds landed on this branch before this task closed it, and across most of
-them the majority of findings were defects in an EARLIER round's own repair rather than
-fresh ones — CLAUDE.md's own recurring lesson, reproduced here rather than merely cited.
-The rules that lasted:
+Eight review rounds landed on this branch before this task closed it. Four of them —
+rounds two, three, five and seven — found that MOST of that round's own findings were
+defects in the repair the round immediately before it made; two more, rounds six and eight,
+found a MIX of fresh findings and inherited ones, not only inherited. Named by round rather
+than claimed of the whole branch, because it is not universal — CLAUDE.md's own recurring
+lesson, reproduced here at the precision it actually holds rather than rounded up to "most
+of them." The rules that lasted:
 
 - **Reverting a rejected field destroys the user's own input for no architectural reason.**
   Slice 6 already guarantees a rejected commit writes nothing; silently replacing what the

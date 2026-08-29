@@ -1,0 +1,85 @@
+/*
+ * The Plan Editor's §60 status bar — `Status / Measurements / Save State` — split out of
+ * `styles/editor.css` rather than authored here from the start.
+ *
+ * WHY IT MOVED: the assembler caps a partial at 400 lines, and `editor.css` crossed it again
+ * when the Shift hint and the plan name's own truncation rule landed. This is the second such
+ * split (see `editor-requirements.css`), and the same reasoning applies — the cap forces a
+ * seam somebody chose rather than a partial nobody can find anything in.
+ *
+ * ITS POSITION IN `index.css` IS LOAD-BEARING, for the reason that file states: these rules
+ * are imported immediately after `editor.css` and BEFORE `editor-requirements.css`, which is
+ * exactly the sequence they had while all three lived in one file. Two rules of equal
+ * specificity are decided by which came last, so moving this import changes which one wins.
+ */
+.rp-editor-status-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-4);
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * §60 names three status regions and slice 13 mounts its indicator into the third BY NAME,
+ * so the middle one takes the slack and the outer two keep their own ends. A single
+ * `flex: 1` on all three would move the save-state indicator every time the measurements
+ * readout changed width, which it does on every pointer move.
+ */
+.rp-editor-status {
+	display: flex;
+	flex: 0 1 auto;
+	gap: var(--size-4-2);
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+/*
+ * The plan's name, and the only thing in this region that may truncate — the one part of it
+ * whose width is the user's to decide.
+ *
+ * `text-overflow` belongs HERE and cannot live on the region above, which is the defect this
+ * rule was split out of: that region declared the ellipsis while being `display: flex`,
+ * where it does nothing — ellipsis truncates a block container's own inline content, never a
+ * flex item inside one. The name was hard-clipped mid-glyph, and as a `nowrap` flex item it
+ * would not shrink either, so it pushed the hint out through the region's `overflow: hidden`.
+ * `overflow` fixes both halves: a flex item that clips has an automatic minimum size of zero.
+ * Only a browser sees any of this — jsdom lays nothing out.
+ */
+.rp-editor-plan-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * The Shift hint, which shares the Status region with the plan's name rather than taking a
+ * fourth region of its own: §60 names three, and slice 13's save-state indicator is mounted
+ * into the third BY NAME.
+ *
+ * Fainter than the name beside it: it is a standing note about a key, not a message about the
+ * document. It never shrinks, because it is fixed text that a narrow leaf would elide into
+ * nonsense — the NAME beside it is what gives, and the region itself simply narrows when the
+ * hint disappears with the tool.
+ */
+.rp-editor-hint {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	white-space: nowrap;
+}
+
+.rp-editor-measurements {
+	display: flex;
+	flex: 1;
+	gap: var(--size-4-3);
+	justify-content: center;
+	/* Tabular figures, so a coordinate readout does not jitter as digits change width. */
+	font-variant-numeric: tabular-nums;
+}
+
+.rp-editor-save-state {
+	flex: 0 0 auto;
+	min-width: var(--size-4-8);
+	text-align: right;
+}

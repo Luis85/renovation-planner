@@ -2620,7 +2620,7 @@ criterion — "Zone Geometry → Area → Requirement → Cost works end to end"
 
 ## References
 
-**SDD** (`docs/sdds/obsidian-renovation-planner-SDD.md`):
+**SDD** (`docs/development/sdds/obsidian-renovation-planner-SDD.md`):
 - §3.6 Derived Data over Duplicate Data; §3.7 Progressive Complexity
 - §7.2 Domain Layer (`asset/`, `requirement/` modules)
 - §22 Geometry Core (`Polygon` area)
@@ -2659,7 +2659,7 @@ criterion — "Zone Geometry → Area → Requirement → Cost works end to end"
   #12 (deterministic cost/geometry unit tests), #14 (rebuildable index), #15
   (new views reuse application/domain layers)
 
-**PRD** (`docs/prds/obsidian-renovation-planner.md`):
+**PRD** (`docs/product/prds/obsidian-renovation-planner.md`):
 - §7 Spatial Domain (geometry types, world coordinates)
 - §8 Core Entities — "Asset"
 - §9–11 Cost Model, Cost Hierarchy, Cost Types

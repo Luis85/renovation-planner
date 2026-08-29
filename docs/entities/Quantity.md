@@ -59,5 +59,5 @@ derived rather than stored at all (§88).
 ## Sources
 
 PRD §9 · PRD §70 · PRD §71 · PRD §75 · SDD §23 · SDD §50 · ADR-009, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

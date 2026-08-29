@@ -60,6 +60,10 @@ export interface CalibrateToolDeps {
  * `event.worldPoint` — already through `screenToWorld` before the event was raised — and
  * are never reconverted here; per ADR-009 no editor tool performs its own pixel math.
  *
+ * **Shift constrains the second point** to a whole angle from the first, which is what makes
+ * measuring a wall that runs along an axis a matter of pointing at it rather than of hitting
+ * a pixel. See `constrained`.
+ *
  * The command is dispatched through `EditorContext.commandDispatcher` only (SDD §58);
  * repositories and the event bus are invisible from here. `complete` gates a rescale on
  * `deps.confirmRecalibration()` (slice 15) before it ever asks for a distance — gated on
@@ -145,11 +149,27 @@ export class CalibrateTool implements EditorTool {
 		this.pointA = null;
 		// The second point is placed here, exactly as before — only the START of `complete()`
 		// moves to `pointerUp`. See `pointerUp` for why.
-		this.pendingCompletion = { pointA, pointB: event.worldPoint };
+		const pointB = this.constrained(context, pointA, event);
+		this.pendingCompletion = { pointA, pointB };
 		// And the measured segment STAYS on screen from here through both dialogs: it is the
 		// thing the user is being asked to put a length on, so it has to still be visible
 		// while they answer. `complete()`'s `finally` is what takes it down.
-		context.renderState.measurement = { start: pointA, end: event.worldPoint };
+		context.renderState.measurement = { start: pointA, end: pointB };
+	}
+
+	/**
+	 * The measured point, pulled onto a whole angle from the anchor while Shift is held —
+	 * the same `SnapService.snapDirection` the polygon tool takes, so "hold Shift for a
+	 * straight line" means one thing in this editor rather than two.
+	 *
+	 * It matters more here than it does there: what is being measured is nearly always
+	 * something a builder drew straight — a wall, a scale bar, a dimension line — so a
+	 * calibration taken a degree off is a scale error carried by every area on the plan.
+	 */
+	private constrained(context: EditorContext, anchor: Point, event: EditorPointerEvent): Point {
+		return event.modifiers.shift
+			? context.snapService.snapDirection(anchor, event.worldPoint)
+			: event.worldPoint;
 	}
 
 	/**
@@ -172,19 +192,25 @@ export class CalibrateTool implements EditorTool {
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || this.pointA === null || this.prompting) return;
-		context.renderState.measurement = { start: this.pointA, end: event.worldPoint };
+		context.renderState.measurement = {
+			start: this.pointA,
+			end: this.constrained(context, this.pointA, event),
+		};
 	}
 
 	/**
 	 * `complete()` starts HERE, not in `pointerDown` where the second point is placed.
 	 * `complete()` may open a dialog (slice 15's recalibration confirmation), synchronously
 	 * on this same call stack the first time it awaits nothing yet — and a `pointerdown`'s
-	 * own default action runs AFTER this handler returns: Chromium moves focus to `<body>`
-	 * on a mousedown whose target is not focusable, which the canvas is not. A dialog
-	 * opened from inside `pointerdown` gets focus stolen out from under it by that default
-	 * action; opening from `pointerup` instead means the browser's own focus-to-`<body>`
-	 * move already happened by the time anything here runs, so the dialog's own focus
-	 * lands last and stays.
+	 * own default action runs AFTER this handler returns: Chromium moves focus on a
+	 * mousedown, to the nearest FOCUSABLE ANCESTOR of the target — measured in a real browser
+	 * as `.rp-plan-canvas`, the `tabindex="0"` wrapper, since the Konva `<canvas>` under the
+	 * pointer is not itself focusable. (This paragraph said `<body>` until that measurement
+	 * was taken; the mechanism and the fix are unchanged, but the destination was wrong.) A
+	 * dialog opened from inside `pointerdown` gets focus stolen out from under it by that
+	 * default action; opening from `pointerup` instead means the browser's own focus move
+	 * already happened by the time anything here runs, so the dialog's own focus lands last
+	 * and stays.
 	 *
 	 * `pendingCompletion` is what makes this correct rather than merely deferred: it is set
 	 * only by the SAME gesture's completing `pointerDown` and cleared by `cancel()`, so a

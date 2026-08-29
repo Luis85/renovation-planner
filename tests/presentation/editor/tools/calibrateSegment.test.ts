@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CalibrateTool } from '../../../../src/presentation/editor/tools/calibrate-tool';
-import { at, click, flush, harness, newTool } from '../../../helpers/calibrateHarness';
+import { at, click, flush, harness, newTool, shiftAt } from '../../../helpers/calibrateHarness';
 
 /**
  * The calibration segment on the canvas (`RenderState.measurement`, `InteractionLayer`).
@@ -209,5 +209,60 @@ describe('the calibration segment it draws', () => {
 			end: { x: 50, y: 50 },
 		});
 		expect(h.inputs).toEqual([]);
+	});
+});
+
+/**
+ * Holding Shift measures along a whole angle from the anchor — the same 15 degree step the
+ * polygon tool constrains to, through the same `SnapService.snapDirection`, so "hold Shift
+ * for a straight line" means one thing in this editor rather than two.
+ *
+ * It carries more weight here than it does there: what a user calibrates against is almost
+ * always something drawn straight — a wall, a scale bar, a printed dimension line — and a
+ * calibration taken a degree off is a scale error that every area on the plan then inherits.
+ */
+describe('the angle constraint on a calibration', () => {
+	it('pulls the rubber band onto the nearest whole angle from the anchor', () => {
+		const h = harness();
+		const tool = newTool(h);
+		click(tool, at(0, 0));
+
+		tool.pointerMove(shiftAt(1000, 60));
+
+		// About 3.4 degrees off the horizontal, which the 15 degree step flattens.
+		expect(h.context.renderState.measurement).toEqual({
+			start: { x: 0, y: 0 },
+			end: { x: 1000, y: 0 },
+		});
+	});
+
+	it('measures the CONSTRAINED distance, not the one the hand described', async () => {
+		const h = harness();
+		const measured: number[] = [];
+		const tool = newTool(h, (distance) => {
+			measured.push(distance);
+			return Promise.resolve(null); // dismissed: this case is about what was asked
+		});
+
+		click(tool, at(0, 0));
+		click(tool, shiftAt(1000, 60));
+		await flush();
+
+		// 1000.8 is the hand's own length; the point placed is the projection onto the
+		// horizontal, so the length the user is asked to put a real-world figure on is 1000.
+		expect(measured.at(0)).toBeCloseTo(1000, 6);
+	});
+
+	it('leaves an unmodified gesture exactly where the pointer was', () => {
+		const h = harness();
+		const tool = newTool(h);
+		click(tool, at(0, 0));
+
+		tool.pointerMove(at(1000, 60));
+
+		expect(h.context.renderState.measurement).toEqual({
+			start: { x: 0, y: 0 },
+			end: { x: 1000, y: 60 },
+		});
 	});
 });

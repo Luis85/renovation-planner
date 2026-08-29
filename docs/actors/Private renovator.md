@@ -54,5 +54,5 @@ rather than learn a schema. Every concept in `entities/` has to be earnable in t
 ## Sources
 
 PRD §1 · PRD §3.5 · PRD §4 · PRD §5 · PRD §52, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

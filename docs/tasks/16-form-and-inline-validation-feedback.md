@@ -131,6 +131,35 @@ direction this slice needs.
   seam silently breaks the post-command refresh and the reactive undo/redo flags, and
   nothing errors anywhere.
 
+### Carried forward from the slice 13 review pass (2026-08-29)
+
+Slices 13 and 16 are independent by the slice map and are **not** independent in the tree:
+both branches were open at once and both rewrite `src/presentation/notices/notify.ts`.
+`git merge-tree` of the two reports **seven conflicts** — `notify.ts`, `en.ts`, `de.ts`,
+`composition-root.ts`, `styles/index.css`, `vitest.config.ts` and `CLAUDE.md`. Six of them
+are ordinary. The first is not.
+
+- **`faultError` has to be RE-DERIVED on slice 13's file, not resolved line by line.** This
+  slice split `notifyFault` into `faultError` — map and log, no notice — plus a `notifyFault`
+  that composes it, so `commitField`, `use-field-commit` and `use-form-commit` can route a
+  fault to a field or a banner without a second notice minted from the same code. Slice 13
+  rewrote that same file wholesale (+372/−17): notice regions, a queue,
+  `activateNotices`/`disposeNotices`, `notifySuccess`/`notifyWarning`, and a `notifyFault`
+  still in one piece. A resolution that keeps slice 13's file and drops the split compiles,
+  passes every gate, and silently reinstates the double notice the split exists to prevent.
+  Three call sites depend on it and not one of them would fail.
+- **The return type changed underneath this slice and costs it nothing** — measured, not
+  assumed. Every notice door answers a `Notice` on `main` and `void` on slice 13. This slice
+  consumes a returned `Notice` at ZERO call sites, so the split above is the whole of the
+  work; nothing here has to be rewritten around the new signature.
+- **The locale conflict is two branches adding keys to one file** — nine on slice 13,
+  twenty-eight here — and the resolution owes `de.ts` the vocabulary check
+  `tests/presentation/i18n/strings.test.ts` runs, which reaches two terms and no more. A
+  merged locale file is exactly the shape that check was bought for.
+- **`vitest.config.ts` conflicts in its PROSE, not in its numbers.** The coverage floors are
+  byte-identical on `main` and on both branches, so nothing ratchets and neither account of
+  the uncovered arms may be dropped in favour of the other.
+
 ## Design
 
 ### Three kinds of validation feedback, and why field-level is its own thing

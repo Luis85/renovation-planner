@@ -43,12 +43,12 @@ a user's terms would make it the one note in the folder whose Outcome is a ficti
 The record it owns has a direction, and the direction is the rule. The SDD is **received**
 and stays verbatim, so a note citing §8 cites something that has not been edited to agree
 with it. `docs/tasks/` holds seventeen **derived** slices, expected to change as the
-design is refined, each naming the SDD sections it derives from. `docs/adrs/` holds what
+design is refined, each naming the SDD sections it derives from. `docs/development/adrs/` holds what
 was actually **decided**, and where a decision and the SDD disagree the ADR is what holds.
 That is not hypothetical: ADR-011 moves the geometry sidecar into a `Geometry/` folder
 inside the project's own folder and gives it a registered extension, which is nowhere
 among §89's ten. A refinement that contradicts its source lands in a slice or an ADR and
-never in `docs/sdds/`; **Shared conventions** below states that rule and is where to read
+never in `docs/development/sdds/`; **Shared conventions** below states that rule and is where to read
 it in full.
 
 What separates this Feature from a paragraph about good structure is how little of the SDD

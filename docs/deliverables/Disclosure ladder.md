@@ -18,7 +18,7 @@ iteration: ""
 
 The artifact, **derived**, citing its sources, expected to change as the design is refined —
 and a refinement that contradicts a source names the section it refines and lands here rather
-than in `docs/prds/` or `docs/sdds/`.
+than in `docs/product/prds/` or `docs/development/sdds/`.
 
 It answers **which of the fifteen steps are visible at which model density, and what promotes
 a rung**. Which surfaces exist is [[Sitemap]]'s; what they are called is

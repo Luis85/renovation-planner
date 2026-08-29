@@ -13,6 +13,7 @@ import type { EditorContext } from '../../src/presentation/editor/tools/editor-c
 import type { EditorPointerEvent } from '../../src/presentation/editor/tools/editor-tool';
 import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
 import { screenPoint } from '../../src/presentation/editor/viewport/Viewport';
+import { harnessSnapService } from './tool-context';
 import { err, ok } from '../../src/core/result/Result';
 import type { AppError } from '../../src/core/errors/AppError';
 import type {
@@ -80,7 +81,12 @@ export const harness = (): Harness => {
 			setZoom: () => undefined,
 		},
 		selection: {} as never,
-		snapService: {} as never,
+		// The REAL service, composed as the editor composes it. It stood here as `{} as never`
+		// until this tool started offering the Shift angle constraint, at which point an empty
+		// object would have thrown on the first constrained move — the same too-thin-fake shape
+		// this repository has now recorded half a dozen times. Shared with `tool-context.ts`
+		// rather than built again, so both harnesses snap by the same rules the app does.
+		snapService: harnessSnapService(),
 		commandDispatcher: {
 			run: (runnable: UndoableCommand) => {
 				dispatched.push(runnable);
@@ -134,6 +140,12 @@ export const at = (x: number, y: number): EditorPointerEvent => ({
 	button: 'primary',
 	modifiers: { shift: false, ctrl: false, alt: false },
 	targetId: null,
+});
+
+/** The same event with Shift held — the angle constraint the tool offers on its second point. */
+export const shiftAt = (x: number, y: number): EditorPointerEvent => ({
+	...at(x, y),
+	modifiers: { shift: true, ctrl: false, alt: false },
 });
 
 /** One down+up pair — the grammar a real mouse click produces — for a call site that has

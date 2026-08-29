@@ -56,7 +56,7 @@ setting and rewrites what resolves a path.
 ### In scope
 
 - **ADR-0013** (corrected from "ADR-012" throughout this document — 0012 was already taken by
-  slice 9's [`0012-price-component-placement-in-the-cost-pipeline.md`](../adrs/0012-price-component-placement-in-the-cost-pipeline.md)
+  slice 9's [`0012-price-component-placement-in-the-cost-pipeline.md`](../development/adrs/0012-price-component-placement-in-the-cost-pipeline.md)
   by the time this slice was written), deciding whether a project's folder is a stored field or
   is derived from where its `Project.md` note sits. Written before the code, because the two
   answers produce different schemas and the ADR is the artefact that survives the choice.
@@ -479,12 +479,12 @@ been run as of this writing — its own Runs table says so.
 Configuration Model — the folder split and the overlap rule; §102 Performance Budgets, for the
 scan cost named above.
 
-**ADRs**: [ADR-011](../adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md) —
+**ADRs**: [ADR-011](../development/adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md) —
 its rejected alternative is this slice's argument in miniature, and its "a project moves as one
 folder" consequence is what the derived shape preserves. **ADR-0013 is owed by this slice** and
-now exists: [ADR-0013](../adrs/0013-a-project-folder-is-derived-from-its-note.md). Every "ADR-012"
+now exists: [ADR-0013](../development/adrs/0013-a-project-folder-is-derived-from-its-note.md). Every "ADR-012"
 above is corrected to "ADR-0013" — 0012 names
-[ADR-0012](../adrs/0012-price-component-placement-in-the-cost-pipeline.md), slice 9's
+[ADR-0012](../development/adrs/0012-price-component-placement-in-the-cost-pipeline.md), slice 9's
 price-component-placement ADR, which this slice never owed and did not write.
 
 **Slices**: [04](04-persistence-and-repository-layer.md) — owns the index, and records the

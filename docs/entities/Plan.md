@@ -82,5 +82,5 @@ path, for exactly that reason.
 ## Sources
 
 PRD §8 · PRD §13 · PRD §38 · PRD §59 · PRD §79 · PRD §82 · SDD §39 · SDD §40, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -21,11 +21,23 @@ not_allowed() {  # reads NUL-safe paths on stdin, prints the ones outside the al
     printf '%s\n' "$ALLOWED_DERIVED" | grep -qxF "$f" || printf '%s\n' "$f"
   done
 }
+
+# THE DERIVED PATHSPEC, DEFINED ABOVE ITS FIRST USE — the same ordering rule `$PINNED` carries
+# below, and for the same reason: this list had a second hand-written copy further down, so the
+# echo above and the assertion below could disagree about what the corpus even is.
+#
+# Asked of `lookup.py` rather than spelled, and asked for EVERY candidate container rather than
+# the resolved one. This gate watches for a CHANGE, and the 2026-08-28 reorganisation is a change
+# that shows up at two paths at once: the departing `docs/business-rules/...` and the arriving
+# `docs/product/business-rules/...`. A pathspec naming only where the folder is NOW sees the
+# arrivals and is blind to the departures, which is half a reorganisation reported as a whole
+# one. git accepts a pathspec that matches nothing, so naming all of them costs nothing.
+DERIVED="$(python3 "$SP/lookup.py" --corpus-pathspecs | tr '\n' ' ')"
 echo "1  rows with no state:      $(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')  (must be 0)"
 echo "1  rows and findings both printed: $(grep -cE 'rows|findings' "$L")  (must be >0)"
 echo "1b notes reached:           $(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')  / 227"
 echo "1a note types covered:      $(grep -cE 'requirements/|entities/|business-rules/|components/|actors/|deliverables/|adrs/|issues/' "$L")  (all 8 must appear)"
-echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')  (must be 0)"
+echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z $DERIVED | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')  (must be 0)"
 
 # ASSERT, do not merely print. A verifier that reports its own violations and still exits 0
 # is the same defect as a check whose mechanism cannot fail: a worker runs the advertised
@@ -117,11 +129,61 @@ for base in origin/main main ${REVIEW_BASE:-}; do
   MB=""
 done
 [ -n "$MB" ] || { echo "  FAIL cannot resolve the branch base (tried origin/main, main, \$REVIEW_BASE); the derived-note gate did not run"; fail=1; }
-DERIVED="docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues"
 chk "derived notes edited outside the allowlist (uncommitted)" 0 "$(git status --porcelain -z $DERIVED | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')"
 if [ -n "$MB" ]; then
-  chk "derived notes edited outside the allowlist (vs merge base $MB)" 0 "$(git diff --name-only -z "$MB"...HEAD -- $DERIVED | tr '\0' '\n' | not_allowed | wc -l | tr -d ' ')"
+  # A RANGE THAT CANNOT HOLD A CHANGE IS NOT A CLEAN CORPUS, AND MUST NOT PRINT LIKE ONE.
+  #
+  # This check is the branch-scoped half of the freeze claim, and it is only testable while the
+  # branch is unmerged. Once the work is on `main`, `git merge-base main HEAD` IS `HEAD`, the
+  # range `HEAD...HEAD` is empty, and the check reported `0 outside the allowlist` — the exact
+  # sentence it prints after examining a hundred notes and finding them untouched. Measured on
+  # 2026-08-29: perturbing `entities/Asset.md` in the working tree, the uncommitted check moved
+  # to 1 and this one stayed at 0, because a merged HEAD has no range to look at.
+  #
+  # It does not FAIL here: on `main` there is legitimately nothing for this check to examine, and
+  # a gate that is permanently red on the default branch is a gate that gets deleted. What it must
+  # not do is go on reporting a number it did not measure. Saying so is the whole repair.
+  if [ "$(git rev-parse "$MB")" = "$(git rev-parse HEAD)" ]; then
+    echo "  NOTE HEAD is its own merge base: the derived-note gate had no range to examine and"
+    echo "       measured NOTHING. This guarantee is branch-scoped and is testable only on an"
+    echo "       unmerged branch; the uncommitted check above is what still holds here."
+  else
+    chk "derived notes edited outside the allowlist (vs merge base $MB)" 0 "$(git diff --name-only -z "$MB"...HEAD -- $DERIVED | tr '\0' '\n' | not_allowed | wc -l | tr -d ' ')"
+  fi
 fi
+# THE MOVE MAPPING IS DERIVED, AND IS CHECKED AGAINST THE GENERATOR THAT DERIVES IT.
+#
+# `rows.tsv` cites the corpus as it stood at `MATRIX_BASE`, and those citations are CORRECT for
+# that tree — the pinned corpus really does hold `docs/business-rules/X.md`. They are NOT rewritten
+# to today's layout: that would make the matrix cite paths absent from its own corpus, and
+# `same_note` compares kind plus filename, so every selftest would stay green while it happened.
+# `moves.tsv` is the reader's answer instead — where each stale citation's note is NOW.
+#
+# Committed against regenerated, byte for byte, because a mapping with two authors drifts. The
+# equality check alone is not enough to trust: a generator that emitted nothing would agree with an
+# empty committed file, so the row count is asserted separately and the mapping is recomputed here
+# by a SECOND instrument (awk over the same two columns) rather than by asking python twice.
+_mv="$(mktemp)"; trap 'rm -f "$_mv"' EXIT
+python3 "$SP/lookup.py" --moves > "$_mv" 2>/dev/null
+chk "moves.tsv differs from what lookup.py --moves regenerates" 0 \
+    "$(cmp -s "$SP/moves.tsv" "$_mv" && echo 0 || echo 1)"
+_mvrows="$(awk 'NR>1' "$SP/moves.tsv" | wc -l | tr -d ' ')"
+[ "$_mvrows" -gt 0 ] || { echo "  FAIL moves.tsv holds no rows at all; the mapping measured nothing"; fail=1; }
+# Recomputed from the citation columns by awk — the independent count of how many cited notes are
+# not where the matrix says. A mapping that silently stopped covering a folder shows up here.
+_stale="$( { awk -F'\t' 'NR>1 && $5 ~ /^docs\//{split($5,a,"::");print a[1]}' "$SP/rows.tsv"
+             awk -F'\t' 'NR>1 && $6 ~ /^docs\//{split($6,a,"::");print a[1]}' "$SP/findings.tsv"
+           } | sort -u | while IFS= read -r f; do [ -e "$f" ] || printf '%s\n' "$f"; done | wc -l | tr -d ' ')"
+chk "cited notes that are not where the matrix says, vs rows in moves.tsv" "$_stale" "$_mvrows"
+# Every mapped destination must really be there, or the mapping sends a reader somewhere else.
+chk "moves.tsv 'moved' rows whose target does not exist" 0 \
+    "$(awk -F'\t' 'NR>1 && $3=="moved"{print $2}' "$SP/moves.tsv" | while IFS= read -r f; do [ -e "$f" ] || printf '%s\n' "$f"; done | wc -l | tr -d ' ')"
+# And a row for a citation that resolves is a row that has rotted: the mapping exists only for
+# paths a reader cannot follow, so a note moving BACK must drop out rather than mislead.
+chk "moves.tsv rows whose cited_path exists after all" 0 \
+    "$(awk -F'\t' 'NR>1{print $1}' "$SP/moves.tsv" | while IFS= read -r f; do [ -e "$f" ] && printf '%s\n' "$f"; done | wc -l | tr -d ' ')"
+echo "  move mapping: $_mvrows stale citations, $(awk -F'\t' 'NR>1 && $3=="moved"' "$SP/moves.tsv" | wc -l | tr -d ' ') resolved by container move, $(awk -F'\t' 'NR>1 && $3!="moved"' "$SP/moves.tsv" | wc -l | tr -d ' ') not resolvable by path"
+
 chk "findings with no evidence citation" 0 "$(awk -F'\t' 'NR>1 && $5==""' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "undetermined findings proposing an edit" 0 "$(awk -F'\t' 'NR>1 && $3=="undetermined" && $8!="none"' "$SP/findings.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 chk "named rows carrying a union target" 0 "$(awk -F'\t' 'NR>1 && $3=="named" && $11 ~ /,/' "$SP/rows.tsv" | wc -l | tr -d ' ')"
@@ -141,7 +203,16 @@ for r in dis: pairs[r[9]].append(r)
 rec = {(("Orphan" if any(x[8] == "superseded" for x in rs) else "Contradiction"),)
        + tuple(k.split(">>", 1)) for k, rs in pairs.items()}
 gr = collections.Counter(("Gap", r[4], r[0]) for r in rows if r[1] == "forward" and r[8] == "absent")
-f = list(csv.DictReader(open(d + "/findings.tsv"), delimiter="\t"))
+# Explicit utf-8, because the OTHER side of this comparison is read as utf-8 and a bare
+# open() takes the LOCALE encoding: cp1252 on a German Windows, where every citation
+# carrying a § decodes to a different string than the same bytes read as utf-8. That
+# reported 45 of 45 contradictions and 759 of 759 gaps as present on one side only — a
+# total set mismatch, printed as though the committed matrix and the committed finding set
+# disagreed about every single finding. Equal counts on both sides is the tell: a real
+# divergence moves a few, an encoding one moves all of them. `newline=""` is what the csv
+# module asks for.
+f = list(csv.DictReader(io.open(d + "/findings.tsv", encoding="utf-8", newline=""),
+                        delimiter="\t"))
 have = {(r["kind"], r["evidence_cite"], r["derived_cite"]) for r in f if r["kind"] != "Gap"}
 hg = collections.Counter((r["kind"], r["evidence_cite"], r["rows"]) for r in f if r["kind"] == "Gap")
 bad = 0

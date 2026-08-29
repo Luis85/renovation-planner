@@ -22,11 +22,11 @@ it the canonical case for the rule that status is never colour alone.
 
 ## Specimen
 
-![Save-state indicator, and the states it owes, in Obsidian's default light and dark](save-state-indicator.png)
+![Save-state indicator, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/save-state-indicator.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -86,5 +86,5 @@ fast save that flickers through Saving to Saved announces twice for one event.
 ## Sources
 
 PRD §44 · PRD §66 · PRD §67 · SDD §85, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -393,7 +393,7 @@ was considered and why it was declined.
     the format by test while the `debug(event, context)` port could carry the level
     structurally. Tied to #25(a): decide once the real constraint is written down.
 48. **ADR cluster** —
-    `docs/adrs/0011-…:19` reverses SDD §39's colocated layout but names only ADR-002
+    `docs/development/adrs/0011-…:19` reverses SDD §39's colocated layout but names only ADR-002
     as superseded; add the SDD §39 supersession line (ADR-009 is the model).
     `0011:19` default `docs/geometry` vs PRD §36's `Renovation/` tree — reconsider
     the default (e.g. `Renovation/Geometry`).
@@ -419,7 +419,7 @@ was considered and why it was declined.
     `tests/build/lint-scope.test.ts`; and slice 01:671's Vue-widening checklist
     omits the carve-out its own line 292–293 says gets widened (fix that checklist
     line regardless).
-51. `docs/prds/obsidian-renovation-planner.md` vs `docs/sdds/…-SDD.md` — the rename
+51. `docs/product/prds/obsidian-renovation-planner.md` vs `docs/development/sdds/…-SDD.md` — the rename
     left the two received documents on opposite suffix conventions. Cosmetic; pick
     one convention and note it in `docs/README.md`.
 

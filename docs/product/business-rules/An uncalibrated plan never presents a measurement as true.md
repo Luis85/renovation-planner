@@ -36,4 +36,4 @@ presentation layer branches on it rather than formatting whatever the geometry p
 behaviour; the *says so* half is a presentation surface.
 
 **Sources.** PRD §82 · PRD §14 · SDD §25 · slice 07
-([`docs/tasks/07-calibration.md`](../tasks/07-calibration.md)).
+([`docs/tasks/07-calibration.md`](../../tasks/07-calibration.md)).

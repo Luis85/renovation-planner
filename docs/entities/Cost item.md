@@ -87,5 +87,5 @@ that must not move when the drawing does.
 ## Sources
 
 PRD §9 · PRD §10 · PRD §11 · PRD §32 · PRD §33 · PRD §36 · PRD §60 · PRD §73 · PRD §74 · SDD §48 · SDD §51, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

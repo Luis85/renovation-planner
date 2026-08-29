@@ -21,11 +21,11 @@ alone is a dead end with better manners.
 
 ## Specimen
 
-![Empty state, and the states it owes, in Obsidian's default light and dark](empty-state.png)
+![Empty state, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/empty-state.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -96,4 +96,4 @@ keyboard user and to axe's name-role-value rules alike.
 ## Sources
 
 PRD §39 · PRD §94 · PRD §95, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md).

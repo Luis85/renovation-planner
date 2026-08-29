@@ -78,21 +78,65 @@ ROOT = (_CORPUS if _CORPUS and os.path.isabs(_CORPUS)
         else os.path.normpath(os.path.join(_TOP, _CORPUS)) if _CORPUS
         else _TOP)
 HERE = os.path.dirname(os.path.abspath(__file__))
-UX = os.path.join(ROOT, "docs/user-experience")
-PR = os.path.join(ROOT, "docs/prds")
-PD = os.path.join(ROOT, "docs/product")
+# WHERE A CORPUS FOLDER LIVES IS RESOLVED AGAINST THE TREE BEING READ, NEVER SPELLED TWICE.
+#
+# On 2026-08-28 the vault was reorganised: `prds` and `business-rules` moved under
+# `docs/product/`, `adrs` and `sdds` under `docs/development/`. `MATRIX_BASE` still pins a
+# tree where all of them sit directly under `docs/`, so BOTH layouts are live at once — the
+# pinned replay reads the old one, an unpinned run reads the new one, and a hard-coded path
+# can only be right about one of them. That is exactly how this tool broke: `docs/prds` was
+# correct for the pinned corpus and named nothing in the working tree, so every command
+# raised `FileNotFoundError` before it read a single row.
+#
+# The KIND is the stable name — it is what `rows.tsv` cites, what `--selftest` compares on,
+# and what a reader says out loud. Only its container moved, so only the container is probed.
+CORPUS_CONTAINERS = ("docs/%s", "docs/product/%s", "docs/development/%s")
+
+# The EVIDENCE bodies move independently of the derived folders and have moved twice: the
+# research synthesis sat at `docs/product/` in the pinned tree and is at `docs/product/research/`
+# now, and it moved there DURING the repair of the previous move. Bodies are individual files
+# rather than folders, so they get their own candidate list; `%s` takes a name that may itself
+# carry a directory, which is how the gallery resolves.
+BODY_CONTAINERS = ("docs/user-experience/%s", "docs/product/research/%s", "docs/product/%s",
+                   "docs/prds/%s", "docs/product/prds/%s")
+
+
+def _first_existing(candidates, fallback):
+    """The first candidate that is really there, or `fallback` so a miss still names something.
+
+    Every caller already tolerates a path that is not there — `identity_index` returns {},
+    `names_it` greps a folder that matches nothing — which is what the partial probe trees in
+    `verify-dod.sh` need. Returning the canonical spelling rather than "" is what keeps a
+    FileNotFoundError pointing at a path a reader recognises.
+    """
+    for c in candidates:
+        if os.path.exists(os.path.join(ROOT, c)):
+            return c
+    return fallback
+
+
+def corpus_path(kind):
+    """Where one corpus FOLDER sits under ROOT, relative to it."""
+    return _first_existing([c % kind for c in CORPUS_CONTAINERS], "docs/%s" % kind)
+
+
+def body_path(name):
+    """Where one evidence BODY sits under ROOT, absolute."""
+    return os.path.join(ROOT, _first_existing([c % name for c in BODY_CONTAINERS],
+                                              "docs/user-experience/%s" % name))
+
 
 # Same ranges as candidates.sh and the plan's corpus.sh: the bodies NEST, so each is read once
 # over its own range and never through its container.
 BODIES = [
-    ("prd",        os.path.join(PR, "renovation-project-workspace.md"), 1, 1451),
-    ("prototype",  os.path.join(UX, "renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"), 1, 285),
-    ("uxd",        os.path.join(UX, "renovation-project-workspace-UXD.md"), 1, 682),
-    ("wireframes", os.path.join(UX, "renovation-project-workspace-wireframes.md"), 685, 1143),
-    ("canvas",     os.path.join(UX, "renovation-canvas-concept-interaction-design.md"), 1, 783),
-    ("research",   os.path.join(PD, "renovation-planner-user-research-synthesis.md"), 1, 1635),
-    ("jtbd",       os.path.join(UX, "renovation-planner-JTBD-research-backlog.md"), 1, 424),
-    ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
+    ("prd",        body_path("renovation-project-workspace.md"), 1, 1451),
+    ("prototype",  body_path("renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"), 1, 285),
+    ("uxd",        body_path("renovation-project-workspace-UXD.md"), 1, 682),
+    ("wireframes", body_path("renovation-project-workspace-wireframes.md"), 685, 1143),
+    ("canvas",     body_path("renovation-canvas-concept-interaction-design.md"), 1, 783),
+    ("research",   body_path("renovation-planner-user-research-synthesis.md"), 1, 1635),
+    ("jtbd",       body_path("renovation-planner-JTBD-research-backlog.md"), 1, 424),
+    ("gallery",    body_path("concepts/component-gallery.html"), 1, None),
 ]
 # A link from an evidence document BACK to a derived note is not the evidence naming the thing —
 # it is the evidence pointing AT it — so the anchor is stripped before the body is searched.
@@ -114,6 +158,30 @@ BODIES = [
 # on Markdown costs nothing: it supplies positions, never reconstructed content.
 DERIVED_FOLDERS = ("deliverables", "components", "entities", "requirements",
                    "actors", "business-rules", "adrs", "issues")
+
+
+def kind_of(path):
+    """The corpus kind a note path names, or "" — the folder HOLDING the file, not the route.
+
+    The kind is the segment immediately before the filename, and that is what makes this
+    survive a container move: `docs/business-rules/X.md` and `docs/product/business-rules/X.md`
+    are the same note under two layouts and both answer `business-rules`. Reading segment 0
+    after stripping a `docs/` prefix — what `is_backlink` did before — answers `product` for
+    the second and silently stops recognising it, which turns a back-link into surviving
+    anchor text and a reverse row into a false `present`.
+
+    It is deliberately route-insensitive, which is the property the old spelling had and this
+    one keeps: `../components/Toast.md` from `docs/user-experience/concepts/` really resolves
+    to a folder that does not exist, and is treated as a derived link anyway. Over-stripping a
+    link that means nothing costs nothing; under-stripping a real one costs a row.
+
+    One behaviour it does NOT keep, named because it is a change rather than an accident: a
+    route THROUGH a derived folder (`deliverables/nested/x.md`) is no longer a derived link.
+    The corpus is flat — 227 notes in eight folders, no subdirectories — so this names no
+    real path, and the case is in `SCOPE_CASES` so a corpus that grows one has to decide.
+    """
+    parts = [p for p in path.split("/") if p not in ("", ".")]
+    return parts[-2] if len(parts) >= 2 and parts[-2] in DERIVED_FOLDERS else ""
 
 
 def is_backlink(href):
@@ -168,10 +236,11 @@ def is_backlink(href):
     # The scheme test runs AFTER decoding as well as before, because decoding can produce one.
     if re.match(r"\w+:", h) or re.match(r"\w+:", p) or h.startswith("//") or p.startswith("//"):
         return False
+    # The leading `../` run and a `docs/` prefix used to be stripped here so that segment 0
+    # could be read as the folder. `kind_of` reads the segment before the FILENAME instead,
+    # which needs neither strip and is what survives the containers moving.
     p = posixpath.normpath(re.sub(r"^/", "", p))
-    p = re.sub(r"^(?:\.\./)+", "", p)
-    p = re.sub(r"^docs/", "", p)
-    return p.split("/")[0] in DERIVED_FOLDERS
+    return bool(kind_of(p))
 
 
 # The scope rule is a pure function, so it is checked against forms written out by hand from the
@@ -204,6 +273,9 @@ SCOPE_CASES = [
     ("//host/deliverables/x",                  False, "protocol-relative"),
     ("../tasks/05-canvas.md",                  False, "a folder that is not derived"),
     ("../deliverablesX/x.md",                  False, "a folder that merely starts the same"),
+    ("../../product/business-rules/A rule.md", True,  "a container the corpus gained on 2026-08-28"),
+    ("docs/development/adrs/0001-x.md",        True,  "a nested container, docs-prefixed"),
+    ("../deliverables/nested/x.md",            False, "a route THROUGH a derived folder is not a note in one"),
     ("",                                       False, "empty"),
     (None,                                     False, "absent"),
 ]
@@ -319,7 +391,8 @@ def singular(s):
 
 def identity_index(kind):
     """{normalised name: path} over one directory's note identities — filename stem and H1."""
-    out, d = {}, os.path.join(ROOT, "docs", kind)
+    out, rel = {}, corpus_path(kind)
+    d = os.path.join(ROOT, rel)
     if not os.path.isdir(d):
         return out
     for fn in sorted(os.listdir(d)):
@@ -333,7 +406,7 @@ def identity_index(kind):
                 break
         for n in names:
             if n:
-                out.setdefault(singular(n), "docs/%s/%s" % (kind, fn))
+                out.setdefault(singular(n), "%s/%s" % (rel, fn))
     return out
 
 
@@ -365,6 +438,22 @@ def annotation_stripped(subject):
     return bare if bare != subject else ""
 
 
+# WORD BOUNDARIES ARE `grep -w`, NOT `\b`, AND THAT IS A PORTABILITY FIX RATHER THAN A STYLE ONE.
+#
+# `\b` is undefined in POSIX ERE. GNU grep accepts it, and on the machine this matrix was
+# computed on it meant what it reads as — but `grep -E '\bBases?\b'` matches NOTHING under GNU
+# grep 3.0 in a locale that is neither unibyte nor UTF-8, which is the default on Windows. It does
+# not warn and it does not fail: it reports no match, so every affected row files the negative
+# state. That is 42 of the 678 named rows in `--selftest`, all of them `present` -> `retained`,
+# reported as a matrix that no longer reproduces rather than as a broken instrument — and the 636
+# that did reproduce are what made it look like drift instead of a dialect.
+#
+# `-w` is POSIX, is what these three patterns actually mean, and depends on neither the dialect
+# nor the locale. It bounds the WHOLE match, which is exactly what wrapping a pattern in `\b`
+# does. The table-cell pattern below keeps neither, because it anchors on `|` rather than on a
+# word and `-w` would have nothing to say about it.
+
+
 def names_it(subject, kind):
     """First note in `kind` that NAMES the subject, at word boundaries and plural-tolerant.
 
@@ -384,12 +473,12 @@ def names_it(subject, kind):
     """
     bare = annotation_stripped(subject)
     if not bare:
-        flag, pat = "-rliE", r"\b%ss?\b" % re.escape(singular(subject))
+        flag, pat = "-rliEw", r"%ss?" % re.escape(singular(subject))
     elif len(bare.split()) >= 2:
-        flag, pat = "-rlE", r"\b%ss?\b" % re.escape(singular(bare))
+        flag, pat = "-rlEw", r"%ss?" % re.escape(singular(bare))
     else:
         flag, pat = "-rlE", r"^\| *\*{0,2}%ss?\*{0,2} *\|" % re.escape(singular(bare))
-    r = subprocess.run(["grep", flag, "--", pat, "docs/" + kind],
+    r = subprocess.run(["grep", flag, "--", pat, corpus_path(kind)],
                        cwd=ROOT, capture_output=True, text=True)
     out = [x for x in r.stdout.split("\n") if x]
     return out[0] if out else ""
@@ -410,7 +499,10 @@ def forward(target, subject):
     # Resolve through the alias table ONLY inside the row's own target. Taking the table's
     # note path unconditionally is how 18 rows came back `present` on a note outside the type
     # they were looking for, which is the defect the target exists to prevent.
-    if note and any(note.startswith("docs/" + k + "/") for k in kinds):
+    # Compared by KIND, not by prefix: `aliases.tsv` is frozen in the pre-2026-08-28 spelling,
+    # so `note.startswith("docs/" + k + "/")` stops matching the moment a kind gains a
+    # container, and stops matching SILENTLY — the row just files `absent`.
+    if note and kind_of(note) in kinds:
         return "present", note
     return "absent", "-"
 
@@ -422,8 +514,8 @@ def bodies_naming(name, view):
     a name inside a longer word as a mention. Three reverse rows rested on one — `Order` on
     the prototype's `borders`, `Site` on jtbd's `prerequisite`, `Layer` on research's `layered`.
     """
-    pat = r"\b%ss?\b" % re.escape(singular(name))
-    r = subprocess.run(["grep", "-rliE", "--", pat, view], capture_output=True, text=True)
+    pat = r"%ss?" % re.escape(singular(name))
+    r = subprocess.run(["grep", "-rliEw", "--", pat, view], capture_output=True, text=True)
     return sorted(os.path.basename(x)[:-4] for x in r.stdout.split("\n") if x)
 
 
@@ -458,8 +550,113 @@ def reverse(subject, view):
     return "retained", "-"
 
 
+def same_note(a, b):
+    """Two note paths naming the same note, across a container move.
+
+    `--selftest` compares the citation it reproduces against the one `rows.tsv` committed, and
+    the committed spelling predates the 2026-08-28 reorganisation: the matrix cites
+    `docs/business-rules/X.md` for a note the working tree now holds at
+    `docs/product/business-rules/X.md`. The KIND and the FILENAME are what identify a note —
+    the container is not — so comparing raw strings would report 30 stale citations for a move
+    that changed no answer, and a reader chasing them would find 30 identical notes.
+
+    It does not weaken the check it replaces. A citation that names a DIFFERENT note still
+    differs in the kind or in the filename, which is the whole of what the stale-citation
+    check was built to catch: the 36 rows that kept `present` while citing the
+    incidental-prose note the old substring search had found differ in both.
+    """
+    return (kind_of(a), posixpath.basename(a)) == (kind_of(b), posixpath.basename(b))
+
+
 def main():
-    args = [a for a in sys.argv[1:] if a != "--selftest"]
+    args = [a for a in sys.argv[1:]
+            if a not in ("--selftest", "--corpus-dirs", "--body-paths",
+                            "--corpus-pathspecs", "--moves")]
+
+    # THE MACHINE-READABLE DOORS EMIT LF, NEVER CRLF.
+    #
+    # `print` on Windows writes `\r\n` whatever the stream is, so every line these three modes
+    # hand a shell arrived with a trailing carriage return. It is invisible in every way that
+    # matters: `echo` shows nothing, a diff shows nothing, and git ACCEPTS `docs/components\r`
+    # as a pathspec and simply matches no file — so the freeze gate reported a clean corpus over
+    # 21 edited notes, and `candidates.sh` searched eight directories that do not exist and
+    # reported every candidate set as empty. Both failed by finding nothing, which is the failure
+    # mode this whole harness is built to distrust.
+    #
+    # Fixed at the SOURCE rather than with a `tr -d` at each of the four call sites: a consumer
+    # that forgets the strip is a consumer that silently measures nothing.
+    if any(a in sys.argv for a in ("--corpus-dirs", "--body-paths", "--corpus-pathspecs",
+                                  "--moves")):
+        sys.stdout.reconfigure(newline="\n")
+
+    # `candidates.sh` and `verify-dod.sh` need the same answer and are shell. They ASK for it
+    # rather than restating the container list, for the reason the back-link contract gate is
+    # already imported from this module: a consumer holding its own copy of the thing it reads
+    # is a copy that drifts, and a drifted corpus path fails by finding nothing rather than by
+    # erroring. `prds` is included because it is a corpus folder that moved too, even though it
+    # is evidence rather than a derived kind and so is not in `DERIVED_FOLDERS`.
+    if "--corpus-dirs" in sys.argv:
+        for kind in DERIVED_FOLDERS + ("prds",):
+            print("%s\t%s" % (kind, corpus_path(kind)))
+        sys.exit(0)
+
+    # Every place a corpus folder could be, existing or not — for a git PATHSPEC rather than a
+    # read. A freeze gate asking whether the derived corpus changed has to watch both ends of a
+    # move: the resolved path alone sees the arriving files and is blind to the departing ones,
+    # so it would report half of a reorganisation and call the corpus unchanged. git tolerates a
+    # pathspec that matches nothing, which is what makes listing all of them the cheap answer.
+    if "--corpus-pathspecs" in sys.argv:
+        for kind in DERIVED_FOLDERS:
+            for c in CORPUS_CONTAINERS:
+                print(c % kind)
+        sys.exit(0)
+
+    if "--body-paths" in sys.argv:
+        for name, path, _a, _b in BODIES:
+            print("%s\t%s" % (name, path.replace(os.sep, "/")))
+        sys.exit(0)
+
+    # WHERE A FROZEN CITATION'S NOTE IS NOW - derived, never hand-written.
+    #
+    # The matrix cites the corpus AS IT STOOD at `MATRIX_BASE`, and those citations are CORRECT
+    # for that tree: the pinned corpus really does hold `docs/business-rules/X.md`. Rewriting
+    # them to today's layout would make `rows.tsv` cite paths absent from its own corpus, and
+    # `same_note` would keep every check green while it happened - a change the harness cannot
+    # refuse that makes the artifact less true. So the citations stay, and this door answers the
+    # one question a reader actually has: the note is not at the path I was given, where is it?
+    #
+    # Resolved against the WORKING TREE deliberately, and against `_TOP` rather than `ROOT`:
+    # "where is this note now" has one answer, and `RP_CORPUS_ROOT` pointing at the pinned tree
+    # would make every citation resolve and the mapping come back empty - failing by finding
+    # nothing, which is the shape this harness distrusts everywhere else.
+    #
+    # It emits `unresolved` rather than omitting a note it cannot place. A note whose FILENAME
+    # changed is not a container move and `same_note` cannot follow it; dropping that row would
+    # turn the one case a reader most needs help with into a silent absence. `ambiguous` is
+    # separate from both: two notes of one kind sharing a basename is a mapping that must not
+    # be believed, and it is reported rather than resolved by picking the first.
+    if "--moves" in sys.argv:
+        live = []
+        for dirp, _dirs, files in os.walk(os.path.join(_TOP, "docs")):
+            for fn in files:
+                if fn.endswith(".md"):
+                    live.append(os.path.relpath(os.path.join(dirp, fn), _TOP)
+                                .replace(os.sep, "/"))
+        cited = set()
+        for fn, col in (("rows.tsv", 4), ("findings.tsv", 5)):
+            for r in [l.rstrip("\n").split("\t") for l in
+                      io.open(os.path.join(HERE, fn), encoding="utf-8")][1:]:
+                if len(r) > col and r[col].startswith("docs/"):
+                    cited.add(r[col].split("::", 1)[0])
+        print("cited_path\tcurrent_path\tstatus")
+        for c in sorted(cited):
+            if os.path.exists(os.path.join(_TOP, c)):
+                continue
+            m = sorted(q for q in live if same_note(c, q))
+            print("%s\t%s\t%s" % (c, m[0] if len(m) == 1 else "-",
+                                  "moved" if len(m) == 1 else
+                                  "ambiguous" if m else "unresolved"))
+        sys.exit(0)
 
     if "--selftest" in sys.argv:
         rows = [l.rstrip("\n").split("\t") for l in
@@ -486,7 +683,7 @@ def main():
                     # only the state reports 686/686 over all of them, which is worse than no
                     # check — it certifies the half it can see and is silent about the half a
                     # reader actually follows.
-                    if r[1] == "forward" and m != r[7]:
+                    if r[1] == "forward" and not same_note(m, r[7]):
                         stale += 1
                         print("  STALE CITATION %-7s %-28s committed=%-38s lookup=%s"
                               % (r[0], r[3][:28], r[7][:38], m))

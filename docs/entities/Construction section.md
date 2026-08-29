@@ -63,5 +63,5 @@ dates in frontmatter, so [[Bases]] can group by any of them.
 ## Sources
 
 PRD §8 · PRD §10 · PRD §16 · PRD §36 · PRD §37 · PRD §58 · PRD §59 · PRD §60 · PRD §80, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -181,12 +181,12 @@ settled while four rules had nowhere to be checked. That is the honest state of 
 rather than an omission nobody can see.
 
 **Two suffix conventions are in use, and this is the note that admits it.** The received
-documents landed as `docs/prds/obsidian-renovation-planner.md` and
-`docs/sdds/obsidian-renovation-planner-SDD.md`: one bare, one suffixed. The folder already
+documents landed as `docs/product/prds/obsidian-renovation-planner.md` and
+`docs/development/sdds/obsidian-renovation-planner-SDD.md`: one bare, one suffixed. The folder already
 carries the kind, so the bare form is the convention going forward and a new received
 document takes it. The existing SDD keeps its name rather than being renamed to match —
 a received document's basename is its address (see **Conventions** below), every citation
-in `docs/tasks/` and `docs/adrs/` resolves against it, and churning a filename to win a
+in `docs/tasks/` and `docs/development/adrs/` resolves against it, and churning a filename to win a
 cosmetic consistency is a worse trade than one sentence recording the exception.
 
 **`adrs/` are outside for a chosen reason**: an ADR says what this codebase decided, what it

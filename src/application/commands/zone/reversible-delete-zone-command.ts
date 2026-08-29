@@ -57,10 +57,12 @@ function nothingToUndo(): ReferenceError {
  * deletion has no "delete the opposite thing" replay, so the snapshot is restored
  * directly through `restoreZone` — `zones.save(zone, 'absent')` plus the ledger record,
  * shared with the create adapter's redo, which needs the identical half. That publishes nothing — a restore is
- * not a creation, and announcing it as one would drive every `ZoneCreated` subscriber
- * (slice 13's save tracking among them) with an event describing something that did not
- * happen; the editor refresh (this slice's post-command decorator) re-reads state instead
- * of listening for events. `'absent'` because undo DELETED the note at this ID: if a note
+ * not a creation, and announcing it as one would drive every `ZoneCreated` subscriber with
+ * an event describing something that did not happen. This sentence named slice 13's save
+ * tracking as one of those subscribers; slice 13 landed with a decorator over the command
+ * DISPATCHER that subscribes to nothing, so the example is WITHDRAWN rather than left
+ * standing — the argument for restoring silently does not rest on it. The editor refresh
+ * (this slice's post-command decorator) re-reads state instead of listening for events. `'absent'` because undo DELETED the note at this ID: if a note
  * is there now, it is somebody else's, and overwriting it is not an undo.
  *
  * Restoring the same ID rather than minting a fresh one relies on `save()` being an

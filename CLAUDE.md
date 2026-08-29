@@ -24,10 +24,16 @@ cost engine behind them, the reference-integrity engine that guards deleting eit
 a link, and the recalculation cascade that keeps a figure honest when its inputs move.
 Everything past this point is feature work on a proven template. Slice 11 has since closed
 the first half of the cross-cutting pair — the Error Boundary, the logging policy,
-diagnostics and the data-safety rules, and slice 13 has closed the second half — the notice
-queue and the save-state indicator, the shared vocabulary any view or command reports
-through. What is NOT done is slice 12 (the fixture vaults and the architecture-enforcement
-harness) and every surface slices 16 and 17 name.
+diagnostics and the data-safety rules. **The second half of that pair is slice 12, and slice
+12 is still not done**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
+"Slices 11 and 12: the two cross-cutting slices", so those two are the pair and nothing else
+can be a half of it. An earlier draft of this passage gave that half to slice 13 in the same
+breath as it listed slice 12 as outstanding — a sentence contradicting itself two clauses
+later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17, where 14 and 15 had already
+landed), and what it closed there is the toast and the save-state badge — the notice queue and
+the save-state indicator, the surface any view or command reports a transient message or a
+save state through. What is NOT done is slice 12 (the fixture vaults and the
+architecture-enforcement harness) and every surface slices 16 and 17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -624,8 +630,12 @@ on the `(severity, message)` pair into a `(×N)` suffix, a three-slot visible ca
 promotion into a freed slot, per-severity auto-dismiss, and hover/focus pause — and
 `notify.ts` is the only module that binds that port to Obsidian's own `Notice`, which is what
 keeps "one notice door" a fact about the import graph rather than a sentence —
-`grep -rn "new Notice" src/` prints two lines, both in `notify.ts`, and one of them is a
-comment. `NOTICE_TEXT_BAN` also watches the constructor and not only the wrappers, so
+`grep -rn "new Notice" src/` prints THREE lines: the constructor call in `notify.ts`, a
+comment in `notify.ts` quoting it, and a comment in `queue.ts` naming the binding. One
+construction site, three mentions. An earlier draft of this sentence said "two lines, both in
+`notify.ts`", which was written from memory ten commits after `queue.ts` gained its line —
+this file's own "a docblock that says 'the only place X' gets a `grep` in the SAME edit",
+broken in the file that states it. `NOTICE_TEXT_BAN` also watches the constructor and not only the wrappers, so
 bypassing them is not an escape from the TEXT rule either. Four severities
 with a translated label beside the colour (`AUTO_DISMISS_MS`: 4000 for `success`, 6000 for
 `info`, `null` for `warning` and `error`, so the two that exist to be noticed cannot expire).
@@ -693,6 +703,50 @@ it:
   `ValidationError`s and both mean the command reached the repository and the edit was
   refused, so `affectsSaveState` carves them back out from `WRITE_BOUNDARY_CODES` — the one
   place those two codes are spelled — rather than from a second copy.
+- **"Pre-write" is a MEASUREMENT, and the first version of `affectsSaveState` measured
+  nothing.** It read `error.category !== 'Validation'` under a docblock asserting that a field
+  commit failing a domain rule resolves a `ValidationError`. `grep -rn "'Domain'" src/` prints
+  nine lines outside that file, seven of them raise sites, and every one is PRE-write:
+  `SetRequirementQuantityOverride` refuses a negative quantity as `Domain` and re-wraps the
+  entity's own `Validation` errors as `Domain` too, all of it before `requirements.save`. The
+  Inspector's override fields are `type="text"`, so `-5` was one keystroke from a persistent
+  "Save error" badge about data nothing had touched — the exact failure the predicate exists to
+  prevent, shipped by the predicate. `Domain` joins `Validation` in the pre-write set, with the
+  write-boundary carve-out applied to both. Two things are written to the check rather than
+  past it. The widening UNDER-reports a `Domain` or `Validation` error raised after a
+  successful write, which is the unsafe direction, and the grep found no such site — "found
+  none", not "none exists". And the deeper fix is at the raise sites, which LOSE information by
+  re-labelling `Validation` as `Domain`: that is slice 17's territory, because changing a
+  category there also changes the sentence `toUserMessage` resolves for it.
+- **A slot released by INFERENCE is a slot released on an assumption about Obsidian.** The
+  dismiss button called `notice.hide()` and then swept, and the sweep asks
+  `containerEl.isConnected` — still true for as long as an animated `Notice` takes to detach,
+  if it detaches after its transition rather than inside `hide()`. This repository's fake
+  detaches synchronously, so no test here could ever see it; the symptom in a vault is the
+  fourth held notice not appearing when the user dismisses one with its `×`. The path that
+  KNOWS the notice is going latches `handle.live` to false instead — deterministic, and
+  independent of hide timing either way — while `isConnected` stays the authority for every
+  dismissal we did NOT perform, which is the mechanism's whole point. The fake's "what is NOT
+  modelled" list carries hide timing now, as an assumption rather than as a testability
+  requirement.
+- **Recorded and deliberately NOT taken: reading `handle.live` from `messageEl`.** `messageEl`
+  is the per-notice element under BOTH readings of Obsidian's typings, so reading liveness off
+  it makes a permanently wedged queue impossible at no cost — and moving the roles, the
+  severity class and the four hover listeners there too would make the whole host correct under
+  either reading, at the cost of shrinking the hover target from the notice to its message box.
+  It is a behaviour change to shipped code resting on an assumption about an API nothing here
+  can check, so it is written into step 3 of the manual case — the step that settles which
+  element `containerEl` IS — as the recommended remedy if that step answers unfavourably.
+- **The surface with the most new ARIA in this slice is the one surface no axe scan reaches.**
+  `tests/harness/accessibility.test.ts` scans `contentEl`; a `Notice` renders on
+  `document.body` under `.notice-container`. So the per-severity `role`/`aria-live` pair and
+  the dismiss control's accessible name are asserted one attribute at a time by jsdom and
+  graded by no accessibility instrument at all. `docs/components/Toast.md` predicted exactly
+  this in its own Open question 1 before the decision was taken, and now records it as the
+  settled price of using `Notice` — that file's Open question 1 is answered in writing there
+  rather than left standing against code that had already decided it. Widening the scan is not
+  the fix: whole-document scope pulls in the landmark rules that test's header records as out
+  of reach.
 - **Toast appearance is verifiable in a real vault and NOWHERE else.**
   `tests/harness/obsidian.css` carries no `.notice` and no `.notice-container` rule at all, so
   neither `npm run harness` nor `npm run harness-shot` can show what one looks like: a notice
@@ -922,8 +976,11 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   scoping is not why it is missed today. The landmark rules (`region`, `document-title`,
   `html-has-lang`, …) are the ones actually scope-dependent, needing whole-page context
   this file cannot give them because it scans `contentEl`, the plugin's own subtree, not
-  the whole document. A live vault (`npm run test-build`) remains the only place
-  appearance is verified.
+  the whole document. **That same scope is why no notice is graded here**: an Obsidian
+  `Notice` renders on `document.body` under `.notice-container`, so slice 13's per-severity
+  `role`/`aria-live` pair and its dismiss control's accessible name — the most new ARIA any
+  one slice has added — sit outside every scan this file performs. A live vault
+  (`npm run test-build`) remains the only place appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 

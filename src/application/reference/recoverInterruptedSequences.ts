@@ -99,10 +99,19 @@ export async function recoverInterruptedSequences(deps: RecoveryDeps): Promise<v
 		// the function: `RenovationPlannerPlugin` is one caller today and a second would
 		// have to remember a `.catch` that nothing checks.
 		//
-		// Swallowed on purpose, and only here: this is a background repair nobody asked
-		// for, its every conditional refusal is already surfaced as its own log line above,
-		// and there is no surface to tell the user on (slice 13's notifications do not
-		// exist). What must not happen is silence, which is what this line prevents.
+		// Swallowed on purpose, and only here. **The reason USED to be that there was no
+		// surface to tell the user on; slice 13 built one, and this comment was swept in the
+		// same pass that swept `StatusBar.vue` and `styles/editor.css`.** Three reasons
+		// stand in its place, and the first is structural rather than a judgement: this
+		// module is in `application/`, which may not import `presentation/` — so reaching
+		// `notifyError` from here is a layer violation `npm run lint` refuses, and routing
+		// it would mean a port and a wiring decision rather than a call. Second, this is a
+		// background repair nobody asked for, running at LOAD: a toast about a marker the
+		// user has never heard of arrives before they have done anything, and names nothing
+		// they can act on. Third, WHICH failures get a toast is slice 17's table, and
+		// `docs/components/Toast.md`'s own contract refuses a component that routes to
+		// itself — this line choosing a surface ahead of that table would be exactly that.
+		// What must not happen is silence, which is what this line prevents.
 		deps.logger.error('sequence.recovery.failed', { cause });
 	}
 }

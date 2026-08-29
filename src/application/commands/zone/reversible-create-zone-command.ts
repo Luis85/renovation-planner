@@ -71,9 +71,11 @@ function nothingToUndo(): ReferenceError {
  * adapter argues at length that a restore is not a creation. So create → undo → redo →
  * undo emits one create and two deletes. Nothing today counts them: the editor refreshes
  * off the history, not off events, and `planChangeSource` only re-reads. Slice 10's
- * recalculation and slice 13's save tracking are the first subscribers that would care,
- * and what an undo/redo pair OUGHT to announce is their decision to make, not a detail to
- * settle silently here.
+ * recalculation is the kind of subscriber that would care. **This sentence named slice 13's
+ * save tracking as a second one, and slice 13 has since landed and disproved that half**:
+ * `withSaveStateTracking` decorates the command DISPATCHER and subscribes to no event at
+ * all. What an undo/redo pair OUGHT to announce is still a real subscriber's decision to
+ * make, not a detail to settle silently here.
  */
 export class ReversibleCreateZoneCommand {
 	private snapshot: Loaded<Zone> | null = null;

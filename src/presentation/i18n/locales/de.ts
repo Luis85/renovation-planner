@@ -188,4 +188,5 @@ export const de: Partial<Record<StringKey, string>> = {
 	'project.empty-name': 'Ein Projekt braucht einen Namen.',
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
+	'project.invalid-date': 'Geben Sie ein echtes Kalenderdatum ein.',
 };

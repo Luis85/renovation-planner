@@ -43,6 +43,50 @@ function negativeAmount(field: string, value: Money | null | undefined): Validat
 }
 
 /**
+ * A `Date` that names a real instant, and this is the boundary that refuses one that does
+ * not. `new Date('nonsense')` is an ordinary `Date` object as far as the type system is
+ * concerned — truthy, assignable to `CreateProjectProps['start']` — whose `getTime()` is
+ * `NaN`, and every comparison against `NaN` is false, so the `target-before-start` rule
+ * below waves one through while APPEARING to have checked it.
+ *
+ * It has to be refused HERE rather than survived downstream, because `toISOString()` on
+ * one throws a `RangeError` rather than returning anything: since design slice 16 persists
+ * both dates, `projectMapper`'s `toDateOnly` is on that path, and a throw there is mapped
+ * as a vault fault — the user is told the note could not be written when the truth is that
+ * the date was never a date. The private constructor makes this the one place every
+ * `Project` passes, so the mapper needs no second guard and deliberately has none.
+ *
+ * One code with the field NAMED in the message, exactly as `negativeAmount` above: two
+ * codes would read as two rules.
+ */
+function invalidDate(field: string, value: Date | null | undefined): ValidationError | null {
+	if (!value || Number.isFinite(value.getTime())) return null;
+	return projectError('invalid-date', `A project ${field} must be a real date.`);
+}
+
+/**
+ * Every rule about the date PAIR, in the one order they can be asked in — which is the
+ * reason they are one function rather than two checks standing beside each other in
+ * `create`. The ordering comparison is only meaningful once both dates are real, and it
+ * FAILS OPEN rather than throwing when they are not, so a version that ran it first would
+ * accept the pair and report nothing. Separated, that dependency is a fact about the line
+ * order somebody has to keep noticing; together, it is the shape of the function.
+ */
+function invalidDates(props: CreateProjectProps): ValidationError | null {
+	const unreal =
+		invalidDate('start', props.start) ?? invalidDate('targetCompletion', props.targetCompletion);
+	if (unreal) return unreal;
+	if (
+		props.start &&
+		props.targetCompletion &&
+		props.targetCompletion.getTime() < props.start.getTime()
+	) {
+		return projectError('target-before-start', 'targetCompletion must be on or after start.');
+	}
+	return null;
+}
+
+/**
  * The root aggregate (PRD §8). Immutable: a mutation produces a new instance through a
  * factory or `with*` method that re-validates — nothing mutates one in place. "Linked
  * plans" is deliberately NOT stored here; it is resolved by querying
@@ -94,14 +138,9 @@ export class Project {
 		if (negative) {
 			return err(negative);
 		}
-		if (
-			props.start &&
-			props.targetCompletion &&
-			props.targetCompletion.getTime() < props.start.getTime()
-		) {
-			return err(
-				projectError('target-before-start', 'targetCompletion must be on or after start.'),
-			);
+		const dates = invalidDates(props);
+		if (dates) {
+			return err(dates);
 		}
 		return ok(
 			new Project({

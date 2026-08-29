@@ -116,6 +116,7 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['project.empty-name', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.unknown-status', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.target-before-start', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
+	['project.invalid-date', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 ];
 
 describe("design slice 10's coded refusals", () => {

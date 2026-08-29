@@ -38,6 +38,9 @@ const MAP: FieldErrorMap<QuantityInput> = { 'requirement.negative-quantity': 'qu
 const say = (error: AppError): string => `copy for ${error.code}`;
 const noop = (): void => undefined;
 
+/** The one field-level rule every `validate` case in this file drives. */
+const negative = (value: number): string | null => (value < 0 ? 'must be zero or more' : null);
+
 function validation(code: string): AppError {
 	return { category: 'Validation', code, message: 'developer english' };
 }
@@ -47,8 +50,18 @@ function validation(code: string): AppError {
  * second form is what a case needs when it has to hold a write OPEN and act while it is in
  * flight, and taking both here is what keeps such a case from hand-building a twelfth copy
  * of this options object just to swap one member.
+ *
+ * `validate` is here for the same reason and arrived the same way: two cases had already
+ * hand-built that copy to swap this ONE member, and the third — a queued draft whose refusal
+ * must stay unpublished — is what made a parameter cheaper than a fourth transcription. It
+ * is optional because most cases have no field-level rule at all, and `useFieldCommit`
+ * treats an absent one as "nothing to refuse".
  */
-function harness(outcome: Result<void, AppError> | Run, canonical = ref(10)) {
+function harness(
+	outcome: Result<void, AppError> | Run,
+	canonical = ref(10),
+	validate?: (value: number) => string | null,
+) {
 	const dispatch: Run = typeof outcome === 'function' ? outcome : () => Promise.resolve(outcome);
 	const run = vi.fn<Run>(dispatch);
 	const notify = vi.fn<Notify>();
@@ -76,6 +89,7 @@ function harness(outcome: Result<void, AppError> | Run, canonical = ref(10)) {
 		toUserMessage: say,
 		notify,
 		logger,
+		validate,
 	});
 	return { field, run, canonical, notify, logger, built };
 }
@@ -284,22 +298,7 @@ describe('useFieldCommit', () => {
 	it('refuses a draft it cannot even turn into a command, dispatching nothing', async () => {
 		// `validate` is this field's own guard for a draft with no command to build at all —
 		// distinct from a routed `AppError`, since nothing was ever dispatched to produce one.
-		const run = vi.fn<Run>(() => Promise.resolve(ok(undefined)));
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-			validate: (value) => (value < 0 ? 'must be zero or more' : null),
-		});
+		const { field, run } = harness(ok(undefined), ref(10), negative);
 
 		field.onInput(-5);
 		await field.onCommit();
@@ -444,26 +443,13 @@ describe('useFieldCommit', () => {
 		// round must re-validate and refuse the malformed draft rather than ever dispatching
 		// it.
 		let settle: () => void = noop;
-		const run = vi.fn<Run>(
+		const { field, run } = harness(
 			() => new Promise<Result<void, AppError>>((resolve) => {
 				settle = () => { resolve(ok(undefined)); };
 			}),
+			ref(10),
+			negative,
 		);
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-			validate: (value) => (value < 0 ? 'must be zero or more' : null),
-		});
 
 		field.onInput(5);
 		const first = field.onCommit();
@@ -478,6 +464,46 @@ describe('useFieldCommit', () => {
 		expect(run).toHaveBeenCalledTimes(1);
 		expect(field.error.value).toBe('must be zero or more');
 		expect(field.draft.value).toBe(-3);
+		expect(field.pending.value).toBe(false);
+	});
+
+	it('publishes no validation error for a queued draft the user has already replaced', async () => {
+		// The staleness rule `dispatchOnce` applies to a ROUTED error applies just as much to
+		// this field's OWN refusal, and for the identical reason it states: a message about a
+		// value the user has already replaced tells them their current text is wrong when that
+		// text has never been checked at all. The case above proves the coalesced round
+		// re-validates the queued draft and refuses to dispatch it, which is right and stays
+		// right; this one is about what it may then SAY.
+		//
+		// Commit a valid value (the write is held open), blur an invalid one to QUEUE it, then
+		// type a VALID third value without blurring. `onInput` has already cleared the error for
+		// that third value; the settling round must not put one back about the second.
+		let settle: () => void = noop;
+		const { field, run, built } = harness(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				settle = () => { resolve(ok(undefined)); };
+			}),
+			ref(10),
+			negative,
+		);
+
+		field.onInput(5);
+		const first = field.onCommit();
+		field.onInput(-3);
+		void field.onCommit();
+		// Typed, never committed — and valid, so there is nothing here to refuse either.
+		field.onInput(7);
+
+		settle();
+		await first;
+		await flushPromises();
+
+		// Unchanged from the case above: the queued draft is still refused rather than sent.
+		expect(run).toHaveBeenCalledTimes(1);
+		expect(built).toEqual([5]);
+		// The half this case exists for.
+		expect(field.error.value).toBeNull();
+		expect(field.draft.value).toBe(7);
 		expect(field.pending.value).toBe(false);
 	});
 

@@ -77,6 +77,7 @@ const NEW_PROJECT_ERRORS: FieldErrorMap<CreateProjectInput> = {
 	'project.empty-name': 'name',
 	'project.unknown-status': 'status',
 	'project.target-before-start': ['start', 'targetCompletion'],
+	'project.invalid-date': ['start', 'targetCompletion'],
 };
 
 const INITIAL: CreateProjectInput = {

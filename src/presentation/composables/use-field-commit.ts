@@ -279,7 +279,16 @@ export function useFieldCommit<T, TInput>(options: {
 			if (invalid !== null) {
 				// This field's own refusal: no command to produce it, and no `AppError` for
 				// `routeError` to place.
-				error.value = invalid;
+				//
+				// Published under the SAME staleness rule `dispatchOnce` applies to a routed one,
+				// and by the same wrapper identity, because the argument for it does not depend on
+				// where the message came from: a coalesced round validates a draft the gesture
+				// queued, and by the time it runs the user may have typed a different value that
+				// `onInput` has already cleared the error for. Assigning unconditionally put a
+				// refusal back under text it had never been asked about. Dropped rather than
+				// deferred: nothing was dispatched, so there is no outcome owed to anybody, and
+				// the value it is about is gone from the screen.
+				if (drafted.value === submitted) error.value = invalid;
 				return;
 			}
 			await dispatchOnce(submitted);

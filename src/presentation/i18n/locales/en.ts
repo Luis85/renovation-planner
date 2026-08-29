@@ -188,12 +188,22 @@ export const en = {
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is
 	// `error.code in en`, so a differently-spelled key would silently fall through to the
-	// Validation category sentence for all three. `project.negative-amount` has no entry: this
+	// Validation category sentence for all four. `project.negative-amount` has no entry: this
 	// form has no Money field, and the code is unroutable as things stand (shared by `budget`
 	// and `contingency`, with the field named only in the developer-English `message`).
+	//
+	// `project.invalid-date` DOES get one, and the difference from `negative-amount` is worth
+	// stating rather than looking like an inconsistency. That code can never be about anything
+	// this form renders; this one is about two fields it does render, and is merely improbable
+	// from them — Chromium sanitizes an `<input type="date">` to `''` or a valid date, so today
+	// only another caller of `CreateProjectCommand` can raise it. "No field to attach it to" is
+	// a property of the form; "no browser currently produces one" is a property of the host, and
+	// a missing entry does not degrade to silence, it degrades to the generic Validation
+	// sentence under a field the user can see.
 	'project.empty-name': 'A project needs a name.',
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
+	'project.invalid-date': 'Enter a real calendar date.',
 } as const;
 
 export type StringKey = keyof typeof en;

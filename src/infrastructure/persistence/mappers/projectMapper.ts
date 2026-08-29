@@ -24,6 +24,15 @@ import { parsePersisted } from './parse';
  * `Project.start`/`targetCompletion` on the wire: date-only, UTC, always — never a
  * timestamp, never local time. Declared once so both keys and both directions share one
  * rule rather than drifting a day apart from each other.
+ *
+ * `toDateOnly` guards nothing and must not: `toISOString()` throws a `RangeError` on an
+ * `Invalid Date`, and the reason it can never receive one is that `Project.create` refuses
+ * a non-finite date at the domain boundary and the constructor is private, so no other
+ * `Project` exists. A second guard here would be a second answer to the same question,
+ * and the one that answered `null` would silently drop a date rather than refuse it.
+ * `fromDateOnly` is safe for a different reason worth keeping distinct: `DATE_ONLY` in
+ * `projectFrontmatter.ts` refuses a date-shaped string the calendar does not hold and
+ * `.catch(null)`s it, so nothing that reaches here parses to `NaN`.
  */
 function toDateOnly(date: Date | null): string | null {
 	return date === null ? null : date.toISOString().slice(0, 10);

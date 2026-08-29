@@ -1416,6 +1416,24 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
+  **The browser is the pinned one or one you NAME, never one found lying around.**
+  `scripts/chromium.mjs` asks `playwright-core` where the revision this repository pins
+  would be and refuses to hunt a different build on disk when it is absent — a capture taken
+  with an unannounced substitute is a picture somebody then reasons about as if it were the
+  pinned browser's, which is a quieter problem than not capturing. The remedy it names,
+  `npx playwright install chromium`, is a developer's laptop's remedy and is exactly what a
+  container with its browsers baked in cannot do — so an error naming only that remedy is
+  how a capture check goes un-run and gets disclosed as outstanding, which is what happened
+  on the canvas-navigation branch. `RP_CHROMIUM_EXECUTABLE=/path/to/chrome` is the one door
+  out, and it differs from hunting in both halves: a person names the build, and the capture
+  prints that it is not the pinned one, so the caveat travels with the picture. What no gate
+  can check is whether the substitute renders like the pinned build; read those captures as
+  approximate. `tests/build/chromium.test.ts` drives all of it, half in a CHILD PROCESS
+  because `chromium.executablePath()` reads `PLAYWRIGHT_BROWSERS_PATH` at IMPORT and not at
+  call — its own first draft set that variable in `beforeEach`, was answered from the real
+  cache throughout, and planted an empty file called `chrome` in this machine's provisioned
+  Playwright directory, which every later case then read as an installed pinned build.
+
   **It has now caught ten defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
   pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,

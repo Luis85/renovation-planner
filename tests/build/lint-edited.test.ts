@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -66,16 +66,30 @@ const named = (command: string) =>
  */
 const plantedSfcs: string[] = [];
 
+/**
+ * Never reset, which is the point. Numbering from `plantedSfcs.length` restarted at 0 for
+ * every case, so the two SFC cases wrote the SAME path with different contents one after the
+ * other — and once, on this machine, the conforming case was answered with the offending
+ * template's finding: a stale read of a path a sibling case had just used. Observed once and
+ * not reproduced, so the mechanism is not pinned; a counter that never repeats a path removes
+ * the whole class rather than the instance.
+ */
+let planted = 0;
+
 const plantSfc = (contents: string) => {
-	const file = path.join(REPO, 'tests', 'harness', `lint-edited-probe-${plantedSfcs.length}.vue`);
+	const file = path.join(REPO, 'tests', 'harness', `lint-edited-probe-${(planted += 1)}.vue`);
 
 	plantedSfcs.push(file);
 	writeFileSync(file, contents);
 	return file;
 };
 
+/** Project roots planted for a case, removed whole in `afterEach` even when one throws. */
+const plantedRoots: string[] = [];
+
 afterEach(() => {
 	for (const file of plantedSfcs.splice(0)) rmSync(file, { force: true });
+	for (const root of plantedRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
 const plant = (contents: string) => {
@@ -83,6 +97,90 @@ const plant = (contents: string) => {
 
 	writeFileSync(file, contents);
 	return file;
+};
+
+/**
+ * This repository's own oxlint configuration, copied rather than approximated. What the
+ * fixtures below reproduce is `options.reportUnusedDisableDirectives` being ROOT-ONLY, so a
+ * hand-written stand-in omitting it would reproduce nothing — and one carrying that option
+ * and little else is refused by oxlint's parser outright for a different reason, measured. A
+ * real worktree's copy is byte-identical, which is the entire shape of the defect.
+ */
+const OXLINTRC = readFileSync(path.join(REPO, '.oxlintrc.json'), 'utf8');
+
+const trackRoot = (root: string) => {
+	plantedRoots.push(root);
+	return root;
+};
+
+/**
+ * A file inside a NESTED project root: a directory carrying its own `.oxlintrc.json` and its
+ * own `package.json` the way a git worktree does, and no `node_modules` at all.
+ *
+ * In a temp directory on purpose. What makes a config nested for oxlint is only that it is
+ * not the one at the working directory, and the hook's working directory is this repository's
+ * root whatever the file's path is — so the defect reproduces from anywhere, and a temp
+ * directory keeps a planted `package.json` out of a tree four gates walk.
+ *
+ * The missing `node_modules` is deliberate rather than incidental: it is the other half of
+ * the decision the script writes down. With no linters installed here, the hook can only
+ * answer at all by borrowing this repository's binaries while still RUNNING IN the planted
+ * root. A fixture that carried its own installation would prove the happy path and leave
+ * that fallback untested.
+ */
+const plantNestedRoot = (contents: string) => {
+	const root = trackRoot(mkdtempSync(path.join(tmpdir(), 'lint-edited-root-')));
+
+	mkdirSync(path.join(root, 'src'));
+	writeFileSync(path.join(root, '.oxlintrc.json'), OXLINTRC);
+	writeFileSync(path.join(root, 'package.json'), '{ "name": "planted-root" }\n');
+	writeFileSync(path.join(root, 'src', 'edited.ts'), contents);
+	return path.join(root, 'src', 'edited.ts');
+};
+
+/**
+ * An SFC inside a worktree-SHAPED root. Two things about the location are load-bearing.
+ *
+ * Under `.worktrees/` because that is what `eslint.config.mjs` ignores GLOBALLY: an SFC there
+ * can only be linted by a config other than this repository's root one, which is exactly the
+ * position a real worktree file is in. Anywhere else in the tree the root config would lint
+ * it and the case would prove nothing. `.worktrees/` is gitignored, so nothing planted here
+ * reaches a commit, and every gate already skips it — the same sentence `.gitignore` makes
+ * about a real worktree.
+ *
+ * Inside the repository rather than in a temp directory because the planted
+ * `eslint.config.mjs` names `eslint-plugin-vue`, and Node resolves that by walking UP from
+ * the config file: a root under `.worktrees/` finds this repository's installation, and a
+ * temp directory finds nothing.
+ */
+const plantWorktreeSfc = (contents: string) => {
+	const worktrees = path.join(REPO, '.worktrees');
+
+	mkdirSync(worktrees, { recursive: true });
+
+	const root = trackRoot(mkdtempSync(path.join(worktrees, 'lint-edited-')));
+
+	mkdirSync(path.join(root, 'src'));
+	writeFileSync(path.join(root, '.oxlintrc.json'), OXLINTRC);
+	writeFileSync(path.join(root, 'package.json'), '{ "name": "planted-worktree", "type": "module" }\n');
+	// Deliberately NOT a copy of this repository's ESLint config, which is the thing under
+	// test rather than a fixture. `vue/html-indent` is pinned to a tab because that is what
+	// the root config pins it to, so the offending template here is the same offending
+	// template the SFC cases above use.
+	writeFileSync(
+		path.join(root, 'eslint.config.mjs'),
+		[
+			"import pluginVue from 'eslint-plugin-vue';",
+			'',
+			'export default [',
+			"\t...pluginVue.configs['flat/recommended'],",
+			"\t{ files: ['**/*.vue'], rules: { 'vue/html-indent': ['error', 'tab'] } },",
+			'];',
+			'',
+		].join('\n'),
+	);
+	writeFileSync(path.join(root, 'src', 'Probe.vue'), contents);
+	return path.join(root, 'src', 'Probe.vue');
 };
 
 /**
@@ -160,6 +258,67 @@ describe('the edit-loop hook', () => {
 		const tabbed = '<template>\n\t<p>x</p>\n</template>\n';
 
 		expect(hook(edited(plantSfc(tabbed)))).toEqual({ code: 0, said: '' });
+	}, SFC_LINT_BUDGET);
+
+	/**
+	 * A file whose own project root is not the one this hook RUNS in — the shape every edit
+	 * inside a git worktree has, a worktree being a full checkout with its own
+	 * `.oxlintrc.json`, its own `eslint.config.mjs` and its own branch's rules.
+	 *
+	 * Measured before the repair: oxlint anchors "the root config" on its working directory,
+	 * so the planted copy was read as a NESTED one and `options.reportUnusedDisableDirectives`
+	 * — root-only — failed the whole run with "Failed to parse oxlint configuration file." on
+	 * STDOUT. The hook returns stdout as findings, so every edit inside a worktree was
+	 * answered with a tool error about the config and no file was ever linted.
+	 *
+	 * Silence alone is a weak assertion, since failing open produces exactly these two values,
+	 * which is why the case below plants a real offence in the same shape.
+	 */
+	it('says nothing about a clean edit inside a project root of its own', () => {
+		const { code, said } = hook(edited(plantNestedRoot('export const ok = 1;\n')));
+
+		expect({ code, said }).toEqual({ code: 0, said: '' });
+	});
+
+	// The other direction, and what makes the case above evidence of anything: a hook that had
+	// simply stopped running would be just as silent. This one has to come back with the
+	// finding, which it can only do by having linted the file in the planted root.
+	it('lints a file inside a project root of its own, rather than merely going quiet', () => {
+		const { code, said } = hook(edited(plantNestedRoot(OFFENCE)));
+
+		expect(said).toContain('no-dupe-keys');
+		expect(said).not.toContain('Failed to parse oxlint configuration file');
+		expect(code).toBe(2);
+	});
+
+	/**
+	 * The `.vue` half of the same shape, and the one with the worse failure mode: an SFC is the
+	 * one extension oxlint has no rules for at all, so ESLint going quiet about one is the
+	 * entire ruleset governing that file saying nothing.
+	 *
+	 * **Read carefully what this case is evidence of, because it is not the obvious thing.**
+	 * On the ESLint installed here it does NOT go red for silence: ESLint 10 resolves the
+	 * config file from the LINTED FILE's location, so a worktree's own `eslint.config.mjs` is
+	 * found and the root config's `.worktrees/**` ignore never gets a chance to apply.
+	 * Measured directly — an SFC planted under `.worktrees/` WITHOUT a local config is still
+	 * reported as ignored today, and the same SFC WITH one is linted. Under ESLint 9 the
+	 * lookup started at the working directory instead, the root config won, and an SFC edited
+	 * in a worktree came back clean from a hook that had never read it. So the first assertion
+	 * is a LOCK on a lookup rule that has already changed once, not a repair of something
+	 * broken now — and the fix makes it correct by construction rather than by that rule.
+	 *
+	 * The second assertion is what goes red on a revert: before the repair, oxlint's
+	 * nested-config failure was joined into the SAME findings string, so a worktree SFC was
+	 * answered with a config error alongside its Vue finding.
+	 */
+	it('lints an SFC in a worktree-shaped root against that root, with nothing else joined in', () => {
+		const spaced = '<template>\n  <p>x</p>\n</template>\n';
+
+		const { code, said } = hook(edited(plantWorktreeSfc(spaced)));
+
+		expect(said).toContain('vue/html-indent');
+		expect(said).not.toContain('Failed to parse oxlint configuration file');
+		expect(code).toBe(2);
 	}, SFC_LINT_BUDGET);
 
 	/**

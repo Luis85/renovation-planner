@@ -1184,8 +1184,30 @@ trigger for revisiting the mechanism; it is not a reason to describe this one as
 it is. (This paragraph exists because the first version of it claimed otherwise, and a
 review bot caught it against the reference in `.claude/skills/impeccable/`.)
 
-Three properties it is built to have, each with a test in `tests/build/lint-edited.test.ts`:
+Four properties it is built to have, each with a test in `tests/build/lint-edited.test.ts`:
 
+- **Each linter runs in the edited FILE's own project root**, which is not always the root the
+  hook itself runs in. A worktree is a full checkout carrying its own `.oxlintrc.json`, its own
+  `eslint.config.mjs`, its own `node_modules` and its own branch's rules, and until this was
+  fixed every edit inside one was answered with a tool error about the config and no file was
+  ever linted: oxlint anchors "the root config" on its working directory, so the worktree's
+  byte-identical copy was read as a NESTED one and `options.reportUnusedDisableDirectives` —
+  root-only — failed the whole run onto STDOUT, which this hook returns as findings. The root
+  is derived from the file by walking up to the nearest `.oxlintrc.json`/`package.json`, never
+  by matching the name `.worktrees`, and by a walk rather than `git rev-parse --show-toplevel`
+  because the two name the same directory and cost **0.22ms** against **61ms** — two thirds of
+  oxlint's whole answer. oxlint's `-c` and `--disable-nested-config` were both available and
+  are refused where the code is: either would lint a worktree file against the MAIN branch's
+  rules, which is this same bug with no error message on it. The binaries come from that root
+  when it has them and are borrowed from this one when it does not — the working directory is
+  what carries the rules, so a borrowed binary still reports about the right branch.
+  **Read the `.vue` half narrowly**: an SFC in a worktree is linted correctly today only
+  because ESLint 10 resolves the config file from the linted file's location — ESLint 9
+  resolved it from the working directory, found this repository's config, and `.worktrees/**`
+  in its global `ignores` meant an SFC came back silently clean from a hook that never read it.
+  The fix makes that correct by construction; the test is a LOCK on a lookup rule that has
+  changed once already, and what it catches TODAY is the oxlint noise that used to be joined
+  into the same findings string.
 - **It exits 2, not merely non-zero.** Neither code stops anything here, but 1 shows stderr
   to the USER and lets the agent carry on unaware, while 2 hands the findings over as a
   tool error the agent has to answer for. That is who gets told, not whether it happened.

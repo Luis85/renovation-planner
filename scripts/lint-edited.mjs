@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -49,6 +50,88 @@ const LINTED = /\.(?:ts|mts|cts|js|mjs|cjs|vue)$/;
  */
 const TELL_THE_AGENT = 2;
 
+/**
+ * The files that mark a directory as the root of a project a linter can be run in. Either one
+ * alone is enough: a git worktree is a full checkout and carries both, and asking for both
+ * would make the derivation fail on a tree that happens to be missing one.
+ */
+const ROOT_MARKERS = [".oxlintrc.json", "package.json"];
+
+/**
+ * The directory the linters should RUN IN for this file: its nearest ancestor that looks like
+ * a project root, or the working directory when no ancestor does.
+ *
+ * WHY THIS EXISTS. The hook's working directory is the MAIN repository root, but an edited
+ * file's path may point into a git worktree — this repository keeps them in `.worktrees/`,
+ * and a worktree is a FULL COPY carrying its own `.oxlintrc.json`, its own
+ * `eslint.config.mjs` and its own `node_modules`. Run from the main root, both linters
+ * answer about the wrong tree:
+ *
+ * - **oxlint** anchors "the root config" on its working directory, so the worktree's
+ *   byte-identical `.oxlintrc.json` is read as a NESTED one and
+ *   `options.reportUnusedDisableDirectives` — root-only — fails the whole run. That text
+ *   lands on STDOUT, so `run` returns it as findings and every edit inside a worktree was
+ *   answered with a tool error about the config, with no file ever linted. Measured.
+ * - **ESLint** ignores `.worktrees/**` globally (`eslint.config.mjs`), so the config that
+ *   governs a worktree SFC has to be the worktree's own. It is found today only because
+ *   ESLint 10 resolves the config file from the LINTED FILE's location; under ESLint 9 it
+ *   resolved from the working directory, found the main config, and an SFC edited in a
+ *   worktree came back silently clean from a hook that never read it. Setting the working
+ *   directory makes that correct by construction rather than by a lookup rule that has
+ *   already changed once.
+ *
+ * WHY NOT oxlint's config flags. `-c <config>` pinned to the main repository's file would
+ * lint a worktree against the WRONG BRANCH's rules, and `--disable-nested-config` does the
+ * same thing by making the main root's config the only one — a quieter version of this very
+ * bug, and one no error message would announce. The working directory is the only lever that
+ * gives each tree its own rules, which is what a preview of `npm run check` run IN that tree
+ * has to mean.
+ *
+ * WHY A WALK AND NOT `git rev-parse --show-toplevel`. Both name the same directory here;
+ * only the cost differs, and this sits on the edit loop's hot path in front of a ~90ms
+ * linter. Measured on this machine: the walk is **0.22ms** and the spawn **61ms** — two
+ * thirds of oxlint's whole answer, spent to learn what four `existsSync` calls already know.
+ *
+ * WHY NOT MATCH `.worktrees`. A directory name is a list of the places somebody thought of:
+ * it is wrong for a worktree placed anywhere else, and it says nothing about any other nested
+ * root. The marker files are the thing itself.
+ */
+const rootFor = (file) => {
+	let dir = path.dirname(path.resolve(file));
+
+	for (;;) {
+		if (ROOT_MARKERS.some((marker) => existsSync(path.join(dir, marker)))) return dir;
+
+		const parent = path.dirname(dir);
+
+		// No ancestor looks like a project. The working directory is what this hook used
+		// before any of this existed, so falling back to it changes nothing for a file
+		// outside any repository — and a linter that then cannot say anything useful about
+		// it already answers "" through `run`.
+		if (parent === dir) return process.cwd();
+		dir = parent;
+	}
+};
+
+/**
+ * A linter binary to run for `root`: the one installed THERE, or the hook's own when that
+ * tree has none.
+ *
+ * A worktree here has its own `node_modules` (verified), which is the case worth optimising
+ * for: it runs the versions that tree's `package.json` pins. One that does not — never
+ * installed, or half-deleted — falls back rather than failing open, and the choice is
+ * deliberate: the WORKING DIRECTORY is what carries the rules, so a borrowed binary still
+ * reads that tree's own config and reports about the right branch. Only the linter's version
+ * differs, which is a far smaller wrong answer than saying nothing at all. If even the
+ * fallback is missing, `run` answers "" and the hook stays silent — the fail-open rule,
+ * unchanged.
+ */
+const binaryIn = (root, ...segments) => {
+	const local = path.join(root, "node_modules", ...segments);
+
+	return existsSync(local) ? local : path.join(process.cwd(), "node_modules", ...segments);
+};
+
 const readStdin = async () => {
 	const chunks = [];
 
@@ -64,9 +147,9 @@ const readStdin = async () => {
  * than only to the hook as a whole. Two linters now, and a broken second one must not swallow
  * the first one's findings.
  */
-const run = (args) => {
+const run = (args, cwd) => {
 	try {
-		execFileSync(process.execPath, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+		execFileSync(process.execPath, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 		return "";
 	} catch (error) {
 		return String(error?.stdout ?? "").trim();
@@ -85,12 +168,15 @@ try {
 
 	if (typeof file !== "string" || !LINTED.test(file)) process.exit(0);
 
-	// Resolved against the working directory, which is the project root the hook runs in —
-	// the same rule every script here follows. `--no-error-on-unmatched-pattern` keeps an
-	// ignored path (a write into `.obsidian/` or `.claude/`) from being reported as a
-	// failure to lint anything.
-	const oxlint = path.join("node_modules", "oxlint", "bin", "oxlint");
-	const eslint = path.join("node_modules", "eslint", "bin", "eslint.js");
+	// Resolved against the EDITED FILE's own project root rather than against the working
+	// directory — see `rootFor` for the whole reason, which is that the file may live in a
+	// git worktree carrying its own linters, its own configuration and its own branch's
+	// rules. For every file in the main tree this is the working directory and nothing
+	// changes. `--no-error-on-unmatched-pattern` keeps an ignored path (a write into
+	// `.obsidian/` or `.claude/`) from being reported as a failure to lint anything.
+	const root = rootFor(file);
+	const oxlint = binaryIn(root, "oxlint", "bin", "oxlint");
+	const eslint = binaryIn(root, "eslint", "bin", "eslint.js");
 	// `--max-warnings=0` because the GATE uses it: a warning fails `npm run lint`, so a hook
 	// that stayed quiet about one would be telling the agent the file is clean when the thing
 	// it is a preview of would reject it.
@@ -99,7 +185,7 @@ try {
 		...(file.endsWith(".vue") ? [[eslint, "--no-error-on-unmatched-pattern", "--max-warnings=0", file]] : []),
 	];
 	const findings = runs
-		.map((args) => run(args))
+		.map((args) => run(args, root))
 		.filter(Boolean)
 		.join("\n");
 
